@@ -33,15 +33,11 @@ class ioControl extends GameTask {
 
 		const cp = [
 			//fontID,prompt	,charw, linew, location x,y,bgcolor, useutf
-			[80, 24,"std"	,false  ,8,16,160,  0,null], //0: bg_mainscreen printw, addch, move, clear
-			[80, 24,"std"	,false  ,8,16,160,  0,null], //1: sp_mainscreen printw, addch, move, clear
-			[80, 24,"stdbg"	,PTUB  ,8,16,160,  0,null], //2: fg_mainscreen printw, addch, move, clear
-			[80,  2,"std"	,false ,8,16,160,384,"rgb(128  0   0)"], //3:statusbar
-			[40, 12,"std_l"	,false ,8,16,640,416,"rgb( 64 64  64)",true], //4:equip/select
-			[74, 36,"std_l"	,PTMSG ,8,16, 48,416,"rgb(  0  0 100)",true], //5:msg
-			[64, 28,"std_l"	,false ,8,16,240, 48,"rgb(  0  0 144)",true], //6:window 
-			[32, 40,"small"	,PTUB  ,6, 8,760, 16,"rgb(  0 64  0/0.5)"],   //7:comment
-			[32, 50,"small"	,PTUB  ,6, 8,  8,  8,"rgb(  0 64  0/0.5)"],   //8:entitylist
+			[80, 24,"stdbg"	,PTUB  ,8,16,48 ,  0,null], //0: fg_mainscreen printw, addch, move, clear
+			[80,  3,"std"	,false ,8,16,64 ,384,"rgb(128  0   0)"], //1:statusbar
+			[84, 36,"std_l"	,PTMSG ,8,16,48 ,432,"rgb(  0  0 100)",true], //2:msg
+			[60, 24,"std_l"	,false ,8,16,480, 48,"rgb(  0  0 144)",true], //3:window 
+			[32, 40,"small"	,PTUB  ,6, 8,0, 16,"rgb(  0 64  0/0.5)"],   //4:comment
 		]
 
 		let cnsl = [];
@@ -119,17 +115,17 @@ class ioControl extends GameTask {
 		input.keylist = keylist;
 		this.input = input;
 		
-		const MSG = this.layout[5]
+		const MSG = this.layout[2]
 		if (this.msgCfullposition){
 			if (MSG.y > 0) 
 				MSG.y-= 16; 
 			else 
 				MSG.y = 0;
 		}else{
-			if (MSG.y <416 ) 
+			if (MSG.y < 432 ) 
 				MSG.y+= 16;
 			else 
-				MSG.y = 416;
+				MSG.y = 432;
 
 			//Hungup debug用
 			//this.resetWatchdog();
@@ -209,9 +205,8 @@ class ioControl extends GameTask {
 			for (let i in this.input.keylist){s += `${this.input.keylist[i]},`}
 			g.font["small"].putchr(s,0 , 600-8);
 		}
-		let subv = this.debugview;
-		//			 0:bg  1:sp  2:fg    3:st  4:eq  5:msg 6:window          7:comment       8:entity    
-		let dispf = [subv, subv, true, true, true, true, this.overlapview, this.debugview, this.debugview];
+		//			 0:bg  1:st 2:msg 3:window 4:comment    
+		let dispf = [true, true, true, this.overlapview, this.debugview];
 
 		for (let i in this.layout){
 			let d = this.layout[i];

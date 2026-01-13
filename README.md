@@ -65,7 +65,7 @@ cd NetHack-NetHack-3.7
 ## 📜 ライセンス
 
 - **NetHack**: [NetHack General Public License](https://www.nethack.org/common/license.html)
-- **WebUI Logic**: MIT License (推奨、変更可能)
+- **WebUI Logic**: MIT License
 
 ---
 Developed by [e3-sh](https://github.com/e3-sh)

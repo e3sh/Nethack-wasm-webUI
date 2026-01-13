@@ -304,10 +304,7 @@ function fook(type, args) {
             console.log("Not implemented");
             return 0;
 
-
         case "genl_putmixed":
-        // case "set_shim_font_name":
-        // case "shim_get_color_string":
         case "genl_outrip":
         case "genl_status_finish":
         case "genl_status_enablefield":

@@ -28,8 +28,8 @@ class sceneControl extends GameTask {
 			const r = new GameManager(g);// ,mode? "jp":"en"); 
 			g.rogue = r;
 
-			const wName = ["0:MAIN_BG", "1:MAIN", "2:MAIN_FG", "3:STATUS",
-				"4:EQUIP", "5:MESSAGE", "6:WINDOW", "7:COMMENT", "8:ENTITY"];
+			const wName = ["0:MAIN", "1:STATUS",
+				 "2:MESSAGE", "3:WINDOW", "4:COMMENT"];
 			for (let i in wName) {
 				//g.console[i].printw(`console:${wName[i]}`);
 				//g.console[i].insertln();

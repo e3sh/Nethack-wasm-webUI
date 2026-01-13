@@ -248,17 +248,32 @@ function UIManager(r, g) {
     };
 
     this.nhCurs = function (windowId, x, y) {
-        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
+        const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
         this.wmove(dsp, y, x);
     };
 
     this.nhPutStr = function (windowId, attr, text) {
-        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
+        const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
         if (windowId === 1) { // NHW_MESSAGE
             this.setDsp(dsp);
             this.msg(text);
         } else {
             this.waddstr(dsp, text);
+        }
+    };
+
+    let txtbuf = [];
+    this.nhPutbufClear = ()=> {  
+        txtbuf = [];
+    }   
+    this.nhPutbufAdd = (text)=> {
+        txtbuf.push(text);
+    };
+    this.nhPutbufDraw = (windowId)=> {
+        const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
+
+        for (let line in txtbuf) {
+            this.mvwaddch(dsp, Number(line), 0, txtbuf[line]);
         }
     };
 

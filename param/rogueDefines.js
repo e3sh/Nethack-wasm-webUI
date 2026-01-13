@@ -394,15 +394,11 @@ function rogueDefines(r){
         //EXTCHAR	extern char,
 
         //textFlameNumbers
-        DSP_MAIN_BG: 0,
-        DSP_MAIN:    1,
-        DSP_MAIN_FG: 2,
-        DSP_STATUS:  3,
-        DSP_EQUIP:   4,
-        DSP_MESSAGE: 5,
-        DSP_WINDOW:  6,
-        DSP_COMMENT: 7,
-        DSP_ENTITY:  8 ,
+        DSP_MAIN:    0,
+        DSP_STATUS:  1,
+        DSP_MESSAGE: 2,
+        DSP_WINDOW:  3,
+        DSP_COMMENT: 4,
 
         COLS:80,
         LINES:24,
