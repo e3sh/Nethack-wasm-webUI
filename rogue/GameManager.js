@@ -50,72 +50,108 @@ function GameManager(g) {
     // --- NetHack Wasm Integration ---
 
     this.pendingInputResolve = null;
+    this.menuBuffer = {}; // windowId -> items[]
 
     this.setupNethackGlobal = function () {
-        window.nethackGlobal = {
-            helpers: {
-                getPointerValue: function (name, ptr, type) {
-                    if (type === 'v') return null;
-                    if (type === 'i') return Module.getValue(ptr, 'i32');
-                    if (type === 's') return Module.UTF8ToString(ptr);
-                    if (type === 'b') return !!Module.getValue(ptr, 'i8');
-                    if (type === 'c' || type === '0') return String.fromCharCode(Module.getValue(ptr, 'i8'));
-                    if (type === '1') return Module.getValue(ptr, 'i16'); // coordxy
-                    if (type === 'p') return ptr;
-                    return ptr;
+        if (typeof window === 'undefined') return;
+        window.nethackGlobal = window.nethackGlobal || {};
+        window.nethackGlobal.helpers = window.nethackGlobal.helpers || {};
+
+        const helpers = window.nethackGlobal.helpers;
+
+        const makeSticky = (name, fn) => {
+            Object.defineProperty(helpers, name, {
+                get: function () { return fn; },
+                set: function (val) {
+                    // console.log(`GameManager: blocking attempt to overwrite helper ${name}`);
                 },
-                setPointerValue: function (name, ret_ptr, type, value) {
-                    if (!ret_ptr) return;
-                    if (type === 'i') Module.setValue(ret_ptr, value, 'i32');
-                    if (type === 'b') Module.setValue(ret_ptr, value ? 1 : 0, 'i8');
-                    if (type === 'c') Module.setValue(ret_ptr, typeof value === 'string' ? value.charCodeAt(0) : value, 'i8');
-                },
-                parseGlyphInfo: function (ptr) {
-                    if (!ptr) return null;
-                    // NetHack 3.7 glyph_info structure offsets
-                    const GLYPH_OFFSET = 0;
-                    const TTYCHAR_OFFSET = 4;
-                    const FRAMECOLOR_OFFSET = 8;
-                    const GM_OFFSET = 12; // glyph_map starts here
+                configurable: true,
+                enumerable: true
+            });
+        };
 
-                    const GM_FLAGS_OFFSET = GM_OFFSET + 0;
-                    const GM_COLOR_OFFSET = GM_OFFSET + 4;
-                    const GM_SYMIDX_OFFSET = GM_OFFSET + 8;
-                    const GM_U_OFFSET = GM_OFFSET + 20; // pointer to unicode_representation (if ENHANCED_SYMBOLS)
+        // Patching getPointerValue
+        makeSticky('getPointerValue', function (name, ptr, type) {
+            if (type === 'v') return null;
+            if (type === 'i') return Module.getValue(ptr, 'i32');
+            if (type === 's') return Module.UTF8ToString(ptr);
+            if (type === 'b') return !!Module.getValue(ptr, 'i8');
+            if (type === 'c' || type === '0') return String.fromCharCode(Module.getValue(ptr, 'i8'));
+            if (type === '1') return Module.getValue(ptr, 'i16'); // coordxy
+            if (type === 'p') return ptr;
+            return ptr;
+        });
 
-                    let glyph = Module.getValue(ptr + GLYPH_OFFSET, 'i32');
-                    let symbol = Module.getValue(ptr + TTYCHAR_OFFSET, 'i32');
-                    let framecolor = Module.getValue(ptr + FRAMECOLOR_OFFSET, 'i32');
+        // Patching setPointerValue (The most critical fix)
+        makeSticky('setPointerValue', function (name, ret_ptr, type, value) {
+            if (!ret_ptr) return;
+            if (type === 'i') {
+                Module.setValue(ret_ptr, value, 'i32');
+            } else if (type === 'b') {
+                Module.setValue(ret_ptr, value ? 1 : 0, 'i8');
+            } else if (type === 'c') {
+                Module.setValue(ret_ptr, typeof value === 'string' ? value.charCodeAt(0) : value, 'i8');
+            } else if (type === '1' || type === '2') {
+                Module.setValue(ret_ptr, value, 'i16');
+            } else if (type === 's') {
+                if (value === null || value === undefined) {
+                    Module.setValue(ret_ptr, 0, 'i32');
+                } else if (typeof value === 'string') {
+                    let ptr = Module._malloc(value.length + 1);
+                    Module.stringToUTF8(value, ptr, value.length + 1);
+                    Module.setValue(ret_ptr, ptr, 'i32');
+                } else {
+                    throw new TypeError("expected " + name + " return type to be string, got " + (typeof value));
+                }
+            } else if (type === 'p') {
+                Module.setValue(ret_ptr, value, 'i32');
+            }
+        });
 
-                    let flags = Module.getValue(ptr + GM_FLAGS_OFFSET, 'i32');
-                    let color = Module.getValue(ptr + GM_COLOR_OFFSET, 'i32');
-                    let symidx = Module.getValue(ptr + GM_SYMIDX_OFFSET, 'i32');
+        makeSticky('parseGlyphInfo', function (ptr) {
+            if (!ptr) return null;
+            // NetHack 3.7 glyph_info structure offsets
+            const GLYPH_OFFSET = 0;
+            const TTYCHAR_OFFSET = 4;
+            const FRAMECOLOR_OFFSET = 8;
+            const GM_OFFSET = 12; // glyph_map starts here
 
-                    // Check for Unicode string
-                    let ch = String.fromCharCode(symbol);
-                    let uPtr = Module.getValue(ptr + GM_U_OFFSET, 'i32');
-                    if (uPtr) {
-                        let utf8strPtr = Module.getValue(uPtr + 4, 'i32'); // offset of utf8str in unicode_representation
-                        if (utf8strPtr) {
-                            ch = Module.UTF8ToString(utf8strPtr);
-                        }
-                    }
+            const GM_FLAGS_OFFSET = GM_OFFSET + 0;
+            const GM_COLOR_OFFSET = GM_OFFSET + 4;
+            const GM_SYMIDX_OFFSET = GM_OFFSET + 8;
+            const GM_U_OFFSET = GM_OFFSET + 20; // pointer to unicode_representation (if ENHANCED_SYMBOLS)
 
-                    return {
-                        glyph: glyph,
-                        symbol: symbol,
-                        framecolor: framecolor,
-                        flags: flags,
-                        color: color,
-                        symidx: symidx,
-                        ch: ch
-                    };
+            let glyph = Module.getValue(ptr + GLYPH_OFFSET, 'i32');
+            let symbol = Module.getValue(ptr + TTYCHAR_OFFSET, 'i32');
+            let framecolor = Module.getValue(ptr + FRAMECOLOR_OFFSET, 'i32');
+
+            let flags = Module.getValue(ptr + GM_FLAGS_OFFSET, 'i32');
+            let color = Module.getValue(ptr + GM_COLOR_OFFSET, 'i32');
+            let symidx = Module.getValue(ptr + GM_SYMIDX_OFFSET, 'i32');
+
+            // Check for Unicode string
+            let ch = String.fromCharCode(symbol);
+            let uPtr = Module.getValue(ptr + GM_U_OFFSET, 'i32');
+            if (uPtr) {
+                let utf8strPtr = Module.getValue(uPtr + 4, 'i32'); // offset of utf8str in unicode_representation
+                if (utf8strPtr) {
+                    ch = Module.UTF8ToString(utf8strPtr);
                 }
             }
-        };
+
+            return { glyph, symbol, framecolor, flags, color, symidx, ch };
+        });
+
+        window.nethackGlobal.helpers.isPatched = true;
+        console.log("GameManager: nethackGlobal.helpers sticky-patched.");
     };
 
     this.eventHook = async function (type, ...args) {
+        // Ensure helpers are not overwritten by Wasm's internal js_helpers_init
+        if (!window.nethackGlobal.helpers.isPatched) {
+            this.setupNethackGlobal();
+            window.nethackGlobal.helpers.isPatched = true;
+        }
         const helpers = window.nethackGlobal.helpers;
 
         console.log("NH Event:", type, args);
@@ -178,7 +214,7 @@ function GameManager(g) {
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
                 this.UI.nhPutbufDraw(args[0]);
-                this.UI.overlapview(args[1]? true : false);
+                this.UI.overlapview(args[1] ? true : false);
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
             case "shim_destroy_nhwindow":
@@ -199,24 +235,79 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_start_menu,(winid window, unsigned long mbehavior), "vii", A2P window, A2P mbehavior)
             case "shim_start_menu":
-                console.log("Not implemented");
+                this.menuBuffer[args[0]] = { behavior: args[1], items: [], prompt: "" };
                 return 0;
             //VDECLCB(shim_add_menu,
             //    (winid window, const glyph_info *glyphinfo, const ANY_P *identifier, char ch, char gch, int attr, int clr, const char *str, unsigned int itemflags),
             //    "vipi00iisi",
             //    A2P window, P2V glyphinfo, P2V identifier, A2P ch, A2P gch, A2P attr, A2P clr, P2V str, A2P itemflags)
             case "shim_add_menu":
-                console.log("Not implemented",helpers.parseGlyphInfo(args[1]));
+                {
+                    const windowId = args[0];
+                    if (!this.menuBuffer[windowId]) return 0;
+                    const gInfo = args[1] ? helpers.parseGlyphInfo(args[1]) : null;
+                    const identifier = args[2];
+                    const ch = args[3];
+                    const gch = args[4];
+                    const attr = args[5];
+                    const clr = args[6];
+                    const str = args[7];
+                    const itemflags = args[8];
+                    this.menuBuffer[windowId].items.push({
+                        glyph: gInfo,
+                        identifier: identifier,
+                        ch: ch,
+                        gch: gch,
+                        attr: attr,
+                        clr: clr,
+                        str: str,
+                        itemflags: itemflags
+                    });
+                }
                 return 0;
             //VDECLCB(shim_end_menu,(winid window, const char *prompt), "vis", A2P window, P2V prompt)
             case "shim_end_menu":
-                console.log("Not implemented");
+                if (this.menuBuffer[args[0]]) {
+                    this.menuBuffer[args[0]].prompt = args[1];
+                }
                 return 0;
             /* XXX: shim_select_menu menu_list is an output */
             //DECLCB(int, shim_select_menu,(winid window, int how, MENU_ITEM_P **menu_list), "iiip", A2P window, A2P how, P2V menu_list)
             case "shim_select_menu":
-                console.log("Not implemented",helpers.getPointerValue("",args[2],"s"));
-                return 0;
+                {
+                    const windowId = args[0];
+                    const how = args[1];
+                    const menuListPtrPtr = args[2];
+                    const menuData = this.menuBuffer[windowId];
+                    if (!menuData) return 0;
+
+                    return new Promise(async (resolve) => {
+                        // UI 側にメニュー表示を依頼
+                        const selectedItems = await r.UI.showMenu(menuData.items, how, menuData.prompt);
+
+                        if (!selectedItems || selectedItems.length === 0) {
+                            resolve(0);
+                            return;
+                        }
+
+                        // menu_item 構造体のメモリ確保 (mi 構造体は 16バイト)
+                        // typedef struct mi { anything item; long count; unsigned itemflags; } menu_item;
+                        const ITEM_SIZE = 16;
+                        const ptr = Module._malloc(ITEM_SIZE * selectedItems.length);
+
+                        selectedItems.forEach((item, index) => {
+                            const offset = ptr + (index * ITEM_SIZE);
+                            // anything item (long/pointer) - assuming 4 or 8 bytes depending on Wasm
+                            Module.setValue(offset, item.identifier, 'i32');
+                            Module.setValue(offset + 8, -1, 'i32'); // count (long)
+                            Module.setValue(offset + 12, item.itemflags | 1, 'i32'); // itemflags (SELECTED flag = 1)
+                        });
+
+                        // menu_list ポインタ引数の指す先に確保したポインタをセット
+                        Module.setValue(menuListPtrPtr, ptr, 'i32');
+                        resolve(selectedItems.length);
+                    });
+                }
             //DECLCB(char, shim_message_menu,(char let, int how, const char *mesg), "ciis", A2P let, A2P how, P2V mesg)
             case "shim_message_menu":
                 console.log("Not implemented");
@@ -261,8 +352,18 @@ function GameManager(g) {
                 });
             //DECLCB(int, shim_nh_poskey,(coordxy *x, coordxy *y, int *mod), "ippp", P2V x, P2V y, P2V mod)
             case "shim_nh_poskey":
-                console.log("Not implemented");
-                return 0;
+                return new Promise((resolve) => {
+                    r.pendingInputResolve = (charCode, x, y, mod) => {
+                        if (x !== undefined && y !== undefined) {
+                            Module.setValue(args[0], x, 'i16');
+                            Module.setValue(args[1], y, 'i16');
+                            Module.setValue(args[2], mod || 0, 'i32');
+                            resolve(0); // char 0 for mouse
+                        } else {
+                            resolve(charCode);
+                        }
+                    };
+                });
             //VDECLCB(shim_nhbell,(void), "v")
             case "shim_nhbell":
                 console.log("Not implemented");
@@ -270,7 +371,7 @@ function GameManager(g) {
             //DECLCB(int, shim_doprev_message,(void),"iv")
             case "shim_doprev_message":
                 console.log("Not implemented");
-                return 0; 
+                return 0;
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
             case "shim_yn_function":
                 this.UI.msg(`${args[0]}`);
@@ -279,8 +380,17 @@ function GameManager(g) {
                 });
             //VDECLCB(shim_getlin,(const char *query, char *bufp), "vsp", P2V query, P2V bufp)
             case "shim_getlin":
-                console.log("Not implemented");
-                return 0;
+                {
+                    const query = args[0];
+                    const bufp = args[1];
+                    return new Promise(async (resolve) => {
+                        const input = await r.UI.showInput(query);
+                        if (input !== null) {
+                            Module.stringToUTF8(input, bufp, 256); // BUFSZ is 256
+                        }
+                        resolve(0);
+                    });
+                }
             //DECLCB(int,shim_get_ext_cmd,(void),"iv")
             case "shim_get_ext_cmd":
                 console.log("Not implemented");
@@ -301,6 +411,34 @@ function GameManager(g) {
             case "shim_change_background":
                 console.log("Not implemented");
                 return 0;
+            //VDECLCB(shim_status_update,
+            //    (int fldidx, genericptr_t ptr, int chg, int percent, int color, unsigned long *colormasks),
+            //    "vipiiip",
+            //    A2P fldidx, P2V ptr, A2P chg, A2P percent, A2P color, P2V colormasks)
+            case "shim_status_update":
+                {
+                    const fld = args[0];
+                    const ptr = args[1];
+                    const chg = args[2];
+                    const clr = args[4];
+                    let val = null;
+
+                    // fld 22 (BL_CONDITION) はマスク、それ以外は文字列の可能性
+                    if (fld === 22) {
+                        val = Module.getValue(ptr, 'i32'); // long
+                    } else if (ptr) {
+                        try {
+                            val = Module.UTF8ToString(ptr);
+                        } catch (e) {
+                            val = Module.getValue(ptr, 'i32');
+                        }
+                    }
+                    this.UI.updateStatus(fld, val, chg, clr);
+                }
+                return 0;
+            case "shim_change_background":
+                console.log("Not implemented");
+                return 0;
             //DECLCB(short, set_shim_font_name,(winid window_type, char *font_name),"2is", A2P window_type, P2V font_name)
             case "set_shim_font_name":
                 console.log("Not implemented");
@@ -308,14 +446,15 @@ function GameManager(g) {
             //DECLCB(char *,shim_get_color_string,(void),"sv")
             case "shim_get_color_string":
                 console.log("Not implemented");
-                return 0;
+                return null;
             //VDECLCB(shim_preference_update, (const char *pref), "vp", P2V pref)
             case "shim_preference_update":
                 console.log("Not implemented");
                 return 0;
             //DECLCB(char *,shim_getmsghistory, (boolean init), "sb", A2P init)
             case "shim_getmsghistory":
-                return 0;
+                console.log("shim_getmsghistory called, return null");
+                return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":
                 this.UI.msg(`${args[0]}`);
@@ -330,17 +469,6 @@ function GameManager(g) {
             //    A2P fieldidx, P2V nm, P2V fmt, A2P enable)
             case "shim_status_enablefield":
                 console.log("Not implemented");
-                return 0;
-            /* XXX: the second argument to shim_status_update is sometimes an integer and sometimes a pointer */
-            //VDECLCB(shim_status_update,
-            //    (int fldidx, genericptr_t ptr, int chg, int percent, int color, unsigned long *colormasks),
-            //    "vipiiip",
-            //    A2P fldidx, P2V ptr, A2P chg, A2P percent, A2P color, P2V colormasks)
-            case "shim_status_update":
-                console.log("Not implemented",
-                    helpers.getPointerValue("",args[1],"s"),
-                    helpers.getPointerValue("",args[5],"s"),
-                    );
                 return 0;
             //VDECLCB(shim_player_selection, (void), "v")
             case "shim_player_selection":
@@ -404,6 +532,18 @@ function GameManager(g) {
         };
         // 1文字の場合はそのまま
         if (keyName.length === 1) return keyName.charCodeAt(0);
+
+        // KeyA-KeyZ, Digit0-Digit9 の自動変換
+        if (keyName.startsWith("Key") && keyName.length === 4) {
+            return keyName.toLowerCase().charCodeAt(3);
+        }
+        if (keyName.startsWith("Digit") && keyName.length === 6) {
+            return keyName.charCodeAt(5);
+        }
+        if (keyName.startsWith("Numpad") && keyName.length === 7) {
+            return keyName.charCodeAt(6);
+        }
+
         return map[keyName] || 0;
     };
 
@@ -531,6 +671,7 @@ function GameManager(g) {
             const oldOnRuntimeInitialized = Module.onRuntimeInitialized;
             Module.onRuntimeInitialized = () => {
                 if (oldOnRuntimeInitialized) oldOnRuntimeInitialized();
+                this.setupNethackGlobal(); // Patch again once runtime is ready
                 boot();
             };
         }

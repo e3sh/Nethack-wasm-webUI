@@ -263,13 +263,13 @@ function UIManager(r, g) {
     };
 
     let txtbuf = [];
-    this.nhPutbufClear = ()=> {  
+    this.nhPutbufClear = () => {
         txtbuf = [];
-    }   
-    this.nhPutbufAdd = (text)=> {
+    }
+    this.nhPutbufAdd = (text) => {
         txtbuf.push(text);
     };
-    this.nhPutbufDraw = (windowId)=> {
+    this.nhPutbufDraw = (windowId) => {
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
 
         for (let line in txtbuf) {
@@ -282,9 +282,76 @@ function UIManager(r, g) {
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
         this.mvwaddch(dsp, y, x, ch);
     };
-
     this.nhClear = function (windowId) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
         this.wclear(dsp);
+    };
+
+    this.showMenu = function (items, how, promptText) {
+        return new Promise((resolve) => {
+            let selectedIndex = 0;
+            const menuDsp = d.DSP_WINDOW;
+
+            const render = () => {
+                this.wclear(menuDsp);
+                this.wmove(menuDsp, 0, 0);
+                this.printw(promptText + "\n");
+                items.forEach((item, i) => {
+                    const prefix = (i === selectedIndex) ? "> " : "  ";
+                    const char = (item.ch && item.ch !== -1) ? String.fromCharCode(item.ch) : "-";
+                    this.printw(`${prefix}${char}) ${item.str}\n`);
+                });
+            };
+
+            render();
+
+            const originalHandler = r.pendingInputResolve;
+            const handler = (charCode) => {
+                const key = String.fromCharCode(charCode).toLowerCase();
+
+                // 移動: j, k, または矢印キー相当
+                if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                    render();
+                    r.pendingInputResolve = handler; // 次の入力を待つ
+                } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
+                    selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                    render();
+                    r.pendingInputResolve = handler; // 次の入力を待つ
+                } else if (charCode === 13) { // Enter: 決定
+                    resolve([items[selectedIndex]]);
+                    r.pendingInputResolve = originalHandler;
+                } else if (charCode === 27) { // ESC: キャンセル
+                    resolve([]);
+                    r.pendingInputResolve = originalHandler;
+                } else {
+                    // ショートカットキーによる直接選択
+                    const hit = items.find(it => it.ch === charCode);
+                    if (hit) {
+                        resolve([hit]);
+                        r.pendingInputResolve = originalHandler;
+                    } else {
+                        // 無関係なキーの場合はもう一度待機
+                        r.pendingInputResolve = handler;
+                    }
+                }
+            };
+            r.pendingInputResolve = handler;
+        });
+    };
+
+    this.showInput = function (query) {
+        return new Promise((resolve) => {
+            console.log("Showing input prompt:", query);
+            this.msg(query);
+            // 簡易的な入力実装（ブラウザのプロンプトを使用）
+            const input = prompt(query);
+            resolve(input);
+        });
+    };
+
+    this.updateStatus = function (fld, value, chg, clr) {
+        // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
+        console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
     };
 }
