@@ -38,7 +38,6 @@ const w = [
     "sceneControl.js",
     // Rogue 
     r + "GameManager.js",
-    //r + "manager/eventhook.js",
     r + "UIManager.js",
     r + "UI/moveEffect.js",
     r + "UI/monsHpView.js",

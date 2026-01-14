@@ -156,7 +156,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        console.log("NH Event:", type, args);
+        //console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -165,7 +165,7 @@ function GameManager(g) {
                 return 0;
             //DECLCB(boolean, shim_player_selection_or_tty,(void), "b")
             case "shim_player_selection_or_tty":
-                console.log("shim_player_selection_or_tty called. Returning true.");
+                //console.log("shim_player_selection_or_tty called. Returning true.");
                 return true;
             //VDECLCB(shim_askname,(void), "v")
             case "shim_askname":
@@ -389,7 +389,6 @@ function GameManager(g) {
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
-                    console.log(args[1], key)
                 }
                 while (args[1].includes(String.fromCharCode(key)) === false && args[2] !== "\u0000");
 
@@ -470,7 +469,7 @@ function GameManager(g) {
                 return 0;
             //DECLCB(char *,shim_getmsghistory, (boolean init), "sb", A2P init)
             case "shim_getmsghistory":
-                console.log("shim_getmsghistory called, return null");
+                //console.log("shim_getmsghistory called, return null");
                 await new Promise(
                     resolve => {
                         this.pendingInputResolve = resolve;
@@ -541,38 +540,26 @@ function GameManager(g) {
         const map = d.KEYMAP;
 
         let code = 0;
+        if (!Boolean(map[keyName])) return code;
 
-        // KeyA-KeyZ の処理
-        if (keyName.startsWith("Key") && keyName.length === 4) {
-            const char = keyName.charAt(3); // 'A', 'B', etc.
-            if (ctrl) {
-                // Ctrl + Key: A=1, B=2, ...
-                code = char.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-            } else if (shift) {
-                // Shift + Key: 'A', 'B', ...
-                code = char.charCodeAt(0);
-            } else {
-                // Normal: 'a', 'b', ...
-                code = char.toLowerCase().charCodeAt(0);
-            }
-            return code;
+        if (ctrl) {
+            // Ctrl + Key: A=1, B=2, ...
+            code = map[keyName][2] || 0;//char.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+        } else if (shift) {
+            // Shift + Key: 'A', 'B', ...
+            code = map[keyName][1] || 0;//char.charCodeAt(0);
+        } else {
+            // Normal: 'a', 'b', ...
+            code = map[keyName][0] || 0;//char.toLowerCase().charCodeAt(0);
         }
-
-        code = map[keyName] || 0;
-
-        // 特殊キーに対するCtrl/Shift（もしあれば）
-        if (ctrl && code > 0) {
-            // 文字コードがあればコントロールコードに変換を試みる
-            if (code >= 64 && code <= 95) code -= 64;
-            else if (code >= 97 && code <= 122) code -= 96;
-        }
-
         return code;
     };
 
     // --- Main Entry ---
 
     this.main = function () {
+        this.UI.mvwaddstr(d.DSP_STATUS, 0, 0, "Nethack-wasm-WebUI");
+
         this.setupNethackGlobal();
 
         window.nhDispatcher = this.eventHook.bind(this);
@@ -589,6 +576,8 @@ function GameManager(g) {
 
         const boot = () => {
             console.log("NetHack Wasm Boot Sequence Started...");
+            //this.UI.mvwaddstr(d.DSP_STATUS, 1, 0, "NetHack Wasm Boot Sequence Started...");
+
             setTimeout(() => {
                 try {
                     // Safe FileSystem Initialization
@@ -669,6 +658,7 @@ function GameManager(g) {
                         } else {
                             console.log("NetHack Engine started synchronously (Warning: Asyncify might not be active).");
                         }
+                        this.UI.mvwaddstr(d.DSP_STATUS, 2, 0, "NetHack 3.7.0 (wasm)");
                     };
 
                     if (typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {

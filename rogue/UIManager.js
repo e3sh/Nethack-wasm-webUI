@@ -289,8 +289,6 @@ function UIManager(r, g) {
 
     this.showMenu = function (items, how, promptText) {
         if (how == 0) {
-            console.log("waitmenu");
-
             return new Promise((resolve) => {
                 const menuDsp = d.DSP_WINDOW;
                 this.wclear(menuDsp);
@@ -319,8 +317,6 @@ function UIManager(r, g) {
                 r.pendingInputResolve = handler;
             });
         } else {
-            console.log("selmenu");
-
             return new Promise((resolve) => {
                 let selectedIndex = 0;
                 const menuDsp = d.DSP_WINDOW;
@@ -400,7 +396,7 @@ function UIManager(r, g) {
     let statusFields = [];
     this.updateStatus = function (fld, value, chg, clr) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
-        console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
+        //console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
 
         if (fld < 0) {
             this.renderStatus();
@@ -408,6 +404,9 @@ function UIManager(r, g) {
             return;
         }
         statusFields[fld] = { value: value, chg: chg, clr: clr };
+        if (fld == 20) {//`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
+            this.wclear(d.DSP_MAIN);
+        }
     };
 
     this.renderStatus = function () {
