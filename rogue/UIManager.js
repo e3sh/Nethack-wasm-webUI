@@ -283,23 +283,28 @@ function UIManager(r, g) {
         this.mvwaddch(dsp, y, x, ch);
     };
     this.nhClear = function (windowId) {
-        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
-        this.wclear(dsp);
+        const dsp = this.nhWindowMap[windowId];// || d.DSP_MAIN;
+        if (Boolean(dsp)) this.wclear(dsp);
     };
 
     this.showMenu = function (items, how, promptText) {
         return new Promise((resolve) => {
             let selectedIndex = 0;
             const menuDsp = d.DSP_WINDOW;
+            if (items[selectedIndex].ch == "\u0000") {
+                do {
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                } while (items[selectedIndex].ch == "\u0000");
+            }
 
             const render = () => {
                 this.wclear(menuDsp);
-                this.wmove(menuDsp, 0, 0);
-                this.printw(promptText + "\n");
+                //this.wmove(menuDsp, 0, 0);
+                this.mvwaddch(menuDsp, 0, 0, promptText);
                 items.forEach((item, i) => {
                     const prefix = (i === selectedIndex) ? "> " : "  ";
-                    const char = (item.ch && item.ch !== -1) ? String.fromCharCode(item.ch) : "-";
-                    this.printw(`${prefix}${char}) ${item.str}\n`);
+                    const char = (item.ch && item.ch !== "\u0000") ? `${item.ch}) `:"  ";//String.fromCharCode(item.ch) : "-";
+                    this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${item.str}`);
                 });
             };
 
@@ -311,17 +316,23 @@ function UIManager(r, g) {
 
                 // 移動: j, k, または矢印キー相当
                 if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
-                    selectedIndex = (selectedIndex + 1) % items.length;
+                    do {
+                        selectedIndex = (selectedIndex + 1) % items.length;
+                    } while (items[selectedIndex].ch == "\u0000");
                     render();
                     r.pendingInputResolve = handler; // 次の入力を待つ
                 } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
-                    selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                    do {
+                        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                    } while (items[selectedIndex].ch == "\u0000");
                     render();
                     r.pendingInputResolve = handler; // 次の入力を待つ
                 } else if (charCode === 13) { // Enter: 決定
+                    this.overlapview(false);
                     resolve([items[selectedIndex]]);
                     r.pendingInputResolve = originalHandler;
                 } else if (charCode === 27) { // ESC: キャンセル
+                    this.overlapview(false);
                     resolve([]);
                     r.pendingInputResolve = originalHandler;
                 } else {
@@ -350,8 +361,63 @@ function UIManager(r, g) {
         });
     };
 
+
+
+    let statusFields = [];
     this.updateStatus = function (fld, value, chg, clr) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
         console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
+
+        if (fld < 0){
+            this.renderStatus();
+            this.debugStatus();
+            return; 
+        }
+        statusFields[fld] = { value: value, chg: chg, clr: clr };
     };
+
+    this.renderStatus = function () {
+        const statusDsp = d.DSP_STATUS;
+        this.wclear(statusDsp);
+        let line = "";
+        statusFields.forEach((field, index) => {
+            if (field) {
+                line += `${d.STAT_FLD[index]}:${field.value} `;
+            }        });    
+        this.mvwaddstr(statusDsp, 0, 0, line);
+        this.mvwaddstr(statusDsp, 1, 0, line.slice(80)); // 80文字超えたら次の行へ
+        this.mvwaddstr(statusDsp, 2, 0, line.slice(160)); // さらに80文字超えたら次の行へ
+
+    };
+
+    this.debugStatus = function () {
+        const statusDsp = d.DSP_MODE;
+        this.wclear(statusDsp);
+        let line = [];
+        statusFields.forEach((field, index) => {
+            if (field) {
+                line.push(`${index}:${d.STAT_FLD[index]}:${field.value} `);
+            }
+        });
+        for (let i in line){
+            this.mvwaddstr(statusDsp, i, 0, line[i]);
+        }
+
+        if (Boolean(statusFields[22])){
+            const list = this.conditionCheck(statusFields[22].value);
+            for (let i in list){
+                this.mvwaddstr(statusDsp, Number(i)+10, 20, list[i]);
+            }
+        }
+    }
+
+    this.conditionCheck = function (condvalue) {
+        const CDT = d.CONDITION;
+        let list = [];
+
+        for (let i in CDT){
+            list.push(`${(condvalue & CDT[i])?"o":"-"}:${i}`);
+        }
+        return list;
+    }
 }

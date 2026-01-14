@@ -154,7 +154,11 @@ function GameManager(g) {
         }
         const helpers = window.nethackGlobal.helpers;
 
+        let NotImplemented = false;
+
         console.log("NH Event:", type, args);
+        this.UI.comment(`NH Event: ${type.slice(5)} `);
+
         switch (type) {
             //VDECLCB(shim_init_nhwindows,(int *argcp, char **argv), "vpp", P2V argcp, P2V argv)
             case "shim_init_nhwindows":
@@ -208,7 +212,7 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
-                this.UI.nhPutbufClear();
+                //this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 break;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
@@ -280,6 +284,7 @@ function GameManager(g) {
                     const menuListPtrPtr = args[2];
                     const menuData = this.menuBuffer[windowId];
                     if (!menuData) return 0;
+                    this.UI.overlapview(true);
 
                     return new Promise(async (resolve) => {
                         // UI 側にメニュー表示を依頼
@@ -339,11 +344,11 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)
             case "shim_raw_print":
-                console.log("Not implemented");
+                this.UI.msg(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
-                console.log("Not implemented");
+                this.UI.msg(`B[${args[0]}]`);
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
@@ -373,11 +378,19 @@ function GameManager(g) {
                 console.log("Not implemented");
                 return 0;
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
-            case "shim_yn_function":
-                this.UI.msg(`${args[0]}`);
-                return new Promise(resolve => {
-                    this.pendingInputResolve = resolve;
-                });
+            case "shim_yn_function":{
+                let key;   
+                do {
+                    this.UI.msg(`${args[0]} ${args[1]}`);
+                    key = await new Promise(resolve => {
+                        this.pendingInputResolve = resolve;
+                    });
+                    console.log(args[1],key)
+                }
+                while (args[1].includes(String.fromCharCode(key)) === false && args[2] !== "\u0000");
+
+                return key;
+            }
             //VDECLCB(shim_getlin,(const char *query, char *bufp), "vsp", P2V query, P2V bufp)
             case "shim_getlin":
                 {
@@ -454,6 +467,10 @@ function GameManager(g) {
             //DECLCB(char *,shim_getmsghistory, (boolean init), "sb", A2P init)
             case "shim_getmsghistory":
                 console.log("shim_getmsghistory called, return null");
+                await new Promise( 
+                    resolve => {
+                    this.pendingInputResolve = resolve;
+                });
                 return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":
@@ -517,7 +534,7 @@ function GameManager(g) {
 
     this.convertKeyCode = function (keyName) {
         // 基本的なキーマッピング
-        const map = {
+        const map = d.KEYMAP;/*{
             'ArrowUp': 'k'.charCodeAt(0),
             'ArrowDown': 'j'.charCodeAt(0),
             'ArrowLeft': 'h'.charCodeAt(0),
@@ -529,11 +546,12 @@ function GameManager(g) {
             'KeyN': "n".charCodeAt(0),
             'KeyA': "a".charCodeAt(0),
             'KeyQ': "q".charCodeAt(0),
-        };
+        };*/
         // 1文字の場合はそのまま
         if (keyName.length === 1) return keyName.charCodeAt(0);
 
         // KeyA-KeyZ, Digit0-Digit9 の自動変換
+        /*
         if (keyName.startsWith("Key") && keyName.length === 4) {
             return keyName.toLowerCase().charCodeAt(3);
         }
@@ -543,7 +561,7 @@ function GameManager(g) {
         if (keyName.startsWith("Numpad") && keyName.length === 7) {
             return keyName.charCodeAt(6);
         }
-
+        */
         return map[keyName] || 0;
     };
 

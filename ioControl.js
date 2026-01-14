@@ -33,11 +33,12 @@ class ioControl extends GameTask {
 
 		const cp = [
 			//fontID,prompt	,charw, linew, location x,y,bgcolor, useutf
-			[80, 24,"stdbg"	,PTUB  ,8,16,48 ,  0,null], //0: fg_mainscreen printw, addch, move, clear
+			[80, 24,"std"	,PTUB  ,8,16,48 ,  0,null], //0: mainscreen stdbg
 			[80,  3,"std"	,false ,8,16,64 ,384,"rgb(128  0   0)"], //1:statusbar
-			[84, 36,"std_l"	,PTMSG ,8,16,48 ,432,"rgb(  0  0 100)",true], //2:msg
-			[60, 24,"std_l"	,false ,8,16,480, 48,"rgb(  0  0 144)",true], //3:window 
-			[32, 40,"small"	,PTUB  ,6, 8,0, 16,"rgb(  0 64  0/0.5)"],   //4:comment
+			[108, 36,"std_l"	,PTMSG ,8,16,48 ,432,"rgb(  0  0 100)",true], //2:msg std_l
+			[60, 24,"std_l"	,false ,8,16,480, 48,"rgb(  0  0 144)",true], //3:window  std_l
+			[32, 40,"small"	,PTUB  ,6, 8, 0 , 16,"rgb(  0 64  0/0.5)"],   //4:mode
+			[32, 70,"small"	,PTUB  ,6, 8,760, 16,"rgb(  0 64  0/0.5)"], //5:comment
 		]
 
 		let cnsl = [];
@@ -206,7 +207,7 @@ class ioControl extends GameTask {
 			g.font["small"].putchr(s,0 , 600-8);
 		}
 		//			 0:bg  1:st 2:msg 3:window 4:comment    
-		let dispf = [true, true, true, this.overlapview, this.debugview];
+		let dispf = [true, true, true, this.overlapview, this.debugview, this.debugview];
 
 		for (let i in this.layout){
 			let d = this.layout[i];

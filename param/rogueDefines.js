@@ -398,7 +398,8 @@ function rogueDefines(r){
         DSP_STATUS:  1,
         DSP_MESSAGE: 2,
         DSP_WINDOW:  3,
-        DSP_COMMENT: 4,
+        DSP_MODE:    4,
+        DSP_COMMENT: 5,
 
         COLS:80,
         LINES:24,
@@ -447,6 +448,141 @@ function rogueDefines(r){
             "Indigo":	28,	
             "Lavender":	29,
         },
+
+        STAT_FLD: [
+            "TITLE", //0
+            "STR",  //1 
+            "DEX",  //2
+            "CON",  //3
+            "INT",  //4
+            "WIS",  //5
+            "CHA",  //6
+            "ALIGN",   //7
+            "SCORE",   //8
+            "CAP", //9
+            "GOLD", //10
+            "ENE", //11
+            "ENEMAX", //12
+            "XP", //13
+            "AC", //14
+            "HITDICE", //15
+            "TIME", //16
+            "HUNGER", //17
+            "HP", //18
+            "HPMAX", //19
+            "DLEVEL", //20
+            "EXP", //21
+            "CONDITION", //22
+            "VERS", //23
+        ],
+
+        //condition bits
+        CONDITION: {
+            "BAREH":      parseInt("0x00000001",16), // Bare handed (no weapon)
+            "BLIND":      parseInt("0x00000002",16), // Blind
+            "BUSY":       parseInt("0x00000004",16), // Busy (doing something)
+            "CONF":       parseInt("0x00000008",16), // Confused
+            "DEAF":       parseInt("0x00000010",16), // Deaf
+            "ELF_IRON":   parseInt("0x00000020",16), // Elf iron equipped
+            "FLY":        parseInt("0x00000040",16), // Flying
+            "FOODPOIS":   parseInt("0x00000080",16), // Food poisoning
+            "GLOWHANDS":  parseInt("0x00000100",16), // Glowing hands
+            "GRAB":       parseInt("0x00000200",16), // Grabbing something
+            "HALLU":      parseInt("0x00000400",16), // Hallucinating
+            "HELD":       parseInt("0x00000800",16), // Held
+            "ICY":        parseInt("0x00001000",16), // Icy
+            "INLAVA":     parseInt("0x00002000",16), // In lava
+            "LEV":        parseInt("0x00004000",16), // Levitating
+            "PARLYZ":     parseInt("0x00008000",16), // Paralyzed
+            "RIDE":       parseInt("0x00010000",16), // Riding
+            "SLEEPING":   parseInt("0x00020000",16), // Sleeping
+            "SLIME":      parseInt("0x00040000",16), // Slime
+            "SLIPPERY":   parseInt("0x00080000",16), // Slippery
+            "STONE":      parseInt("0x00100000",16), // Stoned
+            "STRNGL":     parseInt("0x00200000",16), // Strangled
+            "STUN":       parseInt("0x00400000",16), // Stunned
+            "SUBMERGED":  parseInt("0x00800000",16), // Submerged
+            "TERMILL":    parseInt("0x01000000",16), // Termill
+            "TETHERED":   parseInt("0x02000000",16), // Tethered
+            "TRAPPED":    parseInt("0x04000000",16), // Trapped
+            "UNCONSC":    parseInt("0x08000000",16), // Unconscious
+            "WOUNDEDL":   parseInt("0x10000000",16), // Wounded leg
+            "HOLDING":    parseInt("0x20000000",16), // Holding something
+        },
+
+        //Keymap
+        KEYMAP: {
+            'ArrowUp': 'k'.charCodeAt(0),
+            'ArrowDown': 'j'.charCodeAt(0),
+            'ArrowLeft': 'h'.charCodeAt(0),
+            'ArrowRight': 'l'.charCodeAt(0),
+            'Enter': 13,
+            'Escape': 27,
+            'Space': 32,
+            'KeyA': "a".charCodeAt(0),
+            'KeyB': "b".charCodeAt(0),
+            'KeyC': "c".charCodeAt(0),
+            'KeyD': 4,//"d".charCodeAt(0), Ctrl+D Kick
+            'KeyE': "e".charCodeAt(0),
+            'KeyF': "f".charCodeAt(0),
+            'KeyG': "g".charCodeAt(0), 
+            'KeyH': "h".charCodeAt(0),
+            'KeyI': "i".charCodeAt(0),
+            'KeyJ': "j".charCodeAt(0),
+            'KeyK': "k".charCodeAt(0),      
+            'KeyL': "l".charCodeAt(0),
+            'KeyM': "m".charCodeAt(0),
+            'KeyN': "n".charCodeAt(0),
+            'KeyO': "o".charCodeAt(0),
+            'KeyP': "p".charCodeAt(0),
+            'KeyQ': "q".charCodeAt(0),
+            'KeyR': "r".charCodeAt(0),
+            'KeyS': "s".charCodeAt(0),
+            'KeyT': "t".charCodeAt(0),
+            'KeyU': "u".charCodeAt(0),
+            'KeyV': "v".charCodeAt(0),
+            'KeyW': "w".charCodeAt(0),
+            'KeyX': "x".charCodeAt(0),
+            'KeyY': "y".charCodeAt(0),
+            'KeyZ': "z".charCodeAt(0),
+            'Digit0': "0".charCodeAt(0),
+            'Digit1': "1".charCodeAt(0),
+            'Digit2': "2".charCodeAt(0),
+            'Digit3': "3".charCodeAt(0),
+            'Digit4': "4".charCodeAt(0),
+            'Digit5': "5".charCodeAt(0),
+            'Digit6': "6".charCodeAt(0),
+            'Digit7': "7".charCodeAt(0),
+            'Digit8': "8".charCodeAt(0),
+            'Digit9': "9".charCodeAt(0),
+            'Numpad0': "0".charCodeAt(0),
+            'Numpad1': "b".charCodeAt(0),
+            'Numpad2': "j".charCodeAt(0),
+            'Numpad3': "n".charCodeAt(0),
+            'Numpad4': "h".charCodeAt(0),
+            'Numpad5': ">".charCodeAt(0),
+            'Numpad6': "l".charCodeAt(0),
+            'Numpad7': "y".charCodeAt(0),
+            'Numpad8': "k".charCodeAt(0),
+            'Numpad9': "u".charCodeAt(0),
+            'NumpadEnter': 13,
+            'NumpadAdd': "+".charCodeAt(0),
+            'NumpadSubtract': "-".charCodeAt(0),
+            'NumpadDevide': "/".charCodeAt(0),
+            'NumpadMultiply': "*".charCodeAt(0),
+            'Period': ".".charCodeAt(0),
+            'Comma': ",".charCodeAt(0),
+            'Minus': "=".charCodeAt(0),
+            'NumpadSubtract': "-".charCodeAt(0),
+            'BracketLeft': "@".charCodeAt(0),
+            'BracketRight': "[".charCodeAt(0),
+            'Quote': "*".charCodeAt(0),//:
+            'Slash': "/".charCodeAt(0),
+            'Semicolon': ";".charCodeAt(0),
+            'IntlRo': "\\".charCodeAt(0),
+            'Backslash': "]".charCodeAt(0),
+            'Equal': "=".charCodeAt(0),
+        }
     };
     return d;
 }

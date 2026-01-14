@@ -29,7 +29,7 @@ class sceneControl extends GameTask {
 			g.rogue = r;
 
 			const wName = ["0:MAIN", "1:STATUS",
-				 "2:MESSAGE", "3:WINDOW", "4:COMMENT"];
+				 "2:MESSAGE", "3:WINDOW", "4:MODE", "5:COMMENT"];
 			for (let i in wName) {
 				//g.console[i].printw(`console:${wName[i]}`);
 				//g.console[i].insertln();
@@ -100,8 +100,8 @@ class sceneControl extends GameTask {
 
 		this.draw = function (g) {
 
-			if (io.debugview)
-				g.font["small"].putchr(`STEP:${this.runstep} ${this.runstep % 2 == 0 ? "haste" : "normal"}`, 840, 8);
+			//if (io.debugview)
+			//	g.font["small"].putchr(`STEP:${this.runstep} ${this.runstep % 2 == 0 ? "haste" : "normal"}`, 840, 8);
 
 			this.monsHpView.draw(g);
 
