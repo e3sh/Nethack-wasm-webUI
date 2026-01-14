@@ -19,38 +19,38 @@ class ioControl extends GameTask {
 		// 実際のアプリケーションでは、ここで再起動処理（例: location.reload()）を呼び出す
 		// location.reload();
 	}
-	
-	constructor(id){
+
+	constructor(id) {
 		super(id);
 	}
-//----------------------------------------------------------------------
-	pre(g){// 最初の実行時に実行。
+	//----------------------------------------------------------------------
+	pre(g) {// 最初の実行時に実行。
 
 		g.font["std"].useScreen(0);
 
-		const PTUB = ["_" ," "];
-		const PTMSG = [String.fromCharCode(26) ,"_"];
+		const PTUB = ["_", " "];
+		const PTMSG = [String.fromCharCode(26), "_"];
 
 		const cp = [
 			//fontID,prompt	,charw, linew, location x,y,bgcolor, useutf
-			[80, 24,"std"	,PTUB  ,8,16,48 ,  0,null], //0: mainscreen stdbg
-			[80,  3,"std"	,false ,8,16,64 ,384,"rgb(128  0   0)"], //1:statusbar
-			[108, 36,"std_l"	,PTMSG ,8,16,48 ,432,"rgb(  0  0 100)",true], //2:msg std_l
-			[60, 24,"std_l"	,false ,8,16,480, 48,"rgb(  0  0 144)",true], //3:window  std_l
-			[32, 40,"small"	,PTUB  ,6, 8, 0 , 16,"rgb(  0 64  0/0.5)"],   //4:mode
-			[32, 70,"small"	,PTUB  ,6, 8,760, 16,"rgb(  0 64  0/0.5)"], //5:comment
+			[80, 24, "std", PTUB, 8, 16, 48, 0, null], //0: mainscreen stdbg
+			[80, 3, "std", false, 8, 16, 64, 384, "rgb(128  0   0)"], //1:statusbar
+			[108, 36, "std", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", false], //2:msg std_l
+			[60, 32, "std", false, 8, 16, 480, 48, "rgb(  0  0 144/0.7 )", false], //3:window  std_l
+			[32, 40, "small", PTUB, 6, 8, 0, 16, "rgb(  0 64  0/0.5)"],   //4:mode
+			[32, 70, "small", PTUB, 6, 8, 760, 16, "rgb(  0 64  0/0.5)"], //5:comment
 		]
 
 		let cnsl = [];
 		let layo = [];
-		for (let i in cp){
+		for (let i in cp) {
 			let p = cp[i];
 			let c = new jncurses(p[0], p[1]);
 			c.setFontId(p[2]);
 			c.setPrompt(p[3]);
 			c.setCharwidth(p[4]);
 			c.setLinewidth(p[5]);
-			const l = {con:c, x:p[6], y:p[7], w:p[0]*p[4], h:p[1]*p[5], bg:p[8]};
+			const l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: p[8] };
 			c.setUseUTF(Boolean(p[9]));
 
 			cnsl.push(c);
@@ -66,48 +66,48 @@ class ioControl extends GameTask {
 
 		this.msgCfullposition = false;
 
-		this.camera = {x:0, y:0, enable: true};
+		this.camera = { x: 0, y: 0, enable: true };
 	}
-//----------------------------------------------------------------------
-	step(g){// this.enable が true時にループ毎に実行される。
+	//----------------------------------------------------------------------
+	step(g) {// this.enable が true時にループ毎に実行される。
 
 		// Input Keyboard ENTRY Check
-	    let w = g.keyboard.check();
+		let w = g.keyboard.check();
 
 		const input = {
-			HOME:	Boolean(w["Home"]),
-			LOG:	Boolean(w["End"]),
-			P_UP:	Boolean(w["PageUp"]),
+			HOME: Boolean(w["Home"]),
+			LOG: Boolean(w["End"]),
+			P_UP: Boolean(w["PageUp"]),
 			P_DOWN: Boolean(w["PageDown"])
 		}
 
-		if (this.waittime < g.time()){
-			let fullscr = (input.HOME)?true:false;
-			if (fullscr){
-				if (!document.fullscreenElement){ 
+		if (this.waittime < g.time()) {
+			let fullscr = (input.HOME) ? true : false;
+			if (fullscr) {
+				if (!document.fullscreenElement) {
 					g.systemCanvas.requestFullscreen();
 				}
 			}
 
 			if (input.LOG) {
-				this.debugview = (this.debugview)?false:true;
+				this.debugview = (this.debugview) ? false : true;
 				this.camera.enable = Boolean(!this.debugview);
 				this.waittime = g.time() + 500;
 			}
 
-			if (input.P_UP || input.P_DOWN){
-				this.msgCfullposition = (input.P_DOWN)?true:false;
+			if (input.P_UP || input.P_DOWN) {
+				this.msgCfullposition = (input.P_DOWN) ? true : false;
 			}
 		}
 		let p = false;
-		for (let i in input){
+		for (let i in input) {
 			if (input[i]) p = true;
 		}
 		input.pushdown = p;
 
 		let keylist = [];
-		for (let i in w){
-			if (w[i]){
+		for (let i in w) {
+			if (w[i]) {
 				keylist.push(i);
 			}
 		}
@@ -115,17 +115,17 @@ class ioControl extends GameTask {
 
 		input.keylist = keylist;
 		this.input = input;
-		
+
 		const MSG = this.layout[2]
-		if (this.msgCfullposition){
-			if (MSG.y > 0) 
-				MSG.y-= 16; 
-			else 
+		if (this.msgCfullposition) {
+			if (MSG.y > 0)
+				MSG.y -= 16;
+			else
 				MSG.y = 0;
-		}else{
-			if (MSG.y < 432 ) 
-				MSG.y+= 16;
-			else 
+		} else {
+			if (MSG.y < 432)
+				MSG.y += 16;
+			else
 				MSG.y = 432;
 
 			//Hungup debug用
@@ -136,12 +136,12 @@ class ioControl extends GameTask {
 
 		//-----------------------------------------------------------------------------
 		// internal function 
-		function GpadToKey(g, input){
+		function GpadToKey(g, input) {
 
 			let gpd = g.gamepad;
 			gpd.check();
 
-			const KEYASSIGN = { 
+			const KEYASSIGN = {
 				N0: "Numpad0",
 				N1: "Numpad1",
 				N2: "Numpad2",
@@ -152,28 +152,28 @@ class ioControl extends GameTask {
 				N7: "Numpad7",
 				N8: "Numpad8",
 				N9: "Numpad9",
-				D:  "KeyD", 
-				I:  "KeyI",
-				SPC:"Space",
-				RET:"Enter",
-				HOME:"Home",
-				END:"End",
+				D: "KeyD",
+				I: "KeyI",
+				SPC: "Space",
+				RET: "Enter",
+				HOME: "Home",
+				END: "End",
 				UP: "ArrowUp",
-				DOWN:"ArrowDown"
+				DOWN: "ArrowDown"
 			}
-			
-			if (gpd.upkey){
-				if (gpd.leftkey || gpd.rightkey){
-					input.push((gpd.leftkey)?KEYASSIGN.N7:KEYASSIGN.N9);
-				}else
+
+			if (gpd.upkey) {
+				if (gpd.leftkey || gpd.rightkey) {
+					input.push((gpd.leftkey) ? KEYASSIGN.N7 : KEYASSIGN.N9);
+				} else
 					input.push(KEYASSIGN.N8);
-			} else 
-				if (gpd.downkey){
-					if (gpd.leftkey || gpd.rightkey){
-						input.push((gpd.leftkey)?KEYASSIGN.N1:KEYASSIGN.N3);
-					}else
+			} else
+				if (gpd.downkey) {
+					if (gpd.leftkey || gpd.rightkey) {
+						input.push((gpd.leftkey) ? KEYASSIGN.N1 : KEYASSIGN.N3);
+					} else
 						input.push(KEYASSIGN.N2);
-				}else
+				} else
 					if (!gpd.upkey && !gpd.downkey) {
 						if (gpd.leftkey) input.push(KEYASSIGN.N4);
 						if (gpd.rightkey) input.push(KEYASSIGN.N6);
@@ -194,27 +194,27 @@ class ioControl extends GameTask {
 			return input;
 		}
 	}
-//----------------------------------------------------------------------
-	draw(g){// this.visible が true時にループ毎に実行される。
+	//----------------------------------------------------------------------
+	draw(g) {// this.visible が true時にループ毎に実行される。
 
-		if (this.debugview){
+		if (this.debugview) {
 			let r = g.fpsload.result();
-			let dt = g.deltaTime().toString().substring(0,4);
-			g.font["small"].putchr(`FPS:${Math.floor(r.fps)}  delta:${dt}`,840, 0);
+			let dt = g.deltaTime().toString().substring(0, 4);
+			g.font["small"].putchr(`FPS:${Math.floor(r.fps)}  delta:${dt}`, 840, 0);
 
 			let s = "input:";
-			for (let i in this.input.keylist){s += `${this.input.keylist[i]},`}
-			g.font["small"].putchr(s,0 , 600-8);
+			for (let i in this.input.keylist) { s += `${this.input.keylist[i]},` }
+			g.font["small"].putchr(s, 0, 600 - 8);
 		}
 		//			 0:bg  1:st 2:msg 3:window 4:comment    
 		let dispf = [true, true, true, this.overlapview, this.debugview, this.debugview];
 
-		for (let i in this.layout){
+		for (let i in this.layout) {
 			let d = this.layout[i];
 			let x = this.layout[i].x;
 			let y = this.layout[i].y;
 
-			if (i==2 && this.camera.enable){
+			if (i == 2 && this.camera.enable) {
 				x = x + this.camera.x;
 				y = y + this.camera.y;
 			}

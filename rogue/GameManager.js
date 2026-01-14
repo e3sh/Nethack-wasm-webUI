@@ -185,7 +185,8 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_get_nh_event,(void), "v")
             case "shim_get_nh_event":
-                console.log("Not implemented");
+                // Handle exposure events or system-level updates. 
+                // Mostly a no-op for TTY/X-style ports.
                 return 0;
             //VDECLCB(shim_exit_nhwindows,(const char *str), "vs", P2V str)
             case "shim_exit_nhwindows":
@@ -319,15 +320,17 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_mark_synch,(void), "v")
             case "shim_mark_synch":
-                console.log("Not implemented");
+                // Synchronization marker. Empty call is valid for most ports.
                 return 0;
             //VDECLCB(shim_wait_synch,(void), "v")
             case "shim_wait_synch":
-                console.log("Not implemented");
+                // Wait for all pending output to finish.
+                // Could be used to flush buffers if necessary.
                 return 0;
             //VDECLCB(shim_cliparound,(int x, int y), "vii", A2P x, A2P y)
             case "shim_cliparound":
-                console.log("Not implemented");
+                // Center map on player if dungeon is larger than window.
+                // No-op if map fits or UI handles it independently.
                 return 0;
             //VDECLCB(shim_update_positionbar,(char *posbar), "vs", P2V posbar)
             case "shim_update_positionbar":
@@ -378,14 +381,14 @@ function GameManager(g) {
                 console.log("Not implemented");
                 return 0;
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
-            case "shim_yn_function":{
-                let key;   
+            case "shim_yn_function": {
+                let key;
                 do {
                     this.UI.msg(`${args[0]} ${args[1]}`);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
-                    console.log(args[1],key)
+                    console.log(args[1], key)
                 }
                 while (args[1].includes(String.fromCharCode(key)) === false && args[2] !== "\u0000");
 
@@ -467,10 +470,10 @@ function GameManager(g) {
             //DECLCB(char *,shim_getmsghistory, (boolean init), "sb", A2P init)
             case "shim_getmsghistory":
                 console.log("shim_getmsghistory called, return null");
-                await new Promise( 
+                await new Promise(
                     resolve => {
-                    this.pendingInputResolve = resolve;
-                });
+                        this.pendingInputResolve = resolve;
+                    });
                 return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":

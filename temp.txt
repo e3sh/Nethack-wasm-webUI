@@ -1,0 +1,4 @@
+            shim_mark_synch
+            shim_wait_synch
+            shim_cliparound
+            shim_get_nh_event
