@@ -5,8 +5,7 @@ class sceneControl extends GameTask {
 	constructor(id) {
 		super(id);
 
-		let io, stf, waitc;
-		let keyon;
+		let io, stf, waitc, keyon, spaceUsedAsCtrl;
 		//let runstep;
 
 		const keywait = 100; //0.10s
@@ -29,7 +28,7 @@ class sceneControl extends GameTask {
 			g.rogue = r;
 
 			const wName = ["0:MAIN", "1:STATUS",
-				 "2:MESSAGE", "3:WINDOW", "4:MODE", "5:COMMENT"];
+				"2:MESSAGE", "3:WINDOW", "4:MODE", "5:COMMENT"];
 			for (let i in wName) {
 				//g.console[i].printw(`console:${wName[i]}`);
 				//g.console[i].insertln();
@@ -81,12 +80,52 @@ class sceneControl extends GameTask {
 				// NetHack Wasm版の入力待ちチェック
 				if (g.rogue.isWaitingForInput()) {
 					if (keyon < g.time()) {
-						const keys = io.input.keylist;
+						const input = io.input;
+						const keys = input.keylist;
+
 						if (keys.length > 0) {
-							// キー入力を Wasm に送る (これにより Wasm が再開される)
-							g.rogue.sendKey(keys[0]);
-							this.runstep++;
-							keyon = g.time() + keywait;
+							// SpaceをCtrlの代わりにするロジック
+							let ctrl = false;
+							let shift = input.shift;
+							let effectiveKey = null;
+
+							if (input.space) {
+								// Spaceが押されている場合、Space以外のキーを探す
+								const otherKey = keys.find(k => k !== "Space");
+								if (otherKey) {
+									ctrl = true;
+									effectiveKey = otherKey;
+									spaceUsedAsCtrl = true; // このSpace押下はCtrlとして使われた
+								}
+							}
+
+							if (!effectiveKey && keys.length > 0) {
+								// Space以外のキーがあればそれを採用、なければSpace（の可能性がある）
+								effectiveKey = keys.find(k => k !== "Space");
+								if (!effectiveKey && keys.includes("Space")) {
+									effectiveKey = "Space";
+									// Space単体押しの場合は、Ctrlとして使われていなければ後に送信するフラグ管理も可能
+									if (spaceUsedAsCtrl !== true) spaceUsedAsCtrl = false;
+								}
+							}
+
+							if (effectiveKey) {
+								if (effectiveKey === "Space") {
+									// Space単体押しの時は、同時押しを待つためにここでは送らない
+								} else {
+									g.rogue.sendKey(effectiveKey, shift, ctrl);
+									this.runstep++;
+									keyon = g.time() + keywait;
+								}
+							}
+						} else {
+							// 全てのキーが離された時、SpaceがCtrlとして使われていなかったら送る
+							if (spaceUsedAsCtrl === false) {
+								g.rogue.sendKey("Space", false, false);
+								this.runstep++;
+								keyon = g.time() + keywait;
+							}
+							spaceUsedAsCtrl = null;
 						}
 					}
 				} else {

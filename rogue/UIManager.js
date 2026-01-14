@@ -288,67 +288,101 @@ function UIManager(r, g) {
     };
 
     this.showMenu = function (items, how, promptText) {
-        return new Promise((resolve) => {
-            let selectedIndex = 0;
-            const menuDsp = d.DSP_WINDOW;
-            if (items[selectedIndex].ch == "\u0000") {
-                do {
-                    selectedIndex = (selectedIndex + 1) % items.length;
-                } while (items[selectedIndex].ch == "\u0000");
-            }
+        if (how == 0) {
+            console.log("waitmenu");
 
-            const render = () => {
+            return new Promise((resolve) => {
+                const menuDsp = d.DSP_WINDOW;
                 this.wclear(menuDsp);
-                //this.wmove(menuDsp, 0, 0);
                 this.mvwaddch(menuDsp, 0, 0, promptText);
                 items.forEach((item, i) => {
-                    const prefix = (i === selectedIndex) ? "> " : "  ";
-                    const char = (item.ch && item.ch !== "\u0000") ? `${item.ch}) `:"  ";//String.fromCharCode(item.ch) : "-";
-                    this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${item.str}`);
+                    this.mvwaddch(menuDsp, i + 1, 0, ` ${item.str}`);
                 });
-            };
 
-            render();
+                const originalHandler = r.pendingInputResolve;
+                const handler = (charCode) => {
+                    const key = String.fromCharCode(charCode).toLowerCase();
 
-            const originalHandler = r.pendingInputResolve;
-            const handler = (charCode) => {
-                const key = String.fromCharCode(charCode).toLowerCase();
-
-                // 移動: j, k, または矢印キー相当
-                if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
-                    do {
-                        selectedIndex = (selectedIndex + 1) % items.length;
-                    } while (items[selectedIndex].ch == "\u0000");
-                    render();
-                    r.pendingInputResolve = handler; // 次の入力を待つ
-                } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
-                    do {
-                        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-                    } while (items[selectedIndex].ch == "\u0000");
-                    render();
-                    r.pendingInputResolve = handler; // 次の入力を待つ
-                } else if (charCode === 13) { // Enter: 決定
-                    this.overlapview(false);
-                    resolve([items[selectedIndex]]);
-                    r.pendingInputResolve = originalHandler;
-                } else if (charCode === 27) { // ESC: キャンセル
-                    this.overlapview(false);
-                    resolve([]);
-                    r.pendingInputResolve = originalHandler;
-                } else {
-                    // ショートカットキーによる直接選択
-                    const hit = items.find(it => it.ch === charCode);
-                    if (hit) {
-                        resolve([hit]);
+                    if (charCode === 13) { // Enter: 決定
+                        this.overlapview(false);
+                        resolve([]);
+                        r.pendingInputResolve = originalHandler;
+                    } else if (charCode === 27) { // ESC: キャンセル
+                        this.overlapview(false);
+                        resolve([]);
                         r.pendingInputResolve = originalHandler;
                     } else {
                         // 無関係なキーの場合はもう一度待機
                         r.pendingInputResolve = handler;
                     }
+                };
+                r.pendingInputResolve = handler;
+            });
+        } else {
+            console.log("selmenu");
+
+            return new Promise((resolve) => {
+                let selectedIndex = 0;
+                const menuDsp = d.DSP_WINDOW;
+                if (items[selectedIndex].ch == "\u0000") {
+                    do {
+                        selectedIndex = (selectedIndex + 1) % items.length;
+                    } while (items[selectedIndex].ch == "\u0000");
                 }
-            };
-            r.pendingInputResolve = handler;
-        });
+
+                const render = () => {
+                    this.wclear(menuDsp);
+                    //this.wmove(menuDsp, 0, 0);
+                    this.mvwaddch(menuDsp, 0, 0, promptText);
+                    items.forEach((item, i) => {
+                        const prefix = (i === selectedIndex) ? "> " : "  ";
+                        const char = (item.ch && item.ch !== "\u0000") ? `${item.ch}) ` : "  ";//String.fromCharCode(item.ch) : "-";
+                        this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${item.str}`);
+                    });
+                };
+
+                render();
+
+                const originalHandler = r.pendingInputResolve;
+                const handler = (charCode) => {
+                    const key = String.fromCharCode(charCode).toLowerCase();
+
+                    // 移動: j, k, または矢印キー相当
+                    if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
+                        do {
+                            selectedIndex = (selectedIndex + 1) % items.length;
+                        } while (items[selectedIndex].ch == "\u0000");
+                        render();
+                        r.pendingInputResolve = handler; // 次の入力を待つ
+                    } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
+                        do {
+                            selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                        } while (items[selectedIndex].ch == "\u0000");
+                        render();
+                        r.pendingInputResolve = handler; // 次の入力を待つ
+                    } else if (charCode === 13) { // Enter: 決定
+                        this.overlapview(false);
+                        resolve([items[selectedIndex]]);
+                        r.pendingInputResolve = originalHandler;
+                    } else if (charCode === 27) { // ESC: キャンセル
+                        this.overlapview(false);
+                        resolve([]);
+                        r.pendingInputResolve = originalHandler;
+                    } else {
+                        // ショートカットキーによる直接選択
+                        const hit = items.find(it => it.ch === charCode);
+                        if (hit) {
+                            resolve([hit]);
+                            r.pendingInputResolve = originalHandler;
+                        } else {
+                            // 無関係なキーの場合はもう一度待機
+                            r.pendingInputResolve = handler;
+                        }
+                    }
+                };
+                r.pendingInputResolve = handler;
+            });
+        }
     };
 
     this.showInput = function (query) {
@@ -368,10 +402,10 @@ function UIManager(r, g) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
         console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
 
-        if (fld < 0){
+        if (fld < 0) {
             this.renderStatus();
             this.debugStatus();
-            return; 
+            return;
         }
         statusFields[fld] = { value: value, chg: chg, clr: clr };
     };
@@ -383,7 +417,8 @@ function UIManager(r, g) {
         statusFields.forEach((field, index) => {
             if (field) {
                 line += `${d.STAT_FLD[index]}:${field.value} `;
-            }        });    
+            }
+        });
         this.mvwaddstr(statusDsp, 0, 0, line);
         this.mvwaddstr(statusDsp, 1, 0, line.slice(80)); // 80文字超えたら次の行へ
         this.mvwaddstr(statusDsp, 2, 0, line.slice(160)); // さらに80文字超えたら次の行へ
@@ -399,14 +434,14 @@ function UIManager(r, g) {
                 line.push(`${index}:${d.STAT_FLD[index]}:${field.value} `);
             }
         });
-        for (let i in line){
+        for (let i in line) {
             this.mvwaddstr(statusDsp, i, 0, line[i]);
         }
 
-        if (Boolean(statusFields[22])){
+        if (Boolean(statusFields[22])) {
             const list = this.conditionCheck(statusFields[22].value);
-            for (let i in list){
-                this.mvwaddstr(statusDsp, Number(i)+10, 20, list[i]);
+            for (let i in list) {
+                this.mvwaddstr(statusDsp, Number(i) + 10, 20, list[i]);
             }
         }
     }
@@ -415,8 +450,8 @@ function UIManager(r, g) {
         const CDT = d.CONDITION;
         let list = [];
 
-        for (let i in CDT){
-            list.push(`${(condvalue & CDT[i])?"o":"-"}:${i}`);
+        for (let i in CDT) {
+            list.push(`${(condvalue & CDT[i]) ? "o" : "-"}:${i}`);
         }
         return list;
     }

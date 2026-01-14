@@ -512,7 +512,7 @@ function rogueDefines(r) {
             "HOLDING": parseInt("0x20000000", 16), // Holding something
         },
 
-        //Keymap
+        //Keymap　キーボードの記号配列JIS
         KEYMAP: {
             'ArrowUp': 'k'.charCodeAt(0),
             'ArrowDown': 'j'.charCodeAt(0),
@@ -524,7 +524,7 @@ function rogueDefines(r) {
             'KeyA': "a".charCodeAt(0),
             'KeyB': "b".charCodeAt(0),
             'KeyC': "c".charCodeAt(0),
-            'KeyD': 4,//"d".charCodeAt(0), Ctrl+D Kick
+            'KeyD': "d".charCodeAt(0),  //Ctrl+D Kick
             'KeyE': "e".charCodeAt(0),
             'KeyF': "f".charCodeAt(0),
             'KeyG': "g".charCodeAt(0),
@@ -568,7 +568,7 @@ function rogueDefines(r) {
             'Numpad8': "k".charCodeAt(0),
             'Numpad9': "u".charCodeAt(0),
             'NumpadEnter': 13, //Enter
-            'NumpadPeriod': 27,//".".charCodeAt(0), Esc
+            'NumpadPeriod': ".".charCodeAt(0),
             'NumpadAdd': ">".charCodeAt(0), //u-level
             'NumpadSubtract': "<".charCodeAt(0), //d-level
             'NumpadDevide': "/".charCodeAt(0),

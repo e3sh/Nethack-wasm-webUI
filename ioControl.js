@@ -106,14 +106,20 @@ class ioControl extends GameTask {
 		input.pushdown = p;
 
 		let keylist = [];
+		let shift = false;
+		let space = false;
 		for (let i in w) {
 			if (w[i]) {
+				if (i === "ShiftLeft" || i === "ShiftRight") shift = true;
+				if (i === "Space") space = true;
 				keylist.push(i);
 			}
 		}
 		keylist = GpadToKey(g, keylist);
 
 		input.keylist = keylist;
+		input.shift = shift;
+		input.space = space;
 		this.input = input;
 
 		const MSG = this.layout[2]

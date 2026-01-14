@@ -284,6 +284,7 @@ function GameManager(g) {
                     const how = args[1];
                     const menuListPtrPtr = args[2];
                     const menuData = this.menuBuffer[windowId];
+
                     if (!menuData) return 0;
                     this.UI.overlapview(true);
 
@@ -526,46 +527,47 @@ function GameManager(g) {
         return this.pendingInputResolve !== null;
     };
 
-    this.sendKey = function (keyName) {
+    this.sendKey = function (keyName, shift, ctrl) {
         if (this.pendingInputResolve) {
-            const charCode = this.convertKeyCode(keyName);
+            const charCode = this.convertKeyCode(keyName, shift, ctrl);
             const resolve = this.pendingInputResolve;
             this.pendingInputResolve = null;
             resolve(charCode);
         }
     };
 
-    this.convertKeyCode = function (keyName) {
+    this.convertKeyCode = function (keyName, shift, ctrl) {
         // 基本的なキーマッピング
-        const map = d.KEYMAP;/*{
-            'ArrowUp': 'k'.charCodeAt(0),
-            'ArrowDown': 'j'.charCodeAt(0),
-            'ArrowLeft': 'h'.charCodeAt(0),
-            'ArrowRight': 'l'.charCodeAt(0),
-            'Enter': 13,
-            'Escape': 27,
-            'Space': 32,
-            'KeyY': "y".charCodeAt(0),
-            'KeyN': "n".charCodeAt(0),
-            'KeyA': "a".charCodeAt(0),
-            'KeyQ': "q".charCodeAt(0),
-        };*/
-        // 1文字の場合はそのまま
-        if (keyName.length === 1) return keyName.charCodeAt(0);
+        const map = d.KEYMAP;
 
-        // KeyA-KeyZ, Digit0-Digit9 の自動変換
-        /*
+        let code = 0;
+
+        // KeyA-KeyZ の処理
         if (keyName.startsWith("Key") && keyName.length === 4) {
-            return keyName.toLowerCase().charCodeAt(3);
+            const char = keyName.charAt(3); // 'A', 'B', etc.
+            if (ctrl) {
+                // Ctrl + Key: A=1, B=2, ...
+                code = char.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+            } else if (shift) {
+                // Shift + Key: 'A', 'B', ...
+                code = char.charCodeAt(0);
+            } else {
+                // Normal: 'a', 'b', ...
+                code = char.toLowerCase().charCodeAt(0);
+            }
+            return code;
         }
-        if (keyName.startsWith("Digit") && keyName.length === 6) {
-            return keyName.charCodeAt(5);
+
+        code = map[keyName] || 0;
+
+        // 特殊キーに対するCtrl/Shift（もしあれば）
+        if (ctrl && code > 0) {
+            // 文字コードがあればコントロールコードに変換を試みる
+            if (code >= 64 && code <= 95) code -= 64;
+            else if (code >= 97 && code <= 122) code -= 96;
         }
-        if (keyName.startsWith("Numpad") && keyName.length === 7) {
-            return keyName.charCodeAt(6);
-        }
-        */
-        return map[keyName] || 0;
+
+        return code;
     };
 
     // --- Main Entry ---
