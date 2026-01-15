@@ -7,40 +7,41 @@ function rogueDefines(r) {
 
         //textFlameNumbers
         DSP_MAIN: 0,
-        DSP_STATUS: 1,
-        DSP_MESSAGE: 2,
-        DSP_WINDOW: 3,
-        DSP_MODE: 4,
-        DSP_COMMENT: 5,
+        DSP_MAIN_FG: 1,
+        DSP_STATUS: 2,
+        DSP_MESSAGE: 3,
+        DSP_WINDOW: 4,
+        DSP_MODE: 5,
+        DSP_COMMENT: 6,
 
         //nh parameters
 
-        STAT_FLD: [
-            "TITLE", //0
-            "STR",  //1 
-            "DEX",  //2
-            "CON",  //3
-            "INT",  //4
-            "WIS",  //5
-            "CHA",  //6
-            "ALIGN",   //7
-            "SCORE",   //8
-            "CAP", //9
-            "GOLD", //10
-            "ENE", //11
-            "ENEMAX", //12
-            "XP", //13
-            "AC", //14
-            "HITDICE", //15
-            "TIME", //16
-            "HUNGER", //17
-            "HP", //18
-            "HPMAX", //19
-            "DLEVEL", //20
-            "EXP", //21
-            "CONDITION", //22
-            "VERS", //23
-        ],
+        STAT_FLD: {
+            "TITLE":0, //0
+            "STR":1,  //1 
+            "DEX":2,  //2
+            "CON":3,  //3
+            "INT":4,  //4
+            "WIS":5,  //5
+            "CHA":6,  //6
+            "ALIGN":7,   //7
+            "SCORE":8,   //8
+            "CAP":9, //9
+            "GOLD":10, //10
+            "ENE":11, //11
+            "ENEMAX":12, //12
+            "XP":13, //13
+            "AC":14, //14
+            "HITDICE":15, //15
+            "TIME":16, //16
+            "HUNGER":17, //17
+            "HP":18, //18
+            "HPMAX":19, //19
+            "DLEVEL":20, //20
+            "EXP":21, //21
+            "CONDITION":22, //22
+            "VERS":23, //23
+        },
 
         //condition bits
         CONDITION: {

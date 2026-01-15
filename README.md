@@ -11,8 +11,13 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 - **日本語対応**:
   - JIS X 0208 等の漢字フォントレンダリングを実装。
   - 日本語メッセージの表示に対応可能。
-- **ポータビリティ**: Emscripten を使用し、モダンなブラウザ（Chrome, Firefox, Safari, Edge）で動作。
 - **データの永続化**: IndexedDB (IDBFS) による、ブラウザ内でのセーブデータ保持（予定）。
+
+## 現在の仕様
+
+- Ctrlキー同時押しのコマンドは、Spaceキーと同時押しとしています。
+- GamePadのキー割り当て：十字キー移動は確定だが、他キーの割り当ては流動的です。（未調整）
+- wasmからの応答を確認しながら実装を調整中
 
 ## 🛠️ 技術スタック
 
@@ -65,7 +70,7 @@ cd NetHack-NetHack-3.7
 ## 📜 ライセンス
 
 - **NetHack**: [NetHack General Public License](https://www.nethack.org/common/license.html)
-- **WebUI Logic**: MIT License
+- **WebUI Logic**: MIT License とかくらい
 
 ---
 Developed by [e3-sh](https://github.com/e3-sh)

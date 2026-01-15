@@ -20,10 +20,7 @@ function GameManager(g) {
     this.globalValiable = {};//v;
     //this.messages = ms;
 
-    //itemData(this);
-    //monsterData(this);
-
-    //global(this);
+ 
 
     for (let i in this.globalValiable) {
         //    this.UI.msg(`${i}: ${this.globalValiable[i].length}`);
@@ -33,14 +30,8 @@ function GameManager(g) {
     }
 
     this.UI = new UIManager(this, g);
-    //this.daemon = new DaemonScheduler(this);
-    //this.item = new ItemManager(this);
-    //this.player = new PlayerCharacter(this);
-    //this.dungeon = new DungeonMap(this);
-    //this.monster = new MonsterManager(this);
 
     this.playing = false;
-
     const r = this;
 
     //this.qs = new quick_storage(r);
@@ -156,7 +147,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        //console.log("NH Event:", type, args);
+        console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -348,11 +339,11 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)
             case "shim_raw_print":
-                this.UI.msg(`${args[0]}`);
+                this.UI.nhPutMsg(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
-                this.UI.msg(`B[${args[0]}]`);
+                this.UI.nhPutMsg(`B[${args[0]}]`);
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
@@ -385,7 +376,7 @@ function GameManager(g) {
             case "shim_yn_function": {
                 let key;
                 do {
-                    this.UI.msg(`${args[0]} ${args[1]}`);
+                    this.UI.nhPutMsg(`${args[0]} ${args[1]}`);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
@@ -477,7 +468,7 @@ function GameManager(g) {
                 return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":
-                this.UI.msg(`${args[0]}`);
+                this.UI.nhPutMsg(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_status_init, (void), "v")
             case "shim_status_init":

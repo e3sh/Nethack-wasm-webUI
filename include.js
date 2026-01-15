@@ -39,13 +39,16 @@ const w = [
     // Rogue 
     r + "GameManager.js",
     r + "UIManager.js",
+    r + "UI/trancelate.js",
     r + "UI/moveEffect.js",
     r + "UI/monsHpView.js",
     // Rogue Parameters
     p + "rogueDefines.js",
     p + "rogueFuncs.js",
     p + "rogueTypes.js",
-    // NetHack Wasm
+    p + "nhMessage_org.js",
+    p + "nhMessage_jp.js",
+    // Wasm files    // NetHack Wasm
     n + "nethack.js",
 ];
 

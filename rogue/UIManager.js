@@ -11,10 +11,8 @@ function UIManager(r, g) {
     this.texwork = "";
 
     //this.io = new io(r);
-    //this.command = new command(r);
-    //this.scene = new scene(r);
-    //this.wizard = new wizard(r);
-
+    this.trancelate = new trancelate(r);
+ 
     const cw = d.DSP_MAIN_FG;
     const mw = d.DSP_MAIN_BG;
     const hw = d.DSP_WINDOW;
@@ -253,6 +251,8 @@ function UIManager(r, g) {
     };
 
     this.nhPutStr = function (windowId, attr, text) {
+        this.trancelate.message(text);
+
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
         if (windowId === 1) { // NHW_MESSAGE
             this.setDsp(dsp);
@@ -262,12 +262,20 @@ function UIManager(r, g) {
         }
     };
 
+    this.nhPutMsg = function (text) {
+        const result = this.trancelate.message(text);
+
+        this.msg(result);
+    }
+
     let txtbuf = [];
     this.nhPutbufClear = () => {
         txtbuf = [];
     }
     this.nhPutbufAdd = (text) => {
-        txtbuf.push(text);
+        const result = this.trancelate.message(text);
+
+        txtbuf.push(result);
     };
     this.nhPutbufDraw = (windowId) => {
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
@@ -281,9 +289,10 @@ function UIManager(r, g) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
         this.mvwaddch(dsp, y, x, ch);
+        this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
     };
     this.nhClear = function (windowId) {
-        const dsp = this.nhWindowMap[windowId];// || d.DSP_MAIN;
+        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG;
         if (Boolean(dsp)) this.wclear(dsp);
     };
 
@@ -394,6 +403,9 @@ function UIManager(r, g) {
 
 
     let statusFields = [];
+    for (let i = 0; i < 23; i++) {
+        statusFields.push({value: 0});
+    }
     this.updateStatus = function (fld, value, chg, clr) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
         //console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
@@ -403,25 +415,40 @@ function UIManager(r, g) {
             this.debugStatus();
             return;
         }
-        statusFields[fld] = { value: value, chg: chg, clr: clr };
-        if (fld == 20) {//`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
-            this.wclear(d.DSP_MAIN);
+
+        if (fld == 20) {
+            //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
+            if (Boolean(statusFields[20])) {
+                if (statusFields[20].value !== value) this.wclear(d.DSP_MAIN);
+            }
         }
+        statusFields[fld] = { value: value, chg: chg, clr: clr };
     };
 
     this.renderStatus = function () {
         const statusDsp = d.DSP_STATUS;
+        const s = d.STAT_FLD;
+        const sf = [];
+ 
         this.wclear(statusDsp);
-        let line = "";
         statusFields.forEach((field, index) => {
             if (field) {
-                line += `${d.STAT_FLD[index]}:${field.value} `;
+                sf[Number(index)] = field.value;
             }
         });
-        this.mvwaddstr(statusDsp, 0, 0, line);
-        this.mvwaddstr(statusDsp, 1, 0, line.slice(80)); // 80文字超えたら次の行へ
-        this.mvwaddstr(statusDsp, 2, 0, line.slice(160)); // さらに80文字超えたら次の行へ
 
+        let splitwork = sf[s.GOLD].split(":");
+        const GOLD = splitwork[1];
+
+        this.mvwaddstr(statusDsp, 0, 0, 
+            `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
+        );
+        this.mvwaddstr(statusDsp, 1, 0,
+            `${sf[s.ALIGN]} $:${GOLD} HP:${sf[s.HP]}(${sf[s.HPMAX]}) Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
+        ); 
+        this.mvwaddstr(statusDsp, 2, 0, 
+            `${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+        ); 
     };
 
     this.debugStatus = function () {
@@ -430,7 +457,7 @@ function UIManager(r, g) {
         let line = [];
         statusFields.forEach((field, index) => {
             if (field) {
-                line.push(`${index}:${d.STAT_FLD[index]}:${field.value} `);
+                line.push(`${index}:${field.value} `);
             }
         });
         for (let i in line) {
@@ -438,14 +465,24 @@ function UIManager(r, g) {
         }
 
         if (Boolean(statusFields[22])) {
-            const list = this.conditionCheck(statusFields[22].value);
+            const list = conditionCheck(statusFields[22].value);
             for (let i in list) {
                 this.mvwaddstr(statusDsp, Number(i) + 10, 20, list[i]);
             }
         }
     }
 
-    this.conditionCheck = function (condvalue) {
+    function conditionString(condvalue) {
+        const CDT = d.CONDITION;
+        let str = "";
+
+        for (let i in CDT) {
+            str += `${(condvalue & CDT[i]) ? `${i} `: ""}`;
+        }
+        return str;
+    }
+
+    function conditionCheck(condvalue) {
         const CDT = d.CONDITION;
         let list = [];
 
