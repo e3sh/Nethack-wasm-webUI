@@ -20,7 +20,7 @@ function GameManager(g) {
     this.globalValiable = {};//v;
     //this.messages = ms;
 
- 
+
 
     for (let i in this.globalValiable) {
         //    this.UI.msg(`${i}: ${this.globalValiable[i].length}`);
@@ -182,19 +182,10 @@ function GameManager(g) {
             //VDECLCB(shim_exit_nhwindows,(const char *str), "vs", P2V str)
             case "shim_exit_nhwindows":
                 //this.playing = false;
-
-
-                if (typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {
-                    console.log("Saving game to IndexedDB...");
-                    FS.syncfs(false, (err) => {
-                        if (err) console.error("IDBFS Sync Error (Save):", err);
-                        else console.log("IDBFS Synced to IndexedDB (Save Complete)");
-                    });
-                }
+                console.log("Exiting nhwindows...");
                 this.UI.nhClear(3); // NHW_MAP
                 this.UI.clear(d.DSP_MAIN); // NHW_BGMAP
                 this.UI.nhCurs(3, 0, 0);
-
                 return 0;
             //VDECLCB(shim_suspend_nhwindows,(const char *str), "vs", P2V str)
             case "shim_suspend_nhwindows":
@@ -208,32 +199,32 @@ function GameManager(g) {
             case "shim_create_nhwindow":
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
-                this.UI.set_display_window(args[0]);   
+                this.UI.set_display_window(args[0]);
                 return 0;
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
                 this.UI.overlapview(false);
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
-                this.UI.set_display_window(args[0]); 
+                this.UI.set_display_window(args[0]);
                 break;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
                 this.UI.nhPutbufDraw(args[0]);
-                if (this.UI.nhPutbufReady()){
+                if (this.UI.nhPutbufReady()) {
                     this.UI.nhClear(args[0]);
                     this.UI.nhPutbufDraw(args[0]);
                     this.UI.overlapview(true);
                     await new Promise(
                         resolve => {
                             this.pendingInputResolve = resolve;
-                        }); 
+                        });
                 } else {
                     if (args[1])
-                    await new Promise(
-                        resolve => {
-                            this.pendingInputResolve = resolve;
-                        }); 
+                        await new Promise(
+                            resolve => {
+                                this.pendingInputResolve = resolve;
+                            });
                 }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
@@ -241,7 +232,7 @@ function GameManager(g) {
                 this.UI.overlapview(false);
                 this.UI.nhPutbufClear();
                 this.UI.wclear(d.DSP_WINDOW);
-                this.UI.set_display_window(args[0]);   
+                this.UI.set_display_window(args[0]);
                 return 0;
             //VDECLCB(shim_curs,(winid a, int x, int y), "viii", A2P a, A2P x, A2P y)
             case "shim_curs":
@@ -405,7 +396,7 @@ function GameManager(g) {
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
             case "shim_yn_function": {
                 let key;
-                this.UI.set_display_window(0);  
+                this.UI.set_display_window(0);
                 do {
                     this.UI.nhPutbufAdd(`${args[0]} ${args[1]}`);
                     key = await new Promise(resolve => {
@@ -430,42 +421,42 @@ function GameManager(g) {
                     });
                 }
             //DECLCB(int,shim_get_ext_cmd,(void),"iv")
-            case "shim_get_ext_cmd":                return new Promise(async (resolve) => {
-                    const input = await r.UI.showInput("#");
-                    if (!input) {
-                        resolve(-1);
-                        return;
-                    }
+            case "shim_get_ext_cmd": return new Promise(async (resolve) => {
+                const input = await r.UI.showInput("#");
+                if (!input) {
+                    resolve(-1);
+                    return;
+                }
 
-                    // 拡張コマンド名のリスト (NetHack 3.7.0 extcmdlist より抜粋)
-                    // 本来は Wasm 側から動的に取得するのが望ましいですが、
-                    // 暫定的に主要なコマンド名をハードコードして対応します。
-                    // インデックスは cmd.c 内の定義順に基づきます。
-                    const extcmds = [
-                        "?", "adjust", "annotate", "apply", "attributes", "autopickup",
-                        "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
-                        "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
-                        "enhance", "exploremode", "fight", "fire", "force", "genocided",
-                        "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
-                        "invoke", "jump", "kick", "known", "knownclass", "levelchange",
-                        "lightsources", "look", "lookaround", "loot", "migratemons",
-                        "monster", "name", "offer", "open", "options", "optionsfull",
-                        "overview", "panic", "pay", "perminv", "pickup", "polyself",
-                        "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
-                        "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
-                        "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
-                        "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
-                        "shell", "showgold", "showspells", "showtrap", "sit", "stats",
-                        "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
-                        "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
-                        "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
-                        "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
-                    ];
+                // 拡張コマンド名のリスト (NetHack 3.7.0 extcmdlist より抜粋)
+                // 本来は Wasm 側から動的に取得するのが望ましいですが、
+                // 暫定的に主要なコマンド名をハードコードして対応します。
+                // インデックスは cmd.c 内の定義順に基づきます。
+                const extcmds = [
+                    "?", "adjust", "annotate", "apply", "attributes", "autopickup",
+                    "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
+                    "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
+                    "enhance", "exploremode", "fight", "fire", "force", "genocided",
+                    "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
+                    "invoke", "jump", "kick", "known", "knownclass", "levelchange",
+                    "lightsources", "look", "lookaround", "loot", "migratemons",
+                    "monster", "name", "offer", "open", "options", "optionsfull",
+                    "overview", "panic", "pay", "perminv", "pickup", "polyself",
+                    "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
+                    "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
+                    "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
+                    "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
+                    "shell", "showgold", "showspells", "showtrap", "sit", "stats",
+                    "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
+                    "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
+                    "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
+                    "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
+                ];
 
-                    const idx = extcmds.indexOf(input.toLowerCase());
-                    this.UI.msg(`${input.toLowerCase()}->${extcmds[idx]}`);
-                    resolve(idx >= 0 ? idx : -1);
-                });
+                const idx = extcmds.indexOf(input.toLowerCase());
+                this.UI.msg(`${input.toLowerCase()}->${extcmds[idx]}`);
+                resolve(idx >= 0 ? idx : -1);
+            });
             //VDECLCB(shim_number_pad,(int state), "vi", A2P state)
             case "shim_number_pad":
                 console.log("Not implemented");
@@ -630,59 +621,39 @@ function GameManager(g) {
 
         const boot = () => {
             console.log("NetHack Wasm Boot Sequence Started...");
-            //this.UI.mvwaddstr(d.DSP_STATUS, 1, 0, "NetHack Wasm Boot Sequence Started...");
 
             setTimeout(() => {
                 try {
-                    // Safe FileSystem Initialization
-                    if (typeof FS !== 'undefined') {
-                        const initializeFS = () => {
-                            const dirs = ['/save', '/tmp'];
-                            dirs.forEach(d => {
-                                try {
-                                    const res = FS.analyzePath(d);
-                                    if (!res.exists) {
-                                        FS.mkdir(d);
-                                        console.log(`NH Bootstrap: Created directory ${d}`);
-                                    }
-                                    if (d === '/save' && typeof IDBFS !== 'undefined') {
-                                        FS.mount(IDBFS, {}, d);
-                                        console.log(`NH Bootstrap: Mounted IDBFS at ${d}`);
-                                    }
-                                } catch (e) { console.error(`Failed to initialize dir ${d}`, e); }
-                            });
-
-                            const files = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog'];
-                            files.forEach(f => {
-                                try {
-                                    const path = '/' + f;
-                                    const res = FS.analyzePath(path);
-                                    if (!res.exists) {
-                                        const content = (f === 'sysconf') ? "WIZARDS=*\nEXPLORERS=*\n" : "";
-                                        FS.writeFile(path, content);
-                                        console.log(`NH Bootstrap: Created file ${path}`);
-                                    } else if (res.object.isFolder) {
-                                        console.warn(`NH Bootstrap: Conflict! /${f} is already a directory.`);
-                                    }
-                                } catch (e) { console.error(`Failed to create file ${f}`, e); }
-                            });
-                        };
-                        initializeFS();
-                    }
-
-                    console.log("Setting up Graphics Callback...");
-                    const setCB = Module.cwrap('shim_graphics_set_callback', null, ['string']);
-                    setCB("nhDispatcher");
-
                     const startEngine = () => {
+                        const syncToPersistent = () => {
+                            const persistentFiles = ['record', 'logfile', 'xlogfile', 'paniclog'];
+                            persistentFiles.forEach(f => {
+                                try {
+                                    const src = '/' + f;
+                                    const dst = '/save/' + f;
+                                    if (typeof FS !== 'undefined' && FS.analyzePath(src).exists) {
+                                        const data = FS.readFile(src);
+                                        FS.writeFile(dst, data);
+                                        console.log(`NH Exit: Synced ${src} to ${dst}`);
+                                    }
+                                } catch (e) {
+                                    console.error(`NH Exit: Failed to sync ${f}`, e);
+                                }
+                            });
+                            if (typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {
+                                FS.syncfs(false, (err) => {
+                                    if (err) console.error("NH Exit: Final IDBFS sync error:", err);
+                                    else console.log("NH Exit: Final IDBFS sync complete.");
+                                });
+                            }
+                        };
+
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        // 引数 (argv) を手動で構築して Wasm メモリ空間に配置
-                        // スペースなしの -uplayer を試す
                         const args = Module.arguments || ['nethack', '-uplayer'];
                         const argc = args.length;
-                        const argv = Module._malloc(argc * 4); // ポインタ (32bit) の配列
+                        const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {
                             const str = args[i];
                             const strPtr = Module._malloc(str.length + 1);
@@ -692,7 +663,6 @@ function GameManager(g) {
 
                         console.log("Passing arguments to main:", args, "argc:", argc, "argv_ptr:", argv);
 
-                        // 定期的な同期（オートセーブ）
                         setInterval(() => {
                             if (this.playing && typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {
                                 FS.syncfs(false, (err) => {
@@ -701,35 +671,109 @@ function GameManager(g) {
                             }
                         }, 5 * 60 * 1000);
 
-                        // Asyncify対応のため {async: true} を指定
-                        // 第3引数の型指定を ['number', 'number'] に変更 (argc, argv)
                         const result = Module.ccall('main', 'number', ['number', 'number'], [argc, argv], { async: true });
 
                         if (result instanceof Promise) {
-                            result.then((r) => console.log("NetHack Engine Exited with:", r))
+                            result.then((r) => {
+                                console.log("NetHack Engine Exited with:", r);
+                                this.playing = false;
+                                syncToPersistent();
+                            })
                                 .catch((err) => {
                                     if (err.name === 'ExitStatus') {
                                         console.log("NetHack Engine Exited Successfully with status:", err.status);
                                         this.playing = false;
                                         this.UI.msg("NetHack 3.7.0 (wasm) Exit");
+                                        syncToPersistent();
                                         return;
                                     }
                                     console.error("NetHack Engine Runtime Error:", err);
+                                    syncToPersistent();
                                 });
                             console.log("NetHack Engine is now running asynchronously.");
                         } else {
-                            console.log("NetHack Engine started synchronously (Warning: Asyncify might not be active).");
+                            console.log("NetHack Engine started synchronously.");
                         }
-                        this.UI.mvwaddstr(d.DSP_STATUS, 2, 0, "NetHack 3.7.0 (wasm)");
                     };
 
-                    if (typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {
-                        console.log("Syncing from IndexedDB...");
-                        FS.syncfs(true, (err) => {
-                            if (err) console.error("IDBFS initial sync error:", err);
-                            else console.log("IDBFS Sync Complete.");
-                            startEngine();
+                    // Safe FileSystem Initialization flow
+                    if (typeof FS !== 'undefined') {
+                        const dirs = ['/save', '/tmp'];
+                        dirs.forEach(d => {
+                            try {
+                                const res = FS.analyzePath(d);
+                                if (!res.exists) {
+                                    FS.mkdir(d);
+                                    console.log(`NH Bootstrap: Created directory ${d}`);
+                                }
+                                if (d === '/save' && typeof IDBFS !== 'undefined') {
+                                    FS.mount(IDBFS, {}, d);
+                                    console.log(`NH Bootstrap: Mounted IDBFS at ${d}`);
+                                }
+                            } catch (e) { console.error(`Failed to initialize dir ${d}`, e); }
                         });
+
+                        if (typeof IDBFS !== 'undefined') {
+                            console.log("NH Bootstrap: Syncing from IndexedDB...");
+                            FS.syncfs(true, (err) => {
+                                if (err) {
+                                    console.error("NH Bootstrap: IDBFS Sync Error (Initial):", err);
+                                } else {
+                                    console.log("NH Bootstrap: IDBFS Synced (Initial Complete)");
+
+                                    const configFiles = ['NetHack.cnf', '.nethackrc'];
+                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n";
+                                    configFiles.forEach(cf => {
+                                        const path = '/' + cf;
+                                        if (!FS.analyzePath(path).exists) {
+                                            FS.writeFile(path, configContent);
+                                            console.log(`NH Bootstrap: Created config file ${path}`);
+                                        }
+                                    });
+
+                                    const files = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog'];
+                                    files.forEach(f => {
+                                        try {
+                                            const isPersistent = ['record', 'logfile', 'xlogfile', 'paniclog'].includes(f);
+                                            const rootPath = '/' + f;
+                                            const savePath = '/save/' + f;
+
+                                            if (isPersistent) {
+                                                // コピー方式: /save/ にあれば / へコピー、なければ新規作成
+                                                if (FS.analyzePath(savePath).exists) {
+                                                    const data = FS.readFile(savePath);
+                                                    FS.writeFile(rootPath, data);
+                                                    console.log(`NH Bootstrap: Restored ${rootPath} from ${savePath}`);
+                                                } else {
+                                                    FS.writeFile(rootPath, "");
+                                                    FS.writeFile(savePath, "");
+                                                    console.log(`NH Bootstrap: Initialized empty ${rootPath} and ${savePath}`);
+                                                }
+                                            } else {
+                                                // 非永続（または別の管理ファイル）
+                                                if (!FS.analyzePath(rootPath).exists) {
+                                                    const content = (f === 'sysconf') ? "WIZARDS=*\nEXPLORERS=*\n" : "";
+                                                    FS.writeFile(rootPath, content);
+                                                    console.log(`NH Bootstrap: Created ${rootPath}`);
+                                                }
+                                            }
+                                        } catch (e) { console.error(`Failed to handle file ${f}`, e); }
+                                    });
+
+                                    FS.syncfs(false, (err) => {
+                                        if (err) console.error("NH Bootstrap: Final Sync Error:", err);
+                                        else console.log("NH Bootstrap: All FS preparation complete.");
+
+                                        console.log("Setting up Graphics Callback...");
+                                        const setCB = Module.cwrap('shim_graphics_set_callback', null, ['string']);
+                                        setCB("nhDispatcher");
+                                        startEngine();
+                                    });
+                                }
+                            });
+                        } else {
+                            startEngine();
+                        }
                     } else {
                         startEngine();
                     }

@@ -14,7 +14,7 @@ window.Module = {
         if (typeof ENV !== 'undefined') {
             ENV.USER = "player";
             ENV.HACKDIR = "/"; // Embedded files are at root
-            ENV.SCOREDIR = "/";
+            ENV.SCOREDIR = "/save/";
             ENV.LEVELDIR = "/";
             ENV.SAVEDIR = "/save/";
             ENV.NETHACKOPTIONS = "name:player";
