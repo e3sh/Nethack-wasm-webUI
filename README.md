@@ -2,6 +2,8 @@
 
 NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベースの独自描画エンジンでブラウザからプレイ可能にするプロジェクトです。
 
+[**[ 🎮 今すぐブラウザでプレイ (Demo) ]**](https://e3-sh.github.com/Nethack-wasm-webUI/)
+
 ## 🚀 特徴
 
 - **NetHack 3.7.0 サポート**: 最新の開発版 NetHack を Wasm 上で動作。
@@ -10,21 +12,27 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
   - タイル表示だけでなく、フォントベースのレンダリングもサポート。
 - **日本語対応**:
   - JIS X 0208 等の漢字フォントレンダリングを実装。
-  - 日本語メッセージの表示に対応可能。
-- **データの永続化**: IndexedDB (IDBFS) による、ブラウザ内でのセーブデータ保持（予定）。
+  - 日本語メッセージの表示に対応。
+  - 日本語版 [Guidebook](Guidebook.ja.html) を同梱。
+- **データの永続化**:
+  - IndexedDB (IDBFS) による、ブラウザ内でのセーブデータ保持。
+  - 5分おきのオートセーブおよび正常終了時の自動保存を実装。
 
-## 現在の仕様
+## 🎮 操作方法
 
-- Ctrlキー同時押しのコマンドは、Spaceキーと同時押しとしています。
-- GamePadのキー割り当て：十字キー移動は確定だが、他キーの割り当ては流動的です。（未調整）
-- wasmからの応答を確認しながら実装を調整中
+- **移動**: 方向キー / テンキー
+- **特殊コマンド (Ctrlキー)**: **Spaceキー**をCtrlキーの代わりにとして使用します。
+  - 例: `Ctrl+P` (以前のメッセージ表示) は `Space` + `P` で入力。
+  - `Space` 単体押しの場合は、Spaceキーとして機能します。
+- **Gamepad**: 十字キーによる移動をサポート（ボタン割り当ては調整中）。
 
 ## 🛠️ 技術スタック
 
 - **Core**: NetHack 3.7.0 (C)
-- **Runtime**: WebAssembly (Emscripten)
+- **Runtime**: WebAssembly (Emscripten / Asyncify)
 - **Frontend**: JavaScript (Vanilla JS / ES6+)
 - **Graphics**: HTML5 Canvas API
+- **Storage**: IndexedDB (IDBFS via Emscripten)
 
 ## 📦 セットアップ
 
@@ -43,7 +51,7 @@ python -m http.server 8000
 
 ### ビルド (開発者向け)
 
-Windows 環境で NetHack を WebAssembly にビルドするには、以下の手順が必要です。
+Windows 環境で NetHack を WebAssembly にビルドするには、以下の手順が必要です。詳細は [shim_reference.ja.md](shim_reference.ja.md) を参照してください。
 
 1. **[NetHack/NetHack](https://github.com/NetHack/NetHack)** 公式リポジトリのソースコード（`NetHack-3.7` ブランチ推奨）を `NetHack-NetHack-3.7` ディレクトリとして配置。
 2. **Emscripten SDK (emsdk)** のインストール。
@@ -63,14 +71,15 @@ cd NetHack-NetHack-3.7
 - [x] NetHack 3.7.0 の Wasm コンパイル
 - [x] 基本的な描画システム (GameCore) の構築
 - [x] 漢字フォントのレンダリング対応
+- [x] IndexedDB によるセーブ機能の実装
 - [/] UI/UX の洗練
+- [ ] タイル表示の完全対応
 - [ ] 日本語メッセージ完全対応
-- [ ] IndexedDB によるセーブ機能の実装
 
 ## 📜 ライセンス
 
 - **NetHack**: [NetHack General Public License](https://www.nethack.org/common/license.html)
-- **WebUI Logic**: MIT License とかくらい
+- **WebUI Logic**: MIT License
 
 ---
 Developed by [e3-sh](https://github.com/e3-sh)
