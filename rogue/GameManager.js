@@ -147,7 +147,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        //console.log("NH Event:", type, args);
+        console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -181,7 +181,9 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_exit_nhwindows,(const char *str), "vs", P2V str)
             case "shim_exit_nhwindows":
-                this.playing = false;
+                //this.playing = false;
+
+
                 if (typeof FS !== 'undefined' && typeof IDBFS !== 'undefined') {
                     console.log("Saving game to IndexedDB...");
                     FS.syncfs(false, (err) => {
@@ -189,6 +191,10 @@ function GameManager(g) {
                         else console.log("IDBFS Synced to IndexedDB (Save Complete)");
                     });
                 }
+                this.UI.nhClear(3); // NHW_MAP
+                this.UI.clear(d.DSP_MAIN); // NHW_BGMAP
+                this.UI.nhCurs(3, 0, 0);
+
                 return 0;
             //VDECLCB(shim_suspend_nhwindows,(const char *str), "vs", P2V str)
             case "shim_suspend_nhwindows":
@@ -202,23 +208,32 @@ function GameManager(g) {
             case "shim_create_nhwindow":
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
+                this.UI.set_display_window(args[0]);   
                 return 0;
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
+                this.UI.overlapview(false);
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
+                this.UI.set_display_window(args[0]); 
                 break;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
                 this.UI.nhPutbufDraw(args[0]);
-                if (this.UI.nhPutbufReady() || args[1]){
+                if (this.UI.nhPutbufReady()){
                     this.UI.nhClear(args[0]);
                     this.UI.nhPutbufDraw(args[0]);
                     this.UI.overlapview(true);
                     await new Promise(
                         resolve => {
                             this.pendingInputResolve = resolve;
-                        });
+                        }); 
+                } else {
+                    if (args[1])
+                    await new Promise(
+                        resolve => {
+                            this.pendingInputResolve = resolve;
+                        }); 
                 }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
@@ -226,6 +241,7 @@ function GameManager(g) {
                 this.UI.overlapview(false);
                 this.UI.nhPutbufClear();
                 this.UI.wclear(d.DSP_WINDOW);
+                this.UI.set_display_window(args[0]);   
                 return 0;
             //VDECLCB(shim_curs,(winid a, int x, int y), "viii", A2P a, A2P x, A2P y)
             case "shim_curs":
@@ -357,7 +373,7 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
-                this.UI.nhPutMsg(`B[${args[0]}]`);
+                this.UI.nhPutMsg(`${args[0]}`);
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
@@ -389,8 +405,9 @@ function GameManager(g) {
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
             case "shim_yn_function": {
                 let key;
+                this.UI.set_display_window(0);  
                 do {
-                    this.UI.nhPutMsg(`${args[0]} ${args[1]}`);
+                    this.UI.nhPutbufAdd(`${args[0]} ${args[1]}`);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
@@ -514,7 +531,7 @@ function GameManager(g) {
                 return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":
-                this.UI.nhPutMsg(`${args[0]}`);
+                this.UI.nhPutbufAdd(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_status_init, (void), "v")
             case "shim_status_init":

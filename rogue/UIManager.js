@@ -81,6 +81,11 @@ function UIManager(r, g) {
     this.insertLine = () => { g.console[dspmode].insertln(); }
     this.clear = function () { g.console[dspmode].clear(); }
 
+    this.cursorDown = function(){
+        const cursor = g.console[dspmode].cursor;
+        g.console[dspmode].move(cursor.x, cursor.y + 1);
+    }
+
     //rogue bridge
     this.msg = (text) => {
         if (!Boolean(text)) {
@@ -236,13 +241,18 @@ function UIManager(r, g) {
     this.comment("UI");
 
     /* --- NetHack 3.7 Bridge Methods --- */
+    let display_window = 0;
+    this.set_display_window = (windowId) => {
+        display_window = windowId;
+    }
 
     this.nhWindowMap = {
         1: d.DSP_MESSAGE, // NHW_MESSAGE
         2: d.DSP_STATUS,  // NHW_STATUS
-        3: d.DSP_MAIN,    // NHW_MAP
+        3: d.DSP_MAIN_FG, // NHW_MAP
         4: d.DSP_WINDOW,  // NHW_MENU
         5: d.DSP_WINDOW,  // NHW_TEXT
+        6: d.DSP_MAIN,  // NHW_BBMAP
     };
 
     this.nhCurs = function (windowId, x, y) {
@@ -263,9 +273,10 @@ function UIManager(r, g) {
     };
 
     this.nhPutMsg = function (text) {
-        const result = this.trancelate.message(text);
-
-        this.msg(result);
+        const dsp = d.DSP_MAIN_FG;
+        this.setDsp(dsp);
+        this.printw(text);
+        this.cursorDown(dsp);
     }
 
     let txtbuf = [];
@@ -278,7 +289,12 @@ function UIManager(r, g) {
     this.nhPutbufAdd = (text) => {
         const result = this.trancelate.message(text);
 
-        txtbuf.push(result);
+        if (display_window == 0) 
+            this.msg(result);
+        else {
+            const result = this.trancelate.message(text);
+            txtbuf.push(result);
+        }
     };
     this.nhPutbufDraw = (windowId) => {
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
