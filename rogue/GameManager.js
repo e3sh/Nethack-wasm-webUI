@@ -603,7 +603,7 @@ function GameManager(g) {
     // --- Main Entry ---
 
     this.main = function () {
-        this.UI.mvwaddstr(d.DSP_STATUS, 0, 0, "Nethack-wasm-WebUI");
+        this.UI.mvwaddstr(d.DSP_STATUS, 1, 1, "Nethack-wasm-WebUI");
 
         this.setupNethackGlobal();
 
