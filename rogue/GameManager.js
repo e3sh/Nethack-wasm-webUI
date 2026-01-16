@@ -333,6 +333,7 @@ function GameManager(g) {
             //VDECLCB(shim_mark_synch,(void), "v")
             case "shim_mark_synch":
                 // Synchronization marker. Empty call is valid for most ports.
+                this.UI.msg("Press any key");
                 return 0;
             //VDECLCB(shim_wait_synch,(void), "v")
             case "shim_wait_synch":
@@ -603,8 +604,7 @@ function GameManager(g) {
     // --- Main Entry ---
 
     this.main = function () {
-        this.UI.mvwaddstr(d.DSP_STATUS, 1, 1, "Nethack-wasm-WebUI");
-
+        this.UI.mvwaddstr(d.DSP_STATUS, 1, 0, "Nethack-wasm-WebUI");
         this.setupNethackGlobal();
 
         window.nhDispatcher = this.eventHook.bind(this);
@@ -651,7 +651,7 @@ function GameManager(g) {
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        const args = Module.arguments || ['nethack', '-uplayer'];
+                        const args = Module.arguments || ['nethack', '-uplayer', '-otime,showexp'];
                         const argc = args.length;
                         const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {
@@ -722,7 +722,7 @@ function GameManager(g) {
                                     console.log("NH Bootstrap: IDBFS Synced (Initial Complete)");
 
                                     const configFiles = ['NetHack.cnf', '.nethackrc'];
-                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n";
+                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp\n";
                                     configFiles.forEach(cf => {
                                         const path = '/' + cf;
                                         if (!FS.analyzePath(path).exists) {
