@@ -13,7 +13,7 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 - **日本語対応**:
   - JIS X 0208 等の漢字フォントレンダリングを実装。
   - 日本語メッセージの表示に対応。
-  - 日本語版 [Guidebook]([https://e3sh.github.io/Nethack-wasm-webUI/Guidebook.ja.html) を同梱。
+  - 日本語版 [Guidebook](https://e3sh.github.io/Nethack-wasm-webUI/Guidebook.ja.html) を同梱。
 - **データの永続化**:
   - IndexedDB (IDBFS) による、ブラウザ内でのセーブデータ保持。
   - 5分おきのオートセーブおよび正常終了時の自動保存を実装。
