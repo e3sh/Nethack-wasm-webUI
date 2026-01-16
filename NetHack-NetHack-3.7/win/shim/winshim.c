@@ -121,7 +121,15 @@ void name fn_args { \
 }
 #endif /* __EMSCRIPTEN__ */
 
-VDECLCB(shim_init_nhwindows,(int *argcp, char **argv), "vpp", P2V argcp, P2V argv)
+void shim_init_nhwindows(int *argcp, char **argv) {
+    void *args[] = { P2V argcp, P2V argv };
+    debugf("SHIM GRAPHICS: shim_init_nhwindows\n");
+    if (shim_callback_name) {
+        local_callback(shim_callback_name, "shim_init_nhwindows", NULL, "vpp", args);
+    }
+    debugf("SHIM GRAPHICS: shim_init_nhwindows done.\n");
+    iflags.window_inited = TRUE;
+}
 DECLCB(boolean, shim_player_selection_or_tty,(void), "b")
 VDECLCB(shim_askname,(void), "v")
 VDECLCB(shim_get_nh_event,(void), "v")

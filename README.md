@@ -22,7 +22,7 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 
 - **移動**: 方向キー / テンキー
 - **特殊コマンド (Ctrlキー)**: **Spaceキー**をCtrlキーの代わりにとして使用します。
-  - 例: `Ctrl+P` (以前のメッセージ表示) は `Space` + `P` で入力。
+  - 例: `Ctrl+X` (詳細ステータス表示) は `Space` + `X` で入力。
   - `Space` 単体押しの場合は、Spaceキーとして機能します。
 - **Gamepad**: 十字キーによる移動をサポート（ボタン割り当ては調整中）。
 
