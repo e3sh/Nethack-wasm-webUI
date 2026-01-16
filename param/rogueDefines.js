@@ -13,34 +13,36 @@ function rogueDefines(r) {
         DSP_WINDOW: 4,
         DSP_MODE: 5,
         DSP_COMMENT: 6,
+        LINES: 24,
+        COLS: 80,
 
         //nh parameters
 
         STAT_FLD: {
-            "TITLE":0, //0
-            "STR":1,  //1 
-            "DEX":2,  //2
-            "CON":3,  //3
-            "INT":4,  //4
-            "WIS":5,  //5
-            "CHA":6,  //6
-            "ALIGN":7,   //7
-            "SCORE":8,   //8
-            "CAP":9, //9
-            "GOLD":10, //10
-            "ENE":11, //11
-            "ENEMAX":12, //12
-            "XP":13, //13
-            "AC":14, //14
-            "HITDICE":15, //15
-            "TIME":16, //16
-            "HUNGER":17, //17
-            "HP":18, //18
-            "HPMAX":19, //19
-            "DLEVEL":20, //20
-            "EXP":21, //21
-            "CONDITION":22, //22
-            "VERS":23, //23
+            "TITLE": 0, //0
+            "STR": 1,  //1 
+            "DEX": 2,  //2
+            "CON": 3,  //3
+            "INT": 4,  //4
+            "WIS": 5,  //5
+            "CHA": 6,  //6
+            "ALIGN": 7,   //7
+            "SCORE": 8,   //8
+            "CAP": 9, //9
+            "GOLD": 10, //10
+            "ENE": 11, //11
+            "ENEMAX": 12, //12
+            "XP": 13, //13
+            "AC": 14, //14
+            "HITDICE": 15, //15
+            "TIME": 16, //16
+            "HUNGER": 17, //17
+            "HP": 18, //18
+            "HPMAX": 19, //19
+            "DLEVEL": 20, //20
+            "EXP": 21, //21
+            "CONDITION": 22, //22
+            "VERS": 23, //23
         },
 
         //condition bits
@@ -79,13 +81,13 @@ function rogueDefines(r) {
 
         //Keymap　キーボードの記号配列JIS106/109Keyboard [normal, shift, ctrl]
         KEYMAP: {
-            'ArrowUp':      ['k'.charCodeAt(0), 'K'.charCodeAt(0), null],
-            'ArrowDown':    ['j'.charCodeAt(0), 'J'.charCodeAt(0), null],
-            'ArrowLeft':    ['h'.charCodeAt(0), 'H'.charCodeAt(0), null],
-            'ArrowRight':   ['l'.charCodeAt(0), 'L'.charCodeAt(0), null],
-            'Enter':        [13, 13, 13],
-            'Escape':       [27, 27, 27],
-            'Space':        [32, 32, 32],
+            'ArrowUp': ['k'.charCodeAt(0), 'K'.charCodeAt(0), null],
+            'ArrowDown': ['j'.charCodeAt(0), 'J'.charCodeAt(0), null],
+            'ArrowLeft': ['h'.charCodeAt(0), 'H'.charCodeAt(0), null],
+            'ArrowRight': ['l'.charCodeAt(0), 'L'.charCodeAt(0), null],
+            'Enter': [13, 13, 13],
+            'Escape': [27, 27, 27],
+            'Space': [32, 32, 32],
             'KeyA': ["a".charCodeAt(0), "A".charCodeAt(0), 1],
             'KeyB': ["b".charCodeAt(0), "B".charCodeAt(0), 2],
             'KeyC': ["c".charCodeAt(0), "C".charCodeAt(0), 3],
@@ -134,22 +136,22 @@ function rogueDefines(r) {
             'Numpad9': ["u".charCodeAt(0), "u".charCodeAt(0), null],
             'NumpadEnter': [13, 13, 13], //Enter
             'NumpadPeriod': [".".charCodeAt(0), ".".charCodeAt(0), null],
-            'NumpadAdd':    ["+".charCodeAt(0), "+".charCodeAt(0), null], 
-            'NumpadSubtract': ["-".charCodeAt(0), "-".charCodeAt(0), null], 
+            'NumpadAdd': ["+".charCodeAt(0), "+".charCodeAt(0), null],
+            'NumpadSubtract': ["-".charCodeAt(0), "-".charCodeAt(0), null],
             'NumpadDevide': ["/".charCodeAt(0), "/".charCodeAt(0), null],
             'NumpadMultiply': ["*".charCodeAt(0), "*".charCodeAt(0), null],
-            'Period':       [".".charCodeAt(0), ">".charCodeAt(0), null],
-            'Comma':        [",".charCodeAt(0), "<".charCodeAt(0), null],
-            'Minus':        ["-".charCodeAt(0), "=".charCodeAt(0), null],
-            'BracketLeft':  ["@".charCodeAt(0), "`".charCodeAt(0), null], //get off/on switch
+            'Period': [".".charCodeAt(0), ">".charCodeAt(0), null],
+            'Comma': [",".charCodeAt(0), "<".charCodeAt(0), null],
+            'Minus': ["-".charCodeAt(0), "=".charCodeAt(0), null],
+            'BracketLeft': ["@".charCodeAt(0), "`".charCodeAt(0), null], //get off/on switch
             'BracketRight': ["[".charCodeAt(0), "{".charCodeAt(0), null],
-            'Quote':        [":".charCodeAt(0), "*".charCodeAt(0), null],
-            'Slash':        ["/".charCodeAt(0), "?".charCodeAt(0), null], 
-            'Semicolon':    [";".charCodeAt(0), "+".charCodeAt(0), null],
-            'IntlRo':       ["\\".charCodeAt(0), "_".charCodeAt(0), null],
-            'Backslash':    ["]".charCodeAt(0), "}".charCodeAt(0), null],
-            'Equal':        ["^".charCodeAt(0), "~".charCodeAt(0), null],
-            'IntlYen':      ["\\".charCodeAt(0), "|".charCodeAt(0), null],
+            'Quote': [":".charCodeAt(0), "*".charCodeAt(0), null],
+            'Slash': ["/".charCodeAt(0), "?".charCodeAt(0), null],
+            'Semicolon': [";".charCodeAt(0), "+".charCodeAt(0), null],
+            'IntlRo': ["\\".charCodeAt(0), "_".charCodeAt(0), null],
+            'Backslash': ["]".charCodeAt(0), "}".charCodeAt(0), null],
+            'Equal': ["^".charCodeAt(0), "~".charCodeAt(0), null],
+            'IntlYen': ["\\".charCodeAt(0), "|".charCodeAt(0), null],
         },
     };
     return d;

@@ -2,7 +2,7 @@
 
 NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベースの独自描画エンジンでブラウザからプレイ可能にするプロジェクトです。
 
-[**[ 🎮 今すぐブラウザでプレイ (Demo) ]**](https://e3-sh.github.com/Nethack-wasm-webUI/)
+[**[ 🎮 今すぐブラウザでプレイ (Demo) ]**](https://e3-sh.github.io/Nethack-wasm-webUI/)
 
 ## 🚀 特徴
 

@@ -147,7 +147,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        console.log("NH Event:", type, args);
+        //console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -245,10 +245,51 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_display_file,(const char *name, boolean complain), "vsb", P2V name, A2P complain)
             case "shim_display_file":
-                alert(`display_file("${args[0]}" ,${args[1]})`);
-                //window.open(`./dat/${args[0]}.txt`, '_blank'); //NH display_file')
-                //console.log("Not implemented");
-                return 0;
+                {
+                    const filename = args[0];
+                    const complain = args[1];
+                    const path = `./dat/${filename}`;
+                    console.log(`shim_display_file: path=${path}, complain=${complain}`);
+
+                    return new Promise(async (resolve) => {
+                        try {
+                            // 1. まずは仮想ファイルシステム (VFS) を試す
+                            if (typeof FS !== 'undefined' && FS.analyzePath(path).exists) {
+                                const data = FS.readFile(path, { encoding: 'utf8' });
+                                this.UI.overlapview(true);
+                                await this.UI.showText(filename, data);
+                                resolve(0);
+                                return;
+                            }
+
+                            // 2. VFS にない場合はサーバーから fetch して FileReader で読み込む
+                            const response = await fetch(path);
+                            if (response.ok) {
+                                const blob = await response.blob();
+                                const reader = new FileReader();
+                                reader.onload = async (e) => {
+                                    const text = e.target.result;
+                                    this.UI.overlapview(true);
+                                    await this.UI.showText(filename, text);
+                                    resolve(0);
+                                };
+                                reader.onerror = () => {
+                                    if (complain) this.UI.msg(`FileReader error: ${path}`);
+                                    resolve(0);
+                                };
+                                reader.readAsText(blob);
+                            } else {
+                                if (complain) this.UI.msg(`File not found on server: ${path}`);
+                                console.warn(`File not found: ${path}`);
+                                resolve(0);
+                            }
+                        } catch (e) {
+                            console.error("shim_display_file error:", e);
+                            if (complain) this.UI.msg(`Error loading file: ${filename}`);
+                            resolve(0);
+                        }
+                    });
+                }
             //VDECLCB(shim_start_menu,(winid window, unsigned long mbehavior), "vii", A2P window, A2P mbehavior)
             case "shim_start_menu":
                 this.menuBuffer[args[0]] = { behavior: args[1], items: [], prompt: "" };

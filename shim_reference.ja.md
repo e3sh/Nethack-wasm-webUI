@@ -188,3 +188,29 @@ JavaScript 側のイベント処理で `Promise` を返すもの（`shim_nhgetch
 | `0x08000000L` | 気絶 (`UNCONSC`) |
 | `0x10000000L` | 脚の怪ま (`WOUNDEDL`) |
 | `0x20000000L` | (掴んでいる?) (`HOLDING`) |
+
+---
+
+## ビルド方法と環境構築
+
+本プロジェクトは、NetHack 本体のソースコードを WebAssembly (Asyncify 有効) でビルドすることで動作します。
+
+### 前提条件
+- **OS**: Windows (PowerShell 使用)
+- **コンパイラ**: Visual Studio (MSVC)
+- **Wasm ツールチェーン**: [Emscripten SDK (emsdk)](https://emscripten.org/docs/getting_started/downloads.html)
+- **ビルドツール**: `nmake` (Visual Studio インストール時に含まれます)
+
+### 手順
+1. **NetHack ソースの取得**:
+   [NetHack 公式リポジトリ](https://github.com/NetHack/NetHack) をクローンし、`NetHack-NetHack-3.7` というディレクトリ名で本プロジェクトのルートに配置してください。
+2. **ビルドスクリプトの実行**:
+   `NetHack-NetHack-3.7/build_wasm_37.ps1` を実行します。
+   > [!IMPORTANT]
+   > スクリプト内の `$EMSDK_PATH` および `$VCVARS_PATH` を各自の環境に合わせて書き換えてください。
+3. **成果物の配置**:
+   ビルドが完了すると、`nethack.js` および `nethack.wasm` が生成されます。これらを本プロジェクトのルートディレクトリに配置（または上書き）してください。
+
+### デバッグ時のヒント
+- **Console Debug**: ブラウザのデベロッパーツールで `NH Event:` から始まるログを確認することで、C側から JS へどのようなイベントが飛んでいるかを追跡できます。
+- **Source Maps**: デバッグビルド（`-g` フラグ付き）を行うことで、ブラウザ上で C 言語のソースコードを直接デバッグすることが可能です。

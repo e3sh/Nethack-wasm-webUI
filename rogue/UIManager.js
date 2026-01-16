@@ -12,7 +12,7 @@ function UIManager(r, g) {
 
     //this.io = new io(r);
     this.trancelate = new trancelate(r);
- 
+
     const cw = d.DSP_MAIN_FG;
     const mw = d.DSP_MAIN_BG;
     const hw = d.DSP_WINDOW;
@@ -81,7 +81,7 @@ function UIManager(r, g) {
     this.insertLine = () => { g.console[dspmode].insertln(); }
     this.clear = function () { g.console[dspmode].clear(); }
 
-    this.cursorDown = function(){
+    this.cursorDown = function () {
         const cursor = g.console[dspmode].cursor;
         g.console[dspmode].move(cursor.x, cursor.y + 1);
     }
@@ -280,8 +280,8 @@ function UIManager(r, g) {
     }
 
     let txtbuf = [];
-    this.nhPutbufReady =()=>{
-        return (txtbuf.length > 0)? true: false;
+    this.nhPutbufReady = () => {
+        return (txtbuf.length > 0) ? true : false;
     }
     this.nhPutbufClear = () => {
         txtbuf = [];
@@ -289,7 +289,7 @@ function UIManager(r, g) {
     this.nhPutbufAdd = (text) => {
         const result = this.trancelate.message(text);
 
-        if (display_window == 0) 
+        if (display_window == 0)
             this.msg(result);
         else {
             const result = this.trancelate.message(text);
@@ -314,7 +314,7 @@ function UIManager(r, g) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG;
         if (Boolean(dsp)) this.wclear(dsp);
     };
-    this.nhCliparound = function(x, y){
+    this.nhCliparound = function (x, y) {
         let ch = this.mvinch(y, x);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
     }
@@ -351,10 +351,10 @@ function UIManager(r, g) {
         } else { //select menu
             return new Promise((resolve) => {
                 let cf = false; //full cursor mode '?'menu 
-                items.forEach((item)=>{if (item.ch != "\u0000") cf = true;}); //inventory
-                items.forEach((item)=>{if (item.ch == "?") cf = false;}); //Option menu
-                
-                const cancelitem = (cf)?"\u0000":false;
+                items.forEach((item) => { if (item.ch != "\u0000") cf = true; }); //inventory
+                items.forEach((item) => { if (item.ch == "?") cf = false; }); //Option menu
+
+                const cancelitem = (cf) ? "\u0000" : false;
 
                 let selectedIndex = 0;
                 const menuDsp = d.DSP_WINDOW;
@@ -429,11 +429,86 @@ function UIManager(r, g) {
         });
     };
 
+    /**
+     * テキストデータを全画面（DSP_WINDOW）に表示する（ページ送り対応）
+     * @param {string} title 
+     * @param {string} content 
+     */
+    this.showText = function (title, content) {
+        const lines = content.split('\n');
+        const numLines = d.LINES || 24;
+        const pageSize = numLines - 2;
+        const pages = [];
+
+        if (pageSize <= 0) {
+            pages.push(lines);
+        } else {
+            for (let i = 0; i < lines.length; i += pageSize) {
+                pages.push(lines.slice(i, i + pageSize));
+            }
+        }
+
+        return new Promise(async (resolve) => {
+            let currentPage = 0;
+            const menuDsp = d.DSP_WINDOW;
+
+            const renderPage = (pageIdx) => {
+                const pageLines = pages[pageIdx] || [];
+                this.wclear(menuDsp);
+                const pageInfo = ` (Page ${pageIdx + 1}/${pages.length})`;
+                this.mvwaddch(menuDsp, 0, 0, title + pageInfo);
+
+                pageLines.forEach((line, i) => {
+                    this.mvwaddch(menuDsp, i + 1, 0, line);
+                });
+
+                if (pages.length > 1) {
+                    this.mvwaddch(menuDsp, pageSize + 1, 0, "-- More -- (Space/j for next, b/k for prev)");
+                }
+            };
+
+            const originalHandler = r.pendingInputResolve;
+            const handler = (charCode) => {
+                const key = String.fromCharCode(charCode).toLowerCase();
+
+                if (key === ' ' || key === 'j' || charCode === 13) { // Space, j, Enter: 次へ
+                    if (currentPage < pages.length - 1) {
+                        currentPage++;
+                        renderPage(currentPage);
+                        r.pendingInputResolve = handler;
+                    } else {
+                        this.overlapview(false);
+                        resolve();
+                        r.pendingInputResolve = originalHandler;
+                    }
+                } else if (key === 'b' || key === 'k') { // b, k: 前へ
+                    if (currentPage > 0) {
+                        currentPage--;
+                        renderPage(currentPage);
+                        r.pendingInputResolve = handler;
+                    } else {
+                        r.pendingInputResolve = handler;
+                    }
+                } else if (charCode === 27) { // ESC: 閉じる
+                    this.overlapview(false);
+                    resolve();
+                    r.pendingInputResolve = originalHandler;
+                } else {
+                    r.pendingInputResolve = handler;
+                }
+            };
+
+            this.overlapview(true);
+            renderPage(currentPage);
+            r.pendingInputResolve = handler;
+        });
+    };
+
 
 
     let statusFields = [];
     for (let i = 0; i < 23; i++) {
-        statusFields.push({value: 0});
+        statusFields.push({ value: 0 });
     }
     this.updateStatus = function (fld, value, chg, clr) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
@@ -458,7 +533,7 @@ function UIManager(r, g) {
         const statusDsp = d.DSP_STATUS;
         const s = d.STAT_FLD;
         const sf = [];
- 
+
         this.wclear(statusDsp);
         statusFields.forEach((field, index) => {
             if (field) {
@@ -469,15 +544,15 @@ function UIManager(r, g) {
         let splitwork = sf[s.GOLD].split(":");
         const GOLD = splitwork[1];
 
-        this.mvwaddstr(statusDsp, 0, 0, 
+        this.mvwaddstr(statusDsp, 0, 0,
             `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
         );
         this.mvwaddstr(statusDsp, 1, 0,
             `${sf[s.ALIGN]} $:${GOLD} HP:${sf[s.HP]}(${sf[s.HPMAX]}) Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
-        ); 
-        this.mvwaddstr(statusDsp, 2, 0, 
+        );
+        this.mvwaddstr(statusDsp, 2, 0,
             `${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
-        ); 
+        );
     };
 
     this.debugStatus = function () {
@@ -506,7 +581,7 @@ function UIManager(r, g) {
         let str = "";
 
         for (let i in CDT) {
-            str += `${(condvalue & CDT[i]) ? `${i} `: ""}`;
+            str += `${(condvalue & CDT[i]) ? `${i} ` : ""}`;
         }
         return str;
     }
