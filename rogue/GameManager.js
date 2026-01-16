@@ -147,7 +147,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        console.log("NH Event:", type, args);
+        //console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -200,21 +200,32 @@ function GameManager(g) {
                 return 0;
             //DECLCB(winid, shim_create_nhwindow, (int type), "ii", A2P type)
             case "shim_create_nhwindow":
+                this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 return 0;
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
-                //this.UI.nhPutbufClear();
+                this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 break;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
                 this.UI.nhPutbufDraw(args[0]);
-                this.UI.overlapview(args[1] ? true : false);
+                if (this.UI.nhPutbufReady() || args[1]){
+                    this.UI.nhClear(args[0]);
+                    this.UI.nhPutbufDraw(args[0]);
+                    this.UI.overlapview(true);
+                    await new Promise(
+                        resolve => {
+                            this.pendingInputResolve = resolve;
+                        });
+                }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
             case "shim_destroy_nhwindow":
+                this.UI.overlapview(false);
                 this.UI.nhPutbufClear();
+                this.UI.wclear(d.DSP_WINDOW);
                 return 0;
             //VDECLCB(shim_curs,(winid a, int x, int y), "viii", A2P a, A2P x, A2P y)
             case "shim_curs":
@@ -227,7 +238,9 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_display_file,(const char *name, boolean complain), "vsb", P2V name, A2P complain)
             case "shim_display_file":
-                console.log("Not implemented");
+                alert(`display_file("${args[0]}" ,${args[1]})`);
+                //window.open(`./dat/${args[0]}.txt`, '_blank'); //NH display_file')
+                //console.log("Not implemented");
                 return 0;
             //VDECLCB(shim_start_menu,(winid window, unsigned long mbehavior), "vii", A2P window, A2P mbehavior)
             case "shim_start_menu":
@@ -323,6 +336,7 @@ function GameManager(g) {
             case "shim_cliparound":
                 // Center map on player if dungeon is larger than window.
                 // No-op if map fits or UI handles it independently.
+                this.UI.nhCliparound(args[0], args[1]);
                 return 0;
             //VDECLCB(shim_update_positionbar,(char *posbar), "vs", P2V posbar)
             case "shim_update_positionbar":
@@ -366,7 +380,7 @@ function GameManager(g) {
                 });
             //VDECLCB(shim_nhbell,(void), "v")
             case "shim_nhbell":
-                console.log("Not implemented");
+                console.log("shim_nhbell(Not implemented)");
                 return 0;
             //DECLCB(int, shim_doprev_message,(void),"iv")
             case "shim_doprev_message":
@@ -399,17 +413,49 @@ function GameManager(g) {
                     });
                 }
             //DECLCB(int,shim_get_ext_cmd,(void),"iv")
-            case "shim_get_ext_cmd":
-                console.log("Not implemented");
-                return 0;
+            case "shim_get_ext_cmd":                return new Promise(async (resolve) => {
+                    const input = await r.UI.showInput("#");
+                    if (!input) {
+                        resolve(-1);
+                        return;
+                    }
+
+                    // 拡張コマンド名のリスト (NetHack 3.7.0 extcmdlist より抜粋)
+                    // 本来は Wasm 側から動的に取得するのが望ましいですが、
+                    // 暫定的に主要なコマンド名をハードコードして対応します。
+                    // インデックスは cmd.c 内の定義順に基づきます。
+                    const extcmds = [
+                        "?", "adjust", "annotate", "apply", "attributes", "autopickup",
+                        "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
+                        "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
+                        "enhance", "exploremode", "fight", "fire", "force", "genocided",
+                        "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
+                        "invoke", "jump", "kick", "known", "knownclass", "levelchange",
+                        "lightsources", "look", "lookaround", "loot", "migratemons",
+                        "monster", "name", "offer", "open", "options", "optionsfull",
+                        "overview", "panic", "pay", "perminv", "pickup", "polyself",
+                        "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
+                        "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
+                        "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
+                        "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
+                        "shell", "showgold", "showspells", "showtrap", "sit", "stats",
+                        "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
+                        "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
+                        "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
+                        "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
+                    ];
+
+                    const idx = extcmds.indexOf(input.toLowerCase());
+                    this.UI.msg(`${input.toLowerCase()}->${extcmds[idx]}`);
+                    resolve(idx >= 0 ? idx : -1);
+                });
             //VDECLCB(shim_number_pad,(int state), "vi", A2P state)
             case "shim_number_pad":
                 console.log("Not implemented");
                 return 0;
             //VDECLCB(shim_delay_output,(void), "v")
             case "shim_delay_output":
-                console.log("Not implemented");
-                return 0;
+                return new Promise(resolve => setTimeout(resolve, 50));
             //VDECLCB(shim_change_color,(int color, long rgb, int reverse), "viii", A2P color, A2P rgb, A2P reverse)
             case "shim_change_color":
                 console.log("Not implemented");
@@ -589,7 +635,7 @@ function GameManager(g) {
                                 } catch (e) { console.error(`Failed to initialize dir ${d}`, e); }
                             });
 
-                            const files = ['perm', 'record', 'sysconf', 'logfile'];
+                            const files = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog'];
                             files.forEach(f => {
                                 try {
                                     const path = '/' + f;
@@ -644,7 +690,15 @@ function GameManager(g) {
 
                         if (result instanceof Promise) {
                             result.then((r) => console.log("NetHack Engine Exited with:", r))
-                                .catch((err) => console.error("NetHack Engine Runtime Error:", err));
+                                .catch((err) => {
+                                    if (err.name === 'ExitStatus') {
+                                        console.log("NetHack Engine Exited Successfully with status:", err.status);
+                                        this.playing = false;
+                                        this.UI.msg("NetHack 3.7.0 (wasm) Exit");
+                                        return;
+                                    }
+                                    console.error("NetHack Engine Runtime Error:", err);
+                                });
                             console.log("NetHack Engine is now running asynchronously.");
                         } else {
                             console.log("NetHack Engine started synchronously (Warning: Asyncify might not be active).");

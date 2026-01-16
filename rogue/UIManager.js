@@ -84,7 +84,7 @@ function UIManager(r, g) {
     //rogue bridge
     this.msg = (text) => {
         if (!Boolean(text)) {
-            console.trace(); //undefinedのメッセージが表示される場合の呼び出し元調査用
+            //console.trace(); //undefinedのメッセージが表示される場合の呼び出し元調査用
         }
         text = `${this.texwork + text}`;
         if (!Boolean(text)) return;
@@ -242,7 +242,7 @@ function UIManager(r, g) {
         2: d.DSP_STATUS,  // NHW_STATUS
         3: d.DSP_MAIN,    // NHW_MAP
         4: d.DSP_WINDOW,  // NHW_MENU
-        5: d.DSP_COMMENT  // NHW_TEXT
+        5: d.DSP_WINDOW,  // NHW_TEXT
     };
 
     this.nhCurs = function (windowId, x, y) {
@@ -269,6 +269,9 @@ function UIManager(r, g) {
     }
 
     let txtbuf = [];
+    this.nhPutbufReady =()=>{
+        return (txtbuf.length > 0)? true: false;
+    }
     this.nhPutbufClear = () => {
         txtbuf = [];
     }
@@ -295,9 +298,13 @@ function UIManager(r, g) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG;
         if (Boolean(dsp)) this.wclear(dsp);
     };
+    this.nhCliparound = function(x, y){
+        let ch = this.mvinch(y, x);
+        this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
+    }
 
     this.showMenu = function (items, how, promptText) {
-        if (how == 0) {
+        if (how == 0) {  //view only menu (nocursor)
             return new Promise((resolve) => {
                 const menuDsp = d.DSP_WINDOW;
                 this.wclear(menuDsp);
@@ -325,14 +332,20 @@ function UIManager(r, g) {
                 };
                 r.pendingInputResolve = handler;
             });
-        } else {
+        } else { //select menu
             return new Promise((resolve) => {
+                let cf = false; //full cursor mode '?'menu 
+                items.forEach((item)=>{if (item.ch != "\u0000") cf = true;}); //inventory
+                items.forEach((item)=>{if (item.ch == "?") cf = false;}); //Option menu
+                
+                const cancelitem = (cf)?"\u0000":false;
+
                 let selectedIndex = 0;
                 const menuDsp = d.DSP_WINDOW;
-                if (items[selectedIndex].ch == "\u0000") {
+                if (items[selectedIndex].ch == cancelitem) {
                     do {
                         selectedIndex = (selectedIndex + 1) % items.length;
-                    } while (items[selectedIndex].ch == "\u0000");
+                    } while (items[selectedIndex].ch == cancelitem);
                 }
 
                 const render = () => {
@@ -356,13 +369,13 @@ function UIManager(r, g) {
                     if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
                         do {
                             selectedIndex = (selectedIndex + 1) % items.length;
-                        } while (items[selectedIndex].ch == "\u0000");
+                        } while (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == "");
                         render();
                         r.pendingInputResolve = handler; // 次の入力を待つ
                     } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
                         do {
                             selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-                        } while (items[selectedIndex].ch == "\u0000");
+                        } while (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == "");
                         render();
                         r.pendingInputResolve = handler; // 次の入力を待つ
                     } else if (charCode === 13) { // Enter: 決定

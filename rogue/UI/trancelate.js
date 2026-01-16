@@ -22,7 +22,7 @@ function trancelate(r) {
 
         if (tmode == false) return msg;
 
-        let idx = trtable_org.indexOf(msg); console.log(idx);
+        let idx = trtable_org.indexOf(msg); //console.log(idx);
 
         if (idx != -1) {
             return trtable_answar[idx];
