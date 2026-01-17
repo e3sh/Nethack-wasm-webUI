@@ -291,7 +291,7 @@ function UIManager(r, g) {
     this.nhPutbufAdd = (text) => {
         const result = this.trancelate.message(text);
 
-        if (display_window == 0)
+        if (display_window == 0 || display_window == 1)
             this.msg(result);
         else {
             const result = this.trancelate.message(text);
@@ -313,7 +313,9 @@ function UIManager(r, g) {
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
     };
     this.nhClear = function (windowId) {
-        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG;
+        const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG; //console.log("nlclear:"+dsp);
+        if (dsp == d.DSP_MAIN) {this.wclear(d.DSP_MAIN_FG); return}; 
+        if (dsp == d.DSP_MESSAGE) {this.wclear(d.DSP_MAIN_FG); return};
         if (Boolean(dsp)) this.wclear(dsp);
     };
     this.nhCliparound = function (x, y) {
@@ -519,8 +521,6 @@ function UIManager(r, g) {
         statusFields.push({ value: 0 });
     }
     this.updateStatus = function (fld, value, chg, clr) {
-        // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
-        //console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
 
         if (fld <= d.BL_FLASH) {
             this.renderStatus();
@@ -528,11 +528,9 @@ function UIManager(r, g) {
             return;
         }
 
-        if (fld == d.BL_LEVELDESC) {
+        if (fld == d.BL_DLEVEL) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
-            if (Boolean(statusFields[20])) {
-                if (statusFields[20].value !== value) this.wclear(d.DSP_MAIN);
-            }
+            if (statusFields[d.BL_DLEVEL].value != value) this.wclear(d.DSP_MAIN);
         }
         if (fld == d.BL_VERS) {
             //`BL_VERS` | バージョン情報が変更されるタイミング

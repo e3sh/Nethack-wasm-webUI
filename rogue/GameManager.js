@@ -187,6 +187,7 @@ function GameManager(g) {
             case "shim_exit_nhwindows":
                 //this.playing = false;
                 console.log("Exiting nhwindows...");
+                this.UI.msg(args[0] || "Exiting game.");
                 this.UI.nhClear(3); // NHW_MAP
                 this.UI.clear(d.DSP_MAIN); // NHW_BGMAP
                 this.UI.nhCurs(3, 0, 0);
@@ -204,7 +205,7 @@ function GameManager(g) {
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 this.UI.set_display_window(args[0]);
-                return 0;
+                return args[0];
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
                 this.UI.overlapview(false);
@@ -398,7 +399,7 @@ function GameManager(g) {
             //VDECLCB(shim_mark_synch,(void), "v")
             case "shim_mark_synch":
                 // Synchronization marker. Empty call is valid for most ports.
-                this.UI.msg("Press any key");
+                //this.UI.msg("Press any key");
                 return 0;
             //VDECLCB(shim_wait_synch,(void), "v")
             case "shim_wait_synch":
@@ -421,7 +422,7 @@ function GameManager(g) {
                     const helpers = window.nethackGlobal.helpers;
                     const gInfo = helpers.parseGlyphInfo(args[3]);
                     const bkInfo = helpers.parseGlyphInfo(args[4]);
-                    this.UI.nhPrintGlyph(args[0], args[1], args[2], gInfo, bkInfo);
+                    this.UI.nhPrintGlyph(null, args[1], args[2], gInfo, bkInfo);
                 }
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)

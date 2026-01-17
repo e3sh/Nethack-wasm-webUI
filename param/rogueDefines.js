@@ -13,7 +13,7 @@ function rogueDefines(r) {
         DSP_WINDOW: 4,
         DSP_MODE: 5,
         DSP_COMMENT: 6,
-        LINES: 24,
+        LINES: 32,
         COLS: 80,
 
         //nh parameters

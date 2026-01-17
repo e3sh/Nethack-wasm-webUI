@@ -18,10 +18,10 @@ class sceneControl extends GameTask {
 
 			io = g.task.read("io");
 			this.moveEffect = new moveEffect(g);
-			this.moveEffect.setDrawIndex(160, 0);
+			this.moveEffect.setDrawIndex(48, 0);
 
 			this.monsHpView = new monsHpView(g);
-			this.monsHpView.setDrawIndex(160, -8);
+			this.monsHpView.setDrawIndex(48, -8);
 			//let mode = document.getElementById("lang").checked;
 
 			const r = new GameManager(g);// ,mode? "jp":"en"); 
