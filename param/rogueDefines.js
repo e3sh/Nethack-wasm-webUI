@@ -18,6 +18,34 @@ function rogueDefines(r) {
 
         //nh parameters
 
+        //nh status fields value
+        BL_RESET: -2,
+        BL_FLASH: -1,
+        BL_TITLE: 0,
+        BL_STR: 1,
+        BL_DEX: 2,
+        BL_CON: 3,
+        BL_INT: 4,
+        BL_WIS: 5,
+        BL_CHA: 6,
+        BL_ALIGN: 7,
+        BL_SCORE: 8,
+        BL_CAP: 9,
+        BL_GOLD: 10,
+        BL_ENE: 11,
+        BL_ENEMAX: 12,
+        BL_XP: 13,
+        BL_AC: 14,
+        BL_HITDICE: 15,
+        BL_TIME: 16,
+        BL_HUNGER: 17,
+        BL_HP: 18,
+        BL_HPMAX: 19,
+        BL_DLEVEL: 20,
+        BL_EXP: 21,
+        BL_CONDITION: 22,
+        BL_VERS: 23,
+
         STAT_FLD: {
             "TITLE": 0, //0
             "STR": 1,  //1 
@@ -153,6 +181,31 @@ function rogueDefines(r) {
             'Equal': ["^".charCodeAt(0), "~".charCodeAt(0), null],
             'IntlYen': ["\\".charCodeAt(0), "|".charCodeAt(0), null],
         },
+
+        // 拡張コマンド名のリスト (NetHack 3.7.0 extcmdlist より抜粋)
+        // 本来は Wasm 側から動的に取得するのが望ましいですが、
+        // 暫定的に主要なコマンド名をハードコードして対応します。
+        // インデックスは cmd.c 内の定義順に基づきます。
+        EXTCMDS: [
+            "?", "adjust", "annotate", "apply", "attributes", "autopickup",
+            "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
+            "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
+            "enhance", "exploremode", "fight", "fire", "force", "genocided",
+            "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
+            "invoke", "jump", "kick", "known", "knownclass", "levelchange",
+            "lightsources", "look", "lookaround", "loot", "migratemons",
+            "monster", "name", "offer", "open", "options", "optionsfull",
+            "overview", "panic", "pay", "perminv", "pickup", "polyself",
+            "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
+            "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
+            "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
+            "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
+            "shell", "showgold", "showspells", "showtrap", "sit", "stats",
+            "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
+            "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
+            "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
+            "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
+        ],
     };
     return d;
 }

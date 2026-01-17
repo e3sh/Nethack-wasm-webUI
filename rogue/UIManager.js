@@ -242,6 +242,8 @@ function UIManager(r, g) {
 
     /* --- NetHack 3.7 Bridge Methods --- */
     let display_window = 0;
+    let bcurpos = { x: 0, y: 0 };
+
     this.set_display_window = (windowId) => {
         display_window = windowId;
     }
@@ -317,6 +319,12 @@ function UIManager(r, g) {
     this.nhCliparound = function (x, y) {
         let ch = this.mvinch(y, x);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
+        bcurpos.x = x;
+        bcurpos.y = y;
+    }
+
+    this.nhBell = function () {
+        this.setEffect(`oh!`, { x: bcurpos.x, y: bcurpos.y }, { x: bcurpos.x, y: bcurpos.y - 1 }, 120);
     }
 
     this.showMenu = function (items, how, promptText) {
@@ -507,24 +515,29 @@ function UIManager(r, g) {
 
 
     let statusFields = [];
-    for (let i = 0; i < 23; i++) {
+    for (let i = 0; i < 24; i++) {
         statusFields.push({ value: 0 });
     }
     this.updateStatus = function (fld, value, chg, clr) {
         // ステータス表示の更新ロジック（将来的に固定レイアウトへ出力するように拡張）
         //console.log(`Status update: fld=${fld} val=${value} chg=${chg}`);
 
-        if (fld < 0) {
+        if (fld <= d.BL_FLASH) {
             this.renderStatus();
             this.debugStatus();
             return;
         }
 
-        if (fld == 20) {
+        if (fld == d.BL_LEVELDESC) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
             if (Boolean(statusFields[20])) {
                 if (statusFields[20].value !== value) this.wclear(d.DSP_MAIN);
             }
+        }
+        if (fld == d.BL_VERS) {
+            //`BL_VERS` | バージョン情報が変更されるタイミング
+            r.set_nhVersion(value);
+            console.log("Nethack ver:", value);
         }
         statusFields[fld] = { value: value, chg: chg, clr: clr };
     };

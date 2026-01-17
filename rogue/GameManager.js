@@ -39,9 +39,13 @@ function GameManager(g) {
     this.UI.comment("game");
 
     // --- NetHack Wasm Integration ---
-
+    let nhVersion = "";
+    this.set_nhVersion = (v) => { nhVersion = v; }
+    this.get_nhVersion = () => { return nhVersion; }
     this.pendingInputResolve = null;
     this.menuBuffer = {}; // windowId -> items[]
+    this.messageHistory = [];
+    this.historyIndex = 0;
 
     this.setupNethackGlobal = function () {
         if (typeof window === 'undefined') return;
@@ -207,7 +211,7 @@ function GameManager(g) {
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 this.UI.set_display_window(args[0]);
-                break;
+                return 0;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
                 this.UI.nhPutbufDraw(args[0]);
@@ -241,6 +245,12 @@ function GameManager(g) {
             //VDECLCB(shim_putstr,(winid w, int attr, const char *str), "viis", A2P w, A2P attr, P2V str)
             case "shim_putstr":
                 //this.UI.nhPutStr(args[0], args[1], args[2]);
+                if (args[0] === 1) { // NHW_MESSAGE
+                    this.messageHistory.push(args[2]);
+                    if (this.messageHistory.length > 200) { // Keep last 200 messages
+                        this.messageHistory.shift();
+                    }
+                }
                 this.UI.nhPutbufAdd(args[2]);
                 break;
             //VDECLCB(shim_display_file,(const char *name, boolean complain), "vsb", P2V name, A2P complain)
@@ -369,7 +379,21 @@ function GameManager(g) {
                 }
             //DECLCB(char, shim_message_menu,(char let, int how, const char *mesg), "ciis", A2P let, A2P how, P2V mesg)
             case "shim_message_menu":
-                console.log("Not implemented");
+                {
+                    const msgLet = args[0];
+                    const how = args[1];
+                    const mesg = args[2];
+
+                    if (this.messageHistory.length === 0) return 0;
+
+                    this.UI.overlapview(true);
+                    return new Promise(async (resolve) => {
+                        const historyString = [...this.messageHistory].reverse().join('\n');
+                        await this.UI.showText(mesg || "Message History", historyString);
+                        this.UI.overlapview(false);
+                        resolve(0);
+                    });
+                }
                 return 0;
             //VDECLCB(shim_mark_synch,(void), "v")
             case "shim_mark_synch":
@@ -402,10 +426,18 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)
             case "shim_raw_print":
+                if (args[0]) {
+                    this.messageHistory.push(args[0]);
+                    if (this.messageHistory.length > 200) this.messageHistory.shift();
+                }
                 this.UI.nhPutMsg(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
+                if (args[0]) {
+                    this.messageHistory.push(args[0]);
+                    if (this.messageHistory.length > 200) this.messageHistory.shift();
+                }
                 this.UI.nhPutMsg(`${args[0]}`);
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
@@ -429,11 +461,21 @@ function GameManager(g) {
                 });
             //VDECLCB(shim_nhbell,(void), "v")
             case "shim_nhbell":
-                console.log("shim_nhbell(Not implemented)");
+                this.UI.nhBell();
                 return 0;
             //DECLCB(int, shim_doprev_message,(void),"iv")
             case "shim_doprev_message":
-                console.log("Not implemented");
+                {
+                    if (this.messageHistory.length === 0) return 0;
+
+                    this.UI.overlapview(true);
+                    return new Promise(async (resolve) => {
+                        const historyString = [...this.messageHistory].reverse().join('\n');
+                        await this.UI.showText("Message History", historyString);
+                        this.UI.overlapview(false);
+                        resolve(0);
+                    });
+                }
                 return 0;
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
             case "shim_yn_function": {
@@ -469,31 +511,7 @@ function GameManager(g) {
                     resolve(-1);
                     return;
                 }
-
-                // 拡張コマンド名のリスト (NetHack 3.7.0 extcmdlist より抜粋)
-                // 本来は Wasm 側から動的に取得するのが望ましいですが、
-                // 暫定的に主要なコマンド名をハードコードして対応します。
-                // インデックスは cmd.c 内の定義順に基づきます。
-                const extcmds = [
-                    "?", "adjust", "annotate", "apply", "attributes", "autopickup",
-                    "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
-                    "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
-                    "enhance", "exploremode", "fight", "fire", "force", "genocided",
-                    "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
-                    "invoke", "jump", "kick", "known", "knownclass", "levelchange",
-                    "lightsources", "look", "lookaround", "loot", "migratemons",
-                    "monster", "name", "offer", "open", "options", "optionsfull",
-                    "overview", "panic", "pay", "perminv", "pickup", "polyself",
-                    "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
-                    "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
-                    "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
-                    "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
-                    "shell", "showgold", "showspells", "showtrap", "sit", "stats",
-                    "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
-                    "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
-                    "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
-                    "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
-                ];
+                const extcmds = d.EXTCMDS;
 
                 const idx = extcmds.indexOf(input.toLowerCase());
                 this.UI.msg(`${input.toLowerCase()}->${extcmds[idx]}`);
@@ -539,9 +557,6 @@ function GameManager(g) {
                     this.UI.updateStatus(fld, val, chg, clr);
                 }
                 return 0;
-            case "shim_change_background":
-                console.log("Not implemented");
-                return 0;
             //DECLCB(short, set_shim_font_name,(winid window_type, char *font_name),"2is", A2P window_type, P2V font_name)
             case "set_shim_font_name":
                 console.log("Not implemented");
@@ -557,25 +572,36 @@ function GameManager(g) {
             //DECLCB(char *,shim_getmsghistory, (boolean init), "sb", A2P init)
             case "shim_getmsghistory":
                 //console.log("shim_getmsghistory called, return null");
-                await new Promise(
-                    resolve => {
-                        this.pendingInputResolve = resolve;
-                    });
+                if (args[0]) { // init
+                    this.historyIndex = 0;
+                }
+                if (this.historyIndex < this.messageHistory.length) {
+                    const msg = this.messageHistory[this.historyIndex];
+                    this.historyIndex++;
+                    return msg;
+                }
                 return null;
             //VDECLCB(shim_putmsghistory, (const char *msg, boolean restoring_msghist), "vsb", P2V msg, A2P restoring_msghist)
             case "shim_putmsghistory":
-                this.UI.nhPutbufAdd(`${args[0]}`);
+                if (args[0]) {
+                    this.messageHistory.push(args[0]);
+                    if (this.messageHistory.length > 200) {
+                        this.messageHistory.shift();
+                    }
+                }
+                if (!args[1]) //restoring_msghist
+                    this.UI.msg(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_status_init, (void), "v")
             case "shim_status_init":
-                console.log("Not implemented");
+                //console.log("Not implemented");
                 return 0;
             //VDECLCB(shim_status_enablefield,
             //    (int fieldidx, const char *nm, const char *fmt, boolean enable),
             //    "vippb",
             //    A2P fieldidx, P2V nm, P2V fmt, A2P enable)
             case "shim_status_enablefield":
-                console.log("Not implemented");
+                //console.log("Not implemented");
                 return 0;
             //VDECLCB(shim_player_selection, (void), "v")
             case "shim_player_selection":
@@ -692,7 +718,7 @@ function GameManager(g) {
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        const args = Module.arguments || ['nethack', '-uplayer', '-otime,showexp'];
+                        const args = Module.arguments || ['nethack', '-uplayer', '-otime,showexp,showvers'];
                         const argc = args.length;
                         const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {
@@ -724,7 +750,7 @@ function GameManager(g) {
                                     if (err.name === 'ExitStatus') {
                                         console.log("NetHack Engine Exited Successfully with status:", err.status);
                                         this.playing = false;
-                                        this.UI.msg("NetHack 3.7.0 (wasm) Exit");
+                                        this.UI.msg(`NetHack ${this.get_nhVersion()}(wasm) Exit`);
                                         syncToPersistent();
                                         return;
                                     }
@@ -763,7 +789,7 @@ function GameManager(g) {
                                     console.log("NH Bootstrap: IDBFS Synced (Initial Complete)");
 
                                     const configFiles = ['NetHack.cnf', '.nethackrc'];
-                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp\n";
+                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers\n";
                                     configFiles.forEach(cf => {
                                         const path = '/' + cf;
                                         if (!FS.analyzePath(path).exists) {
