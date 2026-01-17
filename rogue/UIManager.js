@@ -251,7 +251,7 @@ function UIManager(r, g) {
     this.nhWindowMap = {
         1: d.DSP_MESSAGE, // NHW_MESSAGE
         2: d.DSP_STATUS,  // NHW_STATUS
-        3: d.DSP_MAIN_FG, // NHW_MAP
+        3: d.DSP_MAIN_FG,  // NHW_USEITEM
         4: d.DSP_WINDOW,  // NHW_MENU
         5: d.DSP_WINDOW,  // NHW_TEXT
         6: d.DSP_MAIN,  // NHW_BBMAP
@@ -326,7 +326,7 @@ function UIManager(r, g) {
     }
 
     this.nhBell = function () {
-        this.setEffect(`oh!`, { x: bcurpos.x, y: bcurpos.y }, { x: bcurpos.x, y: bcurpos.y - 1 }, 120);
+        this.setEffect(`bell`, { x: bcurpos.x, y: bcurpos.y }, { x: bcurpos.x, y: bcurpos.y - 1 }, 120);
     }
 
     this.showMenu = function (items, how, promptText) {
@@ -432,9 +432,9 @@ function UIManager(r, g) {
     this.showInput = function (query) {
         return new Promise((resolve) => {
             console.log("Showing input prompt:", query);
-            this.msg(query);
             // 簡易的な入力実装（ブラウザのプロンプトを使用）
             const input = prompt(query);
+            this.msg(`${query} ${input}`);
             resolve(input);
         });
     };

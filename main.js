@@ -14,8 +14,8 @@ function main() {
     game.asset.imageLoad("ASCII", p + "pdcfont.png");
     game.asset.imageLoad("SMALL", p + "k12x8_jisx0201c.png");
     game.asset.imageLoad("MINIF", p + "font4x6.png");
-    game.asset.imageLoad("ASCBG", p + "pdcfont_bg.png");
-    game.asset.imageLoad("SJISK", p + "k12x8_jisx0208c.png")
+    //game.asset.imageLoad("ASCBG", p + "pdcfont_bg.png");
+    //game.asset.imageLoad("SJISK", p + "k12x8_jisx0208c.png")
     game.asset.imageLoad("ASC32", p + "a32_jisx0201c.png")
     game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
 
@@ -85,6 +85,6 @@ function SpriteFontData() {
         { name: "std_l" , id: "ASC32", pattern: s3, ucc: true },
         { name: "small" , id: "SMALL", pattern: s2 ,ucc: true},
         { name: "mini"  , id: "MINIF", pattern: ss },
-        { name: "stdbg" , id: "ASCBG", pattern: sp, ucc: true },
+        //{ name: "stdbg" , id: "ASCBG", pattern: sp, ucc: true },
     ]
 }

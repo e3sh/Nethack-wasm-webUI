@@ -219,7 +219,7 @@ function GameManager(g) {
                 if (this.UI.nhPutbufReady()) {
                     this.UI.nhClear(args[0]);
                     this.UI.nhPutbufDraw(args[0]);
-                    this.UI.overlapview(true);
+                    if (args[0] > 3) this.UI.overlapview(true);
                     await new Promise(
                         resolve => {
                             this.pendingInputResolve = resolve;
