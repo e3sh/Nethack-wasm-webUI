@@ -45,12 +45,18 @@ const w = [
     r + "UI/trancelate.js",
     r + "UI/moveEffect.js",
     r + "UI/monsHpView.js",
+    r + "UI/tilePrintControl.js",
+    r + "UI/fontPrintControl_with_glyph.js",
     // Rogue Parameters
     p + "rogueDefines.js",
     p + "rogueFuncs.js",
     p + "rogueTypes.js",
+    p + "tileMapping.js",
     p + "nhMessage_org.js",
     p + "nhMessage_jp.js",
+    p + "nhMessage_pattern.js",
+    p + "nhMessage_entity.js",
+    p + "utfmap.js",
     // Wasm files    // NetHack Wasm
     n + "nethack.js",
 ];

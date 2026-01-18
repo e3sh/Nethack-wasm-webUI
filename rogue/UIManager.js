@@ -312,6 +312,9 @@ function UIManager(r, g) {
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
         this.mvwaddch(dsp, y, x, ch);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
+
+        //this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
+        //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
     };
     this.nhClear = function (windowId) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG; //console.log("nlclear:"+dsp);
@@ -554,7 +557,8 @@ function UIManager(r, g) {
         });
 
         let splitwork = sf[s.GOLD].split(":");
-        const GOLD = splitwork[1];
+        const glyphId = String.fromCharCode(parseInt(splitwork[0].slice(7), 16));//3883 
+        const GOLD = `${glyphId}${splitwork[1]}`;
 
         this.mvwaddstr(statusDsp, 0, 0,
             `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`

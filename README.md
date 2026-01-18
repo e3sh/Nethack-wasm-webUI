@@ -51,20 +51,8 @@ python -m http.server 8000
 
 ### ビルド (開発者向け)
 
-Windows 環境で NetHack を WebAssembly にビルドするには、以下の手順が必要です。詳細は [shim_reference.ja.md](shim_reference.ja.md) を参照してください。
-
-1. **[NetHack/NetHack](https://github.com/NetHack/NetHack)** 公式リポジトリのソースコード（`NetHack-3.7` ブランチ推奨）を `NetHack-NetHack-3.7` ディレクトリとして配置。
-2. **Emscripten SDK (emsdk)** のインストール。
-3. **Visual Studio (MSVC)** のインストール。
-4. `NetHack-NetHack-3.7/build_wasm_37.ps1` を PowerShell で実行。
-
-```powershell
-cd NetHack-NetHack-3.7
-.\build_wasm_37.ps1
-```
-
-> [!NOTE]
-> ビルドスクリプト内のパス（`$EMSDK_PATH`, `$VCVARS_PATH`）は、ご自身の環境に合わせて適宜修正してください。
+NetHack を WebAssembly にビルドするには、Emscripten SDK (emsdk) 等の環境構築が必要です。
+Windows 環境および Linux/WSL 環境での詳細なビルド手順については、[**ビルド手順のリファレンス (shim_reference.ja.md)**](shim_reference.ja.md#ビルド手順WebAssembly) を参照してください。
 
 ## 📈 開発ステータス
 

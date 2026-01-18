@@ -18,11 +18,20 @@ function main() {
     //game.asset.imageLoad("SJISK", p + "k12x8_jisx0208c.png")
     game.asset.imageLoad("ASC32", p + "a32_jisx0201c.png")
     game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
+    game.asset.imageLoad("TILES", p + "NethackModern32x-360.png")
 
-    game.kanji = new fontPrintControl( game,
+    game.kanji = new fontPrintControl_with_glyph(game,
         game.asset.image["ASC32"].img, 16, 32,
-        game.asset.image["KNJ32"].img, 32, 32
+        game.asset.image["KNJ32"].img, 32, 32,
+        game.asset.image["TILES"].img, 32, 32,
+        tileMapping()
     );
+    /*
+    game.kanji = new fontPrintControl(game,
+        game.asset.image["ASC32"].img, 16, 32,
+        game.asset.image["KNJ32"].img, 32, 32,
+    );
+    */
     game.kanji.useScreen(0);
 
 	const spfd = SpriteFontData();
@@ -34,6 +43,14 @@ function main() {
    	game.task.add(new ioControl("io"));
 	game.task.add(new sceneControl("scene"));
 	//
+    const canvas = game.systemCanvas;
+    canvas.width = 960;
+    canvas.height = 600;
+
+    const ctx = canvas.getContext('2d');
+    // 画像の平滑化を無効にする
+    ctx.imageSmoothingEnabled = false;
+
 	game.screen[0].setBackgroundcolor("black"); 
     game.screen[0].setInterval(1); 
 

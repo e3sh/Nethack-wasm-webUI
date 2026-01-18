@@ -191,26 +191,61 @@ JavaScript 側のイベント処理で `Promise` を返すもの（`shim_nhgetch
 
 ---
 
-## ビルド方法と環境構築
+## ビルド手順（WebAssembly）
 
-本プロジェクトは、NetHack 本体のソースコードを WebAssembly (Asyncify 有効) でビルドすることで動作します。
+NetHack を WebAssembly にビルドするための詳細な手順です。
 
-### 前提条件
-- **OS**: Windows (PowerShell 使用)
-- **コンパイラ**: Visual Studio (MSVC)
-- **Wasm ツールチェーン**: [Emscripten SDK (emsdk)](https://emscripten.org/docs/getting_started/downloads.html)
-- **ビルドツール**: `nmake` (Visual Studio インストール時に含まれます)
+### 共通の準備
+1. **[NetHack/NetHack](https://github.com/NetHack/NetHack)** 公式リポジトリのソースコード（`NetHack-3.7` ブランチ推奨）を `NetHack-NetHack-3.7` ディレクトリとして配置してください。
+2. **Emscripten SDK (emsdk)** をインストールしてください。
 
-### 手順
-1. **NetHack ソースの取得**:
-   [NetHack 公式リポジトリ](https://github.com/NetHack/NetHack) をクローンし、`NetHack-NetHack-3.7` というディレクトリ名で本プロジェクトのルートに配置してください。
-2. **ビルドスクリプトの実行**:
-   `NetHack-NetHack-3.7/build_wasm_37.ps1` を実行します。
-   > [!IMPORTANT]
-   > スクリプト内の `$EMSDK_PATH` および `$VCVARS_PATH` を各自の環境に合わせて書き換えてください。
-3. **成果物の配置**:
-   ビルドが完了すると、`nethack.js` および `nethack.wasm` が生成されます。これらを本プロジェクトのルートディレクトリに配置（または上書き）してください。
+---
 
-### デバッグ時のヒント
-- **Console Debug**: ブラウザのデベロッパーツールで `NH Event:` から始まるログを確認することで、C側から JS へどのようなイベントが飛んでいるかを追跡できます。
-- **Source Maps**: デバッグビルド（`-g` フラグ付き）を行うことで、ブラウザ上で C 言語のソースコードを直接デバッグすることが可能です。
+### Windows 環境でのビルド
+
+Windows 環境では、Visual Studio (MSVC) と PowerShell スクリプトを使用します。
+
+#### 1. 準備
+- **Visual Studio (MSVC)** がインストールされていることを確認してください。
+
+#### 2. ビルドの実行
+`NetHack-NetHack-3.7` ディレクトリにて PowerShell スクリプトを実行します。
+```powershell
+cd NetHack-NetHack-3.7
+.\build_wasm_37.ps1
+```
+
+> [!IMPORTANT]
+> スクリプト内の `$EMSDK_PATH` および `$VCVARS_PATH` は、ご自身のインストール環境に合わせて修正してください。
+
+---
+
+### Linux / WSL 環境でのビルド
+
+#### 1. 準備
+Emscripten (emsdk) がインストールされ、パスが通っている必要があります。
+```bash
+source path/to/emsdk/emsdk_env.sh
+```
+
+#### 2. Makefile を使用する場合
+`NetHack-NetHack-3.7` ディレクトリにて `make` を実行します。
+```bash
+cd NetHack-NetHack-3.7
+make
+```
+これにより、ホスト用の `makedefs` のビルド、データファイルの生成、Lua のビルド、そして最終的な NetHack Wasm (`nethack.js`, `nethack.wasm`) の生成が順次行われます。
+
+#### 3. シェルスクリプトを使用する場合
+一括でビルドを実行するスクリプトも用意されています。
+```bash
+cd NetHack-NetHack-3.7
+chmod +x build_wasm_37.sh
+./build_wasm_37.sh
+```
+
+### ビルドの成果物
+ビルドが成功すると、以下のファイルが `NetHack-NetHack-3.7` 直下に生成されます：
+- `nethack.js`: Wasm をロードするための JavaScript ブリッジ
+- `nethack.wasm`: NetHack 本体
+- `liblua.a`: Wasm 向けにビルドされた Lua ライブラリ

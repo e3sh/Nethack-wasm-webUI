@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>NetHack Tile & Glyph Mapping Test (Fixed)</title>
+    <style>
+        body {
+            background-color: #222;
+            color: #eee;
+            font-family: sans-serif;
+            margin: 20px;
+        }
+
+        canvas {
+            border: 1px solid #555;
+            background-color: #000;
+            margin-top: 10px;
+        }
+
+        .controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .info {
+            font-size: 0.9em;
+            color: #ccc;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .legend {
+            display: flex;
+            gap: 10px;
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+
+        .legend-item {
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .mon {
+            background: #4444ff66;
+            border: 1px solid #4444ff;
+        }
+
+        .obj {
+            background: #44ff4466;
+            border: 1px solid #44ff44;
+        }
+
+        .cmap {
+            background: #ffff4466;
+            border: 1px solid #ffff44;
+        }
+
+        input[type="number"] {
+            width: 60px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>NetHack Tile & Glyph Mapping Test (Fixed)</h1>
+
+    <div class="info">
+        タイル画像内のタイル番号 (Tile Index) と、それに対応する NetHack のグリフID (Glyph ID) の関係を表示します。<br>
+        `tileMapping.js` の修正後のロジックを読み込んでいます。<br>
+        <b>期待値:</b> T:0 = Mon, T:394 = Strange Object (G:3547)
+    </div>
+
+    <div class="legend">
+        <span class="legend-item mon">Monsters (G:0-3546)</span>
+        <span class="legend-item obj">Objects (G:3547-3999)</span>
+        <span class="legend-item cmap">CMAP / Others (G:4000+)</span>
+    </div>
+
+    <div class="controls">
+        <div>Tiles per row: <input type="number" id="tilesPerRow" value="40"></div>
+        <div>Tile size: <input type="number" id="tileSize" value="32"></div>
+        <div>Start Tile: <input type="number" id="startTile" value="0"></div>
+        <button onclick="render()">Update View</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- tileMapping.js を読み込む。パスは Release/ からの相対 -->
+    <script src="param/tileMapping.js"></script>
+
+    <script>
+        let mappingTable = {};
+        let reverseMap = {}; // tileIndex -> [glyphIds]
+
+        const img = new Image();
+        img.src = 'pict/NethackModern32x-360.png';
+        img.onload = () => {
+            console.log("Image loaded:", img.width, "x", img.height);
+            initMapping();
+            render();
+        };
+
+        function initMapping() {
+            if (typeof tileMapping === 'function') {
+                mappingTable = tileMapping();
+                // 逆引きテーブルの作成
+                reverseMap = {};
+                for (let glyphId in mappingTable) {
+                    const tileIdx = mappingTable[glyphId];
+                    if (!reverseMap[tileIdx]) reverseMap[tileIdx] = [];
+                    reverseMap[tileIdx].push(parseInt(glyphId));
+                }
+                console.log("Mapping initialized. Reverse map entries:", Object.keys(reverseMap).length);
+            } else {
+                console.error("tileMapping function not found!");
+            }
+        }
+
+        function getCategoryColor(glyphIds) {
+            if (!glyphIds || glyphIds.length === 0) return null;
+            const gid = glyphIds[0];
+            // カテゴリ判定 (tileMapping.js の定義に準拠)
+            if (gid < 3547) return '#4444ff'; // Monsters (all variants)
+            if (gid < 4000) return '#44ff44'; // Objects
+            if (gid >= 4000) return '#ffff44'; // CMAP
+            return '#ffffff';
+        }
+
+        function render() {
+            const tilesPerRow = parseInt(document.getElementById('tilesPerRow').value);
+            const size = parseInt(document.getElementById('tileSize').value);
+            const startTile = parseInt(document.getElementById('startTile').value);
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const totalTiles = Math.floor(img.width / size) * Math.floor(img.height / size);
+            const displayCols = 10; // 画面上での表示列数 (大きく見せるために10)
+            const hGap = 10;
+            const vGap = 40;
+            const displayRows = 100; // とりあえず100行分表示
+
+            canvas.width = displayCols * (size + hGap) + 20;
+            canvas.height = displayRows * (size + vGap) + 20;
+
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < displayCols * displayRows; i++) {
+                const globalIndex = startTile + i;
+                if (globalIndex >= totalTiles) break;
+
+                const srcX = (globalIndex % tilesPerRow) * size;
+                const srcY = Math.floor(globalIndex / tilesPerRow) * size;
+
+                const destX = (i % displayCols) * (size + hGap) + 10;
+                const destY = Math.floor(i / displayCols) * (size + vGap) + 10;
+
+                // 枠線の描画 (カテゴリ色)
+                const glyphIds = reverseMap[globalIndex];
+                const color = getCategoryColor(glyphIds);
+                if (color) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(destX - 2, destY - 2, size + 4, size + 4);
+                }
+
+                // タイル本体の描画
+                ctx.drawImage(img, srcX, srcY, size, size, destX, destY, size, size);
+
+                // タイルインデックス (白)
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px monospace';
+                ctx.fillText(`T:${globalIndex}`, destX, destY + size + 10);
+
+                // グリフID (色付き)
+                if (glyphIds) {
+                    ctx.fillStyle = color || '#ccc';
+                    ctx.font = '9px monospace';
+                    // 最初の2つ程度を表示
+                    const gText = glyphIds.slice(0, 2).join(',');
+                    const more = glyphIds.length > 2 ? '..' : '';
+                    ctx.fillText(`G:${gText}${more}`, destX, destY + size + 20);
+
+                    // ジャンルの簡易表示
+                    let cat = "";
+                    const gid = glyphIds[0];
+                    if (gid < 3547) cat = "Mon";
+                    else if (gid < 4000) {
+                        cat = "Obj";
+                        if (gid === 3547) cat = "Strange";
+                    }
+                    else if (gid >= 4000) cat = "CMAP";
+                    ctx.fillText(cat, destX, destY + size + 30);
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
