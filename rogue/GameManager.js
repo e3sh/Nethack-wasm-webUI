@@ -483,7 +483,7 @@ function GameManager(g) {
                 let key;
                 this.UI.set_display_window(0);
                 do {
-                    this.UI.nhPutbufAdd(`${args[0]} ${args[1]}`);
+                    this.UI.nhPutbufAdd(args[0], args[1]);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });

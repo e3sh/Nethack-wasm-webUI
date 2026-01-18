@@ -1,6 +1,6 @@
 function nhMessage_org() {
     return [
-        "Shall I pick character's race, role, gender and alignment for you? [ynaq] ",
+        "Shall I pick character's race, role, gender and alignment for you? [ynaq]",
 
         "It is written in the Book of The Lady:",
         "",
@@ -20,13 +20,12 @@ function nhMessage_org() {
         "of us all:  Go bravely with The Lady!",
         "[The Lady has chosen you to recover the Amulet of Yendor for Her.]",
 
-        "Beware, there will be no return!  Still climb? yn",
-        "Do you want your possessions identified? ynq",
-        "Do you want to see your attributes? ynq",
-        "Do you want an account of creatures vanquished? ynq",
-        "Do you want to see your conduct? ynq",
-        "Do you want to see the dungeon overview? ynq",
-        "Cannot open file xlogfile.  Is NetHack installed correctly?",
+        "Beware, there will be no return!  Still climb?",
+        "Do you want your possessions identified?",
+        "Do you want to see your attributes?",
+        "Do you want an account of creatures vanquished?",
+        "Do you want to see your conduct?",
+        "Do you want to see the dungeon overview?",
 
         "It is written in the Book of Amaterasu Omikami:",
         "Your goddess Amaterasu Omikami seeks to possess the Amulet, and with it",
@@ -154,7 +153,7 @@ function nhMessage_org() {
         "It's a wall.",
         "The door opens.",
         "This door is locked.",
-        "In what direction? ",
+        "In what direction?",
         "As you kick the door, it crashes open!",
         "There is a broken door here.",
         "You find a hidden door.",
@@ -163,11 +162,15 @@ function nhMessage_org() {
         "What a strange direction!",
         "Thwack!!",
         "Whammm!!",
-        "Really step onto that squeaky board? yn",
-        "Really step into that magic portal? yn",
+        "Clonk!",
+        "Really step onto that squeaky board?",
+        "Really step into that magic portal?",
         "You activated a magic portal!",
         "Resetting time to move #1.",
         "There is a staircase up out of the dungeon here.",
+        "There is a staircase down here.",
+        "You descend the stairs.",
+        "You climb up the stairs.",
 
         "You avoid stepping into the pool of water.",
         "You avoid stepping into the molten lava.",
@@ -186,7 +189,6 @@ function nhMessage_org() {
         "You cannot pass through the bars.",
         "It's a tree.",
 
-        "What do you want to drop? [*] ",
         "You don't have that object.",
         "Never mind.",
 
@@ -203,19 +205,6 @@ function nhMessage_org() {
         "of us all:  Go bravely with Ishtar!",
         "[Ishtar has chosen you to recover the Amulet of Yendor for Her.]",
 
-        "It is written in the Book of Thoth:",
-        "Your god Thoth seeks to possess the Amulet, and with it",
-        "You, a newly trained Evoker, have been heralded",
-        "from birth as the instrument of Thoth.  You are destined",
-        "of us all:  Go bravely with Thoth!",
-        "[Thoth has chosen you to recover the Amulet of Yendor for Him.]",
-        "Aloha player, welcome to NetHack!  You are a neutral female human Tourist.",
-        "It is written in the Book of Ishtar:",
-        "Your goddess Ishtar seeks to possess the Amulet, and with it",
-        "from birth as the instrument of Ishtar.  You are destined",
-        "of us all:  Go bravely with Ishtar!",
-        "[Ishtar has chosen you to recover the Amulet of Yendor for Her.]",
-
         "You fall into the pool of water!",
         "You sink like a rock.",
         "You try to crawl out of the water.",
@@ -223,10 +212,13 @@ function nhMessage_org() {
         "You avoid stepping into the wall of water.",
         "You plunge into the wall of water!",
 
-        "Really step onto that sleeping gas trap? yn",
+        "Really step onto that sleeping gas trap?",
         "A board beneath you squeaks a C note loudly.",
         "A board beneath you squeaks a G sharp loudly.",
         "A board beneath you squeaks a B flat loudly.",
         "You are stuck to the web.",
+        "Really step into that web?",
+        "You escape a web.",
+
     ]
 }

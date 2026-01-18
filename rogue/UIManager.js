@@ -288,14 +288,15 @@ function UIManager(r, g) {
     this.nhPutbufClear = () => {
         txtbuf = [];
     }
-    this.nhPutbufAdd = (text) => {
+    this.nhPutbufAdd = (text, prompt) => {
         const result = this.trancelate.message(text);
+        if (!Boolean(prompt)) prompt = "";
 
         if (display_window == 0 || display_window == 1)
-            this.msg(result);
+            this.msg(`${result} ${prompt}`);
         else {
             const result = this.trancelate.message(text);
-            txtbuf.push(result);
+            txtbuf.push(`${result} ${prompt}`);
         }
     };
     this.nhPutbufDraw = (windowId) => {
