@@ -29,12 +29,13 @@ function tileMapping() {
     const GLYPH_CMAP_OFF = NUM_OBJECTS + GLYPH_OBJ_OFF;
 
     // --- タイル・マッピング・ロジック ---
-    // ユーザー指摘のレイアウト: モンスター T:0-393, オブジェクト T:394-
+    // ユーザー指摘のレイアウト: モンスター T:0-391, 不可視 T:392, オブジェクト T:393-
+    // 地形 (CMAP) は T:847 から開始 (オブジェクト 453個の後 + 1つの空き)
 
     // 1. モンスター (通常, ペット, 被発見, 騎乗)
-    // 雄・雌・ペットなど全てのバリエーションを同じ1つのタイルにマップします
+    // 392以降が不可視とオブジェクトになるため、391を上限とします。
     for (let i = 0; i < NUMMONS; i++) {
-        const tile = i; // 0 から 393
+        const tile = Math.min(i, 391);
         m[GLYPH_MON_MALE_OFF + i] = tile;
         m[GLYPH_MON_FEM_OFF + i] = tile;
         m[GLYPH_PET_MALE_OFF + i] = tile;
@@ -43,30 +44,40 @@ function tileMapping() {
         m[GLYPH_DETECT_FEM_OFF + i] = tile;
         m[GLYPH_RIDDEN_MALE_OFF + i] = tile;
         m[GLYPH_RIDDEN_FEM_OFF + i] = tile;
+
+        // Body (死体) はオブジェクト扱いで、別途マッピングされることが多いですが、
+        // 念のためモンスタータイルにもフォールバックできるようにしておきます。
+        m[GLYPH_BODY_OFF + i] = tile;
     }
 
     // 不可視モンスター
-    // オブジェクトが 394 から始まるため、不可視モンスター用の空きがない場合は
-    // 暫定的に 394 (Strange Object) または 393 に重ねる。
-    // ここでは 394 を指すようにし、オブジェクト開始をこれに合わせて調整する。
-    let tilenum = NUMMONS; // 394
-    m[GLYPH_INVIS_OFF] = tilenum;
-    tilenum++; // 395 になる
+    m[GLYPH_INVIS_OFF] = 392;
 
     // 2. オブジェクト
-    // ユーザーの「objectはT:394-」という言葉を尊重し、
-    // もし不可視モンスタータイルが不要なら 394 から開始する。
-    // ここでは厳密に 394 からオブジェクトを開始させる。
-    tilenum = 394;
+    // Strange Object (G:3547) を T:393 から開始します。
+    let objTilenum = 393;
     for (let i = 0; i < NUM_OBJECTS; i++) {
-        m[GLYPH_OBJ_OFF + i] = tilenum;
-        tilenum++;
+        m[GLYPH_OBJ_OFF + i] = objTilenum + i;
     }
 
     // 3. CMAP (ダンジョン要素)
-    const TILE_CMAP_START = tilenum;
+    // 調査結果に基づき、タイルセット画像の特定の配置に合わせてマッピングを補正します。
+    const TILE_CMAP_BASE = 847; // Stone (G:4000)
     for (let i = 0; i < 400; i++) {
-        m[GLYPH_CMAP_OFF + i] = TILE_CMAP_START + i;
+        let t = TILE_CMAP_BASE + i;
+
+        // ズレの補正ロジック:
+        if (i >= 12) t += 1; // Wall(1-11)の後に 1枚余分な壁タイル(T:859)がある
+        if (i >= 19) t += 1; // Tree(18)の後に 1枚余分な木タイル(T:867)がある
+
+        // Room(19)〜Corr(22)の間でタイルセット側が 2枚圧縮されている (DarkRoom等)
+        if (i >= 20) t -= 1;
+        if (i >= 21) t -= 1;
+
+        // Corr(22)〜Stairs(25)の間で 1枚予備タイルが入っている
+        if (i >= 25) t += 1;
+
+        m[GLYPH_CMAP_OFF + i] = t;
     }
 
     return m;

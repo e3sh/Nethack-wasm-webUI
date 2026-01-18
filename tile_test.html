@@ -75,7 +75,7 @@
     <div class="info">
         タイル画像内のタイル番号 (Tile Index) と、それに対応する NetHack のグリフID (Glyph ID) の関係を表示します。<br>
         `tileMapping.js` の修正後のロジックを読み込んでいます。<br>
-        <b>期待値:</b> T:0 = Mon, T:394 = Strange Object (G:3547)
+        <b>期待値:</b> T:0-391 = Mon, T:392 = Invisible, T:393 = Strange Object (G:3547), T:847 = Stone (G:4000)
     </div>
 
     <div class="legend">
@@ -142,7 +142,7 @@
             const ctx = canvas.getContext('2d');
 
             const totalTiles = Math.floor(img.width / size) * Math.floor(img.height / size);
-            const displayCols = 10; // 画面上での表示列数 (大きく見せるために10)
+            const displayCols = 40; // 画面上での表示列数 (大きく見せるために10)
             const hGap = 10;
             const vGap = 40;
             const displayRows = 100; // とりあえず100行分表示
@@ -192,11 +192,11 @@
                     // ジャンルの簡易表示
                     let cat = "";
                     const gid = glyphIds[0];
-                    if (gid < 3547) cat = "Mon";
-                    else if (gid < 4000) {
-                        cat = "Obj";
-                        if (gid === 3547) cat = "Strange";
-                    }
+                    if (gid <= 1575) cat = "Mon";
+                    else if (gid === 1576) cat = "Invis";
+                    else if (gid < 3547) cat = "Mon-Var";
+                    else if (gid === 3547) cat = "Strange";
+                    else if (gid < 4000) cat = "Obj";
                     else if (gid >= 4000) cat = "CMAP";
                     ctx.fillText(cat, destX, destY + size + 30);
                 }
