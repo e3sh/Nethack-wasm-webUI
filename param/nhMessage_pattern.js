@@ -10,11 +10,11 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^Your (god|goddess) (.*) seeks to possess the Amulet, and with it$/,
-            replace: "あなたの$1$2はイェンダーの魔除けを手に入れることを望んでいます。そしてそれにより、"
+            replace: "あなたの$1$2はイェンダーの魔除けを手に入れることを望んでいます。"
         },
         {
             pattern: /^to gain deserved ascendance over the other gods\.$/,
-            replace: "他の神々に対して相応の優位を得ることを望んでいます。"
+            replace: "そしてそれにより、他の神々に対して相応の優位を得ることを望んでいます。"
         },
         {
             pattern: /^You, a newly trained (.*), have been heralded$/,
@@ -47,6 +47,10 @@ function nhMessage_pattern() {
         {
             pattern: /^A board beneath you squeaks (.*) loudly\.$/,
             replace: "足元の床板が$1と大きな音を立てて鳴った。"
+        },
+        {
+            pattern: /^You avoid stepping into the (.*)\.$/,
+            replace: "あなたは$1に足を踏み入れないようにした。"
         },
         {
             pattern: /^(.*):\[(.*)\]$/,

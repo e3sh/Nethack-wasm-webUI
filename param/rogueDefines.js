@@ -152,7 +152,7 @@ function rogueDefines(r) {
             'Digit7': ["7".charCodeAt(0), "'".charCodeAt(0), null],
             'Digit8': ["8".charCodeAt(0), "(".charCodeAt(0), null],
             'Digit9': ["9".charCodeAt(0), ")".charCodeAt(0), null],
-            'Numpad0': ["y".charCodeAt(0), "y".charCodeAt(0), null], // yes response
+            'Numpad0': ["0".charCodeAt(0), "0".charCodeAt(0), null], // yes response
             'Numpad1': ["b".charCodeAt(0), "b".charCodeAt(0), null],
             'Numpad2': ["j".charCodeAt(0), "j".charCodeAt(0), null],
             'Numpad3': ["n".charCodeAt(0), "n".charCodeAt(0), null],
@@ -163,7 +163,7 @@ function rogueDefines(r) {
             'Numpad8': ["k".charCodeAt(0), "k".charCodeAt(0), null],
             'Numpad9': ["u".charCodeAt(0), "u".charCodeAt(0), null],
             'NumpadEnter': [13, 13, 13], //Enter
-            'NumpadPeriod': [".".charCodeAt(0), ".".charCodeAt(0), null],
+            'NumpadDecimal': [".".charCodeAt(0), ".".charCodeAt(0), null],
             'NumpadAdd': ["+".charCodeAt(0), "+".charCodeAt(0), null],
             'NumpadSubtract': ["-".charCodeAt(0), "-".charCodeAt(0), null],
             'NumpadDevide': ["/".charCodeAt(0), "/".charCodeAt(0), null],

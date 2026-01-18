@@ -313,6 +313,7 @@ function UIManager(r, g) {
         this.mvwaddch(dsp, y, x, ch);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
 
+        console.log(`${ch}:${glyphInfo.glyph}`);
         //this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
         //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
     };
@@ -557,7 +558,7 @@ function UIManager(r, g) {
         });
 
         let splitwork = sf[s.GOLD].split(":");
-        const glyphId = String.fromCharCode(parseInt(splitwork[0].slice(7), 16));//3883 
+        const glyphId = String.fromCharCode(3960);//parseInt(splitwork[0].slice(7), 16));//3883 
         const GOLD = `${glyphId}${splitwork[1]}`;
 
         this.mvwaddstr(statusDsp, 0, 0,

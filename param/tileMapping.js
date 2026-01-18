@@ -51,11 +51,11 @@ function tileMapping() {
     }
 
     // 不可視モンスター
-    m[GLYPH_INVIS_OFF] = 392;
+    m[GLYPH_INVIS_OFF] = 393;
 
     // 2. オブジェクト
     // Strange Object (G:3547) を T:393 から開始します。
-    let objTilenum = 393;
+    let objTilenum = 394;
     for (let i = 0; i < NUM_OBJECTS; i++) {
         m[GLYPH_OBJ_OFF + i] = objTilenum + i;
     }
@@ -63,7 +63,7 @@ function tileMapping() {
     // 3. CMAP (ダンジョン要素)
     // 調査結果に基づき、タイルセット画像の特定の配置に合わせてマッピングを補正します。
     const TILE_CMAP_BASE = 847; // Stone (G:4000)
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 628; i++) {
         let t = TILE_CMAP_BASE + i;
 
         // ズレの補正ロジック:

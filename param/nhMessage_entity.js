@@ -51,6 +51,12 @@ function nhMessage_entity() {
         "an F note": "Fの音",
         "a C note": "Cの音",
         "a G sharp": "Gシャープの音",
-        "a B flat": "Bフラットの音"
+        "a B flat": "Bフラットの音",
+        "pool of water": "水たまり",
+        "molten lava": "溶けた溶岩",
+        "wall of lava": "溶岩の壁",
+        "wall of water": "水の壁",
+
+
     };
 }
