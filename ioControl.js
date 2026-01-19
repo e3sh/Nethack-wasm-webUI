@@ -111,7 +111,7 @@ class ioControl extends GameTask {
 		let space = false;
 		for (let i in w) {
 			if (w[i]) {
-				if (i === "ShiftLeft" || i === "ShiftRight") {
+				if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
 					shift = true; 
 					continue; //Keylistに入れない
 				}

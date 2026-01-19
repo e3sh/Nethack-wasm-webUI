@@ -7,6 +7,8 @@ function rogueDefines(r) {
 
         //mode
         USE_GLYPH: false,
+        LANG_JP: false,
+        LANG_LARNMODE: false,
 
         //textFlameNumbers
         DSP_MAIN: 0,

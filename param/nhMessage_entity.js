@@ -28,6 +28,13 @@ function nhMessage_entity() {
         "Kos": "コス",
         "Thoth": "トート",
         "Ishtar": "イシュタル",
+        "Huan Ti": "黄帝",
+        "Mitora": "ミトラ",
+        "Anhur": "アンフル",
+        "Athena": "アテナ",
+        "Offler": "オファーラー",
+        "Poseidon": "ポセイドン",
+        "Crom": "クロム",
 
         // 職業（サンプル）
         "Rambler": "放浪者",
@@ -42,14 +49,15 @@ function nhMessage_entity() {
         "Candidate": "候補生",
         "Footpad": "追剥",
         "Evoker": "召喚師",
+        "Aspirant": "志願者",
 
         // チュートリアル・その他
         "Move around with h j k l": "h j k l で移動してください",
         "Move diagonally with b u n y": "b u n y で斜め移動してください",
-        "an A note": "Aの音",
-        "an E note": "Eの音",
-        "an F note": "Fの音",
-        "a C note": "Cの音",
+        "an A note": "ラの音",
+        "an E note": "ミの音",
+        "an F note": "ファの音",
+        "a C note": "ドの音",
         "a G sharp": "Gシャープの音",
         "a B flat": "Bフラットの音",
         "pool of water": "水たまり",

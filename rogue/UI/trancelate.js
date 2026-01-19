@@ -1,9 +1,11 @@
 function trancelate(r) {
 
+    const d = r.define;
+
     // Translation mode
-    const tmode = true;//true;
+    const tmode = d.LANG_JP;
     // Save translation data mode
-    const cmode = false;
+    const cmode = d.LANG_LARNMODE;
 
     const trtable_org = nhMessage_org();
     const trtable_answar = nhMessage_jp();

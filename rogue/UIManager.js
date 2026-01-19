@@ -604,8 +604,10 @@ function UIManager(r, g) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
             if (statusFields[d.BL_DLEVEL].value != value) {
                 this.wclear(d.DSP_MAIN);
-                for (let i = 0; i < 25; i++) {
-                    this.waddstr(d.DSP_MAIN, "　".repeat(80));
+                if (d.USE_GLYPH) {//glyph use
+                    for (let i = 0; i < 25; i++) {
+                        this.waddstr(d.DSP_MAIN, "　".repeat(80));
+                    }
                 }
             }
         }
@@ -630,7 +632,7 @@ function UIManager(r, g) {
         });
 
         let splitwork = sf[s.GOLD].split(":");
-        const glyphId = String.fromCharCode(3960);//parseInt(splitwork[0].slice(7), 16));//3883 
+        const glyphId = String.fromCharCode(parseInt(splitwork[0].slice(7), 16));//3883 
         const GOLD = `${glyphId}${splitwork[1]}`;
 
         this.mvwaddstr(statusDsp, 0, 0,

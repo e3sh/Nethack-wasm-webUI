@@ -10,7 +10,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^Your (god|goddess) (.*) seeks to possess the Amulet, and with it$/,
-            replace: "あなたの$1$2はイェンダーの魔除けを手に入れることを望んでいます。"
+            replace: "あなたの$1 $2はイェンダーの魔除けを手に入れることを望んでいます。"
         },
         {
             pattern: /^to gain deserved ascendance over the other gods\.$/,
