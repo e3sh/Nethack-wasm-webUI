@@ -307,15 +307,14 @@ function UIManager(r, g) {
     this.nhPrintGlyph = function (windowId, x, y, glyphInfo) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
-
         glyphCheckTable[glyphInfo.glyph] = `${ch} ${String.fromCharCode(glyphInfo.symbol)}`;
+        // console.log("NH Glyph:", glyphInfo.glyph, ch);
         if (!d.USE_GLYPH) { //ASCII CH MODE
             this.mvwaddch(dsp, y, x, ch);
             this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
         } else {
-            //console.log(`${ch}:${glyphInfo.glyph}`);
-            this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
-            //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
+            this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph + d.GLYPH_BASE));
+            //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph + d.GLYPH_BASE));
         }
     };
     this.nhClear = function (windowId) {
@@ -443,6 +442,7 @@ function UIManager(r, g) {
 
                         this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${item.str}`);
                     }
+
 
                     if (totalPages > 1) {
                         this.mvwaddch(menuDsp, Math.min(pageSize + 1, (end - start) + 1), 0, "-- More -- (Space/> for next, b/< for prev)");
@@ -604,7 +604,7 @@ function UIManager(r, g) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
             if (statusFields[d.BL_DLEVEL].value != value) {
                 this.wclear(d.DSP_MAIN);
-                if (d.USE_GLYPH) {//glyph use
+                if (d.USE_GLYPH){
                     for (let i = 0; i < 25; i++) {
                         this.waddstr(d.DSP_MAIN, "　".repeat(80));
                     }
@@ -632,7 +632,8 @@ function UIManager(r, g) {
         });
 
         let splitwork = sf[s.GOLD].split(":");
-        const glyphId = String.fromCharCode(parseInt(splitwork[0].slice(7), 16));//3883 
+        const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883; // Default to gold piece if parsing fails
+        const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
         const GOLD = `${glyphId}${splitwork[1]}`;
 
         this.mvwaddstr(statusDsp, 0, 0,

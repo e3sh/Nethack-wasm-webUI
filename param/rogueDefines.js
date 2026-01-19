@@ -9,6 +9,7 @@ function rogueDefines(r) {
         USE_GLYPH: false,
         LANG_JP: false,
         LANG_LARNMODE: false,
+        GLYPH_BASE: 0x100, // Offset to avoid collision with ASCII (0-255)
 
         //textFlameNumbers
         DSP_MAIN: 0,

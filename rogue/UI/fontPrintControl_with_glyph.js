@@ -63,9 +63,10 @@ class fontPrintControl_with_glyph {
                 return res;
             }
 
-            // 2. Glyphs (256-11999)
-            if (code >= 256 && code < 12000) {
-                const glyphId = code;
+            // 2. Glyphs (0x100 - 0x2FFF)
+            // Offset 0x100 is used to avoid collision with ASCII (0-255)
+            if (code >= 0x100 && code < 0x3000) {
+                const glyphId = code - 0x100;
                 const tileIndex = mappingTable ? (mappingTable[glyphId] || 0) : 0;
                 res.x = (tileIndex % tilesPerRow) * tw;
                 res.y = Math.floor(tileIndex / tilesPerRow) * th;
