@@ -45,7 +45,6 @@ const w = [
     r + "UI/trancelate.js",
     r + "UI/moveEffect.js",
     r + "UI/monsHpView.js",
-    r + "UI/tilePrintControl.js",
     r + "UI/fontPrintControl_with_glyph.js",
     // Rogue Parameters
     p + "rogueDefines.js",

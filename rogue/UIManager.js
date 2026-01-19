@@ -17,6 +17,9 @@ function UIManager(r, g) {
     const mw = d.DSP_MAIN_BG;
     const hw = d.DSP_WINDOW;
 
+    //debug
+    const glyphCheckTable = [];
+
     //effect
     const sceneC = g.task.read("scene")
     const moveEffect = sceneC.moveEffect;
@@ -262,23 +265,17 @@ function UIManager(r, g) {
         this.wmove(dsp, y, x);
     };
 
-    this.nhPutStr = function (windowId, attr, text) {
+    this.nhPutStr = function (text) {
         this.trancelate.message(text);
-
-        const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
-        if (windowId === 1) { // NHW_MESSAGE
-            this.setDsp(dsp);
-            this.msg(text);
-        } else {
-            this.waddstr(dsp, text);
-        }
+        this.setDsp(d.DSP_MESSAGE);
+        this.msg(text);
     };
 
     this.nhPutMsg = function (text) {
         const dsp = d.DSP_MAIN_FG;
         this.setDsp(dsp);
         this.printw(text);
-        this.cursorDown(dsp);
+        this.cursorDown();
     }
 
     let txtbuf = [];
@@ -310,12 +307,16 @@ function UIManager(r, g) {
     this.nhPrintGlyph = function (windowId, x, y, glyphInfo) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
-        this.mvwaddch(dsp, y, x, ch);
-        this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
 
-        console.log(`${ch}:${glyphInfo.glyph}`);
-        //this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
-        //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
+        glyphCheckTable[glyphInfo.glyph] = `${ch} ${String.fromCharCode(glyphInfo.symbol)}` ;
+        if (!d.USE_GLYPH){ //ASCII CH MODE
+            this.mvwaddch(dsp, y, x, ch);
+            this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
+        }else{
+            //console.log(`${ch}:${glyphInfo.glyph}`);
+            this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
+            //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
+        }
     };
     this.nhClear = function (windowId) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG; //console.log("nlclear:"+dsp);
@@ -324,6 +325,14 @@ function UIManager(r, g) {
         if (Boolean(dsp)) this.wclear(dsp);
     };
     this.nhCliparound = function (x, y) {
+        if (d.USE_GLYPH){//glyph use 
+            let buff = g.console[d.DSP_MAIN].buffer;
+            for (let i in buff){
+                let replacedString = buff[i].replace(/\s/g, '　');//全角Space
+                buff[i] = replacedString;
+            }
+        }
+        return;
         let ch = this.mvinch(y, x);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
         bcurpos.x = x;
@@ -332,6 +341,13 @@ function UIManager(r, g) {
 
     this.nhBell = function () {
         this.setEffect(`bell`, { x: bcurpos.x, y: bcurpos.y }, { x: bcurpos.x, y: bcurpos.y - 1 }, 120);
+        this.setDsp(d.DSP_COMMENT);
+        this.clear();
+        this.move(0, 0);
+        glyphCheckTable.forEach((value, index)=>{
+            this.printw(`${index}:${value}`);
+            this.cursorDown();
+        });
     }
 
     this.showMenu = function (items, how, promptText) {
@@ -386,7 +402,9 @@ function UIManager(r, g) {
                     items.forEach((item, i) => {
                         const prefix = (i === selectedIndex) ? "> " : "  ";
                         const char = (item.ch && item.ch !== "\u0000") ? `${item.ch}) ` : "  ";//String.fromCharCode(item.ch) : "-";
-                        this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${item.str}`);
+                        const glyph = (Boolean(item.gInfo))? String.fromCharCode(item.gInfo.glyph):"";
+
+                        this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${glyph}${item.str}`);
                     });
                 };
 
@@ -535,7 +553,12 @@ function UIManager(r, g) {
 
         if (fld == d.BL_DLEVEL) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
-            if (statusFields[d.BL_DLEVEL].value != value) this.wclear(d.DSP_MAIN);
+            if (statusFields[d.BL_DLEVEL].value != value) {
+                this.wclear(d.DSP_MAIN);
+                for (let i=0; i<25; i++){
+                    this.waddstr(d.DSP_MAIN,"　".repeat(80));
+                }
+            }
         }
         if (fld == d.BL_VERS) {
             //`BL_VERS` | バージョン情報が変更されるタイミング

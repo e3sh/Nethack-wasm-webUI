@@ -245,7 +245,6 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_putstr,(winid w, int attr, const char *str), "viis", A2P w, A2P attr, P2V str)
             case "shim_putstr":
-                //this.UI.nhPutStr(args[0], args[1], args[2]);
                 if (args[0] === 1) { // NHW_MESSAGE
                     this.messageHistory.push(args[2]);
                     if (this.messageHistory.length > 200) { // Keep last 200 messages
@@ -591,7 +590,7 @@ function GameManager(g) {
                     }
                 }
                 if (!args[1]) //restoring_msghist
-                    this.UI.msg(`${args[0]}`);
+                    this.UI.nhPutStr(`${args[0]}`);
                 return 0;
             //VDECLCB(shim_status_init, (void), "v")
             case "shim_status_init":

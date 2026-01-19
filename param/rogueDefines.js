@@ -5,6 +5,9 @@ function rogueDefines(r) {
      */
     const d = {
 
+        //mode
+        USE_GLYPH: false,
+
         //textFlameNumbers
         DSP_MAIN: 0,
         DSP_MAIN_FG: 1,

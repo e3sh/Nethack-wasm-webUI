@@ -2,10 +2,14 @@
 //----------------------------------------------------------------------
 function main() {
 
+    const USE_TILE = false;
+        const RESW = (USE_TILE)?1280:960;
+        const RESH = 600;
+
     console.log("main.js start");
 
     const sysParam = { canvasId: "layer0", 
-            screen: [{ resolution: { w: 960, h: 600 , x:0, y:0 } }]
+            screen: [{ resolution: { w: RESW, h: RESH , x:0, y:0 } }]
      	};
 	const game = new GameCore( sysParam );
 
@@ -20,18 +24,19 @@ function main() {
     game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
     game.asset.imageLoad("TILES", p + "NethackModern32x-360.png")
 
-    game.kanji = new fontPrintControl_with_glyph(game,
-        game.asset.image["ASC32"].img, 16, 32,
-        game.asset.image["KNJ32"].img, 32, 32,
-        game.asset.image["TILES"].img, 32, 32,
-        tileMapping()
+    if (USE_TILE){
+        game.kanji = new fontPrintControl_with_glyph(game,
+            game.asset.image["ASC32"].img, 16, 32,
+            game.asset.image["KNJ32"].img, 32, 32,
+            game.asset.image["TILES"].img, 32, 32,
+            tileMapping()
     );
-    /*
-    game.kanji = new fontPrintControl(game,
-        game.asset.image["ASC32"].img, 16, 32,
-        game.asset.image["KNJ32"].img, 32, 32,
-    );
-    */
+    } else {
+        game.kanji = new fontPrintControl(game,
+            game.asset.image["ASC32"].img, 16, 32,
+            game.asset.image["KNJ32"].img, 32, 32,
+        );
+    }
     game.kanji.useScreen(0);
 
 	const spfd = SpriteFontData();
@@ -44,8 +49,8 @@ function main() {
 	game.task.add(new sceneControl("scene"));
 	//
     const canvas = game.systemCanvas;
-    canvas.width = 960;
-    canvas.height = 600;
+    canvas.width = RESW;
+    canvas.height = RESH;
 
     const ctx = canvas.getContext('2d');
     // 画像の平滑化を無効にする

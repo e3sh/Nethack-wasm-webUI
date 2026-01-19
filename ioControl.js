@@ -33,8 +33,8 @@ class ioControl extends GameTask {
 
 		const cp = [
 			//fontID,prompt	,charw, linew, location x,y,bgcolor, useutf
-			[80, 24, "std_l", false, 8, 16, 47, 0, null, true], //0: mainscreen stdbg
-			[80, 24, "std_l", PTUB,	 8, 16, 48, 0, null, true], //1: mainscreen_fg stdbg
+			[80, 24, "std_l", false, 8, 16, 0, 0, null, true], //0: mainscreen stdbg
+			[80, 24, "std_l", PTUB,	 8, 16, 1, 0, null, true], //1: mainscreen_fg stdbg
 			[80, 3,	 "std_l", false, 8, 16, 64, 384, "rgb(128  0   0)", true], //2:statusbar
 			[108,36, "std_l", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", true], //3:msg std_l
 			[80, 32, "std_l", false, 8, 16, 320, 48, "rgb(  0  0 144/0.7 )", true], //4:window  std_l
