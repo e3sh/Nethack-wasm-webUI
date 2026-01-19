@@ -25,7 +25,7 @@ EMCC_CFLAGS = -O2 -Iinclude -I$(LUA_DIR) \
 
 EMCC_LDFLAGS = -sASYNCIFY=1 \
     -sASYNCIFY_IMPORTS="['local_callback']" \
-    -sEXPORTED_FUNCTIONS="['_main','_shim_graphics_set_callback','_repopulate_perminvent','_malloc','_get_plname']" \
+    -sEXPORTED_FUNCTIONS="['_main','_shim_graphics_set_callback','_repopulate_perminvent','_malloc','_get_plname','_get_nummons','_get_num_objects','_get_glyph_mon_off','_get_glyph_mon_fem_off','_get_glyph_pet_off','_get_glyph_pet_fem_off','_get_glyph_invis_off','_get_glyph_detect_off','_get_glyph_detect_fem_off','_get_glyph_body_off','_get_glyph_ridden_off','_get_glyph_ridden_fem_off','_get_glyph_obj_off','_get_glyph_cmap_off','_get_max_glyph']" \
     -sEXPORTED_RUNTIME_METHODS="['cwrap','ccall','addFunction','UTF8ToString','stringToUTF8','getValue','setValue','FS','IDBFS']" \
     -lidbfs.js \
     -sALLOW_TABLE_GROWTH=1 \

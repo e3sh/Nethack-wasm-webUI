@@ -20,8 +20,6 @@ function GameManager(g) {
     this.globalValiable = {};//v;
     //this.messages = ms;
 
-
-
     for (let i in this.globalValiable) {
         //    this.UI.msg(`${i}: ${this.globalValiable[i].length}`);
     }
@@ -164,20 +162,60 @@ function GameManager(g) {
                 return true;
             //VDECLCB(shim_askname,(void), "v")
             case "shim_askname":
-                console.log("shim_askname called. Setting plname manually...");
-                try {
-                    // Wasm の get_plname 関数を呼び出してポインタを取得
-                    const plnamePtr = Module._get_plname();
-                    if (plnamePtr) {
-                        Module.stringToUTF8("player", plnamePtr, 32);
-                        console.log("Directly wrote 'player' to plname at:", plnamePtr);
-                    } else {
-                        console.warn("Could not get plname pointer from _get_plname().");
+                return new Promise(async (resolve) => {
+                    console.log("shim_askname called.");
+                    try {
+                        let name = "";
+                        // Detect save data
+                        if (typeof FS !== 'undefined') {
+                            try {
+                                const saveDir = '/save';
+                                if (FS.analyzePath(saveDir).exists) {
+                                    const files = FS.readdir(saveDir);
+                                    console.log("Detecting save files in /save:", files);
+                                    // NetHack save files are typically 1000Name (UID + Name)
+                                    // We exclude system files
+                                    const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones'];
+                                    const saveFile = files.find(f => !systemFiles.includes(f) && !f.startsWith('.'));
+
+                                    if (saveFile) {
+                                        // Handle 1000Name pattern
+                                        const match = saveFile.match(/^\d+(.+)$/);
+                                        if (match) {
+                                            name = match[1];
+                                            console.log(`Auto-detected player name from save file: ${name}`);
+                                        } else {
+                                            name = saveFile;
+                                            console.log(`Using save file name as player name: ${name}`);
+                                        }
+                                    }
+                                }
+                            } catch (fsErr) {
+                                console.warn("Error while scanning /save for auto-resume:", fsErr);
+                            }
+                        }
+
+                        if (!name) {
+                            name = await this.UI.showInput("What is your name?");
+                        }
+
+                        if (!name || name.trim() === "") {
+                            name = "player";
+                        }
+                        const plnamePtr = Module._get_plname();
+                        if (plnamePtr) {
+                            // PL_NSIZ is 32, so max 31 chars + null terminator
+                            const safeName = name.substring(0, 31);
+                            Module.stringToUTF8(safeName, plnamePtr, 32);
+                            console.log(`Registered player name: ${safeName}`);
+                        } else {
+                            console.warn("Could not get plname pointer from _get_plname().");
+                        }
+                    } catch (e) {
+                        console.error("plname setup error:", e);
                     }
-                } catch (e) {
-                    console.error("plname setup error:", e);
-                }
-                return 0;
+                    resolve(0);
+                });
             //VDECLCB(shim_get_nh_event,(void), "v")
             case "shim_get_nh_event":
                 // Handle exposure events or system-level updates. 
@@ -689,6 +727,31 @@ function GameManager(g) {
         const boot = () => {
             console.log("NetHack Wasm Boot Sequence Started...");
 
+            // --- Fetch NetHack Constants for Dynamic Tile Mapping ---
+            try {
+                const nh = {
+                    NUMMONS: Module._get_nummons(),
+                    NUM_OBJECTS: Module._get_num_objects(),
+                    GLYPH_MON_OFF: Module._get_glyph_mon_off(),
+                    GLYPH_MON_FEM_OFF: Module._get_glyph_mon_fem_off(),
+                    GLYPH_PET_OFF: Module._get_glyph_pet_off(),
+                    GLYPH_PET_FEM_OFF: Module._get_glyph_pet_fem_off(),
+                    GLYPH_INVIS_OFF: Module._get_glyph_invis_off(),
+                    GLYPH_DETECT_OFF: Module._get_glyph_detect_off(),
+                    GLYPH_DETECT_FEM_OFF: Module._get_glyph_detect_fem_off(),
+                    GLYPH_BODY_OFF: Module._get_glyph_body_off(),
+                    GLYPH_RIDDEN_OFF: Module._get_glyph_ridden_off(),
+                    GLYPH_RIDDEN_FEM_OFF: Module._get_glyph_ridden_fem_off(),
+                    GLYPH_OBJ_OFF: Module._get_glyph_obj_off(),
+                    GLYPH_CMAP_OFF: Module._get_glyph_cmap_off(),
+                    MAX_GLYPH: Module._get_max_glyph()
+                };
+                console.log("NetHack Constants Fetched:", nh);
+                this.UI.updateTileMapping(nh);
+            } catch (e) {
+                console.warn("Could not fetch NetHack constants. Tile mapping might be incorrect.", e);
+            }
+
             setTimeout(() => {
                 try {
                     const startEngine = () => {
@@ -718,7 +781,7 @@ function GameManager(g) {
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        const args = Module.arguments || ['nethack', '-uplayer', '-otime,showexp,showvers'];
+                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers'];
                         const argc = args.length;
                         const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {

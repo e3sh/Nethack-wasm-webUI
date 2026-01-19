@@ -9,15 +9,16 @@ const n = "./"; // Wasm files are in the same folder
 // Emscripten Module configuration
 window.Module = {
     noInitialRun: true,
-    arguments: ['nethack', '-u', 'player', '-otime,showexp,showvers'],
+    arguments: ['nethack', '-otime,showexp,showvers'],
     preRun: [function () {
         if (typeof ENV !== 'undefined') {
-            ENV.USER = "player";
+            ENV.USER = undefined;
+            ENV.LOGNAME = undefined;
             ENV.HACKDIR = "/"; // Embedded files are at root
             ENV.SCOREDIR = "/save/";
             ENV.LEVELDIR = "/";
             ENV.SAVEDIR = "/save/";
-            ENV.NETHACKOPTIONS = "name:player,time,showexp,showvers";
+            ENV.NETHACKOPTIONS = "time,showexp,showvers,askname";
         }
     }],
     print: function (text) {

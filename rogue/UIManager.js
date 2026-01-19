@@ -308,11 +308,11 @@ function UIManager(r, g) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN;
         const ch = glyphInfo.ch || (glyphInfo.symbol ? String.fromCharCode(glyphInfo.symbol) : '?');
 
-        glyphCheckTable[glyphInfo.glyph] = `${ch} ${String.fromCharCode(glyphInfo.symbol)}` ;
-        if (!d.USE_GLYPH){ //ASCII CH MODE
+        glyphCheckTable[glyphInfo.glyph] = `${ch} ${String.fromCharCode(glyphInfo.symbol)}`;
+        if (!d.USE_GLYPH) { //ASCII CH MODE
             this.mvwaddch(dsp, y, x, ch);
             this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
-        }else{
+        } else {
             //console.log(`${ch}:${glyphInfo.glyph}`);
             this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph));
             //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph));
@@ -320,19 +320,19 @@ function UIManager(r, g) {
     };
     this.nhClear = function (windowId) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_MAIN_FG; //console.log("nlclear:"+dsp);
-        if (dsp == d.DSP_MAIN) {this.wclear(d.DSP_MAIN_FG); return}; 
-        if (dsp == d.DSP_MESSAGE) {this.wclear(d.DSP_MAIN_FG); return};
+        if (dsp == d.DSP_MAIN) { this.wclear(d.DSP_MAIN_FG); return };
+        if (dsp == d.DSP_MESSAGE) { this.wclear(d.DSP_MAIN_FG); return };
         if (Boolean(dsp)) this.wclear(dsp);
     };
     this.nhCliparound = function (x, y) {
-        if (d.USE_GLYPH){//glyph use 
+        if (d.USE_GLYPH) {//glyph use 
             let buff = g.console[d.DSP_MAIN].buffer;
-            for (let i in buff){
+            for (let i in buff) {
                 let replacedString = buff[i].replace(/\s/g, '　');//全角Space
                 buff[i] = replacedString;
             }
+            return;
         }
-        return;
         let ch = this.mvinch(y, x);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
         bcurpos.x = x;
@@ -344,68 +344,36 @@ function UIManager(r, g) {
         this.setDsp(d.DSP_COMMENT);
         this.clear();
         this.move(0, 0);
-        glyphCheckTable.forEach((value, index)=>{
+        glyphCheckTable.forEach((value, index) => {
             this.printw(`${index}:${value}`);
             this.cursorDown();
         });
     }
 
     this.showMenu = function (items, how, promptText) {
+        const menuDsp = d.DSP_WINDOW;
+        const numLines = d.LINES || 24;
+        const pageSize = numLines - 2;
+
         if (how == 0) {  //view only menu (nocursor)
             return new Promise((resolve) => {
-                const menuDsp = d.DSP_WINDOW;
-                this.wclear(menuDsp);
-                this.mvwaddch(menuDsp, 0, 0, promptText);
-                items.forEach((item, i) => {
-                    this.mvwaddch(menuDsp, i + 1, 0, ` ${item.str}`);
-                });
-
-                const originalHandler = r.pendingInputResolve;
-                const handler = (charCode) => {
-                    const key = String.fromCharCode(charCode).toLowerCase();
-
-                    if (charCode === 13) { // Enter: 決定
-                        this.overlapview(false);
-                        resolve([]);
-                        r.pendingInputResolve = originalHandler;
-                    } else if (charCode === 27) { // ESC: キャンセル
-                        this.overlapview(false);
-                        resolve([]);
-                        r.pendingInputResolve = originalHandler;
-                    } else {
-                        // 無関係なキーの場合はもう一度待機
-                        r.pendingInputResolve = handler;
-                    }
-                };
-                r.pendingInputResolve = handler;
-            });
-        } else { //select menu
-            return new Promise((resolve) => {
-                let cf = false; //full cursor mode '?'menu 
-                items.forEach((item) => { if (item.ch != "\u0000") cf = true; }); //inventory
-                items.forEach((item) => { if (item.ch == "?") cf = false; }); //Option menu
-
-                const cancelitem = (cf) ? "\u0000" : false;
-
-                let selectedIndex = 0;
-                const menuDsp = d.DSP_WINDOW;
-                if (items[selectedIndex].ch == cancelitem) {
-                    do {
-                        selectedIndex = (selectedIndex + 1) % items.length;
-                    } while (items[selectedIndex].ch == cancelitem);
-                }
+                let currentPage = 0;
+                const totalPages = Math.ceil(items.length / pageSize);
 
                 const render = () => {
                     this.wclear(menuDsp);
-                    //this.wmove(menuDsp, 0, 0);
-                    this.mvwaddch(menuDsp, 0, 0, promptText);
-                    items.forEach((item, i) => {
-                        const prefix = (i === selectedIndex) ? "> " : "  ";
-                        const char = (item.ch && item.ch !== "\u0000") ? `${item.ch}) ` : "  ";//String.fromCharCode(item.ch) : "-";
-                        const glyph = (Boolean(item.gInfo))? String.fromCharCode(item.gInfo.glyph):"";
+                    const pageInfo = totalPages > 1 ? ` (Page ${currentPage + 1}/${totalPages})` : "";
+                    this.mvwaddch(menuDsp, 0, 0, promptText + pageInfo);
 
-                        this.mvwaddch(menuDsp, i + 1, 0, `${prefix}${char}${glyph}${item.str}`);
-                    });
+                    const start = currentPage * pageSize;
+                    const end = Math.min(start + pageSize, items.length);
+                    for (let i = start; i < end; i++) {
+                        this.mvwaddch(menuDsp, (i - start) + 1, 0, ` ${items[i].str}`);
+                    }
+
+                    if (totalPages > 1) {
+                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, items.length + 1), 0, "-- More -- (Space/j for next, b/k for prev)");
+                    }
                 };
 
                 render();
@@ -414,19 +382,101 @@ function UIManager(r, g) {
                 const handler = (charCode) => {
                     const key = String.fromCharCode(charCode).toLowerCase();
 
-                    // 移動: j, k, または矢印キー相当
-                    if (key === 'j' || charCode === 'j'.charCodeAt(0)) {
+                    if (key === ' ' || key === 'j' || charCode === 13) { // Space, j, Enter: 次へ
+                        if (currentPage < totalPages - 1) {
+                            currentPage++;
+                            render();
+                            r.pendingInputResolve = handler;
+                        } else {
+                            this.overlapview(false);
+                            resolve([]);
+                            r.pendingInputResolve = originalHandler;
+                        }
+                    } else if (key === 'b' || key === 'k') { // b, k: 前へ
+                        if (currentPage > 0) {
+                            currentPage--;
+                            render();
+                            r.pendingInputResolve = handler;
+                        } else {
+                            r.pendingInputResolve = handler;
+                        }
+                    } else if (charCode === 27) { // ESC: キャンセル
+                        this.overlapview(false);
+                        resolve([]);
+                        r.pendingInputResolve = originalHandler;
+                    } else {
+                        r.pendingInputResolve = handler;
+                    }
+                };
+                r.pendingInputResolve = handler;
+            });
+        } else { //select menu
+            return new Promise((resolve) => {
+                let cf = false; //full cursor mode '?'menu 
+                items.forEach((item) => { if (item.ch != "\u0000" && item.ch != 0) cf = true; }); //inventory
+                items.forEach((item) => { if (item.ch == "?" || item.ch == 63) cf = false; }); //Option menu
+
+                const cancelitem = (cf) ? "\u0000" : false;
+
+                let selectedIndex = 0;
+                if (items[selectedIndex] && (items[selectedIndex].ch == cancelitem || items[selectedIndex].ch == 0)) {
+                    do {
+                        selectedIndex = (selectedIndex + 1) % items.length;
+                    } while (selectedIndex < items.length && (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == ""));
+                }
+
+                const totalPages = Math.ceil(items.length / pageSize);
+
+                const render = () => {
+                    const currentPage = Math.floor(selectedIndex / pageSize);
+                    this.wclear(menuDsp);
+                    const pageInfo = totalPages > 1 ? ` (Page ${currentPage + 1}/${totalPages})` : "";
+                    this.mvwaddch(menuDsp, 0, 0, promptText + pageInfo);
+
+                    const start = currentPage * pageSize;
+                    const end = Math.min(start + pageSize, items.length);
+                    for (let i = start; i < end; i++) {
+                        const item = items[i];
+                        const prefix = (i === selectedIndex) ? "> " : "  ";
+                        const charStr = (item.identifier !== 0) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")": " ";
+                        const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph) : " "):" ";
+
+                        this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${item.str}`);
+                    }
+
+                    if (totalPages > 1) {
+                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, (end - start) + 1), 0, "-- More -- (Space/> for next, b/< for prev)");
+                    }
+                };
+
+                render();
+
+                const originalHandler = r.pendingInputResolve;
+                const handler = (charCode) => {
+                    const key = String.fromCharCode(charCode).toLowerCase();
+                    const totalItems = items.length;
+
+                    // 移動: j, k
+                    if (key === 'j') {
                         do {
-                            selectedIndex = (selectedIndex + 1) % items.length;
-                        } while (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == "");
+                            selectedIndex = (selectedIndex + 1) % totalItems;
+                        } while (items[selectedIndex].identifier == 0);
                         render();
-                        r.pendingInputResolve = handler; // 次の入力を待つ
-                    } else if (key === 'k' || charCode === 'k'.charCodeAt(0)) {
+                        r.pendingInputResolve = handler;
+                    } else if (key === 'k') {
                         do {
-                            selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-                        } while (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == "");
+                            selectedIndex = (selectedIndex - 1 + totalItems) % totalItems;
+                        } while (items[selectedIndex].identifier == 0);
                         render();
-                        r.pendingInputResolve = handler; // 次の入力を待つ
+                        r.pendingInputResolve = handler;
+                    } else if (key === ' ' || key === '>') { // Space, >: 次のページ
+                        selectedIndex = Math.min(selectedIndex + pageSize, totalItems - 1);
+                        render();
+                        r.pendingInputResolve = handler;
+                    } else if (key === 'b' || key === '<') { // b, <: 前のページ
+                        selectedIndex = Math.max(selectedIndex - pageSize, 0);
+                        render();
+                        r.pendingInputResolve = handler;
                     } else if (charCode === 13) { // Enter: 決定
                         this.overlapview(false);
                         resolve([items[selectedIndex]]);
@@ -442,7 +492,6 @@ function UIManager(r, g) {
                             resolve([hit]);
                             r.pendingInputResolve = originalHandler;
                         } else {
-                            // 無関係なキーの場合はもう一度待機
                             r.pendingInputResolve = handler;
                         }
                     }
@@ -555,8 +604,8 @@ function UIManager(r, g) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
             if (statusFields[d.BL_DLEVEL].value != value) {
                 this.wclear(d.DSP_MAIN);
-                for (let i=0; i<25; i++){
-                    this.waddstr(d.DSP_MAIN,"　".repeat(80));
+                for (let i = 0; i < 25; i++) {
+                    this.waddstr(d.DSP_MAIN, "　".repeat(80));
                 }
             }
         }
@@ -635,4 +684,19 @@ function UIManager(r, g) {
         }
         return list;
     }
+    /**
+     * NetHack の C側定数に基づいてタイルマッピングを更新します。
+     * @param {object} offsets 
+     */
+    this.updateTileMapping = function (offsets) {
+        console.log("UIManager: Updating tile mapping with offsets", offsets);
+        const newMapping = tileMapping(offsets);
+        if (g.kanji && typeof g.kanji.setMappingTable === 'function') {
+            g.kanji.setMappingTable(newMapping);
+            console.log("UIManager: Tile mapping updated in rendering engine.");
+        } else {
+            console.warn("UIManager: Rendering engine (g.kanji) not ready for mapping update.");
+        }
+    };
+
 }

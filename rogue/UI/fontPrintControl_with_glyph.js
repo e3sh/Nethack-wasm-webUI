@@ -148,5 +148,14 @@ class fontPrintControl_with_glyph {
                 x = x + (d.w * scale);
             }
         };
+
+        /**
+         * タイルマッピングテーブルを動的に更新します。
+         * @param {object} newTable 
+         */
+        this.setMappingTable = function (newTable) {
+            mappingTable = newTable;
+            console.log("fontPrintControl: Mapping table updated.");
+        };
     }
 }

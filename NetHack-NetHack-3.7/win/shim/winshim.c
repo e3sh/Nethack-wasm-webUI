@@ -186,6 +186,47 @@ VDECLCB(shim_status_update,
     (int fldidx, genericptr_t ptr, int chg, int percent, int color, unsigned long *colormasks),
     "vipiiip",
     A2P fldidx, P2V ptr, A2P chg, A2P percent, A2P color, P2V colormasks)
+
+EMSCRIPTEN_KEEPALIVE
+int get_nummons(void) { return NUMMONS; }
+EMSCRIPTEN_KEEPALIVE
+int get_num_objects(void) { return NUM_OBJECTS; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_mon_off(void) { return GLYPH_MON_MALE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_mon_fem_off(void) { return GLYPH_MON_FEM_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_pet_off(void) { return GLYPH_PET_MALE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_pet_fem_off(void) { return GLYPH_PET_FEM_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_invis_off(void) { return GLYPH_INVIS_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_detect_off(void) { return GLYPH_DETECT_MALE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_detect_fem_off(void) { return GLYPH_DETECT_FEM_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_body_off(void) { return GLYPH_BODY_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_ridden_off(void) { return GLYPH_RIDDEN_MALE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_ridden_fem_off(void) { return GLYPH_RIDDEN_FEM_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_obj_off(void) { return GLYPH_OBJ_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_cmap_off(void) { return GLYPH_CMAP_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_explode_off(void) { return GLYPH_EXPLODE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_swallow_off(void) { return GLYPH_SWALLOW_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_warning_off(void) { return GLYPH_WARNING_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_statue_off(void) { return GLYPH_STATUE_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_glyph_nothing_off(void) { return GLYPH_NOTHING_OFF; }
+EMSCRIPTEN_KEEPALIVE
+int get_max_glyph(void) { return MAX_GLYPH; }
 #ifdef __EMSCRIPTEN__
 /* XXX: calling repopulate_perminvent() from shim_update_inventory() causes reentrancy that breaks emscripten Asyncify */
 /* this should be fine since according to windows.doc, the only purpose of shim_update_inventory() is to call repopulate_perminvent() */
