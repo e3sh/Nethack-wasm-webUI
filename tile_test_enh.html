@@ -284,6 +284,13 @@
             currentOffsets = offsets || null;
             if (typeof tileMapping === 'function') {
                 mappingTable = tileMapping(currentOffsets);
+
+                if (currentOffsets !== null){
+                    document.getElementsByClassName('legend-item mon')[0].innerText = `Monsters (G:0-${offsets.GLYPH_OBJ_OFF-1})`;
+                    document.getElementsByClassName("legend-item obj")[0].innerText = `Objects (G:${offsets.GLYPH_OBJ_OFF}-${offsets.GLYPH_CMAP_OFF-1})`;
+                    document.getElementsByClassName("legend-item cmap")[0].innerText = `CMAP/Others (G:${offsets.GLYPH_CMAP_OFF}+)`;
+                }
+
                 // 逆引きテーブルの作成
                 reverseMap = {};
                 for (let glyphId in mappingTable) {
@@ -389,15 +396,19 @@
             }
         }
 
-        function getCategoryColor(glyphIds) {
+       function getCategoryColor(glyphIds) {
             if (!glyphIds || glyphIds.length === 0) return null;
+            if (currentOffsets === null) return; 
             const gid = glyphIds[0];
+            const of = currentOffsets;
             // カテゴリ判定 (tileMapping.js の定義に準拠)
-            if (gid < 3547) return '#4444ff'; // Monsters (all variants)
-            if (gid < 4000) return '#44ff44'; // Objects
-            if (gid >= 4000) return '#ffff44'; // CMAP
+            if (gid == of.GLYPH_INVIS_OFF) return '#ff8844'; // Invis
+            if (gid < of.GLYPH_INVIS_OFF) return '#4488ff'; // Monsters (all variants)
+            if (gid < of.GLYPH_CMAP_OFF) return '#44ff44'; // Objects
+            if (gid >= of.GLYPH_CMAP_OFF) return '#ffff44'; // CMAP
+
             return '#ffffff';
-        }
+       }
 
         function render() {
             const tilesPerRow = parseInt(document.getElementById('tilesPerRow').value);
@@ -456,14 +467,17 @@
 
                     // ジャンルの簡易表示
                     let cat = "";
-                    const gid = glyphIds[0];
-                    if (gid <= 1575) cat = "Mon";
-                    else if (gid === 1576) cat = "Invis";
-                    else if (gid < 3547) cat = "Mon-Var";
-                    else if (gid === 3547) cat = "Strange";
-                    else if (gid < 4000) cat = "Obj";
-                    else if (gid >= 4000) cat = "CMAP";
-                    ctx.fillText(cat, destX, destY + size + 30);
+                    if (currentOffsets !== null) {
+                        const of = currentOffsets;
+                        const gid = glyphIds[0];
+                        if (gid <= of.GLYPH_INVIS_OFF-1) cat = "Mon";
+                        else if (gid == of.GLYPH_INVIS_OFF) cat = "Invis";
+                        else if (gid < of.GLYPH_INVIS_OFF) cat = "Mon-Var";
+                        else if (gid == of.GLYPH_OBJ_OFF) cat = "Strange";
+                        else if (gid < of.GLYPH_CMAP_OFF) cat = "Obj";
+                        else if (gid >= of.GLYPH_CMAP_OFF) cat = "CMAP";
+                        ctx.fillText(cat, destX, destY + size + 30);
+                    }
                 }
             }
         }

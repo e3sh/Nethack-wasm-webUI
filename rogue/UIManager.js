@@ -438,7 +438,7 @@ function UIManager(r, g) {
                         const item = items[i];
                         const prefix = (i === selectedIndex) ? "> " : "  ";
                         const charStr = (item.identifier !== 0) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")": " ";
-                        const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph) : " "):" ";
+                        const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " "):" ";
 
                         this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${item.str}`);
                     }

@@ -2,7 +2,7 @@
 //----------------------------------------------------------------------
 function main() {
 
-    const USE_TILE = false;
+    const USE_TILE = true;//false;
         const RESW = (USE_TILE)?1280:960;
         const RESH = 600;
 

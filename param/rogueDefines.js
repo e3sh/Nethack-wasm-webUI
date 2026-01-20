@@ -6,8 +6,8 @@ function rogueDefines(r) {
     const d = {
 
         //mode
-        USE_GLYPH: false,
-        LANG_JP: false,
+        USE_GLYPH: true,//false,
+        LANG_JP: true,
         LANG_LARNMODE: false,
         GLYPH_BASE: 0x100, // Offset to avoid collision with ASCII (0-255)
 
@@ -81,36 +81,36 @@ function rogueDefines(r) {
 
         //condition bits
         CONDITION: {
-            "BAREH": parseInt("0x00000001", 16), // Bare handed (no weapon)
-            "BLIND": parseInt("0x00000002", 16), // Blind
-            "BUSY": parseInt("0x00000004", 16), // Busy (doing something)
-            "CONF": parseInt("0x00000008", 16), // Confused
-            "DEAF": parseInt("0x00000010", 16), // Deaf
-            "ELF_IRON": parseInt("0x00000020", 16), // Elf iron equipped
-            "FLY": parseInt("0x00000040", 16), // Flying
-            "FOODPOIS": parseInt("0x00000080", 16), // Food poisoning
-            "GLOWHANDS": parseInt("0x00000100", 16), // Glowing hands
-            "GRAB": parseInt("0x00000200", 16), // Grabbing something
-            "HALLU": parseInt("0x00000400", 16), // Hallucinating
-            "HELD": parseInt("0x00000800", 16), // Held
-            "ICY": parseInt("0x00001000", 16), // Icy
-            "INLAVA": parseInt("0x00002000", 16), // In lava
-            "LEV": parseInt("0x00004000", 16), // Levitating
-            "PARLYZ": parseInt("0x00008000", 16), // Paralyzed
-            "RIDE": parseInt("0x00010000", 16), // Riding
-            "SLEEPING": parseInt("0x00020000", 16), // Sleeping
-            "SLIME": parseInt("0x00040000", 16), // Slime
-            "SLIPPERY": parseInt("0x00080000", 16), // Slippery
-            "STONE": parseInt("0x00100000", 16), // Stoned
-            "STRNGL": parseInt("0x00200000", 16), // Strangled
-            "STUN": parseInt("0x00400000", 16), // Stunned
-            "SUBMERGED": parseInt("0x00800000", 16), // Submerged
-            "TERMILL": parseInt("0x01000000", 16), // Termill
-            "TETHERED": parseInt("0x02000000", 16), // Tethered
-            "TRAPPED": parseInt("0x04000000", 16), // Trapped
-            "UNCONSC": parseInt("0x08000000", 16), // Unconscious
-            "WOUNDEDL": parseInt("0x10000000", 16), // Wounded leg
-            "HOLDING": parseInt("0x20000000", 16), // Holding something
+            "BAREH":   0x00000001, // Bare handed (no weapon)
+            "BLIND":   0x00000002, // Blind
+            "BUSY":    0x00000004, // Busy (doing something)
+            "CONF":    0x00000008, // Confused
+            "DEAF":    0x00000010, // Deaf
+            "ELF_IRON":0x00000020, // Elf iron equipped
+            "FLY":     0x00000040, // Flying
+            "FOODPOIS":0x00000080, // Food poisoning
+            "GLOWHANDS":0x00000100, // Glowing hands
+            "GRAB":    0x00000200, // Grabbing something
+            "HALLU":   0x00000400, // Hallucinating
+            "HELD":    0x00000800, // Held
+            "ICY":     0x00001000, // Icy
+            "INLAVA":  0x00002000, // In lava
+            "LEV":     0x00004000, // Levitating
+            "PARLYZ":  0x00008000, // Paralyzed
+            "RIDE":    0x00010000, // Riding
+            "SLEEPING":0x00020000, // Sleeping
+            "SLIME":   0x00040000, // Slime
+            "SLIPPERY":0x00080000, // Slippery
+            "STONE":   0x00100000, // Stoned
+            "STRNGL":  0x00200000, // Strangled
+            "STUN":    0x00400000, // Stunned
+            "SUBMERGED":0x00800000, // Submerged
+            "TERMILL": 0x01000000, // Termill
+            "TETHERED":0x02000000, // Tethered
+            "TRAPPED": 0x04000000, // Trapped
+            "UNCONSC": 0x08000000, // Unconscious
+            "WOUNDEDL":0x10000000, // Wounded leg
+            "HOLDING": 0x20000000, // Holding something
         },
 
         //Keymap　キーボードの記号配列JIS106/109Keyboard [normal, shift, ctrl]
