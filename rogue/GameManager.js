@@ -677,16 +677,16 @@ function GameManager(g) {
         return this.pendingInputResolve !== null;
     };
 
-    this.sendKey = function (keyName, shift, ctrl) {
+    this.sendKey = function (keyName, shift, ctrl, alt) {
         if (this.pendingInputResolve) {
-            const charCode = this.convertKeyCode(keyName, shift, ctrl);
+            const charCode = this.convertKeyCode(keyName, shift, ctrl, alt);
             const resolve = this.pendingInputResolve;
             this.pendingInputResolve = null;
             resolve(charCode);
         }
     };
 
-    this.convertKeyCode = function (keyName, shift, ctrl) {
+    this.convertKeyCode = function (keyName, shift, ctrl, alt) {
         // 基本的なキーマッピング
         const map = d.KEYMAP;
 
@@ -703,6 +703,12 @@ function GameManager(g) {
             // Normal: 'a', 'b', ...
             code = map[keyName][0] || 0;//char.toLowerCase().charCodeAt(0);
         }
+
+        if (alt && code > 0) {
+            // Meta (Alt) + Key: Bit 7 (0x80) ON
+            code |= 0x80;
+        }
+
         return code;
     };
 

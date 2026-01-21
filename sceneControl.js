@@ -41,7 +41,7 @@ class sceneControl extends GameTask {
 			keyon = g.time();
 
 			this.setCameraPos = function (x, y) {
-				io.camera.x = x * 16 -160;
+				io.camera.x = x * 16 - 160;
 				io.camera.y = y * 16;
 			};
 			this.setCameraEnable = function (flg) {
@@ -84,19 +84,31 @@ class sceneControl extends GameTask {
 						const keys = input.keylist;
 
 						if (keys.length > 0) {
-							// SpaceをCtrlの代わりにするロジック
+							// Spaceを修飾キーの代わりにするロジック
 							let ctrl = false;
 							let shift = input.shift;
+							let alt = false;
 							let effectiveKey = null;
 
 							if (input.space) {
 								// Spaceが押されている場合、Space以外のキーを探す
 								const otherKey = keys.find(k => k !== "Space");
 								if (otherKey) {
-									ctrl = true;
-									effectiveKey = otherKey;
-									spaceUsedAsCtrl = true; // このSpace押下はCtrlとして使われた
+									if (shift) {
+										// Shift + Space + Key = Meta (Alt)
+										alt = true;
+										ctrl = false;
+										effectiveKey = otherKey;
+									} else {
+										// Space + Key = Ctrl
+										ctrl = true;
+										alt = input.alt; // 物理Altも考慮
+										effectiveKey = otherKey;
+									}
+									spaceUsedAsCtrl = true; // このSpace押下は修飾キーとして使われた
 								}
+							} else {
+								alt = input.alt;
 							}
 
 							if (!effectiveKey && keys.length > 0) {
@@ -104,7 +116,7 @@ class sceneControl extends GameTask {
 								effectiveKey = keys.find(k => k !== "Space");
 								if (!effectiveKey && keys.includes("Space")) {
 									effectiveKey = "Space";
-									// Space単体押しの場合は、Ctrlとして使われていなければ後に送信するフラグ管理も可能
+									// Space単体押しの場合は、修飾キーとして使われていなければ後に送信するフラグ管理も可能
 									if (spaceUsedAsCtrl !== true) spaceUsedAsCtrl = false;
 								}
 							}
@@ -113,15 +125,15 @@ class sceneControl extends GameTask {
 								if (effectiveKey === "Space") {
 									// Space単体押しの時は、同時押しを待つためにここでは送らない
 								} else {
-									g.rogue.sendKey(effectiveKey, shift, ctrl);
+									g.rogue.sendKey(effectiveKey, shift, ctrl, alt);
 									this.runstep++;
 									keyon = g.time() + keywait;
 								}
 							}
 						} else {
-							// 全てのキーが離された時、SpaceがCtrlとして使われていなかったら送る
+							// 全てのキーが離された時、Spaceが修飾キーとして使われていなかったら送る
 							if (spaceUsedAsCtrl === false) {
-								g.rogue.sendKey("Space", false, false);
+								g.rogue.sendKey("Space", false, false, false);
 								this.runstep++;
 								keyon = g.time() + keywait;
 							}
