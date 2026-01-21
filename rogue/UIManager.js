@@ -10,7 +10,7 @@ function UIManager(r, g) {
     let dspmode = 0;
     this.texwork = "";
 
-    this.io = new io(r);
+    this.io = new io(r, g);
     this.trancelate = new trancelate(r);
 
     const cw = d.DSP_MAIN_FG;
@@ -113,6 +113,28 @@ function UIManager(r, g) {
         this.texwork += text;
     }
     this.endmsg = this.msg;
+
+    /**
+     * 入力中のテキストをメッセージエリアの最上行に表示する
+     * @param {string} text 
+     */
+    this.updateInputLine = (text) => {
+        const msgConsole = g.console[d.DSP_MESSAGE];
+        if (msgConsole) {
+            msgConsole.move(0, 0);
+            // 行をクリア（空白で上書き）
+            msgConsole.printw(" ".repeat(d.COLS || 80));
+            msgConsole.move(0, 0);
+            msgConsole.printw(text);
+
+            // カーソル位置を入力の末尾に移動
+            let cl = 0;
+            for (let i = 0; i < text.length; i++) {
+                cl += (text.charCodeAt(i) < 128) ? 1 : 2;
+            }
+            msgConsole.move(cl, 0);
+        }
+    }
 
     this.doadd = () => { };//?
 
@@ -331,7 +353,7 @@ function UIManager(r, g) {
                 buff[i] = replacedString;
             }
             this.setCameraEnable(true);
-            this.setCameraPos({x:x, y: d.LINES/2});
+            this.setCameraPos({ x: x, y: d.LINES / 2 });
             return;
         }
         this.setCameraEnable(false);
@@ -344,13 +366,13 @@ function UIManager(r, g) {
 
     this.nhBell = function () {
         this.setEffect(`bell`, { x: bcurpos.x, y: bcurpos.y }, { x: bcurpos.x, y: bcurpos.y - 1 }, 120);
-        this.setDsp(d.DSP_COMMENT);
-        this.clear();
-        this.move(0, 0);
-        glyphCheckTable.forEach((value, index) => {
-            this.printw(`${index}:${value}`);
-            this.cursorDown();
-        });
+        //this.setDsp(d.DSP_COMMENT);
+        //this.clear();
+        //this.move(0, 0);
+        //gyphCheckTable.forEach((value, index) => {
+        //   this.printw(`${index}:${value}`);
+        //    this.cursorDown();
+        //});
     }
 
     this.showMenu = function (items, how, promptText) {
@@ -441,8 +463,8 @@ function UIManager(r, g) {
                     for (let i = start; i < end; i++) {
                         const item = items[i];
                         const prefix = (i === selectedIndex) ? "> " : "  ";
-                        const charStr = (item.identifier !== 0) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")": " ";
-                        const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " "):" ";
+                        const charStr = (item.identifier !== 0) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")" : " ";
+                        const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " ") : " ";
 
                         this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${item.str}`);
                     }
@@ -608,7 +630,7 @@ function UIManager(r, g) {
             //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
             if (statusFields[d.BL_DLEVEL].value != value) {
                 this.wclear(d.DSP_MAIN);
-                if (d.USE_GLYPH){
+                if (d.USE_GLYPH) {
                     for (let i = 0; i < 25; i++) {
                         this.waddstr(d.DSP_MAIN, "　".repeat(80));
                     }
@@ -654,24 +676,24 @@ function UIManager(r, g) {
         );
     };
 
-    this.warnIcon = function(value, maxvalue){
+    this.warnIcon = function (value, maxvalue) {
 
-        const parcent = Math.floor((value/maxvalue)*100);
+        const parcent = Math.floor((value / maxvalue) * 100);
 
         let glaphId = 3926;
-        if (parcent < 5) 
+        if (parcent < 5)
             glaphId = 3926; //warning4(perple)
-        else if (parcent < 10) 
+        else if (parcent < 10)
             glaphId = 7222; //warning4(perple)
-        else if (parcent < 20) 
+        else if (parcent < 20)
             glaphId = 7221; //warning4(red)
-        else if (parcent < 40) 
+        else if (parcent < 40)
             glaphId = 7220; //warning3(orange)
-        else if (parcent < 70) 
+        else if (parcent < 70)
             glaphId = 7219; //warning2(yellow)
-        else if (parcent < 95) 
+        else if (parcent < 95)
             glaphId = 7218; //warning1(green)
-        else if (parcent < 99) 
+        else if (parcent < 99)
             glaphId = 7217; //warning1(green)
         else glaphId = 3926;//black //warning0(white)
 

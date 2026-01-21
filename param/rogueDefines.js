@@ -81,35 +81,35 @@ function rogueDefines(r) {
 
         //condition bits
         CONDITION: {
-            "BAREH":   0x00000001, // Bare handed (no weapon)
-            "BLIND":   0x00000002, // Blind
-            "BUSY":    0x00000004, // Busy (doing something)
-            "CONF":    0x00000008, // Confused
-            "DEAF":    0x00000010, // Deaf
-            "ELF_IRON":0x00000020, // Elf iron equipped
-            "FLY":     0x00000040, // Flying
-            "FOODPOIS":0x00000080, // Food poisoning
-            "GLOWHANDS":0x00000100, // Glowing hands
-            "GRAB":    0x00000200, // Grabbing something
-            "HALLU":   0x00000400, // Hallucinating
-            "HELD":    0x00000800, // Held
-            "ICY":     0x00001000, // Icy
-            "INLAVA":  0x00002000, // In lava
-            "LEV":     0x00004000, // Levitating
-            "PARLYZ":  0x00008000, // Paralyzed
-            "RIDE":    0x00010000, // Riding
-            "SLEEPING":0x00020000, // Sleeping
-            "SLIME":   0x00040000, // Slime
-            "SLIPPERY":0x00080000, // Slippery
-            "STONE":   0x00100000, // Stoned
-            "STRNGL":  0x00200000, // Strangled
-            "STUN":    0x00400000, // Stunned
-            "SUBMERGED":0x00800000, // Submerged
+            "BAREH": 0x00000001, // Bare handed (no weapon)
+            "BLIND": 0x00000002, // Blind
+            "BUSY": 0x00000004, // Busy (doing something)
+            "CONF": 0x00000008, // Confused
+            "DEAF": 0x00000010, // Deaf
+            "ELF_IRON": 0x00000020, // Elf iron equipped
+            "FLY": 0x00000040, // Flying
+            "FOODPOIS": 0x00000080, // Food poisoning
+            "GLOWHANDS": 0x00000100, // Glowing hands
+            "GRAB": 0x00000200, // Grabbing something
+            "HALLU": 0x00000400, // Hallucinating
+            "HELD": 0x00000800, // Held
+            "ICY": 0x00001000, // Icy
+            "INLAVA": 0x00002000, // In lava
+            "LEV": 0x00004000, // Levitating
+            "PARLYZ": 0x00008000, // Paralyzed
+            "RIDE": 0x00010000, // Riding
+            "SLEEPING": 0x00020000, // Sleeping
+            "SLIME": 0x00040000, // Slime
+            "SLIPPERY": 0x00080000, // Slippery
+            "STONE": 0x00100000, // Stoned
+            "STRNGL": 0x00200000, // Strangled
+            "STUN": 0x00400000, // Stunned
+            "SUBMERGED": 0x00800000, // Submerged
             "TERMILL": 0x01000000, // Termill
-            "TETHERED":0x02000000, // Tethered
+            "TETHERED": 0x02000000, // Tethered
             "TRAPPED": 0x04000000, // Trapped
             "UNCONSC": 0x08000000, // Unconscious
-            "WOUNDEDL":0x10000000, // Wounded leg
+            "WOUNDEDL": 0x10000000, // Wounded leg
             "HOLDING": 0x20000000, // Holding something
         },
 
@@ -121,9 +121,10 @@ function rogueDefines(r) {
             'ArrowRight': ['6'.charCodeAt(0), '6'.charCodeAt(0), null],
             'Enter': [13, 13, 13],
             'Escape': [27, 27, 27],
+            'End': [27, 27, 27],
             'Space': [32, 32, 32],
             'Delete': [27, 27, 27], //DeleteKeyでもESCキャンセルさせる（本物のESCだと全画面が解除される為）
-            'Backspace': [27, 27, 27], //Backspaceでも            
+            'Backspace': [8, 8, 8], // Backspace は 8 (BS)
             'KeyA': ["a".charCodeAt(0), "A".charCodeAt(0), 1],
             'KeyB': ["b".charCodeAt(0), "B".charCodeAt(0), 2],
             'KeyC': ["c".charCodeAt(0), "C".charCodeAt(0), 3],

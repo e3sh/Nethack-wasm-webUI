@@ -18,7 +18,7 @@ window.Module = {
             ENV.SCOREDIR = "/save/";
             ENV.LEVELDIR = "/";
             ENV.SAVEDIR = "/save/";
-            ENV.NETHACKOPTIONS = "time,showexp,showvers,number_pad,";//askname";
+            ENV.NETHACKOPTIONS = "time,showexp,showvers,number_pad";//askname";
         }
     }],
     print: function (text) {

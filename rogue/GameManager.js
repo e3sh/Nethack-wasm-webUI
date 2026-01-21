@@ -196,7 +196,7 @@ function GameManager(g) {
                         }
 
                         if (!name) {
-                            name = await this.UI.showInput("What is your name?");
+                            name = await this.UI.io.showInput("What is your name?");
                         }
 
                         if (!name || name.trim() === "") {
@@ -535,7 +535,7 @@ function GameManager(g) {
                     const query = args[0];
                     const bufp = args[1];
                     return new Promise(async (resolve) => {
-                        const input = await r.UI.showInput(query);
+                        const input = await r.UI.io.showInput(query);
                         if (input !== null) {
                             Module.stringToUTF8(input, bufp, 256); // BUFSZ is 256
                         }
@@ -544,7 +544,7 @@ function GameManager(g) {
                 }
             //DECLCB(int,shim_get_ext_cmd,(void),"iv")
             case "shim_get_ext_cmd": return new Promise(async (resolve) => {
-                const input = await r.UI.showInput("#");
+                const input = await r.UI.io.showInput("#");
                 if (!input) {
                     resolve(-1);
                     return;
@@ -787,7 +787,7 @@ function GameManager(g) {
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers,number_pad'];
+                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers,askname,number_pad'];
                         const argc = args.length;
                         const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {

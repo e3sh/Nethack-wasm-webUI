@@ -8,7 +8,7 @@ class sceneControl extends GameTask {
 		let io, stf, waitc, keyon, spaceUsedAsCtrl;
 		//let runstep;
 
-		const keywait = 100; //0.10s
+		const keywait = 125; //0.10s
 
 		this.init = function (g) {
 			//create
