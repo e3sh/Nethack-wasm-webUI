@@ -487,7 +487,7 @@ function UIManager(r, g) {
                         r.pendingInputResolve = originalHandler;
                     } else {
                         // ショートカットキーによる直接選択
-                        const hit = items.find(it => it.ch === charCode);
+                        const hit = items.find(it => it.ch === String.fromCharCode(charCode));
                         if (hit) {
                             resolve([hit]);
                             r.pendingInputResolve = originalHandler;
