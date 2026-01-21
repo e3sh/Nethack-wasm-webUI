@@ -330,8 +330,12 @@ function UIManager(r, g) {
                 let replacedString = buff[i].replace(/\s/g, '　');//全角Space
                 buff[i] = replacedString;
             }
+            this.setCameraEnable(true);
+            this.setCameraPos({x:x, y: d.LINES/2});
             return;
         }
+        this.setCameraEnable(false);
+        this.setCameraCenter();
         let ch = this.mvinch(y, x);
         this.mvwaddch(d.DSP_MAIN_FG, y, x, ch);
         bcurpos.x = x;

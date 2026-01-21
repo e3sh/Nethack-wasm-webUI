@@ -41,7 +41,7 @@ class sceneControl extends GameTask {
 			keyon = g.time();
 
 			this.setCameraPos = function (x, y) {
-				io.camera.x = x * 8;
+				io.camera.x = x * 16 -160;
 				io.camera.y = y * 16;
 			};
 			this.setCameraEnable = function (flg) {

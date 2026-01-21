@@ -3,7 +3,7 @@
 function main() {
 
     const USE_TILE = true;//false;
-        const RESW = (USE_TILE)?1280:960;
+        const RESW = 960; //(USE_TILE)?1280:960;
         const RESH = 600;
 
     console.log("main.js start");
