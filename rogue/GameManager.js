@@ -781,7 +781,7 @@ function GameManager(g) {
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
 
-                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers'];
+                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers,number_pad'];
                         const argc = args.length;
                         const argv = Module._malloc(argc * 4);
                         for (let i = 0; i < argc; i++) {
@@ -852,7 +852,7 @@ function GameManager(g) {
                                     console.log("NH Bootstrap: IDBFS Synced (Initial Complete)");
 
                                     const configFiles = ['NetHack.cnf', '.nethackrc'];
-                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers\n";
+                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad\n";
                                     configFiles.forEach(cf => {
                                         const path = '/' + cf;
                                         if (!FS.analyzePath(path).exists) {

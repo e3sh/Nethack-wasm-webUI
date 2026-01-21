@@ -115,10 +115,10 @@ function rogueDefines(r) {
 
         //Keymap　キーボードの記号配列JIS106/109Keyboard [normal, shift, ctrl]
         KEYMAP: {
-            'ArrowUp': ['k'.charCodeAt(0), 'K'.charCodeAt(0), null],
-            'ArrowDown': ['j'.charCodeAt(0), 'J'.charCodeAt(0), null],
-            'ArrowLeft': ['h'.charCodeAt(0), 'H'.charCodeAt(0), null],
-            'ArrowRight': ['l'.charCodeAt(0), 'L'.charCodeAt(0), null],
+            'ArrowUp': ['8'.charCodeAt(0), '8'.charCodeAt(0), null],
+            'ArrowDown': ['2'.charCodeAt(0), '2'.charCodeAt(0), null],
+            'ArrowLeft': ['4'.charCodeAt(0), '4'.charCodeAt(0), null],
+            'ArrowRight': ['6'.charCodeAt(0), '6'.charCodeAt(0), null],
             'Enter': [13, 13, 13],
             'Escape': [27, 27, 27],
             'Space': [32, 32, 32],
@@ -159,15 +159,15 @@ function rogueDefines(r) {
             'Digit8': ["8".charCodeAt(0), "(".charCodeAt(0), null],
             'Digit9': ["9".charCodeAt(0), ")".charCodeAt(0), null],
             'Numpad0': ["0".charCodeAt(0), "0".charCodeAt(0), null], // yes response
-            'Numpad1': ["b".charCodeAt(0), "b".charCodeAt(0), null],
-            'Numpad2': ["j".charCodeAt(0), "j".charCodeAt(0), null],
-            'Numpad3': ["n".charCodeAt(0), "n".charCodeAt(0), null],
-            'Numpad4': ["h".charCodeAt(0), "h".charCodeAt(0), null],
-            'Numpad5': ["s".charCodeAt(0), "s".charCodeAt(0), null], //search
-            'Numpad6': ["l".charCodeAt(0), "l".charCodeAt(0), null],
-            'Numpad7': ["y".charCodeAt(0), "y".charCodeAt(0), null],
-            'Numpad8': ["k".charCodeAt(0), "k".charCodeAt(0), null],
-            'Numpad9': ["u".charCodeAt(0), "u".charCodeAt(0), null],
+            'Numpad1': ["1".charCodeAt(0), "1".charCodeAt(0), null],
+            'Numpad2': ["2".charCodeAt(0), "2".charCodeAt(0), null],
+            'Numpad3': ["3".charCodeAt(0), "3".charCodeAt(0), null],
+            'Numpad4': ["4".charCodeAt(0), "4".charCodeAt(0), null],
+            'Numpad5': ["5".charCodeAt(0), "5".charCodeAt(0), null], //search
+            'Numpad6': ["6".charCodeAt(0), "6".charCodeAt(0), null],
+            'Numpad7': ["7".charCodeAt(0), "7".charCodeAt(0), null],
+            'Numpad8': ["8".charCodeAt(0), "8".charCodeAt(0), null],
+            'Numpad9': ["9".charCodeAt(0), "9".charCodeAt(0), null],
             'NumpadEnter': [13, 13, 13], //Enter
             'NumpadDecimal': [".".charCodeAt(0), ".".charCodeAt(0), null],
             'NumpadAdd': ["+".charCodeAt(0), "+".charCodeAt(0), null],

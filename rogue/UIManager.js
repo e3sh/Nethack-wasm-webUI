@@ -375,17 +375,17 @@ function UIManager(r, g) {
                     }
 
                     if (totalPages > 1) {
-                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, items.length + 1), 0, "-- More -- (Space/j for next, b/k for prev)");
+                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, items.length + 1), 0, "-- More -- (Space/2 for next, 8 for prev)");
+
                     }
                 };
-
                 render();
 
                 const originalHandler = r.pendingInputResolve;
                 const handler = (charCode) => {
                     const key = String.fromCharCode(charCode).toLowerCase();
 
-                    if (key === ' ' || key === 'j' || charCode === 13) { // Space, j, Enter: 次へ
+                    if (key === ' ' || key === '2' || charCode === 13) { // Space, j, Enter: 次へ
                         if (currentPage < totalPages - 1) {
                             currentPage++;
                             render();
@@ -395,7 +395,7 @@ function UIManager(r, g) {
                             resolve([]);
                             r.pendingInputResolve = originalHandler;
                         }
-                    } else if (key === 'b' || key === 'k') { // b, k: 前へ
+                    } else if (key === '8' || key === '8') { // b, k: 前へ
                         if (currentPage > 0) {
                             currentPage--;
                             render();
@@ -449,7 +449,7 @@ function UIManager(r, g) {
 
 
                     if (totalPages > 1) {
-                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, (end - start) + 1), 0, "-- More -- (Space/> for next, b/< for prev)");
+                        this.mvwaddch(menuDsp, Math.min(pageSize + 1, (end - start) + 1), 0, "-- More -- (Space/> for next, 4/< for prev)");
                     }
                 };
 
@@ -461,13 +461,13 @@ function UIManager(r, g) {
                     const totalItems = items.length;
 
                     // 移動: j, k
-                    if (key === 'j') {
+                    if (key === '2') { //
                         do {
                             selectedIndex = (selectedIndex + 1) % totalItems;
                         } while (items[selectedIndex].identifier == 0);
                         render();
                         r.pendingInputResolve = handler;
-                    } else if (key === 'k') {
+                    } else if (key === '8') { //
                         do {
                             selectedIndex = (selectedIndex - 1 + totalItems) % totalItems;
                         } while (items[selectedIndex].identifier == 0);
@@ -477,7 +477,7 @@ function UIManager(r, g) {
                         selectedIndex = Math.min(selectedIndex + pageSize, totalItems - 1);
                         render();
                         r.pendingInputResolve = handler;
-                    } else if (key === 'b' || key === '<') { // b, <: 前のページ
+                    } else if (key === '4' || key === '<') { // b, <: 前のページ
                         selectedIndex = Math.max(selectedIndex - pageSize, 0);
                         render();
                         r.pendingInputResolve = handler;
@@ -549,7 +549,7 @@ function UIManager(r, g) {
                 });
 
                 if (pages.length > 1) {
-                    this.mvwaddch(menuDsp, pageSize + 1, 0, "-- More -- (Space/j for next, b/k for prev)");
+                    this.mvwaddch(menuDsp, pageSize + 1, 0, "-- More -- (Space/2 for next, 8 for prev)");
                 }
             };
 
@@ -557,7 +557,7 @@ function UIManager(r, g) {
             const handler = (charCode) => {
                 const key = String.fromCharCode(charCode).toLowerCase();
 
-                if (key === ' ' || key === 'j' || charCode === 13) { // Space, j, Enter: 次へ
+                if (key === ' ' || key === '2' || charCode === 13) { // Space, j, Enter: 次へ
                     if (currentPage < pages.length - 1) {
                         currentPage++;
                         renderPage(currentPage);
@@ -567,7 +567,7 @@ function UIManager(r, g) {
                         resolve();
                         r.pendingInputResolve = originalHandler;
                     }
-                } else if (key === 'b' || key === 'k') { // b, k: 前へ
+                } else if (key === '8') { // b, k: 前へ
                     if (currentPage > 0) {
                         currentPage--;
                         renderPage(currentPage);

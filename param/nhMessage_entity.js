@@ -52,8 +52,8 @@ function nhMessage_entity() {
         "Aspirant": "志願者",
 
         // チュートリアル・その他
-        "Move around with h j k l": "h j k l で移動してください",
-        "Move diagonally with b u n y": "b u n y で斜め移動してください",
+        "Move around with 4 2 8 6": "8 2 4 6 で上下左右に移動",
+        "Move diagonally with 1 9 3 7": "7 9 1 3 で斜め移動",
         "an A note": "ラの音",
         "an E note": "ミの音",
         "an F note": "ファの音",
