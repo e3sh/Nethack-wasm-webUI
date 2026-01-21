@@ -56,8 +56,11 @@ function tileMapping(offsets) {
     // Predecessors that trigger tile skips
     const mon_conds = [
         26,
+        31,
         180,
         227,
+        290,
+        291,
         313,
         313,
         368,
@@ -68,7 +71,10 @@ function tileMapping(offsets) {
         382,
     ];
     const mon_conds_double = [
+        32,
         218,
+        292,
+        293,
     ];
 
     const obj_conds = [
@@ -131,7 +137,7 @@ function tileMapping(offsets) {
         m[offsets.GLYPH_PET_OFF + i] = tilenum;
         m[offsets.GLYPH_DETECT_OFF + i] = tilenum;
         m[offsets.GLYPH_RIDDEN_OFF + i] = tilenum;
-        m[offsets.GLYPH_BODY_OFF + i] = corpsetile;
+        m[offsets.GLYPH_BODY_OFF + i] = tilenum + 1082;//corpsetile;
 
         //tilenum++;
 
@@ -228,9 +234,9 @@ function tileMapping(offsets) {
     wallset(3960, 1060 ); //knox wall
     wallset(3971, 1071 ); //sokoban wall
 
-    m[3982] = 862;  //Doorway
-    m[3983] = 865;  //G_vodoor
-    m[3984] = 866;  //G_hodoor
+    m[3982] = 871;  //Doorway
+    m[3983] = 863;  //G_vodoor
+    m[3984] = 863;  //G_hodoor
     m[3985] = 865;  //G_vcdoor
     m[3986] = 866;  //G_hcdoor
 

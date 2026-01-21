@@ -122,6 +122,8 @@ function rogueDefines(r) {
             'Enter': [13, 13, 13],
             'Escape': [27, 27, 27],
             'Space': [32, 32, 32],
+            'Delete': [27, 27, 27], //DeleteKeyでもESCキャンセルさせる（本物のESCだと全画面が解除される為）
+            'Backspace': [27, 27, 27], //Backspaceでも            
             'KeyA': ["a".charCodeAt(0), "A".charCodeAt(0), 1],
             'KeyB': ["b".charCodeAt(0), "B".charCodeAt(0), 2],
             'KeyC': ["c".charCodeAt(0), "C".charCodeAt(0), 3],

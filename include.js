@@ -43,6 +43,7 @@ const w = [
     // Rogue 
     r + "GameManager.js",
     r + "UIManager.js",
+    r + "UI/io.js",
     r + "UI/trancelate.js",
     r + "UI/moveEffect.js",
     r + "UI/monsHpView.js",

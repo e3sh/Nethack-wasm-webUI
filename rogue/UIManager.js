@@ -10,7 +10,7 @@ function UIManager(r, g) {
     let dspmode = 0;
     this.texwork = "";
 
-    //this.io = new io(r);
+    this.io = new io(r);
     this.trancelate = new trancelate(r);
 
     const cw = d.DSP_MAIN_FG;
@@ -640,16 +640,43 @@ function UIManager(r, g) {
         const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
         const GOLD = `${glyphId}${splitwork[1]}`;
 
+        const hpInd = this.warnIcon(sf[s.HP], sf[s.HPMAX]);
+        const enInd = this.warnIcon(sf[s.ENE], sf[s.ENEMAX]);
+
         this.mvwaddstr(statusDsp, 0, 0,
             `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
         );
         this.mvwaddstr(statusDsp, 1, 0,
-            `${sf[s.ALIGN]} $:${GOLD} HP:${sf[s.HP]}(${sf[s.HPMAX]}) Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
+            `${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
         );
         this.mvwaddstr(statusDsp, 2, 0,
             `${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
         );
     };
+
+    this.warnIcon = function(value, maxvalue){
+
+        const parcent = Math.floor((value/maxvalue)*100);
+
+        let glaphId = 3926;
+        if (parcent < 5) 
+            glaphId = 3926; //warning4(perple)
+        else if (parcent < 10) 
+            glaphId = 7222; //warning4(perple)
+        else if (parcent < 20) 
+            glaphId = 7221; //warning4(red)
+        else if (parcent < 40) 
+            glaphId = 7220; //warning3(orange)
+        else if (parcent < 70) 
+            glaphId = 7219; //warning2(yellow)
+        else if (parcent < 95) 
+            glaphId = 7218; //warning1(green)
+        else if (parcent < 99) 
+            glaphId = 7217; //warning1(green)
+        else glaphId = 3926;//black //warning0(white)
+
+        return String.fromCharCode(glaphId + 0x100);
+    }
 
     this.debugStatus = function () {
         const statusDsp = d.DSP_MODE;

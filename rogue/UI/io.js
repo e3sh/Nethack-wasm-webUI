@@ -9,43 +9,6 @@ function io(r){
 	const v = r.globalValiable;
 	const ms = r.messages;
 
-	const isalpha =(ch)=>{ return /^[a-zA-Z]+$/.test(ch); };
-	/*
-	* step_ok:
-	*	Returns true if it is ok to step on ch
-	*/
-	this.step_ok = (ch)=>
-	//unsigned char ch;
-	{
-		const dead_end = this.dead_end;
-
-		if (dead_end(ch))
-			return false;
-		else if (ch >= String.fromCharCode(32) && ch <= String.fromCharCode(127) && !isalpha(ch))
-			return true;
-		return false;
-	}
-
-	/*
-	* dead_end:
-	*	Returns true if you cant walk through that character
-	*/
-	this.dead_end = function(ch)
-	//char ch;
-	{
-		if (ch == '-' || ch == '|' || ch == ' ' || ch == d.SECRETDOOR)
-			return true;
-		else
-			return false;
-	}
-
-	const hungstr = [
-		"",
-		"HUNGRY",
-		"STARVING",
-		"FAINTING",
-	];
-
 	/*
 	* status:
 	*	Display the important stats line.  Keep the cursor where it was.
