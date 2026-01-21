@@ -19,8 +19,7 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 
 - **移動**: 方向キー / テンキー
 - **特殊コマンド (修飾キー)**: ブラウザのキー衝突を避けるため、**Spaceキー**を修飾キーとして使用します。
-  - `Space` + `X`          : `Ctrl+X` 相当の入力（^X）
-  - `Shift` + `Space` + `X`: `Alt +X` 相当の入力（M-X）
+  - `Space` + `X` : `Ctrl+X` 相当の入力（^X）
   - `Space` 単体押しの場合は、通常の Space キーとして機能します。
 - **Gamepad**: 十字キーによる移動をサポート（ボタン割り当ては調整中）。
 

@@ -94,17 +94,8 @@ class sceneControl extends GameTask {
 								// Spaceが押されている場合、Space以外のキーを探す
 								const otherKey = keys.find(k => k !== "Space");
 								if (otherKey) {
-									if (shift) {
-										// Shift + Space + Key = Meta (Alt)
-										alt = true;
-										ctrl = false;
-										effectiveKey = otherKey;
-									} else {
-										// Space + Key = Ctrl
-										ctrl = true;
-										alt = input.alt; // 物理Altも考慮
-										effectiveKey = otherKey;
-									}
+									ctrl = true;
+									effectiveKey = otherKey;
 									spaceUsedAsCtrl = true; // このSpace押下は修飾キーとして使われた
 								}
 							} else {
