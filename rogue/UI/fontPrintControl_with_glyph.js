@@ -50,7 +50,7 @@ class fontPrintControl_with_glyph {
          * @param {number} code Character or Glyph Code
          */
         function charCodeToLoc(code) {
-            let res = { img: asciiPtn, x: 0, y: 0, w: aw, h: ah, type: 0 }; // Default ASCII
+            let res = { img: asciiPtn, x: 0, y: 0, w: aw, h: ah, type: 0, code:code }; // Default ASCII
 
             // 1. ASCII (0-255)
             if (code < 256) {
@@ -74,6 +74,7 @@ class fontPrintControl_with_glyph {
                 res.h = th;
                 res.img = tilePtn;
                 res.type = 3;
+                res.code = tileIndex;
                 return res;
             }
 
@@ -111,7 +112,7 @@ class fontPrintControl_with_glyph {
                 // Glyphs might have different height than fonts
                 // Adjusting to baseline if necessary
                 let drawY = y;
-                if (d.type === 3) {
+                if (d.type == 3) {
                     // Example: if glyph is 32px and font is 12px, adjust Y to align bottom
                     // drawY = y - (d.h - ah); 
                 }
@@ -133,17 +134,28 @@ class fontPrintControl_with_glyph {
 
                 // フォント（type 0, 1, 2）の場合は、オリジナルの fontPrintControl に合わせ
                 // ソース範囲を 1px 削ることで境界のぼやけを防ぐ
+                let drawY = y;
+
                 let sw = d.w;
                 let sh = d.h;
                 if (d.type < 3) {
                     sw = sw - 1;
                     sh = sh - 1;
+                } else {
+                    //Glyph type moving object glyphId anumation test
+                    if (n - 0x100 < 3447 ){ //MonstLastNumber(OBJ_OFF-1)
+                        if (d.code < 393){//not body type underT:393(NUMMONS-1)
+                            const dt = Math.floor(Date.now()/500)%2; 
+
+                            drawY = y-(2*dt); 
+                        }
+                    } 
                 }
 
                 buffer_.drawImgXYWHXYWH(
                     d.img,
                     d.x, d.y, sw, sh,
-                    Math.floor(x), Math.floor(y),
+                    Math.floor(x), Math.floor(drawY),
                     Math.floor(d.w * scale), Math.floor(d.h * scale)
                 );
                 x = x + (d.w * scale);

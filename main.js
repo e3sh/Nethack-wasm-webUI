@@ -22,7 +22,7 @@ function main() {
     //game.asset.imageLoad("SJISK", p + "k12x8_jisx0208c.png")
     game.asset.imageLoad("ASC32", p + "a32_jisx0201c.png")
     game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
-    game.asset.imageLoad("TILES", p + "NethackModern32x-360.png")
+    game.asset.imageLoad("TILES", p + "NethackModern32x-360.png") //"tiles32_cl.png");
 
     if (USE_TILE){
         game.kanji = new fontPrintControl_with_glyph(game,

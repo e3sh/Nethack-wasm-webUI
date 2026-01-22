@@ -51,6 +51,9 @@ function UIManager(r, g) {
         }
         this.setEffect(`${battledmg}`, { x: x, y: y }, { x: x, y: y - 1 }, 120);
     }
+    this.setBarEffect = function(hp, max){
+        sceneC.barEffect.set(hp, max);
+    };
 
     this.setCameraCenter = function () {
         sceneC.setCameraPos(0, 0);
@@ -637,6 +640,7 @@ function UIManager(r, g) {
                 }
             }
         }
+
         if (fld == d.BL_VERS) {
             //`BL_VERS` | バージョン情報が変更されるタイミング
             r.set_nhVersion(value);
@@ -664,6 +668,8 @@ function UIManager(r, g) {
 
         const hpInd = this.warnIcon(sf[s.HP], sf[s.HPMAX]);
         const enInd = this.warnIcon(sf[s.ENE], sf[s.ENEMAX]);
+
+        this.setBarEffect(statusFields[d.BL_HP].value, statusFields[d.BL_HPMAX].value);
 
         this.mvwaddstr(statusDsp, 0, 0,
             `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`

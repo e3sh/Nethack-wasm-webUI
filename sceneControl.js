@@ -22,6 +22,9 @@ class sceneControl extends GameTask {
 
 			this.monsHpView = new monsHpView(g);
 			this.monsHpView.setDrawIndex(48, -8);
+
+			this.barEffect = new barEffect(g, 64, 384, 8*30, 16); //hpbar
+
 			//let mode = document.getElementById("lang").checked;
 
 			const r = new GameManager(g);// ,mode? "jp":"en"); 

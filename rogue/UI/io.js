@@ -18,9 +18,15 @@ function io(r, g) {
 			let inputStr = "";
 			const originalHandler = r.pendingInputResolve;
 
-			const updateDisplay = () => {
+			//const updateDisplay = () => {
+			//	r.UI.updateInputLine(`${query} ${inputStr}`);
+			//};
+			async function updateDisplay(next){
+				r.UI.updateInputLine(`${query}>${inputStr}`);
+				await new Promise(resolve => setTimeout(resolve, 150));
 				r.UI.updateInputLine(`${query} ${inputStr}`);
-			};
+				if (next) r.pendingInputResolve = handler;
+			}
 
 			const handler = (charCode) => {
 				if (charCode === 13) { // Enter
@@ -35,21 +41,21 @@ function io(r, g) {
 				} else if (charCode === 8) { // Backspace
 					if (inputStr.length > 0) {
 						inputStr = inputStr.slice(0, -1);
-						updateDisplay();
+						updateDisplay(false);
 					}
 					r.pendingInputResolve = handler;
 				} else if (charCode >= 32 && charCode <= 126) { // ASCII printable
 					inputStr += String.fromCharCode(charCode);
-					updateDisplay();
-					r.pendingInputResolve = handler;
+					updateDisplay(true);
+					//r.pendingInputResolve = handler;
 				} else {
 					// 無視するキー
 					r.pendingInputResolve = handler;
 				}
 			};
 
-			updateDisplay();
-			r.pendingInputResolve = handler;
+			updateDisplay(true);
+			//r.pendingInputResolve = handler;
 		});
 	};
 

@@ -246,7 +246,7 @@ function tileMapping(offsets) {
 
     m[3988] = 868; //G_tree
 
-    m[3989] = 863;   // G_room
+    m[3989] = 871;   // G_room
     m[3990] = 869;   // G_darkroom
     m[3991] = 872;   // G_engroom
 

@@ -248,6 +248,10 @@ class ioControl extends GameTask {
 
 			if (dispf[i]) {
 				if (d.bg) g.screen[0].fill(x, y, d.w, d.h, d.bg);
+				if (i == 2) {
+					const sc = g.task.read("scene");
+					sc.barEffect.draw();
+				}
 				d.con.draw(g, x, y);
 			}
 		}
