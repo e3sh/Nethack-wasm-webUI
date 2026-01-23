@@ -136,7 +136,7 @@ function GameManager(g) {
         });
 
         window.nethackGlobal.helpers.isPatched = true;
-        console.log("GameManager: nethackGlobal.helpers sticky-patched.");
+        //console.log("GameManager: nethackGlobal.helpers sticky-patched.");
     };
 
     this.eventHook = async function (type, ...args) {
@@ -149,7 +149,7 @@ function GameManager(g) {
 
         let NotImplemented = false;
 
-        //console.log("NH Event:", type, args);
+        if (d.DEBUG_MSG) console.log("NH Event:", type, args);
         this.UI.comment(`NH Event: ${type.slice(5)} `);
 
         switch (type) {
@@ -163,7 +163,7 @@ function GameManager(g) {
             //VDECLCB(shim_askname,(void), "v")
             case "shim_askname":
                 return new Promise(async (resolve) => {
-                    console.log("shim_askname called.");
+                    //console.log("shim_askname called.");
                     try {
                         let name = "";
                         // Detect save data
@@ -172,7 +172,7 @@ function GameManager(g) {
                                 const saveDir = '/save';
                                 if (FS.analyzePath(saveDir).exists) {
                                     const files = FS.readdir(saveDir);
-                                    console.log("Detecting save files in /save:", files);
+                                    //console.log("Detecting save files in /save:", files);
                                     // NetHack save files are typically 1000Name (UID + Name)
                                     // We exclude system files
                                     const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones'];
@@ -183,10 +183,10 @@ function GameManager(g) {
                                         const match = saveFile.match(/^\d+(.+)$/);
                                         if (match) {
                                             name = match[1];
-                                            console.log(`Auto-detected player name from save file: ${name}`);
+                                            //console.log(`Auto-detected player name from save file: ${name}`);
                                         } else {
                                             name = saveFile;
-                                            console.log(`Using save file name as player name: ${name}`);
+                                            //console.log(`Using save file name as player name: ${name}`);
                                         }
                                     }
                                 }
@@ -207,7 +207,7 @@ function GameManager(g) {
                             // PL_NSIZ is 32, so max 31 chars + null terminator
                             const safeName = name.substring(0, 31);
                             Module.stringToUTF8(safeName, plnamePtr, 32);
-                            console.log(`Registered player name: ${safeName}`);
+                            //console.log(`Registered player name: ${safeName}`);
                         } else {
                             console.warn("Could not get plname pointer from _get_plname().");
                         }
@@ -224,7 +224,7 @@ function GameManager(g) {
             //VDECLCB(shim_exit_nhwindows,(const char *str), "vs", P2V str)
             case "shim_exit_nhwindows":
                 //this.playing = false;
-                console.log("Exiting nhwindows...");
+                //console.log("Exiting nhwindows...");
                 this.UI.msg(args[0] || "Exiting game.");
                 this.UI.nhClear(3); // NHW_MAP
                 this.UI.clear(d.DSP_MAIN); // NHW_BGMAP
@@ -297,7 +297,7 @@ function GameManager(g) {
                     const filename = args[0];
                     const complain = args[1];
                     const path = `./dat/${filename}`;
-                    console.log(`shim_display_file: path=${path}, complain=${complain}`);
+                    //console.log(`shim_display_file: path=${path}, complain=${complain}`);
 
                     return new Promise(async (resolve) => {
                         try {
@@ -557,7 +557,7 @@ function GameManager(g) {
             });
             //VDECLCB(shim_number_pad,(int state), "vi", A2P state)
             case "shim_number_pad":
-                console.log("Not implemented");
+                console.log("shim_number_pad");
                 return 0;
             //VDECLCB(shim_delay_output,(void), "v")
             case "shim_delay_output":

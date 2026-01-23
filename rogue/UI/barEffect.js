@@ -21,7 +21,7 @@ function barEffect(g, x, y, width, height){
 		device.putFunc(barDraw);
 
 		if (before_barwidth > now_bw) before_barwidth = before_barwidth - 1;
-		if (before_barwidth <= now_bw) before_barwidth = now_bw;
+		if (before_barwidth < now_bw) before_barwidth = before_barwidth + 1//now_bw;
 	};
 
 	//hpbar
@@ -38,7 +38,8 @@ function barEffect(g, x, y, width, height){
 		device.fillStyle = "red"; //effect 
 		device.fillRect(x + 1, y + 1, this.bbw, height - 1);
 		device.fillStyle = cbar; //hpbar 
-		device.fillRect(x + 1, y + 1, (this.hp / this.mhp) * width, height - 1);
+		const bw =  Math.trunc((this.hp / this.mhp) * width);
+		device.fillRect(x + 1, y + 1, (this.bbw < bw)?this.bbw: bw, height - 1);
 		//border
 		//device.strokeStyle = cborder;
 		//device.lineWidth = 2;

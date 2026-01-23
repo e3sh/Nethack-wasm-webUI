@@ -6,7 +6,7 @@ function main() {
         const RESW = 960; //(USE_TILE)?1280:960;
         const RESH = 600;
 
-    console.log("main.js start");
+    //console.log("main.js start");
 
     const sysParam = { canvasId: "layer0", 
             screen: [{ resolution: { w: RESW, h: RESH , x:0, y:0 } }]
@@ -61,7 +61,7 @@ function main() {
 
     game.keyboard.codeMode();
 
-    console.log("gameCore start");
+    //console.log("gameCore start");
 	game.run();
 }
 

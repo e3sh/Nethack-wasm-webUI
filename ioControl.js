@@ -74,7 +74,7 @@ class ioControl extends GameTask {
 			if (event.altKey) {
 				// Alt単体以外のAlt同時押しの場合にデフォルト動作を抑制
 				if (event.key !== "Alt") {
-					console.log("Suppressing browser shortcut: Alt+" + event.key);
+					//console.log("Suppressing browser shortcut: Alt+" + event.key);
 					event.preventDefault();
 				}
 			}

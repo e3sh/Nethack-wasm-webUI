@@ -532,7 +532,7 @@ function UIManager(r, g) {
 
     this.showInput = function (query) {
         return new Promise((resolve) => {
-            console.log("Showing input prompt:", query);
+            //console.log("Showing input prompt:", query);
             // 簡易的な入力実装（ブラウザのプロンプトを使用）
             const input = prompt(query);
             this.msg(`${query} ${input}`);
@@ -644,7 +644,7 @@ function UIManager(r, g) {
         if (fld == d.BL_VERS) {
             //`BL_VERS` | バージョン情報が変更されるタイミング
             r.set_nhVersion(value);
-            console.log("Nethack ver:", value);
+            //console.log("Nethack ver:", value);
         }
         statusFields[fld] = { value: value, chg: chg, clr: clr };
     };
@@ -751,13 +751,13 @@ function UIManager(r, g) {
      * @param {object} offsets 
      */
     this.updateTileMapping = function (offsets) {
-        console.log("UIManager: Updating tile mapping with offsets", offsets);
+        //console.log("UIManager: Updating tile mapping with offsets", offsets);
         const newMapping = tileMapping(offsets);
         if (g.kanji && typeof g.kanji.setMappingTable === 'function') {
             g.kanji.setMappingTable(newMapping);
-            console.log("UIManager: Tile mapping updated in rendering engine.");
+            //console.log("UIManager: Tile mapping updated in rendering engine.");
         } else {
-            console.warn("UIManager: Rendering engine (g.kanji) not ready for mapping update.");
+            //console.warn("UIManager: Rendering engine (g.kanji) not ready for mapping update.");
         }
     };
 

@@ -168,7 +168,7 @@ class fontPrintControl_with_glyph {
          */
         this.setMappingTable = function (newTable) {
             mappingTable = newTable;
-            console.log("fontPrintControl: Mapping table updated.");
+            //console.log("fontPrintControl: Mapping table updated.");
         };
     }
 }
