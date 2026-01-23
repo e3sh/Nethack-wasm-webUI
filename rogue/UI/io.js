@@ -9,6 +9,11 @@ function io(r, g) {
 	const v = r.globalValiable;
 	const ms = r.messages;
 
+	let statusFields = [];
+	for (let i = 0; i < 24; i++) {
+		statusFields.push({ value: 0 });
+	}
+
 	/*
 	 * showInput:
 	 *  Display a prompt and get user input from the game screen.
@@ -57,109 +62,131 @@ function io(r, g) {
 			updateDisplay(true);
 			//r.pendingInputResolve = handler;
 		});
-	};
-
-	/*
-	* status:
-	*	Display the important stats line.  Keep the cursor where it was.
-	*/
-	this.status = function (fromfuse)
-	//int fromfuse;
-	{
-		//status
-		const updpack = r.player.encumb.updpack;
-
-		const player = r.player.get_player();
-		const max_stats = r.player.get_max_stats();
-		const him = r.player.get_him();
-		const cur_armor = r.player.get_cur_armor();
-
-		let totwght, carwght; //reg int totwght, carwght;
-		let stef, stre, stmx; //reg struct real *stef, *stre, *stmx;
-		let pb;
-		let oy, ox, ch;
-		let buf;
-		//const hwidth =()=>{ "%2d(%2d)" };
-
-		/*
-		* If nothing has changed since the last time, then done
-		*/
-		if (r.nochange)
-			return;
-		nochange = true;
-		updpack();					/* get all weight info */
-		stef = player.t_stats.s_ef;
-		stre = player.t_stats.s_re;
-		stmx = max_stats.s_re;
-		totwght = Math.floor(him.s_carry / 10);
-		carwght = Math.floor(him.s_pack / 10);
-
-		r.UI.setDsp(d.DSP_STATUS);
-		r.UI.clear();
-		r.UI.mvaddstr(1, 0,
-			`Str: ${stef.a_str}(${(stre.a_str < stmx.a_str) ? "*" : ""}${stre.a_str})` //%2d(%c%2d)", stef.a_str, ch, stre.a_str);
-		);
-		r.UI.mvaddstr(1, 13,
-			`Dex: ${stef.a_dex}(${(stre.a_dex < stmx.a_dex) ? "*" : ""}${stre.a_dex})` //%2d(%c%2d)", stef.a_dex, ch, stre.a_dex);
-		);
-		r.UI.mvaddstr(1, 26,
-			`Wis: ${stef.a_wis}(${(stre.a_wis < stmx.a_wis) ? "*" : ""}${stre.a_wis})`//%2d(%c%2d)", stef.a_wis, ch, stre.a_wis);
-		);
-		r.UI.mvaddstr(1, 39,
-			`Con: ${stef.a_con}(${(stre.a_con < stmx.a_con) ? "*" : ""}${stre.a_con})`//%2d(%c%2d)", stef.a_con, ch, stre.a_con);
-		);
-		r.UI.mvaddstr(1, 52,
-			`Carry: ${carwght}(${totwght}) ${hungstr[r.player.hungry_state]}`//%3d(%3d)", carwght, totwght);
-		);
-
-		r.UI.mvaddstr(0, 0, `Level: ${r.dungeon.level}  `);
-		r.UI.mvaddstr(0, 13, `Gold: ${r.player.purse} `);
-		r.UI.mvaddstr(0, 26, `Hp: ${him.s_hpt}(${him.s_maxhp})`);//",level, purse);
-
-		r.UI.mvaddstr(0, 39, `Ac: ${cur_armor == null ? him.s_arm : cur_armor.o_ac}`);
-		r.UI.mvaddstr(0, 52, `Exp: ${him.s_lvl}/${Math.floor(him.s_exp)}`);
-
-		carwght = Math.floor((r.packvol * 100) / d.V_PACK);
-		r.UI.mvaddstr(0, 67, `Vol: ${carwght}%`);//%3d%%", carwght);
-
-		r.UI.mvaddstr(1, 75, r.UI.get_deltaText(r.delta.x, r.delta.y));
-		r.UI.setDsp(d.DSP_MAIN);
-
-		equipstatus();
 	}
 
-	/*
-	* equipstatus:
-	*	Display the hero's equip items
-	*/
-	function equipstatus() {
+	this.updateStatus = function (fld, value, chg, clr) {
 
-		const inv_name = r.item.things_f.inv_name;
+		if (fld <= d.BL_FLASH) {
+			renderStatus();
+			debugStatus();
+			return;
+		}
 
-		const cur_weapon = r.player.get_cur_weapon();
-		const cur_armor = r.player.get_cur_armor();
-		const cur_ring = r.player.get_cur_ring();
-		const select = r.player.get_select();
-		//const dest = r.player.get_dest();
+		if (fld == d.BL_DLEVEL) {
+			//`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
+			if (statusFields[d.BL_DLEVEL].value != value) {
+				r.UI.wclear(d.DSP_MAIN);
+				if (d.USE_GLYPH) {
+					for (let i = 0; i < 25; i++) {
+						r.UI.waddstr(d.DSP_MAIN, "　".repeat(80));
+					}
+				}
+			}
+		}
 
-		const wname = (cur_weapon != null) ? inv_name(cur_weapon, false) : "-";
-		const aname = (cur_armor != null) ? inv_name(cur_armor, false) : "-";
-		const rlname = (cur_ring[d.LEFT] != null) ? inv_name(cur_ring[d.LEFT], false) : "";
-		const rrname = (cur_ring[d.RIGHT] != null) ? inv_name(cur_ring[d.RIGHT], false) : "";
-		const selname = (select != null) ? `SEL) ${inv_name(select, false)}` : "";
-		//const dstname = (dest != null)? `=> : ${inv_name(dest, false)}`:"";
+		if (fld == d.BL_VERS) {
+			//`BL_VERS` | バージョン情報が変更されるタイミング
+			r.set_nhVersion(value);
+			//console.log("Nethack ver:", value);
+		}
+		statusFields[fld] = { value: value, chg: chg, clr: clr };
+	};
 
-		r.UI.setDsp(d.DSP_EQUIP);
-		r.UI.clear();
+	function renderStatus() {
+		const statusDsp = d.DSP_STATUS;
+		const s = d.STAT_FLD;
+		const sf = [];
 
-		r.UI.mvaddstr(0, 0, `EQUIP)`);
-		r.UI.mvaddstr(1, 0, ` ${wname}`);
-		r.UI.mvaddstr(2, 0, ` ${aname}`);
-		r.UI.mvaddstr(3, 0, ` ${rlname}`);
-		r.UI.mvaddstr(4, 0, ` ${rrname}`);
-		r.UI.mvaddstr(6, 0, `${selname}`);
-		//r.UI.mvaddstr(7, 0,`${dstname}`);
+		r.UI.wclear(statusDsp);
+		statusFields.forEach((field, index) => {
+			if (field) {
+				sf[Number(index)] = field.value;
+			}
+		});
 
-		r.UI.setDsp(d.DSP_MAIN);
+		let splitwork = sf[s.GOLD].split(":");
+		const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883; // Default to gold piece if parsing fails
+		const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
+		const GOLD = `${glyphId}${splitwork[1]}`;
+
+		const hpInd = warnIcon(sf[s.HP], sf[s.HPMAX]);
+		const enInd = warnIcon(sf[s.ENE], sf[s.ENEMAX]);
+
+		r.UI.setBarEffect(statusFields[d.BL_HP].value, statusFields[d.BL_HPMAX].value);
+
+		r.UI.mvwaddstr(statusDsp, 0, 0,
+			`${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
+		);
+		r.UI.mvwaddstr(statusDsp, 1, 0,
+			`${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
+		);
+		r.UI.mvwaddstr(statusDsp, 2, 0,
+			`${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+		);
+	};
+
+	function warnIcon(value, maxvalue) {
+
+		const parcent = Math.floor((value / maxvalue) * 100);
+
+		let glaphId = 3926;
+		if (parcent < 5)
+			glaphId = 3926; //warning4(perple)
+		else if (parcent < 10)
+			glaphId = 7222; //warning4(perple)
+		else if (parcent < 20)
+			glaphId = 7221; //warning4(red)
+		else if (parcent < 40)
+			glaphId = 7220; //warning3(orange)
+		else if (parcent < 70)
+			glaphId = 7219; //warning2(yellow)
+		else if (parcent < 95)
+			glaphId = 7218; //warning1(green)
+		else if (parcent < 99)
+			glaphId = 7217; //warning1(green)
+		else glaphId = 3926;//black //warning0(white)
+
+		return String.fromCharCode(glaphId + d.GLYPH_BASE);
+	}
+
+	function debugStatus() {
+		const statusDsp = d.DSP_MODE;
+		r.UI.wclear(statusDsp);
+		let line = [];
+		statusFields.forEach((field, index) => {
+			if (field) {
+				line.push(`${index}:${field.value} `);
+			}
+		});
+		for (let i in line) {
+			r.UI.mvwaddstr(statusDsp, i, 0, line[i]);
+		}
+
+		if (Boolean(statusFields[22])) {
+			const list = conditionCheck(statusFields[22].value);
+			for (let i in list) {
+				r.UI.mvwaddstr(statusDsp, Number(i) + 10, 20, list[i]);
+			}
+		}
+	}
+
+	function conditionString(condvalue) {
+		const CDT = d.CONDITION;
+		let str = "";
+
+		for (let i in CDT) {
+			str += `${(condvalue & CDT[i]) ? `${i} ` : ""}`;
+		}
+		return str;
+	}
+
+	function conditionCheck(condvalue) {
+		const CDT = d.CONDITION;
+		let list = [];
+
+		for (let i in CDT) {
+			list.push(`${(condvalue & CDT[i]) ? "o" : "-"}:${i}`);
+		}
+		return list;
 	}
 }

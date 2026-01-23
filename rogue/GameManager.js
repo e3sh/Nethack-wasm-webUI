@@ -5,15 +5,6 @@ function GameManager(g) {
     const t = rogueTypes();
     const v = {};//globalValiableInit();
 
-    //let lang;
-    //if (Boolean(localStorage.getItem("rogue.lang"))) {
-    //    lang = localStorage.getItem("rogue.lang");
-    //}
-
-    //const ms = (lang == "jp") ? rogueMessage_jp(this) : rogueMessage(this);
-
-    //props
-
     this.define = d;
     this.func = f;
     this.types = t;
@@ -265,9 +256,10 @@ function GameManager(g) {
                 } else {
                     if (args[1])
                         await new Promise(
-                            resolve => {
-                                this.pendingInputResolve = resolve;
-                            });
+                        resolve => {
+                        this.pendingInputResolve = resolve;
+                    });
+                    
                 }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
@@ -717,6 +709,11 @@ function GameManager(g) {
     this.main = function () {
         this.UI.mvwaddstr(d.DSP_STATUS, 1, 0, "Nethack-wasm-WebUI");
         this.setupNethackGlobal();
+
+        console.log(`Use Glyph:${d.USE_GLYPH}`);
+        if (d.USE_GLYPH){
+           g.console[d.DSP_MAIN].setPrompt(["＿","＿"]);
+        }
 
         window.nhDispatcher = this.eventHook.bind(this);
         // Do not overwrite window.nethackGlobal entirely to keep helpers from setupNethackGlobal

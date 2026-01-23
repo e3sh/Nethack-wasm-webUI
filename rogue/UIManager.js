@@ -357,6 +357,7 @@ function UIManager(r, g) {
             }
             this.setCameraEnable(true);
             this.setCameraPos({ x: x, y: d.LINES / 2 });
+            this.wmove(d.DSP_MAIN, y, x);
             return;
         }
         this.setCameraEnable(false);
@@ -615,137 +616,8 @@ function UIManager(r, g) {
         });
     };
 
+    this.updateStatus = this.io.updateStatus;
 
-
-    let statusFields = [];
-    for (let i = 0; i < 24; i++) {
-        statusFields.push({ value: 0 });
-    }
-    this.updateStatus = function (fld, value, chg, clr) {
-
-        if (fld <= d.BL_FLASH) {
-            this.renderStatus();
-            this.debugStatus();
-            return;
-        }
-
-        if (fld == d.BL_DLEVEL) {
-            //`BL_LEVELDESC` | 現在の階層 (Dlevel) が変更されるタイミング
-            if (statusFields[d.BL_DLEVEL].value != value) {
-                this.wclear(d.DSP_MAIN);
-                if (d.USE_GLYPH) {
-                    for (let i = 0; i < 25; i++) {
-                        this.waddstr(d.DSP_MAIN, "　".repeat(80));
-                    }
-                }
-            }
-        }
-
-        if (fld == d.BL_VERS) {
-            //`BL_VERS` | バージョン情報が変更されるタイミング
-            r.set_nhVersion(value);
-            //console.log("Nethack ver:", value);
-        }
-        statusFields[fld] = { value: value, chg: chg, clr: clr };
-    };
-
-    this.renderStatus = function () {
-        const statusDsp = d.DSP_STATUS;
-        const s = d.STAT_FLD;
-        const sf = [];
-
-        this.wclear(statusDsp);
-        statusFields.forEach((field, index) => {
-            if (field) {
-                sf[Number(index)] = field.value;
-            }
-        });
-
-        let splitwork = sf[s.GOLD].split(":");
-        const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883; // Default to gold piece if parsing fails
-        const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
-        const GOLD = `${glyphId}${splitwork[1]}`;
-
-        const hpInd = this.warnIcon(sf[s.HP], sf[s.HPMAX]);
-        const enInd = this.warnIcon(sf[s.ENE], sf[s.ENEMAX]);
-
-        this.setBarEffect(statusFields[d.BL_HP].value, statusFields[d.BL_HPMAX].value);
-
-        this.mvwaddstr(statusDsp, 0, 0,
-            `${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
-        );
-        this.mvwaddstr(statusDsp, 1, 0,
-            `${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
-        );
-        this.mvwaddstr(statusDsp, 2, 0,
-            `${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
-        );
-    };
-
-    this.warnIcon = function (value, maxvalue) {
-
-        const parcent = Math.floor((value / maxvalue) * 100);
-
-        let glaphId = 3926;
-        if (parcent < 5)
-            glaphId = 3926; //warning4(perple)
-        else if (parcent < 10)
-            glaphId = 7222; //warning4(perple)
-        else if (parcent < 20)
-            glaphId = 7221; //warning4(red)
-        else if (parcent < 40)
-            glaphId = 7220; //warning3(orange)
-        else if (parcent < 70)
-            glaphId = 7219; //warning2(yellow)
-        else if (parcent < 95)
-            glaphId = 7218; //warning1(green)
-        else if (parcent < 99)
-            glaphId = 7217; //warning1(green)
-        else glaphId = 3926;//black //warning0(white)
-
-        return String.fromCharCode(glaphId + 0x100);
-    }
-
-    this.debugStatus = function () {
-        const statusDsp = d.DSP_MODE;
-        this.wclear(statusDsp);
-        let line = [];
-        statusFields.forEach((field, index) => {
-            if (field) {
-                line.push(`${index}:${field.value} `);
-            }
-        });
-        for (let i in line) {
-            this.mvwaddstr(statusDsp, i, 0, line[i]);
-        }
-
-        if (Boolean(statusFields[22])) {
-            const list = conditionCheck(statusFields[22].value);
-            for (let i in list) {
-                this.mvwaddstr(statusDsp, Number(i) + 10, 20, list[i]);
-            }
-        }
-    }
-
-    function conditionString(condvalue) {
-        const CDT = d.CONDITION;
-        let str = "";
-
-        for (let i in CDT) {
-            str += `${(condvalue & CDT[i]) ? `${i} ` : ""}`;
-        }
-        return str;
-    }
-
-    function conditionCheck(condvalue) {
-        const CDT = d.CONDITION;
-        let list = [];
-
-        for (let i in CDT) {
-            list.push(`${(condvalue & CDT[i]) ? "o" : "-"}:${i}`);
-        }
-        return list;
-    }
     /**
      * NetHack の C側定数に基づいてタイルマッピングを更新します。
      * @param {object} offsets 
@@ -759,6 +631,5 @@ function UIManager(r, g) {
         } else {
             //console.warn("UIManager: Rendering engine (g.kanji) not ready for mapping update.");
         }
-    };
-
+    }
 }

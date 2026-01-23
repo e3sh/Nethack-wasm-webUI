@@ -329,7 +329,16 @@ class jncurses{
                     if (!useutf) {
                         g.font[fontId].putchr(d,x + cursor.x*charw ,y + cursor.y*linew);
                     }else{
-                        g.kanji.putchr(d,x + cursor.x*charw ,y + cursor.y*linew, 0.5);
+                        let cl = 0;
+                        if (Boolean(textbuffer[y])){
+                            if (cursor.x < textbuffer[y].length) {
+                                for (let i = 0; i < cursor.x; i++) {
+                                    cl += (textbuffer[y].charCodeAt(i) < 128) ? charw : charw*2;
+                                }
+                            }
+                        }
+                        let ix = (cursor.x*charw > cl)? cursor.x*charw: cl;
+                        g.kanji.putchr(d,x + ix ,y + cursor.y*linew, 0.5);
                     }
                 }
                 //g.font[fontId].putchr(`${this.rewritecheck()}`,x,y);    
