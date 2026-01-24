@@ -103,5 +103,23 @@ function nhMessage_entity() {
         "it": "それ",
         "hobbit": "ホビット",
         "red mold": "赤カビ",
+
+        // 状態・アイテム種別（再帰翻訳用）
+        "corpse": "屍",
+        "statue": "像",
+        "egg": "卵",
+        "scroll": "巻物",
+        "potion": "ポーション",
+        "wand": "杖",
+        "ring": "指輪",
+        "spellbook": "魔導書",
+        "slime": "スライム",
+
+        // 種族
+        "human": "人間",
+        "elf": "エルフ",
+        "dwarf": "ドワーフ",
+        "gnome": "ノーム",
+        "orc": "オーク",
     };
 }

@@ -33,8 +33,20 @@ function trancelate(r) {
         }
 
         // 2. 単語・エンティティ一致（再帰翻訳の終端）
+        // そのまま検索
         if (trtable_entities[msg]) {
             return trtable_entities[msg];
+        }
+
+        // 正規化して検索（冠詞の除去など）
+        let normalized = msg.replace(/^(?:the|a|an)\s+/i, "").trim();
+        // 複数形sの簡易除去（末尾のsを消して辞書にあるか確認）
+        let singural = normalized.replace(/s$/i, "");
+
+        if (trtable_entities[normalized]) {
+            return trtable_entities[normalized];
+        } else if (trtable_entities[singural]) {
+            return trtable_entities[singural];
         }
 
         // 3. 正規表現パターンマッチング
@@ -46,8 +58,6 @@ function trancelate(r) {
                 for (let i = 1; i < match.length; i++) {
                     let translatedValue = get_translation_data(match[i]);
                     // $1 などのプレースホルダを実際の翻訳後の値に置換
-                    // JSのreplace(string, string)は最初の1つしか置換しないが、$i は通常1回なのでこれでOK
-                    // 必要に応じて RegExp で global 置換を検討
                     result = result.replace(`$${i}`, translatedValue);
                 }
                 return result;

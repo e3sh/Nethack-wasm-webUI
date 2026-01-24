@@ -65,7 +65,7 @@ function nhMessage_pattern() {
             replace: "ここに$1がある。"
         },
         {
-            pattern: /^You kill the (.*)!$/,
+            pattern: /^You kill (.*)!$/,
             replace: "あなたは$1を殺した！"
         },
         {
@@ -81,7 +81,7 @@ function nhMessage_pattern() {
             replace: "この$1はまあまあの味がする。"
         },
         {
-            pattern: /^You finish eating the (.*)\.$/,
+            pattern: /^You finish eating (.*)\.$/,
             replace: "あなたは$1を食べ終えた。"
         },
         {
@@ -93,52 +93,40 @@ function nhMessage_pattern() {
             replace: "あなたは「$1」の呪文を習得した。"
         },
         {
-            pattern: /^The (.*) bites the (.*)\.$/,
+            pattern: /^(.*) bites (.*)\.$/,
             replace: "$1が$2に噛み付いた。"
         },
         {
-            pattern: /^The (.*) is killed!$/,
+            pattern: /^(.*) is killed!$/,
             replace: "$1は殺された！"
         },
         {
-            pattern: /^You swap places with your (.*)\.$/,
+            pattern: /^You swap places with (?:your)?\s*(.*)\.$/,
             replace: "あなたは$1と場所を入れ替わった。"
         },
         {
-            pattern: /^You swap places with (.*)\.$/,
-            replace: "あなたは$1と場所を入れ替わった。"
+            pattern: /^(.*) eats (.*)\.$/,
+            replace: "$1は$2を食べた。"
         },
         {
-            pattern: /^Your (.*) eats a (.*)\.$/,
-            replace: "あなたの$1は$2を食べた。"
-        },
-        {
-            pattern: /^A (.*) blocks your path\.$/,
+            pattern: /^(.*) blocks your path\.$/,
             replace: "$1が道を塞いでいる。"
         },
         {
-            pattern: /^You stop.  Your (.*) is in the way!$/,
+            pattern: /^You stop.  (?:Your|The)?\s*(.*) is in the way!$/,
             replace: "止まった。$1が邪魔だ！"
         },
         {
-            pattern: /^You miss the (.*).$/,
+            pattern: /^You miss (.*).$/,
             replace: "あなたの攻撃は$1に当たらなかった。"
         },
         {
-            pattern: /^A (.*) shoots out at you!$/,
+            pattern: /^(.*) shoots out at you!$/,
             replace: "$1があなたに向かって放たれた！"
         },
         {
-            pattern: /^A (.*) misses you\.$/,
+            pattern: /^(.*) misses you\.$/,
             replace: "$1はあなたに当たらなかった。"
-        },
-        {
-            pattern: /^The (.*) picks up (.*)\.$/,
-            replace: "$1は$2を拾い上げた。"
-        },
-        {
-            pattern: /^The (.*) drops (.*)\.$/,
-            replace: "$1は$2を落とした。"
         },
         {
             pattern: /^(.*) picks up (.*)\.$/,
@@ -149,19 +137,15 @@ function nhMessage_pattern() {
             replace: "$1は$2を落とした。"
         },
         {
-            pattern: /^You destroy the (.*)!$/,
+            pattern: /^You destroy (.*)!$/,
             replace: "あなたは$1を破壊した！"
         },
         {
-            pattern: /^The (.*) misses (.*)\.$/,
+            pattern: /^(.*) misses (?:the|a|an)?\s*(.*)\.$/,
             replace: "$1の攻撃は$2に当たらなかった。"
         },
         {
-            pattern: /^The (.*) misses the (.*)\.$/,
-            replace: "$1の攻撃は$2に当たらなかった。"
-        },
-        {
-            pattern: /^The (.*) misses!$/,
+            pattern: /^(.*) misses!$/,
             replace: "$1の攻撃は外れた！"
         },
         {
@@ -169,15 +153,15 @@ function nhMessage_pattern() {
             replace: "$1の攻撃は当たらなかった。"
         },
         {
-            pattern: /^The (.*) bites!$/,
+            pattern: /^(.*) bites!$/,
             replace: "$1が噛み付いた！"
         },
         {
-            pattern: /^You hit the (.*)\.$/,
+            pattern: /^You hit (.*)\.$/,
             replace: "あなたは$1に命中させた。"
         },
         {
-            pattern: /^The (.*) strikes at your displaced image and misses you!$/,
+            pattern: /^(.*) strikes at your displaced image and misses you!$/,
             replace: "$1はあなたの分身を攻撃したが、外れた！"
         },
         {
@@ -185,11 +169,11 @@ function nhMessage_pattern() {
             replace: "遠くで$1の鳴き声が聞こえた。"
         },
         {
-            pattern: /^The (.*) suddenly falls asleep!$/,
+            pattern: /^(.*) suddenly falls asleep!$/,
             replace: "$1は突然眠りに落ちた！"
         },
         {
-            pattern: /^The (.*) wields a broad (.*)!$/,
+            pattern: /^(.*) wields a broad (.*)!$/,
             replace: "$1は大きな$2を構えた！"
         },
         {
@@ -197,15 +181,15 @@ function nhMessage_pattern() {
             replace: "大きな$1が$2の手に張り付いた！"
         },
         {
-            pattern: /^The (.*) hits!$/,
+            pattern: /^(.*) hits!$/,
             replace: "$1が命中した！"
         },
         {
-            pattern: /^The (.*) swings (her|him) (.*)\.$/,
-            replace: "$1は$2の$3を振り回した。"
+            pattern: /^(.*) swings (?:her|him|his|its)\s*(.*)\.$/,
+            replace: "$1は$2を振り回した。"
         },
         {
-            pattern: /^The (.*) throws (.*)!$/,
+            pattern: /^(.*) throws (.*)!$/,
             replace: "$1は$2を投げた！"
         },
         {
@@ -217,31 +201,31 @@ function nhMessage_pattern() {
             replace: "$1が命中した。"
         },
         {
-            pattern: /^The (.*) wields (.*)!$/,
+            pattern: /^(.*) wields (.*)!$/,
             replace: "$1は$2を構えた！"
         },
         {
-            pattern: /^The (.*) shoots (.*)!$/,
+            pattern: /^(.*) shoots (.*)!$/,
             replace: "$1は$2を放った！"
         },
         {
-            pattern: /^The (.*) zaps (.*)!$/,
+            pattern: /^(.*) zaps (.*)!$/,
             replace: "$1は$2をザップした！"
         },
         {
-            pattern: /^You attack (.*)\.!$/,
+            pattern: /^You attack (.*)\.$/,
             replace: "あなたは$1を攻撃した。"
         },
         {
-            pattern: /^The (.*) touches the (.*)\.!$/,
+            pattern: /^(.*) touches (.*)\.$/,
             replace: "$1は$2に触れた。"
         },
         {
-            pattern: /^It misses the (.*)\.!$/,
+            pattern: /^It misses (.*)\.$/,
             replace: "それは$1に当たらなかった。"
         },
         {
-            pattern: /^It bites the (.*)\.!$/,
+            pattern: /^It bites (.*)\.$/,
             replace: "それは$1に噛み付いた。"
         },
         {
@@ -249,8 +233,65 @@ function nhMessage_pattern() {
             replace: "$1 ちょうど！"
         },
         {
-            pattern: /^The (.*) hits it\.!$/,
+            pattern: /^(.*) hits it\.!$/,
             replace: "$1は命中した。"
+        },
+        // フレーズパターン（再帰翻訳用）
+        {
+            pattern: /^(.*) corpse$/,
+            replace: "$1の屍"
+        },
+        {
+            pattern: /^(.*) statue$/,
+            replace: "$1の像"
+        },
+        {
+            pattern: /^(.*) egg$/,
+            replace: "$1の卵"
+        },
+        {
+            pattern: /^(.*) scroll$/,
+            replace: "$1の巻物"
+        },
+        {
+            pattern: /^(.*) potion$/,
+            replace: "$1のポーション"
+        },
+        {
+            pattern: /^(.*) wand$/,
+            replace: "$1の杖"
+        },
+        {
+            pattern: /^(.*) ring$/,
+            replace: "$1の指輪"
+        },
+        {
+            pattern: /^(.*) spellbook$/,
+            replace: "$1の魔導書"
+        },
+        {
+            pattern: /^potion of (.*)$/,
+            replace: "$1のポーション"
+        },
+        {
+            pattern: /^scroll of (.*)$/,
+            replace: "$1の巻物"
+        },
+        {
+            pattern: /^wand of (.*)$/,
+            replace: "$1の杖"
+        },
+        {
+            pattern: /^ring of (.*)$/,
+            replace: "$1の指輪"
+        },
+        {
+            pattern: /^spellbook of (.*)$/,
+            replace: "$1の魔導書"
+        },
+        {
+            pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
+            replace: "$1の$2"
         },
     ];
 }
