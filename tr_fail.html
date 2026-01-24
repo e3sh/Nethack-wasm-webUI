@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 未翻訳メッセージ管理</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --accent-color: #4a90e2;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-copy { background-color: var(--accent-color); color: white; }
+        .btn-save { background-color: var(--success-color); color: white; }
+        .btn-clear { background-color: var(--danger-color); color: white; }
+
+        .container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        textarea {
+            flex-grow: 1;
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: none;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>NetHack 未翻訳メッセージ管理</h1>
+        <div class="controls">
+            <button class="btn-copy" onclick="copyToClipboard()">コピー</button>
+            <button class="btn-save" onclick="saveAsFile()">ファイル保存</button>
+            <button class="btn-clear" onclick="clearData()">クリア</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <textarea id="messageArea" readonly placeholder="メッセージはありません"></textarea>
+        <div class="status" id="statusInfo">メッセージ数: 0</div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const STORAGE_KEY = 'nh.temp';
+        const messageArea = document.getElementById('messageArea');
+        const statusInfo = document.getElementById('statusInfo');
+        const toast = document.getElementById('toast');
+
+        function loadMessages() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    const messages = JSON.parse(data);
+                    if (Array.isArray(messages)) {
+                        messageArea.value = messages.join('\n');
+                        statusInfo.textContent = `メッセージ数: ${messages.length}`;
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse localStorage data', e);
+                }
+            }
+            messageArea.value = '';
+            statusInfo.textContent = 'メッセージ数: 0';
+        }
+
+        function showToast(text) {
+            toast.textContent = text;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        function copyToClipboard() {
+            messageArea.select();
+            document.execCommand('copy');
+            showToast('クリップボードにコピーしました');
+        }
+
+        function saveAsFile() {
+            const content = messageArea.value;
+            if (!content) {
+                alert('保存するメッセージがありません');
+                return;
+            }
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.href = url;
+            a.download = `nethack_tr_fail_${timestamp}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('ファイルとして保存しました');
+        }
+
+        function clearData() {
+            if (confirm('localStorage の未翻訳メッセージをクリアしますか？')) {
+                localStorage.removeItem(STORAGE_KEY);
+                loadMessages();
+                showToast('データをクリアしました');
+            }
+        }
+
+        // 初期読み込み
+        loadMessages();
+
+        // localStorage の変更を監視（別タブでゲームが動いている場合など）
+        window.addEventListener('storage', (e) => {
+            if (e.key === STORAGE_KEY) {
+                loadMessages();
+            }
+        });
+    </script>
+</body>
+</html>

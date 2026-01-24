@@ -509,17 +509,42 @@ function GameManager(g) {
                 return 0;
             //DECLCB(char, shim_yn_function,(const char *query, const char *resp, char def), "css0", P2V query, P2V resp, A2P def)
             case "shim_yn_function": {
+                const query = args[0];
+                const choices = args[1];
+                const def = args[2];
                 let key;
                 this.UI.set_display_window(0);
-                do {
-                    this.UI.nhPutbufAdd(args[0], args[1]);
+
+                const anyKey = !choices || choices.length === 0;
+
+                const c_disp = (Boolean(args[1]))?`[${choices}]`:"";
+                const d_disp = (args[2] !== "\u0000")?`(${def})`:"";
+
+                while (true) {
+                    this.UI.nhPutbufAdd(query, `${c_disp}${d_disp}`);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
-                }
-                while (args[1].includes(String.fromCharCode(key)) === false && args[2] !== "\u0000");
 
-                return key;
+                    // 1. ENTER (13) または SPACE (32) が押された場合、デフォルト値を返す
+                    if ((key === 13 || key === 32) && def !== "\u0000") {
+                        return def.charCodeAt(0);
+                    }
+
+                    // 2. ESC (27) が押された場合、'q' または 'n' があればそれを優先して返す
+                    if (key === 27) {
+                        if (choices.includes('q')) return 'q'.charCodeAt(0);
+                        if (choices.includes('n')) return 'n'.charCodeAt(0);
+                    }
+
+                    // 3. 入力されたキーが有効な選択肢に含まれているか、または何でもOKな場合
+                    const char = String.fromCharCode(key);
+                    if (anyKey || choices.includes(char)) {
+                        return key;
+                    }
+
+                    // 無効な入力の場合はループを継続（再表示）
+                }
             }
             //VDECLCB(shim_getlin,(const char *query, char *bufp), "vsp", P2V query, P2V bufp)
             case "shim_getlin":
