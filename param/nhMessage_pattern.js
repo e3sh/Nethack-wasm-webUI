@@ -62,195 +62,195 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^You see here (.*)\.$/,
-            replace: "You see here $1."
+            replace: "ここに$1がある。"
         },
         {
             pattern: /^You kill the (.*)!$/,
-            replace: "You kill the $1!"
+            replace: "あなたは$1を殺した！"
         },
         {
             pattern: /^You reveal (.*) secret doors!$/,
-            replace: "You reveal $1 secret doors!"
+            replace: "あなたは $1 つの隠し扉を見つけた！"
         },
         {
             pattern: /^Unknown command '(.*)'\.$/,
-            replace: "Unknown command $1"
+            replace: "未知のコマンドです：'$1'"
         },
         {
             pattern: /^This (.*) tastes okay\.$/,
-            replace: "This $1 tastes okay."
+            replace: "この$1はまあまあの味がする。"
         },
         {
             pattern: /^You finish eating the (.*)\.$/,
-            replace: "You finish eating the $1."
+            replace: "あなたは$1を食べ終えた。"
         },
         {
             pattern: /^This (.*) is delicious!$/,
-            replace: "This $1 is delicious!"
+            replace: "この$1は美味しい！"
         },
         {
             pattern: /^You learn the \"(.*)\" spell\.$/,
-            replace: "You learn the $1 spell"
+            replace: "あなたは「$1」の呪文を習得した。"
         },
         {
             pattern: /^The (.*) bites the (.*)\.$/,
-            replace: "The $1 bites the $2."
+            replace: "$1が$2に噛み付いた。"
         },
         {
             pattern: /^The (.*) is killed!$/,
-            replace: "The $1 is killed!"
+            replace: "$1は殺された！"
         },
         {
             pattern: /^You swap places with your (.*)\.$/,
-            replace: "You swap places with your $1."
+            replace: "あなたは$1と場所を入れ替わった。"
         },
         {
             pattern: /^You swap places with (.*)\.$/,
-            replace: "You swap places with $1."
+            replace: "あなたは$1と場所を入れ替わった。"
         },
         {
             pattern: /^Your (.*) eats a (.*)\.$/,
-            replace: "Your $1 eats a $2."
+            replace: "あなたの$1は$2を食べた。"
         },
         {
             pattern: /^A (.*) blocks your path\.$/,
-            replace: "A $1 blocks your path"
+            replace: "$1が道を塞いでいる。"
         },
         {
             pattern: /^You stop.  Your (.*) is in the way!$/,
-            replace: "You stop.  Your $1 is in the way!"
+            replace: "止まった。$1が邪魔だ！"
         },
         {
             pattern: /^You miss the (.*).$/,
-            replace: "You miss the $1."
+            replace: "あなたの攻撃は$1に当たらなかった。"
         },
         {
             pattern: /^A (.*) shoots out at you!$/,
-            replace: "A $1 shoots out at you!"
+            replace: "$1があなたに向かって放たれた！"
         },
         {
             pattern: /^A (.*) misses you\.$/,
-            replace: "A $1 misses you."
+            replace: "$1はあなたに当たらなかった。"
         },
         {
             pattern: /^The (.*) picks up (.*)\.$/,
-            replace: "The $1 picks up $2\."
+            replace: "$1は$2を拾い上げた。"
         },
         {
             pattern: /^The (.*) drops (.*)\.$/,
-            replace: "The $1 drops $2\."
+            replace: "$1は$2を落とした。"
         },
         {
             pattern: /^(.*) picks up (.*)\.$/,
-            replace: "$1 picks up $2\."
+            replace: "$1は$2を拾い上げた。"
         },
         {
             pattern: /^(.*) drops (.*)\.$/,
-            replace: "$1 drops $2\."
+            replace: "$1は$2を落とした。"
         },
         {
             pattern: /^You destroy the (.*)!$/,
-            replace: "You destroy the (.*)!"
+            replace: "あなたは$1を破壊した！"
         },
         {
             pattern: /^The (.*) misses (.*)\.$/,
-            replace: "The $1 misses the $2."
+            replace: "$1の攻撃は$2に当たらなかった。"
         },
         {
             pattern: /^The (.*) misses the (.*)\.$/,
-            replace: "The $1 misses the $2."
+            replace: "$1の攻撃は$2に当たらなかった。"
         },
         {
             pattern: /^The (.*) misses!$/,
-            replace: "The $1 misses!"
+            replace: "$1の攻撃は外れた！"
         },
         {
             pattern: /^(.*) misses it\.$/,
-            replace: "$1 misses it."
+            replace: "$1の攻撃は当たらなかった。"
         },
         {
             pattern: /^The (.*) bites!$/,
-            replace: "The $1 bites!"
+            replace: "$1が噛み付いた！"
         },
         {
             pattern: /^You hit the (.*)\.$/,
-            replace: "You hit the $1."
+            replace: "あなたは$1に命中させた。"
         },
         {
             pattern: /^The (.*) strikes at your displaced image and misses you!$/,
-            replace: "The $1 strikes at your displaced image and misses you!"
+            replace: "$1はあなたの分身を攻撃したが、外れた！"
         },
         {
             pattern: /^You hear (.*) squeak in the distance\.$/,
-            replace: "You hear $1 squeak in the distance."
+            replace: "遠くで$1の鳴き声が聞こえた。"
         },
         {
             pattern: /^The (.*) suddenly falls asleep!$/,
-            replace: "The $1 suddenly falls asleep!"
+            replace: "$1は突然眠りに落ちた！"
         },
         {
             pattern: /^The (.*) wields a broad (.*)!$/,
-            replace: "The $1 wields a broad $2!"
+            replace: "$1は大きな$2を構えた！"
         },
         {
             pattern: /^The broad (.*) welds itself to the (.*)'s hand!$/,
-            replace: "The broad $1 welds itself to the $2's hand!"
+            replace: "大きな$1が$2の手に張り付いた！"
         },
         {
             pattern: /^The (.*) hits!$/,
-            replace: "The (.*) hits!"
+            replace: "$1が命中した！"
         },
         {
             pattern: /^The (.*) swings (her|him) (.*)\.$/,
-            replace: "The $1 swings $2 $3\."
+            replace: "$1は$2の$3を振り回した。"
         },
         {
             pattern: /^The (.*) throws (.*)!$/,
-            replace: "The $1 throws $2!"
+            replace: "$1は$2を投げた！"
         },
         {
             pattern: /^You are almost hit by (.*)\.$/,
-            replace: "You are almost hit by $1\."
+            replace: "$1が当たりそうになった！"
         },
         {
             pattern: /^You are hit by (.*)\$/,
-            replace: "You are hit by $1"
+            replace: "$1が命中した。"
         },
         {
             pattern: /^The (.*) wields (.*)!$/,
-            replace: "The $1 wields $2!"
+            replace: "$1は$2を構えた！"
         },
         {
             pattern: /^The (.*) shoots (.*)!$/,
-            replace: "The $1 shoots $2!"
+            replace: "$1は$2を放った！"
         },
         {
             pattern: /^The (.*) zaps (.*)!$/,
-            replace: "The $1 zaps $2!"
+            replace: "$1は$2をザップした！"
         },
         {
             pattern: /^You attack (.*)\.!$/,
-            replace: "You attack $1."
+            replace: "あなたは$1を攻撃した。"
         },
         {
             pattern: /^The (.*) touches the (.*)\.!$/,
-            replace: "The $1 touches the $2."
+            replace: "$1は$2に触れた。"
         },
         {
             pattern: /^It misses the (.*)\.!$/,
-            replace: "It misses the $1."
+            replace: "それは$1に当たらなかった。"
         },
         {
             pattern: /^It bites the (.*)\.!$/,
-            replace: "It bites the $1."
+            replace: "それは$1に噛み付いた。"
         },
         {
             pattern: /^(.*) just!$/,
-            replace: "$1 just"
+            replace: "$1 ちょうど！"
         },
         {
             pattern: /^The (.*) hits it\.!$/,
-            replace: "The $1 hits it."
+            replace: "$1は命中した。"
         },
     ];
 }
