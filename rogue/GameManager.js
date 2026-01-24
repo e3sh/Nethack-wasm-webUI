@@ -244,6 +244,7 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
+                this.UI.set_display_window(args[0]);
                 this.UI.nhPutbufDraw(args[0]);
                 if (this.UI.nhPutbufReady()) {
                     this.UI.nhClear(args[0]);

@@ -291,15 +291,16 @@ function UIManager(r, g) {
     };
 
     this.nhPutStr = function (text) {
-        this.trancelate.message(text);
+        const result = this.trancelate.message(text);
         this.setDsp(d.DSP_MESSAGE);
-        this.msg(text);
+        this.msg(result);
     };
 
     this.nhPutMsg = function (text) {
         const dsp = d.DSP_MAIN_FG;
+        const result = this.trancelate.message(text);
         this.setDsp(dsp);
-        this.printw(text);
+        this.printw(result);
         this.cursorDown();
     }
 
@@ -314,7 +315,9 @@ function UIManager(r, g) {
         const result = this.trancelate.message(text);
         if (!Boolean(prompt)) prompt = "";
 
-        if (display_window == 0 || display_window == 1)
+        //console.log(`dsp:${display_window}`)
+
+        if (display_window <= 3) //= 0 || display_window == 1)
             this.msg(`${result} ${prompt}`);
         else {
             const result = this.trancelate.message(text);

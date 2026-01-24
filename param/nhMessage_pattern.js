@@ -57,8 +57,8 @@ function nhMessage_pattern() {
             replace: "$1：[$2]"
         },
         {
-            pattern: /^What do you want to (.*)\? \[(.*)\] $/,
-            replace: "何を$1しますか？ [$2] "
+            pattern: /^What do you want to (.*)\? \[(.*)\]$/,
+            replace: "何を$1しますか？ [$2]"
         },
         {
             pattern: /^You see here (.*)\.$/,
@@ -117,6 +117,10 @@ function nhMessage_pattern() {
             replace: "止まった。$1が邪魔だ！"
         },
         {
+            pattern: /^You stop.  (?:Your|The)?\s*(.*) doesn't want to swap places\.$/,
+            replace: "止まった。$1が場所を交換したがらない。"
+        },
+        {
             pattern: /^You miss (.*).$/,
             replace: "あなたの攻撃は$1に当たらなかった。"
         },
@@ -159,6 +163,10 @@ function nhMessage_pattern() {
         {
             pattern: /^You hit (.*)\.$/,
             replace: "あなたは$1に命中させた。"
+        },
+        {
+            pattern: /^You hit (.*)!$/,
+            replace: "あなたは$1に命中させた！"
         },
         {
             pattern: /^(.*) strikes at your displaced image and misses you!$/,
@@ -221,6 +229,10 @@ function nhMessage_pattern() {
             replace: "$1は$2に触れた。"
         },
         {
+            pattern: /^(.*) touches (.*)!$/,
+            replace: "$1は$2に触れた！"
+        },
+        {
             pattern: /^It misses (.*)\.$/,
             replace: "それは$1に当たらなかった。"
         },
@@ -229,20 +241,38 @@ function nhMessage_pattern() {
             replace: "それは$1に噛み付いた。"
         },
         {
-            pattern: /^(.*) just!$/,
-            replace: "$1 ちょうど！"
+            pattern: /^It hits (.*)\.$/,
+            replace: "それは$1に当たった。"
+        },
+        {
+            pattern: /^(.*) just$/,
+            replace: "$1 ちょうど"
         },
         {
             pattern: /^(.*) hits it\.!$/,
             replace: "$1は命中した。"
         },
+       {
+            pattern: /^(.*) hits (.*)\.$/,
+            replace: "$1は$2に当たった。"
+        },
+
+
         // フレーズパターン（再帰翻訳用）
         {
             pattern: /^(.*) corpse$/,
             replace: "$1の屍"
         },
         {
+            pattern: /^a corpse of (.*)$/,
+            replace: "$1の死体"
+        },
+        {
             pattern: /^(.*) statue$/,
+            replace: "$1の像"
+        },
+        {
+            pattern: /^a statue of (.*)$/,
             replace: "$1の像"
         },
         {
@@ -293,5 +323,148 @@ function nhMessage_pattern() {
             pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
+        {
+            pattern: /^Your (.*)$/,
+            replace: "あなたの$1"
+        },
+
+        //
+        {
+            pattern: /^You are frozen by (.*)'s gaze!$/,
+            replace: "You are frozen by $1's gaze!"
+        },
+        {
+            pattern: /^You have a little trouble lifting (.*)\.$/,
+            replace: "You have a little trouble lifting $1."
+        },
+        {
+            pattern: /^You have trouble lifting (.*)\.$/,
+            replace: "You have trouble lifting $1."
+        },
+        {
+            pattern: /^You have much trouble lifting (.*)\. Continue\?$/,
+            replace: "You have much trouble lifting $1. Continue?"
+        },
+        {
+            pattern: /^You drop (.*)\.$/,
+            replace: "You drop (.*)."
+        },
+        {
+            pattern: /^You decipher the label on your (.*)\.$/,
+            replace: "You decipher the label on your $1."
+        },
+        {
+            pattern: /^Your (.*) glows blue for a moment\.$/,
+            replace: "Your $1 glows blue for a moment."
+        },
+        {
+            pattern: /^A gush of water hits (.*)!$/,
+            replace: "A gush of water hits $1!"
+        },
+        {
+            pattern: /^You escape (.*)\.$/,
+            replace: "You escape (.*)\."
+        },
+        {
+            pattern: /^There is a staircase up to level (.*) here\.$/,
+            replace: "There is a staircase up to level $1 here."
+        },
+        {
+            pattern: /^Welcome to experience level (.*)\.$/,
+            replace: "Welcome to experience level $1."
+        },
+        {
+            pattern: /(.*) rots away\.$/,
+            replace: "$1 rots away."
+        },
+        {
+            pattern: /(.*) glows silver for a while\.$/,
+            replace: "$1 glows silver for a while\."
+        },
+        {
+            pattern: /(.*) turns to dust and falls to the floor!$/,
+            replace: "$1 turns to dust and falls to the floor!"
+        },
+        {
+            pattern: /(.*) suddenly appears close by!$/,
+            replace: "$1 suddenly appears close by!"
+        },
+        {
+            pattern: /(.*) lands on the altar\.$/,
+            replace: "$1 lands on the altar."
+        },
+        {
+            pattern: /There is an altar to (.*) here\.$/,
+            replace: "There is an altar to $1 here."
+        },
+        {
+            pattern: /(.*) isn't a suitable secondary weapon\.$/,
+            replace: "$1 isn't a suitable secondary weapon."
+        },
+        {
+            pattern: /You were wearing (.*)\.$/,
+            replace: "You were wearing $1."
+        },
+        {
+            pattern: /(.*) thrusts (?:her|him|his|its) (.*)\.$/,
+            replace: "$1 thrusts $2 $3."
+        },
+        {
+            pattern: /(.*) vanishes and reappears next to you\.$/,
+            replace: "$1 vanishes and reappears next to you."
+        },
+        {
+            pattern: /(.*) shifts location\.$/,
+            replace: "$1 shifts location."
+        },
+        {
+            pattern: /(.*) opens a door\.$/,
+            replace: "$1 opens a door."
+        },
+        {
+            pattern: /(.*) bites again!$/,
+            replace: "$1 bites again!"
+        },
+        {
+            pattern: /Wait!  There's (.*) hiding under (.*)!$/,
+            replace: "Wait!  There's $1 hiding under $2!"
+        },
+        {
+            pattern: /(.*) passes between the iron bars.\.$/,
+            replace: "$1 passes between the iron bars."
+        },
+        {
+            pattern: /You hear (.*) incant (.*)\.$/,
+            replace: "You hear $1 incant $2\."
+        },
+        {
+            pattern: /(.*) looks better.\.$/,
+            replace: "$1 looks better."
+        },
+        {
+            pattern: /(.*) vanishes!$/,
+            replace: "$1 vanishes!"
+        },
+        {
+            pattern: /(.*) drinks (.*)!$/,
+            replace: "$1 drinks $2!"
+        },
+        {
+            pattern: /(.*) wakes up\.$/,
+            replace: "$1 wakes up."
+        },
+        {
+            pattern: /(.*) screams!$/,
+            replace: "$1 screams!"
+        },
+        {
+            pattern: /You enter (.*) hall!$/,
+            replace: "You enter $1 hall!"
+        },
+        {
+            pattern: /(.*) suddenly appears!$/,
+            replace: "$1 suddenly appears!"
+        },
+
     ];
 }

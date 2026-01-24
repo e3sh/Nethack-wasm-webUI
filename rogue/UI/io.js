@@ -20,8 +20,10 @@ function io(r, g) {
 	 */
 	this.showInput = function (query) {
 		return new Promise((resolve) => {
+
 			let inputStr = "";
 			const originalHandler = r.pendingInputResolve;
+			r.UI.msg(">");
 
 			//const updateDisplay = () => {
 			//	r.UI.updateInputLine(`${query} ${inputStr}`);

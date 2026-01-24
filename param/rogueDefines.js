@@ -8,7 +8,7 @@ function rogueDefines(r) {
         //mode
         USE_GLYPH: true,
         LANG_JP: true,
-        LANG_LARNMODE: false,
+        LANG_LARNMODE: true,//false,
         GLYPH_BASE: 0x100, // Offset to avoid collision with ASCII (0-255)
 
         DEBUG_MSG: false,

@@ -4,6 +4,9 @@
  */
 function nhMessage_entity() {
     return {
+        //
+        "you": "you",
+
         // 性別・神
         "god": "神",
         "goddess": "女神",
@@ -35,6 +38,13 @@ function nhMessage_entity() {
         "Offler": "オファーラー",
         "Poseidon": "ポセイドン",
         "Crom": "クロム",
+        "Odin": "Odin",
+        "Shan Lai Ching": "Shan Lai Ching",
+        "Loki": "Loki",
+
+        //
+        "chaotic": "chaotic",
+
 
         // 職業（サンプル）
         "Rambler": "放浪者",
@@ -61,9 +71,12 @@ function nhMessage_entity() {
         "an A note": "ラの音",
         "a B note": "シの音",
         "a C note": "ドの音",
-        "a G sharp": "Gシャープの音",
+        "a D note": "レの音",
+        "an E flat": "Eフラットの音",
         "an F sharp": "Fシャープの音",
+        "a G sharp": "Gシャープの音",
         "a B flat": "Bフラットの音",
+        "a D flat": "Dフラットの音",
 
         "pool of water": "水たまり",
         "molten lava": "溶けた溶岩",
@@ -104,6 +117,22 @@ function nhMessage_entity() {
         "hobbit": "ホビット",
         "red mold": "赤カビ",
 
+        "gecko": "ヤモリ",
+        "yellow mold": "黄カビ",
+        "floating eye": "浮遊する目玉",
+        "hobgoblin": "ホブゴブリン",
+        "orc": "オーク",
+        "orc zombie": "オークゾンビ",
+        "kobold": "kobold",
+        "kobold zombie": "kobold zombie",
+        "manes":"manes",
+        "gnome lady":"gnome lady",
+        "leprechaun":"leprechaun",
+        "centipede":"centipede",
+        "rothe":"rothe",
+        "bat": "bat",
+        "giant bat": "giant bat",
+
         // 状態・アイテム種別（再帰翻訳用）
         "corpse": "屍",
         "statue": "像",
@@ -114,6 +143,7 @@ function nhMessage_entity() {
         "ring": "指輪",
         "spellbook": "魔導書",
         "slime": "スライム",
+        "boulder": "巨石",
 
         // 種族
         "human": "人間",
@@ -121,5 +151,16 @@ function nhMessage_entity() {
         "dwarf": "ドワーフ",
         "gnome": "ノーム",
         "orc": "オーク",
+
+        //Command
+        "zap": "zap",
+        "put on": "put on",
+        "wear": "wear",
+        "wield": "wield",
+        "fire": "fire",
+        "ready": "ready",
+        "read": "read",
+        "drink": "drink",
+        "eat": "eat",
     };
 }
