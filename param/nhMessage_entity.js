@@ -42,9 +42,10 @@ function nhMessage_entity() {
         "Shan Lai Ching": "Shan Lai Ching",
         "Loki": "Loki",
 
-        //
+        //Alignment
+        "lawful": "lawful",
+        "neutral": "neutral", 
         "chaotic": "chaotic",
-
 
         // 職業（サンプル）
         "Rambler": "放浪者",
@@ -61,6 +62,21 @@ function nhMessage_entity() {
         "Footpad": "追剥",
         "Evoker": "召喚師",
         "Aspirant": "志願者",
+
+        //Starting attributes
+        "Archeologist": "Archeologist",
+        "Barbarian": "Barbarian",
+        "Caveman": "Caveman",
+        "Healer": "Healer",
+        "Knight": "Knight",
+        "Monk": "Monk",
+        "Priest": "Priest",
+        "Ranger": "Ranger",
+        "Rogue": "Rogue",
+        "Samurai": "Samurai",
+        "Tourist": "Tourist",
+        "Valkyrie": "Valkyrie",
+        "Wizard": "Wizard",
 
         // チュートリアル・その他
         "Move around with 4 2 8 6": "8 2 4 6 で上下左右に移動",

@@ -80,6 +80,7 @@ function io(r, g) {
 				r.UI.wclear(d.DSP_MAIN);
 				if (d.USE_GLYPH) {
 					for (let i = 0; i < 25; i++) {
+						r.UI.wmove(d.DSP_MAIN, i, 0);
 						r.UI.waddstr(d.DSP_MAIN, "　".repeat(80));
 					}
 				}
@@ -92,6 +93,8 @@ function io(r, g) {
 			//console.log("Nethack ver:", value);
 		}
 		statusFields[fld] = { value: value, chg: chg, clr: clr };
+
+		if (fld == d.BL_HP) renderStatus();
 	};
 
 	function renderStatus() {
