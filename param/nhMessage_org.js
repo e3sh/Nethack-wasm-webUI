@@ -283,6 +283,15 @@ function nhMessage_org() {
         "You are hit by an arrow.",
         "You feet are frozen to the floor!",
 
+        "Really quit?",
+        "You are not wearing an amulet.",
+        "That is a silly thing to drink.",
+        "Don't forget to stop and smell the roses",
+        "You feel strong!",
+        "You must have been exercising diligently.",
+        "You feel tough!",
+        "You must have been leading a healthy life-style.",
+        "You are still weak.",        
 
     ]
 }

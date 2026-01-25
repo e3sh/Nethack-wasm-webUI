@@ -516,6 +516,18 @@ function GameManager(g) {
                 let key;
                 this.UI.set_display_window(0);
 
+                const promptText = args[0];
+                // 死亡時の持ち物開示、属性表示、死亡確認（探索モード）、終了確認などのメッセージ群
+                // 「Do you want...」系と、短い「Die?」「Really quit?」にマッチさせます
+                const deathEndRegex = /Do you want (to see|your possessions|to see your conduct)|Die\?|Really quit\?/i;
+                if (deathEndRegex.test(promptText)) {
+                    // 死亡またはゲーム終了シーケンスに入ったと判断し、UIを強制更新
+                    //console.log("Death or End sequence detected. Synchronizing HP to 0.");
+                    
+                    // UI表示を0にする具体的な関数呼び出し（例）
+                    // updateStatusDisplay({ hp: 0, hpMax: currentMaxHp });
+                    this.UI.io.endsequenceDetected();
+                }
                 const anyKey = !choices || choices.length === 0;
 
                 const c_disp = (Boolean(args[1]))?`[${choices}]`:"";

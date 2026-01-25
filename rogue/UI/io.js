@@ -93,9 +93,15 @@ function io(r, g) {
 			//console.log("Nethack ver:", value);
 		}
 		statusFields[fld] = { value: value, chg: chg, clr: clr };
-
-		if (fld == d.BL_HP) renderStatus();
 	};
+
+	this.endsequenceDetected = function(){
+		//Death or End sequence detected. Synchronizing HP to 0.
+		statusFields[d.BL_HP].value = 0;
+
+		renderStatus();
+		debugStatus();
+	}
 
 	function renderStatus() {
 		const statusDsp = d.DSP_STATUS;

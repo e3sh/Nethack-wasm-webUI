@@ -130,6 +130,7 @@ function nhMessage_entity() {
         "gnome": "ノーム",
         "giant rat": "大ネズミ",
         "it": "それ",
+        "It": "It",
         "hobbit": "ホビット",
         "red mold": "赤カビ",
 
@@ -148,6 +149,7 @@ function nhMessage_entity() {
         "rothe":"rothe",
         "bat": "bat",
         "giant bat": "giant bat",
+        "kobold shaman": "kobold shaman",
 
         // 状態・アイテム種別（再帰翻訳用）
         "corpse": "屍",
@@ -178,5 +180,7 @@ function nhMessage_entity() {
         "read": "read",
         "drink": "drink",
         "eat": "eat",
+        "throw": "throw",
+
     };
 }

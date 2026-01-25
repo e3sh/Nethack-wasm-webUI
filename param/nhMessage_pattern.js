@@ -407,7 +407,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /(.*) thrusts (?:her|him|his|its) (.*)\.$/,
-            replace: "$1 thrusts $2 $3."
+            replace: "$1 thrusts $2."
         },
         {
             pattern: /(.*) vanishes and reappears next to you\.$/,
@@ -465,6 +465,13 @@ function nhMessage_pattern() {
             pattern: /(.*) suddenly appears!$/,
             replace: "$1 suddenly appears!"
         },
-
+        {
+            pattern: /You cannot escape from (.*)!$/,
+            replace: "You cannot escape from $1!"
+        },
+        {
+            pattern: /The air crackles around (.*)\.$/,
+            replace: "The air crackles around $1."
+        },
     ];
 }

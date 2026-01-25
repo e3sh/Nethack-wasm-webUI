@@ -1,0 +1,430 @@
+# NetHack 3.7 アイテムリスト
+
+NetHack 3.7のソースコード（[objects.h](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/include/objects.h), [artilist.h](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/include/artilist.h)）から抽出した、出現するアイテムのリストです。
+
+## 基本アイテム (Normal Items)
+
+### 武器 (Weapons)
+- arrow / 矢
+- elven arrow / runed arrow / エルフの矢
+- orcish arrow / crude arrow / オークの矢
+- silver arrow / 銀の矢
+- ya / bamboo arrow / 竹の矢
+- crossbow bolt / クロスボウのボルト
+- dart / ダーツ
+- shuriken / throwing star / 投石器
+- boomerang / ブーメラン
+- spear / 槍
+- elven spear / runed spear / エルフの槍
+- orcish spear / crude spear / オークの槍
+- dwarvish spear / stout spear / ドワーフの槍
+- silver spear / 銀の槍
+- javelin / throwing spear / ジャベリン
+- trident / 三叉矛
+- dagger / 短剣
+- elven dagger / runed dagger / エルフの短剣
+- orcish dagger / crude dagger / オークの短剣
+- silver dagger / 銀の短剣
+- athame / アサメ
+- scalpel / 手術用メス
+- knife / ナイフ
+- stiletto / スティレット
+- worm tooth / 芋虫の歯
+- crysknife / クリスカナイフ
+- axe / 斧
+- battle-axe / double-headed axe / 戦斧
+- short sword / ショートソード
+- elven short sword / runed short sword / エルフのショートソード
+- orcish short sword / crude short sword / オークのショートソード
+- dwarvish short sword / broad short sword / ドワーフのショートソード
+- scimitar / curved sword / シミター
+- silver saber / 銀のサーベル
+- broadsword / ブロードソード
+- elven broadsword / runed broadsword / エルフのブロードソード
+- long sword / ロングソード
+- two-handed sword / 両手剣
+- katana / samurai sword / カタナ
+- tsurugi / long samurai sword / ツルギ
+- runesword / runed broadsword / ルーンソード
+- partisan / vulgar polearm / パルチザン
+- ranseur / hilted polearm / ランセーア
+- spetum / forked polearm / スペタム
+- glaive / single-edged polearm / グレイブ
+- halberd / angled poleaxe / ハルバード
+- bardiche / long poleaxe / バルディッシュ
+- voulge / pole cleaver / ヴルジュ
+- fauchard / pole sickle / フォシャール
+- guisarme / pruning hook / ギザーム
+- bill-guisarme / hooked polearm / ビルギザーム
+- lucern hammer / pronged polearm / ルツェルン・ハンマー
+- bec de corbin / beaked polearm / ベド・コルバン
+- dwarvish mattock / broad pick / ドワーフのマトック
+- lance / ランス
+- mace / メイス
+- silver mace / 銀のメイス
+- morning star / モーニングスター
+- war hammer / ウォーハンマー
+- club / 棍棒
+- rubber hose / ゴムのホース
+- quarterstaff / staff / 杖
+- aklys / thonged club / アクリス
+- flail / フレイル
+- bullwhip / 鞭
+- bow / 弓
+- elven bow / runed bow / エルフの弓
+- orcish bow / crude bow / オークの弓
+- yumi / long bow / 和弓
+- sling /投石紐
+- crossbow / クロスボウ
+
+### 防具 (Armor)
+- elven leather helm / leather hat / エルフの革の兜
+- orcish helm / iron skull cap / オークの兜
+- dwarvish iron helm / hard hat / ドワーフの鉄の兜
+- fedora / 中折れ帽
+- cornuthaum / conical hat / コーニュソーム
+- dunce cap / conical hat / とんがり帽子
+- dented pot / へこんだ鍋
+- helm of brilliance / crystal helmet / 輝きの兜
+- helmet / plumed helmet / 兜
+- helm of caution / etched helmet / 警戒の兜
+- helm of opposite alignment / crested helmet / 逆配列の兜
+- helm of telepathy / visored helmet / テレパシーの兜
+- gray dragon scale mail / 灰色ドラゴンの鱗鎧
+- gold dragon scale mail / 金色ドラゴンの鱗鎧
+- silver dragon scale mail / 銀色ドラゴンの鱗鎧
+- red dragon scale mail / 赤色ドラゴンの鱗鎧
+- white dragon scale mail / 白色ドラゴンの鱗鎧
+- orange dragon scale mail / 橙色ドラゴンの鱗鎧
+- black dragon scale mail / 黒色ドラゴンの鱗鎧
+- blue dragon scale mail / 青色ドラゴンの鱗鎧
+- green dragon scale mail / 緑色ドラゴンの鱗鎧
+- yellow dragon scale mail / 黄色ドラゴンの鱗鎧
+- gray dragon scales / 灰色ドラゴンの鱗
+- gold dragon scales / 金色ドラゴンの鱗
+- silver dragon scales / 銀色ドラゴンの鱗
+- red dragon scales / 赤色ドラゴンの鱗
+- white dragon scales / 白色ドラゴンの鱗
+- orange dragon scales / 橙色ドラゴンの鱗
+- black dragon scales / 黒色ドラゴンの鱗
+- blue dragon scales / 青色ドラゴンの鱗
+- green dragon scales / 緑色ドラゴンの鱗
+- yellow dragon scales / 黄色ドラゴンの鱗
+- plate mail / プレートメイル
+- crystal plate mail / クリスタルプレートメイル
+- bronze plate mail / ブロンズプレートメイル
+- splint mail / スプリントメイル
+- banded mail / バンデッドメイル
+- dwarvish mithril-coat / ドワーフのミスリルコート
+- elven mithril-coat / エルフのミスリルコート
+- chain mail / チェインメイル
+- orcish chain mail / crude chain mail / オークのチェインメイル
+- scale mail / スケイルメイル
+- studded leather armor / スタッドレザーアーマー
+- ring mail / リングメイル
+- orcish ring mail / crude ring mail / オークのリングメイル
+- leather armor / レザーアーマー
+- leather jacket / レザージャケット
+- Hawaiian shirt / アロハシャツ
+- T-shirt / Tシャツ
+- mummy wrapping / ミイラの包帯
+- elven cloak / faded pall / エルフのクローク
+- orcish cloak / coarse mantelet / オークのクローク
+- dwarvish cloak / hooded cloak / ドワーフのクローク
+- oilskin cloak / slippery cloak / オイルスキンクローク
+- robe / ローブ
+- alchemy smock / apron / 錬金術師の作業着
+- leather cloak / 革のクローク
+- cloak of protection / tattered cape / 保護のクローク
+- cloak of invisibility / opera cloak / 透明のクローク
+- cloak of magic resistance / ornamental cope / 抗魔のクローク
+- cloak of displacement / piece of cloth / 分身のクローク
+- small shield / 小さな盾
+- elven shield / blue and green shield / エルフの盾
+- Uruk-hai shield / white-handed shield / ウルク＝ハイの盾
+- orcish shield / red-eyed shield / オークの盾
+- large shield / 大きな盾
+- dwarvish roundshield / large round shield / ドワーフの円盾
+- shield of reflection / polished silver shield / 反射の盾
+- leather gloves / old gloves / 革の手袋
+- gauntlets of fumbling / padded gloves / 下手な小手
+- gauntlets of power / riding gloves / 力の小手
+- gauntlets of dexterity / fencing gloves / 器用さの小手
+- low boots / walking shoes / 短靴
+- iron shoes / hard shoes / 鉄の靴
+- high boots / jackboots / 長靴
+- speed boots / combat boots / スピードの靴
+- water walking boots / jungle boots / 水上歩行の靴
+- jumping boots / hiking boots / 跳躍の靴
+- elven boots / mud boots / エルフの靴
+- kicking boots / buckled boots / 蹴りの靴
+- fumble boots / riding boots / 下手な靴
+- levitation boots / snow boots / 浮遊の靴
+
+### 指輪 (Rings)
+- adornment / wooden / 飾りの指輪
+- gain strength / granite / 腕力増大の指輪
+- gain constitution / opal / 体力増大の指輪
+- increase accuracy / clay / 命中率向上の指輪
+- increase damage / coral / ダメージ向上の指輪
+- protection / black onyx / 保護の指輪
+- regeneration / moonstone / 再生の指輪
+- searching / tiger eye / 探索の指輪
+- stealth / jade / 忍びの指輪
+- sustain ability / bronze / 能力保持の指輪
+- levitation / agate / 浮遊の指輪
+- hunger / topaz / 飢えの指輪
+- aggravate monster / sapphire / モンスターを怒らせる指輪
+- conflict / ruby / 争いの指輪
+- warning / diamond / 警告の指輪
+- poison resistance / pearl / 毒耐性の指輪
+- fire resistance / iron / 火耐性の指輪
+- cold resistance / brass / 冷気耐性の指輪
+- shock resistance / copper / 電撃耐性の指輪
+- free action / twisted / 自由行動の指輪
+- slow digestion / steel / 消化鈍化の指輪
+- teleportation / silver / テレポートの指輪
+- teleport control / gold / テレポート制御の指輪
+
+### アミュレット (Amulets)
+- amulet of clairvoyance / 透視のアミュレット
+- amulet of drain resistance / 吸収耐性のアミュレット
+- amulet of ESP / ESPのアミュレット
+- amulet of life saving / 生命維持のアミュレット
+- amulet of magical breathing / 魔法の呼吸のアミュレット
+- amulet of reflection / 反射のアミュレット
+- amulet of restful sleep / 安眠のアミュレット
+- amulet of strangulation / 絞殺のアミュレット
+- amulet of unchanging / 不変のアミュレット
+- amulet versus poison / 毒守りのアミュレット
+
+### 道具 (Tools)
+- large box / 大きな箱
+- chest / 宝箱
+- ice box / 氷箱
+- sack / 袋
+- oilskin sack / オイルスキンの袋
+- bag of holding / 軽量化の袋
+- bag of tricks / 手品の袋
+- skeleton key / 合鍵
+- lock pick / ロックピック
+- credit card / クレジットカード
+- tallow candle / 獣脂の蝋燭
+- wax candle / 蜜蝋の蝋燭
+- brass lantern / 真鍮のランタン
+- oil lamp / 油灯
+- expensive camera / 高級カメラ
+- mirror / 鏡
+- crystal ball / 水晶玉
+- lenses / レンズ
+- blindfold / 目隠し
+- towel / タオル
+- saddle / 鞍
+- leash / 紐
+- stethoscopes / 聴診器
+- tinning kit / 缶詰作成キット
+- tin opener / 缶切り
+- can of grease / グリース缶
+- figurine / 小像
+- magic marker / 魔法のマーカー
+- land mine / 地雷
+- beartrap / 虎ばさみ
+- tin / 缶詰
+- potion of oil / 油のポーション
+- expensive camera / 高級カメラ
+
+### 食料 (Food)
+- meatball / 肉団子
+- meat ring / 肉の輪
+- meat stick / 肉の棒
+- egg / 卵
+- clove of garlic / ニンニクの球根
+- onion / 玉ねぎ
+- apple / リンゴ
+- pear / ナシ
+- banana / バナナ
+- orange / オレンジ
+- fortune cookie / 占いクッキー
+- candy bar / キャンディバー
+- pancake / パンケーキ
+- Lembas wafer / レンバス
+- cram ration / 携帯食糧
+- food ration / 食料
+- K-ration / Kレーション
+- C-ration / Cレーション
+- tin / 缶詰
+- slime mold / スライム・モールド
+
+### ポーション (Potions)
+- gain ability / 能力上昇のポーション
+- restore ability / 能力回復のポーション
+- confusion / 混乱のポーション
+- blindness / 盲目のポーション
+- paralysis / 麻痺のポーション
+- speed / スピードのポーション
+- levitation / 浮遊のポーション
+- halluncination / 幻覚のポーション
+- invisibility / 透明のポーション
+- see invisible / 可視のポーション
+- healing / 回復のポーション
+- extra healing / 強力回復のポーション
+- full healing / 完全回復のポーション
+- polymorph / 変身のポーション
+- object detection / アイテム探索のポーション
+- monster detection / モンスター探索のポーション
+- enlightenment / 啓蒙のポーション
+- full healing / 完全回復のポーション
+- gain energy / エネルギー獲得のポーション
+- acid / 酸のポーション
+- blood / 血のポーション
+- water / 水
+
+### 巻物 (Scrolls)
+- enchant armor / 防具強化の巻物
+- enchant weapon / 武器強化の巻物
+- identify / 鑑定の巻物
+- light / 明かりの巻物
+- blank paper / 白紙の巻物
+- remove curse / 呪い解除の巻物
+- gold detection / 金貨探索の巻物
+- food detection / 食料探索の巻物
+- magic mapping / 魔法の地図の巻物
+- scare monster / モンスターを怖がらせる巻物
+- taming / モンスターを飼いならす巻物
+- teleportation / テレポートの巻物
+- amnesia / 忘却の巻物
+- earth / 土の巻物
+- fire / 火の巻物
+- punishment / 処罰の巻物
+- charging / 充填の巻物
+- genocide / 大虐殺の巻物
+- stinking cloud / 悪臭の雲の巻物
+
+### 魔法書 (Spellbooks)
+- blank paper / 白紙の魔法書
+- force bolt / フォースボルトの魔法書
+- drain life / 生命吸収の魔法書
+- magic missile / マジックミサイルの魔法書
+- cone of cold / 氷の円錐の魔法書
+- fireball / ファイアボールの魔法書
+- finger of death / 死の指線の魔法書
+- lightning / 稲妻の魔法書
+- sleep / 睡眠の魔法書
+- light / 明かりの魔法書
+- detect monsters / モンスター探索の魔法書
+- detect Food / 食料探索の魔法書
+- clairvoyance / 透視の魔法書
+- detect treasure / 宝探索の魔法書
+- magic mapping / 魔法の地図の魔法書
+- identify / 鑑定の魔法書
+- stone to flesh / 石を肉にする魔法書
+- healing / 回復の魔法書
+- extra healing / 強力回復の魔法書
+- cure blindness / 盲目治療の魔法書
+- cure sickness / 病気治療の魔法書
+- restore ability / 能力回復の魔法書
+- create monster / モンスター作成の魔法書
+- jumping / 跳躍の魔法書
+- haste self / 加速の魔法書
+- invisibility / 透明の魔法書
+- levitation / 浮遊の魔法書
+- teleport away / テレポートの魔法書
+- knock / 開扉の魔法書
+- wizard lock / 施錠の魔法書
+- dig / 掘削の魔法書
+- cancellation / 無力化の魔法書
+- polymorph / 変身の魔法書
+- charm monster / モンスター魅了の魔法書
+- protection / 保護の魔法書
+
+### 杖 (Wands)
+- light / 明かりの杖
+- nothing / 何も起きない杖
+- digging / 掘削の杖
+- enrichment / 豊穣の杖
+- magic missile / マジックミサイルの杖
+- fire / 火の杖
+- cold / 冷気の杖
+- sleep / 睡眠の杖
+- death / 死の杖
+- lightning / 稲妻の杖
+- striking / 打撃の杖
+- opening / 開扉の杖
+- locking / 施錠の杖
+- probing / 調査の杖
+- secret door detection / 隠しドア探索の杖
+- slow monster / モンスター鈍化の杖
+- speed monster / モンスター加速の杖
+- undead turning / アンデッドを追い払う杖
+- polymorph / 変身の杖
+- cancellation / 無力化の杖
+- teleportation / テレポートの杖
+- make invisible / 透明化の杖
+- wishing / 願いの杖
+
+### 宝石・貴金属 (Gems)
+- dilithium crystal / ディリチウムの結晶
+- diamond / ダイヤモンド
+- ruby / ルビー
+- sapphire / サファイア
+- emerald / エメラルド
+- turquoise / トルコ石
+- aquamarine / アクアマリン
+- amber / 琥珀
+- topaz / トパーズ
+- amethyst / アメジスト
+- agate / メノウ
+- jade / ヒスイ
+- garnet / ガーネット
+- opal / オパール
+- jet / 黒玉
+- obsidian / 黒曜石
+- chrysoberyl / 金緑石
+- citrine / シトリン
+- jasper / 碧玉
+- quartz / 石英
+- rock crystal / 水晶
+- fluorite / 蛍石
+- jade / ヒスイ
+- luckstone / 幸運の石
+- loadstone / 重い石
+- touchstone / 試金石
+- flint / 火打石
+- rock / 岩
+- glass / 屑ガラス
+- gold piece / 金貨
+
+## アーティファクト (Artifacts)
+- **Excalibur** / エクスカリバー (ロングソード)
+- **Stormbringer** / ストームブリンガー (ルーンソード)
+- **Mjollnir** / ミョルニル (ウォーハンマー)
+- **Cleaver** / クリーヴァー (戦斧)
+- **Grimtooth** / グリムトゥース (オークの短剣)
+- **Orcrist** / オルクリスト (エルフのブロードソード)
+- **Sting** / スティング (エルフの短剣)
+- **Magicbane** / マジックバイン (アサメ)
+- **Frost Brand** / フロストブランド (ロングソード)
+- **Fire Brand** / ファイアブランド (ロングソード)
+- **Dragonbane** / ドラゴンベイン (ブロードソード)
+- **Demonbane** / デーモンベイン (銀のメイス)
+- **Werebane** / ウェアベイン (銀のサーベル)
+- **Grayswandir** / グレイスワンディール (銀のサーベル)
+- **Giantslayer** / ジャイアントスレイヤー (ロングソード)
+- **Ogresmasher** / オウガスマッシャー (ウォーハンマー)
+- **Trollsbane** / トロールズベイン (モーニングスター)
+- **Vorpal Blade** / ヴォーパルブレード (ロングソード)
+- **Snickersnee** / スニッカースニー (カタナ)
+- **Sunsword** / サンソード (ロングソード)
+- **The Orb of Detection** / 探索の宝珠 (水晶玉)
+- **The Heart of Ahriman** / アーリマンの心臓 (幸運の石)
+- **The Sceptre of Might** / 力の笏 (メイス)
+- **The Staff of Aesculapius** / アスクレピオスの杖 (杖)
+- **The Magic Mirror of Merlin** / マーリンの魔法の鏡 (鏡)
+- **The Eyes of the Overworld** / 異界の眼 (レンズ)
+- **The Mitre of Holiness** / 聖なる冠 (輝きの兜)
+- **The Longbow of Diana** / ダイアナの長弓 (弓)
+- **The Master Key of Thievery** / 盗みのマスターキー (合鍵)
+- **The Tsurugi of Muramasa** / 村正のツルギ (ツルギ)
+- **The Platinum Yendorian Express Card** / プラチナ・イェンダー・エクスプレスカード (クレジットカード)
+- **The Orb of Fate** / 運命の宝珠 (水晶玉)
+- **The Eye of the Aethiopica** / エチオピカの眼 (ESPのアミュレット)
