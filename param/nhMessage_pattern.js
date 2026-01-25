@@ -252,7 +252,7 @@ function nhMessage_pattern() {
             pattern: /^(.*) hits it\.!$/,
             replace: "$1は命中した。"
         },
-       {
+        {
             pattern: /^(.*) hits (.*)\.$/,
             replace: "$1は$2に当たった。"
         },
@@ -331,147 +331,148 @@ function nhMessage_pattern() {
         //
         {
             pattern: /^You are frozen by (.*)'s gaze!$/,
-            replace: "You are frozen by $1's gaze!"
+            replace: "$1の視線で凍りついた！"
         },
         {
             pattern: /^You have a little trouble lifting (.*)\.$/,
-            replace: "You have a little trouble lifting $1."
+            replace: "$1を持ち上げるのに少し苦労した。"
         },
         {
             pattern: /^You have trouble lifting (.*)\.$/,
-            replace: "You have trouble lifting $1."
+            replace: "$1を持ち上げるのに苦労した。"
         },
         {
             pattern: /^You have much trouble lifting (.*)\. Continue\?$/,
-            replace: "You have much trouble lifting $1. Continue?"
+            replace: "$1を持ち上げるのに非常に苦労している。続けますか？"
         },
         {
             pattern: /^You drop (.*)\.$/,
-            replace: "You drop (.*)."
+            replace: "あなたは$1を落とした。"
         },
         {
             pattern: /^You decipher the label on your (.*)\.$/,
-            replace: "You decipher the label on your $1."
+            replace: "あなたは$1のラベルを解読した。"
         },
         {
             pattern: /^Your (.*) glows blue for a moment\.$/,
-            replace: "Your $1 glows blue for a moment."
+            replace: "あなたの$1が一瞬青く光った。"
         },
         {
             pattern: /^A gush of water hits (.*)!$/,
-            replace: "A gush of water hits $1!"
+            replace: "勢いよく噴き出した水が$1に当たった！"
         },
         {
             pattern: /^You escape (.*)\.$/,
-            replace: "You escape (.*)\."
+            replace: "あなたは$1から逃れた。"
         },
         {
             pattern: /^There is a staircase up to level (.*) here\.$/,
-            replace: "There is a staircase up to level $1 here."
+            replace: "ここにレベル$1へ上がる階段がある。"
         },
         {
             pattern: /^Welcome to experience level (.*)\.$/,
-            replace: "Welcome to experience level $1."
+            replace: "経験レベル$1へようこそ。"
         },
         {
             pattern: /(.*) rots away\.$/,
-            replace: "$1 rots away."
+            replace: "$1は腐り果てた。"
         },
         {
             pattern: /(.*) glows silver for a while\.$/,
-            replace: "$1 glows silver for a while\."
+            replace: "$1はしばらくの間銀色に光った。"
         },
         {
             pattern: /(.*) turns to dust and falls to the floor!$/,
-            replace: "$1 turns to dust and falls to the floor!"
+            replace: "$1は塵となって床に落ちた！"
         },
         {
             pattern: /(.*) suddenly appears close by!$/,
-            replace: "$1 suddenly appears close by!"
+            replace: "突然すぐそばに$1が現れた！"
         },
         {
             pattern: /(.*) lands on the altar\.$/,
-            replace: "$1 lands on the altar."
+            replace: "$1が祭壇の上に着地した。"
         },
         {
             pattern: /There is an altar to (.*) here\.$/,
-            replace: "There is an altar to $1 here."
+            replace: "ここに$1の祭壇がある。"
         },
         {
             pattern: /(.*) isn't a suitable secondary weapon\.$/,
-            replace: "$1 isn't a suitable secondary weapon."
+            replace: "$1は予備の武器として適していません。"
         },
         {
             pattern: /You were wearing (.*)\.$/,
-            replace: "You were wearing $1."
+            replace: "あなたは$1を身に着けていた。"
         },
         {
             pattern: /(.*) thrusts (?:her|him|his|its) (.*)\.$/,
-            replace: "$1 thrusts $2."
+            replace: "$1が$2を突き出した。"
         },
         {
             pattern: /(.*) vanishes and reappears next to you\.$/,
-            replace: "$1 vanishes and reappears next to you."
+            replace: "$1は消え、あなたの隣に再び現れた。"
         },
         {
             pattern: /(.*) shifts location\.$/,
-            replace: "$1 shifts location."
+            replace: "$1が場所を移動した。"
         },
         {
             pattern: /(.*) opens a door\.$/,
-            replace: "$1 opens a door."
+            replace: "$1がドアを開けた。"
         },
         {
             pattern: /(.*) bites again!$/,
-            replace: "$1 bites again!"
+            replace: "$1が再び噛み付いた！"
         },
         {
             pattern: /Wait!  There's (.*) hiding under (.*)!$/,
-            replace: "Wait!  There's $1 hiding under $2!"
+            replace: "待て！ $2 の下に $1 が隠れている！"
         },
         {
             pattern: /(.*) passes between the iron bars.\.$/,
-            replace: "$1 passes between the iron bars."
+            replace: "$1は鉄格子を通り抜けた。"
         },
         {
             pattern: /You hear (.*) incant (.*)\.$/,
-            replace: "You hear $1 incant $2\."
+            replace: "$1が$2を唱えるのが聞こえた。"
         },
         {
             pattern: /(.*) looks better.\.$/,
-            replace: "$1 looks better."
+            replace: "$1の具合が良くなったようだ。"
         },
         {
             pattern: /(.*) vanishes!$/,
-            replace: "$1 vanishes!"
+            replace: "$1は消えた！"
         },
         {
             pattern: /(.*) drinks (.*)!$/,
-            replace: "$1 drinks $2!"
+            replace: "$1は$2を飲んだ！"
         },
         {
             pattern: /(.*) wakes up\.$/,
-            replace: "$1 wakes up."
+            replace: "$1は目が覚めた。"
         },
         {
             pattern: /(.*) screams!$/,
-            replace: "$1 screams!"
+            replace: "$1は叫んだ！"
         },
         {
             pattern: /You enter (.*) hall!$/,
-            replace: "You enter $1 hall!"
+            replace: "あなたは$1の広間に入った！"
         },
         {
             pattern: /(.*) suddenly appears!$/,
-            replace: "$1 suddenly appears!"
+            replace: "突然$1が現れた！"
         },
         {
             pattern: /You cannot escape from (.*)!$/,
-            replace: "You cannot escape from $1!"
+            replace: "$1からは逃げられない！"
         },
         {
             pattern: /The air crackles around (.*)\.$/,
-            replace: "The air crackles around $1."
+            replace: "$1の周囲の空気がパチパチと鳴っている。"
         },
+
     ];
 }
