@@ -541,11 +541,13 @@ function GameManager(g) {
 
                     // 1. ENTER (13) または SPACE (32) が押された場合、デフォルト値を返す
                     if ((key === 13 || key === 32) && def !== "\u0000") {
+                        this.UI.msg(def.charCodeAt(0));
                         return def.charCodeAt(0);
                     }
 
                     // 2. ESC (27) が押された場合、'q' または 'n' があればそれを優先して返す
                     if (key === 27) {
+                        this.UI.msg("Cancel");
                         if (choices.includes('q')) return 'q'.charCodeAt(0);
                         if (choices.includes('n')) return 'n'.charCodeAt(0);
                     }
@@ -553,6 +555,7 @@ function GameManager(g) {
                     // 3. 入力されたキーが有効な選択肢に含まれているか、または何でもOKな場合
                     const char = String.fromCharCode(key);
                     if (anyKey || choices.includes(char)) {
+                        this.UI.msg(char);
                         return key;
                     }
 

@@ -1,6 +1,6 @@
 # NetHack 3.7 アイテムリスト
 
-NetHack 3.7のソースコード（[objects.h](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/include/objects.h), [artilist.h](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/include/artilist.h)）から抽出した、出現するアイテムのリストです。
+NetHack 3.7のソースコード（/include/objects.h, artilist.h）から抽出した、出現するアイテムのリストです。
 
 ## 基本アイテム (Normal Items)
 

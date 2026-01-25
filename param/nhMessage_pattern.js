@@ -342,7 +342,11 @@ function nhMessage_pattern() {
             replace: "$1を持ち上げるのに苦労した。"
         },
         {
-            pattern: /^You have much trouble lifting (.*)\. Continue\?$/,
+            pattern: /^You have much trouble lifting (.*)\.$/,
+            replace: "$1を持ち上げるのに非常に苦労している。"
+        },
+        {
+            pattern: /^You have much trouble lifting (.*)\. Continue*$/,
             replace: "$1を持ち上げるのに非常に苦労している。続けますか？"
         },
         {
@@ -473,6 +477,76 @@ function nhMessage_pattern() {
             pattern: /The air crackles around (.*)\.$/,
             replace: "$1の周囲の空気がパチパチと鳴っている。"
         },
+        {
+            pattern: /body rises from the dead as (.*)\.\.\.$/,
+            replace: "死体が$1として蘇る..."
+        },
+        {
+            pattern: /(.*) claws itself out of the ground!$/,
+            replace: "$1が地面から這い出てきた！"
+        },
+        {
+            pattern: /(.*) is destroyed!$/,
+            replace: "$1を破壊した！"
+        },
+        {
+            pattern: /You know \"(.*)\" quite well already\.$/,
+            replace: "あなたは「$1」をすでに習得している。"
+        },
+        {
+            pattern: /You know \"(.*)\" quite well already\.$/,
+            replace: "あなたは「$1)」をすでに習得している。"
+        },
+        {
+            pattern: /knowledge of \"(.*)\" is keener\.$/,
+            replace: "「$1」の知識はより鋭くなった。"
+        },
+        {
+            pattern: /Suddenly, (.*) falls through a trap door\.$/,
+            replace: "Suddenly, $1 falls through a trap door."
+        },
+        {
+            pattern: /You are hit by (.*)\.$/,
+            replace: "You are hit by $1."
+        },
+        {
+            pattern: /(.*) changes into a (.*)\.$/,
+            replace: "$1 changes into a $2."
+        },
+        {
+            pattern: /(.*) summons help!$/,
+            replace: "$1 summons help!"
+        },
+        {
+            pattern: /(.*) suddenly appears next to you!$/,
+            replace: "$1 suddenly appears next to you!"
+        },
+        {
+            pattern: /(.*) blocks the way!$/,
+            replace: "$1 blocks the way!"
+        },
+        {
+            pattern: /(.*) appears next to you!$/,
+            replace: "$1 appears next to you!"
+        },
+        {
+            pattern: /You kick (.*)\.$/,
+            replace: "You kick (.*)."
+        },
+        {
+            pattern: /(.*) is furious!$/,
+            replace: "$1 is furious!"
+        },
+        {
+            pattern: /(.*) jumps, nimbly evading your kick\.$/,
+            replace: "(.*) jumps, nimbly evading your kick."
+        },
+        {
+            pattern: /(.*) takes all your possessions\.$/,
+            replace: "(.*) takes all your possessions."
+        },
+
+
 
     ];
 }
