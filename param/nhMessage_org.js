@@ -291,7 +291,12 @@ function nhMessage_org() {
         "You must have been exercising diligently.",
         "You feel tough!",
         "You must have been leading a healthy life-style.",
-        "You are still weak.",        
+        "You are still weak.",
+
+        "You stagger...",
+        "You feel a bit steadier now.",
+        "You have nothing to ready for firing.",
+        "open door",
 
     ]
 }
