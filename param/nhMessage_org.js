@@ -308,6 +308,7 @@ function nhMessage_org() {
         "I see thee yet, in form as palpable",
         "As this which now I draw.",
         "        [ Macbeth, by William Shakespeare ]",
+        
         "You smite the yellow mold.",
         "That ammunition is already readied!",
         "Confess my sins to god?  Which one?",

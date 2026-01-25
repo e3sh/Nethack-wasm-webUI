@@ -503,47 +503,47 @@ function nhMessage_pattern() {
         },
         {
             pattern: /Suddenly, (.*) falls through a trap door\.$/,
-            replace: "Suddenly, $1 falls through a trap door."
+            replace: "突然、$1が落とし戸から落ちた。"
         },
         {
             pattern: /You are hit by (.*)\.$/,
-            replace: "You are hit by $1."
+            replace: "$1があなたに当たった。"
         },
         {
             pattern: /(.*) changes into a (.*)\.$/,
-            replace: "$1 changes into a $2."
+            replace: "$1は$2に姿を変えた。"
         },
         {
             pattern: /(.*) summons help!$/,
-            replace: "$1 summons help!"
+            replace: "$1が助けを呼んだ！"
         },
         {
             pattern: /(.*) suddenly appears next to you!$/,
-            replace: "$1 suddenly appears next to you!"
+            replace: "突然、あなたの隣に$1が現れた！"
         },
         {
             pattern: /(.*) blocks the way!$/,
-            replace: "$1 blocks the way!"
+            replace: "$1が道を塞いでいる！"
         },
         {
             pattern: /(.*) appears next to you!$/,
-            replace: "$1 appears next to you!"
+            replace: "$1があなたの隣に現れた！"
         },
         {
             pattern: /You kick (.*)\.$/,
-            replace: "You kick (.*)."
+            replace: "あなたは$1を蹴った。"
         },
         {
             pattern: /(.*) is furious!$/,
-            replace: "$1 is furious!"
+            replace: "$1は激怒している！"
         },
         {
             pattern: /(.*) jumps, nimbly evading your kick\.$/,
-            replace: "(.*) jumps, nimbly evading your kick."
+            replace: "$1はジャンプし、あなたの蹴りを軽やかにかわした。"
         },
         {
             pattern: /(.*) takes all your possessions\.$/,
-            replace: "(.*) takes all your possessions."
+            replace: "$1はあなたの所持品をすべて奪った。"
         },
 
 
