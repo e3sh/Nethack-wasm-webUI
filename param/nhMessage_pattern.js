@@ -545,6 +545,24 @@ function nhMessage_pattern() {
             pattern: /(.*) takes all your possessions\.$/,
             replace: "$1はあなたの所持品をすべて奪った。"
         },
+        {
+            pattern: /an empty unlocked (.*)$/,
+            replace: "an empty unlocked $1"
+        },
+        {
+            pattern: /^You have a little trouble removing (.*)\.$/,
+            replace: "You have a little trouble removing $1."
+        },
+        {
+            pattern: /^You do not owe (.*) anything\.$/,
+            replace: "You do not owe $1 anything."
+        },
+        {
+            pattern: /^My, this is a yummy (.*)!$/,
+            replace: "My, this is a yummy $1!"
+        },
+
+
 
 
 
