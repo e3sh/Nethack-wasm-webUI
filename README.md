@@ -46,11 +46,6 @@ python -m http.server 8000
 ```
 起動後、ブラウザで `http://localhost:8000` を開きます。
 
-### ビルド (開発者向け)
-
-NetHack を WebAssembly にビルドするには、Emscripten SDK (emsdk) 等の環境構築が必要です。
-Windows 環境および Linux/WSL 環境での詳細なビルド手順については、[**ビルド手順のリファレンス (shim_reference.ja.md)**](shim_reference.ja.md#ビルド手順WebAssembly) を参照してください。
-
 ## 📈 開発ステータス
 
 - [x] NetHack 3.7.0 の Wasm コンパイル

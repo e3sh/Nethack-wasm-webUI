@@ -65,6 +65,7 @@ function nhMessage_entity() {
 
         //Starting attributes
         "Archeologist": "考古学者",
+        "archeologist": "考古学者",
         "Barbarian": "武闘家",
         "Caveman": "洞窟人",
         "Healer": "ヒーラー",
@@ -309,6 +310,8 @@ function nhMessage_entity() {
         "kobold zombie": "コボルドのゾンビ",
         "dwarf zombie": "ドワーフのゾンビ",
         "gnome zombie": "ノームのゾンビ",
+        "garter snake": "ガーターヘビ",
+        "iguana": "イグアナ",
 
         // Weapons
         "arrow": "矢",
@@ -922,5 +925,8 @@ function nhMessage_entity() {
         //color
         "yellowish brown": "黄褐色",
 
+        // Body parts
+        "your right arm": "あなたの右腕",
+        "you on the head": "あなたが頭に"
     };
 }

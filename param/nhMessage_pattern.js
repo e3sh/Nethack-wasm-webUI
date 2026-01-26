@@ -323,10 +323,10 @@ function nhMessage_pattern() {
             pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
-        {
-            pattern: /^Your (.*)$/,
-            replace: "あなたの$1"
-        },
+        //{
+        //    pattern: /^Your (.*)$/,
+        //    replace: "あなたの$1"
+        //},
 
         //
         {
@@ -547,26 +547,136 @@ function nhMessage_pattern() {
         },
         {
             pattern: /an empty unlocked (.*)$/,
-            replace: "an empty unlocked $1"
+            replace: "空でロック解除済みの$1"
         },
         {
             pattern: /^You have a little trouble removing (.*)\.$/,
-            replace: "You have a little trouble removing $1."
+            replace: "$1の取り外しに少し手間取っています。"
         },
         {
             pattern: /^You do not owe (.*) anything\.$/,
-            replace: "You do not owe $1 anything."
+            replace: "あなたは$1に何も借りていない。"
         },
         {
             pattern: /^My, this is a yummy (.*)!$/,
-            replace: "My, this is a yummy $1!"
+            replace: "あらまあ、これはおいしい$1ね！"
         },
         {
             pattern: /^(.*) called (.*)$/,
-            replace: "$1 called $2"
+            replace: "$1が$2を呼んだ"
         },
-
-
+        {
+            pattern: /^(.*) bounces!$/,
+            replace: "$1が跳ねかえった！"
+        },
+        {
+            pattern: /^the peaceful (.*)$/,
+            replace: "平和的な$1"
+        },
+        {
+            pattern: /^You see (.*) slither under (.*)\.$/,
+            replace: "$1が$2の下にすべり込むのが見える。"
+        },
+        {
+            pattern: /^There is a branch staircase down to (.*) here\.$/,
+            replace: "ここから分岐する階段を降りると、$1の場所へたどり着きます。"
+        },
+        {
+            pattern: /^(.*) appears confused\.$/,
+            replace: "$1は困惑しているようだ。"
+        },
+        {
+            pattern: /^You (.*) glows blue for a moment\.$/,
+            replace: "あなたの$1が、一瞬青く輝く"
+        },
+        {
+            pattern: /^You add the \"(.*)\" spell to your repertoire, as (.*)\.$/,
+            replace: "あなたは「$1」の呪文を習得した。-$2-"
+        },
+        {
+            pattern: /^Wiped out all (.*)\.$/,
+            replace: "$1を全滅させた。"
+        },
+        {
+            pattern: /^You have found (.*)!$/,
+            replace: "あなたは$1を見つけた！"
+        },
+        {
+            pattern: /^You are now wearing (.*)\.$/,
+            replace: "あなたは$1を身に着けています。"
+        },
+        {
+            pattern: /^You cannot wear armor over (.*)\.$/,
+            replace: "$1の上に防具を着用することはできません。"
+        },
+        {
+            pattern: /^Your (.*) crumbles and turns to dust!$/,
+            replace: "$1が粉々に砕け、塵となりました！"
+        },
+        {
+            pattern: /^(.*) turns to flee\.$/,
+            replace: "$1が逃げ出した。"
+        },
+        {
+            pattern: /^(.*) pretends to be friendly to (.*)\.$/,
+            replace: "$1が$2に親しみを示した。"
+        },
+        {
+            pattern: /^(.*) smiles at (.*) engagingly\.$/,
+            replace: "$1は$2に愛嬌たっぷりに微笑む。"
+        },
+        {
+            pattern: /^(.*) steals a saddle from (.*)!$/,
+            replace: "$1は$2から鞍を盗んだ！"
+        },
+        {
+            pattern: /^(.*) suddenly disappears!!$/,
+            replace: "$1は突然姿を消した！"
+        },
+        {
+            pattern: /^(.*) pretends to be friendly\.$/,
+            replace: "$1は友好的なふりをする。"
+        },
+        {
+            pattern: /^(.*) charms you.  You gladly start removing your (.*). \.$/,
+            replace: "$1があなたを魅了する。あなたは喜んで$2を外し始める。"
+        },
+        {
+            pattern: /^(.*) steals (.*)!$/,
+            replace: "$1は$2を盗んだ！"
+        },
+        {
+            pattern: /^She stole (.*)\.$/,
+            replace: "彼女は$1を盗んだ！"
+        },
+        {
+            pattern: /^(.*) disarms your (.*)\.$/,
+            replace: "$1はあなたの$2を解除します。"
+        },
+        {
+            pattern: /^You finish taking off your (.*)\.$/,
+            replace: "$1を外し終えた。"
+        },
+        {
+            pattern: /^(.*) stole (.*)\.$/,
+            replace: "$1は$2を盗んだ！"
+        },
+        {
+            pattern: /^(.*) tries to rob you, but there is nothing to steal!$/,
+            replace: "$1は盗もうとしたが、盗める物がなかった。"
+        },
+        {
+            pattern: /^(.*) tries to rob you, but isn't interested in gold\.$/,
+            replace: "$1はあなたを略奪しようとするが、金には興味がない。"
+        },
+        {
+            pattern: /^(.*) containing (.*) items$/,
+            replace: "$1（中身：$2個のアイテム）"
+        },
+        {
+            pattern: /^You begin bashing monsters with your (.*)\.$/,
+            replace: "あなたは$1でモンスターを叩き始める。"
+        },
 
 
 
