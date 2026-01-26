@@ -11,6 +11,7 @@ function trancelate(r) {
     const trtable_answar = nhMessage_jp();
     const trtable_patterns = (typeof nhMessage_pattern === 'function') ? nhMessage_pattern() : [];
     const trtable_entities = (typeof nhMessage_entity === 'function') ? nhMessage_entity() : {};
+    const trtable_items = (typeof nhMessage_item === 'function') ? nhMessage_entity_items() : {};
 
     let buf = [];
 
