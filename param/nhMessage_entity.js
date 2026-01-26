@@ -797,5 +797,8 @@ function nhMessage_entity() {
         "eat": "食べる",
         "throw": "投げる",
 
+        //color
+        "milky": "milky", 
+
     };
 }

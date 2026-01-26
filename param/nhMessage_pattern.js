@@ -561,6 +561,10 @@ function nhMessage_pattern() {
             pattern: /^My, this is a yummy (.*)!$/,
             replace: "My, this is a yummy $1!"
         },
+        {
+            pattern: /^(.*) called (.*)$/,
+            replace: "$1 called $2"
+        },
 
 
 

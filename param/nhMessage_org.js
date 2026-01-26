@@ -704,5 +704,12 @@ function nhMessage_org() {
         "And as gently lay my head",
         "On my grave, as now my bed.",
         "        [ Religio Medici, by Sir Thomas Browne ]",
+
+        "You flip a gold piece.",
+        "It comes up heads.",
+        "It comes up tails.",
+        "Please move the cursor to a monster, object or location.",
+
+
     ]
 }
