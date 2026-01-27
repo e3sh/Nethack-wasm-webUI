@@ -97,6 +97,7 @@ function trancelate(r) {
         }
 
         // 本体名の翻訳 (辞書引き)
+        // items.js (trtable_e_items) を優先的に参照し、アイテム判定の基準とする
         let bodyTranslated = trtable_e_items[itemResult] || trtable_entities[itemResult];
 
         // 複数形sの試行
