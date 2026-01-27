@@ -320,13 +320,15 @@ function nhMessage_pattern() {
             replace: "$1の魔導書"
         },
         {
+            pattern: /^pair of (.*)$/,
+            replace: "一組の$1"
+        },
+
+        {
             pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
-        //{
-        //    pattern: /^Your (.*)$/,
-        //    replace: "あなたの$1"
-        //},
+
 
         //
         {
@@ -394,12 +396,12 @@ function nhMessage_pattern() {
             replace: "突然すぐそばに$1が現れた！"
         },
         {
-            pattern: /(.*) lands on the altar\.$/,
-            replace: "$1が祭壇の上に着地した。"
+            pattern: /(.*) lands on (.*)\.$/,
+            replace: "$1が$2に着地した。"
         },
         {
-            pattern: /There is an altar to (.*) here\.$/,
-            replace: "ここに$1の祭壇がある。"
+            pattern: /There is (.*) here\.$/,
+            replace: "ここに$1がある。"
         },
         {
             pattern: /(.*) isn't a suitable secondary weapon\.$/,
@@ -563,7 +565,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^(.*) called (.*)$/,
-            replace: "$1が$2を呼んだ"
+            replace: "$1と呼ばれる$2"
         },
         {
             pattern: /^(.*) bounces!$/,
@@ -677,8 +679,58 @@ function nhMessage_pattern() {
             pattern: /^You begin bashing monsters with your (.*)\.$/,
             replace: "あなたは$1でモンスターを叩き始める。"
         },
+        {
+            pattern: /^(.*) on the head\.$/,
+            replace: "$1が頭に当たった。"
+        },
+        {
+            pattern: /^(.*) - (.*)\.$/,
+            replace: "$1 - $2"
+        },
+        {
+            pattern: /^A board beneath (.*) squeaks (.*) loudly\.$/,
+            replace: "$1の足元の床板が$2と大きな音を立てて鳴った。"
+        },
+        {
+            pattern: /^You hear (.*) squeak nearby\.$/,
+            replace: "あなたは近くで$1のきしみ音を聞いた。"
+        },
+        {
+            pattern: /^You knock (.*) backward with a forceful strike!$/,
+            replace: "あなたは強力な一撃で$1を後方に叩き落とした！"
+        },
+        {
+            pattern: /^(.*) wobbles from your powerful strike!$/,
+            replace: "$1はあなたの強力な一撃で揺れた！"
+        },
+        {
+            pattern: /^(.*) is caught in (.*)'s explosion!$/,
+            replace: "$1は$2の爆発に巻き込まれた！"
+        },
+        {
+            pattern: /^You are caught in (.*)'s explosion!$/,
+            replace: "あなたは$1の爆発に巻き込まれた！"
+        },
+        {
+            pattern: /^the poor (.*)$/,
+            replace: "かわいそうな$1"
+        },
+        {
+            pattern: /^Unlock it with your (.*)\?$/,
+            replace: "$1で解錠しますか？"
+        },
+        {
+            pattern: /^You are hit by (.*)!$/,
+            replace: "あなたは$1に攻撃された！"
+        },
+        {
+            pattern: /^You succeed in unlocking (.*)\.$/,
+            replace: "$1の解錠に成功した。"
+        },
 
-
-
+        //{
+        //    pattern: /^Your (.*)$/,
+        //    replace: "あなたの$1"
+        //},
     ];
 }

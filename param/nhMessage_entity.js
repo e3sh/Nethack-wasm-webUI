@@ -116,6 +116,26 @@ function nhMessage_entity() {
         "Use '<' to go up the stairs": "「<」で階段を上ります",
         "Use '>' to go down the stairs": "「>」で階段を下りること",
 
+        //traps
+        "falling rock trap": "落石の罠",
+        "bear trap": "ベアトラップ",
+        "land mine": "地雷",
+        "spiked pit": "とげ穴",
+        "squeaky board": "きしむ板",
+        "dart trap": "ダートトラップ",
+        "arrow trap": "矢の罠",
+        "fire trap": "火の罠",
+        "sleeping gas trap": "睡眠ガストラップ",
+        "pit": "穴",
+        "hole": "穴",
+        "trap door": "落とし穴",
+        "level teleporter": "レベルテレポーター",
+        "statue trap": "像の罠",
+        "magic portal": "魔法のポータル",
+        "anti-magic field": "反魔法フィールド",
+        "polymorph trap": "変身の罠",
+        "vibrating square": "振動する床",
+
         // pet/Monst (from monster_list.ja.md & item_list.ja.md)
         "giant ant": "巨大蟻",
         "killer bee": "キラービー",
@@ -312,6 +332,7 @@ function nhMessage_entity() {
         "gnome zombie": "ノームのゾンビ",
         "garter snake": "ガーターヘビ",
         "iguana": "イグアナ",
+        "gus spore": "ガスの胞子",
 
         // Weapons
         "arrow": "矢",
@@ -655,6 +676,7 @@ function nhMessage_entity() {
         "beartrap": "虎ばさみ",
         "tin": "缶詰",
         "potion of oil": "油のポーション",
+        "looking glass": "望遠鏡",
 
         // Food
         "meatball": "肉団子",

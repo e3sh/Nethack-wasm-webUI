@@ -11,7 +11,8 @@ function trancelate(r) {
     const trtable_answar = nhMessage_jp();
     const trtable_patterns = (typeof nhMessage_pattern === 'function') ? nhMessage_pattern() : [];
     const trtable_entities = (typeof nhMessage_entity === 'function') ? nhMessage_entity() : {};
-    const trtable_items = (typeof nhMessage_item === 'function') ? nhMessage_entity_items() : {};
+    //const trtable_p_items = (typeof nhMessage_item === 'function') ? nhMessage_pattern_items() : {};
+    //const trtable_e_items = (typeof nhMessage_item === 'function') ? nhMessage_entity_items() : {};
 
     let buf = [];
 
@@ -64,6 +65,26 @@ function trancelate(r) {
                 return result;
             }
         }
+        // 4. アイテム名の翻訳
+        // [数詞・冠詞・個数] +　[状態・修飾語] + [+-強化状態] + [pair_of] + アイテム名 + [付加情報]
+        // 状態・修飾語: rusted, corroded, blessed, cursed, uncursed etc.
+        //　+-強化状態: +1, -2, etc.
+        //　付加情報: (being worn), (n in total) etc.
+        //
+        //item name format analysis
+        /*
+        let item_pattern = /^(?:the|a|an)?\s*(.+?)(?:\s+[(].+[)])?$/i;
+        let item_match = msg.match(item_pattern);
+        if (trtable_p_items[msg]) {
+            return trtable_p_items[msg];
+        }
+        if (item_match && item_match[1]) {
+            let item_name = item_match[1];
+            if (trtable_p_items[item_name]) {
+                return trtable_p_items[item_name];
+            }
+        }
+        */
 
         save_translation_data(msg);
         return msg;

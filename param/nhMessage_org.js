@@ -881,6 +881,33 @@ function nhMessage_org() {
         "upset to find that out.",
         "        [ The Light Fantastic, by Terry Pratchett ]",
 
+        "You are caught in a bear trap.",
+        "You finally wriggle free.",
+
+        "Robes are the only garments, apart from Shirts, ever to have",
+        "sleeves.  They have three uses:",
+        "1.  As the official uniform of Priests, Priestesses, Monks,",
+        "Nuns (see Nunnery), and Wizards.  The OMT [ Official Management",
+        "Term ] prescribed for the Robes of Priests and Nuns is that",
+        "they _fall in severe folds_; of Priestesses that they _float_;",
+        "and of Wizards that they _swirl_.  You can thus see who you",
+        "are dealing with.",
+        "2.  For Kings.  The OMT here is _falling in stately folds_.",
+        "3.  As the garb of Desert Nomads.  [...]",
+        "    [ The Tough Guide to Fantasyland, by Diana Wynne Jones ]",
+
+        "staircase up",
+        "staircase down",
+
+        "You begin striking monsters with your gloved hands.",
+
+        "Boom!",
+        "You hear the rumble of distant thunder...",
+        "It is fatal.",
+        "You feel wise!",
+        "You must have been very observant.",
+        "It is hit.",
+
 
     ]
 }
