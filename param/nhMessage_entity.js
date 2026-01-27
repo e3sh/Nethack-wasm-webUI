@@ -135,6 +135,7 @@ function nhMessage_entity() {
         "anti-magic field": "反魔法フィールド",
         "polymorph trap": "変身の罠",
         "vibrating square": "振動する床",
+        "magic trap": "魔法の罠",
 
         // pet/Monst (from monster_list.ja.md & item_list.ja.md)
         "giant ant": "巨大蟻",
@@ -932,6 +933,7 @@ function nhMessage_entity() {
         "The Eye of the Aethiopica": "エチオピカの眼",
 
         // その他
+        "gem": "宝石",
 
         //Command
         "zap": "振る",
@@ -944,9 +946,13 @@ function nhMessage_entity() {
         "drink": "飲む",
         "eat": "食べる",
         "throw": "投げる",
+        "charge": "チャージ",
 
         // Body parts
         "your right arm": "あなたの右腕",
-        "you on the head": "あなたが頭に"
+        "you on the head": "あなたが頭に",
+
+        "boulder": "岩",
+
     };
 }

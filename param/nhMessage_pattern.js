@@ -260,66 +260,6 @@ function nhMessage_pattern() {
 
         // フレーズパターン（再帰翻訳用）
         {
-            pattern: /^(.*) corpse$/,
-            replace: "$1の屍"
-        },
-        {
-            pattern: /^a corpse of (.*)$/,
-            replace: "$1の死体"
-        },
-        {
-            pattern: /^(.*) statue$/,
-            replace: "$1の像"
-        },
-        {
-            pattern: /^a statue of (.*)$/,
-            replace: "$1の像"
-        },
-        {
-            pattern: /^(.*) egg$/,
-            replace: "$1の卵"
-        },
-        {
-            pattern: /^(.*) scroll$/,
-            replace: "$1の巻物"
-        },
-        {
-            pattern: /^(.*) potion$/,
-            replace: "$1のポーション"
-        },
-        {
-            pattern: /^(.*) wand$/,
-            replace: "$1の杖"
-        },
-        {
-            pattern: /^(.*) ring$/,
-            replace: "$1の指輪"
-        },
-        {
-            pattern: /^(.*) spellbook$/,
-            replace: "$1の魔導書"
-        },
-        {
-            pattern: /^potion of (.*)$/,
-            replace: "$1のポーション"
-        },
-        {
-            pattern: /^scroll of (.*)$/,
-            replace: "$1の巻物"
-        },
-        {
-            pattern: /^wand of (.*)$/,
-            replace: "$1の杖"
-        },
-        {
-            pattern: /^ring of (.*)$/,
-            replace: "$1の指輪"
-        },
-        {
-            pattern: /^spellbook of (.*)$/,
-            replace: "$1の魔導書"
-        },
-        {
             pattern: /^pair of (.*)$/,
             replace: "一組の$1"
         },
@@ -727,6 +667,20 @@ function nhMessage_pattern() {
             pattern: /^You succeed in unlocking (.*)\.$/,
             replace: "$1の解錠に成功した。"
         },
+        {
+            pattern: /^Swapping: (.*)$/,
+            replace: "$1を入れ替えた。"
+        },
+        {
+            pattern: /^Collecting: (.*)$/,
+            replace: "$1を集めた。"
+        },
+        {
+            pattern: /^Moving: (.*)$/,
+            replace: "$1を移動させた。"
+        },
+
+
 
         //{
         //    pattern: /^Your (.*)$/,

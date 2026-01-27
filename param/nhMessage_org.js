@@ -329,8 +329,8 @@ function nhMessage_org() {
         "When the gods want to punish you, they answer your prayers.",
         "fountain",
         "grave",
-        "You feel feverish.",     
-                
+        "You feel feverish.",
+
         "You are already wearing some armor.",
         "Orcs, bipeds with a humanoid appearance, are related to the",
         "goblins, but much bigger and more dangerous.  The average",
@@ -422,8 +422,8 @@ function nhMessage_org() {
 
         "Closed for inventory",
         '"How dare you break my door?"',
-        "Do you want to see what you had when you died?", 
-        
+        "Do you want to see what you had when you died?",
+
         "There is an open door here.",
 
         "Faustus: Come on Mephistopheles.  What shall we do?",
@@ -799,7 +799,7 @@ function nhMessage_org() {
         "You finish taking off your suit.",
         "You feel that monsters have difficulty pinpointing your location.",
         "Magical energies course through your body.",
-    
+
         "You begin bashing monsters with your gloved hands.",
         "There are several objects here.",
 
@@ -908,6 +908,55 @@ function nhMessage_org() {
         "You must have been very observant.",
         "It is hit.",
 
+        "You smell charred flesh.",
+        "You hear a low hum.",
+        "Gee!  All of a sudden, you can see right through yourself.",
+        "Only gold coins may be moved into the '$' slot.",
+        "This is a charging scroll.",
+
+        "The Hitchhiker's Guide to the Galaxy has a few things to say",
+        "on the subject of towels.",
+        "A towel, it says, is about the most massively useful thing",
+        "an interstellar hitchhiker can have.  Partly it has great",
+        "practical value.  You can wrap it around you for warmth as",
+        "you bound across the cold moons of Jaglan Beta; you can lie",
+        "on it on the brilliant marble-sanded beaches of Santraginus",
+        "V, inhaling the heady sea vapors; you can sleep under it",
+        "beneath the stars which shine so redly on the desert world",
+        "of Kakrafoon; use it to sail a miniraft down the slow heavy",
+        "River Moth; wet it for use in hand-to-hand combat; wrap it",
+        "round your head to ward off noxious fumes or avoid the gaze",
+        "of the Ravenous Bugblatter Beast of Traal (a mind-bogglingly",
+        "stupid animal, it assumes that if you can't see it, it can't",
+        "see you - daft as a brush, but very very ravenous); you can",
+        "wave your towel in emergencies as a distress signal, and of",
+        "course dry yourself off with it if it still seems to be clean",
+        "enough.",
+        "  [ The Hitchhiker's Guide to the Galaxy, by Douglas Adams ]",
+
+        "An emerald is as green as grass;",
+        "A ruby red as blood;",
+        "A sapphire shines as blue as heaven;",
+        "A flint lies in the mud.",
+        "A diamond is a brilliant stone,",
+        "To catch the world's desire;",
+        "An opal holds a fiery spark;",
+        "But a flint holds fire.",
+        "        [ Precious Stones, by Christina Giorgina Rossetti ]",
+
+        "And it came to pass, when the Philistine arose, and came and",
+        "drew nigh to meet David, that David hasted, and ran toward",
+        "the army to meet the Philistine.",
+        "And David put his hand in his bag, and took thence a stone,",
+        "and slang it, and smote the Philistine in his forehead, that",
+        "the stone sunk into his forehead; and he fell upon his face",
+        "to the earth.",
+        "So David prevailed over the Philistine with a sling and with",
+        "a stone, and smote the Philistine, and slew him; but there",
+        "was no sword in the hand of David.",
+        "        [ 1 Samuel 17:48-50 ]",
+
+        "A trap door in the ceiling opens, but nothing falls out!",
 
     ]
 }

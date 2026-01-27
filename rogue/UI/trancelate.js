@@ -51,21 +51,7 @@ function trancelate(r) {
             return trtable_entities[singural];
         }
 
-        // 3. 正規表現パターンマッチング
-        for (let entry of trtable_patterns) {
-            let match = msg.match(entry.pattern);
-            if (match) {
-                let result = entry.replace;
-                // キャプチャグループ ($1, $2, ...) を再帰的に翻訳して置換
-                for (let i = 1; i < match.length; i++) {
-                    let translatedValue = get_translation_data(match[i]);
-                    // $1 などのプレースホルダを実際の翻訳後の値に置換
-                    result = result.replace(`$${i}`, translatedValue);
-                }
-                return result;
-            }
-        }
-        // 4. アイテム名の翻訳
+        // 3. アイテム名の翻訳 (正規表現パターンより優先)
         // NetHack 3.7 format: [quantity] [BUC] [erosion] [enchantment] [body] [charges] [contents] [status]
         let itemResult = msg;
 
@@ -94,7 +80,7 @@ function trancelate(r) {
             itemResult = bucMatch[2];
         }
 
-        // 侵食・状態 (greased, burnt, rusted, corroded, etc.)
+        // 侵食・状態 (greased, burnt, very burnt, thoroughly burnt, rusted, very rusted, thoroughly rusted, corroded, very corroded, thoroughly corroded, rotted, very rotted, thoroughly rotted, poisoned)
         let erosion = "";
         let erosionMatch = itemResult.match(/^(greased|burnt|very burnt|thoroughly burnt|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned)\s+(.*)$/i);
         if (erosionMatch) {
@@ -148,6 +134,21 @@ function trancelate(r) {
                 finalMsg += get_translation_data(suffix);
             }
             return finalMsg.trim();
+        }
+
+        // 4. 正規表現パターンマッチング
+        for (let entry of trtable_patterns) {
+            let match = msg.match(entry.pattern);
+            if (match) {
+                let result = entry.replace;
+                // キャプチャグループ ($1, $2, ...) を再帰的に翻訳して置換
+                for (let i = 1; i < match.length; i++) {
+                    let translatedValue = get_translation_data(match[i]);
+                    // $1 などのプレースホルダを実際の翻訳後の値に置換
+                    result = result.replace(`$${i}`, translatedValue);
+                }
+                return result;
+            }
         }
 
         save_translation_data(msg);

@@ -386,6 +386,7 @@ function nhMessage_entity_items() {
         "K-ration": "Kレーション",
         "C-ration": "Cレーション",
         "slime mold": "スライム・モールド",
+        "tripe ration": "一夜干しホルモン",
 
         // Potions
         "gain ability": "能力上昇",
