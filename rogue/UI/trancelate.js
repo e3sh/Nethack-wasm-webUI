@@ -11,8 +11,8 @@ function trancelate(r) {
     const trtable_answar = nhMessage_jp();
     const trtable_patterns = (typeof nhMessage_pattern === 'function') ? nhMessage_pattern() : [];
     const trtable_entities = (typeof nhMessage_entity === 'function') ? nhMessage_entity() : {};
-    //const trtable_p_items = (typeof nhMessage_item === 'function') ? nhMessage_pattern_items() : {};
-    //const trtable_e_items = (typeof nhMessage_item === 'function') ? nhMessage_entity_items() : {};
+    const trtable_p_items = (typeof nhMessage_pattern_items === 'function') ? nhMessage_pattern_items() : [];
+    const trtable_e_items = (typeof nhMessage_entity_items === 'function') ? nhMessage_entity_items() : {};
 
     let buf = [];
 
@@ -66,25 +66,89 @@ function trancelate(r) {
             }
         }
         // 4. アイテム名の翻訳
-        // [数詞・冠詞・個数] +　[状態・修飾語] + [+-強化状態] + [pair_of] + アイテム名 + [付加情報]
-        // 状態・修飾語: rusted, corroded, blessed, cursed, uncursed etc.
-        //　+-強化状態: +1, -2, etc.
-        //　付加情報: (being worn), (n in total) etc.
-        //
-        //item name format analysis
-        /*
-        let item_pattern = /^(?:the|a|an)?\s*(.+?)(?:\s+[(].+[)])?$/i;
-        let item_match = msg.match(item_pattern);
-        if (trtable_p_items[msg]) {
-            return trtable_p_items[msg];
+        // NetHack 3.7 format: [quantity] [BUC] [erosion] [enchantment] [body] [charges] [contents] [status]
+        let itemResult = msg;
+
+        // 装備状態や個数情報などの括弧付き付録を分離
+        // e.g. "a blessed +1 long sword (being worn)" -> body: "a blessed +1 long sword", suffix: " (being worn)"
+        let suffixMatch = itemResult.match(/(.*?)(\s*\(.*?\))$/);
+        let suffix = "";
+        if (suffixMatch) {
+            itemResult = suffixMatch[1];
+            suffix = suffixMatch[2];
         }
-        if (item_match && item_match[1]) {
-            let item_name = item_match[1];
-            if (trtable_p_items[item_name]) {
-                return trtable_p_items[item_name];
+
+        // 数量/冠詞の分離
+        let quantity = "";
+        let qtyMatch = itemResult.match(/^(the|a|an|\d+)\s+(.*)$/i);
+        if (qtyMatch) {
+            quantity = qtyMatch[1];
+            itemResult = qtyMatch[2];
+        }
+
+        // BUC (blessed, cursed, uncursed)
+        let buc = "";
+        let bucMatch = itemResult.match(/^(blessed|cursed|uncursed)\s+(.*)$/i);
+        if (bucMatch) {
+            buc = bucMatch[1];
+            itemResult = bucMatch[2];
+        }
+
+        // 侵食・状態 (greased, burnt, rusted, corroded, etc.)
+        let erosion = "";
+        let erosionMatch = itemResult.match(/^(greased|burnt|very burnt|thoroughly burnt|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned)\s+(.*)$/i);
+        if (erosionMatch) {
+            erosion = erosionMatch[1];
+            itemResult = erosionMatch[2];
+        }
+
+        // 強化値 (+1, -2, etc.)
+        let enchant = "";
+        let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
+        if (enchantMatch) {
+            enchant = enchantMatch[1];
+            itemResult = enchantMatch[2];
+        }
+
+        // 本体名の翻訳 (辞書引き)
+        let bodyTranslated = trtable_e_items[itemResult] || trtable_entities[itemResult];
+
+        // 複数形sの試行
+        if (!bodyTranslated) {
+            let singularBody = itemResult.replace(/s$/i, "");
+            bodyTranslated = trtable_e_items[singularBody] || trtable_entities[singularBody];
+        }
+
+        // アイテム専用パターンの試行 (corpse, statue, etc.)
+        if (!bodyTranslated) {
+            for (let entry of trtable_p_items) {
+                let pMatch = itemResult.match(entry.pattern);
+                if (pMatch) {
+                    bodyTranslated = entry.replace;
+                    for (let i = 1; i < pMatch.length; i++) {
+                        let innerTranslated = get_translation_data(pMatch[i]);
+                        bodyTranslated = bodyTranslated.replace(`$${i}`, innerTranslated);
+                    }
+                    break;
+                }
             }
         }
-        */
+
+        // 翻訳が成功した場合のみ合成
+        if (bodyTranslated) {
+            let finalMsg = "";
+            if (buc) finalMsg += get_translation_data(buc) + " ";
+            if (erosion) finalMsg += get_translation_data(erosion) + " ";
+            if (enchant) finalMsg += enchant + " ";
+            finalMsg += bodyTranslated;
+            if (quantity && !(/^(the|a|an)$/i.test(quantity))) {
+                finalMsg += " (" + quantity + "個)";
+            }
+            if (suffix) {
+                finalMsg += get_translation_data(suffix);
+            }
+            return finalMsg.trim();
+        }
 
         save_translation_data(msg);
         return msg;

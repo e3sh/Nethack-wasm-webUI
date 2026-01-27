@@ -58,7 +58,7 @@ const w = [
     p + "nhMessage_jp.js",
     p + "nhMessage_pattern.js",
     p + "nhMessage_entity.js",
-    //p + "nhMessage_items.js",
+    p + "nhMessage_items.js",
     p + "utfmap.js",
     // Wasm files    // NetHack Wasm
     n + "nethack.js",
