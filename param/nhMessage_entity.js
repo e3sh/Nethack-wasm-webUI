@@ -42,6 +42,8 @@ function nhMessage_entity() {
         "Shan Lai Ching": "山海経",
         "Loki": "ロキ",
 
+        "Issek (lawful)": "イセック（秩序）",
+
         //Alignment
         "lawful": "秩序",
         "neutral": "中立",
@@ -337,6 +339,12 @@ function nhMessage_entity() {
 
         // その他
         "gem": "宝石",
+        "amulet": "護符",
+        "scroll": "巻物",
+        "potion": "ポーション",
+        "ring": "指輪",
+        "wand": "杖",
+        "spellbook": "魔導書",
 
         //Command
         "zap": "振る",

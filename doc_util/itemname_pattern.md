@@ -1,6 +1,6 @@
 # NetHack アイテム名出力フォーマット調査結果
 
-NetHack 3.7 のソースコード（主に [src/objnam.c](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/src/objnam.c)）を調査した結果、アイテム名の出力（[doname](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/src/objnam.c#1744-1749) 関数）は以下の順序とルールで構成されていることが分かりました。
+NetHack 3.7 のソースコード（主に src/objnam.c）を調査した結果、アイテム名の出力（doname(src/objnam.c#1744-1749) 関数）は以下の順序とルールで構成されていることが分かりました。
 
 ## 1. 基本的な構成順序
 
@@ -46,15 +46,15 @@ NetHack 3.7 のソースコード（主に [src/objnam.c](file:///c:/Users/e3-sh
 ### ⑧ 魔法の修正値 (Enchantment)
 - `+1 `, `+3 `, `-2 ` など
 
-### ⑨ アイテム本体名 (Base Name / [xname](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/src/objnam.c#574-579))
+### ⑨ アイテム本体名 (Base Name / xname(src/objnam.c#574-579))
 - アイテム本来の名前や説明。
 - **ベース名**: `long sword`, `potion of healing`
 - **ユーザー名付与**: `clear potion called healing`
 - **一部食べた**: `partly eaten ` (食べ物の場合、本体名の前に付くことがある)
 
 ### ⑩ 魔法の回数 (Charges)
-- [(0:5)](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/src/objnam.c#2135-2147) (充填回数:残り回数。杖や一部の道具)
-- [(3 of 7 candles attached, lit)](file:///c:/Users/e3-sh/Documents/Antigravity/NetHack/src/objnam.c#2135-2147) (燭台など)
+- `(0:5)`(src/objnam.c#2135-2147) (充填回数:残り回数。杖や一部の道具)
+- `(3 of 7 candles attached, lit)`(src/objnam.c#2135-2147) (燭台など)
 
 ### ⑪ 内容物 (Contents)
 - ` containing 3 items`

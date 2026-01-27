@@ -679,6 +679,62 @@ function nhMessage_pattern() {
             pattern: /^Moving: (.*)$/,
             replace: "$1を移動させた。"
         },
+        {
+            pattern: /^(.*) is empty\.$/,
+            replace: "空の$1。"
+        },
+        {
+            pattern: /^a locked (.*)\.$/,
+            replace: "鍵のかかった$1。"
+        },
+        {
+            pattern: /^You cannot wear a shield while wielding (.*)\.$/,
+            replace: "盾を装備している間は$1を装備できません。"
+        },
+        {
+            pattern: /^(.*) falls into a pit!$/,
+            replace: "$1は落とし穴に落ちた！"
+        },
+        {
+            pattern: /^an unlocked (.*)$/,
+            replace: "解錠された$1"
+        },
+        {
+            pattern: /^a scroll labeled (.*)$/,
+            replace: "表題「$1」と書かれた巻物"
+        },
+        {
+            pattern: /^an unlocked (.*) containing (.*) item$/,
+            replace: "中に$2個のアイテムが入った$1（解錠済み）"
+        },
+        {
+            pattern: /^Really step onto that (.*)\?$/,
+            replace: "本当にその$1に足を踏み入れるのか？"
+        },
+        {
+            pattern: /^Really step into that (.*)\?$/,
+            replace: "本当にその$1に踏み込むのか？"
+        },
+        {
+            pattern: /^You find (.*)\.$/,
+            replace: "あなたは$1を見つけた。"
+        },
+        {
+            pattern: /^You ring (.*)\.$/,
+            replace: "あなたは$1を鳴らした。"
+        },
+        {
+            pattern: /^Your (.*) steps reluctantly onto (.*)\.$/,
+            replace: "あなたの$1が$2に足を踏み入れた。"
+        },
+        {
+            pattern: /^altar to (.*)$/,
+            replace: "$1の祭壇"
+        },
+        {
+            pattern: /^Your (.*) isn't one-handed\.$/,
+            replace: "あなたの$1は片手で扱えるものではない。"
+        },
 
 
 

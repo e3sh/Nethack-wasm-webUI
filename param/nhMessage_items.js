@@ -309,6 +309,7 @@ function nhMessage_entity_items() {
         "shiny": "輝く",
 
         // Amulets
+        "amulet": "護符",
         "amulet of clairvoyance": "透視のアミュレット",
         "amulet of drain resistance": "吸収耐性のアミュレット",
         "amulet of ESP": "ESPのアミュレット",
@@ -365,6 +366,10 @@ function nhMessage_entity_items() {
         "beartrap": "虎ばさみ",
         "tin": "缶詰",
         "potion of oil": "油のポーション",
+        "whistle": "ホイッスル",
+        "key": "鍵",
+        "lamp": "ランプ",
+        "bell": "ベル",
 
         // Food
         "meatball": "肉団子",
@@ -386,7 +391,8 @@ function nhMessage_entity_items() {
         "K-ration": "Kレーション",
         "C-ration": "Cレーション",
         "slime mold": "スライム・モールド",
-        "tripe ration": "一夜干しホルモン",
+        "tripe ration": "干しホルモン",
+        "melon": "メロン",
 
         // Potions
         "gain ability": "能力上昇",
@@ -555,6 +561,7 @@ function nhMessage_entity_items() {
         "jeweled": "宝石を散りばめた",
 
         // Gems
+        "gem": "宝石",
         "dilithium crystal": "ディリチウムの結晶",
         "diamond": "ダイヤモンド",
         "ruby": "ルビー",
@@ -621,6 +628,10 @@ function nhMessage_entity_items() {
         "The Eye of the Aethiopica": "エチオピカの眼",
 
         // その他
+        " (weapon in right hand)": "（右手の武器）",
+        " (weapon in left hand)": "（左手の武器）",
+        " (being worn)": "（装備中）",
+        "pair of ": "一対の",
     };
 
 }
@@ -692,5 +703,11 @@ function nhMessage_pattern_items() {
             pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
+        {
+            pattern: /^(.*) in total$/,
+            replace: "合計$1個"
+        },
+
+
     ]
 }
