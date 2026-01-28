@@ -14,6 +14,11 @@ function nhMessage_entity() {
         "Him": "彼",
         "Her.": "彼女。",
         "Him.": "彼。",
+        "male": "男性",
+        "female": "女性",
+        "Random": "自動的に選択",
+        "gender": "性別",
+        "<gender>": "<性別>",
 
         // 神の名前
         "The Lady": "レディ",
@@ -45,6 +50,8 @@ function nhMessage_entity() {
         "Issek (lawful)": "イセック（秩序）",
 
         //Alignment
+        "alignment": "属性",
+        "<alignment>": "<属性>",
         "lawful": "秩序",
         "neutral": "中立",
         "chaotic": "混沌",
@@ -66,20 +73,39 @@ function nhMessage_entity() {
         "Aspirant": "志願者",
 
         //Starting attributes
+        "role": "役割",
+        "<role>": "<役割>",
         "Archeologist": "考古学者",
         "archeologist": "考古学者",
         "Barbarian": "武闘家",
         "Caveman": "洞窟人",
+        "Cavewoman": "洞窟女",
+        "Caveman/Cavewoman": "洞窟人/洞窟女",
         "Healer": "ヒーラー",
         "Knight": "騎士",
-        "Monk": "僧侶",
+        "Monk": "モンク",
         "Priest": "僧侶",
+        "Priestess": "女僧侶",
+        "Priest/Priestess": "僧侶/女僧侶",
         "Ranger": "レンジャー",
         "Rogue": "ローグ",
         "Samurai": "侍",
         "Tourist": "観光客",
         "Valkyrie": "ワルキューレ",
         "Wizard": "魔法使い",
+
+        //種族
+        "race": "種族",
+        "<race>": "<種族>",
+        "human": "人間",
+        "elf": "エルフ",
+        "elven": "エルフ",
+        "dwarf": "ドワーフ",
+        "dwarven": "ドワーフ",
+        "gnome": "ノーム",
+        "gnomish": "ノーム",
+        "orc": "オーク",
+        "orcish": "オーク",
 
         // チュートリアル・その他
         "Move around with 4 2 8 6": "8 2 4 6 で上下左右に移動",
@@ -364,6 +390,15 @@ function nhMessage_entity() {
         "you on the head": "あなたが頭に",
 
         "boulder": "岩",
+
+        "general store": "雑貨店",
+        "delicatessen": "デリカテッセン",
+
+        "(invalid target)": "(無効な対象)",
+
+        "bolt of cold": "冷気の矢",
+        "bolt of fire": "火炎の矢",
+        "bolt of lightning": "稲妻の矢",
 
     };
 }

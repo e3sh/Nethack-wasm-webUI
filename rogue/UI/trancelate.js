@@ -15,6 +15,7 @@ function trancelate(r) {
     const trtable_e_items = (typeof nhMessage_entity_items === 'function') ? nhMessage_entity_items() : {};
 
     let buf = [];
+    let icache = {};
 
     if (Boolean(localStorage.getItem("nh.temp"))) {
         buf = JSON.parse(localStorage.getItem("nh.temp"));
@@ -66,15 +67,15 @@ function trancelate(r) {
 
         // 数量/冠詞の分離
         let quantity = "";
-        let qtyMatch = itemResult.match(/^(the|a|an|\d+)\s+(.*)$/i);
+        let qtyMatch = itemResult.match(/^(The|A|An|the|a|an|\d+)\s+(.*)$/i);
         if (qtyMatch) {
             quantity = qtyMatch[1];
             itemResult = qtyMatch[2];
         }
 
-        // BUC (blessed, cursed, uncursed)
+        // BUC (blessed, cursed, uncursed) / Locks(locked, unlocked) /Traps(trapped, broken)
         let buc = "";
-        let bucMatch = itemResult.match(/^(blessed|cursed|uncursed)\s+(.*)$/i);
+        let bucMatch = itemResult.match(/^(blessed|cursed|uncursed|locked|unlocked|trapped|broken)\s+(.*)$/i);
         if (bucMatch) {
             buc = bucMatch[1];
             itemResult = bucMatch[2];
@@ -82,7 +83,9 @@ function trancelate(r) {
 
         // 侵食・状態 (greased, burnt, very burnt, thoroughly burnt, rusted, very rusted, thoroughly rusted, corroded, very corroded, thoroughly corroded, rotted, very rotted, thoroughly rotted, poisoned)
         let erosion = "";
-        let erosionMatch = itemResult.match(/^(greased|burnt|very burnt|thoroughly burnt|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned)\s+(.*)$/i);
+        let erosionMatch = itemResult.match(
+            /^(greased|burnt|very burnt|thoroughly burnt|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
+        );
         if (erosionMatch) {
             erosion = erosionMatch[1];
             itemResult = erosionMatch[2];
@@ -123,17 +126,32 @@ function trancelate(r) {
 
         // 翻訳が成功した場合のみ合成
         if (bodyTranslated) {
+            //let chcheMsg = "";
             let finalMsg = "";
             if (buc) finalMsg += get_translation_data(buc) + " ";
             if (erosion) finalMsg += get_translation_data(erosion) + " ";
             if (enchant) finalMsg += enchant + " ";
             finalMsg += bodyTranslated;
-            if (quantity && !(/^(the|a|an)$/i.test(quantity))) {
+            if (quantity && !(/^(The|A|An|the|a|an)$/i.test(quantity))) {
                 finalMsg += " (" + quantity + "個)";
             }
+            //chcheMsg = finalMsg;
             if (suffix) {
                 finalMsg += get_translation_data(suffix);
             }
+            /*
+            if (Boolean(icache[msg]) == false){ // キャッシュ未登録の場合
+                if (trtable_e_items[msg] == null) // アイテム辞書に存在しない場合のみキャッシュ登録
+                {
+                    icache[msg] = chcheMsg;
+                    console.log(`Item translated: "${msg}" -> "${chcheMsg}"`);
+                    console.log(`icache:${Object.keys(icache).length}`);
+                }
+
+            } else {
+                console.log(`Item translation cache hit: "${msg}" -> "${icache[msg]}"`);
+            }
+            */
             return finalMsg.trim();
         }
 

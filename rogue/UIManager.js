@@ -395,12 +395,14 @@ function UIManager(r, g) {
                 const render = () => {
                     this.wclear(menuDsp);
                     const pageInfo = totalPages > 1 ? ` (Page ${currentPage + 1}/${totalPages})` : "";
-                    this.mvwaddch(menuDsp, 0, 0, promptText + pageInfo);
+                    const pText = this.trancelate.message(promptText);
+                    this.mvwaddch(menuDsp, 0, 0, pText + pageInfo);
 
                     const start = currentPage * pageSize;
                     const end = Math.min(start + pageSize, items.length);
                     for (let i = start; i < end; i++) {
-                        this.mvwaddch(menuDsp, (i - start) + 1, 0, ` ${items[i].str}`);
+                        const textStr = this.trancelate.message(items[i].str);
+                        this.mvwaddch(menuDsp, (i - start) + 1, 0, ` ${textStr}`);
                     }
 
                     if (totalPages > 1) {
@@ -463,7 +465,8 @@ function UIManager(r, g) {
                     const currentPage = Math.floor(selectedIndex / pageSize);
                     this.wclear(menuDsp);
                     const pageInfo = totalPages > 1 ? ` (Page ${currentPage + 1}/${totalPages})` : "";
-                    this.mvwaddch(menuDsp, 0, 0, promptText + pageInfo);
+                    const pText = this.trancelate.message(promptText);
+                    this.mvwaddch(menuDsp, 0, 0, pText + pageInfo);
 
                     const start = currentPage * pageSize;
                     const end = Math.min(start + pageSize, items.length);
@@ -472,8 +475,8 @@ function UIManager(r, g) {
                         const prefix = (i === selectedIndex) ? "> " : "  ";
                         const charStr = (item.identifier !== 0) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")" : " ";
                         const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " ") : " ";
-
-                        this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${item.str}`);
+                        const textStr = this.trancelate.message(item.str);
+                        this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${textStr}`);
                     }
 
 

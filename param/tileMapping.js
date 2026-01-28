@@ -235,8 +235,8 @@ function tileMapping(offsets) {
     wallset(3971, 1071 ); //sokoban wall
 
     m[3982] = 871;  //Doorway
-    m[3983] = 863;  //G_vodoor
-    m[3984] = 863;  //G_hodoor
+    m[3983] = 865;  //G_vodoor
+    m[3984] = 866;  //G_hodoor
     m[3985] = 865;  //G_vcdoor
     m[3986] = 866;  //G_hcdoor
 
@@ -250,8 +250,8 @@ function tileMapping(offsets) {
     m[3990] = 869;   // G_darkroom
     m[3991] = 872;   // G_engroom
 
-    m[3992] = 871;   // G_corr
-    m[3993] = 863;   // G_litcorr
+    m[3992] = 869;   // G_corr
+    m[3993] = 871;   // G_litcorr
     m[3994] = 872;   // G_engrcorr
 
     m[3995] = 873;   // G_upstair

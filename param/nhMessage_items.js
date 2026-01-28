@@ -132,6 +132,7 @@ function nhMessage_entity_items() {
         "long bow": "ロングボウ",
         "sling": "投石紐",
         "crossbow": "クロスボウ",
+        "your hands": "素手",
 
         // Armor
         "elven leather helm": "エルフの革の兜",
@@ -309,7 +310,6 @@ function nhMessage_entity_items() {
         "shiny": "輝く",
 
         // Amulets
-        "amulet": "護符",
         "amulet of clairvoyance": "透視のアミュレット",
         "amulet of drain resistance": "吸収耐性のアミュレット",
         "amulet of ESP": "ESPのアミュレット",
@@ -370,6 +370,9 @@ function nhMessage_entity_items() {
         "key": "鍵",
         "lamp": "ランプ",
         "bell": "ベル",
+        "harp": "ハープ",
+        "looking glass": "手鏡",
+        "looking glasses": "手鏡",
 
         // Food
         "meatball": "肉団子",
@@ -414,6 +417,9 @@ function nhMessage_entity_items() {
         "acid": "酸",
         "blood": "血",
         "water": "水",
+        "sickness": "病気",
+        "poison": "毒",
+        
 
         // Potions appearances
         "ruby": "ルビー色",
@@ -443,6 +449,8 @@ function nhMessage_entity_items() {
         "murky": "泥り",
         "clear": "透明な",
         "yellowish brown": "黄褐色",
+        "red": "赤色",
+        "green": "緑色",
 
         // Scrolls
         "enchant armor": "防具強化",
@@ -489,6 +497,7 @@ function nhMessage_entity_items() {
         "dig": "掘削",
         "cancellation": "無力化",
         "charm monster": "モンスター魅了",
+        "detect food": "食料探索",
 
         // Spellbooks appearances
         "parchment": "羊皮紙",
@@ -562,6 +571,7 @@ function nhMessage_entity_items() {
 
         // Gems
         "gem": "宝石",
+        "stone": "宝石",
         "dilithium crystal": "ディリチウムの結晶",
         "diamond": "ダイヤモンド",
         "ruby": "ルビー",
@@ -665,7 +675,7 @@ function nhMessage_pattern_items() {
         },
         {
             pattern: /^(.*) potion$/,
-            replace: "$1のポーション"
+            replace: "$1ポーション"
         },
         {
             pattern: /^(.*) wand$/,
@@ -700,12 +710,24 @@ function nhMessage_pattern_items() {
             replace: "$1の魔導書"
         },
         {
-            pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
-            replace: "$1の$2"
+            pattern: /^(.*) gem$/,
+            replace: "$1の宝石"
+        },
+        {
+            pattern: /^(.*) amulet$/,
+            replace: "$1の護符"
+        },
+        {
+            pattern: /^pair of (.*)$/,
+            replace: "一組の$1"
         },
         {
             pattern: /^(.*) in total$/,
             replace: "合計$1個"
+        },
+        {
+            pattern: /^a diluted (.*)$/,
+            replace: "薄めた$1"
         },
 
 

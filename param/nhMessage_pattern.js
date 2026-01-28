@@ -57,7 +57,12 @@ function nhMessage_pattern() {
             replace: "$1：[$2]"
         },
         {
-            pattern: /^What do you want to (.*)\? \[(.*)\]$/,
+            pattern: /^What do you want to dip into (.*)?\[(.*)\]?$/,
+            replace: "何を$1に浸けますか？ [$2"
+        },
+
+        {
+            pattern: /^What do you want to (.*)\?\[(.*)\]$/,
             replace: "何を$1しますか？ [$2]"
         },
         {
@@ -260,17 +265,15 @@ function nhMessage_pattern() {
 
         // フレーズパターン（再帰翻訳用）
         {
-            pattern: /^pair of (.*)$/,
-            replace: "一組の$1"
-        },
-
-        {
             pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
+        {
+            pattern: /^a statue of (.*)$/,
+            replace: "$1の像"
+        },
 
 
-        //
         {
             pattern: /^You are frozen by (.*)'s gaze!$/,
             replace: "$1の視線で凍りついた！"
@@ -735,9 +738,105 @@ function nhMessage_pattern() {
             pattern: /^Your (.*) isn't one-handed\.$/,
             replace: "あなたの$1は片手で扱えるものではない。"
         },
+        {
+            pattern: /^(.*) grows up into (.*)\.$/,
+            replace: "$1は$2に成長した。"
+        },
+        {
+            pattern: /^\"Hello, (.*)!  Welcome to (.*)'s (.*)!\"$/,
+            replace: "やあ、$1！$2の$3へようこそ！"
+        },
+        {
+            pattern: /^This (.*) is bland\.$/,
+            replace: "この$1は味がしない。"
+        },
+        {
+            pattern: /^That (.*) is (.*)!$/,
+            replace: "その$1は$2！"
+        },
+        {
+            pattern: /^(.*) forces (.*)$/,
+            replace: "$1は$2を強制する"
+        },
+        {
+            pattern: /^(.*) welcome to NetHack! (.*)\.$/,
+            replace: "$1、ようこそNethackへ！$2"
+        },
+        {
+            pattern: /^Do what with (.*)\?$/,
+            replace: "$1をどうする？"
+        },
+        {
+            pattern: /^Name this specific (.*)$/,
+            replace: "この特定の$1に名前を付ける"
+        },
+        {
+            pattern: /^Name this stack of (.*)$/,
+            replace: "これらの$1に名前を付ける"
+        },
+        {
+            pattern: /^Unknown direction: (.*) \(use '4', '2', '8', '6' or '.'\)\.$/,
+            replace: "未知の方向：$1（'4', '2', '8', '6' または '.' を使用）"
+        },
+        {
+            pattern: /^Call the type for (.*)s$/,
+            replace: "$1のタイプを呼び出す"
+        },
+        {
+            pattern: /^You engrave in the floor with (.*)\.$/,
+            replace: "あなたは$1で床に刻む。"
+        },
+        {
+            pattern: /^You cannot dip into (.*) gold\.$/,
+            replace: "あなたは$1に金を浸けることはできません。"
+        },
+        {
+            pattern: /^Look inside (.*)$/,
+            replace: "$1の中を確認"
+        },
+        {
+            pattern: /^stash one item into (.*)$/,
+            replace: "$1にアイテムを収納する"
+        },
+        {
+            pattern: /^You strike (.*) from behind!$/,
+            replace: "あなたは背後から$1を攻撃した！"
+        },
+        {
+            pattern: /^Contents of (.*):$/,
+            replace: "$1の収納物:"
+        },
+        {
+            pattern: /^Just picked up: (.*) gold pieces$/,
+            replace: "手持ちの金貨$1枚"
+        },
+        {
+            pattern: /^You put (.*) gold pieces into (.*)\.$/,
+            replace: "あなたは金貨$1枚を$2に収納した。"
+        },
+        {
+            pattern: /^You put (.*) into (.*)\.$/,
+            replace: "あなたは$1を$2に収納した。"
+        },
+        {
+            pattern: /^  (.*):$/,
+            replace: "  $1"
+        },
 
-
-
+        //{
+        //    pattern: /^(.*) the (.*) (.*) (.*) (.*)$/,
+        //    replace: "$2 $3 $4 $5 の $1"
+        //},
+        
+        //{
+        //    pattern: /^(.*) (.*) (.*) (.*)$/,
+        //    replace: "$1 $2 $3 $4"
+        //},
+        //{
+        //    pattern: /^(.*)　(.*) (.*) (.*) (.*)$/,
+        //    replace: "$1 $2 $3 $4 $5"
+        //},
+        
         //{
         //    pattern: /^Your (.*)$/,
         //    replace: "あなたの$1"
