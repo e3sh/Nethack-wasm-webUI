@@ -46,8 +46,8 @@ function nhMessage_entity() {
         "Odin": "オーディン",
         "Shan Lai Ching": "山海経",
         "Loki": "ロキ",
-
-        "Issek (lawful)": "イセック（秩序）",
+        "Huhetotl": "フエトートル",
+        "Issek": "イセック",
 
         //Alignment
         "alignment": "属性",
@@ -362,6 +362,8 @@ function nhMessage_entity() {
         "garter snake": "ガーターヘビ",
         "iguana": "イグアナ",
         "gus spore": "ガスの胞子",
+        "paper golem": "紙のゴーレム",
+        "orc zombie": "オークゾンビ",
 
         // その他
         "gem": "宝石",
@@ -384,6 +386,7 @@ function nhMessage_entity() {
         "eat": "食べる",
         "throw": "投げる",
         "charge": "チャージ",
+        "tin":"缶詰",
 
         // Body parts
         "your right arm": "あなたの右腕",
@@ -400,5 +403,6 @@ function nhMessage_entity() {
         "bolt of fire": "火炎の矢",
         "bolt of lightning": "稲妻の矢",
 
+        "done": "完了",
     };
 }

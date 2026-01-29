@@ -1255,6 +1255,9 @@ function nhMessage_org() {
 " (alternate weapon; not wielded)",
 " (alternate weapons; not wielded)",
 " (being worn)",
+" (at the ready)",
+" (wielded in left hand)",
+" (wielded in right hand)",
 
 "Drop this item",
 "Engrave on the stairs with this item",
@@ -1333,8 +1336,8 @@ function nhMessage_org() {
 
 "Dip something into this potion",
 "Quaff (drink) this potion",
-"(wielded)",
-"(at the ready)",
+" (wielded)",
+" (at the ready)",
 
 "Throw one of these",
 "Wield this stack as your weapon",
@@ -1395,7 +1398,108 @@ function nhMessage_org() {
 "Put in what type of objects?",
 "Items known to be Blessed",
 
+"Dip something into one of these potions",
+"Quaff (drink) one of these potions",
+"This burns like acid!",
 
+"Ring the bell",
+"Write on something with this marker",
+"Scribble graffiti on the floor",
+"Eat one of these",
+"You try to feel what is lying here on the floor.",
+
+"put in, then take out", 
+"You enter an opulent throne room!",
+
+"Break this wand",
+"Zap this wand to release its magic",
+"The door freezes and shatters!",
+"You are caught in the ball of cold!",
+"You hear the tones of courtly conversation.",
+
+"Dig with this digging tool",
+"In what direction do you want to dig?",
+"You start digging.",
+"the rock with all your might",
+"You make an opening in the wall.",
+"You stop digging.",
+"You continue digging.",
+"You succeed in cutting away some rock.",
+
+"It is hit!",
+
+"Write on the floor with one of these items",
+
+"You know, that's what I hate most about fighting against magic:",
+"you never know what they're trying to do to you until it hits.",
+"The sorceress knew what hit her, however.  Two of the shuriken",
+"got past whatever defenses she had.  One caught her just below",
+"the throat, the other in the middle of her chest.  It wouldn't",
+"kill her, but she wouldn't be fighting anyone for a while.",
+"[ Jhereg, by Steven Brust ]",
+
+"Quiver '-' to un-ready these weapons",
+"Throw one of these (same as 'f')",
+"You now have no ammunition readied.",
+
+"Lash out with this whip",
+"You cannot eat that!",
+"Snap!",
+
+"Background:",
+" You are right-handed.",
+" You are left-handed.",
+"the Dungeons of Doom,",
+"Basics:",
+" Your wallet is empty.",
+" Autopickup is off.",
+" Autopickup is on for all types.",
+"Characteristics:",
+" You have both energy points (spell power).",
+"Status:",
+" You aren't hungry.",
+" You are unencumbered.",
+" You are burdened; movement is slightly slowed.",
+"Miscellaneous:",
+
+"It develops a huge set of teeth and bites you!",
+
+"You break out in hives.",
+"Drink from the fountain?",
+"The cool draught refreshes you.",
+"The fountain dries up!",
+" You are wielding two weapons at once.",
+"Put in what?",
+"Tip all the contents out of this container",
+"Read the message inside this cookie",
+
+"Use this kit to tin a corpse",
+"You don't have anything to tin.",
+"Write on the ground with this item",
+
+"Open this tin and eat the contents",
+"Open one of these tins and eat the contents",
+
+"You stop opening the tin.",
+"You succeed in opening the tin.",
+"Eat it?",
+"This satiates your stomach!",
+
+"Engrave on the ground with this item",
+"Possibly perceiving an expression of dubiosity on their",
+"faces, the globetrotter went on adhering to his adventures.",
+"-- And I seen a man killed in Trieste by an Italian chap.",
+"Knife in his back.  Knife like that.",
+"Whilst speaking he produced a dangerous looking clasp knife,",
+"quite in keeping with his character, and held it in the",
+"striking position.",
+"-- In a knockingshop it was count of a tryon between two",
+"smugglers.  Fellow hid behind a door, come up behind him.",
+"Like that.  Prepare to meet your God, says he.  Chuck!  It",
+"went into his back up to the butt.",
+"[ Ulysses, by James Joyce ]",
+
+"Write on the ground with one of these items",
 
 
     ]

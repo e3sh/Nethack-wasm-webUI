@@ -110,6 +110,10 @@ function nhMessage_pattern() {
             replace: "あなたは$1と場所を入れ替わった。"
         },
         {
+            pattern: /^Your (.*) eats (.*)\.$/,
+            replace: "$1は$2を食べた。"
+        },
+        {
             pattern: /^(.*) eats (.*)\.$/,
             replace: "$1は$2を食べた。"
         },
@@ -780,7 +784,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^Call the type for (.*)s$/,
-            replace: "$1のタイプを呼び出す"
+            replace: "$1の呼び名を付ける"
         },
         {
             pattern: /^You engrave in the floor with (.*)\.$/,
@@ -819,7 +823,190 @@ function nhMessage_pattern() {
             replace: "あなたは$1を$2に収納した。"
         },
         {
-            pattern: /^  (.*):$/,
+            pattern: /^You feel here (.*)\.$/,
+            replace: "$1のように感じる。"
+        },
+        {
+            pattern: /^(.*) takes off your (.*)\.$/,
+            replace: "$1が$2を外した。"
+        },
+        {
+            pattern: /^(.*) tries to run away with your (.*)\.$/,
+            replace: "$1はあなたの$2を持って逃げようとした。"
+        },
+        {
+            pattern: /^You hear (.*) howling at the moon.\.$/,
+            replace: "$1が月に吠え声を上げた。"
+        },
+        {
+            pattern: /^(.*) is empty.  Do what with it\?$/,
+            replace: "$1は空です。どうしますか？"
+        },
+        {
+            pattern: /^Just picked up: (.*)$/,
+            replace: "ちょうど手に入れた：$1"
+        },
+        {
+            pattern: /^Call the type for (.*)$/,
+            replace: "$1に固有の呼び名を付ける"
+        },
+        {
+            pattern: /^Are you really sure you want to break your (.*)\?$/,
+            replace: "本当に$1を壊しますか？"
+        },
+        {
+            pattern: /^Raising your (.*) high above your head, you break it in two!$/,
+            replace: "$1を高く掲げ、真っ二つに折る！"
+        },
+        {
+            pattern: /^In what direction do you want to dig\?(.*)$/,
+            replace: "どの方向に掘りたいですか？$1"
+        },
+        {
+            pattern: /^What do you want to eat\?(.*)$/,
+            replace: "何を食べたいですか？$1"
+        },
+        {
+            pattern: /^What do you want to eat\?(.*)$/,
+            replace: "何を食べたいですか？$1"
+        },
+        //＾Xキーで表示のStatus画面用
+        {
+            pattern: /^(.*) the (.*)'s attributes:$/,
+            replace: "$2の属性：$1"
+        },
+        {
+            pattern: /^ You are a (.*), a level (.*) (.*) (.*) (.*)\.$/,
+            replace: " あなたは$1、レベル$2の$4 $3で$5です。"
+        },
+        {
+            pattern: /^ You are (.*), on a mission for (.*)$/,
+            replace: " あなたは$1側であり、$2の使命を帯びている。"
+        },
+        {
+            pattern: /^ who is opposed by (.*) \((.*)\) and (.*) \((.*)\)\.$/,
+            replace: " $1($2)と$3($4)には敵対する関係である。"
+        },
+        {
+            pattern: /^ You are in (.*) on level (.*)\.$/,
+            replace: " あなたは$1のレベル$2にいる。"
+        },
+        {
+            pattern: /^ You entered the dungeon (.*) turns ago\.$/,
+            replace: " ダンジョンに侵入してから$1ターンが経過している。"
+        },
+        {
+            pattern: /^ You have (.*) experience points\.$/,
+            replace: " 取得した経験値は$1ポイント。"
+        },
+        {
+            pattern: /^ You have all (.*) hit points\.$/,
+            replace: " ヒットポイントは全$1ポイント。"
+        },
+        {
+            pattern: /^ You have (.*) out of (.*) hit points\.$/,
+            replace: " ヒットポイントは全部で$2の内$1ポイント。"
+        },
+        {
+            pattern: /^ You have (.*) energy points (spell power)\.$/,
+            replace: " 魔力は全$1ポイント。"
+        },
+        {
+            pattern: /^ Your armor class is (.*)\.$/,
+            replace: " アーマークラスは$1。"
+        },
+        {
+            pattern: /^ Your wallet contains (.*) zorkmids\.$/,
+            replace: " 財布には$1ゾークミッド入っている。"
+        },
+        {
+            pattern: /^ Your strength is (.*)\.$/,
+            replace: " 筋力は$1。"
+        },
+        {
+            pattern: /^ Your dexterity is (.*)\.$/,
+            replace: " 敏捷性は$1。"
+        },
+        {
+            pattern: /^ Your constitution is (.*)\.$/,
+            replace: " 体力は$1。"
+        },
+        {
+            pattern: /^ Your intelligence is (.*)\.$/,
+            replace: " 知性は$1。"
+        },
+        {
+            pattern: /^ Your wisdom is (.*)\.$/,
+            replace: " 知恵は$1。"
+        },
+        {
+            pattern: /^ Your charisma is (.*)\.$/,
+            replace: " 魅力は$1。"
+        },
+        {
+            pattern: /^ You are wielding a (.*)\.$/,
+            replace: " $1を装備しています。"
+        },
+        {
+            pattern: /^ You have basic skill with (.*)\.$/,
+            replace: " $1の基本的なスキルを持っています。"
+        },
+        {
+            pattern: /^ Total elapsed playing time is (.*) minutes and (.*) seconds\.$/,
+            replace: " 総プレイ時間は$1分$2秒です。"
+        },
+        {
+            pattern: /^current; peak:(.*)$/,
+            replace: "最大値:$1"
+        },
+        //
+        {
+            pattern: /^(.*) is always the height of fashion\.$/,
+            replace: "$1は常に最先端のファッションだ。"
+        },
+        {
+            pattern: /^You carefully open (.*)\.\.\.$/,
+            replace: "あなたは慎重に$1を開ける..."
+        },
+        {
+            pattern: /^What do you want to (.*)\? (.*)$/,
+            replace: "何を$1しますか？$2"
+        },
+        {
+            pattern: /^a tin of (.*) meat$/,
+            replace: "$1肉の缶詰"
+        },
+        {
+            pattern: /^a tin of (.*)$/,
+            replace: "$1の缶詰"
+        },
+        {
+            pattern: /^You knock (.*) backward with a powerful blow!$/,
+            replace: "強力な一撃で$1を後方へ吹き飛ばした！"
+        },
+        {
+            pattern: /^It smells like (.*)\.$/,
+            replace: "$1のような匂いがする。"
+        },
+        {
+            pattern: /^You consume homemade (.*)\.$/,
+            replace: "自家製の$1を消費した。"
+        },
+        {
+            pattern: /^There is (.*) here; tin it\?$/,
+            replace: "ここに$1がある；缶詰にするか？"
+        },
+        {
+            pattern: /^Using your (.*) you try to open the tin\.$/,
+            replace: "$1で缶を開けようとする。"
+        },
+
+        {
+            pattern: /^(.*) \((.*)\)$/,
+            replace: "$1 ($2)"
+        },
+        {
+            pattern: /^  (.*)$/,
             replace: "  $1"
         },
 
@@ -829,7 +1016,7 @@ function nhMessage_pattern() {
         //},
         
         //{
-        //    pattern: /^(.*) (.*) (.*) (.*)$/,
+        //    pattern: /^<(.*)> <(.*)> <(.*)> <(.*)>$/,
         //    replace: "$1 $2 $3 $4"
         //},
         //{

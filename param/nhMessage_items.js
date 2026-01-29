@@ -133,6 +133,8 @@ function nhMessage_entity_items() {
         "sling": "投石紐",
         "crossbow": "クロスボウ",
         "your hands": "素手",
+        "pick-axe": "つるはし",
+        "whip":"鞭",
 
         // Armor
         "elven leather helm": "エルフの革の兜",
@@ -255,6 +257,7 @@ function nhMessage_entity_items() {
         "fumble boots": "下手な靴",
         "levitation boots": "浮遊の靴",
         "snow boots": "スノーブーツ",
+        "destroy armor":"壊れている防具",
 
         // Rings
         "adornment": "飾り",
@@ -356,6 +359,7 @@ function nhMessage_entity_items() {
         "towel": "タオル",
         "saddle": "鞍",
         "leash": "紐",
+        "stethoscope": "聴診器",
         "stethoscopes": "聴診器",
         "tinning kit": "缶詰作成キット",
         "tin opener": "缶切り",
@@ -373,6 +377,7 @@ function nhMessage_entity_items() {
         "harp": "ハープ",
         "looking glass": "手鏡",
         "looking glasses": "手鏡",
+        "bag": "かばん",
 
         // Food
         "meatball": "肉団子",
@@ -396,6 +401,7 @@ function nhMessage_entity_items() {
         "slime mold": "スライム・モールド",
         "tripe ration": "干しホルモン",
         "melon": "メロン",
+        "sprigs of wolfsbane": "トリカブトの小枝",
 
         // Potions
         "gain ability": "能力上昇",
@@ -419,6 +425,8 @@ function nhMessage_entity_items() {
         "water": "水",
         "sickness": "病気",
         "poison": "毒",
+        "holy water": "聖水",
+        "water": "水",
         
 
         // Potions appearances
@@ -546,6 +554,12 @@ function nhMessage_entity_items() {
         "undead turning": "アンデッドを追い払う",
         "make invisible": "透明化",
         "wishing": "願い",
+        "fire": "火炎",
+        "cold": "冷気",
+        "lightning": "稲妻",
+        "polymorph": "変身",
+        "cancellation": "無力化",
+        "teleportation": "テレポート",
 
         // Wands appearances
         "balsa": "バルサ材",
@@ -642,6 +656,10 @@ function nhMessage_entity_items() {
         " (weapon in left hand)": "（左手の武器）",
         " (being worn)": "（装備中）",
         "pair of ": "一対の",
+        "empty": "空の",
+        "rustproof ": "さび付かない",
+        "(at the ready)": "（準備完了）",
+
     };
 
 }
@@ -728,6 +746,14 @@ function nhMessage_pattern_items() {
         {
             pattern: /^a diluted (.*)$/,
             replace: "薄めた$1"
+        },
+        {
+            pattern: /^an empty (.*)$/,
+            replace: "空の$1"
+        },
+        {
+            pattern: /^a tin of (.*) meat$/,
+            replace: "$1肉の缶詰"
         },
 
 

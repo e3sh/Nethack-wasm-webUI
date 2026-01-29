@@ -14,18 +14,30 @@ function trancelate(r) {
     const trtable_p_items = (typeof nhMessage_pattern_items === 'function') ? nhMessage_pattern_items() : [];
     const trtable_e_items = (typeof nhMessage_entity_items === 'function') ? nhMessage_entity_items() : {};
 
+    let refcnt = 0;
     let buf = [];
-    let icache = {};
+    const icache = {};
 
     if (Boolean(localStorage.getItem("nh.temp"))) {
         buf = JSON.parse(localStorage.getItem("nh.temp"));
     }
 
     this.message = (msg) => {
-        return get_translation_data(msg);
+        refcnt = 0;
+
+        const result = get_translation_data(msg);
+        if (d.DEBUG_MSG){
+            if (msg != result) {
+                console.log(`o ref: ${refcnt}, msg: "${msg}", result: "${result}"`);
+            } else {
+                console.log(`x ref: ${refcnt}, msg: "${msg}"`);
+            }
+        }
+        return result;
     }
 
     function get_translation_data(msg) {
+        refcnt++;
         if (tmode == false) return msg;
         if (!msg || typeof msg !== 'string') return msg;
 
@@ -39,6 +51,12 @@ function trancelate(r) {
         // そのまま検索
         if (trtable_entities[msg]) {
             return trtable_entities[msg];
+        }
+        
+        //2.5 item cache check（インベントリ表示時のアイテム名翻訳高速化用キャッシュ）
+        if (icache[msg]) {
+            //console.log(`Item translation cache hit: "${msg}" -> "${icache[msg]}"`);
+            return icache[msg];
         }
 
         // 正規化して検索（冠詞の除去など）
@@ -67,12 +85,19 @@ function trancelate(r) {
 
         // 数量/冠詞の分離
         let quantity = "";
-        let qtyMatch = itemResult.match(/^(The|A|An|the|a|an|\d+)\s+(.*)$/i);
+        let qtyMatch = itemResult.match(/^(Your|your|The|A|An|the|a|an|\d+)\s+(.*)$/i);
         if (qtyMatch) {
             quantity = qtyMatch[1];
             itemResult = qtyMatch[2];
         }
 
+        //空状態(箱、袋など)
+        let empty = "";
+        let emptyMatch = itemResult.match(/^(empty)\s+(.*)$/i);
+        if (emptyMatch) {
+            empty = emptyMatch[1];
+            itemResult = emptyMatch[2];
+        }
         // BUC (blessed, cursed, uncursed) / Locks(locked, unlocked) /Traps(trapped, broken)
         let buc = "";
         let bucMatch = itemResult.match(/^(blessed|cursed|uncursed|locked|unlocked|trapped|broken)\s+(.*)$/i);
@@ -126,8 +151,9 @@ function trancelate(r) {
 
         // 翻訳が成功した場合のみ合成
         if (bodyTranslated) {
-            //let chcheMsg = "";
+            let chcheMsg = "";
             let finalMsg = "";
+            if (empty) finalMsg += get_translation_data(empty) + " ";
             if (buc) finalMsg += get_translation_data(buc) + " ";
             if (erosion) finalMsg += get_translation_data(erosion) + " ";
             if (enchant) finalMsg += enchant + " ";
@@ -135,23 +161,18 @@ function trancelate(r) {
             if (quantity && !(/^(The|A|An|the|a|an)$/i.test(quantity))) {
                 finalMsg += " (" + quantity + "個)";
             }
-            //chcheMsg = finalMsg;
             if (suffix) {
                 finalMsg += get_translation_data(suffix);
             }
-            /*
+            chcheMsg = finalMsg;
             if (Boolean(icache[msg]) == false){ // キャッシュ未登録の場合
                 if (trtable_e_items[msg] == null) // アイテム辞書に存在しない場合のみキャッシュ登録
                 {
                     icache[msg] = chcheMsg;
-                    console.log(`Item translated: "${msg}" -> "${chcheMsg}"`);
-                    console.log(`icache:${Object.keys(icache).length}`);
+                    //console.log(`Item translated: "${msg}" -> "${chcheMsg} i:${Object.keys(icache).length}`);
+                    if (d.DEBUG_MSG) console.log(`Item translated:${Object.keys(icache).length}`);
                 }
-
-            } else {
-                console.log(`Item translation cache hit: "${msg}" -> "${icache[msg]}"`);
             }
-            */
             return finalMsg.trim();
         }
 
