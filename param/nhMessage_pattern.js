@@ -764,7 +764,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^(.*) welcome to NetHack! (.*)\.$/,
-            replace: "$1、ようこそNethackへ！$2"
+            replace: "$1 ようこそNethackへ！$2"
         },
         {
             pattern: /^Do what with (.*)\?$/,
@@ -876,8 +876,12 @@ function nhMessage_pattern() {
             replace: "$2の属性：$1"
         },
         {
-            pattern: /^ You are a (.*), a level (.*) (.*) (.*) (.*)\.$/,
-            replace: " あなたは$1、レベル$2の$4 $3で$5です。"
+            pattern: /^ You are (a|an) (.*), a level (.*) (.*) (.*) (.*)\.$/,
+            replace: " あなたは$2、レベル$3の$5 $4で$6です。"
+        },
+        {
+            pattern: /^ You are (a|an) (.*), a level (.*) (.*) (.*)\.$/,
+            replace: " あなたは$2、レベル$3の$4 $5です。"
         },
         {
             pattern: /^ You are (.*), on a mission for (.*)$/,
@@ -896,20 +900,28 @@ function nhMessage_pattern() {
             replace: " ダンジョンに侵入してから$1ターンが経過している。"
         },
         {
-            pattern: /^ You have (.*) experience points\.$/,
+            pattern: /^ You have (.*) experience (point|points)\.$/,
             replace: " 取得した経験値は$1ポイント。"
         },
         {
             pattern: /^ You have all (.*) hit points\.$/,
-            replace: " ヒットポイントは全$1ポイント。"
+            replace: " ヒットポイントは全部で$1。"
         },
         {
             pattern: /^ You have (.*) out of (.*) hit points\.$/,
-            replace: " ヒットポイントは全部で$2の内$1ポイント。"
+            replace: " ヒットポイントは全部で$2の内$1。"
         },
         {
-            pattern: /^ You have (.*) energy points (spell power)\.$/,
-            replace: " 魔力は全$1ポイント。"
+            pattern: /^ You have all (.*) energy points (.*)\.$/,
+            replace: " 魔力は全部で$1。"
+        },
+        {
+            pattern: /^ You have (.*) energy points (.*)\.$/,
+            replace: " 魔力は$1。"
+        },
+        {
+            pattern: /^ You have (.*) out of (.*) energy points (.*)\.$/,
+            replace: " 魔力は全部で$2の内$1ポイント。"
         },
         {
             pattern: /^ Your armor class is (.*)\.$/,
@@ -956,9 +968,18 @@ function nhMessage_pattern() {
             replace: " 総プレイ時間は$1分$2秒です。"
         },
         {
+            pattern: /^ Total elapsed playing time is (.*) seconds\.$/,
+            replace: " 総プレイ時間は$1秒です。"
+        },
+        {
             pattern: /^current; peak:(.*)$/,
             replace: "最大値:$1"
         },
+        {
+            pattern: /^current; limit:(.*)$/,
+            replace: "限界値:$1"
+        },
+
         //
         {
             pattern: /^(.*) is always the height of fashion\.$/,
@@ -1000,6 +1021,49 @@ function nhMessage_pattern() {
             pattern: /^Using your (.*) you try to open the tin\.$/,
             replace: "$1で缶を開けようとする。"
         },
+        {
+            pattern: /^You have extreme difficulty lifting (.*)\.  (.*)$/,
+            replace: "$1は持ち上げるのが非常に困難です。$2"
+        },
+        {
+            pattern: /^You have extreme difficulty lifting (.*)$/,
+            replace: "$1は持ち上げるのが非常に困難です"
+        },
+        {
+            pattern: /^Listen through (.*)$/,
+            replace: "$1で聴診する"
+        },
+        {
+            pattern: /^You begin praying to (.*)\.$/,
+            replace: "あなたは$1に祈りを捧げ始める。"
+        },
+        {
+            pattern: /^You feel that (.*) is pleased\.$/,
+            replace: "$1が喜んでいると感じる。"
+        },
+        {
+            pattern: /^You feel that (.*) is displeased\.$/,
+            replace: "$1が不快に思っていると感じる。"
+        },
+        {
+            pattern: /^You feel that (.*) is displeased\.$/,
+            replace: "$1が不快に思っていると感じる。"
+        },
+        {
+            pattern: /^You start playing your (.*)\.$/,
+            replace: "$1を叩き始める。"
+        },
+        {
+            pattern: /^Rub this (.*)$/,
+            replace: "この$1を撫でる。"
+        },
+        {
+            pattern: /^You now wield (.*)$/,
+            replace: "$1を手にした。"
+        },
+
+
+
 
         {
             pattern: /^(.*) \((.*)\)$/,

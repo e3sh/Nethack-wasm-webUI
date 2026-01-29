@@ -378,6 +378,7 @@ function nhMessage_entity_items() {
         "looking glass": "手鏡",
         "looking glasses": "手鏡",
         "bag": "かばん",
+        "leather drum": "革の太鼓",
 
         // Food
         "meatball": "肉団子",
@@ -672,7 +673,7 @@ function nhMessage_pattern_items() {
             replace: "$1の屍"
         },
         {
-            pattern: /^a corpse of (.*)$/,
+            pattern: /^corpse of (.*)$/,
             replace: "$1の死体"
         },
         {
@@ -680,7 +681,7 @@ function nhMessage_pattern_items() {
             replace: "$1の像"
         },
         {
-            pattern: /^a statue of (.*)$/,
+            pattern: /^statue of (.*)$/,
             replace: "$1の像"
         },
         {
@@ -744,16 +745,20 @@ function nhMessage_pattern_items() {
             replace: "合計$1個"
         },
         {
-            pattern: /^a diluted (.*)$/,
+            pattern: /^diluted (.*)$/,
             replace: "薄めた$1"
         },
         {
-            pattern: /^an empty (.*)$/,
+            pattern: /^empty (.*)$/,
             replace: "空の$1"
         },
         {
-            pattern: /^a tin of (.*) meat$/,
+            pattern: /^tin of (.*) meat$/,
             replace: "$1肉の缶詰"
+        },
+        {
+            pattern: /^tin of (.*)$/,
+            replace: "$1の缶詰"
         },
 
 

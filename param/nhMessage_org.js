@@ -652,8 +652,6 @@ function nhMessage_org() {
         "        [ A Connecticut Yankee in King Arthur's Court,",
         "            by Mark Twain ]",
 
-        "Hello player, welcome to NetHack!  You are a neutral female gnomish Archeologist.",
-
         '"Good," he said and, unbelievably, smiled at me, a smirk like',
         'a round of rotted cheese.  "What did your keeper use on you?',
         'A bullwhip?"',
@@ -1449,7 +1447,9 @@ function nhMessage_org() {
 "Background:",
 " You are right-handed.",
 " You are left-handed.",
+"the Tutorial,",
 "the Dungeons of Doom,",
+" You have just started your adventure.",
 "Basics:",
 " Your wallet is empty.",
 " Autopickup is off.",
@@ -1461,6 +1461,10 @@ function nhMessage_org() {
 " You are unencumbered.",
 " You are burdened; movement is slightly slowed.",
 "Miscellaneous:",
+" You are bare handed.",
+" You are empty handed.",
+" You are unskilled in bare handed combat.",
+" You aren't wearing any armor.",
 
 "It develops a huge set of teeth and bites you!",
 
@@ -1501,6 +1505,25 @@ function nhMessage_org() {
 
 "Write on the ground with one of these items",
 
+"You can barely move a handspan with this load!",
+" You are overtaxed; movement is extremely slowed.",
+"You can't do that while carrying so much stuff.",
+"You slide on the ice.",
+"You make a lot of noise!",
+"You slip on the ice.",
+"Ouch!",
+
+"Name this specific",
+"Are you sure you want to pray?",
+"You are surrounded by a shimmering light.",
+"You finish your prayer.",
+
+"Play this musical instrument",
+"You beat a deafening row!",
+
+"Light this light source",
+"Your lamp is now on.",
+"Extinguish this light source",
 
     ]
 }

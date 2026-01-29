@@ -26,7 +26,7 @@ function trancelate(r) {
         refcnt = 0;
 
         const result = get_translation_data(msg);
-        if (d.DEBUG_MSG){
+        if (d.DEBUG_MSG) {
             if (msg != result) {
                 console.log(`o ref: ${refcnt}, msg: "${msg}", result: "${result}"`);
             } else {
@@ -52,7 +52,7 @@ function trancelate(r) {
         if (trtable_entities[msg]) {
             return trtable_entities[msg];
         }
-        
+
         //2.5 item cache check（インベントリ表示時のアイテム名翻訳高速化用キャッシュ）
         if (icache[msg]) {
             //console.log(`Item translation cache hit: "${msg}" -> "${icache[msg]}"`);
@@ -128,16 +128,19 @@ function trancelate(r) {
         // items.js (trtable_e_items) を優先的に参照し、アイテム判定の基準とする
         let bodyTranslated = trtable_e_items[itemResult] || trtable_entities[itemResult];
 
-        // 複数形sの試行
+        // 複数形の単数化試行
+        let singularBody = null;
         if (!bodyTranslated) {
-            let singularBody = itemResult.replace(/s$/i, "");
+            // "potions of healing" -> "potion of healing", "long swords" -> "long sword"
+            singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
             bodyTranslated = trtable_e_items[singularBody] || trtable_entities[singularBody];
         }
 
         // アイテム専用パターンの試行 (corpse, statue, etc.)
         if (!bodyTranslated) {
             for (let entry of trtable_p_items) {
-                let pMatch = itemResult.match(entry.pattern);
+                // 元の名称、または単数化した名称でマッチング
+                let pMatch = itemResult.match(entry.pattern) || (singularBody ? singularBody.match(entry.pattern) : null);
                 if (pMatch) {
                     bodyTranslated = entry.replace;
                     for (let i = 1; i < pMatch.length; i++) {
@@ -165,7 +168,7 @@ function trancelate(r) {
                 finalMsg += get_translation_data(suffix);
             }
             chcheMsg = finalMsg;
-            if (Boolean(icache[msg]) == false){ // キャッシュ未登録の場合
+            if (Boolean(icache[msg]) == false) { // キャッシュ未登録の場合
                 if (trtable_e_items[msg] == null) // アイテム辞書に存在しない場合のみキャッシュ登録
                 {
                     icache[msg] = chcheMsg;
