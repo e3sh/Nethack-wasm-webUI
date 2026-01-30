@@ -57,7 +57,7 @@ function nhMessage_pattern() {
             replace: "$1：[$2]"
         },
         {
-            pattern: /^What do you want to dip into (.*)?\[(.*)\]?$/,
+            pattern: /^What do you want to dip into (.*)\?\[(.*)\]\?$/,
             replace: "何を$1に浸けますか？ [$2"
         },
 
@@ -787,8 +787,8 @@ function nhMessage_pattern() {
             replace: "$1の呼び名を付ける"
         },
         {
-            pattern: /^You engrave in the floor with (.*)\.$/,
-            replace: "あなたは$1で床に刻む。"
+            pattern: /^You engrave in (.*) with (.*)\.$/,
+            replace: "あなたは$2で$1に刻む。"
         },
         {
             pattern: /^You cannot dip into (.*) gold\.$/,
@@ -1058,12 +1058,73 @@ function nhMessage_pattern() {
             replace: "この$1を撫でる。"
         },
         {
-            pattern: /^You now wield (.*)$/,
+            pattern: /^You now wield (.*)\.$/,
             replace: "$1を手にした。"
         },
-
-
-
+        {
+            pattern: /^Hello (.*), (.*) (.*), welcome back to NetHack!$/,
+            replace: "やあ、$2で$3の$1さん。NetHackへおかえりなさい！"
+        },
+        {
+            pattern: /^(.*) looks a little more polished now\.$/,
+            replace: "$1は今、少し磨きがかかったように見える。"
+        },
+        {
+            pattern: /^one of the (.*)\?(.*)$/,
+            replace: "$1のひとつ？$2"
+        },
+        {
+            pattern: /^Your (.*) glows with a light blue aura\.$/,
+            replace: "あなたの$1が、淡い青のオーラを放っている。"
+        },
+        {
+            pattern: /^You write in the dust with (.*)\.$/,
+            replace: "あなたは$1で塵の上に書き記す。"
+        },
+        {
+            pattern: /^Your (.*) gets dull\.$/,
+            replace: "あなたの$1が鈍る。"
+        },
+        {
+            pattern: /^Something is engraved here on (.*)\.$/,
+            replace: "$1のここに何かが刻まれている。"
+        },
+        {
+            pattern: /^(.*) is locked\.$/,
+            replace: "$1は施錠されている。"
+        },
+        {
+            pattern: /^You are only able to write "(.*)"\.$/,
+            replace: "入力できる文字列は「$1」のみです"
+        },
+        {
+            pattern: /^You finish writing in (.*)\.$/,
+            replace: "$1への書き込みを完了しました。"
+        },
+        {
+            pattern: /^What do you want to write in (.*) here\?$/,
+            replace: "この$1の上に、何を書き記したいのか？"
+        },
+        {
+            pattern: /^dip into one of (.*)$/,
+            replace: "$1の一つに何を浸す？"
+        },
+        {
+            pattern: /^dip into (.*)$/,
+            replace: "$1に何を浸す？"
+        },
+        {
+            pattern: /^You scribble on (.*) with (.*)\.$/,
+            replace: "$2で$1に落書きする。"
+        },
+        {
+            pattern: /^What do you want to scribble on (.*) here\?$/,
+            replace: "$1に何を落書きしたいの？"
+        },
+        {
+            pattern: /^(.*) catches (.*)\.$/,
+            replace: "$1が$2を捕まえた。"
+        },
 
         {
             pattern: /^(.*) \((.*)\)$/,

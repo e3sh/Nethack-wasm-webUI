@@ -407,6 +407,7 @@ function nhMessage_entity() {
         "throw": "投げる",
         "charge": "チャージ",
         "tin":"缶詰",
+        "rub on the stone": "石を擦る",
 
         // Body parts
         "your right arm": "あなたの右腕",
@@ -428,6 +429,13 @@ function nhMessage_entity() {
         "thin air": "薄い空気",
         "lit": "点灯",
         "bare handed combat": "素手での戦闘",
+
+        "stairs": "階段",
+        "floor": "床",
+        "dust": "ほこり",
+
+        "your hands": "素手",
+
         
     };
 }

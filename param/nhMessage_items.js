@@ -379,6 +379,9 @@ function nhMessage_entity_items() {
         "looking glasses": "手鏡",
         "bag": "かばん",
         "leather drum": "革の太鼓",
+        "flint stone": "火打石",
+        "in quiver pouch": "矢筒内",
+        "in quiver": "矢筒内",
 
         // Food
         "meatball": "肉団子",
@@ -403,6 +406,8 @@ function nhMessage_entity_items() {
         "tripe ration": "干しホルモン",
         "melon": "メロン",
         "sprigs of wolfsbane": "トリカブトの小枝",
+        "sprig of wolfsbane": "トリカブトの小枝",
+        "carrot": "人参",
 
         // Potions
         "gain ability": "能力上昇",
@@ -656,7 +661,7 @@ function nhMessage_entity_items() {
         " (weapon in right hand)": "（右手の武器）",
         " (weapon in left hand)": "（左手の武器）",
         " (being worn)": "（装備中）",
-        "pair of ": "一対の",
+        "pair of": "一対の",
         "empty": "空の",
         "rustproof ": "さび付かない",
         "(at the ready)": "（準備完了）",
@@ -759,6 +764,10 @@ function nhMessage_pattern_items() {
         {
             pattern: /^tin of (.*)$/,
             replace: "$1の缶詰"
+        },
+        {
+            pattern: /^(.*) named (.*)$/,
+            replace: "$2と名付けられた$1"
         },
 
 

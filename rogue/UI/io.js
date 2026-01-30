@@ -19,6 +19,8 @@ function io(r, g) {
 	 *  Display a prompt and get user input from the game screen.
 	 */
 	this.showInput = function (query) {
+		if (Boolean(r.UI.trancelate))
+			query = r.UI.trancelate.message(query);
 		return new Promise((resolve) => {
 
 			let inputStr = "";

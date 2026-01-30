@@ -689,8 +689,6 @@ function nhMessage_org() {
         '"Gold is tried by a touchstone, men by gold."',
         "        [ Chilon (c. 560 BC) ]",
 
-        "a pair of buckled boots",
-
         "A scalpel is a very sharp knife used for surgery ... Merely",
         "touching a medical scalpel with bare hands to test it will",
         "cut through the skin. ... Medical scalpel blades are gradually",
@@ -1524,6 +1522,20 @@ function nhMessage_org() {
 "Light this light source",
 "Your lamp is now on.",
 "Extinguish this light source",
+
+"Rub something on this stone",
+`"scritch, scritch"`,
+"You make golden scratch marks on the stone.",
+"Ready this as an alternate weapon",
+"Quiver '-' to un-ready these items",
+
+"You stop engraving.",
+"You must put it down to unlock.",
+"You cannot write any more.",
+"Not carrying anything.",
+"The sleep ray hits you!",
+
+"You feel more experienced.",
 
     ]
 }
