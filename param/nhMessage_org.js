@@ -1537,5 +1537,36 @@ function nhMessage_org() {
 
 "You feel more experienced.",
 
+"Gaggg... this tastes like sewage!  You vomit.",
+"Some fizzy liquid flows from the faucet.",
+"Huh, What?  Where am I?",
+"This tepid water is tasteless.",
+"Wow!  This makes you feel great!",
+"You feel charismatic!",
+"A wisp of vapor escapes the fountain...",
+
+"Quiver this stack for easy shooting with 'f'ire",
+"Shoot one of these",
+"Shoot one of these with your wielded sling",
+
+"You are caught in the magical blast!",
+"Gee!  All of a sudden, you can't see yourself.",
+
+"Wield '-' to un-wield this item",
+
+"The magic missile hits you!",
+"The missiles bounce off!",
+
+"Put this on",
+"You can't see any more.",
+"Remove this eyewear",
+"The door crashes open!",
+"You don't find anything.",
+
+"You break up the cookie and throw away the pieces.",
+"Let's have a party, drink a lot of booze.",
+"They say that you should pray for divine inspiration.",
+
+
     ]
 }

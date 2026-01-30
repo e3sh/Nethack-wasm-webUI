@@ -436,6 +436,9 @@ function nhMessage_entity() {
 
         "your hands": "素手",
 
+        "sink": "流し台",
+        "fountain": "噴水",
+
         
     };
 }

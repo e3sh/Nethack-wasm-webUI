@@ -21,7 +21,7 @@ function barEffect(g, x, y, width, height){
 		device.putFunc(barDraw);
 
 		if (before_barwidth > now_bw) before_barwidth = before_barwidth - 1;
-		if (before_barwidth < now_bw) before_barwidth = before_barwidth + 1//now_bw;
+		if (before_barwidth < now_bw) before_barwidth = before_barwidth + 3//now_bw;
 	};
 
 	//hpbar

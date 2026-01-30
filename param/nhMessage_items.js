@@ -283,6 +283,8 @@ function nhMessage_entity_items() {
         "slow digestion": "消化鈍化",
         "teleportation": "テレポート",
         "teleport control": "テレポート制御",
+        "protection from shape changers": "変身者からの防御",
+        "polymorph control":"変身制御",
 
         // Rings appearances
         "wooden": "木製",
@@ -382,6 +384,7 @@ function nhMessage_entity_items() {
         "flint stone": "火打石",
         "in quiver pouch": "矢筒内",
         "in quiver": "矢筒内",
+        "tooled horn": "加工された角",
 
         // Food
         "meatball": "肉団子",
@@ -433,7 +436,9 @@ function nhMessage_entity_items() {
         "poison": "毒",
         "holy water": "聖水",
         "water": "水",
-        
+        "invisibility": "透明化",
+        "sleeping:": "睡眠状態",    
+        "gain level": "レベル上昇",
 
         // Potions appearances
         "ruby": "ルビー色",
@@ -485,6 +490,7 @@ function nhMessage_entity_items() {
         "charging": "充填",
         "genocide": "大虐殺",
         "stinking cloud": "悪臭の雲",
+        "confuse monster": "モンスター混乱",
 
         // Spellbooks
         "force bolt": "フォースボルト",
@@ -512,6 +518,7 @@ function nhMessage_entity_items() {
         "cancellation": "無力化",
         "charm monster": "モンスター魅了",
         "detect food": "食料探索",
+        "detect unseen" : "見えないものを検知",
 
         // Spellbooks appearances
         "parchment": "羊皮紙",
@@ -665,6 +672,8 @@ function nhMessage_entity_items() {
         "empty": "空の",
         "rustproof ": "さび付かない",
         "(at the ready)": "（準備完了）",
+        "on left hand": "左手に装備",
+        "on right hand": "右手に装備",
 
     };
 

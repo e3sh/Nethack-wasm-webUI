@@ -60,11 +60,6 @@ function nhMessage_pattern() {
             pattern: /^What do you want to dip into (.*)\?\[(.*)\]\?$/,
             replace: "何を$1に浸けますか？ [$2"
         },
-
-        {
-            pattern: /^What do you want to (.*)\?\[(.*)\]$/,
-            replace: "何を$1しますか？ [$2]"
-        },
         {
             pattern: /^You see here (.*)\.$/,
             replace: "ここに$1がある。"
@@ -1125,6 +1120,43 @@ function nhMessage_pattern() {
             pattern: /^(.*) catches (.*)\.$/,
             replace: "$1が$2を捕まえた。"
         },
+        {
+            pattern: /^Drink from (.*)\?$/,
+            replace: "$1から飲みますか？"
+        },
+        {
+            pattern: /^(.*) yowls!$/,
+            replace: "$1が鳴く！"
+        },
+        {
+            pattern: /^You find (.*) in (.*)!$/,
+            replace: "$2で$1を見つけた！"
+        },
+        {
+            pattern: /^You feel (.*)!$/,
+            replace: "あなたは$1と感じる！"
+        },
+        {
+            pattern: /(.*) mixes with (.*)\.\.\.$/,
+            replace: "$1が$2と混ざり合う..."
+        },
+        {
+            pattern: /The mixture looks (.*)\.$/,
+            replace: "混ざった液体は$1に輝く。"
+        },
+        {
+            pattern: /A wisp of vapor escape (.*)\.\.\.$/,
+            replace: "$1から一筋の水蒸気が立ち上る..."
+        },
+        {
+            pattern: /To achieve the next higher rating, you need (.*) more points\.$/,
+            replace: "次のランクアップには、あと$1ポイント必要だ。"
+        },
+
+        {
+            pattern: /^What do you want to (.*)\?\[(.*)\]$/,
+            replace: "何を$1しますか？ [$2]"
+        },
 
         {
             pattern: /^(.*) \((.*)\)$/,
@@ -1134,6 +1166,8 @@ function nhMessage_pattern() {
             pattern: /^  (.*)$/,
             replace: "  $1"
         },
+
+
 
         //{
         //    pattern: /^(.*) the (.*) (.*) (.*) (.*)$/,
