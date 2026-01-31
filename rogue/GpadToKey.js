@@ -110,11 +110,12 @@ function GpadToKey(g) {
                 L3: null,
                 R3: null,
             },
-            RB_RT: null,
-            LB_RB: null,
-            LT_RT: null,
-            LB_RT: null,
-            LT_RB: null,
+            RB_RT: null, //左同時2個押し
+            LB_LT: null, //右同時　 
+            LB_RB: null, //上列同時2個押し
+            LT_RT: null, //下列同時　
+            LB_RT: null, //左上右下同時
+            LT_RB: null, //右上左下同時
         }
     if (!Boolean(buf)) {
         localStorage.setItem("nh.gpadAssign", JSON.stringify(KEYASSIGN));
