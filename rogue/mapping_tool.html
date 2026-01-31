@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GpadToKey Mapping Utility</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(129, 140, 248, 0.05) 0%, transparent 40%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 2rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            flex-grow: 1;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .controller-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .btn-slot {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-slot:hover {
+            border-color: var(--accent-primary);
+            background: rgba(56, 189, 248, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .btn-slot.selected {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-primary);
+        }
+
+        .btn-slot.active-input {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-id {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .btn-label {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .btn-keys {
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .editor-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+
+        /* Layout Guide & Help */
+        .help-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .layout-guide {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .layout-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .layout-item b {
+            color: var(--accent-primary);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--accent-primary);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .key-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .key-item {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        footer {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        /* Pad Visualizer Component */
+        .pad-viz {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #334155;
+            transition: background 0.3s;
+        }
+
+        .led.active {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        #key-capture-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .overlay-content {
+            background: var(--bg-color);
+            padding: 3rem;
+            border-radius: 2rem;
+            border: 1px solid var(--accent-primary);
+            text-align: center;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
+        .capture-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .capture-row input {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>GpadToKey Configuration</h1>
+    </header>
+
+    <div class="container">
+        <div class="main-panel">
+            <div class="card">
+                <div class="pad-viz">
+                    <div id="pad-led" class="led"></div>
+                    <span id="pad-status">Gamepad not detected</span>
+                </div>
+
+                <div class="mode-selector">
+                    <button class="mode-btn active" onclick="switchMode('NORMAL')">NORMAL</button>
+                    <button class="mode-btn" onclick="switchMode('LB')">LB</button>
+                    <button class="mode-btn" onclick="switchMode('LT')">LT</button>
+                    <button class="mode-btn" onclick="switchMode('RB')">RB</button>
+                    <button class="mode-btn" onclick="switchMode('RT')">RT</button>
+                </div>
+
+                <div id="controller-view" class="controller-grid">
+                    <!-- Slots will be generated by JS -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Gamepad Layout Guide (Logical)</h3>
+                <div class="layout-guide">
+                    <div class="layout-item"><span>Left / Up / Right / Down</span><b>P4 / P8 / P6 / P2</b></div>
+                    <div class="layout-item"><span>Diagonal (UL/UR/DL/DR)</span><b>P7 / P9 / P1 / P3</b></div>
+                    <div class="layout-item"><span>Face Buttons (X/Y/A/B)</span><b>X / Y / A / B</b></div>
+                    <div class="layout-item"><span>Shoulder (LB / RB)</span><b>LB / RB</b></div>
+                    <div class="layout-item"><span>Trigger (LT / RT)</span><b>LT / RT</b></div>
+                    <div class="layout-item"><span>Stick Press (L3 / R3)</span><b>L3 / R3</b></div>
+                    <div class="layout-item"><span>START / BACK</span><b>START / BACK</b></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="card">
+                <h3 id="edit-title">Select a button</h3>
+                <div id="editor-ui" style="display: none;">
+                    <div class="editor-group">
+                        <label>Label (Display Text)</label>
+                        <input type="text" id="edit-label">
+                    </div>
+                    <div class="editor-group">
+                        <label>Assigned Keys (Comma separated)</label>
+                        <div class="capture-row">
+                            <input type="text" id="edit-keys" placeholder="e.g. Numpad8, KeyW">
+                            <button class="btn-outline" onclick="startCapture()" title="Key Capture">Capt</button>
+                        </div>
+                    </div>
+                    <button class="btn-primary" style="width: 100%;" onclick="saveCurrentEdit()">Update Mapping</button>
+                </div>
+            </div>
+
+            <div class="card action-btns">
+                <button class="btn-outline" onclick="showHelpModal()">Key Code References</button>
+                <button class="btn-outline" onclick="exportData()">Export to JSON</button>
+                <button class="btn-outline" onclick="triggerImport()">Import from JSON</button>
+                <div style="height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+                <button class="btn-danger" onclick="resetDefault()">Reset all to Default</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="import-input" class="hidden-file-input" accept=".json" onchange="handleImport(event)">
+
+    <!-- Key Capture Overlay -->
+    <div id="key-capture-overlay">
+        <div class="overlay-content">
+            <h2>Capturing Key...</h2>
+            <p id="captured-key-display" style="font-size: 2rem; color: var(--accent-primary);">Press any key</p>
+            <p style="color: var(--text-dim);">The tool will automatically detect the key code.</p>
+            <button class="btn-outline" onclick="cancelCapture()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal-overlay" onclick="closeHelpModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2>Key Code References</h2>
+            <p style="color: var(--text-dim); font-size: 0.9rem;">一般的な `KeyboardEvent.code`
+                の一覧です。NetHackなどで好まれるテンキー等のコードを網羅しています。</p>
+
+            <div class="key-list">
+                <div class="key-item"><b>General</b></div>
+                <div class="key-item"><b>Code</b></div>
+                <div class="key-item">Enter</div>
+                <div class="key-item">Enter</div>
+                <div class="key-item">Escape</div>
+                <div class="key-item">Escape</div>
+                <div class="key-item">Space</div>
+                <div class="key-item">Space</div>
+                <div class="key-item">Backspace</div>
+                <div class="key-item">Backspace</div>
+                <div class="key-item">Delete</div>
+                <div class="key-item">Delete</div>
+
+                <div class="key-item"><b>Numpad</b></div>
+                <div class="key-item"><b>Code</b></div>
+                <div class="key-item">Numpad 0-9</div>
+                <div class="key-item">Numpad0 ... Numpad9</div>
+                <div class="key-item">Numpad 5 (Center)</div>
+                <div class="key-item">Numpad5</div>
+                <div class="key-item">Numpad Enter</div>
+                <div class="key-item">NumpadEnter</div>
+                <div class="key-item">Numpad + / -</div>
+                <div class="key-item">NumpadAdd / NumpadSubtract</div>
+
+                <div class="key-item"><b>Letters</b></div>
+                <div class="key-item"><b>Code</b></div>
+                <div class="key-item">A / B / C...</div>
+                <div class="key-item">KeyA / KeyB / KeyC...</div>
+
+                <div class="key-item"><b>Arrows</b></div>
+                <div class="key-item"><b>Code</b></div>
+                <div class="key-item">Up / Down</div>
+                <div class="key-item">ArrowUp / ArrowDown</div>
+                <div class="key-item">Left / Right</div>
+                <div class="key-item">ArrowLeft / ArrowRight</div>
+
+                <div class="key-item"><b>Modifiers</b></div>
+                <div class="key-item"><b>Code</b></div>
+                <div class="key-item">Shift (Left)</div>
+                <div class="key-item">ShiftLeft</div>
+                <div class="key-item">Ctrl (Left)</div>
+                <div class="key-item">ControlLeft</div>
+                <div class="key-item">Alt (Left)</div>
+                <div class="key-item">AltLeft</div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; margin-top: 1.5rem;"
+                onclick="document.getElementById('help-modal').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 GpadToKey Utility - Designed for NetHack Players
+    </footer>
+
+    <script>
+        // --- Constants & Defaults ---
+        const DEFAULT_ASSIGN = {
+            NORMAL: {
+                P1: { label: "1", key: ["Numpad1"] },
+                P2: { label: "2", key: ["Numpad2"] },
+                P3: { label: "3", key: ["Numpad3"] },
+                P4: { label: "4", key: ["Numpad4"] },
+                P6: { label: "6", key: ["Numpad6"] },
+                P7: { label: "7", key: ["Numpad7"] },
+                P8: { label: "8", key: ["Numpad8"] },
+                P9: { label: "9", key: ["Numpad9"] },
+                START: { label: "^x", key: ["KeyX", "Space"] },
+                BACK: null,
+                A: { label: "m-", key: ["Numpad5"] },
+                B: { label: "ESC", key: ["Delete"] },
+                X: { label: "Enter", key: ["Enter"] },
+                Y: { label: "i", key: ["KeyI"] },
+                L3: null,
+                R3: null,
+            },
+            LB: {
+                P1: null,
+                P2: { label: ">:Dn", key: ["Period", "ShiftLeft"] },
+                P3: null,
+                P4: { label: "4", key: ["Numpad4"] },
+                P6: { label: "6", key: ["Numpad6"] },
+                P7: null,
+                P8: { label: "<:Up", key: ["Comma", "ShiftLeft"] },
+                P9: null,
+                START: { label: "^x", key: ["KeyX", "Space"] },
+                BACK: null,
+                A: { label: ",)Get", key: ["Comma"] },
+                B: { label: "q)uaf", key: ["KeyQ"] },
+                X: { label: "k)ick", key: ["KeyK"] },
+                Y: { label: "e)at", key: ["KeyE"] },
+                L3: null,
+                R3: null,
+            },
+            LT: {
+                P1: null,
+                P2: { label: "2", key: ["Numpad2"] },
+                P3: null,
+                P4: { label: "4", key: ["Numpad4"] },
+                P6: { label: "6", key: ["Numpad6"] },
+                P7: null,
+                P8: { label: "8", key: ["Numpad8"] },
+                P9: null,
+                START: { label: "^x", key: ["KeyX", "Space"] },
+                BACK: null,
+                A: { label: "l)ook", key: ["KeyL"] },
+                B: { label: "ESC", key: ["Delete"] },
+                X: { label: "z)ip", key: ["keyZ"] },
+                Y: { label: "d)rop", key: ["KeyD"] },
+                L3: null,
+                R3: null,
+            },
+            RB: {
+                P1: null,
+                P2: { label: "w)ield", key: ["Numpad2"] },
+                P3: null,
+                P4: { label: "W)ear", key: ["Numpad4"] },
+                P6: { label: "T)off", key: ["Numpad6"] },
+                P7: null,
+                P8: null,
+                P9: null,
+                START: { label: "^x", key: ["KeyX", "Space"] },
+                BACK: null,
+                A: { label: "q", key: ["KeyQ"] },
+                B: { label: "n", key: ["KeyN"] },
+                X: { label: "y", key: ["KeyY"] },
+                Y: { label: "*", key: ["Quote", "ShiftLeft"] },
+                L3: null,
+                R3: null,
+            },
+            RT: {
+                P1: null,
+                P2: { label: "2", key: ["Numpad2"] },
+                P3: null,
+                P4: { label: "4", key: ["Numpad4"] },
+                P6: { label: "5", key: ["Numpad6"] },
+                P7: null,
+                P8: { label: "8", key: ["Numpad8"] },
+                P9: null,
+                START: { label: "^x", key: ["KeyX", "Space"] },
+                BACK: null,
+                A: { label: "m-", key: ["Numpad5"] },
+                B: { label: "ESC", key: ["Delete"] },
+                X: { label: "Enter", key: ["Enter"] },
+                Y: { label: "S)ave", key: ["KeyS", "ShiftLeft"] },
+                L3: null,
+                R3: null,
+            },
+        };
+
+        const BUTTON_IDS = ["P7", "P8", "P9", "Y", "P4", "A", "P6", "B", "P1", "P2", "P3", "X", "BACK", "START", "L3", "R3"];
+
+        let currentConfig = {};
+        let currentMode = "NORMAL";
+        let selectedBtnId = null;
+        let isCapturing = false;
+
+        // --- Core Logic ---
+
+        function init() {
+            const saved = localStorage.getItem("nh.gpadAssign");
+            if (saved) {
+                currentConfig = JSON.parse(saved);
+            } else {
+                currentConfig = JSON.parse(JSON.stringify(DEFAULT_ASSIGN));
+                saveToStorage();
+            }
+            renderView();
+            setupGamepadPolling();
+
+            // Listen for keys for capture
+            window.addEventListener('keydown', (e) => {
+                if (isCapturing) {
+                    e.preventDefault();
+                    handleCapturedKey(e.code);
+                }
+            });
+        }
+
+        function saveToStorage() {
+            localStorage.setItem("nh.gpadAssign", JSON.stringify(currentConfig));
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === mode);
+            });
+            deselectButton();
+            renderView();
+        }
+
+        function renderView() {
+            const container = document.getElementById("controller-view");
+            container.innerHTML = "";
+
+            BUTTON_IDS.forEach(id => {
+                const data = currentConfig[currentMode][id] || { label: "", key: [] };
+                const div = document.createElement("div");
+                div.className = "btn-slot";
+                if (id === selectedBtnId) div.classList.add("selected");
+                div.dataset.id = id;
+                div.onclick = () => selectButton(id);
+
+                const idSpan = document.createElement("span");
+                idSpan.className = "btn-id";
+                idSpan.textContent = id;
+
+                const labelSpan = document.createElement("span");
+                labelSpan.className = "btn-label";
+                labelSpan.textContent = data.label || "---";
+
+                const keysSpan = document.createElement("span");
+                keysSpan.className = "btn-keys";
+                keysSpan.textContent = data.key ? data.key.join(", ") : "";
+
+                div.append(idSpan, labelSpan, keysSpan);
+                container.appendChild(div);
+            });
+        }
+
+        function selectButton(id) {
+            selectedBtnId = id;
+            document.querySelectorAll('.btn-slot').forEach(slot => {
+                slot.classList.toggle('selected', slot.dataset.id === id);
+            });
+
+            document.getElementById("edit-title").textContent = `Editing: ${id}`;
+            document.getElementById("editor-ui").style.display = "block";
+
+            const data = currentConfig[currentMode][id] || { label: "", key: [] };
+            document.getElementById("edit-label").value = data.label || "";
+            document.getElementById("edit-keys").value = (data.key || []).join(", ");
+        }
+
+        function deselectButton() {
+            selectedBtnId = null;
+            document.getElementById("edit-title").textContent = "Select a button";
+            document.getElementById("editor-ui").style.display = "none";
+        }
+
+        function saveCurrentEdit() {
+            if (!selectedBtnId) return;
+
+            const label = document.getElementById("edit-label").value.trim();
+            const keysStr = document.getElementById("edit-keys").value.trim();
+            const keys = keysStr ? keysStr.split(",").map(k => k.trim()) : [];
+
+            if (label === "" && keys.length === 0) {
+                currentConfig[currentMode][selectedBtnId] = null;
+            } else {
+                currentConfig[currentMode][selectedBtnId] = { label, key: keys };
+            }
+
+            saveToStorage();
+            renderView();
+            //alert("Saved successfully!");
+        }
+
+        // --- Key Capture Logic ---
+
+        function startCapture() {
+            isCapturing = true;
+            document.getElementById("key-capture-overlay").style.display = "flex";
+            document.getElementById("captured-key-display").textContent = "Press any key";
+        }
+
+        function cancelCapture() {
+            isCapturing = false;
+            document.getElementById("key-capture-overlay").style.display = "none";
+        }
+
+        function handleCapturedKey(code) {
+            isCapturing = false;
+            const input = document.getElementById("edit-keys");
+            const current = input.value.trim();
+            if (current) {
+                input.value = current + ", " + code;
+            } else {
+                input.value = code;
+            }
+            document.getElementById("key-capture-overlay").style.display = "none";
+        }
+
+        // --- Help Modal Logic ---
+
+        function showHelpModal() {
+            document.getElementById("help-modal").style.display = "flex";
+        }
+
+        function closeHelpModal(e) {
+            document.getElementById("help-modal").style.display = "none";
+        }
+
+        // --- Gamepad Logic ---
+
+        function setupGamepadPolling() {
+            const led = document.getElementById("pad-led");
+            const status = document.getElementById("pad-status");
+
+            setInterval(() => {
+                const gamepads = navigator.getGamepads();
+                let connected = false;
+                for (const gp of gamepads) {
+                    if (gp) {
+                        connected = true;
+                        status.textContent = `Connected: ${gp.id}`;
+                        break;
+                    }
+                }
+
+                if (connected) {
+                    led.classList.add("active");
+                } else {
+                    led.classList.remove("active");
+                    status.textContent = "Gamepad not detected";
+                }
+            }, 500);
+        }
+
+        // --- Import / Export ---
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(currentConfig, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "gpad_config.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerImport() {
+            document.getElementById("import-input").click();
+        }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    currentConfig = json;
+                    saveToStorage();
+                    renderView();
+                    alert("Imported successfully!");
+                } catch (err) {
+                    alert("Invalid JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetDefault() {
+            if (confirm("Reset all settings to default?")) {
+                currentConfig = JSON.parse(JSON.stringify(DEFAULT_ASSIGN));
+                saveToStorage();
+                renderView();
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+
+</html>

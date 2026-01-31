@@ -134,7 +134,7 @@ function nhMessage_entity_items() {
         "crossbow": "クロスボウ",
         "your hands": "素手",
         "pick-axe": "つるはし",
-        "whip":"鞭",
+        "whip": "鞭",
 
         // Armor
         "elven leather helm": "エルフの革の兜",
@@ -257,7 +257,7 @@ function nhMessage_entity_items() {
         "fumble boots": "下手な靴",
         "levitation boots": "浮遊の靴",
         "snow boots": "スノーブーツ",
-        "destroy armor":"壊れている防具",
+        "destroy armor": "壊れている防具",
 
         // Rings
         "adornment": "飾り",
@@ -284,7 +284,7 @@ function nhMessage_entity_items() {
         "teleportation": "テレポート",
         "teleport control": "テレポート制御",
         "protection from shape changers": "変身者からの防御",
-        "polymorph control":"変身制御",
+        "polymorph control": "変身制御",
 
         // Rings appearances
         "wooden": "木製",
@@ -385,6 +385,8 @@ function nhMessage_entity_items() {
         "in quiver pouch": "矢筒内",
         "in quiver": "矢筒内",
         "tooled horn": "加工された角",
+        "bugle": "角笛",
+
 
         // Food
         "meatball": "肉団子",
@@ -437,7 +439,7 @@ function nhMessage_entity_items() {
         "holy water": "聖水",
         "water": "水",
         "invisibility": "透明化",
-        "sleeping:": "睡眠状態",    
+        "sleeping:": "睡眠状態",
         "gain level": "レベル上昇",
 
         // Potions appearances
@@ -518,7 +520,7 @@ function nhMessage_entity_items() {
         "cancellation": "無力化",
         "charm monster": "モンスター魅了",
         "detect food": "食料探索",
-        "detect unseen" : "見えないものを検知",
+        "detect unseen": "見えないものを検知",
 
         // Spellbooks appearances
         "parchment": "羊皮紙",

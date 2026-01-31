@@ -79,6 +79,8 @@ class ioControl extends GameTask {
 				}
 			}
 		}, false);
+
+		this.GpadToKey = new GpadToKey(g);
 	}
 	//----------------------------------------------------------------------
 	step(g) {// this.enable が true時にループ毎に実行される。
@@ -121,6 +123,27 @@ class ioControl extends GameTask {
 		let shift = false;
 		let space = false;
 		let alt = false;
+		let gpresult = this.GpadToKey.check([]);
+		if (gpresult.length > 0) {
+			const gr = gpresult[0];
+			//alert(`${gr} ,${typeof gr}`);
+			for (let j in gr) {
+				if (gr[j]) {
+					let i = gr[j];
+					if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
+						shift = true;
+						continue;
+					}
+					if (i === "AltLeft" || i === "AltRight") {
+						alt = true;
+						continue;
+					}
+					if (i === "Space") space = true;
+					keylist.push(i);
+				}
+			}
+		}
+
 		for (let i in w) {
 			if (w[i]) {
 				if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
@@ -135,7 +158,6 @@ class ioControl extends GameTask {
 				keylist.push(i);
 			}
 		}
-		keylist = GpadToKey(g, keylist);
 
 		input.keylist = keylist;
 		input.shift = shift;
@@ -163,6 +185,7 @@ class ioControl extends GameTask {
 
 		//-----------------------------------------------------------------------------
 		// internal function 
+		/*
 		function GpadToKey(g, input) {
 
 			let gpd = g.gamepad;
@@ -220,6 +243,7 @@ class ioControl extends GameTask {
 
 			return input;
 		}
+		*/
 	}
 	//----------------------------------------------------------------------
 	draw(g) {// this.visible が true時にループ毎に実行される。
@@ -255,5 +279,6 @@ class ioControl extends GameTask {
 				d.con.draw(g, x, y);
 			}
 		}
+		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
 	}
 }

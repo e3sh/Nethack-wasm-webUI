@@ -49,6 +49,7 @@ const w = [
     r + "UI/monsHpView.js",
     r + "UI/barEffect.js",
     r + "UI/fontPrintControl_with_glyph.js",
+    r + "GpadToKey.js",
     // Rogue Parameters
     p + "rogueDefines.js",
     p + "rogueFuncs.js",

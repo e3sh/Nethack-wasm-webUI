@@ -1152,6 +1152,18 @@ function nhMessage_pattern() {
             pattern: /To achieve the next higher rating, you need (.*) more points\.$/,
             replace: "次のランクアップには、あと$1ポイント必要だ。"
         },
+        {
+            pattern: /^Your (.*) twangs\.$/,
+            replace: "あなたの$1が鳴った。"
+        },
+        {
+            pattern: /^What tune are you playing\? \[(.*)\]$/,
+            replace: "どんな曲を演奏しますか？ [$1]"
+        },
+        {
+            pattern: /^You extract a strange sound from the (.*)!$/,
+            replace: "$1から奇妙な音を奏でた！"
+        },
 
         {
             pattern: /^What do you want to (.*)\?\[(.*)\]$/,
@@ -1173,7 +1185,7 @@ function nhMessage_pattern() {
         //    pattern: /^(.*) the (.*) (.*) (.*) (.*)$/,
         //    replace: "$2 $3 $4 $5 の $1"
         //},
-        
+
         //{
         //    pattern: /^<(.*)> <(.*)> <(.*)> <(.*)>$/,
         //    replace: "$1 $2 $3 $4"
@@ -1182,7 +1194,7 @@ function nhMessage_pattern() {
         //    pattern: /^(.*)　(.*) (.*) (.*) (.*)$/,
         //    replace: "$1 $2 $3 $4 $5"
         //},
-        
+
         //{
         //    pattern: /^Your (.*)$/,
         //    replace: "あなたの$1"
