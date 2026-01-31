@@ -1587,6 +1587,26 @@ function nhMessage_org() {
         "And mine at dead of night.'",
         "[ Brignall Banks, by Sir Walter Scott ]",
 
+"What do you want to look at:",
+"something on the map",
+"something you're carrying",
+"something else",
+"by symbol or name",
+"nearby monsters",
+"all monsters shown on map",
+"nearby objects",
+"all objects shown on map",
+"nearby traps",
+"all seen or remembered traps",
+"nearby engravings",
+"all seen or remembered engravings",
+
+"You hear a slow drip.",
+"You don't have anything to zap.",
+"some gold pieces",
+"You move very quietly.",
+"You sure are noisy.",
+"You are not wearing that.",
 
     ]
 }

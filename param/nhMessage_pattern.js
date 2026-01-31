@@ -1168,6 +1168,36 @@ function nhMessage_pattern() {
             pattern: / You are temporarily (.*)\.$/,
             replace: " あなたは一時的に$1の状態です。"
         },
+        {
+            pattern: /(.*) minute and (.*)$/,
+            replace: "$1分と$2"
+        },
+        {
+            pattern: /(.*) rises from the dead!$/,
+            replace: "$1が死から蘇る！"
+        },
+        {
+            pattern: /(.*) corpse disappears!$/,
+            replace: "$1の死体が消える！"
+        },
+        {
+            pattern: /(.*) climbs out of the pit\.$/,
+            replace: "$1が穴から這い上がる。"
+        },
+        {
+            pattern: /(.*), trapped in a pit$/,
+            replace: "穴に閉じ込められた$1"
+        },
+        {
+            pattern: /You smite (.*)\.$/,
+            replace: "あなたは$1を打ち倒す。"
+        },
+        {
+            pattern: /(.*)'s left foreleg$/,
+            replace: "$1の左前足"
+        },
+
+
 
         {
             pattern: /^What do you want to (.*)\?\[(.*)\]$/,

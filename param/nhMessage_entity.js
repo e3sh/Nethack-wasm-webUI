@@ -184,6 +184,7 @@ function nhMessage_entity() {
         "polymorph trap": "変身の罠",
         "vibrating square": "振動する床",
         "magic trap": "魔法の罠",
+        "rust trap": "錆びの罠",
 
         // pet/Monst (from monster_list.ja.md & item_list.ja.md)
         "giant ant": "巨大蟻",
@@ -408,6 +409,10 @@ function nhMessage_entity() {
         "charge": "チャージ",
         "tin":"缶詰",
         "rub on the stone": "石を擦る",
+        "remove": "取り外す",
+        "take off": "脱ぐ",
+        "drop": "落とす",
+        "use or apply": "使用または適用",
 
         // Body parts
         "your right arm": "あなたの右腕",
@@ -441,6 +446,8 @@ function nhMessage_entity() {
 
         "blind": "目が見えない",
         "deaf": "耳が聞こえない",
+        
+        "role forces": "役割は強制",
 
     };
 }

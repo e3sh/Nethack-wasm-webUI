@@ -34,8 +34,8 @@ function GpadToKey(g) {
                 A: { label: " m-", key: ["Numpad5"] },
                 B: { label: "ESC", key: ["Delete"] },
                 X: { label: "Enter", key: ["Enter"] },
-                Y: { label: "i)vtry", key: ["KeyI"] },
-                L3: null,
+                Y: { label: "i)nvt", key: ["KeyI"] },
+                L3:{ label: " s", key: ["KeyS"] },
                 R3: null,
             },
             LB: {
@@ -58,7 +58,7 @@ function GpadToKey(g) {
             },
             LT: {
                 P1: null,
-                P2: null,
+                P2: { label: "r)ead", key: ["KeyR"] },
                 P3: null,
                 P4: { label: " a", key: ["KeyA"] },
                 P6: { label: " /", key: ["Slash"] },
@@ -69,7 +69,7 @@ function GpadToKey(g) {
                 BACK: null,
                 A: { label: "l)ook", key: ["KeyL"] },
                 B: { label: "f)ire", key: ["KeyF"] },
-                X: { label: "z)ip", key: ["KeyZ"] },
+                X: { label: "z)ap", key: ["KeyZ"] },
                 Y: { label: "d)rop", key: ["KeyD"] },
                 L3: null,
                 R3: null,
@@ -94,12 +94,12 @@ function GpadToKey(g) {
             },
             RT: {
                 P1: null,
-                P2: { label: " 2", key: ["Numpad2"] },
+                P2: { label: "R)mov", key: ["KeyR", "ShiftLeft"] },
                 P3: null,
-                P4: { label: " 4", key: ["Numpad4"] },
-                P6: { label: " 5", key: ["Numpad6"] },
+                P4: { label: " l", key: ["KeyL"] },
+                P6: { label: " r", key: ["KeyR"] },
                 P7: null,
-                P8: { label: " 8", key: ["Numpad8"] },
+                P8: { label: "P)on", key: ["KeyP", "ShiftLeft"] },
                 P9: null,
                 START: { label: " ^x", key: ["KeyX", "Space"] },
                 BACK: null,
@@ -191,22 +191,22 @@ function GpadToKey(g) {
                 if (gpd.leftkey || gpd.rightkey) {
                     input.push((gpd.leftkey) ? (KA.P1 != null) ? (KA.P1.key) : "" : (KA.P3 != null) ? KA.P3.key : "");
                 } else
-                    input.push(KA.P2.key);
+                    input.push((KA.P2 != null) ? (KA.P2.key) : "");
             } else
                 if (!gpd.upkey && !gpd.downkey) {
-                    if (gpd.leftkey) input.push(KA.P4.key);
-                    if (gpd.rightkey) input.push(KA.P6.key);
+                    if (gpd.leftkey) input.push((KA.P4 != null) ? (KA.P4.key) : "");
+                    if (gpd.rightkey) input.push((KA.P6 != null) ? (KA.P6.key) : "");
                 }
-        if (gpd.btn_x) input.push(KA.X.key);
-        if (gpd.btn_a) input.push(KA.A.key);
-        if (gpd.btn_b) input.push(KA.B.key);
-        if (gpd.btn_y) input.push(KA.Y.key);
+        if (gpd.btn_x) input.push((KA.X != null) ? (KA.X.key) : "");
+        if (gpd.btn_a) input.push((KA.A != null) ? (KA.A.key) : "");
+        if (gpd.btn_b) input.push((KA.B != null) ? (KA.B.key) : "");
+        if (gpd.btn_y) input.push((KA.Y != null) ? (KA.Y.key) : "");
 
-        if (gpd.btn_start) input.push(KA.START.key);
-        //if (gpd.btn_back) input.push(KEYASSIGN.END) ;
+        if (gpd.btn_start) input.push((KA.START != null) ? (KA.START.key) : "");
+        if (gpd.btn_back) input.push((KA.BACK != null) ? (KA.BACK.key) : "");
 
-        //if (gpd.btn_rb) input.push(KEYASSIGN.DOWN);
-        //if (gpd.btn_rt || gpd.btn_lb) input.push(KEYASSIGN.UP);
+        if (gpd.btn_r3) input.push((KA.R3 != null) ? (KA.R3.key) : "");
+        if (gpd.btn_l3) input.push((KA.L3 != null) ? (KA.L3.key) : "");
 
         //if (gpd.btn_lb) input.push(KEYASSIGN.HOME);
 
@@ -257,7 +257,7 @@ function GpadToKey(g) {
     const btn = [
         1, 0, 1, 0, 1, 0, 1, 0, 1,
         0, 1, 0, 0, 0, 1, 0, 0, 1,
-        1, 0, 1, 0, 1, 0, 1, 0, 0,
+        1, 1, 1, 0, 1, 1, 1, 0, 0,
         0, 1, 0, 0, 0, 1, 0, 0, 0,
     ];
     const label = [];
@@ -282,7 +282,7 @@ function GpadToKey(g) {
 
                     if (this.onoff) {
                         device.fillStyle = "blue"; //effect 
-                        device.fillRect(this.x + 1, this.y + 1, this.w - 1, this.h - 1);
+                        device.fillRect(this.x + 2, this.y + 2, this.w - 4, this.h - 4);
                     }
                     if (this.lbl) {
                         device.strokeStyle = "white";
