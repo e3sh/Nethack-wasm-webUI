@@ -439,6 +439,8 @@ function nhMessage_entity() {
         "sink": "流し台",
         "fountain": "噴水",
 
-        
+        "blind": "目が見えない",
+        "deaf": "耳が聞こえない",
+
     };
 }

@@ -1164,6 +1164,10 @@ function nhMessage_pattern() {
             pattern: /^You extract a strange sound from the (.*)!$/,
             replace: "$1から奇妙な音を奏でた！"
         },
+        {
+            pattern: / You are temporarily (.*)\.$/,
+            replace: " あなたは一時的に$1の状態です。"
+        },
 
         {
             pattern: /^What do you want to (.*)\?\[(.*)\]$/,
@@ -1178,8 +1182,6 @@ function nhMessage_pattern() {
             pattern: /^  (.*)$/,
             replace: "  $1"
         },
-
-
 
         //{
         //    pattern: /^(.*) the (.*) (.*) (.*) (.*)$/,
