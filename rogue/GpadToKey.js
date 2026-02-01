@@ -35,7 +35,7 @@ function GpadToKey(g) {
                 B: { label: "ESC", key: ["Delete"] },
                 X: { label: "Enter", key: ["Enter"] },
                 Y: { label: "i)nvt", key: ["KeyI"] },
-                L3:{ label: " s", key: ["KeyS"] },
+                L3: { label: " s", key: ["KeyS"] },
                 R3: null,
             },
             LB: {
@@ -78,8 +78,8 @@ function GpadToKey(g) {
                 P1: null,
                 P2: { label: "w)ield", key: ["KeyW"] },
                 P3: null,
-                P4: { label: "W)ear", key: ["KeyW" ,"ShiftLeft"] },
-                P6: { label: "T)off", key: ["KeyT" ,"ShiftLeft"] },
+                P4: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
+                P6: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
                 P7: null,
                 P8: null,
                 P9: null,
@@ -110,12 +110,12 @@ function GpadToKey(g) {
                 L3: null,
                 R3: null,
             },
-            RB_RT: null, //左同時2個押し
-            LB_LT: null, //右同時　 
-            LB_RB: null, //上列同時2個押し
-            LT_RT: null, //下列同時　
-            LB_RT: null, //左上右下同時
-            LT_RB: null, //右上左下同時
+            LB_LT: {}, //左側同時
+            RB_RT: {}, //右側同時
+            LB_RB: {}, //上側同時
+            LT_RT: {}, //下側同時
+            LB_RT: {}, //左上右下
+            LT_RB: {}, //左下右上
         }
     if (!Boolean(buf)) {
         localStorage.setItem("nh.gpadAssign", JSON.stringify(KEYASSIGN));
@@ -151,18 +151,24 @@ function GpadToKey(g) {
 
         //
 
-        let mode = "NORMAL"; label[LI_NAME.LB] = ""; label[LI_NAME.RB] = "";
-        if (gpd.btn_rb) { mode = "RB"; label[LI_NAME.RB] = "RB"; }
-        if (gpd.btn_rt) { mode = "RT"; label[LI_NAME.RT] = "RT"; }
+        let mode = "NORMAL";
+        label[LI_NAME.LB] = ""; label[LI_NAME.RB] = "";
+        label[LI_NAME.LT] = ""; label[LI_NAME.RT] = "";
+
         if (gpd.btn_lb) { mode = "LB"; label[LI_NAME.LB] = "LB"; }
         if (gpd.btn_lt) { mode = "LT"; label[LI_NAME.LT] = "LT"; }
-        if (gpd.btn_rb && gpd.btn_rt) { mode = "RB_RT"; label[LI_NAME.RB] = "RB_RT"; }
-        if (gpd.btn_lb && gpd.btn_lt) { mode = "LB_LT"; label[LI_NAME.LB] = "LB_LT"; }
-        if (gpd.btn_rb && gpd.btn_lb) { mode = "RB_LB"; label[LI_NAME.RB] = "RB"; label[LI_NAME.LB] = "LB"; }
-        if (gpd.btn_rt && gpd.btn_lt) { mode = "RT_LT"; label[LI_NAME.RT] = "RT"; label[LI_NAME.LT] = "LT"; }
+        if (gpd.btn_rb) { mode = "RB"; label[LI_NAME.RB] = "RB"; }
+        if (gpd.btn_rt) { mode = "RT"; label[LI_NAME.RT] = "RT"; }
 
-        let KA = KEYASSIGN[mode];
-        if (!Boolean(KA)) KA = KEYASSIGN["NORMAL"];
+        //Combinations (overwrite single modes)
+        if (gpd.btn_lb && gpd.btn_lt) { mode = "LB_LT"; label[LI_NAME.LB] = "LB_LT"; }
+        if (gpd.btn_rb && gpd.btn_rt) { mode = "RB_RT"; label[LI_NAME.RB] = "RB_RT"; }
+        if (gpd.btn_lb && gpd.btn_rb) { mode = "LB_RB"; label[LI_NAME.LB] = "LB"; label[LI_NAME.RB] = "RB"; }
+        if (gpd.btn_lt && gpd.btn_rt) { mode = "LT_RT"; label[LI_NAME.LT] = "LT"; label[LI_NAME.RT] = "RT"; }
+        if (gpd.btn_lb && gpd.btn_rt) { mode = "LB_RT"; label[LI_NAME.LB] = "LB"; label[LI_NAME.RT] = "RT"; }
+        if (gpd.btn_lt && gpd.btn_rb) { mode = "LT_RB"; label[LI_NAME.LT] = "LT"; label[LI_NAME.RB] = "RB"; }
+
+        let KA = (KEYASSIGN[mode]) ? KEYASSIGN[mode] : KEYASSIGN["NORMAL"];
 
         label[LI_NAME.DL] = Boolean(KA.P1) ? KA.P1.label : "";
         label[LI_NAME.DOWN] = Boolean(KA.P2) ? KA.P2.label : "";

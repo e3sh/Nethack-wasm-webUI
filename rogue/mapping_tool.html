@@ -84,6 +84,7 @@
             gap: 0.5rem;
             justify-content: center;
             margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
 
         .mode-btn {
@@ -397,6 +398,13 @@
                     <button class="mode-btn" onclick="switchMode('LT')">LT</button>
                     <button class="mode-btn" onclick="switchMode('RB')">RB</button>
                     <button class="mode-btn" onclick="switchMode('RT')">RT</button>
+                    <div style="width: 100%; height: 0; margin: 0;"></div>
+                    <button class="mode-btn" onclick="switchMode('LB_LT')">LB+LT</button>
+                    <button class="mode-btn" onclick="switchMode('RB_RT')">RB+RT</button>
+                    <button class="mode-btn" onclick="switchMode('LB_RB')">LB+RB</button>
+                    <button class="mode-btn" onclick="switchMode('LT_RT')">LT+RT</button>
+                    <button class="mode-btn" onclick="switchMode('LB_RT')">LB+RT</button>
+                    <button class="mode-btn" onclick="switchMode('LT_RB')">LT+RB</button>
                 </div>
 
                 <div id="controller-view" class="controller-grid">
@@ -583,8 +591,8 @@
                 P1: null,
                 P2: { label: "w)ield", key: ["KeyW"] },
                 P3: null,
-                P4: { label: "W)ear", key: ["KeyW" ,"ShiftLeft"] },
-                P6: { label: "T)off", key: ["KeyT" ,"ShiftLeft"] },
+                P4: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
+                P6: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
                 P7: null,
                 P8: null,
                 P9: null,
@@ -615,7 +623,13 @@
                 L3: null,
                 R3: null,
             },
-         };
+            LB_LT: {},
+            RB_RT: {},
+            LB_RB: {},
+            LT_RT: {},
+            LB_RT: {},
+            LT_RB: {},
+        };
 
         const BUTTON_IDS = ["P7", "P8", "P9", "Y", "P4", "A", "P6", "B", "P1", "P2", "P3", "X", "BACK", "START", "L3", "R3"];
 
@@ -630,6 +644,11 @@
             const saved = localStorage.getItem("nh.gpadAssign");
             if (saved) {
                 currentConfig = JSON.parse(saved);
+                // Ensure new modes exist
+                const modes = ["NORMAL", "LB", "LT", "RB", "RT", "LB_LT", "RB_RT", "LB_RB", "LT_RT", "LB_RT", "LT_RB"];
+                modes.forEach(m => {
+                    if (!currentConfig[m]) currentConfig[m] = {};
+                });
             } else {
                 currentConfig = JSON.parse(JSON.stringify(DEFAULT_ASSIGN));
                 saveToStorage();
@@ -653,7 +672,7 @@
         function switchMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent === mode);
+                btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${mode}'`));
             });
             deselectButton();
             renderView();
@@ -664,7 +683,8 @@
             container.innerHTML = "";
 
             BUTTON_IDS.forEach(id => {
-                const data = currentConfig[currentMode][id] || { label: "", key: [] };
+                const modeData = currentConfig[currentMode] || {};
+                const data = modeData[id] || { label: "", key: [] };
                 const div = document.createElement("div");
                 div.className = "btn-slot";
                 if (id === selectedBtnId) div.classList.add("selected");
