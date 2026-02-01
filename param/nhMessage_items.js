@@ -13,6 +13,9 @@ function nhMessage_entity_items() {
         "burnt": "焼けた",
         "very burnt": "ひどく焼けた",
         "thoroughly burnt": "焼き尽くされた",
+        "rusty": "錆びた",
+        "very rusty": "ひどく錆びた",
+        "thoroughly rusty": "錆び付いた",
         "rusted": "錆びた",
         "very rusted": "ひどく錆びた",
         "thoroughly rusted": "錆び付いた",
@@ -687,7 +690,7 @@ function nhMessage_pattern_items() {
     return [
         // フレーズパターン（再帰翻訳用）
         {
-            pattern: /^(.*) corpse$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) corpse$/,
             replace: "$1の屍"
         },
         {
@@ -695,7 +698,7 @@ function nhMessage_pattern_items() {
             replace: "$1の死体"
         },
         {
-            pattern: /^(.*) statue$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) statue$/,
             replace: "$1の像"
         },
         {
@@ -703,27 +706,27 @@ function nhMessage_pattern_items() {
             replace: "$1の像"
         },
         {
-            pattern: /^(.*) egg$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) egg$/,
             replace: "$1の卵"
         },
         {
-            pattern: /^(.*) scroll$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) scroll$/,
             replace: "$1の巻物"
         },
         {
-            pattern: /^(.*) potion$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) potion$/,
             replace: "$1ポーション"
         },
         {
-            pattern: /^(.*) wand$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) wand$/,
             replace: "$1の杖"
         },
         {
-            pattern: /^(.*) ring$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) ring$/,
             replace: "$1の指輪"
         },
         {
-            pattern: /^(.*) spellbook$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) spellbook$/,
             replace: "$1の魔導書"
         },
         {
@@ -747,11 +750,11 @@ function nhMessage_pattern_items() {
             replace: "$1の魔導書"
         },
         {
-            pattern: /^(.*) gem$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) gem$/,
             replace: "$1の宝石"
         },
         {
-            pattern: /^(.*) amulet$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) amulet$/,
             replace: "$1の護符"
         },
         {

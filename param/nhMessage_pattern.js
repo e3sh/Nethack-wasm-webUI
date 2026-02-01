@@ -269,7 +269,7 @@ function nhMessage_pattern() {
 
         // フレーズパターン（再帰翻訳用）
         {
-            pattern: /^(.*) (human|elf|dwarf|gnome|orc)$/,
+            pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) (human|elf|dwarf|gnome|orc)$/,
             replace: "$1の$2"
         },
         {

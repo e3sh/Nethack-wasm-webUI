@@ -77,22 +77,8 @@ function trancelate(r) {
 
         // 3. Pattern Matching (Priority 1)
         // Check for patterns before decomposition to allow complex phrases
-        for (let entry of trtable_patterns) {
-            let match = msg.match(entry.pattern);
-            if (match) {
-                let result = entry.replace;
-                for (let i = 1; i < match.length; i++) {
-                    if (result.includes(`$${i}:adj`)) {
-                        result = result.replace(`$${i}:adj`, lookup_word(match[i], 'adj') || get_translation_data(match[i]));
-                    } else if (result.includes(`$${i}:verb`)) {
-                        result = result.replace(`$${i}:verb`, lookup_word(match[i], 'verb') || get_translation_data(match[i]));
-                    } else {
-                        result = result.replace(`$${i}`, get_translation_data(match[i]));
-                    }
-                }
-                return result;
-            }
-        }
+        const patternResult = apply_patterns(msg);
+        if (patternResult) return patternResult;
 
         // 4. Item Name Decomposition (NetHack 3.7 format)
         let itemResult = msg;
@@ -126,7 +112,7 @@ function trancelate(r) {
 
         let erosion = "";
         let erosionMatch = itemResult.match(
-            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
+            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusty|very rusty|thoroughly rusty|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
         );
         if (erosionMatch) {
             erosion = erosionMatch[1];
@@ -147,6 +133,11 @@ function trancelate(r) {
         if (!bodyTranslated) {
             let singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
             bodyTranslated = lookup_word(singularBody, 'noun');
+        }
+
+        // Try pattern matching on the body (e.g. "scroll of identify")
+        if (!bodyTranslated) {
+            bodyTranslated = apply_patterns(itemResult);
         }
 
         // Assemble translation if success
@@ -172,6 +163,35 @@ function trancelate(r) {
 
         save_translation_data(msg);
         return msg;
+    }
+
+    /**
+     * Applies regular expression patterns from the translation table.
+     * @param {string} text - Message to translate.
+     * @returns {string|null} - Translated message or null if no match.
+     */
+    function apply_patterns(text) {
+        for (let entry of trtable_patterns) {
+            let match = text.match(entry.pattern);
+            if (match) {
+                let result = entry.replace;
+                for (let i = 1; i < match.length; i++) {
+                    const placeholder = `$${i}`;
+                    const adjPlaceholder = `$${i}:adj`;
+                    const verbPlaceholder = `$${i}:verb`;
+
+                    if (result.includes(adjPlaceholder)) {
+                        result = result.replace(adjPlaceholder, lookup_word(match[i], 'adj') || get_translation_data(match[i]));
+                    } else if (result.includes(verbPlaceholder)) {
+                        result = result.replace(verbPlaceholder, lookup_word(match[i], 'verb') || get_translation_data(match[i]));
+                    } else {
+                        result = result.split(placeholder).join(get_translation_data(match[i]));
+                    }
+                }
+                return result;
+            }
+        }
+        return null;
     }
 
     function save_translation_data(msg) {
