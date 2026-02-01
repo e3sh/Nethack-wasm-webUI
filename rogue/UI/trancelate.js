@@ -7,12 +7,20 @@ function trancelate(r) {
     // Save translation data mode
     const cmode = d.LANG_LARNMODE;
 
-    const trtable_org = nhMessage_org();
-    const trtable_answar = nhMessage_jp();
-    const trtable_patterns = (typeof nhMessage_pattern === 'function') ? nhMessage_pattern() : [];
-    const trtable_entities = (typeof nhMessage_entity === 'function') ? nhMessage_entity() : {};
-    const trtable_p_items = (typeof nhMessage_pattern_items === 'function') ? nhMessage_pattern_items() : [];
-    const trtable_e_items = (typeof nhMessage_entity_items === 'function') ? nhMessage_entity_items() : {};
+    // Load dictionaries from unified nhMessage.js
+    const trMap = new Map();
+    if (typeof nhMessage === 'function') {
+        const data = nhMessage();
+        data.forEach(item => {
+            if (item.en !== undefined) {
+                trMap.set(item.en, item.jp);
+            }
+        });
+    }
+
+    const trtable_entities = (typeof nhEntities === 'function') ? nhEntities() : {};
+    const trtable_items = (typeof nhItems === 'function') ? nhItems() : {};
+    const trtable_patterns = (typeof nhPatterns === 'function') ? nhPatterns() : [];
 
     let refcnt = 0;
     let buf = [];
@@ -22,9 +30,21 @@ function trancelate(r) {
         buf = JSON.parse(localStorage.getItem("nh.temp"));
     }
 
+    /**
+     * Helper for POS-aware translation.
+     * @param {string} word - English word.
+     * @param {string} pos - Part Of Speech ('noun', 'adj', 'verb').
+     * @returns {string|null} - Translated word or null.
+     */
+    function lookup_word(word, pos = 'noun') {
+        const entry = trtable_items[word] || trtable_entities[word];
+        if (!entry) return null;
+        if (typeof entry === 'string') return entry;
+        return entry[pos] || entry['noun'] || entry;
+    }
+
     this.message = (msg) => {
         refcnt = 0;
-
         const result = get_translation_data(msg);
         if (d.DEBUG_MSG) {
             if (msg != result) {
@@ -37,53 +57,52 @@ function trancelate(r) {
     }
 
     function get_translation_data(msg) {
+        if (!msg || typeof msg !== 'string') return msg;
         refcnt++;
         if (tmode == false) return msg;
-        if (!msg || typeof msg !== 'string') return msg;
 
-        // 1. 完全一致
-        let idx = trtable_org.indexOf(msg);
-        if (idx != -1) {
-            return trtable_answar[idx];
+        // 1. Exact Match Lookup (O(1))
+        if (trMap.has(msg)) {
+            return trMap.get(msg);
         }
 
-        // 2. 単語・エンティティ一致（再帰翻訳の終端）
-        // そのまま検索
-        if (trtable_entities[msg]) {
-            return trtable_entities[msg];
-        }
+        // 2. Word/Entity lookup
+        const wordTr = lookup_word(msg);
+        if (wordTr) return wordTr;
 
-        //2.5 item cache check（インベントリ表示時のアイテム名翻訳高速化用キャッシュ）
+        // 2.5 Item cache check
         if (icache[msg]) {
-            //console.log(`Item translation cache hit: "${msg}" -> "${icache[msg]}"`);
             return icache[msg];
         }
 
-        // 正規化して検索（冠詞の除去など）
-        let normalized = msg.replace(/^(?:the|a|an)\s+/i, "").trim();
-        // 複数形sの簡易除去（末尾のsを消して辞書にあるか確認）
-        let singural = normalized.replace(/s$/i, "");
-
-        if (trtable_entities[normalized]) {
-            return trtable_entities[normalized];
-        } else if (trtable_entities[singural]) {
-            return trtable_entities[singural];
+        // 3. Pattern Matching (Priority 1)
+        // Check for patterns before decomposition to allow complex phrases
+        for (let entry of trtable_patterns) {
+            let match = msg.match(entry.pattern);
+            if (match) {
+                let result = entry.replace;
+                for (let i = 1; i < match.length; i++) {
+                    if (result.includes(`$${i}:adj`)) {
+                        result = result.replace(`$${i}:adj`, lookup_word(match[i], 'adj') || get_translation_data(match[i]));
+                    } else if (result.includes(`$${i}:verb`)) {
+                        result = result.replace(`$${i}:verb`, lookup_word(match[i], 'verb') || get_translation_data(match[i]));
+                    } else {
+                        result = result.replace(`$${i}`, get_translation_data(match[i]));
+                    }
+                }
+                return result;
+            }
         }
 
-        // 3. アイテム名の翻訳 (正規表現パターンより優先)
-        // NetHack 3.7 format: [quantity] [BUC] [erosion] [enchantment] [body] [charges] [contents] [status]
+        // 4. Item Name Decomposition (NetHack 3.7 format)
         let itemResult = msg;
-
-        // 装備状態や個数情報などの括弧付き付録を分離
-        // e.g. "a blessed +1 long sword (being worn)" -> body: "a blessed +1 long sword", suffix: " (being worn)"
-        let suffixMatch = itemResult.match(/(.*?)(\s*\(.*?\))$/);
         let suffix = "";
+        let suffixMatch = itemResult.match(/(.*?)(\s*\(.*?\))$/);
         if (suffixMatch) {
             itemResult = suffixMatch[1];
             suffix = suffixMatch[2];
         }
 
-        // 数量/冠詞の分離
         let quantity = "";
         let qtyMatch = itemResult.match(/^(Your|your|The|A|An|the|a|an|\d+)\s+(.*)$/i);
         if (qtyMatch) {
@@ -91,14 +110,13 @@ function trancelate(r) {
             itemResult = qtyMatch[2];
         }
 
-        //空状態(箱、袋など)
         let empty = "";
         let emptyMatch = itemResult.match(/^(empty)\s+(.*)$/i);
         if (emptyMatch) {
             empty = emptyMatch[1];
             itemResult = emptyMatch[2];
         }
-        // BUC (blessed, cursed, uncursed) / Locks(locked, unlocked) /Traps(trapped, broken)
+
         let buc = "";
         let bucMatch = itemResult.match(/^(blessed|cursed|uncursed|locked|unlocked|trapped|broken)\s+(.*)$/i);
         if (bucMatch) {
@@ -106,7 +124,6 @@ function trancelate(r) {
             itemResult = bucMatch[2];
         }
 
-        // 侵食・状態 (greased, burnt, very burnt, thoroughly burnt, rusted, very rusted, thoroughly rusted, corroded, very corroded, thoroughly corroded, rotted, very rotted, thoroughly rotted, poisoned)
         let erosion = "";
         let erosionMatch = itemResult.match(
             /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
@@ -116,7 +133,6 @@ function trancelate(r) {
             itemResult = erosionMatch[2];
         }
 
-        // 強化値 (+1, -2, etc.)
         let enchant = "";
         let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
         if (enchantMatch) {
@@ -124,41 +140,21 @@ function trancelate(r) {
             itemResult = enchantMatch[2];
         }
 
-        // 本体名の翻訳 (辞書引き)
-        // items.js (trtable_e_items) を優先的に参照し、アイテム判定の基準とする
-        let bodyTranslated = trtable_e_items[itemResult] || trtable_entities[itemResult];
+        // Look up body name (noun)
+        let bodyTranslated = lookup_word(itemResult, 'noun');
 
-        // 複数形の単数化試行
-        let singularBody = null;
+        // Try singular
         if (!bodyTranslated) {
-            // "potions of healing" -> "potion of healing", "long swords" -> "long sword"
-            singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
-            bodyTranslated = trtable_e_items[singularBody] || trtable_entities[singularBody];
+            let singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
+            bodyTranslated = lookup_word(singularBody, 'noun');
         }
 
-        // アイテム専用パターンの試行 (corpse, statue, etc.)
-        if (!bodyTranslated) {
-            for (let entry of trtable_p_items) {
-                // 元の名称、または単数化した名称でマッチング
-                let pMatch = itemResult.match(entry.pattern) || (singularBody ? singularBody.match(entry.pattern) : null);
-                if (pMatch) {
-                    bodyTranslated = entry.replace;
-                    for (let i = 1; i < pMatch.length; i++) {
-                        let innerTranslated = get_translation_data(pMatch[i]);
-                        bodyTranslated = bodyTranslated.replace(`$${i}`, innerTranslated);
-                    }
-                    break;
-                }
-            }
-        }
-
-        // 翻訳が成功した場合のみ合成
+        // Assemble translation if success
         if (bodyTranslated) {
-            let chcheMsg = "";
             let finalMsg = "";
-            if (empty) finalMsg += get_translation_data(empty) + " ";
-            if (buc) finalMsg += get_translation_data(buc) + " ";
-            if (erosion) finalMsg += get_translation_data(erosion) + " ";
+            if (empty) finalMsg += (lookup_word(empty, 'adj') || get_translation_data(empty)) + " ";
+            if (buc) finalMsg += (lookup_word(buc, 'adj') || get_translation_data(buc)) + " ";
+            if (erosion) finalMsg += (lookup_word(erosion, 'adj') || get_translation_data(erosion)) + " ";
             if (enchant) finalMsg += enchant + " ";
             finalMsg += bodyTranslated;
             if (quantity && !(/^(The|A|An|the|a|an)$/i.test(quantity))) {
@@ -167,31 +163,11 @@ function trancelate(r) {
             if (suffix) {
                 finalMsg += get_translation_data(suffix);
             }
-            chcheMsg = finalMsg;
-            if (Boolean(icache[msg]) == false) { // キャッシュ未登録の場合
-                if (trtable_e_items[msg] == null) // アイテム辞書に存在しない場合のみキャッシュ登録
-                {
-                    icache[msg] = chcheMsg;
-                    //console.log(`Item translated: "${msg}" -> "${chcheMsg} i:${Object.keys(icache).length}`);
-                    if (d.DEBUG_MSG) console.log(`Item translated:${Object.keys(icache).length}`);
-                }
+            let chResult = finalMsg.trim();
+            if (!icache[msg]) {
+                icache[msg] = chResult;
             }
-            return finalMsg.trim();
-        }
-
-        // 4. 正規表現パターンマッチング
-        for (let entry of trtable_patterns) {
-            let match = msg.match(entry.pattern);
-            if (match) {
-                let result = entry.replace;
-                // キャプチャグループ ($1, $2, ...) を再帰的に翻訳して置換
-                for (let i = 1; i < match.length; i++) {
-                    let translatedValue = get_translation_data(match[i]);
-                    // $1 などのプレースホルダを実際の翻訳後の値に置換
-                    result = result.replace(`$${i}`, translatedValue);
-                }
-                return result;
-            }
+            return chResult;
         }
 
         save_translation_data(msg);
@@ -199,11 +175,10 @@ function trancelate(r) {
     }
 
     function save_translation_data(msg) {
+        if (/^\d+$/.test(msg)) return;
+        if (/^[A-Z]+$/.test(msg)) return;
 
-        if (/^\d+$/.test(msg)) return; //数字のみは記録しない
-        if (/^[A-Z]+$/.test(msg)) return; //大文字のみは巻物未確認名なので記録しない
-
-        if (buf.includes(msg) == false) {
+        if (!buf.includes(msg)) {
             buf.push(msg);
             if (cmode) localStorage.setItem("nh.temp", JSON.stringify(buf));
         }

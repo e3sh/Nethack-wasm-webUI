@@ -79,7 +79,7 @@ function tileMapping(offsets) {
 
     const obj_conds = [
         66,  // matock
-        68,  
+        68,
         77,
     ];
     const obj_conds_del = [
@@ -149,21 +149,21 @@ function tileMapping(offsets) {
 
         // Statue male 7223/ f7606
         m[offsets.GLYPH_MON_OFF + i + 7223] = tilenum + 1082;
-        m[offsets.GLYPH_MON_FEM_OFF + i +7223] = tilenum + 1082;
+        m[offsets.GLYPH_MON_FEM_OFF + i + 7223] = tilenum + 1082;
 
         // piletop_status item 8007,  mons body8467/ m8850 f9233
         m[offsets.GLYPH_MON_OFF + i + 8467] = tilenum;
         m[offsets.GLYPH_MON_OFF + i + 8850] = tilenum + 1082;
-        m[offsets.GLYPH_MON_FEM_OFF + i +8850] = tilenum + 1082;
+        m[offsets.GLYPH_MON_FEM_OFF + i + 8850] = tilenum + 1082;
 
-        m[4090 + i*8     ] = 929; //G_swallow_
-        m[4090 + i*8 + 1 ] = 930;
-        m[4090 + i*8 + 2 ] = 931;
-        m[4090 + i*8 + 3 ] = 932;
-        m[4090 + i*8 + 4 ] = 933;
-        m[4090 + i*8 + 5 ] = 934;
-        m[4090 + i*8 + 6 ] = 935;
-        m[4090 + i*8 + 7 ] = 936;
+        m[4090 + i * 8] = 929; //G_swallow_
+        m[4090 + i * 8 + 1] = 930;
+        m[4090 + i * 8 + 2] = 931;
+        m[4090 + i * 8 + 3] = 932;
+        m[4090 + i * 8 + 4] = 933;
+        m[4090 + i * 8 + 5] = 934;
+        m[4090 + i * 8 + 6] = 935;
+        m[4090 + i * 8 + 7] = 936;
 
         tilenum++;
 
@@ -175,7 +175,7 @@ function tileMapping(offsets) {
         });
         mon_conds_double.forEach(pred => {
             if (pred === i) {
-                tilenum -=1;
+                tilenum -= 1;
             }
         });
     }
@@ -187,7 +187,7 @@ function tileMapping(offsets) {
     // --- 2. Objects ---
     for (let i = 0; i < NUM_OBJECTS; i++) {
         m[offsets.GLYPH_OBJ_OFF + i] = tilenum;
-        m[offsets.GLYPH_OBJ_OFF + i + (7989-offsets.GLYPH_OBJ_OFF)] = tilenum;
+        m[offsets.GLYPH_OBJ_OFF + i + (7989 - offsets.GLYPH_OBJ_OFF)] = tilenum;
 
         // Handle object conditionals_delete
         obj_conds_del.forEach(pred => {
@@ -205,12 +205,14 @@ function tileMapping(offsets) {
     }
     m[3519] = 444; //G_dwarvish_mattock
     m[3523] = 450; //G_morning_star
+    m[3520] = 453; //G_lance
     m[3521] = 452; //G_mace
     m[3522] = 452; //G_silver_mace
 
-    const widx = (7989-offsets.GLYPH_OBJ_OFF)   
+    const widx = (7989 - offsets.GLYPH_OBJ_OFF)
     m[3519 + widx] = 444; //G_dwarvish_mattock
     m[3523 + widx] = 450; //G_morning_star
+    m[3520 + widx] = 453; //G_lance
     m[3521 + widx] = 452; //G_mace
     m[3522 + widx] = 452; //G_silver_mace
 
@@ -222,17 +224,17 @@ function tileMapping(offsets) {
     //(3926) G_stone_substrate
     m[cmap_off + 0] = tilenum++; // S_stone
 
-    const wallset = ( index, tile )=>{
+    const wallset = (index, tile) => {
         for (let i = 0; i <= 10; i++) {
             m[index + i] = tile + i;
         }
     }
 
-    wallset(3927,  851); //normalDungeon wall
-    wallset(3938, 1038 ); //mines wall
-    wallset(3949, 1049 ); //gehennom wall
-    wallset(3960, 1060 ); //knox wall
-    wallset(3971, 1071 ); //sokoban wall
+    wallset(3927, 851); //normalDungeon wall
+    wallset(3938, 1038); //mines wall
+    wallset(3949, 1049); //gehennom wall
+    wallset(3960, 1060); //knox wall
+    wallset(3971, 1071); //sokoban wall
 
     m[3982] = 871;  //Doorway
     m[3983] = 865;  //G_vodoor
@@ -356,14 +358,14 @@ function tileMapping(offsets) {
     m[4089] = 928;   // G_goodpos
 
     tilenum = 937;
-    for (let i=0; i<8; i++){
-        for (let j=0; j<8; j++){
-        m[7154 + i*8 + j ] = tilenum++;
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            m[7154 + i * 8 + j] = tilenum++;
         }
     }
     tilenum = 1032;
-    for (let i=0; i<6; i++){
-        m[7217 + i ] = tilenum++;
+    for (let i = 0; i < 6; i++) {
+        m[7217 + i] = tilenum++;
     }
     m[9616] = 1032; // G_unexplored
     m[9617] = 1032; // G_nothing
