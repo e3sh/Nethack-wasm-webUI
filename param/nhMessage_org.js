@@ -1608,5 +1608,11 @@ function nhMessage_org() {
 "You sure are noisy.",
 "You are not wearing that.",
 
+"This water gives you bad breath!",
+"BOOM!  They explode!",
+"The jar crashes on your head and breaks into shards.",
+"You feel rather tired.",
+
+
     ]
 }

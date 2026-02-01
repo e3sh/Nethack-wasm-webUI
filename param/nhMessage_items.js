@@ -135,6 +135,7 @@ function nhMessage_entity_items() {
         "your hands": "素手",
         "pick-axe": "つるはし",
         "whip": "鞭",
+        "wakizashi": "脇差",
 
         // Armor
         "elven leather helm": "エルフの革の兜",
@@ -445,7 +446,7 @@ function nhMessage_entity_items() {
         // Potions appearances
         "ruby": "ルビー色",
         "pink": "ピンク色",
-        "orange": "オレンジ色",
+        //"orange": "オレンジ色",　Food名の方に当たると違和感があるので
         "yellow": "黄色",
         "emerald": "エメラルド色",
         "dark green": "濃い緑",
@@ -672,10 +673,11 @@ function nhMessage_entity_items() {
         " (being worn)": "（装備中）",
         "pair of": "一対の",
         "empty": "空の",
-        "rustproof ": "さび付かない",
+        "rustproof": "さび付かない",
         "(at the ready)": "（準備完了）",
         "on left hand": "左手に装備",
         "on right hand": "右手に装備",
+        "bare hands": "素手",
 
     };
 
@@ -780,6 +782,18 @@ function nhMessage_pattern_items() {
             pattern: /^(.*) named (.*)$/,
             replace: "$2と名付けられた$1"
         },
+        {
+            pattern: /^The 1st (.*)$/,
+            replace: "初撃の$1"
+        },
+        {
+            pattern: /^The 2nd (.*)$/,
+            replace: "2発目の$1"
+        },
+
+
+
+
 
 
     ]

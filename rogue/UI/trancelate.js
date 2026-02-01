@@ -109,7 +109,7 @@ function trancelate(r) {
         // 侵食・状態 (greased, burnt, very burnt, thoroughly burnt, rusted, very rusted, thoroughly rusted, corroded, very corroded, thoroughly corroded, rotted, very rotted, thoroughly rotted, poisoned)
         let erosion = "";
         let erosionMatch = itemResult.match(
-            /^(greased|burnt|very burnt|thoroughly burnt|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
+            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
         );
         if (erosionMatch) {
             erosion = erosionMatch[1];
@@ -199,6 +199,9 @@ function trancelate(r) {
     }
 
     function save_translation_data(msg) {
+
+        if (/^\d+$/.test(msg)) return; //数字のみは記録しない
+        if (/^[A-Z]+$/.test(msg)) return; //大文字のみは巻物未確認名なので記録しない
 
         if (buf.includes(msg) == false) {
             buf.push(msg);

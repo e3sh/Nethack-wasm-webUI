@@ -57,9 +57,14 @@ function nhMessage_pattern() {
             replace: "$1：[$2]"
         },
         {
-            pattern: /^What do you want to dip into (.*)\?\[(.*)\]\?$/,
-            replace: "何を$1に浸けますか？ [$2"
+            pattern: /^What do you want to dip into one of (.*)\? (.*)$/,
+            replace: "何をひとつの$1に浸けますか？ $2"
         },
+        {
+            pattern: /^What do you want to dip into the (.*)\? (.*)$/,
+            replace: "何を$1に浸けますか？ $2"
+        },
+
         {
             pattern: /^You see here (.*)\.$/,
             replace: "ここに$1がある。"
@@ -70,7 +75,7 @@ function nhMessage_pattern() {
         },
         {
             pattern: /^You reveal (.*) secret doors!$/,
-            replace: "あなたは $1 つの隠し扉を見つけた！"
+            replace: "あなたは $1つの隠し扉を見つけた！"
         },
         {
             pattern: /^Unknown command '(.*)'\.$/,
@@ -861,10 +866,6 @@ function nhMessage_pattern() {
             pattern: /^What do you want to eat\?(.*)$/,
             replace: "何を食べたいですか？$1"
         },
-        {
-            pattern: /^What do you want to eat\?(.*)$/,
-            replace: "何を食べたいですか？$1"
-        },
         //＾Xキーで表示のStatus画面用
         {
             pattern: /^(.*) the (.*)'s attributes:$/,
@@ -1100,14 +1101,16 @@ function nhMessage_pattern() {
             pattern: /^What do you want to write in (.*) here\?$/,
             replace: "この$1の上に、何を書き記したいのか？"
         },
+        /*
         {
             pattern: /^dip into one of (.*)$/,
-            replace: "$1の一つに何を浸す？"
+            replace: "$1の一つに浸"
         },
         {
             pattern: /^dip into (.*)$/,
-            replace: "$1に何を浸す？"
+            replace: "$1に浸"
         },
+        */
         {
             pattern: /^You scribble on (.*) with (.*)\.$/,
             replace: "$2で$1に落書きする。"
@@ -1196,14 +1199,60 @@ function nhMessage_pattern() {
             pattern: /(.*)'s left foreleg$/,
             replace: "$1の左前足"
         },
-
-
-
         {
-            pattern: /^What do you want to (.*)\?\[(.*)\]$/,
-            replace: "何を$1しますか？ [$2]"
+            pattern: /You are already wearing (.*)\.$/,
+            replace: "あなたはすでに$1を装備しています。"
+        },
+        {
+            pattern: /(.*) welds itself to (.*)'s hand!$/,
+            replace: "$1はそれ自体が$2の手に馴染んでいる！"
+        },
+        {
+            pattern: /You shoot (.*) (.*)\.$/,
+            replace: "あなたは$1を放った。"
+        },
+        {
+            pattern: /You pull free from (.*)\.$/,
+            replace: "あなたは$1から抜け出す。"
+        },
+        {
+            pattern: /You see (.*) appear where (.*) was!$/,
+            replace: "$2がいた場所に、$1が現れる！"
+        },
+        {
+            pattern: /(.*) hits again!$/,
+            replace: "$1が再び襲いかかる！。"
+        },
+        {
+            pattern: /(.*) mix with (.*)\.\.\.$/,
+            replace: "$1が$2のポーションと混ざり合う..."
+        },
+        {
+            pattern: /Call (.*):$/,
+            replace: "$1の呼び名："
+        },
+        {
+            pattern: /(.*) hurls (.*)!$/,
+            replace: "$1が$2を投げつける！"
+        },
+        {
+            pattern: /(.*) evaporates\.$/,
+            replace: "$1は蒸発する。"
+        },
+        {
+            pattern: /(.*) out of (.*)$/,
+            replace: "$1/$2"
         },
 
+
+
+
+        /*
+        {
+            pattern: /^What do you want to (.*)\? \[(.*)\]$/,
+            replace: "何を$1しますか？ [$2]"
+        },
+        */
         {
             pattern: /^(.*) \((.*)\)$/,
             replace: "$1 ($2)"

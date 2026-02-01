@@ -98,7 +98,7 @@ function nhMessage_entity() {
         "monk": "武闘家",
         "Priest": "僧侶",
         "priest": "僧侶",
-        "priestess": "女僧侶",
+        "Priestess": "女僧侶",
         "priestess": "女僧侶",
         "Priest/Priestess": "僧侶/女僧侶",
         "Ranger": "レンジャー",
@@ -448,6 +448,9 @@ function nhMessage_entity() {
         "deaf": "耳が聞こえない",
         
         "role forces": "役割は強制",
+
+        "points": "ポイント",
+        "(spell power)": "(魔力)",
 
     };
 }
