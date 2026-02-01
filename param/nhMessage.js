@@ -2260,7 +2260,7 @@ function nhItems() {
         "apple": "リンゴ",
         "pear": "ナシ",
         "banana": "バナナ",
-        "orange": "オレンジ",
+        "orange": {noun:"オレンジ",adj:"オレンジ色"},
         "fortune cookie": "占いクッキー",
         "candy bar": "キャンディバー",
         "pancake": "パンケーキ",
