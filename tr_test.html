@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NetHack Translation Tester</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-color: #0a0e14;
@@ -41,7 +43,7 @@
             backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--glass-border);
         }
-        
+
         h1 {
             font-family: 'Outfit', sans-serif;
             font-size: 24px;
@@ -51,7 +53,7 @@
             -webkit-text-fill-color: transparent;
             letter-spacing: 1px;
         }
-        
+
         .main-container {
             display: flex;
             flex: 1;
@@ -149,18 +151,22 @@
         ::-webkit-scrollbar {
             width: 8px;
         }
+
         ::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.1);
         }
+
         ::-webkit-scrollbar-thumb {
             background: var(--glass-border);
             border-radius: 4px;
         }
+
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -200,10 +206,7 @@ You see here a scroll of identify."></textarea>
 
     <!-- Load NetHack Dictionaries -->
     <script src="param/nhMessage.js"></script>
-    <script src="param/nhMessage_pattern.js"></script>
-    <script src="param/nhMessage_entity.js"></script>
-    <script src="param/nhMessage_items.js"></script>
-    
+
     <!-- Load Translation Engine -->
     <script src="rogue/UI/trancelate.js"></script>
 
@@ -256,7 +259,7 @@ You see here a scroll of identify."></textarea>
 
             // Initial focus and test
             inputArea.focus();
-            
+
             // Set some default examples if empty
             if (inputArea.value === '') {
                 inputArea.value = "4 uncursed potions of healing\n4 uncursed potions of extra healing\na blessed +1 long sword\nYou see here a scroll of identify.";
@@ -265,4 +268,5 @@ You see here a scroll of identify."></textarea>
         });
     </script>
 </body>
+
 </html>

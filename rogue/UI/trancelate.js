@@ -110,6 +110,13 @@ function trancelate(r) {
             itemResult = bucMatch[2];
         }
 
+        let enchant = "";
+        let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
+        if (enchantMatch) {
+            enchant = enchantMatch[1];
+            itemResult = enchantMatch[2];
+        }
+
         let erosion = "";
         let erosionMatch = itemResult.match(
             /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusty|very rusty|thoroughly rusty|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
@@ -119,25 +126,19 @@ function trancelate(r) {
             itemResult = erosionMatch[2];
         }
 
-        let enchant = "";
-        let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
-        if (enchantMatch) {
-            enchant = enchantMatch[1];
-            itemResult = enchantMatch[2];
-        }
-
         // Look up body name (noun)
         let bodyTranslated = lookup_word(itemResult, 'noun');
 
         // Try singular
+        let singularBody = "";
         if (!bodyTranslated) {
-            let singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
+            singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
             bodyTranslated = lookup_word(singularBody, 'noun');
         }
 
         // Try pattern matching on the body (e.g. "scroll of identify")
         if (!bodyTranslated) {
-            bodyTranslated = apply_patterns(itemResult);
+            bodyTranslated = apply_patterns(singularBody || itemResult);
         }
 
         // Assemble translation if success
