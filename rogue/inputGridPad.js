@@ -20,6 +20,7 @@
         let lastResult;
         let grid = [];
 
+        const closewait = 500;
         let entrytime = 0; 
 
         const PosToGridId = (x, y)=>{
@@ -53,6 +54,11 @@
             const p = e.touches[0];
             for (let i in grid){
                 grid[i].on = false;
+            }
+            //内部処理用のパネルかチェック
+            if (typeof(grid[pos].action) == "number"){ 
+                setPanelPage(grid[pos].action); 
+                pos = -1;
             }
             entryResult = pos;
             viewf = false;
@@ -106,30 +112,97 @@
             buf = JSON.parse(localStorage.getItem("nh.tpadAssign"));
         }
 
-        set_grid(PNAME.L1, "7", ["Numpad7"]);
-        set_grid(PNAME.L2, "8", ["Numpad8"]);
-        set_grid(PNAME.L3, "9", ["Numpad9"]);
-        set_grid(PNAME.L4, "4", ["Numpad4"]);
-        set_grid(PNAME.L5, "-m", ["Numpad5"]);
-        set_grid(PNAME.L6, "6", ["Numpad6"]);
-        set_grid(PNAME.L7, "1", ["Numpad1"]);
-        set_grid(PNAME.L8, "2", ["Numpad2"]);
-        set_grid(PNAME.L9, "3", ["Numpad3"]);
-        set_grid(PNAME.LA, "Enter", ["Enter"]);
-        set_grid(PNAME.LB, null, "");
-        set_grid(PNAME.LC, "ESC", ["Delete"]);
-        set_grid(PNAME.R1, "q uaff", ["KeyQ"]);
-        set_grid(PNAME.R2, "i nventry", ["KeyI"]);
-        set_grid(PNAME.R3, "z ap", ["KeyZ"]);
-        set_grid(PNAME.R4, "S ave", ["KeyS", "ShiftLeft"]);
-        set_grid(PNAME.R5, "^x status", ["KeyX", "Space"]);
-        set_grid(PNAME.R6, "k ick", ["KeyK"]);
-        set_grid(PNAME.R7, "r ead", ["KeyR"]);
-        set_grid(PNAME.R8, "T akeoff", ["KeyT", "ShiftLeft"]);
-        set_grid(PNAME.R9, "W ear", ["KeyW", "ShiftLeft"]);
-        set_grid(PNAME.RA, "> down", ["Period", "ShiftLeft"]);
-        set_grid(PNAME.RB, "< up ", ["Comma" ,"ShiftLeft"]);
-        set_grid(PNAME.RC, null, "");
+        const CenterPage = 1;
+        const LeftPage = 2;
+        const RightPage = 3;
+
+        const setPanelPage =(ppn)=>{
+            switch (ppn){
+                case LeftPage:
+                    //LeftPage
+                    set_grid(PNAME.L1, "7", ["Numpad7"]);
+                    set_grid(PNAME.L2, "8", ["Numpad8"]);
+                    set_grid(PNAME.L3, "9", ["Numpad9"]);
+                    set_grid(PNAME.L4, "4", ["Numpad4"]);
+                    set_grid(PNAME.L5, "-m", ["Numpad5"]);
+                    set_grid(PNAME.L6, "6", ["Numpad6"]);
+                    set_grid(PNAME.L7, "1", ["Numpad1"]);
+                    set_grid(PNAME.L8, "2", ["Numpad2"]);
+                    set_grid(PNAME.L9, "3", ["Numpad3"]);
+                    set_grid(PNAME.LA, null, ""); 
+                    set_grid(PNAME.LB, "Enter", ["Enter"]);
+                    set_grid(PNAME.LC, "ESC", ["Delete"]);
+                    set_grid(PNAME.R1, "a", ["KeyA"]);
+                    set_grid(PNAME.R2, "d", ["KeyD"]);
+                    set_grid(PNAME.R3, "e", ["KeyE"]);
+                    set_grid(PNAME.R4, "P", ["KeyP", "ShiftLeft"]);
+                    set_grid(PNAME.R5, "R", ["KeyR", "ShiftLeft"]);
+                    set_grid(PNAME.R6, "w", ["KeyW"]);
+                    set_grid(PNAME.R7, "W", ["KeyW", "ShiftLeft"]);
+                    set_grid(PNAME.R8, "T", ["KeyT", "ShiftLeft"]);
+                    set_grid(PNAME.R9, "Z", ["KeyZ", "ShiftLeft"]);
+                    set_grid(PNAME.RA, "p", ["KeyP"]);
+                    set_grid(PNAME.RB, "v", ["KeyV"]);
+                    set_grid(PNAME.RC, "[-N-]", CenterPage);
+                    break;
+                case RightPage:
+                    //RightPage
+                    set_grid(PNAME.L1, "7", ["Numpad7"]);
+                    set_grid(PNAME.L2, "8", ["Numpad8"]);
+                    set_grid(PNAME.L3, "9", ["Numpad9"]);
+                    set_grid(PNAME.L4, "4", ["Numpad4"]);
+                    set_grid(PNAME.L5, "-m", ["Numpad5"]);
+                    set_grid(PNAME.L6, "6", ["Numpad6"]);
+                    set_grid(PNAME.L7, "1", ["Numpad1"]);
+                    set_grid(PNAME.L8, "2", ["Numpad2"]);
+                    set_grid(PNAME.L9, "3", ["Numpad3"]);
+                    set_grid(PNAME.LA, "[-N-]", CenterPage); 
+                    set_grid(PNAME.LB, "Enter", ["Enter"]);
+                    set_grid(PNAME.LC, "ESC", ["Delete"]);
+                    set_grid(PNAME.R1, "#", ["Digit3", "ShiftLeft"]);
+                    set_grid(PNAME.R2, ";", ["Semicolon"]);
+                    set_grid(PNAME.R3, "a", ["KeyA"]);
+                    set_grid(PNAME.R4, "y", ["KeyY"]);
+                    set_grid(PNAME.R5, "n", ["KeyN"]);
+                    set_grid(PNAME.R6, "q", ["KeyQ"]);
+                    set_grid(PNAME.R7, "l", ["KeyL"]);
+                    set_grid(PNAME.R8, null, "");
+                    set_grid(PNAME.R9, null, "");
+                    set_grid(PNAME.RA, null, "");
+                    set_grid(PNAME.RB, null, "");
+                    set_grid(PNAME.RC, null, "");
+                    break;
+                case CenterPage:
+                default:
+                    //CenterPage
+                    set_grid(PNAME.L1, "7", ["Numpad7"]);
+                    set_grid(PNAME.L2, "8", ["Numpad8"]);
+                    set_grid(PNAME.L3, "9", ["Numpad9"]);
+                    set_grid(PNAME.L4, "4", ["Numpad4"]);
+                    set_grid(PNAME.L5, "-m", ["Numpad5"]);
+                    set_grid(PNAME.L6, "6", ["Numpad6"]);
+                    set_grid(PNAME.L7, "1", ["Numpad1"]);
+                    set_grid(PNAME.L8, "2", ["Numpad2"]);
+                    set_grid(PNAME.L9, "3", ["Numpad3"]);
+                    set_grid(PNAME.LA, "[-L-]", LeftPage); 
+                    set_grid(PNAME.LB, "Enter", ["Enter"]);
+                    set_grid(PNAME.LC, "ESC", ["Delete"]);
+                    set_grid(PNAME.R1, "q uaff", ["KeyQ"]);
+                    set_grid(PNAME.R2, "i nventry", ["KeyI"]);
+                    set_grid(PNAME.R3, "z ap", ["KeyZ"]);
+                    set_grid(PNAME.R4, "S ave", ["KeyS", "ShiftLeft"]);
+                    set_grid(PNAME.R5, "^x status", ["KeyX", "Space"]);
+                    set_grid(PNAME.R6, "k ick", ["KeyK"]);
+                    set_grid(PNAME.R7, "r ead", ["KeyR"]);
+                    set_grid(PNAME.R8, "T akeoff", ["KeyT", "ShiftLeft"]);
+                    set_grid(PNAME.R9, "W ear", ["KeyW", "ShiftLeft"]);
+                    set_grid(PNAME.RA, "> down", ["Period", "ShiftLeft"]);
+                    set_grid(PNAME.RB, "< up ", ["Comma" ,"ShiftLeft"]);
+                    set_grid(PNAME.RC, "[-R-]", RightPage);
+                break;
+            }
+        }
+        setPanelPage(CenterPage);//FirstPage set 
 
         if (!Boolean(buf)) {
         //    localStorage.setItem("nh.tpadAssign", JSON.stringify(grid));
@@ -147,16 +220,18 @@
         };
 
         this.draw = function (context) {
+            //closewait(ms)　経過後にパネル消去
+            if (!viewf && entrytime + closewait*2 < Date.now()) return;
 
-            if (!viewf && entrytime+500 < Date.now()) return;
-
-            let bc;
-            if (viewf)
-                bc = "#202020FF";
-            else {
+            //fadeout(closewait)
+            let bc = "#202020FF";
+            if (!viewf){
                 let n =  Date.now() - entrytime;
-                let st  = Math.floor(0xFF - (0xDF*(n/500))).toString(16);
-                bc = "#202020" + st;
+                if (n > closewait){               
+                    n -= closewait;     
+                    let st  = Math.floor(0xFF - (0xDF*n/closewait)).toString(16);
+                    bc = "#202020" + st;
+                }
             }
 
             for (let i in grid){
