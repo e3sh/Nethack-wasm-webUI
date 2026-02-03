@@ -13,6 +13,44 @@ function GpadToKey(g) {
         DOWN_R: ["Numpad3"],
     }
 
+    const d = rogueDefines();
+
+    function fCharToKeyArray(char) {
+        if (!char) return null;
+        const charCode = char.charCodeAt(0);
+        for (const [key, codes] of Object.entries(d.KEYMAP)) {
+            if (codes[0] === charCode) return [key];
+            if (codes[1] === charCode) return [key, "ShiftLeft"];
+            if (codes[2] === charCode) return [key, "ControlLeft"];
+        }
+        return null;
+    }
+
+    function applyContextOverlay(KA, context, choices) {
+        let newKA = JSON.parse(JSON.stringify(KA));
+        if (context === "YN") {
+            if (choices && choices.length > 0) {
+                const cArr = choices.split("");
+                const buttons = ["A", "B", "X", "Y"];
+                for (let i = 0; i < Math.min(cArr.length, buttons.length); i++) {
+                    const char = cArr[i];
+                    const key = fCharToKeyArray(char);
+                    if (key) newKA[buttons[i]] = { label: char, key: key };
+                }
+            } else {
+                newKA.A = { label: "SPC", key: ["Space"] };
+            }
+        } else if (context === "MENU") {
+            newKA.A = { label: "Enter", key: ["Enter"] };
+            newKA.B = { label: "ESC", key: ["Delete"] };
+            newKA.X = { label: "Space", key: ["Space"] };
+        } else if (context === "LIN") {
+            newKA.X = { label: "Enter", key: ["Enter"] };
+            newKA.B = { label: "ESC", key: ["Delete"] };
+        }
+        return newKA;
+    }
+
     let buf;
     if (Boolean(localStorage.getItem("nh.gpadAssign"))) {
         buf = JSON.parse(localStorage.getItem("nh.gpadAssign"));
@@ -168,7 +206,17 @@ function GpadToKey(g) {
         if (gpd.btn_lb && gpd.btn_rt) { mode = "LB_RT"; label[LI_NAME.LB] = "LB"; label[LI_NAME.RT] = "RT"; }
         if (gpd.btn_lt && gpd.btn_rb) { mode = "LT_RB"; label[LI_NAME.LT] = "LT"; label[LI_NAME.RB] = "RB"; }
 
+        let context = (g.rogue) ? g.rogue.inputContext : "NORMAL";
+        let choices = (g.rogue) ? g.rogue.inputChoices : "";
+
         let KA = (KEYASSIGN[mode]) ? KEYASSIGN[mode] : KEYASSIGN["NORMAL"];
+
+        if (mode === "NORMAL" && context !== "NORMAL") {
+            KA = applyContextOverlay(KA, context, choices);
+            label[LI_NAME.INDC] = context; // Indicator
+        } else {
+            label[LI_NAME.INDC] = "";//(context !== "NORMAL") ? `(${context})` : (KA.L3 ? KA.L3.label : "");
+        }
 
         label[LI_NAME.DL] = Boolean(KA.P1) ? KA.P1.label : "";
         label[LI_NAME.DOWN] = Boolean(KA.P2) ? KA.P2.label : "";
@@ -232,6 +280,7 @@ function GpadToKey(g) {
         btn[LI_NAME.LB] = (gpd.btn_lb) ? 1 : 0;
         btn[LI_NAME.LT] += (gpd.btn_lt) ? 1 : 0;
         btn[LI_NAME.L3] = (gpd.btn_l3) ? 1 : 0;
+        btn[LI_NAME.INDC] = (label[LI_NAME.INDC] != "") ? 1 : 0;
 
         return input;
     }
@@ -258,10 +307,11 @@ function GpadToKey(g) {
         UR: 11,
         DL: 27,
         DR: 29,
+        INDC: 3,
     }
 
     const btn = [
-        1, 0, 1, 0, 1, 0, 1, 0, 1,
+        1, 0, 1, 1, 1, 0, 1, 0, 1,
         0, 1, 0, 0, 0, 1, 0, 0, 1,
         1, 1, 1, 0, 1, 1, 1, 0, 0,
         0, 1, 0, 0, 0, 1, 0, 0, 0,

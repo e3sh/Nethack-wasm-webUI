@@ -35,6 +35,8 @@ function GameManager(g) {
     this.menuBuffer = {}; // windowId -> items[]
     this.messageHistory = [];
     this.historyIndex = 0;
+    this.inputContext = "NORMAL";
+    this.inputChoices = "";
 
     this.setupNethackGlobal = function () {
         if (typeof window === 'undefined') return;
@@ -257,10 +259,10 @@ function GameManager(g) {
                 } else {
                     if (args[1])
                         await new Promise(
-                        resolve => {
-                        this.pendingInputResolve = resolve;
-                    });
-                    
+                            resolve => {
+                                this.pendingInputResolve = resolve;
+                            });
+
                 }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)
@@ -368,6 +370,7 @@ function GameManager(g) {
                 if (this.menuBuffer[args[0]]) {
                     this.menuBuffer[args[0]].prompt = args[1];
                 }
+                this.inputContext = "MENU";
                 return 0;
             /* XXX: shim_select_menu menu_list is an output */
             //DECLCB(int, shim_select_menu,(winid window, int how, MENU_ITEM_P **menu_list), "iiip", A2P window, A2P how, P2V menu_list)
@@ -380,10 +383,12 @@ function GameManager(g) {
 
                     if (!menuData) return 0;
                     this.UI.overlapview(true);
+                    this.inputContext = "MENU";
 
                     return new Promise(async (resolve) => {
                         // UI 側にメニュー表示を依頼
                         const selectedItems = await r.UI.showMenu(menuData.items, how, menuData.prompt);
+                        this.inputContext = "NORMAL";
 
                         if (!selectedItems || selectedItems.length === 0) {
                             resolve(0);
@@ -473,13 +478,16 @@ function GameManager(g) {
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
+                this.inputContext = "NORMAL";
                 return new Promise(resolve => {
                     this.pendingInputResolve = resolve;
                 });
             //DECLCB(int, shim_nh_poskey,(coordxy *x, coordxy *y, int *mod), "ippp", P2V x, P2V y, P2V mod)
             case "shim_nh_poskey":
+                this.inputContext = "POS";
                 return new Promise((resolve) => {
                     r.pendingInputResolve = (charCode, x, y, mod) => {
+                        this.inputContext = "NORMAL";
                         if (x !== undefined && y !== undefined) {
                             Module.setValue(args[0], x, 'i16');
                             Module.setValue(args[1], y, 'i16');
@@ -514,6 +522,8 @@ function GameManager(g) {
                 const choices = args[1];
                 const def = args[2];
                 let key;
+                this.inputContext = "YN";
+                this.inputChoices = choices;
                 this.UI.set_display_window(0);
 
                 const promptText = args[0];
@@ -523,15 +533,15 @@ function GameManager(g) {
                 if (deathEndRegex.test(promptText)) {
                     // 死亡またはゲーム終了シーケンスに入ったと判断し、UIを強制更新
                     //console.log("Death or End sequence detected. Synchronizing HP to 0.");
-                    
+
                     // UI表示を0にする具体的な関数呼び出し（例）
                     // updateStatusDisplay({ hp: 0, hpMax: currentMaxHp });
                     this.UI.io.endsequenceDetected();
                 }
                 const anyKey = !choices || choices.length === 0;
 
-                const c_disp = (Boolean(args[1]))?`[${choices}]`:"";
-                const d_disp = (args[2] !== "\u0000")?`(${def})`:"";
+                const c_disp = (Boolean(args[1])) ? `[${choices}]` : "";
+                const d_disp = (args[2] !== "\u0000") ? `(${def})` : "";
 
                 while (true) {
                     this.UI.nhPutbufAdd(query, `${c_disp}${d_disp}`);
@@ -556,6 +566,8 @@ function GameManager(g) {
                     const char = String.fromCharCode(key);
                     if (anyKey || choices.includes(char)) {
                         this.UI.msg(char);
+                        this.inputContext = "NORMAL";
+                        this.inputChoices = "";
                         return key;
                     }
 
@@ -567,8 +579,10 @@ function GameManager(g) {
                 {
                     const query = args[0];
                     const bufp = args[1];
+                    this.inputContext = "LIN";
                     return new Promise(async (resolve) => {
                         const input = await r.UI.io.showInput(query);
+                        this.inputContext = "NORMAL";
                         if (input !== null) {
                             Module.stringToUTF8(input, bufp, 256); // BUFSZ is 256
                         }
@@ -752,8 +766,8 @@ function GameManager(g) {
         this.setupNethackGlobal();
 
         console.log(`Use Glyph:${d.USE_GLYPH}`);
-        if (d.USE_GLYPH){
-           g.console[d.DSP_MAIN].setPrompt(["＿","＿"]);
+        if (d.USE_GLYPH) {
+            g.console[d.DSP_MAIN].setPrompt(["＿", "＿"]);
         }
 
         window.nhDispatcher = this.eventHook.bind(this);
