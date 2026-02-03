@@ -81,6 +81,7 @@ class ioControl extends GameTask {
 		}, false);
 
 		this.GpadToKey = new GpadToKey(g);
+		this.GridPad = new inputGridPad("layer0", g); //canvasElemets
 	}
 	//----------------------------------------------------------------------
 	step(g) {// this.enable が true時にループ毎に実行される。
@@ -124,6 +125,7 @@ class ioControl extends GameTask {
 		let space = false;
 		let alt = false;
 		let gpresult = this.GpadToKey.check([]);
+		gpresult.push(this.GridPad.check());
 		if (gpresult.length > 0) {
 			const gr = gpresult[0];
 			//alert(`${gr} ,${typeof gr}`);
@@ -280,5 +282,7 @@ class ioControl extends GameTask {
 			}
 		}
 		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
+		
+		this.GridPad.draw(g.screen[0]);
 	}
 }

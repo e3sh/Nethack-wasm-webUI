@@ -484,7 +484,7 @@ function GameManager(g) {
                 });
             //DECLCB(int, shim_nh_poskey,(coordxy *x, coordxy *y, int *mod), "ippp", P2V x, P2V y, P2V mod)
             case "shim_nh_poskey":
-                this.inputContext = "POS";
+                //this.inputContext = "POS";　//通常の操作でも呼ばれるので注釈にする
                 return new Promise((resolve) => {
                     r.pendingInputResolve = (charCode, x, y, mod) => {
                         this.inputContext = "NORMAL";

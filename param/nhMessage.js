@@ -1499,6 +1499,9 @@
         { en: "If you specify an unrecognized object name one more time,", jp: "認識されないオブジェクト名を再度指定した場合、" },
         { en: "a randomly chosen item will be granted.", jp: "ランダムに選ばれたアイテムが与えられます。" },
         { en: "(Suppress this assistance with !cmdassist in your config file.)", jp: "（このヘルプは設定ファイルで !cmdassist を指定すると抑制されます。）" },
+        { en: "You spot a gem in the sparkling waters!", jp: "きらめく水面に宝石を見つけた！" },
+        { en: "Here lies Johnny Yeast.  Pardon me for not rising.", jp: "ここにジョニー・イースト眠る。起き上がれぬことをお許しあれ。" },
+        { en: "This tastes like water.", jp: "これは水みたいな味がする。" },
 
     ];
 }
@@ -2324,7 +2327,7 @@ function nhItems() {
         "fortune cookie": "占いクッキー",
         "candy bar": "キャンディバー",
         "pancake": "パンケーキ",
-        "Lembas wafer": "レンバス",
+        "lembas wafer": "レンバス",
         "cram ration": "携帯食糧",
         "food ration": "食料",
         "K-ration": "Kレーション",
@@ -2363,7 +2366,6 @@ function nhItems() {
         "gain level": "レベル上昇",
         "ruby": "ルビー",
         "pink": "ピンク色",
-        "//\"orange\"": "オレンジ色",
         "yellow": "黄色",
         "emerald": "エメラルド",
         "dark green": "濃い緑",
@@ -2635,6 +2637,7 @@ function nhPatterns() {
         { pattern: /^(.*) hits it\.!$/, replace: "$1は命中した。" },
         { pattern: /^(.*) hits (.*)\.$/, replace: "$1は$2に当たった。" },
         { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) (human|elf|dwarf|gnome|orc)$/, replace: "$1の$2" },
+        { pattern: /^saddled (.*)$/, replace: "鞍をつけた$1" },
         { pattern: /^a statue of (.*)$/, replace: "$1の像" },
         { pattern: /^You are frozen by (.*)'s gaze!$/, replace: "$1の視線で凍りついた！" },
         { pattern: /^You have a little trouble lifting (.*)\.$/, replace: "$1を持ち上げるのに少し苦労した。" },
@@ -2900,6 +2903,8 @@ function nhPatterns() {
         },
         { pattern: /^You attract (.*)!$/, replace: "$1引き寄せる" },
         { pattern: /^You unleash (.*)!$/, replace: "$1を解き放つ！" },
+        { pattern: /^You mount (.*)\.$/, replace: "$1にまたがる。" },
+        { pattern: /^(.*) was poisoned!$/, replace: "$1に毒が塗られていた！" },
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
         { pattern: /^  (.*)$/, replace: "  $1" },

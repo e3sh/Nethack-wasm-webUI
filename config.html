@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <script type="text/javascript">
+
+
+
+        function auto_start(){
+            document.getElementById("lang").checked = false;
+
+
+            document.getElementById("debug").checked = true;
+
+
+        }
+        function page_start(){
+
+            //let mode = document.getElementById("lang").checked;
+            //localStorage.setItem("rogue.lang",mode? "jp":"en");
+            //console.log("lang:",mode? "jp":"en");
+
+            window.open(`index.html`);
+        }
+        </script>
+<title>nhwebUI config</title>
+</head>
+<body onload="auto_start()">
+    <div>
+        <b>nhwebUI config</b><br/>
+        <input type="checkbox" id="gryph" checked>:USE_GLYPH<br/>
+        <input type="checkbox" id="lang" checked>:LANG_JP<br/>
+        <input type="checkbox" id="larn" checked>:LANG_LARNMODE<br/>
+        <input type="checkbox" id="debug" >:DEBUG_MSG<br/>
+        <hr>
+        <input type="button" id="btn" value="GAME START" onclick="page_start()">
+        <small> (save setting param)(工事中:未完了)設定は反映されません</small><br>
+        <br>
+        <hr>
+        <b>Tools</b><br/>
+        <a href="tr_fail.html" target="_blank">未翻訳メッセージ管理</a><br/>
+        <a href="tr_test.html" target="_blank">Translation Tester</a><br/>
+        <a href="tile_test.html" target="_blank">Tile & Glyph Mapping Test</a><br/>
+    </div>
+</body>
+</html>

@@ -47,6 +47,7 @@ function GpadToKey(g) {
         } else if (context === "LIN") {
             newKA.X = { label: "Enter", key: ["Enter"] };
             newKA.B = { label: "ESC", key: ["Delete"] };
+            newKA.A = { label: "Backsp", key: ["Backspace"] };
         }
         return newKA;
     }

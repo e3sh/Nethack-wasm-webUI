@@ -50,6 +50,7 @@ const w = [
     r + "UI/barEffect.js",
     r + "UI/fontPrintControl_with_glyph.js",
     r + "GpadToKey.js",
+    r + "inputGridPad.js",
     // Rogue Parameters
     p + "rogueDefines.js",
     p + "rogueFuncs.js",
