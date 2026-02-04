@@ -290,8 +290,8 @@
                         set_grid(PNAME.R7, "W", ["KeyW", "ShiftLeft"]);
                         set_grid(PNAME.R8, "T", ["KeyT", "ShiftLeft"]);
                         set_grid(PNAME.R9, "Z", ["KeyZ", "ShiftLeft"]);
-                        set_grid(PNAME.RA, "p", ["KeyP"]);
-                        set_grid(PNAME.RB, "v", ["KeyV"]);
+                        set_grid(PNAME.RA, ",", ["Comma"]);
+                        set_grid(PNAME.RB, "l", ["KeyL"]);
                         set_grid(PNAME.RC, "[-N-]", CenterPage);
                         break;
                     case RightPage:
@@ -314,16 +314,32 @@
                         set_grid(PNAME.R5, "n", ["KeyN"]);
                         set_grid(PNAME.R6, "q", ["KeyQ"]);
                         set_grid(PNAME.R7, "l", ["KeyL"]);
+                        set_grid(PNAME.R7, "@", ["BracketLeft"]);
                         break;
                     case YNPage:
+                        set_grid(PNAME.L2, "8", ["Numpad8"]);
+                        set_grid(PNAME.L4, "l", ["KeyL"]);
+                        set_grid(PNAME.L6, "r", ["KeyR"]);
+                        set_grid(PNAME.L8, "2", ["RNumpad2"]);
                         set_grid(PNAME.L9, "y", ["KeyY"]);
+                        set_grid(PNAME.R3, "a", ["KeyA"]);
+                        set_grid(PNAME.R6, "q", ["KeyQ"]);
                         set_grid(PNAME.R9, "n", ["KeyN"]);
                         set_grid(PNAME.LC, "ESC", ["Delete"]);
                         break;
                     case MENUPage:
+                        set_grid(PNAME.L2, "8", ["Numpad8"]);
+                        set_grid(PNAME.L4, "4", ["Numpad4"]);
+                        set_grid(PNAME.L6, "6", ["Numpad6"]);
+                        set_grid(PNAME.L8, "2", ["Numpad2"]);
                         set_grid(PNAME.L9, "Space", ["Space"]);
                         set_grid(PNAME.LB, "Enter", ["Enter"]);
                         set_grid(PNAME.LC, "ESC", ["Delete"]);
+                        set_grid(PNAME.R1, "*", ["Digit3", "ShiftLeft"]);
+                        set_grid(PNAME.R2, "/", ["Slash"]);
+                        set_grid(PNAME.R3, "a", ["KeyA"]);
+                        set_grid(PNAME.R4, "d", ["KeyY"]);
+                        set_grid(PNAME.R5, "q", ["KeyN"]);
                         break;
                     case LINPage:
                         set_grid(PNAME.LA, "Backsp", ["Backspace"]);
