@@ -14,13 +14,17 @@ window.Module = {
         if (typeof ENV !== 'undefined') {
             ENV.USER = undefined;
             ENV.LOGNAME = undefined;
+            ENV.HOME = "/";
             ENV.HACKDIR = "/"; // Embedded files are at root
             ENV.SCOREDIR = "/save/";
             ENV.LEVELDIR = "/";
             ENV.SAVEDIR = "/save/";
             ENV.NETHACKOPTIONS = "time,showexp,showvers,number_pad";//askname";
+
         }
     }],
+
+
     print: function (text) {
         if (text.trim()) console.log('NH Log: ' + text);
     },

@@ -838,16 +838,69 @@ function GameManager(g) {
 
                         console.log("Invoking NetHack main via ccall...");
                         this.playing = true;
+                        let extraOptions = "";
+                        try {
+                            const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+                            if (savedConfig && savedConfig.extra_options) {
+                                extraOptions = savedConfig.extra_options; // 多行・カンマなし
+                            }
+                        } catch (e) { }
 
-                        const args = Module.arguments || ['nethack', '-otime,showexp,showvers,askname,number_pad'];
+
+                        // Definitive arguments list (Ignoring hardcoded Module.arguments)
+                        const coreOptions = "time,showexp,showvers,number_pad";
+
+                        const args = (Module.arguments && Module.arguments.length > 0)
+                            ? [...Module.arguments]
+                            : ['nethack', `-o${coreOptions}`, `--nethackrc:/.nethackrc`];
+
+                        // Ensure --nethackrc is present
+                        if (!args.some(arg => arg.startsWith('--nethackrc'))) {
+                            args.push("--nethackrc:/.nethackrc");
+                        }
+
+                        // extraOptionsの各行をサニタイズして適用
+                        if (extraOptions) {
+                            const lines = extraOptions.split('\n');
+                            // 単一行で代入式でない場合は -o に追加を試みる
+                            if (lines.length === 1 && !lines[0].includes('=')) {
+                                let clean = lines[0].replace(/^[, \t]+/, '').replace(/[, \t]+$/, '').trim();
+                                if (clean) {
+                                    let optIdx = args.findIndex(a => a.startsWith('-o'));
+                                    if (optIdx !== -1) {
+                                        // 既存の末尾がカンマでないことを確認して結合
+                                        if (!args[optIdx].endsWith(',')) args[optIdx] += ",";
+                                        args[optIdx] += clean;
+                                    } else {
+                                        args.push("-o" + clean);
+                                    }
+                                }
+                            }
+                        }
+
+
+
+
+
+
+                        if (typeof ENV !== 'undefined') {
+                            const optArg = args.find(a => a.startsWith('-o'));
+                            ENV.NETHACKOPTIONS = optArg ? optArg.slice(2) : "";
+                        }
+
+
                         const argc = args.length;
-                        const argv = Module._malloc(argc * 4);
+                        const argv = Module._malloc((argc + 1) * 4);
                         for (let i = 0; i < argc; i++) {
                             const str = args[i];
                             const strPtr = Module._malloc(str.length + 1);
                             Module.stringToUTF8(str, strPtr, str.length + 1);
                             Module.setValue(argv + i * 4, strPtr, '*');
                         }
+                        Module.setValue(argv + argc * 4, 0, '*');
+
+
+
 
                         console.log("Passing arguments to main:", args, "argc:", argc, "argv_ptr:", argv);
 
@@ -910,14 +963,38 @@ function GameManager(g) {
                                     console.log("NH Bootstrap: IDBFS Synced (Initial Complete)");
 
                                     const configFiles = ['NetHack.cnf', '.nethackrc'];
-                                    const configContent = "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad\n";
+                                    let extraOptions = "";
+                                    try {
+                                        const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+                                        if (savedConfig && savedConfig.extra_options) {
+                                            extraOptions = savedConfig.extra_options;
+                                        }
+                                    } catch (e) { }
+
+                                    let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad\n`;
+                                    if (extraOptions) {
+                                        extraOptions.split('\n').forEach(line => {
+                                            // 先頭・末尾のカンマと空白を除去
+                                            let trimmed = line.trim().replace(/^[, \t]+/, '').replace(/[, \t]+$/, '').trim();
+                                            if (trimmed) {
+                                                if (trimmed.includes('=') || trimmed.startsWith('#')) {
+                                                    configContent += trimmed + "\n";
+                                                } else {
+                                                    configContent += `OPTIONS=${trimmed}\n`;
+                                                }
+                                            }
+                                        });
+                                    }
+
+
                                     configFiles.forEach(cf => {
                                         const path = '/' + cf;
-                                        if (!FS.analyzePath(path).exists) {
-                                            FS.writeFile(path, configContent);
-                                            console.log(`NH Bootstrap: Created config file ${path}`);
-                                        }
+                                        // 常に最新の設定を書き込む
+                                        FS.writeFile(path, configContent);
+                                        console.log(`NH Bootstrap: Updated config file ${path}`);
                                     });
+
+
 
                                     const files = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog'];
                                     files.forEach(f => {

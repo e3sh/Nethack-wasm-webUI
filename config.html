@@ -280,7 +280,8 @@
             gryph: true,
             lang: true,
             larn: true,
-            debug: false
+            debug: false,
+            extra_options: ""
         };
 
         function auto_start() {
@@ -290,7 +291,10 @@
             // UIに反映
             Object.keys(savedConfig).forEach(key => {
                 const el = document.getElementById(key);
-                if (el) el.checked = savedConfig[key];
+                if (el) {
+                    if (el.type === "checkbox") el.checked = savedConfig[key];
+                    else el.value = savedConfig[key];
+                }
             });
         }
 
@@ -300,7 +304,8 @@
                 gryph: document.getElementById("gryph").checked,
                 lang: document.getElementById("lang").checked,
                 larn: document.getElementById("larn").checked,
-                debug: document.getElementById("debug").checked
+                debug: document.getElementById("debug").checked,
+                extra_options: document.getElementById("extra_options").value
             };
 
             // localStorageに保存
@@ -371,6 +376,18 @@
                         <span class="slider"></span>
                     </div>
                 </label>
+
+                <!-- Additional Options Area -->
+                <div
+                    style="margin-top: 24px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color);">
+                    <div class="config-info" style="margin-bottom: 12px;">
+                        <span class="config-label">Additional NetHack OPTIONS</span>
+                        <span class="config-desc">NetHack本体のオプションを追加できます (カンマ区切り)</span>
+                    </div>
+                    <textarea id="extra_options" placeholder="autopickup\npickup_types:$\nfruit:orange"
+                        style="width: 100%; height: 120px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
+
+                </div>
             </div>
 
             <div class="actions">
