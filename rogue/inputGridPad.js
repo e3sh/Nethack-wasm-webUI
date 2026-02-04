@@ -321,6 +321,8 @@
                         set_grid(PNAME.RC, "[-R-]", RightPage);
                         break;
                 }
+                // 全ページ共通で左側にフルスクリーンボタンを配置 (iPhone等の幅狭環境対策)
+                set_grid(40, "FULL", "FULLSCREEN");
             }
             this.currentPage = ppn;
         }
