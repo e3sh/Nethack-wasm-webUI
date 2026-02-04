@@ -915,21 +915,24 @@ function GameManager(g) {
                         const result = Module.ccall('main', 'number', ['number', 'number'], [argc, argv], { async: true });
 
                         if (result instanceof Promise) {
-                            result.then((r) => {
+                            result.then(async (r) => {
                                 console.log("NetHack Engine Exited with:", r);
                                 this.playing = false;
                                 syncToPersistent();
+                                await this.waitForReplay();
                             })
-                                .catch((err) => {
+                                .catch(async (err) => {
                                     if (err.name === 'ExitStatus') {
                                         console.log("NetHack Engine Exited Successfully with status:", err.status);
                                         this.playing = false;
                                         this.UI.msg(`NetHack ${this.get_nhVersion()}(wasm) Exit`);
                                         syncToPersistent();
+                                        await this.waitForReplay();
                                         return;
                                     }
                                     console.error("NetHack Engine Runtime Error:", err);
                                     syncToPersistent();
+                                    await this.waitForReplay();
                                 });
                             console.log("NetHack Engine is now running asynchronously.");
                         } else {
@@ -1067,6 +1070,17 @@ function GameManager(g) {
 
     this.playit = function () {
         // Wasm版では main 内で開始される
+    }
+
+    this.waitForReplay = async function () {
+        this.UI.msg("--- Game Over ---");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.UI.msg("Press Space or Tap to Replay");
+        this.inputContext = "NORMAL";
+        await new Promise(resolve => {
+            this.pendingInputResolve = resolve;
+        });
+        location.reload();
     }
 
 }

@@ -144,10 +144,6 @@
                     }
                     // ゲーム側に入力として送らないように消費する
                     pos = -1;
-                } else if (grid[pos].action === "RELOAD") {
-                    // ページを再読み込みする
-                    location.reload();
-                    pos = -1;
                 }
             }
             entryResult = pos;
@@ -366,12 +362,6 @@
                 // 既にフルスクリーンの場合、またはAPIが利用できない環境（iPhone等）では表示しない
                 if (isFullscreenAvailable() && !getFullscreenElement()) {
                     set_grid(40, "FULL", "FULLSCREEN");
-                }
-
-                // ゲーム終了時（playing === false）にリロードボタンを表示
-                // g.rogue (GameManager) が存在し、かつ playing が false の場合
-                if (this.g && this.g.rogue && this.g.rogue.playing === false) {
-                    set_grid(41, "RELOAD", "RELOAD");
                 }
             }
             this.currentPage = ppn;
