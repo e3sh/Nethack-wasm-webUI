@@ -108,6 +108,15 @@
                 if (typeof (grid[pos].action) == "number") {
                     setPanelPage(grid[pos].action);
                     pos = -1;
+                } else if (grid[pos].action === "FULLSCREEN") {
+                    // Fullscreen APIはユーザー操作のイベントハンドラ内で直接呼ぶ必要がある
+                    if (!document.fullscreenElement) {
+                        target.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                        });
+                    }
+                    // ゲーム側に入力として送らないように消費する
+                    pos = -1;
                 }
             }
             entryResult = pos;
@@ -158,6 +167,7 @@
                     grid[i * DW + j] = { label: null, action: "", on: false }
             }
         };
+
         const set_grid = (loc, lbl, act) => {
             grid[loc].label = lbl;
             grid[loc].action = act;
@@ -322,10 +332,18 @@
                         break;
                 }
                 // 全ページ共通で左側にフルスクリーンボタンを配置 (iPhone等の幅狭環境対策)
-                set_grid(40, "FULL", "FULLSCREEN");
+                // 既にフルスクリーンの場合は表示しない
+                if (!document.fullscreenElement) {
+                    set_grid(40, "FULL", "FULLSCREEN");
+                }
             }
             this.currentPage = ppn;
         }
+
+        // フルスクリーン状態の変化を監視してUIを更新する
+        document.addEventListener('fullscreenchange', () => {
+            setPanelPage(this.currentPage);
+        });
 
         let lastContext = "NORMAL";
         this.updateContext = function (context) {
