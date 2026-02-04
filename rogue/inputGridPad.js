@@ -23,46 +23,129 @@
         const closewait = 500;
         let entrytime = 0;
 
-        const PosToGridId = (x, y) => {
-            return Math.floor(x / CW) + Math.floor(y / CH) * DW
+        const PosToGridId = (pageX, pageY) => {
+            const rect = target.getBoundingClientRect();
+
+            // 1. 要素内の相対座標
+            const relativeX = pageX - rect.left - window.scrollX;
+            const relativeY = pageY - rect.top - window.scrollY;
+
+            // 2. Safe Area (padding) の取得
+            const style = window.getComputedStyle(target);
+            const pL = parseFloat(style.paddingLeft) || 0;
+            const pT = parseFloat(style.paddingTop) || 0;
+            const pR = parseFloat(style.paddingRight) || 0;
+            const pB = parseFloat(style.paddingBottom) || 0;
+
+            // 3. コンテンツ利用可能領域 (paddingを除いた内側のサイズ)
+            const availableW = rect.width - pL - pR;
+            const availableH = rect.height - pT - pB;
+
+            if (availableW <= 0 || availableH <= 0) return -1;
+
+            // 4. アスペクト比の比較 (内部 960x600 = 1.6)
+            const gameAspect = ResoX / ResoY;
+            const contentAspect = availableW / availableH;
+
+            let actualW, actualH, offsetX, offsetY;
+
+            if (contentAspect > gameAspect) {
+                // コンテンツ領域がゲームより横長 -> 左右に黒枠ができる
+                actualH = availableH;
+                actualW = availableH * gameAspect;
+                offsetX = pL + (availableW - actualW) / 2;
+                offsetY = pT;
+            } else {
+                // コンテンツ領域がゲームより縦長 -> 上下に黒枠ができる
+                actualW = availableW;
+                actualH = availableW / gameAspect;
+                offsetX = pL;
+                offsetY = pT + (availableH - actualH) / 2;
+            }
+
+            // 5. 実際の表示領域（actualW x actualH）との相対座標へ変換
+            const xInGame = relativeX - offsetX;
+            const yInGame = relativeY - offsetY;
+
+            // 6. 内部解像度 (960x600) へのスケーリング
+            const scaledX = xInGame * (ResoX / actualW);
+            const scaledY = yInGame * (ResoY / actualH);
+
+            // 7. 境界チェック
+            if (scaledX < 0 || scaledX >= ResoX || scaledY < 0 || scaledY >= ResoY) return -1;
+
+            return Math.floor(scaledX / CW) + Math.floor(scaledY / CH) * DW
         }
         const resetLamp = () => {
             for (let i in grid) grid[i].on = false;
         }
 
+        const handleStart = (x, y) => {
+            viewf = true;
+            entryResult = -1;
+            pos = PosToGridId(x, y);
+            if (pos >= 0) {
+                resetLamp();
+                grid[pos].on = true;
+            }
+        };
+
+        const handleMove = (x, y) => {
+            if (!viewf) return;
+            pos = PosToGridId(x, y);
+            resetLamp();
+            if (pos >= 0) {
+                grid[pos].on = true;
+            }
+        };
+
+        const handleEnd = () => {
+            for (let i in grid) {
+                grid[i].on = false;
+            }
+            if (pos >= 0) {
+                //内部処理用のパネルかチェック
+                if (typeof (grid[pos].action) == "number") {
+                    setPanelPage(grid[pos].action);
+                    pos = -1;
+                }
+            }
+            entryResult = pos;
+            viewf = false;
+            entrytime = Date.now();
+        };
+
         // タッチ開始
         target.addEventListener('touchstart', (e) => {
             const p = e.touches[0];
-            viewf = true;
-            entryResult = -1;
-            pos = PosToGridId(p.pageX, p.pageY);//console.log(pos);
-            resetLamp(); grid[pos].on = true;
+            handleStart(p.pageX, p.pageY);
             e.preventDefault(); // スクロール等のブラウザ動作を停止
         }, false);
 
         // タッチ移動中
         target.addEventListener('touchmove', (e) => {
             const p = e.touches[0];
-            viewf = true;
-            pos = PosToGridId(p.pageX, p.pageY);//console.log(pos);
-            resetLamp(); grid[pos].on = true;
+            handleMove(p.pageX, p.pageY);
             e.preventDefault();
         }, false);
 
         // タッチ終了
         target.addEventListener('touchend', (e) => {
-            const p = e.touches[0];
-            for (let i in grid) {
-                grid[i].on = false;
-            }
-            //内部処理用のパネルかチェック
-            if (typeof (grid[pos].action) == "number") {
-                setPanelPage(grid[pos].action);
-                pos = -1;
-            }
-            entryResult = pos;
-            viewf = false;
-            entrytime = Date.now();
+            handleEnd();
+            e.preventDefault();
+        }, false);
+
+        // マウスイベント (PCシミュレーション・デバッグ用)
+        target.addEventListener('mousedown', (e) => {
+            handleStart(e.pageX, e.pageY);
+        }, false);
+
+        target.addEventListener('mousemove', (e) => {
+            handleMove(e.pageX, e.pageY);
+        }, false);
+
+        target.addEventListener('mouseup', (e) => {
+            handleEnd();
         }, false);
 
         for (let i = 0; i < 100; i++) {
