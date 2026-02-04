@@ -152,6 +152,24 @@
             background: rgba(245, 158, 11, 0.1);
         }
 
+        .grid-cell.system {
+            background: rgba(56, 189, 248, 0.1);
+            border-color: rgba(56, 189, 248, 0.3);
+            cursor: not-allowed;
+        }
+
+        .grid-cell.system .cell-label {
+            color: #38bdf8;
+        }
+
+        .grid-cell.safe-area {
+            background: rgba(34, 197, 94, 0.03);
+        }
+
+        .grid-cell.dead-area {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
         .grid-cell.disabled {
             opacity: 0.3;
             cursor: not-allowed;
@@ -379,17 +397,17 @@
                 7: { label: "q uaff", action: ["KeyQ"] }, 8: { label: "i nventry", action: ["KeyI"] }, 9: { label: "z ap", action: ["KeyZ"] },
                 17: { label: "S ave", action: ["KeyS", "ShiftLeft"] }, 18: { label: "^x status", action: ["KeyX", "Space"] }, 19: { label: "k ick", action: ["KeyK"] },
                 27: { label: "r ead", action: ["KeyR"] }, 28: { label: "T akeoff", action: ["KeyT", "ShiftLeft"] }, 29: { label: "W ear", action: ["KeyW", "ShiftLeft"] },
-                37: { label: "> down", action: ["Period", "ShiftLeft"] }, 38: { label: "< up", action: ["Comma", "ShiftLeft"] }, 39: { label: "[-R-]", action: 3 }
+                37: { label: "> down", action: ["Period", "ShiftLeft"] }, 38: { label: "< up ", action: ["Comma", "ShiftLeft"] }, 39: { label: "[-R-]", action: 3 }
             },
             Left: {
                 0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
                 10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
                 20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
-                30: { label: "", action: null }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
+                31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
                 7: { label: "a", action: ["KeyA"] }, 8: { label: "d", action: ["KeyD"] }, 9: { label: "e", action: ["KeyE"] },
                 17: { label: "P", action: ["KeyP", "ShiftLeft"] }, 18: { label: "R", action: ["KeyR", "ShiftLeft"] }, 19: { label: "w", action: ["KeyW"] },
                 27: { label: "W", action: ["KeyW", "ShiftLeft"] }, 28: { label: "T", action: ["KeyT", "ShiftLeft"] }, 29: { label: "Z", action: ["KeyZ", "ShiftLeft"] },
-                37: { label: "p", action: ["KeyP"] }, 38: { label: "v", action: ["KeyV"] }, 39: { label: "[-N-]", action: 1 }
+                37: { label: ",", action: ["Comma"] }, 38: { label: "l", action: ["KeyL"] }, 39: { label: "[-N-]", action: 1 }
             },
             Right: {
                 0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
@@ -398,18 +416,32 @@
                 30: { label: "[-N-]", action: 1 }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
                 7: { label: "#", action: ["Digit3", "ShiftLeft"] }, 8: { label: ";", action: ["Semicolon"] }, 9: { label: "a", action: ["KeyA"] },
                 17: { label: "y", action: ["KeyY"] }, 18: { label: "n", action: ["KeyN"] }, 19: { label: "q", action: ["KeyQ"] },
-                27: { label: "l", action: ["KeyL"] }, 28: { label: "", action: null }, 29: { label: "", action: null },
-                37: { label: "", action: null }, 38: { label: "", action: null }, 39: { label: "", action: null }
+                27: { label: "@", action: ["BracketLeft"] }
             },
             YN: {
+                1: { label: "8", action: ["Numpad8"] },
+                10: { label: "l", action: ["KeyL"] },
+                12: { label: "r", action: ["KeyR"] },
+                21: { label: "2", action: ["RNumpad2"] },
                 22: { label: "y", action: ["KeyY"] },
+                9: { label: "a", action: ["KeyA"] },
+                19: { label: "q", action: ["KeyQ"] },
                 29: { label: "n", action: ["KeyN"] },
                 32: { label: "ESC", action: ["Delete"] }
             },
             MENU: {
+                1: { label: "8", action: ["Numpad8"] },
+                10: { label: "4", action: ["Numpad4"] },
+                12: { label: "6", action: ["Numpad6"] },
+                21: { label: "2", action: ["Numpad2"] },
                 22: { label: "Space", action: ["Space"] },
                 31: { label: "Enter", action: ["Enter"] },
-                32: { label: "ESC", action: ["Delete"] }
+                32: { label: "ESC", action: ["Delete"] },
+                7: { label: "*", action: ["Digit3", "ShiftLeft"] },
+                8: { label: "/", action: ["Slash"] },
+                9: { label: "a", action: ["KeyA"] },
+                17: { label: "d", action: ["KeyY"] },
+                18: { label: "q", action: ["KeyN"] }
             },
             LIN: {
                 30: { label: "Backsp", action: ["Backspace"] },
@@ -469,10 +501,22 @@
                 cell.className = "grid-cell";
                 const col = i % DW;
                 const row = Math.floor(i / DW);
-                const isDisabled = (col > 2 && col < 7) || row > 3;
 
-                if (isDisabled) {
-                    cell.classList.add("disabled");
+                // 視覚的ガイド: 中央4列と下部3行はデッドエリア（NetHack画面と重なる）
+                const isDead = (col > 2 && col < 7) || row > 3;
+                if (isDead) cell.classList.add("dead-area");
+                else cell.classList.add("safe-area");
+
+                if (i === 40) {
+                    // System (Fullscreen) button
+                    cell.classList.add("system");
+                    const lbl = document.createElement("div");
+                    lbl.className = "cell-label";
+                    lbl.textContent = "FULL";
+                    const act = document.createElement("div");
+                    act.className = "cell-action";
+                    act.textContent = "System";
+                    cell.append(lbl, act);
                 } else {
                     const data = currentConfig[currentPage][i];
                     if (data && data.label) {
@@ -498,6 +542,7 @@
         }
 
         function selectCell(idx) {
+            if (idx === 40) return; // Fullscreen button is not editable
             selectedIdx = idx;
             renderGrid();
             const data = currentConfig[currentPage][idx] || { label: "", action: [] };
@@ -533,7 +578,8 @@
                 action = parseInt(document.getElementById("edit-page-id").value);
             }
 
-            if (!label && (!action || (Array.isArray(action) && action.length === 0))) {
+            // labelが空の場合はエントリを削除（inputGridPad.js で label === null を非表示にするため）
+            if (!label) {
                 delete currentConfig[currentPage][selectedIdx];
             } else {
                 currentConfig[currentPage][selectedIdx] = { label, action };
