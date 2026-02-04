@@ -125,23 +125,27 @@ class ioControl extends GameTask {
 		let space = false;
 		let alt = false;
 		let gpresult = this.GpadToKey.check([]);
-		gpresult.push(this.GridPad.check());
+		if (g.rogue) this.GridPad.updateContext(g.rogue.inputContext);
+		let tResult = this.GridPad.check();
+		if (tResult) gpresult.push(tResult);
+
 		if (gpresult.length > 0) {
-			const gr = gpresult[0];
-			//alert(`${gr} ,${typeof gr}`);
-			for (let j in gr) {
-				if (gr[j]) {
-					let i = gr[j];
-					if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
-						shift = true;
-						continue;
+			for (let k in gpresult) {
+				const gr = gpresult[k];
+				for (let j in gr) {
+					if (gr[j]) {
+						let i = gr[j];
+						if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
+							shift = true;
+							continue;
+						}
+						if (i === "AltLeft" || i === "AltRight") {
+							alt = true;
+							continue;
+						}
+						if (i === "Space") space = true;
+						keylist.push(i);
 					}
-					if (i === "AltLeft" || i === "AltRight") {
-						alt = true;
-						continue;
-					}
-					if (i === "Space") space = true;
-					keylist.push(i);
 				}
 			}
 		}
@@ -282,7 +286,7 @@ class ioControl extends GameTask {
 			}
 		}
 		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
-		
+
 		this.GridPad.draw(g.screen[0]);
 	}
 }

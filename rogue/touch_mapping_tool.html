@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TouchPad Mapping Utility</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent-primary: #f59e0b;
+            /* Amber for touch */
+            --accent-secondary: #d97706;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(217, 119, 6, 0.05) 0%, transparent 40%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 1.5rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 1rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 0.5rem;
+            aspect-ratio: 10 / 7;
+        }
+
+        .grid-cell {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+            overflow: hidden;
+            font-size: 0.7rem;
+            text-align: center;
+        }
+
+        .grid-cell:hover {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: var(--accent-primary);
+        }
+
+        .grid-cell.active-slot {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .grid-cell.selected {
+            border-color: var(--accent-primary);
+            box-shadow: inset 0 0 0 1px var(--accent-primary);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .grid-cell.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .cell-label {
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .cell-action {
+            color: var(--accent-primary);
+            font-size: 0.6rem;
+            opacity: 0.8;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.6rem;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        #key-capture-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .overlay-content {
+            background: var(--bg-color);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            border: 1px solid var(--accent-primary);
+            text-align: center;
+        }
+
+        footer {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>TouchPad Mapping Utility</h1>
+    </header>
+
+    <div class="container">
+        <div class="main-panel">
+            <div class="card">
+                <div class="mode-selector">
+                    <button class="mode-btn active" onclick="switchPage('Center')">Center</button>
+                    <button class="mode-btn" onclick="switchPage('Left')">Left</button>
+                    <button class="mode-btn" onclick="switchPage('Right')">Right</button>
+                    <button class="mode-btn" onclick="switchPage('YN')">YN Context</button>
+                    <button class="mode-btn" onclick="switchPage('MENU')">MENU Context</button>
+                    <button class="mode-btn" onclick="switchPage('LIN')">LIN Context</button>
+                </div>
+                <div id="grid" class="grid-container">
+                    <!-- 10x7 cells -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0">Help & Usage</h3>
+                <p style="font-size:0.85rem; color:var(--text-dim)">
+                    10x7のグリッドが表示されています。左右の3列ずつが実際にタッチ可能なエリアです。<br>
+                    中央の4列と下部の3行は、現在NetHackの画面表示と重なるため無効化されています。
+                </p>
+                <div style="font-size:0.75rem; display:grid; grid-template-columns: repeat(2, 1fr); gap:10px">
+                    <div><b>Page Transition:</b> 特殊アクションとして Center(1), Left(2), Right(3) ページへの切り替えを設定できます。</div>
+                    <div><b>Key Capture:</b> 「Capt」ボタンを押してからキーボードを押すと、コードを自動入力します。</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="card">
+                <h3 id="edit-title">Select a cell</h3>
+                <div id="editor-ui" style="display: none;">
+                    <label>Label (Display Text)</label>
+                    <input type="text" id="edit-label" placeholder="e.g. Enter">
+
+                    <label>Action Type</label>
+                    <select id="edit-type" onchange="toggleActionFields()">
+                        <option value="key">Key Assignment</option>
+                        <option value="page">Page Transition</option>
+                    </select>
+
+                    <div id="key-fields">
+                        <label>Keys (Comma separated)</label>
+                        <div class="btn-group">
+                            <input type="text" id="edit-keys" placeholder="NumpadEnter">
+                            <button class="btn-outline" onclick="startCapture()">Capt</button>
+                        </div>
+                    </div>
+
+                    <div id="page-fields" style="display: none;">
+                        <label>Target Page</label>
+                        <select id="edit-page-id">
+                            <option value="1">Center (Default)</option>
+                            <option value="2">Left</option>
+                            <option value="3">Right</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-primary" onclick="saveCurrentEdit()">Update Cell</button>
+                    <button class="btn-outline" style="width:100%; margin-top:0.5rem" onclick="clearCell()">Clear
+                        Cell</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <button class="btn-outline" style="width: 100%; margin-bottom: 0.5rem;" onclick="exportJSON()">Export
+                    JSON</button>
+                <button class="btn-outline" style="width: 100%; margin-bottom: 0.5rem;" onclick="importJSON()">Import
+                    JSON</button>
+                <button class="btn-danger" style="width: 100%;" onclick="resetDefault()">Reset All to Default</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="key-capture-overlay">
+        <div class="overlay-content">
+            <h2>Capturing...</h2>
+            <p id="captured-key-display" style="font-size: 2rem; color: var(--accent-primary);">Press any key</p>
+            <button class="btn-outline" onclick="cancelCapture()">Cancel</button>
+        </div>
+    </div>
+
+    <input type="file" id="import-input" style="display:none" accept=".json" onchange="handleImport(event)">
+
+    <footer>
+        &copy; 2026 TouchPad Utility
+    </footer>
+
+    <script>
+        const DW = 10, DH = 7;
+        const PAGES = ["Center", "Left", "Right", "YN", "MENU", "LIN"];
+        const DEFAULT_CONFIG = {
+            Center: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
+                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
+                30: { label: "[-L-]", action: 2 }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
+                7: { label: "q uaff", action: ["KeyQ"] }, 8: { label: "i nventry", action: ["KeyI"] }, 9: { label: "z ap", action: ["KeyZ"] },
+                17: { label: "S ave", action: ["KeyS", "ShiftLeft"] }, 18: { label: "^x status", action: ["KeyX", "Space"] }, 19: { label: "k ick", action: ["KeyK"] },
+                27: { label: "r ead", action: ["KeyR"] }, 28: { label: "T akeoff", action: ["KeyT", "ShiftLeft"] }, 29: { label: "W ear", action: ["KeyW", "ShiftLeft"] },
+                37: { label: "> down", action: ["Period", "ShiftLeft"] }, 38: { label: "< up", action: ["Comma", "ShiftLeft"] }, 39: { label: "[-R-]", action: 3 }
+            },
+            Left: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
+                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
+                30: { label: "", action: null }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
+                7: { label: "a", action: ["KeyA"] }, 8: { label: "d", action: ["KeyD"] }, 9: { label: "e", action: ["KeyE"] },
+                17: { label: "P", action: ["KeyP", "ShiftLeft"] }, 18: { label: "R", action: ["KeyR", "ShiftLeft"] }, 19: { label: "w", action: ["KeyW"] },
+                27: { label: "W", action: ["KeyW", "ShiftLeft"] }, 28: { label: "T", action: ["KeyT", "ShiftLeft"] }, 29: { label: "Z", action: ["KeyZ", "ShiftLeft"] },
+                37: { label: "p", action: ["KeyP"] }, 38: { label: "v", action: ["KeyV"] }, 39: { label: "[-N-]", action: 1 }
+            },
+            Right: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
+                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
+                30: { label: "[-N-]", action: 1 }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
+                7: { label: "#", action: ["Digit3", "ShiftLeft"] }, 8: { label: ";", action: ["Semicolon"] }, 9: { label: "a", action: ["KeyA"] },
+                17: { label: "y", action: ["KeyY"] }, 18: { label: "n", action: ["KeyN"] }, 19: { label: "q", action: ["KeyQ"] },
+                27: { label: "l", action: ["KeyL"] }, 28: { label: "", action: null }, 29: { label: "", action: null },
+                37: { label: "", action: null }, 38: { label: "", action: null }, 39: { label: "", action: null }
+            },
+            YN: {
+                22: { label: "y", action: ["KeyY"] },
+                29: { label: "n", action: ["KeyN"] },
+                32: { label: "ESC", action: ["Delete"] }
+            },
+            MENU: {
+                22: { label: "Space", action: ["Space"] },
+                31: { label: "Enter", action: ["Enter"] },
+                32: { label: "ESC", action: ["Delete"] }
+            },
+            LIN: {
+                30: { label: "Backsp", action: ["Backspace"] },
+                31: { label: "Enter", action: ["Enter"] },
+                32: { label: "ESC", action: ["Delete"] }
+            }
+        };
+
+        let currentConfig = {};
+        let currentPage = "Center";
+        let selectedIdx = -1;
+        let isCapturing = false;
+
+        function init() {
+            const saved = localStorage.getItem("nh.tpadAssign");
+            if (saved) {
+                try {
+                    currentConfig = JSON.parse(saved);
+                    PAGES.forEach(p => { if (!currentConfig[p]) currentConfig[p] = {}; });
+                } catch (e) { currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
+            } else {
+                currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+            }
+            renderGrid();
+            window.addEventListener('keydown', (e) => {
+                if (isCapturing) {
+                    e.preventDefault();
+                    const input = document.getElementById("edit-keys");
+                    const current = input.value.trim();
+                    if (current) {
+                        input.value = current + ", " + e.code;
+                    } else {
+                        input.value = e.code;
+                    }
+                    stopCapture();
+                }
+            });
+        }
+
+        function saveToStorage() {
+            localStorage.setItem("nh.tpadAssign", JSON.stringify(currentConfig));
+        }
+
+        function switchPage(page) {
+            currentPage = page;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.includes(page)));
+            selectedIdx = -1;
+            document.getElementById("editor-ui").style.display = "none";
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById("grid");
+            grid.innerHTML = "";
+            for (let i = 0; i < DW * DH; i++) {
+                const cell = document.createElement("div");
+                cell.className = "grid-cell";
+                const col = i % DW;
+                const row = Math.floor(i / DW);
+                const isDisabled = (col > 2 && col < 7) || row > 3;
+
+                if (isDisabled) {
+                    cell.classList.add("disabled");
+                } else {
+                    const data = currentConfig[currentPage][i];
+                    if (data && data.label) {
+                        const lbl = document.createElement("div");
+                        lbl.className = "cell-label";
+                        lbl.textContent = data.label;
+                        const act = document.createElement("div");
+                        act.className = "cell-action";
+                        if (typeof data.action === 'number') {
+                            const pNames = { 1: "Center", 2: "Left", 3: "Right" };
+                            act.textContent = "Goto " + (pNames[data.action] || data.action);
+                        } else {
+                            act.textContent = Array.isArray(data.action) ? data.action.join("+") : data.action;
+                        }
+                        cell.append(lbl, act);
+                        cell.classList.add("active-slot");
+                    }
+                    if (i === selectedIdx) cell.classList.add("selected");
+                    cell.onclick = () => selectCell(i);
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        function selectCell(idx) {
+            selectedIdx = idx;
+            renderGrid();
+            const data = currentConfig[currentPage][idx] || { label: "", action: [] };
+            document.getElementById("edit-title").textContent = `Editing Cell ${idx}`;
+            document.getElementById("editor-ui").style.display = "block";
+            document.getElementById("edit-label").value = data.label || "";
+
+            if (typeof data.action === 'number') {
+                document.getElementById("edit-type").value = "page";
+                document.getElementById("edit-page-id").value = data.action;
+            } else {
+                document.getElementById("edit-type").value = "key";
+                document.getElementById("edit-keys").value = Array.isArray(data.action) ? data.action.join(", ") : (data.action || "");
+            }
+            toggleActionFields();
+        }
+
+        function toggleActionFields() {
+            const type = document.getElementById("edit-type").value;
+            document.getElementById("key-fields").style.display = type === "key" ? "block" : "none";
+            document.getElementById("page-fields").style.display = type === "page" ? "block" : "none";
+        }
+
+        function saveCurrentEdit() {
+            if (selectedIdx === -1) return;
+            const label = document.getElementById("edit-label").value.trim();
+            const type = document.getElementById("edit-type").value;
+            let action;
+            if (type === "key") {
+                const keys = document.getElementById("edit-keys").value.split(",").map(k => k.trim()).filter(k => k);
+                action = keys.length > 0 ? keys : "";
+            } else {
+                action = parseInt(document.getElementById("edit-page-id").value);
+            }
+
+            if (!label && (!action || (Array.isArray(action) && action.length === 0))) {
+                delete currentConfig[currentPage][selectedIdx];
+            } else {
+                currentConfig[currentPage][selectedIdx] = { label, action };
+            }
+            saveToStorage();
+            renderGrid();
+        }
+
+        function clearCell() {
+            if (selectedIdx === -1) return;
+            delete currentConfig[currentPage][selectedIdx];
+            saveToStorage();
+            renderGrid();
+            selectCell(selectedIdx);
+        }
+
+        function startCapture() {
+            isCapturing = true;
+            document.getElementById("key-capture-overlay").style.display = "flex";
+        }
+        function stopCapture() {
+            isCapturing = false;
+            document.getElementById("key-capture-overlay").style.display = "none";
+        }
+        function cancelCapture() { stopCapture(); }
+
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify(currentConfig, null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "touch_mapping.json";
+            a.click();
+        }
+
+        function importJSON() { document.getElementById("import-input").click(); }
+
+        function handleImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                try {
+                    currentConfig = JSON.parse(ev.target.result);
+                    saveToStorage();
+                    renderGrid();
+                } catch (err) { alert("Invalid JSON"); }
+            };
+            r.readAsText(file);
+        }
+
+        function resetDefault() {
+            if (confirm("Reset to default?")) {
+                currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+                saveToStorage();
+                renderGrid();
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
