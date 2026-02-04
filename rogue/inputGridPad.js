@@ -1,7 +1,7 @@
 ﻿class inputGridPad {
 
     constructor(element, g) {
-
+        this.g = g;
         const target = document.getElementById(element);
         //const log = {};
         let viewf;
@@ -143,6 +143,10 @@
                         });
                     }
                     // ゲーム側に入力として送らないように消費する
+                    pos = -1;
+                } else if (grid[pos].action === "RELOAD") {
+                    // ページを再読み込みする
+                    location.reload();
                     pos = -1;
                 }
             }
@@ -363,6 +367,12 @@
                 if (isFullscreenAvailable() && !getFullscreenElement()) {
                     set_grid(40, "FULL", "FULLSCREEN");
                 }
+
+                // ゲーム終了時（playing === false）にリロードボタンを表示
+                // g.rogue (GameManager) が存在し、かつ playing が false の場合
+                if (this.g && this.g.rogue && this.g.rogue.playing === false) {
+                    set_grid(41, "RELOAD", "RELOAD");
+                }
             }
             this.currentPage = ppn;
         }
@@ -373,9 +383,15 @@
         });
 
         let lastContext = "NORMAL";
+        let lastPlaying = true;
         this.updateContext = function (context) {
-            if (context === lastContext) return;
+            const currentPlaying = (this.g && this.g.rogue) ? this.g.rogue.playing : true;
+            if (context === lastContext && currentPlaying === lastPlaying) return;
             lastContext = context;
+            lastPlaying = currentPlaying;
+
+            // 状態（Contextまたはplaying）が変わったらパネルを更新
+            setPanelPage(this.currentPage);
 
             if (context === "NORMAL") {
                 setPanelPage(CenterPage);
@@ -395,6 +411,9 @@
         }
 
         this.check = function () {
+            // ゲームオーバー(playing=false)の状態変化を常に監視してUIを更新
+            this.updateContext(lastContext);
+
             lastResult = entryResult;
             entryResult = -1;
             return this.check_last();
