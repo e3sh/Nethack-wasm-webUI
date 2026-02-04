@@ -99,8 +99,17 @@ class ioControl extends GameTask {
 		if (this.waittime < g.time()) {
 			let fullscr = (input.HOME) ? true : false;
 			if (fullscr) {
-				if (!document.fullscreenElement) {
-					g.systemCanvas.requestFullscreen();
+				const isAvailable = document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled;
+				const current = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+				if (isAvailable && !current) {
+					const el = g.systemCanvas;
+					const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+					if (requestMethod) {
+						requestMethod.call(el).catch(err => {
+							console.warn("Home key fullscreen failed (likely user gesture restriction):", err);
+						});
+					}
 				}
 			}
 

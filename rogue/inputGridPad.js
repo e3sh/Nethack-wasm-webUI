@@ -15,6 +15,33 @@
         const CW = ResoX / DW;
         const CH = ResoY / DH;
 
+        // --- 汎用フルスクリーン関数の定義 ---
+        const isFullscreenAvailable = () => {
+            return !!(document.fullscreenEnabled ||
+                document.webkitFullscreenEnabled ||
+                document.mozFullScreenEnabled ||
+                document.msFullscreenEnabled);
+        };
+
+        const getFullscreenElement = () => {
+            return document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement;
+        };
+
+        const requestFullscreen = (el) => {
+            const requestMethod = el.requestFullscreen ||
+                el.webkitRequestFullscreen ||
+                el.mozRequestFullScreen ||
+                el.msRequestFullscreen;
+            if (requestMethod) {
+                return requestMethod.call(el);
+            }
+            return Promise.reject(new Error("Fullscreen API not supported"));
+        };
+        // ----------------------------------
+
         let pos = -1;
         let entryResult = -1;
         let lastResult;
@@ -110,9 +137,9 @@
                     pos = -1;
                 } else if (grid[pos].action === "FULLSCREEN") {
                     // Fullscreen APIはユーザー操作のイベントハンドラ内で直接呼ぶ必要がある
-                    if (!document.fullscreenElement) {
-                        target.requestFullscreen().catch(err => {
-                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                    if (!getFullscreenElement()) {
+                        requestFullscreen(target).catch(err => {
+                            console.warn(`Fullscreen request failed: ${err.message}`);
                         });
                     }
                     // ゲーム側に入力として送らないように消費する
@@ -332,8 +359,8 @@
                         break;
                 }
                 // 全ページ共通で左側にフルスクリーンボタンを配置 (iPhone等の幅狭環境対策)
-                // 既にフルスクリーンの場合は表示しない
-                if (!document.fullscreenElement) {
+                // 既にフルスクリーンの場合、またはAPIが利用できない環境（iPhone等）では表示しない
+                if (isFullscreenAvailable() && !getFullscreenElement()) {
                     set_grid(40, "FULL", "FULLSCREEN");
                 }
             }
