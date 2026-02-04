@@ -144,12 +144,6 @@ class ioControl extends GameTask {
 							continue;
 						}
 						if (i === "Space") space = true;
-						if (i === "FULLSCREEN") {
-							if (!document.fullscreenElement) {
-								g.systemCanvas.requestFullscreen();
-							}
-							continue;
-						}
 						keylist.push(i);
 					}
 				}
