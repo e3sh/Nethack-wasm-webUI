@@ -1,46 +1,395 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
+
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WASM - Config</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0c10;
+            --panel-bg: rgba(22, 27, 34, 0.7);
+            --accent-color: #3fb950;
+            --accent-hover: #4cd05d;
+            --danger-color: #f85149;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --border-color: rgba(48, 54, 61, 0.8);
+            --glass-blur: blur(16px);
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(63, 185, 80, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(31, 111, 235, 0.05) 0%, transparent 40%);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            z-index: 1;
+        }
+
+        .config-card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+            background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .config-group {
+            margin-bottom: 24px;
+        }
+
+        .config-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .config-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+            transform: scale(1.02);
+        }
+
+        .config-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-label {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .config-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Essential toggle switch styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #30363d;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .btn {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            text-decoration: none;
+            display: block;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(63, 185, 80, 0.3);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(63, 185, 80, 0.4);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger-color);
+            border: 1px solid rgba(248, 81, 73, 0.2);
+            font-size: 13px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(248, 81, 73, 0.1);
+            border-color: var(--danger-color);
+        }
+
+        .tools-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .tools-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tool-links {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .tool-link {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            text-align: center;
+        }
+
+        .tool-link:hover {
+            color: var(--accent-color);
+            background: rgba(63, 185, 80, 0.05);
+            border-color: rgba(63, 185, 80, 0.2);
+        }
+    </style>
     <script type="text/javascript">
+        // 設定のデフォルト値
+        const DEFAULT_CONFIG = {
+            gryph: true,
+            lang: true,
+            larn: true,
+            debug: false
+        };
 
+        function auto_start() {
+            // localStorageから設定をロード
+            const savedConfig = JSON.parse(localStorage.getItem("nh.config")) || DEFAULT_CONFIG;
 
-
-        function auto_start(){
-            document.getElementById("lang").checked = false;
-
-
-            document.getElementById("debug").checked = true;
-
-
+            // UIに反映
+            Object.keys(savedConfig).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) el.checked = savedConfig[key];
+            });
         }
-        function page_start(){
 
-            //let mode = document.getElementById("lang").checked;
-            //localStorage.setItem("rogue.lang",mode? "jp":"en");
-            //console.log("lang:",mode? "jp":"en");
+        function page_start() {
+            // 現在の設定を取得
+            const config = {
+                gryph: document.getElementById("gryph").checked,
+                lang: document.getElementById("lang").checked,
+                larn: document.getElementById("larn").checked,
+                debug: document.getElementById("debug").checked
+            };
 
-            window.open(`index.html`);
+            // localStorageに保存
+            localStorage.setItem("nh.config", JSON.stringify(config));
+
+            // ゲーム画面へ遷移
+            window.location.href = 'index.html';
         }
-        </script>
-<title>nhwebUI config</title>
+
+        function reset_config() {
+            if (confirm("設定をすべて初期化しますか？")) {
+                localStorage.removeItem("nh.config");
+                // ついでに一時データも消す場合は以下（必要に応じて）
+                // localStorage.removeItem("nh.temp");
+                location.reload();
+            }
+        }
+    </script>
 </head>
+
 <body onload="auto_start()">
-    <div>
-        <b>nhwebUI config</b><br/>
-        <input type="checkbox" id="gryph" checked>:USE_GLYPH<br/>
-        <input type="checkbox" id="lang" checked>:LANG_JP<br/>
-        <input type="checkbox" id="larn" checked>:LANG_LARNMODE<br/>
-        <input type="checkbox" id="debug" >:DEBUG_MSG<br/>
-        <hr>
-        <input type="button" id="btn" value="GAME START" onclick="page_start()">
-        <small> (save setting param)(工事中:未完了)設定は反映されません</small><br>
-        <br>
-        <hr>
-        <b>Tools</b><br/>
-        <a href="tr_fail.html" target="_blank">未翻訳メッセージ管理</a><br/>
-        <a href="tr_test.html" target="_blank">Translation Tester</a><br/>
-        <a href="tile_test.html" target="_blank">Tile & Glyph Mapping Test</a><br/>
+    <div class="container">
+        <div class="config-card">
+            <h1>NetHack WASM</h1>
+            <p class="subtitle">System Configuration</p>
+
+            <div class="config-group">
+                <label class="config-item" for="gryph">
+                    <div class="config-info">
+                        <span class="config-label">USE_GLYPH</span>
+                        <span class="config-desc">グラフィックをタイル形式に切り替えます</span>
+                    </div>
+                    <div class="switch">
+                        <input type="checkbox" id="gryph">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="config-item" for="lang">
+                    <div class="config-info">
+                        <span class="config-label">LANG_JP</span>
+                        <span class="config-desc">日本語メッセージ翻訳を有効にします</span>
+                    </div>
+                    <div class="switch">
+                        <input type="checkbox" id="lang">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="config-item" for="larn">
+                    <div class="config-info">
+                        <span class="config-label">LANG_LARNMODE</span>
+                        <span class="config-desc">未翻訳メッセージを収集します</span>
+                    </div>
+                    <div class="switch">
+                        <input type="checkbox" id="larn">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="config-item" for="debug">
+                    <div class="config-info">
+                        <span class="config-label">DEBUG_MSG</span>
+                        <span class="config-desc">開発者向けのデバッグ情報を表示します</span>
+                    </div>
+                    <div class="switch">
+                        <input type="checkbox" id="debug">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" onclick="page_start()">GAME START</button>
+                <button class="btn btn-danger" onclick="reset_config()">Reset to Default</button>
+            </div>
+
+            <div class="tools-section">
+                <p class="tools-title">Developer Tools</p>
+                <div class="tool-links">
+                    <a href="tr_fail.html" class="tool-link" target="_blank">未翻訳管理</a>
+                    <a href="tr_test.html" class="tool-link" target="_blank">Trans Tester</a>
+                    <a href="tile_test.html" class="tool-link" target="_blank">Tile Mapping</a>
+                    <a href="rogue/mapping_tool.html" class="tool-link" target="_blank">GP Mapping</a>
+                    <a href="rogue/touch_mapping_tool.html" class="tool-link" target="_blank">Touch Mapping</a>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
+
 </html>

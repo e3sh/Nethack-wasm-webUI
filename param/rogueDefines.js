@@ -13,6 +13,7 @@ function rogueDefines(r) {
 
         DEBUG_MSG: false,
 
+
         //textFlameNumbers
         DSP_MAIN: 0,
         DSP_MAIN_FG: 1,
@@ -218,5 +219,21 @@ function rogueDefines(r) {
             "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
         ],
     };
+
+    // Load settings from localStorage if available
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+            if (savedConfig) {
+                if (savedConfig.gryph !== undefined) d.USE_GLYPH = savedConfig.gryph;
+                if (savedConfig.lang !== undefined) d.LANG_JP = savedConfig.lang;
+                if (savedConfig.larn !== undefined) d.LANG_LARNMODE = savedConfig.larn;
+                if (savedConfig.debug !== undefined) d.DEBUG_MSG = savedConfig.debug;
+            }
+        } catch (e) {
+            console.warn("Failed to load config from localStorage", e);
+        }
+    }
+
     return d;
 }
