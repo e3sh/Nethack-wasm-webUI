@@ -53,55 +53,40 @@
         const PosToGridId = (pageX, pageY) => {
             const rect = target.getBoundingClientRect();
 
-            // 1. 要素内の相対座標
-            const relativeX = pageX - rect.left - window.scrollX;
-            const relativeY = pageY - rect.top - window.scrollY;
+            // 1. 要素内の相対座標 (スクロール考慮)
+            const relativeX = pageX - (rect.left + window.scrollX);
+            const relativeY = pageY - (rect.top + window.scrollY);
 
-            // 2. Safe Area (padding) の取得
-            const style = window.getComputedStyle(target);
-            const pL = parseFloat(style.paddingLeft) || 0;
-            const pT = parseFloat(style.paddingTop) || 0;
-            const pR = parseFloat(style.paddingRight) || 0;
-            const pB = parseFloat(style.paddingBottom) || 0;
-
-            // 3. コンテンツ利用可能領域 (paddingを除いた内側のサイズ)
-            const availableW = rect.width - pL - pR;
-            const availableH = rect.height - pT - pB;
-
-            if (availableW <= 0 || availableH <= 0) return -1;
-
-            // 4. アスペクト比の比較 (内部 960x600 = 1.6)
+            // 2. 内部解像度 (960x600) と表示サイズの比率を計算
+            // CSS で object-fit: contain を使っているため、実際の描画領域を考慮
             const gameAspect = ResoX / ResoY;
-            const contentAspect = availableW / availableH;
+            const viewAspect = rect.width / rect.height;
 
-            let actualW, actualH, offsetX, offsetY;
-
-            if (contentAspect > gameAspect) {
-                // コンテンツ領域がゲームより横長 -> 左右に黒枠ができる
-                actualH = availableH;
-                actualW = availableH * gameAspect;
-                offsetX = pL + (availableW - actualW) / 2;
-                offsetY = pT;
+            let actualWidth, actualHeight, offsetX, offsetY;
+            if (viewAspect > gameAspect) {
+                // 左右に黒枠
+                actualHeight = rect.height;
+                actualWidth = rect.height * gameAspect;
+                offsetX = (rect.width - actualWidth) / 2;
+                offsetY = 0;
             } else {
-                // コンテンツ領域がゲームより縦長 -> 上下に黒枠ができる
-                actualW = availableW;
-                actualH = availableW / gameAspect;
-                offsetX = pL;
-                offsetY = pT + (availableH - actualH) / 2;
+                // 上下に黒枠
+                actualWidth = rect.width;
+                actualHeight = rect.width / gameAspect;
+                offsetX = 0;
+                offsetY = (rect.height - actualHeight) / 2;
             }
 
-            // 5. 実際の表示領域（actualW x actualH）との相対座標へ変換
-            const xInGame = relativeX - offsetX;
-            const yInGame = relativeY - offsetY;
+            // 3. ゲーム内座標への補正
+            const xInGame = (relativeX - offsetX) * (ResoX / actualWidth);
+            const yInGame = (relativeY - offsetY) * (ResoY / actualHeight);
 
-            // 6. 内部解像度 (960x600) へのスケーリング
-            const scaledX = xInGame * (ResoX / actualW);
-            const scaledY = yInGame * (ResoY / actualH);
+            // 4. 範囲チェック
+            if (xInGame < 0 || xInGame >= ResoX || yInGame < 0 || yInGame >= ResoY) {
+                return -1;
+            }
 
-            // 7. 境界チェック
-            if (scaledX < 0 || scaledX >= ResoX || scaledY < 0 || scaledY >= ResoY) return -1;
-
-            return Math.floor(scaledX / CW) + Math.floor(scaledY / CH) * DW
+            return Math.floor(xInGame / CW) + Math.floor(yInGame / CH) * DW;
         }
         const resetLamp = () => {
             for (let i in grid) grid[i].on = false;
