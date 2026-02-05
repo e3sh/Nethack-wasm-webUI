@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.json" />
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: monospace;
+        }
+
+        /* DOM版描画エリアの基本スタイル */
+        #ui-root {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .jn-line {
+            white-space: pre;
+            display: flex;
+        }
+    </style>
+    <script src="include.js" type="text/javascript"></script>
+    <title>Nethack-wasm-WebUI (Mobile)</title>
+</head>
+
+<body onload="main()">
+    <!-- Canvas版への切り替え用ボタン（デバッグ用） -->
+    <div style="position:fixed; top:0; right:0; z-index:100; opacity:0.3;">
+        <a href="index.html" style="color:white; font-size:10px;">Canvas Mode</a>
+    </div>
+
+    <!-- DOM描画のルート要素。これが存在するとDOMレンダラーが動作する -->
+    <div id="ui-root">
+        <!-- ここに動的に div や span が生成される -->
+    </div>
+
+    <!-- Canvasは非表示で存在させておく（GameCoreの初期化で必要になる可能性があるため） -->
+    <canvas id="layer0" style="display:none;"></canvas>
+
+    <div id="memo"></div>
+</body>
+
+</html>

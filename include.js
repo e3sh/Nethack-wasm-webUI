@@ -53,6 +53,7 @@ const w = [
     r + "UI/monsHpView.js",
     r + "UI/barEffect.js",
     r + "UI/fontPrintControl_with_glyph.js",
+    r + "UI/mobileCurses.js",
     r + "GpadToKey.js",
     r + "inputGridPad.js",
     // Rogue Parameters

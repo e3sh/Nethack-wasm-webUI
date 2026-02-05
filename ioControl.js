@@ -44,14 +44,38 @@ class ioControl extends GameTask {
 
 		let cnsl = [];
 		let layo = [];
+
+		// --- Mobile 軽量 UI (mobileCurses) 切り替え ---
+		const domRoot = document.getElementById("ui-root");
+
 		for (let i in cp) {
 			let p = cp[i];
-			let c = new jncurses(p[0], p[1]);
-			c.setFontId(p[2]);
-			c.setPrompt(p[3]);
-			c.setCharwidth(p[4]);
-			c.setLinewidth(p[5]);
-			const l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: p[8] };
+			let c;
+			let l;
+
+			if (domRoot) {
+				// モバイル版: 各コンソール用のコンテナを作成し、mobileCurses インスタンスを生成
+				const cId = `console-${i}`;
+				let cDiv = document.getElementById(cId);
+				if (!cDiv) {
+					cDiv = document.createElement('div');
+					cDiv.id = cId;
+					domRoot.appendChild(cDiv);
+				}
+				// 背景色の設定 (p[8])
+				if (p[8]) cDiv.style.backgroundColor = p[8];
+
+				c = new mobileCurses(p[0], p[1], cId);
+				l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: null }; // DOM版では背景はコンテナで処理
+			} else {
+				// 通常版: jncurses + fontPrintControl (Canvas)
+				c = new jncurses(p[0], p[1]);
+				c.setFontId(p[2]);
+				c.setPrompt(p[3]);
+				c.setCharwidth(p[4]);
+				c.setLinewidth(p[5]);
+				l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: p[8] };
+			}
 			c.setUseUTF(Boolean(p[9]));
 
 			cnsl.push(c);
@@ -266,11 +290,21 @@ class ioControl extends GameTask {
 		if (this.debugview) {
 			let r = g.fpsload.result();
 			let dt = g.deltaTime().toString().substring(0, 4);
-			g.font["small"].putchr(`FPS:${Math.floor(r.fps)}  delta:${dt}`, 840, 0);
+			const info = `FPS:${Math.floor(r.fps)} delta:${dt}`;
 
-			let s = "input:";
-			for (let i in this.input.keylist) { s += `${this.input.keylist[i]},` }
-			g.font["small"].putchr(s, 0, 600 - 8);
+			// 通常版（Canvas）
+			if (g.font["small"] && g.font["small"].putchr) {
+				g.font["small"].putchr(info, 840, 0);
+				let s = "input:";
+				for (let i in this.input.keylist) { s += `${this.input.keylist[i]},` }
+				g.font["small"].putchr(s, 0, 600 - 8);
+			}
+
+			// モバイル/DOM版 (MODE/COMMENT コンソールを利用)
+			if (g.console[5] && g.console[5].printw) {
+				g.console[5].move(0, 0);
+				g.console[5].printw(info);
+			}
 		}
 		//			 0:bg  1:st 2:msg 3:window 4:comment    
 		let dispf = [true, true, true, true, this.overlapview, this.debugview, this.debugview];
@@ -285,13 +319,22 @@ class ioControl extends GameTask {
 				y = y + this.camera.y;
 			}
 
-			if (dispf[i]) {
+			const isVisible = dispf[i];
+			if (isVisible) {
 				if (d.bg) g.screen[0].fill(x, y, d.w, d.h, d.bg);
 				if (i == 2) {
 					const sc = g.task.read("scene");
 					sc.barEffect.draw();
 				}
 				d.con.draw(g, x, y);
+			}
+
+			// DOM要素の表示/非表示をフラグと同期 (最適化: 変化がある時のみ書き換える)
+			if (d.con.root) {
+				const nextDisplay = isVisible ? 'block' : 'none';
+				if (d.con.root.style.display !== nextDisplay) {
+					d.con.root.style.display = nextDisplay;
+				}
 			}
 		}
 		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
