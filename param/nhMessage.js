@@ -1116,7 +1116,7 @@
         { en: "Reset role/race/&c filtering", jp: "役割/人種/その他フィルタをリセット" },
         { en: "Pick role first", jp: "まず役割を選択" },
         { en: "Pick another alignment first", jp: "別の陣営を先に選択" },
-        { en: " (weapon in hands)", jp: "（武器：手に持っている）" },
+        { en: "weapon in hands", jp: "武器：手に持っている" },
         { en: " (weapon in right hand)", jp: "（武器：左手）" },
         { en: " (weapon in left hand)", jp: "（武器：右手）" },
         { en: "alternate weapon; not wielded", jp: "別の武器；装備していない" },
@@ -1513,6 +1513,18 @@
         { en: "You hear maniacal laughter in the distance.", jp: "遠くで狂った笑い声が聞こえる。" },
         { en: "Put this amulet on", jp: "この護符を身につける" },
         { en: "The water is contaminated!", jp: "水が汚染されている！" },
+        { en: "You are suddenly moving much faster.", jp: "突然、動きがずっと速くなった。" },
+        { en: "Your quickness feels very natural.", jp: "その素早さはとても自然に感じられる。" },
+        { en: "Items you just picked up", jp: "今拾ったアイテム" },
+        { en: "You hear rumbling in the distance.", jp: "遠くでゴロゴロという音が聞こえる。" },
+        { en: "They say that a stethoscope is no good if you can only hear your heartbeat.", jp: "聴診器は自分の鼓動しか聞かないならば役立たずだ。" },
+        { en: "Use this leaf as a whistle", jp: "この葉っぱを笛として使え" },
+        { en: "The world spins and goes dark.", jp: "世界は回り 暗闇に沈む。" },
+        { en: "You are conscious again.", jp: "君は再び意識を取り戻す。" },
+        { en: "You produce a high whistling sound.", jp: "君は甲高い笛音を奏でる。" },
+        { en: "The mixture glows brightly and", jp: "混合物が明るく輝き、それ" },
+        { en: "The mixture bubbles, then clears.", jp: "泡立ち、やがて澄み渡る。" },
+
 
     ];
 }
@@ -1943,6 +1955,8 @@ function nhEntities() {
         "peaceful": "平和的",
         "aggressive": "攻撃的",
         "unaligned": "中立",
+        "Hello": "こんにちは",
+        "Aloha": "アロハ",
 
     };
 }
@@ -2580,6 +2594,7 @@ function nhItems() {
         "on left hand": "左手に装備",
         "on right hand": "右手に装備",
         "bare hands": "素手",
+        "eucalyptus leaf": "ユーカリの葉",
     };
 }
 
@@ -2738,7 +2753,7 @@ function nhPatterns() {
         { pattern: /^(.*) stole (.*)\.$/, replace: "$1は$2を盗んだ！" },
         { pattern: /^(.*) tries to rob you, but there is nothing to steal!$/, replace: "$1は盗もうとしたが、盗める物がなかった。" },
         { pattern: /^(.*) tries to rob you, but isn't interested in gold\.$/, replace: "$1はあなたを略奪しようとするが、金には興味がない。" },
-        { pattern: /^(.*) containing (.*) items$/, replace: "$1（中身：$2個のアイテム）" },
+        { pattern: /^(.*) containing (.*) items?$/, replace: "$1（中身：$2個のアイテム）" },
         { pattern: /^You begin bashing monsters with your (.*)\.$/, replace: "あなたは$1でモンスターを叩き始める。" },
         { pattern: /^(.*) on the head\.$/, replace: "$1が頭に当たった。" },
         { pattern: /^([A-Za-z$]+) - (.*)\.$/, replace: "$1 - $2." },
@@ -2771,7 +2786,8 @@ function nhPatterns() {
         { pattern: /^altar to (.*)$/, replace: "$1の祭壇" },
         { pattern: /^Your (.*) isn't one-handed\.$/, replace: "あなたの$1は片手で扱えるものではない。" },
         { pattern: /^(.*) grows up into (.*)\.$/, replace: "$1は$2に成長した。" },
-        { pattern: /^\"Hello, (.*)!  Welcome to (.*)'s (.*)!\"$/, replace: "やあ、$1！$2の$3へようこそ！" },
+        { pattern: /^\"(.*), (.*)!  Welcome to (.*)'s (.*)!\"$/, replace: "$1、$2！$3の$4へようこそ！" },
+        { pattern: /^\"(.*), (.*)!  Welcome again to (.*)'s (.*)!\"$/, replace: "$1、$2！$3の$4へ再びようこそ！" },
         { pattern: /^This (.*) is bland\.$/, replace: "この$1は味がしない。" },
         { pattern: /^That (.*) is (.*)!$/, replace: "その$1は$2！" },
         { pattern: /^(.*) forces (.*)$/, replace: "$1は$2を強制する" },
@@ -2848,9 +2864,10 @@ function nhPatterns() {
         { pattern: /^You start playing your (.*)\.$/, replace: "$1を叩き始める。" },
         { pattern: /^Rub this (.*)$/, replace: "この$1を撫でる。" },
         { pattern: /^You now wield (.*)\.$/, replace: "$1を手にした。" },
-        { pattern: /^Hello (.*), (.*) (.*), welcome back to NetHack!$/, replace: "やあ、$2で$3の$1さん。NetHackへおかえりなさい！" },
+        { pattern: /^(.*) (.*), (.*) (.*), welcome back to NetHack!$/, replace: "$1、$3で$4の$2さん。NetHackへおかえりなさい！" },
         { pattern: /^(.*) looks a little more polished now\.$/, replace: "$1は今、少し磨きがかかったように見える。" },
         { pattern: /^one of the (.*)\?(.*)$/, replace: "$1のひとつ？$2" },
+        { pattern: /^one of the (.*)$/, replace: "ひとつの$1" },
         { pattern: /^Your (.*) glows with a light blue aura\.$/, replace: "あなたの$1が、淡い青のオーラを放っている。" },
         { pattern: /^You write in the dust with (.*)\.$/, replace: "あなたは$1で塵の上に書き記す。" },
         { pattern: /^Your (.*) gets dull\.$/, replace: "あなたの$1が鈍る。" },
@@ -2923,6 +2940,8 @@ function nhPatterns() {
         { pattern: /^Your (.*) dilutes\.$/, replace: "あなたの$1がさらに薄まる。" },
         { pattern: /^Your (.*) fades\.$/, replace: "あなたの$1が弱まる。" },
         { pattern: /^You slip while trying to get on (.*)\.$/, replace: "$1に乗ろうとして滑る。" },
+        { pattern: /^(.*) offers (.*) gold pieces for your (.*)\.  Sell it\?$/, replace: "$1が$3を$2ゴールドで買いたいと言っている。売るか？" },
+        { pattern: /^You sold (.*) for (.*) gold pieces\.$/, replace: "$1を$2ゴールドで売った。" },
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
         { pattern: /^  (.*)$/, replace: "  $1" },
@@ -2958,6 +2977,6 @@ function nhPatterns() {
         { pattern: /^wands of (.*)$/, replace: "$1の杖" },
         { pattern: /^rings of (.*)$/, replace: "$1の指輪" },
         { pattern: /^spellbooks of (.*)$/, replace: "$1の魔導書" },
-
+        { pattern: /^partly eaten (.*)$/, replace: "食べかけの$1" },
     ];
 }
