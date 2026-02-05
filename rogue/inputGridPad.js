@@ -2,6 +2,7 @@
 
     constructor(element, g) {
         this.g = g;
+        this._onUpdate = null; // 更新通知用コールバック
         const target = document.getElementById(element);
         //const log = {};
         let viewf;
@@ -9,8 +10,8 @@
         const ResoX = 960;//target.clientWidth; console.log(ResoX);
         const ResoY = 600;//target.clientHeight;  console.log(ResoY);
 
-        const DW = 10; //横分割数
-        const DH = 7; //縦分割数
+        const DW = 12; // 10 -> 12 横分割数を増やしてボタンを小型化
+        const DH = 9;  // 7 -> 9  縦分割数を増やしてボタンを小型化
 
         const CW = ResoX / DW;
         const CH = ResoY / DH;
@@ -118,7 +119,7 @@
             if (pos >= 0) {
                 //内部処理用のパネルかチェック
                 if (typeof (grid[pos].action) == "number") {
-                    setPanelPage(grid[pos].action);
+                    this.setPanelPage(grid[pos].action);
                     pos = -1;
                 } else if (grid[pos].action === "FULLSCREEN") {
                     // Fullscreen APIはユーザー操作のイベントハンドラ内で直接呼ぶ必要がある
@@ -169,52 +170,41 @@
             handleEnd();
         }, false);
 
-        for (let i = 0; i < 100; i++) {
-            grid[i] = { label: i, action: "", on: false }
-        };
-
-        for (let i = 0; i < DH; i++) {
-            for (let j = 0; j < DW; j++) {
-                if (j > 2 && j < 7 || i > 3)
-                    grid[i * DW + j] = { label: null, action: "", on: false }
-            }
+        for (let i = 0; i < DW * DH; i++) {
+            grid[i] = { label: null, action: "", on: false }
         };
 
         const set_grid = (loc, lbl, act) => {
-            grid[loc].label = lbl;
-            grid[loc].action = act;
+            if (grid[loc]) {
+                grid[loc].label = lbl;
+                grid[loc].action = act;
+            }
         };
 
         const PNAME = {
-            L1: 0,
-            L2: 1,
-            L3: 2,
-            L4: 10,
-            L5: 11,
-            L6: 12,
-            L7: 20,
-            L8: 21,
-            L9: 22,
-            LA: 30,
-            LB: 31,
-            LC: 32,
-            R1: 7,
-            R2: 8,
-            R3: 9,
-            R4: 17,
-            R5: 18,
-            R6: 19,
-            R7: 27,
-            R8: 28,
-            R9: 29,
-            RA: 37,
-            RB: 38,
-            RC: 39,
+            // 左側ブロック (3列 x 4行 = 12)
+            L1: 0, L2: 1, L3: 2,
+            L4: DW, L5: DW + 1, L6: DW + 2,
+            L7: DW * 2, L8: DW * 2 + 1, L9: DW * 2 + 2,
+            LA: DW * 3, LB: DW * 3 + 1, LC: DW * 3 + 2,
+            // 右側ブロック (3列 x 4行 = 12)
+            R1: DW - 3, R2: DW - 2, R3: DW - 1,
+            R4: DW * 2 - 3, R5: DW * 2 - 2, R6: DW * 2 - 1,
+            R7: DW * 3 - 3, R8: DW * 3 - 2, R9: DW * 3 - 1,
+            RA: DW * 4 - 3, RB: DW * 4 - 2, RC: DW * 4 - 1,
         }
 
         let tpadConfig = null;
-        if (Boolean(localStorage.getItem("nh.tpadAssign"))) {
-            tpadConfig = JSON.parse(localStorage.getItem("nh.tpadAssign"));
+        const savedConfig = localStorage.getItem("nh.tpadAssign");
+        if (Boolean(savedConfig)) {
+            const parsed = JSON.parse(savedConfig);
+            // グリッドサイズが異なる場合は古い設定を無視（リセット）
+            if (Array.isArray(parsed.Center) || parsed.ver !== `${DW}x${DH}`) {
+                console.log("Grid size changed or old format. Resetting layout.");
+                localStorage.removeItem("nh.tpadAssign");
+            } else {
+                tpadConfig = parsed;
+            }
         }
 
         const CenterPage = 1;
@@ -233,7 +223,7 @@
             "LIN": "LIN"
         };
 
-        const setPanelPage = (ppn) => {
+        this.setPanelPage = (ppn) => {
             const pageName = PageMap[ppn] || "Center";
 
             // Clear current grid labels and actions
@@ -299,13 +289,13 @@
                         set_grid(PNAME.R5, "n", ["KeyN"]);
                         set_grid(PNAME.R6, "q", ["KeyQ"]);
                         set_grid(PNAME.R7, "l", ["KeyL"]);
-                        set_grid(PNAME.R7, "@", ["BracketLeft"]);
+                        set_grid(PNAME.R8, "@", ["BracketLeft"]);
                         break;
                     case YNPage:
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
                         set_grid(PNAME.L4, "l", ["KeyL"]);
                         set_grid(PNAME.L6, "r", ["KeyR"]);
-                        set_grid(PNAME.L8, "2", ["RNumpad2"]);
+                        set_grid(PNAME.L8, "2", ["Numpad2"]);
                         set_grid(PNAME.L9, "y", ["KeyY"]);
                         set_grid(PNAME.R3, "a", ["KeyA"]);
                         set_grid(PNAME.R6, "q", ["KeyQ"]);
@@ -320,7 +310,7 @@
                         set_grid(PNAME.L9, "Space", ["Space"]);
                         set_grid(PNAME.LB, "Enter", ["Enter"]);
                         set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "*", ["Digit3", "ShiftLeft"]);
+                        set_grid(PNAME.R1, "*", ["Quote", "ShiftLeft"]);
                         set_grid(PNAME.R2, "/", ["Slash"]);
                         set_grid(PNAME.R3, "a", ["KeyA"]);
                         set_grid(PNAME.R4, "d", ["KeyY"]);
@@ -359,18 +349,23 @@
                         set_grid(PNAME.RC, "[-R-]", RightPage);
                         break;
                 }
-                // 全ページ共通で左側にフルスクリーンボタンを配置 (iPhone等の幅狭環境対策)
-                // 既にフルスクリーンの場合、またはAPIが利用できない環境（iPhone等）では表示しない
                 if (isFullscreenAvailable() && !getFullscreenElement()) {
-                    set_grid(40, "FULL", "FULLSCREEN");
+                    // 左下隅付近に配置 (DH-1行目の0列目)
+                    set_grid(DW * (DH - 1), "FULL", "FULLSCREEN");
                 }
             }
+            // 保存用データにバージョン（サイズ）を含める
+            if (!tpadConfig) {
+                // 初回のみデフォルトを保存することを検討してもよいが、
+                // ここでは保存時に ver: "12x9" を付与することを前提とする。
+            }
             this.currentPage = ppn;
+            if (this._onUpdate) this._onUpdate(grid);
         }
 
         // フルスクリーン状態の変化を監視してUIを更新する
         document.addEventListener('fullscreenchange', () => {
-            setPanelPage(this.currentPage);
+            this.setPanelPage(this.currentPage);
         });
 
         let lastContext = "NORMAL";
@@ -382,20 +377,20 @@
             lastPlaying = currentPlaying;
 
             // 状態（Contextまたはplaying）が変わったらパネルを更新
-            setPanelPage(this.currentPage);
+            this.setPanelPage(this.currentPage);
 
             if (context === "NORMAL") {
-                setPanelPage(CenterPage);
+                this.setPanelPage(CenterPage);
             } else if (context === "YN") {
-                setPanelPage(YNPage);
+                this.setPanelPage(YNPage);
             } else if (context === "MENU") {
-                setPanelPage(MENUPage);
+                this.setPanelPage(MENUPage);
             } else if (context === "LIN") {
-                setPanelPage(LINPage);
+                this.setPanelPage(LINPage);
             }
         }
 
-        setPanelPage(CenterPage); //FirstPage set 
+        this.setPanelPage(CenterPage); //FirstPage set 
 
         if (!Boolean(tpadConfig)) {
             //    localStorage.setItem("nh.tpadAssign", JSON.stringify(grid));
@@ -413,6 +408,20 @@
         this.check_last = function () {
 
             return (lastResult >= 0) ? grid[lastResult].action : null;
+        };
+
+        this.getGridData = function () {
+            return {
+                grid: grid,
+                dw: DW,
+                dh: DH,
+                currentPage: this.currentPage
+            };
+        };
+
+        this.setOnUpdate = function (callback) {
+            this._onUpdate = callback;
+            callback(grid); // 初回呼び出し
         };
 
         this.draw = function (context) {

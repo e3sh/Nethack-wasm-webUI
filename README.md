@@ -2,7 +2,7 @@
 
 NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベースの描画エンジンによりブラウザ上で動作させるプロジェクトです。日本語翻訳表示および各種入力デバイスへの対応を目的としています。
 
-[**[ 🎮 デモ (Demo) ]**](https://e3sh.github.io/Nethack-wasm-webUI/)
+[**[ 🎮 デモ (Desktop/Canvas) ]**](https://e3sh.github.io/Nethack-wasm-webUI/) / [**[ 📱 デモ (Mobile/DOM) ]**](https://e3sh.github.io/Nethack-wasm-webUI/mobile.html)
 
 ## 主な機能
 
@@ -11,6 +11,10 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
   - Canvas を用いた描画。
   - タイル表示とフォントベース（ASCII/漢字）の同一行での混在表示に対応。
   - 日本語（JIS X 0208）フォントのレンダリングをサポート。
+- **モバイル向け軽量 DOM UI (`mobile.html`)**:
+  - モバイル端末向けに、Canvas を使用しない **DOM ベースのレンダリング** エンジンを搭載。
+  - 文字が鮮明で、バッテリー消費を抑えた高速な動作を実現。
+  - デスクトップ版への **「セーブして遷移」** 機能を搭載。
 - **翻訳機能**:
   - アイテム構成要素（数量、状態、変化値等）を解析し、日本語として再構成するエンジンを搭載。
   - 辞書マッチングによるメッセージの翻訳表示。
@@ -43,7 +47,7 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 - **Core**: NetHack 3.7.0 (C)
 - **Runtime**: WebAssembly (Emscripten / Asyncify)
 - **Frontend**: JavaScript (Vanilla JS / ES6+)
-- **Graphics**: HTML5 Canvas API
+- **Graphics**: HTML5 Canvas API / **DOM Rendering (Mobile)**
 - **Storage**: IndexedDB (IDBFS via Emscripten)
 
 ## ⚒️ 開発支援ツール
@@ -63,6 +67,9 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 バーチャルパッド（タッチパネル）のボタン配置をカスタマイズするためのツールです。
 - **コンテキスト別編集**: センター移動、左右ボタン、YN回答などの画面状態ごとに配置を設定可能。
 - **設定の永続化**: 各コンテキストごとの設定をブラウザ（localStorage）へ保存。
+
+## 📄 詳細ドキュメント
+- [モバイル向け DOM UI システム仕様](docs/mobile_dom_ui.md)
 
 ## 📦 セットアップ
 

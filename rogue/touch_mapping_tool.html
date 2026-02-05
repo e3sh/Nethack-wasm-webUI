@@ -114,12 +114,12 @@
 
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(10, 1fr);
+            grid-template-columns: repeat(12, 1fr);
             gap: 4px;
             background: rgba(0, 0, 0, 0.3);
             padding: 8px;
             border-radius: 0.5rem;
-            aspect-ratio: 10 / 7;
+            aspect-ratio: 12 / 9;
         }
 
         .grid-cell {
@@ -315,8 +315,8 @@
             <div class="card">
                 <h3 style="margin-top:0">Help & Usage</h3>
                 <p style="font-size:0.85rem; color:var(--text-dim)">
-                    10x7のグリッドが表示されています。左右の3列ずつが実際にタッチ可能なエリアです。<br>
-                    中央の4列と下部の3行は、現在NetHackの画面表示と重なるため無効化されています。
+                    12x9のグリッドが表示されています。左右の3列ずつが実際にタッチ可能なエリアです。<br>
+                    中央の6列と下部の5行は、通常NetHackの画面表示と重なるためデッドエリアとして視覚化されています。
                 </p>
                 <div style="font-size:0.75rem; display:grid; grid-template-columns: repeat(2, 1fr); gap:10px">
                     <div><b>Page Transition:</b> 特殊アクションとして Center(1), Left(2), Right(3) ページへの切り替えを設定できます。</div>
@@ -386,67 +386,73 @@
     </footer>
 
     <script>
-        const DW = 10, DH = 7;
+        const DW = 12, DH = 9;
         const PAGES = ["Center", "Left", "Right", "YN", "MENU", "LIN"];
+
+        // inputGridPad.js と同期した 12x9 デフォルト構成
         const DEFAULT_CONFIG = {
+            ver: "12x9",
             Center: {
                 0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
-                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
-                30: { label: "[-L-]", action: 2 }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
-                7: { label: "q uaff", action: ["KeyQ"] }, 8: { label: "i nventry", action: ["KeyI"] }, 9: { label: "z ap", action: ["KeyZ"] },
-                17: { label: "S ave", action: ["KeyS", "ShiftLeft"] }, 18: { label: "^x status", action: ["KeyX", "Space"] }, 19: { label: "k ick", action: ["KeyK"] },
-                27: { label: "r ead", action: ["KeyR"] }, 28: { label: "T akeoff", action: ["KeyT", "ShiftLeft"] }, 29: { label: "W ear", action: ["KeyW", "ShiftLeft"] },
-                37: { label: "> down", action: ["Period", "ShiftLeft"] }, 38: { label: "< up ", action: ["Comma", "ShiftLeft"] }, 39: { label: "[-R-]", action: 3 }
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "-m", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "q uaff", action: ["KeyQ"] }, 10: { label: "i nventry", action: ["KeyI"] }, 11: { label: "z ap", action: ["KeyZ"] },
+                21: { label: "S ave", action: ["KeyS", "ShiftLeft"] }, 22: { label: "^x status", action: ["KeyX", "Space"] }, 23: { label: "k ick", action: ["KeyK"] },
+                33: { label: "r ead", action: ["KeyR"] }, 34: { label: "T akeoff", action: ["KeyT", "ShiftLeft"] }, 35: { label: "W ear", action: ["KeyW", "ShiftLeft"] },
+                45: { label: "> down", action: ["Period", "ShiftLeft"] }, 46: { label: "< up ", action: ["Comma", "ShiftLeft"] }, 47: { label: "[-R-]", action: 3 }
             },
             Left: {
                 0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
-                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
-                31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
-                7: { label: "a", action: ["KeyA"] }, 8: { label: "d", action: ["KeyD"] }, 9: { label: "e", action: ["KeyE"] },
-                17: { label: "P", action: ["KeyP", "ShiftLeft"] }, 18: { label: "R", action: ["KeyR", "ShiftLeft"] }, 19: { label: "w", action: ["KeyW"] },
-                27: { label: "W", action: ["KeyW", "ShiftLeft"] }, 28: { label: "T", action: ["KeyT", "ShiftLeft"] }, 29: { label: "Z", action: ["KeyZ", "ShiftLeft"] },
-                37: { label: ",", action: ["Comma"] }, 38: { label: "l", action: ["KeyL"] }, 39: { label: "[-N-]", action: 1 }
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "-m", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "a", action: ["KeyA"] }, 10: { label: "d", action: ["KeyD"] }, 11: { label: "e", action: ["KeyE"] },
+                21: { label: "P", action: ["KeyP", "ShiftLeft"] }, 22: { label: "R", action: ["KeyR", "ShiftLeft"] }, 23: { label: "w", action: ["KeyW"] },
+                33: { label: "W", action: ["KeyW", "ShiftLeft"] }, 34: { label: "T", action: ["KeyT", "ShiftLeft"] }, 35: { label: "Z", action: ["KeyZ", "ShiftLeft"] },
+                45: { label: ",", action: ["Comma"] }, 46: { label: "l", action: ["KeyL"] }, 47: { label: "[-N-]", action: 1 }
             },
             Right: {
                 0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                10: { label: "4", action: ["Numpad4"] }, 11: { label: "-m", action: ["Numpad5"] }, 12: { label: "6", action: ["Numpad6"] },
-                20: { label: "1", action: ["Numpad1"] }, 21: { label: "2", action: ["Numpad2"] }, 22: { label: "3", action: ["Numpad3"] },
-                30: { label: "[-N-]", action: 1 }, 31: { label: "Enter", action: ["Enter"] }, 32: { label: "ESC", action: ["Delete"] },
-                7: { label: "#", action: ["Digit3", "ShiftLeft"] }, 8: { label: ";", action: ["Semicolon"] }, 9: { label: "a", action: ["KeyA"] },
-                17: { label: "y", action: ["KeyY"] }, 18: { label: "n", action: ["KeyN"] }, 19: { label: "q", action: ["KeyQ"] },
-                27: { label: "@", action: ["BracketLeft"] }
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "-m", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-N-]", action: 1 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "#", action: ["Digit3", "ShiftLeft"] }, 10: { label: ";", action: ["Semicolon"] }, 11: { label: "a", action: ["KeyA"] },
+                21: { label: "y", action: ["KeyY"] }, 22: { label: "n", action: ["KeyN"] }, 23: { label: "q", action: ["KeyQ"] },
+                33: { label: "l", action: ["KeyL"] }, 34: { label: "@", action: ["BracketLeft"] }
             },
             YN: {
                 1: { label: "8", action: ["Numpad8"] },
-                10: { label: "l", action: ["KeyL"] },
-                12: { label: "r", action: ["KeyR"] },
-                21: { label: "2", action: ["RNumpad2"] },
-                22: { label: "y", action: ["KeyY"] },
-                9: { label: "a", action: ["KeyA"] },
-                19: { label: "q", action: ["KeyQ"] },
-                29: { label: "n", action: ["KeyN"] },
-                32: { label: "ESC", action: ["Delete"] }
+                12: { label: "l", action: ["KeyL"] },
+                14: { label: "r", action: ["KeyR"] },
+                25: { label: "2", action: ["Numpad2"] },
+                26: { label: "y", action: ["KeyY"] },
+                11: { label: "a", action: ["KeyA"] },
+                23: { label: "q", action: ["KeyQ"] },
+                35: { label: "n", action: ["KeyN"] },
+                38: { label: "ESC", action: ["Delete"] }
             },
             MENU: {
                 1: { label: "8", action: ["Numpad8"] },
-                10: { label: "4", action: ["Numpad4"] },
-                12: { label: "6", action: ["Numpad6"] },
-                21: { label: "2", action: ["Numpad2"] },
-                22: { label: "Space", action: ["Space"] },
-                31: { label: "Enter", action: ["Enter"] },
-                32: { label: "ESC", action: ["Delete"] },
-                7: { label: "*", action: ["Digit3", "ShiftLeft"] },
-                8: { label: "/", action: ["Slash"] },
-                9: { label: "a", action: ["KeyA"] },
-                17: { label: "d", action: ["KeyY"] },
-                18: { label: "q", action: ["KeyN"] }
+                12: { label: "4", action: ["Numpad4"] },
+                14: { label: "6", action: ["Numpad6"] },
+                25: { label: "2", action: ["Numpad2"] },
+                26: { label: "Space", action: ["Space"] },
+                37: { label: "Enter", action: ["Enter"] },
+                38: { label: "ESC", action: ["Delete"] },
+                9: { label: "*", action: ["Quote", "ShiftLeft"] },
+                10: { label: "/", action: ["Slash"] },
+                11: { label: "a", action: ["KeyA"] },
+                21: { label: "d", action: ["KeyY"] },
+                22: { label: "q", action: ["KeyN"] }
             },
             LIN: {
-                30: { label: "Backsp", action: ["Backspace"] },
-                31: { label: "Enter", action: ["Enter"] },
-                32: { label: "ESC", action: ["Delete"] }
+                36: { label: "Backsp", action: ["Backspace"] },
+                37: { label: "Enter", action: ["Enter"] },
+                38: { label: "ESC", action: ["Delete"] }
             }
         };
 
@@ -460,6 +466,12 @@
             if (saved) {
                 try {
                     currentConfig = JSON.parse(saved);
+                    // バージョンチェック (12x9 でない場合はリセット)
+                    if (currentConfig.ver !== "12x9") {
+                        console.warn("Outdated config version. Resetting to 12x9 defaults.");
+                        currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+                        saveToStorage();
+                    }
                     PAGES.forEach(p => { if (!currentConfig[p]) currentConfig[p] = {}; });
                 } catch (e) { currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
             } else {
@@ -502,12 +514,13 @@
                 const col = i % DW;
                 const row = Math.floor(i / DW);
 
-                // 視覚的ガイド: 中央4列と下部3行はデッドエリア（NetHack画面と重なる）
-                const isDead = (col > 2 && col < 7) || row > 3;
+                // 視覚的ガイド: 中央6列と下部5行はデッドエリア
+                const isDead = (col > 2 && col < 9) || row > 3;
                 if (isDead) cell.classList.add("dead-area");
                 else cell.classList.add("safe-area");
 
-                if (i === 40) {
+                const fullPos = DW * (DH - 1); // 左下隅
+                if (i === fullPos) {
                     // System (Fullscreen) button
                     cell.classList.add("system");
                     const lbl = document.createElement("div");
@@ -542,7 +555,8 @@
         }
 
         function selectCell(idx) {
-            if (idx === 40) return; // Fullscreen button is not editable
+            const fullPos = DW * (DH - 1);
+            if (idx === fullPos) return; // Fullscreen button is not editable
             selectedIdx = idx;
             renderGrid();
             const data = currentConfig[currentPage][idx] || { label: "", action: [] };

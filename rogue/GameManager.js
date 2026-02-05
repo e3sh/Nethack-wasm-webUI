@@ -216,7 +216,7 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_exit_nhwindows,(const char *str), "vs", P2V str)
             case "shim_exit_nhwindows":
-                //this.playing = false;
+                this.playing = false;
                 //console.log("Exiting nhwindows...");
                 this.UI.msg(args[0] || "Exiting game.");
                 this.UI.nhClear(3); // NHW_MAP
@@ -246,6 +246,7 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_display_nhwindow,(winid window, boolean blocking), "vib", A2P window, A2P blocking)
             case "shim_display_nhwindow":
+                if (args[0] === 3) this.playing = true; // NHW_MAP
                 this.UI.set_display_window(args[0]);
                 this.UI.nhPutbufDraw(args[0]);
                 if (this.UI.nhPutbufReady()) {

@@ -3,17 +3,19 @@
 function main() {
 
     const USE_TILE = true;//false;
-        const RESW = 960; //(USE_TILE)?1280:960;
-        const RESH = 600;
+    const RESW = 960; //(USE_TILE)?1280:960;
+    const RESH = 600;
 
     //console.log("main.js start");
 
-    const sysParam = { canvasId: "layer0", 
-            screen: [{ resolution: { w: RESW, h: RESH , x:0, y:0 } }]
-     	};
-	const game = new GameCore( sysParam );
+    const sysParam = {
+        canvasId: "layer0",
+        screen: [{ resolution: { w: RESW, h: RESH, x: 0, y: 0 } }]
+    };
+    const game = new GameCore(sysParam);
+    window.g = game; // グローバルに公開
 
-	//Game Asset Setup
+    //Game Asset Setup
     const p = "pict/";
     game.asset.imageLoad("ASCII", p + "pdcfont.png");
     game.asset.imageLoad("SMALL", p + "k12x8_jisx0201c.png");
@@ -24,13 +26,13 @@ function main() {
     game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
     game.asset.imageLoad("TILES", p + "NethackModern32x-360.png") //"tiles32_cl.png");
 
-    if (USE_TILE){
+    if (USE_TILE) {
         game.kanji = new fontPrintControl_with_glyph(game,
             game.asset.image["ASC32"].img, 16, 32,
             game.asset.image["KNJ32"].img, 32, 32,
             game.asset.image["TILES"].img, 32, 32,
             tileMapping()
-    );
+        );
     } else {
         game.kanji = new fontPrintControl(game,
             game.asset.image["ASC32"].img, 16, 32,
@@ -39,15 +41,15 @@ function main() {
     }
     game.kanji.useScreen(0);
 
-	const spfd = SpriteFontData();
-	for (let i in spfd) {
-	    game.setSpFont(spfd[i]);
-	}
+    const spfd = SpriteFontData();
+    for (let i in spfd) {
+        game.setSpFont(spfd[i]);
+    }
 
     //Game Task Setup
-   	game.task.add(new ioControl("io"));
-	game.task.add(new sceneControl("scene"));
-	//
+    game.task.add(new ioControl("io"));
+    game.task.add(new sceneControl("scene"));
+    //
     const canvas = game.systemCanvas;
     canvas.width = RESW;
     canvas.height = RESH;
@@ -56,13 +58,13 @@ function main() {
     // 画像の平滑化を無効にする
     ctx.imageSmoothingEnabled = false;
 
-	game.screen[0].setBackgroundcolor("black"); 
-    game.screen[0].setInterval(1); 
+    game.screen[0].setBackgroundcolor("black");
+    game.screen[0].setInterval(1);
 
     game.keyboard.codeMode();
 
     //console.log("gameCore start");
-	game.run();
+    game.run();
 }
 
 //----------------------------------------------------------------------
@@ -70,43 +72,43 @@ function main() {
 function SpriteFontData() {
 
     //8_16_font
-	let sp = [];
+    let sp = [];
     for (let i = 0; i < 8; i++) {// normal 1 - 3(<4)
-        for (j = 0; j <32; j++) {
-            ptn = { x:  8 * j, y: 16 * i, w:  8, h: 16 }
+        for (j = 0; j < 32; j++) {
+            ptn = { x: 8 * j, y: 16 * i, w: 8, h: 16 }
             sp.push(ptn);
         }
     }
     //6_8_font
     let s2 = [];
     for (let i = 0; i < 16; i++) {
-        for (j = 0; j <16; j++) {
-            ptn = { x:  6 * j, y: 8 * i, w:  6, h: 8 }
+        for (j = 0; j < 16; j++) {
+            ptn = { x: 6 * j, y: 8 * i, w: 6, h: 8 }
             s2.push(ptn);
         }
     }
     //4_6_font
     let ss = [];
     for (let i = 0; i < 6; i++) {
-        for (j = 0; j <16; j++) {
-            ptn = { x:  4 * j, y: 6 * i, w:  4, h: 6 }
+        for (j = 0; j < 16; j++) {
+            ptn = { x: 4 * j, y: 6 * i, w: 4, h: 6 }
             ss.push(ptn);
         }
     }
     //16_32_font
     let s3 = [];
     for (let i = 0; i < 16; i++) {
-        for (j = 0; j <16; j++) {
-            ptn = { x:  8 * j, y: 16 * i, w:  8, h: 16 }
+        for (j = 0; j < 16; j++) {
+            ptn = { x: 8 * j, y: 16 * i, w: 8, h: 16 }
             s3.push(ptn);
         }
     }
 
     return [
-        { name: "std"   , id: "ASCII", pattern: sp, ucc: true },
-        { name: "std_l" , id: "ASC32", pattern: s3, ucc: true },
-        { name: "small" , id: "SMALL", pattern: s2 ,ucc: true},
-        { name: "mini"  , id: "MINIF", pattern: ss },
+        { name: "std", id: "ASCII", pattern: sp, ucc: true },
+        { name: "std_l", id: "ASC32", pattern: s3, ucc: true },
+        { name: "small", id: "SMALL", pattern: s2, ucc: true },
+        { name: "mini", id: "MINIF", pattern: ss },
         //{ name: "stdbg" , id: "ASCBG", pattern: sp, ucc: true },
     ]
 }

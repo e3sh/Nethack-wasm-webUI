@@ -33,16 +33,15 @@
         /* 仮想パッドのスタイル */
         #virtual-pad {
             position: fixed;
-            bottom: 20px;
+            top: 0;
             left: 0;
-            width: 100%;
-            height: 180px;
-            z-index: 100;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            z-index: 200;
+            /* 十分に高い値 */
             pointer-events: none;
-            /* 下の要素を邪魔しない、ボタンだけ反応させる */
+            display: block;
+            /* grid はコンテナ内の動的生成時に設定 */
         }
 
         .pad-group {
@@ -62,23 +61,32 @@
         }
 
         .v-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            border-radius: 10px;
+            background: rgba(100, 100, 100, 0.2);
+            border: 1px solid rgba(255, 255, 100, 0.5);
+            color: #fff;
+            border-radius: 4px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 14px;
+            font-size: 11px;
             font-family: sans-serif;
+            font-weight: bold;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(2px);
+            pointer-events: auto;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            position: absolute;
+            /* グリッドではなく絶対配置で制御 */
+            width: 8vw;
+            height: 8vw;
+            max-width: 50px;
+            max-height: 50px;
         }
 
         .v-btn:active {
-            background: rgba(255, 165, 0, 0.5);
-            transform: scale(0.95);
+            background: rgba(255, 255, 0, 0.4);
+            transform: scale(1.1);
         }
 
         .v-btn.dir {
@@ -93,7 +101,7 @@
 <body onload="main()">
     <!-- Canvas版への切り替え用ボタン（デバッグ用） -->
     <div style="position:fixed; top:0; right:0; z-index:100; opacity:0.3;">
-        <a href="index.html" style="color:white; font-size:10px;">Canvas Mode</a>
+        <a href="javascript:void(0)" onclick="saveAndTransition()" style="color:white; font-size:10px;">Canvas Mode</a>
     </div>
 
     <!-- DOM描画のルート要素。これが存在するとDOMレンダラーが動作する -->
@@ -101,10 +109,148 @@
         <!-- ここに動的に div や span が生成される -->
     </div>
 
+    <!-- 仮想入力バッド (DOM用) -->
+    <div id="virtual-pad">
+        <!-- ここに grid の内容が動的に生成されます -->
+    </div>
+
     <!-- Canvasは非表示で存在させておく（GameCoreの初期化で必要になる可能性があるため） -->
     <canvas id="layer0" style="display:none;"></canvas>
 
     <div id="memo"></div>
+
+    <script>
+        // 仮想ボタン入力用ヘルパー
+        function vSend(action) {
+            console.log("vSend:", action);
+            if (!action) return;
+
+            if (action === "FULLSCREEN") {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(e => {
+                        console.warn("Fullscreen failed:", e);
+                    });
+                }
+                return;
+            }
+
+            if (typeof action === "string" || Array.isArray(action)) {
+                if (window.g && window.g.rogue) {
+                    const keys = Array.isArray(action) ? action : [action];
+                    const key = keys[0];
+                    const shift = keys.includes("ShiftLeft") || keys.includes("ShiftRight");
+                    const ctrl = keys.includes("ControlLeft") || keys.includes("ControlRight");
+                    console.log("Sending Key:", key, "shift:", shift);
+                    window.g.rogue.sendKey(key, shift, ctrl, false);
+                }
+            } else if (typeof action === "number") {
+                const io = window.g.task.read("io");
+                if (io && io.GridPad) {
+                    console.log("Switching Page:", action);
+                    io.GridPad.setPanelPage(action);
+                }
+            }
+        }
+
+        // セーブして遷移
+        async function saveAndTransition() {
+            const rogue = (window.g && window.g.rogue) ? window.g.rogue : null;
+            if (rogue && rogue.playing) {
+                console.log("Save & Transition: Game is playing. Sending save command...");
+                // 1. セーブコマンド (Shift + S) 送信
+                vSend(["KeyS", "ShiftLeft"]);
+
+                // 2. 「Really save?」などの確認待ち
+                await new Promise(r => setTimeout(r, 600));
+
+                // 3. 肯定 (y) 送信
+                vSend(["KeyY"]);
+
+                // 4. 「Saving...」の最終画面（入力待ち）が表示されるのを待機してスペース送信
+                let waitConfirm = 15; // 0.2s * 15 = 3s
+                while (rogue.playing && !rogue.isWaitingForInput() && waitConfirm > 0) {
+                    await new Promise(r => setTimeout(r, 200));
+                    waitConfirm--;
+                }
+                if (rogue.playing && rogue.isWaitingForInput()) {
+                    console.log("Save & Transition: Found final save prompt. Sending Space to finish.");
+                    vSend(["Space"]);
+                }
+
+                console.log("Waiting for engine to finish saving (playing flag)...");
+                // 5. playing フラグが false になるのを待機（最大10秒）
+                let retry = 20; // 0.5s * 20 = 10s
+                while (rogue.playing && retry > 0) {
+                    await new Promise(r => setTimeout(r, 500));
+                    retry--;
+                    if (retry % 2 === 0) console.log(`Waiting... (${retry / 2}s remaining)`);
+                }
+
+                console.log("Finalizing FS sync...");
+                // 6. ファイル同期（syncfs）を考慮した念押しの待機
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            console.log("Redirecting to index.html...");
+            location.href = "index.html";
+        }
+
+        // inputGridPad との同期
+        function initMobileInput() {
+            const io = (window.g && window.g.task) ? window.g.task.read("io") : null;
+            if (!io || !io.GridPad) {
+                setTimeout(initMobileInput, 200);
+                return;
+            }
+
+            const pad = io.GridPad;
+            const container = document.getElementById("virtual-pad");
+
+            pad.setOnUpdate((grid) => {
+                const data = pad.getGridData();
+                container.innerHTML = "";
+
+                // DWxDH のグリッドに合わせて配置。ただし上部2行はメッセージのため避ける。
+                const cellW = 100 / data.dw;
+                const cellH = 100 / data.dh;
+
+                grid.forEach((item, index) => {
+                    if (item.label) {
+                        const btn = document.createElement("div");
+                        btn.className = "v-btn";
+                        btn.innerText = item.label;
+
+                        const x = (index % data.dw);
+                        const y = Math.floor(index / data.dw);
+
+                        // 位置をパーセントで指定し、上部（メッセージ用）を少し空ける
+                        // 12x9 の場合、y=0,1 はメッセージに重なりやすい。
+                        // ユーザーの要望に合わせて「上の方」に配置しつつ重なりを抑制。
+                        btn.style.left = (x * cellW) + "%";
+                        btn.style.top = (y * cellH) + "%";
+
+                        // タッチ・クリック両対応
+                        const trigger = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            vSend(item.action);
+                        };
+                        btn.addEventListener("touchstart", trigger, { passive: false });
+                        btn.addEventListener("mousedown", trigger);
+
+                        container.appendChild(btn);
+                    }
+                });
+            });
+        }
+
+        // main() の後に実行
+        const originalMain = window.main;
+        window.main = function () {
+            originalMain();
+            initMobileInput();
+        };
+    </script>
 </body>
 
 </html>
