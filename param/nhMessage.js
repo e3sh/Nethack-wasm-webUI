@@ -156,6 +156,7 @@
         { en: "Saving...", jp: "保存中..." },
         { en: "Restoring save file...", jp: "セーブファイルを復元中..." },
         { en: "You fall into the molten lava!", jp: "溶岩の中に落ちた！" },
+        { en: "You fall into the wall of lava!", jp: "溶岩の壁に落ちてしまう！" },
         { en: "You burn to a crisp...", jp: "あなたは焼き尽くされた..." },
         { en: "The '5' prefix should be followed by a movement command.", jp: "「5」プレフィックスの後には移動コマンドを続けてください。" },
         { en: "Program in disorder!  (Saving and reloading may fix this problem.)", jp: "プログラムが混乱しています！（保存してリロードすると直るかもしれません）" },
@@ -1524,6 +1525,10 @@
         { en: "You produce a high whistling sound.", jp: "君は甲高い笛音を奏でる。" },
         { en: "The mixture glows brightly and", jp: "混合物が明るく輝き、それ" },
         { en: "The mixture bubbles, then clears.", jp: "泡立ち、やがて澄み渡る。" },
+        { en: " It is nighttime.", jp: " 夜です。 " },
+        { en: " You are temporarily blind.", jp: " 一時的に目が見えなくなる。" },
+        { en: "Moreover, you have no gold.", jp: "さらに、金も持っていない。" },
+
 
 
     ];
@@ -1957,6 +1962,7 @@ function nhEntities() {
         "unaligned": "中立",
         "Hello": "こんにちは",
         "Aloha": "アロハ",
+        "hardware store": "金物屋",
 
     };
 }
@@ -2397,6 +2403,7 @@ function nhItems() {
         "dark green": "濃い緑",
         "cyan": "シアン色",
         "sky blue": "空色",
+        "blue": "青色",
         "brilliant blue": "鮮やかな青",
         "magenta": "マゼンタ色",
         "purple-red": "紫がかった赤",

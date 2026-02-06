@@ -13,7 +13,7 @@ function rogueDefines(r) {
 
         //scroll
         V_SCROLL: false,
-        SL_SIMPLE: true,
+        SL_SIMPLE: false,
         DEBUG_MSG: false,
 
         //textFlameNumbers
