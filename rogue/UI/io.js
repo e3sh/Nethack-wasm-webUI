@@ -30,7 +30,7 @@ function io(r, g) {
 			//const updateDisplay = () => {
 			//	r.UI.updateInputLine(`${query} ${inputStr}`);
 			//};
-			async function updateDisplay(next){
+			async function updateDisplay(next) {
 				r.UI.updateInputLine(`${query}>${inputStr}`);
 				await new Promise(resolve => setTimeout(resolve, 150));
 				r.UI.updateInputLine(`${query} ${inputStr}`);
@@ -97,7 +97,7 @@ function io(r, g) {
 		statusFields[fld] = { value: value, chg: chg, clr: clr };
 	};
 
-	this.endsequenceDetected = function(){
+	this.endsequenceDetected = function () {
 		//Death or End sequence detected. Synchronizing HP to 0.
 		statusFields[d.BL_HP].value = 0;
 
@@ -127,15 +127,28 @@ function io(r, g) {
 
 		r.UI.setBarEffect(statusFields[d.BL_HP].value, statusFields[d.BL_HPMAX].value);
 
-		r.UI.mvwaddstr(statusDsp, 0, 0,
-			`${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
-		);
-		r.UI.mvwaddstr(statusDsp, 1, 0,
-			`${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
-		);
-		r.UI.mvwaddstr(statusDsp, 2, 0,
-			`${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
-		);
+		if (!d.SL_SIMPLE) {
+			r.UI.mvwaddstr(statusDsp, 0, 0,
+				`${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
+			);
+			r.UI.mvwaddstr(statusDsp, 1, 0,
+				`${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
+			);
+			r.UI.mvwaddstr(statusDsp, 2, 0,
+				`${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+			);
+		} else {
+			r.UI.mvwaddstr(statusDsp, 0, 0,
+				`${sf[s.TITLE]}`
+			);
+			r.UI.mvwaddstr(statusDsp, 1, 0,
+				`${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]})  Exp:${sf[s.XP]}/${sf[s.EXP]}`
+			);
+			r.UI.mvwaddstr(statusDsp, 2, 0,
+				`${sf[s.DLEVEL]} ${sf[s.HUNGER]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+			);
+
+		}
 	};
 
 	function warnIcon(value, maxvalue) {

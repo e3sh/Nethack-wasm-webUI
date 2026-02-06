@@ -11,8 +11,10 @@ function rogueDefines(r) {
         LANG_LARNMODE: true,//false,
         GLYPH_BASE: 0x100, // Offset to avoid collision with ASCII (0-255)
 
+        //scroll
+        V_SCROLL: false,
+        SL_SIMPLE: true,
         DEBUG_MSG: false,
-
 
         //textFlameNumbers
         DSP_MAIN: 0,

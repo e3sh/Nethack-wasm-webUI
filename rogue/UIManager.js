@@ -51,7 +51,7 @@ function UIManager(r, g) {
         }
         this.setEffect(`${battledmg}`, { x: x, y: y }, { x: x, y: y - 1 }, 120);
     }
-    this.setBarEffect = function(hp, max){
+    this.setBarEffect = function (hp, max) {
         sceneC.barEffect.set(hp, max);
     };
 
@@ -359,7 +359,12 @@ function UIManager(r, g) {
                 buff[i] = replacedString;
             }
             this.setCameraEnable(true);
-            this.setCameraPos({ x: x, y: d.LINES / 2 });
+            let sx = x;
+            let sy = d.LINES / 2;
+            if (d.V_SCROLL) {
+                sy = y;
+            }
+            this.setCameraPos({ x: sx, y: sy });
             this.wmove(d.DSP_MAIN, y, x);
             return;
         }
