@@ -27,7 +27,7 @@ class sceneControl extends GameTask {
 
 			//let mode = document.getElementById("lang").checked;
 
-			const r = new GameManager(g);// ,mode? "jp":"en"); 
+			const r = new GameManager(g); 
 			g.rogue = r;
 
 			const wName = ["0:MAIN", "1:STATUS",
@@ -43,8 +43,11 @@ class sceneControl extends GameTask {
 
 			keyon = g.time();
 
+			let adj = 160;
+			this.setCameraAdjparam =(num)=>{adj = num;}
+
 			this.setCameraPos = function (x, y) {
-				io.camera.x = x * 16 - 160;
+				io.camera.x = x * 16 - adj;
 				io.camera.y = y * 16;
 			};
 			this.setCameraEnable = function (flg) {

@@ -27,6 +27,9 @@ function GameManager(g) {
 
     this.UI.comment("game");
 
+    this.setSimpleSL =(b)=>{ d.SL_SIMPLE = b;}
+    this.setVScroll =(b)=>{ d.V_SCROLL = b;}
+
     // --- NetHack Wasm Integration ---
     let nhVersion = "";
     this.set_nhVersion = (v) => { nhVersion = v; }
