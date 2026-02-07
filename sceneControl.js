@@ -23,11 +23,11 @@ class sceneControl extends GameTask {
 			this.monsHpView = new monsHpView(g);
 			this.monsHpView.setDrawIndex(48, -8);
 
-			this.barEffect = new barEffect(g, 64, 384, 8*30, 16); //hpbar
+			this.barEffect = new barEffect(g, 64, 384, 8 * 30, 16); //hpbar
 
 			//let mode = document.getElementById("lang").checked;
 
-			const r = new GameManager(g); 
+			const r = new GameManager(g);
 			g.rogue = r;
 
 			const wName = ["0:MAIN", "1:STATUS",
@@ -44,11 +44,13 @@ class sceneControl extends GameTask {
 			keyon = g.time();
 
 			let adj = 160;
-			this.setCameraAdjparam =(num)=>{adj = num;}
+			let adjY = 0;
+			this.setCameraAdjparam = (num) => { adj = num; }
+			this.setCameraAdjY = (num) => { adjY = num; }
 
 			this.setCameraPos = function (x, y) {
 				io.camera.x = x * 16 - adj;
-				io.camera.y = y * 16;
+				io.camera.y = y * 16 - adjY;
 			};
 			this.setCameraEnable = function (flg) {
 				io.camera.enable = flg;

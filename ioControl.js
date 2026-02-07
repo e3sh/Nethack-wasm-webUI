@@ -49,6 +49,9 @@ class ioControl extends GameTask {
 			this.display.addConsole(name, idx, cfg);
 		}
 
+		// 初期レイアウトの適用
+		this.layoutManager.applyResponsiveLayout(window.innerWidth, window.innerHeight);
+
 		// 既存コードとの互換性維持
 		this.layout = this.display.layouts;
 		this.modeM = this.display.isMobile;

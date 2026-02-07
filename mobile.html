@@ -33,15 +33,17 @@
         /* 仮想パッドのスタイル */
         #virtual-pad {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            bottom: 96px;
+            /* ステータス欄の直上 */
+            left: 50%;
+            width: 100%;
+            max-width: 800px;
+            transform: translateX(-50%);
+            height: 45vh;
+            /* 下半分に収まる高さ */
             z-index: 200;
-            /* 十分に高い値 */
             pointer-events: none;
             display: block;
-            /* grid はコンテナ内の動的生成時に設定 */
         }
 
         .pad-group {
@@ -77,11 +79,9 @@
             pointer-events: auto;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
             position: absolute;
-            /* グリッドではなく絶対配置で制御 */
-            width: 8vw;
-            height: 8vw;
-            max-width: 50px;
-            max-height: 50px;
+            /* width/height はJSで動的に計算 */
+            max-width: 80px;
+            max-height: 80px;
         }
 
         .v-btn:active {
@@ -223,11 +223,12 @@
                         const x = (index % data.dw);
                         const y = Math.floor(index / data.dw);
 
-                        // 位置をパーセントで指定し、上部（メッセージ用）を少し空ける
-                        // 12x9 の場合、y=0,1 はメッセージに重なりやすい。
-                        // ユーザーの要望に合わせて「上の方」に配置しつつ重なりを抑制。
-                        btn.style.left = (x * cellW) + "%";
-                        btn.style.top = (y * cellH) + "%";
+                        // ボタン間の隙間を確保しつつ配置
+                        const margin = 0.5; // %
+                        btn.style.width = (cellW - margin * 2) + "%";
+                        btn.style.height = (cellH - margin * 2) + "%";
+                        btn.style.left = (x * cellW + margin) + "%";
+                        btn.style.top = (y * cellH + margin) + "%";
 
                         // タッチ・クリック両対応
                         const trigger = (e) => {

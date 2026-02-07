@@ -69,7 +69,10 @@ function UIManager(r, g) {
     this.setCameraEnable = function (flg) {
         sceneC.setCameraEnable(flg);
     }
-    this.setVScroll =(b)=>{ d.V_SCROLL = b;}
+    this.setCameraAdjY = function (num) {
+        sceneC.setCameraAdjY(num);
+    }
+    this.setVScroll = (b) => { d.V_SCROLL = b; }
 
     //sceneRunstep status 
     this.get_runstep = function () { return sceneC.runstep; }

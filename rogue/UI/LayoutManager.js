@@ -27,31 +27,57 @@ class LayoutManager {
         const MESSAGE = dm.getLayout("MESSAGE");
         const WINDOW = dm.getLayout("WINDOW");
 
-        if (height < 600) {
-            // モバイル縦向け/小画面最適化
-            if (MAP) { MAP.x = 0; MAP.y = -512 + height; MAP.w = 640; MAP.h = 384; }
-            if (STATUS) { STATUS.x = 16; STATUS.y = height - 96; STATUS.w = 640; STATUS.h = 48; }
-            if (MESSAGE) { MESSAGE.x = 0; MESSAGE.y = height - 48; MESSAGE.w = 864; MESSAGE.h = 576; }
+        const d = gm.define;
+
+        const isMobileOrNarrow = (height < 600 || width < 640);
+
+        if (isMobileOrNarrow) {
+            // モバイルまたは縦長画面向け：下部固定フッターレイアウト
+            const footerH = 96; // Status(48) + Message(48)
+            const mapH = height - footerH;
+
+            if (MAP) {
+                MAP.x = 0;
+                MAP.y = 0;
+                MAP.w = 640;
+                MAP.h = mapH;
+            }
+            // 下から順に配置 (Message が一番下、その上が Status)
+            if (STATUS) {
+                STATUS.x = 16;
+                STATUS.y = height - 96;
+                STATUS.w = (width < 640) ? 320 : 640;
+                STATUS.h = 48;
+            }
+            if (MESSAGE) {
+                MESSAGE.x = 0;
+                MESSAGE.y = height - 48;
+                MESSAGE.w = 864;
+                MESSAGE.h = 576;
+            }
             if (WINDOW) { WINDOW.x = 0; WINDOW.y = 0; WINDOW.w = 640; WINDOW.h = 512; }
 
+            // キャラクターを可視マップ領域の中心に持ってくるための調整 (16pxタイル基準)
+            // UIManager.js の setCameraPos (COLS/2, LINES/2) と整合性を取る
+            const adjX = (d.COLS * 8) - (width / 2);
+            const adjY = (d.LINES * 8) - (mapH / 2);
+
+            scene.setCameraAdjparam(adjX);
+            gm.UI.setCameraAdjY(adjY);
+
             gm.UI.setVScroll(true);
+            gm.UI.io.setSimpleSL(width < 640);
         } else {
-            // デスクトップ/大画面向け標準配置
+            // デスクトップ/大画面固定レイアウト
             if (MAP) { MAP.x = 0; MAP.y = 0; MAP.w = 640; MAP.h = 384; }
             if (STATUS) { STATUS.x = 64; STATUS.y = 384; STATUS.w = 640; STATUS.h = 48; }
             if (MESSAGE) { MESSAGE.x = 48; MESSAGE.y = 432; MESSAGE.w = 864; MESSAGE.h = 576; }
             if (WINDOW) { WINDOW.x = 320; WINDOW.y = 48; WINDOW.w = 640; WINDOW.h = 512; }
 
+            gm.UI.setCameraAdjY(0);
             scene.setCameraAdjparam(160);
             gm.UI.io.setSimpleSL(false);
             gm.UI.setVScroll(false);
-        }
-
-        if (width < 640) {
-            // 横幅不足時の補正
-            if (STATUS) { STATUS.x = 16; STATUS.y = 384; STATUS.w = 320; STATUS.h = 48; }
-            scene.setCameraAdjparam((1280 - width) / 2);
-            gm.UI.io.setSimpleSL(true);
         }
     }
 }
