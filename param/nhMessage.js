@@ -1528,6 +1528,9 @@
         { en: " It is nighttime.", jp: " 夜です。 " },
         { en: " You are temporarily blind.", jp: " 一時的に目が見えなくなる。" },
         { en: "Moreover, you have no gold.", jp: "さらに、金も持っていない。" },
+        { en: "You suddenly yearn for your distant homeland.", jp: "突然、遠い故郷を懐かしく思う。" },
+        { en: "The statue comes to life!", jp: "像が動き出す！" },
+        { en: "your magical energy drain away", jp: "あなたの魔力が枯渇する" },
 
 
 
@@ -1691,6 +1694,7 @@ function nhEntities() {
         "hole": "穴",
         "trap door": "落とし穴",
         "level teleporter": "レベルテレポーター",
+        "teleportation trap": "転送の罠",
         "statue trap": "像の罠",
         "magic portal": "魔法のポータル",
         "anti-magic field": "反魔法フィールド",
@@ -1963,7 +1967,7 @@ function nhEntities() {
         "Hello": "こんにちは",
         "Aloha": "アロハ",
         "hardware store": "金物屋",
-
+        "sicknes": "病",
     };
 }
 
@@ -2750,7 +2754,7 @@ function nhPatterns() {
         { pattern: /^(.*) pretends to be friendly to (.*)\.$/, replace: "$1が$2に親しみを示した。" },
         { pattern: /^(.*) smiles at (.*) engagingly\.$/, replace: "$1は$2に愛嬌たっぷりに微笑む。" },
         { pattern: /^(.*) steals a saddle from (.*)!$/, replace: "$1は$2から鞍を盗んだ！" },
-        { pattern: /^(.*) suddenly disappears!!$/, replace: "$1は突然姿を消した！" },
+        { pattern: /^(.*) suddenly disappears!$/, replace: "$1は突然姿を消した！" },
         { pattern: /^(.*) pretends to be friendly\.$/, replace: "$1は友好的なふりをする。" },
         { pattern: /^(.*) charms you.  You gladly start removing your (.*). \.$/, replace: "$1があなたを魅了する。あなたは喜んで$2を外し始める。" },
         { pattern: /^(.*) steals (.*)!$/, replace: "$1は$2を盗んだ！" },
@@ -2949,6 +2953,9 @@ function nhPatterns() {
         { pattern: /^You slip while trying to get on (.*)\.$/, replace: "$1に乗ろうとして滑る。" },
         { pattern: /^(.*) offers (.*) gold pieces for your (.*)\.  Sell it\?$/, replace: "$1が$3を$2ゴールドで買いたいと言っている。売るか？" },
         { pattern: /^You sold (.*) for (.*) gold pieces\.$/, replace: "$1を$2ゴールドで売った。" },
+        { pattern: /^(.*) triggers a trap but nothing happens\.$/, replace: "$1が罠を発動させるが何も起こらない。" },
+        { pattern: /^(.*) knocks (.*) backward with a powerful blow!$/, replace: "$1が$2を強力な一撃で後方へ吹き飛ばす！" },
+        { pattern: /^(.*) knocks (.*) backward with a forceful strike!$/, replace: "$1が$2を力強い一撃で後方へ吹き飛ばす！" },
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
         { pattern: /^  (.*)$/, replace: "  $1" },

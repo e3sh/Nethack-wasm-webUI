@@ -69,6 +69,8 @@ function UIManager(r, g) {
     this.setCameraEnable = function (flg) {
         sceneC.setCameraEnable(flg);
     }
+    this.setVScroll =(b)=>{ d.V_SCROLL = b;}
+
     //sceneRunstep status 
     this.get_runstep = function () { return sceneC.runstep; }
     this.check_hastestep = () => { return (sceneC.runstep % 2 == 0) ? true : false; }
@@ -343,6 +345,8 @@ function UIManager(r, g) {
         } else {
             this.mvwaddch(d.DSP_MAIN, y, x, String.fromCharCode(glyphInfo.glyph + d.GLYPH_BASE));
             //this.mvwaddch(d.DSP_MAIN_FG, y, x, String.fromCharCode(glyphInfo.glyph + d.GLYPH_BASE));
+            //minimap
+            this.mvwaddch(d.DSP_MODE, y, x, ch);
         }
     };
     this.nhClear = function (windowId) {

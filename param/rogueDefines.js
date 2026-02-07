@@ -12,8 +12,8 @@ function rogueDefines(r) {
         GLYPH_BASE: 0x100, // Offset to avoid collision with ASCII (0-255)
 
         //scroll
-        V_SCROLL: false,
-        SL_SIMPLE: false,
+        V_SCROLL: false, // UI.setVScroll
+        SL_SIMPLE: false,// UI.io.setSimpleSL
         DEBUG_MSG: false,
 
         //textFlameNumbers

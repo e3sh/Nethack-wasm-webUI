@@ -5,6 +5,23 @@ function barEffect(g, x, y, width, height){
 	let w_hp, mhp;
 
 	const barDraw = { hp: 0, mhp: 0, bbw: 0 };
+	/*
+    <div style="position:fixed; top:0; right:0; z-index:100; opacity:0.3;">
+        <a href="javascript:void(0)" onclick="saveAndTransition()" style="color:white; font-size:10px;">Canvas Mode</a>
+    </div>
+	*/
+	/*
+	const domroot = document.getElementById(`ui-root`); //ui-root
+	const domMode = (domroot)? true: false;
+	if (domMode){
+		const barMain = document.createElement('meter');
+		barMain.id = "Effectbar";
+		barMain.style = "position:fixed; top:0; right:0; z-index:100; opacity:0.3;";
+		barMain.optimum = 0.3;
+		barMain.value = 0.5;
+		stbar.appendChild(barMain);
+	}
+	*/
 
 	this.set = function(hp, max){
 		w_hp = hp;

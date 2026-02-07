@@ -289,8 +289,8 @@
                 io.layout[4].x = 320; io.layout[4].y =  48; io.layout[4].w = 640; io.layout[4].h = 512;
 
                 scene.setCameraAdjparam(160);
-                gm.setSimpleSL(false);
-                gm.setVScroll(false);
+                gm.UI.io.setSimpleSL(false);
+                gm.UI.setVScroll(false);
             //} 
             if (height < 600){
                 io.layout[0].x =   0; io.layout[0].y = -512 + height; io.layout[0].w = 640; io.layout[0].h = 384;
@@ -299,7 +299,7 @@
                 io.layout[4].x =   0; io.layout[4].y =  0; io.layout[4].w = 640; io.layout[4].h = 512;
 
                 //scene.setCameraAdjparam(160);
-                gm.setVScroll(true);
+                gm.UI.setVScroll(true);
             } 
             if (width < 640){
                 io.layout[0].x =   0; io.layout[0].y =   0; io.layout[0].w = 640; io.layout[0].h = 384;
@@ -308,7 +308,7 @@
                 io.layout[4].x =   0; io.layout[4].y =  48; io.layout[4].w = 640; io.layout[4].h = 512;
 
                 scene.setCameraAdjparam((1280-width)/2);
-                gm.setSimpleSL(true);
+                gm.UI.io.setSimpleSL(true);
                 //gm.setVScroll(false);
             } 
             //console.log(`h${height},w${width}`);

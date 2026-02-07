@@ -14,6 +14,8 @@ function io(r, g) {
 		statusFields.push({ value: 0 });
 	}
 
+    this.setSimpleSL =(b)=>{ d.SL_SIMPLE = b;}
+
 	/*
 	 * showInput:
 	 *  Display a prompt and get user input from the game screen.
@@ -72,7 +74,7 @@ function io(r, g) {
 
 		if (fld <= d.BL_FLASH) {
 			renderStatus();
-			debugStatus();
+			//debugStatus();
 			return;
 		}
 
@@ -86,6 +88,7 @@ function io(r, g) {
 						r.UI.waddstr(d.DSP_MAIN, "　".repeat(80));
 					}
 				}
+				r.UI.wclear(d.DSP_MODE); //minimapも同時にクリア
 			}
 		}
 
@@ -102,7 +105,7 @@ function io(r, g) {
 		statusFields[d.BL_HP].value = 0;
 
 		renderStatus();
-		debugStatus();
+		//debugStatus();
 	}
 
 	function renderStatus() {
