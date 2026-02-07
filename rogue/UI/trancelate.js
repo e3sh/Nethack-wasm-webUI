@@ -110,6 +110,15 @@ function trancelate(r) {
             itemResult = bucMatch[2];
         }
 
+        let erosion = "";
+        let erosionMatch = itemResult.match(
+            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusty|very rusty|thoroughly rusty|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned)\s+(.*)$/i
+        );
+        if (erosionMatch) {
+            erosion = erosionMatch[1];
+            itemResult = erosionMatch[2];
+        }
+
         let enchant = "";
         let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
         if (enchantMatch) {
@@ -117,15 +126,15 @@ function trancelate(r) {
             itemResult = enchantMatch[2];
         }
 
-        let erosion = "";
-        let erosionMatch = itemResult.match(
-            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusty|very rusty|thoroughly rusty|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned|pair of)\s+(.*)$/i
+        let pairof = "";
+        let pairofMatch = itemResult.match(
+            /^(pair of)\s+(.*)$/i
         );
-        if (erosionMatch) {
-            erosion = erosionMatch[1];
-            itemResult = erosionMatch[2];
+        if (pairofMatch) {
+            pairof = pairofMatch[1];
+            itemResult = pairofMatch[2];
         }
-
+        
         // Look up body name (noun)
         let bodyTranslated = lookup_word(itemResult, 'noun');
 
@@ -148,6 +157,8 @@ function trancelate(r) {
             if (buc) finalMsg += (lookup_word(buc, 'adj') || get_translation_data(buc)) + " ";
             if (erosion) finalMsg += (lookup_word(erosion, 'adj') || get_translation_data(erosion)) + " ";
             if (enchant) finalMsg += enchant + " ";
+            if (pairof) finalMsg += (lookup_word(pairof, 'adj') || get_translation_data(pairof)) + " ";
+
             finalMsg += bodyTranslated;
             if (quantity && !(/^(The|A|An|the|a|an)$/i.test(quantity))) {
                 finalMsg += " (" + quantity + "個)";

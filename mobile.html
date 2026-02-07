@@ -117,7 +117,7 @@
     <!-- Canvasは非表示で存在させておく（GameCoreの初期化で必要になる可能性があるため） -->
     <canvas id="layer0" style="display:none;"></canvas>
 
-    <div id="memo"></div>
+    <div id="memo">Loading...</div>
 
     <script>
         // 仮想ボタン入力用ヘルパー
@@ -259,6 +259,7 @@
             if (!io || !io.layoutManager) return;
 
             io.layoutManager.applyResponsiveLayout(window.innerWidth, window.innerHeight);
+            vSend("Period"); //Redraw main map
         }
 
     </script>

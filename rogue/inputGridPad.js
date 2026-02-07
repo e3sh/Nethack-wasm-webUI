@@ -297,6 +297,8 @@
                         set_grid(PNAME.L6, "r", ["KeyR"]);
                         set_grid(PNAME.L8, "2", ["Numpad2"]);
                         set_grid(PNAME.L9, "y", ["KeyY"]);
+                        set_grid(PNAME.R1, "*", ["Quote", "ShiftLeft"]);
+                        set_grid(PNAME.R2, "/", ["Slash"]);
                         set_grid(PNAME.R3, "a", ["KeyA"]);
                         set_grid(PNAME.R6, "q", ["KeyQ"]);
                         set_grid(PNAME.R9, "n", ["KeyN"]);
