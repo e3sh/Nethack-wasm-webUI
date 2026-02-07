@@ -6,85 +6,52 @@ class ioControl extends GameTask {
 
 	resetWatchdog() {
 		const TIMEOUT_MS = 5000; // 5秒
-
 		if (!Boolean(this.watchdogTimer)) console.log("Watchdog Start");
-		clearTimeout(this.watchdogTimer); // 既存タイマーをクリア
-		this.watchdogTimer = setTimeout(this.onTimeout, TIMEOUT_MS); // 新しいタイマーを設定
+		clearTimeout(this.watchdogTimer);
+		this.watchdogTimer = setTimeout(this.onTimeout, TIMEOUT_MS);
 	}
 
 	onTimeout() {
-		console.error("Watchdog TimeOut.");// Restart Application.");
+		console.error("Watchdog TimeOut.");
 		console.trace();
 		debugger;
-		// 実際のアプリケーションでは、ここで再起動処理（例: location.reload()）を呼び出す
-		// location.reload();
 	}
 
 	constructor(id) {
 		super(id);
 	}
 	//----------------------------------------------------------------------
-	pre(g) {// 最初の実行時に実行。
-
+	pre(g) {
 		g.font["std"].useScreen(0);
 
 		const PTUB = ["_", " "];
 		const PTMSG = [String.fromCharCode(26), "_"];
 
-		const cp = [
-			//fontID,prompt	,charw, linew, location x,y,bgcolor, useutf
-			[80, 24, "std_l", PTUB, 8, 16, 0, 0, null, true], //0: mainscreen stdbg
-			[80, 24, "std_l", false, 8, 16, 1, 0, null, true], //1: mainscreen_fg stdbg
-			[80, 3, "std_l", false, 8, 16, 64, 384, "rgb( 0 32 64)", true], //2:statusbar
-			[108, 36, "std_l", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", true], //3:msg std_l
-			[80, 32, "std_l", false, 8, 16, 320, 48, "rgb(  0  0 144/0.7 )", true], //4:window  std_l
-			[80, 24, "small", PTUB, 6, 8, 0, 16, "rgb(  0 64  0/0.5)"],   //5:mode
-			[32, 70, "small", PTUB, 6, 8, 760, 16, "rgb(  0 64  0/0.5)"], //6:comment
-		]
+		/**
+		 * コンソール設定定義
+		 * [name, index, [w, h, fontId, prompt, charW, lineW, x, y, bgcolor, useUtf]]
+		 */
+		const consoleConfigs = [
+			["MAP_BG", 0, [80, 24, "std_l", PTUB, 8, 16, 0, 0, null, true]],
+			["MAP", 1, [80, 24, "std_l", false, 8, 16, 1, 0, null, true]],
+			["STATUS", 2, [80, 3, "std_l", false, 8, 16, 64, 384, "rgb( 0 32 64)", true]],
+			["MESSAGE", 3, [108, 36, "std_l", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", true]],
+			["WINDOW", 4, [80, 32, "std_l", false, 8, 16, 320, 48, "rgb(  0  0 144/0.7 )", true]],
+			["MODE", 5, [80, 24, "small", PTUB, 6, 8, 0, 16, "rgb(  0 64  0/0.5)"]],
+			["COMMENT", 6, [32, 70, "small", PTUB, 6, 8, 760, 16, "rgb(  0 64  0/0.5)"]]
+		];
 
-		let cnsl = [];
-		let layo = [];
+		// 新しいマネージャーの初期化
+		this.display = new DisplayManager(g);
+		this.layoutManager = new LayoutManager(this.display);
 
-		// --- Mobile 軽量 UI (mobileCurses) 切り替え ---
-		const domRoot = document.getElementById("ui-root");
-
-		this.modeM = (domRoot)? true: false;
-
-		for (let i in cp) {
-			let p = cp[i];
-			let c;
-			let l;
-
-			if (domRoot) {
-				// モバイル版: 各コンソール用のコンテナを作成し、mobileCurses インスタンスを生成
-				const cId = `console-${i}`;
-				let cDiv = document.getElementById(cId);
-				if (!cDiv) {
-					cDiv = document.createElement('div');
-					cDiv.id = cId;
-					domRoot.appendChild(cDiv);
-				}
-				// 背景色の設定 (p[8])
-				if (p[8]) cDiv.style.backgroundColor = p[8];
-
-				c = new mobileCurses(p[0], p[1], cId);
-				l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: null }; // DOM版では背景はコンテナで処理
-			} else {
-				// 通常版: jncurses + fontPrintControl (Canvas)
-				c = new jncurses(p[0], p[1]);
-				c.setFontId(p[2]);
-				c.setPrompt(p[3]);
-				c.setCharwidth(p[4]);
-				c.setLinewidth(p[5]);
-				l = { con: c, x: p[6], y: p[7], w: p[0] * p[4], h: p[1] * p[5], bg: p[8] };
-			}
-			c.setUseUTF(Boolean(p[9]));
-
-			cnsl.push(c);
-			layo.push(l);
+		for (const [name, idx, cfg] of consoleConfigs) {
+			this.display.addConsole(name, idx, cfg);
 		}
-		g.console = cnsl;
-		this.layout = layo;
+
+		// 既存コードとの互換性維持
+		this.layout = this.display.layouts;
+		this.modeM = this.display.isMobile;
 
 		this.debugview = false;
 		this.overlapview = false;
@@ -92,26 +59,20 @@ class ioControl extends GameTask {
 		this.input = {};
 
 		this.msgCfullposition = false;
-
 		this.camera = { x: 0, y: 0, enable: true };
 
-		// ブラウザのAltショートカット（Alt+D等）を抑制するためのイベントリスナー
+		// ブラウザショートカット抑制
 		window.addEventListener("keydown", function (event) {
-			if (event.altKey) {
-				// Alt単体以外のAlt同時押しの場合にデフォルト動作を抑制
-				if (event.key !== "Alt") {
-					//console.log("Suppressing browser shortcut: Alt+" + event.key);
-					event.preventDefault();
-				}
+			if (event.altKey && event.key !== "Alt") {
+				event.preventDefault();
 			}
 		}, false);
 
 		this.GpadToKey = new GpadToKey(g);
-		this.GridPad = new inputGridPad("layer0", g); //canvasElemets
+		this.GridPad = new inputGridPad("layer0", g);
 	}
 	//----------------------------------------------------------------------
-	step(g) {// this.enable が true時にループ毎に実行される。
-
+	step(g) {
 		// Input Keyboard ENTRY Check
 		let w = g.keyboard.check();
 
@@ -123,82 +84,52 @@ class ioControl extends GameTask {
 		}
 
 		if (this.waittime < g.time()) {
-			let fullscr = (input.HOME) ? true : false;
-			if (fullscr) {
-				const isAvailable = document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled;
-				const current = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-
-				if (isAvailable && !current) {
-					const el = g.systemCanvas;
-					const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-					if (requestMethod) {
-						requestMethod.call(el).catch(err => {
-							console.warn("Home key fullscreen failed (likely user gesture restriction):", err);
-						});
-					}
+			if (input.HOME) {
+				const el = g.systemCanvas;
+				const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+				if (requestMethod) {
+					requestMethod.call(el).catch(err => {
+						console.warn("Fullscreen failed:", err);
+					});
 				}
 			}
 
 			if (input.LOG) {
-				this.debugview = (this.debugview) ? false : true;
-				this.camera.enable = Boolean(!this.debugview);
+				this.debugview = !this.debugview;
+				this.camera.enable = !this.debugview;
 				this.waittime = g.time() + 500;
 			}
 
 			if (input.P_UP || input.P_DOWN) {
-				this.msgCfullposition = (input.P_DOWN) ? true : false;
+				this.msgCfullposition = Boolean(input.P_DOWN);
 			}
 		}
+
 		let p = false;
-		for (let i in input) {
-			if (input[i]) p = true;
-		}
+		for (let i in input) { if (input[i]) p = true; }
 		input.pushdown = p;
 
 		let keylist = [];
-		let shift = false;
-		let space = false;
-		let alt = false;
+		let shift = false, space = false, alt = false;
 		let gpresult = this.GpadToKey.check([]);
 		if (g.rogue) this.GridPad.updateContext(g.rogue.inputContext);
 		let tResult = this.GridPad.check();
 		if (tResult) gpresult.push(tResult);
 
+		const processKey = (i) => {
+			if (i === "ShiftLeft" || i === "ShiftRight" || i === "") { shift = true; return; }
+			if (i === "AltLeft" || i === "AltRight") { alt = true; return; }
+			if (i === "Space") space = true;
+			keylist.push(i);
+		};
+
 		if (gpresult.length > 0) {
-			for (let k in gpresult) {
-				const gr = gpresult[k];
-				for (let j in gr) {
-					if (gr[j]) {
-						let i = gr[j];
-						if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
-							shift = true;
-							continue;
-						}
-						if (i === "AltLeft" || i === "AltRight") {
-							alt = true;
-							continue;
-						}
-						if (i === "Space") space = true;
-						keylist.push(i);
-					}
-				}
+			for (let gr of gpresult) {
+				for (let i of gr) { if (i) processKey(i); }
 			}
 		}
 
-		for (let i in w) {
-			if (w[i]) {
-				if (i === "ShiftLeft" || i === "ShiftRight" || i === "") {
-					shift = true;
-					continue; //Keylistに入れない
-				}
-				if (i === "AltLeft" || i === "AltRight") {
-					alt = true;
-					continue;
-				}
-				if (i === "Space") space = true;
-				keylist.push(i);
-			}
-		}
+		for (let i in w) { if (w[i]) processKey(i); }
 
 		input.keylist = keylist;
 		input.shift = shift;
@@ -206,79 +137,65 @@ class ioControl extends GameTask {
 		input.alt = alt;
 		this.input = input;
 
-		if (this.modeM) return; 
+		if (this.modeM) return;
 
-		const MSG = this.layout[3] //message
+		// 通常版のメッセージエリア移動ロジック
+		const MSG = this.layout[3];
 		if (this.msgCfullposition) {
-			if (MSG.y > 0)
-				MSG.y -= 16;
-			else
-				MSG.y = 0;
+			MSG.y = Math.max(0, MSG.y - 16);
 		} else {
-			if (MSG.y < 432)
-				MSG.y += 16;
-			else
-				MSG.y = 432;
-
-			//Hungup debug用
-			//this.resetWatchdog();
+			MSG.y = Math.min(432, MSG.y + 16);
 		}
 	}
 	//----------------------------------------------------------------------
-	draw(g) {// this.visible が true時にループ毎に実行される。
-
+	draw(g) {
 		if (this.debugview) {
 			let r = g.fpsload.result();
-			let dt = g.deltaTime().toString().substring(0, 4);
-			const info = `FPS:${Math.floor(r.fps)} delta:${dt}`;
+			let info = `FPS:${Math.floor(r.fps)} delta:${g.deltaTime().toString().substring(0, 4)}`;
 
-			// 通常版（Canvas）
-			if (g.font["small"] && g.font["small"].putchr) {
-				g.font["small"].putchr(info, 840, 0);
-				let s = "input:";
-				for (let i in this.input.keylist) { s += `${this.input.keylist[i]},` }
-				g.font["small"].putchr(s, 0, 600 - 8);
+			const smallConsole = this.display.get("MODE");
+			if (smallConsole && smallConsole.printw) {
+				smallConsole.move(0, 0);
+				smallConsole.printw(info);
 			}
-
-			// モバイル/DOM版 (MODE/COMMENT コンソールを利用)
-			if (g.console[5] && g.console[5].printw) {
-				g.console[5].move(0, 0);
-				g.console[5].printw(info);
+			// Canvas用フォント直接描画（デバッグ）
+			if (!this.modeM && g.font["small"]) {
+				g.font["small"].putchr(info, 840, 0);
+				g.font["small"].putchr(`input:${this.input.keylist.join(",")}`, 0, 592);
 			}
 		}
-		//			 0:bg  1:st 2:msg 3:window 4:comment    
+
 		let dispf = [true, true, true, true, this.overlapview, this.debugview, this.debugview];
 
-		for (let i in this.layout) {
+		for (let i = 0; i < this.layout.length; i++) {
 			let d = this.layout[i];
-			let x = this.layout[i].x;
-			let y = this.layout[i].y;
-
-			if (i == 0 && this.camera.enable) {
-				x = x + this.camera.x;
-				y = y + this.camera.y;
-			}
-
 			const isVisible = dispf[i];
+
 			if (isVisible) {
-				if (d.bg) g.screen[0].fill(x, y, d.w, d.h, d.bg);
-				if (i == 2) {
-					const sc = g.task.read("scene");
-					sc.barEffect.draw();
+				let x = d.x;
+				let y = d.y;
+
+				if (i == 0 && this.camera.enable) {
+					x += this.camera.x;
+					y += this.camera.y;
 				}
+
+				if (d.bg) g.screen[0].fill(x, y, d.w, d.h, d.bg);
+
+				if (i == 2) { // Status bar effect
+					const sc = g.task.read("scene");
+					if (sc && sc.barEffect) sc.barEffect.draw();
+				}
+
 				d.con.draw(g, x, y);
 			}
 
-			// DOM要素の表示/非表示をフラグと同期 (最適化: 変化がある時のみ書き換える)
-			if (d.con.root) {
-				const nextDisplay = isVisible ? 'block' : 'none';
-				if (d.con.root.style.display !== nextDisplay) {
-					d.con.root.style.display = nextDisplay;
-				}
-			}
+			// DOM要素の表示制御を DisplayManager に一任
+			const consoleName = Object.keys(this.display.devices)[i];
+			if (consoleName) this.display.setVisible(consoleName, isVisible);
 		}
-		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
 
+		if (this.GpadToKey.ready) this.GpadToKey.draw(48, 312);
 		this.GridPad.draw(g.screen[0]);
 	}
 }

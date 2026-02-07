@@ -40,6 +40,9 @@ window.Module = {
 const w = [
     // GameCore (Local copy)
     "coremin.js",
+    r + "UI/DisplayDevice.js",
+    r + "UI/DisplayManager.js",
+    r + "UI/LayoutManager.js",
     "jncurses.js",
     "main.js",
     "ioControl.js",

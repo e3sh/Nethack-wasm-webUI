@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="manifest_mobile.json" />
     <style>
         body {
             background-color: black;
@@ -254,65 +254,10 @@
 
         window.addEventListener("resize", reportWindowSize);
         function reportWindowSize() {
-            
             const io = (window.g && window.g.task) ? window.g.task.read("io") : null;
-            const scene = (window.g && window.g.task) ? window.g.task.read("scene") : null;
-            const gm = (window.g && window.g.rogue) ? window.g.rogue : null;
+            if (!io || !io.layoutManager) return;
 
-            if (!io || !scene || !gm) {
-                return;
-            }
-            //io.layout[0] = {}
-            //2 status
-            //3 message
-            //4 window
-
-            //[80, 24, "std_l", PTUB, 8, 16, 0, 0, null, true], //0: mainscreen stdbg
-			//[80, 24, "std_l", false, 8, 16, 1, 0, null, true], //1: mainscreen_fg stdbg
-			//[80, 3, "std_l", false, 8, 16, 64, 384, "rgb( 0 32 64)", true], //2:statusbar
-			//[108, 36, "std_l", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", true], //3:msg std_l
-			//[80, 32, "std_l", false, 8, 16, 320, 48, "rgb(  0  0 144/0.7 )", true], //4:window  std_l
-			//[32, 40, "small", PTUB, 6, 8, 0, 16, "rgb(  0 64  0/0.5)"],   //5:mode
-			//[32, 70, "small", PTUB, 6, 8, 760, 16, "rgb(  0 64  0/0.5)"], //6:comment
-            //{x:  0, y:  0, w:640, h:384}:0
-            //{x: 64, y:384, w:640, h: 48}:2
-            //{x: 48, y:432, w:864, h:576}:3
-            //{x:320, y: 48, w:640, h:512}:4
-
-            const height = window.innerHeight;
-            const width = window.innerWidth;
-
-            ///if (height >= 600 && width >= 960){
-                io.layout[0].x =   0; io.layout[0].y =   0; io.layout[0].w = 640; io.layout[0].h = 384;
-                io.layout[2].x =  64; io.layout[2].y = 384; io.layout[2].w = 640; io.layout[2].h =  48;
-                io.layout[3].x =  48; io.layout[3].y = 432; io.layout[3].w = 864; io.layout[3].h = 576;
-                io.layout[4].x = 320; io.layout[4].y =  48; io.layout[4].w = 640; io.layout[4].h = 512;
-
-                scene.setCameraAdjparam(160);
-                gm.UI.io.setSimpleSL(false);
-                gm.UI.setVScroll(false);
-            //} 
-            if (height < 600){
-                io.layout[0].x =   0; io.layout[0].y = -512 + height; io.layout[0].w = 640; io.layout[0].h = 384;
-                io.layout[2].x =  16; io.layout[2].y = height - 96; io.layout[2].w = 640; io.layout[2].h =  48;
-                io.layout[3].x =   0; io.layout[3].y = height - 48; io.layout[3].w = 864; io.layout[3].h = 576;
-                io.layout[4].x =   0; io.layout[4].y =  0; io.layout[4].w = 640; io.layout[4].h = 512;
-
-                //scene.setCameraAdjparam(160);
-                gm.UI.setVScroll(true);
-            } 
-            if (width < 640){
-                io.layout[0].x =   0; io.layout[0].y =   0; io.layout[0].w = 640; io.layout[0].h = 384;
-                io.layout[2].x =  16; io.layout[2].y = 384; io.layout[2].w = 320; io.layout[2].h =  48;
-                io.layout[3].x =   0; io.layout[3].y = 432; io.layout[3].w = 864; io.layout[3].h = 576;
-                io.layout[4].x =   0; io.layout[4].y =  48; io.layout[4].w = 640; io.layout[4].h = 512;
-
-                scene.setCameraAdjparam((1280-width)/2);
-                gm.UI.io.setSimpleSL(true);
-                //gm.setVScroll(false);
-            } 
-            //console.log(`h${height},w${width}`);
-
+            io.layoutManager.applyResponsiveLayout(window.innerWidth, window.innerHeight);
         }
 
     </script>
