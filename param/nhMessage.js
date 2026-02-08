@@ -1444,8 +1444,8 @@
         { en: "Your movements are only slowed slightly by your load.", jp: "荷物のせいで動きがわずかに鈍る。" },
         { en: "A bear trap closes on your foot!", jp: "トラバサミが足に噛みつく！" },
         { en: "Your fedora does not protect you.", jp: "あなたのフェドーラはあなたを守らない。" },
-        { en: "You hear the wailing of the Banshee...", jp: "バンシーの悲鳴が聞こえる…" },
-        { en: "You trigger a trap!", jp: "罠を仕掛けた！" },
+        { en: "You hear the wailing of the Banshee...", jp: "バンシーの悲鳴が聞こえる..." },
+        { en: "You trigger a trap!", jp: "罠に引っ掛かった！" },
         { en: "But luckily the explosive charge is a dud!", jp: "だが幸いにも爆発物は不発弾だった！" },
         { en: "You are lucky!  Full moon tonight.", jp: "あなたは幸運だ！ 今夜は満月だ。" },
         { en: "You see an image of someone stalking you.", jp: "誰かにストーカーされているイメージが見える。" },
@@ -1559,6 +1559,15 @@
         { en: "The door absorbs your bolt!", jp: "扉があなたのボルトを吸収した！" },
         { en: "They say that sinks and armor don't mix, take your cloak off now!", jp: "罪と鎧は相容れないと言う、今すぐマントを脱げ！" },
         { en: "They say that shopkeepers often have a large amount of money in their purses.", jp: "店主は財布に多額の金を持っていることが多いと言う。" },
+        { en: "Blow this whistle", jp: "この笛を吹け" },
+        { en: "The door is razed!", jp: "扉は破壊された！" },
+        { en: "This wall seems too hard to dig into.", jp: "この壁は掘るのが難しすぎるようだ。" },
+        { en: "\"Who dared dig into my shop?\"", jp: "「誰が私の店を掘ったんだ？」" },
+        { en: "You hear a nearby zap.", jp: "近くでパチッという音が聞こえる。" },
+        { en: "The door absorbs the bolt!", jp: "ドアがボルトを吸収する！" },
+        { en: "The bottle crashes on your head and breaks into shards.", jp: "瓶が頭上で砕け散り、破片が飛び散る。" },
+        { en: "Something seems to be holding you.", jp: "何かが君を押さえつけているようだ。" },
+        { en: "Moving the altar would be a very bad idea.", jp: "祭壇を動かすのは非常に悪い考えだ。" },
 
 
     ];
@@ -1566,7 +1575,7 @@
 
 function nhEntities() {
     return {
-        "you": "you",
+        "you": "あなた",
         "god": "神",
         "goddess": "女神",
         "Her": "彼女",
@@ -2006,7 +2015,11 @@ function nhEntities() {
         "Velkommen": "歓迎します",
         "Konnichi wa": "「こんにちは」",
         "sleep ray": "睡眠光線",
-
+        "second-hand bookstore":"古書店",
+        "rare books": "希少書籍店",
+        "smart": "賢い",
+        "jewelers": "宝飾店",
+        
     };
 }
 
@@ -2296,29 +2309,29 @@ function nhItems() {
         "teleport control": "テレポート制御",
         "protection from shape changers": "変身者からの防御",
         "polymorph control": "変身制御",
-        "wooden": "木製",
+        "wooden": "木",
         "granite": "花崗岩",
         "opal": "オパール",
-        "clay": "粘土製",
-        "coral": "珊瑚製",
+        "clay": "粘土",
+        "coral": "珊瑚",
         "black onyx": "ブラックオニキス",
         "moonstone": "ムーンストーン",
         "tiger eye": "タイガーアイ",
         "jade": "ヒスイ",
-        "bronze": "青銅製",
+        "bronze": "青銅",
         "agate": "メノウ",
         "topaz": "トパーズ",
         "sapphire": "サファイア",
         "diamond": "ダイヤモンド",
-        "pearl": "真珠製",
-        "iron": "鉄製",
-        "brass": "真鍮製",
-        "copper": "銅製",
+        "pearl": "真珠",
+        "iron": "鉄",
+        "brass": "真鍮",
+        "copper": "銅",
         "twisted": "ねじれた",
-        "steel": "鋼鉄製",
-        "silver": "銀製",
-        "gold": "金製",
-        "ivory": "象牙製",
+        "steel": "鋼鉄",
+        "silver": "銀",
+        "gold": "金",
+        "ivory": "象牙",
         "wire": "針金状",
         "engagement": "婚約",
         "shiny": "輝く",
@@ -2376,6 +2389,7 @@ function nhItems() {
         "tin": "錫",
         "potion of oil": "油のポーション",
         "whistle": "ホイッスル",
+        "tin whistle": "ティン・ホイッスル",
         "key": "鍵",
         "lamp": "ランプ",
         "bell": "ベル",
@@ -2645,6 +2659,11 @@ function nhItems() {
         "on right hand": "右手に装備",
         "bare hands": "素手",
         "eucalyptus leaf": "ユーカリの葉",
+        "paperback book":"ペーパーバック本",
+        "Maskerade":"仮面舞踏会",
+        "cloak": "マント",
+        "candle": "蝋燭",
+        
     };
 }
 
@@ -2721,6 +2740,7 @@ function nhPatterns() {
         { pattern: /^You are frozen by (.*)'s gaze!$/, replace: "$1の視線で凍りついた！" },
         { pattern: /^You have a little trouble lifting (.*)\.$/, replace: "$1を持ち上げるのに少し苦労した。" },
         { pattern: /^You have trouble lifting (.*)\.$/, replace: "$1を持ち上げるのに苦労した。" },
+        { pattern: /^You have trouble removing (.*)\.$/, replace: "$1を取り除くのに苦労している。" },
         { pattern: /^You have much trouble lifting (.*)\.$/, replace: "$1を持ち上げるのに非常に苦労している。" },
         { pattern: /^You have much trouble lifting (.*)\. Continue*$/, replace: "$1を持ち上げるのに非常に苦労している。続けますか？" },
         { pattern: /^You drop (.*)\.$/, replace: "あなたは$1を落とした。" },
@@ -2731,7 +2751,7 @@ function nhPatterns() {
         { pattern: /^There is a staircase up to level (.*) here\.$/, replace: "ここにレベル$1へ上がる階段がある。" },
         { pattern: /^Welcome to experience level (.*)\.$/, replace: "経験レベル$1へようこそ。" },
         { pattern: /(.*) rots away\.$/, replace: "$1は腐り果てた。" },
-        { pattern: /(.*) glows silver for a while\.$/, replace: "$1はしばらくの間銀色に光った。" },
+        { pattern: /Your (.*) glows silver for a while\.$/, replace: "あなたの$1はしばらくの間銀色に光った。" },
         { pattern: /(.*) turns to dust and falls to the floor!$/, replace: "$1は塵となって床に落ちた！" },
         { pattern: /(.*) suddenly appears close by!$/, replace: "突然すぐそばに$1が現れた！" },
         { pattern: /(.*) lands on (.*)\.$/, replace: "$1が$2に着地した。" },
@@ -3009,6 +3029,14 @@ function nhPatterns() {
         { pattern: /^You identify this as (.*)\.$/, replace: "これを$1と識別した。" },
         { pattern: /^(.*) staggers from your powerful strike!$/, replace: "$1があなたの強力な一撃によろめく！" },
         { pattern: /^Put these (.*) on$/, replace: "$1を身に着ける" },
+        { pattern: /^\"Will you please leave your (.*) outside\?\"$/, replace: "「$1は外に置いていただけますか？」" },
+        { pattern: /^(.*) vanishes and reappears close by.$/, replace: "$1が消え、近くで再び現れる。" },
+        { pattern: /^(.*) shouts\:$/, replace: "$1が叫ぶ：" },
+        { pattern: /^(.*) comes and$/, replace: "$1が近づいてきて" },
+        { pattern: /^You lash (.*)\.$/, replace: "$1を鞭打つ。" },
+        { pattern: /^A tower of flame bursts from (.*)!$/, replace: "$1から炎の塔が噴き上がる！" },
+        { pattern: /^Light this (.*)$/, replace: "この$1を点ける" },
+        { pattern: /^Your (.*)'s flame burns brightly!$/, replace: "あなたの$1の炎は明るく燃えています！" },
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
@@ -3029,6 +3057,7 @@ function nhPatterns() {
         { pattern: /^ring of (.*)$/, replace: "$1の指輪" },
         { pattern: /^spellbook of (.*)$/, replace: "$1の魔導書" },
         { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) gem$/, replace: "$1の宝石" },
+        { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) stone$/, replace: "$1の石" },
         { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) amulet$/, replace: "$1の護符" },
         { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*) in total$/, replace: "合計$1個" },
         { pattern: /^diluted (.*)$/, replace: "薄めた$1" },
@@ -3046,5 +3075,7 @@ function nhPatterns() {
         { pattern: /^rings of (.*)$/, replace: "$1の指輪" },
         { pattern: /^spellbooks of (.*)$/, replace: "$1の魔導書" },
         { pattern: /^partly eaten (.*)$/, replace: "食べかけの$1" },
+        { pattern: /^partly used (.*)$/, replace: "使いかけの$1" },
+
     ];
 }

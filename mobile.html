@@ -256,8 +256,10 @@
         window.addEventListener("resize", reportWindowSize);
         function reportWindowSize() {
             const io = (window.g && window.g.task) ? window.g.task.read("io") : null;
-            if (!io || !io.layoutManager) return;
-
+            if (!io || !io.layoutManager) {
+                setTimeout(reportWindowSize, 200);
+                return;
+            }
             io.layoutManager.applyResponsiveLayout(window.innerWidth, window.innerHeight);
             vSend("Period"); //Redraw main map
         }
