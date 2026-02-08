@@ -140,7 +140,7 @@
     <title>Nethack-wasm-WebUI (Mobile)</title>
 </head>
 
-<body onload="main()">
+<body onload="mobileMain()">
     <!-- Loading Overlay -->
     <div id="loading-overlay">
         <div class="spinner"></div>
@@ -293,13 +293,23 @@
             });
         }
 
-        // main() の後に実行
-        const originalMain = window.main;
-        window.main = function () {
-            originalMain();
-            initMobileInput();
-            reportWindowSize()
-        };
+        // main() の後に実行するための特殊な待機処理
+        function mobileMain() {
+            if (typeof window.main === 'function') {
+                const originalMain = window.main;
+                // ロード完了時に確実に実行されるように上書きせずラップして呼び出す
+                window.main = function () {
+                    originalMain();
+                    initMobileInput();
+                    reportWindowSize();
+                };
+                // すでに読み込まれている場合は即実行
+                window.main();
+            } else {
+                // まだ main がロードされていない場合はリトライ
+                setTimeout(mobileMain, 50);
+            }
+        }
 
         window.addEventListener("resize", reportWindowSize);
         function reportWindowSize() {

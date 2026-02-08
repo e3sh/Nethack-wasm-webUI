@@ -66,11 +66,14 @@ function main() {
     //console.log("gameCore start");
     game.run();
 
-    // Hide loading screen
+    // Hide loading screen with a slight delay to ensure UI is ready
     const loader = document.getElementById('loading-overlay');
     if (loader) {
-        loader.style.opacity = '0';
-        setTimeout(() => loader.remove(), 500);
+        // すぐに非表示にせず、少しだけ待機してレンダリングの準備を待つ
+        setTimeout(() => {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }, 300);
     }
 }
 
