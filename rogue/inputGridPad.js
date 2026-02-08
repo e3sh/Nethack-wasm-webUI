@@ -187,11 +187,14 @@
             L4: DW, L5: DW + 1, L6: DW + 2,
             L7: DW * 2, L8: DW * 2 + 1, L9: DW * 2 + 2,
             LA: DW * 3, LB: DW * 3 + 1, LC: DW * 3 + 2,
-            // 右側ブロック (3列 x 4行 = 12)
+            // 右側ブロック (3列 x 7行 = 21)
             R1: DW - 3, R2: DW - 2, R3: DW - 1,
             R4: DW * 2 - 3, R5: DW * 2 - 2, R6: DW * 2 - 1,
             R7: DW * 3 - 3, R8: DW * 3 - 2, R9: DW * 3 - 1,
             RA: DW * 4 - 3, RB: DW * 4 - 2, RC: DW * 4 - 1,
+            RD: DW * 5 - 3, RE: DW * 5 - 2, RF: DW * 5 - 1,
+            RG: DW * 6 - 3, RH: DW * 6 - 2, RI: DW * 6 - 1,
+            RJ: DW * 7 - 3, RK: DW * 7 - 2, RL: DW * 7 - 1,
         }
 
         let tpadConfig = null;
@@ -248,33 +251,7 @@
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
                         set_grid(PNAME.L3, "9", ["Numpad9"]);
                         set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "-m", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, null, "");
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "a", ["KeyA"]);
-                        set_grid(PNAME.R2, "d", ["KeyD"]);
-                        set_grid(PNAME.R3, "e", ["KeyE"]);
-                        set_grid(PNAME.R4, "P", ["KeyP", "ShiftLeft"]);
-                        set_grid(PNAME.R5, "R", ["KeyR", "ShiftLeft"]);
-                        set_grid(PNAME.R6, "w", ["KeyW"]);
-                        set_grid(PNAME.R7, "W", ["KeyW", "ShiftLeft"]);
-                        set_grid(PNAME.R8, "T", ["KeyT", "ShiftLeft"]);
-                        set_grid(PNAME.R9, "Z", ["KeyZ", "ShiftLeft"]);
-                        set_grid(PNAME.RA, ",", ["Comma"]);
-                        set_grid(PNAME.RB, "l", ["KeyL"]);
-                        set_grid(PNAME.RC, "[-N-]", CenterPage);
-                        break;
-                    case RightPage:
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "-m", ["Numpad5"]);
+                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
                         set_grid(PNAME.L6, "6", ["Numpad6"]);
                         set_grid(PNAME.L7, "1", ["Numpad1"]);
                         set_grid(PNAME.L8, "2", ["Numpad2"]);
@@ -282,14 +259,50 @@
                         set_grid(PNAME.LA, "[-N-]", CenterPage);
                         set_grid(PNAME.LB, "Enter", ["Enter"]);
                         set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "#", ["Digit3", "ShiftLeft"]);
-                        set_grid(PNAME.R2, ";", ["Semicolon"]);
-                        set_grid(PNAME.R3, "a", ["KeyA"]);
-                        set_grid(PNAME.R4, "y", ["KeyY"]);
-                        set_grid(PNAME.R5, "n", ["KeyN"]);
-                        set_grid(PNAME.R6, "q", ["KeyQ"]);
-                        set_grid(PNAME.R7, "l", ["KeyL"]);
-                        set_grid(PNAME.R8, "@", ["BracketLeft"]);
+                        set_grid(PNAME.R1, "P)on", ["KeyP", "ShiftLeft"]);
+                        set_grid(PNAME.R2, "R)mov", ["KeyR", "ShiftLeft"]);
+                        set_grid(PNAME.R3, "a)ply", ["KeyA"]);
+                        set_grid(PNAME.R4, "k)ik", ["KeyK"]);
+                        set_grid(PNAME.R5, "o)pn", ["KeyO"]);
+                        set_grid(PNAME.R6, "c)ls", ["KeyC"]);
+                        set_grid(PNAME.R7, "# pray", ["Digit3", "ShiftLeft"]);
+                        set_grid(PNAME.R8, "Z)ap", ["KeyZ", "ShiftLeft"]);
+                        set_grid(PNAME.R9, "f)ire", ["KeyF"]);
+                        set_grid(PNAME.RA, "l)ook", ["KeyL"]);
+                        set_grid(PNAME.RB, "v)rs", ["KeyV", "ShiftLeft"]);
+                        set_grid(PNAME.RC, "[-R-]", RightPage);
+                        set_grid(PNAME.RJ, "[-N-]", CenterPage);
+                        set_grid(PNAME.RK, "[-R-]", RightPage);
+                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
+                        break;
+                    case RightPage:
+                        set_grid(PNAME.L1, "7", ["Numpad7"]);
+                        set_grid(PNAME.L2, "8", ["Numpad8"]);
+                        set_grid(PNAME.L3, "9", ["Numpad9"]);
+                        set_grid(PNAME.L4, "4", ["Numpad4"]);
+                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
+                        set_grid(PNAME.L6, "6", ["Numpad6"]);
+                        set_grid(PNAME.L7, "1", ["Numpad1"]);
+                        set_grid(PNAME.L8, "2", ["Numpad2"]);
+                        set_grid(PNAME.L9, "3", ["Numpad3"]);
+                        set_grid(PNAME.LA, "[-L-]", LeftPage);
+                        set_grid(PNAME.LB, "Enter", ["Enter"]);
+                        set_grid(PNAME.LC, "ESC", ["Delete"]);
+                        set_grid(PNAME.R1, "y es", ["KeyY"]);
+                        set_grid(PNAME.R2, "n o", ["KeyN"]);
+                        set_grid(PNAME.R3, "a ll", ["KeyA"]);
+                        set_grid(PNAME.R4, "q uit", ["KeyQ"]);
+                        set_grid(PNAME.R5, "S)ave", ["KeyS", "ShiftLeft"]);
+                        set_grid(PNAME.R6, "Enter", ["Enter"]);
+                        set_grid(PNAME.R7, "Space", ["Space"]);
+                        set_grid(PNAME.R8, "Bksp", ["Backspace"]);
+                        set_grid(PNAME.R9, "Tab", ["Tab"]);
+                        set_grid(PNAME.RA, "# ext", ["Digit3", "ShiftLeft"]);
+                        set_grid(PNAME.RB, "ESC", ["Delete"]);
+                        set_grid(PNAME.RC, "[-N-]", CenterPage);
+                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
+                        set_grid(PNAME.RK, "[-N-]", CenterPage);
+                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
                         break;
                     case YNPage:
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
@@ -325,30 +338,48 @@
                         break;
                     case CenterPage:
                     default:
+                        // 移動・基本 (左側)
                         set_grid(PNAME.L1, "7", ["Numpad7"]);
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
                         set_grid(PNAME.L3, "9", ["Numpad9"]);
                         set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "-m", ["Numpad5"]);
+                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
                         set_grid(PNAME.L6, "6", ["Numpad6"]);
                         set_grid(PNAME.L7, "1", ["Numpad1"]);
                         set_grid(PNAME.L8, "2", ["Numpad2"]);
                         set_grid(PNAME.L9, "3", ["Numpad3"]);
                         set_grid(PNAME.LA, "[-L-]", LeftPage);
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
+                        set_grid(PNAME.LB, "Ent", ["Enter"]);
                         set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "q uaff", ["KeyQ"]);
-                        set_grid(PNAME.R2, "i nventry", ["KeyI"]);
-                        set_grid(PNAME.R3, "z ap", ["KeyZ"]);
-                        set_grid(PNAME.R4, "S ave", ["KeyS", "ShiftLeft"]);
-                        set_grid(PNAME.R5, "^x status", ["KeyX", "Space"]);
-                        set_grid(PNAME.R6, "k ick", ["KeyK"]);
-                        set_grid(PNAME.R7, "r ead", ["KeyR"]);
-                        set_grid(PNAME.R8, "T akeoff", ["KeyT", "ShiftLeft"]);
-                        set_grid(PNAME.R9, "W ear", ["KeyW", "ShiftLeft"]);
-                        set_grid(PNAME.RA, "> down", ["Period", "ShiftLeft"]);
-                        set_grid(PNAME.RB, "< up ", ["Comma", "ShiftLeft"]);
-                        set_grid(PNAME.RC, "[-R-]", RightPage);
+                        // 右側：7段構成
+                        // 1段目: 消耗品
+                        set_grid(PNAME.R1, "q)uf", ["KeyQ"]);
+                        set_grid(PNAME.R2, "r)ed", ["KeyR"]);
+                        set_grid(PNAME.R3, "e)at", ["KeyE"]);
+                        // 2段目: 武具
+                        set_grid(PNAME.R4, "w)ld", ["KeyW"]);
+                        set_grid(PNAME.R5, "W)ear", ["KeyW", "ShiftLeft"]);
+                        set_grid(PNAME.R6, "T)off", ["KeyT", "ShiftLeft"]);
+                        // 3段目: サバイバル/アクション1
+                        set_grid(PNAME.R7, "k)ik", ["KeyK"]);
+                        set_grid(PNAME.R8, "a)ply", ["KeyA"]);
+                        set_grid(PNAME.R9, "z)ap", ["KeyZ"]);
+                        // 4段目: 一般アクション2
+                        set_grid(PNAME.RA, ". wait", ["Period"]);
+                        set_grid(PNAME.RB, "i)nv", ["KeyI"]);
+                        set_grid(PNAME.RC, "s)rh", ["KeyS"]);
+                        // 5段目: 環境操作
+                        set_grid(PNAME.RD, ">)Dn", ["Period", "ShiftLeft"]);
+                        set_grid(PNAME.RE, "<)Up", ["Comma", "ShiftLeft"]);
+                        set_grid(PNAME.RF, ",)get", ["Comma"]);
+                        // 6段目: 補助操作
+                        set_grid(PNAME.RG, "o)pn", ["KeyO"]);
+                        set_grid(PNAME.RH, "c)ls", ["KeyC"]);
+                        set_grid(PNAME.RI, "# ext", ["Digit3", "ShiftLeft"]);
+                        // 7段目: 制御
+                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
+                        set_grid(PNAME.RK, "[-R-]", RightPage);
+                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
                         break;
                 }
                 if (isFullscreenAvailable() && !getFullscreenElement()) {

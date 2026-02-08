@@ -65,6 +65,15 @@ function main() {
 
     //console.log("gameCore start");
     game.run();
+
+    // Hide loading screen after a short delay
+    setTimeout(() => {
+        const loader = document.getElementById('loading-overlay');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }
+    }, 1000);
 }
 
 //----------------------------------------------------------------------

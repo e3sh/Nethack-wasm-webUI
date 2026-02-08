@@ -112,7 +112,7 @@
 
         .controller-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 1rem;
             padding: 1rem;
         }
@@ -542,96 +542,70 @@
                 P7: { label: " 7", key: ["Numpad7"] },
                 P8: { label: " 8", key: ["Numpad8"] },
                 P9: { label: " 9", key: ["Numpad9"] },
-                START: { label: " ^x", key: ["KeyX", "Space"] },
-                BACK: null,
-                A: { label: " m-", key: ["Numpad5"] },
+                START: { label: " # ", key: ["Digit3", "ShiftLeft"] },
+                BACK: { label: "Save", key: ["KeyS", "ShiftLeft"] },
+                A: { label: "Trav", key: ["Numpad5"] },
                 B: { label: "ESC", key: ["Delete"] },
-                X: { label: "Enter", key: ["Enter"] },
-                Y: { label: "i)vtry", key: ["KeyI"] },
-                L3: null,
-                R3: null,
+                X: { label: "Ent", key: ["Enter"] },
+                Y: { label: " i ", key: ["KeyI"] },
+                L3: { label: " : ", key: ["Quote"] },
+                R3: { label: " s ", key: ["KeyS"] },
             },
-            LB: {
-                P1: null,
-                P2: { label: ">:Dn", key: ["Period", "ShiftLeft"] },
-                P3: null,
-                P4: { label: "Backsp", key: ["Backspace"] },
-                P6: null,
-                P7: null,
-                P8: { label: "<:Up", key: ["Comma", "ShiftLeft"] },
-                P9: null,
-                START: { label: " ^x", key: ["KeyX", "Space"] },
-                BACK: null,
-                A: { label: ",)Get", key: ["Comma"] },
-                B: { label: "q)uaf", key: ["KeyQ"] },
-                X: { label: "k)ick", key: ["KeyK"] },
-                Y: { label: "e)at", key: ["KeyE"] },
-                L3: null,
-                R3: null,
+            RT: { // Modifier: Battle / Equipment
+                A: { label: "w)ld", key: ["KeyW"] },
+                B: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
+                X: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
+                Y: { label: "z)ap", key: ["KeyZ"] },
             },
-            LT: {
-                P1: null,
-                P2: null,
-                P3: null,
-                P4: { label: " a", key: ["KeyA"] },
-                P6: { label: " /", key: ["Slash"] },
-                P7: null,
-                P8: { label: "t)hrow", key: ["KeyT"] },
-                P9: null,
-                START: { label: " ^x", key: ["KeyX", "Space"] },
-                BACK: null,
-                A: { label: "l)ook", key: ["KeyL"] },
-                B: { label: "f)ire", key: ["KeyF"] },
-                X: { label: "z)ip", key: ["KeyZ"] },
-                Y: { label: "d)rop", key: ["KeyD"] },
-                L3: null,
-                R3: null,
+            LT: { // Modifier: Consumables / Throw
+                A: { label: "q)uf", key: ["KeyQ"] },
+                B: { label: "r)ead", key: ["KeyR"] },
+                X: { label: "e)at", key: ["KeyE"] },
+                Y: { label: "t)hw", key: ["KeyT"] },
             },
-            RB: {
-                P1: null,
-                P2: { label: "w)ield", key: ["KeyW"] },
-                P3: null,
-                P4: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
-                P6: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
-                P7: null,
-                P8: null,
-                P9: null,
-                START: { label: " ^x", key: ["KeyX", "Space"] },
-                BACK: null,
-                A: { label: " q", key: ["KeyQ"] },
-                B: { label: " n", key: ["KeyN"] },
-                X: { label: " y", key: ["KeyY"] },
-                Y: { label: " *", key: ["Quote", "ShiftLeft"] },
-                L3: null,
-                R3: null,
+            RB: { // Modifier: Move / Navigation
+                A: { label: " . ", key: ["Period"] },
+                B: { label: "<)Up", key: ["Comma", "ShiftLeft"] },
+                X: { label: ">)Dn", key: ["Period", "ShiftLeft"] },
+                Y: { label: ",)get", key: ["Comma"] },
             },
-            RT: {
-                P1: null,
-                P2: { label: " 2", key: ["Numpad2"] },
-                P3: null,
-                P4: { label: " 4", key: ["Numpad4"] },
-                P6: { label: " 5", key: ["Numpad6"] },
-                P7: null,
-                P8: { label: " 8", key: ["Numpad8"] },
-                P9: null,
-                START: { label: " ^x", key: ["KeyX", "Space"] },
-                BACK: null,
-                A: { label: " m-", key: ["Numpad5"] },
-                B: { label: "ESC", key: ["Delete"] },
-                X: { label: "Enter", key: ["Enter"] },
-                Y: { label: "S)ave", key: ["KeyS", "ShiftLeft"] },
-                L3: null,
-                R3: null,
+            LB: { // Modifier: Other
+                A: { label: "Z)ap", key: ["KeyZ", "ShiftLeft"] },
+                B: { label: "a)ply", key: ["KeyA"] },
+                X: { label: "k)ik", key: ["KeyK"] },
+                Y: { label: "Pray", key: ["Digit3", "ShiftLeft"] },
             },
-            LB_LT: {},
-            RB_RT: {},
+            LB_LT: { // YN Choices Extension
+                A: { label: " y ", key: ["KeyY"] },
+                B: { label: " n ", key: ["KeyN"] },
+                X: { label: " a ", key: ["KeyA"] },
+                Y: { label: " q ", key: ["KeyQ"] },
+                P4: { label: " l ", key: ["KeyL"] },
+                P6: { label: " r ", key: ["KeyR"] },
+            },
+            RB_RT: { // Common Utilities
+                A: { label: " a ", key: ["KeyA"] },
+                B: { label: " d ", key: ["KeyD"] },
+                X: { label: " @ ", key: ["BracketLeft"] },
+                Y: { label: " / ", key: ["Slash"] },
+                START: { label: " * ", key: ["Quote", "ShiftLeft"] },
+                BACK: { label: " # ", key: ["Digit3", "ShiftLeft"] },
+            },
             LB_RB: {},
             LT_RT: {},
             LB_RT: {},
             LT_RB: {},
         };
 
-        const BUTTON_IDS = ["P7", "P8", "P9", "Y", "P4", "A", "P6", "B", "P1", "P2", "P3", "X", "BACK", "START", "L3", "R3"];
+        const BUTTON_IDS = [
+            "P7", "P8", "P9", "null_y_t", "Y", "null_y_b",
+            "P4", "L3", "P6", "X", "R3", "B",
+            "P1", "P2", "P3", "null_a_t", "A", "null_a_b",
+            null, "BACK", null, "START", null, null
+        ];
+
+        // Spacer definitions to avoid duplicate IDs for nulls
+        const SPACERS = ["null_y_t", "null_y_b", "null_a_t", "null_a_b"];
 
         let currentConfig = {};
         let currentMode = "NORMAL";
@@ -683,6 +657,13 @@
             container.innerHTML = "";
 
             BUTTON_IDS.forEach(id => {
+                if (id === null || SPACERS.includes(id)) {
+                    const spacer = document.createElement("div");
+                    spacer.className = "btn-slot spacer";
+                    spacer.style.visibility = "hidden";
+                    container.appendChild(spacer);
+                    return;
+                }
                 const modeData = currentConfig[currentMode] || {};
                 const data = modeData[id] || { label: "", key: [] };
                 const div = document.createElement("div");
