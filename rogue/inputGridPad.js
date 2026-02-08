@@ -118,7 +118,7 @@
             }
             if (pos >= 0) {
                 //内部処理用のパネルかチェック
-                if (typeof (grid[pos].action) == "number") {
+                if (typeof (grid[pos].action) == "number" || PageMap[grid[pos].action]) {
                     this.setPanelPage(grid[pos].action);
                     pos = -1;
                 } else if (grid[pos].action === "FULLSCREEN") {
@@ -195,6 +195,14 @@
             RD: DW * 5 - 3, RE: DW * 5 - 2, RF: DW * 5 - 1,
             RG: DW * 6 - 3, RH: DW * 6 - 2, RI: DW * 6 - 1,
             RJ: DW * 7 - 3, RK: DW * 7 - 2, RL: DW * 7 - 1,
+            // 中央ブロック (6列 x 7行 = 42)
+            C1: 3, C2: 4, C3: 5, C4: 6, C5: 7, C6: 8,
+            C7: DW + 3, C8: DW + 4, C9: DW + 5, C10: DW + 6, C11: DW + 7, C12: DW + 8,
+            C13: DW * 2 + 3, C14: DW * 2 + 4, C15: DW * 2 + 5, C16: DW * 2 + 6, C17: DW * 2 + 7, C18: DW * 2 + 8,
+            C19: DW * 3 + 3, C20: DW * 3 + 4, C21: DW * 3 + 5, C22: DW * 3 + 6, C23: DW * 3 + 7, C24: DW * 3 + 8,
+            C25: DW * 4 + 3, C26: DW * 4 + 4, C27: DW * 4 + 5, C28: DW * 4 + 6, C29: DW * 4 + 7, C30: DW * 4 + 8,
+            C31: DW * 5 + 3, C32: DW * 5 + 4, C33: DW * 5 + 5, C34: DW * 5 + 6, C35: DW * 5 + 7, C36: DW * 5 + 8,
+            C37: DW * 6 + 3, C38: DW * 6 + 4, C39: DW * 6 + 5, C40: DW * 6 + 6, C41: DW * 6 + 7, C42: DW * 6 + 8,
         }
 
         let tpadConfig = null;
@@ -305,36 +313,84 @@
                         set_grid(PNAME.RL, "ENTER", ["Enter"]);
                         break;
                     case YNPage:
+                        // 方向キーを左側に維持
+                        set_grid(PNAME.L1, "7", ["Numpad7"]);
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L4, "l", ["KeyL"]);
-                        set_grid(PNAME.L6, "r", ["KeyR"]);
+                        set_grid(PNAME.L3, "9", ["Numpad9"]);
+                        set_grid(PNAME.L4, "4", ["Numpad4"]);
+                        set_grid(PNAME.L5, "5", ["Numpad5"]);
+                        set_grid(PNAME.L6, "6", ["Numpad6"]);
+                        set_grid(PNAME.L7, "1", ["Numpad1"]);
                         set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "y", ["KeyY"]);
-                        set_grid(PNAME.R1, "*", ["Quote", "ShiftLeft"]);
-                        set_grid(PNAME.R2, "/", ["Slash"]);
+                        set_grid(PNAME.L9, "3", ["Numpad3"]);
+                        set_grid(PNAME.LA, "[-L-]", LeftPage);
+                        set_grid(PNAME.LB, "[-N-]", CenterPage);
+                        set_grid(PNAME.LC, "[-R-]", RightPage);
+
+                        // コンテキストボタンを右側に配置 (R1-RI)
+                        set_grid(PNAME.R1, "y", ["KeyY"]);
+                        set_grid(PNAME.R2, "n", ["KeyN"]);
                         set_grid(PNAME.R3, "a", ["KeyA"]);
-                        set_grid(PNAME.R6, "q", ["KeyQ"]);
-                        set_grid(PNAME.R9, "n", ["KeyN"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
+                        set_grid(PNAME.R4, "q", ["KeyQ"]);
+                        set_grid(PNAME.R5, "l", ["KeyL"]);
+                        set_grid(PNAME.R6, "r", ["KeyR"]);
+                        set_grid(PNAME.R7, "*", ["Quote", "ShiftLeft"]);
+                        set_grid(PNAME.R8, "/", ["Slash"]);
+                        set_grid(PNAME.RI, "ESC", ["Delete"]);
+
+                        // ナビゲーション
+                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
+                        set_grid(PNAME.RK, "[-N-]", CenterPage);
+                        set_grid(PNAME.RL, "[-R-]", RightPage);
                         break;
                     case MENUPage:
+                        // 方向キーを左側に維持
+                        set_grid(PNAME.L1, "7", ["Numpad7"]);
                         set_grid(PNAME.L2, "8", ["Numpad8"]);
+                        set_grid(PNAME.L3, "9", ["Numpad9"]);
                         set_grid(PNAME.L4, "4", ["Numpad4"]);
+                        set_grid(PNAME.L5, "5", ["Numpad5"]);
                         set_grid(PNAME.L6, "6", ["Numpad6"]);
+                        set_grid(PNAME.L7, "1", ["Numpad1"]);
                         set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "Space", ["Space"]);
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "*", ["Quote", "ShiftLeft"]);
-                        set_grid(PNAME.R2, "/", ["Slash"]);
-                        set_grid(PNAME.R3, "a", ["KeyA"]);
-                        set_grid(PNAME.R4, "d", ["KeyY"]);
-                        set_grid(PNAME.R5, "q", ["KeyN"]);
+                        set_grid(PNAME.L9, "3", ["Numpad3"]);
+                        set_grid(PNAME.LA, "[-L-]", LeftPage);
+                        set_grid(PNAME.LB, "[-N-]", CenterPage);
+                        set_grid(PNAME.LC, "[-R-]", RightPage);
+
+                        // コンテキストボタンを右側に配置
+                        set_grid(PNAME.R1, "Space", ["Space"]);
+                        set_grid(PNAME.R2, "Enter", ["Enter"]);
+                        set_grid(PNAME.R3, "ESC", ["Delete"]);
+                        set_grid(PNAME.R4, "a", ["KeyA"]);
+                        set_grid(PNAME.R5, "d", ["KeyD"]);
+                        set_grid(PNAME.R6, "q", ["KeyQ"]);
+                        set_grid(PNAME.R7, "*", ["Quote", "ShiftLeft"]);
+                        set_grid(PNAME.R8, "/", ["Slash"]);
+
+                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
+                        set_grid(PNAME.RK, "[-N-]", CenterPage);
+                        set_grid(PNAME.RL, "[-R-]", RightPage);
                         break;
                     case LINPage:
-                        set_grid(PNAME.LA, "Backsp", ["Backspace"]);
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
+                        // 方向キー
+                        set_grid(PNAME.L1, "7", ["Numpad7"]);
+                        set_grid(PNAME.L2, "8", ["Numpad8"]);
+                        set_grid(PNAME.L3, "9", ["Numpad9"]);
+                        set_grid(PNAME.L4, "4", ["Numpad4"]);
+                        set_grid(PNAME.L5, "5", ["Numpad5"]);
+                        set_grid(PNAME.L6, "6", ["Numpad6"]);
+                        set_grid(PNAME.L7, "1", ["Numpad1"]);
+                        set_grid(PNAME.L8, "2", ["Numpad2"]);
+                        set_grid(PNAME.L9, "3", ["Numpad3"]);
+
+                        set_grid(PNAME.R1, "Bksp", ["Backspace"]);
+                        set_grid(PNAME.R2, "Enter", ["Enter"]);
+                        set_grid(PNAME.R3, "ESC", ["Delete"]);
+
+                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
+                        set_grid(PNAME.RK, "[-N-]", CenterPage);
+                        set_grid(PNAME.RL, "[-R-]", RightPage);
                         break;
                     case CenterPage:
                     default:
@@ -380,6 +436,15 @@
                         set_grid(PNAME.RJ, "[-L-]", LeftPage);
                         set_grid(PNAME.RK, "[-R-]", RightPage);
                         set_grid(PNAME.RL, "ENTER", ["Enter"]);
+                        // コンテキストがアクティブなら復帰ボタンを表示
+                        if (this.currentContext && this.currentContext !== "NORMAL") {
+                            // 右側の目立つ位置（RI: # ext の場所）に配置
+                            set_grid(PNAME.RI, "[CONTEXT]", this.currentContext);
+                            // もし CenterPage 以外（Left/Right）ならもっと目立つ位置にも
+                            if (ppn !== CenterPage) {
+                                set_grid(PNAME.RC, "[CONTEXT]", this.currentContext);
+                            }
+                        }
                         break;
                 }
                 if (isFullscreenAvailable() && !getFullscreenElement()) {
@@ -401,6 +466,7 @@
             this.setPanelPage(this.currentPage);
         });
 
+        this.currentContext = "NORMAL";
         let lastContext = "NORMAL";
         let lastPlaying = true;
         this.updateContext = function (context) {
@@ -408,9 +474,7 @@
             if (context === lastContext && currentPlaying === lastPlaying) return;
             lastContext = context;
             lastPlaying = currentPlaying;
-
-            // 状態（Contextまたはplaying）が変わったらパネルを更新
-            this.setPanelPage(this.currentPage);
+            this.currentContext = context;
 
             if (context === "NORMAL") {
                 this.setPanelPage(CenterPage);
@@ -420,6 +484,9 @@
                 this.setPanelPage(MENUPage);
             } else if (context === "LIN") {
                 this.setPanelPage(LINPage);
+            } else {
+                // 状態（Contextまたはplaying）が変わったらパネルを更新
+                this.setPanelPage(this.currentPage);
             }
         }
 

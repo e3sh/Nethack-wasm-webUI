@@ -431,34 +431,40 @@
                 81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "ENTER", action: ["Enter"] }
             },
             YN: {
-                1: { label: "8", action: ["Numpad8"] },
-                12: { label: "l", action: ["KeyL"] },
-                14: { label: "r", action: ["KeyR"] },
-                25: { label: "2", action: ["Numpad2"] },
-                26: { label: "y", action: ["KeyY"] },
-                11: { label: "a", action: ["KeyA"] },
-                23: { label: "q", action: ["KeyQ"] },
-                35: { label: "n", action: ["KeyN"] },
-                38: { label: "ESC", action: ["Delete"] }
+                // 方向キー (左側)
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
+                // コンテキスト (右側)
+                9: { label: "y", action: ["KeyY"] }, 10: { label: "n", action: ["KeyN"] }, 11: { label: "a", action: ["KeyA"] },
+                21: { label: "q", action: ["KeyQ"] }, 22: { label: "l", action: ["KeyL"] }, 23: { label: "r", action: ["KeyR"] },
+                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] }, 35: { label: "ESC", action: ["Delete"] },
+                // ナビゲーション (右下)
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
             },
             MENU: {
-                1: { label: "8", action: ["Numpad8"] },
-                12: { label: "4", action: ["Numpad4"] },
-                14: { label: "6", action: ["Numpad6"] },
-                25: { label: "2", action: ["Numpad2"] },
-                26: { label: "Space", action: ["Space"] },
-                37: { label: "Enter", action: ["Enter"] },
-                38: { label: "ESC", action: ["Delete"] },
-                9: { label: "*", action: ["Quote", "ShiftLeft"] },
-                10: { label: "/", action: ["Slash"] },
-                11: { label: "a", action: ["KeyA"] },
-                21: { label: "d", action: ["KeyY"] },
-                22: { label: "q", action: ["KeyN"] }
+                // 方向キー (左側)
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
+                // コンテキスト (右側)
+                9: { label: "Space", action: ["Space"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
+                21: { label: "a", action: ["KeyA"] }, 22: { label: "d", action: ["KeyD"] }, 23: { label: "q", action: ["KeyQ"] },
+                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] },
+                // ナビゲーション (右下)
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
             },
             LIN: {
-                36: { label: "Backsp", action: ["Backspace"] },
-                37: { label: "Enter", action: ["Enter"] },
-                38: { label: "ESC", action: ["Delete"] }
+                // 方向キー (左側)
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                // コンテキスト (右側)
+                9: { label: "Bksp", action: ["Backspace"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
+                // ナビゲーション (右下)
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
             }
         };
 
