@@ -1535,8 +1535,10 @@
         { en: "Wow!  This makes you feel good!", jp: "わあ！これ、気持ちいい！" },
         { en: "This water's no good!", jp: "この水、まずい！" },
         { en: " Total elapsed playing time is none.", jp: " 合計経過プレイ時間はなし。" },
-        { en: "Are you waiting to get hit?  Use 'm' prefix to force a no-op (to rest).   ",
-             jp: "攻撃されるのを待っているのか？ 『m』 接頭辞で強制的に何もしない（休息）状態にできる。" },
+        {
+            en: "Are you waiting to get hit?  Use 'm' prefix to force a no-op (to rest).   ",
+            jp: "攻撃されるのを待っているのか？ 『m』 接頭辞で強制的に何もしない（休息）状態にできる。"
+        },
         { en: "You are surrounded by darkness!", jp: "あなたは闇に包まれています！" },
         { en: "You have already identified the rest of your possessions.", jp: "あなたはすでに所持品の残りを確認済みです。" },
         { en: "Click!  You trigger a rolling boulder trap!", jp: "カチッ！転がる岩の罠を発動させた！" },
@@ -2015,11 +2017,11 @@ function nhEntities() {
         "Velkommen": "歓迎します",
         "Konnichi wa": "「こんにちは」",
         "sleep ray": "睡眠光線",
-        "second-hand bookstore":"古書店",
+        "second-hand bookstore": "古書店",
         "rare books": "希少書籍店",
         "smart": "賢い",
         "jewelers": "宝飾店",
-        
+
     };
 }
 
@@ -2659,11 +2661,12 @@ function nhItems() {
         "on right hand": "右手に装備",
         "bare hands": "素手",
         "eucalyptus leaf": "ユーカリの葉",
-        "paperback book":"ペーパーバック本",
-        "Maskerade":"仮面舞踏会",
+        "paperback book": "ペーパーバック本",
+        "Maskerade": "仮面舞踏会",
         "cloak": "マント",
         "candle": "蝋燭",
-        
+        "broken": "壊れた",
+
     };
 }
 
