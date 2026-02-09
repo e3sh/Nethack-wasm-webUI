@@ -1,6 +1,6 @@
 // main Nethack web UI 2026/01/12-
 //----------------------------------------------------------------------
-function main() {
+async function main() {
 
     const USE_TILE = true;//false;
     const RESW = 960; //(USE_TILE)?1280:960;
@@ -13,6 +13,20 @@ function main() {
         screen: [{ resolution: { w: RESW, h: RESH, x: 0, y: 0 } }]
     };
     const game = new GameCore(sysParam);
+
+    // Load Default Configurations from JSON
+    try {
+        const fetchConfig = async (url) => {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            return await res.json();
+        };
+        game.gpadConfigDefault = await fetchConfig("param/gpad_config_default.json");
+        game.touchConfigDefault = await fetchConfig("param/touch_mapping_default.json");
+    } catch (e) {
+        console.warn("External default config not found or invalid.", e);
+    }
+
     window.g = game; // グローバルに公開
 
     //Game Asset Setup

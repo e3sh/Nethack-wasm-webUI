@@ -220,6 +220,150 @@ function rogueDefines(r) {
             "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
             "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
         ],
+
+        // Gamepad Default Mapping
+        GPAD_DEFAULT: {
+            NORMAL: {
+                P1: { label: " 1", key: ["Numpad1"] },
+                P2: { label: " 2", key: ["Numpad2"] },
+                P3: { label: " 3", key: ["Numpad3"] },
+                P4: { label: " 4", key: ["Numpad4"] },
+                P6: { label: " 6", key: ["Numpad6"] },
+                P7: { label: " 7", key: ["Numpad7"] },
+                P8: { label: " 8", key: ["Numpad8"] },
+                P9: { label: " 9", key: ["Numpad9"] },
+                START: { label: " # ", key: ["Digit3", "ShiftLeft"] },
+                BACK: { label: "Save", key: ["KeyS", "ShiftLeft"] },
+                A: { label: "Trav", key: ["Numpad5"] },
+                B: { label: "ESC", key: ["Delete"] },
+                X: { label: "Ent", key: ["Enter"] },
+                Y: { label: " i ", key: ["KeyI"] },
+                L3: { label: " : ", key: ["Quote"] },
+                R3: { label: " s ", key: ["KeyS"] },
+            },
+            RT: {
+                A: { label: "w)ld", key: ["KeyW"] },
+                B: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
+                X: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
+                Y: { label: "z)ap", key: ["KeyZ"] },
+            },
+            LT: {
+                P2: { label: " 2", key: ["Numpad2"] },
+                P4: { label: " 4", key: ["Numpad4"] },
+                P6: { label: " 6", key: ["Numpad6"] },
+                P8: { label: " 8", key: ["Numpad8"] },
+                A: { label: "q)uf", key: ["KeyQ"] },
+                B: { label: "r)ead", key: ["KeyR"] },
+                X: { label: "e)at", key: ["KeyE"] },
+                Y: { label: "t)hw", key: ["KeyT"] },
+            },
+            RB: {
+                A: { label: " . ", key: ["Period"] },
+                B: { label: "<)Up", key: ["Comma", "ShiftLeft"] },
+                X: { label: ">)Dn", key: ["Period", "ShiftLeft"] },
+                Y: { label: ",)get", key: ["Comma"] },
+            },
+            LB: {
+                P2: { label: " 2", key: ["Numpad2"] },
+                P4: { label: " 4", key: ["Numpad4"] },
+                P6: { label: " 6", key: ["Numpad6"] },
+                P8: { label: " 8", key: ["Numpad8"] },
+                A: { label: "Z)ap", key: ["KeyZ", "ShiftLeft"] },
+                B: { label: "a)ply", key: ["KeyA"] },
+                X: { label: "k)ik", key: ["KeyK"] },
+                Y: { label: "Pray", key: ["Digit3", "ShiftLeft"] },
+            },
+            LB_LT: {
+                A: { label: " y ", key: ["KeyY"] },
+                B: { label: " n ", key: ["KeyN"] },
+                X: { label: " a ", key: ["KeyA"] },
+                Y: { label: " q ", key: ["KeyQ"] },
+                P4: { label: " l ", key: ["KeyL"] },
+                P6: { label: " r ", key: ["KeyR"] },
+            },
+            RB_RT: {
+                A: { label: " a ", key: ["KeyA"] },
+                B: { label: " d ", key: ["KeyD"] },
+                X: { label: " @ ", key: ["BracketLeft"] },
+                Y: { label: " / ", key: ["Slash"] },
+                START: { label: " * ", key: ["Quote", "ShiftLeft"] },
+                BACK: { label: " # ", key: ["Digit3", "ShiftLeft"] },
+            },
+            LB_RB: {},
+            LT_RT: {},
+            LB_RT: {},
+            LT_RB: {},
+        },
+
+        // TouchPad Default Mapping
+        TOUCH_DEFAULT: {
+            ver: "12x9",
+            Center: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "Ent", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "q)uf", action: ["KeyQ"] }, 10: { label: "r)ed", action: ["KeyR"] }, 11: { label: "e)at", action: ["KeyE"] },
+                21: { label: "w)ld", action: ["KeyW"] }, 22: { label: "W)ear", action: ["KeyW", "ShiftLeft"] }, 23: { label: "T)off", action: ["KeyT", "ShiftLeft"] },
+                33: { label: "k)ik", action: ["KeyK"] }, 34: { label: "a)ply", action: ["KeyA"] }, 35: { label: "z)ap", action: ["KeyZ"] },
+                45: { label: ". wait", action: ["Period"] }, 46: { label: "i)nv", action: ["KeyI"] }, 47: { label: "s)rh", action: ["KeyS"] },
+                57: { label: ">)Dn", action: ["Period", "ShiftLeft"] }, 58: { label: "<)Up", action: ["Comma", "ShiftLeft"] }, 59: { label: ",)get", action: ["Comma"] },
+                69: { label: "o)pn", action: ["KeyO"] }, 70: { label: "c)ls", action: ["KeyC"] }, 71: { label: "# ext", action: ["Digit3", "ShiftLeft"] },
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-R-]", action: 3 }, 83: { label: "ENTER", action: ["Enter"] }
+            },
+            Left: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-N-]", action: 1 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "P)on", action: ["KeyP", "ShiftLeft"] }, 10: { label: "R)mov", action: ["KeyR", "ShiftLeft"] }, 11: { label: "a)ply", action: ["KeyA"] },
+                21: { label: "k)ik", action: ["KeyK"] }, 22: { label: "o)pn", action: ["KeyO"] }, 23: { label: "c)ls", action: ["KeyC"] },
+                33: { label: "# pray", action: ["Digit3", "ShiftLeft"] }, 34: { label: "Z)ap", action: ["KeyZ", "ShiftLeft"] }, 35: { label: "f)ire", action: ["KeyF"] },
+                45: { label: "l)ook", action: ["KeyL"] }, 46: { label: "v)rs", action: ["KeyV", "ShiftLeft"] }, 47: { label: "[-R-]", action: 3 },
+                81: { label: "[-N-]", action: 1 }, 82: { label: "[-R-]", action: 3 }, 83: { label: "ENTER", action: ["Enter"] }
+            },
+            Right: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+
+                9: { label: "y es", action: ["KeyY"] }, 10: { label: "n o", action: ["KeyN"] }, 11: { label: "a ll", action: ["KeyA"] },
+                21: { label: "q uit", action: ["KeyQ"] }, 22: { label: "S)ave", action: ["KeyS", "ShiftLeft"] }, 23: { label: "Enter", action: ["Enter"] },
+                33: { label: "Space", action: ["Space"] }, 34: { label: "Bksp", action: ["Backspace"] }, 35: { label: "Tab", action: ["Tab"] },
+                45: { label: "# ext", action: ["Digit3", "ShiftLeft"] }, 46: { label: "ESC", action: ["Delete"] }, 47: { label: "[-N-]", action: 1 },
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "ENTER", action: ["Enter"] }
+            },
+            YN: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
+                9: { label: "y", action: ["KeyY"] }, 10: { label: "n", action: ["KeyN"] }, 11: { label: "a", action: ["KeyA"] },
+                21: { label: "q", action: ["KeyQ"] }, 22: { label: "l", action: ["KeyL"] }, 23: { label: "r", action: ["KeyR"] },
+                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] }, 35: { label: "ESC", action: ["Delete"] },
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
+            },
+            MENU: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
+                9: { label: "Space", action: ["Space"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
+                21: { label: "a", action: ["KeyA"] }, 22: { label: "d", action: ["KeyD"] }, 23: { label: "q", action: ["KeyQ"] },
+                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] },
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
+            },
+            LIN: {
+                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
+                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
+                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
+                9: { label: "Bksp", action: ["Backspace"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
+                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
+            }
+        },
     };
 
     // Load settings from localStorage if available

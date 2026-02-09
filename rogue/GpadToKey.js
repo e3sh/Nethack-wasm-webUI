@@ -56,80 +56,12 @@ function GpadToKey(g) {
     if (Boolean(localStorage.getItem("nh.gpadAssign"))) {
         buf = JSON.parse(localStorage.getItem("nh.gpadAssign"));
     }
-    // Default Mapping Setting: 
-    const KEYASSIGN = Boolean(buf) ? buf :
-        {
-            NORMAL: {
-                P1: { label: " 1", key: ["Numpad1"] },
-                P2: { label: " 2", key: ["Numpad2"] },
-                P3: { label: " 3", key: ["Numpad3"] },
-                P4: { label: " 4", key: ["Numpad4"] },
-                P6: { label: " 6", key: ["Numpad6"] },
-                P7: { label: " 7", key: ["Numpad7"] },
-                P8: { label: " 8", key: ["Numpad8"] },
-                P9: { label: " 9", key: ["Numpad9"] },
-                START: { label: " # ", key: ["Digit3", "ShiftLeft"] },
-                BACK: { label: "Save", key: ["KeyS", "ShiftLeft"] },
-                A: { label: "Trav", key: ["Numpad5"] },
-                B: { label: "ESC", key: ["Delete"] },
-                X: { label: "Ent", key: ["Enter"] },
-                Y: { label: " i ", key: ["KeyI"] },
-                L3: { label: " : ", key: ["Quote"] },
-                R3: { label: " s ", key: ["KeyS"] },
-            },
-            RT: { // Modifier: Battle / Equipment
-                A: { label: "w)ld", key: ["KeyW"] },
-                B: { label: "W)ear", key: ["KeyW", "ShiftLeft"] },
-                X: { label: "T)off", key: ["KeyT", "ShiftLeft"] },
-                Y: { label: "z)ap", key: ["KeyZ"] },
-            },
-            LT: { // Modifier: Consumables / Throw
-                P2: { label: " 2", key: ["Numpad2"] },
-                P4: { label: " 4", key: ["Numpad4"] },
-                P6: { label: " 6", key: ["Numpad6"] },
-                P8: { label: " 8", key: ["Numpad8"] },
-                A: { label: "q)uf", key: ["KeyQ"] },
-                B: { label: "r)ead", key: ["KeyR"] },
-                X: { label: "e)at", key: ["KeyE"] },
-                Y: { label: "t)hw", key: ["KeyT"] },
-            },
-            RB: { // Modifier: Move / Navigation
-                A: { label: " . ", key: ["Period"] },
-                B: { label: "<)Up", key: ["Comma", "ShiftLeft"] },
-                X: { label: ">)Dn", key: ["Period", "ShiftLeft"] },
-                Y: { label: ",)get", key: ["Comma"] },
-            },
-            LB: { // Modifier: Other
-                P2: { label: " 2", key: ["Numpad2"] },
-                P4: { label: " 4", key: ["Numpad4"] },
-                P6: { label: " 6", key: ["Numpad6"] },
-                P8: { label: " 8", key: ["Numpad8"] },
-                A: { label: "Z)ap", key: ["KeyZ", "ShiftLeft"] },
-                B: { label: "a)ply", key: ["KeyA"] },
-                X: { label: "k)ik", key: ["KeyK"] },
-                Y: { label: "Pray", key: ["Digit3", "ShiftLeft"] },
-            },
-            LB_LT: { // YN Choices Extension
-                A: { label: " y ", key: ["KeyY"] },
-                B: { label: " n ", key: ["KeyN"] },
-                X: { label: " a ", key: ["KeyA"] },
-                Y: { label: " q ", key: ["KeyQ"] },
-                P4: { label: " l ", key: ["KeyL"] },
-                P6: { label: " r ", key: ["KeyR"] },
-            },
-            RB_RT: { // Common Utilities
-                A: { label: " a ", key: ["KeyA"] },
-                B: { label: " d ", key: ["KeyD"] },
-                X: { label: " @ ", key: ["BracketLeft"] },
-                Y: { label: " / ", key: ["Slash"] },
-                START: { label: " * ", key: ["Quote", "ShiftLeft"] },
-                BACK: { label: " # ", key: ["Digit3", "ShiftLeft"] },
-            },
-            LB_RB: {}, //上側同時
-            LT_RT: {}, //下側同時
-            LB_RT: {}, //左上右下
-            LT_RB: {}, //左下右上
-        }
+    // Default Mapping Setting Resolution:
+    // 1. localStorage (buf)
+    // 2. game.gpadConfigDefault (from gpad_config_default.json)
+    // 3. rogueDefines().GPAD_DEFAULT (fallback in code)
+    const KEYASSIGN = Boolean(buf) ? buf : (g.gpadConfigDefault || d.GPAD_DEFAULT);
+
     if (!Boolean(buf)) {
         localStorage.setItem("nh.gpadAssign", JSON.stringify(KEYASSIGN));
     }

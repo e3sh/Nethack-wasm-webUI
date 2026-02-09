@@ -385,88 +385,34 @@
         &copy; 2026 TouchPad Utility
     </footer>
 
+    <script src="../param/rogueDefines.js" type="text/javascript"></script>
     <script>
         const DW = 12, DH = 9;
         const PAGES = ["Center", "Left", "Right", "YN", "MENU", "LIN"];
 
-        // inputGridPad.js と同期した 12x9 デフォルト構成
-        const DEFAULT_CONFIG = {
-            ver: "12x9",
-            Center: {
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                36: { label: "[-L-]", action: 2 }, 37: { label: "Ent", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
+        // --- Constants & Defaults ---
+        const d = rogueDefines();
+        let DEFAULT_CONFIG = d.TOUCH_DEFAULT;
 
-                9: { label: "q)uf", action: ["KeyQ"] }, 10: { label: "r)ed", action: ["KeyR"] }, 11: { label: "e)at", action: ["KeyE"] },
-                21: { label: "w)ld", action: ["KeyW"] }, 22: { label: "W)ear", action: ["KeyW", "ShiftLeft"] }, 23: { label: "T)off", action: ["KeyT", "ShiftLeft"] },
-                33: { label: "k)ik", action: ["KeyK"] }, 34: { label: "a)ply", action: ["KeyA"] }, 35: { label: "z)ap", action: ["KeyZ"] },
-                45: { label: ". wait", action: ["Period"] }, 46: { label: "i)nv", action: ["KeyI"] }, 47: { label: "s)rh", action: ["KeyS"] },
-                57: { label: ">)Dn", action: ["Period", "ShiftLeft"] }, 58: { label: "<)Up", action: ["Comma", "ShiftLeft"] }, 59: { label: ",)get", action: ["Comma"] },
-                69: { label: "o)pn", action: ["KeyO"] }, 70: { label: "c)ls", action: ["KeyC"] }, 71: { label: "# ext", action: ["Digit3", "ShiftLeft"] },
-                81: { label: "[-L-]", action: 2 }, 82: { label: "[-R-]", action: 3 }, 83: { label: "ENTER", action: ["Enter"] }
-            },
-            Left: {
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                36: { label: "[-N-]", action: 1 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
-
-                9: { label: "P)on", action: ["KeyP", "ShiftLeft"] }, 10: { label: "R)mov", action: ["KeyR", "ShiftLeft"] }, 11: { label: "a)ply", action: ["KeyA"] },
-                21: { label: "k)ik", action: ["KeyK"] }, 22: { label: "o)pn", action: ["KeyO"] }, 23: { label: "c)ls", action: ["KeyC"] },
-                33: { label: "# pray", action: ["Digit3", "ShiftLeft"] }, 34: { label: "Z)ap", action: ["KeyZ", "ShiftLeft"] }, 35: { label: "f)ire", action: ["KeyF"] },
-                45: { label: "l)ook", action: ["KeyL"] }, 46: { label: "v)rs", action: ["KeyV", "ShiftLeft"] }, 47: { label: "[-R-]", action: 3 },
-                81: { label: "[-N-]", action: 1 }, 82: { label: "[-R-]", action: 3 }, 83: { label: "ENTER", action: ["Enter"] }
-            },
-            Right: {
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "Trav", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                36: { label: "[-L-]", action: 2 }, 37: { label: "Enter", action: ["Enter"] }, 38: { label: "ESC", action: ["Delete"] },
-
-                9: { label: "y es", action: ["KeyY"] }, 10: { label: "n o", action: ["KeyN"] }, 11: { label: "a ll", action: ["KeyA"] },
-                21: { label: "q uit", action: ["KeyQ"] }, 22: { label: "S)ave", action: ["KeyS", "ShiftLeft"] }, 23: { label: "Enter", action: ["Enter"] },
-                33: { label: "Space", action: ["Space"] }, 34: { label: "Bksp", action: ["Backspace"] }, 35: { label: "Tab", action: ["Tab"] },
-                45: { label: "# ext", action: ["Digit3", "ShiftLeft"] }, 46: { label: "ESC", action: ["Delete"] }, 47: { label: "[-N-]", action: 1 },
-                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "ENTER", action: ["Enter"] }
-            },
-            YN: {
-                // 方向キー (左側)
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
-                // コンテキスト (右側)
-                9: { label: "y", action: ["KeyY"] }, 10: { label: "n", action: ["KeyN"] }, 11: { label: "a", action: ["KeyA"] },
-                21: { label: "q", action: ["KeyQ"] }, 22: { label: "l", action: ["KeyL"] }, 23: { label: "r", action: ["KeyR"] },
-                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] }, 35: { label: "ESC", action: ["Delete"] },
-                // ナビゲーション (右下)
-                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
-            },
-            MENU: {
-                // 方向キー (左側)
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                36: { label: "[-L-]", action: 2 }, 37: { label: "[-N-]", action: 1 }, 38: { label: "[-R-]", action: 3 },
-                // コンテキスト (右側)
-                9: { label: "Space", action: ["Space"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
-                21: { label: "a", action: ["KeyA"] }, 22: { label: "d", action: ["KeyD"] }, 23: { label: "q", action: ["KeyQ"] },
-                33: { label: "*", action: ["Quote", "ShiftLeft"] }, 34: { label: "/", action: ["Slash"] },
-                // ナビゲーション (右下)
-                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
-            },
-            LIN: {
-                // 方向キー (左側)
-                0: { label: "7", action: ["Numpad7"] }, 1: { label: "8", action: ["Numpad8"] }, 2: { label: "9", action: ["Numpad9"] },
-                12: { label: "4", action: ["Numpad4"] }, 13: { label: "5", action: ["Numpad5"] }, 14: { label: "6", action: ["Numpad6"] },
-                24: { label: "1", action: ["Numpad1"] }, 25: { label: "2", action: ["Numpad2"] }, 26: { label: "3", action: ["Numpad3"] },
-                // コンテキスト (右側)
-                9: { label: "Bksp", action: ["Backspace"] }, 10: { label: "Enter", action: ["Enter"] }, 11: { label: "ESC", action: ["Delete"] },
-                // ナビゲーション (右下)
-                81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
+        // Attempt to load external JSON default
+        async function loadExternalDefault() {
+            try {
+                const res = await fetch("../param/touch_mapping_default.json");
+                if (res.ok) {
+                    const json = await res.json();
+                    DEFAULT_CONFIG = json;
+                    console.log("External default loaded:", DEFAULT_CONFIG);
+                    // If no saved config, apply this default
+                    if (!localStorage.getItem("nh.tpadAssign")) {
+                        currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+                        if (typeof renderGrid === 'function') renderGrid();
+                    }
+                }
+            } catch (e) {
+                console.warn("External default not found, using fallback from rogueDefines.js");
             }
-        };
+        }
+        loadExternalDefault();
 
         let currentConfig = {};
         let currentPage = "Center";

@@ -205,8 +205,8 @@
             C37: DW * 6 + 3, C38: DW * 6 + 4, C39: DW * 6 + 5, C40: DW * 6 + 6, C41: DW * 6 + 7, C42: DW * 6 + 8,
         }
 
-        let tpadConfig = null;
         const savedConfig = localStorage.getItem("nh.tpadAssign");
+        let tpadConfig = null;
         if (Boolean(savedConfig)) {
             const parsed = JSON.parse(savedConfig);
             // グリッドサイズが異なる場合は古い設定を無視（リセット）
@@ -216,6 +216,16 @@
             } else {
                 tpadConfig = parsed;
             }
+        }
+
+        // Default Mapping Setting Resolution:
+        // 1. localStorage
+        // 2. game.touchConfigDefault (from touch_mapping_default.json)
+        // 3. rogueDefines().TOUCH_DEFAULT (fallback in code)
+        this.currentConfig = tpadConfig || g.touchConfigDefault || d.TOUCH_DEFAULT;
+
+        if (!tpadConfig) {
+            localStorage.setItem("nh.tpadAssign", JSON.stringify(this.currentConfig));
         }
 
         const CenterPage = 1;
@@ -245,221 +255,31 @@
                 }
             }
 
-            // Load from config if available
-            if (tpadConfig && tpadConfig[pageName]) {
-                const config = tpadConfig[pageName];
+            // Load from currentConfig
+            const config = this.currentConfig[pageName];
+            if (config) {
                 for (let idx in config) {
                     set_grid(idx, config[idx].label, config[idx].action);
                 }
             } else {
-                // Default hardcoded fallbacks
-                switch (ppn) {
-                    case LeftPage:
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, "[-N-]", CenterPage);
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "P)on", ["KeyP", "ShiftLeft"]);
-                        set_grid(PNAME.R2, "R)mov", ["KeyR", "ShiftLeft"]);
-                        set_grid(PNAME.R3, "a)ply", ["KeyA"]);
-                        set_grid(PNAME.R4, "k)ik", ["KeyK"]);
-                        set_grid(PNAME.R5, "o)pn", ["KeyO"]);
-                        set_grid(PNAME.R6, "c)ls", ["KeyC"]);
-                        set_grid(PNAME.R7, "# pray", ["Digit3", "ShiftLeft"]);
-                        set_grid(PNAME.R8, "Z)ap", ["KeyZ", "ShiftLeft"]);
-                        set_grid(PNAME.R9, "f)ire", ["KeyF"]);
-                        set_grid(PNAME.RA, "l)ook", ["KeyL"]);
-                        set_grid(PNAME.RB, "v)rs", ["KeyV", "ShiftLeft"]);
-                        set_grid(PNAME.RC, "[-R-]", RightPage);
-                        set_grid(PNAME.RJ, "[-N-]", CenterPage);
-                        set_grid(PNAME.RK, "[-R-]", RightPage);
-                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
-                        break;
-                    case RightPage:
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, "[-L-]", LeftPage);
-                        set_grid(PNAME.LB, "Enter", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        set_grid(PNAME.R1, "y es", ["KeyY"]);
-                        set_grid(PNAME.R2, "n o", ["KeyN"]);
-                        set_grid(PNAME.R3, "a ll", ["KeyA"]);
-                        set_grid(PNAME.R4, "q uit", ["KeyQ"]);
-                        set_grid(PNAME.R5, "S)ave", ["KeyS", "ShiftLeft"]);
-                        set_grid(PNAME.R6, "Enter", ["Enter"]);
-                        set_grid(PNAME.R7, "Space", ["Space"]);
-                        set_grid(PNAME.R8, "Bksp", ["Backspace"]);
-                        set_grid(PNAME.R9, "Tab", ["Tab"]);
-                        set_grid(PNAME.RA, "# ext", ["Digit3", "ShiftLeft"]);
-                        set_grid(PNAME.RB, "ESC", ["Delete"]);
-                        set_grid(PNAME.RC, "[-N-]", CenterPage);
-                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
-                        set_grid(PNAME.RK, "[-N-]", CenterPage);
-                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
-                        break;
-                    case YNPage:
-                        // 方向キーを左側に維持
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "5", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, "[-L-]", LeftPage);
-                        set_grid(PNAME.LB, "[-N-]", CenterPage);
-                        set_grid(PNAME.LC, "[-R-]", RightPage);
+                console.warn(`Touch panel page ${pageName} not found in config.`);
+            }
 
-                        // コンテキストボタンを右側に配置 (R1-RI)
-                        set_grid(PNAME.R1, "y", ["KeyY"]);
-                        set_grid(PNAME.R2, "n", ["KeyN"]);
-                        set_grid(PNAME.R3, "a", ["KeyA"]);
-                        set_grid(PNAME.R4, "q", ["KeyQ"]);
-                        set_grid(PNAME.R5, "l", ["KeyL"]);
-                        set_grid(PNAME.R6, "r", ["KeyR"]);
-                        set_grid(PNAME.R7, "*", ["Quote", "ShiftLeft"]);
-                        set_grid(PNAME.R8, "/", ["Slash"]);
-                        set_grid(PNAME.RI, "ESC", ["Delete"]);
-
-                        // ナビゲーション
-                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
-                        set_grid(PNAME.RK, "[-N-]", CenterPage);
-                        set_grid(PNAME.RL, "[-R-]", RightPage);
-                        break;
-                    case MENUPage:
-                        // 方向キーを左側に維持
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "5", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, "[-L-]", LeftPage);
-                        set_grid(PNAME.LB, "[-N-]", CenterPage);
-                        set_grid(PNAME.LC, "[-R-]", RightPage);
-
-                        // コンテキストボタンを右側に配置
-                        set_grid(PNAME.R1, "Space", ["Space"]);
-                        set_grid(PNAME.R2, "Enter", ["Enter"]);
-                        set_grid(PNAME.R3, "ESC", ["Delete"]);
-                        set_grid(PNAME.R4, "a", ["KeyA"]);
-                        set_grid(PNAME.R5, "d", ["KeyD"]);
-                        set_grid(PNAME.R6, "q", ["KeyQ"]);
-                        set_grid(PNAME.R7, "*", ["Quote", "ShiftLeft"]);
-                        set_grid(PNAME.R8, "/", ["Slash"]);
-
-                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
-                        set_grid(PNAME.RK, "[-N-]", CenterPage);
-                        set_grid(PNAME.RL, "[-R-]", RightPage);
-                        break;
-                    case LINPage:
-                        // 方向キー
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "5", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-
-                        set_grid(PNAME.R1, "Bksp", ["Backspace"]);
-                        set_grid(PNAME.R2, "Enter", ["Enter"]);
-                        set_grid(PNAME.R3, "ESC", ["Delete"]);
-
-                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
-                        set_grid(PNAME.RK, "[-N-]", CenterPage);
-                        set_grid(PNAME.RL, "[-R-]", RightPage);
-                        break;
-                    case CenterPage:
-                    default:
-                        // 移動・基本 (左側)
-                        set_grid(PNAME.L1, "7", ["Numpad7"]);
-                        set_grid(PNAME.L2, "8", ["Numpad8"]);
-                        set_grid(PNAME.L3, "9", ["Numpad9"]);
-                        set_grid(PNAME.L4, "4", ["Numpad4"]);
-                        set_grid(PNAME.L5, "Trav", ["Numpad5"]);
-                        set_grid(PNAME.L6, "6", ["Numpad6"]);
-                        set_grid(PNAME.L7, "1", ["Numpad1"]);
-                        set_grid(PNAME.L8, "2", ["Numpad2"]);
-                        set_grid(PNAME.L9, "3", ["Numpad3"]);
-                        set_grid(PNAME.LA, "[-L-]", LeftPage);
-                        set_grid(PNAME.LB, "Ent", ["Enter"]);
-                        set_grid(PNAME.LC, "ESC", ["Delete"]);
-                        // 右側：7段構成
-                        // 1段目: 消耗品
-                        set_grid(PNAME.R1, "q)uf", ["KeyQ"]);
-                        set_grid(PNAME.R2, "r)ed", ["KeyR"]);
-                        set_grid(PNAME.R3, "e)at", ["KeyE"]);
-                        // 2段目: 武具
-                        set_grid(PNAME.R4, "w)ld", ["KeyW"]);
-                        set_grid(PNAME.R5, "W)ear", ["KeyW", "ShiftLeft"]);
-                        set_grid(PNAME.R6, "T)off", ["KeyT", "ShiftLeft"]);
-                        // 3段目: サバイバル/アクション1
-                        set_grid(PNAME.R7, "k)ik", ["KeyK"]);
-                        set_grid(PNAME.R8, "a)ply", ["KeyA"]);
-                        set_grid(PNAME.R9, "z)ap", ["KeyZ"]);
-                        // 4段目: 一般アクション2
-                        set_grid(PNAME.RA, ". wait", ["Period"]);
-                        set_grid(PNAME.RB, "i)nv", ["KeyI"]);
-                        set_grid(PNAME.RC, "s)rh", ["KeyS"]);
-                        // 5段目: 環境操作
-                        set_grid(PNAME.RD, ">)Dn", ["Period", "ShiftLeft"]);
-                        set_grid(PNAME.RE, "<)Up", ["Comma", "ShiftLeft"]);
-                        set_grid(PNAME.RF, ",)get", ["Comma"]);
-                        // 6段目: 補助操作
-                        set_grid(PNAME.RG, "o)pn", ["KeyO"]);
-                        set_grid(PNAME.RH, "c)ls", ["KeyC"]);
-                        set_grid(PNAME.RI, "# ext", ["Digit3", "ShiftLeft"]);
-                        // 7段目: 制御
-                        set_grid(PNAME.RJ, "[-L-]", LeftPage);
-                        set_grid(PNAME.RK, "[-R-]", RightPage);
-                        set_grid(PNAME.RL, "ENTER", ["Enter"]);
-                        // コンテキストがアクティブなら復帰ボタンを表示
-                        if (this.currentContext && this.currentContext !== "NORMAL") {
-                            // 右側の目立つ位置（RI: # ext の場所）に配置
-                            set_grid(PNAME.RI, "[CONTEXT]", this.currentContext);
-                            // もし CenterPage 以外（Left/Right）ならもっと目立つ位置にも
-                            if (ppn !== CenterPage) {
-                                set_grid(PNAME.RC, "[CONTEXT]", this.currentContext);
-                            }
-                        }
-                        break;
-                }
-                if (isFullscreenAvailable() && !getFullscreenElement()) {
-                    // 左下隅付近に配置 (DH-1行目の0列目)
-                    set_grid(DW * (DH - 1), "FULL", "FULLSCREEN");
+            // UI Components (Always present regardless of config)
+            if (pageName === "Center") {
+                // コンテキストがアクティブなら復帰ボタンを表示
+                if (this.currentContext && this.currentContext !== "NORMAL") {
+                    // 右側の目立つ位置（RI: # ext の場所）に配置
+                    set_grid(PNAME.RI, "[CONTEXT]", this.currentContext);
                 }
             }
-            // 保存用データにバージョン（サイズ）を含める
-            if (!tpadConfig) {
-                // 初回のみデフォルトを保存することを検討してもよいが、
-                // ここでは保存時に ver: "12x9" を付与することを前提とする。
+            if (isFullscreenAvailable() && !getFullscreenElement()) {
+                // 左下隅付近に配置 (DH-1行目の0列目)
+                set_grid(DW * (DH - 1), "FULL", "FULLSCREEN");
             }
             this.currentPage = ppn;
             if (this._onUpdate) this._onUpdate(grid);
-        }
+        };
 
         // フルスクリーン状態の変化を監視してUIを更新する
         document.addEventListener('fullscreenchange', () => {
@@ -488,13 +308,9 @@
                 // 状態（Contextまたはplaying）が変わったらパネルを更新
                 this.setPanelPage(this.currentPage);
             }
-        }
+        };
 
         this.setPanelPage(CenterPage); //FirstPage set 
-
-        if (!Boolean(tpadConfig)) {
-            //    localStorage.setItem("nh.tpadAssign", JSON.stringify(grid));
-        }
 
         this.check = function () {
             // ゲームオーバー(playing=false)の状態変化を常に監視してUIを更新
@@ -506,7 +322,6 @@
         };
 
         this.check_last = function () {
-
             return (lastResult >= 0) ? grid[lastResult].action : null;
         };
 
@@ -547,7 +362,7 @@
                         dev.beginPath();
                         dev.strokeStyle = "white"; //"black";
                         dev.lineWidth = 1;
-                        dev.rect(this.x+2, this.y+2, this.w-4, this.h-4);
+                        dev.rect(this.x + 2, this.y + 2, this.w - 4, this.h - 4);
                         dev.stroke();
                         dev.fillStyle = this.btncolor;//"#303030"; //"black";
                         dev.fillRect(this.x + 2, this.y + 2, this.w - 4, this.h - 4);
@@ -561,6 +376,6 @@
                     g.font["std"].putchr(r.label, i % DW * CW + 8, Math.floor(i / DW) * CH + 20);
                 }
             }
-        }
+        };
     }
 }
