@@ -330,6 +330,18 @@ function GpadToKey(g) {
             }
         }
     }
+
+    /**
+     * ゲームパッドのインジケータ表示用状態を外部（DOM UIなど）から取得するためのメソッド
+     */
+    this.getState = function () {
+        return {
+            ready: this.ready,
+            btn: btn,       // 点灯状態
+            label: label,   // 表示テキスト
+            LI_NAME: LI_NAME // インデックス定義
+        };
+    };
 }
 //0: up down left right
 //LB 7 8 9   Y  RB

@@ -44,6 +44,45 @@
             z-index: 200;
             pointer-events: none;
             display: block;
+            transition: opacity 0.3s;
+        }
+
+        #gamepad-indicator {
+            position: absolute;
+            /* position relative to ui-root */
+            left: 16px;
+            display: grid;
+            grid-template-columns: repeat(7, 30px);
+            grid-gap: 2px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .gpad-btn {
+            width: 30px;
+            height: 14px;
+            border: 1px solid #444;
+            color: #ccc;
+            font-size: 8px;
+            text-align: center;
+            line-height: 14px;
+            overflow: hidden;
+            background: rgba(32, 32, 32, 0.8);
+        }
+
+        .gpad-btn.active {
+            background-color: #0000ff;
+            color: white;
+            border-color: #fff;
+        }
+
+        .gpad-btn.has-label {
+            border-color: #888;
         }
 
         .pad-group {
@@ -155,6 +194,8 @@
     <!-- DOM描画のルート要素。これが存在するとDOMレンダラーが動作する -->
     <div id="ui-root">
         <!-- ここに動的に div や span が生成される -->
+        <!-- ゲームパッドインジケータをステータス表示に合わせるためここへ移動 -->
+        <div id="gamepad-indicator"></div>
     </div>
 
     <!-- 仮想入力バッド (DOM用) -->
@@ -243,6 +284,38 @@
             location.href = "index.html";
         }
 
+        let uiFadeTimer = null;
+        let lastInputMode = 'touch';
+
+        function updateUIVisibility(mode, keepActive = true) {
+            const vpad = document.getElementById("virtual-pad");
+            const gind = document.getElementById("gamepad-indicator");
+            if (!vpad || !gind) return;
+
+            if (mode) lastInputMode = mode;
+
+            if (lastInputMode === 'keyboard') {
+                vpad.style.opacity = "0";
+                gind.style.opacity = "0";
+            } else if (lastInputMode === 'gamepad') {
+                vpad.style.opacity = "0";
+                gind.style.opacity = "1";
+            } else { // touch
+                vpad.style.opacity = "1";
+                gind.style.opacity = "0";
+            }
+
+            if (keepActive && lastInputMode !== 'touch') {
+                if (uiFadeTimer) clearTimeout(uiFadeTimer);
+                uiFadeTimer = setTimeout(() => {
+                    vpad.style.opacity = "0";
+                    gind.style.opacity = "0";
+                }, 5 * 1000); // 5秒でフェードアウト
+            } else if (lastInputMode === 'touch') {
+                if (uiFadeTimer) clearTimeout(uiFadeTimer);
+            }
+        }
+
         // inputGridPad との同期
         function initMobileInput() {
             const io = (window.g && window.g.task) ? window.g.task.read("io") : null;
@@ -254,9 +327,72 @@
             const pad = io.GridPad;
             const container = document.getElementById("virtual-pad");
 
+            // キーボード入力監視
+            window.addEventListener('keydown', () => updateUIVisibility('keyboard'), true);
+
+            // タッチ入力監視 (ドキュメント全体または ui-root で検知)
+            document.body.addEventListener('touchstart', () => updateUIVisibility('touch'), true);
+            document.body.addEventListener('mousedown', () => updateUIVisibility('touch'), true);
+
+            // ゲームパッドインジケータの構築 (7列 x 4行 = 28個)
+            const gpadIndicator = document.getElementById("gamepad-indicator");
+            if (gpadIndicator && gpadIndicator.children.length === 0) {
+                for (let i = 0; i < 28; i++) {
+                    const btn = document.createElement("div");
+                    btn.className = "gpad-btn";
+                    btn.id = "gbtn-" + i;
+                    gpadIndicator.appendChild(btn);
+                }
+            }
+
+            // ゲームパッドの状態監視
+            setInterval(() => {
+                const gpd = io.GpadToKey;
+                if (!gpd || !gpd.getState) return;
+                const state = gpd.getState();
+
+                let anyActive = false;
+                // 36要素の状態から、各行の左7列分のみをピックアップして28個のDOMに反映
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 7; col++) {
+                        const stateIdx = row * 9 + col; // 元の9列データでのインデックス
+                        const domIdx = row * 7 + col;   // 28個のDOM要素のインデックス
+                        const el = document.getElementById("gbtn-" + domIdx);
+                        if (!el) continue;
+
+                        if (state.btn[stateIdx]) {
+                            el.classList.add("active");
+                            anyActive = true;
+                        } else {
+                            el.classList.remove("active");
+                        }
+
+                        if (state.label[stateIdx]) {
+                            el.classList.add("has-label");
+                            el.textContent = state.label[stateIdx];
+                        } else {
+                            el.classList.remove("has-label");
+                            el.textContent = "";
+                        }
+                    }
+                }
+
+                if (state.ready && anyActive) {
+                    updateUIVisibility('gamepad');
+
+                    // ステータス表示(console-STATUS)の位置に同期させる
+                    const statusCon = document.getElementById("console-STATUS");
+                    if (statusCon) {
+                        gpadIndicator.style.left = statusCon.style.left;
+                        gpadIndicator.style.top = (parseInt(statusCon.style.top) - (14 * 4 + 16)) + "px"; // 4行分+余白分上に
+                    }
+                }
+            }, 100);
+
             pad.setOnUpdate((grid) => {
                 const data = pad.getGridData();
                 container.innerHTML = "";
+                updateUIVisibility('touch');
 
                 // DWxDH のグリッドに合わせて配置。ただし上部2行はメッセージのため避ける。
                 const cellW = 100 / data.dw;
@@ -291,6 +427,7 @@
                     }
                 });
             });
+            updateUIVisibility('touch');
         }
 
         // main() の後に実行するための特殊な待機処理
