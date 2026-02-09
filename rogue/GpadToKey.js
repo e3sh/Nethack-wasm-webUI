@@ -84,6 +84,10 @@ function GpadToKey(g) {
                 Y: { label: "z)ap", key: ["KeyZ"] },
             },
             LT: { // Modifier: Consumables / Throw
+                P2: { label: " 2", key: ["Numpad2"] },
+                P4: { label: " 4", key: ["Numpad4"] },
+                P6: { label: " 6", key: ["Numpad6"] },
+                P8: { label: " 8", key: ["Numpad8"] },
                 A: { label: "q)uf", key: ["KeyQ"] },
                 B: { label: "r)ead", key: ["KeyR"] },
                 X: { label: "e)at", key: ["KeyE"] },
@@ -96,6 +100,10 @@ function GpadToKey(g) {
                 Y: { label: ",)get", key: ["Comma"] },
             },
             LB: { // Modifier: Other
+                P2: { label: " 2", key: ["Numpad2"] },
+                P4: { label: " 4", key: ["Numpad4"] },
+                P6: { label: " 6", key: ["Numpad6"] },
+                P8: { label: " 8", key: ["Numpad8"] },
                 A: { label: "Z)ap", key: ["KeyZ", "ShiftLeft"] },
                 B: { label: "a)ply", key: ["KeyA"] },
                 X: { label: "k)ik", key: ["KeyK"] },

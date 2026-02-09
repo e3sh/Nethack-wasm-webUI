@@ -48,7 +48,7 @@
         let lastResult;
         let grid = [];
 
-        const closewait = 500;
+        const closewait = 2500;
         let entrytime = 0;
 
         const PosToGridId = (pageX, pageY) => {
@@ -545,10 +545,10 @@
                     let cl = { x: i % DW * CW, y: Math.floor(i / DW) * CH, w: CW, h: CH, on: r.on, label: r.label, btncolor: bc }
                     cl.draw = function (dev) {
                         dev.beginPath();
-                        //dev.strokeStyle = "white"; //"black";
-                        //dev.lineWidth = 1;
-                        //dev.rect(this.x+2, this.y+2, this.w-4, this.h-4);
-                        //dev.stroke();
+                        dev.strokeStyle = "white"; //"black";
+                        dev.lineWidth = 1;
+                        dev.rect(this.x+2, this.y+2, this.w-4, this.h-4);
+                        dev.stroke();
                         dev.fillStyle = this.btncolor;//"#303030"; //"black";
                         dev.fillRect(this.x + 2, this.y + 2, this.w - 4, this.h - 4);
                         if (this.on) {
