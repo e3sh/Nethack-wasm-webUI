@@ -488,7 +488,8 @@ function UIManager(r, g) {
                         const charStr = (item.identifier !== 0 && item.ch != String.fromCharCode(0)) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")" : " ";
                         const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " ") : " ";
                         const textStr = this.trancelate.message(item.str);
-                        this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${textStr}`);
+                        const guide = (item.identifier == 0 && item.str != "" ? "#":"");
+                        this.mvwaddch(menuDsp, (i - start) + 1, 0, `${prefix}${charStr}${glyph}${guide}${textStr}`);
                     }
 
 
