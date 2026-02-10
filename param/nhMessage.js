@@ -1573,7 +1573,6 @@
         { en: "Something seems to be holding you.", jp: "何かが君を押さえつけているようだ。" },
         { en: "Moving the altar would be a very bad idea.", jp: "祭壇を動かすのは非常に悪い考えだ。" },
         { en: "Look at the pattern on the shirt", jp: "シャツの柄を見る" },
-        { en: "The design features plumerias on a red background.", jp: "赤い背景にプルメリアの花が描かれている。" },
         { en: "The osaku is a small tool for picking locks.", jp: "オサックは錠を開けるための小さな道具です。" },
         { en: "Grapple something with this hook", jp: "この鉤で何かを引っかける" },
 
@@ -1607,7 +1606,8 @@
         { en: "THUD!", jp: "ドスン！" },
         { en: "You break open the lock!", jp: "錠を壊した！" },
         { en: "You hear convulsive ravings.", jp: "痙攣的な妄言が聞こえる。" },
-
+        { en: "You hear snoring snakes.", jp: "蛇のいびきが聞こえる。" },
+        { en: "You don't have enough energy to cast that spell.", jp: "その呪文を唱えるだけのエネルギーが足りない。" },
 
     ];
 }
@@ -2066,6 +2066,11 @@ function nhEntities() {
         "bare grasps": "素手",
         "no weapon": "武器なし",
         "wielded": "装備中",
+        "no charge": "無料",
+        "died": "死亡時",
+        "escaped": "脱出時",
+        "plumerias": "プルメリアの花",
+        "sea turtles": "ウミガメ",
 
     };
 }
@@ -2718,6 +2723,8 @@ function nhItems() {
         "helm": "兜",
         "suit": "服",
         "mail": "鎧",
+        "oil": "油",
+
 
     };
 }
@@ -3066,8 +3073,9 @@ function nhPatterns() {
         { pattern: /^Your (.*) dilutes\.$/, replace: "あなたの$1がさらに薄まる。" },
         { pattern: /^Your (.*) fades\.$/, replace: "あなたの$1が弱まる。" },
         { pattern: /^You slip while trying to get on (.*)\.$/, replace: "$1に乗ろうとして滑る。" },
-        { pattern: /^(.*) offers (.*) gold pieces for your (.*)\.  Sell it\?$/, replace: "$1が$3を$2ゴールドで買いたいと言っている。売るか？" },
+        { pattern: /^(.*) offers (.*) gold pieces for your (.*)\.  Sell (it|them)\?$/, replace: "$1が$3を$2ゴールドで買いたいと言っている。売るか？" },
         { pattern: /^You sold (.*) for (.*) gold pieces\.$/, replace: "$1を$2ゴールドで売った。" },
+        { pattern: /^(.*) seems uninterested\.$/, replace: "$1は興味なさそうだ。" },
         { pattern: /^(.*) triggers a trap but nothing happens\.$/, replace: "$1が罠を発動させるが何も起こらない。" },
         { pattern: /^(.*) knocks (.*) backward with a powerful blow!$/, replace: "$1が$2を強力な一撃で後方へ吹き飛ばす！" },
         { pattern: /^(.*) knocks (.*) backward with a forceful strike!$/, replace: "$1が$2を力強い一撃で後方へ吹き飛ばす！" },
@@ -3100,7 +3108,7 @@ function nhPatterns() {
         { pattern: /^(Goodbye|Farvel|Sayonara|Fare thee well) (.*) the (.*)\.\.\.$/, replace: "さようなら、$3の$2..." },
         { pattern: /^You died in (.*) on dungeon level (.*) with (.*) points,$/, replace: "ダンジョンレベル$2の「$1」で、$3ポイントと" },
         { pattern: /^and (.*) pieces of gold, after (.*) moves\.$/, replace: "$1ゴールドを獲得し、$2手目で死亡しました。" },
-        { pattern: /^You were level (.*) with a maximum of (.*) hit points when you died\.$/, replace: "死亡時のレベルは$1、最大HPは$2でした。" },
+        { pattern: /^You were level (.*) with a maximum of (.*) hit points when you (.*)\.$/, replace: "$3、あなたのレベルは$1で、最大ヒットポイントは$2でした。" },
         { pattern: /^You reached the (.*)th place on the top 100 list\.$/, replace: "トップ100リストで$1位を獲得しました。" },
         { pattern: /^Your hands glow (.*)\.$/, replace: "あなたの手が(.*)に輝く。" },
         { pattern: /^Your hands begin to glow (.*)\.$/, replace: "あなたの手が$1に輝き始めた。" },
@@ -3116,6 +3124,13 @@ function nhPatterns() {
         { pattern: /^You turn into (.*)!$/, replace: "あなたは$1と化す！" },
         { pattern: /^You break your (.*)!$/, replace: "$1が壊れる！" },
         { pattern: /^You find you must drop your (.*)!$/, replace: "$1を落とさざるを得ない！" },
+        { pattern: /^You are splashed by (.*)'s acid!$/, replace: "$1の酸を浴びた！" },
+        { pattern: /^(.*) looks better\.$/, replace: "$1は元気そうに見える。" },
+        { pattern: /^You and (.*)$/, replace: "あなたと$1" },
+        { pattern: /^escaped from the dungeon with (.*) points,$/, replace: "ダンジョンから$1ポイントで脱出した" },
+        { pattern: /^You didn't beat your previous score of (.*) points\.$/, replace: "前回のスコア$1点を超えることはできませんでした。" },
+        { pattern: /^The design features (.*) on a (.*) background\.$/, replace: "$2の背景に$1が描かれている。" },
+
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
         { pattern: /^  (.*)$/, replace: "  $1" },
