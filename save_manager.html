@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WASM - Save Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: rgba(22, 27, 34, 0.8);
+            --accent-color: #58a6ff;
+            --accent-hover: #79c0ff;
+            --success-color: #238636;
+            --danger-color: #da3633;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --glass-blur: blur(12px);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 10%, rgba(88, 166, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(248, 81, 73, 0.03) 0%, transparent 40%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: "";
+            display: block;
+            width: 4px;
+            height: 18px;
+            background: var(--accent-color);
+            border-radius: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        th {
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .file-name {
+            font-family: monospace;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-sm {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-success {
+            border-color: var(--success-color);
+            color: #7ee787;
+        }
+
+        .btn-success:hover {
+            background: rgba(35, 134, 54, 0.2);
+        }
+
+        .btn-danger {
+            border-color: var(--danger-color);
+            color: #f85149;
+        }
+
+        .btn-danger:hover {
+            background: rgba(218, 54, 51, 0.2);
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .global-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+
+        .nav-back:hover {
+            color: var(--text-primary);
+        }
+
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+
+        #drop-zone.dragover {
+            border-color: var(--accent-color);
+            background: rgba(88, 166, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .record-view {
+            font-family: monospace;
+            white-space: pre;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 300px;
+            border: 1px solid var(--border-color);
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .badge-character {
+            background: rgba(63, 185, 80, 0.15);
+            color: #7ee787;
+        }
+
+        .badge-system {
+            background: rgba(248, 81, 73, 0.15);
+            color: #f85149;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="config.html" class="nav-back">← Back to Config</a>
+
+        <header class="header">
+            <h1>Save Data Manager</h1>
+            <p class="subtitle">Import/Export character saves and manage system data</p>
+        </header>
+
+        <!-- IndexedDB Section -->
+        <section class="card">
+            <h2 class="section-title">IndexedDB (FS/IDBFS)</h2>
+            <div class="global-actions">
+                <button class="btn btn-primary" onclick="refreshIDB()">Refresh</button>
+                <button class="btn btn-danger" onclick="resetAllSaves()">Reset All Files</button>
+            </div>
+
+            <div id="drop-zone">
+                Drag & Drop character save files here to import
+            </div>
+
+            <table id="idb-table">
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Created/Modified</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="idb-list">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+
+            <div id="record-display" style="display: none;">
+                <h3 style="margin: 20px 0 10px 0; font-size: 14px;">Ranking (record) Preview</h3>
+                <div class="record-view" id="record-content"></div>
+            </div>
+        </section>
+
+        <!-- localStorage Section -->
+        <section class="card">
+            <h2 class="section-title">Web Storage (localStorage)</h2>
+            <div class="global-actions">
+                <button class="btn btn-danger" onclick="resetAllConfig()">Reset All Config</button>
+            </div>
+            <table id="ls-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ls-list">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </section>
+
+    </div>
+
+    <script>
+        const DB_NAME = '/save';
+        const STORE_NAME = 'FILE_DATA';
+
+        async function init() {
+            await refreshIDB();
+            refreshLS();
+            setupDragAndDrop();
+        }
+
+        // --- IndexedDB Management ---
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function refreshIDB() {
+            const listEl = document.getElementById('idb-list');
+            listEl.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+            try {
+                const db = await openDB();
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const files = request.result;
+                    listEl.innerHTML = '';
+                    if (files.length === 0) {
+                        listEl.innerHTML = '<tr><td colspan="5">No files found.</td></tr>';
+                        return;
+                    }
+
+                    // Sort: record first, then by name
+                    const sorted = files.sort((a, b) => {
+                        const aName = a.contents.name || a.timestamp.toString();
+                        const bName = b.contents.name || b.timestamp.toString();
+                        return aName.localeCompare(bName);
+                    });
+
+                    // IDBFS doesn't store the path in a very obvious way within the result object usually, 
+                    // but it stores keys. We need keys.
+                    const keyRequest = store.getAllKeys();
+                    keyRequest.onsuccess = () => {
+                        const keys = keyRequest.result;
+                        keys.forEach((path, idx) => {
+                            const file = files[idx];
+                            const row = createIDBRow(path, file);
+                            listEl.appendChild(row);
+                        });
+                    };
+                };
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = `<tr><td colspan="5" style="color:var(--danger-color)">Error: ${e.message}</td></tr>`;
+            }
+        }
+
+        function createIDBRow(path, data) {
+            const row = document.createElement('tr');
+
+            const isCharacter = path.includes('/save/') && !['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'].some(sys => path.endsWith(sys));
+            const isRecord = path.endsWith('record');
+            const typeLabel = isCharacter ? '<span class="badge badge-character">Save</span>' : '<span class="badge">System</span>';
+
+            const size = data.contents ? data.contents.byteLength : 0;
+            const date = new Date(data.timestamp).toLocaleString();
+
+            row.innerHTML = `
+                <td><span class="file-name">${path}</span></td>
+                <td>${typeLabel}</td>
+                <td>${(size / 1024).toFixed(1)} KB</td>
+                <td>${date}</td>
+                <td class="actions-cell">
+                    ${isRecord ? `<button class="btn btn-sm btn-success" onclick="viewRecord('${path}')">View</button>` : ''}
+                    <button class="btn btn-sm" onclick="exportFile('${path}')">Export</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteFile('${path}')">Del</button>
+                </td>
+            `;
+            return row;
+        }
+
+        async function exportFile(path) {
+            const db = await openDB();
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(path);
+
+            request.onsuccess = () => {
+                const file = request.result;
+                const blob = new Blob([file.contents], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = path.split('/').pop();
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+        }
+
+        async function deleteFile(path) {
+            if (!confirm(`Delete ${path}? This cannot be undone.`)) return;
+            const db = await openDB();
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            store.delete(path);
+            transaction.oncomplete = () => refreshIDB();
+        }
+
+        async function resetAllSaves() {
+            if (!confirm("Wipe ALL session files? This will reset all character data and rankings.")) return;
+            const db = await openDB();
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            transaction.objectStore(STORE_NAME).clear();
+            transaction.oncomplete = () => refreshIDB();
+        }
+
+        async function viewRecord(path) {
+            const db = await openDB();
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(path);
+
+            request.onsuccess = () => {
+                const file = request.result;
+                const text = new TextDecoder().decode(file.contents);
+                document.getElementById('record-display').style.display = 'block';
+                document.getElementById('record-content').textContent = text || "(Empty)";
+                document.getElementById('record-display').scrollIntoView({ behavior: 'smooth' });
+            };
+        }
+
+        // --- localStorage Management ---
+
+        function refreshLS() {
+            const listEl = document.getElementById('ls-list');
+            listEl.innerHTML = '';
+
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('nh.')).sort();
+
+            if (keys.length === 0) {
+                listEl.innerHTML = '<tr><td colspan="3">No config keys found.</td></tr>';
+                return;
+            }
+
+            keys.forEach(key => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="file-name">${key}</span></td>
+                    <td>Config</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-danger" onclick="deleteLS('${key}')">Remove</button>
+                    </td>
+                `;
+                listEl.appendChild(row);
+            });
+        }
+
+        function deleteLS(key) {
+            if (!confirm(`Remove ${key}?`)) return;
+            localStorage.removeItem(key);
+            refreshLS();
+        }
+
+        function resetAllConfig() {
+            if (!confirm("Remove ALL NetHack UI settings (keys, configs)?")) return;
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('nh.')) localStorage.removeItem(key);
+            });
+            refreshLS();
+        }
+
+        // --- Import Logic ---
+
+        function setupDragAndDrop() {
+            const zone = document.getElementById('drop-zone');
+            zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+            zone.ondragleave = () => zone.classList.remove('dragover');
+            zone.ondrop = (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                handleFiles(files);
+            };
+        }
+
+        async function handleFiles(files) {
+            for (const file of files) {
+                const name = file.name;
+                const buffer = await file.arrayBuffer();
+                const contents = new Uint8Array(buffer);
+
+                // Emscripten IDBFS stores objects as { timestamp: Date, mode: number, contents: Uint8Array }
+                const dbData = {
+                    timestamp: new Date(),
+                    mode: 33206, // Default file mode (-rw-r--r--)
+                    contents: contents
+                };
+
+                // Determine path. If it's a numeric name or looks like a save file, put in /save/
+                // Most nethack saves are like 1000Username
+                let path = name.startsWith('/') ? name : `/save/${name}`;
+
+                const db = await openDB();
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                transaction.objectStore(STORE_NAME).put(dbData, path);
+                transaction.oncomplete = () => {
+                    console.log(`Imported ${path}`);
+                    refreshIDB();
+                };
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
