@@ -14,7 +14,7 @@ function io(r, g) {
 		statusFields.push({ value: 0 });
 	}
 
-    this.setSimpleSL =(b)=>{ d.SL_SIMPLE = b;}
+	this.setSimpleSL = (b) => { d.SL_SIMPLE = b; }
 
 	/*
 	 * showInput:
@@ -23,15 +23,76 @@ function io(r, g) {
 	this.showInput = function (query) {
 		if (Boolean(r.UI.trancelate))
 			query = r.UI.trancelate.message(query);
+
+		const isMobile = !!document.getElementById("ui-root");
+
+		if (isMobile) {
+			return new Promise((resolve) => {
+				const container = document.getElementById("mobile-input-container");
+				const promptEl = document.getElementById("mobile-input-prompt");
+				const field = document.getElementById("mobile-input-field");
+				const okBtn = document.getElementById("mobile-input-ok");
+				const cancelBtn = document.getElementById("mobile-input-cancel");
+
+				if (!container || !promptEl || !field) {
+					console.warn("Mobile input elements not found. Falling back to default.");
+					this.defaultShowInput(query).then(resolve);
+					return;
+				}
+
+				promptEl.textContent = query;
+				field.value = "";
+				container.style.display = "block";
+
+				// 少し遅延させてフォーカス（仮想キーボード表示のため）
+				setTimeout(() => field.focus(), 100);
+
+				const cleanup = () => {
+					container.style.display = "none";
+					field.removeEventListener("keydown", keyHandler);
+					okBtn.removeEventListener("click", onOk);
+					cancelBtn.removeEventListener("click", onCancel);
+				};
+
+				const onOk = () => {
+					const val = field.value;
+					cleanup();
+					r.UI.msg(`${query} ${val}`);
+					resolve(val);
+				};
+
+				const onCancel = () => {
+					cleanup();
+					resolve(null);
+				};
+
+				const keyHandler = (e) => {
+					if (e.key === "Enter") {
+						e.preventDefault();
+						onOk();
+					} else if (e.key === "Escape") {
+						e.preventDefault();
+						onCancel();
+					}
+				};
+
+				field.addEventListener("keydown", keyHandler);
+				okBtn.addEventListener("click", onOk);
+				cancelBtn.addEventListener("click", onCancel);
+			});
+		}
+
+		return this.defaultShowInput(query);
+	}
+
+	// 従来の Canvas ベースの入力処理を内部関数として維持
+	this.defaultShowInput = function (query) {
 		return new Promise((resolve) => {
 
 			let inputStr = "";
 			const originalHandler = r.pendingInputResolve;
 			r.UI.msg(">");
 
-			//const updateDisplay = () => {
-			//	r.UI.updateInputLine(`${query} ${inputStr}`);
-			//};
 			async function updateDisplay(next) {
 				r.UI.updateInputLine(`${query}>${inputStr}`);
 				await new Promise(resolve => setTimeout(resolve, 150));
@@ -42,7 +103,6 @@ function io(r, g) {
 			const handler = (charCode) => {
 				if (charCode === 13) { // Enter
 					r.pendingInputResolve = originalHandler;
-					//r.UI.updateInputLine(`${query} ${inputStr}`);
 					r.UI.msg(`${query} ${inputStr}`); // 履歴に残す
 					resolve(inputStr);
 				} else if (charCode === 27) { // ESC
@@ -58,15 +118,12 @@ function io(r, g) {
 				} else if (charCode >= 32 && charCode <= 126) { // ASCII printable
 					inputStr += String.fromCharCode(charCode);
 					updateDisplay(true);
-					//r.pendingInputResolve = handler;
 				} else {
-					// 無視するキー
 					r.pendingInputResolve = handler;
 				}
 			};
 
 			updateDisplay(true);
-			//r.pendingInputResolve = handler;
 		});
 	}
 
