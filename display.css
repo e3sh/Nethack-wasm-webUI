@@ -39,3 +39,42 @@ canvas {
 .resizeimage * {
 	width: 100%;
 }
+
+/* Glyph Animation */
+/*
+@keyframes glyph-blink {
+	0% {
+		background-color: rgba(0, 255, 255, 0);
+	}
+
+	50% {
+		background-color: rgba(0, 255, 255, 0.6);
+	}
+
+	100% {
+		background-color: rgba(0, 255, 255, 0);
+	}
+}
+
+.animate-glyph {
+	animation: glyph-blink 1.5s ease-in-out infinite;
+	*/
+@keyframes glyph-hop {
+
+	0%,
+	100% {
+		transform: translateY(0);
+		/* 開始と終了は元の位置 */
+	}
+
+	50% {
+		transform: translateY(-2px);
+		/* 中間地点で2px上に移動 */
+	}
+}
+
+.animate-glyph {
+	display: inline-block;
+	/* transformを有効にするために必要 */
+	animation: glyph-hop 1.0s steps(2, start) infinite;
+}

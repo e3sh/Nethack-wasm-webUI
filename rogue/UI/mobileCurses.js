@@ -100,6 +100,11 @@ class mobileCurses extends DisplayDevice {
                         glyphSpan.style.backgroundRepeat = 'no-repeat';
                         glyphSpan.style.backgroundSize = `${this.tilesPerRow * 16}px auto`; // 16pxに縮小
                         glyphSpan.style.backgroundPosition = `-${tx / 2}px -${ty / 2}px`;
+
+                        // Animation logic (Sync with fontPrintControl_with_glyph.js)
+                        if (glyphId < 3447 && tileIdx < 393) {
+                            glyphSpan.classList.add('animate-glyph');
+                        }
                     } else {
                         glyphSpan.style.backgroundColor = '#333';
                     }

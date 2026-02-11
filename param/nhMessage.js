@@ -2831,6 +2831,8 @@
         { en: "Warning, Exploding runes!", jp: "警告、爆発するルーン！" },
         { en: "If you can read these words then you are not only a nerd but probably dead.", jp: "もしこの言葉が読めるなら、君はオタクなだけでなく、おそらく死んでいるんだろうな。" },
         { en: "The cake is a lie", jp: "ケーキは嘘だ（『Portal』より）" },
+        { en: "A Japanese stabbing knife.", jp: "日本の刺し包丁。" },
+        { en: "Pay for which items?", jp: "どのアイテムの代金ですか？" },
 
     ];
 }
@@ -3325,6 +3327,8 @@ function nhEntities() {
         "guide": "ガイド",
         "warrior": "戦士",
         "apprentice": "見習い",
+        "corpse": "死体",
+        "gush of water": "水の奔流",
 
     };
 }
@@ -3980,7 +3984,8 @@ function nhItems() {
         "suit": "服",
         "mail": "鎧",
         "oil": "油",
-
+        "glass orb": "ガラス玉",
+        "shito": "刺刀",
 
     };
 }
@@ -4390,6 +4395,12 @@ function nhPatterns() {
         { pattern: /^The design features (.*) on a (.*) background\.$/, replace: "$2の背景に$1が描かれている。" },
         { pattern: /^Your (.*) remains wielded\.$/, replace: "$1は装備されたままです。" },
         { pattern: /^(.*) reads (.*)!$/, replace: "$1が$2を読む！" },
+        { pattern: /^Your (.*) moves (.*)\.$/, replace: "あなたの$1が$2を動かす。" },
+        { pattern: /^You fall off of (.*)!$/, replace: "あなたは$1から落ちる！" },    
+        { pattern: /^\"For you, (.*); only (.*) zorkmids for this (.*)\.\"$/, replace: "「$1、この$3はたったの$2ゾークミッドです。」" },    
+        { pattern: /^You bought (.*) for (.*) gold pieces\.!$/, replace: "$1を$2ゴールドで購入しました。" },    
+        { pattern: /^\"Thank you for shopping in (.*)'s (.*)!\"$/, replace: "「$1の$2をご利用いただきありがとうございます！」" }, 
+        { pattern: /^([0-9]+) Zm, (.*)\"$/, replace: "$1 Zm, $2" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
