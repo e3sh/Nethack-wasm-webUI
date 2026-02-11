@@ -1864,8 +1864,8 @@
         { en: "Nymphs can unlink more than your chain mail.", jp: "ニンフは鎖帷子以上のものを解き放つ" },
         { en: "For a good time engrave `Elbereth'.", jp: "楽しい時間を過ごすには「エルベレス(Elbereth)」と刻め" },
         { en: "They say that a potion of yogurt is a cancelled potion of sickness.", jp: "ヨーグルトの薬は病の薬を無効にするという" },
-        { en: "A blindfold can be very useful if you're telepathic.", jp: "" },
-        { en: "A candelabrum affixed with seven candles shows the way with a magical light.", jp: "" },
+        { en: "A blindfold can be very useful if you're telepathic.", jp: "テレパシー能力があるなら、目隠しはとても役に立つ。" },
+        { en: "A candelabrum affixed with seven candles shows the way with a magical light.", jp: "七本のろうそくが取り付けられた燭台が、魔法の光で道を示す。" },
         { en: "A cream pie has two uses: food... and entertainment.", jp: "クリームパイには2つの使い道がある：食料……そして娯楽だ。" },
         { en: "A crystal plate mail will not rust.", jp: "クリスタルプレートメイルは錆びない。" },
         { en: "A katana might slice a worm in two.", jp: "刀ならワームを真っ二つにできるかもしれない。" },
@@ -2863,6 +2863,27 @@
         { en: "You get a bad feeling about this.", jp: "これは嫌な予感がする。" },
         { en: "A foul stench makes you feel a little nauseated.", jp: "悪臭が少し吐き気を催させる。" },
 
+        { en: "You feel self-knowledgeable...", jp: "あなたは自己認識が深いと感じている..." },
+        { en: "Attributes:", jp: "属性：" },
+        { en: " You are fervently aligned.", jp: "あなたは熱烈に調和している。" },
+        { en: " You have infravision.", jp: "暗視能力を持つ。" },
+        { en: " You can safely pray.", jp: "安全に祈ることができる。" },
+
+        { en: "With this thou canst do mighty deeds", jp: "これで汝は偉業を成し遂げられん" },
+        { en: "And change men's passions for thy needs:", jp: "人の情熱を汝の意のままに変えしむ：" },
+        { en: "A man's despair with joy allay,", jp: "人の絶望を喜びで和らげ" },
+        { en: "Turn bachelors old to lovers gay.", jp: "老いた独身を陽気な恋人に変えしむ" },
+        { en: "[ The Magic Flute, by Wolfgang Amadeus Mozart ]", jp: "［ヴォルフガング・アマデウス・モーツァルト『魔笛』より］" },
+
+        { en: "Take a photograph", jp: "写真を撮る" },
+        { en: "You are blinded by the flash!", jp: "フラッシュで目がくらんだ！" },
+        { en: "Engrave on the ground with one of these items", jp: "これらのアイテムのいずれかで地面に刻む" },
+        { en: "Select an inventory slot letter.", jp: "インベントリスロットの文字を選択" },
+        { en: "Move cursor to monster of interest:", jp: "モンスターの存在を感じる" },
+        { en: "Engrave on the ground with one of these items", jp: "カーソルを目的のモンスターへ移動：" },
+        { en: "Ugh.  Rotten egg.", jp: "うっ。腐った卵の臭いだ。" },
+        { en: "You are feeling mildly nauseated.", jp: "軽い吐き気がする。" },
+        { en: "You feel slightly confused.", jp: "少し混乱している。" },
 
 
     ];
@@ -3299,6 +3320,7 @@ function nhEntities() {
         "bare handed combat": "素手での戦闘",
         "stairs": "階段",
         "floor": "床",
+        "ground": "地面",
         "dust": "ほこり",
         "your hands": "素手",
         "sink": "流し台",
@@ -3383,7 +3405,7 @@ function nhEntities() {
         "gush of water": "水の奔流",
         "quit": "中断",
         "again": "再び",
-
+        "liquor emporium": "酒屋",
 
     };
 }
@@ -3878,6 +3900,7 @@ function nhItems() {
         "lightning": "稲妻",
         "sleep": "睡眠",
         "detect monsters": "モンスター探索",
+        "detect monster": "モンスター検知",
         "detect Food": "食料探索",
         "clairvoyance": "透視",
         "detect treasure": "宝探索",
@@ -4042,6 +4065,9 @@ function nhItems() {
         "glass orb": "ガラス玉",
         "shito": "刺刀",
         "figurine of a chameleon": "カメレオンの置物",
+        "wooden flute": "木製のフルート",
+        "flute": "フルート",
+        "Oracle": "預言者",
 
     };
 }
@@ -4132,6 +4158,7 @@ function nhPatterns() {
         { pattern: /^Welcome to experience level (.*)\.$/, replace: "経験レベル$1へようこそ。" },
         { pattern: /(.*) rots away\.$/, replace: "$1は腐り果てた。" },
         { pattern: /Your (.*) glows silver for a while\.$/, replace: "あなたの$1はしばらくの間銀色に光った。" },
+        { pattern: /Your (.*) turns to dust and falls to the floor!$/, replace: "あなたの$1は塵となって床に落ちた！" },
         { pattern: /(.*) turns to dust and falls to the floor!$/, replace: "$1は塵となって床に落ちた！" },
         { pattern: /(.*) suddenly appears close by!$/, replace: "突然すぐそばに$1が現れた！" },
         { pattern: /(.*) lands on (.*)\.$/, replace: "$1が$2に着地した。" },
@@ -4466,6 +4493,15 @@ function nhPatterns() {
         { pattern: /^(.*) appears!$/, replace: "$1が$2に変わる！" },
         { pattern: /^(.*) breathes frost!$/, replace: "$1が霜を吐く！" }, 
         { pattern: /^(.*) freezes and$/, replace: "$1が凍りつき" }, 
+        { pattern: /^(.*) aren't able to use two weapons at once\.$/, replace: "$1は二つの武器を同時に使用できない。" }, 
+        { pattern: /^Since your weapon is welded to your hand, you cannot swing that (.*)\.$/, replace: "武器が手から離れないため、その$1を振るうことはできません。" }, 
+        { pattern: /^(.*) toots\.$/, replace: "$1が鳴る。" }, 
+        { pattern: /^What do you want to engrave in (.*) here\?$/, replace: "ここの$1に何と刻みますか？" }, 
+        { pattern: /^One of your (.*)s gets dull\.$/, replace: "お前の$1が一つ、切れ味が鈍る。" }, 
+        { pattern: /^Adjust letter to what (.*) (\? see used letters)\?$/, replace: "文字を$1に調整（使用済み文字は？参照）" }, 
+        { pattern: /^(.*) doesn't seem to move!$/, replace: "$1は動かないようだ！" }, 
+        { pattern: /^Your (.*) corrode!$/, replace: "$1が腐食する！" }, 
+        { pattern: /^(.*) slips as you throw it!$/, replace: "投げた$1が滑った！" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
@@ -4522,6 +4558,8 @@ function nhPatterns() {
         { pattern: /^for sale, (.*)$/, replace: "売り物、$1" },
         { pattern: /^attached to (.*)$/, replace: "$1に取り付けられている" },
         { pattern: /^in (.*)$/, replace: "$1の中" },
+        { pattern: /^1 of (.*)$/, replace: "$1のうちの１つ" },
+
 
     ];
 }
