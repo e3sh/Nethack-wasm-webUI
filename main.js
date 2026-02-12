@@ -23,8 +23,14 @@ async function main() {
         };
         game.gpadConfigDefault = await fetchConfig("param/gpad_config_default.json");
         game.touchConfigDefault = await fetchConfig("param/touch_mapping_default.json");
+
+        // Load External Translation Data if available
+        const extTrData = await fetchConfig("nhMessage_ext.json");
+        if (extTrData) {
+            game.nhMessageExtData = extTrData;
+        }
     } catch (e) {
-        console.warn("External default config not found or invalid.", e);
+        console.warn("External default config or translation not found or invalid.", e);
     }
 
     window.g = game; // グローバルに公開

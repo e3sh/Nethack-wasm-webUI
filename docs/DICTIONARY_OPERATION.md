@@ -66,6 +66,41 @@ python tools/dict_converter.py import my_dict.csv
 
 ---
 
+## 新しい開発フロー：一時バッファの活用
+
+従来の「CSVを編集してビルド(convert)する」フローに加えて、**実際のゲーム画面を見ながら手軽に翻訳を追加し、即座に確認する**ためのワークフローが導入されました。
+
+### ステップ 1: 未翻訳メッセージの収集
+1. ゲーム起動時の設定画面 (`config.html`) で **「LANG_LARNMODE (未翻訳メッセージを収集します)」** を ON にします。
+   - もしくは `rogueDefines.js` の `LANG_LEARNMODE` を直接 `true` に設定します。
+2. 翻訳されていないメッセージが表示されると、自動的にブラウザの `localStorage("nh.temp")` に蓄積されます。
+
+### ステップ 2: 翻訳管理ツール (`tr_manager.html`) の使用
+1. ブラウザで `tr_manager.html` を開きます。
+2. 左側のパネルに蓄積された原文リストが表示されるので、翻訳したい項目にチェックを入れます。
+3. 中央のプレビューを確認し、「保存 & 反映」ボタンを押します。
+   - ブラウザに `nhMessage_ext.json` がダウンロードされます。
+   - 同時に `localStorage("nh.ext_data")` も更新されます。
+
+### ステップ 3: ゲームへの反映とテスト
+1. ゲーム画面（`index.html`等）に戻り、ページをリロードします。
+2. 先ほど追加した翻訳がすぐに反映されます。
+3. ダウンロードされた `nhMessage_ext.json` をプロジェクトのルートディレクトリに配置しておくと、他のブラウザや環境でもその翻訳が自動で読み込まれます。
+
+### ステップ 4: マスター辞書への統合 (Backfill)
+ある程度翻訳が溜まったら、メンテナンス性のために `dictionary.csv` への統合を行います。
+
+1. `nhMessage_ext.json` の内容をコピーします。
+2. `dictionary.csv` をスプレッドシート等で開き、末尾にデータを貼り付けます。
+   - **Group** は内容に応じて `Message`, `Entity`, `Item` 等を選択してください。
+3. `python tools/dict_converter.py import` を実行して、`nhMessage.js` を更新します。
+4. 統合が完了したら、`nhMessage_ext.json` や `localStorage` のデータは削除して構いません。
+
+> [!TIP]
+> `tr_manager.html` はあくまで「試作・デバッグ用」のバッファとして利用し、公式なリリース前には必ず CSV への統合を行ってください。
+
+---
+
 ## 注意点
 
 - **BOM付きUTF-8**: ツールは Excel で開きやすいよう BOM 付き UTF-8 で出力します。保存時もこの形式を維持してください。

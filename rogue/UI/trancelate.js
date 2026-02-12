@@ -9,13 +9,33 @@ function trancelate(r) {
 
     // Load dictionaries from unified nhMessage.js
     const trMap = new Map();
-    if (typeof nhMessage === 'function') {
-        const data = nhMessage();
-        data.forEach(item => {
+
+    /**
+     * Merge external translation data into trMap.
+     * @param {Array} dataArray - Array of {en: "...", jp: "..."}
+     */
+    this.add_ext_data = (dataArray) => {
+        if (!Array.isArray(dataArray)) return;
+        dataArray.forEach(item => {
             if (item.en !== undefined) {
                 trMap.set(item.en, item.jp);
             }
         });
+    };
+
+    if (typeof nhMessage === 'function') {
+        const data = nhMessage();
+        this.add_ext_data(data);
+    }
+
+    // Load from localStorage if available (for instant feedback)
+    try {
+        const extData = localStorage.getItem("nh.ext_data");
+        if (extData) {
+            this.add_ext_data(JSON.parse(extData));
+        }
+    } catch (e) {
+        console.error("Failed to load nh.ext_data from localStorage", e);
     }
 
     const trtable_entities = (typeof nhEntities === 'function') ? nhEntities() : {};
@@ -134,7 +154,7 @@ function trancelate(r) {
             pairof = pairofMatch[1];
             itemResult = pairofMatch[2];
         }
-        
+
         // Look up body name (noun)
         let bodyTranslated = lookup_word(itemResult, 'noun');
 

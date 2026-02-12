@@ -19,6 +19,9 @@ function GameManager(g) {
     }
 
     this.UI = new UIManager(this, g);
+    if (g.nhMessageExtData) {
+        this.UI.trancelate.add_ext_data(g.nhMessageExtData);
+    }
 
     this.playing = false;
     const r = this;

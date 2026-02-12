@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 翻訳管理ユーティリティ</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --accent-color: #4a90e2;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --border-color: #333;
+            --card-bg: #252525;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.8; }
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            min-height: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            background-color: #111;
+            border-radius: 4px;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: monospace;
+            cursor: pointer;
+        }
+
+        .item-row:hover { background-color: #333; }
+        .item-row input[type="checkbox"] { margin-right: 12px; transform: scale(1.2); }
+        .item-text { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            resize: none;
+            box-sizing: border-box;
+        }
+
+        .stats {
+            margin-top: 5px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>NetHack 翻訳管理ユーティリティ</h1>
+        <div class="controls">
+            <button class="btn-primary" onclick="importCurrentExt()">既存の拡張辞書を反映</button>
+            <button class="btn-success" onclick="generateAndSave()">JSON保存 (nhMessage_ext.json)</button>
+            <button class="btn-danger" onclick="clearSelected()">選択済みをクリア</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- 未翻訳リストパネル -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">未翻訳メッセージ (localStorage: nh.temp)</div>
+                <div class="controls">
+                    <button onclick="selectAll(true)">全選択</button>
+                    <button onclick="selectAll(false)">解除</button>
+                </div>
+            </div>
+            <div class="list-container" id="untranslatedList">
+                <!-- JS で生成 -->
+            </div>
+            <div class="stats" id="untranslatedStats">総数: 0 | 選択中: 0</div>
+        </div>
+
+        <!-- プレビューパネル -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">出力プレビュー (JSON)</div>
+                <div class="controls">
+                    <button onclick="copyPreview()">コピー</button>
+                </div>
+            </div>
+            <div class="list-container">
+                <textarea id="jsonPreview" readonly></textarea>
+            </div>
+            <div class="stats">この内容を nhMessage_ext.json または localStorage("nh.ext_data") に保存してください</div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const STORAGE_TEMP_KEY = 'nh.temp';
+        const STORAGE_EXT_KEY = 'nh.ext_data';
+        
+        let untranslatedMessages = [];
+        let selectedIndices = new Set();
+        let currentExtData = [];
+
+        // 初期化
+        function init() {
+            loadUntranslated();
+            loadCurrentExt();
+            updateStats();
+        }
+
+        // localStorage から未翻訳リストを読み込む
+        function loadUntranslated() {
+            const data = localStorage.getItem(STORAGE_TEMP_KEY);
+            if (data) {
+                try {
+                    untranslatedMessages = JSON.parse(data);
+                    if (!Array.isArray(untranslatedMessages)) untranslatedMessages = [];
+                } catch (e) {
+                    console.error("Failed to parse nh.temp", e);
+                    untranslatedMessages = [];
+                }
+            }
+            renderList();
+        }
+
+        // 既存の拡張データを読み込む
+        function loadCurrentExt() {
+            const data = localStorage.getItem(STORAGE_EXT_KEY);
+            if (data) {
+                try {
+                    currentExtData = JSON.parse(data);
+                    if (!Array.isArray(currentExtData)) currentExtData = [];
+                } catch (e) {
+                    console.error("Failed to parse nh.ext_data", e);
+                    currentExtData = [];
+                }
+            }
+            updatePreview();
+        }
+
+        // リストを描画
+        function renderList() {
+            const list = document.getElementById('untranslatedList');
+            list.innerHTML = '';
+            
+            untranslatedMessages.forEach((msg, index) => {
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = selectedIndices.has(index);
+                cb.onchange = (e) => toggleSelection(index, e.target.checked);
+                
+                const text = document.createElement('div');
+                text.className = 'item-text';
+                text.textContent = msg;
+                
+                row.onclick = (e) => {
+                    if (e.target !== cb) {
+                        cb.checked = !cb.checked;
+                        toggleSelection(index, cb.checked);
+                    }
+                };
+                
+                row.appendChild(cb);
+                row.appendChild(text);
+                list.appendChild(row);
+            });
+            updateStats();
+        }
+
+        function toggleSelection(index, isSelected) {
+            if (isSelected) {
+                selectedIndices.add(index);
+            } else {
+                selectedIndices.delete(index);
+            }
+            updateStats();
+            updatePreview();
+        }
+
+        function selectAll(bool) {
+            if (bool) {
+                untranslatedMessages.forEach((_, i) => selectedIndices.add(i));
+            } else {
+                selectedIndices.clear();
+            }
+            renderList();
+            updatePreview();
+        }
+
+        function updateStats() {
+            document.getElementById('untranslatedStats').textContent = 
+                `総数: ${untranslatedMessages.length} | 選択中: ${selectedIndices.size}`;
+        }
+
+        // プレビューの更新
+        function updatePreview() {
+            const previewData = [...currentExtData];
+            
+            // 選択中の未翻訳メッセージを追加（重複チェックなし）
+            selectedIndices.forEach(index => {
+                const msg = untranslatedMessages[index];
+                // 既存に同じ原文があるかチェック
+                if (!previewData.some(item => item.en === msg)) {
+                    previewData.push({
+                        en: msg,
+                        jp: msg + " [TODO]"
+                    });
+                }
+            });
+
+            document.getElementById('jsonPreview').value = JSON.stringify(previewData, null, 2);
+        }
+
+        function copyPreview() {
+            const area = document.getElementById('jsonPreview');
+            area.select();
+            document.execCommand('copy');
+            showToast('プレビューをコピーしました');
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            toast.textContent = text;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2000);
+        }
+
+        // 生成してファイル保存、および localStorage 反映
+        function generateAndSave() {
+            const content = document.getElementById('jsonPreview').value;
+            if (!content) return;
+
+            // 1. localStorage への即時反映 (ゲーム用)
+            localStorage.setItem(STORAGE_EXT_KEY, content);
+
+            // 2. ファイル保存
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'nhMessage_ext.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('保存しました。localStorage にも反映済みです。');
+        }
+
+        // 選択されたものを nh.temp から削除する
+        function clearSelected() {
+            if (selectedIndices.size === 0) {
+                alert('クリアする項目が選択されていません');
+                return;
+            }
+            
+            if (confirm(`選択された ${selectedIndices.size} 件を未翻訳リストから削除しますか？\n(既に保存した後に実行してください)`)) {
+                untranslatedMessages = untranslatedMessages.filter((_, i) => !selectedIndices.has(i));
+                localStorage.setItem(STORAGE_TEMP_KEY, JSON.stringify(untranslatedMessages));
+                selectedIndices.clear();
+                renderList();
+                updatePreview();
+                showToast('未翻訳リストを更新しました');
+            }
+        }
+
+        // 既存のファイルを読み込んでマージする機能
+        function importCurrentExt() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    try {
+                        const data = JSON.parse(re.target.result);
+                        if (Array.isArray(data)) {
+                            currentExtData = data;
+                            localStorage.setItem(STORAGE_EXT_KEY, JSON.stringify(data));
+                            updatePreview();
+                            showToast('既存の拡張辞書を読み込みました');
+                        }
+                    } catch (err) {
+                        alert('JSON の読み込みに失敗しました: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        init();
+    </script>
+</body>
+</html>
