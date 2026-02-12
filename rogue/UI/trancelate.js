@@ -207,8 +207,11 @@ function trancelate(r) {
     }
 
     function save_translation_data(msg) {
-        if (/^\d+$/.test(msg)) return;
-        if (/^[A-Z]+$/.test(msg)) return;
+        //翻訳不要分のチェック
+        if (/^\d+$/.test(msg)) return; //数字だけは保存しない
+        if (/^[a-zA-Z$]$/.test(msg)) return; //一文字だけのIndex
+        if (/^\d+:d+$/.test(msg)) return; //num:num
+        if (/^\d+\/d+$/.test(msg)) return; //num/num
 
         if (!buf.includes(msg)) {
             buf.push(msg);
