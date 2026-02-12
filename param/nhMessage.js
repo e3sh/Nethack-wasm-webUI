@@ -4516,7 +4516,7 @@ function nhPatterns() {
         { pattern: /^What do you want to name (this|these) (.*)s?\?$/, replace: "この$2にどんな名前をつけたいですか？" }, 
         { pattern: /^Rename or un-name this specific (.*)$/, replace: "この特定の$1の名前を変更または名前を解除する" }, 
         { pattern: /^Call (.*)$/, replace: "$1と呼ぶ" }, 
-
+        { pattern: /^(.*) explodes!$/, replace: "$1が爆発する！" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
