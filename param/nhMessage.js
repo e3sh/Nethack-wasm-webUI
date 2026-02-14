@@ -1540,10 +1540,7 @@
         { en: "Wow!  This makes you feel good!", jp: "わあ！これ、気持ちいい！" },
         { en: "This water's no good!", jp: "この水、まずい！" },
         { en: " Total elapsed playing time is none.", jp: " 合計経過プレイ時間はなし。" },
-        {
-            en: "Are you waiting to get hit?  Use 'm' prefix to force a no-op (to rest).   ",
-            jp: "攻撃されるのを待っているのか？ 『m』 接頭辞で強制的に何もしない（休息）状態にできる。"
-        },
+        {en: "Are you waiting to get hit?  Use 'm' prefix to force a no-op (to rest).   ", jp: "攻撃されるのを待っているのか？ 『m』 接頭辞で強制的に何もしない（休息）状態にできる。" },
         { en: "You are surrounded by darkness!", jp: "あなたは闇に包まれています！" },
         { en: "You have already identified the rest of your possessions.", jp: "あなたはすでに所持品の残りを確認済みです。" },
         { en: "Click!  You trigger a rolling boulder trap!", jp: "カチッ！転がる岩の罠を発動させた！" },
@@ -2895,8 +2892,31 @@
         { en: " You are weak from severe hunger.", jp: " あなたは激しい空腹で弱っています。" },
         { en: "Watch out!  Bad things can happen on Friday the 13th.", jp: "気をつけろ！13日の金曜日には悪いことが起きる。" },
         { en: " Bad things can happen on Friday the 13th.", jp: " 13日の金曜日には悪いことが起きる。" },
-
-
+        { en: "Rincewind pulled himself up and thought about reaching for his",jp: "リンスウィンドは身を起こし、杖に手を伸ばそうと考えた。"},
+        {en: "stick.  And then he thought again.  The man had a couple of spears", jp: "それから、彼は考え直した。その男は地面に数本の槍を" },
+        {en: "stuck in the ground, and people here were good at spears, because", jp: "突き立てており、ここの人々は槍の扱いに長けていた。なぜなら、" },
+        {en: "if you didn't get efficient at hitting the things that moved fast", jp: "素早く動く獲物を仕留める腕がなければ、" },
+        {en: "you had to eat the things that moved slowly.  He was also holding", jp: "動きの鈍いものしか食べられなくなるからだ。彼はまた、" },
+        {en: "a boomerang, and it wasn't one of those toy ones that came back.", jp: "ブーメランも持っていた。それはいわゆる戻ってくる玩具ではなく、" },
+        {en: "This was one of the big, heavy, gently curved sort that didn't", jp: "大きく重く、緩やかに湾曲した、戻ってこない種類のものだった。" },
+        {en: "come back because it was sticking in something's ribcage.  You", jp: "獲物の肋骨に突き刺さるから戻ってこないのだ。ここの木の種類を" },
+        {en: "could laugh at the idea of wooden weapons until you saw the kind", jp: "目にするまでは、木の武器という考えを笑い飛ばすことも" },
+        {en: "of wood that grew here.", jp: "できたかもしれないが。" },
+        {en: "[ The Last Continent, by Terry Pratchett ]", jp: "[ テリー・プラチェット著『最後のコンチネント』より ]" },
+        {en: "The phial crashes on your head and breaks into shards.", jp: "薬瓶があなたの頭に当たって砕け、破片が飛び散った。" },
+        {en: "It suddenly gets dark.", jp: "突然、辺りが暗くなった。" },
+        {en: "Peer into this crystal ball", jp: "この水晶玉を覗き込む" },
+        {en: "You hear a loud crash!", jp: "大きな衝突音が聞こえた！" },
+        {en: " You are fainting due to starvation.", jp: " 空腹のあまり、意識が遠のいていく。" },
+        {en: "You feel hungry.", jp: "お腹が空いてきた。" },
+        {en: "You resume your meal.", jp: "食事を再開した。" },
+        {en: "KABOOM!!  The door was booby-trapped!", jp: "ドカーン！ ドアに罠が仕掛けられていた！" },
+        {en: "You don't have that many!  You have only 1.", jp: "そんなにたくさん持っていない！ 1つしか持っていない。" },
+        {en: "You have a strange feeling for a moment, then it passes.", jp: "あなたは一瞬、奇妙な感覚を覚えるが、それはすぐに消える。" },
+        {en: "You dream that you hear someone cursing shoplifters.", jp: "誰かが万引き犯を罵る声を夢で聞く。" },
+        {en: "quality apparel and accessories ", jp: "セレクトショップ" },
+        {en: "Something's in the way.", jp: "何かが邪魔をしている。" },
+        {en: "Your nose tingles and you smell something.", jp: "鼻がツンとし、何か匂いがする。" },
     ];
 }
 
@@ -2971,6 +2991,8 @@ function nhEntities() {
         "Footpad": "追剥",
         "Evoker": "召喚師",
         "Aspirant": "志願者",
+        "student": "学生",
+        "neanderthal": "ネアンデルタール人",
         "role": "役割",
         "<role>": "<役割>",
         "Archeologist": "考古学者",
@@ -4086,6 +4108,7 @@ function nhItems() {
         "wooden flute": "木製のフルート",
         "flute": "フルート",
         "Oracle": "預言者",
+        "food": "食べ物",
 
     };
 }
@@ -4131,7 +4154,7 @@ function nhPatterns() {
         { pattern: /^You destroy (.*)!$/, replace: "あなたは$1を破壊した！" },
         { pattern: /^(.*) misses (?:the|a|an)?\s*(.*)\.$/, replace: "$1の攻撃は$2に当たらなかった。" },
         { pattern: /^(.*) misses!$/, replace: "$1の攻撃は外れた！" },
-        { pattern: /^(.*) misses it\.$/, replace: "$1の攻撃は当たらなかった。" },
+        { pattern: /^(.*) is missed.\.$/, replace: "$1は当たらない。" },
         { pattern: /^(.*) bites!$/, replace: "$1が噛み付いた！" },
         { pattern: /^You hit (.*)\.$/, replace: "あなたは$1に命中させた。" },
         { pattern: /^You hit (.*)!$/, replace: "あなたは$1に命中させた！" },
@@ -4152,6 +4175,7 @@ function nhPatterns() {
         { pattern: /^(.*) touches (.*)\.$/, replace: "$1は$2に触れた。" },
         { pattern: /^(.*) touches (.*)!$/, replace: "$1は$2に触れた！" },
         { pattern: /^It misses (.*)\.$/, replace: "それは$1に当たらなかった。" },
+        { pattern: /^It is missed (.*)\.$/, replace: "それは$1に当たらなかった。" },
         { pattern: /^It bites (.*)\.$/, replace: "それは$1に噛み付いた。" },
         { pattern: /^It hits (.*)\.$/, replace: "それは$1に当たった。" },
         { pattern: /^(.*) just$/, replace: "$1 ちょうど" },
@@ -4305,7 +4329,7 @@ function nhPatterns() {
         { pattern: /^You feel here (.*)\.$/, replace: "$1のように感じる。" },
         { pattern: /^(.*) takes off your (.*)\.$/, replace: "$1が$2を外した。" },
         { pattern: /^(.*) tries to run away with your (.*)\.$/, replace: "$1はあなたの$2を持って逃げようとした。" },
-        { pattern: /^You hear (.*) howling at the moon.\.$/, replace: "$1が月に吠え声を上げた。" },
+        { pattern: /^You hear (.*) howling at the moon\.$/, replace: "$1が月に吠え声を上げた。" },
         { pattern: /^(.*) is empty.  Do what with it\?$/, replace: "$1は空です。どうしますか？" },
         { pattern: /^Just picked up: (.*)$/, replace: "ちょうど手に入れた：$1" },
         { pattern: /^Call the type for (.*)$/, replace: "$1に固有の呼び名を付ける" },
@@ -4423,16 +4447,13 @@ function nhPatterns() {
         { pattern: /Eek!  There's (.*) in the sink!$/, replace: "えっ！流しに$1がいる！" },
         {
             pattern: /Status of your (.*) \((.*), (.*)\):  Level (.*)  HP (.*)  AC (.*), (.*)\.$/,
-            replace: "あなたの$1のステータス ($2, $3): レベル $4  HP $5  AC $6, $7"
-        },
+            replace: "あなたの$1のステータス ($2, $3): レベル $4  HP $5  AC $6, $7" },
         {
             pattern: /Status of the (.*) \((.*), (.*)\):  Level (.*)  HP (.*)  AC (.*), (.*)\.$/,
-            replace: "$1のステータス ($2, $3): レベル $4  HP $5  AC $6, $7"
-        },
+            replace: "$1のステータス ($2, $3): レベル $4  HP $5  AC $6, $7" },
         {
             pattern: /Status of the (.*) \((.*), (.*)\):  Level (.*)  HP (.*)  AC (.*)\.$/,
-            replace: "$1のステータス ($2, $3): レベル $4  HP $5  AC $6."
-        },
+            replace: "$1のステータス ($2, $3): レベル $4  HP $5  AC $6." },
         { pattern: /^You attract (.*)!$/, replace: "$1引き寄せる" },
         { pattern: /^You unleash (.*)!$/, replace: "$1を解き放つ！" },
         { pattern: /^You mount (.*)\.$/, replace: "$1にまたがる。" },
@@ -4532,6 +4553,14 @@ function nhPatterns() {
         { pattern: /^(.*), asleep$/, replace: "眠っている$1" }, 
         { pattern: /^You stop eating (.*)\.$/, replace: "$1を食べるのをやめた。" }, 
         { pattern: /^Your? hands stop glowing (.*)\.$/, replace: "あなたの手は$1に輝かなくなった。" }, 
+        { pattern: /^(.*) shrieks\.$/, replace: "$1が悲鳴を上げた。" }, 
+        { pattern: /^(.*) fills a pit\.$/, replace: "$1が落とし穴を塞いだ。" }, 
+        { pattern: /^The flask crashes on (.*)'s head and breaks into shards\.$/, replace: "フラスコが$1の頭に当たって砕け、破片が飛び散った。" }, 
+        { pattern: /^Your? (.*) glows briefly\.$/, replace: "あなたの$1が、一瞬光る。" }, 
+        { pattern: /^(.*) appears in a cloud of vapor!$/, replace: "$1が水蒸気の雲の中から現れる！" }, 
+        { pattern: /^(.*) is suddenly very hot!$/, replace: "$1が急にすごく熱くなった！" }, 
+        { pattern: /^(.*) rusts!$/, replace: "$1が錆びている！" }, 
+        { pattern: /^Move cursor to (.*):$/, replace: "カーソルを$1に合わせる：" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
