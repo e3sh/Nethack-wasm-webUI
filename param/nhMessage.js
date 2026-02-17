@@ -2917,6 +2917,8 @@
         {en: "quality apparel and accessories ", jp: "セレクトショップ" },
         {en: "Something's in the way.", jp: "何かが邪魔をしている。" },
         {en: "Your nose tingles and you smell something.", jp: "鼻がツンとし、何か匂いがする。" },
+        {en: "Be careful!  New moon tonight.", jp: "気をつけて！ 今夜は新月だ。"
+  }
     ];
 }
 
@@ -4600,6 +4602,8 @@ function nhPatterns() {
         { pattern: /^spellbooks of (.*)$/, replace: "$1の魔導書" },
         { pattern: /^partly eaten (.*)$/, replace: "食べかけの$1" },
         { pattern: /^partly used (.*)$/, replace: "使いかけの$1" },
+        { pattern: /^pieces? of (.*) glass?$/, replace: "$1のガラスのかけら" },
+        { pattern: /^worthless (.*)$/, replace: "無価値な$1" },
 
         { pattern: /^ \((.*)\)$/, replace: " （$1）" },
         { pattern: /^tethered to (.*)$/, replace: "$1に繋がれている" },
