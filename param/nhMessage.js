@@ -1405,9 +1405,9 @@
         { en: "And by your palfrey good,", jp: "あなたの良い馬車で、" },
         { en: "I read you for a Ranger sworn", jp: "王の森を守るために誓いを立てた" },
         { en: "To keep the King's green-wood.'", jp: "レンジャーだと読んだ。』" },
-        { en: "A Ranger, Lady, winds his horn,", jp: "『レンジャーは角笛を吹く、』" },
+        { en: "'A Ranger, Lady, winds his horn,", jp: "『レンジャーは角笛を吹く、』" },
         { en: "And 'tis at peep of light;", jp: "『夜明けに。』" },
-        { en: "His blast is heard at merry morn", jp: "『彼の角笛は楽しい朝に聞こえ、』" },
+        { en: "His blast is heard at merry morn,", jp: "『彼の角笛は楽しい朝に聞こえ、』" },
         { en: "And mine at dead of night.'", jp: "『私の角笛は真夜中に聞こえる。』" },
         { en: "[ Brignall Banks, by Sir Walter Scott ]", jp: "[ ウォルター・スコット卿『ブリグナル・バンクス』 ]" },
         { en: "What do you want to look at:", jp: "何を見たいですか：" },
@@ -1431,7 +1431,6 @@
         { en: "You are not wearing that.", jp: "あなたはそれを着ていない。" },
         { en: "This water gives you bad breath!", jp: "この水は口臭の原因になります！" },
         { en: "BOOM!  They explode!", jp: "ドカン！ 爆発だ！" },
-        { en: "The jar crashes on your head and breaks into shards.", jp: "瓶が君の頭に激突し、粉々に砕ける。" },
         { en: "You feel rather tired.", jp: "君はかなり疲れた気分になる。" },
         { en: "After breakfast was over, the ogre called out: \"Wife, wife,", jp: "朝食が終わると、鬼は叫んだ。「妻よ、妻よ、" },
         { en: "bring me my golden harp.\"  So she brought it and put it on", jp: "黄金のハープを持って来い」 すると妻はそれを持ち、" },
@@ -1569,7 +1568,6 @@
         { en: "\"Who dared dig into my shop?\"", jp: "「誰が私の店を掘ったんだ？」" },
         { en: "You hear a nearby zap.", jp: "近くでパチッという音が聞こえる。" },
         { en: "The door absorbs the bolt!", jp: "ドアがボルトを吸収する！" },
-        { en: "The bottle crashes on your head and breaks into shards.", jp: "瓶が頭上で砕け散り、破片が飛び散る。" },
         { en: "Something seems to be holding you.", jp: "何かが君を押さえつけているようだ。" },
         { en: "Moving the altar would be a very bad idea.", jp: "祭壇を動かすのは非常に悪い考えだ。" },
         { en: "Look at the pattern on the shirt", jp: "シャツの柄を見る" },
@@ -2903,7 +2901,6 @@
         {en: "could laugh at the idea of wooden weapons until you saw the kind", jp: "目にするまでは、木の武器という考えを笑い飛ばすことも" },
         {en: "of wood that grew here.", jp: "できたかもしれないが。" },
         {en: "[ The Last Continent, by Terry Pratchett ]", jp: "[ テリー・プラチェット著『最後のコンチネント』より ]" },
-        {en: "The phial crashes on your head and breaks into shards.", jp: "薬瓶があなたの頭に当たって砕け、破片が飛び散った。" },
         {en: "It suddenly gets dark.", jp: "突然、辺りが暗くなった。" },
         {en: "Peer into this crystal ball", jp: "この水晶玉を覗き込む" },
         {en: "You hear a loud crash!", jp: "大きな衝突音が聞こえた！" },
@@ -2917,8 +2914,9 @@
         {en: "quality apparel and accessories ", jp: "セレクトショップ" },
         {en: "Something's in the way.", jp: "何かが邪魔をしている。" },
         {en: "Your nose tingles and you smell something.", jp: "鼻がツンとし、何か匂いがする。" },
-        {en: "Be careful!  New moon tonight.", jp: "気をつけて！ 今夜は新月だ。"
-  }
+        {en: "Be careful!  New moon tonight.", jp: "気をつけて！ 今夜は新月だ。"  },
+        {en: "You extract a loud noise from your bugle.", jp: "君はラッパから大きな音を絞り出す。"  },
+
     ];
 }
 
@@ -4111,6 +4109,10 @@ function nhItems() {
         "flute": "フルート",
         "Oracle": "預言者",
         "food": "食べ物",
+        "bottle": "瓶",
+        "phial": "薬瓶",
+        "vial": "小瓶",
+        "jar": "壺",
 
     };
 }
@@ -4563,6 +4565,11 @@ function nhPatterns() {
         { pattern: /^(.*) is suddenly very hot!$/, replace: "$1が急にすごく熱くなった！" }, 
         { pattern: /^(.*) rusts!$/, replace: "$1が錆びている！" }, 
         { pattern: /^Move cursor to (.*):$/, replace: "カーソルを$1に合わせる：" }, 
+        { pattern: /^(.*) crashes on your head and breaks into shards\.$/, replace: "$1があなたの頭に当たって砕け、破片が飛び散った。" }, 
+        { pattern: /^(.*) crashes on (.*)'s head and breaks into shards\.$/, replace: "$1が$2の頭に当たって砕け、破片が飛び散った。" }, 
+        { pattern: /^(.*) thrusts one of (his|her) (.*)\.$/, replace: "$1は$3の一本を突き出す。" }, 
+        { pattern: /^(.*) looks sound and hale again\.$/, replace: "$1は再び元気で健康そうに見える。" }, 
+        { pattern: /^You are put to sleep by (.*)!$/, replace: "$1に眠らされる！" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
