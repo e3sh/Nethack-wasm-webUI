@@ -32,7 +32,7 @@ class ioControl extends GameTask {
 		 * [name, index, [w, h, fontId, prompt, charW, lineW, x, y, bgcolor, useUtf]]
 		 */
 		const consoleConfigs = [
-			["MAP_BG", 0, [80, 24, "std_l", PTUB, 8, 16, 0, 0, null, true]],
+			["MAP_BG", 0, [160, 24, "std_l", PTUB, 8, 16, 0, 0, "rgb(8 24 16)", true]],
 			["MAP", 1, [80, 24, "std_l", false, 8, 16, 1, 0, null, true]],
 			["STATUS", 2, [80, 3, "std_l", false, 8, 16, 64, 384, "rgb( 0 32 64)", true]],
 			["MESSAGE", 3, [108, 36, "std_l", PTMSG, 8, 16, 48, 432, "rgb(  0  0 100)", true]],
