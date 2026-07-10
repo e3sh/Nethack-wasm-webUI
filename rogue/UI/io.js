@@ -215,22 +215,22 @@ function io(r, g) {
 
 		const parcent = Math.floor((value / maxvalue) * 100);
 
-		let glaphId = 3926;
+		let glaphId = 9623; //nothing
 		if (parcent < 5)
-			glaphId = 3926; //warning4(perple)
+			glaphId = 7226; //nothing
 		else if (parcent < 10)
-			glaphId = 7222; //warning4(perple)
+			glaphId = 7225; //warning5(perple)
 		else if (parcent < 20)
-			glaphId = 7221; //warning4(red)
+			glaphId = 7224; //warning4(red)
 		else if (parcent < 40)
-			glaphId = 7220; //warning3(orange)
+			glaphId = 7223; //warning3(perple)
 		else if (parcent < 70)
-			glaphId = 7219; //warning2(yellow)
+			glaphId = 7222; //warning2(orange)
 		else if (parcent < 95)
-			glaphId = 7218; //warning1(green)
+			glaphId = 7221; //warning1(pink)
 		else if (parcent < 99)
-			glaphId = 7217; //warning1(green)
-		else glaphId = 3926;//black //warning0(white)
+			glaphId = 7220; //warning0(white)
+		else glaphId = 9623;//black 
 
 		return String.fromCharCode(glaphId + d.GLYPH_BASE);
 	}
@@ -275,4 +275,8 @@ function io(r, g) {
 		}
 		return list;
 	}
+
+	this.getStatusFields = function () {
+		return statusFields;
+	};
 }

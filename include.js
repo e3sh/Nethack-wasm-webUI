@@ -71,5 +71,6 @@ const w = [
 ];
 
 for (let i in w) {
-    document.write(`<script type="text/javascript" src="${w[i]}"></script>`);
+    const cb = new Date().getTime();
+    document.write(`<script type="text/javascript" src="${w[i]}?v=${cb}"></script>`);
 };

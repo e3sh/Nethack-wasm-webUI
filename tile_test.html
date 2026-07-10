@@ -157,9 +157,9 @@
     </div>
 
     <div class="legend">
-        <span class="legend-item mon">Monsters (G:0-3546)</span>
-        <span class="legend-item obj">Objects (G:3547-3999)</span>
-        <span class="legend-item cmap">CMAP / Others (G:4000+)</span>
+        <span class="legend-item mon">Monsters (G:0-3447)</span>
+        <span class="legend-item obj">Objects (G:3448-3928)</span>
+        <span class="legend-item cmap">CMAP / Others (G:3929+)</span>
     </div>
 
     <div class="main-layout">
@@ -169,12 +169,12 @@
                     <h3 style="margin-top: 0;">Wasm Constants / Offsets</h3>
                     <div id="wasmInputs"
                         style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.8em; background: #444; padding: 10px; border-radius: 4px;">
-                        <div>NUMMONS: <input type="number" id="W_NUMMONS" value="394"></div>
-                        <div>NUM_OBJECTS: <input type="number" id="W_NUM_OBJECTS" value="453"></div>
+                        <div>NUMMONS: <input type="number" id="W_NUMMONS" value="383"></div>
+                        <div>NUM_OBJECTS: <input type="number" id="W_NUM_OBJECTS" value="481"></div>
                         <div>MON_OFF: <input type="number" id="W_GLYPH_MON_OFF" value="0"></div>
-                        <div>MON_FEM_OFF: <input type="number" id="W_GLYPH_MON_FEM_OFF" value="394"></div>
-                        <div>OBJ_OFF: <input type="number" id="W_GLYPH_OBJ_OFF" value="3547"></div>
-                        <div>CMAP_OFF: <input type="number" id="W_GLYPH_CMAP_OFF" value="4000"></div>
+                        <div>MON_FEM_OFF: <input type="number" id="W_GLYPH_MON_FEM_OFF" value="383"></div>
+                        <div>OBJ_OFF: <input type="number" id="W_GLYPH_OBJ_OFF" value="3448"></div>
+                        <div>CMAP_OFF: <input type="number" id="W_GLYPH_CMAP_OFF" value="3929"></div>
                     </div>
                     <div style="margin-top: 10px; display: flex; gap: 10px;">
                         <button onclick="fetchFromWasm()">Fetch from nethack.js</button>
@@ -189,8 +189,8 @@
                         <button onclick="applyJson()">Apply JSON</button>
                     </div>
                     <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 10px;">
-                        <span style="font-size: 0.8em; color: #aaa;">Load glyphid.txt (UTF-16LE):</span>
-                        <input type="file" id="glyphidFile" accept=".txt" onchange="handleFileSelect(event)"
+                        <span style="font-size: 0.8em; color: #aaa;">Load tilemappings.lst (UTF-8):</span>
+                        <input type="file" id="glyphidFile" accept=".lst,.txt" onchange="handleFileSelect(event)"
                             style="font-size: 0.8em;">
                     </div>
                 </div>
@@ -231,7 +231,7 @@
         let currentOffsets = null;
 
         const img = new Image();
-        img.src = 'pict/NethackModern32x-360.png';
+        img.src = 'pict/nethack_default_32.png';
         img.onload = async () => {
             console.log("Image loaded:", img.width, "x", img.height);
             await loadGlyphNames();
@@ -242,15 +242,15 @@
 
         async function loadGlyphNames() {
             try {
-                console.log("Attempting to fetch glyphid.txt...");
-                const response = await fetch('docs/glyphid.txt');
-                if (!response.ok) throw new Error("Failed to fetch glyphid.txt (CORS or 404)");
+                console.log("Attempting to fetch tilemappings.lst...");
+                const response = await fetch('docs/tilemappings.lst');
+                if (!response.ok) throw new Error("Failed to fetch tilemappings.lst (CORS or 404)");
 
                 const buffer = await response.arrayBuffer();
-                parseGlyphIdBuffer(buffer);
+                parseTileMappingsBuffer(buffer);
             } catch (e) {
-                console.warn("Could not fetch glyphid.txt automatically:", e.message);
-                console.log("Please load glyphid.txt manually using the file input.");
+                console.warn("Could not fetch tilemappings.lst automatically:", e.message);
+                console.log("Please load tilemappings.lst manually using the file input.");
             }
         }
 
@@ -258,25 +258,32 @@
             const file = event.target.files[0];
             if (!file) return;
             const buffer = await file.arrayBuffer();
-            parseGlyphIdBuffer(buffer);
+            parseTileMappingsBuffer(buffer);
             initMapping(currentOffsets);
             render();
         }
 
-        function parseGlyphIdBuffer(buffer) {
-            const decoder = new TextDecoder('utf-16le');
+        function parseTileMappingsBuffer(buffer) {
+            const decoder = new TextDecoder('utf-8');
             const text = decoder.decode(buffer);
             const lines = text.split(/\r?\n/);
             let count = 0;
             glyphIdMap = {};
+            
+            // 例: glyph[3713] [1056] corpse (onum=265)
+            // または: glyph[3930] [1273] main walls vertical (cmap=1)
+            const regex = /glyph\[(\d+)\]\s+\[\d+\]\s+(.+)/;
+            
             for (const line of lines) {
-                const match = line.match(/\((\d+)\)\s+(.+)/);
+                const match = line.match(regex);
                 if (match) {
-                    glyphIdMap[parseInt(match[1])] = match[2].trim();
+                    const glyphId = parseInt(match[1]);
+                    const name = match[2].trim();
+                    glyphIdMap[glyphId] = name;
                     count++;
                 }
             }
-            console.log(`Parsed ${count} glyph names.`);
+            console.log(`Parsed ${count} glyph names from tilemappings.lst.`);
             return count;
         }
 
@@ -363,22 +370,24 @@
 
         function doFetch() {
             try {
+                const nummons = Module._get_nummons();
+                const num_objects = Module._get_num_objects();
                 const nh = {
-                    NUMMONS: Module._get_nummons(),
-                    NUM_OBJECTS: Module._get_num_objects(),
-                    GLYPH_MON_OFF: Module._get_glyph_mon_off(),
-                    GLYPH_MON_FEM_OFF: Module._get_glyph_mon_fem_off(),
-                    GLYPH_PET_OFF: Module._get_glyph_pet_off(),
-                    GLYPH_PET_FEM_OFF: Module._get_glyph_pet_fem_off(),
-                    GLYPH_INVIS_OFF: Module._get_glyph_invis_off(),
-                    GLYPH_DETECT_OFF: Module._get_glyph_detect_off(),
-                    GLYPH_DETECT_FEM_OFF: Module._get_glyph_detect_fem_off(),
-                    GLYPH_BODY_OFF: Module._get_glyph_body_off(),
-                    GLYPH_RIDDEN_OFF: Module._get_glyph_ridden_off(),
-                    GLYPH_RIDDEN_FEM_OFF: Module._get_glyph_ridden_fem_off(),
-                    GLYPH_OBJ_OFF: Module._get_glyph_obj_off(),
-                    GLYPH_CMAP_OFF: Module._get_glyph_cmap_off(),
-                    MAX_GLYPH: Module._get_max_glyph()
+                    NUMMONS: nummons,
+                    NUM_OBJECTS: num_objects,
+                    GLYPH_MON_OFF: 0,
+                    GLYPH_MON_FEM_OFF: nummons,
+                    GLYPH_PET_OFF: nummons * 2,
+                    GLYPH_PET_FEM_OFF: nummons * 3,
+                    GLYPH_INVIS_OFF: nummons * 4,
+                    GLYPH_DETECT_OFF: nummons * 4 + 1,
+                    GLYPH_DETECT_FEM_OFF: nummons * 5 + 1,
+                    GLYPH_BODY_OFF: nummons * 6 + 1,
+                    GLYPH_RIDDEN_OFF: nummons * 7 + 1,
+                    GLYPH_RIDDEN_FEM_OFF: nummons * 8 + 1,
+                    GLYPH_OBJ_OFF: nummons * 9 + 1,
+                    GLYPH_CMAP_OFF: nummons * 9 + 1 + num_objects,
+                    MAX_GLYPH: nummons * 9 + 1 + num_objects + 204 // 204 = CMAP + other + warnings etc.
                 };
                 console.log("Fetched from Wasm:", nh);
 

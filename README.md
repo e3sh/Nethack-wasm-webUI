@@ -1,12 +1,16 @@
 # NetHack-wasm-webUI
 
-NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベースの描画エンジンによりブラウザ上で動作させるプロジェクトです。日本語翻訳表示および各種入力デバイスへの対応を目的としています。
+NetHack 5.0.0 (正式版) を WebAssembly にコンパイルし、Canvas ベースの描画エンジンによりブラウザ上で動作させるプロジェクトです。日本語翻訳表示および各種入力デバイスへの対応を目的としています。
+
+> [!IMPORTANT]
+> **NetHack 5.0.0 正式版への移行対応を進行中です**
+> 現在、従来の3.7開発版から5.0.0正式版への移行と調整を進行しています。Wasmビルドは完了していますが、Web-UI側の一部調整やアセット・ドキュメント（docs）の5.0向けへの書き換えが進行中です。
 
 [**[ 🎮 デモ (Desktop/Canvas) ]**](https://e3sh.github.io/Nethack-wasm-webUI/) / [**[ 📱 デモ (Mobile/DOM) ]**](https://e3sh.github.io/Nethack-wasm-webUI/mobile.html)
 
 ## 主な機能
 
-- **NetHack 3.7.0 対応**: 開発版 NetHack を Wasm 上で動作。
+- **NetHack 5.0.0 対応**: 最新の 5.0.0 正式版を Wasm 上で動作。UI・翻訳周りの詳細調整を進行中です。
 - **混合描画方式**:
   - Canvas を用いた描画。
   - タイル表示とフォントベース（ASCII/漢字）の同一行での混在表示に対応。
@@ -46,7 +50,7 @@ NetHack 3.7.0 (Development) を WebAssembly にコンパイルし、Canvas ベ�
 
 ## 🛠️ 技術スタック
 
-- **Core**: NetHack 3.7.0 (C)
+- **Core**: NetHack 5.0.0 (C)
 - **Runtime**: WebAssembly (Emscripten / Asyncify)
 - **Frontend**: JavaScript (Vanilla JS / ES6+)
 - **Graphics**: HTML5 Canvas API / **DOM Rendering (Mobile)**
@@ -80,7 +84,8 @@ python -m http.server 8000
 
 ## 📈 開発ステータス
 
-- [x] NetHack 3.7.0 の Wasm コンパイル
+- [x] NetHack 5.0.0 の Wasm コンパイル
+- [/] 5.0のタイル配置変更に伴う Web-UI 側の調整 (進行中)
 - [x] 基本的な描画システムの構築
 - [x] 漢字・記号・タイルの混合描画対応
 - [x] IndexedDB によるセーブ機能の実装

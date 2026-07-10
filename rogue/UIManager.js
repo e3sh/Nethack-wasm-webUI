@@ -302,38 +302,47 @@ function UIManager(r, g) {
     };
 
     this.nhPutMsg = function (text) {
-        const dsp = d.DSP_MAIN_FG;
+        const ioState = g.task.read("io");
+        const dsp = (ioState && ioState.overlapview) ? d.DSP_WINDOW : d.DSP_MAIN_FG;
         const result = this.trancelate.message(text);
         this.setDsp(dsp);
         this.printw(result);
         this.cursorDown();
     }
 
-    let txtbuf = [];
-    this.nhPutbufReady = () => {
-        return (txtbuf.length > 0) ? true : false;
+    let txtbufs = {};
+    this.nhPutbufReady = (windowId) => {
+        if (windowId === undefined) {
+            return Object.values(txtbufs).some(buf => buf && buf.length > 0);
+        }
+        return (txtbufs[windowId] && txtbufs[windowId].length > 0) ? true : false;
     }
-    this.nhPutbufClear = () => {
-        txtbuf = [];
+    this.nhPutbufClear = (windowId) => {
+        if (windowId === undefined) {
+            txtbufs = {};
+        } else {
+            txtbufs[windowId] = [];
+        }
     }
-    this.nhPutbufAdd = (text, prompt) => {
+    this.nhPutbufAdd = (windowId, text, prompt) => {
         const result = this.trancelate.message(text);
         if (!Boolean(prompt)) prompt = "";
 
-        //console.log(`dsp:${display_window}`)
-
-        if (display_window <= 3) //= 0 || display_window == 1)
+        if (windowId <= 3)
             this.msg(`${result} ${prompt}`);
         else {
-            const result = this.trancelate.message(text);
-            txtbuf.push(`${result} ${prompt}`);
+            if (!txtbufs[windowId]) {
+                txtbufs[windowId] = [];
+            }
+            txtbufs[windowId].push(`${result} ${prompt}`);
         }
     };
     this.nhPutbufDraw = (windowId) => {
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
+        const buf = txtbufs[windowId] || [];
 
-        for (let line in txtbuf) {
-            this.mvwaddch(dsp, Number(line), 0, txtbuf[line]);
+        for (let line = 0; line < buf.length; line++) {
+            this.mvwaddch(dsp, line, 0, buf[line]);
         }
     };
 
@@ -651,4 +660,221 @@ function UIManager(r, g) {
             //console.warn("UIManager: Rendering engine (g.kanji) not ready for mapping update.");
         }
     }
+
+    /**
+     * ゲームオーバー時に墓石とスコアを半透明ガラスモーフィズムでポップアップ表示します。
+     * @param {object} data 
+     * @param {array} topTen 
+     * @returns {Promise} 閉じられるとresolveされます。
+     */
+    this.showGameOverModal = function (data, topTen) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.id = 'gameover-overlay';
+            overlay.style = `
+                position: fixed;
+                top: 0; left: 0; width: 100vw; height: 100vh;
+                background-color: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.4s ease;
+                font-family: 'Courier New', Courier, monospace;
+                color: #e0e0e0;
+            `;
+
+            const card = document.createElement('div');
+            card.style = `
+                background: rgba(25, 25, 25, 0.7);
+                border: 2px solid;
+                border-image: linear-gradient(135deg, #d4af37, #85581A, #d4af37) 1;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8), 0 0 15px rgba(212, 175, 55, 0.2);
+                border-radius: 4px;
+                padding: 30px;
+                width: 90%;
+                max-width: 500px;
+                text-align: center;
+                transform: scale(0.9);
+                transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            `;
+
+            const ripHeader = document.createElement('pre');
+            ripHeader.style = `
+                font-size: 10px;
+                line-height: 1.2;
+                color: #a0a0a0;
+                margin-bottom: 15px;
+                user-select: none;
+            `;
+            ripHeader.textContent = [
+                "       .-----------------.",
+                "      /   R. I. P.        \\",
+                "     /                     \\",
+                "    |   Here lies a hero   |",
+                "    |                      |",
+                "     \\                    /",
+                "      '------------------'"
+            ].join('\n');
+
+            const title = document.createElement('h2');
+            title.textContent = "GAME OVER";
+            title.style = `
+                color: #ff4d4d;
+                font-size: 24px;
+                letter-spacing: 3px;
+                margin-bottom: 20px;
+                font-weight: bold;
+                text-shadow: 0 0 8px rgba(255, 77, 77, 0.5);
+            `;
+
+            const stats = document.createElement('div');
+            stats.style = `
+                text-align: left;
+                background: rgba(0, 0, 0, 0.4);
+                padding: 15px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 14px;
+                line-height: 1.6;
+            `;
+
+            const formatVal = (val) => val !== undefined && val !== null ? val : "???";
+            const roleStr = `${formatVal(data.role)}-${formatVal(data.race)}-${formatVal(data.gender)}-${formatVal(data.align)}`;
+
+            stats.innerHTML = `
+                <div style="margin-bottom: 8px;"><span style="color: #888;">Name  :</span> <span style="color: #fff; font-weight: bold;">${formatVal(data.name)}</span></div>
+                <div style="margin-bottom: 8px;"><span style="color: #888;">Class :</span> <span style="color: #fff;">${roleStr}</span></div>
+                <div style="border-top: 1px dashed rgba(255,255,255,0.1); margin: 8px 0;"></div>
+                <div style="margin-bottom: 8px;"><span style="color: #888;">Score :</span> <span style="color: #ffd700; font-weight: bold; font-size: 16px;">${typeof data.points === 'number' ? data.points.toLocaleString() : formatVal(data.points)} points</span></div>
+                <div style="margin-bottom: 8px;"><span style="color: #888;">Depth :</span> <span style="color: #e0e0e0;">Dlevel ${formatVal(data.deathLev)} (Max: ${formatVal(data.maxLvl)})</span></div>
+                <div style="margin-bottom: 8px;"><span style="color: #888;">HP    :</span> <span style="color: #ff6b6b;">${formatVal(data.hp)} / ${formatVal(data.maxHp)}</span></div>
+                <div style="border-top: 1px dashed rgba(255,255,255,0.1); margin: 8px 0;"></div>
+                <div style="margin-top: 8px; line-height: 1.4;"><span style="color: #888;">Fate  :</span> <span style="color: #ff4d4d; font-weight: bold; font-style: italic;">${formatVal(data.death)}</span></div>
+            `;
+
+            card.appendChild(ripHeader);
+            card.appendChild(title);
+            card.appendChild(stats);
+
+            // スコアランキング表示部
+            if (topTen && topTen.length > 0) {
+                const rankingTitle = document.createElement('h3');
+                rankingTitle.textContent = "TOP 10 HIGH SCORES";
+                rankingTitle.style = `
+                    color: #ffd700;
+                    font-size: 13px;
+                    letter-spacing: 2px;
+                    margin-top: 20px;
+                    margin-bottom: 8px;
+                    text-align: left;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+                    padding-bottom: 5px;
+                    font-weight: bold;
+                `;
+                card.appendChild(rankingTitle);
+
+                const table = document.createElement('table');
+                table.style = `
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                    color: #a0a0a0;
+                    margin-bottom: 20px;
+                    text-align: left;
+                `;
+
+                table.innerHTML = `
+                    <thead>
+                        <tr style="color: #ffd700; border-bottom: 1px solid rgba(255,255,255,0.15);">
+                            <th style="padding: 4px; width: 10%;">Rank</th>
+                            <th style="padding: 4px; width: 25%;">Name</th>
+                            <th style="padding: 4px; width: 25%; text-align: right;">Score</th>
+                            <th style="padding: 4px; width: 40%;">Fate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                `;
+
+                const tbody = table.querySelector('tbody');
+                topTen.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.style = `
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                        background: ${index === 0 ? 'rgba(212, 175, 55, 0.05)' : 'none'};
+                    `;
+                    
+                    const rankColor = index === 0 ? '#ffd700' : (index === 1 ? '#c0c0c0' : (index === 2 ? '#cd7f32' : '#a0a0a0'));
+                    
+                    tr.innerHTML = `
+                        <td style="padding: 4px; font-weight: bold; color: ${rankColor};">${index + 1}</td>
+                        <td style="padding: 4px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;">${formatVal(item.name)}</td>
+                        <td style="padding: 4px; text-align: right; color: #ffd700; font-weight: bold;">${item.points.toLocaleString()}</td>
+                        <td style="padding: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;" title="${formatVal(item.death)}">${formatVal(item.death)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                card.appendChild(table);
+            }
+
+            const button = document.createElement('button');
+            button.textContent = "TAP TO REPLAY";
+            button.style = `
+                background: linear-gradient(135deg, #d4af37, #85581A);
+                border: none;
+                color: white;
+                padding: 12px 30px;
+                font-size: 14px;
+                font-family: inherit;
+                font-weight: bold;
+                letter-spacing: 2px;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+                transition: transform 0.1s, box-shadow 0.2s;
+                outline: none;
+                border-radius: 4px;
+            `;
+
+            button.onmouseover = () => {
+                button.style.transform = "scale(1.03)";
+                button.style.boxShadow = "0 6px 20px rgba(212, 175, 55, 0.6)";
+            };
+            button.onmouseout = () => {
+                button.style.transform = "scale(1)";
+                button.style.boxShadow = "0 4px 15px rgba(212, 175, 55, 0.4)";
+            };
+            button.onmousedown = () => {
+                button.style.transform = "scale(0.97)";
+            };
+
+            const cleanup = () => {
+                overlay.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    overlay.remove();
+                    resolve();
+                }, 400);
+            };
+
+            button.onclick = cleanup;
+            overlay.onclick = (e) => {
+                if (e.target === overlay) cleanup();
+            };
+
+            card.appendChild(button);
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+
+            setTimeout(() => {
+                overlay.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+            }, 50);
+        });
+    };
 }

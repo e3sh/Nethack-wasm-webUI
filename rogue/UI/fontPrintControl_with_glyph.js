@@ -144,7 +144,7 @@ class fontPrintControl_with_glyph {
                 } else {
                     //Glyph type moving object glyphId anumation test
                     if (n - 0x100 < 3447 ){ //MonstLastNumber(OBJ_OFF-1)
-                        if (d.code < 393){//not body type underT:393(NUMMONS-1)
+                        if (d.code < 788){//not body type underT:(5.0-788) (3.7-393(NUMMONS-1))
                             const dt = Math.floor(Date.now()/500)%2; 
 
                             drawY = y-(2*dt); 

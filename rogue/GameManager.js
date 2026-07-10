@@ -288,7 +288,7 @@ function GameManager(g) {
                         this.messageHistory.shift();
                     }
                 }
-                this.UI.nhPutbufAdd(args[2]);
+                this.UI.nhPutbufAdd(args[0], args[2]);
                 break;
             //VDECLCB(shim_display_file,(const char *name, boolean complain), "vsb", P2V name, A2P complain)
             case "shim_display_file":
@@ -470,7 +470,11 @@ function GameManager(g) {
                     this.messageHistory.push(args[0]);
                     if (this.messageHistory.length > 200) this.messageHistory.shift();
                 }
-                this.UI.nhPutMsg(`${args[0]}`);
+                if (this.playing) {
+                    this.UI.nhPutStr(`${args[0]}`);
+                } else {
+                    this.UI.nhPutMsg(`${args[0]}`);
+                }
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
@@ -478,7 +482,11 @@ function GameManager(g) {
                     this.messageHistory.push(args[0]);
                     if (this.messageHistory.length > 200) this.messageHistory.shift();
                 }
-                this.UI.nhPutMsg(`${args[0]}`);
+                if (this.playing) {
+                    this.UI.nhPutStr(`${args[0]}`);
+                } else {
+                    this.UI.nhPutMsg(`${args[0]}`);
+                }
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
@@ -548,14 +556,14 @@ function GameManager(g) {
                 const d_disp = (args[2] !== "\u0000") ? `(${def})` : "";
 
                 while (true) {
-                    this.UI.nhPutbufAdd(query, `${c_disp}${d_disp}`);
+                    this.UI.nhPutbufAdd(1, query, `${c_disp}${d_disp}`);
                     key = await new Promise(resolve => {
                         this.pendingInputResolve = resolve;
                     });
 
                     // 1. ENTER (13) または SPACE (32) が押された場合、デフォルト値を返す
                     if ((key === 13 || key === 32) && def !== "\u0000") {
-                        this.UI.msg(def.charCodeAt(0));
+                        this.UI.msg(def);
                         return def.charCodeAt(0);
                     }
 
@@ -790,29 +798,9 @@ function GameManager(g) {
             console.log("NetHack Wasm Boot Sequence Started...");
 
             // --- Fetch NetHack Constants for Dynamic Tile Mapping ---
-            try {
-                const nh = {
-                    NUMMONS: Module._get_nummons(),
-                    NUM_OBJECTS: Module._get_num_objects(),
-                    GLYPH_MON_OFF: Module._get_glyph_mon_off(),
-                    GLYPH_MON_FEM_OFF: Module._get_glyph_mon_fem_off(),
-                    GLYPH_PET_OFF: Module._get_glyph_pet_off(),
-                    GLYPH_PET_FEM_OFF: Module._get_glyph_pet_fem_off(),
-                    GLYPH_INVIS_OFF: Module._get_glyph_invis_off(),
-                    GLYPH_DETECT_OFF: Module._get_glyph_detect_off(),
-                    GLYPH_DETECT_FEM_OFF: Module._get_glyph_detect_fem_off(),
-                    GLYPH_BODY_OFF: Module._get_glyph_body_off(),
-                    GLYPH_RIDDEN_OFF: Module._get_glyph_ridden_off(),
-                    GLYPH_RIDDEN_FEM_OFF: Module._get_glyph_ridden_fem_off(),
-                    GLYPH_OBJ_OFF: Module._get_glyph_obj_off(),
-                    GLYPH_CMAP_OFF: Module._get_glyph_cmap_off(),
-                    MAX_GLYPH: Module._get_max_glyph()
-                };
-                console.log("NetHack Constants Fetched:", nh);
-                this.UI.updateTileMapping(nh);
-            } catch (e) {
-                console.warn("Could not fetch NetHack constants. Tile mapping might be incorrect.", e);
-            }
+            // C側の追加コード最小化のため、定数はJavaScript側で完結させます。
+            console.log("Applying default NetHack 5.0.0 constants for tile mapping...");
+            this.UI.updateTileMapping(null);
 
             setTimeout(() => {
                 try {
@@ -821,12 +809,35 @@ function GameManager(g) {
                             const persistentFiles = ['record', 'logfile', 'xlogfile', 'paniclog'];
                             persistentFiles.forEach(f => {
                                 try {
-                                    const src = '/' + f;
-                                    const dst = '/save/' + f;
-                                    if (typeof FS !== 'undefined' && FS.analyzePath(src).exists) {
-                                        const data = FS.readFile(src);
-                                        FS.writeFile(dst, data);
-                                        console.log(`NH Exit: Synced ${src} to ${dst}`);
+                                    const rootPath = '/' + f;
+                                    const savePath = '/save/' + f;
+                                    
+                                    if (typeof FS === 'undefined') return;
+
+                                    const rootExists = FS.analyzePath(rootPath).exists;
+                                    const saveExists = FS.analyzePath(savePath).exists;
+
+                                    if (rootExists && saveExists) {
+                                        const rootTime = FS.stat(rootPath).mtime.getTime();
+                                        const saveTime = FS.stat(savePath).mtime.getTime();
+
+                                        if (saveTime > rootTime) {
+                                            const data = FS.readFile(savePath);
+                                            FS.writeFile(rootPath, data);
+                                            console.log(`NH Exit: Synced save ${savePath} -> root ${rootPath} (save is newer)`);
+                                        } else if (rootTime > saveTime) {
+                                            const data = FS.readFile(rootPath);
+                                            FS.writeFile(savePath, data);
+                                            console.log(`NH Exit: Synced root ${rootPath} -> save ${savePath} (root is newer)`);
+                                        }
+                                    } else if (rootExists && !saveExists) {
+                                        const data = FS.readFile(rootPath);
+                                        FS.writeFile(savePath, data);
+                                        console.log(`NH Exit: Synced root ${rootPath} -> save ${savePath} (save did not exist)`);
+                                    } else if (!rootExists && saveExists) {
+                                        const data = FS.readFile(savePath);
+                                        FS.writeFile(rootPath, data);
+                                        console.log(`NH Exit: Synced save ${savePath} -> root ${rootPath} (root did not exist)`);
                                     }
                                 } catch (e) {
                                     console.error(`NH Exit: Failed to sync ${f}`, e);
@@ -852,7 +863,7 @@ function GameManager(g) {
 
 
                         // Definitive arguments list (Ignoring hardcoded Module.arguments)
-                        const coreOptions = "time,showexp,showvers,number_pad";
+                        const coreOptions = "time,showexp,showvers,number_pad,tombstone";
 
                         const args = (Module.arguments && Module.arguments.length > 0)
                             ? [...Module.arguments]
@@ -978,7 +989,7 @@ function GameManager(g) {
                                         }
                                     } catch (e) { }
 
-                                    let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad\n`;
+                                    let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad,tombstone\n`;
                                     if (extraOptions) {
                                         extraOptions.split('\n').forEach(line => {
                                             // 先頭・末尾のカンマと空白を除去
@@ -1076,14 +1087,344 @@ function GameManager(g) {
         // Wasm版では main 内で開始される
     }
 
+    this.parseLastRecord = function () {
+        try {
+            if (typeof FS === 'undefined' || !FS.analyzePath('/save/record').exists) {
+                return null;
+            }
+            const recordData = FS.readFile('/save/record', { encoding: 'utf8' });
+            if (!recordData || recordData.trim() === "") {
+                return null;
+            }
+            const lines = recordData.trim().split('\n');
+            const lastLine = lines[lines.length - 1];
+            if (!lastLine) return null;
+
+            const parts = lastLine.split(' ');
+            if (parts.length < 15) return null;
+
+            const version = parts[0];
+            const points = parseInt(parts[1]) || 0;
+            const deathDnum = parseInt(parts[2]) || 0;
+            const deathLev = parseInt(parts[3]) || 0;
+            const maxLvl = parseInt(parts[4]) || 0;
+            const hp = parseInt(parts[5]) || 0;
+            const maxHp = parseInt(parts[6]) || 0;
+            const deaths = parseInt(parts[7]) || 0;
+            const deathDate = parts[8];
+            const birthDate = parts[9];
+            const uid = parts[10];
+            const role = parts[11];
+            const race = parts[12];
+            const gender = parts[13];
+            const align = parts[14];
+
+            const rest = parts.slice(15).join(' ');
+            const commaIdx = rest.indexOf(',');
+            let name = "player";
+            let death = "unknown";
+            if (commaIdx !== -1) {
+                name = rest.substring(0, commaIdx);
+                death = rest.substring(commaIdx + 1);
+            } else {
+                name = rest;
+            }
+
+            return {
+                version, points, deathDnum, deathLev, maxLvl, hp, maxHp,
+                deaths, deathDate, birthDate, uid, role, race, gender, align,
+                name, death
+            };
+        } catch (e) {
+            console.error("Failed to parse record file:", e);
+            return null;
+        }
+    };
+
+    this.parseLastLog = function () {
+        try {
+            if (typeof FS === 'undefined' || !FS.analyzePath('/save/logfile').exists) {
+                return null;
+            }
+            const logData = FS.readFile('/save/logfile', { encoding: 'utf8' });
+            if (!logData || logData.trim() === "") {
+                return null;
+            }
+            const lines = logData.trim().split('\n');
+            const lastLine = lines[lines.length - 1];
+            if (!lastLine) return null;
+
+            const parts = lastLine.split(' ');
+            if (parts.length < 15) return null;
+
+            const version = parts[0];
+            const points = parseInt(parts[1]) || 0;
+            const deathDnum = parseInt(parts[2]) || 0;
+            const deathLev = parseInt(parts[3]) || 0;
+            const maxLvl = parseInt(parts[4]) || 0;
+            const hp = parseInt(parts[5]) || 0;
+            const maxHp = parseInt(parts[6]) || 0;
+            const deaths = parseInt(parts[7]) || 0;
+            const deathDate = parts[8];
+            const birthDate = parts[9];
+            const uid = parts[10];
+            const role = parts[11];
+            const race = parts[12];
+            const gender = parts[13];
+            const align = parts[14];
+
+            const rest = parts.slice(15).join(' ');
+            const commaIdx = rest.indexOf(',');
+            let name = "player";
+            let death = "unknown";
+            if (commaIdx !== -1) {
+                name = rest.substring(0, commaIdx);
+                death = rest.substring(commaIdx + 1);
+            } else {
+                name = rest;
+            }
+
+            return {
+                version, points, deathDnum, deathLev, maxLvl, hp, maxHp,
+                deaths, deathDate, birthDate, uid, role, race, gender, align,
+                name, death
+            };
+        } catch (e) {
+            console.error("Failed to parse logfile:", e);
+            return null;
+        }
+    };
+
+    this.parseLastXlog = function () {
+        try {
+            if (typeof FS === 'undefined' || !FS.analyzePath('/save/xlogfile').exists) {
+                return null;
+            }
+            const xlogData = FS.readFile('/save/xlogfile', { encoding: 'utf8' });
+            if (!xlogData || xlogData.trim() === "") {
+                return null;
+            }
+            const lines = xlogData.trim().split('\n');
+            const lastLine = lines[lines.length - 1];
+            if (!lastLine) return null;
+
+            const parts = lastLine.split('\t');
+            const entry = {};
+            parts.forEach(p => {
+                const idx = p.indexOf('=');
+                if (idx !== -1) {
+                    const k = p.substring(0, idx);
+                    const v = p.substring(idx + 1);
+                    entry[k] = v;
+                }
+            });
+
+            if (!entry.name) return null;
+
+            return {
+                version: entry.version || "1.0",
+                points: parseInt(entry.points) || 0,
+                deathDnum: parseInt(entry.deathdnum) || 0,
+                deathLev: parseInt(entry.deathlev) || 0,
+                maxLvl: parseInt(entry.maxlvl) || 0,
+                hp: parseInt(entry.hp) || 0,
+                maxHp: parseInt(entry.maxhp) || 0,
+                deaths: parseInt(entry.deaths) || 0,
+                deathDate: entry.deathdate,
+                birthDate: entry.birthdate,
+                uid: entry.uid,
+                role: entry.role || "???",
+                race: entry.race || "???",
+                gender: entry.gender || "???",
+                align: entry.align || "???",
+                name: entry.name,
+                death: entry.death || "unknown"
+            };
+        } catch (e) {
+            console.error("Failed to parse xlogfile:", e);
+            return null;
+        }
+    };
+
+    this.parseRecordList = function () {
+        try {
+            if (typeof FS === 'undefined' || !FS.analyzePath('/save/record').exists) {
+                return [];
+            }
+            const recordData = FS.readFile('/save/record', { encoding: 'utf8' });
+            if (!recordData || recordData.trim() === "") {
+                return [];
+            }
+            const lines = recordData.trim().split('\n');
+            const list = [];
+            
+            for (let line of lines) {
+                if (!line.trim()) continue;
+                const parts = line.split(' ');
+                if (parts.length < 15) continue;
+                
+                const points = parseInt(parts[1]) || 0;
+                const deathLev = parseInt(parts[3]) || 0;
+                const maxLvl = parseInt(parts[4]) || 0;
+                const hp = parseInt(parts[5]) || 0;
+                const maxHp = parseInt(parts[6]) || 0;
+                const role = parts[11];
+                const race = parts[12];
+                const gender = parts[13];
+                const align = parts[14];
+                
+                const rest = parts.slice(15).join(' ');
+                const commaIdx = rest.indexOf(',');
+                let name = "player";
+                let death = "unknown";
+                if (commaIdx !== -1) {
+                    name = rest.substring(0, commaIdx);
+                    death = rest.substring(commaIdx + 1);
+                } else {
+                    name = rest;
+                }
+                
+                list.push({
+                    points, deathLev, maxLvl, hp, maxHp, role, race, gender, align, name, death
+                });
+            }
+            
+            list.sort((a, b) => b.points - a.points);
+            return list.slice(0, 10);
+        } catch (e) {
+            console.error("Failed to parse record list:", e);
+            return [];
+        }
+    };
+
     this.waitForReplay = async function () {
+        console.log("[DEBUG] waitForReplay started. this.UI:", this.UI);
+        console.log("[DEBUG] this.UI.showGameOverModal type:", typeof this.UI.showGameOverModal);
+        
         this.UI.msg("--- Game Over ---");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        this.UI.msg("Press Space or Tap to Replay");
-        this.inputContext = "NORMAL";
-        await new Promise(resolve => {
-            this.pendingInputResolve = resolve;
-        });
+        
+        let currentPlayerName = "player";
+        if (typeof Module !== 'undefined' && typeof Module._get_plname === 'function') {
+            try {
+                const ptr = Module._get_plname();
+                if (ptr) {
+                    currentPlayerName = Module.UTF8ToString(ptr) || "player";
+                }
+            } catch (e) {
+                console.warn("[DEBUG] Failed to get plname from Module:", e);
+                if (globalThis.svp && globalThis.svp.plname) {
+                    currentPlayerName = globalThis.svp.plname;
+                }
+            }
+        } else if (globalThis.svp && globalThis.svp.plname) {
+            currentPlayerName = globalThis.svp.plname;
+        }
+        
+        let record = this.parseLastXlog() || this.parseLastLog() || this.parseLastRecord();
+        let topTen = this.parseRecordList();
+        
+        // Extract current in-game status for verification and fallback
+        let inGameDeathLev = 1;
+        let inGameHp = 0;
+        let inGameMaxHp = 1;
+        let inGameRole = "???", inGameRace = "???", inGameGender = "???", inGameAlign = "???";
+        
+        if (this.UI && this.UI.io && typeof this.UI.io.getStatusFields === 'function') {
+            const currentStatus = this.UI.io.getStatusFields();
+            if (currentStatus) {
+                const dlevelStr = currentStatus[20] ? String(currentStatus[20].value) : "";
+                const dlevelMatch = dlevelStr.match(/\d+/);
+                inGameDeathLev = dlevelMatch ? parseInt(dlevelMatch[0]) : 1;
+
+                inGameHp = currentStatus[18] ? parseInt(currentStatus[18].value) || 0 : 0;
+                inGameMaxHp = currentStatus[19] ? parseInt(currentStatus[19].value) || 1 : 1;
+
+                const titleStr = currentStatus[0] ? String(currentStatus[0].value) : "";
+                if (titleStr.includes(" the ")) {
+                    const parts = titleStr.split(" the ")[1].split("-");
+                    inGameRole = parts[0] || "???";
+                    inGameRace = parts[1] || "???";
+                    inGameGender = parts[2] || "???";
+                    inGameAlign = parts[3] || "???";
+                }
+            }
+        }
+        
+        console.log("[DEBUG] Current Player Name:", currentPlayerName);
+        console.log("[DEBUG] Initial Loaded record:", record);
+        console.log("[DEBUG] Parsed topTen list:", topTen);
+        
+        // Verify if the loaded record is indeed the current play's result.
+        // If it's loaded only from the main scoreboard (record) because it failed to rank in,
+        // we must check if its stats match current game parameters. Otherwise, it is stale.
+        let isCurrentPlay = false;
+        if (record && record.name === currentPlayerName) {
+            const isFromScoreboardOnly = !this.parseLastXlog() && !this.parseLastLog();
+            if (isFromScoreboardOnly) {
+                const dlevelMatch = (record.deathLev === inGameDeathLev);
+                const hpMatch = (record.maxHp === inGameMaxHp);
+                const roleMatch = (record.role === "???" || inGameRole === "???" || 
+                                     record.role.toLowerCase().startsWith(inGameRole.toLowerCase().substring(0, 3)));
+                
+                if (dlevelMatch && hpMatch && roleMatch) {
+                    isCurrentPlay = true;
+                } else {
+                    console.log("[DEBUG] Stale scoreboard record detected (status mismatch). Forcing fallback.");
+                }
+            } else {
+                isCurrentPlay = true;
+            }
+        }
+
+        if (!isCurrentPlay) {
+            console.log("[DEBUG] record is missing or not for current play. Building fallback from in-game status.");
+            
+            let deathReason = "died";
+            if (this.messageHistory && this.messageHistory.length > 0) {
+                for (let i = this.messageHistory.length - 1; i >= 0; i--) {
+                    const msg = this.messageHistory[i];
+                    if (msg.includes("killed by") || msg.includes("choked on") || msg.includes("starved") || msg.includes("died")) {
+                        deathReason = msg;
+                        break;
+                    }
+                }
+            }
+
+            record = {
+                name: currentPlayerName,
+                points: 0,
+                deathLev: inGameDeathLev,
+                maxLvl: Math.max(inGameDeathLev, 1),
+                hp: inGameHp,
+                maxHp: inGameMaxHp,
+                role: inGameRole,
+                race: inGameRace,
+                gender: inGameGender,
+                align: inGameAlign,
+                death: deathReason
+            };
+            console.log("[DEBUG] Fallback record built:", record);
+        }
+
+        if (typeof this.UI.showGameOverModal === 'function') {
+            console.log("[DEBUG] Calling showGameOverModal...");
+            try {
+                await this.UI.showGameOverModal(record, topTen);
+            } catch (err) {
+                console.error("[DEBUG] Error inside showGameOverModal:", err);
+                this.UI.msg("[DEBUG] showGameOverModal failed: " + err.message);
+            }
+        } else {
+            console.warn("[DEBUG] showGameOverModal is not a function!");
+            this.UI.msg("[DEBUG] showGameOverModal is undefined");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            this.UI.msg("Press Space or Tap to Replay");
+            this.inputContext = "NORMAL";
+            await new Promise(resolve => {
+                this.pendingInputResolve = resolve;
+            });
+        }
+        
         location.reload();
     }
 

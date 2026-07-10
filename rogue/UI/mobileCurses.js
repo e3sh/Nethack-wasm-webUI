@@ -96,13 +96,13 @@ class mobileCurses extends DisplayDevice {
                     if (tileIdx >= 0) {
                         const tx = (tileIdx % this.tilesPerRow) * this.tileSize;
                         const ty = Math.floor(tileIdx / this.tilesPerRow) * this.tileSize;
-                        glyphSpan.style.backgroundImage = 'url("pict/NethackModern32x-360.png")';
+                        glyphSpan.style.backgroundImage = 'url("pict/nethack_default_32.png")';
                         glyphSpan.style.backgroundRepeat = 'no-repeat';
                         glyphSpan.style.backgroundSize = `${this.tilesPerRow * 16}px auto`; // 16pxに縮小
                         glyphSpan.style.backgroundPosition = `-${tx / 2}px -${ty / 2}px`;
 
                         // Animation logic (Sync with fontPrintControl_with_glyph.js)
-                        if (glyphId < 3447 && tileIdx < 393) {
+                        if (glyphId < 3447 && tileIdx < 788) {
                             glyphSpan.classList.add('animate-glyph');
                         }
                     } else {
