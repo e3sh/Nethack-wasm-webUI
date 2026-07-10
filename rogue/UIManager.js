@@ -711,13 +711,13 @@ function UIManager(r, g) {
                 user-select: none;
             `;
             ripHeader.textContent = [
-                "       .-----------------.",
-                "      /   R. I. P.        \\",
-                "     /                     \\",
-                "    |   Here lies a hero   |",
-                "    |                      |",
-                "     \\                    /",
-                "      '------------------'"
+                "     .-----------------.",
+                "    /   REST IN PEACE   \\",
+                "   /                     \\",
+                "  |   Here lies a hero   |",
+                "  |                      |",
+                "  *|     *  *  *    *    *  | *",
+                "___)/\ _/ /( \/(/ \\)/\\/ / \// / \\|_)___"
             ].join('\n');
 
             const title = document.createElement('h2');

@@ -1,11 +1,19 @@
-# NetHack 3.7 shim イベント & ウィンドウインターフェース リファレンス
+# NetHack 5.0 shim イベント & ウィンドウインターフェース リファレンス
+
+> [!IMPORTANT]
+> このドキュメントは **NetHack 5.0.0 正式版** に準拠して更新されています。
+> 3.7に存在した一部のWasmエクスポート関数（オフセット取得系）は5.0で廃止されました。また、不足していたすべての shim イベントを追加し、完全なリファレンスとしています。
 
 このドキュメントは、NetHack Wasm ポートで使用されている `shim` 系イベントと、それに対応する NetHack 本体の `window_procs` 関数の役割をまとめたものです。
+
+---
 
 ## 概要
 
 NetHack の本体（C言語側）は、グラフィック処理や入力を直接行わず、`window_procs` 構造体を介してウィンドウシステム（ウィンドウポート）に処理を委ねます。
-Wasm ポートでは、`win/shim/winshim.c` がこのインターフェースを実装しており、各関数呼び出しを JavaScript 側の `eventHook` (または `fook`) 関数へイベントとして転送しています。
+Wasm ポートでは、`win/shim/winshim.c` がこのインターフェースを実装しており、各関数呼び出しを JavaScript 側の `eventHook` 関数へイベントとして転送しています。
+
+---
 
 ## ブリッジの型定義 (Format String)
 
@@ -32,64 +40,101 @@ Wasm ポートでは、`win/shim/winshim.c` がこのインターフェースを
 
 各イベントの具体的なパラメータ構成です。（最初の文字が戻り値、以降が引数）
 
-### 基本システム
+### 1. 基本システム
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_init_nhwindows` | `vpp` | `[int *argcp, char **argv]` | なし |
-| `shim_player_selection_or_tty` | `b` | `[]` | `boolean` |
-| `shim_askname` | `v` | `[]` | なし |
-| `shim_get_nh_event` | `v` | `[]` | なし |
-| `shim_exit_nhwindows` | `vs` | `[char *str]` | なし |
-| `shim_player_selection` | `v` | `[]` | なし |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_init_nhwindows` | `vpp` | `[int *argcp, char **argv]` | なし | ウィンドウシステムの初期化 |
+| `shim_player_selection_or_tty` | `b` | `[]` | `boolean` | プレイヤー選択ダイアログが必要か判定 |
+| `shim_askname` | `v` | `[]` | なし | プレイヤー名の入力を促す |
+| `shim_get_nh_event` | `v` | `[]` | なし | ウィンドウイベント（キー入力等）のポーリング |
+| `shim_exit_nhwindows` | `vs` | `[char *str]` | なし | ウィンドウシステムの終了 |
+| `shim_suspend_nhwindows`| `vs` | `[char *str]` | なし | ウィンドウシステムの一時停止 |
+| `shim_resume_nhwindows` | `v` | `[]` | なし | 一時停止からの復帰 |
+| `shim_player_selection` | `v` | `[]` | なし | 役割/種族/性別/属性の選択処理 |
 
-### ウィンドウ操作
+### 2. ウィンドウ操作・制御
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_create_nhwindow` | `ii` | `[int type]` | `int` (winid) |
-| `shim_clear_nhwindow` | `vi` | `[winid window]` | なし |
-| `shim_display_nhwindow` | `vib` | `[winid window, boolean blocking]` | なし |
-| `shim_destroy_nhwindow` | `vi` | `[winid window]` | なし |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_create_nhwindow` | `ii` | `[int type]` | `int` (winid) | ウィンドウを作成 |
+| `shim_clear_nhwindow` | `vi` | `[winid window]` | なし | ウィンドウの内容を消去 |
+| `shim_display_nhwindow` | `vib` | `[winid window, boolean blocking]` | なし | ウィンドウを画面に描画して表示 |
+| `shim_destroy_nhwindow` | `vi` | `[winid window]` | なし | ウィンドウを破棄 |
+| `shim_ctrl_nhwindow` | `viip` | `[winid window, int request, win_request_info *wri]` | `win_request_info *` | ウィンドウの詳細パラメータ制御 |
 
-### 出力・描画
+### 3. 出力・描画・ファイル表示
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_curs` | `viii` | `[winid window, int x, int y]` | なし |
-| `shim_putstr` | `viis` | `[winid window, int attr, char *str]` | なし |
-| `shim_print_glyph` | `vi11pp` | `[winid window, x, y, glyph_info*, bk_glyph_info*]` | なし |
-| `shim_raw_print` | `vs` | `[char *str]` | なし |
-| `shim_raw_print_bold` | `vs` | `[char *str]` | なし |
-| `shim_putmsghistory` | `vsb` | `[char *msg, bool restoring]` | なし |
-| `shim_getmsghistory` | `sb` | `[bool init]` | `string` or `null` |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_curs` | `viii` | `[winid window, int x, int y]` | なし | カーソル移動 |
+| `shim_putstr` | `viis` | `[winid window, int attr, char *str]` | なし | 文字列をウィンドウに出力 |
+| `shim_display_file` | `vsb` | `[char *name, boolean complain]` | なし | テキストファイル（ヘルプ等）を表示 |
+| `shim_print_glyph` | `vi11pp` | `[winid window, x, y, glyphinfo*, bkglyphinfo*]` | なし | 指定座標にグリフ（タイル）を描画 |
+| `shim_raw_print` | `vs` | `[char *str]` | なし | 生のテキストを出力（コンソール用） |
+| `shim_raw_print_bold` | `vs` | `[char *str]` | なし | 生のテキストを太字で出力 |
+| `shim_putmsghistory` | `vsb` | `[char *msg, bool restoring]` | なし | メッセージ履歴への保存 |
+| `shim_getmsghistory` | `sb` | `[bool init]` | `string` or `null` | メッセージ履歴からの取得 |
 
-### 入力・ダイアログ
+### 4. 入力・ダイアログ・設定
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_nhgetch` | `i` | `[]` | `int` (char code) |
-| `shim_nh_poskey` | `ippp` | `[int *x, int *y, int *mod]` | `int` (char code or 0) |
-| `shim_yn_function` | `css0` | `[char *query, char *choices, char def]` | `char` |
-| `shim_getlin` | `vsp` | `[char *query, char *buf]` | なし |
-| `shim_get_ext_cmd` | `iv` | `[]` | `int` (cmd index) |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_nhgetch` | `i` | `[]` | `int` (char) | キー入力を1文字待機取得（同期/Asyncify） |
+| `shim_nh_poskey` | `ippp` | `[int *x, int *y, int *mod]` | `int` (char) | キー入力またはクリック位置を取得 |
+| `shim_yn_function` | `css0` | `[char *query, char *choices, char def]` | `char` | [y/n] などの二者択一入力待機 |
+| `shim_getlin` | `vsp` | `[char *query, char *buf]` | なし | 任意の1行テキスト入力 |
+| `shim_get_ext_cmd` | `iv` | `[]` | `int` (cmd) | 拡張コマンド (`#`) の入力取得 |
+| `shim_nhbell` | `v` | `[]` | なし | ビープ音を鳴らす |
+| `shim_doprev_message` | `iv` | `[]` | `int` | 過去ログの遡り表示 |
+| `shim_number_pad` | `vi` | `[int state]` | なし | テンキー移動設定の切り替え |
+| `shim_delay_output` | `v` | `[]` | なし | 描画の短いディレイ（アニメーション用） |
 
-### メニュー
+### 5. メニュー
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_start_menu` | `vii` | `[winid window, unsigned long behavior]` | なし |
-| `shim_add_menu` | `vipi00iisi`| `[window, glyph_info*, id*, ch, gch, attr, clr, str, flags]` | なし |
-| `shim_end_menu` | `vis` | `[winid window, char *prompt]` | なし |
-| `shim_select_menu` | `iiip` | `[winid window, int how, menu_item** list]` | `int` (count) |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_start_menu` | `vii` | `[winid window, unsigned long behavior]` | なし | メニュー構築の開始 |
+| `shim_add_menu` | `vipi00iisi`| `[window, glyphinfo*, id*, ch, gch, attr, clr, str, flags]` | なし | メニュー項目を追加 |
+| `shim_end_menu` | `vis` | `[winid window, char *prompt]` | なし | メニュー構築の終了 |
+| `shim_select_menu` | `iiip` | `[winid window, int how, menu_item** list]` | `int` (count) | メニューを表示し項目を選択（同期） |
+| `shim_message_menu` | `ciis` | `[char let, int how, char *mesg]` | `char` | メッセージ選択ダイアログ |
 
-### ステータス (3.7+)
+### 6. ステータス・インベントリ
 
-| イベント名 | フォーマット | 引数 (`args`) | 戻り値 |
-| :--- | :--- | :--- | :--- |
-| `shim_status_init` | `v` | `[]` | なし |
-| `shim_status_enablefield`| `vippb` | `[int fld, char* name, char* fmt, bool enable]` | なし |
-| `shim_status_update` | `vipiiip` | `[fld, void* ptr, int chg, int pct, int clr, long* mask]` | なし |
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_status_init` | `v` | `[]` | なし | ステータス描画の初期化 |
+| `shim_status_enablefield`| `vippb` | `[int fld, char* nm, char* fmt, bool enable]` | なし | ステータス欄の項目有効化/フォーマット設定 |
+| `shim_status_update` | `vipiiip` | `[fld, void* ptr, int chg, int pct, int clr, long* mask]` | なし | ステータス情報の更新 |
+| `shim_update_inventory` | `vi` | `[int a1]` | なし | インベントリ（所持品）状態の更新 |
+
+### 7. 同期・カラー・その他
+
+| イベント名 | フォーマット | 引数 (`args`) | 戻り値 | 説明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `shim_mark_synch` | `v` | `[]` | なし | 画面同期マークの設定 |
+| `shim_wait_synch` | `v` | `[]` | なし | 画面同期を待機 |
+| `shim_cliparound` | `vii` | `[int x, int y]` | なし | キャラクター中心の表示追従（クリッピング） |
+| `shim_update_positionbar`| `vs` | `[char *posbar]` | なし | ポジションバー（マップ相対位置バー）の更新 |
+| `shim_change_color` | `viii` | `[int color, long rgb, int reverse]` | なし | パレットカラーの変更 |
+| `shim_change_background`| `vi` | `[int white_or_black]` | なし | 背景色の白黒変更 |
+| `set_shim_font_name` | `2is` | `[winid window_type, char *font_name]` | `short` | フォントの設定 |
+| `shim_get_color_string` | `sv` | `[]` | `char *` | カラーパレット情報の取得 |
+| `shim_preference_update` | `vp` | `[char *pref]` | なし | ゲーム内設定・好みの更新 |
+
+---
+
+## WASMポート特有のエクスポート関数 (EMSCRIPTEN_KEEPALIVE)
+
+NetHack 5.0 の Wasm ビルド環境では、3.7までに存在したオフセット取得系関数（`get_glyph_mon_off()` 等）は C 側から**完全に削減されました**。現在 JS 側から直接呼び出し可能なエクスポート関数は以下の3つのみです。
+
+*   **`char *get_plname(void)`**: 現在のプレイヤーキャラクター名（`svp.plname`）を取得します。
+*   **`int get_nummons(void)`**: モンスター種類の総数（`NUMMONS` = 5.0.0 正式版では `383`）を取得します。
+*   **`int get_num_objects(void)`**: オブジェクト種類の総数（`NUM_OBJECTS` = 5.0.0 正式版では `481`）を取得します。
+
+> [!NOTE]
+> 各種グリフカテゴリのオフセット値は、`get_nummons()` と `get_num_objects()` から得られる定数値を元に JavaScript 側で動的に計算するか、自動生成されたマッピングテーブルで静的に解決されます。
 
 ---
 
@@ -101,94 +146,6 @@ Wasm 内部の `js_helpers_init` が実行されると、`window.nethackGlobal.h
 ### 2. Asyncify
 JavaScript 側のイベント処理で `Promise` を返すもの（`shim_nhgetch`, `shim_yn_function` 等）は、Emscripten の Asyncify 機能を介して C 側の実行を一時停止し、入力完了後に再開します。
 
-### 3. Glyph Info
-`shim_print_glyph` 等で渡される `glyph_info` 構造体は、Wasm メモリ内のポインタとして渡されます。JS 側ではこれをパースして、文字・色・フラグ等を抽出します。
-
-### 4. plname
-`shim_askname` で直接 `svp.plname` を書き換える手法は、Wasm ポート特有の最適化です。
-
-## Wasmポートでの現在の実装状況 (GameManager.js)
-
-`GameManager.js` 内の `eventHook` では、いくつかのイベントがバッファリングや UI 連携のためにカスタマイズされています。
-
-- **バッファリング (`nhPutbuf`)**: `shim_putstr` で直接描画せず、`nhPutbufAdd` で一旦溜め、`shim_display_nhwindow` のタイミングで `nhPutbufDraw` を呼び出して一気に描画する仕組みになっています。
-- **ウィンドウ消去**: `shim_create_nhwindow` や `shim_destroy_nhwindow` でも、UI 側の状態をリセットするための処理（`nhClear`, `nhPutbufClear`）が組み込まれています。
-- **Promise による待機**: `shim_nhgetch` や `shim_yn_function` などの入力待ち、および `shim_exit_nhwindows` のセーブ処理などは、`Promise` を返すことで Wasm 側の実行を一時停止（Asyncify）させています。
-
----
-
-## ステータスフィールド (fld) の定義
-
-`shim_status_update` や `shim_status_enablefield` で渡される `fld` 番号の対応表です。
-
-| 番号 | 定数名 | 内容 |
-| :--- | :--- | :--- |
-| -2 | `BL_RESET` | すべてのステータスを再表示する |
-| -1 | `BL_FLUSH` | ステータス更新サイクルの終了（一括描画のトリガー） |
-| 0 | `BL_TITLE` | キャラクター名と肩書き |
-| 1 | `BL_STR` | 強さ (Strength) |
-| 2 | `BL_DX` | 器用さ (Dexterity) |
-| 3 | `BL_CO` | 耐久力 (Constitution) |
-| 4 | `BL_IN` | 知能 (Intelligence) |
-| 5 | `BL_WI` | 智慧 (Wisdom) |
-| 6 | `BL_CH` | 魅力 (Charisma) |
-| 7 | `BL_ALIGN` | 属性 (Alignment) |
-| 8 | `BL_SCORE` | スコア |
-| 9 | `BL_CAP` | 重量負担重量 (Capacity) |
-| 10 | `BL_GOLD` | 所持金 |
-| 11 | `BL_ENE` | エネルギー (電力/魔力) 現在値 |
-| 12 | `BL_ENEMAX` | エネルギー 最大値 |
-| 13 | `BL_XP` | レベル (Experience Level) |
-| 14 | `BL_AC` | AC (Armor Class) |
-| 15 | `BL_HD` | モンスター時などのヒットダイス |
-| 16 | `BL_TIME` | 経過ターン (Time) |
-| 17 | `BL_HUNGER` | 空腹状態 |
-| 18 | `BL_HP` | HP 現在値 |
-| 19 | `BL_HPMAX` | HP 最大値 |
-| 20 | `BL_LEVELDESC` | 現在の階層 (Dlevel) / 階層の説明 |
-| 21 | `BL_EXP` | 経験値 (Experience Points) |
-| 22 | `BL_CONDITION` | コンディション（盲目、混乱、毒、空飛ぶ等） |
-| 23 | `BL_VERS` | バージョン情報 |
-
-**※ `BL_CONDITION` (22) の場合のみ、`ptr` には文字列ではなくビットマスク値（後述）が直接渡されます。**
-
-## コンディション (BL_CONDITION) の定義
-
-`fld` が `BL_CONDITION` (22) の場合、`ptr` には以下のビットマスク（`long`型）が渡されます。
-
-| ビットマスク | 内容 |
-| :--- | :--- |
-| `0x00000001L` | 素手 (`BAREH`) |
-| `0x00000002L` | 盲目 (`BLIND`) |
-| `0x00000004L` | 忙しい (`BUSY`) |
-| `0x00000008L` | 混乱 (`CONF`) |
-| `0x00000010L` | 難聴 (`DEAF`) |
-| `0x00000020L` | 鉄アレルギー (?) (`ELF_IRON`) |
-| `0x00000040L` | 飛行 (`FLY`) |
-| `0x00000080L` | 食中毒 (`FOODPOIS`) |
-| `0x00000100L` | 光る手 (`GLOWHANDS`) |
-| `0x00000200L` | 掴まれた (`GRAB`) |
-| `0x00000400L` | 幻覚 (`HALLU`) |
-| `0x00000800L` | 鈍足 (`HELD`) / 拘束 |
-| `0x00001000L` | 氷上 (`ICY`) |
-| `0x00002000L` | 溶岩内 (`INLAVA`) |
-| `0x00004000L` | 浮遊 (`LEV`) |
-| `0x00008000L` | 麻痺 (`PARLYZ`) |
-| `0x00010000L` | 乗馬 (`RIDE`) |
-| `0x00020000L` | 睡眠 (`SLEEPING`) |
-| `0x00040000L` | 粘液 (`SLIME`) |
-| `0x00080000L` | 滑りやすい (`SLIPPERY`) |
-| `0x00100000L` | 石化 (`STONE`) |
-| `0x00200000L` | 絞殺 (`STRNGL`) |
-| `0x00400000L` | 朦朧 (`STUN`) |
-| `0x00800000L` | 水没 (`SUBMERGED`) |
-| `0x01000000L` | 致死性の病 (`TERMILL`) |
-| `0x02000000L` | 繋がれた (`TETHERED`) |
-| `0x04000000L` | 罠にかかった (`TRAPPED`) |
-| `0x08000000L` | 気絶 (`UNCONSC`) |
-| `0x10000000L` | 脚の怪ま (`WOUNDEDL`) |
-| `0x20000000L` | (掴んでいる?) (`HOLDING`) |
-
 ---
 
 ## ビルド手順（WebAssembly）
@@ -196,8 +153,8 @@ JavaScript 側のイベント処理で `Promise` を返すもの（`shim_nhgetch
 NetHack を WebAssembly にビルドするための詳細な手順です。
 
 ### 共通の準備
-1. **[NetHack/NetHack](https://github.com/NetHack/NetHack)** 公式リポジトリのソースコード（`NetHack-3.7` ブランチ推奨）を `NetHack-NetHack-3.7` ディレクトリとして配置してください。
-2. **Emscripten SDK (emsdk)** をインストールしてください。
+1. **[NetHack/NetHack](https://github.com/NetHack/NetHack)** 公式リポジトリのソースコード（`NetHack-5.0` ブランチ準拠）を `NetHack-NetHack-5.0` ディレクトリとして配置してください。
+2. **Emscripten SDK (emsdk)** をインストールし、アクティベートしてください。
 
 ---
 
@@ -206,13 +163,13 @@ NetHack を WebAssembly にビルドするための詳細な手順です。
 Windows 環境では、Visual Studio (MSVC) と PowerShell スクリプトを使用します。
 
 #### 1. 準備
-- **Visual Studio (MSVC)** がインストールされていることを確認してください。
+*   **Visual Studio (MSVC)** がインストールされていることを確認してください。
 
 #### 2. ビルドの実行
-`NetHack-NetHack-3.7` ディレクトリにて PowerShell スクリプトを実行します。
+`NetHack-NetHack-5.0` ディレクトリにて PowerShell スクリプトを実行します。
 ```powershell
-cd NetHack-NetHack-3.7
-.\build_wasm_37.ps1
+cd NetHack-NetHack-5.0
+.\build_wasm_50.ps1
 ```
 
 > [!IMPORTANT]
@@ -229,9 +186,9 @@ source path/to/emsdk/emsdk_env.sh
 ```
 
 #### 2. Makefile を使用する場合
-`NetHack-NetHack-3.7` ディレクトリにて `make` を実行します。
+`NetHack-NetHack-5.0` ディレクトリにて `make` を実行します。
 ```bash
-cd NetHack-NetHack-3.7
+cd NetHack-NetHack-5.0
 make
 ```
 これにより、ホスト用の `makedefs` のビルド、データファイルの生成、Lua のビルド、そして最終的な NetHack Wasm (`nethack.js`, `nethack.wasm`) の生成が順次行われます。
@@ -239,13 +196,13 @@ make
 #### 3. シェルスクリプトを使用する場合
 一括でビルドを実行するスクリプトも用意されています。
 ```bash
-cd NetHack-NetHack-3.7
-chmod +x build_wasm_37.sh
-./build_wasm_37.sh
+cd NetHack-NetHack-5.0
+chmod +x build_wasm_50.sh
+./build_wasm_50.sh
 ```
 
 ### ビルドの成果物
-ビルドが成功すると、以下のファイルが `NetHack-NetHack-3.7` 直下に生成されます：
-- `nethack.js`: Wasm をロードするための JavaScript ブリッジ
-- `nethack.wasm`: NetHack 本体
-- `liblua.a`: Wasm 向けにビルドされた Lua ライブラリ
+ビルドが成功すると、以下のファイルが `NetHack-NetHack-5.0` 直下に生成されます：
+*   `nethack.js`: Wasm をロードするための JavaScript ブリッジ
+*   `nethack.wasm`: NetHack 本体
+*   `liblua.a`: Wasm 向けにビルドされた Lua ライブラリ
