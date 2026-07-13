@@ -3039,6 +3039,33 @@
         {en: "a medical practitioner to listen to a patient's heart, lungs,", jp: "通常、医療機関の医療従事者が、患者の心臓、肺"  },
         {en: "or pulse.", jp: "あるいは脈拍を聴診するために用いる。"  },
 
+        {en: "In his hands he took his shield, all glittering: no one ever", jp: "彼は、きらめきに満ちた盾を手に取った。これまで誰も、一撃でそれを砕いたり、"  },
+        {en: "broke it with a blow or crushed it.  And a wonder it was to see;", jp: "押しつぶしたりしたことはなかった。それは見る者を驚嘆させる光景であった。"  },
+        {en: "for its whole orb shimmered with enamel and white ivory and", jp: "その円盤全体が、エナメルと白い象牙、そしてエレクトラムで輝き、"  },
+        {en: "electrum, and it glowed with shining gold; and there were zones", jp: "輝く黄金の光を放っていた。さらに、シアン色の帯が幾重にも描かれていた。 "  },
+        {en: "of cyanus drawn upon it.  In the center was Fear worked in adamant,", jp: "中央には、ダイヤモンドで彫り込まれた「恐怖」がいた。言葉に尽くせぬその姿は、"  },
+        {en: "unspeakable, staring backwards with eyes that glowed with fire.", jp: "炎のように輝く目で後ろをじっと見つめていた。その口には、"  },
+        {en: "His mouth was full of teeth in a white row, fearful and  daunting,", jp: "白く整然と並んだ歯がぎっしりと生え、恐ろしく威圧的であり、"  },
+        {en: "and upon his grim brow hovered frightful Strife who arrays the", jp: "その険しい額の上には、人々の群れを戦列に並ばせる恐ろしい「争い」が漂っていた。"  },
+        {en: "throng of men: pitiless she, for she took away the mind and senses", jp: "彼女は容赦なく、ゼウスの息子に戦いを挑んだ哀れな者たちから"  },
+        {en: "of poor wretches who made war against the son of Zeus.  Their souls", jp: "理性と感覚を奪い去ったのだ。"  },
+        {en: "passed beneath the earth and went down into the house of Hades;", jp: "彼らの魂は地の下を通り抜け、ハデスの宮殿へと下っていった。"  },
+        {en: "but their bones, when the skin is rotted about them, crumble away", jp: "しかし、彼らの骨は、覆っていた皮膚が腐り落ちると、"  },
+        {en: "on the dark earth under parching Sirius.", jp: "灼熱のシリウスの下、暗い大地の上で崩れ去っていく。"  },
+        {en: "[ Hesiod, The Homeric Hymns and Homerica,", jp: "[ ヘシオドス、『ホメロス賛歌およびホメロイカ』、"  },
+        {en: "translation by Hugh G. Evelyn-White ]", jp: "                ヒュー・G・エヴェリン＝ホワイト訳 ]"  },
+
+        {en: "You feel full of awe.", jp: "あなたは畏敬の念に満たされる。"  },
+        {en: " You had a wounded right leg.", jp: " あなたは右足を負傷していました。"  },
+        {en: " You were stridently aligned.", jp: " あなたは断固とした姿勢を貫いていました。"  },
+        {en: " You have a wounded right leg.", jp: " あなたは右足を負傷している。"  },
+        {en: " You are stridently aligned.", jp: " あなたは断固とした姿勢を貫いている。"  },
+        {en: "You can't jump very far.", jp: "遠くまでジャンプできない。"  },
+        {en: "You sense something below your feet.", jp: "足元に何かを感じる。"  },
+        {en: "You have an uneasy feeling...", jp: "なんとなく嫌な予感がする..."  },
+        {en: " You did not violate any of the special Sokoban rules.", jp: " 倉庫番の特別なルールには違反していません。"  },
+        {en: " You entered Sokoban.", jp: " 倉庫番​​を開始しました。"  },
+
     ];
 }
 
@@ -4718,6 +4745,7 @@ function nhPatterns() {
         { pattern: /^(.*)'s flame is extinguished\.$/, replace: "$1の火が消えた。" }, 
         { pattern: /^You knock (.*) backward with a powerful strike!$/, replace: "強烈な一撃で、$1を後方へ吹き飛ばした！" }, 
         { pattern: /^ You attained the rank of (.*)\.$/, replace: " $1の位に就いた。" }, 
+        { pattern: /^Your (.*) glows blue for a while.\.$/, replace: "あなたの$1が、しばらくの間、青く輝いている。" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
