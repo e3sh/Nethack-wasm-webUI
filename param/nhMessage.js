@@ -536,7 +536,7 @@
         { en: "his lance into shivers, carrying him and his horse after it,", jp: "無残な姿で叩きつけられた。" },
         { en: "and finally tumbled him a good way off from it on the field in", jp: "" },
         { en: "evil plight.", jp: "" },
-        { en: "  [ Don Quixote of La Mancha, by Miquel de Cervantes Saavedra ]", jp: "  [ セルバンテス『ドン・キホーテ』 ]" },
+        { en: "[ Don Quixote of La Mancha, by Miguel de Cervantes Saavedra ]", jp: " [ ミゲル・デ・セルバンテス・サアベドラ著『ラ・マンチャのドン・キホーテ』 ]" },
         { en: "You feel a wrenching sensation.", jp: "ねじ切られるような感覚を覚えた。" },
         { en: "But as Snow White grew, she became more and more beautiful,", jp: "しかし白雪姫が成長するにつれ、彼女はますます美しくなり、" },
         { en: "and by the time she was seven years old she was as beautiful", jp: "七歳になる頃には日の光のように美しく、" },
@@ -3066,6 +3066,47 @@
         {en: " You did not violate any of the special Sokoban rules.", jp: " 倉庫番の特別なルールには違反していません。"  },
         {en: " You entered Sokoban.", jp: " 倉庫番​​を開始しました。"  },
 
+        {en: "You can't seem to think straight.", jp: "頭がうまく働かないようだ。"  },
+        {en: "You feel incredibly sick.", jp: "ひどく気分が悪い。"  },
+        {en: "You feel less confused now.", jp: "混乱が少し収まってきた。"  },
+        {en: "You are about to vomit.", jp: "吐きそうだ。"  },
+        {en: "You vomit!", jp: "吐いてしまう！"  },
+
+        {en: "A piece of armor designed to protect the head.", jp: "頭部を保護するために設計された防具。"  },
+        {en: "(What were you expecting?)", jp: "（一体何を期待していたの？）"  },
+
+        {en: "\"The last spot on the school jousting team came down to another", jp: "「学校の馬上槍試合チームの最後の1枠を、もう一人の"  },
+        {en: "boy and me.  He was poor, and his only armor was a blanket his", jp: "少年と私が争うことになった。彼は貧しく、唯一の鎧は"  },
+        {en: "mother had made him from her hair.  I, on the other hand, had", jp: "母親が自分の髪の毛で編んでくれた毛布だけだった。一方、私には"  },
+        {en: "a brand new suit of chain mail.  Just before our joust, I asked", jp: "真新しい鎖帷子があった。試合の直前に、私は"  },
+        {en: "him what he'd do if he made the team.  (I was hoping to be more", jp: "彼に、もしチームに入ったら何をするつもりか尋ねた。（私は"  },
+        {en: "popular with the ladies.)  He said he would be able to save the", jp: "女の子たちにモテるようになりたいと思っていたのだ。） "  },
+        {en: "town from dragons and be able to afford some water for his 20", jp: "彼は、ドラゴンから"  },
+        {en: "brothers and sisters.", jp: "町を救えるようになり、20人の"  },
+        {en: "Well, a sense of compassion came over me.  I insisted we swap", jp: "兄弟姉妹に水を買ってあげられるようになる、と言った。"  },
+        {en: "armor.  He was forced to accept, as it would have been an", jp: "そう聞いて、私は深い同情を覚えた。私は鎧を"  },
+        {en: "insult not to do so.", jp: "交換しようと強く言い出した。断れば侮辱と"  },
+        {en: "On the battlefield, we charged at each other and we both connected", jp: "受け取られるため、彼は仕方なく承諾した。"  },
+        {en: "with our lances.", jp: "戦場では、私たちは互いに突進し、二人とも槍を相手に突き刺した。"  },
+        {en: "Lying there on the mud mortally wounded, I learned what true armor", jp: "泥の中に横たわり、致命傷を負ったその日、私は真の"  },
+        {en: "class was that day.\"", jp: "アーマークラスとは何かを学んだのだ。」"  },
+        {en: "[ When Help Collides, by J.D. Berry ]", jp: "[『When Help Collides』 J.D. ベリー著 ]"  },
+
+        {en: "A weapon is a device for making your enemy change his mind.", jp: "武器とは、敵の考えを変えさせるための道具である。"  },
+        
+        {en: "You feel yourself slow down a bit.", jp: "自分の動きが少し遅くなるのを感じる。"  },
+        {en: " There was a new moon in effect when your adventure ended.", jp: " 冒険が終わったとき、新月が訪れていた。"  },
+        {en: " You could jump.", jp: " ジャンプすることができた。"  },
+
+        {en: "What is your name?", jp: "お名前は？"  },
+        {en: "Engrave on the stairs with one of these items", jp: "これらのアイテムのいずれかを使って、階段に刻んでください"  },
+        {en: "Fate intervened. Some of us, that day, she led inexorably", jp: "運命が介入した。あの日、運命は私たちの一部に、容赦なく"  },
+        {en: "through the gates of death. Some of us, innocent and unsuspecting,", jp: "死の門へと導いた。無垢で何も知らない私たちの一部は、"  },
+        {en: "took, unwillingly, that one last step to oblivion. Some of us took", jp: "不本意ながら、忘却への最後の一歩を踏み出した。私たちの一部は"  },
+        {en: "very little sugar.", jp: "砂糖をほとんど摂らなかった。"  },
+        {en: "[ We Have Always Lived in the Castle,", jp: "  [『私たちはいつも城に住んでいた』"  },
+        {en: "by Shirley Jackson ]", jp: "    シャーリー・ジャクソン著 ]"  },
+
     ];
 }
 
@@ -4745,7 +4786,8 @@ function nhPatterns() {
         { pattern: /^(.*)'s flame is extinguished\.$/, replace: "$1の火が消えた。" }, 
         { pattern: /^You knock (.*) backward with a powerful strike!$/, replace: "強烈な一撃で、$1を後方へ吹き飛ばした！" }, 
         { pattern: /^ You attained the rank of (.*)\.$/, replace: " $1の位に就いた。" }, 
-        { pattern: /^Your (.*) glows blue for a while.\.$/, replace: "あなたの$1が、しばらくの間、青く輝いている。" }, 
+        { pattern: /^Your (.*) glows (.*) for a while\.$/, replace: "あなたの$1が、しばらくの間、$2に輝いている。" }, 
+        { pattern: /^Click!  (.*) triggers something\.$/, replace: "カチッ！ $1が何かを作動させた。" }, 
 
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
