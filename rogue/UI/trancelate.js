@@ -81,6 +81,9 @@ function trancelate(r) {
         refcnt++;
         if (tmode == false) return msg;
 
+        // Clean up Windows carriage returns (\r) and trailing padding underscores (_)
+        msg = msg.replace(/\r/g, "").replace(/_+$/, "");
+
         // 1. Exact Match Lookup (O(1))
         if (trMap.has(msg)) {
             return trMap.get(msg);
