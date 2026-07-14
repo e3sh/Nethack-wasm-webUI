@@ -3107,6 +3107,11 @@
         {en: "[ We Have Always Lived in the Castle,", jp: "  [『私たちはいつも城に住んでいた』"  },
         {en: "by Shirley Jackson ]", jp: "    シャーリー・ジャクソン著 ]"  },
 
+        {en: "Not wearing any armor or accessories.", jp: "防具やアクセサリーを一切装備していない。"  },
+        {en: "You cannot drop something you are wearing.", jp: "装備しているアイテムはドロップできない。"  },
+        {en: "You cannot throw something you are wearing.", jp: "装備しているアイテムは投げられない。"  },
+        {en: "You can't.  They are cursed.", jp: "できない。それらは呪われているからだ。"  },
+
     ];
 }
 
