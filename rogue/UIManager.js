@@ -877,4 +877,144 @@ function UIManager(r, g) {
             }, 50);
         });
     };
+
+    /**
+     * ゲームオーバー時に Canvas (d.DSP_WINDOW) 上に墓石とランキングをテキストで表示します。
+     * @param {object} data 
+     * @param {array} topTen 
+     * @returns {Promise}
+     */
+    this.showGameOverCanvas = function (data, topTen) {
+        return new Promise(async (resolve) => {
+            const menuDsp = d.DSP_WINDOW;
+            const originalHandler = r.pendingInputResolve;
+
+            // 1. 墓石を表示するかの条件判定（escaped, ascended 等は非表示）
+            const deathCause = (data.death || "").toLowerCase();
+            const showTombstone = !(
+                deathCause.includes("escaped") ||
+                deathCause.includes("ascended") ||
+                deathCause.includes("quit") ||
+                deathCause.includes("panicked") ||
+                deathCause.includes("panic") ||
+                deathCause.includes("genocided") ||
+                deathCause.includes("trickery")
+            );
+
+            // 2. 1ページ目の表示テキスト構築
+            const page1Lines = [];
+            if (showTombstone) {
+                const pad = " ".repeat(Math.max(0, Math.floor(((d.COLS || 80) - 33) / 2)));
+                
+                const nameStr = (data.name || "player").substring(0, 16);
+                const namePad = " ".repeat(Math.max(0, Math.floor((16 - nameStr.length) / 2)));
+                const nameLine = `${namePad}${nameStr}${namePad}`.padEnd(16, " ");
+
+                const goldVal = typeof data.points === 'number' ? data.points : 0;
+                const goldStr = `${goldVal} Au`;
+                const goldPad = " ".repeat(Math.max(0, Math.floor((16 - goldStr.length) / 2)));
+                const goldLine = `${goldPad}${goldStr}${goldPad}`.padEnd(16, " ");
+
+                let deathInside = (data.death || "died").substring(0, 18);
+                const deathPad = " ".repeat(Math.max(0, Math.floor((18 - deathInside.length) / 2)));
+                const deathLine1 = `${deathPad}${deathInside}${deathPad}`.padEnd(18, " ");
+
+                const yearStr = new Date().getFullYear().toString();
+                const yearPad = " ".repeat(Math.max(0, Math.floor((16 - yearStr.length) / 2)));
+                const yearLine = `${yearPad}${yearStr}${yearPad}`.padEnd(16, " ");
+
+                page1Lines.push(`${pad}       .-----------------.`);
+                page1Lines.push(`${pad}      /   REST IN PEACE   \\`);
+                page1Lines.push(`${pad}     /                     \\`);
+                page1Lines.push(`${pad}    |   ${nameLine}   |`);
+                page1Lines.push(`${pad}    |   ${goldLine}   |`);
+                page1Lines.push(`${pad}    |  ${deathLine1}  |`);
+                page1Lines.push(`${pad}    |   ${yearLine}   |`);
+                page1Lines.push(`${pad}    |        *   *   *     |`);
+                page1Lines.push(`${pad}   /|\\__//\\/(/\\/\\//\\/\\__//\\|`);
+                page1Lines.push("");
+            }
+
+            // 墓石外のメッセージ翻訳
+            let roleStr = "Hero";
+            if (data.role) {
+                roleStr = this.trancelate.message(data.role);
+            }
+            const farewellMsg = this.trancelate.message(`Goodbye ${data.name || "player"} the ${roleStr}...`);
+            page1Lines.push(farewellMsg);
+
+            // 死亡/終了詳細ステータス
+            const dlevel = data.deathLev || 1;
+            const points = data.points || 0;
+            const maxHp = data.maxHp || 1;
+            const level = data.ulevel || data.deathLev || 1;
+
+            let statusDetail = "";
+            if (deathCause.includes("escaped")) {
+                statusDetail = `You escaped from the dungeon on level ${dlevel} with ${points} points.`;
+            } else if (deathCause.includes("ascended")) {
+                statusDetail = `You ascended with ${points} points!`;
+            } else {
+                statusDetail = `You died on dungeon level ${dlevel} with ${points} points. Max HP: ${maxHp}, level: ${level}.`;
+            }
+            page1Lines.push(this.trancelate.message(statusDetail));
+            page1Lines.push("");
+            page1Lines.push("-- More -- (Space/Enter for ranking)");
+
+            // 3. 2ページ目の表示テキスト構築
+            const page2Lines = [];
+            page2Lines.push(this.trancelate.message("TOP 10 HIGH SCORES"));
+            page2Lines.push("-".repeat(d.COLS || 80));
+
+            if (topTen && topTen.length > 0) {
+                topTen.forEach((item, index) => {
+                    const rankStr = String(index + 1).padStart(2, " ");
+                    const ptsStr = String(item.points).padStart(7, " ");
+                    
+                    // キャラクター詳細情報をフルで結合 (Name-Role-Race-Gender-Align)
+                    const details = [item.role, item.race, item.gender, item.align].filter(Boolean).join("-");
+                    const nameFull = details ? `${item.name}-${details}` : item.name;
+                    const hpVal = item.hp !== undefined ? `(HP: ${item.hp}/${item.maxHp})` : "";
+                    
+                    // 1行目: 順位、スコア、プレイヤー名詳細、HP
+                    page2Lines.push(`${rankStr}. ${ptsStr} pts  ${nameFull} ${hpVal}`);
+                    
+                    // 2行目: 死因（日本語翻訳、インデント付きで配置）
+                    const deathMsg = this.trancelate.message(item.death || "died");
+                    page2Lines.push(`             Fate: ${deathMsg}`);
+                });
+            } else {
+                page2Lines.push("No records found.");
+            }
+            page2Lines.push("-".repeat(d.COLS || 80));
+            page2Lines.push("Press Space or Tap to Replay");
+
+            // 4. 表示および制御処理
+            let currentPage = 1;
+
+            const renderPage = (pageIdx) => {
+                this.wclear(menuDsp);
+                const lines = pageIdx === 1 ? page1Lines : page2Lines;
+                lines.forEach((line, i) => {
+                    this.mvwaddch(menuDsp, i, 0, line);
+                });
+            };
+
+            const handler = (charCode) => {
+                if (currentPage === 1) {
+                    currentPage = 2;
+                    renderPage(currentPage);
+                    r.pendingInputResolve = handler;
+                } else {
+                    this.overlapview(false);
+                    r.pendingInputResolve = originalHandler;
+                    resolve();
+                }
+            };
+
+            this.overlapview(true);
+            renderPage(currentPage);
+            r.pendingInputResolve = handler;
+        });
+    };
 }

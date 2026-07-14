@@ -1406,17 +1406,17 @@ function GameManager(g) {
             console.log("[DEBUG] Fallback record built:", record);
         }
 
-        if (typeof this.UI.showGameOverModal === 'function') {
-            console.log("[DEBUG] Calling showGameOverModal...");
+        if (typeof this.UI.showGameOverCanvas === 'function') {
+            console.log("[DEBUG] Calling showGameOverCanvas...");
             try {
-                await this.UI.showGameOverModal(record, topTen);
+                await this.UI.showGameOverCanvas(record, topTen);
             } catch (err) {
-                console.error("[DEBUG] Error inside showGameOverModal:", err);
-                this.UI.msg("[DEBUG] showGameOverModal failed: " + err.message);
+                console.error("[DEBUG] Error inside showGameOverCanvas:", err);
+                this.UI.msg("[DEBUG] showGameOverCanvas failed: " + err.message);
             }
         } else {
-            console.warn("[DEBUG] showGameOverModal is not a function!");
-            this.UI.msg("[DEBUG] showGameOverModal is undefined");
+            console.warn("[DEBUG] showGameOverCanvas is not a function!");
+            this.UI.msg("[DEBUG] showGameOverCanvas is undefined");
             await new Promise(resolve => setTimeout(resolve, 1000));
             this.UI.msg("Press Space or Tap to Replay");
             this.inputContext = "NORMAL";
