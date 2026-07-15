@@ -3024,7 +3024,7 @@
         {en: "\"Don't try to excuse it!\" Nemesis snapped. \"It's just like Tyche", jp: "「言い訳なんてするな！」ネメシスはきっぱりと言った。「人々の期待を"  },
         {en: "to get people's hopes up. No, no. I _must_ counter her.\" Nemesis", jp: "煽るのは、まさにティケらしいわ。いや、いや。私は_絶対に_彼女に対抗しなきゃ。」"  },
         {en: "flicked a finger over the slip of paper, and the letters changed", jp: "ネメシスは紙片の上に指をさっと滑らせると、文字が"  },
-        {en: "to red. \"_You will die painfully when you most expect it._", jp: "赤く変わった。「_最も予期しない時に、苦しみながら死ぬだろう。_"  },
+        {en: "to red. \"_You will die painfully when you most expect it.", jp: "赤く変わった。「_最も予期しない時に、苦しみながら死ぬだろう。_"  },
         {en: "There! Much better.\"", jp: "ほら！　ずっとましだ。」"  },
         {en: "[ The Mark of Athena, by Rick Riordan ]", jp: "[ 『アテナの印』 リック・リオーダン著 ]"  },
 
