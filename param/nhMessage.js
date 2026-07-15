@@ -3112,6 +3112,20 @@
         {en: "You cannot throw something you are wearing.", jp: "装備しているアイテムは投げられない。"  },
         {en: "You can't.  They are cursed.", jp: "できない。それらは呪われているからだ。"  },
 
+        {en: "\"We are not worried about the expiration date,\" repeated the", jp: "「有効期限については心配していません」とバーテンダーは繰り返した"  },
+        {en: "barman, satisfied that he now had Ford Prefect's full attention;", jp: "フォード・プレフェクトの注意を完全に引きつけたことに満足した様子で、"  },
+        {en: "\"we are worried about the entire piece of plastic.\"", jp: "「私たちが心配しているのは、このプラスチックのカードそのものなのです」"  },
+        {en: "\"What?\" said Ford.  He seemed a little taken aback.", jp: "「え？」とフォードは言った。彼は少し戸惑っているようだった。"  },
+        {en: "\"This,\" said the barman, holding out the card as if it were a", jp: "「これです」とバーテンダーは、まるでそのカードが、三週間前に魂を"  },
+        {en: "small fish whose soul had three weeks earlier winged its way to", jp: "『魚が永遠に祝福される国』へと羽ばたかせてしまった"  },
+        {en: "the Land Where Fish Are Eternally Blessed.  \"We don't accept it.\"", jp: "小さな魚であるかのように差し出した。「こちらは受け付けられません」"  },
+        {en: "[...]", jp: "[...]"  },
+        {en: "\"But you don't understand,\" said Ford, his expression slowly", jp: "「でも、君はわかっていないんだ」とフォードは言った。彼の表情は、"  },
+        {en: "ripening from a little taken abackness into rank incredulity,", jp: "少し戸惑った様子から、次第に激しい不信感へと変わっていった。"  },
+        {en: "\"this is the American Express card.  It is the finest way of", jp: "「これはアメリカン・エキスプレスのカードだ。人類が知る限り最高の支払い方法だ。"  },
+        {en: "settling bills known to man.  Haven't you read their junk mail?\"", jp: "彼らのダイレクトメールを読んだことがないのか？」"  },
+        {en: "[ So Long, and Thanks For All The Fish, by Douglas Adams ]", jp: "[『さよなら、そして魚に感謝を』ダグラス・アダムズ著 ]"  },
+
     ];
 }
 
@@ -3642,6 +3656,7 @@ function nhEntities() {
         "liquor emporium": "酒屋",
         "Skirmisher":  "散兵",
         "foolish": "愚か者だ",
+        "flamingos": "フラミンゴ",
 
     };
 }
