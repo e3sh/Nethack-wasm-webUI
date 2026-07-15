@@ -101,4 +101,4 @@ python -m http.server 8000
 - **WebUI Logic**: MIT License
 
 ---
-Developed by [e3-sh](https://github.com/e3-sh)
+Developed by [e3sh](https://github.com/e3sh)
