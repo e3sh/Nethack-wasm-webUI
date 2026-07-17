@@ -298,10 +298,7 @@
                 </tbody>
             </table>
 
-            <div id="record-display" style="display: none;">
-                <h3 style="margin: 20px 0 10px 0; font-size: 14px;">Ranking (record) Preview</h3>
-                <div class="record-view" id="record-content"></div>
-            </div>
+
         </section>
 
         <!-- localStorage Section -->
@@ -393,7 +390,7 @@
             const row = document.createElement('tr');
 
             const isCharacter = path.includes('/save/') && !['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'].some(sys => path.endsWith(sys));
-            const isRecord = path.endsWith('record');
+            const canView = ['record', 'logfile', 'xlogfile', 'paniclog'].some(sys => path.endsWith(sys));
             const typeLabel = isCharacter ? '<span class="badge badge-character">Save</span>' : '<span class="badge">System</span>';
 
             const size = data.contents ? data.contents.byteLength : 0;
@@ -405,7 +402,7 @@
                 <td>${(size / 1024).toFixed(1)} KB</td>
                 <td>${date}</td>
                 <td class="actions-cell">
-                    ${isRecord ? `<button class="btn btn-sm btn-success" onclick="viewRecord('${path}')">View</button>` : ''}
+                    ${canView ? `<button class="btn btn-sm btn-success" onclick="viewTextFile('${path}')">View</button>` : ''}
                     <button class="btn btn-sm" onclick="exportFile('${path}')">Export</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteFile('${path}')">Del</button>
                 </td>
@@ -450,19 +447,8 @@
             transaction.oncomplete = () => refreshIDB();
         }
 
-        async function viewRecord(path) {
-            const db = await openDB();
-            const transaction = db.transaction(STORE_NAME, 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(path);
-
-            request.onsuccess = () => {
-                const file = request.result;
-                const text = new TextDecoder().decode(file.contents);
-                document.getElementById('record-display').style.display = 'block';
-                document.getElementById('record-content').textContent = text || "(Empty)";
-                document.getElementById('record-display').scrollIntoView({ behavior: 'smooth' });
-            };
+        function viewTextFile(path) {
+            window.open(`log_viewer.html?file=${encodeURIComponent(path)}`, '_blank');
         }
 
         // --- localStorage Management ---

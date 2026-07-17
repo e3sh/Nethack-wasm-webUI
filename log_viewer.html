@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WASM - Log Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: rgba(22, 27, 34, 0.8);
+            --accent-color: #58a6ff;
+            --accent-hover: #79c0ff;
+            --success-color: #238636;
+            --danger-color: #da3633;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --glass-blur: blur(12px);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --highlight-bg: rgba(88, 166, 255, 0.1);
+            --highlight-border: #58a6ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 10%, rgba(88, 166, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(248, 81, 73, 0.03) 0%, transparent 40%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn 0.4s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .nav-back:hover {
+            color: var(--text-primary);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        /* Layout Grid */
+        .viewer-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .viewer-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            height: 70vh;
+            min-width: 0;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .card-title::before {
+            content: "";
+            display: block;
+            width: 4px;
+            height: 18px;
+            background: var(--accent-color);
+            border-radius: 2px;
+        }
+
+        /* Log List Panel */
+        .list-container {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 8px;
+            min-width: 0;
+        }
+
+        .list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .list-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .log-item {
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.01);
+            font-family: monospace;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-primary);
+        }
+
+        .log-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: #fff;
+        }
+
+        .log-item.selected {
+            background: var(--highlight-bg);
+            border-left: 3px solid var(--highlight-border);
+            box-shadow: inset 2px 0 0 var(--highlight-border);
+            color: #fff;
+        }
+
+        /* Detail Panel */
+        .detail-panel {
+            position: sticky;
+            top: 20px;
+        }
+
+        .detail-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            gap: 12px;
+        }
+
+        .detail-placeholder svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .detail-content {
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-right: 8px;
+            min-height: 0;
+        }
+
+        .detail-section-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 500px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            word-break: break-all;
+        }
+
+        .detail-value-highlight {
+            color: #7ee787;
+            font-weight: 600;
+        }
+
+        .detail-value-danger {
+            color: #ff7b72;
+        }
+
+        .detail-full-width {
+            grid-column: 1 / -1;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .badge-role {
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
+        }
+
+        .badge-score {
+            background: rgba(242, 192, 86, 0.15);
+            color: #f2c056;
+        }
+
+        /* Error view */
+        .error-message {
+            text-align: center;
+            padding: 40px;
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header-actions">
+            <a href="save_manager.html" class="nav-back">← Back to Save Manager</a>
+        </div>
+
+        <header class="header">
+            <h1>Log File Viewer</h1>
+            <p class="subtitle" id="file-subtitle">Loading file...</p>
+        </header>
+
+        <div class="viewer-layout" id="main-layout" style="display: none;">
+            <!-- Left Pane: List -->
+            <section class="card">
+                <h2 class="card-title">Game History List</h2>
+                <div class="list-container" id="log-list">
+                    <!-- Dynamic Items -->
+                </div>
+            </section>
+
+            <!-- Right Pane: Detail -->
+            <section class="card detail-panel">
+                <h2 class="card-title">Game Details</h2>
+                <div id="detail-area" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                    <div class="detail-placeholder" id="detail-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <p id="placeholder-text">左側のリストからログを選択してください</p>
+                    </div>
+                    <div class="detail-content" id="detail-content" style="display: none;">
+                        <!-- Dynamic Details -->
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="card error-message" id="error-view" style="display: none;">
+            <p id="error-text">エラーが発生しました。</p>
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = '/save';
+        const STORE_NAME = 'FILE_DATA';
+
+        // NetHack 属性などの表記マッピング (日本語用)
+        const ROLE_MAP_JA = {
+            'Arc': 'Archeologist (考古学者)',
+            'Bar': 'Barbarian (野蛮人)',
+            'Cav': 'Caveman (洞窟人)',
+            'Cav/Cav-': 'Caveman/Cavewoman',
+            'Hea': 'Healer (医者)',
+            'Kni': 'Knight (騎士)',
+            'Mon': 'Monk (武闘家)',
+            'Pri': 'Priest (僧侶)',
+            'Ran': 'Ranger (レンジャー)',
+            'Rog': 'Rogue (盗賊)',
+            'Sam': 'Samurai (侍)',
+            'Tou': 'Tourist (観光客)',
+            'Val': 'Valkyrie (ワルキューレ)',
+            'Wiz': 'Wizard (魔法使い)'
+        };
+
+        const ROLE_MAP_EN = {
+            'Arc': 'Archaeologist',
+            'Bar': 'Barbarian',
+            'Cav': 'Caveman',
+            'Cav/Cav-': 'Caveman/Cavewoman',
+            'Hea': 'Healer',
+            'Kni': 'Knight',
+            'Mon': 'Monk',
+            'Pri': 'Priest',
+            'Ran': 'Ranger',
+            'Rog': 'Rogue',
+            'Sam': 'Samurai',
+            'Tou': 'Tourist',
+            'Val': 'Valkyrie',
+            'Wiz': 'Wizard'
+        };
+
+        const RACE_MAP_JA = {
+            'Dwa': 'Dwarf (ドワーフ)',
+            'Elf': 'Elf (エルフ)',
+            'Gno': 'Gnome (ノーム)',
+            'Hum': 'Human (人間)',
+            'Orc': 'Orc (オーク)'
+        };
+
+        const RACE_MAP_EN = {
+            'Dwa': 'Dwarf',
+            'Elf': 'Elf',
+            'Gno': 'Gnome',
+            'Hum': 'Human',
+            'Orc': 'Orc'
+        };
+
+        const GENDER_MAP_JA = {
+            'Mal': 'Male (男性)',
+            'Fem': 'Female (女性)'
+        };
+
+        const GENDER_MAP_EN = {
+            'Mal': 'Male',
+            'Fem': 'Female'
+        };
+
+        const ALIGN_MAP_JA = {
+            'Law': 'Lawful (秩序)',
+            'Neu': 'Neutral (中立)',
+            'Cha': 'Chaotic (混沌)'
+        };
+
+        const ALIGN_MAP_EN = {
+            'Law': 'Lawful',
+            'Neu': 'Neutral',
+            'Cha': 'Chaotic'
+        };
+
+        const DUNGEON_MAP_JA = {
+            0: 'The Dungeons of Doom (大迷宮)',
+            1: 'Gehennom (ゲヘナ)',
+            2: 'The Gnomish Mines (ノームの鉱山)',
+            3: 'The Quest (クエスト)',
+            4: 'Sokoban (倉庫番)',
+            5: 'Fort Ludios (ルーディオス砦)',
+            6: 'Vlad\'s Tower (ヴラドの塔)',
+            7: 'The Planes (精霊界)'
+        };
+
+        const DUNGEON_MAP_EN = {
+            0: 'The Dungeons of Doom',
+            1: 'Gehennom',
+            2: 'The Gnomish Mines',
+            3: 'The Quest',
+            4: 'Sokoban',
+            5: 'Fort Ludios',
+            6: 'Vlad\'s Tower',
+            7: 'The Planes'
+        };
+
+        // 表示用ラベルマッピング（xlogfile用）
+        const KEY_LABELS_JA = {
+            version: 'バージョン',
+            points: '最終スコア',
+            deathdnum: '死亡エリア',
+            deathlev: '死亡階層',
+            maxlvl: '最大到達階層',
+            hp: '終了時HP',
+            maxhp: '最大HP',
+            deaths: 'プレイ回数',
+            deathdate: '死亡日時',
+            birthdate: '開始日時',
+            uid: 'UID (ユーザーID)',
+            role: '役割 (職業)',
+            race: '種族',
+            gender: '性別',
+            align: '属性 (アライメント)',
+            name: 'プレイヤー名',
+            death: '死因 (ゲームオーバー理由)',
+            turns: '経過ターン数',
+            realtime: '実プレイ時間',
+            conduct: '戒律フラグ (conduct)',
+            achieve: '実績フラグ (achieve)',
+            align0: '開始時属性',
+            gender0: '開始時性別',
+            god: '信仰神',
+            elbereth: 'エルベレス刻印回数',
+            scouts: 'スカウト回数',
+            flags: 'システムフラグ'
+        };
+
+        const KEY_LABELS_EN = {
+            version: 'Version',
+            points: 'Score',
+            deathdnum: 'Death Dungeon',
+            deathlev: 'Death Level',
+            maxlvl: 'Max Level',
+            hp: 'Ending HP',
+            maxhp: 'Max HP',
+            deaths: 'Deaths (Played)',
+            deathdate: 'Death Date',
+            birthdate: 'Birth Date',
+            uid: 'UID',
+            role: 'Role',
+            race: 'Race',
+            gender: 'Gender',
+            align: 'Alignment',
+            name: 'Name',
+            death: 'Death Reason',
+            turns: 'Turns',
+            realtime: 'Real Time',
+            conduct: 'Conduct',
+            achieve: 'Achievements',
+            align0: 'Starting Align',
+            gender0: 'Starting Gender',
+            god: 'Deity',
+            elbereth: 'Elbereth Writes',
+            scouts: 'Scout Count',
+            flags: 'Flags'
+        };
+
+        // ローカルストレージの設定（lang）から日本語表示のオン・オフを判定
+        let isJapanese = true;
+        try {
+            const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+            if (savedConfig && typeof savedConfig.lang === 'boolean') {
+                isJapanese = savedConfig.lang;
+            }
+        } catch (e) {
+            console.warn("Failed to read nh.config from localStorage", e);
+        }
+
+        const ROLE_MAP = isJapanese ? ROLE_MAP_JA : ROLE_MAP_EN;
+        const RACE_MAP = isJapanese ? RACE_MAP_JA : RACE_MAP_EN;
+        const GENDER_MAP = isJapanese ? GENDER_MAP_JA : GENDER_MAP_EN;
+        const ALIGN_MAP = isJapanese ? ALIGN_MAP_JA : ALIGN_MAP_EN;
+        const DUNGEON_MAP = isJapanese ? DUNGEON_MAP_JA : DUNGEON_MAP_EN;
+        const KEY_LABELS = isJapanese ? KEY_LABELS_JA : KEY_LABELS_EN;
+
+        let parsedLogs = [];
+
+        // URLパラメータの解析
+        const urlParams = new URLSearchParams(window.location.search);
+        const filePath = urlParams.get('file');
+
+        async function init() {
+            if (!filePath) {
+                const errMsg = isJapanese ? 
+                    'ファイルパスが指定されていません。save_manager.html から開いてください。' :
+                    'File path is not specified. Please open it from save_manager.html.';
+                showError(errMsg);
+                return;
+            }
+
+            document.getElementById('file-subtitle').textContent = filePath;
+            document.getElementById('placeholder-text').textContent = isJapanese ? 
+                '左側のリストからログを選択してください' : 
+                'Select a log from the list on the left';
+
+            try {
+                const db = await openDB();
+                const data = await getFileData(db, filePath);
+                if (!data || !data.contents) {
+                    const notFoundMsg = isJapanese ?
+                        `ファイルが見つかりません: ${filePath}` :
+                        `File not found: ${filePath}`;
+                    showError(notFoundMsg);
+                    return;
+                }
+
+                const text = new TextDecoder().decode(data.contents);
+                parseFileContent(text);
+                renderLogList();
+                document.getElementById('main-layout').style.display = 'grid';
+            } catch (e) {
+                console.error(e);
+                const loadErrorMsg = isJapanese ?
+                    `読み込みエラー: ${e.message}` :
+                    `Load error: ${e.message}`;
+                showError(loadErrorMsg);
+            }
+        }
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function getFileData(db, path) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(path);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function showError(msg) {
+            document.getElementById('error-text').textContent = msg;
+            document.getElementById('error-view').style.display = 'block';
+            document.getElementById('main-layout').style.display = 'none';
+        }
+
+        // ファイル内容をパースして配列に格納する
+        function parseFileContent(text) {
+            if (!text || text.trim() === "") {
+                parsedLogs = [];
+                return;
+            }
+
+            const lines = text.trim().split('\n');
+            const fileName = filePath.split('/').pop();
+
+            parsedLogs = lines.map((line, index) => {
+                if (!line.trim()) return null;
+
+                if (fileName === 'xlogfile') {
+                    return parseXlogLine(line, index);
+                } else if (fileName === 'logfile' || fileName === 'record') {
+                    return parseLogLine(line, index);
+                } else {
+                    return parsePlainTextLine(line, index);
+                }
+            }).filter(item => item !== null);
+
+            // 最新のログが下に追加されるため、UI上は逆順（最新を一番上）に表示する
+            parsedLogs.reverse();
+        }
+
+        // xlogfileのパース
+        function parseXlogLine(line, index) {
+            const parts = line.split('\t');
+            const raw = {};
+            parts.forEach(p => {
+                const idx = p.indexOf('=');
+                if (idx !== -1) {
+                    const k = p.substring(0, idx);
+                    const v = p.substring(idx + 1);
+                    raw[k] = v;
+                }
+            });
+
+            if (!raw.name) return null;
+
+            // 整形用のデータオブジェクトをビルド
+            const parsed = {
+                index: index,
+                rawType: 'xlogfile',
+                rawLine: line,
+                name: raw.name,
+                points: parseInt(raw.points) || 0,
+                deathDnum: parseInt(raw.deathdnum) || 0,
+                deathLev: parseInt(raw.deathlev) || 0,
+                maxLvl: parseInt(raw.maxlvl) || 0,
+                hp: parseInt(raw.hp) || 0,
+                maxHp: parseInt(raw.maxhp) || 0,
+                deaths: parseInt(raw.deaths) || 0,
+                deathDate: formatDate(raw.deathdate),
+                birthDate: formatDate(raw.birthdate),
+                uid: raw.uid || 'N/A',
+                role: raw.role || '???',
+                race: raw.race || '???',
+                gender: raw.gender || '???',
+                align: raw.align || '???',
+                death: raw.death || 'unknown',
+                turns: parseInt(raw.turns) || 0,
+                realtime: formatRealtime(raw.realtime),
+                rawFields: raw
+            };
+
+            return parsed;
+        }
+
+        // logfile & recordのパース
+        function parseLogLine(line, index) {
+            const parts = line.split(' ');
+            if (parts.length < 15) return null;
+
+            const version = parts[0];
+            const points = parseInt(parts[1]) || 0;
+            const deathDnum = parseInt(parts[2]) || 0;
+            const deathLev = parseInt(parts[3]) || 0;
+            const maxLvl = parseInt(parts[4]) || 0;
+            const hp = parseInt(parts[5]) || 0;
+            const maxHp = parseInt(parts[6]) || 0;
+            const deaths = parseInt(parts[7]) || 0;
+            const deathDate = formatDate(parts[8]);
+            const birthDate = formatDate(parts[9]);
+            const uid = parts[10];
+            const role = parts[11];
+            const race = parts[12];
+            const gender = parts[13];
+            const align = parts[14];
+
+            const rest = parts.slice(15).join(' ');
+            const commaIdx = rest.indexOf(',');
+            let name = "player";
+            let death = "unknown";
+            if (commaIdx !== -1) {
+                name = rest.substring(0, commaIdx);
+                death = rest.substring(commaIdx + 1);
+            } else {
+                name = rest;
+            }
+
+            const parsed = {
+                index: index,
+                rawType: 'logfile',
+                rawLine: line,
+                name: name,
+                points: points,
+                deathDnum: deathDnum,
+                deathLev: deathLev,
+                maxLvl: maxLvl,
+                hp: hp,
+                maxHp: maxHp,
+                deaths: deaths,
+                deathDate: deathDate,
+                birthDate: birthDate,
+                uid: uid,
+                role: role,
+                race: race,
+                gender: gender,
+                align: align,
+                death: death,
+                turns: null,
+                realtime: null,
+                rawFields: {
+                    version, points, deathDnum, deathLev, maxLvl, hp, maxHp,
+                    deaths, deathDate, birthDate, uid, role, race, gender, align,
+                    name, death
+                }
+            };
+
+            return parsed;
+        }
+
+        // プレーンテキスト（paniclogなど）のパース
+        function parsePlainTextLine(line, index) {
+            return {
+                index: index,
+                rawType: 'text',
+                rawLine: line,
+                name: `Log Entry #${index + 1}`,
+                points: 0,
+                death: line,
+                rawFields: { text: line }
+            };
+        }
+
+        // YYYYMMDD または YYYYMMDDHHMMSS などの日付フォーマットを整形
+        function formatDate(str) {
+            if (!str) return 'N/A';
+            const clean = str.replace(/[^0-9]/g, '');
+            if (clean.length >= 8) {
+                const year = clean.substring(0, 4);
+                const month = clean.substring(4, 6);
+                const day = clean.substring(6, 8);
+                let time = '';
+                if (clean.length >= 14) {
+                    time = ` ${clean.substring(8, 10)}:${clean.substring(10, 12)}:${clean.substring(12, 14)}`;
+                }
+                return `${year}-${month}-${day}${time}`;
+            }
+            return str;
+        }
+
+        // 秒数を読みやすい時間形式に変換
+        function formatRealtime(secStr) {
+            if (!secStr) return null;
+            const totalSec = parseInt(secStr);
+            if (isNaN(totalSec)) return secStr;
+
+            const hrs = Math.floor(totalSec / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const secs = totalSec % 60;
+
+            let result = '';
+            if (isJapanese) {
+                if (hrs > 0) result += `${hrs}時間 `;
+                if (mins > 0 || hrs > 0) result += `${mins}分 `;
+                result += `${secs}秒`;
+            } else {
+                if (hrs > 0) result += `${hrs}h `;
+                if (mins > 0 || hrs > 0) result += `${mins}m `;
+                result += `${secs}s`;
+            }
+            return result;
+        }
+
+        // ログリストのレンダリング
+        function renderLogList() {
+            const listEl = document.getElementById('log-list');
+            listEl.innerHTML = '';
+
+            if (parsedLogs.length === 0) {
+                listEl.innerHTML = '<p class="detail-placeholder">ログデータが空です。</p>';
+                return;
+            }
+
+            parsedLogs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'log-item';
+                item.dataset.index = log.index;
+                item.onclick = () => selectLog(log, item);
+                item.textContent = log.rawLine;
+                listEl.appendChild(item);
+            });
+        }
+
+        // ログ行の選択
+        function selectLog(log, element) {
+            // アクティブクラスの切り替え
+            document.querySelectorAll('.log-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // プレースホルダー非表示、詳細表示
+            document.getElementById('detail-placeholder').style.display = 'none';
+            const detailContent = document.getElementById('detail-content');
+            detailContent.style.display = 'flex';
+            detailContent.innerHTML = '';
+
+            if (log.rawType === 'text') {
+                // プレーンテキストログ（paniclogなど）の詳細
+                detailContent.innerHTML = `
+                    <div class="detail-section-title">Raw Log Content</div>
+                    <div class="detail-card detail-full-width" style="font-family: monospace; white-space: pre-wrap; word-break: break-all; line-height: 1.5; background: rgba(0,0,0,0.2);">
+                        ${escapeHtml(log.death)}
+                    </div>
+                `;
+                return;
+            }
+
+            // マップされたデータの整形
+            const dungeonName = DUNGEON_MAP[log.deathDnum] || `Dnum ${log.deathDnum}`;
+            const roleName = ROLE_MAP[log.role] || log.role;
+            const raceName = RACE_MAP[log.race] || log.race;
+            const genderName = GENDER_MAP[log.gender] || log.gender;
+            const alignName = ALIGN_MAP[log.align] || log.align;
+
+            // 表示用多言語テキスト
+            const textLabels = {
+                titlePlayer: isJapanese ? '基本プレイヤー情報' : 'Character Info',
+                labelName: isJapanese ? 'キャラクター名' : 'Character Name',
+                labelScore: isJapanese ? 'スコア' : 'Score',
+                labelRole: isJapanese ? '職業 (役割)' : 'Role',
+                labelRace: isJapanese ? '種族' : 'Race',
+                labelGender: isJapanese ? '性別' : 'Gender',
+                labelAlign: isJapanese ? '属性 (アライメント)' : 'Alignment',
+                titleGame: isJapanese ? 'ゲーム終了時ステータス' : 'Game Status',
+                labelDeath: isJapanese ? '死因' : 'Death Reason',
+                labelHp: isJapanese ? '終了時HP' : 'Ending HP',
+                labelDungeon: isJapanese ? '死亡ダンジョンエリア' : 'Death Area',
+                labelLevel: isJapanese ? '死亡階層' : 'Death Level',
+                labelDeaths: isJapanese ? 'プレイ回数 (Deaths)' : 'Deaths',
+                labelStart: isJapanese ? '開始日時' : 'Start Date',
+                labelEnd: isJapanese ? '終了日時' : 'End Date',
+                labelTurns: isJapanese ? '経過ターン数' : 'Turns',
+                labelRealtime: isJapanese ? '実プレイ時間' : 'Real Time',
+                titleRaw: isJapanese ? 'その他の記録された値 (RAW DATA)' : 'Other Recorded Values (Raw Data)'
+            };
+
+            const floorText = isJapanese ? 
+                `${log.deathLev} 階 (最大到達: ${log.maxLvl} 階)` :
+                `Floor ${log.deathLev} (Max: Floor ${log.maxLvl})`;
+
+            // 基本ステータスのグリッド
+            const baseInfoHTML = `
+                <div>
+                    <div class="detail-section-title">${textLabels.titlePlayer}</div>
+                    <div class="detail-grid">
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelName}</span>
+                            <span class="detail-value" style="font-size:16px; font-weight:600; color:#58a6ff;">${escapeHtml(log.name)}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelScore}</span>
+                            <span class="detail-value detail-value-highlight" style="font-size:16px;">${log.points.toLocaleString()} pts</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelRole}</span>
+                            <span class="detail-value">${roleName}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelRace}</span>
+                            <span class="detail-value">${raceName}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelGender}</span>
+                            <span class="detail-value">${genderName}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelAlign}</span>
+                            <span class="detail-value">${alignName}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 終了ステータスのグリッド
+            const gameStatusHTML = `
+                <div>
+                    <div class="detail-section-title">${textLabels.titleGame}</div>
+                    <div class="detail-grid">
+                        <div class="detail-card detail-full-width">
+                            <span class="detail-label">${textLabels.labelDeath}</span>
+                            <span class="detail-value detail-value-danger" style="font-weight:600; font-size:14px;">${escapeHtml(log.death)}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelHp}</span>
+                            <span class="detail-value">${log.hp} / ${log.maxHp}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelDungeon}</span>
+                            <span class="detail-value">${dungeonName}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelLevel}</span>
+                            <span class="detail-value">${floorText}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelDeaths}</span>
+                            <span class="detail-value">${log.deaths}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelStart}</span>
+                            <span class="detail-value">${log.birthDate}</span>
+                        </div>
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelEnd}</span>
+                            <span class="detail-value">${log.deathDate}</span>
+                        </div>
+                        ${log.turns ? `
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelTurns}</span>
+                            <span class="detail-value">${log.turns.toLocaleString()} ターン</span>
+                        </div>
+                        ` : ''}
+                        ${log.realtime ? `
+                        <div class="detail-card">
+                            <span class="detail-label">${textLabels.labelRealtime}</span>
+                            <span class="detail-value">${log.realtime}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            // その他すべてのキーバリュー（生データ）
+            let rawFieldsHTML = `
+                <div>
+                    <div class="detail-section-title">${textLabels.titleRaw}</div>
+                    <div class="detail-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+            `;
+
+            Object.keys(log.rawFields).forEach(key => {
+                const val = log.rawFields[key];
+                const label = KEY_LABELS[key] || key;
+                rawFieldsHTML += `
+                    <div class="detail-card" style="padding: 6px 10px;">
+                        <span class="detail-label" style="font-size:10px;">${label} (${key})</span>
+                        <span class="detail-value" style="font-size:12px; font-family:monospace;">${escapeHtml(String(val))}</span>
+                    </div>
+                `;
+            });
+
+            rawFieldsHTML += `
+                    </div>
+                </div>
+            `;
+
+            detailContent.innerHTML = baseInfoHTML + gameStatusHTML + rawFieldsHTML;
+        }
+
+        function escapeHtml(string) {
+            if (typeof string !== 'string') {
+                return string;
+            }
+            return string.replace(/[&<>"']/g, function (match) {
+                const escape = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#x27;'
+                };
+                return escape[match];
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
