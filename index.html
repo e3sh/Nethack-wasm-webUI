@@ -1,92 +1,571 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="NetHack 5.0 (WASM) WebUI - WebAssemblyで動くローグライク NetHack。日本語対応、Canvas/DOM描画サポート。" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.json" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+
+    <title>NetHack WASM - タイトルメニュー</title>
+
     <style>
-        body {
+        :root {
+            --bg-color: #07090e;
+            --card-bg: rgba(22, 27, 34, 0.75);
+            --card-hover: rgba(30, 38, 48, 0.85);
+            --accent-green: #3fb950;
+            --accent-green-hover: #4cd05d;
+            --accent-blue: #58a6ff;
+            --accent-purple: #bc8cff;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --border-color: rgba(48, 54, 61, 0.8);
+            --glass-blur: blur(20px);
+            --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+            --shadow-glow: 0 0 30px rgba(63, 185, 80, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background-color: black;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
         }
 
-        #layer0 {
-            max-width: 100vw;
-            max-height: 100vh;
-            width: 100%;
-            height: auto;
-            object-fit: contain;
-            image-rendering: pixelated;
-            /* ドットをくっきりさせる */
-        }
-
-        /* Loading Overlay Style */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: black;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 20%, rgba(63, 185, 80, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(88, 166, 255, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(188, 140, 255, 0.04) 0%, transparent 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
+            justify-content: center;
+            padding: 24px 16px;
+            overflow-x: hidden;
+            position: relative;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.1);
-            border-top: 5px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        /* 言語切り替えスイッチ (右上固定) */
+        .lang-switch-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
         }
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
+        .lang-btn {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .lang-btn:hover {
+            background: var(--card-hover);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .title-container {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            z-index: 1;
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ヘッダー・ロゴ領域 */
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent-green);
+            background: rgba(63, 185, 80, 0.1);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+
+        h1.main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 44px;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 30%, #8b949e 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .sub-title {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* メインプレイカードグループ */
+        .play-modes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 580px) {
+            .play-modes {
+                grid-template-columns: 1fr;
             }
 
-            100% {
-                transform: rotate(360deg);
+            h1.main-title {
+                font-size: 34px;
+            }
+
+            .lang-switch-container {
+                top: 12px;
+                right: 12px;
             }
         }
 
-        .loading-text {
-            margin-top: 20px;
-            color: white;
-            font-size: 18px;
-            letter-spacing: 2px;
-            font-family: monospace;
+        .mode-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            text-decoration: none;
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            transition: background 0.3s ease;
+        }
+
+        .mode-card.desktop::before {
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+        }
+
+        .mode-card.mobile::before {
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+        }
+
+        .mode-card:hover {
+            background: var(--card-hover);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+        }
+
+        .mode-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+        }
+
+        .mode-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .mode-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .mode-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .mode-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .btn-launch {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .mode-card.desktop .btn-launch {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        .mode-card.desktop:hover .btn-launch {
+            background: var(--accent-green-hover);
+            box-shadow: 0 4px 14px rgba(63, 185, 80, 0.4);
+        }
+
+        .mode-card.mobile .btn-launch {
+            background: var(--accent-blue);
+            color: #000;
+        }
+
+        .mode-card.mobile:hover .btn-launch {
+            background: #79c0ff;
+            box-shadow: 0 4px 14px rgba(88, 166, 255, 0.4);
+        }
+
+        /* サブメニューボタン群 (設定・セーブデータ) */
+        .sub-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .btn-sub {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            padding: 14px 20px;
+            border-radius: 14px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-sub:hover {
+            background: var(--card-hover);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            color: #fff;
+        }
+
+        /* 開発者向けツールセクション */
+        .dev-tools-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 20px 24px;
+        }
+
+        .dev-tools-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 8px;
+        }
+
+        .tool-link-item {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 9px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .tool-link-item:hover {
+            color: var(--accent-green);
+            background: rgba(63, 185, 80, 0.08);
+            border-color: rgba(63, 185, 80, 0.25);
+        }
+
+        .footer-info {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .footer-info a {
+            color: var(--text-secondary);
+            text-decoration: underline;
+        }
+
+        .footer-info a:hover {
+            color: var(--text-primary);
         }
     </style>
-    <link rel="manifest" href="manifest.json" />
-
-    <title>Nethack-wasm-WebUI</title>
 </head>
 
-<body onload="main()">
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-text">LOADING NETHACK...</div>
+<body>
+    <!-- Language Toggle Button (Top Right) -->
+    <div class="lang-switch-container">
+        <button class="lang-btn" id="btn-toggle-lang" onclick="toggleLanguage()">🌐 JP / EN</button>
     </div>
-    <canvas id="layer0" oncontextmenu="return false;">
-        layer-0
-    </canvas>
-    <div id="memo">Loading...</div>
-    <script src="include.js" type="text/javascript"></script>
+
+    <div class="title-container">
+        <!-- Header / Logo -->
+        <header class="header">
+            <span class="badge" id="txt-badge">NetHack 5.0.0 WASM</span>
+            <h1 class="main-title" id="txt-main-title">NetHack WASM WebUI</h1>
+            <p class="sub-title" id="txt-sub-title">ブラウザで即座に遊べるローグライクゲーム。日本語翻訳＆各種操作システム対応</p>
+        </header>
+
+        <!-- Main Game Modes -->
+        <main>
+            <div class="play-modes">
+                <!-- Desktop / Canvas Mode -->
+                <a href="game.html" class="mode-card desktop" id="card-play-desktop">
+                    <div>
+                        <div class="mode-icon">⚔️</div>
+                        <div class="mode-header">
+                            <span class="mode-title" id="txt-desktop-title">Desktop Mode</span>
+                            <span class="mode-tag" id="txt-desktop-tag">Canvas 描画</span>
+                        </div>
+                        <p class="mode-desc" id="txt-desktop-desc">キーボードやゲームパッド操作に最適化。グラフィックタイル＆日本語表示の標準プレイ環境。</p>
+                    </div>
+                    <button class="btn-launch" id="btn-play-desktop">
+                        <span id="txt-desktop-btn">GAME START</span>
+                        <span>→</span>
+                    </button>
+                </a>
+
+                <!-- Mobile / DOM Mode -->
+                <a href="mobile.html" class="mode-card mobile" id="card-play-mobile">
+                    <div>
+                        <div class="mode-icon">📱</div>
+                        <div class="mode-header">
+                            <span class="mode-title" id="txt-mobile-title">Mobile Mode</span>
+                            <span class="mode-tag" id="txt-mobile-tag">DOM 描画</span>
+                        </div>
+                        <p class="mode-desc" id="txt-mobile-desc">スマホ・タブレット向け。省電力で高精細なDOM描画とコンテキストバーチャルパッドを搭載。</p>
+                    </div>
+                    <button class="btn-launch" id="btn-play-mobile">
+                        <span id="txt-mobile-btn">MOBILE START</span>
+                        <span>→</span>
+                    </button>
+                </a>
+            </div>
+
+            <!-- Sub Actions (Config & Save Data) -->
+            <div class="sub-actions">
+                <a href="config.html" class="btn-sub" id="link-config">
+                    <span>⚙️</span>
+                    <span id="txt-config-btn">システム設定</span>
+                </a>
+                <a href="save_manager.html" class="btn-sub" id="link-save-mgr">
+                    <span>💾</span>
+                    <span id="txt-save-mgr-btn">セーブデータ管理</span>
+                </a>
+            </div>
+
+            <!-- Developer Tools Section -->
+            <section class="dev-tools-card">
+                <div class="dev-tools-title">
+                    <span>🔧</span>
+                    <span id="txt-dev-tools-title">開発者・カスタマイズツール</span>
+                </div>
+                <div class="tools-grid">
+                    <a href="tr_fail.html" class="tool-link-item" id="link-tr-fail" target="_blank">未翻訳リスト</a>
+                    <a href="tr_manager.html" class="tool-link-item" id="link-tr-manager" target="_blank">翻訳管理</a>
+                    <a href="tr_test.html" class="tool-link-item" id="link-tr-test" target="_blank">Trans Tester</a>
+                    <a href="tile_test.html" class="tool-link-item" id="link-tile-test" target="_blank">Tile Mapping</a>
+                    <a href="rogue/mapping_tool.html" class="tool-link-item" id="link-gp-mapping" target="_blank">GP Mapping</a>
+                    <a href="rogue/touch_mapping_tool.html" class="tool-link-item" id="link-touch-mapping" target="_blank">Touch Mapping</a>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer-info">
+            <p>NetHack (C) NetHack General Public License | WebUI Logic by <a href="https://github.com/e3sh" target="_blank">e3sh</a></p>
+        </footer>
+    </div>
+
+    <script>
+        const DEFAULT_CONFIG = {
+            gryph: true,
+            lang: true,
+            larn: true,
+            debug: false,
+            extra_options: ""
+        };
+
+        const I18N = {
+            ja: {
+                subTitle: "ブラウザで即座に遊べるローグライクゲーム。日本語翻訳＆各種操作システム対応",
+                desktopTag: "Canvas 描画",
+                desktopDesc: "キーボードやゲームパッド操作に最適化。グラフィックタイル＆日本語表示の標準プレイ環境。",
+                desktopBtn: "GAME START",
+                mobileTag: "DOM 描画",
+                mobileDesc: "スマホ・タブレット向け。省電力で高精細なDOM描画とコンテキストバーチャルパッドを搭載。",
+                mobileBtn: "MOBILE START",
+                configBtn: "システム設定",
+                saveMgrBtn: "セーブデータ管理",
+                devToolsTitle: "開発者・カスタマイズツール",
+                linkTrFail: "未翻訳リスト",
+                linkTrManager: "翻訳管理",
+                linkTrTest: "Trans Tester",
+                linkTileTest: "Tile Mapping",
+                linkGpMapping: "GP Mapping",
+                linkTouchMapping: "Touch Mapping",
+                langToggle: "🌐 English"
+            },
+            en: {
+                subTitle: "Play NetHack 5.0 directly in your browser. Powered by WebAssembly with Canvas/DOM UI.",
+                desktopTag: "Canvas Mode",
+                desktopDesc: "Optimized for Keyboard & Gamepad. Supports graphic tiles and hybrid font rendering.",
+                desktopBtn: "GAME START",
+                mobileTag: "DOM Mode",
+                mobileDesc: "Tailored for smartphones & tablets. High-definition DOM rendering with virtual touch pads.",
+                mobileBtn: "MOBILE START",
+                configBtn: "System Configuration",
+                saveMgrBtn: "Save Data Manager",
+                devToolsTitle: "Developer Tools",
+                linkTrFail: "Untranslated List",
+                linkTrManager: "Translation Manager",
+                linkTrTest: "Trans Tester",
+                linkTileTest: "Tile Mapping",
+                linkGpMapping: "GP Mapping",
+                linkTouchMapping: "Touch Mapping",
+                langToggle: "🌐 日本語"
+            }
+        };
+
+        let currentConfig = DEFAULT_CONFIG;
+
+        function loadConfig() {
+            const saved = localStorage.getItem("nh.config");
+            if (saved) {
+                try {
+                    currentConfig = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+                } catch (e) {
+                    currentConfig = DEFAULT_CONFIG;
+                }
+            }
+        }
+
+        function saveConfig() {
+            localStorage.setItem("nh.config", JSON.stringify(currentConfig));
+        }
+
+        function updateUI() {
+            const isJp = currentConfig.lang;
+            const t = isJp ? I18N.ja : I18N.en;
+
+            document.getElementById("txt-sub-title").textContent = t.subTitle;
+            document.getElementById("txt-desktop-tag").textContent = t.desktopTag;
+            document.getElementById("txt-desktop-desc").textContent = t.desktopDesc;
+            document.getElementById("txt-desktop-btn").textContent = t.desktopBtn;
+            document.getElementById("txt-mobile-tag").textContent = t.mobileTag;
+            document.getElementById("txt-mobile-desc").textContent = t.mobileDesc;
+            document.getElementById("txt-mobile-btn").textContent = t.mobileBtn;
+            document.getElementById("txt-config-btn").textContent = t.configBtn;
+            document.getElementById("txt-save-mgr-btn").textContent = t.saveMgrBtn;
+            document.getElementById("txt-dev-tools-title").textContent = t.devToolsTitle;
+            document.getElementById("link-tr-fail").textContent = t.linkTrFail;
+            document.getElementById("link-tr-manager").textContent = t.linkTrManager;
+            document.getElementById("link-tr-test").textContent = t.linkTrTest;
+            document.getElementById("link-tile-test").textContent = t.linkTileTest;
+            document.getElementById("link-gp-mapping").textContent = t.linkGpMapping;
+            document.getElementById("link-touch-mapping").textContent = t.linkTouchMapping;
+            document.getElementById("btn-toggle-lang").textContent = t.langToggle;
+        }
+
+        function toggleLanguage() {
+            currentConfig.lang = !currentConfig.lang;
+            saveConfig();
+            updateUI();
+        }
+
+        // Initialize on load
+        window.addEventListener("DOMContentLoaded", () => {
+            loadConfig();
+            updateUI();
+        });
+    </script>
 </body>
 
 </html>

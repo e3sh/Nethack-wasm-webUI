@@ -294,6 +294,7 @@
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "NetHack本体のオプションを追加できます (改行区切り)",
                 btnStart: "ゲーム起動",
+                btnBackTitle: "← タイトルへ戻る",
                 btnReset: "設定を初期化",
                 toolsTitle: "開発者向けツール",
                 linkTrFail: "未翻訳リスト",
@@ -314,6 +315,7 @@
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "Add extra NetHack OPTIONS (newline separated)",
                 btnStart: "GAME START",
+                btnBackTitle: "← Back to Title",
                 btnReset: "Reset to Default",
                 toolsTitle: "Developer Tools",
                 linkTrFail: "Untranslated List",
@@ -338,6 +340,7 @@
             document.getElementById("label-extra-opts").textContent = t.labelExtraOpts;
             document.getElementById("desc-extra-opts").textContent = t.descExtraOpts;
             document.getElementById("btn-start").textContent = t.btnStart;
+            document.getElementById("btn-back-title").textContent = t.btnBackTitle;
             document.getElementById("btn-reset").textContent = t.btnReset;
             document.getElementById("tools-title").textContent = t.toolsTitle;
             document.getElementById("link-tr-fail").textContent = t.linkTrFail;
@@ -388,7 +391,7 @@
             localStorage.setItem("nh.config", JSON.stringify(config));
 
             // ゲーム画面へ遷移
-            window.location.href = 'index.html';
+            window.location.href = 'game.html';
         }
 
         function reset_config() {
@@ -469,6 +472,7 @@
 
             <div class="actions">
                 <button class="btn btn-primary" id="btn-start" onclick="page_start()">GAME START</button>
+                <a href="index.html" class="btn btn-secondary" id="btn-back-title" style="text-decoration: none; text-align: center;">← Back to Title</a>
                 <button class="btn btn-danger" id="btn-reset" onclick="reset_config()">Reset to Default</button>
             </div>
 
