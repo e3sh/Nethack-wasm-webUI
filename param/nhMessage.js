@@ -116,7 +116,7 @@
         { en: "You are already bare handed.", jp: "あなたは既に素手です。" },
         { en: "Your hands are empty.", jp: "あなたの手には何もありません。" },
         { en: "Your left hand is empty.", jp: "あなたの左手には何もありません。" },
-        { en: "You are bare handed.", jp: "あなたは素手です。" },
+        { en: "You are bare handed.", jp: " あなたは素手です。" },
         { en: "You have no secondary weapon readied.", jp: "予備の武器が準備されていません。" },
         { en: "You begin two-weapon combat.", jp: "二刀流での戦闘を開始します。" },
         { en: "Autopickup: OFF.", jp: "自動拾い：OFF" },
@@ -1123,7 +1123,7 @@
         { en: "alternate weapon; not wielded", jp: "別の武器；装備していない" },
         { en: "alternate weapons; not wielded", jp: "別の武器；装備していない" },
         { en: " (being worn)", jp: "（装着中）" },
-        { en: " (at the ready)", jp: " (準備完了）" },
+        { en: " (at the ready)", jp: "（準備完了）" },
         { en: " (wielded in left hand)", jp: "（左手持ち）" },
         { en: " (wielded in right hand)", jp: " (右手持ち）" },
         { en: "Drop this item", jp: "このアイテムを落とす" },
@@ -7146,7 +7146,6 @@
         { en: "  Snuff", jp: "嗅ぎタバコ" },
         { en: "  Raising Steam", jp: "蒸気を上げる" },
         { en: "  The Shepherd's Crown", jp: "羊飼いの王冠" },
-
         { en: "[ W.B. Seabrook ]", jp: "  [ W.B. シーブルック ]" },
         { en: "[ The Gospel According to Matthew, 13:37-42, 49-50 ]", jp: "  [ マタイによる福音書 13:37-42, 49-50 ]" },
         { en: "No engravings seen or remembered nearby.", jp: "その周辺で彫刻は見当たらず、記憶にもない。" },
@@ -7164,8 +7163,6 @@
         { en: "[ Nightmare at 20,000 Feet, by Richard Matheson ]", jp: "  [ リチャード・マシスン『2万フィートの戦慄』 ]" },
         { en: "[ The Charwoman's Shadow, by Lord Dunsany ]", jp: "  [ ロード・ダンセイニ『掃除婦の影』 ]" },
         { en: "[ Harry Potter and the Chamber of Secrets, by J.K. Rowling ]", jp: "  [ J.K.ローリング『ハリー・ポッターと秘密の部屋』 ]" },
-
-
     ];
 }
 
@@ -7695,18 +7692,16 @@ function nhEntities() {
         "foolish": "愚か者だ",
         "flamingos": "フラミンゴ",
         "angelic being": "天使的な存在",
-        "ant or other insect":"アリやその他の昆虫",
-        "bat or bird":"コウモリや鳥",
-        "centaur":"ケンタウロス",
-        "dog or other canine":"犬またはその他のイヌ科の動物",
-        "dragon":"ドラゴン",
-        "eye or sphere":"眼、あるいは球体",
-        "elemental":"エレメンタル",
-        "cat or other feline":"猫またはネコ科の動物",
-        "fungus or mold":"菌類またはカビ",
-
-
-        "zombie":"ゾンビ",
+        "ant or other insect": "アリやその他の昆虫",
+        "bat or bird": "コウモリや鳥",
+        "centaur": "ケンタウロス",
+        "dog or other canine": "犬またはその他のイヌ科の動物",
+        "dragon": "ドラゴン",
+        "eye or sphere": "眼、あるいは球体",
+        "elemental": "エレメンタル",
+        "cat or other feline": "猫またはネコ科の動物",
+        "fungus or mold": "菌類またはカビ",
+        "zombie": "ゾンビ",
     };
 }
 
@@ -8850,7 +8845,6 @@ function nhPatterns() {
         { pattern: /^Your (.*) glows (.*) for a while\.$/, replace: "あなたの$1が、しばらくの間、$2に輝いている。" },
         { pattern: /^Click!  (.*) triggers something\.$/, replace: "カチッ！ $1が何かを作動させた。" },
         { pattern: /^More info about \"(.*)\"\?$/, replace: "「$1」についてもっと詳しく？" },
-
         { pattern: /^What do you want to (.*)\? \[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*) \((.*)\)$/, replace: "$1 ($2)" },
         { pattern: /^  (.*)$/, replace: "  $1" },

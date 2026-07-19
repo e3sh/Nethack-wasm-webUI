@@ -11,8 +11,9 @@
 
 1. **[dictionary.csv](../dictionary.csv) (翻訳マスター)**
    - 全ての翻訳データが記録されたCSVファイル。エディタやExcel等で編集するマスターデータです。
+   - 解説ブロックの開始行には `[BEGIN: キー名]`、終了行には `[END: キー名]` が付与されており、アイテム/モンスターごとの区切りが視覚的にひと目で分かるようになっています。
 2. **[nhMessage.js](../param/nhMessage.js) (ゲーム用実行ファイル)**
-   - WebUI側で実際に読み込まれるJavaScript辞書ファイル。直接手打ちで編集することもあります。
+   - WebUI側で実際に読み込まれるJavaScript辞書ファイル。インポート時に `[BEGIN]` `[END]` `[TODO]` などの管理タグは全自動で削除されて反映されます。
 3. **[data.base](../../NetHack-NetHack-5.0_org/NetHack-NetHack-5.0/dat/data.base) (NetHack 5.0の英文ソース)**
    - ゲーム本体（NetHack 5.0）が持つ、解説文のマスターデータベース（英語）。ここから未翻訳のテキストを抽出します。
 
@@ -24,14 +25,14 @@
 
 ```mermaid
 graph TD
-    A[1. JS의 編集内容をCSVへ同期] -->|dict_converter.py export| B(dictionary.csv)
-    B --> C[2. 抜け漏れスキャン]
-    C -->|check_missing_translations.py| D{未着手のキーブロックはあるか？}
-    D -->|あり| E[3. CSVへ [TODO] として一括追記]
-    E -->|add_missing_to_csv.py| F[4. 翻訳の適用]
-    D -->|なし/移行完了| F
-    F -->|方法A: 自動翻訳スクリプト / 方法B: 手動入力| G[5. CSVからJSへインポート]
-    G -->|dict_converter.py import| H(nhMessage.js に反映)
+    A[1. JSの編集内容をCSVへ同期] -->|dict_converter.py export| B(dictionary.csv)
+    B --> C[2. 抜け漏れ・AI品質監査スキャン]
+    C -->|audit_and_mark_todo.py| D{直訳や未着手のブロックはあるか？}
+    D -->|あり| E[3. 直訳文に [TODO] を自動再付与]
+    E --> F[4. 翻訳の修正・推敲]
+    D -->|なし/完了| F
+    F -->|手動修正またはAI補正| G[5. CSVからJSへインポート]
+    G -->|dict_converter.py import| H(nhMessage.js に反映: 管理タグは自動削除)
 ```
 
 ---
@@ -39,91 +40,49 @@ graph TD
 ## 📖 各ステップの詳細手順
 
 ### ステップ 1: 手打ちされた最新の翻訳をCSVに同期する
-作業を始める前に、必ず `nhMessage.js` に直接書き込まれた最新の翻訳を `dictionary.csv` に書き戻します。これを怠ると、手打ちした最新の翻訳が古いCSVデータで上書きされて消えてしまいます。
+作業を始める前に、必ず `nhMessage.js` に直接書き込まれた最新の翻訳を `dictionary.csv` に書き戻します。
 
 * **実行コマンド**:
   ```powershell
   python tools/dict_converter.py export
   ```
-* **確認事項**:
-  - `Exported XXX entries to dictionary.csv` と表示され、CSVファイルが更新されたことを確認します。
-  - 必要に応じて、`git diff dictionary.csv` で意図しない書き換えが発生していないか確認します。
 
 ---
 
-### ステップ 2: 翻訳されていない解説ブロック（抜け）があるかスキャンする
-現在のCSVデータと、NetHack 5.0の最新の `data.base` を突き合わせ、まだ翻訳されていない（CSVに一度も翻訳が登録されていない）アイテム・モンスターなどの解説ブロックを抽出します。
+### ステップ 2: 直訳文や不自然な訳文に [TODO] マークを自動再付与する
+AIによる文脈判定スクリプトを実行し、`data.base` の英文全体と現在の日本語訳全体を比較します。
+人間により綺麗に推敲された文章は保護され、不自然なぶつ切り直訳や機械翻訳のままの行だけに `[TODO]` マークが自動付与されます。
 
 * **実行コマンド**:
   ```powershell
-  python scratch/check_missing_translations.py
+  python scratch/audit_and_mark_todo.py
   ```
-* **出力の読み方**:
-  - **総解説ブロック数**: `data.base` に定義されているアイテムやモンスターなどの総説明ブロック数。
-  - **翻訳完了ブロック数**: 少なくとも1行以上の有効な日本語訳が存在するブロックの数。
-  - **未翻訳ブロック数 (未着手)**: 1行も翻訳されていない（すべて `[TODO]` または未登録の）ブロックの数。
-
-> [!TIP]
-> **「行数調整のための空行」への対応について**
-> 英語原文（例えば5行）に対し、日本語訳がコンパクト（例えば3行）で済み、残りの行を空行（`""`）にして処理している場合があります。
-> 本スキャンスクリプトは「キーブロック単位」で判定を行うため、**1行でも日本語訳が存在するブロックは「翻訳完了」とみなされ、意図的な空行が「未翻訳」として誤検出されることはありません。**
 
 ---
 
-### ステップ 3: 抜け漏れしている英文をCSVに [TODO] 付きで追記する
-ステップ2で「未登録の英文」が存在する場合、それらを安全に `dictionary.csv` の末尾に追加します。
-このとき、翻訳が空欄になってゲーム内で非表示になるのを防ぐため、`Translation` 列に `[TODO] (英語原文)` の形式で追記します。
-
-* **実行コマンド**:
-  ```powershell
-  python scratch/add_missing_to_csv.py
-  ```
-* **確認事項**:
-  - CSV의 末尾に、未翻訳の英文が `[TODO] ...` というプレフィックス付きで追加されていることを確認します。
+### ステップ 3: CSV上でブロック（[BEGIN] ～ [END]）ごとに確認・修正する
+[dictionary.csv](../dictionary.csv) をテキストエディタやExcel等で開きます。
+* **`[BEGIN: キー名]` ～ `[END: キー名]`**: 1つのアイテムやモンスターの解説文の開始と終了を示しています。
+* **`[TODO]`**: このマークが付いている行・ブロックだけを優先的に修正・推敲します。
 
 ---
 
-### ステップ 4: 翻訳を適用する
-
-#### 方法A：機械翻訳スクリプトを使って下訳を入れる場合
-追加した `[TODO]` 部分に対して、Google翻訳APIを用いて自動で下訳を作成します。件数を指定して少しずつ実行することが可能です。
-
-* **実行コマンド (例: 最初の50件のみ翻訳する場合)**:
-  ```powershell
-  python scratch/auto_translate.py 50
-  ```
-* **実行コマンド (全件翻訳する場合)**:
-  ```powershell
-  python scratch/auto_translate.py
-  ```
-  *(※ Ctrl+C でいつでも安全に中断でき、そこまでの翻訳は保存されます。)*
-
-#### 方法B：手動で翻訳を修正・入力する場合
-[dictionary.csv](../dictionary.csv) をテキストエディタやExcel等で直接開き、`[TODO]` が付いている行の `Translation` 列を、正しい日本語に書き換えます。
-
----
-
-### ステップ 5: CSVからJSへインポート（ゲームへの反映）
-CSV上の翻訳（手動修正または自動翻訳）が完了したら、それを実行用ファイル `nhMessage.js` に反映させます。
+### ステップ 4: CSVからJSへインポート（ゲームへの反映）
+CSV上の修正が完了したら、それを実行用ファイル `nhMessage.js` に反映させます。
+インポート時、`[BEGIN: ...]` や `[END: ...]` や `[TODO]` などの管理タグは**自動的に綺麗に除去されて反映**されるため、CSV上でのタグは残したままで問題ありません。
 
 * **実行コマンド**:
   ```powershell
   python tools/dict_converter.py import
   ```
-* **確認事項**:
-  - `Import completed successfully to param/nhMessage.js` と表示されれば完了です。ブラウザでWebUIをリロードし、ゲーム内で実際に翻訳が表示されるかテストします。
 
 ---
 
 ## ⚠️ トラブルシューティング（元に戻す方法）
 
-作業中にCSVのデータが壊れたり、意図しない自動翻訳が行われた場合は、Gitを使用して簡単に元のクリーンな状態に戻すことができます。
+作業中にCSVのデータが壊れたりした場合は、Gitまたはバックアップから復元できます。
 
-* **自動翻訳や追記をする前のCSVに戻したい場合**:
+* **CSVを直前の状態に戻す場合**:
   ```powershell
   git restore dictionary.csv
-  ```
-* **手打ちした `nhMessage.js` の内容がおかしくなり、元に戻したい場合**:
-  ```powershell
-  git restore param/nhMessage.js
   ```

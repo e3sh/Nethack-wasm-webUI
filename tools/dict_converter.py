@@ -108,6 +108,16 @@ def export_to_csv(output_file):
         writer.writerows(rows)
     print(f"Exported {len(rows)} entries to {output_file}")
 
+def clean_tag(text):
+    if not isinstance(text, str): return text
+    text = re.sub(r'===\s*BEGIN:?[^=]*===\s?', '', text)
+    text = re.sub(r'\s?===\s*END:?[^=]*===', '', text)
+    text = re.sub(r'===\s*TODO\s*===\s?', '', text)
+    text = re.sub(r'\[BEGIN:?[^\]]*\]\s?', '', text)
+    text = re.sub(r'\s?\[END:?[^\]]*\]', '', text)
+    text = re.sub(r'\[TODO\]\s?', '', text)
+    return text
+
 def import_from_csv(input_file):
     messages, entities, items, patterns = [], {}, {}, []
     
@@ -115,13 +125,17 @@ def import_from_csv(input_file):
         reader = csv.DictReader(f)
         for row in reader:
             g, src, trans, adj, verb = row['Group'], row['Source'], row['Translation'], row['Adj'], row['Verb']
-            val = trans
-            if adj or verb: val = {'noun': trans, 'adj': adj, 'verb': verb}
+            trans_clean = clean_tag(trans)
+            adj_clean = clean_tag(adj)
+            verb_clean = clean_tag(verb)
             
-            if g == 'Message': messages.append({'en': src, 'jp': trans})
+            val = trans_clean
+            if adj_clean or verb_clean: val = {'noun': trans_clean, 'adj': adj_clean, 'verb': verb_clean}
+            
+            if g == 'Message': messages.append({'en': src, 'jp': trans_clean})
             elif g == 'Entity': entities[src] = val
             elif g == 'Item': items[src] = val
-            elif g == 'Pattern': patterns.append({'pattern': src, 'replace': trans})
+            elif g == 'Pattern': patterns.append({'pattern': src, 'replace': trans_clean})
                 
     output_js = 'param/nhMessage.js'
     with open(output_js, 'w', encoding='utf-8-sig') as f:

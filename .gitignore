@@ -1361,3 +1361,8 @@ NetHack-NetHack-5.0/NetHack-NetHack-5.0/tiletext.obj
 NetHack-NetHack-5.0/NetHack-NetHack-5.0/tiletxt.obj
 NetHack-NetHack-5.0/NetHack-NetHack-5.0/util/nethack.bmp
 NetHack-NetHack-5.0/NetHack-NetHack-5.0/util/tile2bmp.exe
+
+# AI & Internal Translation Utilities
+scratch/
+tools/dev_scripts/
+*.bak

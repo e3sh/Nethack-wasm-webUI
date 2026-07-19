@@ -81,8 +81,8 @@ def check_translations():
             normalized = " ".join(text.split())
             trans = translation_map.get(normalized, "")
             
-            # [TODO] で始まらず、かつ空欄でもない翻訳があれば「翻訳済み」とみなす
-            if trans and not trans.startswith("[TODO]"):
+            # [TODO] や === TODO === で始まらず、かつ空欄でもない翻訳があれば「翻訳済み」とみなす
+            if trans and not trans.startswith("[TODO]") and not trans.startswith("=== TODO ==="):
                 is_translated = True
                 break
         
