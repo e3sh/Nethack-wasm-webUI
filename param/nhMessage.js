@@ -1237,7 +1237,9 @@
         { en: "Items of unknown Bless/Curse status", jp: "祝福/呪いの状態が不明なアイテム" },
         { en: "Coins", jp: "コイン" },
         { en: "Weapons", jp: "武器" },
+        { en: "weapons", jp: "武器" },
         { en: "Armor", jp: "防具" },
+        { en: "armor", jp: "防具" },
         { en: "Potions", jp: "ポーション" },
         { en: "Comestibles", jp: "食料品" },
         { en: "Scrolls", jp: "巻物" },
@@ -7163,6 +7165,20 @@
         { en: "[ Nightmare at 20,000 Feet, by Richard Matheson ]", jp: "  [ リチャード・マシスン『2万フィートの戦慄』 ]" },
         { en: "[ The Charwoman's Shadow, by Lord Dunsany ]", jp: "  [ ロード・ダンセイニ『掃除婦の影』 ]" },
         { en: "[ Harry Potter and the Chamber of Secrets, by J.K. Rowling ]", jp: "  [ J.K.ローリング『ハリー・ポッターと秘密の部屋』 ]" },
+        { en: "Discoveries, by order of discovery within each class", jp: "発見物（各クラス内の発見順）" },
+        { en: "Discoveries, alphabetical within each class", jp: "発見物（各クラス内のアルファベット順）" },
+        { en: "Discoveries, sortloot order", jp: "発見物（ソートルート順）" },
+        { en: "Discoveries, alphabetical across all classes", jp: "発見物（全クラス横断のアルファベット順）" },
+        { en: "Ordering of discoveries", jp: "発見順" },
+        { en: "by order of discovery within each class", jp: "各クラス内の発見順" },
+        { en: "sortloot order", jp: "戦利品の並べ替え順" },
+        { en: "by class with some sub-class groupings", jp: "クラス別（一部のサブクラスをグループ化）" },
+        { en: "alphabetical within each class", jp: "各クラス内のアルファベット順" },
+        { en: "alphabetical across all classes", jp: "全クラスを通じたアルファベット順" },
+        { en: "Note: full alphabetical and alphabetical within class", jp: "注：単一クラスでの検索においては、完全なアルファベット順と" },
+        { en: "are equivalent for single class discovery, but", jp: "クラス内でのアルファベット順は同等ですが、" },
+        { en: "will matter for future use of total discoveries.", jp: "将来的に総検索件数を扱う際には、この違いが重要になります。" },
+        { en: "View discoveries for which sort of objects?", jp: "どのような種類の発見物を表示しますか？" },
     ];
 }
 
@@ -8902,6 +8918,12 @@ function nhPatterns() {
         { pattern: /^attached to (.*)$/, replace: "$1に取り付けられている" },
         { pattern: /^in (.*)$/, replace: "$1の中" },
         { pattern: /^1 of (.*)$/, replace: "$1のうちの１つ" },
+        { pattern: /^(.*) [(.*)]$/, replace: "$1 [$2]" },
+        { pattern: /^\* (.*)$/, replace: "* $1" },
+        { pattern: /^[(.*)]$/, replace: "[$1]" },
+        { pattern: /^Discovered (.*) in order of discovery$/, replace: "発見された$1を、発見順に表示" },
+        { pattern: /^Discovered (.*) in 'sortloot' order$/, replace: "発見された$1を、ソートルート順に表示" },
+        { pattern: /^Discovered (.*) in alphabetical order$/, replace: "発見された$1を、アルファベット順に表示" },
     ];
 }
 
