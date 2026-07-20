@@ -251,22 +251,24 @@ function GameManager(g) {
             case "shim_display_nhwindow":
                 if (args[0] === 3) this.playing = true; // NHW_MAP
                 this.UI.set_display_window(args[0]);
-                this.UI.nhPutbufDraw(args[0]);
-                if (this.UI.nhPutbufReady()) {
+                if (this.UI.nhPutbufReady(args[0])) {
                     this.UI.nhClear(args[0]);
-                    this.UI.nhPutbufDraw(args[0]);
+                    const handledPaged = await this.UI.nhPutbufDraw(args[0]);
                     if (args[0] > 3) this.UI.overlapview(true);
-                    await new Promise(
-                        resolve => {
-                            this.pendingInputResolve = resolve;
-                        });
-                } else {
-                    if (args[1])
+                    if (!handledPaged) {
                         await new Promise(
                             resolve => {
                                 this.pendingInputResolve = resolve;
                             });
-
+                    }
+                } else {
+                    await this.UI.nhPutbufDraw(args[0]);
+                    if (args[1]) {
+                        await new Promise(
+                            resolve => {
+                                this.pendingInputResolve = resolve;
+                            });
+                    }
                 }
                 return 0;
             //VDECLCB(shim_destroy_nhwindow,(winid window), "vi", A2P window)

@@ -337,13 +337,76 @@ function UIManager(r, g) {
             txtbufs[windowId].push(`${result} ${prompt}`);
         }
     };
-    this.nhPutbufDraw = (windowId) => {
+    this.nhPutbufDraw = function (windowId) {
         const dsp = this.nhWindowMap[windowId] || d.DSP_WINDOW;
         const buf = txtbufs[windowId] || [];
+        const numLines = d.LINES || 24;
 
-        for (let line = 0; line < buf.length; line++) {
-            this.mvwaddch(dsp, line, 0, buf[line]);
+        if (dsp !== d.DSP_WINDOW || buf.length <= numLines) {
+            for (let line = 0; line < buf.length; line++) {
+                this.mvwaddch(dsp, line, 0, buf[line]);
+            }
+            return Promise.resolve(false);
         }
+
+        const pageSize = numLines - 1;
+        const pages = [];
+        for (let i = 0; i < buf.length; i += pageSize) {
+            pages.push(buf.slice(i, i + pageSize));
+        }
+
+        return new Promise((resolve) => {
+            let currentPage = 0;
+
+            const renderPage = (pageIdx) => {
+                const pageLines = pages[pageIdx] || [];
+                this.wclear(dsp);
+
+                pageLines.forEach((line, i) => {
+                    this.mvwaddch(dsp, i, 0, line);
+                });
+
+                if (pages.length > 1) {
+                    const moreMsg = `-- More -- (Page ${pageIdx + 1}/${pages.length}) [Space/2: Next, 8: Prev]`;
+                    this.mvwaddch(dsp, numLines - 1, 0, moreMsg);
+                }
+            };
+
+            const originalHandler = r.pendingInputResolve;
+            const handler = (charCode) => {
+                const key = String.fromCharCode(charCode).toLowerCase();
+
+                if (key === ' ' || key === '2' || charCode === 13) {
+                    if (currentPage < pages.length - 1) {
+                        currentPage++;
+                        renderPage(currentPage);
+                        r.pendingInputResolve = handler;
+                    } else {
+                        this.overlapview(false);
+                        resolve(true);
+                        r.pendingInputResolve = originalHandler;
+                    }
+                } else if (key === '8') {
+                    if (currentPage > 0) {
+                        currentPage--;
+                        renderPage(currentPage);
+                        r.pendingInputResolve = handler;
+                    } else {
+                        r.pendingInputResolve = handler;
+                    }
+                } else if (charCode === 27) {
+                    this.overlapview(false);
+                    resolve(true);
+                    r.pendingInputResolve = originalHandler;
+                } else {
+                    r.pendingInputResolve = handler;
+                }
+            };
+
+            this.overlapview(true);
+            renderPage(currentPage);
+            r.pendingInputResolve = handler;
+        });
     };
 
     this.nhPrintGlyph = function (windowId, x, y, glyphInfo) {
