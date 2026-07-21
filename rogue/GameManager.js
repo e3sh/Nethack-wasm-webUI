@@ -297,11 +297,25 @@ function GameManager(g) {
                 {
                     const filename = args[0];
                     const complain = args[1];
-                    const path = `./dat/${filename}`;
-                    //console.log(`shim_display_file: path=${path}, complain=${complain}`);
+
+                    // 日本語版ファイル (_jp / _jp.base) の優先チェック
+                    let targetFilename = filename;
+                    let jpFilename = filename.includes('.') ? filename.replace('.', '_jp.') : `${filename}_jp`;
+                    let jpPath = `./dat/${jpFilename}`;
+                    let stdPath = `./dat/${filename}`;
+                    let path = stdPath;
 
                     return new Promise(async (resolve) => {
                         try {
+                            // 日本語モード (LANG_JP) が有効な場合のみ日本語版ファイルが存在するかチェック
+                            const isLangJp = (this.define && this.define.LANG_JP) || (window.g && window.g.define && window.g.define.LANG_JP);
+                            if (isLangJp) {
+                                try {
+                                    const headRes = await fetch(jpPath, { method: 'HEAD' });
+                                    if (headRes.ok) path = jpPath;
+                                } catch (e) { }
+                            }
+
                             // 1. まずは仮想ファイルシステム (VFS) を試す
                             if (typeof FS !== 'undefined' && FS.analyzePath(path).exists) {
                                 const data = FS.readFile(path, { encoding: 'utf8' });
@@ -539,19 +553,6 @@ function GameManager(g) {
                 this.inputContext = "YN";
                 this.inputChoices = choices;
                 this.UI.set_display_window(0);
-
-                const promptText = args[0];
-                // 死亡時の持ち物開示、属性表示、死亡確認（探索モード）、終了確認などのメッセージ群
-                // 「Do you want...」系と、短い「Die?」「Really quit?」にマッチさせます
-                const deathEndRegex = /Do you want (to see|your possessions|to see your conduct)|Die\?|Really quit\?/i;
-                if (deathEndRegex.test(promptText)) {
-                    // 死亡またはゲーム終了シーケンスに入ったと判断し、UIを強制更新
-                    //console.log("Death or End sequence detected. Synchronizing HP to 0.");
-
-                    // UI表示を0にする具体的な関数呼び出し（例）
-                    // updateStatusDisplay({ hp: 0, hpMax: currentMaxHp });
-                    this.UI.io.endsequenceDetected();
-                }
                 const anyKey = !choices || choices.length === 0;
 
                 const c_disp = (Boolean(args[1])) ? `[${choices}]` : "";

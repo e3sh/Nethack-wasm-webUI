@@ -1366,3 +1366,8 @@ NetHack-NetHack-5.0/NetHack-NetHack-5.0/util/tile2bmp.exe
 scratch/
 tools/dev_scripts/
 *.bak
+NetHackJP/
+tools/add_oracles_to_dictionary.py
+tools/merge_database_to_dictionary.py
+tools/merge_nethackjp_translations.py
+tools/deduplicate_dictionary.py

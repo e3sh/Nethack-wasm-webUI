@@ -20,7 +20,13 @@ window.Module = {
             ENV.LEVELDIR = "/";
             ENV.SAVEDIR = "/save/";
             ENV.NETHACKOPTIONS = "time,showexp,showvers,number_pad";//askname";
-
+        }
+        if (typeof FS !== 'undefined') {
+            try {
+                if (!FS.analyzePath('/save').exists) {
+                    FS.mkdir('/save');
+                }
+            } catch (e) {}
         }
     }],
 
