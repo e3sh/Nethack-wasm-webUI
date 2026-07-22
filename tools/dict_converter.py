@@ -132,8 +132,9 @@ def import_from_csv(input_file):
             val = trans_clean
             if adj_clean or verb_clean: val = {'noun': trans_clean, 'adj': adj_clean, 'verb': verb_clean}
             
-            if g == 'Message': messages.append({'en': src, 'jp': trans_clean})
-            elif g == 'Entity': entities[src] = val
+            if g in ('Message', 'Data.base', 'Oracles', 'Rumors', 'Engrave', 'Epitaph', 'Quest', 'Tribute', 'Help'):
+                messages.append({'en': src, 'jp': trans_clean})
+            elif g in ('Entity', 'Bogusmon'): entities[src] = val
             elif g == 'Item': items[src] = val
             elif g == 'Pattern': patterns.append({'pattern': src, 'replace': trans_clean})
                 
@@ -146,7 +147,11 @@ def import_from_csv(input_file):
                 if is_msg:
                     f.write(f"        {{ en: {json.dumps(d['en'], ensure_ascii=False)}, jp: {json.dumps(d['jp'], ensure_ascii=False)} }},\n")
                 else:
-                    f.write(f"        {{ pattern: /{d['pattern']}/, replace: {json.dumps(d['replace'], ensure_ascii=False)} }},\n")
+                    pat = d['pattern']
+                    pat_formatted = pat.replace(' ', '\\s+')
+                    # JSの正規表現リテラル /pattern/ 内でスラッシュが正しく機能するように / を \/ にエスケープ
+                    pat_formatted = pat_formatted.replace('/', '\\/')
+                    f.write(f"        {{ pattern: /{pat_formatted}/, replace: {json.dumps(d['replace'], ensure_ascii=False)} }},\n")
             f.write("    ];\n}\n\n")
 
         def write_obj(func_name, data):

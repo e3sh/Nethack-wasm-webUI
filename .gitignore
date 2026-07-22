@@ -1364,10 +1364,15 @@ NetHack-NetHack-5.0/NetHack-NetHack-5.0/util/tile2bmp.exe
 
 # AI & Internal Translation Utilities
 scratch/
-tools/dev_scripts/
 *.bak
 NetHackJP/
 tools/add_oracles_to_dictionary.py
 tools/merge_database_to_dictionary.py
 tools/merge_nethackjp_translations.py
 tools/deduplicate_dictionary.py
+tools/dev_scripts/add_missing_to_csv.py
+tools/dev_scripts/audit_and_mark_todo.py
+tools/dev_scripts/auto_translate.py
+tools/dev_scripts/check_missing_translations.py
+tools/dev_scripts/mark_block_boundaries.py
+tools/dev_scripts/restore_indents.py
