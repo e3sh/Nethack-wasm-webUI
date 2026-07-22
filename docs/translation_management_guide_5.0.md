@@ -55,12 +55,20 @@
 | `status` | 翻訳網羅率の診断（未登録文や TODO の残件数などを集計） |
 | `add` | NetHack 5.0 本家リポジトリから新規・未登録の原文をスキャンして CSV 末尾に追記 |
 | `convert_patterns` | 置換トークン（`%`等）を含むメッセージを、CSV上で `Pattern`（正規表現）に自動移行 |
-| `translate` | `=== TODO ===` 付きの未翻訳項目を Google 翻訳 API で日本語直訳に自動置換 |
+| `translate` | `=== TODO ===` 付きの未翻訳項目を自動直訳に置換（Google API または ローカルLLM） |
 | `clean` | ソースコード上に存在しなくなった古い孤立データ（過去の段落長文パターンなど）を安全に削除 |
+
+### 追加オプション（翻訳エンジン用）
+
+| オプション | デフォルト値 | 説明 |
+| :--- | :--- | :--- |
+| `--engine` | `google` | 翻訳エンジンを選択 (`google` または `local`) |
+| `--model` | `gemma2` | ローカルLLMのモデル名（例: `gemma2:2b`） |
+| `--api-url` | Ollamaデフォルト | API接続先（例: `http://localhost:1234/v1/chat/completions`） |
 
 ### 具体的な使用例
 
-#### A. 辞書データベースのクリーンな更新ワークフロー
+#### A. 辞書データベースの クリーンな更新ワークフロー
 新しくスキャンし直し、不要な古いパターンを除去して JS にインポートする際の一連のコマンドです。
 
 ```powershell
@@ -75,16 +83,29 @@ python tools/dev_scripts/manage_translations_5.0.py clean
 ```
 
 #### B. 仮翻訳（自動直訳）の実行
-未翻訳項目に対して、Google 翻訳 API を用いて日本語直訳を自動適用します。
-* **安全機能**: すでに日本語の翻訳（ひらがな・カタカナ・漢字）が登録されている項目は**自動的に検知してスキップ**するため、APIの二重使用を防ぎます。
+未翻訳項目に対して、Google 翻訳 API またはローカルLLMを用いて日本語直訳を自動適用します。
+* **安全機能**: すでに日本語の翻訳（ひらがな・カタカナ・漢字）が登録されている項目は**自動的に検知してスキップ**するため、二重使用を防ぎます。
 * **割り込み保護**: 翻訳中に `Ctrl + C` で安全に処理を中断・その時点までの結果を保存して終了できます。
 
+##### ① Google 翻訳 API（従来通り・高速）
 ```powershell
 # 未翻訳項目をすべて自動翻訳（10件ごとに中間セーブ）
 python tools/dev_scripts/manage_translations_5.0.py translate
 
 # 件数を制限してテスト翻訳したい場合 (--limit オプション)
 python tools/dev_scripts/manage_translations_5.0.py translate --limit 10
+```
+
+##### ② ローカルLLM (LM Studio - 推奨)
+LM Studio の「Local Server」を起動した状態で、OpenAI 互換エンドポイントを指定して実行します。
+```powershell
+python tools/dev_scripts/manage_translations_5.0.py translate --engine local --api-url http://localhost:1234/v1/chat/completions --model lmstudio
+```
+
+##### ③ ローカルLLM (Ollama)
+Ollama が起動している状態で、モデル名を指定して実行します（あらかじめ `ollama pull gemma2:2b` を実行しておきます）。
+```powershell
+python tools/dev_scripts/manage_translations_5.0.py translate --engine local --model gemma2:2b
 ```
 
 #### C. JS ファイルへのビルド反映

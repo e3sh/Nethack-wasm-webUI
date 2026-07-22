@@ -18,10 +18,13 @@ DEFAULT_DICT_PATH = r"c:\Users\e3-sh\Documents\GitHub\Nethack-wasm-webUI\diction
 DEFAULT_NETHACK_PATH = r"c:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0"
 
 class TranslationManager:
-    def __init__(self, dict_path, nethack_path):
+    def __init__(self, dict_path, nethack_path, engine='google', model='gemma2', api_url='http://localhost:11434/api/chat'):
         self.dict_path = dict_path
         self.nethack_path = nethack_path
         self.dat_path = os.path.join(nethack_path, 'dat')
+        self.engine = engine
+        self.model = model
+        self.api_url = api_url
         
         # 既存辞書の読み込み用キャッシュ
         self.existing_translations = {}  # normalized_src -> {translation, group, row_idx}
@@ -421,6 +424,51 @@ class TranslationManager:
         except Exception:
             return None
 
+    def translate_text_local(self, text, model="gemma2", api_url="http://localhost:11434/api/chat"):
+        import urllib.request
+        import json
+
+        system_instruction = (
+            "You are a professional translator for the roguelike game NetHack.\n"
+            "Translate the given English text to Japanese.\n"
+            "Strict Rules:\n"
+            "1. Output ONLY the Japanese translation. Never write introduction, explanation, notes, or quotes.\n"
+            "2. Keep placeholder variables (e.g. __1__, __2__, $1, $2) exactly as they are. Do not translate or change them.\n"
+            "3. Keep the original formatting and punctuation as much as possible."
+        )
+
+        data = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": f"Text to translate:\n{text}"}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.3
+            }
+        }
+
+        try:
+            req = urllib.request.Request(
+                api_url,
+                data=json.dumps(data).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                # OllamaのAPI応答は ['message']['content']。
+                # 万が一OpenAI互換APIのエンドポイントだった場合のフォールバックも考慮する
+                if 'message' in res_data and 'content' in res_data['message']:
+                    return res_data['message']['content'].strip()
+                elif 'choices' in res_data and len(res_data['choices']) > 0:
+                    return res_data['choices'][0]['message']['content'].strip()
+                return None
+        except Exception as e:
+            # 連続エラー検出のためにエラーメッセージをログに出し、Noneを返す
+            print(f"\n[LLM Error] {e}")
+            return None
+
     def save_csv(self):
         with open(self.dict_path, 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.csv_fieldnames)
@@ -501,7 +549,11 @@ class TranslationManager:
                         return f" __{num}__ "
                     actual_input = re.sub(r'\$[0-9]+', protect_tokens, actual_input)
                 
-                result = self.translate_text(actual_input)
+                if self.engine == 'local':
+                    result = self.translate_text_local(actual_input, model=self.model, api_url=self.api_url)
+                else:
+                    result = self.translate_text(actual_input)
+
                 if result:
                     # 翻訳結果から一時プレースホルダーを $1, $2 に復元
                     if g == 'Pattern':
@@ -521,7 +573,10 @@ class TranslationManager:
                     print(f"[{count}/{total_items}] 失敗 ({g}): '{input_text[:30]}'")
                     
                 import time
-                time.sleep(0.4)
+                if self.engine == 'google':
+                    time.sleep(0.4)
+                else:
+                    time.sleep(0.05)
                 
                 # 10件ごとに中間セーブ
                 if count % 10 == 0:
@@ -706,6 +761,9 @@ def main():
     parser.add_argument('--nethack-path', default=DEFAULT_NETHACK_PATH, help='NetHack 5.0 本家リポジトリのルートパス')
     parser.add_argument('--add-all', action='store_true', help='ファイル翻訳対象（Help等）も含めてすべての未登録文を強制的にCSVへ追加する')
     parser.add_argument('--limit', type=int, default=None, help='translate コマンド実行時の最大翻訳処理件数')
+    parser.add_argument('--engine', choices=['google', 'local'], default='google', help='翻訳エンジン: google (Google Web), local (ローカルLLM)')
+    parser.add_argument('--model', default='gemma2', help='ローカルLLMモデル名 (Ollamaのモデル名等)')
+    parser.add_argument('--api-url', default='http://localhost:11434/api/chat', help='ローカルLLM APIのエンドポイントURL')
     
     args = parser.parse_args()
 
@@ -716,7 +774,13 @@ def main():
         print(f"Error: NetHackリポジトリ {args.nethack_path} が見つかりません。")
         sys.exit(1)
 
-    manager = TranslationManager(args.dict_path, args.nethack_path)
+    manager = TranslationManager(
+        args.dict_path,
+        args.nethack_path,
+        engine=args.engine,
+        model=args.model,
+        api_url=args.api_url
+    )
 
     if args.command == 'status':
         manager.analyze_status()
