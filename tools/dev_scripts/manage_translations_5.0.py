@@ -537,7 +537,29 @@ class TranslationManager:
         # %[a-zA-Z]+ にマッチするトークンを抽出する
         token_regex = r'%[a-zA-Z]+'
         
+        # 正規表現パターンを正規化（カッコ内の定義を (.*) に統一）するヘルパー関数
+        def normalize_pat(p_str):
+            # カッコで囲まれたキャプチャグループを (.*) に置換
+            # エスケープされていないカッコを対象とする
+            res = re.sub(r'(?<!\\)\([^)]+\)', '(.*)', p_str)
+            # スペースの揺らぎを統一 (複数スペースや \s+ を半角スペース1つにする)
+            res = re.sub(r'\\s\+', ' ', res)
+            res = re.sub(r'\s+', ' ', res)
+            return res.strip()
+            
+        # 既存の手動翻訳済み Pattern の正規化パターンリストを事前ビルド
+        manual_normalized_patterns = set()
+        for row in self.csv_rows:
+            if row['Group'] == 'Pattern':
+                trans = row['Translation']
+                # === TODO === で始まらない（手動で日本語訳された）Patternを抽出
+                if trans and not trans.strip().startswith('=== TODO ==='):
+                    norm = normalize_pat(row['Source'])
+                    manual_normalized_patterns.add(norm)
+        
         converted_count = 0
+        rows_to_remove = [] # 既存の手動 Pattern でカバーされているため削除する行のインデックス
+        
         for idx, row in enumerate(self.csv_rows):
             g = row['Group']
             src = row['Source']
@@ -547,63 +569,76 @@ class TranslationManager:
             if g == 'Pattern':
                 continue
                 
-            # トークンが含まれているかチェック
+            # トークンが含まれているか、またはスペースの揺らぎ（インデント等）が発生しやすい特定のグループかチェック
             tokens_in_src = re.findall(token_regex, src)
-            if not tokens_in_src:
+            is_indented_group = g in ('Quest', 'Rumors', 'Epitaph')
+            if not tokens_in_src and not is_indented_group:
                 continue
                 
             # 安全ガード:
-            # トークンを除外した後のテキストが極端に短い、または英文字を含まない場合は
-            # システム全体を破壊する危険な正規表現（例: ^(.*)$）になるのを防ぐためスキップ
+            # トークンを除外した後のテキストが極端に短い、または英文字を含まない場合はスキップ
             clean_src = re.sub(token_regex, '', src).strip()
             if len(clean_src) <= 4 or not re.search(r'[a-zA-Z]', clean_src):
                 continue
                 
             # トークンをキャプチャグループ (.*) に置き換える
-            # トークンが出現する順番にキャプチャグループのインデックス ($1, $2...) を割り当てる
             temp_src = src
             temp_trans = trans
-            
-            # 部分一致による誤置換を防ぐため、検出されたトークンを長さの長い順にソートする
-            # 例: '%oiself' が '%o' より先に置換されるようにする
-            unique_tokens = sorted(list(set(tokens_in_src)), key=len, reverse=True)
-            token_pattern = '|'.join([re.escape(t) for t in unique_tokens])
-            
             occurred_tokens = []
             
-            def src_repl(match):
-                tok = match.group(0)
-                idx = len(occurred_tokens)
-                occurred_tokens.append(tok)
-                return f"__TOKEN_{idx}__"
+            if tokens_in_src:
+                # 部分一致による誤置換を防ぐため、検出されたトークンを長さの長い順にソートする
+                unique_tokens = sorted(list(set(tokens_in_src)), key=len, reverse=True)
+                token_pattern = '|'.join([re.escape(t) for t in unique_tokens])
                 
-            temp_src = re.sub(token_pattern, src_repl, temp_src)
-            
-            if not occurred_tokens:
-                continue
+                def src_repl(match):
+                    tok = match.group(0)
+                    idx = len(occurred_tokens)
+                    occurred_tokens.append(tok)
+                    return f"__TOKEN_{idx}__"
+                    
+                temp_src = re.sub(token_pattern, src_repl, temp_src)
                 
-            # Translation内のトークンも、出現順に応じて $1, $2... に置換する
-            for tok_idx, tok in enumerate(occurred_tokens):
-                temp_trans = temp_trans.replace(tok, f"${tok_idx + 1}")
+                # Translation内のトークンも、出現順に応じて $1, $2... に置換する
+                for tok_idx, tok in enumerate(occurred_tokens):
+                    temp_trans = temp_trans.replace(tok, f"${tok_idx + 1}")
                 
             # 正規表現パターンの組み立て
             escaped_src = re.escape(temp_src)
             
             pattern_src = escaped_src
-            for tok_idx in range(len(occurred_tokens)):
-                pattern_src = pattern_src.replace(f"__TOKEN_{tok_idx}__", "(.*)")
-                
+            if occurred_tokens:
+                for tok_idx in range(len(occurred_tokens)):
+                    pattern_src = pattern_src.replace(f"__TOKEN_{tok_idx}__", "(.*)")
+                    
             # エスケープされたスペース '\ ' を単なる半角スペース ' ' に戻す（CSV上の視認性向上のため）
             pattern_src = pattern_src.replace(r'\ ', ' ')
             
             # 完全一致アンカーを追加
             pattern_src = f"^{pattern_src}$"
             
+            # 新規生成するパターンの正規化文字列を作成して重複テスト
+            new_pat_norm = normalize_pat(pattern_src)
+            if new_pat_norm in manual_normalized_patterns:
+                # 既に既存の綺麗な手動 Pattern がこのメッセージをカバーしているため、
+                # 新しい自動 Pattern の重複作成は行わず、スキャンされた英文を CSV から削除
+                # （ただし、削除していいのは === TODO === 付き、または空の未完成行のみ）
+                if not trans or trans.strip().startswith('=== TODO ==='):
+                    rows_to_remove.append(idx)
+                continue
+            
             # 行の更新
             self.csv_rows[idx]['Group'] = 'Pattern'
             self.csv_rows[idx]['Source'] = pattern_src
             self.csv_rows[idx]['Translation'] = temp_trans
             converted_count += 1
+            
+        # 重複行を逆順に削除
+        if rows_to_remove:
+            for r_idx in sorted(rows_to_remove, reverse=True):
+                self.csv_rows.pop(r_idx)
+            self.save_csv()
+            print(f"情報: すでに既存の手動 Pattern でカバーされているスキャン重複項目 {len(rows_to_remove)} 件を CSV から削除しました。")
             
         if converted_count > 0:
             self.save_csv()
