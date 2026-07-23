@@ -83,6 +83,25 @@ async function main() {
 
     game.keyboard.codeMode();
 
+    // FPS制限パッチ (requestAnimationFrame の間引き)
+    // 描画間隔を抑えることで GPU / メインスレッドの負荷を下げ、YouTube等の別タブ停止を防ぐ
+    const TARGET_FPS = 6; // 必要に応じて 60 や 30 に変更可能
+    const fpsInterval = 1000 / TARGET_FPS;
+    const _originalrAF = window.requestAnimationFrame;
+    let _lastFrameTime = 0;
+
+    window.requestAnimationFrame = function (callback) {
+        return _originalrAF(function (timestamp) {
+            const elapsed = timestamp - _lastFrameTime;
+            if (elapsed < fpsInterval) {
+                _originalrAF(callback);
+            } else {
+                _lastFrameTime = timestamp - (elapsed % fpsInterval);
+                callback(timestamp);
+            }
+        });
+    };
+
     //console.log("gameCore start");
     game.run();
 
