@@ -4,6 +4,8 @@
 
 const r = "rogue/";
 const p = "param/";
+const s = "sys/";
+
 const n = "./"; // Wasm files are in the same folder
 
 // Emscripten Module configuration
@@ -45,14 +47,14 @@ window.Module = {
 
 const w = [
     // GameCore (Local copy)
-    "coremin.js",
+    s + "coremin.js",
     r + "UI/DisplayDevice.js",
     r + "UI/DisplayManager.js",
     r + "UI/LayoutManager.js",
-    "jncurses.js",
-    "main.js",
-    "ioControl.js",
-    "sceneControl.js",
+    s + "jncurses.js",
+    s + "main.js",
+    s + "ioControl.js",
+    s + "sceneControl.js",
     // Rogue 
     r + "GameManager.js",
     r + "UIManager.js",

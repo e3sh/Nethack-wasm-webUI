@@ -4,6 +4,7 @@
 
 const r = "rogue/";
 const p = "param/";
+const s = "sys/";
 const n = "./"; // Wasm files are in the same folder
 
 // Universal dynCall polyfill for WebAssembly table execution
@@ -77,14 +78,14 @@ window.Module = {
 
 const w = [
     // GameCore
-    "coremin.js",
+    s + "coremin.js",
     r + "UI/DisplayDevice.js",
     r + "UI/DisplayManager.js",
     r + "UI/LayoutManager.js",
-    "jncurses.js",
-    "main.js",
-    "ioControl.js",
-    "sceneControl.js",
+    s + "jncurses.js",
+    s + "main.js",
+    s + "ioControl.js",
+    s + "sceneControl.js",
     // Rogue 
     r + "GameManager.js",
     r + "UIManager.js",
