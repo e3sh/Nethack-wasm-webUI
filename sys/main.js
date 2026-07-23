@@ -83,21 +83,41 @@ async function main() {
 
     game.keyboard.codeMode();
 
-    // FPS制限パッチ (requestAnimationFrame の間引き)
-    // 描画間隔を抑えることで GPU / メインスレッドの負荷を下げ、YouTube等の別タブ停止を防ぐ
-    const TARGET_FPS = 6; // 必要に応じて 60 や 30 に変更可能
-    const fpsInterval = 1000 / TARGET_FPS;
+    // イベント駆動型スマート描画制御 (Dirty Flag)
+    // キー入力やタッチ、マウス操作が発生した瞬間は即座に(最大60FPSで)描画し、
+    // 放置・長考中はアニメーションタイマー(200ms周期=毎秒5回)のみに描画を抑えてGPU/CPU負荷を極限まで下げる
+    let isDirty = true;
+
+    // 入力イベント発生時に描画フラグをON
+    const markDirty = () => { isDirty = true; };
+    window.addEventListener('keydown', markDirty, { passive: true });
+    window.addEventListener('keyup', markDirty, { passive: true });
+    canvas.addEventListener('mousedown', markDirty, { passive: true });
+    canvas.addEventListener('mouseup', markDirty, { passive: true });
+    canvas.addEventListener('mousemove', markDirty, { passive: true });
+    canvas.addEventListener('touchstart', markDirty, { passive: true });
+    canvas.addEventListener('touchend', markDirty, { passive: true });
+
+    // 点滅・カーソルアニメーション用に定期的に描画フラグをON (200ms = 毎秒5回)
+    setInterval(() => {
+        isDirty = true;
+    }, 200);
+
+    const MAX_FPS = 60; // 操作時の最大FPS上限
+    const fpsInterval = 1000 / MAX_FPS;
     const _originalrAF = window.requestAnimationFrame;
     let _lastFrameTime = 0;
 
     window.requestAnimationFrame = function (callback) {
         return _originalrAF(function (timestamp) {
             const elapsed = timestamp - _lastFrameTime;
-            if (elapsed < fpsInterval) {
-                _originalrAF(callback);
-            } else {
+            // 描画フラグが立っており、かつ前回の描画からフレーム上限時間が経過していれば描画を実行
+            if (isDirty && elapsed >= fpsInterval) {
                 _lastFrameTime = timestamp - (elapsed % fpsInterval);
+                isDirty = false; // 描画したらフラグをクリア
                 callback(timestamp);
+            } else {
+                _originalrAF(callback);
             }
         });
     };

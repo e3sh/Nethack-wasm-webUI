@@ -75,7 +75,14 @@ class ioControl extends GameTask {
 		this.GridPad = new inputGridPad("layer0", g);
 	}
 	//----------------------------------------------------------------------
+	//async step(g) {
 	step(g) {
+
+		// 【処理の移譲】入力チェックの前に一瞬ブラウザへ処理権を返す
+    	// これにより1ステップ毎に確実に別タブの処理時間が確保される
+		//　(キー入力イベントに引きずられる感があり、これは効果が限定的であったのでひとまず無効)
+    	//await new Promise(resolve => setTimeout(resolve, 0));
+		
 		// Input Keyboard ENTRY Check
 		let w = g.keyboard.check();
 
