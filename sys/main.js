@@ -13,6 +13,10 @@ async function main() {
         screen: [{ resolution: { w: RESW, h: RESH, x: 0, y: 0 } }]
     };
     const game = new GameCore(sysParam);
+    
+    // 軽量化・パッシブ化版 inputKeyboard2 にキーボード処理を丸ごと差し替え
+    game.keyboard = new inputKeyboard2(true);
+    game.keyboard.codeMode();
 
     // Load Default Configurations from JSON
     try {
