@@ -7352,6 +7352,8 @@
         { en: " You are transformed.", jp: " 変身している。" },
         { en: " You aren't wielding anything.", jp: " 何も装備していない。" },
         { en: "Minetown", jp: "鉱山町" },
+        { en: "the box", jp: "箱" },
+        { en: "the door", jp: "扉" },
     ];
 }
 
@@ -7422,7 +7424,7 @@ function nhEntities() {
         "Plunderer": "略奪者",
         "Plunderess": "女略奪者",
         "Stripling": "若き戦士",
-        "Candidate": "候補生",
+        "Candidate": "候補者",
         "Footpad": "追いはぎ",
         "Evoker": "召喚師",
         "Aspirant": "見習い",
@@ -8786,7 +8788,7 @@ function nhEntities() {
         "Sharpshooter": "狙撃手",
         "Marksman": "射撃の名手",
         "Markswoman": "女性射撃の名手",
-        "Cutpurse": "ポケット泥棒",
+        "Cutpurse": "スリ",
         "Pilferer": "小盗人",
         "Robber": "強盗",
         "Burglar": "侵入窃盗犯",
@@ -8830,6 +8832,7 @@ function nhEntities() {
         "Sorceress": "ソーサレス",
         "Necromancer": "ネクロマンサー",
         "Mage": "メイジ",
+        "door": "扉",
     };
 }
 
@@ -9513,6 +9516,7 @@ function nhItems() {
         "velvet": "ベルベット",
         "chain lightning": "連鎖雷",
         "crystal": "水晶",
+        "box": "箱",
         "hallucination": "幻覚",
     };
 }
