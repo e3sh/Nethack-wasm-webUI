@@ -45,6 +45,7 @@ function trancelate(r) {
     let refcnt = 0;
     let buf = [];
     const icache = {};
+    let lastMatchSuccess = false;
 
     if (Boolean(localStorage.getItem("nh.temp"))) {
         buf = JSON.parse(localStorage.getItem("nh.temp"));
@@ -63,8 +64,30 @@ function trancelate(r) {
         return entry[pos] || entry['noun'] || entry;
     }
 
+    // Reset play log at session start (game start or save reload)
+    let playLog = [];
+    try {
+        localStorage.setItem("nh.play_log", JSON.stringify([]));
+    } catch(e) {}
+
+    function save_play_log(rawMsg, jpMsg, status) {
+        if (!rawMsg) return;
+        try {
+            playLog.push({
+                time: new Date().toLocaleTimeString(),
+                raw: rawMsg,
+                jp: jpMsg,
+                status: status || "translated"
+            });
+            // Keep up to 2000 items per play session
+            if (playLog.length > 2000) playLog.shift();
+            localStorage.setItem("nh.play_log", JSON.stringify(playLog));
+        } catch(e) {}
+    }
+
     this.message = (msg) => {
         refcnt = 0;
+        lastMatchSuccess = false;
         const result = get_translation_data(msg);
         if (d.DEBUG_MSG) {
             if (msg != result) {
@@ -72,6 +95,15 @@ function trancelate(r) {
             } else {
                 console.log(`x ref: ${refcnt}, msg: "${msg}"`);
             }
+        }
+        if (msg) {
+            let displayJp = result;
+            let status = "translated";
+            if (!lastMatchSuccess) {
+                displayJp = "（未翻訳）";
+                status = "untranslated";
+            }
+            save_play_log(msg, displayJp, status);
         }
         return result;
     }
@@ -86,22 +118,30 @@ function trancelate(r) {
 
         // 1. Exact Match Lookup (O(1))
         if (trMap.has(msg)) {
+            lastMatchSuccess = true;
             return trMap.get(msg);
         }
 
         // 2. Word/Entity lookup
         const wordTr = lookup_word(msg);
-        if (wordTr) return wordTr;
+        if (wordTr) {
+            lastMatchSuccess = true;
+            return wordTr;
+        }
 
         // 2.5 Item cache check
         if (icache[msg]) {
+            lastMatchSuccess = true;
             return icache[msg];
         }
 
         // 3. Pattern Matching (Priority 1)
         // Check for patterns before decomposition to allow complex phrases
         const patternResult = apply_patterns(msg);
-        if (patternResult) return patternResult;
+        if (patternResult) {
+            lastMatchSuccess = true;
+            return patternResult;
+        }
 
         // 4. Item Name Decomposition (NetHack 3.7 format)
         let itemResult = msg;
@@ -193,6 +233,7 @@ function trancelate(r) {
             if (!icache[msg]) {
                 icache[msg] = chResult;
             }
+            lastMatchSuccess = true;
             return chResult;
         }
 

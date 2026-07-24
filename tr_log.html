@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WASM - 翻訳対比ログビューア</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: rgba(22, 27, 34, 0.85);
+            --accent-color: #58a6ff;
+            --accent-hover: #79c0ff;
+            --success-color: #238636;
+            --danger-color: #da3633;
+            --warning-color: #d29922;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --card-bg: #161b22;
+            --code-bg: #010409;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 10%, rgba(88, 166, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(35, 134, 54, 0.04) 0%, transparent 40%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .title-area h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #58a6ff 0%, #a5d6ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .title-area p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--panel-bg);
+            color: var(--text-primary);
+            user-select: none;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-primary {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+            color: white;
+        }
+
+        .filter-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            min-width: 200px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .stats-badge {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'Fira Code', monospace;
+            user-select: none;
+        }
+
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .log-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 18px;
+            transition: border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-card:hover {
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+
+        .log-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'Fira Code', monospace;
+            user-select: none;
+        }
+
+        .log-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .tag-raw {
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+
+        .tag-jp {
+            background: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+            border: 1px solid rgba(57, 211, 83, 0.3);
+        }
+
+        .tag-untranslated {
+            background: rgba(248, 81, 73, 0.2);
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+
+        .text-content {
+            font-family: 'Fira Code', Consolas, monospace;
+            word-break: break-all;
+            flex-grow: 1;
+            user-select: text; /* ドラッグ選択を完璧に許可 */
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .text-content:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .btn-copy-small {
+            font-size: 11px;
+            padding: 2px 8px;
+            border: 1px solid var(--border-color);
+            background: var(--code-bg);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .btn-copy-small:hover {
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .plain-textarea {
+            width: 100%;
+            flex-grow: 1;
+            background-color: var(--code-bg);
+            color: #0f0;
+            font-family: 'Fira Code', Consolas, monospace;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            resize: none;
+            font-size: 13px;
+            line-height: 1.6;
+            outline: none;
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            background: var(--card-bg);
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            background: var(--accent-color);
+            color: #000;
+            font-weight: 600;
+            border-radius: 6px;
+            display: none;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="title-area">
+            <h1>1プレイ 翻訳対比ログビューア (tr_log.html)</h1>
+            <p>※ プレイ開始（またはセーブ再開）時に旧ログは自動クリアされ、現在の 1 プレイ中の全翻訳がリアルタイム記録されます。</p>
+        </div>
+        <div class="controls">
+            <button class="btn" id="modeToggleBtn" onclick="toggleViewMode()">📋 コピー特化テキストモード</button>
+            <button class="btn btn-primary" onclick="exportLogText()">テキスト出力 (.txt)</button>
+            <button class="btn btn-danger" onclick="clearPlayLog()">ログクリア</button>
+            <button class="btn" onclick="location.reload()">最新に更新</button>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <input type="text" id="searchInput" class="search-input" placeholder="生英文・翻訳文で検索 (例: dragon, 攻撃, $1)..." oninput="renderLogs()">
+        <label style="font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;">
+            <input type="checkbox" id="autoRefreshCheck" checked onchange="toggleAutoRefresh()">
+            自動更新 (2秒)
+        </label>
+        <div class="stats-badge" id="statsBadge">全 0 件</div>
+    </div>
+
+    <!-- カードビュー -->
+    <div class="log-list" id="logList">
+        <!-- JS で動的描画 -->
+    </div>
+
+    <!-- コピー特化プレーンテキストビュー -->
+    <textarea class="plain-textarea" id="plainTextArea" readonly placeholder="ログがありません"></textarea>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const STORAGE_PLAY_LOG_KEY = "nh.play_log";
+        let autoRefreshTimer = null;
+        let isPlainMode = false;
+
+        function loadLogs() {
+            try {
+                const data = localStorage.getItem(STORAGE_PLAY_LOG_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error("Failed to load play_log", e);
+                return [];
+            }
+        }
+
+        function renderLogs() {
+            const logs = loadLogs();
+            const listEl = document.getElementById("logList");
+            const plainEl = document.getElementById("plainTextArea");
+            const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
+
+            const filtered = logs.filter(item => {
+                if (!searchKeyword) return true;
+                return (item.raw && item.raw.toLowerCase().includes(searchKeyword)) ||
+                       (item.jp && item.jp.toLowerCase().includes(searchKeyword));
+            });
+
+            document.getElementById("statsBadge").textContent = `表示中: ${filtered.length} / 全 ${logs.length} 件`;
+
+            if (isPlainMode) {
+                // プレーンテキストモードの更新
+                let text = filtered.slice().reverse().map((item, idx) => 
+                    `[#${logs.length - idx}] ${item.time || ''}\n  RAW : ${item.raw}\n  JP  : ${item.jp}\n`
+                ).join("\n");
+                plainEl.value = text || "ログがありません。";
+                return;
+            }
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <p>記録された翻訳メッセージはありません。</p>
+                        <p style="font-size: 12px; margin-top: 6px;">ゲームをプレイすると、適用された生の英文と日本語訳がここにリアルタイムで並びます。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 新しい順（降順）に表示
+            listEl.innerHTML = filtered.slice().reverse().map((item, idx) => {
+                const isUntranslated = item.status === "untranslated" || item.jp === "（未翻訳）";
+                const tagClass = isUntranslated ? "tag-untranslated" : "tag-jp";
+                const tagLabel = isUntranslated ? "UNTRANSLATED (未翻訳)" : "JP (訳文)";
+                const textColor = isUntranslated ? "#f85149" : "#3fb950";
+                const num = logs.length - idx;
+
+                return `
+                <div class="log-card" style="${isUntranslated ? 'border-color: rgba(248, 81, 73, 0.3);' : ''}">
+                    <div class="log-meta">
+                        <span>#${num} ${item.time ? ' (' + item.time + ')' : ''}</span>
+                        <button class="btn-copy-small" onclick="copyText('${escapeJsString(item.raw)} \\n ${escapeJsString(item.jp)}')">📋 一括コピー</button>
+                    </div>
+                    <div class="log-row">
+                        <span class="tag tag-raw">RAW (英文)</span>
+                        <span class="text-content" style="color: var(--accent-color);" title="ダブルクリックで選択">${escapeHtml(item.raw)}</span>
+                        <button class="btn-copy-small" onclick="copyText('${escapeJsString(item.raw)}')">コピー</button>
+                    </div>
+                    <div class="log-row">
+                        <span class="tag ${tagClass}">${tagLabel}</span>
+                        <span class="text-content" style="color: ${textColor}; font-weight: ${isUntranslated ? '600' : '400'};" title="ダブルクリックで選択">${escapeHtml(item.jp)}</span>
+                        <button class="btn-copy-small" onclick="copyText('${escapeJsString(item.jp)}')">コピー</button>
+                    </div>
+                </div>
+            `}).join("");
+        }
+
+        function toggleViewMode() {
+            isPlainMode = !isPlainMode;
+            const listEl = document.getElementById("logList");
+            const plainEl = document.getElementById("plainTextArea");
+            const btn = document.getElementById("modeToggleBtn");
+
+            if (isPlainMode) {
+                listEl.style.display = "none";
+                plainEl.style.display = "block";
+                btn.textContent = "🎴 カードモードに切替";
+                btn.style.borderColor = "var(--accent-color)";
+                btn.style.color = "var(--accent-color)";
+            } else {
+                listEl.style.display = "flex";
+                plainEl.style.display = "none";
+                btn.textContent = "📋 コピー特化テキストモード";
+                btn.style.borderColor = "var(--border-color)";
+                btn.style.color = "var(--text-primary)";
+            }
+            renderLogs();
+        }
+
+        function copyText(str) {
+            navigator.clipboard.writeText(str).then(() => {
+                showToast("クリップボードにコピーしました！");
+            }).catch(err => {
+                console.error("Copy failed", err);
+            });
+        }
+
+        function escapeJsString(str) {
+            if (!str) return "";
+            return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+        }
+
+        function escapeHtml(str) {
+            if (!str) return "";
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+
+        function clearPlayLog() {
+            if (confirm("現在の 1 プレイログを消去しますか？")) {
+                localStorage.setItem(STORAGE_PLAY_LOG_KEY, JSON.stringify([]));
+                renderLogs();
+                showToast("ログを消去しました");
+            }
+        }
+
+        function exportLogText() {
+            const logs = loadLogs();
+            if (logs.length === 0) {
+                alert("保存するログがありません。");
+                return;
+            }
+            let text = "===================================================================\n";
+            text += " NetHack WebUI 1プレイ対比翻訳ログ解析レポート\n";
+            text += "===================================================================\n\n";
+            logs.forEach((l, idx) => {
+                text += `[${l.time || ''}] #${idx + 1}\n`;
+                text += `  RAW (ENG) : "${l.raw}"\n`;
+                text += `  JP  (訳文) : "${l.jp}"\n\n`;
+            });
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `nethack_play_log_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            showToast("平文テキストログをダウンロードしました");
+        }
+
+        function toggleAutoRefresh() {
+            const check = document.getElementById("autoRefreshCheck").checked;
+            if (check) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            autoRefreshTimer = setInterval(renderLogs, 2000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.textContent = msg;
+            toast.style.display = "block";
+            setTimeout(() => { toast.style.display = "none"; }, 2000);
+        }
+
+        // 初期化
+        renderLogs();
+        startAutoRefresh();
+    </script>
+</body>
+
+</html>

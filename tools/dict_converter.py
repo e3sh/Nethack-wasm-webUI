@@ -110,13 +110,15 @@ def export_to_csv(output_file):
 
 def clean_tag(text):
     if not isinstance(text, str): return text
+    text = re.sub(r'\s*\(EN:[^)]*\)', '', text)
+    text = re.sub(r'/\*.*?\*/', '', text)
     text = re.sub(r'===\s*BEGIN:?[^=]*===\s?', '', text)
     text = re.sub(r'\s?===\s*END:?[^=]*===', '', text)
     text = re.sub(r'===\s*TODO\s*===\s?', '', text)
     text = re.sub(r'\[BEGIN:?[^\]]*\]\s?', '', text)
     text = re.sub(r'\s?\[END:?[^\]]*\]', '', text)
     text = re.sub(r'\[TODO\]\s?', '', text)
-    return text
+    return text.strip()
 
 def import_from_csv(input_file):
     messages, entities, items, patterns = [], {}, {}, []
@@ -132,7 +134,7 @@ def import_from_csv(input_file):
             val = trans_clean
             if adj_clean or verb_clean: val = {'noun': trans_clean, 'adj': adj_clean, 'verb': verb_clean}
             
-            if g in ('Message', 'Data.base', 'Oracles', 'Rumors', 'Engrave', 'Epitaph', 'Quest', 'Tribute', 'Help'):
+            if g in ('Message', 'Data.base', 'Oracles', 'Rumors', 'Engrave', 'Epitaph', 'Quest', 'Tribute', 'Help', 'Sokoban/Levels', 'Sounds(聞こえる)', 'Status(状態異常)', 'Traps(罠関連)', 'ItemEffects(効果)', 'Prayer(いのり)', 'Achievements'):
                 messages.append({'en': src, 'jp': trans_clean})
             elif g in ('Entity', 'Bogusmon'): entities[src] = val
             elif g == 'Item': items[src] = val

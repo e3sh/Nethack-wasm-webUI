@@ -278,6 +278,102 @@ class TranslationManager:
                         sources.append(val)
         return sources
 
+    # --- 新規追加: Cソースコードおよび追加Luaレベルファイルからのメッセージ抽出パーサ群 ---
+
+    def extract_c_strings(self, filenames):
+        sources = []
+        src_dir = os.path.join(self.nethack_path, 'src')
+        
+        # pline, You, Your, You_hear, You_feel, verbalize などの関数呼び出しパターン
+        func_pattern = re.compile(
+            r'\b(?:pline|You|Your|You_hear|You_hear1|You_feel|You_cant|You_see|You_ask|You_tell|verbalize|headline|impossible|Norep_pline|pline_The)\s*\(\s*"((?:[^"\\]|\\.)+)"',
+            re.DOTALL
+        )
+        # ダブルクォーテーション内の5文字以上の英語テキスト（プログラムIDやフォーマット指定子のみのものを除く）
+        str_pattern = re.compile(r'"((?:[^"\n\\]|\\.){5,})"')
+
+        for filename in filenames:
+            filepath = os.path.join(src_dir, filename)
+            if not os.path.exists(filepath):
+                continue
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            # コメントアウト部分の削除 (/* ... */ および // ...)
+            clean_content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+            clean_content = re.sub(r'//.*?\n', '\n', clean_content)
+
+            # 1. メッセージ関数からの直接抽出
+            matches = func_pattern.findall(clean_content)
+            for m in matches:
+                # 改行除去、エスケープ解除
+                s = m.replace('\\\n', '').replace('\\"', '"').replace('\\n', ' ').strip()
+                if self.should_translate(s):
+                    sources.append(s)
+
+            # 2. 文字列配列宣言やその他のメッセージ文字列抽出
+            all_strs = str_pattern.findall(clean_content)
+            for s in all_strs:
+                s_clean = s.replace('\\"', '"').replace('\\n', ' ').strip()
+                # 関数のマッチで拾えていない説明文・メッセージ候補（英字を含み、プログラムキーワードでないもの）
+                if (s_clean.startswith('%') or ' ' in s_clean or len(s_clean) >= 10) and self.should_translate(s_clean):
+                    # コードキーワードの除外フィルター
+                    if not re.match(r'^(?:[a-zA-Z0-9_]+/[a-zA-Z0-9_.]+|[A-Z0-9_]{5,}|http.*)$', s_clean):
+                        sources.append(s_clean)
+
+        return sources
+
+    def parse_sokoban_and_levels(self):
+        sources = []
+        if not os.path.exists(self.dat_path):
+            return []
+
+        lua_pattern = r'(?:text|synopsis|display|message|pline)\s*=\s*(?:\[\[(.*?)\]\]|"(.*?)"|\'(.*?)\')'
+        str_pattern = r'"((?:[^"\n\\]|\\.){5,})"'
+
+        for fname in os.listdir(self.dat_path):
+            if fname.startswith('soko') or fname.startswith('tut-') or fname in ['castle.lua', 'knox.lua', 'astral.lua', 'themerms.lua', 'sanctum.lua', 'valley.lua']:
+                filepath = os.path.join(self.dat_path, fname)
+                if not os.path.isfile(filepath):
+                    continue
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+
+                matches = re.findall(lua_pattern, content, re.DOTALL)
+                for m in matches:
+                    val = m[0] or m[1] or m[2]
+                    if val:
+                        lines = [l.strip() for l in val.split('\n') if l.strip()]
+                        for l in lines:
+                            if self.should_translate(l):
+                                sources.append(l)
+
+                all_strs = re.findall(str_pattern, content)
+                for s in all_strs:
+                    s_clean = s.replace('\\"', '"').strip()
+                    if (' ' in s_clean or len(s_clean) >= 8) and self.should_translate(s_clean):
+                        sources.append(s_clean)
+
+        return sources
+
+    def parse_c_sounds(self):
+        return self.extract_c_strings(['sounds.c'])
+
+    def parse_c_status(self):
+        return self.extract_c_strings(['attrib.c', 'botl.c', 'sick.c', 'timeout.c', 'polyself.c'])
+
+    def parse_c_traps(self):
+        return self.extract_c_strings(['trap.c'])
+
+    def parse_c_item_effects(self):
+        return self.extract_c_strings(['apply.c', 'eat.c', 'potion.c', 'read.c', 'spell.c', 'wand.c', 'zap.c', 'wield.c', 'do_wear.c'])
+
+    def parse_c_prayer(self):
+        return self.extract_c_strings(['pray.c'])
+
+    def parse_c_achievements(self):
+        return self.extract_c_strings(['achieve.c', 'end.c', 'topten.c', 'insight.c'])
+
     # --- 診断と追加のアクション ---
 
     def analyze_status(self):
@@ -291,7 +387,14 @@ class TranslationManager:
             ('Bogusmon', self.parse_bogusmon, '辞書翻訳 (dictionary.csv)'),
             ('Quest', self.parse_quest, '辞書/メニュー翻訳 (dictionary.csv)'),
             ('Tribute', self.parse_tribute, 'ファイル翻訳 (VFS上置換)'),
-            ('Help', self.parse_help_files, 'ファイル翻訳 (help_jp等)')
+            ('Help', self.parse_help_files, 'ファイル翻訳 (help_jp等)'),
+            ('Sokoban/Levels', self.parse_sokoban_and_levels, '辞書/レベル (soko*.lua等)'),
+            ('Sounds(聞こえる)', self.parse_c_sounds, '辞書/Cコード (sounds.c)'),
+            ('Status(状態異常)', self.parse_c_status, '辞書/Cコード (attrib/botl等)'),
+            ('Traps(罠関連)', self.parse_c_traps, '辞書/Cコード (trap.c)'),
+            ('ItemEffects(効果)', self.parse_c_item_effects, '辞書/Cコード (apply/eat/zap等)'),
+            ('Prayer(いのり)', self.parse_c_prayer, '辞書/Cコード (pray.c)'),
+            ('Achievements', self.parse_c_achievements, '辞書/Cコード (achieve/end等)')
         ]
 
         print(f"{'Group (出典元)':<15} | {'翻訳方式':<24} | {'総原文数':<8} | {'翻訳済':<6} | {'未翻訳(TODO)':<12} | {'未登録':<6} | {'網羅率':<6}")
@@ -344,6 +447,13 @@ class TranslationManager:
             ('Epitaph', self.parse_epitaph),
             ('Bogusmon', self.parse_bogusmon),
             ('Quest', self.parse_quest),
+            ('Sokoban/Levels', self.parse_sokoban_and_levels),
+            ('Sounds(聞こえる)', self.parse_c_sounds),
+            ('Status(状態異常)', self.parse_c_status),
+            ('Traps(罠関連)', self.parse_c_traps),
+            ('ItemEffects(効果)', self.parse_c_item_effects),
+            ('Prayer(いのり)', self.parse_c_prayer),
+            ('Achievements', self.parse_c_achievements),
         ]
 
         if add_all:
@@ -475,7 +585,7 @@ class TranslationManager:
             writer.writeheader()
             writer.writerows(self.csv_rows)
 
-    def translate_missing_items(self, limit=None):
+    def translate_missing_items(self, start=1, limit=None):
         import re
         to_translate = []
         for idx, row in enumerate(self.csv_rows):
@@ -485,14 +595,28 @@ class TranslationManager:
             src = row['Source']
             trans = row['Translation']
             
+            clean_trans = trans.replace('=== TODO ===', '').strip() if trans else ""
+            
+            # 日本語文字（ひらがな・カタカナ・漢字）が含まれているか判定
+            has_ja = bool(re.search(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]', clean_trans))
+            # 手動Pattern（$1等の置換変数を含むルール）の判定
+            has_var_rep = g == 'Pattern' and bool(re.search(r'\$[0-9]+', clean_trans))
+            
             is_todo = False
             if not trans or trans.strip() == "":
                 is_todo = True
-            else:
-                clean_trans = trans.replace('=== TODO ===', '').strip()
-                # 日本語文字（ひらがな・カタカナ・漢字）が含まれているか判定
+            elif trans.strip().startswith('=== TODO ==='):
+                # === TODO === 付の行で、clean_trans に日本語がまだ含まれていない場合は未翻訳対象！
                 has_ja = bool(re.search(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]', clean_trans))
                 if not has_ja:
+                    is_todo = True
+                else:
+                    is_todo = False
+            else:
+                clean_trans = trans.strip()
+                has_ja = bool(re.search(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]', clean_trans))
+                has_var_rep = g == 'Pattern' and bool(re.search(r'\$[0-9]+', clean_trans))
+                if not has_ja and not has_var_rep:
                     is_todo = True
                 elif clean_trans == src.strip() or clean_trans == "":
                     is_todo = True
@@ -517,23 +641,33 @@ class TranslationManager:
                 if input_text.strip():
                     to_translate.append((idx, g, input_text))
                 
-        total_items = len(to_translate)
-        if total_items == 0:
-            print("翻訳が必要な未翻訳(TODO)項目はありませんでした。")
+        total_all_todo = len(to_translate)
+        if total_all_todo == 0:
+            print("翻訳が必要な未翻訳(TODO)項目はありませんでした。（※既翻訳行への無駄なAPI呼び出しは発生しません）")
             return
         
+        # 開始位置 (1-based index) の切り出し
+        start_idx = max(0, start - 1)
+        if start_idx >= total_all_todo:
+            print(f"指定された開始位置 (--start {start}) は未翻訳総件数 ({total_all_todo}件) を超えています。")
+            return
+
+        to_translate = to_translate[start_idx:]
         if limit:
             to_translate = to_translate[:limit]
-            total_items = len(to_translate)
             
-        print(f"合計 {total_items} 件の未翻訳項目を Google 翻訳 API を用いて自動翻訳します...")
-        print("※IP制限を避けるためディレイを挟みつつ翻訳します。Ctrl+Cで安全に途中で終了・保存できます。")
+        total_items = len(to_translate)
+        end_num = start_idx + total_items
+            
+        print(f"未翻訳総数 {total_all_todo} 件中、[{start_idx + 1} 〜 {end_num} 件目] ({total_items} 件) の API 自動翻訳を開始します...")
+        print("※翻訳済み行への無駄な API 通信は一切発生しません。ディレイを挟みつつ安全に処理します。Ctrl+Cで安全終了可能。")
         
         success_count = 0
         consecutive_errors = 0
         
         try:
             for count, (idx, g, input_text) in enumerate(to_translate, 1):
+                curr_item_num = start_idx + count
                 if consecutive_errors >= 5:
                     print("\n[エラー] 翻訳APIでエラーが連続して発生したため、安全のために処理を中断します。")
                     break
@@ -564,13 +698,14 @@ class TranslationManager:
                         result = re.sub(r'\s*\$([0-9]+)\s*', r' $\1 ', result).strip()
                         result = result.replace('""', '"')
                         
-                    self.csv_rows[idx]['Translation'] = f"=== TODO === {result}"
+                    # 手動推敲を容易にするため、末尾に元の英文(EN: ...)を自動併記
+                    self.csv_rows[idx]['Translation'] = f"=== TODO === {result} (EN: {input_text})"
                     success_count += 1
                     consecutive_errors = 0
-                    print(f"[{count}/{total_items}] 成功 ({g}): '{input_text[:30]}' -> '{result[:30]}'")
+                    print(f"[API通信 {count}/{total_items}] (全TODO中 {curr_item_num}件目) 成功 ({g}): '{input_text[:25]}' -> '{result[:25]}'")
                 else:
                     consecutive_errors += 1
-                    print(f"[{count}/{total_items}] 失敗 ({g}): '{input_text[:30]}'")
+                    print(f"[API通信 {count}/{total_items}] (全TODO中 {curr_item_num}件目) 失敗 ({g}): '{input_text[:25]}'")
                     
                 import time
                 if self.engine == 'google':
@@ -581,7 +716,7 @@ class TranslationManager:
                 # 10件ごとに中間セーブ
                 if count % 10 == 0:
                     self.save_csv()
-                    print(f"--> 中間バックアップ保存完了 ({count}件目)")
+                    print(f"--> 中間バックアップ保存完了 ({curr_item_num}件目)")
                     
         except KeyboardInterrupt:
             print("\nユーザーによって処理が中断されました。そこまでの翻訳結果を保存します。")
@@ -590,7 +725,7 @@ class TranslationManager:
         print(f"\n翻訳完了: {success_count} / {total_items} 件の翻訳結果を {self.dict_path} に保存しました。")
     def convert_tokens_to_patterns(self):
         # %[a-zA-Z]+ にマッチするトークンを抽出する
-        token_regex = r'%[a-zA-Z]+'
+        token_regex = r'%[-+0-9*.]*[a-zA-Z]+'
         
         # 正規表現パターンを正規化（カッコ内の定義を (.*) に統一）するヘルパー関数
         def normalize_pat(p_str):
@@ -624,10 +759,9 @@ class TranslationManager:
             if g == 'Pattern':
                 continue
                 
-            # トークンが含まれているか、またはスペースの揺らぎ（インデント等）が発生しやすい特定のグループかチェック
+            # トークンが含まれているメッセージのみ Pattern に移行する
             tokens_in_src = re.findall(token_regex, src)
-            is_indented_group = g in ('Quest', 'Rumors', 'Epitaph')
-            if not tokens_in_src and not is_indented_group:
+            if not tokens_in_src:
                 continue
                 
             # 安全ガード:
@@ -709,20 +843,26 @@ class TranslationManager:
         valid_sources.update(self.parse_epitaph())
         valid_sources.update(self.parse_bogusmon())
         valid_sources.update(self.parse_quest())
+        valid_sources.update(self.parse_sokoban_and_levels())
+        valid_sources.update(self.parse_c_sounds())
+        valid_sources.update(self.parse_c_status())
+        valid_sources.update(self.parse_c_traps())
+        valid_sources.update(self.parse_c_item_effects())
+        valid_sources.update(self.parse_c_prayer())
+        valid_sources.update(self.parse_c_achievements())
         
-        # Patternグループの照合用パターンを現在有効なトークン行から生成
+        # valid_sources からトークン付きメッセージを抽出して有効な Pattern の元とする
+        token_regex = r'%[-+0-9*.]*[a-zA-Z]+'
         valid_patterns = set()
-        import re
-        token_pattern = r'%[a-zA-Z]+'
         for src in valid_sources:
-            if re.search(token_pattern, src):
+            if re.search(token_regex, src):
                 occurred_tokens = []
                 def src_repl(match):
                     tok = match.group(0)
                     idx = len(occurred_tokens)
                     occurred_tokens.append(tok)
                     return f"__TOKEN_{idx}__"
-                temp = re.sub(token_pattern, src_repl, src)
+                temp = re.sub(token_regex, src_repl, src)
                 escaped = re.escape(temp)
                 pattern_src = escaped
                 for tok_idx in range(len(occurred_tokens)):
@@ -737,12 +877,23 @@ class TranslationManager:
             src = row['Source']
             trans = row['Translation']
             
-            # 手動で翻訳済みの行（=== TODO === で始まらないもの）は、グループに関わらず絶対に保護する
+            # 手動で翻訳済みの行（=== TODO === で始まらないもの）はグループに関わらず100%不可侵保護
             is_manual_translation = trans and not trans.strip().startswith('=== TODO ===')
             
-            # 既存の手動・重要翻訳グループ（メッセージ、アイテム、モンスターなど）は削除から完全に保護する
+            # 手動・固定アセットグループ
             preserved_groups = {'Message', 'Item', 'Entity', 'Noun', 'Verb', 'Adj', 'Monster', 'Object'}
-            if g in preserved_groups or is_manual_translation or src in valid_sources or src in valid_patterns:
+            
+            if g in preserved_groups or is_manual_translation:
+                new_rows.append(row)
+            elif g == 'Pattern':
+                # Patternグループの場合:
+                # 1. 手動の定義（=== TODO === 以外）なら絶対に保護
+                # 2. TODO付きの場合は、現在のソースコードの有効パターン (valid_patterns/valid_sources) に存在すれば保持、なければClean
+                if is_manual_translation or src in valid_patterns or src in valid_sources:
+                    new_rows.append(row)
+                else:
+                    removed_count += 1
+            elif src in valid_sources:
                 new_rows.append(row)
             else:
                 removed_count += 1
@@ -750,7 +901,7 @@ class TranslationManager:
         if removed_count > 0:
             self.csv_rows = new_rows
             self.save_csv()
-            print(f"成功: ソースコードに存在しない古い孤立データ（段落結合されていた長文など） {removed_count} 件を CSV からクリーンアップしました。")
+            print(f"成功: ソースコードに存在しない古い孤立データ（過去のTODO付きパターン等） {removed_count} 件を CSV からクリーンアップしました。")
         else:
             print("クリーンアップの必要はありませんでした。")
 
@@ -761,6 +912,7 @@ def main():
     parser.add_argument('--nethack-path', default=DEFAULT_NETHACK_PATH, help='NetHack 5.0 本家リポジトリのルートパス')
     parser.add_argument('--add-all', action='store_true', help='ファイル翻訳対象（Help等）も含めてすべての未登録文を強制的にCSVへ追加する')
     parser.add_argument('--limit', type=int, default=None, help='translate コマンド実行時の最大翻訳処理件数')
+    parser.add_argument('--start', type=int, default=1, help='translate コマンド実行時の開始件数位置 (1-based)')
     parser.add_argument('--engine', choices=['google', 'local'], default='google', help='翻訳エンジン: google (Google Web), local (ローカルLLM)')
     parser.add_argument('--model', default='gemma2', help='ローカルLLMモデル名 (Ollamaのモデル名等)')
     parser.add_argument('--api-url', default='http://localhost:11434/api/chat', help='ローカルLLM APIのエンドポイントURL')
@@ -787,7 +939,7 @@ def main():
     elif args.command == 'add':
         manager.add_missing_translations(add_all=args.add_all)
     elif args.command == 'translate':
-        manager.translate_missing_items(limit=args.limit)
+        manager.translate_missing_items(start=args.start, limit=args.limit)
     elif args.command == 'convert_patterns':
         manager.convert_tokens_to_patterns()
     elif args.command == 'clean':

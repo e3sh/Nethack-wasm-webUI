@@ -42,6 +42,17 @@
 * **知見**: CSV 上の `Source` 列に `\s+`（正規表現のスペース表現）が大量に含まれると、人間がパッと見たときに原文が非常に読みにくくなります。
 * **対策**: CSV 上の `Source` には通常の「半角スペース ` `」で保存し、JSファイル (`nhMessage.js`) を出力するインポートビルドの段階で、スペースを自動的に `\s+` に変換して書き出す二重構造を導入しました。これにより、**CSVの視認性**と**実行時のマッチングの堅牢性**を完璧に両立しました。
 
+### ⑤ 未精査動的メッセージ領域（状態異常・罠・聞こえる系等）のスキャン・集計拡張
+* **知見**: プレイ中のメッセージ抜けの多くは、C言語ソースコード（`src/*.c`）内の `pline()`, `You()`, `You_hear()` などの動的メッセージや、倉庫番・レベル固有の Lua ファイル（`dat/soko*.lua` 等）が網羅率診断に含まれていなかったことが原因でした。
+* **対策**: 本家リポジトリの Cソースおよび Lua ファイルからメッセージを自動抽出するパーサ群を追加し、`status` コマンドで以下の 7 つの新規グループ（倉庫番/レベル, 聞こえる系, 状態異常, 罠関連, アイテム効果, いのり, アチーブメント）を自動計測・診断できるように拡張しました。
+  * **Sokoban/Levels**: `dat/soko*.lua`, `dat/tut-*.lua` 等
+  * **Sounds(聞こえる)**: `src/sounds.c` ("You hear ...")
+  * **Status(状態異常)**: `src/attrib.c`, `src/botl.c`, `src/sick.c`, `src/timeout.c`, `src/polyself.c`
+  * **Traps(罠関連)**: `src/trap.c`
+  * **ItemEffects(効果)**: `src/apply.c`, `src/eat.c`, `src/potion.c`, `src/read.c`, `src/spell.c`, `src/wand.c`, `src/zap.c` 等
+  * **Prayer(いのり)**: `src/pray.c`
+  * **Achievements**: `src/achieve.c`, `src/end.c`, `src/topten.c`, `src/insight.c`
+
 ---
 
 ## 3. 統合管理スクリプトの使用方法
@@ -62,11 +73,21 @@
 
 | オプション | デフォルト値 | 説明 |
 | :--- | :--- | :--- |
+| `--limit` | `なし` | 処理する最大翻訳件数を制限（例: `--limit 50`） |
+| `--start` | `1` | 未翻訳項目の中での**翻訳開始位置（オフセット）**を指定（例: `--start 100`） |
 | `--engine` | `google` | 翻訳エンジンを選択 (`google` または `local`) |
 | `--model` | `gemma2` | ローカルLLMのモデル名（例: `gemma2:2b`） |
 | `--api-url` | Ollamaデフォルト | API接続先（例: `http://localhost:1234/v1/chat/completions`） |
 
 ### 具体的な使用例
+
+#### A. 範囲や開始位置を指定したテスト・分割翻訳
+開始位置（`--start`）や処理件数（`--limit`）を指定して、特定の範囲だけを分割して安全に自動翻訳できます。
+
+```powershell
+# 100件目から50件だけ自動翻訳したい場合
+python tools/dev_scripts/manage_translations_5.0.py translate --start 100 --limit 50
+```
 
 #### A. 辞書データベースの クリーンな更新ワークフロー
 新しくスキャンし直し、不要な古いパターンを除去して JS にインポートする際の一連のコマンドです。
