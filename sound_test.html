@@ -265,10 +265,10 @@
 
                 <div class="card">
                     <div class="card-title">
-                        <span>Beepcore 生音シンセサイザーテスト</span>
+                        <span>Beepcore 生音シンセサイザーテスト (LFO対応)</span>
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="playSynth()">再生</button>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                         <div>
                             <label style="font-size: 11px; color: var(--text-secondary);">波形 (Wave):</label>
                             <select id="synth-wave" style="width: 100%;">
@@ -281,6 +281,31 @@
                         <div>
                             <label style="font-size: 11px; color: var(--text-secondary);">音階 (Notes):</label>
                             <input type="text" id="synth-notes" value="C5, E5, G5, C6" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <input type="checkbox" id="synth-lfo-enable">
+                            <label for="synth-lfo-enable" style="font-size: 11px; font-weight: 600; color: var(--accent-color);">LFO (ビブラート/モジュレーション) を有効化</label>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                            <div>
+                                <label style="font-size: 10px; color: var(--text-secondary);">Freq (速度Hz):</label>
+                                <input type="number" id="synth-lfo-freq" value="6" min="1" max="50" style="width: 100%; font-size: 11px; padding: 4px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px; color: var(--text-secondary);">Depth (深さ):</label>
+                                <input type="number" id="synth-lfo-depth" value="20" min="1" max="200" style="width: 100%; font-size: 11px; padding: 4px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px; color: var(--text-secondary);">LFO Wave:</label>
+                                <select id="synth-lfo-wave" style="width: 100%; font-size: 11px; padding: 4px;">
+                                    <option value="sine">sine</option>
+                                    <option value="square">square</option>
+                                    <option value="sawtooth">sawtooth</option>
+                                    <option value="triangle">triangle</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -367,8 +392,24 @@
             const wave = document.getElementById("synth-wave").value;
             const notesStr = document.getElementById("synth-notes").value;
             const notes = notesStr.split(",").map(s => s.trim()).filter(Boolean);
+            
+            const lfoEnable = document.getElementById("synth-lfo-enable").checked;
+            let lfoConfig = null;
+            if (lfoEnable) {
+                lfoConfig = {
+                    freq: parseFloat(document.getElementById("synth-lfo-freq").value) || 6,
+                    depth: parseFloat(document.getElementById("synth-lfo-depth").value) || 20,
+                    wave: document.getElementById("synth-lfo-wave").value || "sine"
+                };
+            }
+
             if (window.SoundManager) {
-                window.SoundManager.playBeep({ notes: notes, wave: wave, duration: 80 }, window.SoundManager.volume);
+                window.SoundManager.playBeep({
+                    notes: notes,
+                    wave: wave,
+                    duration: 80,
+                    lfo: lfoConfig
+                }, window.SoundManager.volume);
             }
         }
 

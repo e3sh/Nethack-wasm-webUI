@@ -22,21 +22,21 @@ class SoundManagerClass {
                 id: "se_welcome",
                 pattern: "Welcome to NetHack|NetHackへようこそ|ようこそ",
                 sound: "welcome.mp3",
-                beep: { notes: ["C4", "G4", "C5", "E5"], wave: "square", duration: 90 },
+                beep: { notes: ["C4", "G4", "C5", "E5"], wave: "square", duration: 90, lfo: { freq: 6, wave: "sine", depth: 15 } },
                 volume: 90
             },
             {
                 id: "se_drink_bad",
                 pattern: "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed|気分が悪|体調が悪|毒|病気|幻覚|盲目|混乱|麻痺|しびれ",
                 sound: "drink_bad.mp3",
-                beep: { notes: ["G3", "C#3", "C3"], wave: "sawtooth", duration: 120 },
+                beep: { notes: ["G3", "C#3", "C3"], wave: "sawtooth", duration: 120, lfo: { freq: 12, wave: "sawtooth", depth: 30 } },
                 volume: 90
             },
             {
                 id: "se_drink_good",
                 pattern: "feel better|feel much better|feel full of energy|see much clearer|feel warm|気分が良|体調が良|元気がみなぎる|はっきり見え|温かく",
                 sound: "drink_good.mp3",
-                beep: { notes: ["C4", "E4", "G4", "C5"], wave: "sine", duration: 70 },
+                beep: { notes: ["C4", "E4", "G4", "C5"], wave: "sine", duration: 70, lfo: { freq: 5, wave: "sine", depth: 10 } },
                 volume: 85
             },
             {
@@ -87,7 +87,7 @@ class SoundManagerClass {
                 id: "se_read_scroll",
                 pattern: "read|scroll|turns to dust|fades|disappears|巻物|読ん|唱え|灰になった|消えた",
                 sound: "scroll.mp3",
-                beep: { notes: ["F4", "A4", "C5"], wave: "triangle", duration: 80 },
+                beep: { notes: ["F4", "A4", "C5"], wave: "triangle", duration: 80, lfo: { freq: 8, wave: "triangle", depth: 15 } },
                 volume: 80
             },
             {
@@ -354,7 +354,12 @@ class SoundManagerClass {
         const duration = beepConfig.duration || 80;
         const wave = beepConfig.wave || "square";
 
-        this.log("PLAY_BEEP", `Playing Beep: notes=[${notes.join(", ")}], wave=${wave}, duration=${duration}ms, vol=${Math.round(targetVol)}%, BeepGain=${Math.round(this.beepGain * 100)}%`);
+        let lfoLogStr = "";
+        if (beepConfig.lfo) {
+            lfoLogStr = `, LFO=[freq:${beepConfig.lfo.freq || 6}Hz, wave:${beepConfig.lfo.wave || "sine"}, depth:${beepConfig.lfo.depth || 20}]`;
+        }
+
+        this.log("PLAY_BEEP", `Playing Beep: notes=[${notes.join(", ")}], wave=${wave}, duration=${duration}ms${lfoLogStr}, vol=${Math.round(targetVol)}%, BeepGain=${Math.round(this.beepGain * 100)}%`);
 
         // 1. Beepcore class from sys/coremin.js
         if (typeof Beepcore !== 'undefined') {
@@ -367,6 +372,16 @@ class SoundManagerClass {
                 
                 this.beepCore.masterVolume(normVol);
                 this.beepCore.oscSetup(waveIdx);
+
+                if (beepConfig.lfo) {
+                    const lfoFreq = beepConfig.lfo.freq !== undefined ? beepConfig.lfo.freq : 6;
+                    const lfoWaveStr = beepConfig.lfo.wave || "sine";
+                    const lfoWaveIdx = waveTypes.indexOf(lfoWaveStr) >= 0 ? waveTypes.indexOf(lfoWaveStr) : 0;
+                    const lfoDepth = beepConfig.lfo.depth !== undefined ? beepConfig.lfo.depth : 20;
+                    this.beepCore.lfoSetup(lfoFreq, lfoWaveIdx, lfoDepth);
+                } else {
+                    this.beepCore.lfoReset();
+                }
 
                 const score = this.beepCore.makeScore(notes, duration, 1.0);
                 const note = this.beepCore.createNote(440);
@@ -408,6 +423,18 @@ class SoundManagerClass {
 
                     osc.type = wave;
                     osc.frequency.setValueAtTime(freq, currentTime);
+
+                    if (beepConfig.lfo) {
+                        const lfoOsc = this.audioCtx.createOscillator();
+                        const lfoGain = this.audioCtx.createGain();
+                        lfoOsc.type = beepConfig.lfo.wave || "sine";
+                        lfoOsc.frequency.setValueAtTime(beepConfig.lfo.freq || 6, currentTime);
+                        lfoGain.gain.setValueAtTime(beepConfig.lfo.depth || 20, currentTime);
+                        lfoOsc.connect(lfoGain);
+                        lfoGain.connect(osc.frequency);
+                        lfoOsc.start(currentTime);
+                        lfoOsc.stop(currentTime + noteDurSec);
+                    }
 
                     gainNode.gain.setValueAtTime(0.0001, currentTime);
                     gainNode.gain.linearRampToValueAtTime(masterGain, currentTime + 0.005);

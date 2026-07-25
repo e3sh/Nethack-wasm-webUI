@@ -34,7 +34,7 @@ flowchart TD
     E --> G["スピーカー / イヤホン"]
     F --> G
     
-    H["sound_test.html / テスター画面"] -->|"モード選択 / 音量 / テスト発声"| C
+    H["sound_test.html / テスター画面"] -->|"モード選択 / 音量ゲイン / LFO / テスト発声"| C
 ```
 
 ### 2.2. 主要コンポーネントの役割
@@ -47,16 +47,18 @@ flowchart TD
 2. **SoundManager (`rogue/SoundManager.js`)**
    * マッピングルール（`sound_mapping.json`）の保持とインライン初期ルールの提供。
    * メッセージに対する正規表現 (`RegExp`) パターンマッチング判定。
-   * 音階設定、クールダウン制御（重複再生防止）、および直線音量スケールの適用。
+   * 音階設定、クールダウン制御（重複再生防止）、直線音量スケールおよび独立ゲイン補正の適用。
    * クライアント動作環境（Autoplay 規制）に応じた `AudioContext.resume()` の制御。
 
 3. **Hybrid Audio Engine**
    * **Wave Engine**: `assets/sounds/` 内の WAV/MP3 アセットを低遅延再生。ロード失敗時には自動で Beep 合成音へフォールバックします。
-   * **Beep Engine**: `sys/coremin.js` 内の `Beepcore` クラスを利用した 8bit レトロシンセサイザー音源。Web Audio API オシレーターによりアセットファイル不要で様々な音階・波形を生成します。
+   * **Beep Engine**: `sys/coremin.js` 内の `Beepcore` クラスを利用した 8bit レトロシンセサイザー音源。Web Audio API オシレーターおよび LFO (ビブラート) 機能により、アセット不要で表現力豊かな合成音を生成します。
 
 ---
 
-## 3. 音源モードと音量仕様
+## 3. 音源モードと音量・ゲイン仕様
+
+### 3.1. 音源モード
 
 `SoundManager` は以下の4つの音源モードに対応しています：
 
@@ -67,9 +69,15 @@ flowchart TD
 | `beep` | **Beep合成音** | すべての効果音を `Beepcore` / Web Audio API の 8bit レトロ合成音で発声。 |
 | `mute` | **OFF (消音)** | 効果音の発生をすべてスキップ。（**初回起動時のデフォルト設定**） |
 
-* **音量制御**:
-  * `0%` 〜 `100%` の直感的なリニア音量スケール（`vol / 100`）を採用。
-  * マスター音量 (`SoundManager.volume`) と各ルールの個別音量 (`rule.volume`) が掛け合わされて最終的な再生ゲインが決定されます。
+### 3.2. 独立音量ゲイン制御 (バランス補正)
+
+オーディオアセット（WAV/MP3）と合成音（Beep/矩形波等）の物理的な音量特性の差を整えるため、マスター音量とは独立したバランス補正ゲインプロパティを搭載しています：
+
+* **`waveGain`** (デフォルト `1.0` / 100%): オーディオファイル再生用の音量補正倍率。
+* **`beepGain`** (デフォルト `0.3` / 30%): Beep 合成音再生用の音量補正倍率。（アタックの強い矩形波やノコギリ波を 30% に減衰させることで、WAV との聴感上の音量バランスを自然に揃えます）
+
+$$\text{WAV最終音量} = \left(\frac{\text{rule.volume}}{100}\right) \times \left(\frac{\text{マスター音量}}{100}\right) \times \text{waveGain}$$
+$$\text{Beep最終音量} = \left(\frac{\text{rule.volume}}{100}\right) \times \left(\frac{\text{マスター音量}}{100}\right) \times \text{beepGain}$$
 
 ---
 
@@ -79,19 +87,31 @@ flowchart TD
 {
   "soundDir": "assets/sounds/",
   "defaultVolume": 80,
+  "waveGain": 1.0,
+  "beepGain": 0.3,
   "rules": [
     {
       "id": "se_drink_good",
       "pattern": "feel better|feel much better|feel full of energy|気分が良|体調が良|元気がみなぎる",
       "sound": "drink_good.mp3",
-      "beep": { "notes": ["C4", "E4", "G4", "C5"], "wave": "sine", "duration": 70 },
+      "beep": {
+        "notes": ["C4", "E4", "G4", "C5"],
+        "wave": "sine",
+        "duration": 70,
+        "lfo": { "freq": 6, "wave": "sine", "depth": 15 }
+      },
       "volume": 85
     },
     {
       "id": "se_drink_bad",
       "pattern": "feel sick|poisoned|blind|confused|気分が悪|体調が悪|毒|病気|混乱|麻痺",
       "sound": "drink_bad.mp3",
-      "beep": { "notes": ["G3", "C#3", "C3"], "wave": "sawtooth", "duration": 120 },
+      "beep": {
+        "notes": ["G3", "C#3", "C3"],
+        "wave": "sawtooth",
+        "duration": 120,
+        "lfo": { "freq": 12, "wave": "sawtooth", "depth": 30 }
+      },
       "volume": 90
     },
     {
@@ -105,6 +125,43 @@ flowchart TD
 }
 ```
 
+### 4.1. Beep LFO (ビブラート) パラメータ仕様と記載例
+
+`beep` オブジェクト内において **`"lfo"`** オブジェクトの有無によって LFO (ビブラート/モジュレーション) 機能の ON/OFF を切り替えることができます：
+
+* **`"lfo"` パラメータ指定時**: LFO が **ON** になり指定した速度と深さでビブラートがかかります。
+* **`"lfo"` パラメータ省略時**: LFO が **OFF** になり、ストレートなピュア音になります。
+
+#### 比較：JSON 記載例
+
+##### ① LFO ありの記載例 (ビブラート・揺らぎ効果音)
+```json
+"beep": {
+  "notes": ["C4", "E4", "G4", "C5"],
+  "wave": "sine",
+  "duration": 70,
+  "lfo": {
+    "freq": 6,
+    "wave": "sine",
+    "depth": 15
+  }
+}
+```
+
+##### ② LFO なしの記載例 (標準ピュア音)
+```json
+"beep": {
+  "notes": ["G3", "C3"],
+  "wave": "square",
+  "duration": 80
+}
+```
+
+* **LFO パラメータ詳細**:
+  * `freq`: LFO の速度 (Hz)。例: `6` (自然なビブラート), `20` (高速トレモロ)
+  * `depth`: LFO の変調の深さ (ピッチの揺れ幅)。例: `15` 〜 `30`
+  * `wave`: LFO 自身の変調波形 (`"sine"` [滑らか・推奨], `"square"`, `"sawtooth"`, `"triangle"`)
+
 ---
 
 ## 5. テスト＆デバッグ環境
@@ -112,8 +169,9 @@ flowchart TD
 開発・調整用ツールとして **[sound_test.html](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/sound_test.html) (Sound Tester)** が用意されています。
 
 * **リアルタイムメッセージ判定テスト**: 任意のメッセージを入力して、どのルールにマッチするかを即座にシミュレーション検証可能。
-* **登録済みルール一覧＆試聴**: 登録されている全ルールの `Auto`, `Beep`, `Wave` 音を個別に試聴可能（マスター音量が連動適用されます）。
-* **Raw Beepcore 試聴**: 音階ノート（`C4`, `E4`, `G4` 等）や波形（`sine`, `square`, `sawtooth`, `triangle`）をリアルタイムに合成試聴・確認可能。
+* **独立音量バランス調整スライダー**: `WAV Balance Gain` (0%〜200%) および `Beep Balance Gain` (0%〜200%) を耳で聴きながらリアルタイムに微調整・保存可能。
+* **登録済みルール一覧＆試聴**: 登録されている全ルールの `Auto`, `Beep`, `Wave` 音を個別に試聴可能（マスター音量およびバランスゲインが適用されます）。
+* **Beepcore 生音シンセサイザー & LFO テスト**: 音階ノート（`C4`, `E4`, `G4` 等）や波形に加え、LFO (速度Hz, 深さ, 波形) を有効化して動的にビブラート合成音を試聴・実験可能。
 * **AudioContext ステータスモニタリング**: ブラウザの自動再生ロック状態（`running` / `suspended`）を可視化し、ワンクリックでアンロック可能。
 
 ---
