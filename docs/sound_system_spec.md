@@ -120,5 +120,6 @@ flowchart TD
 
 ## 6. 関連ドキュメント
 
+* [soundprocs_shim_research.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/soundprocs_shim_research.md) - NetHack 5.0 soundprocs アーキテクチャと WASM shim 拡張に関する技術考察・研究レポート
 * [README.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/README.md) - プロジェクト全体の概要
 * [shim_reference.ja.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/shim_reference.ja.md) - NetHack WASM shim インターフェースリファレンス
