@@ -1,0 +1,85 @@
+{
+  "soundDir": "assets/sounds/",
+  "defaultVolume": 80,
+  "rules": [
+    {
+      "id": "se_welcome",
+      "pattern": "Welcome to NetHack|NetHackへようこそ|ようこそ",
+      "sound": "welcome.mp3",
+      "beep": { "notes": ["C4", "G4", "C5", "E5"], "wave": "square", "duration": 90 },
+      "volume": 90
+    },
+    {
+      "id": "se_drink_bad",
+      "pattern": "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed|気分が悪|体調が悪|毒|病気|幻覚|盲目|混乱|麻痺|しびれ",
+      "sound": "drink_bad.mp3",
+      "beep": { "notes": ["G3", "C#3", "C3"], "wave": "sawtooth", "duration": 120 },
+      "volume": 90
+    },
+    {
+      "id": "se_drink_good",
+      "pattern": "feel better|feel much better|feel full of energy|see much clearer|feel warm|気分が良|体調が良|元気がみなぎる|はっきり見え|温かく",
+      "sound": "drink_good.mp3",
+      "beep": { "notes": ["C4", "E4", "G4", "C5"], "wave": "sine", "duration": 70 },
+      "volume": 85
+    },
+    {
+      "id": "se_drink_neutral",
+      "pattern": "drink|quaff|chug|potion|tastes|ポーション|飲み|飲んだ|味わっ|呑み|味がした|味がする",
+      "sound": "chug.mp3",
+      "beep": { "notes": ["C4", "G4"], "wave": "sine", "duration": 80 },
+      "volume": 80
+    },
+    {
+      "id": "se_eat_food",
+      "pattern": "eat|delicious|tasty|blecch|eating|食べた|食した|美味しい|まずい",
+      "sound": "eat.mp3",
+      "beep": { "notes": ["G4", "E4", "C4"], "wave": "sine", "duration": 70 },
+      "volume": 80
+    },
+    {
+      "id": "se_attack_hit",
+      "pattern": "You hit|hits|に攻撃|攻撃した|ヒット|命中|ダメージ",
+      "sound": "hit.mp3",
+      "beep": { "notes": ["E5", "G5"], "wave": "square", "duration": 50 },
+      "volume": 80,
+      "cooldownMs": 100
+    },
+    {
+      "id": "se_attack_miss",
+      "pattern": "You miss|misses|外した|当たらない|空を切っ|かわし|かわさ",
+      "sound": "swing.mp3",
+      "beep": { "notes": ["B4", "F4"], "wave": "triangle", "duration": 50 },
+      "volume": 75,
+      "cooldownMs": 100
+    },
+    {
+      "id": "se_pickup",
+      "pattern": "pick up|拾っ|手に入れた|拾う|取得",
+      "sound": "pickup.mp3",
+      "beep": { "notes": ["C5", "E5"], "wave": "sine", "duration": 60 },
+      "volume": 80
+    },
+    {
+      "id": "se_door",
+      "pattern": "door|ドア|扉|locked|鍵|開け|閉め|壊れた|resists|crashes",
+      "sound": "door_lock.mp3",
+      "beep": { "notes": ["G3", "C3"], "wave": "square", "duration": 80 },
+      "volume": 90
+    },
+    {
+      "id": "se_read_scroll",
+      "pattern": "read|scroll|turns to dust|fades|disappears|巻物|読ん|唱え|灰になった|消えた",
+      "sound": "scroll.mp3",
+      "beep": { "notes": ["F4", "A4", "C5"], "wave": "triangle", "duration": 80 },
+      "volume": 80
+    },
+    {
+      "id": "se_stair",
+      "pattern": "stair|ladder|階段|降り|登",
+      "sound": "stair.mp3",
+      "beep": { "notes": ["C4", "E4", "G4"], "wave": "triangle", "duration": 70 },
+      "volume": 80
+    }
+  ]
+}

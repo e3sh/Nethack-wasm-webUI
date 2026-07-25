@@ -274,6 +274,8 @@
             border-color: rgba(63, 185, 80, 0.2);
         }
     </style>
+    <script type="text/javascript" src="sys/coremin.js"></script>
+    <script type="text/javascript" src="rogue/SoundManager.js"></script>
     <script type="text/javascript">
         // 設定のデフォルト値
         const DEFAULT_CONFIG = {
@@ -281,6 +283,8 @@
             lang: true,
             larn: true,
             debug: false,
+            sound_mode: "mute",
+            sound_volume: 80,
             extra_options: ""
         };
 
@@ -291,6 +295,11 @@
                 descLang: "日本語メッセージ翻訳を有効にします",
                 descLarn: "未翻訳メッセージを収集します",
                 descDebug: "開発者向けのデバッグ情報を表示します",
+                labelSoundMode: "SOUND_MODE",
+                descSoundMode: "音声再生システムと音源モードを選択します",
+                labelSoundVol: "SOUND_VOLUME",
+                descSoundVol: "効果音の音量を調整します",
+                btnTestSound: "サウンドテスト再生",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "NetHack本体のオプションを追加できます (改行区切り)",
                 btnStart: "ゲーム起動",
@@ -312,6 +321,11 @@
                 descLang: "Enable Japanese message translation",
                 descLarn: "Collect untranslated messages (learning mode)",
                 descDebug: "Show debug information for developers",
+                labelSoundMode: "SOUND_MODE",
+                descSoundMode: "Select sound playback system and audio engine",
+                labelSoundVol: "SOUND_VOLUME",
+                descSoundVol: "Adjust sound effect volume",
+                btnTestSound: "Test Sound",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "Add extra NetHack OPTIONS (newline separated)",
                 btnStart: "GAME START",
@@ -337,6 +351,11 @@
             document.getElementById("desc-lang").textContent = t.descLang;
             document.getElementById("desc-larn").textContent = t.descLarn;
             document.getElementById("desc-debug").textContent = t.descDebug;
+            if (document.getElementById("label-sound-mode")) document.getElementById("label-sound-mode").textContent = t.labelSoundMode;
+            if (document.getElementById("desc-sound-mode")) document.getElementById("desc-sound-mode").textContent = t.descSoundMode;
+            if (document.getElementById("label-sound-vol")) document.getElementById("label-sound-vol").textContent = t.labelSoundVol;
+            if (document.getElementById("desc-sound-vol")) document.getElementById("desc-sound-vol").textContent = t.descSoundVol;
+            if (document.getElementById("btn-test-sound")) document.getElementById("btn-test-sound").textContent = t.btnTestSound;
             document.getElementById("label-extra-opts").textContent = t.labelExtraOpts;
             document.getElementById("desc-extra-opts").textContent = t.descExtraOpts;
             document.getElementById("btn-start").textContent = t.btnStart;
@@ -352,11 +371,39 @@
             document.getElementById("link-save-manager").textContent = t.linkSaveManager;
         }
 
+        function test_sound() {
+            if (window.SoundManager) {
+                window.SoundManager.unlockAudio();
+                const mode = document.getElementById("sound_mode").value;
+                const vol = parseInt(document.getElementById("sound_volume").value, 10);
+                window.SoundManager.setMode(mode);
+                window.SoundManager.setVolume(vol);
+
+                if (mode === "mute") return;
+
+                if (mode === "beep") {
+                    window.SoundManager.playBeep({ notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 }, vol);
+                } else if (mode === "wave") {
+                    window.SoundManager.playWave("welcome.mp3", vol, () => {
+                        window.SoundManager.playBeep({ notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 }, vol);
+                    });
+                } else { // auto
+                    window.SoundManager.playSoundRule({
+                        id: "se_test",
+                        pattern: ".*",
+                        sound: "welcome.mp3",
+                        beep: { notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 },
+                        volume: 100
+                    });
+                }
+            }
+        }
+
         function auto_start() {
-            // localStorageから設定をロード
+            if (window.SoundManager) window.SoundManager.init();
+
             const savedConfig = JSON.parse(localStorage.getItem("nh.config")) || DEFAULT_CONFIG;
 
-            // UIに反映
             Object.keys(savedConfig).forEach(key => {
                 const el = document.getElementById(key);
                 if (el) {
@@ -365,10 +412,26 @@
                 }
             });
 
-            // 言語UI初期適用
+            // 音量表示ラベルの更新
+            const volEl = document.getElementById("sound_volume");
+            const volVal = document.getElementById("sound_volume_val");
+            if (volEl && volVal) {
+                volVal.textContent = `${volEl.value}%`;
+                volEl.addEventListener("input", (e) => {
+                    volVal.textContent = `${e.target.value}%`;
+                    if (window.SoundManager) window.SoundManager.setVolume(parseInt(e.target.value, 10));
+                });
+            }
+
+            const modeEl = document.getElementById("sound_mode");
+            if (modeEl && window.SoundManager) {
+                modeEl.addEventListener("change", (e) => {
+                    window.SoundManager.setMode(e.target.value);
+                });
+            }
+
             updateLanguageUI(savedConfig.lang);
 
-            // チェンジイベントリスナー登録
             const langCheckbox = document.getElementById("lang");
             if (langCheckbox) {
                 langCheckbox.addEventListener("change", (e) => {
@@ -378,19 +441,22 @@
         }
 
         function page_start() {
-            // 現在の設定を取得
+            const soundModeEl = document.getElementById("sound_mode");
+            const soundVolEl = document.getElementById("sound_volume");
+            const currentSoundMode = soundModeEl ? soundModeEl.value : (localStorage.getItem("nethack_sound_mode") || "mute");
+            const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : parseInt(localStorage.getItem("nethack_sound_volume") || "80", 10);
+
             const config = {
                 gryph: document.getElementById("gryph").checked,
                 lang: document.getElementById("lang").checked,
                 larn: document.getElementById("larn").checked,
                 debug: document.getElementById("debug").checked,
+                sound_mode: currentSoundMode,
+                sound_volume: currentSoundVol,
                 extra_options: document.getElementById("extra_options").value
             };
 
-            // localStorageに保存
             localStorage.setItem("nh.config", JSON.stringify(config));
-
-            // ゲーム画面へ遷移
             window.location.href = 'game.html';
         }
 
@@ -400,6 +466,8 @@
             const confirmMsg = isJp ? I18N_TEXTS.ja.resetConfirm : I18N_TEXTS.en.resetConfirm;
             if (confirm(confirmMsg)) {
                 localStorage.removeItem("nh.config");
+                localStorage.removeItem("nethack_sound_mode");
+                localStorage.removeItem("nethack_sound_volume");
                 location.reload();
             }
         }
@@ -479,6 +547,7 @@
             <div class="tools-section">
                 <p class="tools-title" id="tools-title">Developer Tools</p>
                 <div class="tool-links">
+                    <a href="sound_test.html" class="tool-link" id="link-sound-test" target="_blank" style="color: var(--accent-color); border-color: rgba(63, 185, 80, 0.3);">🔊 Sound Tester</a>
                     <a href="tr_fail.html" class="tool-link" id="link-tr-fail" target="_blank">未翻訳リスト</a>
                     <a href="tr_manager.html" class="tool-link" id="link-tr-manager" target="_blank">翻訳管理</a>
                     <a href="tr_test.html" class="tool-link" id="link-tr-test" target="_blank">Trans Tester</a>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoundManager & Beepcore Tester</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0c10;
+            --panel-bg: rgba(22, 27, 34, 0.8);
+            --accent-color: #3fb950;
+            --accent-hover: #4cd05d;
+            --info-color: #58a6ff;
+            --warn-color: #d29922;
+            --danger-color: #f85149;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --border-color: rgba(48, 54, 61, 0.8);
+            --glass-blur: blur(16px);
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(63, 185, 80, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(88, 166, 255, 0.08) 0%, transparent 40%);
+            color: var(--text-primary);
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-running { background: rgba(63, 185, 80, 0.15); color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.4); }
+        .badge-suspended { background: rgba(210, 153, 34, 0.15); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.4); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary { background-color: var(--accent-color); color: #fff; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text-secondary); }
+        .btn-info { background-color: var(--info-color); color: #fff; }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"], select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .preset-btn:hover { color: var(--accent-color); border-color: var(--accent-color); }
+
+        .terminal {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            height: 250px;
+            overflow-y: auto;
+            color: #4af626;
+            line-height: 1.5;
+        }
+
+        .terminal .log-MATCH { color: #58a6ff; }
+        .terminal .log-PLAY_BEEP { color: #e3b341; }
+        .terminal .log-PLAY_WAVE { color: #3fb950; }
+        .terminal .log-ERROR { color: #f85149; }
+
+        .rule-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .rule-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rule-id { font-weight: 600; font-size: 13px; color: var(--accent-color); }
+        .rule-pattern { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
+        .rule-actions { display: flex; gap: 6px; }
+
+    </style>
+    <script type="text/javascript" src="sys/coremin.js"></script>
+    <script type="text/javascript" src="rogue/SoundManager.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>SoundManager & Beepcore Tester</h1>
+                <p style="font-size: 13px; color: var(--text-secondary);">音声再生システム単体テスト＆メッセージマッチング検証ツール</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="audio-status-badge" class="badge badge-suspended">AudioContext: Suspended</span>
+                <button class="btn btn-primary" onclick="unlockAudio()">Unlock Audio</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Left Column: Controls & Message Test -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>音源モード・コントロール</span>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                        <select id="sound_mode" onchange="changeMode(this.value)">
+                            <option value="auto">標準 (Auto / Hybrid)</option>
+                            <option value="wave">オーディオファイル (WAV/MP3)</option>
+                            <option value="beep">Beep合成音 (8bit Synth)</option>
+                            <option value="mute">OFF (消音)</option>
+                        </select>
+                        <input type="range" id="sound_vol" min="0" max="100" value="80" oninput="changeVol(this.value)" style="flex: 1; accent-color: var(--accent-color);">
+                        <span id="vol-text" style="font-weight: 600; width: 40px; text-align: right;">80%</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span>メッセージフック動作テスト (processMessage)</span>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="test-msg" placeholder="テスト用メッセージを入力..." value="Welcome to NetHack">
+                        <button class="btn btn-primary" onclick="sendTestMsg()">送信</button>
+                    </div>
+
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">プリセットメッセージ:</div>
+                    <div class="presets">
+                        <button class="preset-btn" onclick="setMsg('Welcome to NetHack')">Welcome to NetHack</button>
+                        <button class="preset-btn" onclick="setMsg('You hit the goblin')">You hit the goblin</button>
+                        <button class="preset-btn" onclick="setMsg('You miss the kobold')">You miss the kobold</button>
+                        <button class="preset-btn" onclick="setMsg('This door is locked')">This door is locked</button>
+                        <button class="preset-btn" onclick="setMsg('You pick up a long sword')">You pick up a long sword</button>
+                        <button class="preset-btn" onclick="setMsg('鍵がかかっている')">鍵がかかっている</button>
+                        <button class="preset-btn" onclick="setMsg('ゴクゴクという音')">ゴクゴクという音</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span>Beepcore 生音シンセサイザーテスト</span>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="playSynth()">再生</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-secondary);">波形 (Wave):</label>
+                            <select id="synth-wave" style="width: 100%;">
+                                <option value="square">square (8bit矩形波)</option>
+                                <option value="sine">sine (サイン波)</option>
+                                <option value="sawtooth">sawtooth (ノコギリ波)</option>
+                                <option value="triangle">triangle (三角波)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-secondary);">音階 (Notes):</label>
+                            <input type="text" id="synth-notes" value="C5, E5, G5, C6" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Rules Preview & Log Terminal -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>登録済みルール一覧 (`sound_mapping.json`)</span>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="loadRulesUI()">更新</button>
+                    </div>
+                    <div id="rules-container" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span>リアルタイム動作ログ</span>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="clearLog()">クリア</button>
+                    </div>
+                    <div class="terminal" id="log-terminal"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        function unlockAudio() {
+            if (window.SoundManager) {
+                window.SoundManager.unlockAudio();
+                updateBadge();
+            }
+        }
+
+        function updateBadge() {
+            const badge = document.getElementById("audio-status-badge");
+            if (window.SoundManager && window.SoundManager.audioCtx) {
+                const state = window.SoundManager.audioCtx.state;
+                badge.textContent = `AudioContext: ${state}`;
+                if (state === "running") {
+                    badge.className = "badge badge-running";
+                } else {
+                    badge.className = "badge badge-suspended";
+                }
+            }
+        }
+
+        function changeMode(mode) {
+            if (window.SoundManager) window.SoundManager.setMode(mode);
+        }
+
+        function changeVol(vol) {
+            document.getElementById("vol-text").textContent = `${vol}%`;
+            if (window.SoundManager) window.SoundManager.setVolume(parseInt(vol, 10));
+        }
+
+        function setMsg(txt) {
+            document.getElementById("test-msg").value = txt;
+            sendTestMsg();
+        }
+
+        function sendTestMsg() {
+            unlockAudio();
+            const txt = document.getElementById("test-msg").value;
+            if (window.SoundManager) {
+                window.SoundManager.processMessage(txt);
+            }
+        }
+
+        function playSynth() {
+            unlockAudio();
+            const wave = document.getElementById("synth-wave").value;
+            const notesStr = document.getElementById("synth-notes").value;
+            const notes = notesStr.split(",").map(s => s.trim()).filter(Boolean);
+            if (window.SoundManager) {
+                window.SoundManager.playBeep({ notes: notes, wave: wave, duration: 80 }, window.SoundManager.volume);
+            }
+        }
+
+        function appendLog(type, msg, fullEntry) {
+            const term = document.getElementById("log-terminal");
+            const div = document.createElement("div");
+            div.className = `log-${type}`;
+            div.textContent = fullEntry;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+            updateBadge();
+        }
+
+        function clearLog() {
+            document.getElementById("log-terminal").innerHTML = "";
+        }
+
+        function loadRulesUI() {
+            const container = document.getElementById("rules-container");
+            container.innerHTML = "";
+
+            if (!window.SoundManager || !window.SoundManager.rules) return;
+
+            window.SoundManager.rules.forEach(rule => {
+                const item = document.createElement("div");
+                item.className = "rule-item";
+                
+                const info = document.createElement("div");
+                info.className = "rule-info";
+                info.innerHTML = `<span class="rule-id">${rule.id}</span><span class="rule-pattern">pattern: ${rule.pattern}</span>`;
+
+                const actions = document.createElement("div");
+                actions.className = "rule-actions";
+
+                // Auto再生ボタン
+                const btnAuto = document.createElement("button");
+                btnAuto.className = "btn btn-secondary";
+                btnAuto.style.padding = "4px 8px";
+                btnAuto.style.fontSize = "11px";
+                btnAuto.textContent = "Auto";
+                btnAuto.title = "現在のSoundModeに準拠してテスト再生";
+                btnAuto.onclick = () => {
+                    unlockAudio();
+                    window.SoundManager.playSoundRule(rule);
+                };
+                actions.appendChild(btnAuto);
+
+                // Beep個別再生ボタン
+                if (rule.beep) {
+                    const btnBeep = document.createElement("button");
+                    btnBeep.className = "btn btn-secondary";
+                    btnBeep.style.padding = "4px 8px";
+                    btnBeep.style.fontSize = "11px";
+                    btnBeep.textContent = "Beep";
+                    btnBeep.onclick = () => {
+                        unlockAudio();
+                        const baseVol = rule.volume !== undefined ? rule.volume : 80;
+                        const effectiveVol = (baseVol / 100) * window.SoundManager.volume;
+                        window.SoundManager.playBeep(rule.beep, effectiveVol);
+                    };
+                    actions.appendChild(btnBeep);
+                }
+
+                // Wave個別再生ボタン
+                if (rule.sound) {
+                    const btnWave = document.createElement("button");
+                    btnWave.className = "btn btn-secondary";
+                    btnWave.style.padding = "4px 8px";
+                    btnWave.style.fontSize = "11px";
+                    btnWave.textContent = "Wave";
+                    btnWave.onclick = () => {
+                        unlockAudio();
+                        const baseVol = rule.volume !== undefined ? rule.volume : 80;
+                        const effectiveVol = (baseVol / 100) * window.SoundManager.volume;
+                        window.SoundManager.playWave(rule.sound, effectiveVol);
+                    };
+                    actions.appendChild(btnWave);
+                }
+
+                item.appendChild(info);
+                item.appendChild(actions);
+                container.appendChild(item);
+            });
+        }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            if (window.SoundManager) {
+                window.SoundManager.onLogCallback = appendLog;
+                await window.SoundManager.init();
+                
+                document.getElementById("sound_mode").value = window.SoundManager.soundMode;
+                document.getElementById("sound_vol").value = window.SoundManager.volume;
+                document.getElementById("vol-text").textContent = `${window.SoundManager.volume}%`;
+
+                loadRulesUI();
+                updateBadge();
+            }
+            document.body.addEventListener("click", unlockAudio, { once: true });
+        });
+    </script>
+</body>
+
+</html>

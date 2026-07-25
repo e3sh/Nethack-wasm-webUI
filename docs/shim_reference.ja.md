@@ -146,6 +146,14 @@ Wasm 内部の `js_helpers_init` が実行されると、`window.nethackGlobal.h
 ### 2. Asyncify
 JavaScript 側のイベント処理で `Promise` を返すもの（`shim_nhgetch`, `shim_yn_function` 等）は、Emscripten の Asyncify 機能を介して C 側の実行を一時停止し、入力完了後に再開します。
 
+### 3. 音声再生（サウンド機能）について
+NetHack WASM WebUI では、本家 NetHack の `usersounds` 仕様に準拠した **クライアント側独立メッセージフック方式の音声再生システム** を導入・実装しています。
+
+NetHack 本体の `sound_procs`（Cコード側のサウンド機構）と `winshim.c` 間に直接の音通知コールバックは存在しませんが、WASM から発行される **`shim_raw_print`**, **`shim_raw_print_bold`**, **`shim_putstr`** のメッセージイベントを JavaScript 側（`GameManager.js`）でフックし、`sound_mapping.json` の定義パターン（英語原文メッセージおよび日本語翻訳メッセージ）に照合して効果音を発声させます。
+
+アセットファイル（WAV/MP3）の再生に加え、Web Audio API と `sys/coremin.js` (`Beepcore`) を利用した 8bit レトロ合成音の生成に対応しています（初回デフォルトは消音/OFF設定）。
+詳細な設計アーキテクチャ・設定仕様・実装手順については [sound_system_spec.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/sound_system_spec.md) を参照してください。
+
 ---
 
 ## ビルド手順（WebAssembly）

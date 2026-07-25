@@ -57,6 +57,7 @@ const w = [
     s + "ioControl.js",
     s + "sceneControl.js",
     // Rogue 
+    r + "SoundManager.js",
     r + "GameManager.js",
     r + "UIManager.js",
     r + "UI/io.js",

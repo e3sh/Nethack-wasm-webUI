@@ -1,10 +1,10 @@
 # NetHack-wasm-webUI
 
-NetHack 5.0.0 (正式版) を WebAssembly にコンパイルし、Canvas ベースおよび DOM ベースのハイブリッド描画エンジンによりブラウザ上で動作させる WebUI プロジェクトです。日本語翻訳表示および各種入力デバイス（キーボード・ゲームパッド・タッチパネル）に対応しています。
+NetHack 5.0.0 (正式版) を WebAssembly にコンパイルし、Canvas ベースおよび DOM ベースのハイブリッド描画エンジンによりブラウザ上で動作させる WebUI プロジェクトです。日本語翻訳表示、音声再生システム、および各種入力デバイス（キーボード・ゲームパッド・タッチパネル）に対応しています。
 
 👉 **[🎮 プレイする（メインポータル / タイトル画面）](https://e3sh.github.io/Nethack-wasm-webUI/)**
 
-> ※ 上記のポータル（タイトル画面）から、**Desktop(Canvas)モード**、**Mobile(DOM)モード**、**システム設定**、**セーブデータ管理**、および各種**開発・調整ツール**へアクセスできます。
+> ※ 上記のポータル（タイトル画面）から、**Desktop(Canvas)モード**、**Mobile(DOM)モード**、**システム設定**、**セーブデータ管理**、および各種**開発・調整ツール（Sound Tester等）**へアクセスできます。
 
 ---
 
@@ -14,6 +14,10 @@ NetHack 5.0.0 (正式版) を WebAssembly にコンパイルし、Canvas ベー�
 - **ハイブリッド描画システム**:
   - **Desktop (Canvas Mode)**: タイル表示とフォントベース（ASCII/漢字）の同一行混在表示、JIS X 0208 フォントレンダリングに対応。
   - **Mobile (DOM Mode)**: モバイル端末向けに Canvas を使用しない軽量・高精細な DOM レンダリングエンジンを搭載。
+- **音声再生システム (usersounds & 8bit Synth)**:
+  - メッセージトリガー（usersounds方式）による効果音再生。
+  - WAV/MP3オーディオアセット再生に加え、アセット不要の 8bit レトロ合成音（`Beepcore` / Web Audio API オシレーター）に対応。
+  - 音源モード（`Auto` / `Wave` / `Beep` / `Mute`）を選択可能（初回デフォルトは OFF/Mute 設定）。
 - **日本語翻訳機能**:
   - アイテム構成要素（数量、状態、変化値等）を解析し日本語として再構成するリアルタイム分析エンジン。
   - 辞書マッチングによるゲームメッセージの日本語表示。
@@ -45,6 +49,7 @@ NetHack 5.0.0 (正式版) を WebAssembly にコンパイルし、Canvas ベー�
 - **Runtime**: WebAssembly (Emscripten / Asyncify)
 - **Frontend**: JavaScript (Vanilla JS / ES6+)
 - **Graphics**: HTML5 Canvas API / DOM Rendering Engine
+- **Audio Engine**: Web Audio API / Beepcore (sys/coremin.js) / SoundManager
 - **Storage**: IndexedDB (IDBFS via Emscripten) / localStorage
 
 ---
@@ -70,11 +75,13 @@ python -m http.server 8000
 - [x] 5.0のタイル配置変更に伴う WebUI 側の調整
 - [x] 基本的な描画システム（Canvas / DOM）の構築
 - [x] 漢字・記号・タイルの混合描画対応
+- [x] 音声再生システム（usersoundsメッセージフック & Beepcore 8bit Synth）の実装
 - [x] IndexedDB によるセーブ機能およびマネージャーの実装
 - [x] メインタイトル画面（ポータルメニュー）の統合リニューアル
 - [x] アイテム名パースエンジンの実装
 - [x] コンテキスト対応 Gamepad UI & タッチ操作の実装
 - [x] モバイルレイアウト（座標補正・全画面対応）の最適化
+- [ ] sound_mapping.json のメッセージへのサウンド割り当て調整（未調整）
 - [/] 日本語メッセージ辞書の拡充（進行中）
 
 ---

@@ -151,6 +151,9 @@ function GameManager(g) {
         switch (type) {
             //VDECLCB(shim_init_nhwindows,(int *argcp, char **argv), "vpp", P2V argcp, P2V argv)
             case "shim_init_nhwindows":
+                if (window.SoundManager) {
+                    window.SoundManager.init();
+                }
                 return 0;
             //DECLCB(boolean, shim_player_selection_or_tty,(void), "b")
             case "shim_player_selection_or_tty":
@@ -239,6 +242,9 @@ function GameManager(g) {
                 this.UI.nhPutbufClear();
                 this.UI.nhClear(args[0]);
                 this.UI.set_display_window(args[0]);
+                if (args[0] === 1) { // NHW_MESSAGE
+                    this.messageWindowId = args[0];
+                }
                 return args[0];
             //VDECLCB(shim_clear_nhwindow,(winid window), "vi", A2P window)
             case "shim_clear_nhwindow":
@@ -284,10 +290,37 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_putstr,(winid w, int attr, const char *str), "viis", A2P w, A2P attr, P2V str)
             case "shim_putstr":
-                if (args[0] === 1) { // NHW_MESSAGE
-                    this.messageHistory.push(args[2]);
-                    if (this.messageHistory.length > 200) { // Keep last 200 messages
-                        this.messageHistory.shift();
+                const winId = args[0];
+                // 厳密に NHW_MESSAGE (タイプ1) のメッセージウィンドウのみを対象とする
+                const isMessageWin = (winId === 1 || (this.messageWindowId !== undefined && winId === this.messageWindowId));
+
+                if (args[2] && typeof args[2] === 'string' && args[2].trim().length > 0) {
+                    const rawMsg = args[2].trim();
+
+                    if (d.DEBUG_MSG) {
+                        console.log(`[shim_putstr] winId: ${winId} (isMsgWin: ${isMessageWin}), str: "${rawMsg.slice(0, 40)}"`);
+                    }
+
+                    // メッセージウィンドウかつ長文ダイアログ(150文字以上)でない場合のみ発声対象とする
+                    if (isMessageWin && rawMsg.length < 150) {
+                        this.messageHistory.push(rawMsg);
+                        if (this.messageHistory.length > 200) { // Keep last 200 messages
+                            this.messageHistory.shift();
+                        }
+                        if (window.SoundManager) {
+                            // 1. 原文 (英語) メッセージの処理
+                            window.SoundManager.processMessage(rawMsg);
+                            
+                            // 2. 翻訳後 (日本語) メッセージの処理
+                            if (this.UI && this.UI.trancelate) {
+                                try {
+                                    const translatedMsg = this.UI.trancelate.message(rawMsg);
+                                    if (translatedMsg && translatedMsg !== rawMsg) {
+                                        window.SoundManager.processMessage(translatedMsg);
+                                    }
+                                } catch(e) {}
+                            }
+                        }
                     }
                 }
                 this.UI.nhPutbufAdd(args[0], args[2]);
@@ -482,9 +515,25 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)
             case "shim_raw_print":
-                if (args[0]) {
-                    this.messageHistory.push(args[0]);
+                if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
+                    const rawMsg = args[0].trim();
+                    this.messageHistory.push(rawMsg);
                     if (this.messageHistory.length > 200) this.messageHistory.shift();
+
+                    if (window.SoundManager) {
+                        // 1. 原文 (英語) メッセージのフック
+                        window.SoundManager.processMessage(rawMsg);
+                        
+                        // 2. 翻訳後 (日本語) メッセージのフック
+                        if (this.UI && this.UI.trancelate) {
+                            try {
+                                const translatedMsg = this.UI.trancelate.message(rawMsg);
+                                if (translatedMsg && translatedMsg !== rawMsg) {
+                                    window.SoundManager.processMessage(translatedMsg);
+                                }
+                            } catch(e) {}
+                        }
+                    }
                 }
                 if (this.playing) {
                     this.UI.nhPutStr(`${args[0]}`);
@@ -494,9 +543,25 @@ function GameManager(g) {
                 return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
-                if (args[0]) {
-                    this.messageHistory.push(args[0]);
+                if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
+                    const rawMsg = args[0].trim();
+                    this.messageHistory.push(rawMsg);
                     if (this.messageHistory.length > 200) this.messageHistory.shift();
+
+                    if (window.SoundManager) {
+                        // 1. 原文 (英語) メッセージのフック
+                        window.SoundManager.processMessage(rawMsg);
+                        
+                        // 2. 翻訳後 (日本語) メッセージのフック
+                        if (this.UI && this.UI.trancelate) {
+                            try {
+                                const translatedMsg = this.UI.trancelate.message(rawMsg);
+                                if (translatedMsg && translatedMsg !== rawMsg) {
+                                    window.SoundManager.processMessage(translatedMsg);
+                                }
+                            } catch(e) {}
+                        }
+                    }
                 }
                 if (this.playing) {
                     this.UI.nhPutStr(`${args[0]}`);
@@ -506,12 +571,14 @@ function GameManager(g) {
                 return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
+                if (window.SoundManager) window.SoundManager.unlockAudio();
                 this.inputContext = "NORMAL";
                 return new Promise(resolve => {
                     this.pendingInputResolve = resolve;
                 });
             //DECLCB(int, shim_nh_poskey,(coordxy *x, coordxy *y, int *mod), "ippp", P2V x, P2V y, P2V mod)
             case "shim_nh_poskey":
+                if (window.SoundManager) window.SoundManager.unlockAudio();
                 //this.inputContext = "POS";　//通常の操作でも呼ばれるので注釈にする
                 return new Promise((resolve) => {
                     r.pendingInputResolve = (charCode, x, y, mod) => {
