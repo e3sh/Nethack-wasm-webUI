@@ -7,6 +7,8 @@ class SoundManagerClass {
         this.initialized = false;
         this.soundMode = "mute"; // 初回起動時のデフォルトは OFF (消音)
         this.volume = 80; // 0 - 100
+        this.waveGain = 1.0; // WAV/MP3の音量ゲイン補正 (1.0 = 100%)
+        this.beepGain = 0.3; // Beep合成音の音量ゲイン補正 (0.3 = 30%)
         this.soundDir = "assets/sounds/";
         this.cooldownMap = new Map(); // rule.id -> timestamp
         this.audioCtx = null;
@@ -142,6 +144,12 @@ class SoundManagerClass {
 
         const directVol = localStorage.getItem("nethack_sound_volume");
         if (directVol) this.volume = parseInt(directVol, 10);
+
+        const waveGainStr = localStorage.getItem("nethack_wave_gain");
+        if (waveGainStr) this.waveGain = parseFloat(waveGainStr);
+
+        const beepGainStr = localStorage.getItem("nethack_beep_gain");
+        if (beepGainStr) this.beepGain = parseFloat(beepGainStr);
     }
 
     async init() {
@@ -161,6 +169,12 @@ class SoundManagerClass {
             if (res.ok) {
                 const data = await res.json();
                 this.soundDir = data.soundDir || "assets/sounds/";
+                if (data.waveGain !== undefined && !localStorage.getItem("nethack_wave_gain")) {
+                    this.waveGain = data.waveGain;
+                }
+                if (data.beepGain !== undefined && !localStorage.getItem("nethack_beep_gain")) {
+                    this.beepGain = data.beepGain;
+                }
                 if (data.rules && Array.isArray(data.rules)) {
                     this.rules = data.rules.map(r => ({
                         ...r,
@@ -169,7 +183,7 @@ class SoundManagerClass {
                 }
             }
             this.initialized = true;
-            this.log("INFO", `Initialized. Mode: ${this.soundMode}, Volume: ${this.volume}%, Active Rules: ${this.rules.length}`);
+            this.log("INFO", `Initialized. Mode: ${this.soundMode}, Volume: ${this.volume}%, WaveGain: ${Math.round(this.waveGain * 100)}%, BeepGain: ${Math.round(this.beepGain * 100)}%`);
         } catch (e) {
             this.log("ERROR", `Init fetch error: ${e.message || e}`);
         }
@@ -206,7 +220,19 @@ class SoundManagerClass {
             nhConfig.sound_volume = this.volume;
             localStorage.setItem("nh.config", JSON.stringify(nhConfig));
         } catch(e) {}
-        this.log("CONFIG", `Volume set to: ${this.volume}%`);
+        this.log("CONFIG", `Master Volume set to: ${this.volume}%`);
+    }
+
+    setWaveGain(gain) {
+        this.waveGain = Math.max(0, Math.min(2.0, gain));
+        localStorage.setItem("nethack_wave_gain", this.waveGain);
+        this.log("CONFIG", `WAV Balance Gain set to: ${Math.round(this.waveGain * 100)}%`);
+    }
+
+    setBeepGain(gain) {
+        this.beepGain = Math.max(0, Math.min(2.0, gain));
+        localStorage.setItem("nethack_beep_gain", this.beepGain);
+        this.log("CONFIG", `Beep Balance Gain set to: ${Math.round(this.beepGain * 100)}%`);
     }
 
     getNormVolume(volPercent) {
@@ -281,8 +307,8 @@ class SoundManagerClass {
     async playWave(soundFile, volPercent, onFail) {
         this.unlockAudio();
         const path = soundFile.includes("/") ? soundFile : `${this.soundDir}${soundFile}`;
-        const normVol = this.getNormVolume(volPercent);
-        this.log("PLAY_WAVE", `Playing Audio: ${path} (Vol: ${Math.round(volPercent)}%)`);
+        const normVol = this.getNormVolume(volPercent) * this.waveGain;
+        this.log("PLAY_WAVE", `Playing Audio: ${path} (Vol: ${Math.round(volPercent)}%, WaveGain: ${Math.round(this.waveGain * 100)}%)`);
 
         try {
             const audio = new Audio();
@@ -320,7 +346,7 @@ class SoundManagerClass {
     playBeep(beepConfig, volPercent) {
         this.unlockAudio();
         const targetVol = volPercent !== undefined ? volPercent : this.volume;
-        const normVol = this.getNormVolume(targetVol); // 0.0 ~ 1.0
+        const normVol = this.getNormVolume(targetVol) * this.beepGain; // 0.0 ~ 1.0 (beepGain 適用)
 
         if (normVol <= 0) return;
 
@@ -328,7 +354,7 @@ class SoundManagerClass {
         const duration = beepConfig.duration || 80;
         const wave = beepConfig.wave || "square";
 
-        this.log("PLAY_BEEP", `Playing Beep: notes=[${notes.join(", ")}], wave=${wave}, duration=${duration}ms, vol=${Math.round(targetVol)}%`);
+        this.log("PLAY_BEEP", `Playing Beep: notes=[${notes.join(", ")}], wave=${wave}, duration=${duration}ms, vol=${Math.round(targetVol)}%, BeepGain=${Math.round(this.beepGain * 100)}%`);
 
         // 1. Beepcore class from sys/coremin.js
         if (typeof Beepcore !== 'undefined') {

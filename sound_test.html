@@ -214,17 +214,31 @@
             <div>
                 <div class="card">
                     <div class="card-title">
-                        <span>音源モード・コントロール</span>
+                        <span>音源モード & 音量バランス・コントロール</span>
                     </div>
-                    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                        <select id="sound_mode" onchange="changeMode(this.value)">
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
+                        <select id="sound_mode" onchange="changeMode(this.value)" style="width: 140px;">
                             <option value="auto">標準 (Auto / Hybrid)</option>
                             <option value="wave">オーディオファイル (WAV/MP3)</option>
                             <option value="beep">Beep合成音 (8bit Synth)</option>
                             <option value="mute">OFF (消音)</option>
                         </select>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Master Vol:</span>
                         <input type="range" id="sound_vol" min="0" max="100" value="80" oninput="changeVol(this.value)" style="flex: 1; accent-color: var(--accent-color);">
                         <span id="vol-text" style="font-weight: 600; width: 40px; text-align: right;">80%</span>
+                    </div>
+                    <!-- 音量バランス補正コントロール -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="font-size: 12px; width: 125px; color: var(--text-secondary);">WAV Balance Gain:</span>
+                            <input type="range" id="wave_gain" min="0" max="200" value="100" oninput="changeWaveGain(this.value)" style="flex: 1; accent-color: #388bfd;">
+                            <span id="wave-gain-text" style="font-weight: 600; width: 45px; text-align: right; font-size: 12px; color: #388bfd;">100%</span>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="font-size: 12px; width: 125px; color: var(--text-secondary);">Beep Balance Gain:</span>
+                            <input type="range" id="beep_gain" min="0" max="200" value="30" oninput="changeBeepGain(this.value)" style="flex: 1; accent-color: #d29922;">
+                            <span id="beep-gain-text" style="font-weight: 600; width: 45px; text-align: right; font-size: 12px; color: #d29922;">30%</span>
+                        </div>
                     </div>
                 </div>
 
@@ -321,6 +335,18 @@
         function changeVol(vol) {
             document.getElementById("vol-text").textContent = `${vol}%`;
             if (window.SoundManager) window.SoundManager.setVolume(parseInt(vol, 10));
+        }
+
+        function changeWaveGain(val) {
+            const gain = parseInt(val, 10) / 100;
+            document.getElementById("wave-gain-text").textContent = `${val}%`;
+            if (window.SoundManager) window.SoundManager.setWaveGain(gain);
+        }
+
+        function changeBeepGain(val) {
+            const gain = parseInt(val, 10) / 100;
+            document.getElementById("beep-gain-text").textContent = `${val}%`;
+            if (window.SoundManager) window.SoundManager.setBeepGain(gain);
         }
 
         function setMsg(txt) {
@@ -436,6 +462,14 @@
                 document.getElementById("sound_mode").value = window.SoundManager.soundMode;
                 document.getElementById("sound_vol").value = window.SoundManager.volume;
                 document.getElementById("vol-text").textContent = `${window.SoundManager.volume}%`;
+
+                const wGainPct = Math.round(window.SoundManager.waveGain * 100);
+                document.getElementById("wave_gain").value = wGainPct;
+                document.getElementById("wave-gain-text").textContent = `${wGainPct}%`;
+
+                const bGainPct = Math.round(window.SoundManager.beepGain * 100);
+                document.getElementById("beep_gain").value = bGainPct;
+                document.getElementById("beep-gain-text").textContent = `${bGainPct}%`;
 
                 loadRulesUI();
                 updateBadge();

@@ -1,6 +1,8 @@
 {
   "soundDir": "assets/sounds/",
   "defaultVolume": 80,
+  "waveGain": 1.0,
+  "beepGain": 0.3,
   "rules": [
     {
       "id": "se_welcome",
