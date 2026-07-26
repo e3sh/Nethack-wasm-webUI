@@ -185,6 +185,9 @@ function io(r, g) {
 		const hpInd = warnIcon(sf[s.HP], sf[s.HPMAX]);
 		const enInd = warnIcon(sf[s.ENE], sf[s.ENEMAX]);
 
+		const hungerText = r.UI.trancelate.message(sf[s.HUNGER]);
+		const condText = conditionString(sf[s.CONDITION]);
+
 		r.UI.setBarEffect(statusFields[d.BL_HP].value, statusFields[d.BL_HPMAX].value);
 
 		if (!d.SL_SIMPLE) {
@@ -192,10 +195,10 @@ function io(r, g) {
 				`${sf[s.TITLE]} St:${sf[s.STR]} Dx:${sf[s.DEX]} Co:${sf[s.CON]} In:${sf[s.INT]} Wi:${sf[s.WIS]} Ch:${sf[s.CHA]}`
 			);
 			r.UI.mvwaddstr(statusDsp, 1, 0,
-				`${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${sf[s.HUNGER]}`
+				`${sf[s.ALIGN]} $:${GOLD} ${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]}) AC:${sf[s.AC]} Exp:${sf[s.XP]}/${sf[s.EXP]} ${hungerText}`
 			);
 			r.UI.mvwaddstr(statusDsp, 2, 0,
-				`${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+				`${sf[s.DLEVEL]} T:${sf[s.TIME]} ${sf[s.CAP]} ${condText}`
 			);
 		} else {
 			r.UI.mvwaddstr(statusDsp, 0, 0,
@@ -205,7 +208,7 @@ function io(r, g) {
 				`${hpInd}HP:${sf[s.HP]}(${sf[s.HPMAX]}) ${enInd}Pw:${sf[s.ENE]}(${sf[s.ENEMAX]})  Exp:${sf[s.XP]}/${sf[s.EXP]}`
 			);
 			r.UI.mvwaddstr(statusDsp, 2, 0,
-				`${sf[s.DLEVEL]} ${sf[s.HUNGER]} ${sf[s.CAP]} ${conditionString(sf[s.CONDITION])}`
+				`${sf[s.DLEVEL]} ${hungerText} ${sf[s.CAP]} ${condText}`
 			);
 
 		}
@@ -261,7 +264,7 @@ function io(r, g) {
 		let str = "";
 
 		for (let i in CDT) {
-			str += `${(condvalue & CDT[i]) ? `${i} ` : ""}`;
+			str += `${(condvalue & CDT[i]) ? `${r.UI.trancelate.message(i)} ` : ""}`;
 		}
 		return str;
 	}
