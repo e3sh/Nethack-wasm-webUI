@@ -163,7 +163,7 @@
             padding: 12px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
-            height: 250px;
+            height: 300px;
             overflow-y: auto;
             color: #4af626;
             line-height: 1.5;
@@ -309,6 +309,41 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- MML (Music Macro Language) 入力再生テストカード -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>MML (Music Macro Language) 入力再生テスト</span>
+                        <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="playMML()">再生 (Play MML)</button>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 11px; color: var(--text-secondary);">MML 文字列 (T=テンポ, O=オクターブ, L=音長, A-G, R=休符):</label>
+                        <input type="text" id="mml-text" value="T180 O4 L8 C E G O5 C." style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3fb950; margin-top: 4px;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-secondary);">波形 (Wave):</label>
+                            <select id="mml-wave" style="width: 100%;">
+                                <option value="square">square (8bit矩形波)</option>
+                                <option value="sine">sine (サイン波)</option>
+                                <option value="sawtooth">sawtooth (ノコギリ波)</option>
+                                <option value="triangle">triangle (三角波)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-secondary);">デフォルト音長 duration (ms):</label>
+                            <input type="number" id="mml-duration" value="80" min="20" max="1000" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">MML プリセットサンプル:</div>
+                    <div class="presets">
+                        <button class="preset-btn" onclick="setMML('T180 O4 L8 C E G O5 C.')">ファンファーレ (T180)</button>
+                        <button class="preset-btn" onclick="setMML('T240 O5 L16 C D E F G A B O6 C')">アルペジオ (T240速)</button>
+                        <button class="preset-btn" onclick="setMML('T120 O4 L4 C E G R L8 G E C')">休符入り (T120)</button>
+                        <button class="preset-btn" onclick="setMML('T120 O4 L8 C E G T240 O5 C E G')">途中で変速 (T120➔T240)</button>
+                        <button class="preset-btn" onclick="setMML('T140 O3 L8 G3 B3 O4 D4 G4.')">重厚コード (T140)</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Column: Rules Preview & Log Terminal -->
@@ -318,7 +353,7 @@
                         <span>登録済みルール一覧 (`sound_mapping.json`)</span>
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="loadRulesUI()">更新</button>
                     </div>
-                    <div id="rules-container" style="max-height: 200px; overflow-y: auto;"></div>
+                    <div id="rules-container" style="max-height: 500px; overflow-y: auto;"></div>
                 </div>
 
                 <div class="card">
@@ -409,6 +444,26 @@
                     wave: wave,
                     duration: 80,
                     lfo: lfoConfig
+                }, window.SoundManager.volume);
+            }
+        }
+
+        function setMML(mmlStr) {
+            document.getElementById("mml-text").value = mmlStr;
+            playMML();
+        }
+
+        function playMML() {
+            unlockAudio();
+            const mmlStr = document.getElementById("mml-text").value;
+            const wave = document.getElementById("mml-wave").value;
+            const duration = parseInt(document.getElementById("mml-duration").value, 10) || 80;
+
+            if (window.SoundManager) {
+                window.SoundManager.playBeep({
+                    mml: mmlStr,
+                    wave: wave,
+                    duration: duration
                 }, window.SoundManager.volume);
             }
         }

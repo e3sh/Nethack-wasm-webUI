@@ -343,6 +343,160 @@ class SoundManagerClass {
         }
     }
 
+    /**
+     * MML風文字列/配列/指定形式を解析し、BeepcoreおよびWebAudio互換のスコア構造配列に変換
+     * @param {string|Array|number} input - MML文字列 ("O4 C4 E4 G4"), 配列 (["C4", "E4"]), カンマ区切り文字列等
+     * @param {number} defaultInterval - デフォルト音長 (ms)
+     * @returns {Array} score data
+     */
+    parseMML(input, defaultInterval = 80) {
+        if (!input) return [{ name: "C5", Freq: 0, Vol: 1.0, time: defaultInterval, use: false }];
+
+        // 配列が渡された場合
+        if (Array.isArray(input)) {
+            return input.map(item => {
+                if (typeof item === 'object' && item.name) {
+                    return { name: item.name, Freq: item.Freq || 0, Vol: item.Vol !== undefined ? item.Vol : 1.0, time: item.time || defaultInterval, use: false };
+                }
+                const num = Number(item);
+                if (!isNaN(num) && typeof item === 'number') {
+                    return { name: "", Freq: num, Vol: 1.0, time: defaultInterval, use: false };
+                }
+                return { name: String(item), Freq: 0, Vol: 1.0, time: defaultInterval, use: false };
+            });
+        }
+
+        // 数値単体が渡された場合（例: 440）
+        if (typeof input === 'number') {
+            return [{ name: "", Freq: input, Vol: 1.0, time: defaultInterval, use: false }];
+        }
+
+        const str = String(input).trim();
+        // MMLコマンド (O, L, V, R, T) が含まれているかチェック
+        const hasMmlCmd = /[OLVRT]/i.test(str);
+
+        if (!hasMmlCmd) {
+            // カンマまたはスペース区切りの音名リスト（例: "C4 E4 G4" または "C4, E4, G4"）
+            const names = str.split(/[\s,]+/).filter(Boolean);
+            return names.map(name => {
+                const num = Number(name);
+                if (!isNaN(num) && name !== "") {
+                    return { name: "", Freq: num, Vol: 1.0, time: defaultInterval, use: false };
+                }
+                return { name, Freq: 0, Vol: 1.0, time: defaultInterval, use: false };
+            });
+        }
+
+        // MML文字列パース (Beepcore.js 準拠 + テンポBPM動的計算機能)
+        let score = [];
+        let octave = 4;
+        let defaultLength = 4; // L4デフォルト
+        let volume = 1.0;
+        let currentTempo = null; // Tコマンド未指定時は null
+        let p = 0;
+        const mmlStr = str.toUpperCase().replace(/\s+/g, '');
+
+        while (p < mmlStr.length) {
+            let char = mmlStr[p];
+            p++;
+
+            if (char === 'O') {
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") octave = parseInt(numStr, 10);
+            } else if (char === 'L') {
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") defaultLength = parseInt(numStr, 10);
+            } else if (char === 'V') {
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") volume = parseInt(numStr, 10) / 15.0;
+            } else if (char === 'T') {
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") {
+                    const parsedBpm = parseInt(numStr, 10);
+                    // 10 ~ 600 BPM の安全範囲内のみ採用
+                    if (parsedBpm >= 10 && parsedBpm <= 600) {
+                        currentTempo = parsedBpm;
+                    }
+                }
+            } else if (char >= 'A' && char <= 'G') {
+                let noteName = char;
+                if (p < mmlStr.length && (mmlStr[p] === '#' || mmlStr[p] === '+' || mmlStr[p] === '-')) {
+                    if (mmlStr[p] === '#' || mmlStr[p] === '+') noteName += '#';
+                    p++;
+                }
+                noteName += octave;
+
+                let noteLength = defaultLength;
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") noteLength = parseInt(numStr, 10);
+
+                let dot = 1.0;
+                if (p < mmlStr.length && mmlStr[p] === '.') {
+                    dot = 1.5;
+                    p++;
+                }
+
+                // T指定時は 60000ms / BPM で L4基準時間を計算、未指定時は defaultInterval
+                const baseInterval = (currentTempo && currentTempo > 0) ? (60000 / currentTempo) : defaultInterval;
+                const playTime = (baseInterval * (4.0 / noteLength)) * dot;
+
+                score.push({
+                    name: noteName,
+                    Freq: 0,
+                    Vol: volume,
+                    time: playTime,
+                    use: false
+                });
+            } else if (char === 'R') {
+                let noteLength = defaultLength;
+                let numStr = "";
+                while (p < mmlStr.length && mmlStr[p] >= '0' && mmlStr[p] <= '9') {
+                    numStr += mmlStr[p];
+                    p++;
+                }
+                if (numStr !== "") noteLength = parseInt(numStr, 10);
+
+                let dot = 1.0;
+                if (p < mmlStr.length && mmlStr[p] === '.') {
+                    dot = 1.5;
+                    p++;
+                }
+
+                const baseInterval = (currentTempo && currentTempo > 0) ? (60000 / currentTempo) : defaultInterval;
+                const playTime = (baseInterval * (4.0 / noteLength)) * dot;
+
+                score.push({
+                    name: '',
+                    Freq: 0,
+                    Vol: 0,
+                    time: playTime,
+                    use: false
+                });
+            }
+        }
+        return score.length > 0 ? score : [{ name: "C5", Freq: 0, Vol: 1.0, time: defaultInterval, use: false }];
+    }
+
     playBeep(beepConfig, volPercent) {
         this.unlockAudio();
         const targetVol = volPercent !== undefined ? volPercent : this.volume;
@@ -350,16 +504,19 @@ class SoundManagerClass {
 
         if (normVol <= 0) return;
 
-        const notes = beepConfig.notes || ["C5"];
+        const rawNotes = beepConfig.mml || beepConfig.notes || ["C5"];
         const duration = beepConfig.duration || 80;
         const wave = beepConfig.wave || "square";
 
+        const parsedScore = this.parseMML(rawNotes, duration);
+
+        const notesSummary = parsedScore.map(s => s.name || (s.Freq ? `${s.Freq}Hz` : "R")).join(", ");
         let lfoLogStr = "";
         if (beepConfig.lfo) {
             lfoLogStr = `, LFO=[freq:${beepConfig.lfo.freq || 6}Hz, wave:${beepConfig.lfo.wave || "sine"}, depth:${beepConfig.lfo.depth || 20}]`;
         }
 
-        this.log("PLAY_BEEP", `Playing Beep: notes=[${notes.join(", ")}], wave=${wave}, duration=${duration}ms${lfoLogStr}, vol=${Math.round(targetVol)}%, BeepGain=${Math.round(this.beepGain * 100)}%`);
+        this.log("PLAY_BEEP", `Playing Beep: notes=[${notesSummary}], wave=${wave}, duration=${duration}ms${lfoLogStr}, vol=${Math.round(targetVol)}%, BeepGain=${Math.round(this.beepGain * 100)}%`);
 
         // 1. Beepcore class from sys/coremin.js
         if (typeof Beepcore !== 'undefined') {
@@ -383,10 +540,19 @@ class SoundManagerClass {
                     this.beepCore.lfoReset();
                 }
 
-                const score = this.beepCore.makeScore(notes, duration, 1.0);
+                // parsedScore を Beepcore の note.play 用データ構造に変換
+                const scoreForBeep = parsedScore.map(item => ({
+                    name: item.name,
+                    Freq: item.Freq || 0,
+                    Vol: item.Vol,
+                    time: item.time,
+                    use: false
+                }));
+                scoreForBeep.push({ Freq: 0, Vol: 0, time: 100, use: false });
+
                 const note = this.beepCore.createNote(440);
                 note.on(normVol, 0);
-                note.play(score, performance.now());
+                note.play(scoreForBeep, performance.now());
 
                 this.startBeepLoop();
                 return;
@@ -408,43 +574,46 @@ class SoundManagerClass {
             try {
                 const masterGain = normVol * 0.2;
                 let currentTime = this.audioCtx.currentTime;
-                const noteDurSec = duration / 1000;
 
-                notes.forEach((noteName) => {
-                    let freq = 440;
-                    if (typeof noteName === 'number') {
-                        freq = noteName;
-                    } else if (this.noteFreqs[noteName]) {
-                        freq = this.noteFreqs[noteName];
+                parsedScore.forEach((item) => {
+                    const noteDurSec = (item.time || duration) / 1000;
+                    let freq = item.Freq || 0;
+                    if (!freq && item.name) {
+                        if (this.noteFreqs[item.name]) {
+                            freq = this.noteFreqs[item.name];
+                        }
                     }
 
-                    const osc = this.audioCtx.createOscillator();
-                    const gainNode = this.audioCtx.createGain();
+                    if (freq > 0 && item.Vol > 0) {
+                        const osc = this.audioCtx.createOscillator();
+                        const gainNode = this.audioCtx.createGain();
 
-                    osc.type = wave;
-                    osc.frequency.setValueAtTime(freq, currentTime);
+                        osc.type = wave;
+                        osc.frequency.setValueAtTime(freq, currentTime);
 
-                    if (beepConfig.lfo) {
-                        const lfoOsc = this.audioCtx.createOscillator();
-                        const lfoGain = this.audioCtx.createGain();
-                        lfoOsc.type = beepConfig.lfo.wave || "sine";
-                        lfoOsc.frequency.setValueAtTime(beepConfig.lfo.freq || 6, currentTime);
-                        lfoGain.gain.setValueAtTime(beepConfig.lfo.depth || 20, currentTime);
-                        lfoOsc.connect(lfoGain);
-                        lfoGain.connect(osc.frequency);
-                        lfoOsc.start(currentTime);
-                        lfoOsc.stop(currentTime + noteDurSec);
+                        if (beepConfig.lfo) {
+                            const lfoOsc = this.audioCtx.createOscillator();
+                            const lfoGain = this.audioCtx.createGain();
+                            lfoOsc.type = beepConfig.lfo.wave || "sine";
+                            lfoOsc.frequency.setValueAtTime(beepConfig.lfo.freq || 6, currentTime);
+                            lfoGain.gain.setValueAtTime(beepConfig.lfo.depth || 20, currentTime);
+                            lfoOsc.connect(lfoGain);
+                            lfoGain.connect(osc.frequency);
+                            lfoOsc.start(currentTime);
+                            lfoOsc.stop(currentTime + noteDurSec);
+                        }
+
+                        const noteGain = masterGain * item.Vol;
+                        gainNode.gain.setValueAtTime(0.0001, currentTime);
+                        gainNode.gain.linearRampToValueAtTime(noteGain, currentTime + 0.005);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, currentTime + noteDurSec);
+
+                        osc.connect(gainNode);
+                        gainNode.connect(this.audioCtx.destination);
+
+                        osc.start(currentTime);
+                        osc.stop(currentTime + noteDurSec);
                     }
-
-                    gainNode.gain.setValueAtTime(0.0001, currentTime);
-                    gainNode.gain.linearRampToValueAtTime(masterGain, currentTime + 0.005);
-                    gainNode.gain.exponentialRampToValueAtTime(0.0001, currentTime + noteDurSec);
-
-                    osc.connect(gainNode);
-                    gainNode.connect(this.audioCtx.destination);
-
-                    osc.start(currentTime);
-                    osc.stop(currentTime + noteDurSec);
 
                     currentTime += noteDurSec;
                 });
