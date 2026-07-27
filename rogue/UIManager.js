@@ -295,16 +295,16 @@ function UIManager(r, g) {
         this.wmove(dsp, y, x);
     };
 
-    this.nhPutStr = function (text) {
-        const result = this.trancelate.message(text);
+    this.nhPutStr = function (text, isTranslated = false) {
+        const result = isTranslated ? text : this.trancelate.message(text);
         this.setDsp(d.DSP_MESSAGE);
         this.msg(result);
     };
 
-    this.nhPutMsg = function (text) {
+    this.nhPutMsg = function (text, isTranslated = false) {
         const ioState = g.task.read("io");
         const dsp = (ioState && ioState.overlapview) ? d.DSP_WINDOW : d.DSP_MAIN_FG;
-        const result = this.trancelate.message(text);
+        const result = isTranslated ? text : this.trancelate.message(text);
         this.setDsp(dsp);
         this.printw(result);
         this.cursorDown();
@@ -324,8 +324,8 @@ function UIManager(r, g) {
             txtbufs[windowId] = [];
         }
     }
-    this.nhPutbufAdd = (windowId, text, prompt) => {
-        const result = this.trancelate.message(text);
+    this.nhPutbufAdd = (windowId, text, prompt, isTranslated = false) => {
+        const result = isTranslated ? text : this.trancelate.message(text);
         if (!Boolean(prompt)) prompt = "";
 
         if (windowId <= 3)

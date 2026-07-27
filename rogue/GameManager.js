@@ -294,6 +294,13 @@ function GameManager(g) {
                 // 厳密に NHW_MESSAGE (タイプ1) のメッセージウィンドウのみを対象とする
                 const isMessageWin = (winId === 1 || (this.messageWindowId !== undefined && winId === this.messageWindowId));
 
+                let translatedMsg = args[2];
+                if (this.UI && this.UI.trancelate && args[2]) {
+                    try {
+                        translatedMsg = this.UI.trancelate.message(args[2]);
+                    } catch(e) {}
+                }
+
                 if (args[2] && typeof args[2] === 'string' && args[2].trim().length > 0) {
                     const rawMsg = args[2].trim();
 
@@ -308,22 +315,11 @@ function GameManager(g) {
                             this.messageHistory.shift();
                         }
                         if (window.SoundManager) {
-                            // 1. 原文 (英語) メッセージの処理
-                            window.SoundManager.processMessage(rawMsg);
-                            
-                            // 2. 翻訳後 (日本語) メッセージの処理
-                            if (this.UI && this.UI.trancelate) {
-                                try {
-                                    const translatedMsg = this.UI.trancelate.message(rawMsg);
-                                    if (translatedMsg && translatedMsg !== rawMsg) {
-                                        window.SoundManager.processMessage(translatedMsg);
-                                    }
-                                } catch(e) {}
-                            }
+                            window.SoundManager.processMessage(rawMsg, translatedMsg);
                         }
                     }
                 }
-                this.UI.nhPutbufAdd(args[0], args[2]);
+                this.UI.nhPutbufAdd(args[0], translatedMsg, "", true);
                 break;
             //VDECLCB(shim_display_file,(const char *name, boolean complain), "vsb", P2V name, A2P complain)
             case "shim_display_file":
@@ -515,60 +511,54 @@ function GameManager(g) {
                 break;
             //VDECLCB(shim_raw_print,(const char *str), "vs", P2V str)
             case "shim_raw_print":
-                if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
-                    const rawMsg = args[0].trim();
-                    this.messageHistory.push(rawMsg);
-                    if (this.messageHistory.length > 200) this.messageHistory.shift();
+                {
+                    let translatedMsg = args[0];
+                    if (this.UI && this.UI.trancelate && args[0]) {
+                        try {
+                            translatedMsg = this.UI.trancelate.message(args[0]);
+                        } catch(e) {}
+                    }
+                    if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
+                        const rawMsg = args[0].trim();
+                        this.messageHistory.push(rawMsg);
+                        if (this.messageHistory.length > 200) this.messageHistory.shift();
 
-                    if (window.SoundManager) {
-                        // 1. 原文 (英語) メッセージのフック
-                        window.SoundManager.processMessage(rawMsg);
-                        
-                        // 2. 翻訳後 (日本語) メッセージのフック
-                        if (this.UI && this.UI.trancelate) {
-                            try {
-                                const translatedMsg = this.UI.trancelate.message(rawMsg);
-                                if (translatedMsg && translatedMsg !== rawMsg) {
-                                    window.SoundManager.processMessage(translatedMsg);
-                                }
-                            } catch(e) {}
+                        if (window.SoundManager) {
+                            window.SoundManager.processMessage(rawMsg, translatedMsg);
                         }
                     }
+                    if (this.playing) {
+                        this.UI.nhPutStr(translatedMsg, true);
+                    } else {
+                        this.UI.nhPutMsg(translatedMsg, true);
+                    }
+                    return 0;
                 }
-                if (this.playing) {
-                    this.UI.nhPutStr(`${args[0]}`);
-                } else {
-                    this.UI.nhPutMsg(`${args[0]}`);
-                }
-                return 0;
             //VDECLCB(shim_raw_print_bold,(const char *str), "vs", P2V str)
             case "shim_raw_print_bold":
-                if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
-                    const rawMsg = args[0].trim();
-                    this.messageHistory.push(rawMsg);
-                    if (this.messageHistory.length > 200) this.messageHistory.shift();
+                {
+                    let translatedMsg = args[0];
+                    if (this.UI && this.UI.trancelate && args[0]) {
+                        try {
+                            translatedMsg = this.UI.trancelate.message(args[0]);
+                        } catch(e) {}
+                    }
+                    if (args[0] && typeof args[0] === 'string' && args[0].trim().length > 0) {
+                        const rawMsg = args[0].trim();
+                        this.messageHistory.push(rawMsg);
+                        if (this.messageHistory.length > 200) this.messageHistory.shift();
 
-                    if (window.SoundManager) {
-                        // 1. 原文 (英語) メッセージのフック
-                        window.SoundManager.processMessage(rawMsg);
-                        
-                        // 2. 翻訳後 (日本語) メッセージのフック
-                        if (this.UI && this.UI.trancelate) {
-                            try {
-                                const translatedMsg = this.UI.trancelate.message(rawMsg);
-                                if (translatedMsg && translatedMsg !== rawMsg) {
-                                    window.SoundManager.processMessage(translatedMsg);
-                                }
-                            } catch(e) {}
+                        if (window.SoundManager) {
+                            window.SoundManager.processMessage(rawMsg, translatedMsg);
                         }
                     }
+                    if (this.playing) {
+                        this.UI.nhPutStr(translatedMsg, true);
+                    } else {
+                        this.UI.nhPutMsg(translatedMsg, true);
+                    }
+                    return 0;
                 }
-                if (this.playing) {
-                    this.UI.nhPutStr(`${args[0]}`);
-                } else {
-                    this.UI.nhPutMsg(`${args[0]}`);
-                }
-                return 0;
             //DECLCB(int, shim_nhgetch,(void), "i")
             case "shim_nhgetch":
                 if (window.SoundManager) window.SoundManager.unlockAudio();
@@ -849,6 +839,7 @@ function GameManager(g) {
 
         console.log(`Use Glyph:${d.USE_GLYPH}`);
         if (d.USE_GLYPH) {
+            g.console[d.DSP_MAIN].setMapMode(true);
             g.console[d.DSP_MAIN].setPrompt(["＿", "＿"]);
         }
 

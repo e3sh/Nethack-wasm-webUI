@@ -239,37 +239,48 @@ class SoundManagerClass {
         return Math.max(0, Math.min(100, volPercent)) / 100;
     }
 
-    processMessage(msg) {
-        if (!msg || this.soundMode === "mute") return;
+    processMessage(rawMsg, translatedMsg) {
+        if ((!rawMsg && !translatedMsg) || this.soundMode === "mute") return;
 
         this.unlockAudio(); // メッセージ受信時に即座に AudioContext のアクティブ状態を確保
         this.loadSettings();
 
-        const cleanMsg = String(msg).trim();
-        if (!cleanMsg) return;
+        const targets = [];
+        if (rawMsg) {
+            const cleanRaw = String(rawMsg).trim();
+            if (cleanRaw) targets.push(cleanRaw);
+        }
+        if (translatedMsg && translatedMsg !== rawMsg) {
+            const cleanTr = String(translatedMsg).trim();
+            if (cleanTr) targets.push(cleanTr);
+        }
+        if (targets.length === 0) return;
 
         const now = Date.now();
         let matched = false;
 
-        for (const rule of this.rules) {
-            if (rule.regex.test(cleanMsg)) {
-                matched = true;
-                if (rule.cooldownMs) {
-                    const lastTime = this.cooldownMap.get(rule.id) || 0;
-                    if (now - lastTime < rule.cooldownMs) {
-                        this.log("MATCH", `Matched [${rule.id}] but skipped due to cooldown (${rule.cooldownMs}ms)`);
-                        continue;
+        for (const targetMsg of targets) {
+            for (const rule of this.rules) {
+                if (rule.regex.test(targetMsg)) {
+                    matched = true;
+                    if (rule.cooldownMs) {
+                        const lastTime = this.cooldownMap.get(rule.id) || 0;
+                        if (now - lastTime < rule.cooldownMs) {
+                            this.log("MATCH", `Matched [${rule.id}] but skipped due to cooldown (${rule.cooldownMs}ms)`);
+                            continue;
+                        }
                     }
+                    this.cooldownMap.set(rule.id, now);
+                    this.log("MATCH", `Matched rule [${rule.id}] for msg: "${targetMsg}"`);
+                    this.playSoundRule(rule);
+                    break;
                 }
-                this.cooldownMap.set(rule.id, now);
-                this.log("MATCH", `Matched rule [${rule.id}] for msg: "${cleanMsg}"`);
-                this.playSoundRule(rule);
-                break;
             }
+            if (matched) break;
         }
 
         if (!matched) {
-            this.log("NO_MATCH", `No rule matched for msg: "${cleanMsg}"`);
+            this.log("NO_MATCH", `No rule matched for msg: "${targets.join(' | ')}"`);
         }
     }
 

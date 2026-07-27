@@ -96,6 +96,7 @@ class DisplayDevice {
     setLinewidth(n) { }
     setCharwidth(n) { }
     setUseUTF(b) { }
+    setMapMode(b) { }
     scrolllock(b) { }
     rewritecheck() { return 0; }
 }

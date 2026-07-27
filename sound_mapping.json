@@ -84,7 +84,7 @@
     },
     {
       "id": "se_attack_hit",
-      "pattern": "^You (hit|thrust|bite|kick|butt)|に攻撃した|攻撃を当てた|命中させた",
+      "pattern": "^You (hit|thrust|bite|kick|butt)|に攻撃した|攻撃を当てた|命中させた|^You kill",
       "sound": "hit.mp3",
       "beep": { "notes": ["E5", "G5"], "wave": "square", "duration": 50 },
       "volume": 80,

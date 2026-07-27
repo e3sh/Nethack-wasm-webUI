@@ -22,6 +22,7 @@ class jncurses extends DisplayDevice {
         this.charw = 8;
         this.linew = 16;
         this.useutf = false;
+        this.isMapMode = false;
 
         this.shift = { ready: false, pos: 15, v: 0 };
     }
@@ -31,6 +32,7 @@ class jncurses extends DisplayDevice {
     setLinewidth(num) { this.linew = num; }
     setCharwidth(num) { this.charw = num; }
     setUseUTF(sw) { this.useutf = sw; }
+    setMapMode(sw) { this.isMapMode = sw; }
 
     move(new_x, new_y) {
         if ((new_x >= 0) && (new_x < this.bufW)) this.cursor.x = new_x;
@@ -166,12 +168,25 @@ class jncurses extends DisplayDevice {
                     let cl = 0;
                     if (Boolean(this.buffer[this.cursor.y])) {
                         const line = this.buffer[this.cursor.y];
-                        for (let i = 0; i < this.cursor.x; i++) {
-                            cl += (line.charCodeAt(i) < 128) ? this.charw : this.charw * 2;
+                        if (!this.isMapMode) {
+                            let col = 0;
+                            for (let i = 0; i < line.length; i++) {
+                                if (col >= this.cursor.x) break;
+                                const code = line.charCodeAt(i);
+                                const isHalf = (code < 256 || (code >= 0xFF60 && code <= 0xFF9F));
+                                cl += isHalf ? this.charw : this.charw * 2;
+                                col += isHalf ? 1 : 2;
+                            }
+                        } else {
+                            const limit = Math.min(this.cursor.x, line.length);
+                            for (let i = 0; i < limit; i++) {
+                                const code = line.charCodeAt(i);
+                                const isHalf = (code < 256 || (code >= 0xFF60 && code <= 0xFF9F));
+                                cl += isHalf ? this.charw : this.charw * 2;
+                            }
                         }
                     }
-                    let ix = (this.cursor.x * this.charw > cl) ? this.cursor.x * this.charw : cl;
-                    g.kanji.putchr(d, x + ix, y + this.cursor.y * this.linew, 0.5);
+                    g.kanji.putchr(d, x + cl, y + this.cursor.y * this.linew, 0.5);
                 }
             }
         }
