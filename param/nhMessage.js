@@ -13277,6 +13277,7 @@ function nhPatterns() {
         { pattern: /^It\s+smells\s+like\s+(.*)\.$/, replace: "$1のような匂いがする。" },
         { pattern: /^You\s+consume\s+homemade\s+(.*)\.$/, replace: "自家製の$1を消費した。" },
         { pattern: /^You\s+consume\s+boiled\s+(.*)\.$/, replace: "あなたは茹でた$1を食べる。" },
+        { pattern: /^You\s+consume\s+(.*)\s+(.*)\.$/, replace: "あなたは$1の$2を食べる。" },
         { pattern: /^There\s+is\s+(.*)\s+here;\s+tin\s+it\?$/, replace: "ここに$1がある；缶詰にするか？" },
         { pattern: /^Using\s+your\s+(.*)\s+you\s+try\s+to\s+open\s+the\s+tin\.$/, replace: "$1で缶を開けようとする。" },
         { pattern: /^You\s+have\s+extreme\s+difficulty\s+lifting\s+(.*)\.\s+\s+(.*)$/, replace: "$1は持ち上げるのが非常に困難です。$2" },
@@ -16260,7 +16261,7 @@ function nhPatterns() {
         { pattern: /^resist\s+the\s+temptation\s+to\s+mimic\s+(.*)\.$/, replace: "$1 を真似したいという誘惑に抵抗してください。" },
         { pattern: /^It's\s+full\s+of\s+(.*)\.$/, replace: "$1 がいっぱいです。" },
         { pattern: /^consume\s+(.*)\s+(.*)\.$/, replace: "$1  $2 を消費します。" },
-        { pattern: /^Eating\s+(.*)\s+food\s+made\s+your\s+(.*)\s+(.*)\s+slippery\.$/, replace: "$1 の食べ物を食べると、 $2  $3 が滑りやすくなりました。" },
+        { pattern: /^Eating\s+(.*)\s+food\s+made\s+your\s+(.*)\s+(.*)\s+slippery\.$/, replace: "$1 の食べ物を食べると、$3が$2滑りやすくなりました。" },
         { pattern: /^It\s+contains\s+some\s+decaying(.*)(.*)\s+substance\.$/, replace: "これには、腐敗する $1  $2 物質が含まれています。" },
         { pattern: /^This\s+makes\s+you\s+feel\s+like\s+(.*)!$/, replace: "これを見ると、 $1 のような気分になります。" },
         { pattern: /^Using\s+(.*)\s+you\s+try\s+to\s+open\s+the\s+tin\.$/, replace: "$1 を使用して缶を開けようとします。" },
@@ -16959,6 +16960,7 @@ function nhPatterns() {
         { pattern: /^That\s+feels\s+like\s+(.*)$/, replace: "それはまるで$1のような感触だ。" },
         { pattern: /^\s+\s+You\s+were\s+(.*)\.$/, replace: "あなたは$1だった。" },
         { pattern: /^You\s+escaped\s+from\s+(.*)\s+on\s+level\s+(.*)\s+with\s+(.*)\s+points\.$/, replace: "あなたは$3ポイントで、$1の$2階から脱出しました。" },
+        { pattern: /^Your\s+(.*)\s+slips\s+from\s+your\s+hand\.$/, replace: "あなたの手から$1が滑り落ちる" },
     ];
 }
 
