@@ -84,3 +84,21 @@ NetHack-wasm-webUI におけるタッチパネルおよびゲームパッドの�
 
 ### 4.2 キーコードの指定
 アクションには `KeyboardEvent.code` 文字列（例: `KeyW`, `Numpad8`, `ShiftLeft`）を指定します。複数のキーをカンマ区切りで指定すると、それらが同時に「同時押し」として処理されます。
+
+---
+
+## 5. NetHackWasmDriver 非同期レスポンダー連携 (Asyncify Responder)
+
+`NetHackWasmDriver` 統合環境において、タッチ入力やゲームパッド入力は `inputRequired` イベントに渡される `data.resolver` (`InputResolver`) を通じて C コアへ非同期送信されます。
+
+### 5.1 コンテキスト別入力形式とセーフティレスキュー値
+
+| コンテキスト | 入力目的 | レスポンダー送信データ (`resolver.respond(...)`) | セーフティタイムアウト救出値 (`inputTimeoutMs > 0`) |
+| :--- | :--- | :--- | :--- |
+| **`poskey`** | 移動・全般アクション | キーコード (`'k'.charCodeAt(0)`) または マウス位置 `{ x, y, mod }` | `27` (ESC) |
+| **`getch`** | 1文字入力 | キーの ASCII コード数値 | `27` (ESC) |
+| **`yn_function`** | 質問応答 | 選択文字の ASCII コード数値 | デフォルト選択肢の ASCII コード数値 (省略時 `27`) |
+| **`getlin`** | テキスト行入力 | 入力文字列 (`string`) | `""` (空文字キャンセル) |
+| **`get_ext_cmd`** | 拡張コマンド (`#`) | コマンド名文字列 (`"loot"`, `"chat"`) または 配列インデックス | `-1` (無効コマンドキャンセル) |
+| **`select_menu`** | メニュー項目選択 | 選択された `menuItem` の配列 (`[item1, item2]`) | `0` (選択0件・メモリ未破壊キャンセル) |
+

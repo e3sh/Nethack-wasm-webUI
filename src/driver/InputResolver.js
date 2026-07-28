@@ -2,15 +2,15 @@
  * InputResolver.js
  * 
  * Wasm Asyncify 用の安全な Promise レスポンダー
- * 入力待ちのハングアップ防止・安全なキャンセレーション・セーフティタイムアウトを提供
+ * 入力待ちのハングアップ防止・デッドロック救出・セーフティタイムアウトを提供
  */
 
 class InputResolver {
     /**
      * @param {Object} [options]
-     * @param {number} [options.timeoutMs=30000] - 自動キャンセルのタイムアウト（ミリ秒）。0 で無効化。
-     * @param {any} [options.cancelValue=27] - キャンセル時に返却するデフォルト値（ASCII ESC = 27）
-     * @param {function} [options.onTimeout] - タイムアウト発生時のコールバック関数
+     * @param {number} [options.timeoutMs=30000] - ハングアップ救出用のセーフティタイムアウト（ミリ秒）。0 で無効化。
+     * @param {any} [options.cancelValue=27] - タイムアウト・キャンセル時に返却する安全な初期フォールバック値
+     * @param {function} [options.onTimeout] - タイムアウト発生時のレスキューコールバック関数
      */
     constructor(options = {}) {
         this.timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : 30000;
@@ -27,15 +27,16 @@ class InputResolver {
         if (this.timeoutMs > 0) {
             this._timer = setTimeout(() => {
                 if (!this._resolved) {
-                    console.warn(`[InputResolver] Safety timeout reached (${this.timeoutMs}ms). Resolving with cancel value (${this.cancelValue}).`);
+                    console.warn(`[InputResolver] Safety timeout reached (${this.timeoutMs}ms). Rescuing blocked Asyncify input.`);
                     if (typeof this.onTimeout === 'function') {
                         try {
                             this.onTimeout();
                         } catch (e) {
                             console.error("[InputResolver] Error in onTimeout callback:", e);
                         }
+                    } else {
+                        this.cancel();
                     }
-                    this.cancel();
                 }
             }, this.timeoutMs);
         }
@@ -64,19 +65,18 @@ class InputResolver {
     }
 
     /**
-     * キャンセル処理（ESC等を返却して Wasm のフリーズを回避する）
+     * 指定された安全なキャンセル値を返却して Promise をレスキュー解決する
      * 
-     * @param {any} [overrideCancelValue] - キャンセル値を一時的に上書きする場合
+     * @param {any} [overrideValue]
      * @returns {boolean}
      */
-    cancel(overrideCancelValue) {
-        if (this._resolved) return false;
-        const val = overrideCancelValue !== undefined ? overrideCancelValue : this.cancelValue;
+    cancel(overrideValue) {
+        const val = overrideValue !== undefined ? overrideValue : this.cancelValue;
         return this.respond(val);
     }
 
     /**
-     * 内部タイマーのクリア
+     * タイマーのクリア
      * @private
      */
     _clearTimer() {

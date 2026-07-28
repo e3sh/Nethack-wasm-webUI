@@ -21,9 +21,9 @@
 ```javascript
 const driver = new NetHackWasmDriver({
     wasmModule: window.Module,  // Emscripten Module インスタンス (省略可)
-    inputTimeoutMs: 30000,      // 入力待ちタイムアウト時間 (ms)
+    inputTimeoutMs: 0,          // 入力待ちセーフティタイムアウト時間 (ms)。デフォルト: 0 (無制限待機)
     debug: true,                // デバッグログの出力有無 (デフォルト: false)
-    extCmds: [...]              // カスタム拡張コマンド配列 (省略時は標準リスト)
+    extCmds: [...]              // カスタム拡張コマンド配列 (省略時は C コア完全同期の全 114 コマンドリスト)
 });
 ```
 
@@ -68,7 +68,7 @@ const driver = new NetHackWasmDriver({
 | **`stateChange`** | 不要 | `{ state, oldState }` | ドライバの状態（`IDLE`, `RUNNING`, `WAITING_INPUT` 等）が変化した際に発火。 |
 | **`init_nhwindows`** | 不要 | `{}` | ウィンドウシステム初期化通知。 |
 | **`exit_nhwindows`** | 不要 | `{ message }` | ゲーム終了・ウィンドウ破棄通知。 |
-| **`inputTimeout`** | 不要 | `{ state }` | 入力待ちがセーフティタイムアウト（デフォルト30秒）を超否した際に発火。 |
+| **`inputTimeout`** | 不要 | `{ context, rescuedValue, state }` | オプションでセーフティタイムアウトが設定されている場合 (`inputTimeoutMs > 0`)、入力待ちがタイムアウトした際に発火。<br>※`select_menu` ➔ `0` (非選択キャンセル), `getlin` ➔ `""`, `get_ext_cmd` ➔ `-1`, `poskey` ➔ `27` (ESC) のコンテキスト別安全値で自動救出され、Wasm メモリ破損クラッシュを防ぎます。 |
 
 ---
 

@@ -201,11 +201,11 @@ function rogueDefines(r) {
         // 暫定的に主要なコマンド名をハードコードして対応します。
         // インデックスは cmd.c 内の定義順に基づきます。
         EXTCMDS: [
-            "?", "adjust", "annotate", "apply", "attributes", "autopickup",
-            "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
-            "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
-            "enhance", "exploremode", "fight", "fire", "force", "genocided",
-            "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
+            "#", "?", "adjust", "annotate", "apply", "attributes", "autopickup",
+            "call", "cast", "chat", "chronicle", "close", "conduct", "debugfuzzer",
+            "dip", "down", "drop", "droptype", "eat", "engrave", "enhance",
+            "exploremode", "fight", "fire", "force", "genocided", "glance",
+            "help", "herecmdmenu", "history", "inventory", "inventtype",
             "invoke", "jump", "kick", "known", "knownclass", "levelchange",
             "lightsources", "look", "lookaround", "loot", "migratemons",
             "monster", "name", "offer", "open", "options", "optionsfull",
@@ -216,9 +216,10 @@ function rogueDefines(r) {
             "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
             "shell", "showgold", "showspells", "showtrap", "sit", "stats",
             "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
-            "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
-            "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
-            "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
+            "therecmdmenu", "throw", "timeout", "tip", "toggle", "travel",
+            "turn", "twoweapon", "untrap", "up", "vanquished", "version",
+            "versionshort", "vision", "wait", "wear", "whatdoes", "whatis",
+            "wield", "wipe"
         ],
 
         // Gamepad Default Mapping

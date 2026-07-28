@@ -25,39 +25,136 @@ const DriverState = Object.freeze({
     STOPPED: 'STOPPED'
 });
 
+/**
+ * NetHack 5.0 C コア (cmd.c struct ext_func_tab extcmdlist[]) の全宣言要素と 1:1 完全一致する配列
+ */
 const DEFAULT_EXTCMDS = [
-    "?", "adjust", "annotate", "apply", "attributes", "autopickup",
-    "bugreport", "call", "cast", "chat", "chronicle", "close", "conduct",
-    "debugfuzzer", "dip", "down", "drop", "droptype", "eat", "engrave",
-    "enhance", "exploremode", "fight", "fire", "force", "genocided",
-    "glance", "help", "herecmdmenu", "history", "inventory", "inventtype",
-    "invoke", "jump", "kick", "known", "knownclass", "levelchange",
-    "lightsources", "look", "lookaround", "loot", "migratemons",
-    "monster", "name", "offer", "open", "options", "optionsfull",
-    "overview", "panic", "pay", "perminv", "pickup", "polyself",
-    "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
-    "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
-    "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
-    "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
-    "shell", "showgold", "showspells", "showtrap", "sit", "stats",
-    "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
-    "therecmdmenu", "throw", "timeout", "tip", "travel", "turn",
-    "twoweapon", "untrap", "up", "vanquished", "version", "versionshort",
-    "vision", "wait", "wear", "whatdoes", "whatis", "wield", "wipe"
+    "#",
+    "?",
+    "adjust",
+    "annotate",
+    "apply",
+    "attributes",
+    "autopickup",
+    "call",
+    "cast",
+    "chat",
+    "chronicle",
+    "close",
+    "conduct",
+    "debugfuzzer",
+    "dip",
+    "down",
+    "drop",
+    "droptype",
+    "eat",
+    "engrave",
+    "enhance",
+    "exploremode",
+    "fight",
+    "fire",
+    "force",
+    "genocided",
+    "glance",
+    "help",
+    "herecmdmenu",
+    "history",
+    "inventory",
+    "inventtype",
+    "invoke",
+    "jump",
+    "kick",
+    "known",
+    "knownclass",
+    "levelchange",
+    "lightsources",
+    "look",
+    "lookaround",
+    "loot",
+    "migratemons",
+    "monster",
+    "name",
+    "offer",
+    "open",
+    "options",
+    "optionsfull",
+    "overview",
+    "panic",
+    "pay",
+    "perminv",
+    "pickup",
+    "polyself",
+    "pray",
+    "prevmsg",
+    "puton",
+    "quaff",
+    "quit",
+    "quiver",
+    "read",
+    "redraw",
+    "remove",
+    "repeat",
+    "reqmenu",
+    "retravel",
+    "ride",
+    "rub",
+    "run",
+    "rush",
+    "save",
+    "saveoptions",
+    "search",
+    "seeall",
+    "seeamulet",
+    "seearmor",
+    "seerings",
+    "seetools",
+    "seeweapon",
+    "shell",
+    "showgold",
+    "showspells",
+    "showtrap",
+    "sit",
+    "stats",
+    "suspend",
+    "swap",
+    "takeoff",
+    "takeoffall",
+    "teleport",
+    "terrain",
+    "therecmdmenu",
+    "throw",
+    "timeout",
+    "tip",
+    "toggle",
+    "travel",
+    "turn",
+    "twoweapon",
+    "untrap",
+    "up",
+    "vanquished",
+    "version",
+    "versionshort",
+    "vision",
+    "wait",
+    "wear",
+    "whatdoes",
+    "whatis",
+    "wield",
+    "wipe"
 ];
 
 class NetHackWasmDriver {
     /**
      * @param {Object} [options]
      * @param {Object} [options.wasmModule] - Emscripten Module
-     * @param {number} [options.inputTimeoutMs=30000] - 入力安全タイムアウト (ms)
+     * @param {number} [options.inputTimeoutMs=0] - ハングアップ救出用セーフティタイムアウト (ms)。デフォルト: 0 (無期限待機)
      * @param {boolean} [options.debug=false] - デバッグログの出力有無
      * @param {string[]} [options.extCmds] - 拡張コマンドリスト
      */
     constructor(options = {}) {
         this.options = Object.assign({
             wasmModule: null,
-            inputTimeoutMs: 30000,
+            inputTimeoutMs: 0,
             debug: false,
             extCmds: DEFAULT_EXTCMDS
         }, options);
@@ -427,10 +524,13 @@ class NetHackWasmDriver {
     }
 
     /**
-     * InputResolver を生成して安全に追跡するヘルパー
+     * コンテキストに応じた安全なレスキュー値を指定して InputResolver を生成する
      * @private
+     * @param {string} context - 'poskey', 'select_menu', 'getlin', 'get_ext_cmd', 'display_file' 等
+     * @param {any} safeRescueValue - タイムアウト発火時に C コアが絶対にクラッシュしない安全なフォールバック値
+     * @param {number} [customTimeoutMs]
      */
-    _createResolver(customTimeoutMs) {
+    _createResolver(context, safeRescueValue = 27, customTimeoutMs = undefined) {
         const ResolverClass = InputResolverRef || window.InputResolver;
         if (!ResolverClass) {
             throw new Error("NetHackWasmDriver: InputResolver is not loaded.");
@@ -439,9 +539,13 @@ class NetHackWasmDriver {
         const timeoutMs = customTimeoutMs !== undefined ? customTimeoutMs : this.options.inputTimeoutMs;
         const resolver = new ResolverClass({
             timeoutMs: timeoutMs,
-            cancelValue: 27, // ASCII ESC
+            cancelValue: safeRescueValue,
             onTimeout: () => {
-                this.emit('inputTimeout', { state: this.state });
+                if (this.options.debug) {
+                    console.warn(`[NetHackWasmDriver] Safety timeout rescued input context '${context}' with safe value:`, safeRescueValue);
+                }
+                this.emit('inputTimeout', { context, rescuedValue: safeRescueValue, state: this.state });
+                resolver.cancel(safeRescueValue);
             }
         });
 
@@ -488,7 +592,8 @@ class NetHackWasmDriver {
                 return true;
 
             case "shim_askname": {
-                const resolver = this._createResolver();
+                // askname タイムアウトレスキュー値: 空文字列 (デフォルト名採用)
+                const resolver = this._createResolver('askname', "player");
                 this.emit('askname', { resolver });
                 const name = await resolver.promise;
                 
@@ -538,7 +643,8 @@ class NetHackWasmDriver {
                 let resolver = null;
                 if (blocking) {
                     this.state = DriverState.WAITING_INPUT;
-                    resolver = this._createResolver();
+                    // display_nhwindow タイムアウトレスキュー値: 32 (Space/続行)
+                    resolver = this._createResolver('display_nhwindow', 32);
                 }
 
                 this.emit('display_nhwindow', { windowId, blocking, resolver });
@@ -564,7 +670,8 @@ class NetHackWasmDriver {
                     } catch (e) {}
                 }
 
-                const resolver = this._createResolver();
+                // display_file タイムアウトレスキュー値: 0 (閲覧確認完了)
+                const resolver = this._createResolver('display_file', 0);
                 this.emit('display_file', { filename, complain, fileText, resolver });
                 await resolver.promise;
                 return 0;
@@ -610,7 +717,8 @@ class NetHackWasmDriver {
 
             case "shim_nhgetch": {
                 this.state = DriverState.WAITING_INPUT;
-                const resolver = this._createResolver();
+                // getch タイムアウトレスキュー値: 27 (ESC)
+                const resolver = this._createResolver('getch', 27);
                 this.emit('inputRequired', {
                     context: 'getch',
                     resolver
@@ -622,7 +730,8 @@ class NetHackWasmDriver {
 
             case "shim_nh_poskey": {
                 this.state = DriverState.WAITING_INPUT;
-                const resolver = this._createResolver();
+                // poskey タイムアウトレスキュー値: 27 (ESC)
+                const resolver = this._createResolver('poskey', 27);
                 this.emit('inputRequired', {
                     context: 'poskey',
                     xPtr: args[0],
@@ -653,7 +762,9 @@ class NetHackWasmDriver {
 
             case "shim_yn_function": {
                 this.state = DriverState.WAITING_INPUT;
-                const resolver = this._createResolver();
+                const defChoiceCode = args[2] ? args[2].charCodeAt(0) : 27;
+                // yn_function タイムアウトレスキュー値: デフォルト選択肢 または ESC
+                const resolver = this._createResolver('yn_function', defChoiceCode);
                 this.emit('inputRequired', {
                     context: 'yn_function',
                     question: args[0],
@@ -671,7 +782,8 @@ class NetHackWasmDriver {
 
             case "shim_getlin": {
                 this.state = DriverState.WAITING_INPUT;
-                const resolver = this._createResolver();
+                // getlin タイムアウトレスキュー値: "" (空文字列)
+                const resolver = this._createResolver('getlin', "");
                 this.emit('inputRequired', {
                     context: 'getlin',
                     prompt: args[0],
@@ -692,7 +804,8 @@ class NetHackWasmDriver {
 
             case "shim_get_ext_cmd": {
                 this.state = DriverState.WAITING_INPUT;
-                const resolver = this._createResolver();
+                // get_ext_cmd タイムアウトレスキュー値: -1 (無効コマンドキャンセル)
+                const resolver = this._createResolver('get_ext_cmd', -1);
                 const extcmds = this.options.extCmds || DEFAULT_EXTCMDS;
 
                 this.emit('inputRequired', {
@@ -705,7 +818,7 @@ class NetHackWasmDriver {
                 this.state = DriverState.RUNNING;
 
                 if (typeof response === 'number') {
-                    return response;
+                    return (response >= 0 && response < extcmds.length) ? response : -1;
                 }
 
                 if (typeof response === 'string') {
@@ -767,7 +880,8 @@ class NetHackWasmDriver {
                 const menuData = this.menuBuffer[windowId] || { items: [], prompt: "" };
 
                 this.state = DriverState.WAITING_MENU;
-                const resolver = this._createResolver();
+                // select_menu タイムアウトレスキュー値: 0 (非選択・キャンセル。Cメモリクラッシュを起こさない安全な値)
+                const resolver = this._createResolver('select_menu', 0);
 
                 this.emit('inputRequired', {
                     context: 'select_menu',
@@ -791,7 +905,11 @@ class NetHackWasmDriver {
                     return 0;
                 }
 
-                const selectedItems = response;
+                // Safe filter for items
+                const selectedItems = response.filter(it => it && typeof it === 'object' && it.identifier !== undefined);
+                if (selectedItems.length === 0) {
+                    return 0;
+                }
 
                 // Allocate menu_item struct array (16 bytes per entry in Wasm memory)
                 const mod = this.memory.module;
@@ -815,7 +933,8 @@ class NetHackWasmDriver {
             }
 
             case "shim_message_menu": {
-                const resolver = this._createResolver();
+                // message_menu タイムアウトレスキュー値: 0 (メッセージヒストリ閉じる)
+                const resolver = this._createResolver('message_menu', 0);
                 this.emit('message_menu', {
                     let: args[0],
                     how: args[1],

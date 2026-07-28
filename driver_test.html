@@ -148,6 +148,7 @@
         <input type="text" id="input-field" placeholder="Type direction ('1'-'9', 'h','j','k','l'), '^p', 'Alt+s', or text" disabled />
         <button id="send-btn" disabled>Send</button>
         <button id="esc-btn" disabled style="background:#c62828;">ESC (Cancel)</button>
+        <button id="autotest-btn" style="background:#1565c0;">Auto Test ExtCmds (All 127)</button>
     </div>
 
     <script>
@@ -530,6 +531,67 @@
                     updateStateDisplay();
                 };
             });
+
+            // --- Auto Test ExtCmds Suite ---
+            const autotestBtn = document.getElementById('autotest-btn');
+            autotestBtn.onclick = async () => {
+                const extcmds = NetHackWasmDriver.DEFAULT_EXTCMDS;
+                appendLog(`=== Starting Auto Test for All ${extcmds.length} Extended Commands ===`, "log-sys");
+                autotestBtn.disabled = true;
+
+                const results = [];
+
+                // Helper to ensure C core returns to main poskey input loop
+                const resetToMainPoskey = async () => {
+                    let attempts = 0;
+                    while (drv.activeResolver && attempts < 5) {
+                        attempts++;
+                        drv.activeResolver.cancel(); // Send ESC
+                        await new Promise(r => setTimeout(r, 80));
+                    }
+                };
+
+                for (let i = 0; i < extcmds.length; i++) {
+                    const cmdName = extcmds[i];
+                    appendLog(`\n[Auto Test ${i+1}/${extcmds.length}] Testing command: #${cmdName} (Index ${i})`, "log-menu");
+
+                    let capturedResponse = "No response";
+
+                    // Temporary capture listener for C core's reaction
+                    const captureHandler = (data) => {
+                        if (data.question) capturedResponse = `yn_function: ${data.question}`;
+                        else if (data.prompt) capturedResponse = `prompt: ${data.prompt}`;
+                        else if (data.filename) capturedResponse = `display_file: ${data.filename}`;
+                        else if (data.context) capturedResponse = `context: ${data.context}`;
+                    };
+
+                    drv.once('inputRequired', captureHandler);
+
+                    // Step 1: Send '#' (ASCII 35) to enter get_ext_cmd mode
+                    if (drv.activeResolver) {
+                        drv.activeResolver.respond(35);
+                        await new Promise(r => setTimeout(r, 120));
+                    }
+
+                    // Step 2: Send the target command name
+                    if (drv.activeResolver) {
+                        drv.activeResolver.respond(cmdName);
+                        await new Promise(r => setTimeout(r, 150));
+                    }
+
+                    // Step 3: Record result
+                    results.push({ index: i, name: cmdName, response: capturedResponse });
+                    appendLog(`[Captured ${i}] #${cmdName} => ${capturedResponse}`, "log-raw");
+
+                    // Step 4: Clear out any sub-prompts back to main poskey
+                    await resetToMainPoskey();
+                }
+
+                appendLog(`\n================ Auto Test Summary ================`, "log-sys");
+                console.table(results);
+                appendLog(`===================================================`, "log-sys");
+                autotestBtn.disabled = false;
+            };
 
             drv.on('exit_nhwindows', (data) => {
                 appendLog(`[Game Exit] ${data.message || ''}`, "log-sys");
