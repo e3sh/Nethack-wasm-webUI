@@ -60,7 +60,12 @@ class InputResolver {
         if (this._resolved) return false;
         this._resolved = true;
         this._clearTimer();
-        this._resolveFn(value);
+        // Emscripten Asyncify のスタックアンワインド完了を 100% 保証するための非同期遅延
+        setTimeout(() => {
+            if (typeof this._resolveFn === 'function') {
+                this._resolveFn(value);
+            }
+        }, 10);
         return true;
     }
 

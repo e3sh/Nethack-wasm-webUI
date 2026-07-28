@@ -87,6 +87,10 @@ const w = [
     s + "main.js",
     s + "ioControl.js",
     s + "sceneControl.js",
+    // Driver
+    "src/driver/NetHackMemory.js",
+    "src/driver/InputResolver.js",
+    "src/driver/NetHackWasmDriver.js",
     // Rogue 
     r + "SoundManager.js",
     r + "GameManager.js",

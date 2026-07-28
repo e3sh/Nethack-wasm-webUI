@@ -224,61 +224,104 @@ class NetHackWasmDriver {
     }
 
     /**
-     * FS (仮想ファイルシステム) のフォルダ・設定・システムファイルのフルセットアップ
-     * @private
+     * 設定された gameOptions オブジェクトから C コア用オプション文字列配列を動的ビルド
+     * @returns {Object} { optionArgs, rcContent }
      */
-    _prepareFS() {
-        if (typeof FS === 'undefined') return;
+    buildOptionStrings() {
+        const optionArgs = [];
+        const rcOptions = [];
+
+        // 1. ユーザー名 (name / WHO) のスマート適用 (-uName & OPTIONS=name:Name)
+        const userName = (this.options.gameOptions && this.options.gameOptions.name) ? String(this.options.gameOptions.name).trim() : 'e3-sh';
+        if (userName) {
+            optionArgs.push(`-u${userName}`);
+            rcOptions.push(`name:${userName}`);
+        }
+
+        // 2. その他の起動オプション
+        const gameOpts = Object.assign({
+            number_pad: 1,
+            showexp: true,
+            time: true,
+            showvers: true
+        }, (this.options && this.options.gameOptions) || {});
+
+        const optStrings = [];
+        for (const [key, val] of Object.entries(gameOpts)) {
+            if (val === true) {
+                optStrings.push(key);
+            } else if (val === false) {
+                optStrings.push(`!${key}`);
+            } else if (val !== null && val !== undefined) {
+                optStrings.push(`${key}:${val}`);
+            }
+        }
+        return optStrings;
+    }
+
+    /**
+     * FS (仮想ファイルシステム) のフォルダ・設定・システムファイルのフルセットアップ
+     */
+    prepareFSEnvironment() {
+        const mod = this.memory.module;
+        const fsObj = typeof FS !== 'undefined' ? FS : (mod && mod.FS ? mod.FS : null);
+        if (!fsObj) return;
+        const FS_REF = fsObj;
 
         try {
-            const dirs = ['/save', '/tmp'];
+            const dirs = ['/save', '/tmp', '/nethack', '/nethack/save'];
             dirs.forEach(d => {
                 try {
-                    if (!FS.analyzePath(d).exists) {
-                        FS.mkdir(d);
+                    if (!FS_REF.analyzePath(d).exists) {
+                        FS_REF.mkdir(d);
                     }
                 } catch (e) {}
             });
 
-            // Config files (.nethackrc, NetHack.cnf)
-            const configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad,tombstone\n`;
-            ['NetHack.cnf', '.nethackrc'].forEach(cf => {
-                try {
-                    FS.writeFile('/' + cf, configContent);
-                } catch (e) {}
+            const optList = this.buildOptionStrings().join(',');
+            const filesToSync = [
+                'nhdat', 'sysconf', 'cmdhelp', 'opthelp', 'wizhelp',
+                'help', 'hh', 'history', 'license', 'oracles', 'rumors',
+                'options', '.nethackrc', 'nethackrc'
+            ];
+
+            const sysconfContent = `WIZARDS=*\nEXPLORERS=*\nOPTIONS=${optList}\n`;
+            const rcContent = `OPTIONS=${optList}\n`;
+
+            // ルート / および /nethack/ の両検索パスに sysconf, .nethackrc を書き込み
+            const sysPaths = ['/sysconf', '/nethack/sysconf', 'sysconf'];
+            sysPaths.forEach(p => {
+                try { FS_REF.writeFile(p, sysconfContent); } catch (e) {}
             });
 
-            // System data files
-            const files = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog'];
-            files.forEach(f => {
-                try {
-                    const rootPath = '/' + f;
-                    const savePath = '/save/' + f;
-                    const isPersistent = ['record', 'logfile', 'xlogfile', 'paniclog'].includes(f);
+            const rcPaths = ['/.nethackrc', '/nethack/.nethackrc', '/options', '/nethack/options'];
+            rcPaths.forEach(p => {
+                try { FS_REF.writeFile(p, rcContent); } catch (e) {}
+            });
 
-                    if (isPersistent) {
-                        if (FS.analyzePath(savePath).exists) {
-                            const data = FS.readFile(savePath);
-                            FS.writeFile(rootPath, data);
-                        } else {
-                            FS.writeFile(rootPath, "");
-                            FS.writeFile(savePath, "");
+            // 必須パーミッション・レコードファイルの自動作成 (Cannot open file perm 防止)
+            const requiredFiles = ['perm', 'record', 'logfile', 'xlogfile', 'paniclog'];
+            requiredFiles.forEach(f => {
+                const paths = [`/${f}`, `/nethack/${f}`, `/save/${f}`, `/nethack/save/${f}`];
+                paths.forEach(p => {
+                    try {
+                        if (!FS_REF.analyzePath(p).exists) {
+                            FS_REF.writeFile(p, '');
                         }
-                    } else {
-                        if (!FS.analyzePath(rootPath).exists) {
-                            const content = (f === 'sysconf') ? "WIZARDS=*\nEXPLORERS=*\n" : "";
-                            FS.writeFile(rootPath, content);
-                        }
-                    }
-                } catch (e) {}
+                    } catch (e) {}
+                });
             });
 
             if (this.options.debug) {
-                console.log("[NetHackWasmDriver] Emscripten FS environment prepared.");
+                console.log(`[NetHackWasmDriver] Emscripten FS environment prepared with gameOptions: ${optList}`);
             }
         } catch (err) {
             console.warn("[NetHackWasmDriver] FS preparation warning:", err);
         }
+    }
+
+    _prepareFS() {
+        return this.prepareFSEnvironment();
     }
 
     // --- Save Data Management Helpers ---
@@ -382,11 +425,30 @@ class NetHackWasmDriver {
     async start(customArgs = null) {
         const mod = this.memory.module;
         if (!mod) {
-            throw new Error("NetHackWasmDriver: Module is not initialized.");
+            throw new Error("NetHackWasmDriver: Wasm Module is not initialized.");
         }
 
-        // Ensure FS directories and files exist
-        this._prepareFS();
+        // FS の初期化
+        this.prepareFSEnvironment();
+
+        // 起動引数の動的生成 (customArgs > options.arguments > gameOptions から自動ビルド)
+        let args = customArgs || this.options.arguments || [];
+        if (args.length === 0) {
+            const optStr = this.buildOptionStrings().join(',');
+            args = ['nethack', `-o${optStr}`, '--nethackrc:/.nethackrc'];
+        } else {
+            args = args.slice();
+        }
+
+        // ユーザー名 (name) を -uName として確実にコマンドライン引数の先頭へ挿入 (Who are you? 割り込み防止)
+        const userName = (this.options.gameOptions && this.options.gameOptions.name) ? String(this.options.gameOptions.name).trim() : 'e3-sh';
+        if (userName && !args.some(arg => arg && typeof arg === 'string' && arg.startsWith('-u'))) {
+            args.splice(1, 0, `-u${userName}`);
+        }
+
+        if (!args.some(arg => arg && typeof arg === 'string' && arg.startsWith('--nethackrc'))) {
+            args.push("--nethackrc:/.nethackrc");
+        }
 
         // Register C shim graphics callback name
         if (mod.cwrap) {
@@ -401,17 +463,8 @@ class NetHackWasmDriver {
             }
         }
 
-        const coreOptions = "time,showexp,showvers,number_pad,tombstone";
-        const args = customArgs || (mod.arguments && mod.arguments.length > 0
-            ? [...mod.arguments]
-            : ['nethack', `-o${coreOptions}`, `--nethackrc:/.nethackrc`]);
-
-        if (!args.some(arg => arg.startsWith('--nethackrc'))) {
-            args.push("--nethackrc:/.nethackrc");
-        }
-
         if (typeof ENV !== 'undefined') {
-            const optArg = args.find(a => a.startsWith('-o'));
+            const optArg = args.find(a => a && typeof a === 'string' && a.startsWith('-o'));
             ENV.NETHACKOPTIONS = optArg ? optArg.slice(2) : "";
         }
 
@@ -578,7 +631,10 @@ class NetHackWasmDriver {
      */
     async eventHook(type, ...args) {
         if (this.options.debug) {
-            console.log("[NetHackWasmDriver] EventHook:", type, args);
+            // 頻発する高頻度描画イベント (shim_curs, shim_print_glyph) はログを抑制
+            if (type !== 'shim_curs' && type !== 'shim_print_glyph') {
+                console.log("[NetHackWasmDriver] EventHook:", type, args);
+            }
         }
 
         switch (type) {
@@ -594,7 +650,7 @@ class NetHackWasmDriver {
             case "shim_askname": {
                 // askname タイムアウトレスキュー値: 空文字列 (デフォルト名採用)
                 const resolver = this._createResolver('askname', "player");
-                this.emit('askname', { resolver });
+                this.emit('inputRequired', { context: 'askname', resolver });
                 const name = await resolver.promise;
                 
                 // plname 構造体へ名前を保存
@@ -844,12 +900,16 @@ class NetHackWasmDriver {
                 const glyphInfo = args[1] ? this.memory.parseGlyphInfo(args[1]) : null;
                 const identifier = args[2];
                 const menuItem = {
-                    glyphInfo,
+                    glyph: glyphInfo,
+                    glyphInfo: glyphInfo,
                     identifier: identifier,
                     isHeader: (!identifier || identifier === 0),
+                    ch: args[3],
                     accelerator: args[3],
+                    gch: args[4],
                     groupAcc: args[4],
                     attr: args[5],
+                    clr: args[6],
                     color: args[6],
                     str: args[7],
                     itemflags: args[8]
@@ -880,7 +940,7 @@ class NetHackWasmDriver {
                 const menuData = this.menuBuffer[windowId] || { items: [], prompt: "" };
 
                 this.state = DriverState.WAITING_MENU;
-                // select_menu タイムアウトレスキュー値: 0 (非選択・キャンセル。Cメモリクラッシュを起こさない安全な値)
+                // select_menu タイムアウトレスキュー値: 0 (キャンセル)
                 const resolver = this._createResolver('select_menu', 0);
 
                 this.emit('inputRequired', {
@@ -895,35 +955,45 @@ class NetHackWasmDriver {
                 const response = await resolver.promise;
                 this.state = DriverState.RUNNING;
 
-                // Direct status/count returned (e.g. 0 or -1 for cancel)
-                if (typeof response === 'number') {
-                    return response;
-                }
+                const mod = this.memory.module;
 
-                // If non-array or empty array returned
-                if (!response || !Array.isArray(response) || response.length === 0) {
+                // 選択アイテムなし / キャンセルの場合: 必ず *menuListPtrPtr = 0 (NULL) を書き込み
+                if (!response || !Array.isArray(response) || response.length === 0 || typeof response === 'number') {
+                    if (mod && mod.setValue && menuListPtrPtr) {
+                        mod.setValue(menuListPtrPtr, 0, 'i32');
+                    }
                     return 0;
                 }
 
-                // Safe filter for items
+                // アイテムフィルタリング
                 const selectedItems = response.filter(it => it && typeof it === 'object' && it.identifier !== undefined);
                 if (selectedItems.length === 0) {
+                    if (mod && mod.setValue && menuListPtrPtr) {
+                        mod.setValue(menuListPtrPtr, 0, 'i32');
+                    }
                     return 0;
                 }
 
-                // Allocate menu_item struct array (16 bytes per entry in Wasm memory)
-                const mod = this.memory.module;
+                // 選択アイテムありの場合: メモリ確保とデータ書き込み
                 if (mod && mod._malloc && menuListPtrPtr) {
                     const ITEM_SIZE = 16;
                     const ptr = mod._malloc(ITEM_SIZE * selectedItems.length);
 
                     selectedItems.forEach((item, index) => {
                         const offset = ptr + (index * ITEM_SIZE);
-                        const id = (typeof item === 'object' && item.identifier !== undefined) ? item.identifier : (typeof item === 'number' ? item : 0);
-                        const flags = (typeof item === 'object' && item.itemflags !== undefined) ? item.itemflags : 0;
-                        mod.setValue(offset, id, 'i32');
-                        mod.setValue(offset + 8, -1, 'i32'); // count (long)
-                        mod.setValue(offset + 12, flags | 1, 'i32'); // SELECTED flag = 1
+                        let rawId = (item && item.identifier !== undefined) ? item.identifier : (typeof item === 'number' ? item : 0);
+                        if (typeof rawId === 'bigint') {
+                            rawId = Number(rawId);
+                        } else if (typeof rawId === 'object' && rawId !== null && rawId.a_void !== undefined) {
+                            rawId = Number(rawId.a_void);
+                        }
+                        const flags = (item && item.itemflags !== undefined) ? item.itemflags : 0;
+
+                        // menu_item 構造体 (16 bytes): anything union (8-bytes), count (long), selected (int)
+                        mod.setValue(offset, Number(rawId) || 0, 'i32');
+                        mod.setValue(offset + 4, 0, 'i32'); // 共用体の上位4バイトをゼロクリア
+                        mod.setValue(offset + 8, -1, 'i32'); // count = -1 (long)
+                        mod.setValue(offset + 12, (Number(flags) || 0) | 1, 'i32'); // selected = 1
                     });
 
                     mod.setValue(menuListPtrPtr, ptr, 'i32');
@@ -1006,12 +1076,26 @@ class NetHackWasmDriver {
                 if (args[0]) {
                     this.messageHistory.push(args[0]);
                     if (this.messageHistory.length > 200) this.messageHistory.shift();
+                    this.emit('putstr', { windowId: 1, attr: 0, text: args[0] });
                 }
                 return 0;
             }
 
             case "shim_outrip":
                 this.emit('outrip', { windowId: args[0], text: args[1] });
+                return 0;
+
+            case "shim_number_pad":
+                this.emit('number_pad', { mode: args[0] });
+                return 0;
+
+            case "shim_status_init":
+            case "shim_status_finish":
+            case "shim_status_enablefield":
+                return 0;
+
+            case "shim_wait_synch":
+                this.emit('wait_synch', {});
                 return 0;
 
             default:

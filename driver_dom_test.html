@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NetHackWasmDriver DOM Test Suite (Driver Test Client)</title>
+    <style>
+        :root {
+            --bg-color: #0c0d10;
+            --card-bg: #16181d;
+            --border-color: #2a2e39;
+            --accent-color: #4f46e5;
+            --text-color: #e2e8f0;
+            --map-bg: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Consolas", "Courier New", monospace;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow: auto;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            width: 1320px;
+            margin: 0 auto;
+            padding: 12px;
+            gap: 10px;
+        }
+
+        /* Header Bar */
+        #header-bar {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        /* State Badges (2軸分離インジケータ) */
+        .state-badge {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background-color: #334155;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            transition: all 0.15s ease;
+        }
+
+        .state-badge.state-running { background-color: #065f46; color: #34d399; border-color: #059669; }
+        .state-badge.state-stopped { background-color: #7f1d1d; color: #fca5a5; border-color: #dc2626; }
+
+        .state-badge.input-idle { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
+        .state-badge.input-key { background-color: #78350f; color: #fbbf24; border-color: #d97706; }
+        .state-badge.input-yn { background-color: #78350f; color: #fde047; border-color: #ca8a04; }
+        .state-badge.input-menu { background-color: #312e81; color: #a5b4fc; border-color: #4f46e5; }
+        .state-badge.input-text { background-color: #0c4a6e; color: #38bdf8; border-color: #0284c7; }
+
+        .header-input {
+            padding: 4px 8px;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            color: #38bdf8;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 120px;
+        }
+
+        .toggle-btn {
+            background-color: #334155;
+            color: #fff;
+            border: 1px solid #475569;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        /* Top Message Log - 範囲選択 100% 許可 */
+        #message-log-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #message-log {
+            height: 140px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            cursor: text;
+        }
+
+        .msg-item {
+            margin-bottom: 2px;
+            color: #cbd5e1;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+        }
+
+        .msg-item:last-child {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        /* Test Prompt Line (インジケータ行) */
+        #test-prompt-container {
+            background-color: #1e1b4b;
+            border: 1px solid #6366f1;
+            border-radius: 6px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 52px;
+        }
+
+        #test-prompt-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #a5b4fc;
+            flex: 1;
+        }
+
+        #test-prompt-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Map Viewport (Desktop Full View 1280x336px) */
+        #map-viewport-wrapper {
+            background-color: var(--map-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #map-viewport {
+            width: 1280px;
+            height: 336px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 14px;
+            line-height: 1;
+            white-space: pre;
+            background-color: #000;
+        }
+
+        .map-row {
+            height: 16px;
+            display: flex;
+        }
+
+        .map-cell {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            text-align: center;
+            font-weight: bold;
+            line-height: 16px;
+        }
+
+        .map-cell.tile-cell {
+            width: 16px;
+            height: 16px;
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+        }
+
+        .map-cell.has-cursor {
+            outline: 2px solid #38bdf8 !important;
+            outline-offset: -1px;
+            animation: cursor-blink 0.8s infinite;
+        }
+
+        @keyframes cursor-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Status Bar */
+        #status-bar {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 14px;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+        }
+
+        .st-item { color: #94a3b8; }
+        .st-name { color: #f8fafc; font-weight: bold; }
+        .st-hp { color: #4ade80; font-weight: bold; }
+        .st-pw { color: #38bdf8; }
+        .st-gold { color: #facc15; }
+
+        /* Action Bar */
+        #action-bar {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-touch {
+            background-color: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-touch:active {
+            background-color: var(--accent-color);
+        }
+
+        /* Overlap Modal Overlay (#dialog-overlay) */
+        #dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+
+        #dialog-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dlg-box {
+            background-color: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 20px;
+            width: 540px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .dlg-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #f8fafc;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+        }
+
+        .dlg-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+
+        .dlg-btn {
+            padding: 8px 14px;
+            background-color: #312e81;
+            color: #fff;
+            border: 1px solid #4338ca;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .dlg-btn.primary {
+            background-color: var(--accent-color);
+        }
+
+        .dlg-input {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f172a;
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .menu-list {
+            overflow-y: auto;
+            max-height: 55vh;
+            margin-bottom: 12px;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background-color: #0f172a;
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #1e293b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e2e8f0;
+        }
+
+        .menu-item:hover, .menu-item.selected {
+            background-color: #312e81;
+        }
+
+        .menu-header {
+            padding: 6px 12px;
+            background-color: #0f172a;
+            font-weight: bold;
+            color: #f59e0b;
+        }
+
+        .menu-acc {
+            color: #38bdf8;
+            font-weight: bold;
+            min-width: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header Bar -->
+        <div id="header-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: bold;">NetHackWasmDriver DOM Test Suite</span>
+                <span id="engine-state-badge" class="state-badge state-running">Engine: RUNNING</span>
+                <span id="input-state-badge" class="state-badge input-idle">Input: IDLE</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="username-input" style="font-size: 12px; color: #94a3b8;">User Name:</label>
+                <input type="text" id="username-input" class="header-input" value="e3-sh" placeholder="Enter name" />
+                <button id="toggle-mode-btn" class="toggle-btn">Mode: Tiles (Glyphs)</button>
+            </div>
+        </div>
+
+        <!-- Message Log -->
+        <div id="message-log-wrapper">
+            <div class="section-title">NetHack Message Log (Copy & Paste Supported)</div>
+            <div id="message-log">
+                <div class="msg-item">NetHackWasmDriver DOM Test Suite Initializing...</div>
+            </div>
+        </div>
+
+        <!-- Test Prompt Line (インジケータ行) -->
+        <div id="test-prompt-container">
+            <div id="test-prompt-label">Prompt Status: Ready (Use keyboard hjkl, arrows, or action bar)</div>
+            <div id="test-prompt-controls"></div>
+        </div>
+
+        <!-- Map Viewport -->
+        <div id="map-viewport-wrapper">
+            <div id="map-viewport"></div>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <span class="st-item">Loading status...</span>
+        </div>
+
+        <!-- Action Bar -->
+        <div id="action-bar">
+            <button class="btn-touch" data-key="i">Inventory (i)</button>
+            <button class="btn-touch" data-key="e">Eat (e)</button>
+            <button class="btn-touch" data-key="q">Quaff (q)</button>
+            <button class="btn-touch" data-key="r">Read (r)</button>
+            <button class="btn-touch" data-key="d">Drop (d)</button>
+            <button class="btn-touch" data-key=",">Pick up (,)</button>
+            <button class="btn-touch" data-key="#">Extended Cmd (#)</button>
+            <button class="btn-touch" data-key="?">Help (?)</button>
+            <button class="btn-touch" data-key="27">ESC</button>
+        </div>
+    </div>
+
+    <!-- Dynamic Overlap Modal Overlay -->
+    <div id="dialog-overlay"></div>
+
+    <!-- Wasm Module Configuration -->
+    <script>
+        window.Module = {
+            noInitialRun: true,
+            arguments: ['nethack', '-otime,showexp,showvers,number_pad:1'],
+            print: function (text) {
+                console.log('[NH Core]: ' + text);
+            },
+            printErr: function (text) {
+                console.warn('[NH Core Err]: ' + text);
+            },
+            locateFile: function (path, prefix) {
+                if (path.endsWith(".wasm")) return "./nethack.wasm";
+                return prefix + path;
+            }
+        };
+    </script>
+
+    <!-- Parameter & Mapping Data -->
+    <script src="param/tileMapping.js"></script>
+
+    <!-- Driver & Test Client Scripts -->
+    <script src="src/driver/NetHackMemory.js"></script>
+    <script src="src/driver/InputResolver.js"></script>
+    <script src="src/driver/NetHackWasmDriver.js"></script>
+    <script src="src/driver/test/DriverDomTestClient.js"></script>
+    <script src="nethack.js"></script>
+
+    <!-- Startup Bootstrap Script -->
+    <script>
+        let testClientInstance = null;
+        let isTileMode = true;
+        let driver = null;
+
+        window.onload = function() {
+            try {
+                const nameInput = document.getElementById('username-input');
+                
+                // localStorage から保存されたユーザー名を自動復元！
+                const savedName = localStorage.getItem('nethack_username');
+                if (savedName && nameInput) {
+                    nameInput.value = savedName;
+                }
+
+                const initialName = nameInput ? (nameInput.value.trim() || 'e3-sh') : 'e3-sh';
+
+                // 入力変更時に localStorage へ自動保存
+                if (nameInput) {
+                    nameInput.onchange = () => {
+                        const val = nameInput.value.trim() || 'e3-sh';
+                        localStorage.setItem('nethack_username', val);
+                    };
+                }
+
+                driver = new NetHackWasmDriver({
+                    wasmModule: window.Module,
+                    gameOptions: {
+                        name: initialName,
+                        number_pad: 1,
+                        showexp: true,
+                        time: true,
+                        showvers: true
+                    },
+                    debug: true
+                });
+
+                testClientInstance = new DriverDomTestClient(driver, {
+                    mapContainerId: 'map-viewport',
+                    messageLogId: 'message-log',
+                    statusBarId: 'status-bar',
+                    promptLabelId: 'test-prompt-label',
+                    promptControlsId: 'test-prompt-controls',
+                    engineBadgeId: 'engine-state-badge',
+                    inputBadgeId: 'input-state-badge',
+                    dialogOverlayId: 'dialog-overlay',
+                    usernameInputId: 'username-input',
+                    useTiles: true,
+                    tileImage: 'pict/nethack_default_32.png',
+                    tileSize: 16
+                });
+
+                driver.init(window.Module);
+
+                const toggleBtn = document.getElementById('toggle-mode-btn');
+                if (toggleBtn) {
+                    toggleBtn.onclick = () => {
+                        isTileMode = !isTileMode;
+                        toggleBtn.textContent = isTileMode ? "Mode: Tiles (Glyphs)" : "Mode: ASCII Text";
+                        testClientInstance.setTileMode(isTileMode);
+                    };
+                }
+
+                const runEngine = async () => {
+                    try {
+                        const code = await driver.start();
+                        console.log(`[Driver Exit] Engine stopped with code: ${code}`);
+                    } catch (err) {
+                        console.error("Driver start error:", err);
+                    }
+                };
+
+                if (window.Module.calledRun || window.Module.runtimeInitialized) {
+                    runEngine();
+                } else {
+                    window.Module.onRuntimeInitialized = function() {
+                        runEngine();
+                    };
+                }
+            } catch (err) {
+                console.error("BootApp initialization failed:", err);
+            }
+        };
+    </script>
+</body>
+</html>
