@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <title>NetHackWasmDriver Minimal Test (Phase 2)</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: monospace;
+            margin: 20px;
+        }
+        h1 {
+            color: #4caf50;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .status-bar {
+            background-color: #333;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 20px;
+        }
+        .status-item {
+            font-size: 14px;
+        }
+        .status-value {
+            font-weight: bold;
+            color: #2196f3;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .box {
+            flex: 1;
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .box h2 {
+            font-size: 14px;
+            margin: 0 0 8px 0;
+            color: #aaa;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+        #map-display {
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre;
+            line-height: 1.1;
+            background: #000;
+            color: #fff;
+            padding: 10px;
+            border: 1px solid #222;
+            font-size: 14px;
+            min-height: 360px;
+        }
+        #log-display {
+            font-family: monospace;
+            height: 360px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            background: #050505;
+            color: #888;
+            padding: 8px;
+            border: 1px solid #222;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .log-putstr { color: #81c784; }
+        .log-raw { color: #80deea; font-weight: bold; }
+        .log-input { color: #ffb74d; font-weight: bold; }
+        .log-sys { color: #64b5f6; }
+        .log-menu { color: #ce93d8; font-weight: bold; }
+        .log-header { color: #b0bec5; font-style: italic; }
+        .log-glyph { color: #ffd54f; }
+        
+        .input-controls {
+            margin-top: 15px;
+            background: #222;
+            padding: 12px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="text"] {
+            background: #000;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 6px 10px;
+            font-family: monospace;
+            font-size: 14px;
+            flex: 1;
+            border-radius: 3px;
+        }
+        button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #388e3c;
+        }
+    </style>
+
+    <!-- Driver Dependencies -->
+    <script src="src/driver/NetHackMemory.js"></script>
+    <script src="src/driver/InputResolver.js"></script>
+    <script src="src/driver/NetHackWasmDriver.js"></script>
+</head>
+<body>
+    <h1>NetHackWasmDriver Minimal Test Standard (Phase 2)</h1>
+
+    <div class="status-bar">
+        <div class="status-item">Driver State: <span id="state-val" class="status-value">IDLE</span></div>
+        <div class="status-item">Input Target: <span id="prompt-val" class="status-value">None</span></div>
+    </div>
+
+    <div class="container">
+        <!-- 80x24 Map Grid View -->
+        <div class="box">
+            <h2>ASCII Map Preview (80x24)</h2>
+            <div id="map-display"></div>
+        </div>
+
+        <!-- System Log Output -->
+        <div class="box">
+            <h2>Driver Output Log</h2>
+            <div id="log-display"></div>
+        </div>
+    </div>
+
+    <div class="input-controls">
+        <label for="input-field">Response Input:</label>
+        <input type="text" id="input-field" placeholder="Type direction ('1'-'9', 'h','j','k','l'), '^p', 'Alt+s', or text" disabled />
+        <button id="send-btn" disabled>Send</button>
+        <button id="esc-btn" disabled style="background:#c62828;">ESC (Cancel)</button>
+    </div>
+
+    <script>
+        // Emscripten Module Setup
+        window.Module = {
+            noInitialRun: true,
+            arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
+            preRun: [function () {
+                if (typeof ENV !== 'undefined') {
+                    ENV.USER = undefined;
+                    ENV.LOGNAME = undefined;
+                    ENV.HOME = "/";
+                    ENV.HACKDIR = "/";
+                    ENV.SCOREDIR = "/save/";
+                    ENV.LEVELDIR = "/";
+                    ENV.SAVEDIR = "/save/";
+                    ENV.NETHACKOPTIONS = "time,showexp,showvers,number_pad";
+                }
+                if (typeof FS !== 'undefined') {
+                    try {
+                        if (!FS.analyzePath('/save').exists) {
+                            FS.mkdir('/save');
+                        }
+                    } catch (e) {}
+                }
+            }],
+            print: function (text) {
+                if (text.trim()) appendLog('[C Print] ' + text, 'log-sys');
+            },
+            printErr: function (text) {
+                if (text.trim()) appendLog('[C Err] ' + text, 'log-sys');
+            },
+            locateFile: function (path, prefix) {
+                if (path.endsWith(".wasm")) return './' + path;
+                return prefix + path;
+            }
+        };
+
+        // Screen Map Matrix (80x24)
+        const MAP_WIDTH = 80;
+        const MAP_HEIGHT = 24;
+        const mapMatrix = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(' '));
+
+        function renderMap() {
+            const mapElem = document.getElementById('map-display');
+            mapElem.textContent = mapMatrix.map(row => row.join('')).join('\n');
+        }
+        renderMap();
+
+        function appendLog(msg, cssClass = '') {
+            const logDisplay = document.getElementById('log-display');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + cssClass;
+            entry.textContent = msg;
+            logDisplay.appendChild(entry);
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+        }
+
+        // Helper to parse Ctrl / Alt key codes for NetHack
+        function parseNetHackKeyCode(inputStr) {
+            if (!inputStr) return 32; // Default space
+
+            const str = inputStr.trim();
+            
+            // 1. Explicit raw numerical code prefix: code:16 or #16
+            const rawCodeMatch = str.match(/^(?:code:|\#)(\d+)$/i);
+            if (rawCodeMatch) {
+                return parseInt(rawCodeMatch[1], 10);
+            }
+
+            // 2. Prefix: ^x or Ctrl+x or C-x
+            const ctrlMatch = str.match(/^(?:\^|ctrl\+|c-)([a-z])$/i);
+            if (ctrlMatch) {
+                const charCode = ctrlMatch[1].toUpperCase().charCodeAt(0);
+                return charCode & 0x1f; // Bitwise AND for Ctrl code (1..26)
+            }
+
+            // 3. Prefix: Alt+x or Meta+x or M-x
+            const altMatch = str.match(/^(?:alt\+|meta\+|m-)([a-z])$/i);
+            if (altMatch) {
+                const charCode = altMatch[1].toLowerCase().charCodeAt(0);
+                return charCode | 0x80; // Set 8th bit (Bit 7 ON) for NetHack Meta key
+            }
+
+            // 4. Any text / single char (e.g. '1'-'9', 'a', 'h', 'j', 'k', 'l') -> ASCII char code
+            return str.charCodeAt(0);
+        }
+
+        // Driver Initialization
+        let driver = null;
+
+        window.onload = function() {
+            appendLog("[Test] Initializing NetHackWasmDriver...", "log-sys");
+            
+            try {
+                driver = new NetHackWasmDriver({ debug: true });
+                driver.init(Module);
+
+                setupDriverListeners(driver);
+                appendLog("[Test] Driver initialized. Starting Wasm Core...", "log-sys");
+                
+                // Update State Display
+                updateStateDisplay();
+
+                // Start Wasm Engine via Driver
+                const runEngine = async () => {
+                    try {
+                        const exitCode = await driver.start();
+                        appendLog(`[Test] Wasm Main Exited cleanly with code: ${exitCode}`, "log-sys");
+                        updateStateDisplay();
+                    } catch (e) {
+                        appendLog(`[Test Error] Wasm Engine Error: ${e.message}`, "log-sys");
+                        console.error(e);
+                        updateStateDisplay();
+                    }
+                };
+
+                if (Module.calledRun || Module.runtimeInitialized) {
+                    runEngine();
+                } else {
+                    Module.onRuntimeInitialized = function() {
+                        runEngine();
+                    };
+                }
+            } catch (err) {
+                appendLog("[Test Error] Initialization failed: " + err.message, "log-sys");
+                console.error(err);
+            }
+        };
+
+        function updateStateDisplay() {
+            if (driver) {
+                document.getElementById('state-val').textContent = driver.state;
+            }
+        }
+
+        function setupDriverListeners(drv) {
+            const inputField = document.getElementById('input-field');
+            const sendBtn = document.getElementById('send-btn');
+            const escBtn = document.getElementById('esc-btn');
+            const promptVal = document.getElementById('prompt-val');
+
+            const setInputActive = (active, promptText = "None") => {
+                inputField.disabled = !active;
+                sendBtn.disabled = !active;
+                escBtn.disabled = !active;
+                promptVal.textContent = promptText;
+                if (active) {
+                    inputField.value = "";
+                    inputField.focus();
+                }
+            };
+
+            drv.on('stateChange', (data) => {
+                updateStateDisplay();
+                if (data.state === NetHackWasmDriver.DriverState.STOPPED) {
+                    setInputActive(false, "Exited (STOPPED)");
+                }
+            });
+
+            drv.on('putstr', (data) => {
+                appendLog(`[Win ${data.windowId}] ${data.text}`, 'log-putstr');
+            });
+
+            drv.on('putmixed', (data) => {
+                appendLog(`[Win ${data.windowId} Mixed] ${data.text}`, 'log-putstr');
+            });
+
+            drv.on('raw_print', (data) => {
+                appendLog(`[Raw Print] ${data.text}`, 'log-raw');
+            });
+
+            drv.on('raw_print_bold', (data) => {
+                appendLog(`[Raw Print Bold] ${data.text}`, 'log-raw');
+            });
+
+            drv.on('display_file', (data) => {
+                appendLog(`[File ${data.filename}]\n${data.fileText || '(Empty or external file)'}`, 'log-sys');
+                if (data.resolver) data.resolver.respond(0);
+            });
+
+            drv.on('status_update', (data) => {
+                if (data.value !== null && data.value !== undefined) {
+                    appendLog(`[Status Update] Field ${data.field}: ${data.value}`, 'log-sys');
+                }
+            });
+
+            drv.on('bell', () => {
+                appendLog(`[Bell] Beep!`, 'log-sys');
+            });
+
+            drv.on('print_glyph', (data) => {
+                const { x, y, glyphInfo } = data;
+                if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                    mapMatrix[y][x] = (glyphInfo && glyphInfo.ch) ? glyphInfo.ch : ' ';
+                    renderMap();
+                }
+            });
+
+            drv.on('display_nhwindow', (data) => {
+                appendLog(`[Display Window] Win: ${data.windowId}, Blocking: ${data.blocking}`, 'log-sys');
+                if (data.blocking && data.resolver) {
+                    appendLog(`[Input Required] Window ${data.windowId} Blocking - Press Enter/Send to continue`, "log-input");
+                    updateStateDisplay();
+                    setInputActive(true, `display_win_${data.windowId}`);
+
+                    const submitContinue = () => {
+                        appendLog("> Window display acknowledged.", "log-input");
+                        setInputActive(false);
+                        data.resolver.respond(32); // Send Space / acknowledgment
+                        updateStateDisplay();
+                    };
+
+                    sendBtn.onclick = submitContinue;
+                    inputField.onkeydown = (e) => {
+                        if (e.key === 'Enter') submitContinue();
+                    };
+                    escBtn.onclick = () => {
+                        setInputActive(false);
+                        data.resolver.cancel();
+                        updateStateDisplay();
+                    };
+                }
+            });
+
+            drv.on('curs', (data) => {
+                // Handle cursor update
+            });
+
+            drv.on('clear_nhwindow', (data) => {
+                if (data.windowId === 3) { // MAP Window
+                    for (let r = 0; r < MAP_HEIGHT; r++) {
+                        mapMatrix[r].fill(' ');
+                    }
+                    renderMap();
+                }
+            });
+
+            drv.on('askname', (data) => {
+                appendLog("[Input Required] Player Name Query", "log-input");
+                updateStateDisplay();
+                setInputActive(true, "askname");
+
+                const submitName = () => {
+                    const val = inputField.value.trim() || "Player";
+                    appendLog(`> Name Submitted: ${val}`, "log-input");
+                    setInputActive(false);
+                    data.resolver.respond(val);
+                    updateStateDisplay();
+                };
+
+                sendBtn.onclick = submitName;
+                inputField.onkeydown = (e) => {
+                    if (e.key === 'Enter') submitName();
+                };
+                escBtn.onclick = () => {
+                    setInputActive(false);
+                    data.resolver.cancel();
+                    updateStateDisplay();
+                };
+            });
+
+            drv.on('inputRequired', (data) => {
+                const selectableItems = [];
+
+                if (data.context === 'select_menu') {
+                    appendLog(`--- MENU: ${data.prompt || 'Select Item'} (Win ${data.windowId}) ---`, "log-menu");
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach((item) => {
+                            if (item.isHeader || !item.identifier || item.identifier === 0) {
+                                appendLog(`  [Header] ${item.str || ''}`, "log-header");
+                            } else {
+                                selectableItems.push(item);
+                                const idx = selectableItems.length;
+                                const accChar = item.accelerator ? (typeof item.accelerator === 'string' ? item.accelerator : String.fromCharCode(item.accelerator)) : '';
+                                const accDisp = accChar ? `(key: '${accChar}')` : `(num: ${idx})`;
+                                
+                                let glyphDesc = "";
+                                if (item.glyphInfo) {
+                                    glyphDesc = ` [GlyphId:${item.glyphInfo.glyph}, Sym:'${item.glyphInfo.ch}']`;
+                                }
+
+                                appendLog(`  [${idx}] ${accDisp} ${item.str || ''}${glyphDesc}`, "log-menu");
+                            }
+                        });
+                    }
+                    appendLog("Type key ('a', 'b'), item number (1..N), or 0 to cancel.", "log-menu");
+                } else {
+                    appendLog(`[Input Required] Context: ${data.context} ${data.question || data.prompt || ''}`, "log-input");
+                }
+
+                updateStateDisplay();
+                setInputActive(true, data.context);
+
+                const submitInput = () => {
+                    const val = inputField.value.trim();
+
+                    if (data.context === 'get_ext_cmd') {
+                        appendLog(`> Ext Command Sent: '${val}'`, "log-input");
+                        setInputActive(false);
+                        data.resolver.respond(val);
+                        updateStateDisplay();
+                        return;
+                    }
+
+                    if (data.context === 'select_menu') {
+                        if (!val || val === '0' || val === '-1') {
+                            appendLog("> Menu cancelled (Returned 0)", "log-input");
+                            setInputActive(false);
+                            data.resolver.respond(0);
+                            updateStateDisplay();
+                            return;
+                        }
+
+                        // 1. Check direct accelerator key match (e.g. 'a', 'b')
+                        const matchKey = selectableItems.find(it => {
+                            const ch = it.accelerator ? (typeof it.accelerator === 'string' ? it.accelerator : String.fromCharCode(it.accelerator)) : '';
+                            return ch.toLowerCase() === val.toLowerCase();
+                        });
+
+                        if (matchKey) {
+                            appendLog(`> Menu item key '${val}' selected: ${matchKey.str}`, "log-input");
+                            setInputActive(false);
+                            data.resolver.respond([matchKey]);
+                            updateStateDisplay();
+                            return;
+                        }
+
+                        // 2. Check numeric index
+                        const num = parseInt(val, 10);
+                        if (!isNaN(num) && num > 0 && num <= selectableItems.length) {
+                            const selected = [selectableItems[num - 1]];
+                            appendLog(`> Menu item [${num}] selected: ${selected[0].str}`, "log-input");
+                            setInputActive(false);
+                            data.resolver.respond(selected);
+                            updateStateDisplay();
+                            return;
+                        }
+
+                        appendLog(`> Invalid menu selection '${val}', returning 0 (Cancel)`, "log-input");
+                        setInputActive(false);
+                        data.resolver.respond(0);
+                        updateStateDisplay();
+                        return;
+                    }
+
+                    if (data.context === 'getlin') {
+                        appendLog(`> Line Input Sent: ${val}`, "log-input");
+                        setInputActive(false);
+                        data.resolver.respond(val);
+                        updateStateDisplay();
+                        return;
+                    }
+
+                    let respVal = 27; // default ESC
+
+                    if (data.context === 'poskey' || data.context === 'getch') {
+                        respVal = parseNetHackKeyCode(val);
+                    } else if (data.context === 'yn_function') {
+                        respVal = val.length > 0 ? parseNetHackKeyCode(val) : (data.defaultChoice ? data.defaultChoice.charCodeAt(0) : 27);
+                    }
+
+                    appendLog(`> Key Sent: '${val}' -> ASCII/Code: ${respVal} (0x${respVal.toString(16).toUpperCase()})`, "log-input");
+                    setInputActive(false);
+                    data.resolver.respond(respVal);
+                    updateStateDisplay();
+                };
+
+                sendBtn.onclick = submitInput;
+                inputField.onkeydown = (e) => {
+                    if (e.key === 'Enter') submitInput();
+                };
+                escBtn.onclick = () => {
+                    setInputActive(false);
+                    if (data.context === 'select_menu') {
+                        data.resolver.respond(0);
+                    } else {
+                        data.resolver.cancel();
+                    }
+                    updateStateDisplay();
+                };
+            });
+
+            drv.on('exit_nhwindows', (data) => {
+                appendLog(`[Game Exit] ${data.message || ''}`, "log-sys");
+                updateStateDisplay();
+                setInputActive(false, "Exited");
+            });
+        }
+    </script>
+
+    <!-- Load NetHack Wasm Executable Script -->
+    <script src="nethack.js"></script>
+</body>
+</html>
