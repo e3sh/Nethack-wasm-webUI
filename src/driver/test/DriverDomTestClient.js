@@ -159,8 +159,9 @@ class DriverDomTestClient {
 
             if (context === 'yn_function') {
                 this.showYNPromptLine(question, choices, defaultChoice, resolver);
-            } else if (context === 'getlin' || context === 'askname') {
-                this.showTextInputPromptModal(prompt || question || "Who are you?", resolver);
+            } else if (context === 'getlin' || context === 'askname' || context === 'get_ext_cmd') {
+                const titleText = prompt || question || (context === 'get_ext_cmd' ? "Extended Command:" : "Who are you?");
+                this.showTextInputPromptModal(titleText, resolver);
             } else if (context === 'select_menu') {
                 this.showMenuModal(items, how, prompt, resolver);
             } else if (context === 'nhgetch' || context === 'poskey') {

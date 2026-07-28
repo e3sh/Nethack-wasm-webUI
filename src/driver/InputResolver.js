@@ -1,101 +1,116 @@
 /**
  * InputResolver.js
- * 
- * Wasm Asyncify 用の安全な Promise レスポンダー
- * 入力待ちのハングアップ防止・デッドロック救出・セーフティタイムアウトを提供
+ * Wasm 側の同期入力待ち（Asyncify）に対する Promise 管理とセーフティレスポンダー
  */
+(function (global) {
+    if (global.InputResolver) return;
 
-class InputResolver {
-    /**
-     * @param {Object} [options]
-     * @param {number} [options.timeoutMs=30000] - ハングアップ救出用のセーフティタイムアウト（ミリ秒）。0 で無効化。
-     * @param {any} [options.cancelValue=27] - タイムアウト・キャンセル時に返却する安全な初期フォールバック値
-     * @param {function} [options.onTimeout] - タイムアウト発生時のレスキューコールバック関数
-     */
-    constructor(options = {}) {
-        this.timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : 30000;
-        this.cancelValue = options.cancelValue !== undefined ? options.cancelValue : 27; // ESC
-        this.onTimeout = options.onTimeout || null;
+    class InputResolver {
+        constructor(options = {}) {
+            this.pendingResolver = null;
+            this.pendingContext = null;
+            this.timeoutMs = options.timeoutMs || 0; // 0 はタイムアウト無効
+            this.timerId = null;
+            this.onTimeout = options.onTimeout || null;
+        }
 
-        this._resolved = false;
-        this._timer = null;
+        /**
+         * 新しい入力待機を登録します。
+         * @param {string} context - 'key', 'poskey', 'yn', 'menu', 'getlin', 'name', 'ext_cmd' 等
+         * @param {object} extra - choices, prompt など
+         * @returns {Promise}
+         */
+        createPending(context, extra = {}) {
+            this.cancel(); // 既存の待機があればキャンセル
 
-        this.promise = new Promise((resolve) => {
-            this._resolveFn = resolve;
-        });
+            this.pendingContext = { context, ...extra };
 
-        if (this.timeoutMs > 0) {
-            this._timer = setTimeout(() => {
-                if (!this._resolved) {
-                    console.warn(`[InputResolver] Safety timeout reached (${this.timeoutMs}ms). Rescuing blocked Asyncify input.`);
-                    if (typeof this.onTimeout === 'function') {
-                        try {
-                            this.onTimeout();
-                        } catch (e) {
-                            console.error("[InputResolver] Error in onTimeout callback:", e);
-                        }
-                    } else {
+            return new Promise((resolve) => {
+                this.pendingResolver = resolve;
+
+                if (this.timeoutMs > 0) {
+                    this.timerId = setTimeout(() => {
+                        console.warn(`[InputResolver] Safety timeout fired for context '${context}'. Auto-cancelling.`);
+                        if (this.onTimeout) this.onTimeout(context);
                         this.cancel();
-                    }
+                    }, this.timeoutMs);
                 }
-            }, this.timeoutMs);
+            });
         }
-    }
 
-    /**
-     * すでに解決済みかどうかを取得
-     * @returns {boolean}
-     */
-    get isResolved() {
-        return this._resolved;
-    }
-
-    /**
-     * 入力応答値を返却して Promise を解決する
-     * 
-     * @param {any} value
-     * @returns {boolean} 正常に解決された場合は true
-     */
-    respond(value) {
-        if (this._resolved) return false;
-        this._resolved = true;
-        this._clearTimer();
-        // Emscripten Asyncify のスタックアンワインド完了を 100% 保証するための非同期遅延
-        setTimeout(() => {
-            if (typeof this._resolveFn === 'function') {
-                this._resolveFn(value);
+        /**
+         * クライアントからの正規な回答を渡し、Promise を resolve します。
+         */
+        respond(value) {
+            if (this.timerId) {
+                clearTimeout(this.timerId);
+                this.timerId = null;
             }
-        }, 10);
-        return true;
-    }
 
-    /**
-     * 指定された安全なキャンセル値を返却して Promise をレスキュー解決する
-     * 
-     * @param {any} [overrideValue]
-     * @returns {boolean}
-     */
-    cancel(overrideValue) {
-        const val = overrideValue !== undefined ? overrideValue : this.cancelValue;
-        return this.respond(val);
-    }
+            if (this.pendingResolver) {
+                const resolve = this.pendingResolver;
+                this.pendingResolver = null;
+                this.pendingContext = null;
+                resolve(value);
+                return true;
+            }
+            return false;
+        }
 
-    /**
-     * タイマーのクリア
-     * @private
-     */
-    _clearTimer() {
-        if (this._timer) {
-            clearTimeout(this._timer);
-            this._timer = null;
+        /**
+         * 入力をキャンセルし、Wasm フリーズを防ぐため標準的なキャンセル値 (ESC: 27 または null) を返します。
+         */
+        cancel() {
+            if (this.timerId) {
+                clearTimeout(this.timerId);
+                this.timerId = null;
+            }
+
+            if (this.pendingResolver) {
+                const resolve = this.pendingResolver;
+                const ctx = this.pendingContext ? this.pendingContext.context : 'unknown';
+                this.pendingResolver = null;
+                this.pendingContext = null;
+
+                console.log(`[InputResolver] Input cancelled for context '${ctx}'. Resolving with fallback.`);
+
+                // コンテキストに合わせたフォールバック値
+                if (ctx === 'yn' || ctx === 'yn_function') {
+                    const choices = this.pendingContext?.choices || "";
+                    if (choices.includes('q')) resolve('q'.charCodeAt(0));
+                    else if (choices.includes('n')) resolve('n'.charCodeAt(0));
+                    else resolve(27); // ESC
+                } else if (ctx === 'menu' || ctx === 'select_menu') {
+                    resolve(0); // 0 or []
+                } else if (ctx === 'getlin' || ctx === 'name') {
+                    resolve(null);
+                } else if (ctx === 'ext_cmd' || ctx === 'get_ext_cmd') {
+                    resolve(-1);
+                } else {
+                    resolve(27); // ASCII ESC
+                }
+                return true;
+            }
+            return false;
+        }
+
+        isWaiting() {
+            return this.pendingResolver !== null;
+        }
+
+        getContext() {
+            return this.pendingContext;
         }
     }
-}
 
-// Module export / Universal support
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = InputResolver;
-}
-if (typeof window !== 'undefined') {
-    window.InputResolver = InputResolver;
-}
+    global.InputResolver = InputResolver;
+    if (typeof window !== 'undefined') {
+        window.InputResolver = InputResolver;
+    }
+    if (typeof globalThis !== 'undefined') {
+        globalThis.InputResolver = InputResolver;
+    }
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = { InputResolver };
+    }
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));

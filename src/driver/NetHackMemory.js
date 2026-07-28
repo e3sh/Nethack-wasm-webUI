@@ -1,182 +1,283 @@
 /**
  * NetHackMemory.js
- * 
- * Emscripten メモリとの低レイヤー相互変換・型解釈・C構造体 (glyph_info) デコーダ
+ * Emscripten Wasm メモリとの低レイヤー相互変換・型解釈・デコードを担当するモジュール
  */
+(function (global) {
+    if (global.NetHackMemory) return;
 
-class NetHackMemory {
-    /**
-     * @param {Object} [wasmModule] - Emscripten の Module オブジェクト（省略時は window.Module）
-     */
-    constructor(wasmModule = null) {
-        this._module = wasmModule;
-    }
-
-    /**
-     * 現在有効な Module オブジェクトを取得
-     * @returns {Object|null}
-     */
-    get module() {
-        if (this._module) return this._module;
-        if (typeof window !== 'undefined' && window.Module) return window.Module;
-        if (typeof globalThis !== 'undefined' && globalThis.Module) return globalThis.Module;
-        return null;
-    }
-
-    /**
-     * Module オブジェクトをセット
-     * @param {Object} mod
-     */
-    set module(mod) {
-        this._module = mod;
-    }
-
-    /**
-     * C/Wasm メモリから指定型の値を取得
-     * 
-     * @param {string} name - デバッグ・ログ用識別名
-     * @param {number} ptr - メモリアドレス
-     * @param {string} type - 型指定子 ('v', 'i', 's', 'b', 'c', '0', '1', 'p' など)
-     * @returns {any}
-     */
-    getPointerValue(name, ptr, type) {
-        const mod = this.module;
-        if (!mod) throw new Error("NetHackMemory: Module is not initialized");
-
-        if (type === 'v') return null;
-        if (type === 'i') return mod.getValue(ptr, 'i32');
-        if (type === 's') return mod.UTF8ToString(ptr);
-        if (type === 'b') return !!mod.getValue(ptr, 'i8');
-        if (type === 'c' || type === '0') return String.fromCharCode(mod.getValue(ptr, 'i8'));
-        if (type === '1') return mod.getValue(ptr, 'i16'); // coordxy
-        if (type === 'p') return ptr;
-        return ptr;
-    }
-
-    /**
-     * C/Wasm メモリへ指定型の値を書き込み
-     * 
-     * @param {string} name - デバッグ・ログ用識別名
-     * @param {number} ret_ptr - 書き込み先ポインタ
-     * @param {string} type - 型指定子 ('i', 'b', 'c', '1', '2', 's', 'p')
-     * @param {any} value - 書き込む値
-     */
-    setPointerValue(name, ret_ptr, type, value) {
-        const mod = this.module;
-        if (!mod) throw new Error("NetHackMemory: Module is not initialized");
-        if (!ret_ptr) return;
-
-        if (type === 'i') {
-            mod.setValue(ret_ptr, value, 'i32');
-        } else if (type === 'b') {
-            mod.setValue(ret_ptr, value ? 1 : 0, 'i8');
-        } else if (type === 'c') {
-            mod.setValue(ret_ptr, typeof value === 'string' ? value.charCodeAt(0) : value, 'i8');
-        } else if (type === '1' || type === '2') {
-            mod.setValue(ret_ptr, value, 'i16');
-        } else if (type === 's') {
-            if (value === null || value === undefined) {
-                mod.setValue(ret_ptr, 0, 'i32');
-            } else if (typeof value === 'string') {
-                let ptr = mod._malloc(value.length + 1);
-                mod.stringToUTF8(value, ptr, value.length + 1);
-                mod.setValue(ret_ptr, ptr, 'i32');
-            } else {
-                throw new TypeError("expected " + name + " return type to be string, got " + (typeof value));
-            }
-        } else if (type === 'p') {
-            mod.setValue(ret_ptr, value, 'i32');
+    class NetHackMemory {
+        constructor(moduleRef) {
+            this.module = moduleRef || (typeof globalThis !== 'undefined' ? globalThis.Module : null);
         }
-    }
 
-    /**
-     * C言語側の glyph_info 構造体メモリから属性情報をデコード
-     * 
-     * @param {number} ptr - glyph_info 構造体へのポインタ
-     * @returns {Object|null} { glyph, symbol, framecolor, flags, color, symidx, ch }
-     */
-    parseGlyphInfo(ptr) {
-        const mod = this.module;
-        if (!mod || !ptr) return null;
+        setModule(moduleRef) {
+            this.module = moduleRef;
+        }
 
-        // NetHack 3.7 glyph_info structure offsets
-        const GLYPH_OFFSET = 0;
-        const TTYCHAR_OFFSET = 4;
-        const FRAMECOLOR_OFFSET = 8;
-        const GM_OFFSET = 12; // glyph_map starts here
+        get Module() {
+            const winM = (typeof window !== 'undefined') ? window.Module : null;
+            const globM = (typeof globalThis !== 'undefined') ? globalThis.Module : null;
+            if (winM && (winM.getValue || winM.setValue)) return winM;
+            if (globM && (globM.getValue || globM.setValue)) return globM;
+            if (this.module && (this.module.getValue || this.module.setValue)) return this.module;
+            return winM || globM || this.module;
+        }
 
-        const GM_FLAGS_OFFSET = GM_OFFSET + 0;
-        const GM_COLOR_OFFSET = GM_OFFSET + 4;
-        const GM_SYMIDX_OFFSET = GM_OFFSET + 8;
-        const GM_U_OFFSET = GM_OFFSET + 20; // pointer to unicode_representation
+        getValue(ptr, type) {
+            const M = this.Module;
+            const getValFn = (M && M.getValue) ? M.getValue.bind(M) : (typeof getValue !== 'undefined' ? getValue : null);
+            if (!getValFn || !ptr) return 0;
+            return getValFn(ptr, type);
+        }
 
-        let glyph = mod.getValue(ptr + GLYPH_OFFSET, 'i32');
-        let symbol = mod.getValue(ptr + TTYCHAR_OFFSET, 'i32');
-        let framecolor = mod.getValue(ptr + FRAMECOLOR_OFFSET, 'i32');
+        setValue(ptr, val, type) {
+            const M = this.Module;
+            const setValFn = (M && M.setValue) ? M.setValue.bind(M) : (typeof setValue !== 'undefined' ? setValue : null);
+            if (!setValFn || !ptr) return;
+            setValFn(ptr, val, type);
+        }
 
-        let flags = mod.getValue(ptr + GM_FLAGS_OFFSET, 'i32');
-        let color = mod.getValue(ptr + GM_COLOR_OFFSET, 'i32');
-        let symidx = mod.getValue(ptr + GM_SYMIDX_OFFSET, 'i32');
+        UTF8ToString(ptr) {
+            const M = this.Module;
+            const u8StrFn = (M && M.UTF8ToString) ? M.UTF8ToString.bind(M) : (typeof UTF8ToString !== 'undefined' ? UTF8ToString : null);
+            if (!u8StrFn || !ptr) return "";
+            return u8StrFn(ptr);
+        }
 
-        let ch = String.fromCharCode(symbol);
-        let uPtr = mod.getValue(ptr + GM_U_OFFSET, 'i32');
-        if (uPtr) {
-            let utf8strPtr = mod.getValue(uPtr + 4, 'i32'); // offset of utf8str in unicode_representation
-            if (utf8strPtr) {
-                ch = mod.UTF8ToString(utf8strPtr);
+        stringToUTF8(str, outPtr, maxBytes) {
+            const M = this.Module;
+            const strU8Fn = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
+            if (strU8Fn && outPtr) {
+                strU8Fn(str, outPtr, maxBytes);
             }
         }
 
-        return { glyph, symbol, framecolor, flags, color, symidx, ch };
-    }
+        /**
+         * C言語側のポインタ ptr から指定型 type に従って値を読み出します。
+         */
+        getPointerValue(ptr, type) {
+            if (!ptr) return null;
 
-    /**
-     * window.nethackGlobal.helpers に対する Sticky Getter パッチを適用し、
-     * C/Wasm 側の内部 js_helpers_init による上書きを防御・バインドする
-     * 
-     * @param {Object} [targetWindow] - 適用対象グローバルオブジェクト
-     */
-    patchNethackHelpers(targetWindow = null) {
-        const globalTarget = targetWindow || (typeof window !== 'undefined' ? window : globalThis);
-        if (!globalTarget) return;
+            switch (type) {
+                case 'v': return null;
+                case 'i': return this.getValue(ptr, 'i32');
+                case 's': return this.UTF8ToString(ptr);
+                case 'b': return !!this.getValue(ptr, 'i8');
+                case 'c':
+                case '0': return String.fromCharCode(this.getValue(ptr, 'i8'));
+                case '1': return this.getValue(ptr, 'i16'); // coordxy
+                case 'p': return ptr;
+                default: return ptr;
+            }
+        }
 
-        globalTarget.nethackGlobal = globalTarget.nethackGlobal || {};
-        globalTarget.nethackGlobal.helpers = globalTarget.nethackGlobal.helpers || {};
+        /**
+         * C言語側の戻り値用ポインタ ret_ptr に値を書き込みます。
+         */
+        setPointerValue(ret_ptr, type, value) {
+            if (!ret_ptr) return;
+            const M = this.Module;
 
-        const helpers = globalTarget.nethackGlobal.helpers;
-        const self = this;
+            switch (type) {
+                case 'i':
+                    this.setValue(ret_ptr, value, 'i32');
+                    break;
+                case 'b':
+                    this.setValue(ret_ptr, value ? 1 : 0, 'i8');
+                    break;
+                case 'c':
+                    this.setValue(ret_ptr, typeof value === 'string' ? value.charCodeAt(0) : value, 'i8');
+                    break;
+                case '1':
+                case '2':
+                    this.setValue(ret_ptr, value, 'i16');
+                    break;
+                case 's':
+                    if (value === null || value === undefined) {
+                        this.setValue(ret_ptr, 0, 'i32');
+                    } else if (typeof value === 'string') {
+                        const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
+                        if (mallocFn) {
+                            const ptr = mallocFn(value.length + 1);
+                            this.stringToUTF8(value, ptr, value.length + 1);
+                            this.setValue(ret_ptr, ptr, 'i32');
+                        }
+                    } else if (typeof value === 'number') {
+                        if (value <= 0 || value === 27) {
+                            this.setValue(ret_ptr, 0, 'i32');
+                        } else if (value > 65536) {
+                            this.setValue(ret_ptr, value, 'i32');
+                        } else {
+                            const strVal = String(value);
+                            const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
+                            if (mallocFn) {
+                                const ptr = mallocFn(strVal.length + 1);
+                                this.stringToUTF8(strVal, ptr, strVal.length + 1);
+                                this.setValue(ret_ptr, ptr, 'i32');
+                            }
+                        }
+                    } else {
+                        this.setValue(ret_ptr, 0, 'i32');
+                    }
+                    break;
+                case 'p':
+                    this.setValue(ret_ptr, value, 'i32');
+                    break;
+            }
+        }
 
-        const makeSticky = (name, fn) => {
-            Object.defineProperty(helpers, name, {
-                get: function () { return fn; },
-                set: function (val) {
-                    // Block overwrite attempts
-                },
-                configurable: true,
-                enumerable: true
+        /**
+         * NetHack 3.7 / 5.0 の glyph_info 構造体メモリからデータを展開・デコードします。
+         */
+        parseGlyphInfo(ptr) {
+            if (!ptr) return null;
+
+            const GLYPH_OFFSET = 0;
+            const TTYCHAR_OFFSET = 4;
+            const FRAMECOLOR_OFFSET = 8;
+            const GM_OFFSET = 12; // glyph_map starts here
+
+            const GM_FLAGS_OFFSET = GM_OFFSET + 0;
+            const GM_COLOR_OFFSET = GM_OFFSET + 4;
+            const GM_SYMIDX_OFFSET = GM_OFFSET + 8;
+            const GM_U_OFFSET = GM_OFFSET + 20; // pointer to unicode_representation
+
+            const glyph = this.getValue(ptr + GLYPH_OFFSET, 'i32');
+            const symbol = this.getValue(ptr + TTYCHAR_OFFSET, 'i32');
+            const framecolor = this.getValue(ptr + FRAMECOLOR_OFFSET, 'i32');
+
+            const flags = this.getValue(ptr + GM_FLAGS_OFFSET, 'i32');
+            const color = this.getValue(ptr + GM_COLOR_OFFSET, 'i32');
+            const symidx = this.getValue(ptr + GM_SYMIDX_OFFSET, 'i32');
+
+            let ch = String.fromCharCode(symbol);
+            const uPtr = this.getValue(ptr + GM_U_OFFSET, 'i32');
+            if (uPtr) {
+                const utf8strPtr = this.getValue(uPtr + 4, 'i32');
+                if (utf8strPtr) {
+                    ch = this.UTF8ToString(utf8strPtr);
+                }
+            }
+
+            return { glyph, symbol, framecolor, flags, color, symidx, ch };
+        }
+
+        /**
+         * shim_status_update の生引数をデコードし、構造化された値を返します。
+         */
+        parseStatusUpdate(fld, ptr, chg, clr) {
+            let rawVal = null;
+            let parsedVal = null;
+
+            if (fld === 22) { // BL_CONDITION
+                rawVal = ptr ? this.getValue(ptr, 'i32') : 0;
+                parsedVal = this.parseConditionFlags(rawVal);
+            } else if (ptr) {
+                try {
+                    rawVal = this.UTF8ToString(ptr);
+                } catch (e) {
+                    rawVal = this.getValue(ptr, 'i32');
+                }
+                parsedVal = rawVal;
+            }
+
+            // ゴールド表現 ("glyph:0x0f2b:100") のパース補助
+            let goldData = null;
+            if (fld === 10 && typeof rawVal === 'string' && rawVal.includes(':')) { // BL_GOLD (Index 10)
+                const parts = rawVal.split(':');
+                const goldGlyphId = parseInt(parts[0].slice(7), 16) || 3883;
+                const amount = parseInt(parts[1]) || 0;
+                goldData = { glyphId: goldGlyphId, amount, raw: rawVal };
+            }
+
+            return {
+                fld,
+                field: fld,
+                value: parsedVal !== null ? parsedVal : rawVal,
+                rawVal,
+                parsedVal,
+                goldData,
+                chg,
+                clr
+            };
+        }
+
+        /**
+         * コンディションビットマスクを状態文字列配列に変換します (NetHack 3.7 / 5.0 完全仕様)
+         */
+        parseConditionFlags(condBitmask) {
+            const CDT = {
+                "BareHanded": 0x00000001,
+                "Blind": 0x00000002,
+                "Busy": 0x00000004,
+                "Confused": 0x00000008,
+                "Deaf": 0x00000010,
+                "ElfIron": 0x00000020,
+                "Flying": 0x00000040,
+                "FoodPoisoning": 0x00000080,
+                "GlowHands": 0x00000100,
+                "Grabbing": 0x00000200,
+                "Hallucinating": 0x00000400,
+                "Held": 0x00000800,
+                "Icy": 0x00001000,
+                "InLava": 0x00002000,
+                "Levitating": 0x00004000,
+                "Paralyzed": 0x00008000,
+                "Riding": 0x00010000,
+                "Sleeping": 0x00020000,
+                "Slimed": 0x00040000,
+                "Slippery": 0x00080000,
+                "Stoned": 0x00100000,
+                "Strangled": 0x00200000,
+                "Stunned": 0x00400000,
+                "Submerged": 0x00800000,
+                "Termill": 0x01000000,
+                "Tethered": 0x02000000,
+                "Trapped": 0x04000000,
+                "Unconscious": 0x08000000,
+                "WoundedLeg": 0x10000000,
+                "Holding": 0x20000000
+            };
+
+            const activeConditions = [];
+            for (const [name, mask] of Object.entries(CDT)) {
+                if ((condBitmask & mask) !== 0) {
+                    activeConditions.push(name);
+                }
+            }
+            return activeConditions;
+        }
+
+        /**
+         * C言語側の menu_item 構造体 (16バイト/個) 配列のメモリ領域を確保・構築します。
+         */
+        buildMenuItemBuffer(selectedItems) {
+            const M = this.Module;
+            const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
+            if (!mallocFn || !selectedItems || selectedItems.length === 0) return 0;
+
+            const ITEM_SIZE = 16;
+            const ptr = mallocFn(ITEM_SIZE * selectedItems.length);
+
+            selectedItems.forEach((item, index) => {
+                const offset = ptr + (index * ITEM_SIZE);
+                this.setValue(offset, item.identifier !== undefined ? item.identifier : 0, 'i32');
+                this.setValue(offset + 8, item.count !== undefined ? item.count : -1, 'i32');
+                this.setValue(offset + 12, (item.itemflags || 0) | 1, 'i32'); // SELECTED = 1
             });
-        };
 
-        makeSticky('getPointerValue', function (name, ptr, type) {
-            return self.getPointerValue(name, ptr, type);
-        });
-
-        makeSticky('setPointerValue', function (name, ret_ptr, type, value) {
-            return self.setPointerValue(name, ret_ptr, type, value);
-        });
-
-        makeSticky('parseGlyphInfo', function (ptr) {
-            return self.parseGlyphInfo(ptr);
-        });
-
-        helpers.isPatched = true;
+            return ptr;
+        }
     }
-}
 
-// Module export / Universal support
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = NetHackMemory;
-}
-if (typeof window !== 'undefined') {
-    window.NetHackMemory = NetHackMemory;
-}
+    global.NetHackMemory = NetHackMemory;
+    if (typeof window !== 'undefined') {
+        window.NetHackMemory = NetHackMemory;
+    }
+    if (typeof globalThis !== 'undefined') {
+        globalThis.NetHackMemory = NetHackMemory;
+    }
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = { NetHackMemory };
+    }
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));

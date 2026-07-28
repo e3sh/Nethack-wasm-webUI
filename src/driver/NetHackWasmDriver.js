@@ -1,1120 +1,719 @@
 /**
  * NetHackWasmDriver.js
- * 
- * NetHack 5.0 Wasm コア (C / winshim.c) と Client UI を繋ぐ汎用ドライバークラス。
- * Wasm Shim イベントのデコード、状態管理、Asyncify 安全レスポンダーの制御を行う。
+ * NetHack 5.0 Wasm コアと Client UI レイヤーを疎結合に接続する汎用 Driver クラス
  */
+(function (global) {
+    if (global.NetHackWasmDriver) return;
 
-// Dependency checks (Universal mode support)
-let NetHackMemoryRef = typeof NetHackMemory !== 'undefined' ? NetHackMemory : null;
-let InputResolverRef = typeof InputResolver !== 'undefined' ? InputResolver : null;
-
-if (typeof require !== 'undefined') {
-    if (!NetHackMemoryRef) try { NetHackMemoryRef = require('./NetHackMemory'); } catch (e) {}
-    if (!InputResolverRef) try { InputResolverRef = require('./InputResolver'); } catch (e) {}
-}
-
-/**
- * ドライバの動作状態列挙体
- */
-const DriverState = Object.freeze({
-    IDLE: 'IDLE',
-    RUNNING: 'RUNNING',
-    WAITING_INPUT: 'WAITING_INPUT',
-    WAITING_MENU: 'WAITING_MENU',
-    STOPPED: 'STOPPED'
-});
-
-/**
- * NetHack 5.0 C コア (cmd.c struct ext_func_tab extcmdlist[]) の全宣言要素と 1:1 完全一致する配列
- */
-const DEFAULT_EXTCMDS = [
-    "#",
-    "?",
-    "adjust",
-    "annotate",
-    "apply",
-    "attributes",
-    "autopickup",
-    "call",
-    "cast",
-    "chat",
-    "chronicle",
-    "close",
-    "conduct",
-    "debugfuzzer",
-    "dip",
-    "down",
-    "drop",
-    "droptype",
-    "eat",
-    "engrave",
-    "enhance",
-    "exploremode",
-    "fight",
-    "fire",
-    "force",
-    "genocided",
-    "glance",
-    "help",
-    "herecmdmenu",
-    "history",
-    "inventory",
-    "inventtype",
-    "invoke",
-    "jump",
-    "kick",
-    "known",
-    "knownclass",
-    "levelchange",
-    "lightsources",
-    "look",
-    "lookaround",
-    "loot",
-    "migratemons",
-    "monster",
-    "name",
-    "offer",
-    "open",
-    "options",
-    "optionsfull",
-    "overview",
-    "panic",
-    "pay",
-    "perminv",
-    "pickup",
-    "polyself",
-    "pray",
-    "prevmsg",
-    "puton",
-    "quaff",
-    "quit",
-    "quiver",
-    "read",
-    "redraw",
-    "remove",
-    "repeat",
-    "reqmenu",
-    "retravel",
-    "ride",
-    "rub",
-    "run",
-    "rush",
-    "save",
-    "saveoptions",
-    "search",
-    "seeall",
-    "seeamulet",
-    "seearmor",
-    "seerings",
-    "seetools",
-    "seeweapon",
-    "shell",
-    "showgold",
-    "showspells",
-    "showtrap",
-    "sit",
-    "stats",
-    "suspend",
-    "swap",
-    "takeoff",
-    "takeoffall",
-    "teleport",
-    "terrain",
-    "therecmdmenu",
-    "throw",
-    "timeout",
-    "tip",
-    "toggle",
-    "travel",
-    "turn",
-    "twoweapon",
-    "untrap",
-    "up",
-    "vanquished",
-    "version",
-    "versionshort",
-    "vision",
-    "wait",
-    "wear",
-    "whatdoes",
-    "whatis",
-    "wield",
-    "wipe"
-];
-
-class NetHackWasmDriver {
-    /**
-     * @param {Object} [options]
-     * @param {Object} [options.wasmModule] - Emscripten Module
-     * @param {number} [options.inputTimeoutMs=0] - ハングアップ救出用セーフティタイムアウト (ms)。デフォルト: 0 (無期限待機)
-     * @param {boolean} [options.debug=false] - デバッグログの出力有無
-     * @param {string[]} [options.extCmds] - 拡張コマンドリスト
-     */
-    constructor(options = {}) {
-        this.options = Object.assign({
-            wasmModule: null,
-            inputTimeoutMs: 0,
-            debug: false,
-            extCmds: DEFAULT_EXTCMDS
-        }, options);
-
-        const MemoryClass = NetHackMemoryRef || window.NetHackMemory;
-        if (!MemoryClass) {
-            throw new Error("NetHackWasmDriver: NetHackMemory is not loaded.");
+    class NetHackWasmDriver {
+        static get DriverState() {
+            return {
+                IDLE: 'IDLE',
+                RUNNING: 'RUNNING',
+                WAITING_INPUT: 'WAITING_INPUT',
+                STOPPED: 'STOPPED'
+            };
         }
 
-        this.memory = new MemoryClass(this.options.wasmModule);
-        this._state = DriverState.IDLE;
-        this.listeners = new Map();
-        this.activeResolver = null;
-
-        // Menu buffer (windowId -> { behavior, items: [], prompt: "" })
-        this.menuBuffer = {};
-        this.messageHistory = [];
-        this.historyIndex = 0;
-
-        // Bind eventHook
-        this.eventHook = this.eventHook.bind(this);
-    }
-
-    /**
-     * 現在のドライバ動作状態を取得
-     * @returns {string}
-     */
-    get state() {
-        return this._state;
-    }
-
-    /**
-     * ドライバ動作状態を設定し、変更通知を発行
-     * @param {string} newState
-     */
-    set state(newState) {
-        if (this._state !== newState) {
-            const oldState = this._state;
-            this._state = newState;
-            this.emit('stateChange', { state: newState, oldState });
-        }
-    }
-
-    /**
-     * NetHack Wasm Driver の初期化およびグローバルパッチの適応
-     * @param {Object} [wasmModule] 
-     */
-    init(wasmModule = null) {
-        if (wasmModule) {
-            this.memory.module = wasmModule;
-        }
-
-        // Apply sticky getter patch for Wasm memory helpers
-        this.memory.patchNethackHelpers();
-
-        // Register window.nhDispatcher & window.eventHook for C shim callback
-        const globalTarget = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
-        if (globalTarget) {
-            globalTarget.nhDispatcher = this.eventHook;
-            globalTarget.eventHook = this.eventHook;
-        }
-
-        this.state = DriverState.IDLE;
-        if (this.options.debug) {
-            console.log("[NetHackWasmDriver] Initialized, helpers patched & nhDispatcher registered.");
-        }
-    }
-
-    /**
-     * 設定された gameOptions オブジェクトから C コア用オプション文字列配列を動的ビルド
-     * @returns {Object} { optionArgs, rcContent }
-     */
-    buildOptionStrings() {
-        const optionArgs = [];
-        const rcOptions = [];
-
-        // 1. ユーザー名 (name / WHO) のスマート適用 (-uName & OPTIONS=name:Name)
-        const userName = (this.options.gameOptions && this.options.gameOptions.name) ? String(this.options.gameOptions.name).trim() : 'e3-sh';
-        if (userName) {
-            optionArgs.push(`-u${userName}`);
-            rcOptions.push(`name:${userName}`);
-        }
-
-        // 2. その他の起動オプション
-        const gameOpts = Object.assign({
-            number_pad: 1,
-            showexp: true,
-            time: true,
-            showvers: true
-        }, (this.options && this.options.gameOptions) || {});
-
-        const optStrings = [];
-        for (const [key, val] of Object.entries(gameOpts)) {
-            if (val === true) {
-                optStrings.push(key);
-            } else if (val === false) {
-                optStrings.push(`!${key}`);
-            } else if (val !== null && val !== undefined) {
-                optStrings.push(`${key}:${val}`);
-            }
-        }
-        return optStrings;
-    }
-
-    /**
-     * FS (仮想ファイルシステム) のフォルダ・設定・システムファイルのフルセットアップ
-     */
-    prepareFSEnvironment() {
-        const mod = this.memory.module;
-        const fsObj = typeof FS !== 'undefined' ? FS : (mod && mod.FS ? mod.FS : null);
-        if (!fsObj) return;
-        const FS_REF = fsObj;
-
-        try {
-            const dirs = ['/save', '/tmp', '/nethack', '/nethack/save'];
-            dirs.forEach(d => {
-                try {
-                    if (!FS_REF.analyzePath(d).exists) {
-                        FS_REF.mkdir(d);
-                    }
-                } catch (e) {}
-            });
-
-            const optList = this.buildOptionStrings().join(',');
-            const filesToSync = [
-                'nhdat', 'sysconf', 'cmdhelp', 'opthelp', 'wizhelp',
-                'help', 'hh', 'history', 'license', 'oracles', 'rumors',
-                'options', '.nethackrc', 'nethackrc'
+        static get DEFAULT_EXTCMDS() {
+            return [
+                "#","?","adjust", "annotate", "apply", "attributes", "autopickup",
+                "call", "cast", "chat", "chronicle", "close", "conduct", "debugfuzzer",
+                "dip", "down", "drop", "droptype", "eat", "engrave", "enhance",
+                "exploremode", "fight", "fire", "force", "genocided", "glance",
+                "help", "herecmdmenu", "history", "inventory", "inventtype",
+                "invoke", "jump", "kick", "known", "knownclass", "levelchange",
+                "lightsources", "look", "lookaround", "loot", "migratemons",
+                "monster", "name", "offer", "open", "options", "optionsfull",
+                "overview", "panic", "pay", "perminv", "pickup", "polyself",
+                "pray", "prevmsg", "puton", "quaff", "quit", "quiver", "read",
+                "redraw", "remove", "repeat", "reqmenu", "retravel", "ride",
+                "rub", "run", "rush", "save", "saveoptions", "search", "seeall",
+                "seeamulet", "seearmor", "seerings", "seetools", "seeweapon",
+                "shell", "showgold", "showspells", "showtrap", "sit", "stats",
+                "suspend", "swap", "takeoff", "takeoffall", "teleport", "terrain",
+                "therecmdmenu", "throw", "timeout", "tip", "toggle", "travel",
+                "turn", "twoweapon", "untrap", "up", "vanquished", "version",
+                "versionshort", "vision", "wait", "wear", "whatdoes", "whatis",
+                "wield", "wipe"
             ];
-
-            const sysconfContent = `WIZARDS=*\nEXPLORERS=*\nOPTIONS=${optList}\n`;
-            const rcContent = `OPTIONS=${optList}\n`;
-
-            // ルート / および /nethack/ の両検索パスに sysconf, .nethackrc を書き込み
-            const sysPaths = ['/sysconf', '/nethack/sysconf', 'sysconf'];
-            sysPaths.forEach(p => {
-                try { FS_REF.writeFile(p, sysconfContent); } catch (e) {}
-            });
-
-            const rcPaths = ['/.nethackrc', '/nethack/.nethackrc', '/options', '/nethack/options'];
-            rcPaths.forEach(p => {
-                try { FS_REF.writeFile(p, rcContent); } catch (e) {}
-            });
-
-            // 必須パーミッション・レコードファイルの自動作成 (Cannot open file perm 防止)
-            const requiredFiles = ['perm', 'record', 'logfile', 'xlogfile', 'paniclog'];
-            requiredFiles.forEach(f => {
-                const paths = [`/${f}`, `/nethack/${f}`, `/save/${f}`, `/nethack/save/${f}`];
-                paths.forEach(p => {
-                    try {
-                        if (!FS_REF.analyzePath(p).exists) {
-                            FS_REF.writeFile(p, '');
-                        }
-                    } catch (e) {}
-                });
-            });
-
-            if (this.options.debug) {
-                console.log(`[NetHackWasmDriver] Emscripten FS environment prepared with gameOptions: ${optList}`);
-            }
-        } catch (err) {
-            console.warn("[NetHackWasmDriver] FS preparation warning:", err);
         }
-    }
 
-    _prepareFS() {
-        return this.prepareFSEnvironment();
-    }
+        constructor(options = {}) {
+            this.listeners = new Map();
+            this.options = options;
 
-    // --- Save Data Management Helpers ---
+            this.initSubModules(options);
 
-    /**
-     * 仮想 FS 上の全セーブファイル一覧とサイズ情報を取得
-     * @returns {Array<{ filename: string, size: number, timestamp: Date }>}
-     */
-    listSaveFiles() {
-        if (typeof FS === 'undefined') return [];
-        try {
-            if (!FS.analyzePath('/save').exists) return [];
-            const files = FS.readdir('/save').filter(f => f !== '.' && f !== '..');
-            return files.map(filename => {
-                const stat = FS.stat('/save/' + filename);
-                return {
-                    filename,
-                    size: stat.size,
-                    timestamp: new Date(stat.mtime)
-                };
+            this.state = NetHackWasmDriver.DriverState.IDLE;
+            this.menuBuffer = {};
+            this.messageHistory = [];
+            this.messageWindowId = 1;
+            this.version = "";
+
+            // Bind global dispatcher safely
+            this.eventHook = this.eventHook.bind(this);
+            this.setupGlobalDispatcher();
+        }
+
+        getModule() {
+            const winM = (typeof window !== 'undefined') ? window.Module : null;
+            const globM = (typeof globalThis !== 'undefined') ? globalThis.Module : null;
+            if (winM && (winM.ccall || winM.setValue)) return winM;
+            if (globM && (globM.ccall || globM.setValue)) return globM;
+            if (this.memory && this.memory.Module) return this.memory.Module;
+            return winM || globM || (this.options ? this.options.module : null);
+        }
+
+        initSubModules(options = {}) {
+            const getGlobalClass = (className) => {
+                if (typeof window !== 'undefined' && window[className]) return window[className];
+                if (typeof globalThis !== 'undefined' && globalThis[className]) return globalThis[className];
+                try {
+                    return eval(className);
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const MemoryClass = getGlobalClass('NetHackMemory');
+            const FSManagerClass = getGlobalClass('NetHackFSManager');
+            const ResolverClass = getGlobalClass('InputResolver');
+
+            const moduleRef = options.module || this.getModule();
+
+            if (MemoryClass && (!this.memory || options.module)) {
+                this.memory = new MemoryClass(moduleRef);
+            }
+            if (FSManagerClass && !this.fsManager) {
+                this.fsManager = new FSManagerClass();
+                console.log("[NetHackWasmDriver] Successfully instantiated NetHackFSManager.");
+            }
+            if (ResolverClass && !this.inputResolver) {
+                this.inputResolver = new ResolverClass({ timeoutMs: options.inputTimeoutMs || 0 });
+            }
+        }
+
+        init(moduleRef) {
+            if (moduleRef) {
+                this.options.module = moduleRef;
+            }
+            this.initSubModules(this.options);
+            if (this.memory) {
+                this.memory.setModule(moduleRef);
+            }
+            this.setupGlobalDispatcher();
+        }
+
+        get activeResolver() {
+            return (this.inputResolver && this.inputResolver.isWaiting()) ? this.inputResolver : null;
+        }
+
+        /**
+         * EventEmitter API: イベントリスナー登録
+         */
+        on(event, fn) {
+            if (!this.listeners.has(event)) {
+                this.listeners.set(event, []);
+            }
+            this.listeners.get(event).push(fn);
+            return this;
+        }
+
+        once(event, fn) {
+            const wrapper = (payload) => {
+                this.off(event, wrapper);
+                fn(payload);
+            };
+            return this.on(event, wrapper);
+        }
+
+        off(event, fn) {
+            if (!this.listeners.has(event)) return this;
+            const list = this.listeners.get(event).filter(l => l !== fn);
+            this.listeners.set(event, list);
+            return this;
+        }
+
+        emit(event, payload) {
+            if (!this.listeners.has(event)) return false;
+            const list = this.listeners.get(event);
+            list.forEach(fn => {
+                try {
+                    fn(payload);
+                } catch (e) {
+                    console.error(`[NetHackWasmDriver] Error in event listener for '${event}':`, e);
+                }
             });
-        } catch (e) {
-            return [];
-        }
-    }
-
-    /**
-     * 仮想 FS から指定セーブファイル（または全セーブファイル）のバイナリを取得
-     * @param {string} [targetFilename] 特定のファイル名（省略時は全ファイル）
-     * @returns {Array<{ filename: string, data: Uint8Array }>}
-     */
-    exportSaveData(targetFilename = null) {
-        if (typeof FS === 'undefined') return [];
-        try {
-            if (!FS.analyzePath('/save').exists) return [];
-            const files = FS.readdir('/save').filter(f => f !== '.' && f !== '..');
-            const targets = targetFilename ? files.filter(f => f === targetFilename) : files;
-
-            return targets.map(filename => ({
-                filename,
-                data: FS.readFile('/save/' + filename)
-            }));
-        } catch (e) {
-            return [];
-        }
-    }
-
-    /**
-     * 仮想 FS の /save/ へバイナリセーブデータを注入・保存
-     * @param {string} filename 
-     * @param {Uint8Array|ArrayBuffer} data 
-     * @returns {boolean} 成功時 true
-     */
-    importSaveData(filename, data) {
-        if (typeof FS === 'undefined' || !filename || !data) return false;
-        try {
-            if (!FS.analyzePath('/save').exists) {
-                FS.mkdir('/save');
-            }
-            const uint8Data = (data instanceof ArrayBuffer) ? new Uint8Array(data) : data;
-            FS.writeFile('/save/' + filename, uint8Data);
-            if (this.options.debug) {
-                console.log(`[NetHackWasmDriver] Imported save file: ${filename} (${uint8Data.length} bytes)`);
-            }
             return true;
-        } catch (e) {
-            console.error(`[NetHackWasmDriver] Failed to import save file: ${filename}`, e);
-            return false;
         }
-    }
 
-    /**
-     * 仮想 FS から指定セーブファイルを削除
-     * @param {string} filename 
-     * @returns {boolean} 成功時 true
-     */
-    deleteSaveFile(filename) {
-        if (typeof FS === 'undefined' || !filename) return false;
-        try {
-            const path = '/save/' + filename;
-            if (FS.analyzePath(path).exists) {
-                FS.unlink(path);
-                if (this.options.debug) {
-                    console.log(`[NetHackWasmDriver] Deleted save file: ${path}`);
+        setState(newState) {
+            if (this.state !== newState) {
+                this.state = newState;
+                this.emit('stateChange', { state: newState });
+            }
+        }
+
+        /**
+         * globalThis に C側からの呼び出しレシーバ (nhDispatcher) をセットし、helpers を sticky パッチします。
+         */
+        setupGlobalDispatcher() {
+            const target = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : global);
+            target.nhDispatcher = this.eventHook;
+            target.nethackGlobal = target.nethackGlobal || {};
+            target.nethackGlobal.helpers = target.nethackGlobal.helpers || {};
+
+            const helpers = target.nethackGlobal.helpers;
+
+            const makeSticky = (name, fn) => {
+                Object.defineProperty(helpers, name, {
+                    get: function () { return fn; },
+                    set: function (val) {
+                        // console.log(`[NetHackWasmDriver] Blocking attempt to overwrite helper ${name}`);
+                    },
+                    configurable: true,
+                    enumerable: true
+                });
+            };
+
+            makeSticky('getPointerValue', (name, ptr, type) => this.memory ? this.memory.getPointerValue(ptr, type) : null);
+            makeSticky('setPointerValue', (name, ret_ptr, type, value) => this.memory ? this.memory.setPointerValue(ret_ptr, type, value) : null);
+            makeSticky('parseGlyphInfo', (ptr) => this.memory ? this.memory.parseGlyphInfo(ptr) : null);
+            helpers.isPatched = true;
+        }
+
+        /**
+         * NetHack Wasm コアエンジンを起動します。
+         */
+        async start(options = {}) {
+            this.initSubModules(options);
+
+            if (this.state === NetHackWasmDriver.DriverState.RUNNING) {
+                console.warn("[NetHackWasmDriver] Engine is already running.");
+                return 0;
+            }
+
+            const M = this.getModule();
+            if (!M) {
+                throw new Error("[NetHackWasmDriver] Emscripten Module not found!");
+            }
+
+            if (!this.fsManager) {
+                const FSClass = (typeof window !== 'undefined' && window.NetHackFSManager) ? window.NetHackFSManager : ((typeof globalThis !== 'undefined' && globalThis.NetHackFSManager) ? globalThis.NetHackFSManager : null);
+                if (FSClass) {
+                    this.fsManager = new FSClass();
+                    console.log("[NetHackWasmDriver DIAG] Dynamically created NetHackFSManager instance in start().");
                 }
-                return true;
-            }
-            return false;
-        } catch (e) {
-            console.error(`[NetHackWasmDriver] Failed to delete save file: ${filename}`, e);
-            return false;
-        }
-    }
-
-    /**
-     * NetHack Wasm C コアエンジンの main エントリポイントを起動する
-     * 
-     * @param {string[]} [customArgs] - 起動引数（省略時は Module.arguments またはデフォルト引数）
-     * @returns {Promise<number>} Wasm main の終了コード
-     */
-    async start(customArgs = null) {
-        const mod = this.memory.module;
-        if (!mod) {
-            throw new Error("NetHackWasmDriver: Wasm Module is not initialized.");
-        }
-
-        // FS の初期化
-        this.prepareFSEnvironment();
-
-        // 起動引数の動的生成 (customArgs > options.arguments > gameOptions から自動ビルド)
-        let args = customArgs || this.options.arguments || [];
-        if (args.length === 0) {
-            const optStr = this.buildOptionStrings().join(',');
-            args = ['nethack', `-o${optStr}`, '--nethackrc:/.nethackrc'];
-        } else {
-            args = args.slice();
-        }
-
-        // ユーザー名 (name) を -uName として確実にコマンドライン引数の先頭へ挿入 (Who are you? 割り込み防止)
-        const userName = (this.options.gameOptions && this.options.gameOptions.name) ? String(this.options.gameOptions.name).trim() : 'e3-sh';
-        if (userName && !args.some(arg => arg && typeof arg === 'string' && arg.startsWith('-u'))) {
-            args.splice(1, 0, `-u${userName}`);
-        }
-
-        if (!args.some(arg => arg && typeof arg === 'string' && arg.startsWith('--nethackrc'))) {
-            args.push("--nethackrc:/.nethackrc");
-        }
-
-        // Register C shim graphics callback name
-        if (mod.cwrap) {
-            try {
-                const setCB = mod.cwrap('shim_graphics_set_callback', null, ['string']);
-                setCB("nhDispatcher");
-                if (this.options.debug) {
-                    console.log("[NetHackWasmDriver] Registered 'nhDispatcher' via shim_graphics_set_callback.");
-                }
-            } catch (e) {
-                console.warn("[NetHackWasmDriver] Could not set shim_graphics_set_callback:", e);
-            }
-        }
-
-        if (typeof ENV !== 'undefined') {
-            const optArg = args.find(a => a && typeof a === 'string' && a.startsWith('-o'));
-            ENV.NETHACKOPTIONS = optArg ? optArg.slice(2) : "";
-        }
-
-        const argc = args.length;
-        const argv = mod._malloc((argc + 1) * 4);
-        for (let i = 0; i < argc; i++) {
-            const str = args[i];
-            const strPtr = mod._malloc(str.length + 1);
-            mod.stringToUTF8(str, strPtr, str.length + 1);
-            mod.setValue(argv + i * 4, strPtr, '*');
-        }
-        mod.setValue(argv + argc * 4, 0, '*');
-
-        if (this.options.debug) {
-            console.log("[NetHackWasmDriver] Starting NetHack C main via ccall:", args);
-        }
-
-        this.state = DriverState.RUNNING;
-
-        const cleanupOnExit = (code) => {
-            this.cancelPendingInput();
-            this.state = DriverState.STOPPED;
-            if (this.options.debug) {
-                console.log(`[NetHackWasmDriver] NetHack Engine stopped with code: ${code}`);
-            }
-            return code;
-        };
-
-        try {
-            const result = mod.ccall('main', 'number', ['number', 'number'], [argc, argv], { async: true });
-
-            if (result instanceof Promise) {
-                return await result.then(
-                    (res) => cleanupOnExit(res || 0),
-                    (err) => {
-                        if (err && err.name === 'ExitStatus') {
-                            return cleanupOnExit(err.status);
-                        }
-                        cleanupOnExit(1);
-                        throw err;
-                    }
-                );
-            }
-            return cleanupOnExit(result || 0);
-        } catch (err) {
-            if (err && err.name === 'ExitStatus') {
-                return cleanupOnExit(err.status);
-            }
-            cleanupOnExit(1);
-            throw err;
-        }
-    }
-
-    // --- Event Emitter Implementations ---
-
-    /**
-     * イベントリスナーの登録
-     * @param {string} event 
-     * @param {function} listener 
-     */
-    on(event, listener) {
-        if (typeof listener !== 'function') return this;
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, new Set());
-        }
-        this.listeners.get(event).add(listener);
-        return this;
-    }
-
-    /**
-     * イベントリスナーの解除
-     * @param {string} event 
-     * @param {function} listener 
-     */
-    off(event, listener) {
-        if (!this.listeners.has(event)) return this;
-        this.listeners.get(event).delete(listener);
-        return this;
-    }
-
-    /**
-     * 一度だけのイベントリスナー登録
-     * @param {string} event 
-     * @param {function} listener 
-     */
-    once(event, listener) {
-        const wrapper = (...args) => {
-            this.off(event, wrapper);
-            listener.apply(this, args);
-        };
-        return this.on(event, wrapper);
-    }
-
-    /**
-     * イベントの発行
-     * @param {string} event 
-     * @param {any} data 
-     */
-    emit(event, data) {
-        if (!this.listeners.has(event)) return false;
-        const set = this.listeners.get(event);
-        for (const listener of Array.from(set)) {
-            try {
-                listener(data);
-            } catch (err) {
-                console.error(`[NetHackWasmDriver] Error in event listener for '${event}':`, err);
-            }
-        }
-        return true;
-    }
-
-    /**
-     * コンテキストに応じた安全なレスキュー値を指定して InputResolver を生成する
-     * @private
-     * @param {string} context - 'poskey', 'select_menu', 'getlin', 'get_ext_cmd', 'display_file' 等
-     * @param {any} safeRescueValue - タイムアウト発火時に C コアが絶対にクラッシュしない安全なフォールバック値
-     * @param {number} [customTimeoutMs]
-     */
-    _createResolver(context, safeRescueValue = 27, customTimeoutMs = undefined) {
-        const ResolverClass = InputResolverRef || window.InputResolver;
-        if (!ResolverClass) {
-            throw new Error("NetHackWasmDriver: InputResolver is not loaded.");
-        }
-
-        const timeoutMs = customTimeoutMs !== undefined ? customTimeoutMs : this.options.inputTimeoutMs;
-        const resolver = new ResolverClass({
-            timeoutMs: timeoutMs,
-            cancelValue: safeRescueValue,
-            onTimeout: () => {
-                if (this.options.debug) {
-                    console.warn(`[NetHackWasmDriver] Safety timeout rescued input context '${context}' with safe value:`, safeRescueValue);
-                }
-                this.emit('inputTimeout', { context, rescuedValue: safeRescueValue, state: this.state });
-                resolver.cancel(safeRescueValue);
-            }
-        });
-
-        this.activeResolver = resolver;
-        resolver.promise.finally(() => {
-            if (this.activeResolver === resolver) {
-                this.activeResolver = null;
-            }
-        });
-
-        return resolver;
-    }
-
-    /**
-     * 現在進行中の入力待ちがあればキャンセレーションを実施
-     */
-    cancelPendingInput() {
-        if (this.activeResolver && !this.activeResolver.isResolved) {
-            this.activeResolver.cancel();
-            this.activeResolver = null;
-        }
-    }
-
-    /**
-     * C / Wasm winshim.c 側から呼び出される統合イベントフック
-     * 
-     * @param {string} type - 'shim_*' イベント名
-     * @param  {...any} args - イベント引数
-     * @returns {any} Wasm 側へ返す同期戻り値または Promise
-     */
-    async eventHook(type, ...args) {
-        if (this.options.debug) {
-            // 頻発する高頻度描画イベント (shim_curs, shim_print_glyph) はログを抑制
-            if (type !== 'shim_curs' && type !== 'shim_print_glyph') {
-                console.log("[NetHackWasmDriver] EventHook:", type, args);
-            }
-        }
-
-        switch (type) {
-            case "shim_init_nhwindows":
-                this.state = DriverState.RUNNING;
-                this.emit('init_nhwindows', {});
-                return 0;
-
-            case "shim_player_selection_or_tty":
-                this.emit('player_selection_or_tty', {});
-                return true;
-
-            case "shim_askname": {
-                // askname タイムアウトレスキュー値: 空文字列 (デフォルト名採用)
-                const resolver = this._createResolver('askname', "player");
-                this.emit('inputRequired', { context: 'askname', resolver });
-                const name = await resolver.promise;
-                
-                // plname 構造体へ名前を保存
-                const mod = this.memory.module;
-                if (mod && mod._get_plname) {
-                    const plnamePtr = mod._get_plname();
-                    if (plnamePtr) {
-                        const safeName = (typeof name === 'string' ? name : "player").substring(0, 31);
-                        mod.stringToUTF8(safeName, plnamePtr, 32);
-                    }
-                }
-                return 0;
             }
 
-            case "shim_get_nh_event":
-                this.emit('get_nh_event', {});
-                return 0;
-
-            case "shim_exit_nhwindows":
-                this.cancelPendingInput();
-                this.state = DriverState.STOPPED;
-                this.emit('exit_nhwindows', { message: args[0] });
-                return 0;
-
-            case "shim_suspend_nhwindows":
-                this.emit('suspend_nhwindows', { str: args[0] });
-                return 0;
-
-            case "shim_resume_nhwindows":
-                this.emit('resume_nhwindows', {});
-                return 0;
-
-            case "shim_create_nhwindow":
-                this.emit('create_nhwindow', { type: args[0] });
-                return args[0]; // Returns windowId
-
-            case "shim_clear_nhwindow":
-                this.emit('clear_nhwindow', { windowId: args[0] });
-                return 0;
-
-            case "shim_display_nhwindow": {
-                const windowId = args[0];
-                const blocking = args[1];
-                if (windowId === 3) this.state = DriverState.RUNNING; // NHW_MAP
-
-                let resolver = null;
-                if (blocking) {
-                    this.state = DriverState.WAITING_INPUT;
-                    // display_nhwindow タイムアウトレスキュー値: 32 (Space/続行)
-                    resolver = this._createResolver('display_nhwindow', 32);
-                }
-
-                this.emit('display_nhwindow', { windowId, blocking, resolver });
-
-                if (resolver) {
-                    await resolver.promise;
-                    this.state = DriverState.RUNNING;
-                }
-                return 0;
-            }
-
-            case "shim_display_file": {
-                const filename = args[0];
-                const complain = args[1];
-                let fileText = null;
-
-                if (typeof FS !== 'undefined') {
+            if (this.fsManager) {
+                console.log("[NetHackWasmDriver DIAG] Initializing FileSystem via fsManager...");
+                await this.fsManager.initFileSystem(options.extraOptions || "");
+            } else {
+                console.error("[NetHackWasmDriver DIAG] CRITICAL: NetHackFSManager is missing! Executing robust raw FS fallback.");
+                const FS = typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : (typeof FS !== 'undefined' ? FS : null);
+                if (FS) {
                     try {
-                        const path = `./dat/${filename}`;
-                        if (FS.analyzePath(path).exists) {
-                            fileText = FS.readFile(path, { encoding: 'utf8' });
-                        }
-                    } catch (e) {}
+                        if (!FS.analyzePath('/save').exists) FS.mkdir('/save');
+                        if (!FS.analyzePath('/tmp').exists) FS.mkdir('/tmp');
+                        
+                        const sysconfContent = "WIZARDS=*\nEXPLORERS=*\n";
+                        ['/sysconf', '/save/sysconf', 'sysconf'].forEach(p => { try { FS.writeFile(p, sysconfContent); } catch(e){} });
+                        
+                        const permContent = "*\n";
+                        ['/perm', '/save/perm', 'perm'].forEach(p => { try { FS.writeFile(p, permContent); } catch(e){} });
+
+                        FS.writeFile('/.nethackrc', "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad,tombstone\n");
+                        console.log("[NetHackFSManager DIAG] Raw VFS fallback (sysconf + perm) written successfully.");
+                    } catch(e) { console.error("Raw VFS fallback error:", e); }
                 }
-
-                // display_file タイムアウトレスキュー値: 0 (閲覧確認完了)
-                const resolver = this._createResolver('display_file', 0);
-                this.emit('display_file', { filename, complain, fileText, resolver });
-                await resolver.promise;
-                return 0;
             }
 
-            case "shim_destroy_nhwindow":
-                this.emit('destroy_nhwindow', { windowId: args[0] });
-                return 0;
-
-            case "shim_curs":
-                this.emit('curs', { windowId: args[0], x: args[1], y: args[2] });
-                return 0;
-
-            case "shim_putstr":
-                if (args[2]) {
-                    this.messageHistory.push(args[2]);
-                    if (this.messageHistory.length > 200) this.messageHistory.shift();
+            // C 側のグラフィックコールバック登録
+            const cwrapFn = M.cwrap || (typeof cwrap !== 'undefined' ? cwrap : null);
+            if (typeof cwrapFn === 'function') {
+                try {
+                    console.log("[NetHackWasmDriver DIAG] Registering graphics callback 'nhDispatcher'...");
+                    const setCB = cwrapFn('shim_graphics_set_callback', null, ['string']);
+                    setCB("nhDispatcher");
+                } catch (e) {
+                    console.warn("[NetHackWasmDriver DIAG] Failed to set graphics callback via cwrap:", e);
                 }
-                this.emit('putstr', { windowId: args[0], attr: args[1], text: args[2] });
-                return 0;
-
-            case "shim_putmixed":
-                this.emit('putmixed', { windowId: args[0], attr: args[1], text: args[2] });
-                return 0;
-
-            case "shim_print_glyph": {
-                const windowId = args[0];
-                const x = args[1];
-                const y = args[2];
-                const glyphPtr = args[3];
-                const glyphInfo = this.memory.parseGlyphInfo(glyphPtr);
-                this.emit('print_glyph', { windowId, x, y, glyphInfo });
-                return 0;
             }
 
-            case "shim_raw_print":
-                this.emit('raw_print', { text: args[0] });
-                return 0;
+            // コアメインの起動引数構築
+            const coreOptions = "time,showexp,showvers,number_pad,tombstone";
+            const args = (M.arguments && M.arguments.length > 0)
+                ? [...M.arguments]
+                : ['nethack', `-o${coreOptions}`, `--nethackrc:/.nethackrc`];
 
-            case "shim_raw_print_bold":
-                this.emit('raw_print_bold', { text: args[0] });
-                return 0;
-
-            case "shim_nhgetch": {
-                this.state = DriverState.WAITING_INPUT;
-                // getch タイムアウトレスキュー値: 27 (ESC)
-                const resolver = this._createResolver('getch', 27);
-                this.emit('inputRequired', {
-                    context: 'getch',
-                    resolver
-                });
-                const key = await resolver.promise;
-                this.state = DriverState.RUNNING;
-                return key;
+            if (!args.some(arg => arg.startsWith('--nethackrc'))) {
+                args.push("--nethackrc:/.nethackrc");
             }
 
-            case "shim_nh_poskey": {
-                this.state = DriverState.WAITING_INPUT;
-                // poskey タイムアウトレスキュー値: 27 (ESC)
-                const resolver = this._createResolver('poskey', 27);
-                this.emit('inputRequired', {
-                    context: 'poskey',
-                    xPtr: args[0],
-                    yPtr: args[1],
-                    modPtr: args[2],
-                    resolver
-                });
-                const response = await resolver.promise;
-                this.state = DriverState.RUNNING;
+            const optArg = args.find(a => a.startsWith('-o'));
+            const envTarget = typeof globalThis !== 'undefined' && globalThis.ENV ? globalThis.ENV : (typeof ENV !== 'undefined' ? ENV : null);
+            if (envTarget) {
+                envTarget.NETHACKOPTIONS = optArg ? optArg.slice(2) : "";
+            }
 
-                if (typeof response === 'object' && response !== null) {
-                    if (response.x !== undefined && response.y !== undefined) {
-                        const mod = this.memory.module;
-                        if (mod) {
-                            mod.setValue(args[0], response.x, 'i16');
-                            mod.setValue(args[1], response.y, 'i16');
-                            mod.setValue(args[2], response.mod || 0, 'i32');
-                        }
-                        return 0; // 0 for mouse
+            const mallocFn = M._malloc || (typeof _malloc !== 'undefined' ? _malloc : null);
+            const setVal = (M && M.setValue) ? M.setValue.bind(M) : (typeof setValue !== 'undefined' ? setValue : null);
+            const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : (s, ptr) => M.writeAsciiToMemory(s, ptr));
+            const ccallFn = (M && M.ccall) ? M.ccall.bind(M) : (typeof ccall !== 'undefined' ? ccall : null);
+
+            const argc = args.length;
+            const argv = mallocFn ? mallocFn((argc + 1) * 4) : 0;
+            
+            for (let i = 0; i < argc; i++) {
+                const str = args[i];
+                const strPtr = mallocFn ? mallocFn(str.length + 1) : 0;
+                if (strPtr) strToUTF8(str, strPtr, str.length + 1);
+                if (setVal && argv) setVal(argv + i * 4, strPtr, '*');
+            }
+            if (setVal && argv) setVal(argv + argc * 4, 0, '*');
+
+            this.setState(NetHackWasmDriver.DriverState.RUNNING);
+            this.emit('started', { args });
+
+            console.log("[NetHackWasmDriver DIAG] Invoking NetHack main via ccall with args:", args, "argc:", argc);
+            return new Promise((resolve) => {
+                try {
+                    if (!ccallFn) {
+                        throw new Error("Emscripten ccall function not found!");
                     }
-                    return response.charCode || 0;
-                }
-
-                if (typeof response === 'number') return response;
-                if (typeof response === 'string' && response.length > 0) return response.charCodeAt(0);
-                return 27; // ESC default
-            }
-
-            case "shim_yn_function": {
-                this.state = DriverState.WAITING_INPUT;
-                const defChoiceCode = args[2] ? args[2].charCodeAt(0) : 27;
-                // yn_function タイムアウトレスキュー値: デフォルト選択肢 または ESC
-                const resolver = this._createResolver('yn_function', defChoiceCode);
-                this.emit('inputRequired', {
-                    context: 'yn_function',
-                    question: args[0],
-                    choices: args[1],
-                    defaultChoice: args[2],
-                    resolver
-                });
-                const ans = await resolver.promise;
-                this.state = DriverState.RUNNING;
-
-                if (typeof ans === 'number') return ans;
-                if (typeof ans === 'string' && ans.length > 0) return ans.charCodeAt(0);
-                return 27;
-            }
-
-            case "shim_getlin": {
-                this.state = DriverState.WAITING_INPUT;
-                // getlin タイムアウトレスキュー値: "" (空文字列)
-                const resolver = this._createResolver('getlin', "");
-                this.emit('inputRequired', {
-                    context: 'getlin',
-                    prompt: args[0],
-                    bufPtr: args[1],
-                    resolver
-                });
-                const input = await resolver.promise;
-                this.state = DriverState.RUNNING;
-
-                if (typeof input === 'string') {
-                    const mod = this.memory.module;
-                    if (mod && args[1]) {
-                        mod.stringToUTF8(input, args[1], 256);
+                    const result = ccallFn('main', 'number', ['number', 'number'], [argc, argv], { async: true });
+                    if (result instanceof Promise) {
+                        result.then(code => resolve(this.handleEngineExit(code)))
+                            .catch(err => {
+                                if (err && err.name === 'ExitStatus') {
+                                    resolve(this.handleEngineExit(err.status));
+                                } else {
+                                    console.error("[NetHackWasmDriver DIAG] Engine error in Promise:", err);
+                                    resolve(this.handleEngineExit(-1));
+                                }
+                            });
+                    } else {
+                        resolve(this.handleEngineExit(result));
                     }
+                } catch (err) {
+                    console.error("[NetHackWasmDriver DIAG] Exception while starting main:", err);
+                    resolve(this.handleEngineExit(-1));
                 }
-                return 0;
+            });
+        }
+
+        handleEngineExit(exitCode) {
+            console.log(`[NetHackWasmDriver DIAG] NetHack Engine Exited with code: ${exitCode}`);
+            this.setState(NetHackWasmDriver.DriverState.STOPPED);
+            if (this.fsManager) {
+                this.fsManager.syncToPersistent();
             }
+            this.emit('exited', { exitCode });
+            this.emit('exit_nhwindows', { message: `Engine Exited (${exitCode})` });
+            return exitCode;
+        }
 
-            case "shim_get_ext_cmd": {
-                this.state = DriverState.WAITING_INPUT;
-                // get_ext_cmd タイムアウトレスキュー値: -1 (無効コマンドキャンセル)
-                const resolver = this._createResolver('get_ext_cmd', -1);
-                const extcmds = this.options.extCmds || DEFAULT_EXTCMDS;
+        /**
+         * C言語の winshim.c から呼び出されるイベントフック
+         */
+        async eventHook(type, ...args) {
+            this.initSubModules();
 
-                this.emit('inputRequired', {
-                    context: 'get_ext_cmd',
-                    extcmds: extcmds,
-                    resolver
-                });
-
-                const response = await resolver.promise;
-                this.state = DriverState.RUNNING;
-
-                if (typeof response === 'number') {
-                    return (response >= 0 && response < extcmds.length) ? response : -1;
-                }
-
-                if (typeof response === 'string') {
-                    const cleanStr = response.trim().toLowerCase().replace(/^#/, '');
-                    const idx = extcmds.indexOf(cleanStr);
-                    return idx >= 0 ? idx : -1;
-                }
-
-                return -1;
-            }
-
-            // Menu Handlers
-            case "shim_start_menu": {
-                const windowId = args[0];
-                const behavior = args[1];
-                this.menuBuffer[windowId] = { behavior, items: [], prompt: "" };
-                this.emit('start_menu', { windowId, behavior });
-                return 0;
-            }
-
-            case "shim_add_menu": {
-                const windowId = args[0];
-                const glyphInfo = args[1] ? this.memory.parseGlyphInfo(args[1]) : null;
-                const identifier = args[2];
-                const menuItem = {
-                    glyph: glyphInfo,
-                    glyphInfo: glyphInfo,
-                    identifier: identifier,
-                    isHeader: (!identifier || identifier === 0),
-                    ch: args[3],
-                    accelerator: args[3],
-                    gch: args[4],
-                    groupAcc: args[4],
-                    attr: args[5],
-                    clr: args[6],
-                    color: args[6],
-                    str: args[7],
-                    itemflags: args[8]
-                };
-
-                if (this.menuBuffer[windowId]) {
-                    this.menuBuffer[windowId].items.push(menuItem);
-                }
-
-                this.emit('add_menu', { windowId, menuItem });
-                return 0;
-            }
-
-            case "shim_end_menu": {
-                const windowId = args[0];
-                const prompt = args[1];
-                if (this.menuBuffer[windowId]) {
-                    this.menuBuffer[windowId].prompt = prompt;
-                }
-                this.emit('end_menu', { windowId, prompt });
-                return 0;
-            }
-
-            case "shim_select_menu": {
-                const windowId = args[0];
-                const how = args[1];
-                const menuListPtrPtr = args[2];
-                const menuData = this.menuBuffer[windowId] || { items: [], prompt: "" };
-
-                this.state = DriverState.WAITING_MENU;
-                // select_menu タイムアウトレスキュー値: 0 (キャンセル)
-                const resolver = this._createResolver('select_menu', 0);
-
-                this.emit('inputRequired', {
-                    context: 'select_menu',
-                    windowId,
-                    how,
-                    items: menuData.items,
-                    prompt: menuData.prompt,
-                    resolver
-                });
-
-                const response = await resolver.promise;
-                this.state = DriverState.RUNNING;
-
-                const mod = this.memory.module;
-
-                // 選択アイテムなし / キャンセルの場合: 必ず *menuListPtrPtr = 0 (NULL) を書き込み
-                if (!response || !Array.isArray(response) || response.length === 0 || typeof response === 'number') {
-                    if (mod && mod.setValue && menuListPtrPtr) {
-                        mod.setValue(menuListPtrPtr, 0, 'i32');
-                    }
+            switch (type) {
+                case "shim_init_nhwindows":
+                    this.emit("init_nhwindows", {});
                     return 0;
-                }
 
-                // アイテムフィルタリング
-                const selectedItems = response.filter(it => it && typeof it === 'object' && it.identifier !== undefined);
-                if (selectedItems.length === 0) {
-                    if (mod && mod.setValue && menuListPtrPtr) {
-                        mod.setValue(menuListPtrPtr, 0, 'i32');
-                    }
-                    return 0;
-                }
+                case "shim_player_selection_or_tty":
+                    return true;
 
-                // 選択アイテムありの場合: メモリ確保とデータ書き込み
-                if (mod && mod._malloc && menuListPtrPtr) {
-                    const ITEM_SIZE = 16;
-                    const ptr = mod._malloc(ITEM_SIZE * selectedItems.length);
+                case "shim_askname": {
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    let detectedName = this.fsManager ? this.fsManager.autoDetectSavePlayerName() : "";
 
-                    selectedItems.forEach((item, index) => {
-                        const offset = ptr + (index * ITEM_SIZE);
-                        let rawId = (item && item.identifier !== undefined) ? item.identifier : (typeof item === 'number' ? item : 0);
-                        if (typeof rawId === 'bigint') {
-                            rawId = Number(rawId);
-                        } else if (typeof rawId === 'object' && rawId !== null && rawId.a_void !== undefined) {
-                            rawId = Number(rawId.a_void);
-                        }
-                        const flags = (item && item.itemflags !== undefined) ? item.itemflags : 0;
+                    const promise = this.inputResolver ? this.inputResolver.createPending('name', { detectedName }) : Promise.resolve(detectedName || "player");
+                    const resolverObj = {
+                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
 
-                        // menu_item 構造体 (16 bytes): anything union (8-bytes), count (long), selected (int)
-                        mod.setValue(offset, Number(rawId) || 0, 'i32');
-                        mod.setValue(offset + 4, 0, 'i32'); // 共用体の上位4バイトをゼロクリア
-                        mod.setValue(offset + 8, -1, 'i32'); // count = -1 (long)
-                        mod.setValue(offset + 12, (Number(flags) || 0) | 1, 'i32'); // selected = 1
+                    this.emit("inputRequired", {
+                        context: "name",
+                        type: "string",
+                        prompt: "What is your name?",
+                        detectedName,
+                        resolver: resolverObj
                     });
 
-                    mod.setValue(menuListPtrPtr, ptr, 'i32');
-                }
+                    let name = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
-                return selectedItems.length;
-            }
-
-            case "shim_message_menu": {
-                // message_menu タイムアウトレスキュー値: 0 (メッセージヒストリ閉じる)
-                const resolver = this._createResolver('message_menu', 0);
-                this.emit('message_menu', {
-                    let: args[0],
-                    how: args[1],
-                    mesg: args[2],
-                    history: this.messageHistory,
-                    resolver
-                });
-                await resolver.promise;
-                return 0;
-            }
-
-            case "shim_cliparound":
-                this.emit('cliparound', { x: args[0], y: args[1] });
-                return 0;
-
-            case "shim_status_update": {
-                const fld = args[0];
-                const ptr = args[1];
-                const chg = args[2];
-                const percent = args[3];
-                const clr = args[4];
-                let val = null;
-
-                const mod = this.memory.module;
-                if (fld === 22) { // BL_CONDITION
-                    val = mod ? mod.getValue(ptr, 'i32') : 0;
-                } else if (ptr && mod) {
-                    try {
-                        val = mod.UTF8ToString(ptr);
-                    } catch (e) {
-                        val = mod.getValue(ptr, 'i32');
+                    if (!name || typeof name !== 'string' || name.trim() === "") {
+                        name = detectedName || "player";
                     }
+
+                    const M = this.getModule();
+                    const getPlnameFn = (M && typeof M._get_plname === 'function') ? M._get_plname : (typeof _get_plname === 'function' ? _get_plname : null);
+                    const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
+
+                    if (getPlnameFn && strToUTF8) {
+                        const plnamePtr = getPlnameFn();
+                        if (plnamePtr) {
+                            const safeName = name.substring(0, 31);
+                            strToUTF8(safeName, plnamePtr, 32);
+                        }
+                    }
+                    return 0;
                 }
 
-                this.emit('status_update', {
-                    field: fld,
-                    value: val,
-                    change: chg,
-                    percent,
-                    color: clr
-                });
-                return 0;
+                case "shim_exit_nhwindows":
+                    this.setState(NetHackWasmDriver.DriverState.STOPPED);
+                    this.emit("exit_nhwindows", { message: args[0] || "" });
+                    return 0;
+
+                case "shim_create_nhwindow":
+                    if (args[0] === 1) this.messageWindowId = args[0];
+                    this.emit("create_nhwindow", { windowId: args[0] });
+                    return args[0];
+
+                case "shim_clear_nhwindow":
+                    this.emit("clear_nhwindow", { windowId: args[0] });
+                    return 0;
+
+                case "shim_display_nhwindow": {
+                    const windowId = args[0];
+                    const blocking = !!args[1];
+
+                    const resolverObj = {
+                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("display_nhwindow", { windowId, blocking, resolver: resolverObj });
+
+                    if (blocking && this.inputResolver) {
+                        this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                        const promise = this.inputResolver.createPending('display', { windowId });
+                        await promise;
+                        this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    }
+                    return 0;
+                }
+
+                case "shim_destroy_nhwindow":
+                    this.emit("destroy_nhwindow", { windowId: args[0] });
+                    return 0;
+
+                case "shim_curs":
+                    this.emit("curs", { windowId: args[0], x: args[1], y: args[2] });
+                    break;
+
+                case "shim_putstr": {
+                    const winId = args[0];
+                    const attr = args[1];
+                    const text = args[2] || "";
+
+                    if (text.trim().length > 0 && winId === this.messageWindowId) {
+                        this.messageHistory.push(text.trim());
+                        if (this.messageHistory.length > 200) this.messageHistory.shift();
+                    }
+
+                    this.emit("putstr", { windowId: winId, attr, text });
+                    break;
+                }
+
+                case "shim_display_file": {
+                    const filename = args[0];
+                    const complain = args[1];
+
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('display_file', { filename }) : Promise.resolve(0);
+                    const resolverObj = {
+                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("display_file", { filename, complain, resolver: resolverObj });
+                    await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    return 0;
+                }
+
+                case "shim_start_menu":
+                    this.menuBuffer[args[0]] = { behavior: args[1], items: [], prompt: "" };
+                    return 0;
+
+                case "shim_add_menu": {
+                    const windowId = args[0];
+                    if (!this.menuBuffer[windowId]) return 0;
+
+                    const glyphInfo = (args[1] && this.memory) ? this.memory.parseGlyphInfo(args[1]) : null;
+                    const item = {
+                        windowId,
+                        glyphInfo,
+                        glyph: glyphInfo,
+                        identifier: args[2],
+                        accelerator: args[3],
+                        ch: args[3],
+                        gch: args[4],
+                        attr: args[5],
+                        clr: args[6],
+                        str: args[7],
+                        itemflags: args[8]
+                    };
+                    this.menuBuffer[windowId].items.push(item);
+                    return 0;
+                }
+
+                case "shim_end_menu":
+                    if (this.menuBuffer[args[0]]) {
+                        this.menuBuffer[args[0]].prompt = args[1] || "";
+                    }
+                    return 0;
+
+                case "shim_select_menu": {
+                    const windowId = args[0];
+                    const how = args[1];
+                    const menuListPtrPtr = args[2];
+                    const menuData = this.menuBuffer[windowId];
+
+                    if (!menuData) return 0;
+
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('select_menu', { windowId, how, items: menuData.items, prompt: menuData.prompt }) : Promise.resolve(0);
+
+                    const resolverObj = {
+                        respond: (selected) => this.inputResolver ? this.inputResolver.respond(selected) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "select_menu",
+                        type: "menu",
+                        windowId,
+                        how,
+                        menuItems: menuData.items,
+                        items: menuData.items,
+                        prompt: menuData.prompt,
+                        resolver: resolverObj
+                    });
+
+                    const selectedItems = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+
+                    if (!selectedItems || selectedItems === 0 || selectedItems.length === 0) {
+                        return 0;
+                    }
+
+                    if (Array.isArray(selectedItems) && this.memory) {
+                        const ptr = this.memory.buildMenuItemBuffer(selectedItems);
+                        const M = this.getModule();
+                        const setVal = (M && M.setValue) ? M.setValue.bind(M) : (typeof setValue !== 'undefined' ? setValue : null);
+                        if (setVal) setVal(menuListPtrPtr, ptr, 'i32');
+                        return selectedItems.length;
+                    }
+                    return 0;
+                }
+
+                case "shim_print_glyph": {
+                    const glyphInfo = this.memory ? this.memory.parseGlyphInfo(args[3]) : null;
+                    const bkglyphInfo = this.memory ? this.memory.parseGlyphInfo(args[4]) : null;
+                    this.emit("print_glyph", { windowId: args[0], x: args[1], y: args[2], glyphInfo, bkglyphInfo });
+                    break;
+                }
+
+                case "shim_raw_print": {
+                    const text = args[0] || "";
+                    this.emit("raw_print", { text });
+                    return 0;
+                }
+
+                case "shim_raw_print_bold": {
+                    const text = args[0] || "";
+                    this.emit("raw_print_bold", { text });
+                    this.emit("raw_print", { text });
+                    return 0;
+                }
+
+                case "shim_nhgetch": {
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('getch') : Promise.resolve(32);
+
+                    const resolverObj = {
+                        respond: (key) => this.inputResolver ? this.inputResolver.respond(key) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "getch",
+                        type: "char",
+                        resolver: resolverObj
+                    });
+
+                    const key = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    return key;
+                }
+
+                case "shim_nh_poskey": {
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('poskey') : Promise.resolve(32);
+
+                    const resolverObj = {
+                        respond: (res) => this.inputResolver ? this.inputResolver.respond(res) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "poskey",
+                        type: "poskey",
+                        resolver: resolverObj
+                    });
+
+                    const res = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+
+                    if (typeof res === 'object' && res.x !== undefined && res.y !== undefined) {
+                        const M = this.getModule();
+                        const setVal = (M && M.setValue) ? M.setValue.bind(M) : (typeof setValue !== 'undefined' ? setValue : null);
+                        if (setVal) {
+                            setVal(args[0], res.x, 'i16');
+                            setVal(args[1], res.y, 'i16');
+                            setVal(args[2], res.mod || 0, 'i32');
+                        }
+                        return 0;
+                    }
+                    return typeof res === 'number' ? res : (res ? res.charCodeAt(0) : 0);
+                }
+
+                case "shim_yn_function": {
+                    const query = args[0];
+                    const choices = args[1];
+                    const def = args[2];
+
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('yn_function', { query, choices, def }) : Promise.resolve(def ? def.charCodeAt(0) : 27);
+
+                    const resolverObj = {
+                        respond: (ans) => this.inputResolver ? this.inputResolver.respond(ans) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "yn_function",
+                        type: "yn",
+                        query,
+                        question: query,
+                        choices,
+                        defaultChoice: def,
+                        def,
+                        resolver: resolverObj
+                    });
+
+                    const ans = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    return typeof ans === 'number' ? ans : (typeof ans === 'string' ? ans.charCodeAt(0) : 0);
+                }
+
+                case "shim_getlin": {
+                    const query = args[0];
+                    const bufp = args[1];
+
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('getlin', { query }) : Promise.resolve(null);
+
+                    const resolverObj = {
+                        respond: (input) => this.inputResolver ? this.inputResolver.respond(input) : null,
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "getlin",
+                        type: "string",
+                        query,
+                        prompt: query,
+                        resolver: resolverObj
+                    });
+
+                    const input = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+
+                    const M = this.getModule();
+                    const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
+
+                    if (input && typeof input === 'string' && strToUTF8) {
+                        strToUTF8(input, bufp, 256);
+                    }
+                    return 0;
+                }
+
+                case "shim_get_ext_cmd": {
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const promise = this.inputResolver ? this.inputResolver.createPending('get_ext_cmd') : Promise.resolve(-1);
+
+                    const resolverObj = {
+                        respond: (val) => {
+                            if (!this.inputResolver) return null;
+                            if (typeof val === 'string') {
+                                let cleanVal = val.trim().toLowerCase();
+                                if (cleanVal.startsWith('#')) {
+                                    cleanVal = cleanVal.slice(1).trim();
+                                }
+                                const extcmds = NetHackWasmDriver.DEFAULT_EXTCMDS;
+                                const idx = extcmds.indexOf(cleanVal);
+                                return this.inputResolver.respond(idx >= 0 ? idx : -1);
+                            }
+                            return this.inputResolver.respond(typeof val === 'number' ? val : -1);
+                        },
+                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                    };
+
+                    this.emit("inputRequired", {
+                        context: "get_ext_cmd",
+                        type: "ext_cmd",
+                        resolver: resolverObj
+                    });
+
+                    const idx = await promise;
+                    this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    return typeof idx === 'number' ? idx : -1;
+                }
+
+                case "shim_status_update": {
+                    const decoded = this.memory ? this.memory.parseStatusUpdate(args[0], args[1], args[2], args[4]) : { field: args[0], value: args[1] };
+                    if (decoded.fld === 35) { // BL_VERS
+                        this.version = decoded.rawVal || "";
+                    }
+                    this.emit("status_update", decoded);
+                    return 0;
+                }
+
+                case "shim_nhbell":
+                    this.emit("bell", {});
+                    return 0;
+
+                case "shim_cliparound":
+                    this.emit("cliparound", { x: args[0], y: args[1] });
+                    return 0;
+
+                case "shim_delay_output":
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    return 0;
+
+                default:
+                    return 0;
             }
+        }
 
-            case "shim_sound":
-                this.emit('soundTrigger', { soundText: args[0] });
-                return 0;
-
-            case "shim_nhbell":
-                this.emit('bell', {});
-                return 0;
-
-            case "shim_delay_output":
-                this.emit('delay_output', {});
-                await new Promise(r => setTimeout(r, 50));
-                return 0;
-
-            case "shim_getmsghistory": {
-                if (args[0]) this.historyIndex = 0;
-                if (this.historyIndex < this.messageHistory.length) {
-                    const msg = this.messageHistory[this.historyIndex];
-                    this.historyIndex++;
-                    return msg;
-                }
-                return null;
-            }
-
-            case "shim_putmsghistory": {
-                if (args[0]) {
-                    this.messageHistory.push(args[0]);
-                    if (this.messageHistory.length > 200) this.messageHistory.shift();
-                    this.emit('putstr', { windowId: 1, attr: 0, text: args[0] });
-                }
-                return 0;
-            }
-
-            case "shim_outrip":
-                this.emit('outrip', { windowId: args[0], text: args[1] });
-                return 0;
-
-            case "shim_number_pad":
-                this.emit('number_pad', { mode: args[0] });
-                return 0;
-
-            case "shim_status_init":
-            case "shim_status_finish":
-            case "shim_status_enablefield":
-                return 0;
-
-            case "shim_wait_synch":
-                this.emit('wait_synch', {});
-                return 0;
-
-            default:
-                if (this.options.debug) {
-                    console.warn(`[NetHackWasmDriver] Unhandled event type: ${type}`, args);
-                }
-                return 0;
+        sendInput(value) {
+            return this.inputResolver ? this.inputResolver.respond(value) : false;
         }
     }
-}
 
-// Attach static state enum
-NetHackWasmDriver.DriverState = DriverState;
-NetHackWasmDriver.DEFAULT_EXTCMDS = DEFAULT_EXTCMDS;
-
-// Module export / Universal support
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = NetHackWasmDriver;
-}
-if (typeof window !== 'undefined') {
-    window.NetHackWasmDriver = NetHackWasmDriver;
-}
+    global.NetHackWasmDriver = NetHackWasmDriver;
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = { NetHackWasmDriver };
+    }
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));

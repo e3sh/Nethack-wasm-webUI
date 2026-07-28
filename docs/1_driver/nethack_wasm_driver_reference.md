@@ -6,11 +6,12 @@
 
 ## 1. モジュール構成 (Module Structure)
 
-`src/driver/` ディレクトリ内に配置された3つの独立したモジュールで構成されます：
+`src/driver/` ディレクトリ内に配置された4つの独立したモジュールで構成されます：
 
-1. **`NetHackMemory.js`**: Wasm メモリ (`Module.HEAP32` 等) の相互変換、ポインタの読み書き、`glyph_info` C 構造体のデコード、Sticky Getter パッチを提供。
-2. **`InputResolver.js`**: Asyncify 同期入力待ちを安全な Promise としてラッピングし、タイムアウト制御や ESC 自動キャンセル機能を提供。
-3. **`NetHackWasmDriver.js`**: 全 47 種類の `shim_*` C コア関数をインターセプトし、JS EventEmitter イベントとしてパブリッシュするメインドライバー。
+1. **`NetHackMemory.js`**: Wasm メモリ (`Module.HEAP32` 等) の相互変換、ポインタの低レイヤー安全読み書き (`getPointerValue`, `setPointerValue`)、`glyph_info` C 構造体のデコード、全30種のステータスコンディション解釈、動的関数の動的バインドを提供。
+2. **`NetHackFSManager.js`**: Emscripten 仮想 FS (`/save`, `/tmp`) の初期化、IDBFS 永続化同期、`/sysconf`, `/perm`, `.nethackrc` システム自動生成、ログおよびスコアファイルパースを提供。
+3. **`InputResolver.js`**: Asyncify 同期入力待ちを安全な Promise としてラッピングし、タイムアウト制御や ESC 自動キャンセル機能を提供。
+4. **`NetHackWasmDriver.js`**: 全 47 種類の `shim_*` C コア関数をインターセプトし、JS EventEmitter イベントとしてパブリッシュするメインドライバー。
 
 ---
 
@@ -23,7 +24,7 @@ const driver = new NetHackWasmDriver({
     wasmModule: window.Module,  // Emscripten Module インスタンス (省略可)
     inputTimeoutMs: 0,          // 入力待ちセーフティタイムアウト時間 (ms)。デフォルト: 0 (無制限待機)
     debug: true,                // デバッグログの出力有無 (デフォルト: false)
-    extCmds: [...]              // カスタム拡張コマンド配列 (省略時は C コア完全同期の全 114 コマンドリスト)
+    extCmds: [...]              // カスタム拡張コマンド配列 (省略時は C コア完全同期の全拡張コマンドリスト)
 });
 ```
 
@@ -31,14 +32,14 @@ const driver = new NetHackWasmDriver({
 
 #### コア機能
 - **`init(wasmModule)`**: ドライバのパッチ適応および C コアへのコールバックディスパッチャ（`window.nhDispatcher`）の登録を行います。
-- **`start(customArgs)`**: Emscripten 仮想 FS (`/save`, `/tmp`, `.nethackrc`) を準備し、Wasm `ccall('main', ...)` により非同期に C メインエンジンを起動します。
+- **`start(customArgs)`**: Emscripten 仮想 FS とシステムファイル (`/sysconf`, `/perm`, `.nethackrc`) を準備し、Wasm `ccall('main', ...)` により非同期に C メインエンジンを起動します。
   - **戻り値**: `Promise<number>` (終了コード)
 - **`on(event, listener)`**: イベントリスナーの登録。
 - **`off(event, listener)`**: イベントリスナーの削除。
 - **`once(event, listener)`**: 一度限りのイベントリスナーの登録。
 - **`cancelPendingInput()`**: 現在進行中の入力待ち (`InputResolver`) があれば ESC キャンセルを実行します。
 
-#### セーブデータ管理ヘルパー (Save Data Helpers)
+#### セーブデータ・システムファイル管理ヘルパー (Save & System File Helpers)
 - **`listSaveFiles()`**: 仮想 FS 上の全セーブファイル一覧とサイズ・更新日時を取得。
   - **戻り値**: `Array<{ filename: string, size: number, timestamp: Date }>`
 - **`exportSaveData(targetFilename)`**: 仮想 FS からセーブデータのバイナリを取得。
@@ -48,7 +49,7 @@ const driver = new NetHackWasmDriver({
 - **`deleteSaveFile(filename)`**: 仮想 FS から指定セーブファイルを削除。
   - **戻り値**: `boolean` (成功時 true)
 
-### プロパティ
+### プロパティ・定数
 
 - **`driver.state`**: 現在の動作状態（`DriverState`）。
   - `IDLE`: 初期状態
@@ -56,6 +57,7 @@ const driver = new NetHackWasmDriver({
   - `WAITING_INPUT`: 通常入力待ち中 (`poskey`, `getch`, `getlin`, `yn_function`, `get_ext_cmd`)
   - `WAITING_MENU`: メニュー選択待ち中 (`select_menu`)
   - `STOPPED`: Wasm エンジン停止・終了状態
+- **`NetHackWasmDriver.DEFAULT_EXTCMDS`**: NetHack 5.0 C言語コア (`cmd.c` / `extcmd.h`) のインデックスに100%整合した拡張コマンド配列（`"adjust"` から始まる正順配列）。
 
 ---
 
@@ -78,17 +80,17 @@ const driver = new NetHackWasmDriver({
 | :--- | :--- | :--- |
 | **`putstr`** | `{ windowId, attr, text }` | ウィンドウへの指定属性テキスト出力。 |
 | **`putmixed`** | `{ windowId, attr, text }` | 属性と文字が混在したテキスト出力。 |
-| **`raw_print`** | `{ text }` | TTY/生の標準テキスト直接出力。 |
+| **`raw_print`** | `{ text }` | TTY/生の標準テキスト直接出力。正確に1回ずつ発火します。 |
 | **`raw_print_bold`** | `{ text }` | ボールド直接テキスト出力。 |
-| **`print_glyph`** | `{ windowId, x, y, glyphInfo }` | マップ画面 (x, y) へのタイル・文字描画。<br>`glyphInfo`: `{ glyph, symbol, color, flags, symidx, ch }` |
+| **`print_glyph`** | `{ windowId, x, y, glyphInfo }` | マップ画面 (x, y) へのタイル・文字描画。<br>`glyphInfo`: `{ glyph, symbol, color, flags, symidx, ch }` のパース済みオブジェクト。 |
 | **`curs`** | `{ windowId, x, y }` | カーソル位置移動。 |
 | **`clear_nhwindow`** | `{ windowId }` | ウィンドウ表示消去（マップクリア等）。 |
 | **`create_nhwindow`** | `{ type }` | 新規ウィンドウ生成 (`1`:MESSAGE, `2`:STATUS, `3`:MAP, `4`:MENU, `5`:TEXT)。 |
 | **`destroy_nhwindow`**| `{ windowId }` | ウィンドウ破棄。 |
-| **`status_update`** | `{ field, value, change, percent, color }` | ステータス属性更新 (HP, AC, Gold, Level, 状態異常等)。 |
+| **`status_update`** | `{ field, value, change, percent, color, goldData }` | ステータス属性更新 (HP, AC, Gold, Level, 状態異常等)。<br>※ `field === 22` (`BL_CONDITION`) の場合、`value` には解釈済みの全30種コンディション文字列配列が格納されます。<br>※ `field === 10` (`BL_GOLD`) の場合、`goldData` にパースされた数値 ID / 所持金額が含まれます。 |
 | **`display_file`** | `{ filename, complain, fileText, resolver }` | クレジットやヘルプ等の仮想ファイルテキスト表示。<br>※ `resolver.respond(0)` で閲覧完了通知を行ってください。 |
-| **`bell`** | `{}` | **実効イベント**: C コア `shim_nhbell` からのビープ音通知。 |
-| **`soundTrigger`** | `{ soundText }` | **将来拡張予約**: NetHack 5.0 C サウンド API (`soundprocs`) からのサウンドトリガー用。 |
+| **`bell`** | `{}` | C コア `shim_nhbell` からのビープ音通知。 |
+| **`soundTrigger`** | `{ soundText }` | NetHack 5.0 C サウンド API (`soundprocs`) からのサウンドトリガー。 |
 
 ---
 
@@ -124,7 +126,7 @@ const driver = new NetHackWasmDriver({
 | **`getch`** | 1文字入力待機 | `{ resolver }` | ASCII コード数値 (例: `32`=Space, `27`=ESC)。 |
 | **`yn_function`** | Yes/No 質問待機 | `{ question, choices, defaultChoice, resolver }` | 文字の ASCII コード (例: `'y'.charCodeAt(0)` または `'n'.charCodeAt(0)`)。 |
 | **`getlin`** | 1行文字列入力待機 | `{ prompt, bufPtr, resolver }` | 入力された文字列 (例: `"my_pet_name"`)。 |
-| **`get_ext_cmd`**| 拡張コマンド (`#`) 入力 | `{ extcmds, resolver }` | **文字列推奨**: コマンド名文字列 (例: `"loot"`, `"chat"`, `"untrap"`, `"pray"`)。<br>または数値インデックス。 |
+| **`get_ext_cmd`**| 拡張コマンド (`#`) 入力 | `{ extcmds, resolver }` | **文字列推奨**: コマンド名文字列 (例: `"chat"`, `"untrap"`, `"pray"`, `"#chat"` などの頭 `#` 付き文字列も自動パース)。<br>または数値インデックス。 |
 | **`select_menu`**| メニュー項目選択 | `{ windowId, how, items, prompt, resolver }` | 選択された `menuItem` オブジェクトの配列 (例: `[selectedItem1, selectedItem2]`)。<br>キャンセル時は `0` または `-1` または空配列 `[]`。 |
 | **`askname`** | プレイヤー名入力 | `{ resolver }` | プレイヤー名文字列 (例: `"Hero"`). |
 
@@ -143,8 +145,8 @@ driver.on('inputRequired', (data) => {
             break;
 
         case 'get_ext_cmd':
-            // #loot コマンドを送る
-            data.resolver.respond("loot");
+            // #chat コマンドを送る ("#chat" または "chat" どちらも可)
+            data.resolver.respond("chat");
             break;
 
         case 'select_menu':
@@ -181,38 +183,10 @@ driver.on('inputRequired', (data) => {
 
 Driver の提供するセーブデータ管理 API ヘルパー (`listSaveFiles`, `exportSaveData`, `importSaveData`, `deleteSaveFile`) を利用することで、管理画面や UI 側は低レイヤーの Emscripten `FS` を直接操作する必要がなくなります。
 
-### A. セーブデータ管理UI 側での利用例
-
 ```javascript
 // 仮想 FS 上のセーブファイル一覧を取得
 const saves = driver.listSaveFiles();
 saves.forEach(saveInfo => {
     console.log(`Save: ${saveInfo.filename}, Size: ${saveInfo.size} bytes`);
 });
-
-// セーブデータをブラウザの LocalStorage や IndexedDB へバックアップ
-const exported = driver.exportSaveData();
-exported.forEach(item => {
-    localStorage.setItem('nethack_backup_' + item.filename, item.data);
-});
-```
-
-### B. セーブデータの復元・ゲーム再開 (Restore & Load)
-
-`driver.start()` を呼び出す**前**に、バックアップしておいたバイナリデータを `importSaveData()` で注入します：
-
-```javascript
-async function loadAndStartGame() {
-    const driver = new NetHackWasmDriver();
-    driver.init(Module);
-
-    // バックアップからデータを復元して Driver へ注入
-    const backupData = getBackupFromLocalStorage('1000Hero.NetHack-saved-game');
-    if (backupData) {
-        driver.importSaveData('1000Hero.NetHack-saved-game', backupData);
-    }
-
-    // Wasm 起動 (C コアが自動的にセーブファイルを検出し再開します)
-    await driver.start();
-}
 ```

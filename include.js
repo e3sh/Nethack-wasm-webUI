@@ -58,6 +58,7 @@ const w = [
     s + "sceneControl.js",
     // Driver
     "src/driver/NetHackMemory.js",
+    "src/driver/NetHackFSManager.js",
     "src/driver/InputResolver.js",
     "src/driver/NetHackWasmDriver.js",
     // Rogue 
