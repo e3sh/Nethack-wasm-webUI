@@ -168,10 +168,18 @@
         parseStatusUpdate(fld, ptr, chg, clr) {
             let rawVal = null;
             let parsedVal = null;
+            let glyphId = null;
 
             if (fld === 22) { // BL_CONDITION
                 rawVal = ptr ? this.getValue(ptr, 'i32') : 0;
                 parsedVal = this.parseConditionFlags(rawVal);
+            } else if (fld === 17) { // BL_HUNGER (Index 17 in rogueDefines)
+                try {
+                    rawVal = this.UTF8ToString(ptr);
+                } catch (e) {
+                    rawVal = this.getValue(ptr, 'i32');
+                }
+                parsedVal = this.parseHungerState(rawVal);
             } else if (ptr) {
                 try {
                     rawVal = this.UTF8ToString(ptr);
@@ -181,19 +189,37 @@
                 parsedVal = rawVal;
             }
 
-            // ゴールド表現 ("glyph:0x0f2b:100") のパース補助
+            // ゴールド表現 (BL_GOLD / Index 10) の構造化デコード
             let goldData = null;
-            if (fld === 10 && typeof rawVal === 'string' && rawVal.includes(':')) { // BL_GOLD (Index 10)
-                const parts = rawVal.split(':');
-                const goldGlyphId = parseInt(parts[0].slice(7), 16) || 3883;
-                const amount = parseInt(parts[1]) || 0;
-                goldData = { glyphId: goldGlyphId, amount, raw: rawVal };
+            if (fld === 10) { // BL_GOLD
+                let extractedGlyph = 3886; // NetHack 5.0 / 3.7 default Gold Pieces Glyph ID (0x0F2E = 3886)
+                let amount = 0;
+
+                if (typeof rawVal === 'string') {
+                    if (rawVal.includes(':')) {
+                        const parts = rawVal.split(':');
+                        if (parts[0].includes('glyph:')) {
+                            const rawHex = parts[0].replace('glyph:', '').trim();
+                            extractedGlyph = rawHex.startsWith('0x') ? parseInt(rawHex, 16) : parseInt(rawHex, 10);
+                        }
+                        amount = parseInt(parts[parts.length - 1]) || 0;
+                    } else {
+                        amount = parseInt(rawVal) || 0;
+                    }
+                } else if (typeof rawVal === 'number') {
+                    // ptr が直接 Glyph ID 数値として渡された場合
+                    extractedGlyph = rawVal > 0 ? rawVal : 3886;
+                }
+
+                glyphId = extractedGlyph || 3886;
+                goldData = { glyphId, amount, raw: rawVal };
             }
 
             return {
                 fld,
                 field: fld,
                 value: parsedVal !== null ? parsedVal : rawVal,
+                glyphId: glyphId !== null ? glyphId : (fld === 10 ? 3886 : null),
                 rawVal,
                 parsedVal,
                 goldData,
@@ -249,21 +275,48 @@
         }
 
         /**
-         * C言語側の menu_item 構造体 (16バイト/個) 配列のメモリ領域を確保・構築します。
+         * 空腹・満腹ステータスを文字列表現にマッピング
+         */
+        parseHungerState(val) {
+            if (typeof val === 'string') {
+                const s = val.trim();
+                return (s === 'Satisfied' || s === 'Not Hungry') ? '' : s;
+            }
+            if (typeof val === 'number') {
+                const hungerMap = {
+                    0: "Satiated",
+                    1: "", // Normal (Not Hungry)
+                    2: "Hungry",
+                    3: "Weak",
+                    4: "Fainting",
+                    5: "Fainted",
+                    6: "Starved"
+                };
+                return hungerMap[val] !== undefined ? hungerMap[val] : "";
+            }
+            return "";
+        }
+
+        /**
+         * C言語側の menu_item 構造体 (12バイト/個) 配列のメモリ領域を確保・構築します。
+         * sizeof(struct mi) = 12 bytes in Wasm32:
+         *   offset 0: mi.item (anything union, 4 bytes)
+         *   offset 4: mi.count (long, 4 bytes)
+         *   offset 8: mi.itemflags (unsigned int, 4 bytes)
          */
         buildMenuItemBuffer(selectedItems) {
             const M = this.Module;
             const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
             if (!mallocFn || !selectedItems || selectedItems.length === 0) return 0;
 
-            const ITEM_SIZE = 16;
+            const ITEM_SIZE = 12;
             const ptr = mallocFn(ITEM_SIZE * selectedItems.length);
 
             selectedItems.forEach((item, index) => {
                 const offset = ptr + (index * ITEM_SIZE);
                 this.setValue(offset, item.identifier !== undefined ? item.identifier : 0, 'i32');
-                this.setValue(offset + 8, item.count !== undefined ? item.count : -1, 'i32');
-                this.setValue(offset + 12, (item.itemflags || 0) | 1, 'i32'); // SELECTED = 1
+                this.setValue(offset + 4, item.count !== undefined ? item.count : -1, 'i32');
+                this.setValue(offset + 8, (item.itemflags || 0) | 1, 'i32'); // SELECTED = 1
             });
 
             return ptr;

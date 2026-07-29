@@ -72,6 +72,9 @@
         .state-badge.input-menu { background-color: #312e81; color: #a5b4fc; border-color: #4f46e5; }
         .state-badge.input-text { background-color: #0c4a6e; color: #38bdf8; border-color: #0284c7; }
 
+        .state-badge.save-found { background-color: #1e3a8a; color: #93c5fd; border-color: #3b82f6; }
+        .state-badge.save-none { background-color: #334155; color: #94a3b8; border-color: #475569; }
+
         .header-input {
             padding: 4px 8px;
             background-color: #0f172a;
@@ -234,9 +237,28 @@
 
         .st-item { color: #94a3b8; }
         .st-name { color: #f8fafc; font-weight: bold; }
+        .st-glyph { color: #38bdf8; font-weight: bold; background: rgba(56, 189, 248, 0.1); padding: 1px 6px; border-radius: 4px; }
         .st-hp { color: #4ade80; font-weight: bold; }
         .st-pw { color: #38bdf8; }
         .st-gold { color: #facc15; }
+        .st-hunger { color: #34d399; font-weight: bold; background: rgba(52, 211, 153, 0.15); padding: 1px 6px; border-radius: 4px; }
+        .st-cond { color: #f59e0b; font-weight: bold; background: rgba(245, 158, 11, 0.15); padding: 1px 6px; border-radius: 4px; }
+
+        .menu-tile, .st-gold-tile {
+            display: inline-block !important;
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            min-height: 16px !important;
+            flex-shrink: 0 !important;
+            vertical-align: middle;
+            image-rendering: pixelated;
+            background-image: url(pict/nethack_default_32.png) !important;
+            background-size: 640px auto !important;
+            background-repeat: no-repeat !important;
+            margin-right: 6px;
+            box-sizing: border-box !important;
+        }
 
         /* Action Bar */
         #action-bar {
@@ -379,15 +401,18 @@
     <div id="app">
         <!-- Header Bar -->
         <div id="header-bar">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-weight: bold;">NetHackWasmDriver DOM Test Suite</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: bold; margin-right: 4px;">Driver Test Suite</span>
                 <span id="engine-state-badge" class="state-badge state-running">Engine: RUNNING</span>
                 <span id="input-state-badge" class="state-badge input-idle">Input: IDLE</span>
+                <span id="save-state-badge" class="state-badge save-none">Save: None</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <label for="username-input" style="font-size: 12px; color: #94a3b8;">User Name:</label>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="username-input" style="font-size: 12px; color: #94a3b8;">User:</label>
                 <input type="text" id="username-input" class="header-input" value="e3-sh" placeholder="Enter name" />
-                <button id="toggle-mode-btn" class="toggle-btn">Mode: Tiles (Glyphs)</button>
+                <button id="toggle-mode-btn" class="toggle-btn">Mode: Tiles</button>
+                <button id="btn-start-resume" class="toggle-btn" style="background-color: #059669; border-color: #10b981; color: #fff;" title="Start engine or resume from save">▶ Start / Resume</button>
+                <button id="btn-delete-save" class="toggle-btn" style="background-color: #7f1d1d; border-color: #dc2626; color: #fca5a5;" title="Delete current save file">🗑️ Del Save</button>
             </div>
         </div>
 
@@ -424,6 +449,7 @@
             <button class="btn-touch" data-key="d">Drop (d)</button>
             <button class="btn-touch" data-key=",">Pick up (,)</button>
             <button class="btn-touch" data-key="#">Extended Cmd (#)</button>
+            <button class="btn-touch" data-key="S">Save (S)</button>
             <button class="btn-touch" data-key="?">Help (?)</button>
             <button class="btn-touch" data-key="27">ESC</button>
         </div>
@@ -436,7 +462,19 @@
     <script>
         window.Module = {
             noInitialRun: true,
-            arguments: ['nethack', '-otime,showexp,showvers,number_pad:1'],
+            arguments: ['nethack', '-onumber_pad:1'],
+            preRun: [function () {
+                if (typeof ENV !== 'undefined') {
+                    ENV.USER = undefined;
+                    ENV.LOGNAME = undefined;
+                    ENV.HOME = "/";
+                    ENV.HACKDIR = "/";
+                    ENV.SCOREDIR = "/save/";
+                    ENV.LEVELDIR = "/";
+                    ENV.SAVEDIR = "/save/";
+                    ENV.NETHACKOPTIONS = "number_pad:1";
+                }
+            }],
             print: function (text) {
                 console.log('[NH Core]: ' + text);
             },
@@ -471,13 +509,15 @@
             try {
                 const nameInput = document.getElementById('username-input');
                 
-                // localStorage から保存されたユーザー名を自動復元！
-                const savedName = localStorage.getItem('nethack_username');
-                if (savedName && nameInput) {
-                    nameInput.value = savedName;
+                // localStorage から保存されたユーザー名を自動復元＆サニタイズ！
+                let savedName = localStorage.getItem('nethack_username');
+                if (savedName) {
+                    savedName = savedName.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                    if (nameInput) nameInput.value = savedName || 'Web_user';
+                    localStorage.setItem('nethack_username', savedName || 'Web_user');
                 }
 
-                const initialName = nameInput ? (nameInput.value.trim() || 'e3-sh') : 'e3-sh';
+                const initialName = nameInput ? (nameInput.value.trim() || 'Web_user') : 'Web_user';
 
                 // 入力変更時に localStorage へ自動保存
                 if (nameInput) {
@@ -529,10 +569,42 @@
                     try {
                         const code = await driver.start();
                         console.log(`[Driver Exit] Engine stopped with code: ${code}`);
+                        if (testClientInstance) testClientInstance.updateSaveBadge();
                     } catch (err) {
                         console.error("Driver start error:", err);
                     }
                 };
+
+                const startResumeBtn = document.getElementById('btn-start-resume');
+                if (startResumeBtn) {
+                    startResumeBtn.onclick = () => {
+                        if (driver.state === NetHackWasmDriver.DriverState.STOPPED) {
+                            console.log("[Driver Test] Engine in STOPPED state. Reloading page for clean Wasm environment...");
+                            window.location.reload();
+                            return;
+                        }
+                        if (driver.state === NetHackWasmDriver.DriverState.RUNNING || driver.state === NetHackWasmDriver.DriverState.WAITING_INPUT) {
+                            console.warn("[Driver Test] Engine is already running.");
+                            return;
+                        }
+                        runEngine();
+                    };
+                }
+
+                const deleteSaveBtn = document.getElementById('btn-delete-save');
+                if (deleteSaveBtn) {
+                    deleteSaveBtn.onclick = async () => {
+                        let saveName = driver.fsManager ? driver.fsManager.autoDetectSavePlayerName() : "";
+                        const displayName = saveName || "Save Data";
+                        if (confirm(`Delete save file '${displayName}'? This action cannot be undone.`)) {
+                            const savePath = saveName ? (saveName.startsWith('/') ? saveName : `/save/${saveName}`) : "all";
+                            const ok = await driver.deleteSaveFile(savePath);
+                            console.log(`Delete save ${saveName} result: ${ok}`);
+                            if (testClientInstance) testClientInstance.updateSaveBadge();
+                            alert(`Save file '${displayName}' deleted successfully.`);
+                        }
+                    };
+                }
 
                 if (window.Module.calledRun || window.Module.runtimeInitialized) {
                     runEngine();

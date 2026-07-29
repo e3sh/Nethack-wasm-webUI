@@ -57,7 +57,7 @@
             const setupAll = () => {
                 console.log("[NetHackFSManager DEBUG] Executing setupAll() for system files...");
                 // 1. Write Config Files (NetHack.cnf, .nethackrc)
-                let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad,tombstone\n`;
+                let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n`;
                 if (extraOptions) {
                     extraOptions.split('\n').forEach(line => {
                         let trimmed = line.trim().replace(/^[, \t]+/, '').replace(/[, \t]+$/, '').trim();
@@ -210,7 +210,9 @@
 
                     if (saveFile) {
                         const match = saveFile.match(/^\d+(.+)$/);
-                        return match ? match[1] : saveFile;
+                        let name = match ? match[1] : saveFile;
+                        name = name.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                        return name || "Web_user";
                     }
                 }
             } catch (e) {
@@ -318,6 +320,96 @@
                 console.error("[NetHackFSManager] Failed to parse record list:", e);
                 return [];
             }
+        }
+
+        /**
+         * セーブファイルを VFS および IndexedDB から完全に削除
+         */
+        async deleteSaveFile(targetFilename) {
+            const FS = this.FS || (typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : null);
+            const cleanName = targetFilename ? targetFilename.replace(/^\/save\//, '').replace(/#.*$/, '').trim() : "";
+            console.log(`[NetHackFSManager] Executing robust save file deletion. Target: '${targetFilename}', cleanName: '${cleanName}'`);
+
+            let deleted = false;
+
+            // 1. VFS (FS) から /save 配下の非システムファイルを全削除
+            if (FS) {
+                try {
+                    const saveDir = '/save';
+                    if (FS.analyzePath(saveDir).exists) {
+                        const files = FS.readdir(saveDir);
+                        const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones'];
+                        files.forEach(f => {
+                            if (!systemFiles.includes(f) && !f.startsWith('.')) {
+                                try {
+                                    FS.unlink(`${saveDir}/${f}`);
+                                    deleted = true;
+                                    console.log(`[NetHackFSManager] Unlinked VFS save file: /save/${f}`);
+                                } catch(e) {
+                                    console.warn(`[NetHackFSManager] Failed to unlink VFS file /save/${f}:`, e);
+                                }
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // 2. IndexedDB (/indexedDB -> FILE_DATA) の全キーを走査してセーブデータを物理削除
+            try {
+                if (typeof indexedDB !== 'undefined') {
+                    await new Promise((resolve) => {
+                        const req = indexedDB.open('/indexedDB');
+                        req.onsuccess = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains('FILE_DATA')) {
+                                db.close();
+                                resolve(false);
+                                return;
+                            }
+                            const tx = db.transaction('FILE_DATA', 'readwrite');
+                            const store = tx.objectStore('FILE_DATA');
+                            const keyReq = store.getAllKeys();
+
+                            keyReq.onsuccess = () => {
+                                const keys = keyReq.result || [];
+                                const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+                                keys.forEach(key => {
+                                    const keyStr = String(key);
+                                    const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
+                                    const isSaveKey = (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
+
+                                    if (isSaveKey || (cleanName && keyStr.includes(cleanName))) {
+                                        store.delete(key);
+                                        deleted = true;
+                                        console.log(`[NetHackFSManager] Deleted key from IndexedDB: '${keyStr}'`);
+                                    }
+                                });
+                            };
+
+                            tx.oncomplete = () => {
+                                db.close();
+                                resolve(true);
+                            };
+                            tx.onerror = () => {
+                                db.close();
+                                resolve(false);
+                            };
+                        };
+                        req.onerror = () => resolve(false);
+                    });
+                }
+            } catch (e) {
+                console.warn("[NetHackFSManager] Error in IndexedDB key deletion:", e);
+            }
+
+            // 3. IDBFS FS.syncfs 同期
+            if (FS && this.IDBFS) {
+                try {
+                    FS.syncfs(false, () => {});
+                } catch(e) {}
+            }
+
+            return deleted;
         }
     }
 

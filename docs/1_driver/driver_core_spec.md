@@ -20,18 +20,24 @@
 ### 2.1 Wasm メモリ構造体バインド ＆ ポインタ安全性 (`NetHackMemory.js`)
 - **動的関数の遅延・動的解決 (Dynamic Binding)**:
   - Wasm インスタンス化のタイミングに左右されないよう、`Module.getValue`, `Module.setValue`, `UTF8ToString`, `stringToUTF8` を呼び出し時に `window.Module` や `globalThis.Module` から動的にバインド・解決します。
+- **C 構造体サイズ整合 (`menu_item` / `struct mi`)**:
+  - Wasm32 ABI レイアウト (`sizeof(struct mi) = 12 bytes`: `item` 4b, `count` 4b, `itemflags` 4b) に合わせてメモリ確保サイズを 12バイトに適正化し、`assert(otmp != 0)` クラッシュを根絶。
 - **型曖昧さ・ESC/キャンセルの安全鋳造 (Safe Cast & Fallback)**:
   - C コアからのポインタ書き込み `setPointerValue(ret_ptr, 's', value)` において、`value` が文字列以外（数値 `27` (ESC) や `0` や `-1` などのキャンセルコード）で渡された場合でも、例外クラッシュさせずに安全に NULL ポインタ (`0`) または C 文字列ポインタへ動的変換します。
-- **全 30 種コンディションフラグの完全デコード**:
-  - `parseConditionFlags(condBitmask)` により、C コアの `BL_CONDITION` (Index 22) ビットマスクを全 30 種類の状態文字列（`BareHanded`, `Blind`, `Confused`, `Stoned`, `Sleeping`, `WoundedLeg` 等）へ展開します。
+- **ステータス情報の完全構造化デコード (`BL_` フィールド)**:
+  - **`BL_GOLD` (field 10)**: `"glyph:0x0f2e:100"` からの Gold Pieces Glyph ID (`3886`) および金額の自動解析。
+  - **`BL_HUNGER` (field 17)**: 空腹・満腹状態 (`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"`) の解釈と文字列変換。
+  - **`BL_CONDITION` (field 22)**: ビットマスクからの全30種状態異常文字列配列への展開。
 - **`shim_select_menu` の NULL ポインタ書き戻し**:
   - メニュー選択で非選択・キャンセルの場合、C 側の `MENU_ITEM_P**` に **`0 (NULL)`** を書き込み、ガベージアドレス参照による `memory access out of bounds` クラッシュを防ぎます。
 
 ### 2.2 仮想ファイルシステム ＆ 永続化 (`NetHackFSManager.js`)
-- **システム環境ファイルの全自動生成**:
+- **システム環境ファイルの全自動生成とオプション重複防止**:
   - NetHack C コア初期化時に必須となる `/sysconf` (`WIZARDS=*\nEXPLORERS=*\n`), `/perm` (`*\n`), `NetHack.cnf`, `.nethackrc` を仮想 FS (Emscripten `FS`) 上へ自動構築し、ファイルオープンエラーによるエンジン強制終了を防止します。
-- **IDBFS 自動同期**:
-  - `/save` および `/tmp` ディレクトリを IDBFS へマウントし、IndexedDB との双方向同期 (`FS.syncfs`) を制御します。
+  - `NetHack.cnf` / `.nethackrc` 内への固定 `OPTIONS=` の冗長書き込みを除去し、`4 errors in //.nethackrc.` 警告を完全消去。
+- **IDBFS 自動同期と一括物理消去 (`deleteSaveFile`)**:
+  - `/save` および `/tmp` ディレクトリを IDBFS へマウントし、IndexedDB との双方向同期 (`FS.syncfs`) を制御。
+  - 物理消去メソッド `deleteSaveFile` により、VFS (`/save`) および Browser IndexedDB (`/indexedDB` の `FILE_DATA` ストア) 内の全セーブキーを走査し完全無条件物理削除を保証。
 
 ### 2.3 Asyncify 非同期化 ＆ 遅延解決 (`InputResolver.js`)
 - **Micro-task Delay**:
@@ -55,9 +61,10 @@
 | `putstr` | テキスト/ステータス出力 | `{ windowId, attr, text }` |
 | `putmixed` | タイル混在テキスト出力 | `{ windowId, attr, text }` |
 | `raw_print` | 生メッセージ出力 (重複無く1回のみ発火) | `{ text }` |
-| `status_update` | ステータス値変更 | `{ field, value, change, percent, color, goldData }` |
+| `status_update` | ステータス値変更 | `{ field, value, glyphId, goldData, change, color }` |
 | `clear_nhwindow` | ウィンドウ消去要求 | `{ windowId }` |
 | `display_nhwindow` | ウィンドウ表示/ブロッキング | `{ windowId, blocking }` |
-| `inputRequired` | プレイヤー入力待ち状態発生 | `{ context, question, choices, defaultChoice, prompt, items, how, resolver }` |
+| `inputRequired` | プレイヤー入力待ち状態発生 | `{ context, question, choices, defaultChoice, prompt, items, how, detectedName, resolver }` |
 | `bell` | C コアビープ音発生 | `{}` |
 | `exit_nhwindows` | ゲーム終了時 | `{ message }` |
+

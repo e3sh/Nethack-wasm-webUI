@@ -1,52 +1,91 @@
 # WebUI クライアント実装ガイド ＆ 注意事項 (Client Integration Guide)
 
-本書は `NetHackWasmDriver` を利用して WebUI クライアント（`UIManager.js`, `DriverDomTestClient.js` 等）を実装・接続する際に、クライアント側で配慮・実装すべき注意点とノウハウをまとめたガイドです。
+本書は `NetHackWasmDriver` を利用して WebUI クライアント（`UIManager.js`, `GameManager.js`, `DriverDomTestClient.js` 等）を実装・接続する際に、クライアント側で配慮・実装すべき注意点とノウハウをまとめた統合ガイドです。
 
 ---
 
-## 1. マップ描画 ＆ 画面クリア制御の注意点
+## 1. セーブ＆ロード・自動復元 ＆ データ消去連携
 
-### 1.1 毎ターン歩行時の `clear_nhwindow(3)` 処理
-- **注意点**: プレイヤーが 1 マス移動するたびに C コアから `clear_nhwindow(3)` (マップクリア命令) が届きます。
-- **実装対策**: `clear_nhwindow(3)` が届くたびに DOM/バッファ全体の全 1920 マスを全消去してはいけません（歩くたびにマップが真っ黒にチラつく原因になります）。
-- **推奨処理**: `clear_nhwindow(3)` では全消去を行わず、`print_glyph` で指定されたセルのみをピンポイント差分更新します。
+### 1.1 セーブデータの自動復元 (Auto Resume)
+- **仕様**: C コア初期化時、`shim_askname` ("Who are you?") からの問い合わせで `inputRequired (context === 'askname')` イベントが届きます。
+- **実装対策**: 仮想 FS / IndexedDB 上に過去のセーブデータが検出されている場合、ペイロード内に **`detectedName`** （セーブプレイヤー名）が自動付与されます。
+- **推奨処理**: クライアント UI 側はダイアログを出さず、即座に `data.resolver.respond(data.detectedName)` を返却します。これにより、ユーザーはリロード後も即座に前回のプレイからシームレスに再開されます。
 
-### 1.2 階層移動 (`DLEVEL`: ステータス field 20) 時の全消去
-- **注意点**: 階段を下りた（`>`）際やテレポーテーション時には、古い階層のマップ画面を消去する必要があります。
-- **実装対策**: ステータス更新 `status_update` で `field === 20` (DLEVEL) の値が変更されたことを検知したタイミングで、マップバッファを `clearMapBuffer()` で全消去します。
+### 1.2 セーブデータの物理完全消去 (`deleteSaveFile`)
+- **仕様**: 「デリートボタン」や「新規ゲーム開始（やり直し）」時、壊れたセーブデータや古いセーブデータが残留していると、復元エラーやキャラクター強制開始の原因となります。
+- **推奨処理**: `driver.deleteSaveFile()`（または `driver.fsManager.deleteSaveFile()`）を呼び出します。これにより、Emscripten VFS (`/save`) 内のファイルおよび IndexedDB (`/indexedDB` の `FILE_DATA` ストア) 内のすべての全セーブキーが無条件で完全物理抹消されます。
 
 ---
 
-## 2. STATUS フィールド全マッピング ＆ パースの注意点
+## 2. スコアボード・ランキング画面の表示 (`getScoreboard`)
 
-### 2.1 正確な STATUS フィールドインデックス (`status_update`)
-C コアから届く `field` 番号は `param/rogueDefines.js` の本物インデックスに従って UI 表示へマッピングする必要があります：
+### 2.1 C コア仕様と読み取り方法
+- **仕様**: NetHack 5.0 C コアの Shim (`winshim.c`) はスコア記録を自動イベントとしてプッシュ送信しません。代わりに、ゲームオーバー時や脱出時に C コアが自力で `/save/record` ファイルを直接生成・更新します。
+- **実装対策**: クライアント（`GameManager` / `UIManager`）側で「ランキング画面」「過去の冒険の記録」を表示する際は、ドライバが提供するハイスコア解析メソッドを呼び出します：
+  ```javascript
+  // 構造化されたランキングオブジェクト配列を取得
+  const scoreboard = driver.fsManager.getScoreboard();
+  
+  // スコアボード描画処理
+  scoreboard.forEach(entry => {
+      console.log(`#${entry.rank} ${entry.name} (${entry.role}) - ${entry.score} pts [${entry.death}]`);
+  });
+  ```
 
-| field 番号 | 項目名 | 内容 / パース注意点 |
+---
+
+## 3. STATUS フィールド全マッピング ＆ バッジ表示
+
+### 3.1 正確な STATUS フィールドインデックス (`status_update`)
+C コアから届く `field` 番号は `param/rogueDefines.js` の正統インデックスに従って UI 表示へマッピングする必要があります：
+
+| field 番号 | 項目名 | 内容 / UI マッピング推奨 |
 | :--- | :--- | :--- |
 | `0` | **TITLE** | ヒーロー名と称号 (`Hero the Novice`) |
-| `10` | **GOLD** | 所持金。`"glyph:0f2b:100"` などの glyph 表記で届くため、`:` で分割して末尾の数値 (`100`) を抽出 |
-| `11` / `12` | **ENE / ENEMAX** | 現在の Pw と 最大 Pw |
-| `13` | **XP** | 経験値レベル (`Lvl:1`) |
+| `10` | **GOLD** | 所持金。`goldData.glyphId` (`3886`) および `goldData.amount` で構造化受容。<br>金貨アイコン (`.st-gold-tile`) を横に描画 |
+| `11` / `12` | **ENE / ENEMAX** | 現在の Pw と 最大 Pw (`Pw:1(6)`) |
+| `13` | **XP** | レベル数値 (`Lvl:1`) |
 | `14` | **AC** | アーマークラス (`AC:10`) |
-| `18` / `19` | **HP / HPMAX** | 現在の HP と 最大 HP |
+| `17` | **HUNGER** | 空腹・満腹状態。`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"` 等。<br>※平常時 (`Not Hungry`) は非表示、発生時のみ**独立空腹バッジ (`.st-hunger`)** で動的表示 |
+| `18` / `19` | **HP / HPMAX** | 現在の HP と 最大 HP (`HP:18(18)`) |
 | `20` | **DLEVEL** | 現在の階層 (`Dlvl:1`) |
+| `22` | **CONDITION** | 状態異常ビットマスクデコード配列 (`Blind`, `Confused`, `Stunned` 等)。<br>発生時のみ**独立状態異常バッジ (`.st-cond`)** で表示 |
 
 ---
 
-## 3. UI ダイアログ ＆ プロンプト表示の使い分け
+## 4. インベントリ・メニューの CSS Sprite タイル描画
 
-`inputRequired` イベントの `context` に応じて、UI 表示形態を適切に分離選択します：
+### 4.1 タイルグラフィックアイコンの描画ノウハウ
+- **Glyph ID 受容**: `add_menu` で送信される `menuItem` には、直接利用可能な **`item.glyph` (数値 Glyph ID)** が含まれています。
+- **CSS Sprite スタイル生成**: `tileMapping.js` を参照し、`background-position: -Xpx -Ypx` スタイルを適用した `span` 要素をテキスト横に挿入します。
+- **CSS Flexbox 収縮防止**:
+  - 親コンテナ（`.menu-item` や `.statusBar`）が `display: flex` の場合、テキストを含まない `span` アイコン枠はデフォルトで `flex-shrink: 1` により幅 0px に押し潰されます。
+  - **必須指定**: アイコン用 `span` に `flex-shrink: 0 !important;` を指定してサイズ潰れを完全に防ぎます。
+- **HTML `style` 属性のエスケープ事故防止**:
+  - インライン `style` 属性へ `background-image: url(...)` を埋め込む際、ダブルクォートの引用符エスケープ (`&quot;`) により CSS パーサーに破棄されないよう、クォート無しの `url(pict/nethack_default_32.png)` 構文を使用します。
 
-### 3.1 `yn_function` (方向指定 ＆ yes/no 質問) ➔ インラインプロンプト表示
-- **注意点**: 大げさな画面中央モーダルを出してしまうと、視界が遮られ、矢印キー（`h`, `j`, `k`, `l`）による直感的な方向指定（`In what direction?`）が行えなくなります。
-- **実装対策**: モーダルを出さず、メッセージ枠へ質問を表示した上で、画面中段のプロンプト行等で `[INPUT WAITING]` を明示し、そのままダイレクトなキーボード入力（矢印キー、`h`,`j`,`k`,`l`,`y`,`n`,`a`,`q`）を受容します。
+---
 
-### 3.2 `select_menu` (インベントリ ＆ ドロップメニュー) ➔ スクロール可能モーダル
-- **注意点**: インベントリは複数行の長大アイテムリストになるため、単一行プロンプトでは収まりません。
-- **実装対策**: スクロール可能なオーバーラップ DIV モーダルで全アイテムを展開表示します。
+## 5. マップ描画 ＆ 画面クリア制御の注意点
+
+### 5.1 毎ターン歩行時の `clear_nhwindow(3)` 処理
+- **注意点**: プレイヤーが 1 マス移動するたびに C コアから `clear_nhwindow(3)` (マップクリア命令) が届きます。
+- **推奨処理**: `clear_nhwindow(3)` では全消去を行わず、`print_glyph` で指定されたセルのみをピンポイント差分更新します。
+
+### 5.2 階層移動 (`DLEVEL`: ステータス field 20) 時の全消去
+- **推奨処理**: ステータス更新 `status_update` で `field === 20` (DLEVEL) の値が変更されたことを検知したタイミングで、マップバッファを `clearMapBuffer()` で全消去します。
+
+---
+
+## 6. UI ダイアログ ＆ プロンプト表示の使い分け
+
+### 6.1 `yn_function` (方向指定 ＆ yes/no 質問) ➔ インラインプロンプト表示
+- **推奨処理**: モーダルを出さず、メッセージ枠へ質問を表示した上で、画面中段のプロンプト行等で `[INPUT WAITING]` を明示し、そのままダイレクトなキーボード入力（矢印キー、`h`,`j`,`k`,`l`,`y`,`n`,`a`,`q`）を受容します。
+
+### 6.2 `select_menu` (インベントリ ＆ ドロップメニュー) ➔ スクロール可能モーダル
+- **推奨処理**: スクロール可能なオーバーラップ DIV モーダルで全アイテムを展開表示します。
 - **アクセラレータキーパース**: `item.ch` が数値 (`121`) か文字 (`'y'`) かを判別し、キーボードの `'a'`, `'b'` キーおよび Enter キーで即時決定・遷移するイベントハンドラを組み込みます。
 
-### 3.3 `windowId >= 4` (Lookup Information / HELP) ➔ テキストモーダル
-- **注意点**: アイテムの解説文章（`Look up information about these`）やヘルプテキストは、`putstr` (windowId = 4/5) で連続送信されます。メッセージログに混ぜてはいけません。
-- **実装対策**: `putstr` (windowId >= 4) のテキストを配列に蓄積バッファリングし、`display_nhwindow(windowId >= 4)` 発火時にテキスト表示用モーダルを起動して全件スクロール表示します。
+### 6.3 `windowId >= 4` (Lookup Information / HELP) ➔ テキストモーダル
+- **推奨処理**: `putstr` (windowId >= 4) のテキストを配列に蓄積バッファリングし、`display_nhwindow(windowId >= 4)` 発火時にテキスト表示用モーダルを起動して全件スクロール表示します。
+

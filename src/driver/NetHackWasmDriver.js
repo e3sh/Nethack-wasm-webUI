@@ -95,12 +95,26 @@
         }
 
         init(moduleRef) {
-            if (moduleRef) {
-                this.options.module = moduleRef;
-            }
+            if (moduleRef) this.wasmModule = moduleRef;
             this.initSubModules(this.options);
             if (this.memory) {
                 this.memory.setModule(moduleRef);
+            }
+            const M = this.getModule();
+            if (M) {
+                M.preRun = M.preRun || [];
+                M.preRun.push(() => {
+                    if (typeof globalThis !== 'undefined' && globalThis.ENV) {
+                        globalThis.ENV.USER = undefined;
+                        globalThis.ENV.LOGNAME = undefined;
+                        globalThis.ENV.HOME = "/";
+                        globalThis.ENV.HACKDIR = "/";
+                        globalThis.ENV.SCOREDIR = "/save/";
+                        globalThis.ENV.LEVELDIR = "/";
+                        globalThis.ENV.SAVEDIR = "/save/";
+                        globalThis.ENV.NETHACKOPTIONS = "number_pad:1";
+                    }
+                });
             }
             this.setupGlobalDispatcher();
         }
@@ -207,9 +221,26 @@
                 }
             }
 
+            const mergedOptions = Object.assign({}, this.options, options);
+            let extraOptsStr = mergedOptions.extraOptions || "";
+
+            if (mergedOptions.gameOptions) {
+                const optsList = [];
+                for (const [k, v] of Object.entries(mergedOptions.gameOptions)) {
+                    if (typeof v === 'boolean') {
+                        optsList.push(v ? k : `!${k}`);
+                    } else if (v !== undefined && v !== null) {
+                        optsList.push(`${k}:${v}`);
+                    }
+                }
+                if (optsList.length > 0) {
+                    extraOptsStr += "\n" + optsList.map(o => `OPTIONS=${o}`).join("\n");
+                }
+            }
+
             if (this.fsManager) {
                 console.log("[NetHackWasmDriver DIAG] Initializing FileSystem via fsManager...");
-                await this.fsManager.initFileSystem(options.extraOptions || "");
+                await this.fsManager.initFileSystem(extraOptsStr);
             } else {
                 console.error("[NetHackWasmDriver DIAG] CRITICAL: NetHackFSManager is missing! Executing robust raw FS fallback.");
                 const FS = typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : (typeof FS !== 'undefined' ? FS : null);
@@ -224,7 +255,7 @@
                         const permContent = "*\n";
                         ['/perm', '/save/perm', 'perm'].forEach(p => { try { FS.writeFile(p, permContent); } catch(e){} });
 
-                        FS.writeFile('/.nethackrc', "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\nOPTIONS=time,showexp,showvers,number_pad,tombstone\n");
+                        FS.writeFile('/.nethackrc', "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n" + (extraOptsStr ? `OPTIONS=${extraOptsStr}\n` : ""));
                         console.log("[NetHackFSManager DIAG] Raw VFS fallback (sysconf + perm) written successfully.");
                     } catch(e) { console.error("Raw VFS fallback error:", e); }
                 }
@@ -243,7 +274,7 @@
             }
 
             // コアメインの起動引数構築
-            const coreOptions = "time,showexp,showvers,number_pad,tombstone";
+            const coreOptions = "number_pad:1,tombstone";
             const args = (M.arguments && M.arguments.length > 0)
                 ? [...M.arguments]
                 : ['nethack', `-o${coreOptions}`, `--nethackrc:/.nethackrc`];
@@ -332,18 +363,20 @@
                 case "shim_askname": {
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     let detectedName = this.fsManager ? this.fsManager.autoDetectSavePlayerName() : "";
+                    const defaultName = detectedName || (this.options.gameOptions ? this.options.gameOptions.name : "") || "Web_user";
 
-                    const promise = this.inputResolver ? this.inputResolver.createPending('name', { detectedName }) : Promise.resolve(detectedName || "player");
+                    const promise = this.inputResolver ? this.inputResolver.createPending('askname', { detectedName }) : Promise.resolve(defaultName);
                     const resolverObj = {
                         respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
                         cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
                     };
 
                     this.emit("inputRequired", {
-                        context: "name",
+                        context: "askname",
                         type: "string",
                         prompt: "What is your name?",
                         detectedName,
+                        defaultName,
                         resolver: resolverObj
                     });
 
@@ -351,7 +384,7 @@
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
                     if (!name || typeof name !== 'string' || name.trim() === "") {
-                        name = detectedName || "player";
+                        name = defaultName;
                     }
 
                     const M = this.getModule();
@@ -450,10 +483,11 @@
                     if (!this.menuBuffer[windowId]) return 0;
 
                     const glyphInfo = (args[1] && this.memory) ? this.memory.parseGlyphInfo(args[1]) : null;
+                    const numericGlyph = glyphInfo ? glyphInfo.glyph : (typeof args[1] === 'number' ? args[1] : -1);
                     const item = {
                         windowId,
                         glyphInfo,
-                        glyph: glyphInfo,
+                        glyph: numericGlyph,
                         identifier: args[2],
                         accelerator: args[3],
                         ch: args[3],
@@ -590,8 +624,8 @@
 
                 case "shim_yn_function": {
                     const query = args[0];
-                    const choices = args[1];
-                    const def = args[2];
+                    const choices = args[1] || "";
+                    const def = args[2] || "";
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const promise = this.inputResolver ? this.inputResolver.createPending('yn_function', { query, choices, def }) : Promise.resolve(def ? def.charCodeAt(0) : 27);
@@ -612,9 +646,23 @@
                         resolver: resolverObj
                     });
 
-                    const ans = await promise;
+                    const rawAns = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
-                    return typeof ans === 'number' ? ans : (typeof ans === 'string' ? ans.charCodeAt(0) : 0);
+
+                    let ansCode = typeof rawAns === 'number' ? rawAns : (typeof rawAns === 'string' ? rawAns.charCodeAt(0) : (def ? def.charCodeAt(0) : 27));
+                    const ansChar = String.fromCharCode(ansCode);
+
+                    // yn_function 安全ガード: 返されたキーが許容 choices に含まれない場合、デフォルトまたは許可文字へ自動フォールバック
+                    if (choices && choices.length > 0) {
+                        const validChars = choices + "\x1b\r\n ";
+                        if (!validChars.includes(ansChar)) {
+                            console.warn(`[NetHackWasmDriver] Invalid char '${ansChar}' (${ansCode}) for yn_function ('${choices}'). Falling back to default '${def || 'n'}'.`);
+                            const fallbackChar = def ? def : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0]));
+                            ansCode = fallbackChar.charCodeAt(0);
+                        }
+                    }
+
+                    return ansCode;
                 }
 
                 case "shim_getlin": {
@@ -709,6 +757,63 @@
 
         sendInput(value) {
             return this.inputResolver ? this.inputResolver.respond(value) : false;
+        }
+
+        /**
+         * 仮想 FS 上のセーブファイル一覧を取得
+         */
+        listSaveFiles() {
+            const FS = (this.fsManager && this.fsManager.FS) ? this.fsManager.FS : (typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : null);
+            if (!FS) return [];
+            try {
+                const saveDir = '/save';
+                if (!FS.analyzePath(saveDir).exists) return [];
+                const files = FS.readdir(saveDir);
+                const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones'];
+                return files
+                    .filter(f => !systemFiles.includes(f) && !f.startsWith('.'))
+                    .map(filename => {
+                        const path = `${saveDir}/${filename}`;
+                        const stat = FS.stat(path);
+                        return {
+                            filename,
+                            path,
+                            size: stat.size,
+                            timestamp: new Date(stat.mtime)
+                        };
+                    });
+            } catch (e) {
+                console.warn("[NetHackWasmDriver] Error listing save files:", e);
+                return [];
+            }
+        }
+
+        /**
+         * 指定されたセーブファイルを VFS および IndexedDB から完全に削除
+         */
+        async deleteSaveFile(targetFilename) {
+            if (this.fsManager) {
+                return await this.fsManager.deleteSaveFile(targetFilename);
+            }
+            const FS = (typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : null);
+            if (!FS) return false;
+            try {
+                const cleanName = targetFilename.replace(/^\/save\//, '');
+                const paths = [`/save/${cleanName}`, cleanName];
+                let deleted = false;
+                paths.forEach(p => {
+                    try {
+                        if (FS.analyzePath(p).exists) {
+                            FS.unlink(p);
+                            deleted = true;
+                        }
+                    } catch(e) {}
+                });
+                return deleted;
+            } catch (e) {
+                console.error("[NetHackWasmDriver] Error deleting save file:", e);
+                return false;
+            }
         }
     }
 

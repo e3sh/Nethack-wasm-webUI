@@ -87,7 +87,7 @@ const driver = new NetHackWasmDriver({
 | **`clear_nhwindow`** | `{ windowId }` | ウィンドウ表示消去（マップクリア等）。 |
 | **`create_nhwindow`** | `{ type }` | 新規ウィンドウ生成 (`1`:MESSAGE, `2`:STATUS, `3`:MAP, `4`:MENU, `5`:TEXT)。 |
 | **`destroy_nhwindow`**| `{ windowId }` | ウィンドウ破棄。 |
-| **`status_update`** | `{ field, value, change, percent, color, goldData }` | ステータス属性更新 (HP, AC, Gold, Level, 状態異常等)。<br>※ `field === 22` (`BL_CONDITION`) の場合、`value` には解釈済みの全30種コンディション文字列配列が格納されます。<br>※ `field === 10` (`BL_GOLD`) の場合、`goldData` にパースされた数値 ID / 所持金額が含まれます。 |
+| **`status_update`** | `{ field, value, glyphId, goldData, change, color }` | ステータス属性更新 (HP, Pw, AC, Gold, Level, 状態異常, 空腹等)。<br>※ `field === 10` (`BL_GOLD`) の場合、`goldData` およびデコードされた Gold Glyph ID (`3886`) / 所持金額が格納されます。<br>※ `field === 17` (`BL_HUNGER`) の場合、`value` には解釈済みの空腹/満腹文字列 (`Satiated`, `Hungry`, `Weak` 等) が格納されます。<br>※ `field === 22` (`BL_CONDITION`) の場合、`value` には解釈済みの全30種コンディション文字列配列が格納されます。 |
 | **`display_file`** | `{ filename, complain, fileText, resolver }` | クレジットやヘルプ等の仮想ファイルテキスト表示。<br>※ `resolver.respond(0)` で閲覧完了通知を行ってください。 |
 | **`bell`** | `{}` | C コア `shim_nhbell` からのビープ音通知。 |
 | **`soundTrigger`** | `{ soundText }` | NetHack 5.0 C サウンド API (`soundprocs`) からのサウンドトリガー。 |
@@ -101,14 +101,15 @@ const driver = new NetHackWasmDriver({
 #### `add_menu` ペイロード `menuItem` の構造:
 ```javascript
 {
-    glyphInfo: { glyph: 123, symbol: ')', color: 7, ch: ')' }, // タイルグラフィック情報
+    glyphInfo: { glyph: 3886, symbol: '$', color: 7, ch: '$' }, // タイルグラフィック情報
+    glyph: 3886,             // 数値 Glyph ID (直接保持)
     identifier: 12345678,    // C オブジェクトポインタ (0 の場合は選択不可見出し)
     isHeader: false,         // ヘッダー行判定 (identifier === 0)
     accelerator: 97,         // 'a' などのショートカットキー (ASCII / 文字)
     groupAcc: 0,             // グループアクセラレータ
     attr: 0,                 // テキスト属性
     color: 7,                // 表示色
-    str: "a +1 short sword", // アイテム名表示文字列
+    str: "a - 23 gold pieces", // アイテム名表示文字列
     itemflags: 0             // 既選択フラグ
 }
 ```
@@ -128,7 +129,7 @@ const driver = new NetHackWasmDriver({
 | **`getlin`** | 1行文字列入力待機 | `{ prompt, bufPtr, resolver }` | 入力された文字列 (例: `"my_pet_name"`)。 |
 | **`get_ext_cmd`**| 拡張コマンド (`#`) 入力 | `{ extcmds, resolver }` | **文字列推奨**: コマンド名文字列 (例: `"chat"`, `"untrap"`, `"pray"`, `"#chat"` などの頭 `#` 付き文字列も自動パース)。<br>または数値インデックス。 |
 | **`select_menu`**| メニュー項目選択 | `{ windowId, how, items, prompt, resolver }` | 選択された `menuItem` オブジェクトの配列 (例: `[selectedItem1, selectedItem2]`)。<br>キャンセル時は `0` または `-1` または空配列 `[]`。 |
-| **`askname`** | プレイヤー名入力 | `{ resolver }` | プレイヤー名文字列 (例: `"Hero"`). |
+| **`askname`** | プレイヤー名入力 | `{ prompt, detectedName, resolver }` | プレイヤー名文字列 (例: `"Web_user"`)。<br>※ `detectedName` が存在する場合は `resolver.respond(detectedName)` でダイアログなしで旧セーブデータから自動復元・再開可能。 |
 
 ---
 

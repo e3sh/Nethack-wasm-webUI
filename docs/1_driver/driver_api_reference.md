@@ -61,13 +61,14 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 - **ペイロード**:
   ```javascript
   {
-      context: string,        // 'yn_function', 'select_menu', 'getlin', 'askname', 'nhgetch', 'poskey'
+      context: string,        // 'yn_function', 'select_menu', 'getlin', 'askname', 'nhgetch', 'poskey', 'get_ext_cmd'
       question: string,       // 質問内容 (yn_function 等)
       choices: string,        // 受容可能な選択肢文字列 (例: "ynaq", "hjklyubn")
       defaultChoice: string,  // デフォルト選択肢 (例: 'y')
       prompt: string,         // 入力プロンプト
       items: Array<Object>,   // メニュー項目配列 (select_menu 時)
       how: number,            // メニュー選択方式 (1: PICK_ONE, 2: PICK_ANY)
+      detectedName: string,   // セーブデータ自動検知名 (askname 時)
       resolver: InputResolver // 安全な Promise レスポンダーオブジェクト
   }
   ```
@@ -89,8 +90,8 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 - **ペイロード**: `{ text: string }`
 
 ### `status_update`
-HP、Pw、AC、Au(Gold)、Dlevel などのステータスフィールドが変更された際に発火します。
-- **ペイロード**: `{ field: number, value: any }`
+HP(18/19)、Pw(11/12)、AC(14)、Au/Gold(10)、Dlevel(20)、空腹(17)、状態異常(22) などのステータスフィールドが変更された際に発火します。
+- **ペイロード**: `{ field: number, value: any, glyphId?: number, goldData?: Object }`
 
 ### `clear_nhwindow` / `display_nhwindow`
 ウィンドウの消去・表示指示が届いた際に発火します。

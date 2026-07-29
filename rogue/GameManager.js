@@ -924,7 +924,7 @@ function GameManager(g) {
 
 
                         // Definitive arguments list (Ignoring hardcoded Module.arguments)
-                        const coreOptions = "time,showexp,showvers,number_pad,tombstone";
+                        const coreOptions = "number_pad:1,tombstone";
 
                         const args = (Module.arguments && Module.arguments.length > 0)
                             ? [...Module.arguments]
