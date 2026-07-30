@@ -152,7 +152,7 @@ class DriverDomTestClient {
             }
         });
 
-        this.driver.on('display_nhwindow', ({ windowId, blocking }) => {
+        this.driver.on('display_nhwindow', ({ windowId, blocking, resolver }) => {
             if (this.messageLog) {
                 this.messageLog.scrollTop = this.messageLog.scrollHeight;
             }
@@ -161,7 +161,23 @@ class DriverDomTestClient {
             if (windowId >= 4 && this.textWindowBuffers[windowId] && this.textWindowBuffers[windowId].length > 0) {
                 const lines = this.textWindowBuffers[windowId];
                 this.textWindowBuffers[windowId] = []; // 表示後クリア
-                this.showTextWindowModal(lines);
+                this.showTextWindowModal(lines, resolver);
+            } else {
+                if (blocking && resolver) {
+                    resolver.respond(0);
+                }
+            }
+        });
+
+        this.driver.on('display_file', ({ filename, complain, fileText, resolver }) => {
+            console.log(`[DriverDomTestClient] display_file: ${filename}`);
+            if (fileText) {
+                const lines = fileText.split('\n');
+                this.showTextWindowModal(lines, resolver);
+            } else {
+                if (resolver) {
+                    resolver.respond(0);
+                }
             }
         });
 
@@ -669,8 +685,11 @@ class DriverDomTestClient {
         }
     }
 
-    showTextWindowModal(lines) {
-        if (!this.dialogOverlay || !lines || lines.length === 0) return;
+    showTextWindowModal(lines, resolver) {
+        if (!this.dialogOverlay || !lines || lines.length === 0) {
+            if (resolver) resolver.respond(0);
+            return;
+        }
 
         const contentHtml = lines.map(line => {
             const safeLine = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -694,6 +713,9 @@ class DriverDomTestClient {
             window.removeEventListener('keydown', textKeyHandler, true);
             this.dialogOverlay.classList.remove('active');
             this.dialogOverlay.innerHTML = '';
+            if (resolver) {
+                resolver.respond(0);
+            }
         };
 
         const textKeyHandler = (e) => {

@@ -492,12 +492,8 @@
     <script src="param/tileMapping.js"></script>
 
     <!-- Driver & Test Client Scripts -->
-    <script src="src/driver/NetHackMemory.js"></script>
-    <script src="src/driver/NetHackFSManager.js"></script>
-    <script src="src/driver/InputResolver.js"></script>
-    <script src="src/driver/NetHackWasmDriver.js"></script>
+    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
     <script src="src/driver/test/DriverDomTestClient.js"></script>
-    <script src="nethack.js"></script>
 
     <!-- Startup Bootstrap Script -->
     <script>
@@ -527,8 +523,8 @@
                     };
                 }
 
-                driver = new NetHackWasmDriver({
-                    wasmModule: window.Module,
+                driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
+                    arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
                     gameOptions: {
                         name: initialName,
                         number_pad: 1,
@@ -554,7 +550,14 @@
                     tileSize: 16
                 });
 
-                driver.init(window.Module);
+                // デバッグ用にすべてのイベントをダンプ
+                const originalEmit = driver.emit;
+                driver.emit = function(event, data) {
+                    console.log(`[Bridge Event] ${event}`, data);
+                    return originalEmit.apply(driver, arguments);
+                };
+
+                driver.init('nethack.js');
 
                 const toggleBtn = document.getElementById('toggle-mode-btn');
                 if (toggleBtn) {
@@ -578,12 +581,12 @@
                 const startResumeBtn = document.getElementById('btn-start-resume');
                 if (startResumeBtn) {
                     startResumeBtn.onclick = () => {
-                        if (driver.state === NetHackWasmDriver.DriverState.STOPPED) {
+                        if (driver.state === NetHackWasmWorkerBridge.DriverState.STOPPED) {
                             console.log("[Driver Test] Engine in STOPPED state. Reloading page for clean Wasm environment...");
                             window.location.reload();
                             return;
                         }
-                        if (driver.state === NetHackWasmDriver.DriverState.RUNNING || driver.state === NetHackWasmDriver.DriverState.WAITING_INPUT) {
+                        if (driver.state === NetHackWasmWorkerBridge.DriverState.RUNNING || driver.state === NetHackWasmWorkerBridge.DriverState.WAITING_INPUT) {
                             console.warn("[Driver Test] Engine is already running.");
                             return;
                         }
@@ -594,7 +597,12 @@
                 const deleteSaveBtn = document.getElementById('btn-delete-save');
                 if (deleteSaveBtn) {
                     deleteSaveBtn.onclick = async () => {
-                        let saveName = driver.fsManager ? driver.fsManager.autoDetectSavePlayerName() : "";
+                        let saveName = "";
+                        try {
+                            saveName = await driver.autoDetectSavePlayerName();
+                        } catch (e) {
+                            console.warn("Failed to detect save name:", e);
+                        }
                         const displayName = saveName || "Save Data";
                         if (confirm(`Delete save file '${displayName}'? This action cannot be undone.`)) {
                             const savePath = saveName ? (saveName.startsWith('/') ? saveName : `/save/${saveName}`) : "all";
@@ -606,13 +614,11 @@
                     };
                 }
 
-                if (window.Module.calledRun || window.Module.runtimeInitialized) {
+                // Worker 内部での Wasm 初期化完了を待ってから起動
+                driver.on('initialized', () => {
+                    console.log("[Driver Test] Wasm runtime initialized in Worker. Starting engine...");
                     runEngine();
-                } else {
-                    window.Module.onRuntimeInitialized = function() {
-                        runEngine();
-                    };
-                }
+                });
             } catch (err) {
                 console.error("BootApp initialization failed:", err);
             }

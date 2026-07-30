@@ -68,3 +68,52 @@
 | `bell` | C コアビープ音発生 | `{}` |
 | `exit_nhwindows` | ゲーム終了時 | `{ message }` |
 
+---
+
+## 4. Web Worker 隔離アーキテクチャ (Web Worker Integration)
+
+NetHack の C コア (Wasm) および Asyncify によるスタック退避・復元処理（マイクロタスク占有）が、同一スレッドで動作する他の Web アプリケーション（YouTube 等）に描画・通信遅延を引き起こす問題を根本的に解決するため、ドライバーをバックグラウンドの Web Worker に隔離するアーキテクチャを採用しています。
+
+### 4.1 構成モジュール
+
+```mermaid
+graph TD
+    subgraph MainThread ["メインスレッド (UI レイヤー)"]
+        UI["クライアント UI (DriverDomTestClient 等)"]
+        Bridge["NetHackWasmWorkerBridge"]
+    end
+    
+    subgraph WorkerThread ["Worker スレッド (バックグラウンド)"]
+        Worker["nethack.worker.js"]
+        Driver["NetHackWasmDriver"]
+        Wasm["NetHack Wasm Engine (nethack.js)"]
+    end
+
+    UI -->|イベントリスナー / メソッド呼出| Bridge
+    Bridge <-->|postMessage (プレーンオブジェクト / resolverId)| Worker
+    Worker <-->|直接メソッド呼出 / イベント| Driver
+    Driver <-->|ccall / getValue / FS / onRuntimeInitialized| Wasm
+```
+
+1. **`NetHackWasmWorkerBridge.js` (メインスレッド側)**:
+   - UIレイヤーから従来の `NetHackWasmDriver` と100%同一のインターフェースとしてアクセスできるブリッジ。
+   - `on()`, `once()`, `off()` などの EventEmitter API を提供し、UI側のキー入力や操作を Worker に中継します。
+2. **`nethack.worker.js` (Workerスレッド側)**:
+   - Worker のエントリーポイント。指定された Wasm JS（例: `nethack.js`）を動的にインポートし、Worker 内部で Wasm の初期化を監視・制御します。
+
+### 4.2 スレッド境界の通信仕様と resolver 再構築
+Web Worker とメインスレッド間では、関数を含むオブジェクトを `postMessage` で送信することができません（構造化複製エラー）。これを解決するため、非同期入力の解決用関数である `resolver` の ID 管理を行っています。
+
+- **イベント中継と IDマッピング**:
+  - Worker内で `inputRequired` や `display_file` などの同期待ちイベントが発生した際、`data.resolver` オブジェクトを `savedResolvers` (Map) に一時退避し、代わりに一意の数値 `resolverId` を付与してプレーンなオブジェクトとしてメインスレッドにポストします。
+  - メインスレッドの Bridge は、受信した `resolverId` を元に、`respond(value)` や `cancel()` を呼び出すと Worker 側にメッセージ（`RESPOND_INPUT`）を送って Wasm 側の Promise を解決する**擬似 resolver**を動的に生成し、UIレイヤーに渡します。
+- **`activeResolver` ゲッターのフォワード**:
+  - UI側が `driver.activeResolver` を参照して汎用キー入力等を行う仕組みと互換性を保つため、Bridge側で現在アクティブな疑似 resolver のキャッシュを保持し、ゲッター経由で露出させます。
+- **`display_file` の非同期フォワード**:
+  - メインスレッドに Wasm のファイルシステム (`FS`) が存在しないため、ファイル表示イベント時は Worker 側で `FS.readFile` によりテキストを読み出し、`fileText` をオブジェクトに付加して中継します。
+
+### 4.3 ロード順序と環境変数 (preRun) の確実な適用
+Emscripten が生成する `nethack.js` はロード時に環境変数 (`ENV`) を同期的に初期化します。これを保証するため、Worker 側では `importScripts(wasmJsUrl)` を呼ぶ前に、`self.Module.preRun` および `self.Module.arguments` を設定します。
+これにより、テンキーオプション (`number_pad:1`) などの環境変数が Wasm の起動時に 100% 確実に適用されます。
+
+

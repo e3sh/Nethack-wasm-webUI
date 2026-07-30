@@ -83,14 +83,39 @@ EventEmitter ベースのセントラルクラス。
 | `inputRequired` | `{ context, type, prompt, choices, resolver }` | キー・選択待機要求 |
 | `soundTrigger` | `{ text }` | メッセージフック音効発火 |
 
----
-
-## 4. 段階的リファクタリング・ロードマップ (Strangler Fig パターン)
-
-既存の動作する WebUI 環境を一切破壊せずに移行を進める 4 フェーズ構成です。
+### 3.4 Web Worker 隔離モデル (Web Worker Integration)
+YouTube再生フリーズなどの非同期タスク占有問題を解消するため、Driverを Web Worker 内で稼働させる並行実行モデルをサポートします。
 
 ```
-[Phase 1: モジュール新規作成] ➔ [Phase 2: 最小テスト環境検証] ➔ [Phase 3: GameManager 接続] ➔ [Phase 4: 完全移行・クリーンアップ]
++-------------------------------------------------------------------+
+|  Main Thread (メインスレッド)                                      |
+|    - client_ui  (DriverDomTestClient / UIManager.js)              |
+|          ^                                                        |
+|          | (Events: putstr, print_glyph, inputRequired)           |
+|          v                                                        |
+|    - NetHackWasmWorkerBridge.js (擬似 resolver 再構築 / 中継)        |
++-------------------------------------------------------------------+
+                                  |
+                                  | postMessage (resolverId, payload)
+                                  v
++-------------------------------------------------------------------+
+|  Worker Thread (Web Worker バックグラウンドスレッド)               |
+|    - nethack.worker.js (Wasm ライフサイクル / ENV / preRun 早期設定)|
+|          ^                                                        |
+|          v (Direct API / syncfs / ccall)                          |
+|    - NetHackWasmDriver.js (Wasm 駆動 & メモリ操作 & FS制御)         |
+|    - NetHack Wasm Engine  (nethack.js / Wasm バイナリ)              |
++-------------------------------------------------------------------+
+```
+
+---
+
+## 4. 段階的リチャクタリング・ロードマップ (Strangler Fig パターン)
+
+既存の動作する WebUI 環境を一切破壊せずに移行を進める 5 フェーズ構成です。
+
+```
+[Phase 1: モジュール新規作成] ➔ [Phase 2: 最小テスト環境検証] ➔ [Phase 3: GameManager 接続] ➔ [Phase 4: 完全移行・クリーンアップ] ➔ [Phase 5: Web Worker 隔離によるマルチスレッド化]
 ```
 
 ### 📍 Phase 1: Driver モジュールの新規作成
@@ -111,6 +136,15 @@ EventEmitter ベースのセントラルクラス。
 ### 📍 Phase 4: クリーンアップ & パッケージ独立化
 - `GameManager.js` の不要コードを完全除去（スリム化）。
 - `src/driver/` を単体ライブラリ（npm / 再利用可能モジュール）として整理。
+
+### 📍 Phase 5: Web Worker 隔離によるマルチスレッド化
+- **背景**: 同一スレッド上での Asyncify によるマイクロタスク占有とスタック退避復元が、他タブの動画再生等に遅延（くるくる）を与える問題への根本解決。
+- **実装**:
+  - `nethack.worker.js` を作成し、WasmコアをWorker内に完全分離。
+  - `NetHackWasmWorkerBridge.js` を作成し、メインスレッドとWorker間のシリアライズ制限（`DataCloneError`）を ID 管理による疑似 `resolver` 再構成で回避。
+  - `driver.activeResolver` プロパティの互換性維持ゲッター実装。
+  - 初期引数やオプション適用のための `preRun` 環境変数早期ロード対応。
+  - `FS` 読み出しが必要な `display_file` イベントのファイル内容非同期フォワード対応。
 
 ---
 

@@ -8,6 +8,8 @@
 
 ```
 src/driver/
+├── NetHackWasmWorkerBridge.js    # メインスレッド用ブリッジ (従来の Driver と同一の外部APIを提供)
+├── nethack.worker.js             # Web Worker 用スクリプト (WasmとDriverをWorker内に配置)
 ├── NetHackWasmDriver.js          # ドライバー本体 (C コア・Wasm FS・EventEmitter 配信)
 ├── NetHackMemory.js              # Wasm メモリ構造体アロケート & 解放 & 構造化デコード
 ├── NetHackFSManager.js           # Emscripten VFS & IndexedDB セーブ永続化/全消去/パース
@@ -32,9 +34,13 @@ src/driver/
    - **`BL_HUNGER` (field 17)**: 空腹・満腹状態 (`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"`) の解釈と分離表示。
    - **`BL_CONDITION` (field 22)**: ビットマスクからの状態異常配列デコード (`Blind`, `Confused`, `Stunned` 等)。
 5. **クリーンな初期化とオプション重複エラーの根絶**
-   - VFS 上の `NetHack.cnf` / `.nethackrc` 生成時の重用 `OPTIONS=` をクレンジングし、起動時の `4 errors in //.nethackrc.` 警告を完全除去。
+   - VFS 上の `NetHack.cnf` / `.nethackrc` 生成時の重用 `OPTIONS=` をクレンジングし、起動時の `4 errors in //.nethackrc.` 警告を完全除去。環境変数 (ENV) 設定を preRun にて早期ロードするように調整。
 6. **インベントリ・メニューの CSS Sprite タイル描画サポート**
    - `shim_add_menu` で数値 Glyph ID をダイレクト保持し、テキストからのスマートカテゴリ推論フォールバック (`inferGlyphFromText`) によりインベントリ画面等の全アイテムにグラフィックアイコンを描画。
+7. **Web Worker 隔離によるUI描画・動画フリーズの根本解消 (Web Worker Architecture)**
+   - Wasmコアと Asyncify（マイクロタスク占有とスタック退避・復元）を `nethack.worker.js` 内に分離隔離。
+   - 同一ブラウザの別タブで YouTube などの動画を再生した状態で NetHack を操作しても、UIスレッドが一切ブロッキングされず、フリーズ（くるくる）しない完全並行動作を確立。
+   - `NetHackWasmWorkerBridge.js` により、UI側からは従来の Driver と 100% 同一の API インターフェース（`activeResolver` ゲッター等含む）で透過的に利用可能。
 
 ---
 
@@ -53,20 +59,22 @@ src/driver/
 ## 💻 簡易使用コード例 (Quick Example)
 
 ```javascript
-import NetHackWasmDriver from './src/driver/NetHackWasmDriver.js';
+import NetHackWasmWorkerBridge from './src/driver/NetHackWasmWorkerBridge.js';
 
-// 1. ドライバーインスタンスの生成
-const driver = new NetHackWasmDriver({
-    wasmModule: window.Module,
+// 1. ブリッジインスタンスの生成 (Worker スクリプトを指定)
+const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
+    arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
     gameOptions: {
-        name: 'Web_user',   // -uUsername として C main 引数の先頭へ自動注入
-        number_pad: 1
+        number_pad: 1,
+        showexp: true,
+        time: true,
+        showvers: true
     },
     debug: true
 });
 
 // 2. イベントリスナーの登録
-driver.on('status_update', ({ field, value, goldData, glyphId }) => {
+driver.on('status_update', ({ field, value }) => {
     console.log(`Status field ${field} updated to:`, value);
 });
 
@@ -75,14 +83,18 @@ driver.on('inputRequired', ({ context, question, detectedName, resolver }) => {
         // 既存のセーブデータ名で即座に自動復元・再開！
         resolver.respond(detectedName);
     } else if (context === 'yn_function') {
-        // 安全に応答 ('y' = 121)
-        resolver.respond(121);
+        resolver.respond(121); // 'y'
     }
 });
 
-// 3. ドライバーの初期化と C main の起動
-driver.init(window.Module);
-await driver.start();
+// 3. Wasm初期化完了イベントを受けて起動
+driver.on('initialized', async () => {
+    console.log("Wasm initialized inside Worker!");
+    const exitCode = await driver.start();
+    console.log("Game exited with code:", exitCode);
+});
+
+driver.init('nethack.js');
 ```
 
 ---

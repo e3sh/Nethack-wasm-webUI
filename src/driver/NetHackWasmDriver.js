@@ -92,6 +92,8 @@
             if (ResolverClass && !this.inputResolver) {
                 this.inputResolver = new ResolverClass({ timeoutMs: options.inputTimeoutMs || 0 });
             }
+            this.messageHistory = [];
+            this.historyIndex = 0;
         }
 
         init(moduleRef) {
@@ -457,9 +459,50 @@
                     break;
                 }
 
+                case "shim_putmsghistory": {
+                    const text = args[0] || "";
+                    const restoring = !!args[1];
+
+                    if (text.trim().length > 0) {
+                        this.messageHistory.push(text.trim());
+                        if (this.messageHistory.length > 200) {
+                            this.messageHistory.shift();
+                        }
+                    }
+
+                    if (!restoring) {
+                        this.emit("putstr", { windowId: 1, attr: 0, text });
+                    }
+                    return 0;
+                }
+
+                case "shim_getmsghistory": {
+                    const init = !!args[0];
+                    if (init) {
+                        this.historyIndex = 0;
+                    }
+                    if (this.historyIndex < this.messageHistory.length) {
+                        const msg = this.messageHistory[this.historyIndex];
+                        this.historyIndex++;
+                        return msg;
+                    }
+                    return null;
+                }
+
                 case "shim_display_file": {
                     const filename = args[0];
                     const complain = args[1];
+
+                    let fileText = "";
+                    try {
+                        const M = this.getModule();
+                        const FS = M ? M.FS : (typeof FS !== 'undefined' ? FS : null);
+                        if (FS && FS.analyzePath(filename).exists) {
+                            fileText = FS.readFile(filename, { encoding: 'utf8' });
+                        }
+                    } catch (e) {
+                        console.warn("[NetHackWasmDriver] Failed to read display file:", filename, e);
+                    }
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const promise = this.inputResolver ? this.inputResolver.createPending('display_file', { filename }) : Promise.resolve(0);
@@ -468,7 +511,7 @@
                         cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
                     };
 
-                    this.emit("display_file", { filename, complain, resolver: resolverObj });
+                    this.emit("display_file", { filename, complain, fileText, resolver: resolverObj });
                     await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     return 0;

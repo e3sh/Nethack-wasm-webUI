@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <title>NetHackWasmDriver Minimal Test (Phase 2)</title>
     <!-- Include Driver and System Dependencies -->
-    <script src="include.js" type="text/javascript"></script>
+    <!-- <script src="include.js" type="text/javascript"></script> -->
     <style>
         body {
             background-color: #1a1a1a;
@@ -118,10 +118,8 @@
         }
     </style>
 
-    <!-- Driver Dependencies -->
-    <script src="src/driver/NetHackMemory.js"></script>
-    <script src="src/driver/InputResolver.js"></script>
-    <script src="src/driver/NetHackWasmDriver.js"></script>
+    <!-- Driver Dependencies (Worker Bridge) -->
+    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
 </head>
 <body>
     <h1>NetHackWasmDriver Minimal Test Standard (Phase 2)</h1>
@@ -242,14 +240,23 @@
         let driver = null;
 
         window.onload = function() {
-            appendLog("[Test] Initializing NetHackWasmDriver...", "log-sys");
+            appendLog("[Test] Initializing NetHackWasmWorkerBridge...", "log-sys");
             
             try {
-                driver = new NetHackWasmDriver({ debug: true });
-                driver.init(Module);
+                driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
+                    arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
+                    gameOptions: {
+                        number_pad: 1,
+                        showexp: true,
+                        time: true,
+                        showvers: true
+                    },
+                    debug: true
+                });
+                driver.init('nethack.js');
 
                 setupDriverListeners(driver);
-                appendLog("[Test] Driver initialized. Starting Wasm Core...", "log-sys");
+                appendLog("[Test] Bridge initialized. Starting Wasm Core via Worker...", "log-sys");
                 
                 // Update State Display
                 updateStateDisplay();
@@ -267,13 +274,11 @@
                     }
                 };
 
-                if (Module.calledRun || Module.runtimeInitialized) {
+                // Worker 内部での Wasm 初期化完了を待ってから起動
+                driver.on('initialized', () => {
+                    appendLog("[Test] Wasm Runtime Initialized in Worker. Starting engine...", "log-sys");
                     runEngine();
-                } else {
-                    Module.onRuntimeInitialized = function() {
-                        runEngine();
-                    };
-                }
+                });
             } catch (err) {
                 appendLog("[Test Error] Initialization failed: " + err.message, "log-sys");
                 console.error(err);
@@ -305,7 +310,7 @@
 
             drv.on('stateChange', (data) => {
                 updateStateDisplay();
-                if (data.state === NetHackWasmDriver.DriverState.STOPPED) {
+                if (data.state === NetHackWasmWorkerBridge.DriverState.STOPPED) {
                     setInputActive(false, "Exited (STOPPED)");
                 }
             });
@@ -343,6 +348,7 @@
 
             drv.on('print_glyph', (data) => {
                 const { x, y, glyphInfo } = data;
+                console.log(`[print_glyph] x:${x}, y:${y}, glyphInfo:`, glyphInfo);
                 if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
                     mapMatrix[y][x] = (glyphInfo && glyphInfo.ch) ? glyphInfo.ch : ' ';
                     renderMap();
