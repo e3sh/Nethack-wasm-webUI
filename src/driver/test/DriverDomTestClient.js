@@ -163,7 +163,7 @@ class DriverDomTestClient {
                 this.textWindowBuffers[windowId] = []; // 表示後クリア
                 this.showTextWindowModal(lines, resolver);
             } else {
-                if (blocking && resolver) {
+                if (resolver) {
                     resolver.respond(0);
                 }
             }

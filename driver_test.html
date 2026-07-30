@@ -378,6 +378,8 @@
                         data.resolver.cancel();
                         updateStateDisplay();
                     };
+                } else if (data.resolver) {
+                    data.resolver.respond(0);
                 }
             });
 
