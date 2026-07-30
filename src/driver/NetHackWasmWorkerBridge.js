@@ -70,7 +70,7 @@
 
         setupWorkerListener() {
             this.worker.onmessage = (e) => {
-                const { type, event, data, exitCode, message, success, filename } = e.data;
+                const { type, event, data, exitCode, message, success, filename, saveName } = e.data;
 
                 switch (type) {
                     case 'INIT_DONE':
@@ -182,6 +182,58 @@
         }
 
         async deleteSaveFile(filename) {
+            let deleted = false;
+            const cleanName = filename ? filename.replace(/^\/save\//, '').replace(/#.*$/, '').trim() : "";
+
+            // 1. メインスレッドから IndexedDB を直接物理削除
+            try {
+                if (typeof indexedDB !== 'undefined') {
+                    deleted = await new Promise((resolve) => {
+                        const req = indexedDB.open('/save');
+                        req.onsuccess = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains('FILE_DATA')) {
+                                db.close();
+                                resolve(false);
+                                return;
+                            }
+                            const tx = db.transaction('FILE_DATA', 'readwrite');
+                            const store = tx.objectStore('FILE_DATA');
+                            const keyReq = store.getAllKeys();
+
+                            keyReq.onsuccess = () => {
+                                const keys = keyReq.result || [];
+                                const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+                                keys.forEach(key => {
+                                    const keyStr = String(key);
+                                    const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
+                                    const isSaveKey = (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
+
+                                    if (isSaveKey || (cleanName && keyStr.includes(cleanName))) {
+                                        store.delete(key);
+                                        deleted = true;
+                                        console.log(`[NetHackWasmWorkerBridge] Directly deleted key from IndexedDB: '${keyStr}'`);
+                                    }
+                                });
+                            };
+
+                            tx.oncomplete = () => {
+                                db.close();
+                                resolve(deleted);
+                            };
+                            tx.onerror = () => {
+                                db.close();
+                                resolve(false);
+                            };
+                        };
+                        req.onerror = () => resolve(false);
+                    });
+                }
+            } catch (e) {
+                console.warn("[NetHackWasmWorkerBridge] Error directly deleting from IndexedDB:", e);
+            }
+
+            // 2. Worker 側へもメッセージを送信（VFSキャッシュのクリアなど）
             this.worker.postMessage({
                 type: 'DELETE_SAVE',
                 payload: { filename }
@@ -191,25 +243,57 @@
                 const onResult = (payload) => {
                     if (payload.filename === filename) {
                         this.off('deleteSaveResult', onResult);
-                        resolve(payload.success);
+                        resolve(deleted || payload.success);
                     }
                 };
+                // Workerからの応答タイムアウト制限 (1秒)
+                setTimeout(() => {
+                    this.off('deleteSaveResult', onResult);
+                    resolve(deleted);
+                }, 1000);
                 this.on('deleteSaveResult', onResult);
             });
         }
 
         async autoDetectSavePlayerName() {
-            this.worker.postMessage({
-                type: 'DETECT_SAVE_NAME'
-            });
+            try {
+                if (typeof indexedDB === 'undefined') return "";
+                const db = await new Promise((resolve, reject) => {
+                    const req = indexedDB.open('/save');
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+                if (!db.objectStoreNames.contains('FILE_DATA')) {
+                    db.close();
+                    return "";
+                }
+                const tx = db.transaction('FILE_DATA', 'readonly');
+                const store = tx.objectStore('FILE_DATA');
+                const keys = await new Promise((resolve) => {
+                    const req = store.getAllKeys();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                });
+                db.close();
 
-            return new Promise((resolve) => {
-                const onResult = (payload) => {
-                    this.off('detectSaveNameResult', onResult);
-                    resolve(payload.saveName);
-                };
-                this.on('detectSaveNameResult', onResult);
-            });
+                const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+                const saveKey = keys.find(key => {
+                    const keyStr = String(key);
+                    const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
+                    return (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
+                });
+
+                if (saveKey) {
+                    const cleanName = String(saveKey).replace(/^\/save\//, '').replace(/#.*$/, '');
+                    const match = cleanName.match(/^\d+(.+)$/);
+                    let name = match ? match[1] : cleanName;
+                    name = name.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                    return name || "Web_user";
+                }
+            } catch (e) {
+                console.warn("[NetHackWasmWorkerBridge] Failed to auto-detect save name from IndexedDB:", e);
+            }
+            return "";
         }
     }
 

@@ -318,13 +318,13 @@
                     }
                     const result = ccallFn('main', 'number', ['number', 'number'], [argc, argv], { async: true });
                     if (result instanceof Promise) {
-                        result.then(code => resolve(this.handleEngineExit(code)))
-                            .catch(err => {
+                        result.then(async code => resolve(await this.handleEngineExit(code)))
+                            .catch(async err => {
                                 if (err && err.name === 'ExitStatus') {
-                                    resolve(this.handleEngineExit(err.status));
+                                    resolve(await this.handleEngineExit(err.status));
                                 } else {
                                     console.error("[NetHackWasmDriver DIAG] Engine error in Promise:", err);
-                                    resolve(this.handleEngineExit(-1));
+                                    resolve(await this.handleEngineExit(-1));
                                 }
                             });
                     } else {
@@ -337,11 +337,11 @@
             });
         }
 
-        handleEngineExit(exitCode) {
+        async handleEngineExit(exitCode) {
             console.log(`[NetHackWasmDriver DIAG] NetHack Engine Exited with code: ${exitCode}`);
             this.setState(NetHackWasmDriver.DriverState.STOPPED);
             if (this.fsManager) {
-                this.fsManager.syncToPersistent();
+                await this.fsManager.syncToPersistent();
             }
             this.emit('exited', { exitCode });
             this.emit('exit_nhwindows', { message: `Engine Exited (${exitCode})` });

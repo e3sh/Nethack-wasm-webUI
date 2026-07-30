@@ -246,27 +246,35 @@ class DriverDomTestClient {
         if (!this.saveBadge) return;
         this.saveBadge.className = 'state-badge';
 
-        let saveName = "";
-        if (this.driver && this.driver.fsManager) {
-            saveName = this.driver.fsManager.autoDetectSavePlayerName();
-        }
+        const applySaveBadge = (saveName) => {
+            if (saveName) {
+                this.saveBadge.textContent = `Save: ${saveName}`;
+                this.saveBadge.classList.add('save-found');
+                this.saveBadge.title = `Save file detected: ${saveName}. Click Start / Resume to play!`;
+            } else {
+                this.saveBadge.textContent = 'Save: None';
+                this.saveBadge.classList.add('save-none');
+                this.saveBadge.title = 'No save file detected';
+            }
+        };
 
-        if (!saveName && this.driver && typeof this.driver.listSaveFiles === 'function') {
-            const saves = this.driver.listSaveFiles();
-            if (saves && saves.length > 0) {
-                saveName = saves[0].filename;
+        if (this.driver) {
+            if (typeof this.driver.autoDetectSavePlayerName === 'function') {
+                this.driver.autoDetectSavePlayerName().then(saveName => {
+                    applySaveBadge(saveName);
+                }).catch(err => {
+                    console.warn("Failed to detect save name:", err);
+                    applySaveBadge("");
+                });
+                return;
+            } else if (this.driver.fsManager) {
+                const saveName = this.driver.fsManager.autoDetectSavePlayerName();
+                applySaveBadge(saveName);
+                return;
             }
         }
 
-        if (saveName) {
-            this.saveBadge.textContent = `Save: ${saveName}`;
-            this.saveBadge.classList.add('save-found');
-            this.saveBadge.title = `Save file detected: ${saveName}. Click Start / Resume to play!`;
-        } else {
-            this.saveBadge.textContent = 'Save: None';
-            this.saveBadge.classList.add('save-none');
-            this.saveBadge.title = 'No save file detected';
-        }
+        applySaveBadge("");
     }
 
     updateInputBadge(context) {

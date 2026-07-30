@@ -153,7 +153,7 @@
         syncToPersistent() {
             const FS = this.FS;
             const IDBFS = this.IDBFS;
-            if (!FS) return;
+            if (!FS) return Promise.resolve(false);
 
             const persistentFiles = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm'];
             persistentFiles.forEach(f => {
@@ -188,9 +188,19 @@
             });
 
             if (IDBFS) {
-                FS.syncfs(false, (err) => {
-                    if (err) console.error("[NetHackFSManager] IDBFS sync error:", err);
+                return new Promise((resolve) => {
+                    FS.syncfs(false, (err) => {
+                        if (err) {
+                            console.error("[NetHackFSManager] IDBFS sync error:", err);
+                            resolve(false);
+                        } else {
+                            console.log("[NetHackFSManager] IDBFS sync complete.");
+                            resolve(true);
+                        }
+                    });
                 });
+            } else {
+                return Promise.resolve(true);
             }
         }
 
@@ -354,11 +364,11 @@
                 } catch(e) {}
             }
 
-            // 2. IndexedDB (/indexedDB -> FILE_DATA) の全キーを走査してセーブデータを物理削除
+            // 2. IndexedDB (/save -> FILE_DATA) の全キーを走査してセーブデータを物理削除
             try {
                 if (typeof indexedDB !== 'undefined') {
                     await new Promise((resolve) => {
-                        const req = indexedDB.open('/indexedDB');
+                        const req = indexedDB.open('/save');
                         req.onsuccess = (e) => {
                             const db = e.target.result;
                             if (!db.objectStoreNames.contains('FILE_DATA')) {
