@@ -173,5 +173,15 @@ self.onmessage = async function(e) {
             }
             break;
         }
+
+        case 'LIST_SAVE_FILES': {
+            if (driver && driver.fsManager) {
+                const saveFiles = driver.fsManager.listSaveFiles();
+                self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles });
+            } else {
+                self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles: [] });
+            }
+            break;
+        }
     }
 };

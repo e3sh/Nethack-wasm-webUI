@@ -25,9 +25,14 @@ class sceneControl extends GameTask {
 
 			this.barEffect = new barEffect(g, 64, 384, 8 * 30, 16); //hpbar
 
-			//let mode = document.getElementById("lang").checked;
-
+			let bridge = null;
+			if (typeof NetHackWasmWorkerBridge !== 'undefined') {
+				bridge = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
+			}
 			const r = new GameManager(g);
+			if (bridge) {
+				r.setBridge(bridge);
+			}
 			g.rogue = r;
 
 			const wName = ["0:MAIN", "1:STATUS",

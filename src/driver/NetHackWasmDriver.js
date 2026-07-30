@@ -421,6 +421,7 @@
                     const windowId = args[0];
                     const blocking = !!args[1];
 
+                    const promise = this.inputResolver ? this.inputResolver.createPending('display', { windowId }) : Promise.resolve(0);
                     const resolverObj = {
                         respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
                         cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
@@ -428,9 +429,8 @@
 
                     this.emit("display_nhwindow", { windowId, blocking, resolver: resolverObj });
 
-                    if (blocking && this.inputResolver) {
+                    if (this.inputResolver) {
                         this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                        const promise = this.inputResolver.createPending('display', { windowId });
                         await promise;
                         this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     }
@@ -695,12 +695,14 @@
                     let ansCode = typeof rawAns === 'number' ? rawAns : (typeof rawAns === 'string' ? rawAns.charCodeAt(0) : (def ? def.charCodeAt(0) : 27));
                     const ansChar = String.fromCharCode(ansCode);
 
-                    // yn_function 安全ガード: 返されたキーが許容 choices に含まれない場合、デフォルトまたは許可文字へ自動フォールバック
-                    if (choices && choices.length > 0) {
-                        const validChars = choices + "\x1b\r\n ";
-                        if (!validChars.includes(ansChar)) {
+                    // yn_function 安全ガード: Enter(\r/13), LineFeed(\n/10), Space(32) や未許可文字が返された場合、Cコアが impossible と判定しないようデフォルト選択肢文字へ自動正規化
+                    if (ansCode === 13 || ansCode === 10 || ansCode === 32 || ansChar === '\r' || ansChar === '\n') {
+                        const fallbackChar = (def && choices.includes(def)) ? def : (choices.includes('y') ? 'y' : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0])));
+                        ansCode = fallbackChar.charCodeAt(0);
+                    } else if (choices && choices.length > 0) {
+                        if (!choices.includes(ansChar) && ansCode !== 27) {
                             console.warn(`[NetHackWasmDriver] Invalid char '${ansChar}' (${ansCode}) for yn_function ('${choices}'). Falling back to default '${def || 'n'}'.`);
-                            const fallbackChar = def ? def : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0]));
+                            const fallbackChar = (def && choices.includes(def)) ? def : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0]));
                             ansCode = fallbackChar.charCodeAt(0);
                         }
                     }

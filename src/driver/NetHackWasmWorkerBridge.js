@@ -130,6 +130,10 @@
                     case 'DETECT_SAVE_NAME_RESULT':
                         this.emit('detectSaveNameResult', { saveName });
                         break;
+
+                    case 'LIST_SAVE_FILES_RESULT':
+                        this.emit('listSaveFilesResult', { saveFiles: data.saveFiles });
+                        break;
                 }
             };
 
@@ -294,6 +298,22 @@
                 console.warn("[NetHackWasmWorkerBridge] Failed to auto-detect save name from IndexedDB:", e);
             }
             return "";
+        }
+
+        async listSaveFiles() {
+            return new Promise((resolve) => {
+                if (!this.worker) return resolve([]);
+                const onResult = ({ saveFiles }) => {
+                    this.off('listSaveFilesResult', onResult);
+                    resolve(saveFiles || []);
+                };
+                setTimeout(() => {
+                    this.off('listSaveFilesResult', onResult);
+                    resolve([]);
+                }, 1000);
+                this.on('listSaveFilesResult', onResult);
+                this.worker.postMessage({ type: 'LIST_SAVE_FILES' });
+            });
         }
     }
 

@@ -123,12 +123,15 @@ class ioControl extends GameTask {
 		let shift = false, space = false, alt = false;
 		let gpresult = this.GpadToKey.check([]);
 		if (g.rogue) this.GridPad.updateContext(g.rogue.inputContext);
-		let tResult = this.GridPad.check();
-		if (tResult) gpresult.push(tResult);
+		if (!g.rogue || !g.rogue.isModalActive || !g.rogue.isModalActive()) {
+			let tResult = this.GridPad.check();
+			if (tResult) gpresult.push(tResult);
+		}
 
 		const processKey = (i) => {
-			if (i === "ShiftLeft" || i === "ShiftRight" || i === "") { shift = true; return; }
-			if (i === "AltLeft" || i === "AltRight") { alt = true; return; }
+			if (i === "ShiftLeft" || i === "ShiftRight" || i === "Shift" || i === "") { shift = true; return; }
+			if (i === "AltLeft" || i === "AltRight" || i === "Alt") { alt = true; return; }
+			if (i === "ControlLeft" || i === "ControlRight" || i === "Control") { ctrl = true; return; }
 			if (i === "Space") space = true;
 			keylist.push(i);
 		};

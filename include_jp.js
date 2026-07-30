@@ -92,6 +92,7 @@ const w = [
     "src/driver/NetHackFSManager.js",
     "src/driver/InputResolver.js",
     "src/driver/NetHackWasmDriver.js",
+    "src/driver/NetHackWasmWorkerBridge.js",
     // Rogue 
     r + "SoundManager.js",
     r + "GameManager.js",
@@ -111,9 +112,8 @@ const w = [
     p + "rogueTypes.js",
     p + "tileMapping.js",
     p + "nhMessage.js",
-    p + "utfmap.js",
-    // NetHackJP Wasm
-    n + "nethack_jp.js",
+    // NetHackJP Wasm is loaded inside WebWorker (NetHackWasmWorkerBridge)
+    // n + "nethack_jp.js",
 ];
 
 for (let i in w) {

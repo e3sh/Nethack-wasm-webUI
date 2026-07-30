@@ -274,6 +274,16 @@
             <p class="subtitle">Import/Export character saves and manage system data</p>
         </header>
 
+        <!-- Current Active Save Summary Card -->
+        <section class="card" style="border-left: 4px solid var(--accent-color);">
+            <h2 class="section-title">Current Save Status</h2>
+            <div id="save-status-summary" style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px;">
+                <div><strong>State:</strong> <span id="status-state-text">Checking...</span></div>
+                <div><strong>Active Player:</strong> <span id="status-player-text" style="color:var(--accent-hover); font-weight:600;">None</span></div>
+                <div><strong>Total Saved Files:</strong> <span id="status-count-text">0</span></div>
+            </div>
+        </section>
+
         <!-- IndexedDB Section -->
         <section class="card">
             <h2 class="section-title">IndexedDB (FS/IDBFS)</h2>
@@ -350,6 +360,10 @@
             const listEl = document.getElementById('idb-list');
             listEl.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
 
+            const stateText = document.getElementById('status-state-text');
+            const playerText = document.getElementById('status-player-text');
+            const countText = document.getElementById('status-count-text');
+
             try {
                 const db = await openDB();
                 const transaction = db.transaction(STORE_NAME, 'readonly');
@@ -359,33 +373,59 @@
                 request.onsuccess = () => {
                     const files = request.result;
                     listEl.innerHTML = '';
-                    if (files.length === 0) {
+                    if (!files || files.length === 0) {
                         listEl.innerHTML = '<tr><td colspan="5">No files found.</td></tr>';
+                        stateText.textContent = "No Save Data";
+                        playerText.textContent = "None";
+                        countText.textContent = "0";
                         return;
                     }
 
-                    // Sort: record first, then by name
-                    const sorted = files.sort((a, b) => {
-                        const aName = a.contents.name || a.timestamp.toString();
-                        const bName = b.contents.name || b.timestamp.toString();
-                        return aName.localeCompare(bName);
-                    });
-
-                    // IDBFS doesn't store the path in a very obvious way within the result object usually, 
-                    // but it stores keys. We need keys.
                     const keyRequest = store.getAllKeys();
                     keyRequest.onsuccess = () => {
-                        const keys = keyRequest.result;
+                        const keys = keyRequest.result || [];
+                        let detectedPlayer = "";
+                        let charSaveCount = 0;
+
+                        const systemFiles = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+
                         keys.forEach((path, idx) => {
                             const file = files[idx];
                             const row = createIDBRow(path, file);
                             listEl.appendChild(row);
+
+                            const keyStr = String(path);
+                            const isSystem = systemFiles.some(sys => keyStr.endsWith(sys));
+                            if ((keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem && !keyStr.endsWith('.')) {
+                                charSaveCount++;
+                                if (!detectedPlayer) {
+                                    const cleanName = keyStr.replace(/^\/save\//, '').replace(/#.*$/, '');
+                                    const match = cleanName.match(/^\d+(.+)$/);
+                                    detectedPlayer = match ? match[1] : cleanName;
+                                    detectedPlayer = detectedPlayer.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                                }
+                            }
                         });
+
+                        if (charSaveCount > 0) {
+                            stateText.textContent = "Active Save Present";
+                            stateText.style.color = "#7ee787";
+                            playerText.textContent = detectedPlayer || "Saved Character";
+                            countText.textContent = `${charSaveCount} save file(s) (${keys.length} total entries)`;
+                        } else {
+                            stateText.textContent = "System Data Only (No Active Save)";
+                            stateText.style.color = "var(--text-secondary)";
+                            playerText.textContent = "None";
+                            countText.textContent = `0 saves (${keys.length} system entries)`;
+                        }
                     };
                 };
             } catch (e) {
                 console.error(e);
                 listEl.innerHTML = `<tr><td colspan="5" style="color:var(--danger-color)">Error: ${e.message}</td></tr>`;
+                stateText.textContent = "Error";
+                playerText.textContent = "Unknown";
+                countText.textContent = "0";
             }
         }
 

@@ -47,6 +47,18 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 ### `driver.on(eventName, callback)` / `driver.off(eventName, callback)`
 ドライバーからの各種イベントリスナーを登録・解除します。
 
+### `async bridge.listSaveFiles()` / `async g.rogue.listSaveFiles()`
+VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセーブファイルの一覧（`path`, `filename`, `playerName`, `size`, `mtime`）を非同期取得します。
+
+### `async g.rogue.getSaveStatus()`
+現行の Worker / FS 状態におけるアクティブなセーブデータの有無 (`hasSave`), 検出されたプレイヤー名 (`saveName`), および全セーブファイル一覧 (`saveFiles`) を取得します。
+
+### `async bridge.deleteSaveFile(filename)` / `async g.rogue.deleteSaveFile(filename)`
+指定されたセーブファイル（および IndexedDB の FILE_DATA 永続化キー）を物理削除します。
+
+### `g.rogue.readPanicLog()`
+Emscripten VFS 内の `paniclog` ファイルを自動探索・読み込みし、コンソールへ警告出力するとともにログ文字列を返却します。
+
 ---
 
 ## 3. ドライバー発行イベント一覧 (Driver Events)
@@ -57,11 +69,12 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 - **状態値**: `'IDLE'`, `'RUNNING'`, `'WAITING_INPUT'`, `'WAITING_MENU'`, `'STOPPED'`, `'ERROR'`
 
 ### `inputRequired`
-プレイヤーからの入力待ち状態（ターン待機・質問・メニュー選択・テキスト入力）が発生した際に発火します。
+プレイヤーからの入力待ち状態（ターン待機・質問・メニュー選択・テキスト入力・拡張コマンド）が発生した際に発火します。
 - **ペイロード**:
   ```javascript
   {
       context: string,        // 'yn_function', 'select_menu', 'getlin', 'askname', 'nhgetch', 'poskey', 'get_ext_cmd'
+      type: string,           // 'char', 'yn', 'menu', 'line', 'ext_cmd'
       question: string,       // 質問内容 (yn_function 等)
       choices: string,        // 受容可能な選択肢文字列 (例: "ynaq", "hjklyubn")
       defaultChoice: string,  // デフォルト選択肢 (例: 'y')
@@ -72,6 +85,9 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
       resolver: InputResolver // 安全な Promise レスポンダーオブジェクト
   }
   ```
+- **拡張機能**:
+  - `context === 'get_ext_cmd'`: `#` 押下時の拡張コマンド名入力。`resolver.respond("pray")` 等の文字列送信により拡張コマンドを発行。
+  - `context === 'yn_function'`: Enter キー (`13`) や Space キー (`32`) 入力時、C コアが `impossible` と判定しないよう、デフォルト選択肢文字 (`defaultChoice`) へ自動正規化。
 
 ### `print_glyph`
 マップ上のセルの表示更新指示が届いた際に発火します。
@@ -86,7 +102,7 @@ NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 - **ペイロード**: `{ windowId: number, attr: number, text: string }`
 
 ### `raw_print` / `raw_print_bold`
-アイテム拾い通知 ("You pick up...") や各種生コメントが届いた際に発火します。
+アイテム拾い通知 ("You pick up...") や各種生コメント、死因メッセージが届いた際に発火します。
 - **ペイロード**: `{ text: string }`
 
 ### `status_update`
@@ -107,9 +123,11 @@ HP(18/19)、Pw(11/12)、AC(14)、Au/Gold(10)、Dlevel(20)、空腹(17)、状態�
 プレイヤーの選択・入力結果を C コアへ返却し、Asyncify スタックの再開（rewind）を行います。
 - **引数 `value`**:
   - キー入力時: 文字コード (`number`) (例: `'y'` は `121`)
+  - 拡張コマンド入力時: コマンド文字列 (`string`) (例: `"pray"`, `"jump"`)
   - テキスト入力時: 入力文字列 (`string`) (例: `"e3-sh"`)
   - メニュー選択時: 選択されたアイテムオブジェクトの配列 (`Array<Object>`)
   - メニューキャンセル時: `0` (`number`)
 
 ### `resolver.cancel(overrideValue)`
 入力キャンセルを安全に実行します。
+

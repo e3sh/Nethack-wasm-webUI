@@ -110,61 +110,56 @@ YouTube再生フリーズなどの非同期タスク占有問題を解消する�
 
 ---
 
-## 4. 段階的リチャクタリング・ロードマップ (Strangler Fig パターン)
+## 4. 段階的リファクタリング・ロードマップ (Strangler Fig パターン)
 
-既存の動作する WebUI 環境を一切破壊せずに移行を進める 5 フェーズ構成です。
+標準動作モデルとして **Web Worker 隔離モデル (`NetHackWasmWorkerBridge`)** を使用し、既存の WebUI 環境を安全に移行・リファクタリングします。
 
 ```
-[Phase 1: モジュール新規作成] ➔ [Phase 2: 最小テスト環境検証] ➔ [Phase 3: GameManager 接続] ➔ [Phase 4: 完全移行・クリーンアップ] ➔ [Phase 5: Web Worker 隔離によるマルチスレッド化]
+[Phase 1: モジュール作成 (済)] ➔ [Phase 2: テスト検証 (済)] ➔ [Worker化: WorkerBridge構築 (済)] ➔ [Phase 3: GameManager 接続 & UI機能復元 (済)] ➔ [Phase 4: クリーンアップ (次回)]
 ```
 
-### 📍 Phase 1: Driver モジュールの新規作成
-- 既存コードを変更せず、`src/driver/` 配下に以下を新規作成。
-  - `src/driver/NetHackMemory.js`
-  - `src/driver/InputResolver.js`
-  - `src/driver/NetHackWasmDriver.js`
+### ✅ Phase 1: Driver モジュールの新規作成 (完了)
+- `src/driver/` 配下の全モジュール作成完了。
 
-### 📍 Phase 2: 最小テスト環境 (`driver_test.html`) での検証
-- 軽量な検証用 HTML `driver_test.html` を作成（文字ログと入力テキストボックスのみ）。
-- `NetHackWasmDriver` の単体起動、`shim_putstr` の受信、キーボードレスポンス（Asyncify 復帰）が純粋な Driver 単体で動くことを単体テスト検証。
+### ✅ Phase 2: 最小テスト環境での検証 (完了)
+- `driver_test.html`, `driver_dom_test.html`, `MobileDomClient.js` での動作検証完了。
 
-### 📍 Phase 3: 既存 `GameManager.js` への接続 (パラレル移行)
-- `GameManager.js` 内の直接 Shim 処理・ポインタ処理を撤去。
-- `GameManager` が `NetHackWasmDriver` のイベントを受信し、既存の `jncurses`, `trancelate`, `SoundManager` へリレーするように改修。
-- 既存の全画面 (`game.html`, `mobile.html`, `game_jp.html`) が正常動作することを確認。
+### ✅ Worker化: Web Worker 隔離によるマルチスレッド化 (完了・標準モデル)
+- WasmコアをWorkerに分離した `NetHackWasmWorkerBridge` を標準動作モデルとして採用。
 
-### 📍 Phase 4: クリーンアップ & パッケージ独立化
-- `GameManager.js` の不要コードを完全除去（スリム化）。
-- `src/driver/` を単体ライブラリ（npm / 再利用可能モジュール）として整理。
+### ✅ Phase 3: 既存 `GameManager.js` への WorkerBridge 接続 ＆ UI機能復元 (完了)
+- **達成成果**:
+  - `GameManager.js` を `NetHackWasmWorkerBridge` イベント通信モデルへ接続変更。
+  - 移動/非移動コマンド、インベントリ Glyph 描画、Look (`:`, `/`, `;`) タイルカーソル同期の正常化。
+  - 日本語ファイル優先読み込み (`./dat/*_jp`) と `yn_function` 質問翻訳対応。
+  - JIS キーボード (`#` / `IntlRo`) および拡張コマンド (`#` / EXT_CMD) プロンプト統合。
+  - 死亡時墓石 ➔ TOP 10 ハイスコア表示 (VFS全パス探索 & `localStorage` 永続化 & 詳細死因記録) の完全修復。
+  - `save_manager.html` に現行構成対応「Current Save Status」カードおよび詳細確認・削除 API を統合。
+  - 参照専用長文メニュー (ダンジョン概要等) での `do...while` 無限ループフリーズ保護ガードの実装。
+  - Cコア `paniclog` 解析に基づく `yn_function` レスポンス (`^M`) の安全自動正規化。
 
-### 📍 Phase 5: Web Worker 隔離によるマルチスレッド化
-- **背景**: 同一スレッド上での Asyncify によるマイクロタスク占有とスタック退避復元が、他タブの動画再生等に遅延（くるくる）を与える問題への根本解決。
-- **実装**:
-  - `nethack.worker.js` を作成し、WasmコアをWorker内に完全分離。
-  - `NetHackWasmWorkerBridge.js` を作成し、メインスレッドとWorker間のシリアライズ制限（`DataCloneError`）を ID 管理による疑似 `resolver` 再構成で回避。
-  - `driver.activeResolver` プロパティの互換性維持ゲッター実装。
-  - 初期引数やオプション適用のための `preRun` 環境変数早期ロード対応。
-  - `FS` 読み出しが必要な `display_file` イベントのファイル内容非同期フォワード対応。
+### 📍 Phase 4: クリーンアップ & パッケージ独立化 (次回実施予定)
+- **タスク要件**:
+  - `GameManager.js` 内の旧 Wasm 直結時代の不要コード（未使用の旧直接フック処理、不要な直接メモリ変換関数 `getPointerValue` / `parseGlyphInfo` 等）を安全に整理・除去し、純粋な UI アダプタへスリム化。
+  - `src/driver/`（`NetHackWasmDriver`, `NetHackWasmWorkerBridge`, `NetHackFSManager`, `NetHackMemory`, `InputResolver`）を他プロジェクトから単体で再利用できる独立ライブラリとしてパッケージ整理・ドキュメント整備。
 
 ---
 
 ## 5. 次回 Conversation（引き継ぎ）用コンテキスト & 指示書
 
-次の会話を始める際は、以下のプロンプトをそのまま入力してください。
+次の会話（新しい Conversation）を開始する際は、以下のプロンプトをそのまま入力してください。
 
 ```text
-前回のセッションで作成した「docs/driver_architecture_and_roadmap.md」の設計仕様書に基づき、NetHackWasmDriver の分離・実装プロジェクトを開始します。
+前回のセッションで「Phase 3: GameManager 接続 & UI機能復元」が 100% 完了しました。
+「docs/1_driver/driver_architecture_and_roadmap.md」の設計仕様書に基づき、最後の【Phase 4: クリーンアップ & パッケージ独立化】の作業を開始してください。
 
-まず【Phase 1: Driver モジュールの新規作成】として、以下のファイルを src/driver/ に作成してください。
-1. src/driver/NetHackMemory.js
-2. src/driver/InputResolver.js
-3. src/driver/NetHackWasmDriver.js
-
-GameManager.js 内のポインタ処理 (getPointerValue, setPointerValue, parseGlyphInfo) や eventHook のロジックを参考に、純粋な Driver モジュールとして実装をお願いします。
+具体的には：
+1. GameManager.js 内に残っている旧 Wasm 直結時代の不要コード（未使用の直接ポインタ関数 getPointerValue / parseGlyphInfo 等やレガシーな不要処理）を安全にクリーンアップ・スリム化する。
+2. src/driver/ 配下のモジュール群を、外部プロジェクトからも単体で独立利用できる汎用 WASM Driver ライブラリとして整理・クリーンアップする。
 ```
 
 ### 関連主要参照ファイル
-*   仕様書: [docs/driver_architecture_and_roadmap.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/driver_architecture_and_roadmap.md)
-*   現在の Wasm ブリッジ実装: [rogue/GameManager.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/rogue/GameManager.js)
-*   Shim インターフェース仕様: [docs/shim_reference.ja.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/shim_reference.ja.md)
-*   メインエントリポイント: [sys/main.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/sys/main.js)
+*   仕様書: [docs/1_driver/driver_architecture_and_roadmap.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_architecture_and_roadmap.md)
+*   メイン UI マネージャー: [rogue/GameManager.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/rogue/GameManager.js)
+*   Worker ブリッジ: [src/driver/NetHackWasmWorkerBridge.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/NetHackWasmWorkerBridge.js)
+*   WASM ドライバコア: [src/driver/NetHackWasmDriver.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/NetHackWasmDriver.js)

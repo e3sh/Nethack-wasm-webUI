@@ -232,6 +232,50 @@
         }
 
         /**
+         * セーブデータの一覧と詳細情報を取得（ファイル名、プレイヤー名、サイズ、更新日時）
+         */
+        listSaveFiles() {
+            const FS = this.FS;
+            if (!FS) return [];
+
+            const results = [];
+            try {
+                const saveDirs = ['/save', '/'];
+                const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp'];
+
+                for (let dir of saveDirs) {
+                    if (FS.analyzePath(dir).exists) {
+                        const files = FS.readdir(dir);
+                        for (let f of files) {
+                            if (systemFiles.includes(f) || f.startsWith('.')) continue;
+
+                            const filePath = dir === '/' ? `/${f}` : `${dir}/${f}`;
+                            try {
+                                const stat = FS.stat(filePath);
+                                if (stat && FS.isFile(stat.mode)) {
+                                    const match = f.match(/^\d+(.+)$/);
+                                    let playerName = match ? match[1] : f;
+                                    playerName = playerName.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+
+                                    results.push({
+                                        path: filePath,
+                                        filename: f,
+                                        playerName: playerName || "player",
+                                        size: stat.size,
+                                        mtime: new Date(stat.mtime).toISOString()
+                                    });
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("[NetHackFSManager] Error listing save files:", e);
+            }
+            return results;
+        }
+
+        /**
          * /save/xlogfile のパース
          */
         parseLastXlog() {

@@ -120,7 +120,10 @@ class SoundManagerClass {
 
     log(type, msg) {
         const entry = `[${new Date().toLocaleTimeString()}] [${type}] ${msg}`;
-        console.log(entry);
+        const isDebug = (typeof d !== 'undefined' && d.DEBUG_MSG) || (typeof g !== 'undefined' && g.define && g.define.DEBUG) || localStorage.getItem("nethack_debug_log") === "true";
+        if (isDebug) {
+            console.log(entry);
+        }
         if (typeof this.onLogCallback === 'function') {
             this.onLogCallback(type, msg, entry);
         }

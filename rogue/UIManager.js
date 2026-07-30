@@ -383,8 +383,8 @@ function UIManager(r, g) {
                         r.pendingInputResolve = handler;
                     } else {
                         this.overlapview(false);
+                        r.pendingInputResolve = null;
                         resolve(true);
-                        r.pendingInputResolve = originalHandler;
                     }
                 } else if (key === '8') {
                     if (currentPage > 0) {
@@ -396,8 +396,8 @@ function UIManager(r, g) {
                     }
                 } else if (charCode === 27) {
                     this.overlapview(false);
+                    r.pendingInputResolve = null;
                     resolve(true);
-                    r.pendingInputResolve = originalHandler;
                 } else {
                     r.pendingInputResolve = handler;
                 }
@@ -467,6 +467,11 @@ function UIManager(r, g) {
     }
 
     this.showMenu = function (items, how, promptText) {
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            this.overlapview(false);
+            return Promise.resolve([]);
+        }
+
         const menuDsp = d.DSP_WINDOW;
         const numLines = d.LINES || 24;
         const pageSize = numLines - 2;
@@ -507,8 +512,8 @@ function UIManager(r, g) {
                             r.pendingInputResolve = handler;
                         } else {
                             this.overlapview(false);
+                            r.pendingInputResolve = null;
                             resolve([]);
-                            r.pendingInputResolve = originalHandler;
                         }
                     } else if (key === '8' || key === '8') { // b, k: 前へ
                         if (currentPage > 0) {
@@ -520,8 +525,8 @@ function UIManager(r, g) {
                         }
                     } else if (charCode === 27) { // ESC: キャンセル
                         this.overlapview(false);
+                        r.pendingInputResolve = null;
                         resolve([]);
-                        r.pendingInputResolve = originalHandler;
                     } else {
                         r.pendingInputResolve = handler;
                     }
@@ -536,11 +541,15 @@ function UIManager(r, g) {
 
                 const cancelitem = (cf) ? "\u0000" : false;
 
+                const hasSelectable = items.some(it => it && it.identifier != 0);
+
                 let selectedIndex = 0;
-                if (items[selectedIndex] && (items[selectedIndex].ch == cancelitem || items[selectedIndex].ch == 0)) {
+                if (hasSelectable && items[selectedIndex] && (items[selectedIndex].ch == cancelitem || items[selectedIndex].ch == 0 || items[selectedIndex].identifier == 0)) {
+                    let searchCount = 0;
                     do {
                         selectedIndex = (selectedIndex + 1) % items.length;
-                    } while (selectedIndex < items.length && (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == ""));
+                        searchCount++;
+                    } while (searchCount < items.length && (items[selectedIndex].ch == cancelitem || items[selectedIndex].str == "" || items[selectedIndex].identifier == 0));
                 }
 
                 const totalPages = Math.ceil(items.length / pageSize);
@@ -556,7 +565,7 @@ function UIManager(r, g) {
                     const end = Math.min(start + pageSize, items.length);
                     for (let i = start; i < end; i++) {
                         const item = items[i];
-                        const prefix = (i === selectedIndex) ? "> " : "  ";
+                        const prefix = (hasSelectable && i === selectedIndex) ? "> " : "  ";
                         const charStr = (item.identifier !== 0 && item.ch != String.fromCharCode(0)) ? (typeof item.ch === 'string' ? item.ch : String.fromCharCode(item.ch)) + ")" : " ";
                         const glyph = (item.glyph) ? (((item.glyph.glyph > 255) && (item.glyph.glyph < 4000)) ? String.fromCharCode(item.glyph.glyph + d.GLYPH_BASE) : " ") : " ";
                         const textStr = this.trancelate.message(item.str);
@@ -578,16 +587,28 @@ function UIManager(r, g) {
                     const totalItems = items.length;
 
                     // 移動: j, k
-                    if (key === '2') { //
-                        do {
+                    if (key === '2') { // 下へ
+                        if (hasSelectable) {
+                            let count = 0;
+                            do {
+                                selectedIndex = (selectedIndex + 1) % totalItems;
+                                count++;
+                            } while (items[selectedIndex].identifier == 0 && count < totalItems);
+                        } else {
                             selectedIndex = (selectedIndex + 1) % totalItems;
-                        } while (items[selectedIndex].identifier == 0);
+                        }
                         render();
                         r.pendingInputResolve = handler;
-                    } else if (key === '8') { //
-                        do {
+                    } else if (key === '8') { // 上へ
+                        if (hasSelectable) {
+                            let count = 0;
+                            do {
+                                selectedIndex = (selectedIndex - 1 + totalItems) % totalItems;
+                                count++;
+                            } while (items[selectedIndex].identifier == 0 && count < totalItems);
+                        } else {
                             selectedIndex = (selectedIndex - 1 + totalItems) % totalItems;
-                        } while (items[selectedIndex].identifier == 0);
+                        }
                         render();
                         r.pendingInputResolve = handler;
                     } else if (key === ' ' || key === '>') { // Space, >: 次のページ
@@ -600,18 +621,18 @@ function UIManager(r, g) {
                         r.pendingInputResolve = handler;
                     } else if (charCode === 13) { // Enter: 決定
                         this.overlapview(false);
+                        r.pendingInputResolve = null;
                         resolve([items[selectedIndex]]);
-                        r.pendingInputResolve = originalHandler;
                     } else if (charCode === 27) { // ESC: キャンセル
                         this.overlapview(false);
+                        r.pendingInputResolve = null;
                         resolve([]);
-                        r.pendingInputResolve = originalHandler;
                     } else {
                         // ショートカットキーによる直接選択
                         const hit = items.find(it => it.ch === String.fromCharCode(charCode));
                         if (hit) {
+                            r.pendingInputResolve = null;
                             resolve([hit]);
-                            r.pendingInputResolve = originalHandler;
                         } else {
                             r.pendingInputResolve = handler;
                         }
@@ -638,7 +659,8 @@ function UIManager(r, g) {
      * @param {string} content 
      */
     this.showText = function (title, content) {
-        const lines = content.split('\n');
+        const textContent = content || "";
+        const lines = textContent.split('\n');
         const numLines = d.LINES || 24;
         const pageSize = numLines - 2;
         const pages = [];
@@ -681,8 +703,8 @@ function UIManager(r, g) {
                         r.pendingInputResolve = handler;
                     } else {
                         this.overlapview(false);
+                        r.pendingInputResolve = null;
                         resolve();
-                        r.pendingInputResolve = originalHandler;
                     }
                 } else if (key === '8') { // b, k: 前へ
                     if (currentPage > 0) {
@@ -694,8 +716,8 @@ function UIManager(r, g) {
                     }
                 } else if (charCode === 27) { // ESC: 閉じる
                     this.overlapview(false);
+                    r.pendingInputResolve = null;
                     resolve();
-                    r.pendingInputResolve = originalHandler;
                 } else {
                     r.pendingInputResolve = handler;
                 }
@@ -1063,17 +1085,43 @@ function UIManager(r, g) {
                 });
             };
 
-            const handler = (charCode) => {
+            const advance = () => {
                 if (currentPage === 1) {
                     currentPage = 2;
                     renderPage(currentPage);
                     r.pendingInputResolve = handler;
                 } else {
                     this.overlapview(false);
-                    r.pendingInputResolve = originalHandler;
+                    r.pendingInputResolve = null;
+                    cleanup();
                     resolve();
                 }
             };
+
+            const handler = (charCode) => {
+                advance();
+            };
+
+            const clickHandler = (e) => {
+                if (e) {
+                    e.stopPropagation();
+                }
+                advance();
+            };
+
+            const cleanup = () => {
+                window.removeEventListener('click', clickHandler, true);
+                window.removeEventListener('pointerdown', clickHandler, true);
+                window.removeEventListener('keydown', keyListener, true);
+            };
+
+            const keyListener = (e) => {
+                advance();
+            };
+
+            window.addEventListener('click', clickHandler, true);
+            window.addEventListener('pointerdown', clickHandler, true);
+            window.addEventListener('keydown', keyListener, true);
 
             this.overlapview(true);
             renderPage(currentPage);

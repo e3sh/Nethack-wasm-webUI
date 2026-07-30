@@ -209,12 +209,19 @@ class MobileDomClient {
      * 物理キーボードおよびタッチコントロールのバインド
      */
     bindInputEvents() {
+        const isModalActive = () => {
+            return this.dialogOverlay && this.dialogOverlay.classList.contains('active');
+        };
+
         window.addEventListener('keydown', (e) => {
             const resolver = this.activeResolver || (this.driver && this.driver.activeResolver);
             if (!resolver || resolver.isResolved) return;
 
             if (document.activeElement && document.activeElement.tagName === 'INPUT') {
                 if (e.key !== 'Escape' && e.key !== 'Enter') return;
+            } else if (isModalActive()) {
+                // モーダルダイアログ表示中は、D-Padや画面背景キー入力を無効化して状態保護
+                return;
             }
 
             const charCode = this.convertKeyToCharCode(e);
@@ -233,6 +240,8 @@ class MobileDomClient {
         }, true);
 
         const handleButtonInput = (target) => {
+            if (isModalActive()) return; // モーダル表示中は D-Pad / タッチボタン操作を遮断！
+
             const btn = target.closest('[data-key]');
             const resolver = this.activeResolver || (this.driver && this.driver.activeResolver);
 

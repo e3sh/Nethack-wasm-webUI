@@ -43,12 +43,14 @@ function io(r, g) {
 				promptEl.textContent = query;
 				field.value = "";
 				container.style.display = "block";
+				if (r && r.UI) r.UI.inputOverlayActive = true;
 
 				// 少し遅延させてフォーカス（仮想キーボード表示のため）
 				setTimeout(() => field.focus(), 100);
 
 				const cleanup = () => {
 					container.style.display = "none";
+					if (r && r.UI) r.UI.inputOverlayActive = false;
 					field.removeEventListener("keydown", keyHandler);
 					okBtn.removeEventListener("click", onOk);
 					cancelBtn.removeEventListener("click", onCancel);
