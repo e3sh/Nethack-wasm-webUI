@@ -48,7 +48,20 @@ self.onmessage = async function(e) {
                     env.LEVELDIR = "/";
                     env.SAVEDIR = "/save/";
                     
-                    let initialOpts = [];
+                    let initialOpts = ["number_pad:1"];
+                    if (options && options.extraOptions && typeof options.extraOptions === 'string') {
+                        options.extraOptions.split('\n').forEach(line => {
+                            let trimmed = line.trim().replace(/^[, \t]+/, '').replace(/[, \t]+$/, '').trim();
+                            if (trimmed) {
+                                if (trimmed.startsWith('OPTIONS=')) {
+                                    trimmed = trimmed.replace('OPTIONS=', '').trim();
+                                }
+                                if (trimmed && !trimmed.startsWith('#')) {
+                                    initialOpts.push(trimmed);
+                                }
+                            }
+                        });
+                    }
                     if (options && options.gameOptions) {
                         for (const [k, v] of Object.entries(options.gameOptions)) {
                             if (typeof v === 'boolean') {
@@ -58,11 +71,7 @@ self.onmessage = async function(e) {
                             }
                         }
                     }
-                    if (initialOpts.length > 0) {
-                        env.NETHACKOPTIONS = initialOpts.join(",");
-                    } else {
-                        env.NETHACKOPTIONS = "number_pad:1";
-                    }
+                    env.NETHACKOPTIONS = initialOpts.join(",");
                     console.log("[nethack.worker] ENV.NETHACKOPTIONS initialized in preRun:", env.NETHACKOPTIONS);
                 }
             });

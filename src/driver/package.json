@@ -1,0 +1,41 @@
+{
+  "name": "@nethack/wasm-driver",
+  "version": "1.0.0",
+  "description": "Standalone decoupled event-driven WebAssembly driver for NetHack 5.0 / 3.7",
+  "main": "index.js",
+  "module": "index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js"
+    },
+    "./NetHackWasmDriver": "./NetHackWasmDriver.js",
+    "./NetHackWasmWorkerBridge": "./NetHackWasmWorkerBridge.js",
+    "./NetHackFSManager": "./NetHackFSManager.js",
+    "./NetHackMemory": "./NetHackMemory.js",
+    "./InputResolver": "./InputResolver.js",
+    "./nethack.worker": "./nethack.worker.js"
+  },
+  "files": [
+    "index.js",
+    "NetHackWasmDriver.js",
+    "NetHackWasmWorkerBridge.js",
+    "NetHackFSManager.js",
+    "NetHackMemory.js",
+    "InputResolver.js",
+    "nethack.worker.js",
+    "README.md"
+  ],
+  "keywords": [
+    "nethack",
+    "wasm",
+    "webassembly",
+    "driver",
+    "roguelike",
+    "asyncify",
+    "webworker"
+  ],
+  "author": "NetHack WebUI Team",
+  "license": "MIT"
+}

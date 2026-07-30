@@ -65,6 +65,12 @@
             return winM || globM || (this.options ? this.options.module : null);
         }
 
+        log(...args) {
+            if (this.debug) {
+                console.log("[NetHackWasmDriver]", ...args);
+            }
+        }
+
         initSubModules(options = {}) {
             const getGlobalClass = (className) => {
                 if (typeof window !== 'undefined' && window[className]) return window[className];
@@ -86,8 +92,8 @@
                 this.memory = new MemoryClass(moduleRef);
             }
             if (FSManagerClass && !this.fsManager) {
-                this.fsManager = new FSManagerClass();
-                console.log("[NetHackWasmDriver] Successfully instantiated NetHackFSManager.");
+                this.fsManager = new FSManagerClass({ debug: this.debug });
+                this.log("Successfully instantiated NetHackFSManager.");
             }
             if (ResolverClass && !this.inputResolver) {
                 this.inputResolver = new ResolverClass({ timeoutMs: options.inputTimeoutMs || 0 });
@@ -218,8 +224,8 @@
             if (!this.fsManager) {
                 const FSClass = (typeof window !== 'undefined' && window.NetHackFSManager) ? window.NetHackFSManager : ((typeof globalThis !== 'undefined' && globalThis.NetHackFSManager) ? globalThis.NetHackFSManager : null);
                 if (FSClass) {
-                    this.fsManager = new FSClass();
-                    console.log("[NetHackWasmDriver DIAG] Dynamically created NetHackFSManager instance in start().");
+                    this.fsManager = new FSClass({ debug: this.debug });
+                    this.log("Dynamically created NetHackFSManager instance in start().");
                 }
             }
 
@@ -241,10 +247,10 @@
             }
 
             if (this.fsManager) {
-                console.log("[NetHackWasmDriver DIAG] Initializing FileSystem via fsManager...");
+                this.log("Initializing FileSystem via fsManager...");
                 await this.fsManager.initFileSystem(extraOptsStr);
             } else {
-                console.error("[NetHackWasmDriver DIAG] CRITICAL: NetHackFSManager is missing! Executing robust raw FS fallback.");
+                console.error("[NetHackWasmDriver] CRITICAL: NetHackFSManager is missing! Executing robust raw FS fallback.");
                 const FS = typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : (typeof FS !== 'undefined' ? FS : null);
                 if (FS) {
                     try {
@@ -258,7 +264,7 @@
                         ['/perm', '/save/perm', 'perm'].forEach(p => { try { FS.writeFile(p, permContent); } catch(e){} });
 
                         FS.writeFile('/.nethackrc', "SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n" + (extraOptsStr ? `OPTIONS=${extraOptsStr}\n` : ""));
-                        console.log("[NetHackFSManager DIAG] Raw VFS fallback (sysconf + perm) written successfully.");
+                        this.log("Raw VFS fallback (sysconf + perm) written successfully.");
                     } catch(e) { console.error("Raw VFS fallback error:", e); }
                 }
             }
@@ -267,11 +273,11 @@
             const cwrapFn = M.cwrap || (typeof cwrap !== 'undefined' ? cwrap : null);
             if (typeof cwrapFn === 'function') {
                 try {
-                    console.log("[NetHackWasmDriver DIAG] Registering graphics callback 'nhDispatcher'...");
+                    this.log("Registering graphics callback 'nhDispatcher'...");
                     const setCB = cwrapFn('shim_graphics_set_callback', null, ['string']);
                     setCB("nhDispatcher");
                 } catch (e) {
-                    console.warn("[NetHackWasmDriver DIAG] Failed to set graphics callback via cwrap:", e);
+                    console.warn("[NetHackWasmDriver] Failed to set graphics callback via cwrap:", e);
                 }
             }
 
@@ -310,7 +316,7 @@
             this.setState(NetHackWasmDriver.DriverState.RUNNING);
             this.emit('started', { args });
 
-            console.log("[NetHackWasmDriver DIAG] Invoking NetHack main via ccall with args:", args, "argc:", argc);
+            this.log("Invoking NetHack main via ccall with args:", args, "argc:", argc);
             return new Promise((resolve) => {
                 try {
                     if (!ccallFn) {
@@ -323,7 +329,7 @@
                                 if (err && err.name === 'ExitStatus') {
                                     resolve(await this.handleEngineExit(err.status));
                                 } else {
-                                    console.error("[NetHackWasmDriver DIAG] Engine error in Promise:", err);
+                                    console.error("[NetHackWasmDriver] Engine error in Promise:", err);
                                     resolve(await this.handleEngineExit(-1));
                                 }
                             });
@@ -331,14 +337,14 @@
                         resolve(this.handleEngineExit(result));
                     }
                 } catch (err) {
-                    console.error("[NetHackWasmDriver DIAG] Exception while starting main:", err);
+                    console.error("[NetHackWasmDriver] Exception while starting main:", err);
                     resolve(this.handleEngineExit(-1));
                 }
             });
         }
 
         async handleEngineExit(exitCode) {
-            console.log(`[NetHackWasmDriver DIAG] NetHack Engine Exited with code: ${exitCode}`);
+            this.log(`NetHack Engine Exited with code: ${exitCode}`);
             this.setState(NetHackWasmDriver.DriverState.STOPPED);
             if (this.fsManager) {
                 await this.fsManager.syncToPersistent();
@@ -692,18 +698,39 @@
                     const rawAns = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
-                    let ansCode = typeof rawAns === 'number' ? rawAns : (typeof rawAns === 'string' ? rawAns.charCodeAt(0) : (def ? def.charCodeAt(0) : 27));
-                    const ansChar = String.fromCharCode(ansCode);
+                    const getSafeFallbackChar = () => {
+                        if (def && typeof def === 'string' && def.length > 0 && choices && typeof choices === 'string' && choices.includes(def)) {
+                            return def;
+                        }
+                        if (choices && typeof choices === 'string' && choices.length > 0) {
+                            if (choices.includes('y')) return 'y';
+                            if (choices.includes('n')) return 'n';
+                            if (choices.includes('q')) return 'q';
+                            return choices.charAt(0);
+                        }
+                        return 'y';
+                    };
 
-                    // yn_function 安全ガード: Enter(\r/13), LineFeed(\n/10), Space(32) や未許可文字が返された場合、Cコアが impossible と判定しないようデフォルト選択肢文字へ自動正規化
-                    if (ansCode === 13 || ansCode === 10 || ansCode === 32 || ansChar === '\r' || ansChar === '\n') {
-                        const fallbackChar = (def && choices.includes(def)) ? def : (choices.includes('y') ? 'y' : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0])));
-                        ansCode = fallbackChar.charCodeAt(0);
-                    } else if (choices && choices.length > 0) {
+                    let ansCode = 27;
+                    if (typeof rawAns === 'number' && !isNaN(rawAns)) {
+                        ansCode = rawAns;
+                    } else if (typeof rawAns === 'string' && rawAns.length > 0) {
+                        ansCode = rawAns.charCodeAt(0);
+                    } else if (def && typeof def === 'string' && def.length > 0) {
+                        ansCode = def.charCodeAt(0);
+                    }
+
+                    const ansChar = (ansCode > 0 && !isNaN(ansCode)) ? String.fromCharCode(ansCode) : '';
+
+                    // yn_function 安全ガード: Enter(\r/13), LineFeed(\n/10), Space(32), 空回答/NaN/未入力等や未許可文字が返された場合、デフォルト選択肢文字へ安全正規化
+                    if (isNaN(ansCode) || ansCode === 13 || ansCode === 10 || ansCode === 32 || ansChar === '\r' || ansChar === '\n' || ansCode <= 0) {
+                        const fallbackChar = getSafeFallbackChar();
+                        ansCode = fallbackChar ? fallbackChar.charCodeAt(0) : 27;
+                    } else if (choices && typeof choices === 'string' && choices.length > 0) {
                         if (!choices.includes(ansChar) && ansCode !== 27) {
-                            console.warn(`[NetHackWasmDriver] Invalid char '${ansChar}' (${ansCode}) for yn_function ('${choices}'). Falling back to default '${def || 'n'}'.`);
-                            const fallbackChar = (def && choices.includes(def)) ? def : (choices.includes('n') ? 'n' : (choices.includes('q') ? 'q' : choices[0]));
-                            ansCode = fallbackChar.charCodeAt(0);
+                            console.warn(`[NetHackWasmDriver] Invalid char '${ansChar}' (${ansCode}) for yn_function ('${choices}'). Falling back to default.`);
+                            const fallbackChar = getSafeFallbackChar();
+                            ansCode = fallbackChar ? fallbackChar.charCodeAt(0) : 27;
                         }
                     }
 
@@ -863,7 +890,17 @@
     }
 
     global.NetHackWasmDriver = NetHackWasmDriver;
+    if (typeof window !== 'undefined') {
+        window.NetHackWasmDriver = NetHackWasmDriver;
+    }
+    if (typeof globalThis !== 'undefined') {
+        globalThis.NetHackWasmDriver = NetHackWasmDriver;
+    }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { NetHackWasmDriver };
+        module.exports = NetHackWasmDriver;
+        module.exports.NetHackWasmDriver = NetHackWasmDriver;
+        module.exports.default = NetHackWasmDriver;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+

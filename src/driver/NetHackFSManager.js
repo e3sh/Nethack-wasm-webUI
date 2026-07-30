@@ -6,7 +6,24 @@
     if (global.NetHackFSManager) return;
 
     class NetHackFSManager {
-        constructor() {
+        constructor(options = {}) {
+            this.debug = options && options.debug !== undefined ? !!options.debug : false;
+        }
+
+        log(...args) {
+            if (this.debug) {
+                console.log("[NetHackFSManager]", ...args);
+            }
+        }
+
+        warn(...args) {
+            if (this.debug) {
+                console.warn("[NetHackFSManager]", ...args);
+            }
+        }
+
+        error(...args) {
+            console.error("[NetHackFSManager]", ...args);
         }
 
         get FS() {
@@ -30,10 +47,10 @@
             const FS = this.FS;
             const IDBFS = this.IDBFS;
 
-            console.log("[NetHackFSManager DEBUG] Starting initFileSystem...");
+            this.log("Starting initFileSystem...");
 
             if (!FS) {
-                console.warn("[NetHackFSManager DEBUG] Emscripten FS is NOT defined!");
+                this.warn("Emscripten FS is NOT defined!");
                 return false;
             }
 
@@ -43,19 +60,19 @@
                     const res = FS.analyzePath(dir);
                     if (!res.exists) {
                         FS.mkdir(dir);
-                        console.log(`[NetHackFSManager DEBUG] Created directory: ${dir}`);
+                        this.log(`Created directory: ${dir}`);
                     }
                     if (dir === '/save' && IDBFS) {
                         FS.mount(IDBFS, {}, dir);
-                        console.log(`[NetHackFSManager DEBUG] Mounted IDBFS at ${dir}`);
+                        this.log(`Mounted IDBFS at ${dir}`);
                     }
                 } catch (e) {
-                    console.error(`[NetHackFSManager DEBUG] Failed to init dir ${dir}:`, e);
+                    this.error(`Failed to init dir ${dir}:`, e);
                 }
             });
 
             const setupAll = () => {
-                console.log("[NetHackFSManager DEBUG] Executing setupAll() for system files...");
+                this.log("Executing setupAll() for system files...");
                 // 1. Write Config Files (NetHack.cnf, .nethackrc)
                 let configContent = `SCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n`;
                 if (extraOptions) {
@@ -74,9 +91,9 @@
                 ['NetHack.cnf', '.nethackrc'].forEach(cf => {
                     try {
                         FS.writeFile('/' + cf, configContent);
-                        console.log(`[NetHackFSManager DEBUG] Created config file /${cf}`);
+                        this.log(`Created config file /${cf}`);
                     } catch (e) {
-                        console.error(`[NetHackFSManager DEBUG] Failed to write /${cf}:`, e);
+                        this.error(`Failed to write /${cf}:`, e);
                     }
                 });
 
@@ -85,7 +102,7 @@
                 ['/sysconf', '/save/sysconf', 'sysconf'].forEach(p => {
                     try {
                         FS.writeFile(p, sysconfContent);
-                        console.log(`[NetHackFSManager DEBUG] Written sysconf file at '${p}'`);
+                        this.log(`Written sysconf file at '${p}'`);
                     } catch (e) {}
                 });
 
@@ -94,7 +111,7 @@
                 ['/perm', '/save/perm', 'perm'].forEach(p => {
                     try {
                         FS.writeFile(p, permContent);
-                        console.log(`[NetHackFSManager DEBUG] Written perm file at '${p}'`);
+                        this.log(`Written perm file at '${p}'`);
                     } catch (e) {}
                 });
 
@@ -118,22 +135,22 @@
                     } catch (e) {}
                 });
 
-                console.log("[NetHackFSManager DEBUG] All files initialized successfully.");
+                this.log("All files initialized successfully.");
             };
 
             if (IDBFS) {
                 return new Promise((resolve) => {
-                    console.log("[NetHackFSManager DEBUG] Calling FS.syncfs(true)...");
+                    this.log("Calling FS.syncfs(true)...");
                     FS.syncfs(true, (err) => {
-                        if (err) console.error("[NetHackFSManager DEBUG] IDBFS sync error (Initial):", err);
-                        else console.log("[NetHackFSManager DEBUG] IDBFS sync(true) complete.");
+                        if (err) this.error("IDBFS sync error (Initial):", err);
+                        else this.log("IDBFS sync(true) complete.");
                         
                         setupAll();
 
-                        console.log("[NetHackFSManager DEBUG] Calling FS.syncfs(false)...");
+                        this.log("Calling FS.syncfs(false)...");
                         FS.syncfs(false, (err2) => {
-                            if (err2) console.error("[NetHackFSManager DEBUG] IDBFS sync error (Final):", err2);
-                            else console.log("[NetHackFSManager DEBUG] All FS preparation & sync(false) complete.");
+                            if (err2) this.error("IDBFS sync error (Final):", err2);
+                            else this.log("All FS preparation & sync(false) complete.");
                             resolve(!err && !err2);
                         });
                     });
@@ -183,7 +200,7 @@
                         FS.writeFile(rootPath, data);
                     }
                 } catch (e) {
-                    console.error(`[NetHackFSManager] Failed to sync file ${f}:`, e);
+                    this.error(`Failed to sync file ${f}:`, e);
                 }
             });
 
@@ -191,10 +208,10 @@
                 return new Promise((resolve) => {
                     FS.syncfs(false, (err) => {
                         if (err) {
-                            console.error("[NetHackFSManager] IDBFS sync error:", err);
+                            this.error("IDBFS sync error:", err);
                             resolve(false);
                         } else {
-                            console.log("[NetHackFSManager] IDBFS sync complete.");
+                            this.log("IDBFS sync complete.");
                             resolve(true);
                         }
                     });
@@ -226,7 +243,7 @@
                     }
                 }
             } catch (e) {
-                console.warn("[NetHackFSManager] Error auto-detecting save file:", e);
+                this.warn("Error auto-detecting save file:", e);
             }
             return "";
         }
@@ -270,7 +287,7 @@
                     }
                 }
             } catch (e) {
-                console.warn("[NetHackFSManager] Error listing save files:", e);
+                this.warn("Error listing save files:", e);
             }
             return results;
         }
@@ -320,7 +337,7 @@
                     death: entry.death || "unknown"
                 };
             } catch (e) {
-                console.error("[NetHackFSManager] Failed to parse xlogfile:", e);
+                this.error("Failed to parse xlogfile:", e);
                 return null;
             }
         }
@@ -371,7 +388,7 @@
                 list.sort((a, b) => b.points - a.points);
                 return list.slice(0, 10);
             } catch (e) {
-                console.error("[NetHackFSManager] Failed to parse record list:", e);
+                this.error("Failed to parse record list:", e);
                 return [];
             }
         }
@@ -382,7 +399,7 @@
         async deleteSaveFile(targetFilename) {
             const FS = this.FS || (typeof globalThis !== 'undefined' && globalThis.FS ? globalThis.FS : null);
             const cleanName = targetFilename ? targetFilename.replace(/^\/save\//, '').replace(/#.*$/, '').trim() : "";
-            console.log(`[NetHackFSManager] Executing robust save file deletion. Target: '${targetFilename}', cleanName: '${cleanName}'`);
+            this.log(`Executing robust save file deletion. Target: '${targetFilename}', cleanName: '${cleanName}'`);
 
             let deleted = false;
 
@@ -398,9 +415,9 @@
                                 try {
                                     FS.unlink(`${saveDir}/${f}`);
                                     deleted = true;
-                                    console.log(`[NetHackFSManager] Unlinked VFS save file: /save/${f}`);
+                                    this.log(`Unlinked VFS save file: /save/${f}`);
                                 } catch(e) {
-                                    console.warn(`[NetHackFSManager] Failed to unlink VFS file /save/${f}:`, e);
+                                    this.warn(`Failed to unlink VFS file /save/${f}:`, e);
                                 }
                             }
                         });
@@ -435,7 +452,7 @@
                                     if (isSaveKey || (cleanName && keyStr.includes(cleanName))) {
                                         store.delete(key);
                                         deleted = true;
-                                        console.log(`[NetHackFSManager] Deleted key from IndexedDB: '${keyStr}'`);
+                                        this.log(`Deleted key from IndexedDB: '${keyStr}'`);
                                     }
                                 });
                             };
@@ -475,6 +492,10 @@
         globalThis.NetHackFSManager = NetHackFSManager;
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { NetHackFSManager };
+        module.exports = NetHackFSManager;
+        module.exports.NetHackFSManager = NetHackFSManager;
+        module.exports.default = NetHackFSManager;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+

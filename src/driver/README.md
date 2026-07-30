@@ -1,46 +1,99 @@
-# NetHackWasmDriver (NetHack Wasm JavaScript Driver)
+# NetHackWasmDriver (`@nethack/wasm-driver`)
 
-`NetHackWasmDriver` は、NetHack 5.0 / 3.7 の Emscripten WebAssembly (Wasm) C コアエンジンと、モダンな JavaScript / WebUI クライアント間を中継する疎結合（Decoupled / 独立型）イベント駆動型ドライバーサブシステムです。
+`NetHackWasmDriver` は、NetHack 5.0 / 3.7 の Emscripten WebAssembly (Wasm) C コアエンジンと、モダンな JavaScript / WebUI / モバイル DOM / Node.js AI クライアント間を中継する疎結合（Decoupled / 独立型）イベント駆動型ドライバーサブシステムです。
+
+本ディレクトリ配下のモジュールは、外部プロジェクトからも独立した JS ライブラリパッケージ（`@nethack/wasm-driver`）として単体利用可能です。
 
 ---
 
-## 📁 ディレクトリ構造 (Directory Structure)
+## 📁 ディレクトリ・パッケージ構造 (Package Structure)
 
 ```
 src/driver/
-├── NetHackWasmWorkerBridge.js    # メインスレッド用ブリッジ (従来の Driver と同一の外部APIを提供)
-├── nethack.worker.js             # Web Worker 用スクリプト (WasmとDriverをWorker内に配置)
-├── NetHackWasmDriver.js          # ドライバー本体 (C コア・Wasm FS・EventEmitter 配信)
-├── NetHackMemory.js              # Wasm メモリ構造体アロケート & 解放 & 構造化デコード
-├── NetHackFSManager.js           # Emscripten VFS & IndexedDB セーブ永続化/全消去/パース
-├── InputResolver.js              # Asyncify 安全 Promise レスポンダー (遅延制御 & ガード)
+├── index.js                      # 統合エントリーポイント (ESM / CommonJS / Global)
+├── package.json                  # npm パッケージマニフェスト (@nethack/wasm-driver)
+├── NetHackWasmWorkerBridge.js    # Web Worker 隔離ブリッジ (メインスレッド用 API)
+├── nethack.worker.js             # Web Worker 用スクリプト (Wasm & Driver 隔離実行)
+├── NetHackWasmDriver.js          # ドライバーコア (C コア・VFS・EventEmitter 配信)
+├── NetHackMemory.js              # Wasm メモリ構造体解釈 & ポインタ相互変換
+├── NetHackFSManager.js           # Emscripten VFS & IndexedDB セーブデータ管理
+├── InputResolver.js              # Asyncify 安全 Promise レスポンダー
 ├── README.md                     # 本ドキュメント
 └── test/
-    └── DriverDomTestClient.js    # ドライバー検証用 DOM テストクライアント
+    └── DriverDomTestClient.js    # ドライバー単体検証用 DOM テストクライアント
 ```
 
 ---
 
-## ✨ 主な新機能・改善点 (Key Improvements & Features)
+## 🚀 導入・使用方法 (Installation & Usage)
 
-1. **シームレスなセーブデータ自動復元 (Auto Resume)**
-   - C コアの `askname` (`shim_askname`) からのプレイヤー名問い合わせと連携し、IndexedDB / VFS 上に検出されたセーブデータ名 (`detectedName`) で自動応答。リロード後も即座に以前のプレイからシームレスに再開。
-2. **堅牢なセーブデータ物理一括抹消 (`deleteSaveFile`)**
-   - VFS (`/save`) および IndexedDB (`/indexedDB` の `FILE_DATA` ストア) 内の残留セーブデータを完全走査・無条件物理抹消する安全メカニズムを構築。
-3. **C 構造体サイズ不整合の解消 (`menu_item`)**
-   - `NetHackMemory.js` における `menu_item` (`struct mi`) の要素サイズを Wasm32 レイアウトに合わせて 12バイトに修正。`assert(otmp != 0)` クラッシュを解消。
-4. **ステータス情報の完全構造化デコード (`BL_` フィールド)**
-   - **`BL_GOLD` (field 10)**: `"glyph:0x0f2e:100"` からの Gold Pieces Glyph ID (`3886`) および金額の自動解析。
-   - **`BL_HUNGER` (field 17)**: 空腹・満腹状態 (`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"`) の解釈と分離表示。
-   - **`BL_CONDITION` (field 22)**: ビットマスクからの状態異常配列デコード (`Blind`, `Confused`, `Stunned` 等)。
-5. **クリーンな初期化とオプション重複エラーの根絶**
-   - VFS 上の `NetHack.cnf` / `.nethackrc` 生成時の重用 `OPTIONS=` をクレンジングし、起動時の `4 errors in //.nethackrc.` 警告を完全除去。環境変数 (ENV) 設定を preRun にて早期ロードするように調整。
-6. **インベントリ・メニューの CSS Sprite タイル描画サポート**
-   - `shim_add_menu` で数値 Glyph ID をダイレクト保持し、テキストからのスマートカテゴリ推論フォールバック (`inferGlyphFromText`) によりインベントリ画面等の全アイテムにグラフィックアイコンを描画。
-7. **Web Worker 隔離によるUI描画・動画フリーズの根本解消 (Web Worker Architecture)**
-   - Wasmコアと Asyncify（マイクロタスク占有とスタック退避・復元）を `nethack.worker.js` 内に分離隔離。
-   - 同一ブラウザの別タブで YouTube などの動画を再生した状態で NetHack を操作しても、UIスレッドが一切ブロッキングされず、フリーズ（くるくる）しない完全並行動作を確立。
-   - `NetHackWasmWorkerBridge.js` により、UI側からは従来の Driver と 100% 同一の API インターフェース（`activeResolver` ゲッター等含む）で透過的に利用可能。
+### 1. ES Modules (`import`)
+
+```javascript
+import { NetHackWasmWorkerBridge, NetHackFSManager } from './src/driver/index.js';
+
+// 1. Worker ブリッジの生成
+const driver = new NetHackWasmWorkerBridge('./src/driver/nethack.worker.js', {
+    arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
+    debug: true
+});
+
+// 2. 高解像度イベントの受聴
+driver.on('putstr', ({ windowId, text }) => {
+    console.log(`[Window ${windowId}] ${text}`);
+});
+
+driver.on('status_update', ({ field, value }) => {
+    console.log(`Status [field:${field}] = ${value}`);
+});
+
+driver.on('inputRequired', ({ context, prompt, resolver }) => {
+    if (context === 'askname') {
+        resolver.respond('Hero');
+    } else if (context === 'yn') {
+        resolver.respond(121); // 'y'
+    }
+});
+
+// 3. Wasm エンジン初期化 & 起動
+driver.on('initialized', async () => {
+    console.log("Wasm initialized inside Worker!");
+    const exitCode = await driver.start();
+    console.log("Engine exited with code:", exitCode);
+});
+
+driver.init('nethack.js');
+```
+
+### 2. Browser Script Tag (Global)
+
+```html
+<script src="src/driver/NetHackMemory.js"></script>
+<script src="src/driver/InputResolver.js"></script>
+<script src="src/driver/NetHackFSManager.js"></script>
+<script src="src/driver/NetHackWasmDriver.js"></script>
+<script src="src/driver/NetHackWasmWorkerBridge.js"></script>
+
+<script>
+  const bridge = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
+  // ...同一の API で利用可能
+</script>
+```
+
+---
+
+## ✨ 主な特徴と独立性 (Key Features)
+
+1. **完全なレイヤー分離 (Decoupled Design)**
+   - UI描画ロジックと Wasm メモリ操作・C構造体解析を完全に切り離し、Pure JS Object の Typed Event (`putstr`, `print_glyph`, `status_update`, `inputRequired` 等) として配信。
+2. **Web Worker 隔離実行 (Multi-threaded Non-blocking Execution)**
+   - Wasm コアおよび Asyncify を Worker スレッド内に分離。YouTube 等の動画再生中や重い DOM 描画処理中でも UI スレッドをブロッキングしません。
+3. **シームレスなセーブデータ自動復元 & 物理抹消**
+   - VFS (`/save`) および IndexedDB (`/indexedDB`) 内のセーブデータを走査・自動検出・無条件一括物理削除する `NetHackFSManager` を内蔵。
+4. **C 構造体サイズ（`menu_item` / `glyph_info`）完全解釈**
+   - Wasm32 アロケーション規約に基づき `menu_item` (`struct mi`) を 12バイトレイアウトで正しく書き込み。
+5. **ステータス情報の構造化デコード (`BL_` フィールド)**
+   - 金額 (Gold), 空腹状態 (Hunger), 状態異常 (Condition: Blind, Confused 等) を人間・UIが扱いやすい形式に自動変換してパブリッシュ。
 
 ---
 
@@ -56,54 +109,10 @@ src/driver/
 
 ---
 
-## 💻 簡易使用コード例 (Quick Example)
-
-```javascript
-import NetHackWasmWorkerBridge from './src/driver/NetHackWasmWorkerBridge.js';
-
-// 1. ブリッジインスタンスの生成 (Worker スクリプトを指定)
-const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
-    arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
-    gameOptions: {
-        number_pad: 1,
-        showexp: true,
-        time: true,
-        showvers: true
-    },
-    debug: true
-});
-
-// 2. イベントリスナーの登録
-driver.on('status_update', ({ field, value }) => {
-    console.log(`Status field ${field} updated to:`, value);
-});
-
-driver.on('inputRequired', ({ context, question, detectedName, resolver }) => {
-    if (context === 'askname' && detectedName) {
-        // 既存のセーブデータ名で即座に自動復元・再開！
-        resolver.respond(detectedName);
-    } else if (context === 'yn_function') {
-        resolver.respond(121); // 'y'
-    }
-});
-
-// 3. Wasm初期化完了イベントを受けて起動
-driver.on('initialized', async () => {
-    console.log("Wasm initialized inside Worker!");
-    const exitCode = await driver.start();
-    console.log("Game exited with code:", exitCode);
-});
-
-driver.init('nethack.js');
-```
-
----
-
 ## 📚 ドライバー詳細仕様書 (Docs)
 
-ドライバーの詳細な内部設計や API リファレンスは以下に保管されています：
+- 📄 **[アーキテクチャ & ロードマップ](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_architecture_and_roadmap.md)**
+- 📄 **[API リファレンスガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_api_reference.md)**
+- 📄 **[ドライバーコア技術仕様書](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_core_spec.md)**
 
-- 📄 **[API リファレンスガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/Docs/1_driver/driver_api_reference.md)** (`Docs/1_driver/driver_api_reference.md`)
-- 📄 **[ドライバーコア技術仕様書](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/Docs/1_driver/driver_core_spec.md)** (`Docs/1_driver/driver_core_spec.md`)
-- 📄 **[WebUI クライアント実装ガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/Docs/2_client_ui/client_integration_guide.md)** (`Docs/2_client_ui/client_integration_guide.md`)
 

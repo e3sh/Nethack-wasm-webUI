@@ -111,6 +111,10 @@
         globalThis.InputResolver = InputResolver;
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { InputResolver };
+        module.exports = InputResolver;
+        module.exports.InputResolver = InputResolver;
+        module.exports.default = InputResolver;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+

@@ -115,7 +115,7 @@ YouTube再生フリーズなどの非同期タスク占有問題を解消する�
 標準動作モデルとして **Web Worker 隔離モデル (`NetHackWasmWorkerBridge`)** を使用し、既存の WebUI 環境を安全に移行・リファクタリングします。
 
 ```
-[Phase 1: モジュール作成 (済)] ➔ [Phase 2: テスト検証 (済)] ➔ [Worker化: WorkerBridge構築 (済)] ➔ [Phase 3: GameManager 接続 & UI機能復元 (済)] ➔ [Phase 4: クリーンアップ (次回)]
+[Phase 1: モジュール作成 (済)] ➔ [Phase 2: テスト検証 (済)] ➔ [Worker化: WorkerBridge構築 (済)] ➔ [Phase 3: GameManager 接続 & UI機能復元 (済)] ➔ [Phase 4: クリーンアップ & パッケージ独立化 (済)]
 ```
 
 ### ✅ Phase 1: Driver モジュールの新規作成 (完了)
@@ -138,28 +138,17 @@ YouTube再生フリーズなどの非同期タスク占有問題を解消する�
   - 参照専用長文メニュー (ダンジョン概要等) での `do...while` 無限ループフリーズ保護ガードの実装。
   - Cコア `paniclog` 解析に基づく `yn_function` レスポンス (`^M`) の安全自動正規化。
 
-### 📍 Phase 4: クリーンアップ & パッケージ独立化 (次回実施予定)
-- **タスク要件**:
-  - `GameManager.js` 内の旧 Wasm 直結時代の不要コード（未使用の旧直接フック処理、不要な直接メモリ変換関数 `getPointerValue` / `parseGlyphInfo` 等）を安全に整理・除去し、純粋な UI アダプタへスリム化。
-  - `src/driver/`（`NetHackWasmDriver`, `NetHackWasmWorkerBridge`, `NetHackFSManager`, `NetHackMemory`, `InputResolver`）を他プロジェクトから単体で再利用できる独立ライブラリとしてパッケージ整理・ドキュメント整備。
+### ✅ Phase 4: クリーンアップ & パッケージ独立化 (完了)
+- **達成成果**:
+  - `GameManager.js` 内の旧 Wasm 直結時代の不要デッドコード（`setupNethackGlobal`, `eventHook` の巨大 switch 処理, 直結用 main ブートストラップ）を完全除去し、行数を 2,143 行から 1,098 行（約 50% 減）へスリム化。
+  - `src/driver/index.js`（統合エントリーポイント）および `src/driver/package.json`（npm パッケージマニフェスト `@nethack/wasm-driver`）を新規作成。
+  - 全モジュールのモジュールエクスポート（ESM, CommonJS, Browser Global）を統一整備。
+  - `src/driver/README.md` をスタンドアロン汎用ライブラリ利用仕様書として全面更新。
+
 
 ---
 
-## 5. 次回 Conversation（引き継ぎ）用コンテキスト & 指示書
+## 5. 全プロジェクトリファクタリング完了記録
 
-次の会話（新しい Conversation）を開始する際は、以下のプロンプトをそのまま入力してください。
-
-```text
-前回のセッションで「Phase 3: GameManager 接続 & UI機能復元」が 100% 完了しました。
-「docs/1_driver/driver_architecture_and_roadmap.md」の設計仕様書に基づき、最後の【Phase 4: クリーンアップ & パッケージ独立化】の作業を開始してください。
-
-具体的には：
-1. GameManager.js 内に残っている旧 Wasm 直結時代の不要コード（未使用の直接ポインタ関数 getPointerValue / parseGlyphInfo 等やレガシーな不要処理）を安全にクリーンアップ・スリム化する。
-2. src/driver/ 配下のモジュール群を、外部プロジェクトからも単体で独立利用できる汎用 WASM Driver ライブラリとして整理・クリーンアップする。
-```
-
-### 関連主要参照ファイル
-*   仕様書: [docs/1_driver/driver_architecture_and_roadmap.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_architecture_and_roadmap.md)
-*   メイン UI マネージャー: [rogue/GameManager.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/rogue/GameManager.js)
-*   Worker ブリッジ: [src/driver/NetHackWasmWorkerBridge.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/NetHackWasmWorkerBridge.js)
+本アーキテクチャ再構築ロードマップ（Phase 1 〜 Phase 4）のすべての開発目標が 100% 達成され、Web Worker 隔離通信モデルによる堅牢な WASM Driver アーキテクチャ (`@nethack/wasm-driver`) への移行が完了しました。
 *   WASM ドライバコア: [src/driver/NetHackWasmDriver.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/NetHackWasmDriver.js)

@@ -325,6 +325,10 @@
         globalThis.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { NetHackWasmWorkerBridge };
+        module.exports = NetHackWasmWorkerBridge;
+        module.exports.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;
+        module.exports.default = NetHackWasmWorkerBridge;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+

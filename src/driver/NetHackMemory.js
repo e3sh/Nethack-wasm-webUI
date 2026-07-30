@@ -331,6 +331,10 @@
         globalThis.NetHackMemory = NetHackMemory;
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { NetHackMemory };
+        module.exports = NetHackMemory;
+        module.exports.NetHackMemory = NetHackMemory;
+        module.exports.default = NetHackMemory;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
