@@ -10818,6 +10818,19 @@
         { en: "You float gently to the ground.", jp: "あなたはふわりと地面に舞い降ります。" },
         { en: "It yelps!", jp: "それはキャンと鳴き声を上げた！" },
         { en: "You try to feel what is lying here on the ground.", jp: "地面に横たわっているものが何なのか、確かめようとする。" },
+        { en: "You are not on an altar.", jp: "あなたは祭壇の上にいません。" },
+        { en: "You don't have a special ability in your normal form!", jp: "通常形態では特殊能力を持っていません！" },
+        { en: "a particular object in inventory", jp: "インベントリ内の特定のアイテム" },
+        { en: "the type of an object in inventory", jp: "インベントリ内のアイテムの種類" },
+        { en: "the type of an object upon the floor", jp: "フロア上のアイテムの種類" },
+        { en: "the type of an object on discoveries list", jp: "発見リスト上のアイテムの種類" },
+        { en: "record an annotation for the current level", jp: "現在のレベルに関する注釈を記録する" },
+        { en: "What do you want to call this dungeon level?", jp: "このダンジョンの階層にどのような名前を付けますか？" },
+        { en: "All worn and wielded types", jp: "装備済みおよび所持中のすべての種類" },
+        { en: "What type of object do you want an inventory of?", jp: "どの種類のアイテムのインベントリを作成しますか？" },
+        { en: "You are not using any tools.", jp: "現在、道具(ツール）は使用していません。" },
+        { en: "You are not wearing any rings.", jp: "指輪は着用していません。" },
+        { en: "Persistent inventory display is not supported by 'shim'.", jp: "「shim」ではインベントリの常時表示はサポートされていません。" },
     ];
 }
 
@@ -12312,6 +12325,7 @@ function nhEntities() {
         "Val": "ワルキューレ",
         "Wiz": "魔法使い",
         "dungeon": "ダンジョン",
+        "tools": "道具(ツール）",
     };
 }
 
@@ -16122,7 +16136,7 @@ function nhPatterns() {
         { pattern: /^To\s+attach\s+candles,\s+apply\s+them\s+instead\s+of\s+the\s+(.*)\.$/, replace: "キャンドルを取り付けるには、 $1 の代わりにキャンドルを取り付けます。" },
         { pattern: /^(.*)\s+(.*)\s+for\s+a\s+moment,\s+then\s+(.*)\.$/, replace: "しばらくの間 $1  $2 、その後 $3 。" },
         { pattern: /^(.*)\s+lit\.\s+\s+(.*)\s+dimly\.$/, replace: "$1 点灯。 $1 薄暗い。" },
-        { pattern: /^(.*)'s\s+(.*)\s+burn(.*)$/, replace: "$1 の $1 は $1 を燃やします" },
+        { pattern: /^(.*)'s\s+(.*)\s+burn(.*)$/, replace: "$1 の $2 は $3 を燃やします" },
         { pattern: /^(.*)\s+(.*)\s+being\s+rapidly\s+consumed!$/, replace: "$1  $2 は急速に消費されています!" },
         { pattern: /^(.*)\s+a\s+strange\s+warmth!$/, replace: "$1 不思議な温か​​さ！" },
         { pattern: /^(.*)\s+with\s+a\s+strange\s+light!$/, replace: "$1 奇妙な光が！" },
@@ -16182,7 +16196,7 @@ function nhPatterns() {
         { pattern: /^finish\s+arming\s+(.*)\.$/, replace: "$1 の準備を完了します。" },
         { pattern: /^flick\s+a\s+bug\s+off\s+of\s+the\s+(.*)\.$/, replace: "$1 からバグを取り除きます。" },
         { pattern: /^whip\s+(.*)!$/, replace: "鞭 $1 !" },
-        { pattern: /^wrap\s+your\s+bullwhip\s+around\s+(.*)\s+on\s+the\s+(.*)\.$/, replace: "$1 の $1 に鞭を巻き付けます。" },
+        { pattern: /^wrap\s+your\s+bullwhip\s+around\s+(.*)\s+on\s+the\s+(.*)\.$/, replace: "$2 の $1 に鞭を巻き付けます。" },
         { pattern: /^hit\s+your\s+(.*)\s+with\s+your\s+bullwhip\.$/, replace: "鞭で $1 を殴ってください。" },
         { pattern: /^bullwhip\s+slips\s+out\s+of\s+your\s+(.*)\.$/, replace: "鞭があなたの $1 から滑り落ちます。" },
         { pattern: /^wrap\s+your\s+bullwhip\s+around\s+(.*)\.$/, replace: "鞭を $1 に巻き付けます。" },
@@ -16414,7 +16428,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+shirt\s+is\s+obscured\s+by\s+(.*)(.*)\.$/, replace: "$1 シャツは $1  $2 によって隠れています。" },
         { pattern: /^(.*)\s+features\s+(.*)\.$/, replace: "$1 には $1 の機能があります。" },
         { pattern: /^find\s+anything\s+to\s+read\s+on\s+this\s+(.*)\.$/, replace: "この $1 で読むものを見つけてください。" },
-        { pattern: /^(.*)\s+on\s+the\s+(.*)\.\s+\s+It\s+reads:\s+\s+(.*)\.$/, replace: "$1 の $1 。 $1 となります。" },
+        { pattern: /^(.*)\s+on\s+the\s+(.*)\.\s+\s+It\s+reads:\s+\s+(.*)\.$/, replace: "$1 の $2 。 $3 となります。" },
         { pattern: /^This\s+(.*)\s+has\s+no\s+label\.$/, replace: "この $1 にはラベルがありません。" },
         { pattern: /^"Magic\s+Marker\(TM\)\s+(.*)\s+Red\s+Ink\s+Marker\s+Pen\.\s+\s+Water\s+Soluble\."$/, replace: "「Magic Marker(TM) $1 赤インク マーカー ペン。水溶性。」" },
         { pattern: /^The\s+wrapper\s+reads:\s+"(.*)"\.$/, replace: "ラッパーには「 $1 」と書かれています。" },
@@ -16457,7 +16471,7 @@ function nhPatterns() {
         { pattern: /^What\s+weird\s+effect\s+is\s+this\?\s+\((.*)\)$/, replace: "これは何という奇妙な効果でしょうか？ ( $1 )" },
         { pattern: /^are\s+hit\s+by\s+(.*)!$/, replace: "$1 に襲われています!" },
         { pattern: /^something\s+hit\s+(.*)\s+(.*)\s+over\s+your\s+(.*)!$/, replace: "あなたの $1 の上で何かが $2  $3 に当たりました!" },
-        { pattern: /^(.*)'s\s+(.*)\s+does\s+not\s+protect\s+(.*)\.$/, replace: "$1 の $1 は $1 を保護しません。" },
+        { pattern: /^(.*)'s\s+(.*)\s+does\s+not\s+protect\s+(.*)\.$/, replace: "$1 の $2 は $3 を保護しません。" },
         { pattern: /^(.*)\s+is\s+killed\.$/, replace: "$1 が殺されました。" },
         { pattern: /^(.*)\s+(.*)\s+explodes!$/, replace: "$1  $2 が爆発します!" },
         { pattern: /^(.*)\s+(.*)\s+is\s+lit\.$/, replace: "$1  $2 が点灯します。" },
@@ -16836,7 +16850,7 @@ function nhPatterns() {
         { pattern: /^averted\s+death\s+\((.*)\)$/, replace: "死は回避されました ( $1 )" },
         { pattern: /^(.*)\s+with\s+(.*)\s+point(.*),$/, replace: "$1 と $2 ポイント $1 、" },
         { pattern: /^You\s+(.*)\s+beyond\s+the\s+confines\s+of\s+the\s+dungeon$/, replace: "あなたはダンジョンの境界を越えて $1" },
-        { pattern: /^You\s+(.*)\s+in\s+(.*)$/, replace: "あなたは $1 の $1 です" },
+        { pattern: /^You\s+(.*)\s+in\s+(.*)$/, replace: "あなたは $1 の $2 です" },
         { pattern: /^on\s+dungeon\s+level\s+(.*)$/, replace: "ダンジョンレベル $1" },
         { pattern: /^with\s+(.*)\s+point(.*),$/, replace: "$1 点 $2 で、" },
         { pattern: /^and\s+(.*)\s+piece(.*)\s+of\s+gold,\s+after\s+(.*)\s+move(.*)\.$/, replace: "$1 個の金 $2 を $1 移動した後、 $2 を移動します。" },
@@ -16961,6 +16975,7 @@ function nhPatterns() {
         { pattern: /^\s+\s+You\s+were\s+(.*)\.$/, replace: "あなたは$1だった。" },
         { pattern: /^You\s+escaped\s+from\s+(.*)\s+on\s+level\s+(.*)\s+with\s+(.*)\s+points\.$/, replace: "あなたは$3ポイントで、$1の$2階から脱出しました。" },
         { pattern: /^Your\s+(.*)\s+slips\s+from\s+your\s+hand\.$/, replace: "あなたの手から$1が滑り落ちる" },
+        { pattern: /^The\s+(.*)\s+command\s+does\s+not\s+accept\s+'m'\s+prefix\.$/, replace: "「$1」コマンドでは「m」接頭辞を受け付けません。" },
     ];
 }
 

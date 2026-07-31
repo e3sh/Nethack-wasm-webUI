@@ -120,7 +120,7 @@ class ioControl extends GameTask {
 		input.pushdown = p;
 
 		let keylist = [];
-		let shift = false, space = false, alt = false;
+		let shift = false, space = false, alt = false, ctrl = false;
 		let gpresult = this.GpadToKey.check([]);
 		if (g.rogue) this.GridPad.updateContext(g.rogue.inputContext);
 		if (!g.rogue || !g.rogue.isModalActive || !g.rogue.isModalActive()) {
@@ -148,6 +148,7 @@ class ioControl extends GameTask {
 		input.shift = shift;
 		input.space = space;
 		input.alt = alt;
+
 		this.input = input;
 
 		if (this.modeM) return;

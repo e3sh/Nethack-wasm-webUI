@@ -1,12 +1,17 @@
 # 辞書更新オペレーションガイド
 
-新しい統合辞書形式（`nhMessage.js`）および高速化された翻訳エンジンに基づいた、翻訳データの更新手順を説明します。
+本ドキュメントでは、マスター辞書データ（`dictionary.csv`）と実行用辞書（`param/nhMessage.js`）の連携、基本的なファイル操作コマンド、および翻訳運用フローについて説明します。
 
-## 基本のワークフロー
+> [!TIP]
+> プレイ中のリアルタイム対訳表示（`tr_log.html`）や単体テストツール（`tr_test.html`）などの翻訳支援ツールおよび画面連携の詳細については、[翻訳支援ツール＆リアルタイム検証環境ガイド](translation_support_tools.md) をご覧ください。
 
-翻訳の追加・修正は、**CSVファイルを書き出して表計算ソフト（Excel, Google Sheets等）で編集し、再び取り込む**という流れで行います。
+---
 
-### 1. 辞書をCSVにエクスポートする
+## 1. 基本のファイル操作コマンド（標準ワークフロー）
+
+翻訳データの追加・修正は、**`dictionary.csv`（マスターデータ）を編集し、CLIツールで `param/nhMessage.js` へインポートする** という流れで行います。
+
+### ステップ 1: 辞書を CSV にエクスポートする
 以下のコマンドを実行すると、プロジェクトルートに `dictionary.csv` が生成されます。
 
 ```powershell
@@ -17,20 +22,20 @@ python tools/dict_converter.py export
 python tools/dict_converter.py export my_dict.csv
 ```
 
-### 2. CSVファイルを編集する
-`dictionary.csv` を Excel や Google スプレッドシートで開いて編集します。
+### ステップ 2: CSV ファイルを編集する
+`dictionary.csv` を Excel、Google スプレッドシート、またはテキストエディタで開いて編集します。
 
 - **Group**: データの所属（`Message`, `Entity`, `Item`, `Pattern`）です。**変更しないでください。**
 - **Source**: 原文（英語）または正規表現パターンです。**基本的に変更しないでください。**
 - **Translation**: 日本語訳（名詞または一般訳）を入力します。
 - **Adj / Verb**: （Entity/Itemのみ）形容詞的・動詞的に使用される場合の訳を入力します（例：アイテムの状態異常など）。
-- **改行の扱い**: 改行を含めたい場合は、スプレッドシート内で `\\n` と記述してください。
+- **改行の扱い**: 改行を含めたい場合は、スプレッドシート内で `\n` または `\\n` と記述してください。
 
 > [!IMPORTANT]
-> 「Group」や「Source」の値を変更したり行を削除したりすると、既存のメッセージとの紐付けが壊れる可能性があります。主に「Translation」以降のカラムを編集してください。
+> 「Group」や「Source」の値を変更したり既存行を誤って削除すると、既存メッセージとの紐付けが壊れる可能性があります。主に「Translation」以降のカラムを編集してください。
 
-### 3. 編集したCSVをプロジェクトに取り込む
-CSVファイルを保存（UTF-8形式）し、プロジェクトルートに配置した状態で以下のコマンドを実行します。
+### ステップ 3: 編集した CSV をプロジェクトに取り込む (インポート)
+CSV ファイルを保存（UTF-8 形式）し、プロジェクトルートに配置した状態で以下のコマンドを実行します。
 
 ```powershell
 # デフォルト（dictionary.csv）から取り込み
@@ -40,13 +45,17 @@ python tools/dict_converter.py import
 python tools/dict_converter.py import my_dict.csv
 ```
 
-これにより、以下のファイルが自動更新（書き出し）されます：
-- `param/nhMessage.js`
-    - この1つのファイルに全データ（Message, Entity, Item, Pattern）が集約されました。
+これにより、以下のファイルが全自動で更新（生成）されます：
+- **`param/nhMessage.js`**: WebUI 実行時に読み込まれる統合辞書JavaScriptファイル。
+
+> [!NOTE]
+> **自動変換の仕組み**:
+> - CSV 上の半角スペースは、インポート時に自動的に正規表現用スペース `\s+` に変換されます。
+> - `[BEGIN: ...]` や `=== TODO ===` 等の管理用タグはインポート時に自動で除去されて出力されます。
 
 ---
 
-## データの種類別アドバイス
+## 2. データの種類別アドバイス
 
 ### Message (一般的なメッセージ)
 - ゲーム内の固定メッセージ（文章）です。
@@ -54,7 +63,7 @@ python tools/dict_converter.py import my_dict.csv
 
 ### Entity / Item (固有名詞・アイテム)
 - 品詞（Adj/Verb）のカラムを埋めることで、翻訳エンジンが状況に応じて適切な語形を選択します。
-- 空欄の場合は `Translation`（Noun扱）が使用されます。
+- 空欄の場合は `Translation`（Noun扱い）が使用されます。
 
 ### Pattern (正規表現パターン)
 - `Source` に正規表現（例：`You see here (.*)\.`）、`Translation` に置換文字列（例：`ここに$1がある。`）を記述します。
@@ -66,42 +75,47 @@ python tools/dict_converter.py import my_dict.csv
 
 ---
 
-## 新しい開発フロー：一時バッファの活用
+## 3. 【実施済み実績】一時バッファと `tr_manager.html` を併用した開発・検証フロー
 
-従来の「CSVを編集してビルド(convert)する」フローに加えて、**実際のゲーム画面を見ながら手軽に翻訳を追加し、即座に確認する**ためのワークフローが導入されました。
+本プロジェクトでは、実際のゲーム画面を見ながら手軽に翻訳を追加・テスト・バックフィルするフローが実装され、運用実績を残しています。
 
-### ステップ 1: 未翻訳メッセージの収集
-1. ゲーム起動時の設定画面 (`config.html`) で **「LANG_LARNMODE (未翻訳メッセージを収集します)」** を ON にします。
-   - もしくは `rogueDefines.js` の `LANG_LEARNMODE` を直接 `true` に設定します。
-2. 翻訳されていないメッセージが表示されると、自動的にブラウザの `localStorage("nh.temp")` に蓄積されます。
+```
+[ゲーム画面 (LANG_LEARNMODE)]
+       │ (未翻訳メッセージ収集)
+       ▼
+[localStorage ("nh.temp")]
+       │
+       ▼
+[tr_manager.html (翻訳管理ツール)]
+       │ (暫定翻訳入力 & 「保存 & 反映」)
+       ├─────────────────────────────────┐
+       ▼                                 ▼
+[localStorage ("nh.ext_data")]   [nhMessage_ext.json]
+(ゲームリロードで即反映)           (配布・共有用)
+       │
+       ▼ (確定後にバックフィル)
+[dictionary.csv] ──(dict_converter.py import)──> [param/nhMessage.js]
+```
 
-### ステップ 2: 翻訳管理ツール (`tr_manager.html`) の使用
-1. ブラウザで `tr_manager.html` を開きます。
-2. 左側のパネルに蓄積された原文リストが表示されるので、翻訳したい項目にチェックを入れます。
-3. 中央のプレビューを確認し、「保存 & 反映」ボタンを押します。
-   - ブラウザに `nhMessage_ext.json` がダウンロードされます。
-   - 同時に `localStorage("nh.ext_data")` も更新されます。
+### ステップ 1: 未翻訳メッセージの自動収集 (実施済み)
+1. 設定画面 (`config.html`) で **「LANG_LEARNMODE」** を ON に設定。
+2. 未翻訳メッセージが表示されると、自動的に `localStorage("nh.temp")` に蓄積。
 
-### ステップ 3: ゲームへの反映とテスト
-1. ゲーム画面（`index.html`等）に戻り、ページをリロードします。
-2. 先ほど追加した翻訳がすぐに反映されます。
-3. ダウンロードされた `nhMessage_ext.json` をプロジェクトのルートディレクトリに配置しておくと、他のブラウザや環境でもその翻訳が自動で読み込まれます。
+### ステップ 2: 翻訳管理ツール (`tr_manager.html`) での試作 (実施済み)
+1. `tr_manager.html` を開き、未翻訳リストから対象を選択。
+2. 暫定訳を入力して「保存 & 反映」を押す。
+   - `localStorage("nh.ext_data")` が更新されるとともに、`nhMessage_ext.json` がダウンロード可能に。
+
+### ステップ 3: ゲームでの即時確認 (実施済み)
+1. ゲーム画面（`index.html` 等）をリロードするだけで、暫定翻訳が即座に適用。
 
 ### ステップ 4: マスター辞書への統合 (Backfill)
-ある程度翻訳が溜まったら、メンテナンス性のために `dictionary.csv` への統合を行います。
-
-1. `nhMessage_ext.json` の内容をコピーします。
-2. `dictionary.csv` をスプレッドシート等で開き、末尾にデータを貼り付けます。
-   - **Group** は内容に応じて `Message`, `Entity`, `Item` 等を選択してください。
-3. `python tools/dict_converter.py import` を実行して、`nhMessage.js` を更新します。
-4. 統合が完了したら、`nhMessage_ext.json` や `localStorage` のデータは削除して構いません。
-
-> [!TIP]
-> `tr_manager.html` はあくまで「試作・デバッグ用」のバッファとして利用し、公式なリリース前には必ず CSV への統合を行ってください。
+1. 暫定翻訳データを `dictionary.csv` の末尾へ書き戻し。
+2. `python tools/dict_converter.py import` を実行して `nhMessage.js` を更新。
 
 ---
 
-## 注意点
+## 4. 運用上の注意点
 
-- **BOM付きUTF-8**: ツールは Excel で開きやすいよう BOM 付き UTF-8 で出力します。保存時もこの形式を維持してください。
-- **Gitでの確認**: `import` 後は `git diff` で意図しない破壊（エスケープ漏れなど）がないか必ず確認してください。
+- **BOM付き UTF-8**: ツールは Excel で編集しやすいよう BOM 付き UTF-8 で出力・読み込みを行います。保存時もこの形式を維持してください。
+- **Git による確認**: `import` コマンド実行後は、必ず `git diff` を行い、エスケープ漏れや意図しない破壊がないか確認してください。
