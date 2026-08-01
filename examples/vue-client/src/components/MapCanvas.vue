@@ -33,8 +33,9 @@ let tileMapTable: Record<number, number> = {};
 onMounted(() => {
   tileMapTable = getTileMapping();
 
+  // 相対パス ./pict/nethack_default_32.png (GitHub Pages / Live Server 互換)
   tileImage = new Image();
-  tileImage.src = '/pict/nethack_default_32.png';
+  tileImage.src = './pict/nethack_default_32.png';
   tileImage.onload = () => {
     isTileLoaded = true;
     renderFullMap();
@@ -121,12 +122,11 @@ function renderFullMap() {
     }
   }
 
-  // 3. プレイヤー/ターゲット位置カーソル描画 (静的で落ち着いたスリム枠線)
+  // 3. プレイヤー/ターゲット位置カーソル描画 (シックなスリム枠線)
   if (cursorPos.value) {
     const cx = cursorPos.value.x * TILE_SIZE;
     const cy = cursorPos.value.y * TILE_SIZE;
 
-    // 点滅を完全廃止し、シックで落ち着いたシアンの枠線
     ctx.strokeStyle = '#00adb5';
     ctx.lineWidth = 2;
     ctx.strokeRect(cx + 1, cy + 1, TILE_SIZE - 2, TILE_SIZE - 2);

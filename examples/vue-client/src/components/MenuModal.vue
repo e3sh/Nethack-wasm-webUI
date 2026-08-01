@@ -99,7 +99,7 @@ function getTileStyle(item: any): string {
   const posX = -(tx / 2);
   const posY = -(ty / 2);
 
-  return `background-image: url(/pict/nethack_default_32.png); background-position: ${posX}px ${posY}px; background-size: 640px auto; width: 16px; height: 16px; min-width: 16px; min-height: 16px; flex-shrink: 0; display: inline-block; image-rendering: pixelated; margin-right: 6px; background-repeat: no-repeat; vertical-align: middle;`;
+  return `background-image: url(./pict/nethack_default_32.png); background-position: ${posX}px ${posY}px; background-size: 640px auto; width: 16px; height: 16px; min-width: 16px; min-height: 16px; flex-shrink: 0; display: inline-block; image-rendering: pixelated; margin-right: 6px; background-repeat: no-repeat; vertical-align: middle;`;
 }
 
 function safeRespondMenu(val: any) {

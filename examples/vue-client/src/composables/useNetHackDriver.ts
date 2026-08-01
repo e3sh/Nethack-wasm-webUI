@@ -83,8 +83,10 @@ export function useNetHackDriver() {
     });
 
     // 4. ステータス更新 & タイル・文字描画 & カーソル位置追従
-    bridge.on('status_update', ({ field, value }: { field: number; value: any }) => {
-      gameStore.updateStatus(field, value);
+    bridge.on('status_update', (payload: any) => {
+      const field = payload.field ?? payload.fld;
+      const value = payload.value ?? payload.parsedVal ?? payload.rawVal;
+      gameStore.updateStatus(field, value, payload);
     });
 
     bridge.on('curs', ({ windowId, x, y }: { windowId: number; x: number; y: number }) => {
@@ -187,7 +189,6 @@ export function useNetHackDriver() {
       }
 
       // Case C: yn_function, nhgetch, poskey, getlin, get_ext_cmd 等
-      // ★超重要: 未解約のプロンプトがあれば安全解約してから新プロンプトを確実にセット！
       if (activePromptResolver.value) {
         activePromptResolver.value.respond(0);
         activePromptResolver.value = null;
@@ -226,7 +227,6 @@ export function useNetHackDriver() {
     bridge.init(nethackJsPath);
   });
 
-  // 全グローバルキーハンドラ
   function handleGlobalKeyDown(e: KeyboardEvent) {
     if (
       document.activeElement &&
@@ -248,7 +248,6 @@ export function useNetHackDriver() {
     else if (e.key === ' ') charCode = 32;
     else if (e.key.length === 1) charCode = e.key.charCodeAt(0);
 
-    // ★超重要: activePromptResolver が存在すれば即座にレスポンスしてエンジンを駆動！
     if (charCode > 0 && activePromptResolver.value) {
       const res = activePromptResolver.value;
       activePromptResolver.value = null;

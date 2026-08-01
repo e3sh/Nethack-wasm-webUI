@@ -87,6 +87,18 @@ export const useGameStore = defineStore('game', () => {
   function addMessage(text: string) {
     if (!text || text.trim() === '') return;
     const trimmed = text.trim();
+
+    // C コア起動時の sysconf / システム初期化ノイズログの自動フィルタリング
+    if (
+      trimmed.includes('MAXPLAYERS') ||
+      trimmed.includes('sysconf file') ||
+      trimmed.includes('WIZARDS are set') ||
+      trimmed.includes('EXPLORERS are set') ||
+      trimmed.includes('DEBUGGER is set')
+    ) {
+      return;
+    }
+
     if (messages.value.length > 0 && messages.value[messages.value.length - 1] === trimmed) {
       return;
     }
@@ -96,16 +108,21 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function updateStatus(field: number, value: any) {
+  function updateStatus(field: number, value: any, rawPayload?: any) {
     switch (field) {
       case 0: status.title = String(value || ''); break;
-      case 10:
-        if (typeof value === 'object' && value !== null) {
-          status.gold = value.amount ?? 0;
-        } else {
-          status.gold = Number(value) || 0;
+      case 10: { // Gold (所持金)
+        // ドライバー(NetHackMemory.js)がデコードした goldData.amount を直接受容
+        if (rawPayload?.goldData && typeof rawPayload.goldData.amount === 'number') {
+          status.gold = rawPayload.goldData.amount;
+        } else if (typeof value === 'number') {
+          status.gold = value;
+        } else if (typeof value === 'string') {
+          const parts = value.split(':');
+          status.gold = parseInt(parts[parts.length - 1], 10) || 0;
         }
         break;
+      }
       case 11: status.pw = Number(value) || 0; break;
       case 12: status.pwMax = Number(value) || 0; break;
       case 13: status.xp = Number(value) || 1; break;
