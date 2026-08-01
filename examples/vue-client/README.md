@@ -1,166 +1,101 @@
-# NetHack Wasm Vue 3 サンプルクライアント (`@nethack/vue-client`)
+# NetHack Wasm Driver - Vue 3 + Vite + TypeScript サンプルクライアント
 
-このディレクトリは、**NetHack Wasm Driver (`@nethack/wasm-driver`)** を利用して構築された、Vue 3 + Vite + TypeScript + Pinia による実証検証用フル機能 Web UI サンプルです。
+本サンプルクライアント (`examples/vue-client`) は、**`@nethack/wasm-driver`** を使用して構築された、Vue 3 + TypeScript による実践的な WebUI アプリケーションです。
 
-モダンな Vue 3 コンポジション API と TypeScript を活用して、NetHack C コアの非同期 Asyncify イベント駆動型ゲームループと安全かつ美しく連携する実装パターンを示しています。
-
----
-
-## 🌟 主な機能と特徴
-
-1. **ハイブリッド 2D Canvas マップ描画**
-   - `param/tileMapping.js` に準拠した正統スプライト描画 (`nethack_default_32.png`)
-   - 16 色 TTY カラーパレットによる高精細 ASCII フォールバック描画
-   - `requestAnimationFrame` による高速かつ滑らかなリアルタイム同期
-
-2. **直感的なメニュー & インベントリモーダル (`MenuModal.vue`)**
-   - スプライトアイコン表示付きのインベントリ一覧
-   - 単一選択 (`how === 1`) / 複数選択 (`how === 2`) / 閲覧専用 (`how === 0`) モード対応
-   - アクセラレータキー (`a`, `b`, `c`...) 表示およびキーボード文字直接押下による即時決定・送信
-   - クリック選択対応
-
-3. **ヘルプ & テキスト閲覧モーダル (`TextWindowModal.vue`)**
-   - 長文テキスト、ヘルプ文言、ガイドのポップアップ閲覧
-   - `OK (Enter / Space / ESC)` ボタンおよびキー操作による快適な閉じ動作
-
-4. **動的ステータスバー (`StatusBar.vue`)**
-   - ダンジョンブランチ名を含む階層 (`Dlvl:1`, `Tut:1`, `Mines:1` 等) の完全自動追従
-   - HP, Pw, AC, Gold, Hunger 状態, コンディションバッジの表示
-
-5. **入力プロンプト & 拡張コマンド (`InputPrompt.vue`)**
-   - 1 行テキスト入力プロンプト (`askname`, `getlin` 等)
-   - 拡張コマンド (`#` / `get_ext_cmd`) のライン入力対応 (`pray`, `dip`, `jump` 等)
-   - オプションや名前変更時の安全な `Cancel (ESC)` 機能
-
-6. **キー入力・操作の完全分離ガード**
-   - テキスト入力フォームフォーカス時、モーダル表示中のグローバルキー爆発・誤作動を 100% 遮断
+単なる「動くだけ」の最小サンプルではなく、プロダクション運用や他フレームワーク（React, Svelte, SolidJS 等）への移植の『正解のお手本』となるよう、エッジケース・キー入力競合・二重応答防止・Tile Mapping 描画などのノウハウが完全実装されています。
 
 ---
 
-## 🚀 動作・起動方法
+## 🎮 ライブデモ (Live Demo)
 
-### 1. 開発サーバーの起動
+- 🔗 **[Vue 3 サンプルクライアントを今すぐ体験する (Live Demo)](./dist/index.html)**
+  *(※ GitHub Pages 公開時は `https://<username>.github.io/<repo>/examples/vue-client/dist/` にてそのまま 1 クリックで動作します)*
 
-リポジトリルートから以下の npm スクリプトを実行します：
+---
+
+## ✨ 主な機能
+
+- **ハイブリッド 2D Canvas マップ (`MapCanvas.vue`)**:
+  - `param/tileMapping.js` の正統スプライトマッピング (`nethack_default_32.png`) に対応。
+  - 未割り当てタイルや文字マスは 16 色 TTY カラーの monospace フォントでハイブリッド描画。
+  - 暗闇・未探知マス (`tileId === 0`) でのアリ描画を自動スキップし、漆黒のダンジョン表現を実現。
+  - `curs` イベントによるリアルタイムなプレイヤー位置・カーソル位置のシックなスリム枠線表示。
+- **堅牢なメッセージ & ステータスバー (`StatusBar.vue`)**:
+  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL`) などをリアルタイム同期。
+  - 重複メッセージの自動排他カット。
+- **万能プロンプトハンドラ (`InputPrompt.vue`)**:
+  - 文字列入力 (`askname`, `getlin`, `#extcmd`) に応じた安全な入力フォーム (+ ESC キャンセル)。
+  - Y/N 質問プロンプトの確定受容 (y/n/q ボタン & ダイレクトキー操作)。
+  - 例外的な質問文言（`"Do you want a tutorial?"` 等）を無表示・操作不能にならず自動吸収する安全フォールバック。
+- **インベントリ & メニューダイアログ (`MenuModal.vue`)**:
+  - 選択肢アイテムのスプライト表示 & アクセラレータキー (a, b, c...) のクリック/直接打鍵。
+  - 閲覧専用メニュー (`how === 0`) やアイテムなしメニューの自動解放処理。
+- **長文閲覧用テキストモーダル (`TextWindowModal.vue`)**:
+  - ヘルプファイル (`display_file`) や案内画面 (`display_nhwindow` >= 4) の閲覧モード。
+
+---
+
+## 🚀 起動 & ビルド方法
+
+### 開発用ローカルサーバーの起動 (Vite)
+プロジェクトルートディレクトリにて：
 
 ```bash
-# リポジトリルートから実行
+# Vue 3 サンプルクライアントの起動
 npm run dev:vue
 ```
+自動的に `http://localhost:3000/` が立ち上がり、ホットリロード対応の開発環境がブラウザで開きます。
 
-または、本ディレクトリに移動して直接起動します：
-
+### スタンドアロン静的ビルド (GitHub Pages / Live Server 用)
 ```bash
-cd examples/vue-client
-npm run dev
-```
-
-ブラウザで `http://localhost:3000/` にアクセスするとサンプル UI が起動します。
-
-### 2. プロダクションビルド & 型チェック
-
-TypeScript の型チェックおよび Vite ビルドの正常性を検証するには：
-
-```bash
-# 本ディレクトリにて実行
+# examples/vue-client ディレクトリにて
 npm run build
 ```
+ビルドが完了すると、`examples/vue-client/dist/` ディレクトリ内に **Wasm バイナリ・Worker スクリプト・画像データがすべて同梱された完全独立パッケージ** が生成されます。
+この `dist/` フォルダをそのまま VS Code Live Server で開いたり、GitHub Pages へ配備するだけで 100% 動作します。
 
 ---
 
-## 💡 実装のツボと注意点 (Key Implementation Details)
+## 🏛️ 実装のツボ & 注意点 (アーキテクチャノウハウ)
 
-`NetHackWasmDriver` を利用したクライアント開発において、**特に重要となるノウハウとハマりポイント**を以下にまとめています。
+他フレームワーク（React, Svelte, SolidJS 等）へ展開・移植する際に必ず遵守すべき重要な設計ノウハウと解決策の一覧です。
 
-### 1. Web Worker 境界と Proxy 解除 (`toRaw`)
+### 1. Worker ブリッジ通信と リアクティブ Proxy の解体 (`toRaw` / Plain Copy)
+- **注意点**: Vue 3 の `ref` / `reactive` や React の State / Proxy オブジェクトをそのまま Worker へ `postMessage` すると `DataCloneError` でアプリが即座にクラッシュします。
+- **解決策**: Worker へ応答を送る (`respondMenu` や `respondPrompt`) 直前で、`toRaw()` または `JSON.parse(JSON.stringify(toRaw(val)))` を通してプレーンな JavaScript オブジェクトに変換してから送信します。
 
-Vue 3 の `ref` や `reactive` で管理されたオブジェクト（例: メニューアイテム）には JavaScript の `Proxy` ラッパーが付与されています。
-これをそのまま Web Worker の `postMessage` へ送信すると、ブラウザが `DataCloneError: [object Array] could not be cloned` 例外を発生させてクラッシュします。
+### 2. 二重応答防止ラッパー (`createSafeResolver`) と Resolver の分離管理
+- **注意点**: キー入力とボタンクリックが同報発生した際、同一 Resolver に対して 2 回 `respond()` が呼ばれると Worker 内で `Resolver not found or already resolved` 警告が発生します。また、メニュー用とプロンプト用で Resolver を単一変数で共有すると競合フリーズします。
+- **解決策**:
+  - `activeMenuResolver` と `activePromptResolver` を完全に独立分離して保持します。
+  - すべての Resolver を 1 回しか応答を受け付けない `createSafeResolver` ラッパーで包んでから使用します。
 
-**【解決策】**: `toRaw()` や `JSON.parse(JSON.stringify(toRaw(obj)))` で Plain Object に変換してから `resolver.respond()` に渡してください。
+### 3. `select_menu` 応答型の厳守と `NetHackWasmDriver.js:671` クラッシュ防止
+- **注意点**: `select_menu` に対する応答型は「選択アイテムオブジェクトの配列 `[item]`」、キャンセル時や選択なし時は数値 `0` を返す仕様です。不適切な型を返すと C コア Shim 側で `res.charCodeAt` TypeError クラッシュが発生します。
+- **解決策**: キャンセル時/空メニュー時は必ず `0` を返し、単一選択時であっても `[item]` 配列化して返送します。また、`respondMenu` が呼ばれたら `gameStore.setMenu(null)` を最優先で無条件実行してモーダル画面の残像フリーズを根絶します。
 
-```typescript
-const rawValue = JSON.parse(JSON.stringify(toRaw(value)));
-resolver.respond(rawValue);
-```
+### 4. 正統 Tile Mapping スプライト切出数式と暗闇マススキップ
+- **注意点**: `nethack_default_32.png` スプライトシートは **1 行 40 タイル (`tilesPerRow = 40`)** 配置です。16px メニューアイコン表示時の CSS 切り出し倍率を間違えると表示がズレます。また、`tileId === 0` をそのまま描画するとダンジョン全体に「アリ」が敷き詰められます。
+- **解決策**:
+  - **Canvas (32px)**: `sx = (tileIdx % 40) * 32`, `sy = Math.floor(tileIdx / 40) * 32`
+  - **CSS Sprite (16px)**: `background-size: 640px auto`, `posX = -(tx / 2)`, `posY = -(ty / 2)`
+  - `tileId === 0` かつ文字が空白の未探知マスは Canvas 描画をスキップし、漆黒のダンジョン背景を維持します。
 
-### 2. Resolver の分離管理と二重応答防止 (`createSafeResolver`)
+### 5. `DLEVEL` (`field 20`) の階層変化検知と `clearMapGrid()`
+- **注意点**: 毎ターン発行される `clear_nhwindow(3)` でマップバッファを消去すると画面が黒く点滅します。一方、`field 20` の数値のみを監視すると、ダンジョンブランチ名が変わる階層移動（チュートリアルや鉱山等）のクリアが漏れます。
+- **解決策**:
+  - 毎ターンの `clear_nhwindow(3)` ではクリアを行わず、`print_glyph` の差分描画を維持します。
+  - `field 20` のポインタ文字列全体（例: `"Dlvl:1"`, `"Tut:1"`, `"Mines:1"`）の変化を検知した時、およびセッション開始時 (`askname` / `initialized`) にのみ `clearMapGrid()` を呼んでマップを全リセットします。
 
-NetHack C コアからは `inputRequired` イベントが頻繁に発行されます。特にメニュー表示中やプロンプト表示中に、画面の裏で次の入力イベントが届く場合があります。
+### 6. 万能プロンプトハンドラ (`InputPrompt.vue`) による例外自動吸収
+- **注意点**: NetHack C コアには `[y/n]` 表記のない質問（例: `"Do you want a tutorial?"`）やマイナーなプロンプトが多数存在し、特定の文字列条件だけで分岐すると無画面・操作不能フリーズが発生します。
+- **解決策**:
+  - `isTextPrompt` (1行入力) 以外は、全プロンプトで **Yes(y) / No(n) / Quit(q) ボタン** および **全キーボード受容** を常時確保し、未知のプロンプトが届いても二度と画面がフリーズしない万能構造を構築します。
+  - 通常移動時 (`isTurnInput` / `nhgetch` / `poskey`) は不要な Y/N ボタンを非表示にし、矢印キーや `hjkl` キーのダイレクト操作を受容します。
 
-- **Resolver の分離**: メニュー用 `activeMenuResolver` と 汎用プロンプト用 `activePromptResolver` を完全に独立して保持します。
-- **二重呼び出しガード**: 1 つの Resolver に対し、キーイベントと UI ボタンクリックで 2 回 `respond()` が呼ばれると Worker 内で `Resolver not found or already resolved` 警告が発生します。`createSafeResolver` ラッパーで二重呼出しをガードします。
-
-```typescript
-function createSafeResolver(originalResolver: any) {
-  let isResolved = false;
-  return {
-    respond: (val: any) => {
-      if (isResolved) return;
-      isResolved = true;
-      originalResolver.respond(val);
-    }
-  };
-}
-```
-
-### 3. メニュー応答データフォーマットの厳守
-
-`select_menu` (`context === 'select_menu'`) に対する応答形式は以下のように型が厳密に定められています。
-
-- **選択時**: **「アイテムオブジェクトの配列 `[item]`」**
-- **キャンセル時**: **数値 `0`**
-
-※ 単なるインデックス数値の配列 `[0]` や文字列を送ると、`NetHackWasmDriver.js` 内部で `TypeError: res.charCodeAt is not a function` が発生して C コアの Asyncify スタックがクラッシュします。
-
-### 4. マップ背景の全消去（クリア）の正しい制御ルール
-
-NetHack C コアは、歩行（1マス移動）のたびに毎ターン `clear_nhwindow({ windowId: 3 })` を発行してきます。
-
-- ❌ **誤った実装**: `clear_nhwindow(3)` が届くたびにマップ全消去を呼ぶ ➔ 移動のたびに背景が全消去されて画面が真っ黒（またはチラつき）になる。
-- ⭕ **正しい実装**:
-  1. **毎ターンの `clear_nhwindow(3)`**: 全消去を行わず、`print_glyph` で届いたセルのみピンポイント差分更新する。
-  2. **ダンジョン階層・ブランチ変更時**: `status_update` で `field === 20` (`DLEVEL`) の文字列（例: `"Dlvl:1"`, `"Tut:1"`, `"Mines:1"`）が変更された時のみ、`clearMapGrid()` で旧階層のバッファを全消去する。
-  3. **新セッション開始時**: `askname` や `initialized` イベント時に初回 `clearMapGrid()` を呼ぶ。
-
-### 5. 正統 Glyph ID ➔ Tile Index 変換 (`tileMapping.js`)
-
-Wasm から届く `glyph`（Glyph ID）はそのままスプライトシートの格子番号ではありません。
-
-- `param/tileMapping.js` の `tileMapping()` 関数を通して `tileIdx = tileMapping()[glyph]` を参照します。
-- スプライト画像 `nethack_default_32.png` の 1 行あたりの横タイル数は **40 タイル (`tilesPerRow = 40`)** です。
-- CSS スプライト (16px 表示時) の縮尺計算式:
-  - `background-size: 640px auto;` (40 tiles × 16px = 640px)
-  - `posX = -( (tileIdx % 40) * 32 / 2 )`
-  - `posY = -( Math.floor(tileIdx / 40) * 32 / 2 )`
-
-### 6. Vite 開発サーバープラグイン (`serveRootAssets`)
-
-Vite 開発環境において、Web Worker 内から相対パスで要求される `/nethack.wasm` や `/pict/nethack_default_32.png` や `/param/tileMapping.js` を、リポジトリルートのファイル構造から正しくヘッダー付与 (`Content-Type: application/wasm` 等) して配給するために、`vite.config.ts` 内に `serveRootAssets()` プラグインを配置しています。
-
----
-
-## 📁 ディレクトリ構造
-
-```text
-examples/vue-client/
-├── package.json               # Vue 3 サンプル用パッケージ定義
-├── vite.config.ts             # ルートアセット配信ミドルウェア & エイリアス設定
-├── index.html                 # エントリ HTML
-├── README.md                  # 本ドキュメント
-└── src/
-    ├── main.ts                # Vue アプリ初期化
-    ├── App.vue                # メインコンポーネント & レイアウト
-    ├── vite-env.d.ts          # 型定義拡張
-    ├── stores/
-    │   └── gameStore.ts       # Pinia ゲーム状態ストア (MapGrid, Messages, Status)
-    ├── composables/
-    │   └── useNetHackDriver.ts# Driver Worker 通信, Resolver 管理, キー操作フック
-    └── components/
-        ├── MapCanvas.vue      # 2D Canvas ハイブリッドマップ描画
-        ├── MessageLog.vue     # 重複防止付きメッセージログ
-        ├── StatusBar.vue      # 動的ステータス & コンディションバッジ
-        ├── InputPrompt.vue    # テキスト/EXTCMD 入力 & Cancel (ESC)
-        ├── MenuModal.vue      # インベントリ & メニューモーダル
-        └── TextWindowModal.vue# ヘルプ & 長文テキスト閲覧モーダル
-```
+### 7. 静的スタンドアロンビルドと Live Server / GitHub Pages 互換性
+- **注意点**: サブディレクトリ階層（VS Code Live Server や GitHub Pages）で動かす際、絶対パス (`/nethack.wasm`) を使うと 404 Error (`<!DOCTYPE...`) になり Wasm コンパイルがクラッシュします。
+- **解決策**:
+  - `vite.config.ts` で `base: './'` を指定し、相対パスビルドを行います。
+  - ビルド時に `nethack.wasm`, `nethack.js`, `pict/`, `param/`, `src/driver/` を `dist/` へ自動コピーし、`dist/` フォルダ単体で完結するポータブルパッケージを生成します。
+  - `src/driver/nethack.worker.js` 内の `locateFile` アルゴリズムを修正し、Worker から見た相対位置 (`../../nethack.wasm`) を自動計算させて 404 エラーを完全に防ぎます。

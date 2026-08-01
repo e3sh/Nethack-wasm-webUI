@@ -2,16 +2,25 @@
 
 本ディレクトリ (`examples/`) は、**NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要な各種モダン Web フロントエンドフレームワーク（Vue, React, Svelte, SolidJS 等）と結合した、高品質なフル機能サンプルクライアント群を保持・提供する領域です。
 
+すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、**GitHub Pages 上で 1 クリックでブラウザからそのまま直接体験・プレイ可能**です。
+
+---
+
+## 🎮 ライブデモ (Live Demo)
+
+- **Vue 3 サンプルクライアント**: 
+  - 🔗 **[Vue 3 Client をブラウザで今すぐ試す](./vue-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/vue-client/dist/`)*
+
 ---
 
 ## 🗺️ サンプルクライアント・ロードマップ (Examples Roadmap)
 
-| ディレクトリ | フレームワーク / 技術スタック | 状態 | 概要 |
-| :--- | :--- | :--- | :--- |
-| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【完了】** | 2D Canvas、メニュー、ヘルス、万能プロンプト、型安全接続 |
-| **`examples/react-client`** | React 18 + Vite + TypeScript | **【計画中】** | Custom Hooks + React Context / Zustand 構成 |
-| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【計画中】** | 超軽量コンパイル & Svelte Store 構成 |
-| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【計画中】** | Signals 爆速レンダリング構成 |
+| ディレクトリ | フレームワーク / 技術スタック | 状態 | ライブデモ | 概要 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【完了】** | [🎮 開く](./vue-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、型安全接続 |
+| **`examples/react-client`** | React 18 + Vite + TypeScript | **【計画中】** | - | Custom Hooks + React Context / Zustand 構成 |
+| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【計画中】** | - | 超軽量コンパイル & Svelte Store 構成 |
+| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【計画中】** | - | Signals 爆速レンダリング構成 |
 
 ---
 

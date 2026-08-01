@@ -38,7 +38,7 @@
     </div>
 
     <div v-else class="prompt-placeholder">
-      <span class="idle-text">Ready / Idle</span>
+      <span class="idle-text">Ready / Turn Input Waiting (Press arrow keys or hjkl)</span>
     </div>
   </div>
 </template>
@@ -187,7 +187,7 @@ onUnmounted(() => {
 .prompt-placeholder {
   width: 100%;
   padding: 8px 15px;
-  color: #555;
+  color: #7f8c8d;
   font-family: monospace;
   font-size: 13px;
   border: 1px dashed #333;

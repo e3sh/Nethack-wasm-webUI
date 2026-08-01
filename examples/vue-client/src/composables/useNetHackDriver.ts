@@ -37,8 +37,16 @@ export function useNetHackDriver() {
   }
 
   onMounted(() => {
+    const workerPath = import.meta.env.PROD
+      ? './src/driver/nethack.worker.js'
+      : '/src/driver/nethack.worker.js';
+
+    const nethackJsPath = import.meta.env.PROD
+      ? './nethack.js'
+      : '/nethack.js';
+
     // 1. Worker ブリッジの生成
-    bridge = new NetHackWasmWorkerBridge('/src/driver/nethack.worker.js', {
+    bridge = new NetHackWasmWorkerBridge(workerPath, {
       arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
       debug: true,
     });
@@ -80,7 +88,7 @@ export function useNetHackDriver() {
     });
 
     bridge.on('curs', ({ windowId, x, y }: { windowId: number; x: number; y: number }) => {
-      if (windowId === 3) { // NHW_MAP (3) のカーソル位置更新
+      if (windowId === 3) {
         gameStore.setCursorPos(x, y);
       }
     });
@@ -179,10 +187,16 @@ export function useNetHackDriver() {
       }
 
       // Case C: yn_function, nhgetch, poskey, getlin, get_ext_cmd 等
+      // ★超重要: 未解約のプロンプトがあれば安全解約してから新プロンプトを確実にセット！
+      if (activePromptResolver.value) {
+        activePromptResolver.value.respond(0);
+        activePromptResolver.value = null;
+      }
+
       activePromptResolver.value = safeRes;
       gameStore.setPrompt({
-        context,
-        prompt: prompt || question || (context === 'get_ext_cmd' ? 'Extended Command (#):' : (context === 'nhgetch' ? '[TURN INPUT]' : '[INPUT WAITING]')),
+        context: context || 'nhgetch',
+        prompt: prompt || question || (context === 'get_ext_cmd' ? 'Extended Command (#):' : (context === 'nhgetch' || context === 'poskey' ? '[TURN INPUT]' : '[INPUT WAITING]')),
         choices: choices,
         resolver: safeRes,
       });
@@ -209,9 +223,10 @@ export function useNetHackDriver() {
       }
     });
 
-    bridge.init('/nethack.js');
+    bridge.init(nethackJsPath);
   });
 
+  // 全グローバルキーハンドラ
   function handleGlobalKeyDown(e: KeyboardEvent) {
     if (
       document.activeElement &&
@@ -233,6 +248,7 @@ export function useNetHackDriver() {
     else if (e.key === ' ') charCode = 32;
     else if (e.key.length === 1) charCode = e.key.charCodeAt(0);
 
+    // ★超重要: activePromptResolver が存在すれば即座にレスポンスしてエンジンを駆動！
     if (charCode > 0 && activePromptResolver.value) {
       const res = activePromptResolver.value;
       activePromptResolver.value = null;

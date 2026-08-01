@@ -3,6 +3,58 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import fs from 'fs';
 
+// ビルド時に Wasm, JS, pict, param アセットを dist/ へ自動コピーするプラグイン
+function copyAssetsToDist(): Plugin {
+  return {
+    name: 'copy-assets-to-dist',
+    closeBundle() {
+      const rootDir = path.resolve(__dirname, '../../');
+      const distDir = path.resolve(__dirname, 'dist');
+
+      const filesToCopy = [
+        'nethack.wasm',
+        'nethack_jp.wasm',
+        'nethack.js',
+        'nethack_jp.js',
+      ];
+
+      const dirsToCopy = ['pict', 'param', 'dat', 'src/driver'];
+
+      // 単一ファイルのコピー
+      filesToCopy.forEach((file) => {
+        const src = path.join(rootDir, file);
+        const dest = path.join(distDir, file);
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, dest);
+        }
+      });
+
+      // ディレクトリの再帰コピー関数
+      const copyRecursive = (srcDir: string, destDir: string) => {
+        if (!fs.existsSync(srcDir)) return;
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+        const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+        for (const entry of entries) {
+          const srcPath = path.join(srcDir, entry.name);
+          const destPath = path.join(destDir, entry.name);
+          if (entry.isDirectory()) {
+            copyRecursive(srcPath, destPath);
+          } else {
+            fs.copyFileSync(srcPath, destPath);
+          }
+        }
+      };
+
+      dirsToCopy.forEach((dir) => {
+        const src = path.join(rootDir, dir);
+        const dest = path.join(distDir, dir);
+        copyRecursive(src, dest);
+      });
+      console.log('✅ Standalone static game assets copied to dist/');
+    },
+  };
+}
+
 function serveRootAssets(): Plugin {
   return {
     name: 'serve-root-assets',
@@ -61,7 +113,8 @@ function serveRootAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [serveRootAssets(), vue()],
+  base: './', // 相対パスビルドにより Live Server や GitHub Pages サブフォルダ階層でも完璧動作
+  plugins: [serveRootAssets(), copyAssetsToDist(), vue()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

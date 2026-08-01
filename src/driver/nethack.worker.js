@@ -16,7 +16,12 @@ self.onmessage = async function(e) {
 
     switch (type) {
         case 'INIT': {
-            const { wasmJsUrl, options } = payload;
+            let { wasmJsUrl, options } = payload;
+
+            // Worker (src/driver/nethack.worker.js) から見た相対パス補正
+            if (wasmJsUrl === './nethack.js' || wasmJsUrl === 'nethack.js') {
+                wasmJsUrl = '../../nethack.js';
+            }
 
             // Module の初期設定
             self.Module = self.Module || {};
@@ -26,13 +31,18 @@ self.onmessage = async function(e) {
             
             // locateFile をカスタマイズし、.wasm ファイルが正しい位置からロードされるようにする
             self.Module.locateFile = function(path, prefix) {
-                if (wasmJsUrl) {
-                    const parts = wasmJsUrl.split('/');
-                    parts.pop(); // ファイル名を除去
-                    const dir = parts.join('/');
-                    return dir ? (dir + '/' + path) : path;
+                if (path.endsWith('.wasm')) {
+                    if (wasmJsUrl) {
+                        if (wasmJsUrl.endsWith('.js')) {
+                            return wasmJsUrl.slice(0, -3) + '.wasm';
+                        }
+                        const parts = wasmJsUrl.split('/');
+                        parts.pop();
+                        const dir = parts.join('/');
+                        return dir ? (dir + '/' + path) : path;
+                    }
                 }
-                return '../../' + path;
+                return (prefix || '') + path;
             };
 
             // Wasm 起動前に環境変数 (ENV) を preRun で確実に仕込む
