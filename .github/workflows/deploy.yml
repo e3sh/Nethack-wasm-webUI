@@ -39,13 +39,22 @@ jobs:
         run: |
           cd examples/vue-client && npm run build
 
+      - name: Prepare GitHub Pages Site Directory
+        run: |
+          mkdir -p _site
+          # 1. 既存の WebUI トップページを含む全ルートアセットをコピー
+          rsync -av --exclude='node_modules' --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
+          # 2. Vue クライアントの dist を指定サブフォルダへ確実に配備
+          mkdir -p _site/examples/vue-client
+          cp -r examples/vue-client/dist _site/examples/vue-client/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment

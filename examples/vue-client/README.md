@@ -8,7 +8,7 @@
 
 ## 🎮 ライブデモ (Live Demo)
 
-- 🔗 **[Vue 3 サンプルクライアントを今すぐ体験する (Live Demo)](./dist/index.html)**
+- 🔗 **[Vue 3 サンプルクライアントを今すぐ体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)**
   *(※ GitHub Pages 公開時は `https://<username>.github.io/<repo>/examples/vue-client/dist/` にてそのまま 1 クリックで動作します)*
 
 ---
