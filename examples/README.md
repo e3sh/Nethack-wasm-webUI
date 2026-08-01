@@ -14,6 +14,8 @@
   - 🔗 **[React 18 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/react-client/dist/`)*
 - **Svelte サンプルクライアント**: 
   - 🔗 **[Svelte Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/svelte-client/dist/`)*
+- **SolidJS サンプルクライアント**: 
+  - 🔗 **[SolidJS Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/solid-client/dist/`)*
 
 ---
 
@@ -24,7 +26,7 @@
 | **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、型安全接続 |
 | **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Zustand 状態管理 |
 | **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Svelte Store 構成 |
-| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【計画中】** | - | Signals 爆速レンダリング構成 |
+| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Signals 爆速構成 |
 
 ---
 
