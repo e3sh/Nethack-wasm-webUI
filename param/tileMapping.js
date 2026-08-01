@@ -9636,3 +9636,12 @@ function tileMapping(offsets) {
     };
     return m;
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = tileMapping;
+}
+if (typeof window !== 'undefined') {
+    window.tileMapping = tileMapping;
+}
+
+

@@ -13,3 +13,8 @@ tools/dev_scripts/auto_translate.py
 tools/dev_scripts/check_missing_translations.py
 tools/dev_scripts/mark_block_boundaries.py
 tools/dev_scripts/restore_indents.py
+
+# Examples
+examples/**/node_modules/
+examples/**/dist/
+examples/**/.vite/

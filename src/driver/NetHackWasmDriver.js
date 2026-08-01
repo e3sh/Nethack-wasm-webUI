@@ -668,7 +668,14 @@
                         }
                         return 0;
                     }
-                    return typeof res === 'number' ? res : (res ? res.charCodeAt(0) : 0);
+                    if (typeof res === 'number') return res;
+                    if (typeof res === 'string' && res.length > 0) return res.charCodeAt(0);
+                    if (Array.isArray(res) && res.length > 0) {
+                        const first = res[0];
+                        if (typeof first === 'number') return first;
+                        if (typeof first === 'string' && first.length > 0) return first.charCodeAt(0);
+                    }
+                    return 0;
                 }
 
                 case "shim_yn_function": {

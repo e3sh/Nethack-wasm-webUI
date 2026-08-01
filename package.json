@@ -1,0 +1,10 @@
+{
+  "name": "nethack-wasm-webui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NetHack 5.0 Wasm WebUI & Driver",
+  "scripts": {
+    "dev:vue": "cd examples/vue-client && npm run dev",
+    "build:vue": "cd examples/vue-client && npm run build"
+  }
+}
