@@ -167,11 +167,6 @@ export function useNetHackDriver() {
           return;
         }
 
-        if (activeMenuResolver.value) {
-          activeMenuResolver.value.respond(0);
-          activeMenuResolver.value = null;
-        }
-
         const hasSelectable = items.some(
           (it: any) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
         );
@@ -189,11 +184,6 @@ export function useNetHackDriver() {
       }
 
       // Case C: yn_function, nhgetch, poskey, getlin, get_ext_cmd 等
-      if (activePromptResolver.value) {
-        activePromptResolver.value.respond(0);
-        activePromptResolver.value = null;
-      }
-
       activePromptResolver.value = safeRes;
       gameStore.setPrompt({
         context: context || 'nhgetch',
@@ -235,6 +225,17 @@ export function useNetHackDriver() {
       return;
     }
     if (gameStore.activeMenu || gameStore.activeTextModal) {
+      return;
+    }
+    // yn_function, yn, getlin, askname, get_ext_cmd などの専用プロンプト処理中は汎用キーハンドラからの誤応答をブロック
+    if (
+      gameStore.activePrompt &&
+      (gameStore.activePrompt.context === 'yn_function' ||
+        gameStore.activePrompt.context === 'yn' ||
+        gameStore.activePrompt.context === 'getlin' ||
+        gameStore.activePrompt.context === 'askname' ||
+        gameStore.activePrompt.context === 'get_ext_cmd')
+    ) {
       return;
     }
 

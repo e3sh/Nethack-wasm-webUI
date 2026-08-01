@@ -315,6 +315,13 @@
                 this.worker.postMessage({ type: 'LIST_SAVE_FILES' });
             });
         }
+
+        terminate() {
+            if (this.worker) {
+                this.worker.terminate();
+                this.state = NetHackWasmWorkerBridge.DriverState.STOPPED;
+            }
+        }
     }
 
     global.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;
