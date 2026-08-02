@@ -20,16 +20,14 @@
 import { onMounted, onUnmounted } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
+import { useNetHackDriver } from '../composables/useNetHackDriver';
 
 const gameStore = useGameStore();
 const { activeTextModal } = storeToRefs(gameStore);
+const { respondTextModal } = useNetHackDriver();
 
 function closeTextModal() {
-  if (activeTextModal.value && activeTextModal.value.resolver) {
-    const res = activeTextModal.value.resolver;
-    gameStore.setTextModal(null);
-    res.respond(0);
-  }
+  respondTextModal(0);
 }
 
 function handleKeyDown(e: KeyboardEvent) {

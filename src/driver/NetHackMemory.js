@@ -215,6 +215,35 @@
                 goldData = { glyphId, amount, raw: rawVal };
             }
 
+            // ダンジョン階層 (BL_DLEVEL / Index 20) の構造化デコード
+            let dlevelData = null;
+            if (fld === 20) { // BL_DLEVEL
+                let dlevelStr = String(rawVal || "");
+                let branch = "Dlvl";
+                let dlevelNum = 1;
+
+                if (dlevelStr.includes(':')) {
+                    const parts = dlevelStr.split(':');
+                    branch = parts[0].trim();
+                    dlevelNum = parseInt(parts[1], 10) || 1;
+                } else {
+                    const match = dlevelStr.match(/([a-zA-Z]+)?\s*[:\-]?\s*(\d+)/);
+                    if (match) {
+                        if (match[1]) branch = match[1];
+                        if (match[2]) dlevelNum = parseInt(match[2], 10);
+                    } else if (!isNaN(parseInt(dlevelStr, 10))) {
+                        dlevelNum = parseInt(dlevelStr, 10);
+                    }
+                }
+
+                dlevelData = {
+                    raw: rawVal,
+                    dlevelStr,
+                    dlevelNum,
+                    branch
+                };
+            }
+
             return {
                 fld,
                 field: fld,
@@ -223,6 +252,7 @@
                 rawVal,
                 parsedVal,
                 goldData,
+                dlevelData,
                 chg,
                 clr
             };

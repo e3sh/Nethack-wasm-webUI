@@ -41,13 +41,22 @@
 
         constructor(options = {}) {
             this.listeners = new Map();
-            this.options = options;
+            this.options = {
+                autoRespondEmptyMenu: true,
+                deduplicateMessages: true,
+                filterSysconfLogs: true,
+                inputContextGuard: true,
+                unwrapPayload: true,
+                normalizeMenuResponse: true,
+                ...options
+            };
 
-            this.initSubModules(options);
+            this.initSubModules(this.options);
 
             this.state = NetHackWasmDriver.DriverState.IDLE;
             this.menuBuffer = {};
             this.messageHistory = [];
+            this.lastEmittedMessage = null;
             this.messageWindowId = 1;
             this.version = "";
 
@@ -129,6 +138,20 @@
 
         get activeResolver() {
             return (this.inputResolver && this.inputResolver.isWaiting()) ? this.inputResolver : null;
+        }
+
+        getCurrentContext() {
+            return this.inputResolver ? this.inputResolver.getContext() : null;
+        }
+
+        getPromptCategory(context, type) {
+            if (context === 'yn_function' || context === 'yn' || type === 'yn') return 'YN';
+            if (context === 'select_menu' || context === 'menu' || type === 'menu') return 'MENU';
+            if (context === 'getlin' || context === 'askname' || context === 'get_ext_cmd' || type === 'string') return 'TEXT';
+            if (context === 'poskey' || type === 'poskey') return 'POSKEY';
+            if (context === 'getch' || type === 'char') return 'KEY';
+            if (context === 'display_file') return 'FILE';
+            return 'OTHER';
         }
 
         /**
@@ -373,19 +396,20 @@
                     let detectedName = this.fsManager ? this.fsManager.autoDetectSavePlayerName() : "";
                     const defaultName = detectedName || (this.options.gameOptions ? this.options.gameOptions.name : "") || "Web_user";
 
-                    const promise = this.inputResolver ? this.inputResolver.createPending('askname', { detectedName }) : Promise.resolve(defaultName);
-                    const resolverObj = {
-                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('askname', { detectedName }) :
+                        { promise: Promise.resolve(defaultName), safeResolver: null };
+
+                    const promptCategory = this.getPromptCategory('askname', 'string');
 
                     this.emit("inputRequired", {
                         context: "askname",
                         type: "string",
+                        promptCategory,
                         prompt: "What is your name?",
                         detectedName,
                         defaultName,
-                        resolver: resolverObj
+                        resolver: safeResolver
                     });
 
                     let name = await promise;
@@ -427,16 +451,19 @@
                     const windowId = args[0];
                     const blocking = !!args[1];
 
-                    const promise = this.inputResolver ? this.inputResolver.createPending('display', { windowId }) : Promise.resolve(0);
-                    const resolverObj = {
-                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    if (!blocking && windowId <= 3) {
+                        this.emit("display_nhwindow", { windowId, blocking });
+                        return 0;
+                    }
 
-                    this.emit("display_nhwindow", { windowId, blocking, resolver: resolverObj });
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('display', { windowId }) :
+                        { promise: Promise.resolve(0), safeResolver: null };
 
-                    if (this.inputResolver) {
-                        this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    this.emit("display_nhwindow", { windowId, blocking, resolver: safeResolver });
+
+                    if (this.inputResolver && (blocking || windowId > 3)) {
                         await promise;
                         this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     }
@@ -455,9 +482,21 @@
                     const winId = args[0];
                     const attr = args[1];
                     const text = args[2] || "";
+                    const cleanText = text.trim();
 
-                    if (text.trim().length > 0 && winId === this.messageWindowId) {
-                        this.messageHistory.push(text.trim());
+                    if (this.options.filterSysconfLogs && (cleanText.includes("sysconf") || cleanText.startsWith("OPTIONS="))) {
+                        break;
+                    }
+
+                    if (this.options.deduplicateMessages && cleanText.length > 0) {
+                        if (this.lastEmittedMessage === cleanText) {
+                            break;
+                        }
+                        this.lastEmittedMessage = cleanText;
+                    }
+
+                    if (cleanText.length > 0 && winId === this.messageWindowId) {
+                        this.messageHistory.push(cleanText);
                         if (this.messageHistory.length > 200) this.messageHistory.shift();
                     }
 
@@ -511,13 +550,13 @@
                     }
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('display_file', { filename }) : Promise.resolve(0);
-                    const resolverObj = {
-                        respond: (val) => this.inputResolver ? this.inputResolver.respond(val) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('display_file', { filename }) :
+                        { promise: Promise.resolve(0), safeResolver: null };
 
-                    this.emit("display_file", { filename, complain, fileText, resolver: resolverObj });
+                    const promptCategory = this.getPromptCategory('display_file', 'file');
+
+                    this.emit("display_file", { filename, complain, fileText, promptCategory, resolver: safeResolver });
                     await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     return 0;
@@ -564,29 +603,43 @@
 
                     if (!menuData) return 0;
 
-                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('select_menu', { windowId, how, items: menuData.items, prompt: menuData.prompt }) : Promise.resolve(0);
+                    const items = menuData.items || [];
 
-                    const resolverObj = {
-                        respond: (selected) => this.inputResolver ? this.inputResolver.respond(selected) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    // 空メニュー (アイテムが完全にゼロ) の場合のみ自動短縮応答を適用
+                    if (this.options.autoRespondEmptyMenu && (!items || items.length === 0)) {
+                        return 0;
+                    }
+
+                    this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('select_menu', { windowId, how, items, prompt: menuData.prompt }) :
+                        { promise: Promise.resolve(0), safeResolver: null };
+
+                    const promptCategory = this.getPromptCategory('select_menu', 'menu');
 
                     this.emit("inputRequired", {
                         context: "select_menu",
                         type: "menu",
+                        promptCategory,
                         windowId,
                         how,
-                        menuItems: menuData.items,
-                        items: menuData.items,
+                        menuItems: items,
+                        items: items,
                         prompt: menuData.prompt,
-                        resolver: resolverObj
+                        resolver: safeResolver
                     });
 
-                    const selectedItems = await promise;
+                    let selectedItems = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
-                    if (!selectedItems || selectedItems === 0 || selectedItems.length === 0) {
+                    // normalizeMenuResponse
+                    if (this.options.normalizeMenuResponse) {
+                        if (selectedItems && !Array.isArray(selectedItems) && typeof selectedItems === 'object') {
+                            selectedItems = [selectedItems];
+                        }
+                    }
+
+                    if (!selectedItems || selectedItems === 0 || !Array.isArray(selectedItems) || selectedItems.length === 0) {
                         return 0;
                     }
 
@@ -608,31 +661,58 @@
                 }
 
                 case "shim_raw_print": {
-                    const text = args[0] || "";
+                    const rawInput = args[0];
+                    const text = typeof rawInput === 'string' ? rawInput : (rawInput !== undefined && rawInput !== null ? String(rawInput) : "");
+                    const cleanText = text.trim();
+
+                    if (this.options.filterSysconfLogs && (cleanText.includes("sysconf") || cleanText.includes("MAXPLAYERS") || cleanText.includes("WIZARDS") || cleanText.startsWith("OPTIONS="))) {
+                        return 0;
+                    }
+
+                    if (this.options.deduplicateMessages && cleanText.length > 0) {
+                        if (this.lastEmittedMessage === cleanText) {
+                            return 0;
+                        }
+                        this.lastEmittedMessage = cleanText;
+                    }
+
                     this.emit("raw_print", { text });
                     return 0;
                 }
 
                 case "shim_raw_print_bold": {
-                    const text = args[0] || "";
+                    const rawInput = args[0];
+                    const text = typeof rawInput === 'string' ? rawInput : (rawInput !== undefined && rawInput !== null ? String(rawInput) : "");
+                    const cleanText = text.trim();
+
+                    if (this.options.filterSysconfLogs && (cleanText.includes("sysconf") || cleanText.includes("MAXPLAYERS") || cleanText.includes("WIZARDS") || cleanText.startsWith("OPTIONS="))) {
+                        return 0;
+                    }
+
+                    if (this.options.deduplicateMessages && cleanText.length > 0) {
+                        if (this.lastEmittedMessage === cleanText) {
+                            return 0;
+                        }
+                        this.lastEmittedMessage = cleanText;
+                    }
+
                     this.emit("raw_print_bold", { text });
-                    this.emit("raw_print", { text });
                     return 0;
                 }
 
                 case "shim_nhgetch": {
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('getch') : Promise.resolve(32);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('getch') :
+                        { promise: Promise.resolve(32), safeResolver: null };
 
-                    const resolverObj = {
-                        respond: (key) => this.inputResolver ? this.inputResolver.respond(key) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const promptCategory = this.getPromptCategory('getch', 'char');
 
                     this.emit("inputRequired", {
                         context: "getch",
                         type: "char",
-                        resolver: resolverObj
+                        promptCategory,
+                        resolver: safeResolver
                     });
 
                     const key = await promise;
@@ -642,23 +722,23 @@
 
                 case "shim_nh_poskey": {
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('poskey') : Promise.resolve(32);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('poskey') :
+                        { promise: Promise.resolve(32), safeResolver: null };
 
-                    const resolverObj = {
-                        respond: (res) => this.inputResolver ? this.inputResolver.respond(res) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const promptCategory = this.getPromptCategory('poskey', 'poskey');
 
                     this.emit("inputRequired", {
                         context: "poskey",
                         type: "poskey",
-                        resolver: resolverObj
+                        promptCategory,
+                        resolver: safeResolver
                     });
 
                     const res = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
-                    if (typeof res === 'object' && res.x !== undefined && res.y !== undefined) {
+                    if (typeof res === 'object' && res && res.x !== undefined && res.y !== undefined) {
                         const M = this.getModule();
                         const setVal = (M && M.setValue) ? M.setValue.bind(M) : (typeof setValue !== 'undefined' ? setValue : null);
                         if (setVal) {
@@ -684,22 +764,22 @@
                     const def = args[2] || "";
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('yn_function', { query, choices, def }) : Promise.resolve(def ? def.charCodeAt(0) : 27);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('yn_function', { query, choices, def }) :
+                        { promise: Promise.resolve(def ? def.charCodeAt(0) : 27), safeResolver: null };
 
-                    const resolverObj = {
-                        respond: (ans) => this.inputResolver ? this.inputResolver.respond(ans) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const promptCategory = this.getPromptCategory('yn_function', 'yn');
 
                     this.emit("inputRequired", {
                         context: "yn_function",
                         type: "yn",
+                        promptCategory,
                         query,
                         question: query,
                         choices,
                         defaultChoice: def,
                         def,
-                        resolver: resolverObj
+                        resolver: safeResolver
                     });
 
                     const rawAns = await promise;
@@ -749,19 +829,19 @@
                     const bufp = args[1];
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('getlin', { query }) : Promise.resolve(null);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('getlin', { query }) :
+                        { promise: Promise.resolve(null), safeResolver: null };
 
-                    const resolverObj = {
-                        respond: (input) => this.inputResolver ? this.inputResolver.respond(input) : null,
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
-                    };
+                    const promptCategory = this.getPromptCategory('getlin', 'string');
 
                     this.emit("inputRequired", {
                         context: "getlin",
                         type: "string",
+                        promptCategory,
                         query,
                         prompt: query,
-                        resolver: resolverObj
+                        resolver: safeResolver
                     });
 
                     const input = await promise;
@@ -778,11 +858,13 @@
 
                 case "shim_get_ext_cmd": {
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
-                    const promise = this.inputResolver ? this.inputResolver.createPending('get_ext_cmd') : Promise.resolve(-1);
+                    const { promise, safeResolver } = this.inputResolver ?
+                        this.inputResolver.createPending('get_ext_cmd') :
+                        { promise: Promise.resolve(-1), safeResolver: null };
 
-                    const resolverObj = {
+                    const extResolverObj = {
                         respond: (val) => {
-                            if (!this.inputResolver) return null;
+                            if (!safeResolver) return false;
                             if (typeof val === 'string') {
                                 let cleanVal = val.trim().toLowerCase();
                                 if (cleanVal.startsWith('#')) {
@@ -790,17 +872,20 @@
                                 }
                                 const extcmds = NetHackWasmDriver.DEFAULT_EXTCMDS;
                                 const idx = extcmds.indexOf(cleanVal);
-                                return this.inputResolver.respond(idx >= 0 ? idx : -1);
+                                return safeResolver.respond(idx >= 0 ? idx : -1);
                             }
-                            return this.inputResolver.respond(typeof val === 'number' ? val : -1);
+                            return safeResolver.respond(typeof val === 'number' ? val : -1);
                         },
-                        cancel: () => this.inputResolver ? this.inputResolver.cancel() : null
+                        cancel: (overrideVal) => safeResolver ? safeResolver.cancel(overrideVal ?? -1) : false
                     };
+
+                    const promptCategory = this.getPromptCategory('get_ext_cmd', 'ext_cmd');
 
                     this.emit("inputRequired", {
                         context: "get_ext_cmd",
                         type: "ext_cmd",
-                        resolver: resolverObj
+                        promptCategory,
+                        resolver: extResolverObj
                     });
 
                     const idx = await promise;

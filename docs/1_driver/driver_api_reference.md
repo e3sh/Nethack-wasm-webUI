@@ -1,6 +1,6 @@
 # NetHackWasmDriver API リファレンスガイド (API Reference Guide)
 
-本書は `NetHackWasmDriver` クラスのコンストラクタ、起動オプション、公開メソッド、発行イベント、およびレスポンダーオブジェクトの完全な API リファレンスです。
+本書は `@nethack/wasm-driver` パッケージ (`NetHackWasmDriver`, `NetHackWasmWorkerBridge`, `NetHackMemory`, `NetHackFSManager`, `InputResolver`) のコンストラクタ、起動オプション、公開メソッド、発行イベント、およびレスポンダーオブジェクトの完全な API リファレンスです。
 
 ---
 
@@ -9,17 +9,22 @@
 ドライバーのインスタンスを生成します。
 
 ```javascript
+import { NetHackWasmDriver } from '@nethack/wasm-driver';
+
 const driver = new NetHackWasmDriver({
     wasmModule: window.Module,
     gameOptions: {
-        name: 'e3-sh',         // ユーザー名 (-uUsername & OPTIONS=name:Username へ自動組み込み)
+        name: 'Hero',          // ユーザー名 (-uHero & OPTIONS=name:Hero へ自動組み込み)
         number_pad: 1,         // テンキー移動オプション
         showexp: true,         // 経験値表示
         time: true,            // ターン数表示
         showvers: true         // バージョン表示
     },
+    filterSysconfLogs: true,   // sysconf デバッグノイズログの自動フィルタ (デフォルト: true)
+    deduplicateMessages: true, // 直前と同文面メッセージの自動重複カット (デフォルト: true)
+    autoRespondEmptyMenu: true,// 選択項目がない空メニューの自動即時応答 (デフォルト: true)
     arguments: [],             // カスタム C main 起動引数 (省略時は自動生成)
-    debug: true                // デバッグログ出力
+    debug: false               // デバッグログ出力
 });
 ```
 
@@ -29,8 +34,11 @@ const driver = new NetHackWasmDriver({
 | :--- | :--- | :--- | :--- |
 | `wasmModule` | `Object` | `window.Module` | Emscripten Wasm モジュールオブジェクト |
 | `gameOptions` | `Object` | `{ number_pad: 1, ... }` | NetHack 起動オプション設定オブジェクト |
+| `filterSysconfLogs` | `boolean` | `true` | Cコア起動時の `MAXPLAYERS` 等システムノイズログの自動カット |
+| `deduplicateMessages` | `boolean` | `true` | 直前ログと全く同一文面メッセージの自動重複除去 |
+| `autoRespondEmptyMenu` | `boolean` | `true` | 選択肢アイテムのない閲覧専用空メニューの `0` 自動返送応答 |
 | `arguments` | `Array<string>` | `null` | C コア `main()` へ渡すコマンドライン引数 |
-| `debug` | `boolean` | `false` | ドライバ内部ログのコンソール出力フラグ |
+| `debug` | `boolean` | `false` | ドライバ内部デバッグログのコンソール出力 |
 
 ---
 
@@ -42,22 +50,18 @@ const driver = new NetHackWasmDriver({
 ### `async driver.start(customArgs = null)`
 NetHack Wasm C コアエンジンの `main()` 関数を実行起動します。
 - **戻り値**: `Promise<number>` (C main の終了コード)
-- **特徴**: コマンドライン引数先頭に `-u<name>` を自動セットし、`askname` ("Who are you?") の割り込み質問をスキップします。
 
 ### `driver.on(eventName, callback)` / `driver.off(eventName, callback)`
 ドライバーからの各種イベントリスナーを登録・解除します。
 
-### `async bridge.listSaveFiles()` / `async g.rogue.listSaveFiles()`
-VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセーブファイルの一覧（`path`, `filename`, `playerName`, `size`, `mtime`）を非同期取得します。
+### `bridge.terminate()` / `driver.destroy()`
+Web Worker プロセスを破棄し、イベントハンドラ・メモリ参照を安全に解放・終了します。
 
-### `async g.rogue.getSaveStatus()`
-現行の Worker / FS 状態におけるアクティブなセーブデータの有無 (`hasSave`), 検出されたプレイヤー名 (`saveName`), および全セーブファイル一覧 (`saveFiles`) を取得します。
+### `async bridge.listSaveFiles()`
+VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセーブファイルの一覧を取得します。
 
-### `async bridge.deleteSaveFile(filename)` / `async g.rogue.deleteSaveFile(filename)`
-指定されたセーブファイル（および IndexedDB の FILE_DATA 永続化キー）を物理削除します。
-
-### `g.rogue.readPanicLog()`
-Emscripten VFS 内の `paniclog` ファイルを自動探索・読み込みし、コンソールへ警告出力するとともにログ文字列を返却します。
+### `async bridge.deleteSaveFile(filename)`
+指定されたセーブファイル（および IndexedDB の永続化データ）を物理削除します。
 
 ---
 
@@ -70,64 +74,54 @@ Emscripten VFS 内の `paniclog` ファイルを自動探索・読み込みし�
 
 ### `inputRequired`
 プレイヤーからの入力待ち状態（ターン待機・質問・メニュー選択・テキスト入力・拡張コマンド）が発生した際に発火します。
-- **ペイロード**:
-  ```javascript
-  {
-      context: string,        // 'yn_function', 'select_menu', 'getlin', 'askname', 'nhgetch', 'poskey', 'get_ext_cmd'
-      type: string,           // 'char', 'yn', 'menu', 'line', 'ext_cmd'
-      question: string,       // 質問内容 (yn_function 等)
-      choices: string,        // 受容可能な選択肢文字列 (例: "ynaq", "hjklyubn")
-      defaultChoice: string,  // デフォルト選択肢 (例: 'y')
-      prompt: string,         // 入力プロンプト
-      items: Array<Object>,   // メニュー項目配列 (select_menu 時)
-      how: number,            // メニュー選択方式 (1: PICK_ONE, 2: PICK_ANY)
-      detectedName: string,   // セーブデータ自動検知名 (askname 時)
-      resolver: InputResolver // 安全な Promise レスポンダーオブジェクト
+- **ペイロード構造**:
+  ```typescript
+  interface InputRequiredEvent {
+      context: string;        // 'yn_function', 'select_menu', 'getlin', 'askname', 'nhgetch', 'poskey', 'get_ext_cmd'
+      type: string;           // 'char', 'yn', 'menu', 'line', 'ext_cmd', 'string'
+      promptCategory: 'TEXT' | 'YN' | 'KEY' | 'MENU' | 'POSKEY' | 'FILE' | 'OTHER'; // ★構造化タグ
+      question?: string;      // 質問内容
+      choices?: string;       // 受容可能な選択肢文字列 (例: "ynaq", "hjklyubn")
+      defaultChoice?: string; // デフォルト選択肢 (例: 'y')
+      prompt?: string;        // 入力プロンプト
+      items?: MenuItem[];     // メニュー項目配列 (select_menu 時)
+      how?: number;           // メニュー選択方式 (0: VIEW_ONLY, 1: PICK_ONE, 2: PICK_ANY)
+      detectedName?: string;  // セーブデータ自動検知名 (askname 時)
+      resolver: SafeResolver; // ★二重呼び出し・Proxy自動解除対応済み安全レスポンダー
   }
   ```
-- **拡張機能**:
-  - `context === 'get_ext_cmd'`: `#` 押下時の拡張コマンド名入力。`resolver.respond("pray")` 等の文字列送信により拡張コマンドを発行。
-  - `context === 'yn_function'`: Enter キー (`13`) や Space キー (`32`) 入力時、C コアが `impossible` と判定しないよう、デフォルト選択肢文字 (`defaultChoice`) へ自動正規化。
 
-### `print_glyph`
-マップ上のセルの表示更新指示が届いた際に発火します。
-- **ペイロード**: `{ windowId: number, x: number, y: number, glyphInfo: Object }`
-
-### `curs`
-カーソル位置移動指示が届いた際に発火します。
-- **ペイロード**: `{ windowId: number, x: number, y: number }`
-
-### `putstr` / `putmixed`
-メッセージやステータス、またはテキストウィンドウ用文章が届いた際に発火します。
-- **ペイロード**: `{ windowId: number, attr: number, text: string }`
-
-### `raw_print` / `raw_print_bold`
-アイテム拾い通知 ("You pick up...") や各種生コメント、死因メッセージが届いた際に発火します。
-- **ペイロード**: `{ text: string }`
-
-### `status_update`
-HP(18/19)、Pw(11/12)、AC(14)、Au/Gold(10)、Dlevel(20)、空腹(17)、状態異常(22) などのステータスフィールドが変更された際に発火します。
-- **ペイロード**: `{ field: number, value: any, glyphId?: number, goldData?: Object }`
-
-### `clear_nhwindow` / `display_nhwindow`
-ウィンドウの消去・表示指示が届いた際に発火します。
-- **ペイロード (`display_nhwindow`)**: `{ windowId: number, blocking: boolean }`
+#### レスポンダーオブジェクト (`SafeResolver`)
+UI 側からは `resolver.respond(value)` または `resolver.cancel()` を呼び出します。
+- **二重呼び出し防止 (Safe Guard)**: 同じ Resolver に対して 2 回以上 `respond()` を呼んでも 2 回目以降は安全な no-op となり警告・例外が発生しません。
+- **Proxy ディープコピー (unwrapPayload)**: Vue 3 / SolidJS 等の Reactive State (Proxy) オブジェクトを渡した場合、Worker 通信前に自動的に Plain JavaScript Object に変換されます。
 
 ---
 
-## 4. `InputResolver` オブジェクト (Safety Responder)
+## 4. エクスポートモジュール一覧
 
-`inputRequired` イベント発生時に渡される応答オブジェクトです。
+```javascript
+import {
+  NetHackWasmDriver,
+  NetHackWasmWorkerBridge,
+  NetHackMemory,
+  NetHackFSManager,
+  InputResolver,
+  getTileMapping
+} from '@nethack/wasm-driver';
+```
 
-### `resolver.respond(value)`
-プレイヤーの選択・入力結果を C コアへ返却し、Asyncify スタックの再開（rewind）を行います。
-- **引数 `value`**:
-  - キー入力時: 文字コード (`number`) (例: `'y'` は `121`)
-  - 拡張コマンド入力時: コマンド文字列 (`string`) (例: `"pray"`, `"jump"`)
-  - テキスト入力時: 入力文字列 (`string`) (例: `"e3-sh"`)
-  - メニュー選択時: 選択されたアイテムオブジェクトの配列 (`Array<Object>`)
-  - メニューキャンセル時: `0` (`number`)
+- **`getTileMapping()`**: 2D Canvas 描画用のスプライトタイルインデックス参照テーブル（`Record<number, number>`）を取得します。
 
-### `resolver.cancel(overrideValue)`
-入力キャンセルを安全に実行します。
+---
 
+## 5. TypeScript 型定義サポート
+
+本パッケージには公式 TypeScript 型定義ファイル `types/index.d.ts` が同梱されており、TypeScript プロジェクトで型補完・型安全性が有効です。
+
+---
+
+## 6. 履歴・互換性ノート (History & Compatibility)
+
+- **Worker 構造の分離**: 初期仕様では C コアがメインスレッドで同期的に直接動作していましたが、バージョン 2.0 以降は Web Worker 上で完全非同期通信（`NetHackWasmWorkerBridge`）を行うアーキテクチャに進化しました。
+- **コンテキスト保護**: 非ブロック画面表示 (`shim_display_nhwindow` `blocking: false`) が `askname` 等の待機中プロンプトを誤って上書き破棄しないコンテキスト保護 (`isUserPromptContext`) が導入されています。

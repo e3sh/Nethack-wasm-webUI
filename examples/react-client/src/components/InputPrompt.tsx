@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
+import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 export const InputPrompt: React.FC = () => {
   const activePrompt = useGameStore((state) => state.activePrompt);
-  const setPrompt = useGameStore((state) => state.setPrompt);
+  const { respondPrompt } = useNetHackDriver();
 
   const [inputText, setInputText] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -52,13 +53,9 @@ export const InputPrompt: React.FC = () => {
 
   const respondDirect = useCallback(
     (val: any) => {
-      if (activePrompt && activePrompt.resolver) {
-        const res = activePrompt.resolver;
-        setPrompt(null);
-        res.respond(val);
-      }
+      respondPrompt(val);
     },
-    [activePrompt, setPrompt]
+    [respondPrompt]
   );
 
   const sendChar = useCallback(

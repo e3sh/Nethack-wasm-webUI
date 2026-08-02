@@ -86,25 +86,49 @@
                         if (data && data.hasResolver) {
                             const resolverId = data.resolverId;
                             const bridge = this;
-                            data.resolver = {
-                                respond: (val) => {
-                                    if (bridge._activeResolver === data.resolver) {
-                                        bridge._activeResolver = null;
-                                    }
-                                    this.worker.postMessage({
-                                        type: 'RESPOND_INPUT',
-                                        payload: { resolverId, value: val, isCancel: false }
-                                    });
-                                },
-                                cancel: () => {
-                                    if (bridge._activeResolver === data.resolver) {
-                                        bridge._activeResolver = null;
-                                    }
-                                    this.worker.postMessage({
-                                        type: 'RESPOND_INPUT',
-                                        payload: { resolverId, isCancel: true }
-                                    });
+                            let resolved = false;
+
+                            const safeRespond = (val) => {
+                                if (resolved) {
+                                    console.warn(`[NetHackWasmWorkerBridge] SafeResolver: Worker bridge resolver was already resolved. Ignoring duplicate call.`);
+                                    return false;
                                 }
+                                resolved = true;
+                                if (bridge._activeResolver === data.resolver) {
+                                    bridge._activeResolver = null;
+                                }
+
+                                const cleanVal = (typeof InputResolver !== 'undefined' && InputResolver.unwrapPayload) ? 
+                                    InputResolver.unwrapPayload(val) : 
+                                    (function(v) {
+                                        if (v === null || typeof v !== 'object') return v;
+                                        try { return JSON.parse(JSON.stringify(v)); } catch(e) { return v; }
+                                    })(val);
+
+                                this.worker.postMessage({
+                                    type: 'RESPOND_INPUT',
+                                    payload: { resolverId, value: cleanVal, isCancel: false }
+                                });
+                                return true;
+                            };
+
+                            const safeCancel = () => {
+                                if (resolved) return false;
+                                resolved = true;
+                                if (bridge._activeResolver === data.resolver) {
+                                    bridge._activeResolver = null;
+                                }
+                                this.worker.postMessage({
+                                    type: 'RESPOND_INPUT',
+                                    payload: { resolverId, isCancel: true }
+                                });
+                                return true;
+                            };
+
+                            data.resolver = {
+                                respond: safeRespond,
+                                cancel: safeCancel,
+                                isResolved: () => resolved
                             };
                             this._activeResolver = data.resolver;
                         }

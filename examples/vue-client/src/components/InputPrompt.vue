@@ -47,9 +47,11 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
+import { useNetHackDriver } from '../composables/useNetHackDriver';
 
 const gameStore = useGameStore();
 const { activePrompt } = storeToRefs(gameStore);
+const { respondPrompt } = useNetHackDriver();
 
 const inputText = ref('');
 const inputRef = ref<HTMLInputElement | null>(null);
@@ -76,13 +78,15 @@ const isYNPrompt = computed(() => {
   const choices = activePrompt.value.choices;
   const prompt = activePrompt.value.prompt || '';
 
+  if (prompt.toLowerCase().includes('direction')) return false;
+
   return (
     ctx === 'yn' ||
     ctx === 'yn_function' ||
     !!choices ||
     prompt.includes('[y/n]') ||
     prompt.includes('(y/n)') ||
-    prompt.includes('?') ||
+    (prompt.includes('?') && !prompt.toLowerCase().includes('direction')) ||
     prompt.toLowerCase().includes('tutorial')
   );
 });
@@ -96,11 +100,7 @@ watch(activePrompt, async (newVal) => {
 });
 
 function respondDirect(val: any) {
-  if (activePrompt.value && activePrompt.value.resolver) {
-    const res = activePrompt.value.resolver;
-    gameStore.setPrompt(null);
-    res.respond(val);
-  }
+  respondPrompt(val);
 }
 
 function sendChar(char: string) {
@@ -147,10 +147,30 @@ function handleKeyDown(e: KeyboardEvent) {
       sendChar('y');
       return;
     }
+    if (e.key.length === 1) {
+      e.preventDefault();
+      sendChar(e.key);
+      return;
+    }
   }
 
   if (isTextPrompt.value && document.activeElement === inputRef.value) {
     return;
+  }
+
+  // 方向入力プロンプト (e.g. "In what direction?") などのプロンプトキーボード入力ダイレクト受容
+  if (!isTextPrompt.value && e.key.length === 1) {
+    let charCode = 0;
+    if (e.key === 'ArrowUp') charCode = 107; // 'k'
+    else if (e.key === 'ArrowDown') charCode = 106; // 'j'
+    else if (e.key === 'ArrowLeft') charCode = 104; // 'h'
+    else if (e.key === 'ArrowRight') charCode = 108; // 'l'
+    else charCode = e.key.charCodeAt(0);
+
+    if (charCode > 0) {
+      e.preventDefault();
+      respondDirect(charCode);
+    }
   }
 }
 

@@ -95,14 +95,14 @@ function io(r, g) {
 			const originalHandler = r.pendingInputResolve;
 			r.UI.msg(">");
 
-			async function updateDisplay(next) {
+			function updateDisplay() {
 				r.UI.updateInputLine(`${query}>${inputStr}`);
-				await new Promise(resolve => setTimeout(resolve, 150));
-				r.UI.updateInputLine(`${query} ${inputStr}`);
-				if (next) r.pendingInputResolve = handler;
 			}
 
 			const handler = (charCode) => {
+				// ★キーが入った瞬間、隙間なく直ちにハンドラを即時維持！
+				r.pendingInputResolve = handler;
+
 				if (charCode === 13) { // Enter
 					r.pendingInputResolve = originalHandler;
 					r.UI.msg(`${query} ${inputStr}`); // 履歴に残す
@@ -114,18 +114,17 @@ function io(r, g) {
 				} else if (charCode === 8) { // Backspace
 					if (inputStr.length > 0) {
 						inputStr = inputStr.slice(0, -1);
-						updateDisplay(false);
 					}
-					r.pendingInputResolve = handler;
+					updateDisplay();
 				} else if (charCode >= 32 && charCode <= 126) { // ASCII printable
 					inputStr += String.fromCharCode(charCode);
-					updateDisplay(true);
-				} else {
-					r.pendingInputResolve = handler;
+					updateDisplay();
 				}
 			};
 
-			updateDisplay(true);
+			// 初期ハンドラ登録
+			r.pendingInputResolve = handler;
+			updateDisplay();
 		});
 	}
 

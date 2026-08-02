@@ -115,9 +115,9 @@ function GameManager(g) {
             this.UI.set_display_window(windowId);
             if (this.UI.nhPutbufReady(windowId)) {
                 this.UI.nhClear(windowId);
-                const handledPaged = await this.UI.nhPutbufDraw(windowId);
+                await this.UI.nhPutbufDraw(windowId);
                 if (windowId > 3) this.UI.overlapview(true);
-                if (!handledPaged && resolver) {
+                if ((blocking || windowId > 3) && resolver) {
                     this.activeResolver = resolver;
                     this.waitingForInput = true;
                 } else if (resolver) {
@@ -125,7 +125,7 @@ function GameManager(g) {
                 }
             } else {
                 await this.UI.nhPutbufDraw(windowId);
-                if (blocking && resolver) {
+                if ((blocking || windowId > 3) && resolver) {
                     this.activeResolver = resolver;
                     this.waitingForInput = true;
                 } else if (resolver) {
@@ -473,12 +473,18 @@ function GameManager(g) {
 
     this.handleMenuInput = async function (payload) {
         const windowId = payload.windowId;
-        const menuData = (windowId !== undefined && this.menuBuffer[windowId]) ? this.menuBuffer[windowId] : payload;
-        let rawItems = menuData.items || payload.items || payload.menuItems || [];
-        const prompt = menuData.prompt || payload.prompt || "";
+        const menuBuf = (windowId !== undefined && this.menuBuffer[windowId]) ? this.menuBuffer[windowId] : null;
+        let rawItems = (menuBuf && menuBuf.items && menuBuf.items.length > 0) 
+            ? menuBuf.items 
+            : (payload.items || payload.menuItems || []);
+
+        const prompt = (menuBuf && menuBuf.prompt) ? menuBuf.prompt : (payload.prompt || "");
         const how = payload.how || 1;
 
+        console.log(`[GameManager handleMenuInput] windowId=${windowId}, rawItemsCount=${rawItems ? rawItems.length : 0}, how=${how}, prompt="${prompt}"`);
+
         if (!rawItems || rawItems.length === 0) {
+            console.warn("[GameManager handleMenuInput] rawItems is empty! Bypassing menu and responding [].");
             this.UI.overlapview(false);
             if (this.activeResolver) {
                 const resolver = this.activeResolver;
@@ -503,7 +509,9 @@ function GameManager(g) {
 
         if (this.UI.showMenu) {
             try {
+                console.log(`[GameManager handleMenuInput] Calling UI.showMenu with ${items.length} items...`);
                 const selected = await this.UI.showMenu(items, how, prompt);
+                console.log(`[GameManager handleMenuInput] UI.showMenu finished. Selected:`, selected);
                 this.UI.overlapview(false);
                 if (this.activeResolver) {
                     const resolver = this.activeResolver;
@@ -561,7 +569,6 @@ function GameManager(g) {
         // 1. UIManager (showMenu / showInput 等) がキーフックしている場合は最優先で呼び出し
         if (this.pendingInputResolve) {
             const resolve = this.pendingInputResolve;
-            this.pendingInputResolve = null;
             resolve(charCode);
             return true;
         }

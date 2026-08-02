@@ -4,6 +4,7 @@
   "description": "Standalone decoupled event-driven WebAssembly driver for NetHack 5.0 / 3.7",
   "main": "index.js",
   "module": "index.js",
+  "types": "types/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
@@ -15,6 +16,7 @@
     "./NetHackFSManager": "./NetHackFSManager.js",
     "./NetHackMemory": "./NetHackMemory.js",
     "./InputResolver": "./InputResolver.js",
+    "./tileMapping": "./tileMapping.js",
     "./nethack.worker": "./nethack.worker.js"
   },
   "files": [
@@ -24,7 +26,9 @@
     "NetHackFSManager.js",
     "NetHackMemory.js",
     "InputResolver.js",
+    "tileMapping.js",
     "nethack.worker.js",
+    "types",
     "README.md"
   ],
   "keywords": [

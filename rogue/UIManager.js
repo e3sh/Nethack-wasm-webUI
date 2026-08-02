@@ -467,7 +467,10 @@ function UIManager(r, g) {
     }
 
     this.showMenu = function (items, how, promptText) {
+        console.log(`[UIManager showMenu] Called with itemsCount=${items ? items.length : 0}, how=${how}, prompt="${promptText}"`);
+
         if (!items || !Array.isArray(items) || items.length === 0) {
+            console.warn("[UIManager showMenu] Items array is empty or invalid. Resolving [] instantly.");
             this.overlapview(false);
             return Promise.resolve([]);
         }
@@ -476,29 +479,35 @@ function UIManager(r, g) {
         const numLines = d.LINES || 24;
         const pageSize = numLines - 2;
 
-        if (how == 0) {  //view only menu (nocursor)
+        const hasSelectableItems = items.some(it => it && it.identifier !== undefined && it.identifier !== 0 && it.identifier !== -1);
+        const isViewOnly = (how === 0) || !hasSelectableItems;
+
+        console.log(`[UIManager showMenu] isViewOnly=${isViewOnly}, hasSelectableItems=${hasSelectableItems}`);
+
+        if (isViewOnly) {  //view only menu (nocursor / lookupInformation)
             return new Promise((resolve) => {
                 let currentPage = 0;
-                const totalPages = Math.ceil(items.length / pageSize);
+                const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
 
                 const render = () => {
                     this.wclear(menuDsp);
                     const pageInfo = totalPages > 1 ? ` (Page ${currentPage + 1}/${totalPages})` : "";
                     const pText = this.trancelate.message(promptText);
-                    this.mvwaddch(menuDsp, 0, 0, pText + pageInfo);
+                    this.mvwaddch(menuDsp, 0, 0, (pText || "Information:") + pageInfo);
 
                     const start = currentPage * pageSize;
                     const end = Math.min(start + pageSize, items.length);
                     for (let i = start; i < end; i++) {
-                        const textStr = this.trancelate.message(items[i].str);
+                        const textStr = this.trancelate.message(items[i].str || "");
                         this.mvwaddch(menuDsp, (i - start) + 1, 0, ` ${textStr}`);
                     }
 
                     if (totalPages > 1) {
                         this.mvwaddch(menuDsp, Math.min(pageSize + 1, items.length + 1), 0, "-- More -- (Space/2 for next, 8 for prev)");
-
                     }
                 };
+
+                this.overlapview(true);
                 render();
 
                 const originalHandler = r.pendingInputResolve;
@@ -515,7 +524,7 @@ function UIManager(r, g) {
                             r.pendingInputResolve = null;
                             resolve([]);
                         }
-                    } else if (key === '8' || key === '8') { // b, k: 前へ
+                    } else if (key === '8') { // b, k: 前へ
                         if (currentPage > 0) {
                             currentPage--;
                             render();
@@ -523,12 +532,10 @@ function UIManager(r, g) {
                         } else {
                             r.pendingInputResolve = handler;
                         }
-                    } else if (charCode === 27) { // ESC: キャンセル
+                    } else { // ESC や 任意のキー押下: 閲覧終了 (showText と完全に仕様を統一)
                         this.overlapview(false);
                         r.pendingInputResolve = null;
                         resolve([]);
-                    } else {
-                        r.pendingInputResolve = handler;
                     }
                 };
                 r.pendingInputResolve = handler;
