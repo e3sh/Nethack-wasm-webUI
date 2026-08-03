@@ -1,60 +1,61 @@
 # NetHack Wasm Driver サンプルクライアント拡充計画 & 開発ガイドライン (`examples/`)
 
-本ディレクトリ (`examples/`) は、**NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要な各種モダン Web フロントエンドフレームワーク（Vue, React, Svelte, SolidJS 等）と結合した、高品質なフル機能サンプルクライアント群を保持・提供する領域です。
+本ディレクトリ (`examples/`) は、**NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要なモダン Web フロントエンドフレームワーク（Vue 3, React 18, Svelte, SolidJS 等）と結合した、高品質なフル機能サンプルクライアント群を提供する領域です。
 
-すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、**GitHub Pages 上で 1 クリックでブラウザからそのまま直接体験・プレイ可能**です。
+すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、**GitHub Pages 上で 1 クリックでブラウザからそのまま直接プレイ可能**です。
 
 ---
 
 ## 🎮 ライブデモ (Live Demo)
 
 - **Vue 3 サンプルクライアント**: 
-  - 🔗 **[Vue 3 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/vue-client/dist/`)*
+  - 🔗 **[Vue 3 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)**
 - **React 18 サンプルクライアント**: 
-  - 🔗 **[React 18 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/react-client/dist/`)*
+  - 🔗 **[React 18 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
 - **Svelte サンプルクライアント**: 
-  - 🔗 **[Svelte Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/svelte-client/dist/`)*
+  - 🔗 **[Svelte Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
 - **SolidJS サンプルクライアント**: 
-  - 🔗 **[SolidJS Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)** *(※ GitHub Pages 配備時は `https://<username>.github.io/<repo>/examples/solid-client/dist/`)*
+  - 🔗 **[SolidJS Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)**
 
 ---
 
-## 🗺️ サンプルクライアント・ロードマップ (Examples Roadmap)
+## 🗺️ サンプルクライアント一覧 (Examples Overview)
 
 | ディレクトリ | フレームワーク / 技術スタック | 状態 | ライブデモ | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、型安全接続 |
-| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Zustand 状態管理 |
-| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Svelte Store 構成 |
-| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、万能プロンプト、Signals 爆速構成 |
+| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、`driverController` シングルトン設計 |
+| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、Hooks 通信設計 |
+| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、Svelte Store 構成 |
+| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2D Canvas、メニュー、ヘルス、Signals 高速構成 |
 
 ---
 
-## 🏛️ 全 Example 共通のアーキテクチャ & 設計基準
+## 🏛️ 全 Example 共通の最新アーキテクチャ & 設計基準 (v2.0)
 
-新しい Conversation（会話）で新しいフレームワークの Example を作成する際は、**以下の共通設計標準および実績ノウハウを 100% 遵守**して構築します。
+新しいフレームワークの Example や独自クライアントを構築する際は、**以下の共通設計標準**を遵守して構築します。
 
-### 1. 通信 & レスポンダー管理 (`NetHackWasmWorkerBridge`)
-- **Resolver の分離保持**: メニュー用 `activeMenuResolver` と 汎用プロンプト用 `activePromptResolver` を完全に分離管理する。
-- **二重応答防止 (`createSafeResolver`)**: 同じ Resolver に対して `respond()` が二重呼び出しされて Worker 内で `Resolver not found or already resolved` 警告が発生するのを防止する安全ラッパーを適用する。
-- **データオブジェクトのアンラップ (`toRaw` / Plain Copy)**: Vue や Reactive シグナルの `Proxy` を解除し、Plain JavaScript Object に変換してから Worker へ `postMessage` する（`DataCloneError` 防止）。
-- **`select_menu` 応答フォーマットの厳守**: 選択時は「アイテムオブジェクトの配列 `[item]`」、キャンセル時/空メニュー時は数値 `0` を返す（`NetHackWasmDriver.js:671` の `res.charCodeAt` クラッシュ防止）。
+### 1. 通信 & レスポンダー管理 (`driverController` シングルトン構造)
+- **Singleton 通信コントローラー**: フレームワークの Reactive State (Vue 3 `ref` や Solid Signals) による Wasm レスポンダー (`Resolver`) の参照破損を防ぐため、通信ブリッジおよび Resolver の保持は **非 Proxy の Singleton クラス (`driverController`)** で一元管理する。
+- **ドライバーコアの安全ガード自動提供**:
+  - `SafeResolver`: 二重応答防止をドライバーコアが自動ガード。
+  - `unwrapPayload`: Vue/Solid等の State (Proxy) オブジェクト送信時のディープコピー解体をドライバーコアが自動適用。
+  - `normalizeMenuResponse`: メニュー応答の型・配列自動整列をドライバーコアが自動補正。
 
 ### 2. マップ描画 & 階層消去ルール
-- **ハイブリッド 2D Canvas**: `param/tileMapping.js` の `tileMapping()` 関数から Tile Index を取得してスプライト描画 (`nethack_default_32.png`)。スプライト未割り当て時や文字セルは 16 色 TTY カラー + monospace フォントで描画。
+- **ハイブリッド 2D Canvas**: `@nethack/wasm-driver` からエクスポートされる `getTileMapping()` を使用してスプライト描画 (`nethack_default_32.png`)。スプライト未割り当て時や文字セルは 16 色 TTY カラー + monospace フォントで描画。
 - **スプライト切出数式**: `tilesPerRow = 40`, `origTileSize = 32`。16px スプライト切り出し時は `background-size: 640px auto`。
-- **マップ全消去 (`clearMapGrid`) の正統ルール**:
-  - 歩行時の毎ターンの `clear_nhwindow(3)` では全消去を行わず、`print_glyph` 差分更新のみ維持する（画面の背景ブラックアウト防止）。
-  - `status_update` で `field === 20` (`DLEVEL`) のポインタ文字列全体（例: `"Dlvl:1"`, `"Tut:1"`, `"Mines:1"`）が変化した時のみ `clearMapGrid()` を呼ぶ。
-  - `askname` / `initialized` 発火時に初回 `clearMapGrid()` を呼ぶ。
+- **マップ全消去 (`clearMapGrid`) のルール**:
+  - 毎ターンの `clear_nhwindow(3)` では全消去を行わず、`print_glyph` 差分更新のみ維持する。
+  - `status_update` で `field === 20` (`DLEVEL`) の構造化階層オブジェクト `dlevelData` またはポインタ文字列全体（例: `"Dlvl:1"`, `"Tut:1"`, `"Mines:1"`）が変化した時のみ `clearMapGrid()` を呼ぶ。
 
-### 3. モーダル & 万能プロンプトハンドラ
-- **万能プロンプト (`InputPrompt`)**:
-  - `type === 'string'` または `getlin` / `askname` / `#` (`get_ext_cmd`) ➔ テキスト入力フォーム (+ `Submit` & `Cancel (ESC)` ボタン)
-  - 上記以外 ➔ `Yes (y)` / `No (n)` / `Cancel (ESC)` ボタンをデフォルト描画し、全キーボード入力（a〜z, Enter, ESC, y, n）をダイレクト受容（無表示・フリーズの100%防止）。
-- **キー操作分離ガード**: テキスト入力フォーカス中、プロンプト表示中、モーダル表示中は、グローバル移動キー（hjkl, 矢印キー）の Wasm 送信を 100% 遮断する。
-- **閲覧用長文モーダル (`TextWindowModal`)**: `display_nhwindow` (windowId >= 4) や `display_file` で届くテキスト行をポップアップ表示し、`OK / ESC / Space / Enter` で `0` を返して安全解放する。
-- **案内専用メニュー (`how === 0`)**: `select_menu` で `items` が空の場合は即座に `0` を返送。選択肢のない案内メニューは `how === 0` 閲覧専用モードとして開き `OK / ESC` で閉じる。
+### 3. モーダル & 構造化プロンプト (`promptCategory`)
+- **`promptCategory` タグによる条件分岐**:
+  - `'YN'`: Yes/No ダイアログ (y/n/q ボタン & キーボードダイレクト受容)
+  - `'TEXT'`: 1行テキスト入力フォーム (askname, getlin, #extcmd)
+  - `'MENU'`: インベントリ・アイテム選択モーダル
+  - `'FILE'`: テキストファイル/ヘルプ閲覧モーダル
+- **方向入力 ("In what direction?") の取扱い**: `"direction"` は `isYNPrompt` 判定から除外して Yes/No モーダルを出さず、移動・攻撃方向キー（h, j, k, l, 矢印キー等）を直接返送する。
+- **閲覧専用テキストモーダル (`TextWindowModal`)**: `display_nhwindow` (windowId >= 4) や `display_file` および選択不可メニュー (`lookupInformation` 等) のテキスト行をポップアップ表示し、`OK / ESC / Space / Enter` で閉じる。
 
 ---
 
@@ -63,4 +64,4 @@
 別セッション（新しいチャット）を開始した際は、以下のように指示するだけで、AI が本ファイルを読解してノータイムで最高品質のサンプルクライアントを構築できます：
 
 > **依頼プロンプト例**:
-> 「`examples/README.md` の共通アーキテクチャ・設計基準に従って、`examples/react-client`（React 18 + Vite + TypeScript）のサンプルクライアントを構築してください。」
+> 「`examples/README.md` の共通アーキテクチャ・設計基準に従って、新しいフレームワークのサンプルクライアントを構築してください。」
