@@ -17,8 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@driver/*": ["../../src/driver/*"]
+      "@/*": ["./src/*"],
+      "@driver/*": ["../../src/driver/*"],
+      "@param/*": ["../../param/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]

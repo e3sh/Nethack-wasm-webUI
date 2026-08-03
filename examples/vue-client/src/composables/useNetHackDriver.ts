@@ -227,19 +227,6 @@ class NetHackDriverController {
     ) {
       return;
     }
-    if (gameStore.activeMenu || gameStore.activeTextModal) {
-      return;
-    }
-    if (
-      gameStore.activePrompt &&
-      (gameStore.activePrompt.context === 'yn_function' ||
-        gameStore.activePrompt.context === 'yn' ||
-        gameStore.activePrompt.context === 'getlin' ||
-        gameStore.activePrompt.context === 'askname' ||
-        gameStore.activePrompt.context === 'get_ext_cmd')
-    ) {
-      return;
-    }
 
     let charCode = 0;
     if (e.key === 'ArrowUp') charCode = 107; // 'k'

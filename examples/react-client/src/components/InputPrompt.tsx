@@ -97,7 +97,9 @@ export const InputPrompt: React.FC = () => {
 
       if (isYNPrompt && !isTurnInput) {
         const k = e.key.toLowerCase();
-        if (k === 'y' || k === 'n' || k === 'q') {
+        const choices = activePrompt.choices || '';
+        
+        if (k === 'y' || k === 'n' || k === 'q' || (choices && choices.includes(k))) {
           e.preventDefault();
           e.stopPropagation();
           sendChar(k);
