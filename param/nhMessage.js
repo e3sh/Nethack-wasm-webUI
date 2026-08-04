@@ -10841,6 +10841,14 @@
         { en: "You are now in non-scoring explore mode.", jp: "スコアが記録されない探索モードになりました。" },
         { en: "You are already in explore mode.", jp: "すでに探索モードになっています。" },
         { en: "You don't know that spell.", jp: "その呪文は知りません。" },
+        { en: "Wilt thou settle for a minor consultation?\"\"", jp: "「ちょっとした相談でよろしいですか？」" },
+        { en: "Then dost thou desire a major one?\"\"", jp: "「では、もっと本格的な相談をご希望ですか？」" },
+        { en: "True to her word, the Oracle casually says:", jp: "約束通り、預言者はさりげなくこう告げる。" },
+        { en: "You see a gas cloud dissipate.", jp: "ガス雲が消えていくのが見える" },
+        { en: "Some effervescent liquid flows from the faucet.", jp: "蛇口から泡立つ液体が流れ出ている。" },
+        { en: "pronounce", jp: "発音" },
+        { en: "You produce a frightful, grave sound.", jp: "あなたは恐ろしく重々しい音を立てる。" },
+        { en: "Your thirst is quenched.", jp: "渇きは癒やされた。" },
     ];
 }
 
@@ -11207,6 +11215,7 @@ function nhEntities() {
         "kobold zombie": "コボルドのゾンビ",
         "dwarf zombie": "ドワーフのゾンビ",
         "gnome zombie": "ノームのゾンビ",
+        "gnome mummy": "ノームのミイラ",
         "garter snake": "ガーターヘビ",
         "iguana": "イグアナ",
         "gus spore": "ガスの胞子",
@@ -11373,6 +11382,7 @@ function nhEntities() {
         "cat or other feline": "猫またはネコ科の動物",
         "fungus or mold": "菌類またはカビ",
         "zombie": "ゾンビ",
+        "geometric": "幾何学的",
         "jumbo shrimp": "ジャンボエビ",
         "giant pigmy": "巨大なブタ",
         "gnu": "ヌー",
@@ -12336,6 +12346,7 @@ function nhEntities() {
         "Wiz": "魔法使い",
         "dungeon": "ダンジョン",
         "tools": "道具(ツール）",
+        "statue": "石像",
     };
 }
 
@@ -12537,6 +12548,7 @@ function nhItems() {
         "orcish ring mail": "オークのリングメイル",
         "crude ring mail": "粗末なリングメイル",
         "leather armor": "レザーアーマー",
+        "jacket": "上着",
         "leather jacket": "レザージャケット",
         "Hawaiian shirt": "アロハシャツ",
         "T-shirt": "Tシャツ",
@@ -12721,7 +12733,8 @@ function nhItems() {
         "in quiver pouch": "矢筒内",
         "in quiver": "矢筒内",
         "tooled horn": "加工された角",
-        "bugle": "角笛",
+        "bugle": "ビューグル(角笛)",
+        "horn": "ホーン(角笛)",
         "meatball": "肉団子",
         "meat ring": "肉の輪",
         "meat stick": "肉の棒",
@@ -13040,8 +13053,8 @@ function nhPatterns() {
         { pattern: /^attempt\.\s+\s+Your\s+hour\s+of\s+destiny\s+has\s+come\.\s+\s+For\s+the\s+sake$/, replace: "運命の時が来ました。我らすべてのために、" },
         { pattern: /^of\s+us\s+all:\s+\s+Go\s+bravely\s+with\s+(.*)!$/, replace: "$1と共に勇敢に進みなさい！" },
         { pattern: /^\[(.*)\s+has\s+chosen\s+you\s+to\s+recover\s+the\s+Amulet\s+of\s+Yendor\s+for\s+(Her|Him)\.\]$/, replace: "［$1は$2のためにイェンダーの魔除けを奪還する者として、あなたを選びました。］" },
-        { pattern: /^You\s+read:\s+"(.*)"$/, replace: "あなたは「$1」と読んだ" },
-        { pattern: /^You\s+read:\s+"(.*)"\.$/, replace: "あなたは「$1」と読んだ。" },
+        { pattern: /^You\s+read:\s+"(.*)"$/, replace: "「$1」と読んだ" },
+        { pattern: /^You\s+read:\s+"(.*)"\.$/, replace: "「$1」と読んだ。" },
         { pattern: /^You\s+learn\s+"(.*)"\.$/, replace: "「$1」を習得しました。" },
         { pattern: /^A\s+board\s+beneath\s+you\s+squeaks\s+(.*)\s+loudly\.$/, replace: "足元の床板が$1と大きな音を立てて鳴った。" },
         { pattern: /^You\s+avoid\s+stepping\s+into\s+the\s+(.*)\.$/, replace: "あなたは$1に足を踏み入れないようにした。" },
@@ -16718,6 +16731,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+is\s+already\s+covered\s+by\s+a\s+towel\.$/, replace: "$1 はすでにタオルで覆われています。" },
         { pattern: /^putting\s+on\s+unexpected\s+type\s+of\s+accessory:\s+(.*)$/, replace: "予期しないタイプのアクセサリーを身に着けています: $1" },
         { pattern: /^(.*)(.*)\s+are\s+full,\s+and\s+you're\s+already\s+wearing\s+an\s+amulet\s+and\s+(.*)\.$/, replace: "$1  $2 はいっぱいで、すでにお守りと $3 を身に着けています。" },
+        { pattern: /^The\s+beautiful\s+(.*)\s+seduces\s+you\s+and\s+you\s+take\s+off\s+your\s+(.*)\.$/, replace: "美しい$1があなたを誘惑し、あなたは$2を脱ぎます。" },
         { pattern: /^(.*)\s+off\s+your\s+(.*)\.$/, replace: "$1 を $2 から削減します。" },
         { pattern: /^(.*)\s+(.*)(.*)\s+from\s+your\s+(.*)(.*)\.$/, replace: "$1  $2  $3 あなたの $4  $5 から。" },
         { pattern: /^(.*)\s+(.*)(.*)\s+(.*)(.*)\s+from\s+your\s+(.*)(.*)\.$/, replace: "$1  $2  $3  $4  $5 から $6  $7 。" },
@@ -16986,6 +17000,12 @@ function nhPatterns() {
         { pattern: /^You\s+escaped\s+from\s+(.*)\s+on\s+level\s+(.*)\s+with\s+(.*)\s+points\.$/, replace: "あなたは$3ポイントで、$1の$2階から脱出しました。" },
         { pattern: /^Your\s+(.*)\s+slips\s+from\s+your\s+hand\.$/, replace: "あなたの手から$1が滑り落ちる" },
         { pattern: /^The\s+(.*)\s+command\s+does\s+not\s+accept\s+'m'\s+prefix\.$/, replace: "「$1」コマンドでは「m」接頭辞を受け付けません。" },
+        { pattern: /^(.*)\s+zorkmids$/, replace: "$1ゾークミッド" },
+        { pattern: /^(.*)'s\s+armor\s+falls\s+around\s+it!$/, replace: "$1の鎧が、その周囲に崩れ落ちた！" },
+        { pattern: /^(.*)\s+points\s+at\s+you,\s+then\s+curses\.$/, replace: "$1があなたを指さし、呪いの言葉を吐いた。" },
+        { pattern: /^(.*)\s+with\s+all\s+your\s+might$/, replace: "$1を全力を込めて" },
+        { pattern: /^You\s+feel\s+no\s+(.*)\s+there\.$/, replace: "そこに$1があるようには感じられない。" },
+        { pattern: /^The\s+(.*)\s+returns\s+to\s+the\s+(.*)'s\s+hand!$/, replace: "$1が、$2の手元に戻った！" },
     ];
 }
 
