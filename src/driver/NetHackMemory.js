@@ -170,21 +170,25 @@
             let parsedVal = null;
             let glyphId = null;
 
-            if (fld === 22) { // BL_CONDITION
-                rawVal = ptr ? this.getValue(ptr, 'i32') : 0;
+            const numericFields = [8, 16, 18, 19, 11, 12, 13, 14, 15];
+            if (numericFields.includes(fld)) {
+                rawVal = (typeof ptr === 'number') ? ptr : (parseInt(ptr, 10) || 0);
+                parsedVal = rawVal;
+            } else if (fld === 22) { // BL_CONDITION
+                rawVal = ptr ? (typeof ptr === 'number' ? ptr : (this.getValue(ptr, 'i32') || 0)) : 0;
                 parsedVal = this.parseConditionFlags(rawVal);
-            } else if (fld === 17) { // BL_HUNGER (Index 17 in rogueDefines)
-                try {
-                    rawVal = this.UTF8ToString(ptr);
-                } catch (e) {
-                    rawVal = this.getValue(ptr, 'i32');
-                }
+            } else if (fld === 17) { // BL_HUNGER
+                try { rawVal = this.UTF8ToString(ptr); } catch (e) { rawVal = ptr; }
                 parsedVal = this.parseHungerState(rawVal);
-            } else if (ptr) {
-                try {
-                    rawVal = this.UTF8ToString(ptr);
-                } catch (e) {
-                    rawVal = this.getValue(ptr, 'i32');
+            } else if (ptr !== undefined && ptr !== null) {
+                if (typeof ptr === 'string') {
+                    rawVal = ptr;
+                } else if (typeof ptr === 'number') {
+                    if (ptr > 65536) {
+                        try { rawVal = this.UTF8ToString(ptr); } catch (e) { rawVal = ptr; }
+                    } else {
+                        rawVal = ptr;
+                    }
                 }
                 parsedVal = rawVal;
             }

@@ -59,15 +59,31 @@
                 try {
                     const res = FS.analyzePath(dir);
                     if (!res.exists) {
-                        FS.mkdir(dir);
-                        this.log(`Created directory: ${dir}`);
+                        try {
+                            FS.mkdir(dir);
+                            this.log(`Created directory: ${dir}`);
+                        } catch (mkErr) {
+                            if (mkErr && (mkErr.errno === 10 || mkErr.errno === 16)) {
+                                this.log(`Directory ${dir} already exists (${mkErr.errno}).`);
+                            } else {
+                                throw mkErr;
+                            }
+                        }
                     }
                     if (dir === '/save' && IDBFS) {
-                        FS.mount(IDBFS, {}, dir);
-                        this.log(`Mounted IDBFS at ${dir}`);
+                        try {
+                            FS.mount(IDBFS, {}, dir);
+                            this.log(`Mounted IDBFS at ${dir}`);
+                        } catch (mntErr) {
+                            if (mntErr && (mntErr.errno === 10 || mntErr.errno === 16)) {
+                                this.log(`IDBFS already mounted at ${dir}.`);
+                            } else {
+                                throw mntErr;
+                            }
+                        }
                     }
                 } catch (e) {
-                    this.error(`Failed to init dir ${dir}:`, e);
+                    this.log(`Init dir ${dir} note:`, e.message || e);
                 }
             });
 
@@ -343,54 +359,65 @@
         }
 
         /**
-         * /save/record スコアリストのパース (Top 10)
+         * record / logfile スコアリストのパース (Top 10)
          */
         parseRecordList() {
             const FS = this.FS;
-            if (!FS || !FS.analyzePath('/save/record').exists) return [];
+            if (!FS) return [];
 
-            try {
-                const recordData = FS.readFile('/save/record', { encoding: 'utf8' });
-                if (!recordData || recordData.trim() === "") return [];
+            const candidatePaths = ['/save/record', '/record', '/save/logfile', '/logfile', '/save/xlogfile', '/xlogfile'];
+            let recordData = '';
 
-                const lines = recordData.trim().split('\n');
-                const list = [];
-
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const parts = line.split(' ');
-                    if (parts.length < 15) continue;
-
-                    const points = parseInt(parts[1]) || 0;
-                    const deathLev = parseInt(parts[3]) || 0;
-                    const maxLvl = parseInt(parts[4]) || 0;
-                    const hp = parseInt(parts[5]) || 0;
-                    const maxHp = parseInt(parts[6]) || 0;
-                    const role = parts[11];
-                    const race = parts[12];
-                    const gender = parts[13];
-                    const align = parts[14];
-
-                    const rest = parts.slice(15).join(' ');
-                    const commaIdx = rest.indexOf(',');
-                    let name = "player";
-                    let death = "unknown";
-                    if (commaIdx !== -1) {
-                        name = rest.substring(0, commaIdx);
-                        death = rest.substring(commaIdx + 1);
-                    } else {
-                        name = rest;
+            for (const path of candidatePaths) {
+                try {
+                    if (FS.analyzePath(path).exists) {
+                        const content = FS.readFile(path, { encoding: 'utf8' });
+                        if (content && content.trim()) {
+                            recordData += '\n' + content.trim();
+                        }
                     }
+                } catch(e) {}
+            }
 
-                    list.push({ points, deathLev, maxLvl, hp, maxHp, role, race, gender, align, name, death });
+            if (!recordData || !recordData.trim()) return [];
+
+            const lines = recordData.trim().split('\n');
+            const list = [];
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                const parts = line.trim().split(/\s+/);
+                if (parts.length < 3) continue;
+
+                let points = 0;
+                let deathLev = 1;
+                let role = "Explorer";
+                let name = "Hero";
+                let death = "Died in dungeon";
+
+                // 数値パーツを探す
+                const nums = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n) && n >= 0);
+                if (nums.length > 0) points = nums[0];
+                if (nums.length > 1) deathLev = nums[1];
+
+                if (line.includes(',')) {
+                    const idx = line.indexOf(',');
+                    death = line.substring(idx + 1).trim();
+                    const pre = line.substring(0, idx).trim().split(/\s+/);
+                    if (pre.length > 0) name = pre[pre.length - 1];
+                } else if (parts.length > 4) {
+                    death = parts.slice(3).join(' ');
                 }
 
-                list.sort((a, b) => b.points - a.points);
-                return list.slice(0, 10);
-            } catch (e) {
-                this.error("Failed to parse record list:", e);
-                return [];
+                list.push({ points, deathLev, maxLvl: deathLev, role, name, death, score: points });
             }
+
+            list.sort((a, b) => b.points - a.points);
+            return list.slice(0, 10);
+        }
+
+        getScoreboard() {
+            return this.parseRecordList();
         }
 
         /**

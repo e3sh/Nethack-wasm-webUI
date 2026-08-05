@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUICore 素のDOM最単純検証クライアント (Raw DOM Client)</title>
+    <script src="./param/tileMapping.js"></script>
+    <script src="./param/nhMessage.js"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #00ff00;
+            font-family: monospace;
+            padding: 10px;
+        }
+        h1 { color: #ffff00; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .box { border: 1px solid #555; margin-bottom: 10px; padding: 8px; background: #050505; }
+        #log-area { height: 120px; overflow-y: scroll; color: #fff; white-space: pre-wrap; font-size: 12px; }
+        #status-area { color: #00ffff; font-weight: bold; }
+        #prompt-area { color: #ffff00; background: #222; padding: 6px; }
+        ul { margin: 4px 0; padding-left: 20px; }
+        li { margin: 2px 0; }
+        button { background: #333; color: #fff; border: 1px solid #777; padding: 2px 8px; cursor: pointer; }
+        button:hover { background: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>NetHack WebUICore 素のDOM最単純検証クライアント (Raw DOM)</h1>
+
+    <!-- 1. ステータス表示 -->
+    <div class="box" id="status-area">Status: 初期化待機中...</div>
+
+    <!-- 2. イベントメッセージログ -->
+    <div class="box" id="log-area"></div>
+
+    <!-- 3. プロンプト / 入力要求エリア (純素DOM) -->
+    <div class="box" id="prompt-area">
+        <div id="prompt-title">Prompt: (なし)</div>
+        <ul id="menu-list"></ul>
+        <div id="input-box" style="margin-top:6px;"></div>
+    </div>
+
+    <!-- 4. マップ描画 Canvas -->
+    <div class="box">
+        <canvas id="game-canvas" width="2560" height="672" style="max-width:100%; height:auto;"></canvas>
+    </div>
+
+    <script type="module">
+        import { WebUICore } from './src/core/WebUICore.js';
+        import { CanvasRenderer } from './src/core/renderers/CanvasRenderer.js';
+        import { NetHackWasmWorkerBridge } from './src/driver/index.js';
+
+        const statusArea = document.getElementById('status-area');
+        const logArea = document.getElementById('log-area');
+        const promptTitle = document.getElementById('prompt-title');
+        const menuList = document.getElementById('menu-list');
+        const inputBox = document.getElementById('input-box');
+        const canvas = document.getElementById('game-canvas');
+
+        // 1. Worker & Renderer
+        const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
+        const renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+
+        // 2. WebUICore
+        const core = new WebUICore({
+            driver: driver,
+            renderer: renderer,
+            soundMode: 'mute',
+            translateEnabled: true
+        });
+
+        let activeResolver = null;
+        let currentItems = [];
+
+        // ログ出力 helper
+        function appendLog(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            logArea.appendChild(div);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // ドライバイベント
+        driver.on('initialized', () => {
+            statusArea.textContent = "Status: Wasm initialized. Starting Core...";
+        });
+
+        core.on('message', (msg) => appendLog(msg));
+
+        core.on('statusUpdate', (data) => {
+            if (data[0]) {
+                statusArea.textContent = `Player: ${data[0]} | HP: ${data[18]||0}/${data[19]||0} | Gold: ${data[10]||0} | Dlvl: ${data[20]||1}`;
+            }
+        });
+
+        core.on('inputRequired', (data) => {
+            activeResolver = data.safeResolver || data.resolver;
+            const category = data.category || 'OTHER';
+            const prompt = data.prompt || data.rawPrompt || 'Input Required:';
+            const items = data.menuItems || data.items || [];
+            currentItems = items;
+
+            promptTitle.textContent = `[Category: ${category}] ${prompt}`;
+            menuList.innerHTML = '';
+            inputBox.innerHTML = '';
+
+            // メニュー項目の素のDOMレンダー
+            if (items && items.length > 0) {
+                items.forEach((it) => {
+                    const li = document.createElement('li');
+                    const chStr = it.charStr || (it.ch ? String.fromCharCode(it.ch) : '');
+                    const label = it.str || it.rawStr || '';
+
+                    if (it.isSelectable !== false) {
+                        const btn = document.createElement('button');
+                        btn.textContent = chStr ? `[ ${chStr} ] ${label}` : label;
+                        btn.onclick = () => {
+                            if (activeResolver) {
+                                const r = activeResolver;
+                                activeResolver = null;
+                                currentItems = [];
+                                r.respond([it.ch || chStr.charCodeAt(0)]);
+                            }
+                        };
+                        li.appendChild(btn);
+                    } else {
+                        li.textContent = `--- ${label} ---`;
+                    }
+                    menuList.appendChild(li);
+                });
+
+                // ESCボタン
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = "[ ESC ] キャンセル / 終了";
+                cancelBtn.style.color = "#ff8888";
+                cancelBtn.onclick = () => {
+                    if (activeResolver) {
+                        const r = activeResolver;
+                        activeResolver = null;
+                        currentItems = [];
+                        r.respond([27]);
+                    }
+                };
+                inputBox.appendChild(cancelBtn);
+            } else if (category === 'YN') {
+                const choices = data.choices || 'yn';
+                choices.split('').forEach(ch => {
+                    const btn = document.createElement('button');
+                    btn.textContent = `[ ${ch.toUpperCase()} ]`;
+                    btn.onclick = () => {
+                        if (activeResolver) {
+                            const r = activeResolver;
+                            activeResolver = null;
+                            r.respond(ch);
+                        }
+                    };
+                    inputBox.appendChild(btn);
+                });
+            } else if (category === 'ASKNAME' || category === 'TEXT') {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.value = category === 'ASKNAME' ? 'Hero' : '';
+                const btn = document.createElement('button');
+                btn.textContent = "Submit";
+                const send = () => {
+                    if (activeResolver) {
+                        const r = activeResolver;
+                        activeResolver = null;
+                        r.respond(inp.value || 'Hero');
+                    }
+                };
+                btn.onclick = send;
+                inp.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+                inputBox.appendChild(inp);
+                inputBox.appendChild(btn);
+                setTimeout(() => inp.focus(), 50);
+            } else {
+                const btn = document.createElement('button');
+                btn.textContent = "[ Space ] 次へ進む";
+                btn.onclick = () => {
+                    if (activeResolver) {
+                        const r = activeResolver;
+                        activeResolver = null;
+                        r.respond(' ');
+                    }
+                };
+                inputBox.appendChild(btn);
+            }
+        });
+
+        core.on('inputResolved', () => {
+            promptTitle.textContent = "Prompt: (操作受付完了)";
+            menuList.innerHTML = '';
+            inputBox.innerHTML = '';
+            activeResolver = null;
+            currentItems = [];
+        });
+
+        // 素のキーボード直接入力ハンドラ
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+            if (currentItems.length > 0 && activeResolver) {
+                const key = e.key.toLowerCase();
+                if (e.key === 'Escape') {
+                    const r = activeResolver;
+                    activeResolver = null;
+                    currentItems = [];
+                    r.respond([27]);
+                    return;
+                }
+                const match = currentItems.find(it => it.isSelectable !== false && (it.charStr || '').toLowerCase() === key);
+                if (match) {
+                    const r = activeResolver;
+                    activeResolver = null;
+                    currentItems = [];
+                    r.respond([match.ch || match.accelerator || key.charCodeAt(0)]);
+                    return;
+                }
+            }
+
+            if (e.code) {
+                core.sendKey(e.code);
+            }
+        });
+
+        // 起動
+        (async () => {
+            await core.start('nethack.js');
+        })();
+    </script>
+</body>
+</html>

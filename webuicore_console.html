@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUICore 専用デバッグコンソール (WebUICore Debug Console)</title>
+    <script src="./param/tileMapping.js"></script>
+    <script src="./param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --accent-yellow: #f59e0b;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 12px;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: "Consolas", "Courier New", monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+        h1 { margin: 0; font-size: 16px; color: var(--accent-yellow); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr 360px;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-title {
+            background: #0f172a;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #94a3b8;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+        }
+        .panel-body {
+            padding: 10px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* 状態モニタ */
+        .state-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #334155;
+            font-size: 13px;
+        }
+        .state-label { color: #94a3b8; }
+        .state-val { font-weight: bold; color: var(--accent-yellow); }
+
+        /* イベントログモニタ */
+        #event-stream-log {
+            font-size: 11px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-item { margin-bottom: 4px; padding: 2px 4px; border-radius: 2px; }
+        .log-msg { color: #34d399; }
+        .log-input { color: #fbbf24; background: #312e81; }
+        .log-resolved { color: #a7f3d0; }
+        .log-status { color: #60a5fa; }
+        .log-err { color: #fca5a5; background: #7f1d1d; }
+
+        /* 直接テストボタン */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #334155;
+            color: #fff;
+            border: 1px solid #475569;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+        }
+        button:hover { background: #475569; }
+        .btn-cmd { background: #1e3a8a; border-color: #3b82f6; }
+        .btn-cmd:hover { background: #2563eb; }
+        .btn-space { background: #065f46; border-color: #10b981; grid-column: span 2; }
+        .btn-esc { background: #7f1d1d; border-color: #ef4444; grid-column: span 2; }
+
+        /* JSON プレビュー */
+        #json-preview {
+            background: #000;
+            color: #a7f3d0;
+            padding: 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        canvas { background: #000; max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🛠️ WebUICore 専用デバッグコンソール (WebUICore Debug Console)</h1>
+        <div>
+            <button id="btn-toggle-renderer">Renderer: CanvasRenderer</button>
+            <button id="btn-clear-logs">Clear Logs</button>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        
+        <!-- 左パネル: リアルタイム状態モニタ & 手動入力テスト -->
+        <div class="panel">
+            <div class="panel-title">1. Core State & Manual Injector</div>
+            <div class="panel-body">
+                <div class="state-row"><span class="state-label">Driver State</span><span class="state-val" id="mon-driver-state">IDLE</span></div>
+                <div class="state-row"><span class="state-label">Active Resolver</span><span class="state-val" id="mon-resolver">Null</span></div>
+                <div class="state-row"><span class="state-label">Prompt Category</span><span class="state-val" id="mon-category">NONE</span></div>
+                <div class="state-row"><span class="state-label">Menu Items Count</span><span class="state-val" id="mon-menu-count">0</span></div>
+
+                <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Direct Key Injector</h4>
+                <div class="btn-grid">
+                    <button class="btn-cmd" onclick="injectKey('KeyY')">Key 'y'</button>
+                    <button class="btn-cmd" onclick="injectKey('KeyN')">Key 'n'</button>
+                    <button class="btn-cmd" onclick="injectKey('KeyA')">Key 'a'</button>
+                    <button class="btn-cmd" onclick="injectKey('KeyB')">Key 'b'</button>
+                    <button class="btn-space" onclick="injectKey('Space')">Press Space (' ')</button>
+                    <button class="btn-esc" onclick="injectKey('Escape')">Press ESC (27)</button>
+                </div>
+
+                <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Direct Resolver Injector</h4>
+                <div style="display:flex; gap:4px; margin-bottom:10px;">
+                    <input type="text" id="manual-val-input" placeholder="Value (e.g. Hero, y, a)" style="flex:1; background:#000; color:#fff; border:1px solid #475569; padding:4px;">
+                    <button onclick="injectResolverValue()">Respond</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 中央パネル: マップ Canvas & ステータス -->
+        <div class="panel">
+            <div class="panel-title">2. Screen & Status View</div>
+            <div class="panel-body" style="display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#000; border:1px solid #334155; padding:8px; color:#ffcc00; font-size:13px;" id="status-view">
+                    Status: Initializing...
+                </div>
+                <div style="display:flex; justify-content:center; background:#000; border:1px solid #334155; flex:1; align-items:center;">
+                    <canvas id="game-canvas" width="2560" height="672"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右パネル: イベントストリームカラーログ & JSONバッファ -->
+        <div class="panel">
+            <div class="panel-title">3. Event Stream Monitor & Data Inspector</div>
+            <div class="panel-body" style="display:flex; flex-direction:column; gap:10px;">
+                <div style="flex:1; overflow-y:auto; background:#000; border:1px solid #334155; padding:6px;" id="event-stream-log"></div>
+                <div>
+                    <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">Last inputRequired Event Payload:</div>
+                    <div id="json-preview">{}</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { WebUICore } from './src/core/WebUICore.js';
+        import { CanvasRenderer } from './src/core/renderers/CanvasRenderer.js';
+        import { NullRenderer } from './src/core/renderers/NullRenderer.js';
+        import { NetHackWasmWorkerBridge } from './src/driver/index.js';
+
+        const monDriverState = document.getElementById('mon-driver-state');
+        const monResolver = document.getElementById('mon-resolver');
+        const monCategory = document.getElementById('mon-category');
+        const monMenuCount = document.getElementById('mon-menu-count');
+        const eventStreamLog = document.getElementById('event-stream-log');
+        const jsonPreview = document.getElementById('json-preview');
+        const statusView = document.getElementById('status-view');
+        const canvas = document.getElementById('game-canvas');
+        const btnToggleRenderer = document.getElementById('btn-toggle-renderer');
+        const btnClearLogs = document.getElementById('btn-clear-logs');
+
+        // 1. Core & Driver
+        const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
+        let useCanvas = true;
+        let renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+
+        const core = new WebUICore({
+            driver: driver,
+            renderer: renderer,
+            soundMode: 'mute',
+            translateEnabled: true
+        });
+
+        window.coreInstance = core;
+
+        function logEvent(type, message, cssClass = '') {
+            const time = new Date().toLocaleTimeString() + '.' + String(new Date().getMilliseconds()).padStart(3, '0');
+            const div = document.createElement('div');
+            div.className = `log-item ${cssClass}`;
+            div.textContent = `[${time}] [${type}] ${message}`;
+            eventStreamLog.appendChild(div);
+            eventStreamLog.scrollTop = eventStreamLog.scrollHeight;
+        }
+
+        // イベントリスナーバインディング
+        driver.on('initialized', () => {
+            logEvent('DRIVER', 'Wasm Runtime & IDBFS Initialized.', 'log-status');
+            monDriverState.textContent = 'READY';
+        });
+
+        core.on('message', (msg) => {
+            logEvent('MSG', msg, 'log-msg');
+        });
+
+        core.on('statusUpdate', (data) => {
+            if (data[0]) {
+                statusView.textContent = `${data[0]} | HP:${data[18]||'-'}/${data[19]||'-'} | Gold:${data[10]||0} | Dlvl:${data[20]||1}`;
+                logEvent('STATUS', `Update: ${data[0]} HP:${data[18]} Gold:${data[10]}`, 'log-status');
+            }
+        });
+
+        core.on('inputRequired', (data) => {
+            monResolver.textContent = 'Active (Pending)';
+            monResolver.style.color = '#f59e0b';
+            monCategory.textContent = data.category || 'OTHER';
+            const items = data.menuItems || data.items || [];
+            monMenuCount.textContent = items.length;
+
+            jsonPreview.textContent = JSON.stringify({
+                category: data.category,
+                prompt: data.prompt,
+                rawPrompt: data.rawPrompt,
+                itemsCount: items.length,
+                itemsPreview: items.slice(0, 5)
+            }, null, 2);
+
+            logEvent('INPUT_REQ', `Category: ${data.category} | Items: ${items.length} | Prompt: "${data.prompt}"`, 'log-input');
+        });
+
+        core.on('inputResolved', () => {
+            monResolver.textContent = 'Null (Resolved)';
+            monResolver.style.color = '#10b981';
+            logEvent('INPUT_RES', 'Resolver Resolved. Ready for next turn.', 'log-resolved');
+        });
+
+        // テスター関数をグローバル露出
+        window.injectKey = (code) => {
+            logEvent('INJECT_KEY', `Sending core.sendKey('${code}')`, 'log-input');
+            core.sendKey(code);
+        };
+
+        window.injectResolverValue = () => {
+            const valInput = document.getElementById('manual-val-input');
+            const val = valInput.value || 'Hero';
+            if (core.activeResolver) {
+                logEvent('INJECT_RES', `Responding activeResolver.respond('${val}')`, 'log-input');
+                const r = core.activeResolver;
+                core.activeResolver = null;
+                r.respond(val);
+            } else {
+                logEvent('WARN', 'No Active Resolver pending!', 'log-err');
+            }
+        };
+
+        btnToggleRenderer.onclick = () => {
+            useCanvas = !useCanvas;
+            if (useCanvas) {
+                renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+                btnToggleRenderer.textContent = "Renderer: CanvasRenderer";
+            } else {
+                renderer = new NullRenderer();
+                btnToggleRenderer.textContent = "Renderer: NullRenderer (No Render)";
+            }
+            core.setRenderer(renderer);
+            logEvent('SYS', `Switched renderer to ${useCanvas ? 'CanvasRenderer' : 'NullRenderer'}`, 'log-status');
+        };
+
+        btnClearLogs.onclick = () => {
+            eventStreamLog.innerHTML = '';
+        };
+
+        // 起動
+        (async () => {
+            logEvent('SYS', 'Starting WebUICore...', 'log-status');
+            await core.start('nethack.js');
+        })();
+    </script>
+</body>
+</html>

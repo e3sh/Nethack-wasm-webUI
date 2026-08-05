@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUICore PoC - Renderers & Input Management Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ヘッダー・ステータスバー */
+        header {
+            background: #1e1e1e;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+        }
+
+        h1 {
+            font-size: 16px;
+            color: #00e676;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        button {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            background: #3a3a3a;
+            border-color: #00e676;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .btn-toggle {
+            background: #1b5e20;
+            border-color: #2e7d32;
+        }
+        .btn-toggle:hover {
+            background: #2e7d32;
+        }
+
+        /* メインビューポート */
+        .viewport {
+            flex: 1;
+            display: flex;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 描画エリア */
+        .screen-container {
+            flex: 1;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+        }
+
+        /* Canvas レンダラー */
+        #nh-canvas {
+            background: #000;
+            image-rendering: pixelated;
+            display: block;
+        }
+
+        /* Color ASCII レンダラー */
+        #nh-ascii-grid {
+            display: none;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 14px;
+            letter-spacing: 0;
+            white-space: pre;
+            background: #000;
+            padding: 10px;
+            user-select: none;
+        }
+
+        .ascii-cell {
+            display: inline-block;
+            width: 9px;
+            height: 14px;
+            text-align: center;
+        }
+
+        /* NetHack 16 Color Palette */
+        .clr-0 { color: #000000; } /* Black */
+        .clr-1 { color: #ff5555; } /* Red */
+        .clr-2 { color: #55ff55; } /* Green */
+        .clr-3 { color: #ffaa00; } /* Brown */
+        .clr-4 { color: #5555ff; } /* Blue */
+        .clr-5 { color: #ff55ff; } /* Magenta */
+        .clr-6 { color: #55ffff; } /* Cyan */
+        .clr-7 { color: #aaaaaa; } /* Gray */
+        .clr-8 { color: #555555; } /* Dark Gray */
+        .clr-9 { color: #ff8888; } /* Orange */
+        .clr-10 { color: #00ff00; } /* Bright Green */
+        .clr-11 { color: #ffff55; } /* Yellow */
+        .clr-12 { color: #00ff00; } /* Bright Blue */
+        .clr-13 { color: #ff00ff; } /* Bright Magenta */
+        .clr-14 { color: #00ffff; } /* Bright Cyan */
+        .clr-15 { color: #ffffff; } /* White */
+
+        /* サイドパネル (ステータス・ログ) */
+        .side-panel {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .panel-box {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .panel-title {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+            margin-bottom: 2px;
+        }
+
+        .ascii-cell.is-cursor {
+            background: #ffe082 !important;
+            color: #000000 !important;
+            font-weight: bold !important;
+            border-radius: 2px;
+            box-shadow: 0 0 8px #ffe082;
+            animation: pulse-cursor 1.0s infinite alternate;
+        }
+        @keyframes pulse-cursor {
+            0% { transform: scale(1.0); box-shadow: 0 0 4px #ffe082; }
+            100% { transform: scale(1.15); box-shadow: 0 0 12px #ffb300; }
+        }
+
+        /* 構造化ステータスグリッド */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .status-item {
+            background: #121212;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .status-label {
+            color: #777;
+            font-size: 10px;
+        }
+
+        .status-val {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .val-hp { color: #00e676; }
+        .val-pw { color: #29b6f6; }
+        .val-ac { color: #ffca28; }
+
+        /* メッセージログ */
+        .log-box {
+            flex: 1;
+            background: #000;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 250px;
+        }
+
+        .log-line {
+            line-height: 1.3;
+            word-break: break-all;
+        }
+
+        /* システムインスペクター */
+        .sys-info {
+            font-size: 11px;
+            color: #aaa;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sys-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sys-val {
+            color: #00e676;
+            font-weight: bold;
+        }
+        .val-wait { color: #ff9100; }
+        .val-stopped { color: #ff5252; }
+
+        /* インタラクティブ・プロンプトバー (絶対位置固定で画面揺れを100%防止) */
+        .prompt-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 342px;
+            background: #263238;
+            border: 2px solid #00e676;
+            box-shadow: 0 0 15px rgba(0,230,118,0.4);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            z-index: 90;
+        }
+
+        .prompt-bar.active {
+            display: flex;
+        }
+
+        .prompt-text {
+            color: #ffe082;
+            font-size: 13px;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .input-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .input-controls input {
+            background: #121212;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        /* メニュー ＆ テキスト モーダル */
+        .menu-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(18, 18, 18, 0.95);
+            border: 2px solid #00e676;
+            box-shadow: 0 0 20px rgba(0,230,118,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .menu-modal.active {
+            display: flex;
+        }
+
+        .menu-title {
+            color: #00e676;
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+        }
+
+        .menu-items {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 50vh;
+        }
+
+        .menu-item-btn {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            text-align: left;
+            padding: 6px 10px;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .menu-item-btn:hover {
+            background: #2a2a2a;
+            border-color: #00e676;
+        }
+
+        .menu-item-btn.focus {
+            background: #1e3a8a !important;
+            border-color: #00e676 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 12px rgba(0, 230, 118, 0.7);
+            transform: scale(1.01);
+            outline: 2px solid #00e676;
+        }
+
+        .menu-header-item {
+            color: #ffb74d;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 4px 0;
+            border-bottom: 1px dashed #444;
+            margin-top: 4px;
+        }
+
+        .accelerator {
+            color: #00e676;
+            font-weight: bold;
+            margin-right: 8px;
+            min-width: 24px;
+            display: inline-block;
+        }
+
+        .text-window-line {
+            font-size: 12px;
+            line-height: 1.4;
+            color: #d1d5db;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .menu-footer {
+            display: flex;
+            justify-content: flex-end;
+            border-top: 1px solid #333;
+            padding-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span>🐍</span> WebUICore PoC (Color ASCII & Glyphs Renderer)</h1>
+        <div class="controls-bar">
+            <button id="btn-toggle-view" class="btn-toggle">ビュー切替: 🎨 Graphic Canvas</button>
+            <button id="btn-translate" class="btn-toggle" style="background:#1e3a8a; border-color:#3b82f6;">🌐 翻訳: ON</button>
+            <button id="btn-help">HELP (?)</button>
+            <button id="btn-look">Look (/)</button>
+            <button id="btn-extcmd">#extcmd</button>
+            <button id="btn-inventory">Inventory (i)</button>
+        </div>
+    </header>
+
+    <div class="viewport">
+        <!-- メイン画面 -->
+        <div class="screen-container">
+            <canvas id="nh-canvas" width="1280" height="336"></canvas>
+            <div id="nh-ascii-grid"></div>
+        </div>
+
+        <!-- サイドパネル -->
+        <div class="side-panel">
+            <!-- 構造化ステータス -->
+            <div class="panel-box">
+                <div class="panel-title">Player Status</div>
+                <div class="status-grid">
+                    <div class="status-item"><div class="status-label">Title</div><div id="st-title" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">DLevel</div><div id="st-dlvl" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">HP</div><div id="st-hp" class="status-val val-hp">- / -</div></div>
+                    <div class="status-item"><div class="status-label">PW</div><div id="st-pw" class="status-val val-pw">- / -</div></div>
+                    <div class="status-item"><div class="status-label">AC</div><div id="st-ac" class="status-val val-ac">-</div></div>
+                    <div class="status-item"><div class="status-label">Gold</div><div id="st-gold" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">STR</div><div id="st-str" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">DEX</div><div id="st-dex" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">CON</div><div id="st-con" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">INT</div><div id="st-int" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">WIS</div><div id="st-wis" class="status-val">-</div></div>
+                    <div class="status-item"><div class="status-label">CHA</div><div id="st-cha" class="status-val">-</div></div>
+                </div>
+                <div style="font-size: 10px; color: #888; display: flex; justify-content: space-between; margin-top: 4px;">
+                    <span>Turns: <b id="st-turns" style="color:#aaa;">0</b></span>
+                    <span>Cond: <b id="st-cond" style="color:#ffca28;">Normal</b></span>
+                </div>
+            </div>
+
+            <!-- メッセージログ -->
+            <div class="panel-box" style="flex:1;">
+                <div class="panel-title">Message Log</div>
+                <div id="log-box" class="log-box"></div>
+            </div>
+
+            <!-- ドライバー・システムインスペクター -->
+            <div class="panel-box">
+                <div class="panel-title">Driver Inspector</div>
+                <div class="sys-info">
+                    <div class="sys-row"><span>Driver State:</span><span id="sys-driver-state" class="sys-val">IDLE</span></div>
+                    <div class="sys-row"><span>Core Category:</span><span id="sys-core-category" class="sys-val">NONE</span></div>
+                    <div class="sys-row"><span>Active Resolver:</span><span id="sys-resolver" class="sys-val">NULL</span></div>
+                    <div class="sys-row"><span>Last Sent Key:</span><span id="sys-last-key" style="color:#ffe082;">-</span></div>
+                    <div class="sys-row"><span>Last Event:</span><span id="sys-last-event" style="color:#888;">-</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- プロンプトバー -->
+    <div id="prompt-bar" class="prompt-bar">
+        <div id="prompt-text" class="prompt-text">What do you want to do?</div>
+        <div id="input-controls" class="input-controls"></div>
+    </div>
+
+    <!-- モーダル (MENU / Text Window) -->
+    <div id="menu-modal" class="menu-modal">
+        <div id="menu-title" class="menu-title">Select an Option</div>
+        <div id="menu-items-container" class="menu-items"></div>
+        <div class="menu-footer">
+            <button id="btn-cancel-menu">キャンセル (ESC / 0)</button>
+        </div>
+    </div>
+
+    <!-- 起動ローディング・オーバーレイ (INITIALIZING Guard) -->
+    <div id="loading-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; z-index:999;">
+        <div style="width:40px; height:40px; border:4px solid #333; border-top:4px solid #00e676; border-radius:50%; animation:spin 1s linear infinite;"></div>
+        <div style="font-weight:bold; color:#00e676; font-size:16px;">⌛ Loading NetHack Wasm & Resources...</div>
+        <div style="font-size:12px; color:#aaa;">Please wait until READY state...</div>
+    </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+
+    <!-- Game Over / Result モーダル -->
+    <div id="gameover-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#121212; border:2px solid #ff5252; box-shadow:0 0 20px rgba(255,82,82,0.4); border-radius:8px; padding:20px; width:90%; max-width:540px; display:none; flex-direction:column; gap:12px; z-index:1000;">
+        <div style="font-size:22px; color:#ff5252; font-weight:bold; text-align:center;">☠️ GAME OVER / EXITED ☠️</div>
+        <div id="gameover-summary" style="font-size:13px; color:#e0e0e0; line-height:1.6; background:#000; padding:12px; border-radius:4px; border:1px solid #333;"></div>
+        
+        <div style="font-size:13px; color:#ffca28; font-weight:bold;">🏆 トップランキング (Top High Scores)</div>
+        <div id="gameover-scoreboard" style="max-height:160px; overflow-y:auto; background:#0a0a0a; border:1px solid #333; border-radius:4px; padding:6px; font-size:12px; color:#ccc;"></div>
+
+        <div style="display:flex; justify-content:center; gap:12px; margin-top:4px;">
+            <button id="btn-restart-game" style="background:#00e676; color:#000; font-weight:bold; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">🔄 もう一度プレイ (Restart Game)</button>
+        </div>
+    </div>
+
+    <!-- Script imports -->
+    <script src="src/driver/InputResolver.js"></script>
+    <script src="src/driver/NetHackMemory.js"></script>
+    <script src="src/driver/NetHackFSManager.js"></script>
+    <script src="src/driver/NetHackWasmDriver.js"></script>
+    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
+    <script src="param/nhMessage.js"></script>
+    <script src="param/tileMapping.js"></script>
+
+    <script type="module">
+        import { WebUICore } from './src/core/WebUICore.js';
+
+        // DOM elements
+        const canvas = document.getElementById('nh-canvas');
+        const ctx = canvas.getContext('2d');
+        const asciiGrid = document.getElementById('nh-ascii-grid');
+        const btnToggleView = document.getElementById('btn-toggle-view');
+
+        const logBox = document.getElementById('log-box');
+        const promptBar = document.getElementById('prompt-bar');
+        const promptText = document.getElementById('prompt-text');
+        const inputControls = document.getElementById('input-controls');
+
+        const menuModal = document.getElementById('menu-modal');
+        const menuTitle = document.getElementById('menu-title');
+        const menuItemsContainer = document.getElementById('menu-items-container');
+        const btnCancelMenu = document.getElementById('btn-cancel-menu');
+
+        // Status DOM
+        const stTitle = document.getElementById('st-title');
+        const stDlvl = document.getElementById('st-dlvl');
+        const stHp = document.getElementById('st-hp');
+        const stPw = document.getElementById('st-pw');
+        const stAc = document.getElementById('st-ac');
+        const stGold = document.getElementById('st-gold');
+        const stStr = document.getElementById('st-str');
+        const stDex = document.getElementById('st-dex');
+        const stCon = document.getElementById('st-con');
+        const stInt = document.getElementById('st-int');
+        const stWis = document.getElementById('st-wis');
+        const stCha = document.getElementById('st-cha');
+        const stTurns = document.getElementById('st-turns');
+        const stCond = document.getElementById('st-cond');
+
+        // Inspector DOM
+        const sysDriverState = document.getElementById('sys-driver-state');
+        const sysCoreCategory = document.getElementById('sys-core-category');
+        const sysResolver = document.getElementById('sys-resolver');
+        const sysLastKey = document.getElementById('sys-last-key');
+        const sysLastEvent = document.getElementById('sys-last-event');
+
+        // Buttons
+        document.getElementById('btn-help').onclick = () => { sysLastKey.textContent = '?'; core.sendKey('?'); };
+        document.getElementById('btn-look').onclick = () => { sysLastKey.textContent = '/'; core.sendKey('/'); };
+        document.getElementById('btn-extcmd').onclick = () => { sysLastKey.textContent = '#'; core.sendKey('#'); };
+        document.getElementById('btn-inventory').onclick = () => { sysLastKey.textContent = 'i'; core.sendKey('i'); };
+
+        const btnTranslate = document.getElementById('btn-translate');
+        if (btnTranslate) {
+            btnTranslate.onclick = () => {
+                const nextState = !core.translator.enabled;
+                core.translator.setEnabled(nextState);
+                btnTranslate.textContent = nextState ? '🌐 翻訳: ON' : '🌐 翻訳: OFF';
+                btnTranslate.style.background = nextState ? '#1e3a8a' : '#424242';
+                btnTranslate.style.borderColor = nextState ? '#3b82f6' : '#616161';
+            };
+        }
+
+        // State
+        let isGraphicCanvasMode = true;
+        let isTextWindowMode = false;
+
+        // Color ASCII 80x24 Grid Buffer
+        const asciiGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => ({ ch: ' ', color: 7 })));
+
+        function initAsciiGridDom() {
+            asciiGrid.innerHTML = '';
+            for (let y = 0; y < 24; y++) {
+                const lineDiv = document.createElement('div');
+                for (let x = 0; x < 80; x++) {
+                    const cellSpan = document.createElement('span');
+                    cellSpan.id = `ascii-cell-${x}-${y}`;
+                    cellSpan.className = 'ascii-cell clr-7';
+                    cellSpan.textContent = ' ';
+                    lineDiv.appendChild(cellSpan);
+                }
+                asciiGrid.appendChild(lineDiv);
+            }
+        }
+        initAsciiGridDom();
+
+        let targetCursorX = -1;
+        let targetCursorY = -1;
+
+        function renderColorAsciiMap() {
+            if (isGraphicCanvasMode) return;
+            for (let y = 0; y < 24; y++) {
+                for (let x = 0; x < 80; x++) {
+                    const cellData = asciiGridBuffer[y][x];
+                    const cellSpan = document.getElementById(`ascii-cell-${x}-${y}`);
+                    if (cellSpan) {
+                        const ch = cellData.ch || ' ';
+                        cellSpan.textContent = ch;
+                        const isCursorCell = (x === targetCursorX && y === targetCursorY);
+                        cellSpan.className = `ascii-cell clr-${cellData.color !== undefined ? cellData.color : 7} ${isCursorCell ? 'is-cursor' : ''}`;
+                    }
+                }
+            }
+        }
+
+        btnToggleView.onclick = () => {
+            isGraphicCanvasMode = !isGraphicCanvasMode;
+            if (isGraphicCanvasMode) {
+                canvas.style.display = 'block';
+                asciiGrid.style.display = 'none';
+                btnToggleView.textContent = 'ビュー切替: 🎨 Graphic Canvas';
+            } else {
+                canvas.style.display = 'none';
+                asciiGrid.style.display = 'block';
+                btnToggleView.textContent = 'ビュー切替: 🔤 Color ASCII Grid';
+                renderColorAsciiMap();
+            }
+        };
+
+        // Driver & Core Instantiation
+        const bridge = new NetHackWasmWorkerBridge();
+        const core = new WebUICore({ driver: bridge });
+
+        // Tile & Glyph Caching
+        const tileImg = new Image();
+        const glyphGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+
+        function redrawAllGraphicTiles() {
+            if (!isGraphicCanvasMode || !tileImg.complete || tileImg.naturalWidth === 0) return;
+            const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
+            const cols = Math.floor(tileImg.width / 32);
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < 24; y++) {
+                for (let x = 0; x < 80; x++) {
+                    const gData = glyphGridBuffer[y][x];
+                    if (gData && gData.glyph >= 0) {
+                        const tileIndex = tileMap[gData.glyph] !== undefined ? tileMap[gData.glyph] : 0;
+                        const sx = (tileIndex % cols) * 32;
+                        const sy = Math.floor(tileIndex / cols) * 32;
+                        const dx = x * 16;
+                        const dy = y * 14;
+                        ctx.drawImage(tileImg, sx, sy, 32, 32, dx, dy, 16, 14);
+                    }
+                }
+            }
+        }
+
+        tileImg.onload = () => {
+            redrawAllGraphicTiles();
+        };
+        tileImg.src = 'pict/nethack_default_32.png';
+
+        function resetUiForNewGame() {
+            clearAllModals();
+            logBox.innerHTML = '';
+            stTitle.textContent = '-';
+            stDlvl.textContent = '-';
+            stHp.textContent = '- / -';
+            stPw.textContent = '- / -';
+            stAc.textContent = '-';
+            stGold.textContent = '-';
+            stStr.textContent = '-';
+            stDex.textContent = '-';
+            stCon.textContent = '-';
+            stInt.textContent = '-';
+            stWis.textContent = '-';
+            stCha.textContent = '-';
+            stTurns.textContent = '0';
+            stCond.textContent = 'Normal';
+
+            for (let y = 0; y < 24; y++) {
+                for (let x = 0; x < 80; x++) {
+                    asciiGridBuffer[y][x] = { ch: ' ', color: 7 };
+                    glyphGridBuffer[y][x] = null;
+                }
+            }
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            renderColorAsciiMap();
+        }
+
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const gameoverModal = document.getElementById('gameover-modal');
+        const gameoverSummary = document.getElementById('gameover-summary');
+        const btnRestartGame = document.getElementById('btn-restart-game');
+
+        core.on('stateChange', ({ state }) => {
+            sysDriverState.textContent = state;
+            
+            if (state === 'INITIALIZING') {
+                resetUiForNewGame();
+                sysDriverState.className = 'sys-val val-wait';
+                loadingOverlay.style.display = 'flex';
+                gameoverModal.style.display = 'none';
+            } else if (state === 'READY' || state === 'RUNNING' || state === 'WAITING_INPUT') {
+                sysDriverState.className = 'sys-val';
+                loadingOverlay.style.display = 'none';
+                gameoverModal.style.display = 'none';
+            } else if (state === 'GAME_OVER' || state === 'EXITED') {
+                sysDriverState.className = 'sys-val val-stopped';
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        core.on('exited', (data) => {
+            clearAllModals();
+            gameoverModal.style.display = 'flex';
+            
+            const currentStatus = core.getStatus();
+            const result = data ? data.gameOverResult : null;
+            let deathMsg = 'ゲーム終了 / 死亡';
+            let scoreVal = currentStatus ? currentStatus.score : 0;
+            let turnsVal = currentStatus ? currentStatus.turns : 0;
+            let dlvlVal = (currentStatus && currentStatus.dlevel) ? currentStatus.dlevel.text : 'Dlvl:1';
+
+            if (result) {
+                if (result.translatedDeath) {
+                    deathMsg = result.translatedDeath;
+                } else if (result.death) {
+                    deathMsg = result.death;
+                }
+                if (result.finalScore && result.finalScore > 0) {
+                    scoreVal = result.finalScore;
+                }
+            }
+
+            gameoverSummary.innerHTML = `
+                <div style="margin-bottom:6px;"><b>死因 / 勝敗:</b> <span style="color:#ff5252; font-weight:bold; font-size:14px;">${deathMsg}</span></div>
+                <div><b>プレイヤー:</b> ${stTitle.textContent && stTitle.textContent !== '-' ? stTitle.textContent : (currentStatus ? currentStatus.title : 'Hero')}</div>
+                <div><b>到達フロア:</b> <span style="color:#ffca28; font-weight:bold;">${dlvlVal}</span></div>
+                <div><b>最終スコア:</b> <span style="color:#00e676; font-weight:bold;">${scoreVal} pts</span></div>
+                <div><b>総ターン数:</b> <span style="color:#29b6f6; font-weight:bold;">${turnsVal}</span></div>
+            `;
+
+            // ランキング (Top High Scores) 一覧テーブルのレンダリング
+            const scores = core.getHighScores();
+            const scoreboardDiv = document.getElementById('gameover-scoreboard');
+            if (scores && scores.length > 0) {
+                let html = `<table style="width:100%; border-collapse:collapse; text-align:left;">`;
+                html += `<tr style="color:#888; border-bottom:1px solid #333;">
+                            <th style="padding:4px;">#</th>
+                            <th style="padding:4px;">Score</th>
+                            <th style="padding:4px;">Name</th>
+                            <th style="padding:4px;">Role</th>
+                            <th style="padding:4px;">Death</th>
+                         </tr>`;
+                scores.forEach((s, idx) => {
+                    const isCurrent = (result && result.finalScore === s.points);
+                    const rowColor = isCurrent ? '#ffeb3b' : '#ddd';
+                    html += `<tr style="color:${rowColor}; border-bottom:1px solid #222;">
+                                <td style="padding:4px; font-weight:bold;">${s.rank || (idx + 1)}</td>
+                                <td style="padding:4px; color:#00e676;">${s.points || s.score || 0}</td>
+                                <td style="padding:4px;">${s.name || 'Hero'}</td>
+                                <td style="padding:4px; color:#aaa;">${s.role || '-'}</td>
+                                <td style="padding:4px; font-size:11px; color:#aaa;">${s.death || '-'}</td>
+                             </tr>`;
+                });
+                html += `</table>`;
+                scoreboardDiv.innerHTML = html;
+            } else {
+                scoreboardDiv.innerHTML = `<div style="color:#777; text-align:center; padding:8px;">(ランキング記録がまだありません)</div>`;
+            }
+        });
+
+        btnRestartGame.onclick = async () => {
+            gameoverModal.style.display = 'none';
+            resetUiForNewGame();
+            try {
+                await core.restart();
+            } catch (e) {
+                console.error("Core restart error:", e);
+            }
+        };
+
+        core.on('map_cleared', () => {
+            for (let y = 0; y < 24; y++) {
+                for (let x = 0; x < 80; x++) {
+                    asciiGridBuffer[y][x] = { ch: ' ', color: 7 };
+                    glyphGridBuffer[y][x] = null;
+                }
+            }
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            renderColorAsciiMap();
+        });
+
+        core.on('clear_nhwindow', ({ windowId }) => {
+            if (windowId === 2 || windowId === 0) {
+                for (let y = 0; y < 24; y++) {
+                    for (let x = 0; x < 80; x++) {
+                        asciiGridBuffer[y][x] = { ch: ' ', color: 7 };
+                        glyphGridBuffer[y][x] = null;
+                    }
+                }
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                renderColorAsciiMap();
+            }
+        });
+
+        function redrawSingleCell(x, y) {
+            if (x < 0 || x >= 80 || y < 0 || y >= 24) return;
+            const gData = glyphGridBuffer[y][x];
+            const dx = x * 16;
+            const dy = y * 14;
+
+            if (isGraphicCanvasMode && tileImg.complete && tileImg.naturalWidth > 0) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(dx, dy, 16, 14);
+
+                if (gData && gData.glyph >= 0) {
+                    const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
+                    const tileIndex = tileMap[gData.glyph] !== undefined ? tileMap[gData.glyph] : 0;
+                    const cols = Math.floor(tileImg.width / 32);
+                    const sx = (tileIndex % cols) * 32;
+                    const sy = Math.floor(tileIndex / cols) * 32;
+                    ctx.drawImage(tileImg, sx, sy, 32, 32, dx, dy, 16, 14);
+                }
+
+                if (x === targetCursorX && y === targetCursorY) {
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(dx + 1.5, dy + 1.5, 13, 11);
+                }
+            }
+            renderColorAsciiMap();
+        }
+
+        core.on('cursor', ({ x, y }) => {
+            const prevX = targetCursorX;
+            const prevY = targetCursorY;
+            targetCursorX = x;
+            targetCursorY = y;
+
+            if (prevX >= 0 && prevY >= 0) {
+                redrawSingleCell(prevX, prevY);
+            }
+            if (targetCursorX >= 0 && targetCursorY >= 0) {
+                redrawSingleCell(targetCursorX, targetCursorY);
+            }
+        });
+
+        core.on('print_glyph', ({ x, y, glyphInfo, glyph }) => {
+            const gi = glyphInfo || {};
+            const ch = gi.ch || ' ';
+            const color = gi.color !== undefined ? gi.color : 7;
+            const gId = (gi.glyph !== undefined && gi.glyph !== null) ? gi.glyph : (glyph !== undefined && glyph !== null ? glyph : -1);
+
+            if (x >= 0 && x < 80 && y >= 0 && y < 24) {
+                asciiGridBuffer[y][x] = { ch, color };
+                glyphGridBuffer[y][x] = { glyph: gId, ch, color };
+                redrawSingleCell(x, y);
+            }
+        });
+
+        core.on('message', (msgText) => {
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.textContent = msgText;
+            logBox.appendChild(line);
+            logBox.scrollTop = logBox.scrollHeight;
+        });
+
+        core.on('statusUpdate', ({ status, field }) => {
+            if (!status) return;
+            sysLastEvent.textContent = `statusUpdate (fld:${field})`;
+
+            stTitle.textContent = status.title;
+            stHp.textContent = `${status.hp.current} / ${status.hp.max}`;
+            stPw.textContent = `${status.pw.current} / ${status.pw.max}`;
+            stAc.textContent = status.ac;
+            
+            const goldGlyphHtml = core.getGlyphHtml(status.gold.glyphId || 3886, { displaySize: 14 });
+            stGold.innerHTML = `${goldGlyphHtml} <span>$${status.gold.amount}</span>`;
+            
+            stDlvl.textContent = status.dlevel.text;
+
+            stStr.textContent = status.stats.str;
+            stDex.textContent = status.stats.dex;
+            stCon.textContent = status.stats.con;
+            stInt.textContent = status.stats.int;
+            stWis.textContent = status.stats.wis;
+            stCha.textContent = status.stats.cha;
+            stTurns.textContent = status.turns;
+
+            const conds = status.conditions.concat(status.hunger ? [status.hunger] : []);
+            stCond.textContent = conds.length > 0 ? conds.join(', ') : 'Normal';
+        });
+
+        // Menu focus state
+        let activeMenuFocusIndex = 0;
+        let selectableMenuButtons = [];
+
+        function updateMenuFocus() {
+            selectableMenuButtons.forEach((btn, idx) => {
+                if (idx === activeMenuFocusIndex) {
+                    btn.classList.add('focus');
+                    btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    btn.classList.remove('focus');
+                }
+            });
+        }
+
+        // テキスト・モーダル残像完全クリアヘルパー
+        function clearAllModals() {
+            isTextWindowMode = false;
+            promptBar.className = 'prompt-bar';
+            menuModal.className = 'menu-modal';
+            
+            menuTitle.textContent = '';
+            menuItemsContainer.innerHTML = '';
+            inputControls.innerHTML = '';
+            promptText.textContent = '';
+            selectableMenuButtons = [];
+            activeMenuFocusIndex = 0;
+        }
+
+        core.on('inputRequired', (data) => {
+            clearAllModals();
+
+            const category = data.category || data.promptCategory || 'OTHER';
+            sysCoreCategory.textContent = category;
+            sysResolver.textContent = 'PENDING (Waiting Input)';
+            sysResolver.className = 'sys-val val-wait';
+            sysLastEvent.textContent = `inputRequired (${category})`;
+
+            const rawPrompt = data.prompt || data.message || data.question || '';
+            const items = data.menuItems || data.items || [];
+            const textLines = data.lines || [];
+
+            // 1. Look Information / HELP / FILE テキストウィンドウ
+            if (textLines && textLines.length > 0) {
+                isTextWindowMode = true;
+                promptBar.className = 'prompt-bar';
+                menuModal.className = 'menu-modal active';
+                menuTitle.textContent = rawPrompt || '詳細情報 (Text Window)';
+
+                textLines.forEach(lineText => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'text-window-line';
+                    lineDiv.textContent = lineText;
+                    menuItemsContainer.appendChild(lineDiv);
+                });
+
+                btnCancelMenu.textContent = '閉じる / 次へ (Space)';
+                btnCancelMenu.onclick = () => {
+                    sysLastKey.textContent = 'Text Window Close (Space)';
+                    core.sendKey('Space');
+                };
+                return;
+            }
+
+            // 2. インベントリ ＆ オプション選択 MENU 表示 (上下キー ＋ Enter 選択対応)
+            if (category === 'MENU' || (items && items.length > 0)) {
+                isTextWindowMode = false;
+                promptBar.className = 'prompt-bar';
+                menuModal.className = 'menu-modal active';
+                menuTitle.textContent = rawPrompt || '選択してください: (↑↓キー/Enter選択可)';
+
+                selectableMenuButtons = [];
+                activeMenuFocusIndex = 0;
+
+                items.forEach((item) => {
+                    const itemText = item.str || item.text || (typeof item === 'string' ? item : '');
+                    if (item.isSelectable === false) {
+                        const headerDiv = document.createElement('div');
+                        headerDiv.className = 'menu-header-item';
+                        headerDiv.textContent = itemText;
+                        menuItemsContainer.appendChild(headerDiv);
+                        return;
+                    }
+
+                    const btn = document.createElement('button');
+                    btn.className = 'menu-item-btn';
+                    const chStr = item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
+                    const badgeHtml = chStr ? `<span class="accelerator">${chStr})</span>` : '';
+                    
+                    const glyphId = item.glyph !== undefined ? item.glyph : (item.glyphInfo ? item.glyphInfo.glyph : -1);
+                    const glyphHtml = glyphId >= 0 ? core.getGlyphHtml(glyphId, { displaySize: 18 }) : '';
+
+                    btn.innerHTML = `${badgeHtml} ${glyphHtml} <span style="margin-left:6px;">${itemText}</span>`;
+                    
+                    const currentBtnIndex = selectableMenuButtons.length;
+                    selectableMenuButtons.push(btn);
+
+                    btn.onmouseenter = () => {
+                        activeMenuFocusIndex = currentBtnIndex;
+                        updateMenuFocus();
+                    };
+
+                    btn.onclick = () => {
+                        sysLastKey.textContent = `Menu Item: ${chStr || item.str}`;
+                        core.respond(item);
+                    };
+                    menuItemsContainer.appendChild(btn);
+                });
+
+                if (selectableMenuButtons.length > 0) {
+                    updateMenuFocus();
+                }
+
+                btnCancelMenu.textContent = 'キャンセル (ESC / 0)';
+                btnCancelMenu.onclick = () => {
+                    sysLastKey.textContent = 'Menu Cancel (0)';
+                    core.respond(0);
+                };
+                return;
+            }
+
+            // 3. プロンプト表示 (ASKNAME, YN, TEXT, FILE, KEY)
+            isTextWindowMode = false;
+            if (category === 'ASKNAME' || category === 'YN' || category === 'TEXT' || category === 'FILE' || category === 'KEY' || category === 'OTHER') {
+                menuModal.className = 'menu-modal';
+                promptBar.className = 'prompt-bar active';
+                promptText.textContent = rawPrompt || (category === 'ASKNAME' ? 'Who are you?' : 'Press Space / Enter to continue');
+
+                if (category === 'ASKNAME' || category === 'TEXT' || category === 'FILE') {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = category === 'ASKNAME' ? 'Hero' : '';
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Submit';
+                    
+                    const submit = () => {
+                        const val = input.value || 'Hero';
+                        sysLastKey.textContent = `Text: ${val}`;
+                        core.respond(val);
+                    };
+                    btn.onclick = submit;
+                    input.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+
+                    inputControls.appendChild(input);
+                    inputControls.appendChild(btn);
+                    setTimeout(() => { input.focus(); input.select(); }, 50);
+                } else if (category === 'YN') {
+                    const choices = data.choices || 'yn';
+                    for (const ch of choices.split('')) {
+                        const btn = document.createElement('button');
+                        btn.textContent = `${ch.toUpperCase()} (${ch})`;
+                        btn.onclick = () => {
+                            sysLastKey.textContent = `YN: ${ch}`;
+                            core.respond(ch);
+                        };
+                        inputControls.appendChild(btn);
+                    }
+                } else {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-continue';
+                    btn.textContent = '次へ進む (Press Space)';
+                    btn.onclick = () => {
+                        sysLastKey.textContent = 'Key: Space';
+                        core.sendKey('Space');
+                    };
+                    inputControls.appendChild(btn);
+                }
+            } else {
+                promptBar.className = 'prompt-bar';
+                menuModal.className = 'menu-modal';
+            }
+        });
+
+        // 入力解決時 (テキスト・モーダル残像完全削除)
+        core.on('inputResolved', () => {
+            clearAllModals();
+            sysResolver.textContent = 'NULL (Resolved)';
+            sysResolver.className = 'sys-val val-active';
+            sysCoreCategory.textContent = 'NONE';
+            sysLastEvent.textContent = 'inputResolved';
+        });
+
+        // キーボードフック (テキストモーダル ＆ メニューキャンセル/上下キー判定)
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+            // 1. テキストモーダル表示中（テキスト閲覧）
+            if (menuModal.className.includes('active') && isTextWindowMode) {
+                if (['Space', 'Enter', 'Escape', 'KeyQ', 'Backspace'].includes(e.code) || e.key === ' ' || e.key === 'Enter' || e.key === 'Escape' || e.key === 'q') {
+                    e.preventDefault();
+                    sysLastKey.textContent = 'Text Window Close (Space)';
+                    core.sendKey('Space');
+                    return;
+                }
+            }
+
+            // 2. メニューモーダル表示中（項目選択: 上下キー/Enter/ショートカットキー対応）
+            if (menuModal.className.includes('active') && !isTextWindowMode) {
+                // 下キー / Numpad 2
+                if (e.key === 'ArrowDown' || e.code === 'ArrowDown' || e.code === 'Numpad2') {
+                    e.preventDefault();
+                    if (selectableMenuButtons.length > 0) {
+                        activeMenuFocusIndex = (activeMenuFocusIndex + 1) % selectableMenuButtons.length;
+                        updateMenuFocus();
+                    }
+                    return;
+                }
+                // 上キー / Numpad 8
+                if (e.key === 'ArrowUp' || e.code === 'ArrowUp' || e.code === 'Numpad8') {
+                    e.preventDefault();
+                    if (selectableMenuButtons.length > 0) {
+                        activeMenuFocusIndex = (activeMenuFocusIndex - 1 + selectableMenuButtons.length) % selectableMenuButtons.length;
+                        updateMenuFocus();
+                    }
+                    return;
+                }
+
+                // Enter キー決定
+                if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+                    e.preventDefault();
+                    if (selectableMenuButtons[activeMenuFocusIndex]) {
+                        selectableMenuButtons[activeMenuFocusIndex].click();
+                    }
+                    return;
+                }
+
+                // キャンセルキー (Escape, 0, q, Backspace)
+                if (e.key === 'Escape' || e.key === '0' || e.key === 'q' || e.code === 'Escape' || e.code === 'Digit0' || e.code === 'Numpad0' || e.code === 'KeyQ') {
+                    e.preventDefault();
+                    sysLastKey.textContent = 'Menu Cancel (0)';
+                    core.respond(0);
+                    return;
+                }
+
+                // 選択キー（直接文字またはアクセラレータキー 例: 'a', 'b', 'c'）
+                if (e.key && e.key.length === 1) {
+                    e.preventDefault();
+                    sysLastKey.textContent = `Menu Key: ${e.key}`;
+                    core.respond(e.key);
+                    return;
+                }
+            }
+
+            // 3. 通常マップ移動・アクションキー
+            if (e.code) {
+                if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) {
+                    return;
+                }
+                sysLastKey.textContent = `'${e.key}' (code:${e.code})`;
+                core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+            }
+        });
+
+        // 起動
+        (async () => {
+            try {
+                await core.start('nethack.js');
+            } catch (e) {
+                console.error("Core start error:", e);
+            }
+        })();
+    </script>
+</body>
+</html>

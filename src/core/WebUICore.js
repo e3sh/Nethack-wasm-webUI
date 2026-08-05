@@ -1,0 +1,734 @@
+/**
+ * WebUICore.js - NetHack WebUI Core ファサードクラス (start 引数型修正版)
+ *
+ * Wasm Driver, Key Normalizer, StatusAccessor, レンダラー連携を統合。
+ * driver.init() への引数不一致 (TypeError: Cannot create property 'preRun' on string) を修復。
+ */
+
+import { GamepadManager } from './gamepad/GamepadManager.js';
+import { TouchCalculator } from './touch/TouchCalculator.js';
+import { SoundEngine } from './sound/SoundEngine.js';
+import { TranslationEngine } from './translation/TranslationEngine.js';
+import { GameOverResolver } from './lifecycle/GameOverResolver.js';
+import { StatusAccessor } from './StatusAccessor.js';
+import { NullRenderer } from './renderers/NullRenderer.js';
+import { GlyphHelper } from './renderers/GlyphHelper.js';
+import { PROMPT_CATEGORY } from './types.js';
+
+export const CoreState = {
+    UNINITIALIZED: 'UNINITIALIZED',
+    INITIALIZING: 'INITIALIZING',
+    READY: 'READY',
+    RUNNING: 'RUNNING',
+    WAITING_INPUT: 'WAITING_INPUT',
+    GAME_OVER: 'GAME_OVER',
+    EXITED: 'EXITED',
+    DESTROYED: 'DESTROYED'
+};
+
+export class WebUICore {
+    constructor(options = {}) {
+        if (!options.driver) {
+            throw new Error("WebUICore: options.driver is required.");
+        }
+
+        this.driver = options.driver;
+        this.renderer = options.renderer || new NullRenderer();
+
+        this.gamepad = new GamepadManager(options.gamepadOptions);
+        this.touch = new TouchCalculator(options.touchOptions);
+        this.sound = new SoundEngine({ soundMode: options.soundMode || 'mute' });
+
+        let isTranslateActive = options.translateEnabled;
+        if (isTranslateActive === undefined && typeof localStorage !== 'undefined') {
+            const savedTr = localStorage.getItem("nh.translate") || localStorage.getItem("nh.translate_enabled");
+            if (savedTr !== null) {
+                isTranslateActive = savedTr === 'true' || savedTr === '1';
+            }
+        }
+        if (isTranslateActive === undefined) {
+            isTranslateActive = true;
+        }
+
+        this.translator = new TranslationEngine({ enabled: isTranslateActive });
+        this.statusAccessor = new StatusAccessor();
+
+        this.state = CoreState.UNINITIALIZED;
+        this.currentPromptCategory = PROMPT_CATEGORY.NONE;
+        this.currentPromptChoices = '';
+        this.activeResolver = null;
+        this.activeMenuItems = [];
+        this.listeners = new Map();
+        
+        this.textWindowBuffers = {};
+        this.lastDlevel = undefined;
+        this.gamepadLoopId = null;
+        this.lastInputTime = 0;
+
+        this._initRenderer();
+        this._bindDriverEvents();
+        this._startGamepadPolling();
+    }
+
+    _setState(newState) {
+        if (this.state === newState) return;
+        const oldState = this.state;
+        this.state = newState;
+        this.emit('stateChange', { state: newState, oldState: oldState });
+    }
+
+    getState() {
+        return this.state;
+    }
+
+    async start(wasmJsUrl = 'nethack.js') {
+        this._setState(CoreState.INITIALIZING);
+
+        return new Promise((resolve, reject) => {
+            const onInitDone = async () => {
+                try {
+                    this._setState(CoreState.READY);
+                    const code = await this.driver.start();
+                    this._setState(CoreState.RUNNING);
+                    resolve(code);
+                } catch (e) {
+                    this._setState(CoreState.EXITED);
+                    reject(e);
+                }
+            };
+
+            if (this.driver.state && this.driver.state !== 'IDLE') {
+                onInitDone();
+            } else {
+                this.driver.once('initialized', onInitDone);
+
+                let extraOptions = "";
+                if (typeof localStorage !== 'undefined') {
+                    try {
+                        const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+                        if (savedConfig && savedConfig.extra_options) {
+                            extraOptions = savedConfig.extra_options;
+                        }
+                    } catch (e) { }
+                }
+
+                const targetInitParam = (typeof wasmJsUrl === 'string') ? wasmJsUrl : 
+                                        ((typeof window !== 'undefined' && window.Module) ? window.Module : null);
+
+                this.driver.init(targetInitParam, {
+                    args: ['nethack', '-otime,showexp,showvers,number_pad'],
+                    extraOptions: extraOptions
+                });
+            }
+        });
+    }
+
+    /**
+     * ページリロード不要で安全にニューゲームを再スタート
+     */
+    async restart() {
+        this.activeResolver = null;
+        this.activeMenuItems = [];
+        this.textWindowBuffers = {};
+        this.lastDlevel = undefined;
+        this.lastDlevelText = undefined;
+        this.statusAccessor = new StatusAccessor();
+
+        if (this.renderer && typeof this.renderer.clearMap === 'function') {
+            this.renderer.clearMap();
+        }
+
+        this.emit('map_cleared');
+        this.emit('inputResolved');
+
+        this._setState(CoreState.INITIALIZING);
+
+        if (typeof this.driver.reset === 'function') {
+            await this.driver.reset();
+        }
+
+        return this.start();
+    }
+
+    /**
+     * リソース・イベントリスナーの一括安全破棄
+     */
+    destroy() {
+        this._setState(CoreState.DESTROYED);
+
+        if (this.gamepadLoopId) {
+            cancelAnimationFrame(this.gamepadLoopId);
+            this.gamepadLoopId = null;
+        }
+
+        if (this.driver && typeof this.driver.destroy === 'function') {
+            this.driver.destroy();
+        }
+
+        this.listeners.clear();
+    }
+
+    /**
+     * ブラウザにセーブデータが保存されているか点検
+     */
+    hasSaveData() {
+        if (this.driver && this.driver.fsManager) {
+            return this.driver.fsManager.hasSaveData();
+        }
+        return false;
+    }
+
+    /**
+     * ハイスコア・ランキング（Scoreboard）構造化データ配列の取得
+     * クライアント UI 側が直接 VFS を触る必要なく、一発で構造化ランキング情報を取得可能
+     * @returns {Array<{rank: number, score: number, death: string, name: string, role: string}>}
+     */
+    getHighScores() {
+        return GameOverResolver.getScoreboard(this.driver);
+    }
+
+    /**
+     * 統一ステータスモデルの取得
+     */
+    getStatus() {
+        return this.statusAccessor.getStatus();
+    }
+
+    /**
+     * クライアント UI 層から個別に直接呼び出し可能な動的翻訳 API
+     */
+    translate(text) {
+        return this.translator.translate(text);
+    }
+
+    /**
+     * クライアント UI 層から個別に直接呼び出し可能な品詞対応単語辞書引き API
+     */
+    lookupWord(word, pos = 'noun') {
+        return this.translator.lookupWord(word, pos);
+    }
+
+    getGlyphStyle(glyph, options = {}) {
+        return GlyphHelper.getGlyphStyle(glyph, options);
+    }
+
+    getGlyphHtml(glyph, options = {}) {
+        return GlyphHelper.getGlyphHtml(glyph, options);
+    }
+
+    on(event, fn) {
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, []);
+        }
+        this.listeners.get(event).push(fn);
+    }
+
+    emit(event, data) {
+        const fns = this.listeners.get(event);
+        if (fns) {
+            fns.forEach(fn => fn(data));
+        }
+    }
+
+    setRenderer(newRenderer) {
+        this.renderer = newRenderer || new NullRenderer();
+        this._initRenderer();
+    }
+
+    respond(inputVal) {
+        if (!this.activeResolver) return;
+
+        if (this.lastInputTime && (Date.now() - this.lastInputTime < 120) && 
+           (this.currentPromptCategory === PROMPT_CATEGORY.YN || this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME)) {
+            return;
+        }
+
+        const resolver = this.activeResolver;
+        this.activeResolver = null;
+
+        let finalResponse = inputVal;
+
+        if (this.currentPromptCategory === PROMPT_CATEGORY.MENU) {
+            if (inputVal === 0 || inputVal === null || inputVal === undefined || inputVal === 27 || inputVal === '\x1b') {
+                finalResponse = 0;
+            } else if (typeof inputVal === 'number' || typeof inputVal === 'string') {
+                const charCode = typeof inputVal === 'number' ? inputVal : inputVal.charCodeAt(0);
+                const matchedItem = this.activeMenuItems.find(it => {
+                    if (it.isSelectable === false) return false;
+                    return it.ch === charCode || it.accelerator === charCode || 
+                           (it.charStr && it.charStr.charCodeAt(0) === charCode);
+                });
+
+                if (matchedItem && matchedItem.identifier !== undefined) {
+                    finalResponse = [{ identifier: matchedItem.identifier, count: -1 }];
+                } else {
+                    finalResponse = 0;
+                }
+            } else if (typeof inputVal === 'object') {
+                if (Array.isArray(inputVal)) {
+                    finalResponse = inputVal;
+                } else if (inputVal.identifier !== undefined) {
+                    finalResponse = [{ identifier: inputVal.identifier, count: inputVal.count !== undefined ? inputVal.count : -1 }];
+                }
+            }
+        } else if (this.currentPromptCategory === PROMPT_CATEGORY.YN) {
+            if (typeof inputVal === 'number') {
+                finalResponse = inputVal;
+            } else if (typeof inputVal === 'string' && inputVal.length > 0) {
+                finalResponse = inputVal.charCodeAt(0);
+            } else if (Array.isArray(inputVal) && inputVal.length > 0) {
+                finalResponse = typeof inputVal[0] === 'number' ? inputVal[0] : String(inputVal[0]).charCodeAt(0);
+            }
+        } else if (this.currentPromptCategory === PROMPT_CATEGORY.TEXT || 
+                 this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME || 
+                 this.currentPromptCategory === PROMPT_CATEGORY.FILE) {
+            if (typeof inputVal === 'string') {
+                finalResponse = inputVal;
+            }
+        }
+
+        try {
+            if (typeof resolver.respond === 'function') {
+                resolver.respond(finalResponse);
+            }
+        } catch (e) {
+            console.warn("WebUICore.respond error:", e);
+        }
+    }
+
+    sendKey(inputVal, shift = false, ctrl = false, alt = false, rawKey = '') {
+        if (!this.activeResolver) return;
+
+        if (this.lastInputTime && (Date.now() - this.lastInputTime < 120)) {
+            return;
+        }
+
+        const modifierKeys = [
+            'Shift', 'ShiftLeft', 'ShiftRight',
+            'Control', 'ControlLeft', 'ControlRight',
+            'Alt', 'AltLeft', 'AltRight',
+            'Meta', 'MetaLeft', 'MetaRight',
+            'CapsLock', 'Tab'
+        ];
+        if (typeof inputVal === 'string' && modifierKeys.includes(inputVal)) {
+            return;
+        }
+
+        const convertToAscii = () => {
+            if (rawKey && rawKey.length === 1 && !ctrl && !alt) {
+                return rawKey.charCodeAt(0);
+            }
+
+            const codeStr = typeof inputVal === 'string' ? inputVal : '';
+
+            const specialKeyMap = {
+                'Space': 32,
+                'Enter': 13,
+                'Escape': 27,
+                'Backspace': 8,
+                'Tab': 9,
+                'ArrowUp': 56,    // '8' (ASCII 56)
+                'ArrowDown': 50,  // '2' (ASCII 50)
+                'ArrowLeft': 52,  // '4' (ASCII 52)
+                'ArrowRight': 54, // '6' (ASCII 54)
+                'Numpad8': 56,
+                'Numpad2': 50,
+                'Numpad4': 52,
+                'Numpad6': 54,
+                'Numpad7': 55,    // '7'
+                'Numpad9': 57,    // '9'
+                'Numpad1': 49,    // '1'
+                'Numpad3': 51,    // '3'
+                'Numpad5': 53,    // '5' (ASCII 53)
+                'Period': 46,     // '.' (Rest)
+                'Comma': 44,
+                'Slash': 47,
+                'IntlRo': 35,     // '#'
+                'Hash': 35
+            };
+
+            if (codeStr && specialKeyMap[codeStr] !== undefined) {
+                return specialKeyMap[codeStr];
+            }
+
+            if (typeof window !== 'undefined' && window.rogueDefines) {
+                const defs = window.rogueDefines();
+                if (defs && defs.KEYMAP && defs.KEYMAP[codeStr]) {
+                    const map = defs.KEYMAP[codeStr];
+                    if (ctrl && map[2] !== undefined) return map[2];
+                    if (shift && map[1] !== undefined) return map[1];
+                    if (map[0] !== undefined) return map[0];
+                }
+            }
+
+            if (codeStr.startsWith('Key') && codeStr.length === 4) {
+                const ch = codeStr.charAt(3);
+                if (ctrl) return (ch.toUpperCase().charCodeAt(0)) & 0x1f;
+                if (alt) return (ch.toLowerCase().charCodeAt(0)) | 0x80;
+                return (shift ? ch.toUpperCase() : ch.toLowerCase()).charCodeAt(0);
+            }
+
+            if (codeStr.startsWith('Digit') && codeStr.length === 6) {
+                const dStr = codeStr.charAt(5);
+                if (shift && dStr === '3') return 35; // '#'
+                return dStr.charCodeAt(0);
+            }
+
+            if (typeof inputVal === 'number') return inputVal;
+
+            if (codeStr.length === 1) {
+                if (ctrl) return (codeStr.toUpperCase().charCodeAt(0)) & 0x1f;
+                return codeStr.charCodeAt(0);
+            }
+
+            return 32;
+        };
+
+        const asciiCode = convertToAscii();
+        this.respond(asciiCode);
+    }
+
+    handleTouchPoint(pageX, pageY, targetRect, scrollX, scrollY) {
+        const gridId = this.touch.pointToGridId(pageX, pageY, targetRect, scrollX, scrollY);
+        if (gridId >= 0) {
+            const keys = this.touch.gridIdToKey(gridId);
+            if (keys) {
+                this.sendKey(keys);
+            }
+        }
+    }
+
+    async resolveGameOver() {
+        const result = await GameOverResolver.resolveGameOver(this.driver);
+        if (result && result.isGameOver && result.death) {
+            const translatedDeath = this.translator.translate(result.death);
+            result.translatedDeath = translatedDeath;
+            result.translatedDeathMessage = `${result.playerName || 'Hero'} は ${translatedDeath}`;
+        }
+        this.emit('gameOver', result);
+        return result;
+    }
+
+    destroy() {
+        if (this.gamepadLoopId) {
+            cancelAnimationFrame(this.gamepadLoopId);
+            this.gamepadLoopId = null;
+        }
+        this.listeners.clear();
+    }
+
+    _initRenderer() {
+        if (this.renderer && typeof this.renderer.init === 'function') {
+            this.renderer.init();
+        }
+    }
+
+    _bindDriverEvents() {
+        // curs / curs_nhwindow (ターゲットカーソル移動イベント)
+        const handleCursorMove = (data) => {
+            if (data && data.x !== undefined && data.y !== undefined) {
+                this.cursorX = data.x;
+                this.cursorY = data.y;
+                this.emit('cursor', { x: data.x, y: data.y, windowId: data.windowId });
+            }
+        };
+        this.driver.on('curs', handleCursorMove);
+        this.driver.on('curs_nhwindow', handleCursorMove);
+
+        // clear_nhwindow (マップウィンドウ等の消去責務を Core/Renderer 側で自動解決)
+        this.driver.on('clear_nhwindow', (data) => {
+            if (data.windowId >= 4) {
+                delete this.textWindowBuffers[data.windowId];
+            }
+            if (data.windowId === 2 || data.windowId === 0) {
+                if (this.renderer && typeof this.renderer.clearMap === 'function') {
+                    this.renderer.clearMap();
+                }
+            }
+            this.emit('clear_nhwindow', data);
+        });
+
+        // print_glyph
+        this.driver.on('print_glyph', (data) => {
+            if (!data) return;
+            const x = data.x;
+            const y = data.y;
+            const gi = data.glyphInfo || data;
+            const glyphId = gi.glyph !== undefined ? gi.glyph : (data.glyph !== undefined ? data.glyph : -1);
+            const ch = gi.ch || data.ch || ' ';
+            const color = gi.color !== undefined ? gi.color : (data.color !== undefined ? data.color : 7);
+
+            const parsedData = { windowId: data.windowId, x, y, glyph: glyphId, ch, color, glyphInfo: gi };
+            this.renderer.drawGlyph(x, y, parsedData);
+            this.emit('print_glyph', parsedData);
+        });
+
+        // putstr メッセージ・テキストログ分離処理
+        const handleMessageText = (rawText) => {
+            if (!rawText) return;
+            const translated = this.translator.translate(rawText);
+            this.sound.processLogMessage(translated);
+            this.renderer.appendMessage(translated);
+            this.emit('message', translated);
+        };
+
+        this.driver.on('putstr', (data) => {
+            const windowId = data.windowId !== undefined ? data.windowId : 1;
+            const rawText = data.text || '';
+
+            if (rawText.trim()) {
+                this.lastPutstrText = rawText.trim();
+            }
+
+            if (windowId === 1 || windowId === 0) {
+                handleMessageText(rawText);
+            }
+
+            if (windowId >= 4) {
+                if (!this.textWindowBuffers[windowId]) {
+                    this.textWindowBuffers[windowId] = [];
+                }
+                this.textWindowBuffers[windowId].push(rawText);
+            }
+        });
+
+        this.driver.on('raw_print', (data) => {
+            if (data && data.text) handleMessageText(data.text);
+        });
+        this.driver.on('raw_print_bold', (data) => {
+            if (data && data.text) handleMessageText(data.text);
+        });
+
+        this.driver.on('putmsghistory', (data) => {
+            if (data && data.text && !data.restoring) {
+                handleMessageText(data.text);
+            }
+        });
+
+        // status_update (ダンジョン分岐文字列 Dlvl:1 <-> Tutorial:1 の変化を検知して自動マップクリア)
+        this.driver.on('status_update', (data) => {
+            if (data && data.field !== undefined) {
+                this.statusAccessor.updateField(data.field, data.value);
+                this.renderer.updateStatus(data);
+                
+                const structuredStatus = this.getStatus();
+                const currentDlevelText = structuredStatus.dlevel ? structuredStatus.dlevel.text : '';
+
+                if (this.lastDlevelText !== undefined && currentDlevelText && this.lastDlevelText !== currentDlevelText) {
+                    if (this.renderer && typeof this.renderer.clearMap === 'function') {
+                        this.renderer.clearMap();
+                    }
+                    this.emit('map_cleared');
+                }
+                if (currentDlevelText) {
+                    this.lastDlevelText = currentDlevelText;
+                }
+
+                this.emit('statusUpdate', {
+                    field: data.field,
+                    value: data.value,
+                    change: data.change,
+                    color: data.color,
+                    allFields: structuredStatus.allFields,
+                    status: structuredStatus
+                });
+            }
+        });
+
+        // display_file (VFS 探査 ➔ HTTP fetch オンデマンド取得による完璧なローカライズ表示)
+        this.driver.on('display_file', async ({ filename, complain, fileText, resolver }) => {
+            if (!resolver) return;
+
+            this.activeResolver = resolver;
+            this.currentPromptCategory = PROMPT_CATEGORY.FILE;
+            this.lastInputTime = Date.now();
+
+            const FS = (typeof globalThis !== 'undefined' && globalThis.FS) ? globalThis.FS :
+                       (this.driver && this.driver.fsManager ? this.driver.fsManager.FS : null);
+
+            // VFS チェックおよび HTTP fetch オンデマンド取得を非同期実行
+            const targetText = await this.translator.resolveFileText(filename, fileText, FS);
+
+            const fileLines = targetText ? targetText.split('\n') : [];
+            const promptTitle = `${filename} (${fileLines.length} lines)`;
+
+            const payload = {
+                category: PROMPT_CATEGORY.FILE,
+                promptCategory: PROMPT_CATEGORY.FILE,
+                choices: ' ',
+                filename: filename,
+                prompt: promptTitle,
+                rawPrompt: filename,
+                lines: fileLines,
+                text: targetText,
+                safeResolver: resolver,
+                resolver: resolver,
+                buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.FILE, ' ')
+            };
+
+            this.renderer.showPrompt(payload);
+            this.emit('textWindowModal', { lines: fileLines, resolver, payload });
+            this.emit('inputRequired', payload);
+        });
+
+        // display_nhwindow ブロッキング解凍判別 ＆ テキストウィンドウモータル発火
+        this.driver.on('display_nhwindow', ({ windowId, blocking, resolver }) => {
+            if (!resolver) return;
+
+            if (!blocking && windowId <= 3) {
+                resolver.respond(0);
+                return;
+            }
+
+            this.activeResolver = resolver;
+            this.currentPromptCategory = PROMPT_CATEGORY.KEY;
+            this.lastInputTime = Date.now();
+
+            let bufferLines = [];
+            if (this.textWindowBuffers[windowId] && this.textWindowBuffers[windowId].length > 0) {
+                bufferLines = this.textWindowBuffers[windowId].map(l => this.translator.translate(l));
+                delete this.textWindowBuffers[windowId];
+            }
+
+            const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : (this.lastPutstrText || 'Press Space or Enter to continue...');
+            const translatedPrompt = this.translator.translate(rawPrompt);
+
+            const payload = {
+                category: PROMPT_CATEGORY.KEY,
+                promptCategory: PROMPT_CATEGORY.KEY,
+                choices: ' ',
+                prompt: translatedPrompt,
+                rawPrompt: rawPrompt,
+                lines: bufferLines,
+                windowId: windowId,
+                safeResolver: resolver,
+                resolver: resolver,
+                buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.KEY, ' ')
+            };
+
+            this.renderer.showPrompt(payload);
+            this.emit('textWindowModal', { lines: bufferLines, resolver, payload });
+            this.emit('inputRequired', payload);
+        });
+
+        // inputRequired
+        this.driver.on('inputRequired', (payload) => {
+            const resolver = payload.safeResolver || payload.resolver;
+            this.activeResolver = resolver;
+            this.lastInputTime = Date.now();
+
+            const category = payload.promptCategory || this.driver.getPromptCategory(payload.context || payload.type) || PROMPT_CATEGORY.OTHER;
+            this.currentPromptCategory = category;
+            this.currentPromptChoices = payload.choices || '';
+
+            const rawPrompt = payload.prompt || payload.question || payload.message || '';
+            const translatedPrompt = this.translator.translate(rawPrompt);
+
+            const rawItems = payload.items || payload.menuItems || [];
+            const translatedItems = rawItems.map((item, index) => {
+                let itemStr = '';
+                if (typeof item === 'string') itemStr = item;
+                else if (item) {
+                    itemStr = item.str || item.text || item.title || '';
+                    if (typeof itemStr === 'object') {
+                        itemStr = itemStr.jp || itemStr.en || itemStr.text || itemStr.str || '';
+                    }
+                }
+
+                const rawCh = item ? (item.ch !== undefined && item.ch !== 0 ? item.ch : item.accelerator) : 0;
+                let charCode = 0;
+                let charStr = '';
+                let isSelectable = false;
+
+                if (rawCh !== undefined && rawCh !== 0 && rawCh !== '\0') {
+                    isSelectable = true;
+                    if (typeof rawCh === 'number') {
+                        charCode = rawCh;
+                        charStr = String.fromCharCode(rawCh);
+                    } else if (typeof rawCh === 'string' && rawCh.length > 0) {
+                        charCode = rawCh.charCodeAt(0);
+                        charStr = rawCh;
+                    }
+                } else if (item && item.identifier !== undefined && item.identifier !== 0 && item.identifier !== -1) {
+                    isSelectable = true;
+                    charCode = 97 + index;
+                    charStr = String.fromCharCode(charCode);
+                }
+
+                return {
+                    ...item,
+                    isSelectable: isSelectable,
+                    ch: charCode,
+                    charStr: charStr,
+                    accelerator: charCode,
+                    str: this.translator.translate(itemStr),
+                    rawStr: itemStr
+                };
+            });
+
+            this.activeMenuItems = translatedItems;
+
+            const passThroughPayload = {
+                ...payload,
+                category: category,
+                promptCategory: category,
+                prompt: translatedPrompt,
+                rawPrompt: rawPrompt,
+                items: translatedItems,
+                menuItems: translatedItems,
+                safeResolver: resolver,
+                resolver: resolver,
+                buttonOverlay: this.gamepad.getButtonOverlay(category, this.currentPromptChoices)
+            };
+
+            this.renderer.showPrompt(passThroughPayload);
+            this.emit('inputRequired', passThroughPayload);
+        });
+
+        // inputResolved
+        this.driver.on('inputResolved', () => {
+            this.activeResolver = null;
+            this.activeMenuItems = [];
+            this.currentPromptCategory = PROMPT_CATEGORY.NONE;
+            this.currentPromptChoices = '';
+            this.renderer.hidePrompt();
+            this.emit('inputResolved');
+        });
+
+        // exited
+        this.driver.on('exited', async (data) => {
+            this.activeResolver = null;
+            this.activeMenuItems = [];
+            this.currentPromptCategory = PROMPT_CATEGORY.NONE;
+            this.currentPromptChoices = '';
+            this.renderer.hidePrompt();
+
+            const result = await this.resolveGameOver();
+            if (result && result.isGameOver) {
+                this.renderer.appendMessage(`[GAME EXITED] ${result.deathMessage}`);
+                this._setState(CoreState.GAME_OVER);
+            } else {
+                this._setState(CoreState.EXITED);
+            }
+
+            this.emit('inputResolved');
+            this.emit('exited', Object.assign({}, data, { gameOverResult: result }));
+        });
+    }
+
+    _startGamepadPolling() {
+        if (typeof requestAnimationFrame === 'undefined') return;
+
+        const poll = () => {
+            if (this.activeResolver) {
+                const keys = this.gamepad.pollInput(this.currentPromptCategory, this.currentPromptChoices);
+                if (keys && keys.length > 0) {
+                    keys.forEach(k => this.sendKey(k));
+                }
+            }
+            this.gamepadLoopId = requestAnimationFrame(poll);
+        };
+
+        this.gamepadLoopId = requestAnimationFrame(poll);
+    }
+}
