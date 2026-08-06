@@ -274,9 +274,6 @@
                     }
                 } catch(e) {}
             }
-            if (typeof localStorage !== 'undefined' && localStorage.getItem("nethack_has_saved_game") === "1") {
-                return true;
-            }
             return false;
         }
 
@@ -355,10 +352,11 @@
                                     db.close();
                                     const val = getReq.result;
                                     if (!val) resolve("");
-                                    else if (typeof val === 'string') resolve(val);
-                                    else if (val instanceof Uint8Array || ArrayBuffer.isView(val)) {
+                                    let rawData = (val && typeof val === 'object' && val.contents) ? val.contents : val;
+                                    if (typeof rawData === 'string') resolve(rawData);
+                                    else if (rawData instanceof Uint8Array || ArrayBuffer.isView(rawData)) {
                                         try {
-                                            resolve(new TextDecoder('utf-8').decode(val));
+                                            resolve(new TextDecoder('utf-8').decode(rawData));
                                         } catch (e) { resolve(""); }
                                     } else resolve("");
                                 };
@@ -381,15 +379,7 @@
          * インスタンスメソッド: VFS (/save, /) 内の実体セーブファイルからプレイヤー名を自動検出
          */
         autoDetectSavePlayerName() {
-            // 1. localStorage に保存されているプレイヤー名があれば最優先
-            if (typeof localStorage !== 'undefined' && localStorage.getItem("nethack_has_saved_game") === "1") {
-                const cachedName = localStorage.getItem("nethack_last_player_name");
-                if (cachedName && cachedName.trim() !== "") {
-                    return cachedName.trim();
-                }
-            }
-
-            // 2. VFS (/save, /) ディレクトリの正式セーブファイルから検索
+            // VFS (/save, /) ディレクトリの正式セーブファイルから検索
             const FS = this.FS;
             if (FS) {
                 try {
@@ -411,7 +401,7 @@
                             if (saveFile) {
                                 const match = saveFile.match(/^\d+(.+)$/);
                                 let name = match ? match[1] : saveFile;
-                                name = name.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                                name = name.replace(/#.*$/, '').replace(/[\/\x00-\x1f\x7f]/g, '').trim();
                                 if (name.length > 0 && name.toLowerCase() !== 'tmp') {
                                     return name;
                                 }
@@ -453,23 +443,27 @@
                         keyReq.onsuccess = () => {
                             const keys = keyReq.result || [];
                             db.close();
-                            const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+                            const systemFiles = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp'];
                             const saveKey = keys.find(key => {
-                                const keyStr = String(key);
-                                if (keyStr.endsWith('/.') || keyStr.endsWith('/..') || keyStr === '/save' || keyStr === '/save/') return false;
-                                const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
-                                return (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
+                                const keyStr = String(key).trim();
+                                if (keyStr.endsWith('/.') || keyStr.endsWith('/..') || keyStr === '/save' || keyStr === '/save/' || keyStr === '/') return false;
+                                const cleanName = keyStr.replace(/^\/save\//, '').replace(/^\//, '').replace(/#.*$/, '').trim();
+                                if (cleanName.startsWith('.')) return false;
+                                const lower = cleanName.toLowerCase();
+                                if (systemFiles.some(sys => lower === sys || lower.endsWith('/' + sys))) return false;
+                                if (lower.includes('tmp') || lower.includes('lock')) return false;
+                                return cleanName.length > 0;
                             });
 
                             if (saveKey) {
-                                const cleanName = String(saveKey).replace(/^\/save\//, '').replace(/#.*$/, '');
+                                const cleanName = String(saveKey).replace(/^\/save\//, '').replace(/^\//, '').replace(/#.*$/, '').trim();
                                 const match = cleanName.match(/^\d+(.+)$/);
                                 let name = match ? match[1] : cleanName;
-                                name = name.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                                name = name.replace(/[\/\x00-\x1f\x7f]/g, '').trim();
                                 resolve(name || "player");
-                            } else {
-                                resolve("");
+                                return;
                             }
+                            resolve("");
                         };
                         keyReq.onerror = () => { db.close(); resolve(""); };
                     };
@@ -477,6 +471,52 @@
                 });
             } catch (e) {
                 return "";
+            }
+        }
+
+        static async deleteAllSaveFilesFromIndexedDB() {
+            if (typeof indexedDB === 'undefined') return false;
+            try {
+                return await new Promise((resolve) => {
+                    const req = indexedDB.open('/save');
+                    req.onsuccess = () => {
+                        const db = req.result;
+                        if (!db || !db.objectStoreNames.contains('FILE_DATA')) {
+                            if (db) db.close();
+                            resolve(false);
+                            return;
+                        }
+                        const tx = db.transaction('FILE_DATA', 'readwrite');
+                        const store = tx.objectStore('FILE_DATA');
+                        const keyReq = store.getAllKeys();
+
+                        keyReq.onsuccess = () => {
+                            const keys = keyReq.result || [];
+                            const systemFiles = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp'];
+
+                            keys.forEach(key => {
+                                const keyStr = String(key).trim();
+                                if (keyStr.endsWith('/.') || keyStr.endsWith('/..') || keyStr === '/save' || keyStr === '/save/' || keyStr === '/') return;
+                                const cleanName = keyStr.replace(/^\/save\//, '').replace(/^\//, '').replace(/#.*$/, '').trim();
+                                if (cleanName.startsWith('.')) return;
+                                const lower = cleanName.toLowerCase();
+                                if (systemFiles.some(sys => lower === sys || lower.endsWith('/' + sys))) return;
+
+                                store.delete(key);
+                            });
+
+                            tx.oncomplete = () => {
+                                db.close();
+                                resolve(true);
+                            };
+                            tx.onerror = () => { db.close(); resolve(false); };
+                        };
+                        keyReq.onerror = () => { db.close(); resolve(false); };
+                    };
+                    req.onerror = () => resolve(false);
+                });
+            } catch (e) {
+                return false;
             }
         }
 

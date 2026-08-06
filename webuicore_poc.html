@@ -406,6 +406,7 @@
         <div class="controls-bar">
             <button id="btn-toggle-view" class="btn-toggle">ビュー切替: 🎨 Graphic Canvas</button>
             <button id="btn-translate" class="btn-toggle" style="background:#1e3a8a; border-color:#3b82f6;">🌐 翻訳: ON</button>
+            <button id="btn-clear-save" style="background:#7f1d1d; border-color:#ef4444;">🗑️ セーブ削除</button>
             <button id="btn-help">HELP (?)</button>
             <button id="btn-look">Look (/)</button>
             <button id="btn-extcmd">#extcmd</button>
@@ -481,15 +482,33 @@
     </div>
 
     <!-- 起動ローディング・オーバーレイ (INITIALIZING Guard) -->
-    <div id="loading-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; z-index:999;">
-        <div style="width:40px; height:40px; border:4px solid #333; border-top:4px solid #00e676; border-radius:50%; animation:spin 1s linear infinite;"></div>
-        <div style="font-weight:bold; color:#00e676; font-size:16px;">⌛ Loading NetHack Wasm & Resources...</div>
-        <div style="font-size:12px; color:#aaa;">Please wait until READY state...</div>
+    <div id="loading-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; z-index:9999;">
+        <div id="loading-spinner-box" style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border:4px solid #333; border-top:4px solid #00e676; border-radius:50%; animation:spin 1s linear infinite;"></div>
+            <div style="font-weight:bold; color:#00e676; font-size:16px;">⌛ Loading NetHack Wasm & Resources...</div>
+            <div style="font-size:12px; color:#aaa;">Please wait until READY state...</div>
+        </div>
+
+        <!-- セーブデータ復元選択ダイアログ (オーバーレイ内部に常時最前面配置) -->
+        <div id="start-selector-card" style="background:#18181b; border:2px solid #00e676; box-shadow:0 0 30px rgba(0,230,118,0.4); border-radius:8px; padding:24px; width:90%; max-width:480px; display:none; flex-direction:column; gap:16px; text-align:center;">
+            <div style="font-size:20px; color:#00e676; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <span>💾</span> 保存されたセーブデータが見つかりました
+            </div>
+            <div style="font-size:14px; color:#e4e4e7; background:#09090b; padding:12px; border-radius:6px; border:1px solid #27272a;">
+                前回のキャラクター <b id="start-save-name" style="color:#ffe082; font-size:16px;">-</b> の中断データが保存されています。
+            </div>
+            <div style="font-size:12px; color:#a1a1aa;">
+                「続きから再開」すると前回の場所から即座に復元してプレイを開始できます。<br>「新規ゲーム開始」を選ぶと旧セーブを消去して新しい名前でスタートします。
+            </div>
+            <div style="display:flex; justify-content:center; gap:12px; margin-top:8px;">
+                <button id="btn-start-resume" style="background:#00e676; color:#000; font-weight:bold; padding:12px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px; box-shadow:0 2px 8px rgba(0,230,118,0.4);">▶ 続きから再開 (Resume)</button>
+                <button id="btn-start-new" style="background:#b91c1c; color:#fff; font-weight:bold; padding:12px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px;">✨ 新規ゲーム開始 (New Game)</button>
+            </div>
+        </div>
     </div>
     <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-
     <!-- Game Over / Result モーダル -->
-    <div id="gameover-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#121212; border:2px solid #ff5252; box-shadow:0 0 20px rgba(255,82,82,0.4); border-radius:8px; padding:20px; width:90%; max-width:540px; display:none; flex-direction:column; gap:12px; z-index:1000;">
+    <div id="gameover-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#121212; border:2px solid #ff5252; box-shadow:0 0 20px rgba(255,82,82,0.4); border-radius:8px; padding:20px; width:90%; max-width:540px; display:none; flex-direction:column; gap:12px; z-index:10000;">
         <div style="font-size:22px; color:#ff5252; font-weight:bold; text-align:center;">☠️ GAME OVER / EXITED ☠️</div>
         <div id="gameover-summary" style="font-size:13px; color:#e0e0e0; line-height:1.6; background:#000; padding:12px; border-radius:4px; border:1px solid #333;"></div>
         
@@ -628,6 +647,16 @@
         // Driver & Core Instantiation
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
+
+        const btnClearSave = document.getElementById('btn-clear-save');
+        if (btnClearSave) {
+            btnClearSave.onclick = async () => {
+                if (confirm("保存されているセーブデータを消去し、新しいキャラクターで最初からゲームを開始しますか？")) {
+                    await core.deleteSaveData();
+                    location.reload();
+                }
+            };
+        }
 
         // Tile & Glyph Caching
         const tileImg = new Image();
@@ -1050,14 +1079,14 @@
                 return;
             }
 
-            // 3. プロンプト表示 (ASKNAME, YN, TEXT, FILE, KEY)
+            // 3. プロンプト表示 (ASKNAME, YN, TEXT, FILE, KEY, EXTCMD)
             isTextWindowMode = false;
-            if (category === 'ASKNAME' || category === 'YN' || category === 'TEXT' || category === 'FILE' || category === 'KEY' || category === 'OTHER') {
+            if (category === 'ASKNAME' || category === 'YN' || category === 'TEXT' || category === 'FILE' || category === 'KEY' || category === 'EXTCMD' || category === 'OTHER') {
                 menuModal.className = 'menu-modal';
                 promptBar.className = 'prompt-bar active';
-                promptText.textContent = rawPrompt || (category === 'ASKNAME' ? 'Who are you?' : 'Press Space / Enter to continue');
+                promptText.textContent = rawPrompt || (category === 'EXTCMD' ? '#Which extended command?' : (category === 'ASKNAME' ? 'Who are you?' : 'Press Space / Enter to continue'));
 
-                if (category === 'ASKNAME' || category === 'TEXT' || category === 'FILE') {
+                if (category === 'ASKNAME' || category === 'TEXT' || category === 'FILE' || category === 'EXTCMD') {
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.value = category === 'ASKNAME' ? 'Hero' : '';
@@ -1185,7 +1214,31 @@
         // 起動
         (async () => {
             try {
-                await core.start('nethack.js');
+                const saveInfo = await core.detectSavedGameInfo();
+                const loadingOverlay = document.getElementById('loading-overlay');
+                const spinnerBox = document.getElementById('loading-spinner-box');
+                const selectorCard = document.getElementById('start-selector-card');
+                const saveNameEl = document.getElementById('start-save-name');
+                
+                if (saveInfo.hasSave) {
+                    if (saveNameEl) saveNameEl.textContent = saveInfo.savePlayerName || 'Hero';
+                    if (spinnerBox) spinnerBox.style.display = 'none';
+                    if (selectorCard) selectorCard.style.display = 'flex';
+
+                    document.getElementById('btn-start-resume').onclick = async () => {
+                        if (selectorCard) selectorCard.style.display = 'none';
+                        if (spinnerBox) spinnerBox.style.display = 'flex';
+                        await core.start('nethack.js');
+                    };
+
+                    document.getElementById('btn-start-new').onclick = async () => {
+                        if (selectorCard) selectorCard.style.display = 'none';
+                        if (spinnerBox) spinnerBox.style.display = 'flex';
+                        await core.start('nethack.js', { forceNewGame: true });
+                    };
+                } else {
+                    await core.start('nethack.js');
+                }
             } catch (e) {
                 console.error("Core start error:", e);
             }

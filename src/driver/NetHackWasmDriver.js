@@ -145,9 +145,11 @@
         }
 
         getPromptCategory(context, type) {
+            if (context === 'get_ext_cmd' || type === 'ext_cmd') return 'EXTCMD';
+            if (context === 'askname') return 'ASKNAME';
             if (context === 'yn_function' || context === 'yn' || type === 'yn') return 'YN';
             if (context === 'select_menu' || context === 'menu' || type === 'menu') return 'MENU';
-            if (context === 'getlin' || context === 'askname' || context === 'get_ext_cmd' || type === 'string') return 'TEXT';
+            if (context === 'getlin' || type === 'string') return 'TEXT';
             if (context === 'poskey' || type === 'poskey') return 'POSKEY';
             if (context === 'getch' || type === 'char') return 'KEY';
             if (context === 'display_file') return 'FILE';

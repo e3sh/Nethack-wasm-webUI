@@ -100,7 +100,7 @@ self.onmessage = async function(e) {
             ];
 
             driverEvents.forEach(evtName => {
-                driver.on(evtName, (data) => {
+                driver.on(evtName, async (data) => {
                     let cleanData = data ? { ...data } : {};
                     
                     // resolver (関数を含む) はスレッド境界を越えられないため、IDでマッピング管理する
@@ -110,6 +110,14 @@ self.onmessage = async function(e) {
                         cleanData.resolverId = resolverId;
                         cleanData.hasResolver = true;
                         delete cleanData.resolver; // 関数プロパティを除去
+                    }
+
+                    if (evtName === 'exited' && driver && typeof driver.syncToPersistent === 'function') {
+                        try {
+                            await driver.syncToPersistent();
+                        } catch (e) {
+                            console.warn("[nethack.worker] syncToPersistent error on exited:", e);
+                        }
                     }
 
                     self.postMessage({ type: 'EVENT', event: evtName, data: cleanData });

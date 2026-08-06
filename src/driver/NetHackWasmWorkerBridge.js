@@ -283,43 +283,24 @@
             });
         }
 
-        async autoDetectSavePlayerName() {
-            try {
-                if (typeof indexedDB === 'undefined') return "";
-                const db = await new Promise((resolve, reject) => {
-                    const req = indexedDB.open('/save');
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-                if (!db.objectStoreNames.contains('FILE_DATA')) {
-                    db.close();
-                    return "";
-                }
-                const tx = db.transaction('FILE_DATA', 'readonly');
-                const store = tx.objectStore('FILE_DATA');
-                const keys = await new Promise((resolve) => {
-                    const req = store.getAllKeys();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => resolve([]);
-                });
-                db.close();
+        async deleteAllSaveFiles() {
+            if (typeof NetHackFSManager !== 'undefined' && typeof NetHackFSManager.deleteAllSaveFilesFromIndexedDB === 'function') {
+                return await NetHackFSManager.deleteAllSaveFilesFromIndexedDB();
+            }
+            return false;
+        }
 
-                const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
-                const saveKey = keys.find(key => {
-                    const keyStr = String(key);
-                    const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
-                    return (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
-                });
+        async syncToPersistent() {
+            return true;
+        }
 
-                if (saveKey) {
-                    const cleanName = String(saveKey).replace(/^\/save\//, '').replace(/#.*$/, '');
-                    const match = cleanName.match(/^\d+(.+)$/);
-                    let name = match ? match[1] : cleanName;
-                    name = name.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
-                    return name || "Web_user";
-                }
-            } catch (e) {
-                console.warn("[NetHackWasmWorkerBridge] Failed to auto-detect save name from IndexedDB:", e);
+        autoDetectSavePlayerName() {
+            return "";
+        }
+
+        async autoDetectSavePlayerNameAsync() {
+            if (typeof NetHackFSManager !== 'undefined' && typeof NetHackFSManager.autoDetectSavePlayerNameFromIndexedDB === 'function') {
+                return await NetHackFSManager.autoDetectSavePlayerNameFromIndexedDB();
             }
             return "";
         }
@@ -338,6 +319,39 @@
                 this.on('listSaveFilesResult', onResult);
                 this.worker.postMessage({ type: 'LIST_SAVE_FILES' });
             });
+        }
+
+        readXlogText() {
+            return "";
+        }
+
+        async readXlogTextAsync() {
+            if (typeof NetHackFSManager !== 'undefined' && typeof NetHackFSManager.readTextFromIndexedDB === 'function') {
+                return await NetHackFSManager.readTextFromIndexedDB('xlogfile');
+            }
+            return "";
+        }
+
+        readRecordText() {
+            return "";
+        }
+
+        async readRecordTextAsync() {
+            if (typeof NetHackFSManager !== 'undefined' && typeof NetHackFSManager.readTextFromIndexedDB === 'function') {
+                let rec = await NetHackFSManager.readTextFromIndexedDB('record');
+                if (!rec) rec = await NetHackFSManager.readTextFromIndexedDB('logfile');
+                return rec;
+            }
+            return "";
+        }
+
+        hasSaveData() {
+            return false;
+        }
+
+        async hasSaveDataAsync() {
+            const name = await this.autoDetectSavePlayerNameAsync();
+            return !!(name && name.length > 0);
         }
 
         terminate() {

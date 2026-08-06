@@ -81,8 +81,47 @@ export class WebUICore {
         return this.state;
     }
 
-    async start(wasmJsUrl = 'nethack.js') {
+    async detectSavedGameInfo() {
+        const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
+        let saveName = "";
+        if (fsManager && typeof fsManager.autoDetectSavePlayerNameAsync === 'function') {
+            try {
+                saveName = await fsManager.autoDetectSavePlayerNameAsync();
+            } catch (e) {}
+        }
+        const hasSave = !!(saveName && saveName.trim().length > 0);
+        return {
+            hasSave: hasSave,
+            savePlayerName: hasSave ? saveName.trim() : ""
+        };
+    }
+
+    async start(wasmJsUrl = 'nethack.js', startOptions = {}) {
         this._setState(CoreState.INITIALIZING);
+
+        if (startOptions.forceNewGame) {
+            await this.deleteSaveData();
+        }
+
+        const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
+        let detectedSaveName = "";
+
+        if (!startOptions.forceNewGame) {
+            if (fsManager && typeof fsManager.autoDetectSavePlayerNameAsync === 'function') {
+                try {
+                    detectedSaveName = await fsManager.autoDetectSavePlayerNameAsync();
+                } catch (e) {}
+            } else if (fsManager && typeof fsManager.autoDetectSavePlayerName === 'function') {
+                try {
+                    const res = fsManager.autoDetectSavePlayerName();
+                    detectedSaveName = (typeof res === 'object' && res.then) ? await res : res;
+                } catch (e) {}
+            }
+        }
+
+        const hasSave = !startOptions.forceNewGame && (!!(detectedSaveName && detectedSaveName.trim().length > 0) || this.hasSaveData());
+        this.isResumingSave = hasSave;
+        this.resumeSavePlayerName = hasSave ? detectedSaveName.trim() : "";
 
         return new Promise((resolve, reject) => {
             const onInitDone = async () => {
@@ -115,28 +154,33 @@ export class WebUICore {
                 const targetInitParam = (typeof wasmJsUrl === 'string') ? wasmJsUrl : 
                                         ((typeof window !== 'undefined' && window.Module) ? window.Module : null);
 
-                const initArgs = ['nethack', '-otime,showexp,showvers,number_pad'];
-                const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
-                
-                const proceedInit = (savePlayerName) => {
-                    if (typeof savePlayerName === 'string' && savePlayerName.trim().length > 0) {
-                        initArgs.push(`-u${savePlayerName.trim()}`);
-                    }
-                    this.driver.init(targetInitParam, {
-                        args: initArgs,
-                        extraOptions: extraOptions
-                    });
-                };
+                const initArgs = hasSave ? 
+                    ['nethack', '-otime,showexp,showvers,number_pad'] : 
+                    ['nethack', '-otime,showexp,showvers,number_pad,askname'];
 
-                if (fsManager && typeof fsManager.autoDetectSavePlayerNameAsync === 'function') {
-                    fsManager.autoDetectSavePlayerNameAsync().then(name => proceedInit(name)).catch(() => proceedInit(null));
-                } else if (fsManager && typeof fsManager.autoDetectSavePlayerName === 'function') {
-                    proceedInit(fsManager.autoDetectSavePlayerName());
-                } else {
-                    proceedInit(null);
+                if (hasSave && detectedSaveName && detectedSaveName.trim().length > 0) {
+                    initArgs.push(`-u${detectedSaveName.trim()}`);
                 }
+
+                this.driver.init(targetInitParam, {
+                    args: initArgs,
+                    extraOptions: extraOptions
+                });
             }
         });
+    }
+
+    /**
+     * 保存されている旧セーブデータを完全に削除 (1スロット制限に沿ったクリーンアップ)
+     */
+    async deleteSaveData() {
+        if (this.driver) {
+            if (typeof this.driver.deleteAllSaveFiles === 'function') {
+                await this.driver.deleteAllSaveFiles();
+            } else if (this.driver.fsManager && typeof this.driver.fsManager.deleteAllSaveFiles === 'function') {
+                await this.driver.fsManager.deleteAllSaveFiles();
+            }
+        }
     }
 
     /**
@@ -188,23 +232,33 @@ export class WebUICore {
      * ブラウザにセーブデータが保存されているか点検
      */
     hasSaveData() {
-        if (this.driver && this.driver.fsManager) {
-            return this.driver.fsManager.hasSaveData();
+        if (this.driver) {
+            if (this.driver.fsManager && typeof this.driver.fsManager.hasSaveData === 'function') {
+                return this.driver.fsManager.hasSaveData();
+            }
+            if (typeof this.driver.hasSaveData === 'function') {
+                return this.driver.hasSaveData();
+            }
         }
         return false;
+    }
+
+    async hasSaveDataAsync() {
+        if (this.driver) {
+            if (typeof this.driver.hasSaveDataAsync === 'function') {
+                return await this.driver.hasSaveDataAsync();
+            }
+            if (this.driver.fsManager && typeof this.driver.fsManager.hasSaveDataAsync === 'function') {
+                return await this.driver.fsManager.hasSaveDataAsync();
+            }
+        }
+        return this.hasSaveData();
     }
 
     /**
      * ハイスコア・ランキング（Scoreboard）構造化データ配列の取得
      * クライアント UI 側が直接 VFS を触る必要なく、一発で構造化ランキング情報を取得可能
      * @returns {Array<{rank: number, score: number, death: string, name: string, role: string}>}
-     */
-    getHighScores() {
-        return GameOverResolver.getScoreboard(this.driver);
-    }
-
-    /**
-     * ハイスコア・ランキング（Scoreboard）構造化データ配列の取得
      */
     getHighScores() {
         return GameOverResolver.getScoreboard(this.driver);
@@ -429,8 +483,17 @@ export class WebUICore {
     }
 
     async resolveGameOver() {
+        const status = typeof this.getStatus === 'function' ? this.getStatus() : null;
+        let detectedName = status && status.title ? status.title : null;
+        if (!detectedName && this.driver && this.driver.fsManager && typeof this.driver.fsManager.autoDetectSavePlayerName === 'function') {
+            detectedName = this.driver.fsManager.autoDetectSavePlayerName();
+        }
+        if (!detectedName && this.driver && this.driver.options && this.driver.options.gameOptions) {
+            detectedName = this.driver.options.gameOptions.name;
+        }
+
         const sessionInfo = {
-            playerName: (this.driver && this.driver.options && this.driver.options.gameOptions ? this.driver.options.gameOptions.name : null) || 'Hero',
+            playerName: detectedName || 'Hero',
             startTime: this.startTime,
             version: '5.0.0'
         };
@@ -625,7 +688,7 @@ export class WebUICore {
                 delete this.textWindowBuffers[windowId];
             }
 
-            const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : (this.lastPutstrText || 'Press Space or Enter to continue...');
+            const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : 'Press Space or Enter to continue...';
             const translatedPrompt = this.translator.translate(rawPrompt);
 
             const payload = {
@@ -656,17 +719,18 @@ export class WebUICore {
             this.currentPromptCategory = category;
             this.currentPromptChoices = payload.choices || '';
 
-            const rawPrompt = payload.prompt || payload.question || payload.message || '';
+            let rawPrompt = payload.prompt || payload.question || payload.message || '';
+            if ((!rawPrompt || rawPrompt === 'Press Space or Enter to continue...') && (category === PROMPT_CATEGORY.EXTCMD || payload.context === 'extcmd')) {
+                rawPrompt = '#Which extended command?';
+            }
             const translatedPrompt = this.translator.translate(rawPrompt);
 
             // ASKNAME ("Who are you?") プロンプト検出時:
-            // セーブデータが存在する場合のみ detectedName で自動応答してスキップし、新規開始時（セーブなし）はユーザーに名前を入力させる
+            // 「続きから再開」時またはセーブデータが存在する場合は自動応答してスキップし、新規開始時（セーブなし）のみユーザーに名前を入力させる
             if (category === PROMPT_CATEGORY.ASKNAME || rawPrompt.includes('Who are you') || rawPrompt.includes('your name') || payload.context === 'askname') {
-                const detectedName = payload.detectedName || 
-                    (this.driver && this.driver.fsManager && typeof this.driver.fsManager.autoDetectSavePlayerName === 'function' ? this.driver.fsManager.autoDetectSavePlayerName() : '');
-
-                if (detectedName && detectedName.trim().length > 0) {
-                    this.respond(detectedName.trim());
+                if (this.isResumingSave || this.resumeSavePlayerName) {
+                    const finalName = this.resumeSavePlayerName || payload.detectedName || 'Hero';
+                    this.respond(finalName.trim());
                     return;
                 }
             }
@@ -748,6 +812,7 @@ export class WebUICore {
             this.activeMenuItems = [];
             this.currentPromptCategory = PROMPT_CATEGORY.NONE;
             this.currentPromptChoices = '';
+            this.lastPutstrText = '';
             this.renderer.hidePrompt();
 
             const result = await this.resolveGameOver();

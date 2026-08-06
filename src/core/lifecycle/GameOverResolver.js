@@ -50,18 +50,22 @@ export class GameOverResolver {
                 }
             }
 
-            if ((!rawXlog || !rawXlog.trim()) && typeof NetHackFSManager !== 'undefined' && NetHackFSManager.readTextFromIndexedDB) {
-                rawXlog = await NetHackFSManager.readTextFromIndexedDB('xlogfile');
+            const FSM = this._getFSManager();
+            if ((!rawXlog || !rawXlog.trim()) && FSM && FSM.readTextFromIndexedDB) {
+                rawXlog = await FSM.readTextFromIndexedDB('xlogfile');
             }
-            if ((!rawRecord || !rawRecord.trim()) && typeof NetHackFSManager !== 'undefined' && NetHackFSManager.readTextFromIndexedDB) {
-                rawRecord = await NetHackFSManager.readTextFromIndexedDB('record');
-                if (!rawRecord) rawRecord = await NetHackFSManager.readTextFromIndexedDB('logfile');
+            if ((!rawRecord || !rawRecord.trim()) && FSM && FSM.readTextFromIndexedDB) {
+                rawRecord = await FSM.readTextFromIndexedDB('record');
+                if (!rawRecord) rawRecord = await FSM.readTextFromIndexedDB('logfile');
             }
 
-            const scoreboard = this.parseRecordText(rawRecord, rawXlog, sessionInfo, { currentVerOnly: true });
+            const filterCurrentVer = (options && options.currentVerOnly !== undefined) ? options.currentVerOnly : true;
+            const scoreboard = this.parseRecordText(rawRecord, rawXlog, sessionInfo, { currentVerOnly: filterCurrentVer });
 
-            // 3. セーブファイルの有無をチェック (VFS に実ファイルが存在するか)
+            // 3. セーブファイルの有無をチェック (VFS / IndexedDB に実体ファイルが存在するか)
             let hasSave = false;
+            let saveName = null;
+
             if (targetSource && typeof targetSource.hasSaveDataAsync === 'function') {
                 hasSave = await targetSource.hasSaveDataAsync();
             } else if (targetSource && typeof targetSource.hasSaveData === 'function') {
@@ -71,17 +75,27 @@ export class GameOverResolver {
             }
 
             if (hasSave) {
-                let saveName = null;
-                if (fsManager && typeof fsManager.autoDetectSavePlayerName === 'function') {
-                    saveName = fsManager.autoDetectSavePlayerName();
+                if (targetSource && typeof targetSource.autoDetectSavePlayerNameAsync === 'function') {
+                    saveName = await targetSource.autoDetectSavePlayerNameAsync();
+                } else if (targetSource && typeof targetSource.autoDetectSavePlayerName === 'function') {
+                    const res = targetSource.autoDetectSavePlayerName();
+                    saveName = (res && typeof res.then === 'function') ? await res : res;
+                } else if (fsManager && typeof fsManager.autoDetectSavePlayerName === 'function') {
+                    const res = fsManager.autoDetectSavePlayerName();
+                    saveName = (res && typeof res.then === 'function') ? await res : res;
                 }
-                if (!saveName && sessionInfo && sessionInfo.playerName) {
+
+                if ((!saveName || saveName === '[object Promise]') && sessionInfo && sessionInfo.playerName) {
                     saveName = sessionInfo.playerName;
                 }
+                if (!saveName || saveName === '[object Promise]') {
+                    saveName = 'player';
+                }
+
                 return {
                     isGameOver: false,
                     reason: 'save_and_exit',
-                    savePlayerName: saveName || 'player',
+                    savePlayerName: saveName,
                     deathMessage: 'Game saved successfully.',
                     scoreboard: scoreboard
                 };
@@ -319,13 +333,13 @@ export class GameOverResolver {
             if (!line) continue;
 
             const entry = {};
-            // NetHack xlogfile 規格: スペース (\s+) またはタブ (\t) 区切りの key=value ペア
-            const pairs = line.split(/\s+/);
-            for (let pair of pairs) {
-                const eqIdx = pair.indexOf('=');
-                if (eqIdx > 0) {
-                    const key = pair.substring(0, eqIdx).trim();
-                    const val = pair.substring(eqIdx + 1).trim();
+            const matches = [...line.matchAll(/([a-zA-Z0-9_]+)=/g)];
+            if (matches.length > 0) {
+                for (let i = 0; i < matches.length; i++) {
+                    const key = matches[i][1];
+                    const startValIdx = matches[i].index + matches[i][0].length;
+                    const endValIdx = (i + 1 < matches.length) ? matches[i + 1].index : line.length;
+                    const val = line.substring(startValIdx, endValIdx).trim();
                     entry[key] = val;
                 }
             }
@@ -384,17 +398,25 @@ export class GameOverResolver {
                 }
             }
 
-            if ((!rawRecord || !rawRecord.trim()) && typeof NetHackFSManager !== 'undefined' && NetHackFSManager.readTextFromIndexedDB) {
-                rawRecord = await NetHackFSManager.readTextFromIndexedDB('record');
-                if (!rawRecord) rawRecord = await NetHackFSManager.readTextFromIndexedDB('logfile');
+            const FSM = this._getFSManager();
+            if ((!rawRecord || !rawRecord.trim()) && FSM && FSM.readTextFromIndexedDB) {
+                rawRecord = await FSM.readTextFromIndexedDB('record');
+                if (!rawRecord) rawRecord = await FSM.readTextFromIndexedDB('logfile');
             }
-            if ((!rawXlog || !rawXlog.trim()) && typeof NetHackFSManager !== 'undefined' && NetHackFSManager.readTextFromIndexedDB) {
-                rawXlog = await NetHackFSManager.readTextFromIndexedDB('xlogfile');
+            if ((!rawXlog || !rawXlog.trim()) && FSM && FSM.readTextFromIndexedDB) {
+                rawXlog = await FSM.readTextFromIndexedDB('xlogfile');
             }
 
             return this.parseRecordText(rawRecord, rawXlog, sessionInfo, options);
         } catch (e) {}
         return [];
+    }
+
+    static _getFSManager() {
+        if (typeof NetHackFSManager !== 'undefined') return NetHackFSManager;
+        if (typeof globalThis !== 'undefined' && globalThis.NetHackFSManager) return globalThis.NetHackFSManager;
+        if (typeof window !== 'undefined' && window.NetHackFSManager) return window.NetHackFSManager;
+        return null;
     }
 
     /**
