@@ -115,10 +115,26 @@ export class WebUICore {
                 const targetInitParam = (typeof wasmJsUrl === 'string') ? wasmJsUrl : 
                                         ((typeof window !== 'undefined' && window.Module) ? window.Module : null);
 
-                this.driver.init(targetInitParam, {
-                    args: ['nethack', '-otime,showexp,showvers,number_pad'],
-                    extraOptions: extraOptions
-                });
+                const initArgs = ['nethack', '-otime,showexp,showvers,number_pad'];
+                const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
+                
+                const proceedInit = (savePlayerName) => {
+                    if (typeof savePlayerName === 'string' && savePlayerName.trim().length > 0) {
+                        initArgs.push(`-u${savePlayerName.trim()}`);
+                    }
+                    this.driver.init(targetInitParam, {
+                        args: initArgs,
+                        extraOptions: extraOptions
+                    });
+                };
+
+                if (fsManager && typeof fsManager.autoDetectSavePlayerNameAsync === 'function') {
+                    fsManager.autoDetectSavePlayerNameAsync().then(name => proceedInit(name)).catch(() => proceedInit(null));
+                } else if (fsManager && typeof fsManager.autoDetectSavePlayerName === 'function') {
+                    proceedInit(fsManager.autoDetectSavePlayerName());
+                } else {
+                    proceedInit(null);
+                }
             }
         });
     }
@@ -185,6 +201,20 @@ export class WebUICore {
      */
     getHighScores() {
         return GameOverResolver.getScoreboard(this.driver);
+    }
+
+    /**
+     * ハイスコア・ランキング（Scoreboard）構造化データ配列の取得
+     */
+    getHighScores() {
+        return GameOverResolver.getScoreboard(this.driver);
+    }
+
+    /**
+     * ハイスコア・ランキング（Scoreboard）構造化データ配列の非同期取得
+     */
+    async getHighScoresAsync() {
+        return await GameOverResolver.getScoreboardAsync(this.driver);
     }
 
     /**
@@ -399,7 +429,12 @@ export class WebUICore {
     }
 
     async resolveGameOver() {
-        const result = await GameOverResolver.resolveGameOver(this.driver);
+        const sessionInfo = {
+            playerName: (this.driver && this.driver.options && this.driver.options.gameOptions ? this.driver.options.gameOptions.name : null) || 'Hero',
+            startTime: this.startTime,
+            version: '5.0.0'
+        };
+        const result = await GameOverResolver.resolveGameOver(this.driver, sessionInfo, { translator: this.translator });
         if (result && result.isGameOver && result.death) {
             const translatedDeath = this.translator.translate(result.death);
             result.translatedDeath = translatedDeath;
@@ -623,6 +658,18 @@ export class WebUICore {
 
             const rawPrompt = payload.prompt || payload.question || payload.message || '';
             const translatedPrompt = this.translator.translate(rawPrompt);
+
+            // ASKNAME ("Who are you?") プロンプト検出時:
+            // セーブデータが存在する場合のみ detectedName で自動応答してスキップし、新規開始時（セーブなし）はユーザーに名前を入力させる
+            if (category === PROMPT_CATEGORY.ASKNAME || rawPrompt.includes('Who are you') || rawPrompt.includes('your name') || payload.context === 'askname') {
+                const detectedName = payload.detectedName || 
+                    (this.driver && this.driver.fsManager && typeof this.driver.fsManager.autoDetectSavePlayerName === 'function' ? this.driver.fsManager.autoDetectSavePlayerName() : '');
+
+                if (detectedName && detectedName.trim().length > 0) {
+                    this.respond(detectedName.trim());
+                    return;
+                }
+            }
 
             const rawItems = payload.items || payload.menuItems || [];
             const translatedItems = rawItems.map((item, index) => {

@@ -1,50 +1,44 @@
-# 📋 WebUICore 次回作業引継ぎ資料 ＆ 残課題 TODO
+# WebUICore 開発引き継ぎ & タスク進捗ドキュメント
 
-本ドキュメントは、これまでの開発成果を踏まえ、次回以降の作業をスムーズに開始・展開するための **引継ぎ資料および TODO リスト** です。
-
----
-
-## 1. 現状のステータス概要
-
-- **WebUICore 基盤**: **FIX / 実証完了**
-  - 8段階 Lifecycle Management, リロードなし Restart, 上下キーメニュー選択, ターゲットカーソル追従, 解像度・マップクリア・ステータス型安全パースは `WebUICore.js`, `NetHackMemory.js`, `NetHackFSManager.js`, `webuicore_poc.html` で動作確認・検証済み。
-- **残課題の扱い**:
-  - ゲーム終了時の死因・詳細要因判定および `/save/record` 連携のさらなる完全パースについては、今回のコア開発の範囲を超え、Cコア側の出力タイミングや特定終了シーケンスの探査が必要となるため **TODO（継続改善タスク）** として定義。
+## 概要
+NetHack WASM WebUI プロジェクトにおける Clean Architecture（Driver / Core / Event UI）に基づいたリファクタリングおよび `GameOverResolver` (勝敗判定 & ランキング解析) の単体検証完了状況と、次回セッションへの引き継ぎ事項です。
 
 ---
 
-## 2. 次回以降の残課題・TODO リスト
+## 完了した成果 (Accomplished)
 
-### 📌 [TODO 1] ゲームオーバー時・終了時詳細要因の完全パース機能の追加調整
-- **内容**:
-  - `GameOverResolver.js` および `NetHackFSManager.js` において、特定終了パターン（`quit`, `escaped`, `panic` 等）や死亡理由テキストの Cコア出力タイミング（`/save/record` や `/save/logfile` の即時書き込み同期タイミング）の解析を深め、リザルトダイアログの死因表示の整合性をさらに高める。
+### 1. レイヤー責務分離 (Clean Architecture 徹底)
+- **`NetHackFSManager.js` (Driver層)**:
+  - ストレージ File I/O（`readXlogText()`, `readRecordText()`, `hasSaveData()`, `syncToPersistent()`, `_isRealSaveFile()`）に特化。
+  - セーブファイルの判定を C コア標準規格 (`/^\d+[a-zA-Z0-9_\-]+$/`, UID数字+プレイヤー名) に限定し、`home` 等の非セーブデータの誤検出を完全解決。
+  - ファイル読み出し時の `Uint8Array` デコード（`TextDecoder`）を安全化し、壊れない同期ロジックへ刷新。
+- **`GameOverResolver.js` (Core層)**:
+  - Wasm 終了時の勝敗・死因判定 (`resolveGameOver`) および Top 10 スコアボードパース (`parseRecordText`) を集約。
+  - NetHack C言語コア ([`NetHackJP/src/topten.c`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/NetHackJP/src/topten.c)) の標準フォーマット (`fmt0` + `fmt33` + `fmtX`) および現行バージョン分離フィルター (`current_ver` 仕様) に完全準拠。
+  - セーブデータが存在する中断時であっても、スコアボードを常に解析して返却する構成へ修正。
 
-### 📌 [TODO 2] サンプルクライアント群 (`examples/`) の WebUICore 移行
-- **対象**:
-  - `examples/vue3-app`
-  - `examples/react18-app`
-  - `examples/svelte-app`
-  - `examples/solidjs-app`
-  - `examples/mobile-app`
-  - `examples/vanilla-app`
-- **標準UI仕様の適用項目**:
-  1. 旧 `NetHackWasmDriver` 直接参照から `WebUICore` 参照への置き換え。
-  2. メニューダイアログへの **「上下カーソルキー (`↑`/`↓`) 選択 ＋ `Enter` 決定」** インターフェースの標準搭載。
-  3. `stateChange` によるローディングガード画面の組み込み。
-  4. ターゲットカーソル追従フォーカス枠の追加。
-
-### 📌 [TODO 3] 他機能との接続・連携機能の全体調整（SoundAgent, Gamepad, TranslationEngine, AutoSave等）
-- **内容**:
-  - `WebUICore` 内に組み込まれている各種サブコンポーネント（サウンド音效 `SoundAgent`、ゲームパッド操作 `GamepadController`、自動翻訳 `TranslationEngine`、IndexedDBセーブ・復元 `NetHackFSManager`）は現在部分的に動作・接続されております。
-  - 各種イベント（`inputRequired`, `statusUpdate`, `message`, `exited` 等）発生時におけるこれらの他機能コンポーネントとの連携・発火タイミング・データ引渡しの整合性をさらに高め、スムーズな統合動作を実現する。
-
-### 📌 [TODO 4] WebUICore パッケージのモジュール公開準備
-- **内容**:
-  - npm パッケージ化またはライブラリ単体配布に向けた `package.json` のエクスポート構成整頓と TypeScript 型定義ファイル (`index.d.ts`) の作成検討。
+### 2. 単体テストポータルの完成
+- **[`gameover_resolver_test.html`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/gameover_resolver_test.html)**:
+  - IndexedDB の実環境データを可視化する Inspector (VFS `/save` 内一覧、`xlogfile` 生テキスト、`record` 生テキスト)。
+  - モックデータ注入ボタン（Goblin討死, quit, escape, starve, セーブファイル作成/削除）。
+  - バージョンフィルタードロップダウン（自動/5.0.0のみ/3.7.0のみ/全バージョン混在）を備え、動作検証が完了。
 
 ---
 
-## 3. 次回の作業開始時のおすすめファーストステップ
+## 残りのタスク (Next TODOs)
 
-1. `webuicore_poc.html` をブラウザで起動し、WebUICore の現行動作を確認する。
-2. `examples/` 内の最初のサンプル（例: `examples/vue3-app` または `vanilla-app`）を選択し、`WebUICore` のインポートと「上下キー選択 UI」の組み込み作業に着手する。
+新しい Conversation では、以下のタスクを順番に進めます：
+
+- [ ] **TODO 1: WebUICore への GameOverResolver 統合**
+  - `WebUICore.js` にて Wasm 終了時に `GameOverResolver.resolveGameOver()` を自律呼出しし、UI側へ `gameOver` イベントとして通知。
+- [ ] **TODO 2: TypeScript 型定義 (`index.d.ts`) の整備**
+  - `WebUICore`, `GameOverResolver`, `NetHackFSManager` 等の全型定義を作成。
+- [ ] **TODO 3: 各サンプルクライアント (`vue-client`, `react-client` 等) の WebUICore 移行**
+  - 旧直参照ロジックを排し、`WebUICore` 経由の綺麗なアーキテクチャへ更新。
+
+---
+
+## 次回セッションのプロンプト例
+新セッションを開始する際、以下のように入力することでスムーズに再開できます：
+
+> 「`docs/WebUICore_Handoff_and_TODO.md` に従って、WebUICore の残タスク (TODO 1: WebUICore への GameOverResolver 統合および TODO 2〜3) を進めてください。」

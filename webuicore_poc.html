@@ -713,38 +713,69 @@
             }
         });
 
-        core.on('exited', (data) => {
+        let isGameExited = false;
+        let currentGameOverResult = null;
+
+        core.on('gameOver', (result) => {
+            currentGameOverResult = result;
+        });
+
+        core.on('exited', async (data) => {
+            isGameExited = true;
             clearAllModals();
             gameoverModal.style.display = 'flex';
             
             const currentStatus = core.getStatus();
-            const result = data ? data.gameOverResult : null;
-            let deathMsg = 'ゲーム終了 / 死亡';
-            let scoreVal = currentStatus ? currentStatus.score : 0;
-            let turnsVal = currentStatus ? currentStatus.turns : 0;
-            let dlvlVal = (currentStatus && currentStatus.dlevel) ? currentStatus.dlevel.text : 'Dlvl:1';
+            let result = (data && data.gameOverResult) ? data.gameOverResult : currentGameOverResult;
+            if (!result || !result.reason) {
+                result = await core.resolveGameOver();
+            }
+            currentGameOverResult = result;
 
-            if (result) {
-                if (result.translatedDeath) {
-                    deathMsg = result.translatedDeath;
-                } else if (result.death) {
-                    deathMsg = result.death;
+            sysLastEvent.textContent = `exited (reason:${result ? result.reason : 'unknown'})`;
+
+            // 1. S コマンド / #save 等による「正常セーブ中断」の判定
+            if (result && result.reason === 'save_and_exit') {
+                const savePlayer = result.savePlayerName || 'Hero';
+                gameoverSummary.innerHTML = `
+                    <div style="margin-bottom:6px;"><b>ステータス:</b> <span style="color:#00e676; font-weight:bold; font-size:14px;">💾 セーブしてゲームを中断しました</span></div>
+                    <div><b>プレイヤー:</b> ${savePlayer}</div>
+                    <div style="margin-top:6px; color:#aaa; font-size:12px;">次回ページリロード時、保存されたセーブデータから自動的に再開されます。</div>
+                `;
+                btnRestartGame.textContent = '🔄 リロードして再開 (Reload & Continue)';
+                btnRestartGame.style.background = '#00e676';
+            } else {
+                // 2. ゲームオーバー / 死亡 / 脱出 / 辞職
+                let rawDeath = result ? (result.death || result.deathMessage || 'Died in dungeon') : 'Died in dungeon';
+                let translatedDeath = core.translate ? core.translate(rawDeath) : rawDeath;
+                let scoreVal = (result && result.finalScore !== undefined) ? result.finalScore : (currentStatus ? currentStatus.score : 0);
+                let turnsVal = currentStatus ? currentStatus.turns : 0;
+                let dlvlVal = (currentStatus && currentStatus.dlevel) ? currentStatus.dlevel.text : 'Dlvl:1';
+                let playerName = (result && result.playerName) ? result.playerName : (stTitle.textContent && stTitle.textContent !== '-' ? stTitle.textContent : 'Hero');
+
+                let reasonBadge = '<span style="color:#ff5252; font-weight:bold; font-size:14px;">☠️ ゲームオーバー</span>';
+                if (result && result.reason === 'quit') {
+                    reasonBadge = '<span style="color:#ffb74d; font-weight:bold; font-size:14px;">🏳️ ゲーム辞職 (Quit)</span>';
+                } else if (result && result.reason === 'escaped') {
+                    reasonBadge = '<span style="color:#81c784; font-weight:bold; font-size:14px;">🏃 ダンジョン脱出 (Escaped)</span>';
+                } else if (result && result.reason === 'ascended') {
+                    reasonBadge = '<span style="color:#ffd54f; font-weight:bold; font-size:14px;">🌟 昇天神化 (Ascended)</span>';
                 }
-                if (result.finalScore && result.finalScore > 0) {
-                    scoreVal = result.finalScore;
-                }
+
+                gameoverSummary.innerHTML = `
+                    <div style="margin-bottom:6px;"><b>勝敗 / ステータス:</b> ${reasonBadge}</div>
+                    <div style="margin-bottom:4px;"><b>死因 / 終局理由:</b> <span style="color:#e0e0e0;">${translatedDeath}</span></div>
+                    <div><b>プレイヤー:</b> ${playerName}</div>
+                    <div><b>到達フロア:</b> <span style="color:#ffca28; font-weight:bold;">${dlvlVal}</span></div>
+                    <div><b>最終スコア:</b> <span style="color:#00e676; font-weight:bold;">${scoreVal} pts</span></div>
+                    <div><b>総ターン数:</b> <span style="color:#29b6f6; font-weight:bold;">${turnsVal}</span></div>
+                `;
+                btnRestartGame.textContent = '🔄 もう一度プレイ (Reload & Restart)';
+                btnRestartGame.style.background = '#ff5252';
             }
 
-            gameoverSummary.innerHTML = `
-                <div style="margin-bottom:6px;"><b>死因 / 勝敗:</b> <span style="color:#ff5252; font-weight:bold; font-size:14px;">${deathMsg}</span></div>
-                <div><b>プレイヤー:</b> ${stTitle.textContent && stTitle.textContent !== '-' ? stTitle.textContent : (currentStatus ? currentStatus.title : 'Hero')}</div>
-                <div><b>到達フロア:</b> <span style="color:#ffca28; font-weight:bold;">${dlvlVal}</span></div>
-                <div><b>最終スコア:</b> <span style="color:#00e676; font-weight:bold;">${scoreVal} pts</span></div>
-                <div><b>総ターン数:</b> <span style="color:#29b6f6; font-weight:bold;">${turnsVal}</span></div>
-            `;
-
-            // ランキング (Top High Scores) 一覧テーブルのレンダリング
-            const scores = core.getHighScores();
+            // ランキング (Top High Scores) 一覧テーブルの非同期レンダリング
+            const scores = (result && result.scoreboard && result.scoreboard.length > 0) ? result.scoreboard : await core.getHighScoresAsync();
             const scoreboardDiv = document.getElementById('gameover-scoreboard');
             if (scores && scores.length > 0) {
                 let html = `<table style="width:100%; border-collapse:collapse; text-align:left;">`;
@@ -753,17 +784,18 @@
                             <th style="padding:4px;">Score</th>
                             <th style="padding:4px;">Name</th>
                             <th style="padding:4px;">Role</th>
-                            <th style="padding:4px;">Death</th>
+                            <th style="padding:4px;">Death / Ending</th>
                          </tr>`;
                 scores.forEach((s, idx) => {
-                    const isCurrent = (result && result.finalScore === s.points);
+                    const isCurrent = (result && (result.finalScore === s.points || result.finalScore === s.score));
                     const rowColor = isCurrent ? '#ffeb3b' : '#ddd';
+                    const deathStr = core.translate ? core.translate(s.death || '-') : (s.death || '-');
                     html += `<tr style="color:${rowColor}; border-bottom:1px solid #222;">
                                 <td style="padding:4px; font-weight:bold;">${s.rank || (idx + 1)}</td>
                                 <td style="padding:4px; color:#00e676;">${s.points || s.score || 0}</td>
                                 <td style="padding:4px;">${s.name || 'Hero'}</td>
                                 <td style="padding:4px; color:#aaa;">${s.role || '-'}</td>
-                                <td style="padding:4px; font-size:11px; color:#aaa;">${s.death || '-'}</td>
+                                <td style="padding:4px; font-size:11px; color:#aaa;">${deathStr}</td>
                              </tr>`;
                 });
                 html += `</table>`;
@@ -773,14 +805,11 @@
             }
         });
 
-        btnRestartGame.onclick = async () => {
+        // Wasm 終了後の再スタートボタン処理: 常に location.reload() で全クリア＆再構築を実行
+        btnRestartGame.onclick = () => {
+            sysLastKey.textContent = 'Restart Game';
             gameoverModal.style.display = 'none';
-            resetUiForNewGame();
-            try {
-                await core.restart();
-            } catch (e) {
-                console.error("Core restart error:", e);
-            }
+            location.reload();
         };
 
         core.on('map_cleared', () => {
@@ -865,6 +894,7 @@
         });
 
         core.on('message', (msgText) => {
+            if (isGameExited) return;
             const line = document.createElement('div');
             line.className = 'log-line';
             line.textContent = msgText;
@@ -929,6 +959,7 @@
 
         core.on('inputRequired', (data) => {
             clearAllModals();
+            if (isGameExited || core.isSaving) return;
 
             const category = data.category || data.promptCategory || 'OTHER';
             sysCoreCategory.textContent = category;

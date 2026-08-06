@@ -180,6 +180,14 @@
         prepareSystemFiles() {}
         setupNethackRC(extraOptions = "") {}
 
+        _isRealSaveFile(f) {
+            if (!f || typeof f !== 'string') return false;
+            if (f.startsWith('.')) return false;
+            const systemFiles = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp'];
+            if (systemFiles.includes(f)) return false;
+            return /^\d+[a-zA-Z0-9_\-]+$/.test(f) || /^\d+.+$/.test(f);
+        }
+
         /**
          * 変更された永続データを /save ディレクトリおよび IDBFS と同期
          */
@@ -189,6 +197,21 @@
             if (!FS) return Promise.resolve(false);
 
             const persistentFiles = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm'];
+
+            try {
+                const checkDirs = ['/', '/save'];
+                checkDirs.forEach(dir => {
+                    if (FS.analyzePath(dir).exists) {
+                        const files = FS.readdir(dir);
+                        files.forEach(f => {
+                            if (this._isRealSaveFile(f) && !persistentFiles.includes(f)) {
+                                persistentFiles.push(f);
+                            }
+                        });
+                    }
+                });
+            } catch(e) {}
+
             persistentFiles.forEach(f => {
                 try {
                     const rootPath = '/' + f;
@@ -237,31 +260,224 @@
             }
         }
 
-        /**
-         * 自動セーブファイル検出
-         */
-        autoDetectSavePlayerName() {
+        hasSaveData() {
+            const FS = this.FS;
+            if (FS) {
+                try {
+                    const saveDirs = ['/save', '/'];
+                    for (let dir of saveDirs) {
+                        if (FS.analyzePath(dir).exists) {
+                            const files = FS.readdir(dir);
+                            const saveFile = files.find(f => this._isRealSaveFile(f));
+                            if (saveFile) return true;
+                        }
+                    }
+                } catch(e) {}
+            }
+            if (typeof localStorage !== 'undefined' && localStorage.getItem("nethack_has_saved_game") === "1") {
+                return true;
+            }
+            return false;
+        }
+
+        async hasSaveDataAsync() {
+            if (this.hasSaveData()) return true;
+            const dbSaveName = await NetHackFSManager.autoDetectSavePlayerNameFromIndexedDB();
+            return !!(dbSaveName && dbSaveName.length > 0);
+        }
+
+        readXlogText() {
             const FS = this.FS;
             if (!FS) return "";
-
             try {
-                const saveDir = '/save';
-                if (FS.analyzePath(saveDir).exists) {
-                    const files = FS.readdir(saveDir);
-                    const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones'];
-                    const saveFile = files.find(f => !systemFiles.includes(f) && !f.startsWith('.'));
-
-                    if (saveFile) {
-                        const match = saveFile.match(/^\d+(.+)$/);
-                        let name = match ? match[1] : saveFile;
-                        name = name.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
-                        return name || "Web_user";
+                const paths = ['/save/xlogfile', '/xlogfile'];
+                for (let p of paths) {
+                    if (FS.analyzePath(p).exists) {
+                        const data = FS.readFile(p, { encoding: 'utf8' });
+                        if (data && data.trim()) return data;
                     }
                 }
+            } catch (e) {}
+            return "";
+        }
+
+        async readXlogTextAsync() {
+            const text = this.readXlogText();
+            if (text && text.trim()) return text;
+            return await NetHackFSManager.readTextFromIndexedDB('xlogfile');
+        }
+
+        readRecordText() {
+            const FS = this.FS;
+            if (!FS) return "";
+            try {
+                const paths = ['/save/record', '/record', '/save/logfile', '/logfile'];
+                for (let p of paths) {
+                    if (FS.analyzePath(p).exists) {
+                        const data = FS.readFile(p, { encoding: 'utf8' });
+                        if (data && data.trim()) return data;
+                    }
+                }
+            } catch (e) {}
+            return "";
+        }
+
+        async readRecordTextAsync() {
+            const text = this.readRecordText();
+            if (text && text.trim()) return text;
+            let recordText = await NetHackFSManager.readTextFromIndexedDB('record');
+            if (!recordText) recordText = await NetHackFSManager.readTextFromIndexedDB('logfile');
+            return recordText;
+        }
+
+        static async readTextFromIndexedDB(targetFileName) {
+            if (typeof indexedDB === 'undefined') return "";
+            try {
+                return await new Promise((resolve) => {
+                    const req = indexedDB.open('/save');
+                    req.onsuccess = () => {
+                        const db = req.result;
+                        if (!db.objectStoreNames.contains('FILE_DATA')) {
+                            db.close();
+                            resolve("");
+                            return;
+                        }
+                        const tx = db.transaction('FILE_DATA', 'readonly');
+                        const store = tx.objectStore('FILE_DATA');
+                        const keyReq = store.getAllKeys();
+
+                        keyReq.onsuccess = () => {
+                            const keys = keyReq.result || [];
+                            const targetKey = keys.find(k => String(k).endsWith('/' + targetFileName) || String(k).endsWith(targetFileName));
+                            if (targetKey) {
+                                const getReq = store.get(targetKey);
+                                getReq.onsuccess = () => {
+                                    db.close();
+                                    const val = getReq.result;
+                                    if (!val) resolve("");
+                                    else if (typeof val === 'string') resolve(val);
+                                    else if (val instanceof Uint8Array || ArrayBuffer.isView(val)) {
+                                        try {
+                                            resolve(new TextDecoder('utf-8').decode(val));
+                                        } catch (e) { resolve(""); }
+                                    } else resolve("");
+                                };
+                                getReq.onerror = () => { db.close(); resolve(""); };
+                            } else {
+                                db.close();
+                                resolve("");
+                            }
+                        };
+                        keyReq.onerror = () => { db.close(); resolve(""); };
+                    };
+                    req.onerror = () => resolve("");
+                });
             } catch (e) {
-                this.warn("Error auto-detecting save file:", e);
+                return "";
+            }
+        }
+
+        /**
+         * インスタンスメソッド: VFS (/save, /) 内の実体セーブファイルからプレイヤー名を自動検出
+         */
+        autoDetectSavePlayerName() {
+            // 1. localStorage に保存されているプレイヤー名があれば最優先
+            if (typeof localStorage !== 'undefined' && localStorage.getItem("nethack_has_saved_game") === "1") {
+                const cachedName = localStorage.getItem("nethack_last_player_name");
+                if (cachedName && cachedName.trim() !== "") {
+                    return cachedName.trim();
+                }
+            }
+
+            // 2. VFS (/save, /) ディレクトリの正式セーブファイルから検索
+            const FS = this.FS;
+            if (FS) {
+                try {
+                    const saveDirs = ['/save', '/'];
+                    const systemFiles = ['.', '..', 'perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp', 'tmp', 'Tmp', 'TMP'];
+
+                    for (let dir of saveDirs) {
+                        if (FS.analyzePath(dir).exists) {
+                            const files = FS.readdir(dir);
+                            const saveFile = files.find(f => {
+                                const lower = f.toLowerCase();
+                                return !systemFiles.includes(f) && 
+                                       !f.startsWith('.') && 
+                                       !lower.includes('tmp') && 
+                                       !lower.includes('lock') && 
+                                       !lower.includes('bon');
+                            });
+
+                            if (saveFile) {
+                                const match = saveFile.match(/^\d+(.+)$/);
+                                let name = match ? match[1] : saveFile;
+                                name = name.replace(/#.*$/, '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                                if (name.length > 0 && name.toLowerCase() !== 'tmp') {
+                                    return name;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    this.warn("Error auto-detecting save file:", e);
+                }
             }
             return "";
+        }
+
+        /**
+         * 非同期でセーブプレイヤー名を検出 (VFS 優先 ➔ IndexedDB フォールバック)
+         */
+        async autoDetectSavePlayerNameAsync() {
+            const vfsName = this.autoDetectSavePlayerName();
+            if (vfsName && vfsName.length > 0) return vfsName;
+            return await NetHackFSManager.autoDetectSavePlayerNameFromIndexedDB();
+        }
+
+        static async autoDetectSavePlayerNameFromIndexedDB() {
+            if (typeof indexedDB === 'undefined') return "";
+            try {
+                return await new Promise((resolve) => {
+                    const req = indexedDB.open('/save');
+                    req.onsuccess = () => {
+                        const db = req.result;
+                        if (!db || !db.objectStoreNames.contains('FILE_DATA')) {
+                            if (db) db.close();
+                            resolve("");
+                            return;
+                        }
+                        const tx = db.transaction('FILE_DATA', 'readonly');
+                        const store = tx.objectStore('FILE_DATA');
+                        const keyReq = store.getAllKeys();
+
+                        keyReq.onsuccess = () => {
+                            const keys = keyReq.result || [];
+                            db.close();
+                            const systemNames = ['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'];
+                            const saveKey = keys.find(key => {
+                                const keyStr = String(key);
+                                if (keyStr.endsWith('/.') || keyStr.endsWith('/..') || keyStr === '/save' || keyStr === '/save/') return false;
+                                const isSystem = systemNames.some(sys => keyStr.endsWith(sys));
+                                return (keyStr.includes('/save/') || keyStr.includes('save/')) && !isSystem;
+                            });
+
+                            if (saveKey) {
+                                const cleanName = String(saveKey).replace(/^\/save\//, '').replace(/#.*$/, '');
+                                const match = cleanName.match(/^\d+(.+)$/);
+                                let name = match ? match[1] : cleanName;
+                                name = name.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+                                resolve(name || "player");
+                            } else {
+                                resolve("");
+                            }
+                        };
+                        keyReq.onerror = () => { db.close(); resolve(""); };
+                    };
+                    req.onerror = () => resolve("");
+                });
+            } catch (e) {
+                return "";
+            }
         }
 
         /**

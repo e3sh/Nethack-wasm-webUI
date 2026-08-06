@@ -170,22 +170,43 @@
             let parsedVal = null;
             let glyphId = null;
 
-            const numericFields = [8, 16, 18, 19, 11, 12, 13, 14, 15];
-            if (numericFields.includes(fld)) {
-                rawVal = (typeof ptr === 'number') ? ptr : (parseInt(ptr, 10) || 0);
-                parsedVal = rawVal;
-            } else if (fld === 22) { // BL_CONDITION
-                rawVal = ptr ? (typeof ptr === 'number' ? ptr : (this.getValue(ptr, 'i32') || 0)) : 0;
+            if (!ptr) {
+                return { fld, field: fld, value: 0, rawVal: 0, parsedVal: 0, chg, clr };
+            }
+
+            if (fld === 22) { // BL_CONDITION
+                try {
+                    rawVal = (typeof ptr === 'number' && ptr > 65536) ? (this.getValue(ptr, 'i32') || 0) : Number(ptr);
+                } catch (e) {
+                    rawVal = 0;
+                }
                 parsedVal = this.parseConditionFlags(rawVal);
             } else if (fld === 17) { // BL_HUNGER
-                try { rawVal = this.UTF8ToString(ptr); } catch (e) { rawVal = ptr; }
+                try {
+                    rawVal = this.UTF8ToString(ptr);
+                } catch (e) {
+                    rawVal = (typeof ptr === 'number' && ptr > 65536) ? this.getValue(ptr, 'i32') : ptr;
+                }
                 parsedVal = this.parseHungerState(rawVal);
-            } else if (ptr !== undefined && ptr !== null) {
+            } else {
                 if (typeof ptr === 'string') {
                     rawVal = ptr;
                 } else if (typeof ptr === 'number') {
                     if (ptr > 65536) {
-                        try { rawVal = this.UTF8ToString(ptr); } catch (e) { rawVal = ptr; }
+                        try {
+                            const str = this.UTF8ToString(ptr);
+                            if (str !== null && str !== undefined && str !== "") {
+                                rawVal = str;
+                            } else {
+                                rawVal = this.getValue(ptr, 'i32');
+                            }
+                        } catch (e) {
+                            try {
+                                rawVal = this.getValue(ptr, 'i32');
+                            } catch (err) {
+                                rawVal = ptr;
+                            }
+                        }
                     } else {
                         rawVal = ptr;
                     }

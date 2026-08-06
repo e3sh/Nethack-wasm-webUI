@@ -102,8 +102,19 @@ export class NetHackMemory {
 
 export class NetHackFSManager {
     constructor(options?: { debug?: boolean });
-    deleteSaveFile(filename: string): Promise<boolean>;
+    deleteSaveFile(filename?: string): Promise<boolean>;
     listSaveFiles(): Promise<any[]>;
+    hasSaveData(): boolean;
+    hasSaveDataAsync(): Promise<boolean>;
+    autoDetectSavePlayerName(): string | null;
+    readXlogText(): string;
+    readRecordText(): string;
+    readXlogTextAsync(): Promise<string>;
+    readRecordTextAsync(): Promise<string>;
+    syncToPersistent(): Promise<boolean>;
+    clearAllStorage(): Promise<boolean>;
+    static readTextFromIndexedDB(targetFileName: string): Promise<string>;
+    static autoDetectSavePlayerNameFromIndexedDB(): Promise<string>;
 }
 
 export class NetHackWasmDriver {

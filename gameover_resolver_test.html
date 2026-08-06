@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameOverResolver & FS Inspector Test Portal</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 16px 24px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-panel {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        label {
+            font-size: 13px;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        input[type="text"], select {
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        button:active { transform: translateY(0); }
+
+        button.btn-success { background: #059669; }
+        button.btn-success:hover { background: #047857; }
+
+        button.btn-warning { background: #d97706; }
+        button.btn-warning:hover { background: #b45309; }
+
+        button.btn-danger { background: #dc2626; }
+        button.btn-danger:hover { background: #b91c1c; }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-gameover { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #ef4444; }
+        .badge-saved { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+        .badge-unknown { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid #64748b; }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            background: #0f172a;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e2e8f0;
+            word-break: break-all;
+        }
+
+        .death-msg-box {
+            background: #281014;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        th {
+            background: #0f172a;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        tr:hover { background: #334155; }
+
+        pre {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 220px;
+            border: 1px solid #334155;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .status-msg {
+            font-size: 13px;
+            color: #a7f3d0;
+            background: rgba(6, 78, 59, 0.4);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #059669;
+        }
+    </style>
+
+    <!-- Dependencies -->
+    <script src="src/driver/NetHackFSManager.js"></script>
+    <script src="nethack.js"></script>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📊 GameOverResolver & FS Inspector Test Portal</h1>
+        <div id="status-tag" class="status-msg">FS Initializing...</div>
+    </div>
+
+    <div class="control-panel">
+        <div class="control-row">
+            <label>
+                セッション判定 プレイヤー名 (空欄時: VFSから自動検出)
+                <input type="text" id="input-session-name" value="" placeholder="e.g. player">
+            </label>
+            <label>
+                セッション判定 StartTime / BirthDate
+                <input type="text" id="input-session-birth" value="" placeholder="e.g. 20260806">
+            </label>
+            <label>
+                バージョンフィルター
+                <select id="select-ver-filter">
+                    <option value="auto" selected>自動 (最多バージョン指定: 5.0.0)</option>
+                    <option value="5.0.0">5.0.0 のみ表示</option>
+                    <option value="3.7.0">3.7.0 のみ表示</option>
+                    <option value="all">全バージョン混在表示 (all)</option>
+                </select>
+            </label>
+            <div style="align-self: flex-end;">
+                <button id="btn-inspect" class="btn-success">🔄 IDBFS 再読み込み & 解析実行</button>
+            </div>
+        </div>
+
+        <div class="control-row" style="border-top: 1px dashed #334155; padding-top: 12px;">
+            <span style="font-size: 12px; color: #94a3b8; font-weight: bold; width: 100%;">🧪 テスト用 モックデータ作成機能:</span>
+            <button id="btn-mock-goblin" class="btn-warning">🧪 討ち死に (Goblin 5.0.0)</button>
+            <button id="btn-mock-quit" class="btn-warning">🧪 自発辞職 (quit 5.0.0)</button>
+            <button id="btn-mock-escape" class="btn-warning">🧪 ダンジョン脱出 (escaped 5.0.0)</button>
+            <button id="btn-mock-starve" class="btn-warning">🧪 餓死 (starved 5.0.0)</button>
+            <button id="btn-mock-save-player" class="btn-success">🧪 /save/1000player 作成</button>
+            <button id="btn-clear-save" class="btn-danger">🧹 VFS セーブデータ削除</button>
+        </div>
+    </div>
+
+    <div class="grid-layout">
+        <!-- Result Card -->
+        <div class="card">
+            <div class="card-title">
+                <span>🎯 GameOverResolver 解析結果</span>
+                <span id="badge-result" class="badge badge-unknown">UNKNOWN</span>
+            </div>
+
+            <div id="death-msg-container" class="death-msg-box">
+                解析準備完了
+            </div>
+
+            <div class="result-details">
+                <div class="detail-item">
+                    <span class="detail-label">isGameOver</span>
+                    <span class="detail-value" id="val-is-gameover">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Reason</span>
+                    <span class="detail-value" id="val-reason" style="color:#f59e0b;">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Player Name</span>
+                    <span class="detail-value" id="val-player-name" style="color:#38bdf8;">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Role / Race</span>
+                    <span class="detail-value" id="val-role">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Final Score</span>
+                    <span class="detail-value" id="val-score" style="color:#10b981;">0 pts</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top 10 Scoreboard Card -->
+        <div class="card">
+            <div class="card-title">
+                <span>🏆 トップ 10 ランキングボード (Scoreboard)</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Ver</th>
+                            <th>Player</th>
+                            <th>Role</th>
+                            <th>Points</th>
+                            <th>Dlvl</th>
+                            <th>Death / Ending</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreboard-body">
+                        <tr><td colspan="7" style="text-align: center; color: #64748b;">データなし</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Raw VFS Data Card -->
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-title">
+                <span>📁 VFS / IDBFS 生データファイル Inspector</span>
+                <span id="save-file-status" style="font-size: 13px; color: #38bdf8; font-weight: bold;">Save File: None</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div>
+                    <span style="font-size: 12px; color: #94a3b8; font-weight: bold;">/save/ 内の実ファイル一覧</span>
+                    <pre id="raw-save-dir">Loading...</pre>
+                </div>
+                <div>
+                    <span style="font-size: 12px; color: #94a3b8; font-weight: bold;">xlogfile (生テキスト)</span>
+                    <pre id="raw-xlogfile">Loading...</pre>
+                </div>
+                <div>
+                    <span style="font-size: 12px; color: #94a3b8; font-weight: bold;">record (生テキスト)</span>
+                    <pre id="raw-record">Loading...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { GameOverResolver } from './src/core/lifecycle/GameOverResolver.js';
+
+        let fsManager = null;
+
+        const statusTag = document.getElementById('status-tag');
+        const inputSessionName = document.getElementById('input-session-name');
+        const inputSessionBirth = document.getElementById('input-session-birth');
+        const selectVerFilter = document.getElementById('select-ver-filter');
+
+        const badgeResult = document.getElementById('badge-result');
+        const deathMsgContainer = document.getElementById('death-msg-container');
+        const valIsGameover = document.getElementById('val-is-gameover');
+        const valReason = document.getElementById('val-reason');
+        const valPlayerName = document.getElementById('val-player-name');
+        const valRole = document.getElementById('val-role');
+        const valScore = document.getElementById('val-score');
+
+        const scoreboardBody = document.getElementById('scoreboard-body');
+        const saveFileStatus = document.getElementById('save-file-status');
+        const rawSaveDir = document.getElementById('raw-save-dir');
+        const rawXlogfile = document.getElementById('raw-xlogfile');
+        const rawRecord = document.getElementById('raw-record');
+
+        // FS 初期化
+        async function initFS() {
+            try {
+                fsManager = new NetHackFSManager({ debug: true });
+                statusTag.textContent = "IDBFS Syncing...";
+                await fsManager.initFileSystem();
+                statusTag.textContent = "✅ IDBFS Ready";
+                await runInspection();
+            } catch (e) {
+                console.error("FS Init Error:", e);
+                statusTag.textContent = "❌ FS Init Failed: " + e.message;
+            }
+        }
+
+        // 解析実行
+        async function runInspection() {
+            if (!fsManager) return;
+
+            statusTag.textContent = "Analyzing FS...";
+
+            // 1. 生ファイルの可視化
+            const FS = fsManager.FS;
+            if (FS) {
+                try {
+                    let dirList = [];
+                    if (FS.analyzePath('/save').exists) {
+                        dirList = FS.readdir('/save').filter(f => f !== '.' && f !== '..');
+                    }
+                    rawSaveDir.textContent = dirList.length > 0 ? dirList.join('\n') : "(Empty /save dir)";
+                } catch(e) { rawSaveDir.textContent = "Error: " + e.message; }
+
+                try {
+                    const xlogContent = fsManager.readXlogText();
+                    rawXlogfile.textContent = xlogContent || "(No xlogfile)";
+                } catch(e) { rawXlogfile.textContent = "Error: " + e.message; }
+
+                try {
+                    const recContent = fsManager.readRecordText();
+                    rawRecord.textContent = recContent || "(No record file)";
+                } catch(e) { rawRecord.textContent = "Error: " + e.message; }
+
+                const detectedSaveName = fsManager.autoDetectSavePlayerName();
+                const hasSave = fsManager.hasSaveData();
+                saveFileStatus.textContent = hasSave ? `Save File: EXISTS (${detectedSaveName})` : "Save File: None";
+                saveFileStatus.style.color = hasSave ? "#34d399" : "#94a3b8";
+
+                if (!inputSessionName.value.trim() && detectedSaveName) {
+                    inputSessionName.placeholder = `e.g. ${detectedSaveName}`;
+                }
+            }
+
+            // 2. GameOverResolver による解析
+            const verMode = selectVerFilter.value;
+            const sessionInfo = {
+                playerName: inputSessionName.value.trim() || null,
+                startTime: inputSessionBirth.value.trim() || null,
+                version: verMode !== 'auto' && verMode !== 'all' ? verMode : null
+            };
+
+            const parseOptions = {
+                currentVerOnly: verMode !== 'all',
+                targetVer: verMode
+            };
+
+            const result = await GameOverResolver.resolveGameOver({ fsManager }, sessionInfo);
+            const scoreboard = GameOverResolver.parseRecordText(fsManager.readRecordText(), fsManager.readXlogText(), sessionInfo, parseOptions);
+            result.scoreboard = scoreboard;
+
+            console.log("[GameOverResolver Test Result]", result);
+
+            // 3. UI 反映
+            valIsGameover.textContent = String(result.isGameOver);
+            valReason.textContent = result.reason;
+            valPlayerName.textContent = result.savePlayerName || result.playerName || '-';
+            valRole.textContent = result.role || '-';
+            valScore.textContent = `${(result.finalScore || 0).toLocaleString()} pts`;
+
+            if (result.reason === 'save_and_exit') {
+                badgeResult.textContent = "SAVED & EXITED";
+                badgeResult.className = "badge badge-saved";
+                deathMsgContainer.className = "death-msg-box";
+                deathMsgContainer.style.background = "#064e3b";
+                deathMsgContainer.style.borderColor = "#059669";
+                deathMsgContainer.style.color = "#a7f3d0";
+                deathMsgContainer.textContent = `💾 セーブ完了: VFS/IDBFS 上に "${result.savePlayerName}" のセーブファイルが存在します。`;
+            } else if (result.isGameOver) {
+                badgeResult.textContent = `GAME OVER (${result.reason.toUpperCase()})`;
+                badgeResult.className = "badge badge-gameover";
+                deathMsgContainer.className = "death-msg-box";
+                deathMsgContainer.style.background = "#281014";
+                deathMsgContainer.style.borderColor = "#7f1d1d";
+                deathMsgContainer.style.color = "#fca5a5";
+                deathMsgContainer.textContent = `💀 ${result.deathMessage}`;
+            } else {
+                badgeResult.textContent = "NO RECORD / INITIAL";
+                badgeResult.className = "badge badge-unknown";
+                deathMsgContainer.textContent = "終了レコードはまだ記録されていません。";
+            }
+
+            // 4. スコアボードテーブルのレンダリング
+            scoreboardBody.innerHTML = '';
+            if (scoreboard.length === 0) {
+                scoreboardBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b;">指定バージョンのスコアボードエントリなし</td></tr>';
+            } else {
+                scoreboard.forEach((item, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>#${idx + 1}</strong></td>
+                        <td style="color:#64748b; font-size:11px;">${item.version || '-'}</td>
+                        <td style="color:#f8fafc; font-weight:bold;">${item.name || 'player'}</td>
+                        <td>${item.role || 'Explorer'}</td>
+                        <td style="color:#34d399; font-weight:bold;">${(item.points || item.score || 0).toLocaleString()} pts</td>
+                        <td>Dlvl ${item.deathLev || item.maxLvl || 1}</td>
+                        <td style="color:#cbd5e1;">${item.death || 'unknown'}</td>
+                    `;
+                    scoreboardBody.appendChild(tr);
+                });
+            }
+
+            statusTag.textContent = "✅ Analysis Complete";
+        }
+
+        // モックデータ注入処理
+        function injectMockXlogLine(lineContent, recordLine = null) {
+            const FS = fsManager.FS;
+            if (!FS) return;
+
+            try {
+                let currentXlog = fsManager.readXlogText() || "";
+                const updatedXlog = currentXlog.trim() ? currentXlog.trim() + "\n" + lineContent : lineContent;
+                FS.writeFile('/save/xlogfile', updatedXlog);
+                FS.writeFile('/xlogfile', updatedXlog);
+
+                if (recordLine) {
+                    let currentRec = fsManager.readRecordText() || "";
+                    const updatedRec = currentRec.trim() ? currentRec.trim() + "\n" + recordLine : recordLine;
+                    FS.writeFile('/save/record', updatedRec);
+                    FS.writeFile('/record', updatedRec);
+                }
+
+                fsManager.syncToPersistent();
+                console.log("[Mock Injected]", lineContent);
+            } catch (e) {
+                console.error("Mock inject error:", e);
+            }
+        }
+
+        // イベントバインド
+        document.getElementById('btn-inspect').onclick = () => runInspection();
+        selectVerFilter.onchange = () => runInspection();
+
+        document.getElementById('btn-mock-goblin').onclick = async () => {
+            const name = inputSessionName.value.trim() || 'player';
+            const birth = inputSessionBirth.value.trim() || '20260806';
+            const xlog = `version=5.0.0\tpoints=1250\tdeathdnum=0\tdeathlev=3\tmaxlvl=3\thp=0\tmaxhp=28\tdeaths=1\tdeathdate=${birth}\tbirthdate=${birth}\tuid=1000\trole=Val\trace=Hum\tgender=Fem\talign=Neu\tname=${name}\tdeath=killed by a goblin`;
+            const rec = `5.0.0 1250 0 3 3 0 28 1 ${birth} ${birth} 1000 Val Hum Fem Neu ${name},killed by a goblin`;
+            injectMockXlogLine(xlog, rec);
+            await runInspection();
+        };
+
+        document.getElementById('btn-mock-quit').onclick = async () => {
+            const name = inputSessionName.value.trim() || 'player';
+            const birth = inputSessionBirth.value.trim() || '20260806';
+            const xlog = `version=5.0.0\tpoints=450\tdeathdnum=0\tdeathlev=2\tmaxlvl=2\thp=18\tmaxhp=18\tdeaths=1\tdeathdate=${birth}\tbirthdate=${birth}\tuid=1000\trole=Wiz\trace=Elf\tgender=Mal\talign=Cha\tname=${name}\tdeath=quit`;
+            const rec = `5.0.0 450 0 2 2 18 18 1 ${birth} ${birth} 1000 Wiz Elf Mal Cha ${name},quit`;
+            injectMockXlogLine(xlog, rec);
+            await runInspection();
+        };
+
+        document.getElementById('btn-mock-escape').onclick = async () => {
+            const name = inputSessionName.value.trim() || 'player';
+            const birth = inputSessionBirth.value.trim() || '20260806';
+            const xlog = `version=5.0.0\tpoints=8500\tdeathdnum=0\tdeathlev=1\tmaxlvl=15\thp=65\tmaxhp=65\tdeaths=1\tdeathdate=${birth}\tbirthdate=${birth}\tuid=1000\trole=Kni\trace=Hum\tgender=Mal\talign=Law\tname=${name}\tdeath=escaped the dungeon`;
+            const rec = `5.0.0 8500 0 1 15 65 65 1 ${birth} ${birth} 1000 Kni Hum Mal Law ${name},escaped the dungeon`;
+            injectMockXlogLine(xlog, rec);
+            await runInspection();
+        };
+
+        document.getElementById('btn-mock-starve').onclick = async () => {
+            const name = inputSessionName.value.trim() || 'player';
+            const birth = inputSessionBirth.value.trim() || '20260806';
+            const xlog = `version=5.0.0\tpoints=320\tdeathdnum=0\tdeathlev=1\tmaxlvl=1\thp=0\tmaxhp=12\tdeaths=1\tdeathdate=${birth}\tbirthdate=${birth}\tuid=1000\trole=Mon\trace=Hum\tgender=Mal\talign=Neu\tname=${name}\tdeath=starved to death`;
+            const rec = `5.0.0 320 0 1 1 0 12 1 ${birth} ${birth} 1000 Mon Hum Mal Neu ${name},starved to death`;
+            injectMockXlogLine(xlog, rec);
+            await runInspection();
+        };
+
+        document.getElementById('btn-mock-save-player').onclick = async () => {
+            const FS = fsManager.FS;
+            if (!FS) return;
+            const name = inputSessionName.value.trim() || 'player';
+            try {
+                FS.writeFile(`/save/1000${name}`, "DUMMY_SAVE_DATA_CONTENT");
+                fsManager.syncToPersistent();
+                await runInspection();
+            } catch (e) { console.error("Save mock error:", e); }
+        };
+
+        document.getElementById('btn-clear-save').onclick = async () => {
+            const FS = fsManager.FS;
+            if (!FS) return;
+            try {
+                const files = FS.readdir('/save');
+                for (let f of files) {
+                    if (f !== '.' && f !== '..' && !['record', 'logfile', 'xlogfile', 'sysconf', 'perm'].includes(f)) {
+                        try { FS.unlink(`/save/${f}`); } catch(e) {}
+                    }
+                }
+                localStorage.removeItem("nethack_has_saved_game");
+                localStorage.removeItem("nethack_last_player_name");
+                fsManager.syncToPersistent();
+                await runInspection();
+            } catch (e) { console.error("Clear save error:", e); }
+        };
+
+        // Window load
+        window.addEventListener('load', () => {
+            initFS();
+        });
+    </script>
+</body>
+</html>
