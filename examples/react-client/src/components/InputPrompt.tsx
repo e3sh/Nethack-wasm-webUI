@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
@@ -17,68 +17,97 @@ export const InputPrompt: React.FC = () => {
 
   const isTextPrompt = useMemo(() => {
     if (!activePrompt) return false;
-    const ctx = activePrompt.context;
-    return ctx === 'text' || ctx === 'getlin' || ctx === 'askname' || ctx === 'name' || ctx === 'get_ext_cmd';
-  }, [activePrompt]);
-
-  const isExtCmd = useMemo(() => {
-    return activePrompt?.context === 'get_ext_cmd';
-  }, [activePrompt]);
-
-  const isYNPrompt = useMemo(() => {
-    if (!activePrompt || isTurnInput) return false;
-    const ctx = activePrompt.context;
-    const choices = activePrompt.choices;
-    const prompt = activePrompt.prompt || '';
+    const ctx = (activePrompt.context || '').toLowerCase();
+    const cat = (((activePrompt as any).category) || '').toUpperCase();
+    const prompt = (activePrompt.prompt || '').toLowerCase();
 
     return (
-      ctx === 'yn' ||
-      ctx === 'yn_function' ||
-      !!choices ||
-      prompt.includes('[y/n]') ||
-      prompt.includes('(y/n)') ||
-      prompt.includes('?') ||
-      prompt.toLowerCase().includes('tutorial')
+      cat === 'TEXT' ||
+      cat === 'ASKNAME' ||
+      ctx === 'text' ||
+      ctx === 'getlin' ||
+      ctx === 'askname' ||
+      ctx === 'name' ||
+      ctx === 'get_ext_cmd' ||
+      prompt.includes('who are you') ||
+      prompt.includes('your name') ||
+      prompt.includes('what is your name')
     );
-  }, [activePrompt, isTurnInput]);
+  }, [activePrompt]);
+
+  const isExtCmd = activePrompt?.context === 'get_ext_cmd';
+
+  const choiceButtons = useMemo(() => {
+    if (!activePrompt || isTurnInput || isTextPrompt) return [];
+    const rawChoices = activePrompt.choices || '';
+    const prompt = (activePrompt.prompt || '').toLowerCase();
+
+    let chars: string[] = [];
+
+    if (rawChoices) {
+      if (!rawChoices.includes('-') && rawChoices.length <= 10) {
+        chars = rawChoices.split('');
+      }
+    }
+
+    if (chars.length === 0) {
+      if (prompt.includes('[r or l]') || prompt.includes('(r/l)') || prompt.includes('[r/l]')) {
+        chars = ['r', 'l'];
+      } else if (prompt.includes('[y/n]') || prompt.includes('(y/n)') || prompt.includes('[ynq]') || prompt.includes('[yn]')) {
+        chars = ['y', 'n', 'q'];
+      }
+    }
+
+    return chars.map((c) => {
+      const lower = c.toLowerCase();
+      let label = `${c}`;
+      let btnClass = 'btn-secondary';
+
+      if (lower === 'r') {
+        label = 'Right (r)';
+        btnClass = 'btn-primary';
+      } else if (lower === 'l') {
+        label = 'Left (l)';
+        btnClass = 'btn-primary';
+      } else if (lower === 'y') {
+        label = 'Yes (y)';
+        btnClass = 'btn-yes';
+      } else if (lower === 'n') {
+        label = 'No (n)';
+        btnClass = 'btn-no';
+      } else if (lower === 'q') {
+        label = 'Quit/Cancel (q)';
+        btnClass = 'btn-cancel';
+      } else {
+        label = `${c.toUpperCase()} (${c})`;
+        btnClass = 'btn-primary';
+      }
+
+      return { char: c, label, btnClass };
+    });
+  }, [activePrompt, isTurnInput, isTextPrompt]);
 
   useEffect(() => {
     if (activePrompt && isTextPrompt) {
       setInputText('');
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   }, [activePrompt, isTextPrompt]);
 
-  const respondDirect = useCallback(
-    (val: any) => {
-      respondPrompt(val);
-    },
-    [respondPrompt]
-  );
+  const sendChar = (char: string) => {
+    respondPrompt(char.charCodeAt(0));
+  };
 
-  const sendChar = useCallback(
-    (char: string) => {
-      respondDirect(char.charCodeAt(0));
-    },
-    [respondDirect]
-  );
-
-  const submitText = useCallback(() => {
-    const val = inputText ? inputText.trim() : (isExtCmd ? 'pray' : 'Hero');
+  const submitText = () => {
+    const val = inputText.trim() ? inputText.trim() : isExtCmd ? 'pray' : 'Hero';
     setInputText('');
-    respondDirect(val);
-  }, [inputText, isExtCmd, respondDirect]);
+    respondPrompt(val);
+  };
 
-  const cancelText = useCallback(() => {
+  const cancelText = () => {
     setInputText('');
-    if (isExtCmd) {
-      respondDirect(-1);
-    } else {
-      respondDirect('');
-    }
-  }, [isExtCmd, respondDirect]);
+    respondPrompt(isExtCmd ? -1 : '');
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,56 +115,75 @@ export const InputPrompt: React.FC = () => {
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        e.stopPropagation();
         if (isTextPrompt) {
           cancelText();
         } else {
-          respondDirect(27);
+          respondPrompt(27);
         }
         return;
       }
 
-      if (isYNPrompt && !isTurnInput) {
-        const k = e.key.toLowerCase();
-        const choices = activePrompt.choices || '';
-        
-        if (k === 'y' || k === 'n' || k === 'q' || (choices && choices.includes(k))) {
+      if (isTextPrompt) {
+        return;
+      }
+
+      if (choiceButtons.length > 0) {
+        const pressedKey = e.key.toLowerCase();
+        const match = choiceButtons.find((b) => b.char.toLowerCase() === pressedKey);
+        if (match) {
           e.preventDefault();
-          e.stopPropagation();
-          sendChar(k);
-          return;
-        }
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          sendChar('y');
+          sendChar(match.char);
           return;
         }
       }
 
-      if (isTextPrompt && document.activeElement === inputRef.current) {
-        return;
+      if (!isTextPrompt && e.key.length === 1) {
+        let charCode = 0;
+        if (e.key === 'ArrowUp') charCode = 107;
+        else if (e.key === 'ArrowDown') charCode = 106;
+        else if (e.key === 'ArrowLeft') charCode = 104;
+        else if (e.key === 'ArrowRight') charCode = 108;
+        else charCode = e.key.charCodeAt(0);
+
+        if (charCode > 0) {
+          e.preventDefault();
+          respondPrompt(charCode);
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activePrompt, isTextPrompt, isYNPrompt, isTurnInput, cancelText, respondDirect, sendChar]);
+  }, [activePrompt, isTextPrompt, choiceButtons]);
+
+  if (!activePrompt) {
+    return (
+      <div className="prompt-wrapper">
+        <div className="prompt-placeholder">
+          <span className="idle-text">Ready / Turn Input Waiting (Press arrow keys or hjkl)</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="prompt-wrapper">
-      {activePrompt ? (
-        <div className="prompt-container">
-          <div className={`prompt-badge ${isTurnInput ? 'turn-badge' : ''}`}>
-            <span className="pulse-icon">●</span>{' '}
-            {isTurnInput ? '[TURN WAITING]' : '[INPUT WAITING]'}
+      <div className="prompt-container">
+        <div className={`prompt-badge ${isTurnInput ? 'turn-badge' : ''}`}>
+          <span className="pulse-icon">●</span>{' '}
+          {isTurnInput ? '[TURN WAITING]' : '[INPUT WAITING]'}
+        </div>
+
+        <div className="prompt-content">
+          <div className="prompt-text">
+            {activePrompt.prompt}
+            {activePrompt.choices && !isTurnInput && (
+              <span className="choices-hint">(Choices: {activePrompt.choices})</span>
+            )}
           </div>
 
-          <div className="prompt-text">{activePrompt.prompt}</div>
-
-          {/* 1. テキスト入力プロンプト (askname, getlin, get_ext_cmd, options 等) */}
           {isTextPrompt ? (
             <div className="prompt-text-input">
               <input
@@ -157,31 +205,25 @@ export const InputPrompt: React.FC = () => {
                 Cancel (ESC)
               </button>
             </div>
-          ) : isYNPrompt && !isTurnInput ? (
-            /* 2. Y/N または 選択肢(Choices/Yes/No) 質問プロンプトの場合 */
+          ) : choiceButtons.length > 0 && !isTurnInput ? (
             <div className="prompt-actions">
-              <button onClick={() => sendChar('y')} className="btn btn-yes">
-                Yes (y)
-              </button>
-              <button onClick={() => sendChar('n')} className="btn btn-no">
-                No (n)
-              </button>
-              <button onClick={() => sendChar('q')} className="btn btn-cancel">
-                Quit/Cancel (ESC)
-              </button>
+              {choiceButtons.map((btn) => (
+                <button
+                  key={btn.char}
+                  onClick={() => sendChar(btn.char)}
+                  className={`btn ${btn.btnClass}`}
+                >
+                  {btn.label}
+                </button>
+              ))}
             </div>
           ) : isTurnInput ? (
-            /* 3. 通常移動/ターン入力待ちの場合 */
             <div className="turn-hint">
               <span>Use Arrow keys / hjkl to move</span>
             </div>
           ) : null}
         </div>
-      ) : (
-        <div className="prompt-placeholder">
-          <span className="idle-text">Ready / Turn Input Waiting (Press arrow keys or hjkl)</span>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

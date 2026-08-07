@@ -46,11 +46,15 @@
 - **TouchCalculator (タッチ / 仮想 D-Pad)**:
   - 画面タップ位置 (x, y) から 3x3 / 5x5 グリッド ID への変換および NetHack 移動キー (`8`, `2`, `4`, `6`, `7`, `9`, `1`, `3`) への即時リスケール変換。
 
-### (2) 完全日本語化・高度動的翻訳能力 (Translation Engine)
-- **3層ハイブリッド翻訳**:
-  1. `nhMessage()` による完全一致文章の高速 O(1) 辞書引き。
-  2. `nhPatterns()` による正規表現動的パターン置換。
-  3. `nhEntities()` (モンスター名) および `nhItems()` (アイテム名) の名詞・単語辞書統合によるメッセージ内動的単語置換。
+### (2) 完全言語中立・i18n プラグイン差し替え翻訳能力 (Translation Engine & i18n Architecture)
+- **特定言語依存の完全脱却 (Language-Agnostic Core)**:
+  - `WebUICore` 内部から日本語 (JP) 辞書コードを切り離し、`ITranslator` インターフェースとして抽象化。
+- **i18n アダプターの依存性注入 (Dependency Injection)**:
+  - `new WebUICore({ translator: new JapaneseTranslationEngine() })` や `new CustomI18nAdapter({ locale: 'zh-CN' })` のように、利用者が自由な翻訳プラグインを注入・差し替えできる設計。
+- **`context`（文脈種別）パラメータによる誤訳抑止と高度表示制御**:
+  - `translate(text, context)` (`'log'`, `'prompt'`, `'menu_item'`, `'file'`, `'ui'`) により同音異義語の誤訳を完全防止。「ログのみ英文、UI/プロンプトは日本語」といった細粒度表示トグルを実現。
+- **3層ハイブリッド翻訳 ＆ デフォルトパススルー**:
+  - `nhMessage()`, `nhPatterns()`, `nhEntities()`, `nhItems()` を備えた日本語エンジンに加え、無翻訳パススルー (`NullTranslator`) や任意言語の辞書プラグインを標準サポート。
 - **localStorage 設定完全同期**:
   - ユーザーの翻訳 ON/OFF 設定 (`nh.translate_enabled`) の自動保存・読み込み。
 

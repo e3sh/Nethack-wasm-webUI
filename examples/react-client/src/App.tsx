@@ -1,61 +1,43 @@
 import React from 'react';
-import { useNetHackDriver } from './hooks/useNetHackDriver';
-import { useGameStore } from './stores/gameStore';
+import { HeaderPanel } from './components/HeaderPanel';
 import { MessageLog } from './components/MessageLog';
-import { MapCanvas } from './components/MapCanvas';
+import { GameCanvas } from './components/GameCanvas';
 import { StatusBar } from './components/StatusBar';
-import { InputPrompt } from './components/InputPrompt';
+import { PromptModal } from './components/PromptModal';
 import { MenuModal } from './components/MenuModal';
 import { TextWindowModal } from './components/TextWindowModal';
+import { GameOverModal } from './components/GameOverModal';
 import './App.css';
 
 export const App: React.FC = () => {
-  const { deleteSaveFile } = useNetHackDriver();
-  const engineState = useGameStore((state) => state.engineState);
-
   return (
     <div className="app-container">
-      {/* ヘッダーエリア */}
-      <header className="app-header">
-        <div className="header-title">
-          <h1>NetHack Wasm Driver</h1>
-          <span className="subtitle">React 18 Sample Client</span>
-        </div>
-
-        <div className="header-controls">
-          <span className={`engine-badge ${engineState.toLowerCase()}`}>
-            State: {engineState}
-          </span>
-          <button
-            onClick={deleteSaveFile}
-            className="btn-delete-save"
-            title="セーブデータを完全削除"
-          >
-            🗑️ Del Save
-          </button>
-        </div>
-      </header>
+      {/* 1. ヘッダーエリア (HeaderPanel) */}
+      <HeaderPanel />
 
       {/* メインゲームビュー */}
       <main className="game-view">
-        {/* 1. メッセージログ */}
+        {/* 2. メッセージログ (MessageLog) */}
         <MessageLog />
 
-        {/* 2. ダンジョンマップ */}
-        <MapCanvas />
+        {/* 3. ダンジョンマップ (GameCanvas) */}
+        <GameCanvas />
 
-        {/* 3. ステータスバー */}
+        {/* 4. ステータスバー (StatusBar) */}
         <StatusBar />
 
-        {/* 4. 入力プロンプト */}
-        <InputPrompt />
+        {/* 5. 入力プロンプト (PromptModal) */}
+        <PromptModal />
       </main>
 
-      {/* インベントリ / メニューモーダル */}
+      {/* 6. インベントリ / メニューモーダル (MenuModal) */}
       <MenuModal />
 
-      {/* テキスト・ヘルプ閲覧モーダル */}
+      {/* 7. テキスト・ヘルプ閲覧モーダル (TextWindowModal) */}
       <TextWindowModal />
+
+      {/* 8. ゲームオーバー & スコアボード (GameOverModal) */}
+      <GameOverModal />
     </div>
   );
 };

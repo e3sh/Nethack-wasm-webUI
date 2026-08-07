@@ -5,20 +5,25 @@ import { getTileMapping } from '../utils/tileMapping';
 
 export const MenuModal: Component = () => {
   const [selectedIndices, setSelectedIndices] = createSignal<number[]>([]);
+  const [focusedIndex, setFocusedIndex] = createSignal<number>(-1);
   let isSubmitting = false;
   let tileMapTable: Record<number, number> = {};
+  let menuListRef: HTMLDivElement | undefined;
 
   createEffect(() => {
-    if (activeMenu()) {
+    const menu = activeMenu();
+    if (menu) {
       setSelectedIndices([]);
       isSubmitting = false;
       tileMapTable = getTileMapping();
+      const firstSelectable = menu.items.findIndex((it) => !it.isHeader && (it.identifier !== undefined && it.identifier !== 0));
+      setFocusedIndex(firstSelectable >= 0 ? firstSelectable : -1);
     }
   });
 
   const getAccChar = (item: MenuItem): string => {
     if (item.isHeader) return '';
-    const ch = item.accelerator || item.ch;
+    const ch = item.accelerator !== undefined && item.accelerator !== 0 ? item.accelerator : item.ch;
     if (typeof ch === 'string' && ch !== '\x00') return ch;
     if (typeof ch === 'number' && ch > 0) return String.fromCharCode(ch);
     return '';
@@ -52,6 +57,7 @@ export const MenuModal: Component = () => {
   const handleItemClick = (idx: number, item: MenuItem) => {
     const menu = activeMenu();
     if (!menu || item.isHeader || isSubmitting) return;
+    setFocusedIndex(idx);
     const how = menu.how ?? 1;
 
     if (how === 0) {
@@ -83,9 +89,13 @@ export const MenuModal: Component = () => {
     }
 
     const indices = selectedIndices();
+    const focusIdx = focusedIndex();
     if (indices.length > 0) {
       const selectedItems = indices.map((idx) => menu.items[idx]);
       safeRespondMenu(selectedItems);
+    } else if (focusIdx >= 0 && !menu.items[focusIdx]?.isHeader) {
+      const item = menu.items[focusIdx];
+      safeRespondMenu([item]);
     } else {
       const validItem = menu.items.find(
         (it: MenuItem) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
@@ -99,12 +109,46 @@ export const MenuModal: Component = () => {
     safeRespondMenu(0);
   };
 
+  const moveFocus = (delta: number) => {
+    const menu = activeMenu();
+    if (!menu || menu.items.length === 0) return;
+    const items = menu.items;
+    let current = focusedIndex();
+    let nextIdx = current + delta;
+
+    while (nextIdx >= 0 && nextIdx < items.length) {
+      if (!items[nextIdx].isHeader && items[nextIdx].identifier !== 0) {
+        setFocusedIndex(nextIdx);
+        setTimeout(() => {
+          const focusedEl = menuListRef?.querySelector('.focused') as HTMLElement;
+          if (focusedEl) focusedEl.scrollIntoView({ block: 'nearest' });
+        }, 0);
+        return;
+      }
+      nextIdx += delta;
+    }
+  };
+
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const menu = activeMenu();
       if (!menu || isSubmitting) return;
 
-      if (e.key === 'Escape' || e.key === ' ' || (menu.how === 0 && e.key === 'Enter')) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(-1);
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(1);
+        return;
+      }
+
+      if (e.key === 'Escape' || (menu.how === 0 && (e.key === ' ' || e.key === 'Enter'))) {
         e.preventDefault();
         e.stopPropagation();
         cancelMenu();
@@ -120,16 +164,27 @@ export const MenuModal: Component = () => {
 
       if (e.key.length === 1 && menu.how !== 0) {
         const pressedKey = e.key;
-        const matchItem = menu.items.find((it: MenuItem) => {
+        const pressedCode = e.key.charCodeAt(0);
+
+        const matchIdx = menu.items.findIndex((it: MenuItem) => {
           if (it.isHeader) return false;
           const c = getAccChar(it);
-          return c === pressedKey;
+          if (c && c === pressedKey) return true;
+          if (c && c.toLowerCase() === pressedKey.toLowerCase()) return true;
+          if (typeof it.accelerator === 'number' && it.accelerator === pressedCode) return true;
+          return false;
         });
 
-        if (matchItem) {
+        if (matchIdx >= 0) {
           e.preventDefault();
           e.stopPropagation();
-          safeRespondMenu([matchItem]);
+          const matchItem = menu.items[matchIdx];
+          const how = menu.how ?? 1;
+          if (how === 1) {
+            safeRespondMenu([matchItem]);
+          } else {
+            handleItemClick(matchIdx, matchItem);
+          }
         }
       }
     };
@@ -147,12 +202,13 @@ export const MenuModal: Component = () => {
           <div class="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 class="modal-title">{menu().prompt || 'Select Item'}</h3>
 
-            <div class="menu-list">
+            <div class="menu-list" ref={menuListRef}>
               <For each={menu().items}>
                 {(item, idx) => {
                   const accChar = getAccChar(item);
                   const tileStyle = getTileStyle(item);
                   const isSelected = () => selectedIndices().includes(idx());
+                  const isFocused = () => focusedIndex() === idx();
 
                   return (
                     <Show
@@ -162,7 +218,7 @@ export const MenuModal: Component = () => {
                       }
                     >
                       <div
-                        class={`menu-item-row ${isSelected() ? 'selected' : ''}`}
+                        class={`menu-item-row ${isSelected() ? 'selected' : ''} ${isFocused() ? 'focused' : ''}`}
                         onClick={() => handleItemClick(idx(), item)}
                       >
                         <Show when={accChar}>

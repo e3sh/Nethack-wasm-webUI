@@ -74,7 +74,7 @@ body {
 }
 
 /* Map Canvas Styles */
-.map-container {
+.map-container, .game-canvas-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -86,7 +86,7 @@ body {
   box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
 }
 
-.map-canvas {
+.map-canvas, .game-canvas {
   max-width: 100%;
   height: auto;
   image-rendering: pixelated;
@@ -326,6 +326,12 @@ body {
 .menu-item-row:hover:not(.menu-header) {
   background: #0f3460;
   color: #ffffff;
+}
+
+.menu-item-row.focused:not(.menu-header) {
+  border-color: #4ecca3;
+  background: #162a45;
+  box-shadow: 0 0 8px rgba(78, 204, 163, 0.6);
 }
 
 .menu-item-row.selected {

@@ -1,64 +1,43 @@
 <template>
   <div class="app-container">
-    <!-- ヘッダーエリア -->
-    <header class="app-header">
-      <div class="header-title">
-        <h1>NetHack Wasm Driver</h1>
-        <span class="subtitle">Vue 3 Sample Client</span>
-      </div>
-
-      <div class="header-controls">
-        <span class="engine-badge" :class="engineState.toLowerCase()">
-          State: {{ engineState }}
-        </span>
-        <button
-          @click="deleteSaveFile"
-          class="btn-delete-save"
-          title="セーブデータを完全削除"
-        >
-          🗑️ Del Save
-        </button>
-      </div>
-    </header>
+    <!-- 1. ヘッダーエリア (HeaderPanel) -->
+    <HeaderPanel />
 
     <!-- メインゲームビュー -->
     <main class="game-view">
-      <!-- 1. メッセージログ -->
+      <!-- 2. メッセージログ (MessageLog) -->
       <MessageLog />
 
-      <!-- 2. ダンジョンマップ -->
-      <MapCanvas />
+      <!-- 3. ダンジョンマップ (GameCanvas) -->
+      <GameCanvas />
 
-      <!-- 3. ステータスバー -->
+      <!-- 4. ステータスバー (StatusBar) -->
       <StatusBar />
 
-      <!-- 4. 入力プロンプト -->
-      <InputPrompt />
+      <!-- 5. 入力プロンプト (PromptModal) -->
+      <PromptModal />
     </main>
 
-    <!-- インベントリ / メニューモーダル -->
+    <!-- 6. インベントリ / メニューモーダル (MenuModal) -->
     <MenuModal />
 
-    <!-- テキスト・ヘルプ閲覧モーダル -->
+    <!-- 7. テキスト・ヘルプ閲覧モーダル (TextWindowModal) -->
     <TextWindowModal />
+
+    <!-- 8. ゲームオーバー & スコアボード (GameOverModal) -->
+    <GameOverModal />
   </div>
 </template>
 
 <script setup lang="ts">
-import { useNetHackDriver } from './composables/useNetHackDriver';
-import { useGameStore } from './stores/gameStore';
-import { storeToRefs } from 'pinia';
+import HeaderPanel from './components/HeaderPanel.vue';
 import MessageLog from './components/MessageLog.vue';
-import MapCanvas from './components/MapCanvas.vue';
+import GameCanvas from './components/GameCanvas.vue';
 import StatusBar from './components/StatusBar.vue';
-import InputPrompt from './components/InputPrompt.vue';
+import PromptModal from './components/PromptModal.vue';
 import MenuModal from './components/MenuModal.vue';
 import TextWindowModal from './components/TextWindowModal.vue';
-
-// NetHack Wasm Driver の接続フック呼び出し
-const { deleteSaveFile } = useNetHackDriver();
-const gameStore = useGameStore();
-const { engineState } = storeToRefs(gameStore);
+import GameOverModal from './components/GameOverModal.vue';
 </script>
 
 <style>
@@ -79,56 +58,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid #16213e;
-  padding-bottom: 12px;
-}
-
-.header-title h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #4ecca3;
-  display: inline-block;
-}
-
-.subtitle {
-  margin-left: 10px;
-  font-size: 13px;
-  color: #7f8c8d;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.engine-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  font-family: monospace;
-}
-
-.engine-badge.running { background: #2ecc71; color: #111; }
-.engine-badge.idle { background: #7f8c8d; color: #fff; }
-.engine-badge.saved { background: #f39c12; color: #111; }
-.engine-badge.gameover { background: #e74c3c; color: #fff; }
-
-.btn-delete-save {
-  background: #c0392b;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-weight: bold;
-  cursor: pointer;
 }
 
 .game-view {

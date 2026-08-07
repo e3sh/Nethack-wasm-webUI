@@ -25,15 +25,22 @@ import { useNetHackDriver } from '../composables/useNetHackDriver';
 const gameStore = useGameStore();
 const { activeTextModal } = storeToRefs(gameStore);
 const { respondTextModal } = useNetHackDriver();
+let isClosing = false;
 
 function closeTextModal() {
-  respondTextModal(0);
+  if (isClosing) return;
+  isClosing = true;
+  respondTextModal(' ');
+  setTimeout(() => {
+    isClosing = false;
+  }, 100);
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (!activeTextModal.value) return;
+  if (!activeTextModal.value || isClosing) return;
 
-  if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+  const k = e.key.toLowerCase();
+  if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || k === 'q' || e.key === 'Backspace') {
     e.preventDefault();
     e.stopPropagation();
     closeTextModal();

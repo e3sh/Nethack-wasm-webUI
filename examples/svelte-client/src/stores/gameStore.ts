@@ -83,6 +83,7 @@ export const activeMenuStore = writable<ActiveMenu | null>(null);
 export const activeTextModalStore = writable<ActiveTextModal | null>(null);
 export const engineStateStore = writable<EngineState>('IDLE');
 export const detectedSaveNameStore = writable<string | null>(null);
+export const gameOverResultStore = writable<any | null>(null);
 
 // Actions / Helpers
 export const addMessage = (text: string) => {
@@ -199,4 +200,28 @@ export const setCursorPos = (x: number, y: number) => {
 
 export const clearMapGrid = () => {
   mapGridStore.set(createInitialMapGrid());
+};
+
+export const resetAllState = () => {
+  messagesStore.set([]);
+  statusStore.set({
+    title: '',
+    gold: 0,
+    pw: 0,
+    pwMax: 0,
+    xp: 1,
+    ac: 10,
+    hunger: '',
+    hp: 0,
+    hpMax: 0,
+    dlvl: 'Dlvl:1',
+    condition: [],
+  });
+  cursorPosStore.set(null);
+  activePromptStore.set(null);
+  activeMenuStore.set(null);
+  activeTextModalStore.set(null);
+  engineStateStore.set('RUNNING');
+  gameOverResultStore.set(null);
+  clearMapGrid();
 };

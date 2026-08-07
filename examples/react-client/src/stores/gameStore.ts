@@ -64,6 +64,7 @@ export interface GameStore {
   activeTextModal: ActiveTextModal | null;
   engineState: 'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER';
   detectedSaveName: string | null;
+  gameOverResult: any | null;
 
   addMessage: (text: string) => void;
   updateStatus: (field: number, value: any, rawPayload?: any) => void;
@@ -75,6 +76,8 @@ export interface GameStore {
   setTextModal: (textData: ActiveTextModal | null) => void;
   setEngineState: (state: 'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER') => void;
   setDetectedSaveName: (name: string | null) => void;
+  setGameOverResult: (result: any | null) => void;
+  resetAllState: () => void;
 }
 
 const createInitialMapGrid = (): MapTile[][] =>
@@ -104,6 +107,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   activeTextModal: null,
   engineState: 'IDLE',
   detectedSaveName: null,
+  gameOverResult: null,
 
   addMessage: (text: string) => {
     if (!text || text.trim() === '') return;
@@ -244,5 +248,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setDetectedSaveName: (name: string | null) => {
     set({ detectedSaveName: name });
+  },
+
+  setGameOverResult: (result: any | null) => {
+    set({ gameOverResult: result });
+  },
+
+  resetAllState: () => {
+    set({
+      messages: [],
+      status: {
+        title: '',
+        gold: 0,
+        pw: 0,
+        pwMax: 0,
+        xp: 1,
+        ac: 10,
+        hunger: '',
+        hp: 0,
+        hpMax: 0,
+        dlvl: 'Dlvl:1',
+        condition: [],
+      },
+      mapGrid: createInitialMapGrid(),
+      cursorPos: null,
+      activePrompt: null,
+      activeMenu: null,
+      activeTextModal: null,
+      engineState: 'RUNNING',
+      gameOverResult: null,
+    });
   },
 }));

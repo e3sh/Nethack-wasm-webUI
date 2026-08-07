@@ -8,8 +8,10 @@ export const MenuModal: React.FC = () => {
   const { respondMenu } = useNetHackDriver();
 
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const isSubmittingRef = useRef(false);
   const tileMapTableRef = useRef<Record<number, number>>({});
+  const menuListRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     tileMapTableRef.current = getTileMapping();
@@ -19,12 +21,16 @@ export const MenuModal: React.FC = () => {
     if (activeMenu) {
       setSelectedIndices([]);
       isSubmittingRef.current = false;
+      const firstSelectable = activeMenu.items.findIndex(
+        (it) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
+      );
+      setFocusedIndex(firstSelectable >= 0 ? firstSelectable : -1);
     }
   }, [activeMenu]);
 
   const getAccChar = (item: MenuItem): string => {
     if (item.isHeader) return '';
-    const ch = item.accelerator || item.ch;
+    const ch = item.accelerator !== undefined && item.accelerator !== 0 ? item.accelerator : item.ch;
     if (typeof ch === 'string' && ch !== '\x00') return ch;
     if (typeof ch === 'number' && ch > 0) return String.fromCharCode(ch);
     return '';
@@ -74,6 +80,7 @@ export const MenuModal: React.FC = () => {
 
   const handleItemClick = (idx: number, item: MenuItem) => {
     if (item.isHeader || isSubmittingRef.current) return;
+    setFocusedIndex(idx);
     const how = activeMenu?.how ?? 1;
 
     if (how === 0) {
@@ -107,24 +114,64 @@ export const MenuModal: React.FC = () => {
     if (selectedIndices.length > 0) {
       const selectedItems = selectedIndices.map((idx) => activeMenu.items[idx]);
       safeRespondMenu(selectedItems);
+    } else if (focusedIndex >= 0 && !activeMenu.items[focusedIndex]?.isHeader) {
+      const item = activeMenu.items[focusedIndex];
+      safeRespondMenu([item]);
     } else {
       const validItem = activeMenu.items.find(
         (it: MenuItem) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
       );
       safeRespondMenu(validItem ? [validItem] : 0);
     }
-  }, [activeMenu, selectedIndices, safeRespondMenu]);
+  }, [activeMenu, selectedIndices, focusedIndex, safeRespondMenu]);
 
   const cancelMenu = useCallback(() => {
     if (isSubmittingRef.current) return;
     safeRespondMenu(0);
   }, [safeRespondMenu]);
 
+  const moveFocus = useCallback(
+    (delta: number) => {
+      if (!activeMenu || activeMenu.items.length === 0) return;
+      const items = activeMenu.items;
+
+      setFocusedIndex((prev) => {
+        let nextIdx = prev + delta;
+        while (nextIdx >= 0 && nextIdx < items.length) {
+          if (!items[nextIdx].isHeader && items[nextIdx].identifier !== 0) {
+            setTimeout(() => {
+              const focusedEl = menuListRef.current?.querySelector('.focused') as HTMLElement;
+              if (focusedEl) focusedEl.scrollIntoView({ block: 'nearest' });
+            }, 0);
+            return nextIdx;
+          }
+          nextIdx += delta;
+        }
+        return prev;
+      });
+    },
+    [activeMenu]
+  );
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeMenu || isSubmittingRef.current) return;
 
-      if (e.key === 'Escape' || e.key === ' ' || (activeMenu.how === 0 && e.key === 'Enter')) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(-1);
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(1);
+        return;
+      }
+
+      if (e.key === 'Escape' || (activeMenu.how === 0 && (e.key === ' ' || e.key === 'Enter'))) {
         e.preventDefault();
         e.stopPropagation();
         cancelMenu();
@@ -140,16 +187,27 @@ export const MenuModal: React.FC = () => {
 
       if (e.key.length === 1 && activeMenu.how !== 0) {
         const pressedKey = e.key;
-        const matchItem = activeMenu.items.find((it: MenuItem) => {
+        const pressedCode = e.key.charCodeAt(0);
+
+        const matchIdx = activeMenu.items.findIndex((it: MenuItem) => {
           if (it.isHeader) return false;
           const c = getAccChar(it);
-          return c === pressedKey;
+          if (c && c === pressedKey) return true;
+          if (c && c.toLowerCase() === pressedKey.toLowerCase()) return true;
+          if (typeof it.accelerator === 'number' && it.accelerator === pressedCode) return true;
+          return false;
         });
 
-        if (matchItem) {
+        if (matchIdx >= 0) {
           e.preventDefault();
           e.stopPropagation();
-          safeRespondMenu([matchItem]);
+          const matchItem = activeMenu.items[matchIdx];
+          const how = activeMenu.how ?? 1;
+          if (how === 1) {
+            safeRespondMenu([matchItem]);
+          } else {
+            handleItemClick(matchIdx, matchItem);
+          }
         }
       }
     };
@@ -158,7 +216,7 @@ export const MenuModal: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [activeMenu, cancelMenu, confirmSelection, safeRespondMenu]);
+  }, [activeMenu, cancelMenu, confirmSelection, moveFocus, safeRespondMenu]);
 
   if (!activeMenu) return null;
 
@@ -167,27 +225,23 @@ export const MenuModal: React.FC = () => {
       <div className="modal-content">
         <h3 className="modal-title">{activeMenu.prompt || 'Select Item'}</h3>
 
-        <div className="menu-list">
+        <div className="menu-list" ref={menuListRef}>
           {activeMenu.items.map((item, idx) => {
             const accChar = getAccChar(item);
             const tileStyle = getTileStyle(item);
             const isSelected = selectedIndices.includes(idx);
+            const isFocused = focusedIndex === idx;
 
             return (
               <div
                 key={idx}
                 className={`menu-item-row ${item.isHeader ? 'menu-header' : ''} ${
                   isSelected ? 'selected' : ''
-                }`}
+                } ${isFocused ? 'focused' : ''}`}
                 onClick={() => handleItemClick(idx, item)}
               >
-                {/* 1. アクセラレータキー (a), b), c)...) */}
                 {accChar ? <span className="item-acc">{accChar})</span> : null}
-
-                {/* 2. 正確な CSS Sprite タイル表示 */}
                 {tileStyle ? <span className="item-tile" style={tileStyle}></span> : null}
-
-                {/* 3. アイテム文字列 */}
                 <span className="item-str">{item.str}</span>
               </div>
             );

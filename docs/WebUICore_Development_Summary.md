@@ -41,11 +41,28 @@
 - **境界内描画による残像ゴミの全廃**:
   - 描画領域を 16px * 14px セルの内側（`dx + 1.5`, `dy + 1.5`, `13px * 11px`）に収めて描画し、移動後のセル黒塗り消去時に枠線が 100% 上書き消去される仕組みを構築。
 
-### 6. データデコード・型安全化 (ドライバ層の修復)
+### 6. データデコード・型安全化・GameOverResolver 完全統合
 - **ステータス数値直値 (BL_SCORE 8, BL_TIME 16 等) の正常デコード**:
   - Cコアから届くポインタ/整数値の型混在をドライバ層 (`NetHackMemory.js`) で型安全に解釈し、所持金 (`$`), スコア (pts), 総ターン数, 到達フロアをリアルタイム更新。
-- **ハイスコア・ランキング (Scoreboard) 高レベル API**:
-  - `core.getHighScores()` を追加し、UI 側が VFS を直接見に行かなくても構造化ランキング配列を取得できるカプセル化を提供。
+- **`GameOverResolver` 自律統合とハイスコア・ランキング API**:
+  - Wasm 終了・死亡時に死因・勝敗判定を全自動解析し、`gameOver` イベントとして発火。
+  - `core.getHighScores()`, `core.getHighScoresAsync()` API を追加し、UI 側が VFS を直接見に行かなくても構造化ランキング配列を取得できるカプセル化を提供。
+
+### 7. TypeScript 型定義整備 ＆ Webコンポーネント版サンプルの現状課題
+- **`index.d.ts` / `WebUICore.d.ts` の整備**:
+  - `@core` パッケージ全体の型定義を整備し、React / Vue / Svelte / SolidJS からの TypeScript 開発を型安全にサポート。
+- **Webコンポーネント版サンプル (`examples/` react, vue, svelte, solid) の手戻り・未完成課題**:
+  - 各フレームワークサンプルは `WebUICore` インスタンスを生成して初期化する構造自体は組まれているものの、以下のような手戻り・調整途中の課題が残存しており、未完成状態にある：
+    1. 各 UI ストアで `mapGrid`（80x21 配列）を直接更新する旧直参照パターンが残存しており、`WebUICore` のビルトインレンダラー（`CanvasRenderer` 等）との完全統合が未完了。
+    2. HTML / Vite ビルド時の `tileMapping.js` グローバル `<script>` タグ依存やアセットバインド警告の解消が未完。
+    3. キー入力 (`sendKey`) と UI 側の固有モーダル状態との二重制御の解消・最適化が未完。
+
+### 8. テキストファイルオンデマンド翻訳・サウンド・ゲームパッド・タッチ操作の統合
+- **`display_file` オフライン/オンライン解凍 ＆ 辞書引き API**:
+  - ヘルプやドキュメントファイルの表示時に VFS および HTTP fetch を通じて取得・動的日本語化。
+  - 単語辞書引き API (`lookupWord`) の提供。
+- **SoundEngine ＆ GamepadManager ＆ TouchCalculator**:
+  - メッセージキーワード連動 SE 再生 (`SoundEngine`)、ブラウザ Gamepad API 連動 (`GamepadManager`)、画面タップ領域判定 (`TouchCalculator`) をコアファサードにビルトイン。
 
 ---
 

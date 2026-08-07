@@ -41,8 +41,14 @@ export class TranslationEngine {
         this.enabled = !!enabled;
         if (typeof localStorage !== 'undefined') {
             try {
-                localStorage.setItem("nh.translate", this.enabled ? "true" : "false");
-                localStorage.setItem("nh.translate_enabled", this.enabled ? "true" : "false");
+                let nhConfig = {};
+                const savedStr = localStorage.getItem("nh.config");
+                if (savedStr) {
+                    try { nhConfig = JSON.parse(savedStr) || {}; } catch (e) {}
+                }
+                nhConfig.lang = this.enabled;
+                nhConfig.translate_enabled = this.enabled;
+                localStorage.setItem("nh.config", JSON.stringify(nhConfig));
             } catch (e) {}
         }
     }

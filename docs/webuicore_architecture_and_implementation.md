@@ -8,20 +8,22 @@
 
 ```
 +-----------------------------------------------------------------------+
-|  既存 WebUI 表現層 (mobileCurses.js / UIManager.js / webuicore_poc)    |
-|  ・CSS スプライト (pict/nethack_default_32.png), DOM Curses エミュレーション|
-|  ・ステータスバー, メニューモーダル, タッチ / キーボード UI          |
+|  既存 WebUI 表現層 (mobileCurses.js / UIManager.js / React, Vue, Svelte, Solid) |
+|  ・スプライト/ASCII レンダラー, DOM Curses エミュレーション              |
+|  ・ステータスバー, メニューモーダル, タッチ / キーボード / ゲームパッド UI   |
 +-----------------------------------------------------------------------+
                                    ▲
-                                   │  (イベント: message, statusUpdate, inputRequired, print_glyph)
-                                   ▼  (操作: sendKey(code, shift, ctrl, alt), respond(val), getStatus())
+                                   │  (イベント: message, statusUpdate, inputRequired, print_glyph, gameOver, textWindowModal)
+                                   ▼  (操作: sendKey, respond, getStatus, getHighScores, restart, handleTouchPoint)
 +-----------------------------------------------------------------------+
-|  WebUICore (Core SDK レイヤー)                                        |
-|  ・Wasm イベント構造化 & レスンス型の自動補正・変換                    |
-|  ・翻訳エンジン連携 (prompt/rawPrompt, str/rawStr 二重保持)           |
-|  ・統一ステータスモデルアクセサ (StatusAccessor) 提供 (マジックナンバー隠蔽)|
-|  ・display_nhwindow ブロッキング解凍判別ルール                        |
-|  ・アスキーキーコード変換器 (KeyboardEvent.code -> ASCII Code)         |
+|  WebUICore (Core SDK レイヤー / Facade)                                |
+|  ・8段階 Lifecycle Management & リロード不要再起動 (restart)             |
+|  ・GameOverResolver (勝敗・死因自律解析 & Top 10 ランキングパース)          |
+|  ・TranslationEngine (プロンプト/選択肢動的翻訳, オンデマンドファイル翻訳)   |
+|  ・StatusAccessor (統一ステータスモデル提供 & 階層変更検知 map_cleared)   |
+|  ・Input Engine (sendKey, respond, GamepadManager, TouchCalculator)   |
+|  ・SoundEngine (メッセージキーワード連動 SE 再生)                       |
+|  ・Renderer Adapters (NullRenderer, CanvasRenderer, DOMGridRenderer)  |
 +-----------------------------------------------------------------------+
                                    ▲
                                    │  (Wasm Driver Protocol)

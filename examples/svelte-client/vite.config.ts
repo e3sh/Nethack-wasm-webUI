@@ -118,6 +118,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@core': path.resolve(__dirname, '../../src/core'),
       '@driver': path.resolve(__dirname, '../../src/driver'),
       '@param': path.resolve(__dirname, '../../param'),
     },

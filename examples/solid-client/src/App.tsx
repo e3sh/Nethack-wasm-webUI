@@ -1,12 +1,13 @@
-import { Component, onMount, onCleanup } from 'solid-js';
-import { engineState } from './stores/gameStore';
-import { driverController } from './services/useNetHackDriver';
+import { Component, onMount } from 'solid-js';
+import { HeaderPanel } from './components/HeaderPanel';
 import { MessageLog } from './components/MessageLog';
-import { MapCanvas } from './components/MapCanvas';
+import { GameCanvas } from './components/GameCanvas';
 import { StatusBar } from './components/StatusBar';
-import { InputPrompt } from './components/InputPrompt';
+import { PromptModal } from './components/PromptModal';
 import { MenuModal } from './components/MenuModal';
 import { TextWindowModal } from './components/TextWindowModal';
+import { GameOverModal } from './components/GameOverModal';
+import { driverController } from './services/useNetHackDriver';
 import './App.css';
 
 export const App: Component = () => {
@@ -14,53 +15,34 @@ export const App: Component = () => {
     driverController.init();
   });
 
-  onCleanup(() => {
-    driverController.destroy();
-  });
-
   return (
     <div class="app-container">
-      {/* ヘッダーエリア */}
-      <header class="app-header">
-        <div class="header-title">
-          <h1>NetHack Wasm Driver</h1>
-          <span class="subtitle">SolidJS Sample Client</span>
-        </div>
-
-        <div class="header-controls">
-          <span class={`engine-badge ${engineState().toLowerCase()}`}>
-            State: {engineState()}
-          </span>
-          <button
-            onClick={() => driverController.deleteSaveFile()}
-            class="btn-delete-save"
-            title="セーブデータを完全削除"
-          >
-            🗑️ Del Save
-          </button>
-        </div>
-      </header>
+      {/* 1. ヘッダーエリア (HeaderPanel) */}
+      <HeaderPanel />
 
       {/* メインゲームビュー */}
       <main class="game-view">
-        {/* 1. メッセージログ */}
+        {/* 2. メッセージログ (MessageLog) */}
         <MessageLog />
 
-        {/* 2. ダンジョンマップ */}
-        <MapCanvas />
+        {/* 3. ダンジョンマップ (GameCanvas) */}
+        <GameCanvas />
 
-        {/* 3. ステータスバー */}
+        {/* 4. ステータスバー (StatusBar) */}
         <StatusBar />
 
-        {/* 4. 入力プロンプト */}
-        <InputPrompt />
+        {/* 5. 入力プロンプト (PromptModal) */}
+        <PromptModal />
       </main>
 
-      {/* インベントリ / メニューモーダル */}
+      {/* 6. インベントリ / メニューモーダル (MenuModal) */}
       <MenuModal />
 
-      {/* テキスト・ヘルプ閲覧モーダル */}
+      {/* 7. テキスト・ヘルプ閲覧モーダル (TextWindowModal) */}
       <TextWindowModal />
+
+      {/* 8. ゲームオーバー & スコアボード (GameOverModal) */}
+      <GameOverModal />
     </div>
   );
 };

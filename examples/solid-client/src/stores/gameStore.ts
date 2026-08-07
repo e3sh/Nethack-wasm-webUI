@@ -84,6 +84,7 @@ export const [activeMenu, setActiveMenu] = createSignal<ActiveMenu | null>(null)
 export const [activeTextModal, setActiveTextModal] = createSignal<ActiveTextModal | null>(null);
 export const [engineState, setEngineState] = createSignal<EngineState>('IDLE');
 export const [detectedSaveName, setDetectedSaveName] = createSignal<string | null>(null);
+export const [gameOverResult, setGameOverResult] = createSignal<any | null>(null);
 
 // Actions / Helpers
 export const addMessage = (text: string) => {
@@ -184,4 +185,28 @@ export const updateTile = (x: number, y: number, tileId: number, symbol: string,
 
 export const clearMapGrid = () => {
   setMapGrid(reconcile(createInitialMapGrid()));
+};
+
+export const resetAllState = () => {
+  setMessages([]);
+  setStatus({
+    title: '',
+    gold: 0,
+    pw: 0,
+    pwMax: 0,
+    xp: 1,
+    ac: 10,
+    hunger: '',
+    hp: 0,
+    hpMax: 0,
+    dlvl: 'Dlvl:1',
+    condition: [],
+  });
+  setCursorPos(null);
+  setActivePrompt(null);
+  setActiveMenu(null);
+  setActiveTextModal(null);
+  setEngineState('RUNNING');
+  setGameOverResult(null);
+  clearMapGrid();
 };

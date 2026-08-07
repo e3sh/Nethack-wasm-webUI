@@ -3,14 +3,15 @@
     <div class="modal-content">
       <h3 class="modal-title">{{ activeMenu.prompt || 'Select Item' }}</h3>
 
-      <div class="menu-list">
+      <div class="menu-list" ref="menuListRef">
         <div
           v-for="(item, idx) in activeMenu.items"
           :key="idx"
           class="menu-item-row"
           :class="{ 
             'menu-header': item.isHeader,
-            'selected': selectedIndices.includes(idx)
+            'selected': selectedIndices.includes(idx),
+            'focused': focusedIndex === idx
           }"
           @click="handleItemClick(idx, item)"
         >
@@ -45,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
@@ -56,7 +57,9 @@ const { activeMenu } = storeToRefs(gameStore);
 const { respondMenu } = useNetHackDriver();
 
 const selectedIndices = ref<number[]>([]);
+const focusedIndex = ref<number>(-1);
 const isSubmitting = ref(false);
+const menuListRef = ref<HTMLElement | null>(null);
 let tileMapTable: Record<number, number> = {};
 
 onMounted(() => {
@@ -72,12 +75,14 @@ watch(activeMenu, (newVal) => {
   if (newVal) {
     selectedIndices.value = [];
     isSubmitting.value = false;
+    const firstSelectable = newVal.items.findIndex(it => !it.isHeader && (it.identifier !== undefined && it.identifier !== 0));
+    focusedIndex.value = firstSelectable >= 0 ? firstSelectable : -1;
   }
 });
 
 function getAccChar(item: any): string {
   if (item.isHeader) return '';
-  const ch = item.accelerator || item.ch;
+  const ch = item.accelerator !== undefined && item.accelerator !== 0 ? item.accelerator : item.ch;
   if (typeof ch === 'string' && ch !== '\x00') return ch;
   if (typeof ch === 'number' && ch > 0) return String.fromCharCode(ch);
   return '';
@@ -110,6 +115,7 @@ function safeRespondMenu(val: any) {
 
 function handleItemClick(idx: number, item: any) {
   if (item.isHeader || isSubmitting.value) return;
+  focusedIndex.value = idx;
   const how = activeMenu.value?.how ?? 1;
 
   if (how === 0) {
@@ -143,6 +149,9 @@ function confirmSelection() {
       (idx) => activeMenu.value!.items[idx]
     );
     safeRespondMenu(selectedItems);
+  } else if (focusedIndex.value >= 0 && !activeMenu.value.items[focusedIndex.value]?.isHeader) {
+    const item = activeMenu.value.items[focusedIndex.value];
+    safeRespondMenu([item]);
   } else {
     const validItem = activeMenu.value.items.find(
       (it: any) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
@@ -156,10 +165,49 @@ function cancelMenu() {
   safeRespondMenu(0);
 }
 
+function moveFocus(delta: number) {
+  if (!activeMenu.value || activeMenu.value.items.length === 0) return;
+  const items = activeMenu.value.items;
+  let nextIdx = focusedIndex.value + delta;
+
+  while (nextIdx >= 0 && nextIdx < items.length) {
+    if (!items[nextIdx].isHeader && items[nextIdx].identifier !== 0) {
+      focusedIndex.value = nextIdx;
+      scrollToFocused();
+      return;
+    }
+    nextIdx += delta;
+  }
+}
+
+function scrollToFocused() {
+  nextTick(() => {
+    if (!menuListRef.value) return;
+    const focusedEl = menuListRef.value.querySelector('.focused') as HTMLElement;
+    if (focusedEl) {
+      focusedEl.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
 function handleKeyDown(e: KeyboardEvent) {
   if (!activeMenu.value || isSubmitting.value) return;
 
-  if (e.key === 'Escape' || e.key === ' ' || (activeMenu.value.how === 0 && e.key === 'Enter')) {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    e.stopPropagation();
+    moveFocus(-1);
+    return;
+  }
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    e.stopPropagation();
+    moveFocus(1);
+    return;
+  }
+
+  if (e.key === 'Escape' || (activeMenu.value.how === 0 && (e.key === ' ' || e.key === 'Enter'))) {
     e.preventDefault();
     e.stopPropagation();
     cancelMenu();
@@ -173,18 +221,30 @@ function handleKeyDown(e: KeyboardEvent) {
     return;
   }
 
+  // アクセラレータキーのキーボード直接選択 (a-z, A-Z, 0-9 等)
   if (e.key.length === 1 && activeMenu.value.how !== 0) {
     const pressedKey = e.key;
-    const matchItem = activeMenu.value.items.find((it: any) => {
+    const pressedCode = e.key.charCodeAt(0);
+
+    const matchIdx = activeMenu.value.items.findIndex((it: any) => {
       if (it.isHeader) return false;
       const c = getAccChar(it);
-      return c === pressedKey;
+      if (c && c === pressedKey) return true;
+      if (c && c.toLowerCase() === pressedKey.toLowerCase()) return true;
+      if (typeof it.accelerator === 'number' && it.accelerator === pressedCode) return true;
+      return false;
     });
 
-    if (matchItem) {
+    if (matchIdx >= 0) {
       e.preventDefault();
       e.stopPropagation();
-      safeRespondMenu([matchItem]);
+      const matchItem = activeMenu.value.items[matchIdx];
+      const how = activeMenu.value.how ?? 1;
+      if (how === 1) {
+        safeRespondMenu([matchItem]);
+      } else {
+        handleItemClick(matchIdx, matchItem);
+      }
     }
   }
 }
@@ -245,11 +305,18 @@ function handleKeyDown(e: KeyboardEvent) {
   gap: 10px;
   color: #e0e0e0;
   font-family: monospace;
+  border: 1px solid transparent;
 }
 
 .menu-item-row:hover:not(.menu-header) {
   background: #0f3460;
   color: #ffffff;
+}
+
+.menu-item-row.focused:not(.menu-header) {
+  border-color: #4ecca3;
+  background: #162a45;
+  box-shadow: 0 0 5px rgba(78, 204, 163, 0.5);
 }
 
 .menu-item-row.selected {

@@ -5,6 +5,7 @@
   import { getTileMapping } from '../utils/tileMapping';
 
   let selectedIndices: number[] = [];
+  let focusedIndex: number = -1;
   let isSubmitting = false;
   let tileMapTable: Record<number, number> = {};
 
@@ -14,11 +15,13 @@
     selectedIndices = [];
     isSubmitting = false;
     tileMapTable = getTileMapping();
+    const firstSelectable = menu.items.findIndex((it) => !it.isHeader && (it.identifier !== undefined && it.identifier !== 0));
+    focusedIndex = firstSelectable >= 0 ? firstSelectable : -1;
   }
 
   function getAccChar(item: MenuItem): string {
     if (item.isHeader) return '';
-    const ch = item.accelerator || item.ch;
+    const ch = item.accelerator !== undefined && item.accelerator !== 0 ? item.accelerator : item.ch;
     if (typeof ch === 'string' && ch !== '\x00') return ch;
     if (typeof ch === 'number' && ch > 0) return String.fromCharCode(ch);
     return '';
@@ -51,6 +54,7 @@
 
   function handleItemClick(idx: number, item: MenuItem) {
     if (item.isHeader || isSubmitting) return;
+    focusedIndex = idx;
     const how = menu?.how ?? 1;
 
     if (how === 0) {
@@ -81,6 +85,9 @@
     if (selectedIndices.length > 0) {
       const selectedItems = selectedIndices.map((idx) => menu.items[idx]);
       safeRespondMenu(selectedItems);
+    } else if (focusedIndex >= 0 && !menu.items[focusedIndex]?.isHeader) {
+      const item = menu.items[focusedIndex];
+      safeRespondMenu([item]);
     } else {
       const validItem = menu.items.find(
         (it: MenuItem) => !it.isHeader && it.identifier !== undefined && it.identifier !== 0
@@ -94,10 +101,38 @@
     safeRespondMenu(0);
   }
 
+  function moveFocus(delta: number) {
+    if (!menu || menu.items.length === 0) return;
+    const items = menu.items;
+    let nextIdx = focusedIndex + delta;
+
+    while (nextIdx >= 0 && nextIdx < items.length) {
+      if (!items[nextIdx].isHeader && items[nextIdx].identifier !== 0) {
+        focusedIndex = nextIdx;
+        return;
+      }
+      nextIdx += delta;
+    }
+  }
+
   function handleKeyDown(e: KeyboardEvent) {
     if (!menu || isSubmitting) return;
 
-    if (e.key === 'Escape' || e.key === ' ' || (menu.how === 0 && e.key === 'Enter')) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFocus(-1);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFocus(1);
+      return;
+    }
+
+    if (e.key === 'Escape' || (menu.how === 0 && (e.key === ' ' || e.key === 'Enter'))) {
       e.preventDefault();
       e.stopPropagation();
       cancelMenu();
@@ -113,16 +148,27 @@
 
     if (e.key.length === 1 && menu.how !== 0) {
       const pressedKey = e.key;
-      const matchItem = menu.items.find((it: MenuItem) => {
+      const pressedCode = e.key.charCodeAt(0);
+
+      const matchIdx = menu.items.findIndex((it: MenuItem) => {
         if (it.isHeader) return false;
         const c = getAccChar(it);
-        return c === pressedKey;
+        if (c && c === pressedKey) return true;
+        if (c && c.toLowerCase() === pressedKey.toLowerCase()) return true;
+        if (typeof it.accelerator === 'number' && it.accelerator === pressedCode) return true;
+        return false;
       });
 
-      if (matchItem) {
+      if (matchIdx >= 0) {
         e.preventDefault();
         e.stopPropagation();
-        safeRespondMenu([matchItem]);
+        const matchItem = menu.items[matchIdx];
+        const how = menu.how ?? 1;
+        if (how === 1) {
+          safeRespondMenu([matchItem]);
+        } else {
+          handleItemClick(matchIdx, matchItem);
+        }
       }
     }
   }
@@ -148,6 +194,7 @@
           {@const accChar = getAccChar(item)}
           {@const tileStyle = getTileStyle(item)}
           {@const isSelected = selectedIndices.includes(idx)}
+          {@const isFocused = focusedIndex === idx}
 
           {#if item.isHeader || item.identifier === 0 || item.identifier === undefined}
             <div class="menu-item-row menu-header">
@@ -159,6 +206,7 @@
             <div
               class="menu-item-row"
               class:selected={isSelected}
+              class:focused={isFocused}
               on:click={() => handleItemClick(idx, item)}
             >
               {#if accChar}
@@ -190,3 +238,10 @@
     </div>
   </div>
 {/if}
+
+<style scoped>
+.menu-item-row.focused {
+  border: 1px solid #4ecca3;
+  background: #162a45;
+}
+</style>

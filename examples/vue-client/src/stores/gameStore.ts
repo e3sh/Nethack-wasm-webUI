@@ -83,6 +83,9 @@ export const useGameStore = defineStore('game', () => {
   const engineState = ref<'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER'>('IDLE');
   const detectedSaveName = ref<string | null>(null);
 
+  // 9. ゲームオーバー・スコアボード情報
+  const gameOverResult = ref<any | null>(null);
+
   // --- アクション ---
   function addMessage(text: string) {
     if (!text || text.trim() === '') return;
@@ -188,6 +191,32 @@ export const useGameStore = defineStore('game', () => {
     detectedSaveName.value = name;
   }
 
+  function setGameOverResult(result: any) {
+    gameOverResult.value = result;
+  }
+
+  function resetAllState() {
+    messages.value = [];
+    status.title = '';
+    status.gold = 0;
+    status.pw = 0;
+    status.pwMax = 0;
+    status.xp = 1;
+    status.ac = 10;
+    status.hunger = '';
+    status.hp = 0;
+    status.hpMax = 0;
+    status.dlvl = 'Dlvl:1';
+    status.condition = [];
+    cursorPos.value = null;
+    activePrompt.value = null;
+    activeMenu.value = null;
+    activeTextModal.value = null;
+    gameOverResult.value = null;
+    engineState.value = 'RUNNING';
+    clearMapGrid();
+  }
+
   return {
     messages,
     status,
@@ -198,6 +227,7 @@ export const useGameStore = defineStore('game', () => {
     activeTextModal,
     engineState,
     detectedSaveName,
+    gameOverResult,
     addMessage,
     updateStatus,
     updateTile,
@@ -208,5 +238,7 @@ export const useGameStore = defineStore('game', () => {
     setTextModal,
     setEngineState,
     setDetectedSaveName,
+    setGameOverResult,
+    resetAllState,
   };
 });

@@ -41,10 +41,19 @@ export class WebUICore {
 
         let isTranslateActive = options.translateEnabled;
         if (isTranslateActive === undefined && typeof localStorage !== 'undefined') {
-            const savedTr = localStorage.getItem("nh.translate") || localStorage.getItem("nh.translate_enabled");
-            if (savedTr !== null) {
-                isTranslateActive = savedTr === 'true' || savedTr === '1';
-            }
+            try {
+                const savedConfigStr = localStorage.getItem("nh.config");
+                if (savedConfigStr) {
+                    const savedConfig = JSON.parse(savedConfigStr);
+                    if (savedConfig) {
+                        if (savedConfig.lang !== undefined) {
+                            isTranslateActive = !!savedConfig.lang;
+                        } else if (savedConfig.translate_enabled !== undefined) {
+                            isTranslateActive = !!savedConfig.translate_enabled;
+                        }
+                    }
+                }
+            } catch (e) {}
         }
         if (isTranslateActive === undefined) {
             isTranslateActive = true;
@@ -154,12 +163,14 @@ export class WebUICore {
                 const targetInitParam = (typeof wasmJsUrl === 'string') ? wasmJsUrl : 
                                         ((typeof window !== 'undefined' && window.Module) ? window.Module : null);
 
-                const initArgs = hasSave ? 
-                    ['nethack', '-otime,showexp,showvers,number_pad'] : 
-                    ['nethack', '-otime,showexp,showvers,number_pad,askname'];
+                const initArgs = ['nethack', '-otime,showexp,showvers,number_pad'];
 
-                if (hasSave && detectedSaveName && detectedSaveName.trim().length > 0) {
-                    initArgs.push(`-u${detectedSaveName.trim()}`);
+                if (hasSave) {
+                    if (detectedSaveName && detectedSaveName.trim().length > 0) {
+                        initArgs.push(`-u${detectedSaveName.trim()}`);
+                    }
+                } else {
+                    initArgs.push('askname');
                 }
 
                 this.driver.init(targetInitParam, {

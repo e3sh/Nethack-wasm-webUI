@@ -45,14 +45,23 @@ core.destroy();
 
 | メソッド API | 返り値 | 説明 |
 | :--- | :--- | :--- |
-| `start(entryScript)` | `Promise<void>` | Wasm / VFS / タイルをロードし、ゲームエンジンを初期化・開始 |
+| `start(entryScript, options)` | `Promise<void>` | Wasm / VFS / タイルをロードし、ゲームエンジンを初期化・開始 |
 | `restart()` | `Promise<void>` | メモリ・ステータスを全リセットし、ブラウザリロードなしで再初期化スタート |
 | `destroy()` | `void` | インターバル・リスナー等のリソースを安全解放 |
 | `getState()` | `CoreState` | 現在の 8 段階 Lifecycle State を取得 |
-| `getStatus()` | `Object` | 最新の構造化ステータス（`hp`, `pw`, `ac`, `gold`, `dlevel`, `score`, `turns`, `stats`）を取得 |
-| `getHighScores()` | `Array<Object>` | `/save/record` や `/record` からパースされた Top 10 ランキング構造化配列を取得 |
-| `hasSaveData()` | `Promise<boolean>` | VFS または IndexedDB にセーブデータが存在するかチェック |
-| `sendKey(keyCode, shift, ctrl, alt, key)` | `void` | キー入力を C コアへ送信 |
+| `getStatus()` | `Object` | 最新の構造化ステータス（`hp`, `gold`, `dlevel`, `conditions`, `stats` 等）を取得 |
+| `detectSavedGameInfo()` | `Promise<Object>` | セーブデータの有無および検出されたプレイヤー名 (`{ hasSave, savePlayerName }`) を取得 |
+| `hasSaveData()` / `hasSaveDataAsync()` | `boolean` / `Promise<boolean>` | VFS または IndexedDB にセーブデータが存在するかチェック |
+| `deleteSaveData()` | `Promise<void>` | 既存セーブファイルを完全に削除 |
+| `clearAllStorage()` | `Promise<boolean>` | VFS および IndexedDB 内の全データをクリーンアップ |
+| `getHighScores()` / `getHighScoresAsync()` | `Array<Object>` / `Promise<Array>` | VFS からパースされた Top 10 ランキング構造化配列を取得 |
+| `resolveGameOver()` | `Promise<GameOverResult>` | ゲームオーバー/Wasm終了時の勝敗・死因・遺言を解析・返却 |
+| `translate(text)` | `string` | 指定したテキストを内蔵 `TranslationEngine` で動的翻訳 |
+| `lookupWord(word, pos)` | `string` | 品詞 (`noun` 等) を指定して名詞/単語辞書引きを実行 |
+| `getGlyphStyle(glyph, options)` | `Object` | 指定グリフ ID に対応する CSS スタイルオブジェクトを取得 |
+| `getGlyphHtml(glyph, options)` | `string` | 指定グリフ ID に対応する HTML スニペットを取得 |
+| `handleTouchPoint(pageX, pageY, rect, scrollX, scrollY)` | `void` | タッチタップ位置から 3x3/5x5 グリッドを判定し移動キーを送信 |
+| `sendKey(keyCode, shift, ctrl, alt, key)` | `void` | キー入力を C コアへ送信 (ASCIIコード・キーマップへ自動変換) |
 | `respond(value)` | `void` | メニュー選択・プロンプトへの回答応答を安全送信 |
 
 ---
@@ -61,14 +70,18 @@ core.destroy();
 
 | イベント名 | パラメータ | 用途・説明 |
 | :--- | :--- | :--- |
-| `print_glyph` | `{ x, y, glyph, ch, color, glyphInfo }` | マップセル単体の更新描画通知 |
-| `cursor` | `{ x, y, windowId }` | ターゲットカーソルのリアルタイム移動通知 |
-| `map_cleared` | `void` | 階層変更・マップ全消去通知 |
+| `stateChange` | `{ state, oldState }` | 8 段階 Lifecycle State の変化通知 |
+| `print_glyph` | `{ windowId, x, y, glyph, ch, color, glyphInfo }` | マップセル単体の更新描画通知 |
+| `cursor` | `{ x, y, windowId }` | ターゲットカーソル（ルックモード等）のリアルタイム移動通知 |
+| `clear_nhwindow` | `{ windowId }` | ウィンドウ描画領域のクリア命令通知 |
+| `map_cleared` | `void` | ダンジョン階層・分岐移動時のマップ全消去通知 |
 | `message` | `msgText` (String) | 日本語自動翻訳済みのゲームメッセージログ通知 |
-| `statusUpdate` | `{ field, value, status }` | ステータス変化通知 |
-| `inputRequired` | `payload` | メニュー表示・YNプロンプト・テキストプロンプト待機通知 |
+| `statusUpdate` | `{ field, value, change, color, allFields, status }` | ステータス変化および全構造化ステータス更新通知 |
+| `inputRequired` | `passThroughPayload` | メニュー表示・YNプロンプト・テキストプロンプト等の入力待機通知 |
 | `inputResolved` | `void` | 入力モーダル閉塞・解決通知 |
-| `exited` | `{ gameOverResult }` | ゲームオーバー・リザルト確定通知 |
+| `textWindowModal` | `{ lines, resolver, payload }` | 全画面ヘルプやスクロールテキスト等の表示要求通知 |
+| `gameOver` | `result` (`GameOverResult`) | 死因・勝敗・最終スコア確定時のリザルト通知 |
+| `exited` | `{ gameOverResult, ... }` | Wasm プロセス終了時の通知 |
 
 ---
 
