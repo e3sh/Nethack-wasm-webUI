@@ -239,7 +239,13 @@ class SoundManagerClass {
                 this.beepCore = new Beepcore();
             }
 
-            const candidatePaths = [
+            const isLegacyDirInSound = typeof window !== 'undefined' && window.location.pathname.includes('/examples/legacy-client/');
+            const candidatePaths = isLegacyDirInSound ? [
+                "../../sound_mapping.json",
+                "sound_mapping.json",
+                "../../../sound_mapping.json",
+                "/sound_mapping.json"
+            ] : [
                 "sound_mapping.json",
                 "../../sound_mapping.json",
                 "../../../sound_mapping.json",

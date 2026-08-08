@@ -20,8 +20,9 @@ async function main() {
 
     // Load Default Configurations from JSON with multi-path fallbacks
     try {
+        const isLegacyDirInMain = typeof window !== 'undefined' && window.location.pathname.includes('/examples/legacy-client/');
         const fetchConfig = async (url) => {
-            const prefixes = ["", "../../", "../", "examples/legacy-client/"];
+            const prefixes = isLegacyDirInMain ? ["../../", "", "../", "examples/legacy-client/"] : ["", "../../", "../", "examples/legacy-client/"];
             for (const prefix of prefixes) {
                 try {
                     const res = await fetch(prefix + url);

@@ -96,7 +96,9 @@ class mobileCurses extends DisplayDevice {
                     if (tileIdx >= 0) {
                         const tx = (tileIdx % this.tilesPerRow) * this.tileSize;
                         const ty = Math.floor(tileIdx / this.tilesPerRow) * this.tileSize;
-                        glyphSpan.style.backgroundImage = 'url("pict/nethack_default_32.png")';
+                        const isLegacyDir = typeof window !== 'undefined' && window.location.pathname.includes('/examples/legacy-client/');
+                        const tileImgPath = isLegacyDir ? '../../pict/nethack_default_32.png' : 'pict/nethack_default_32.png';
+                        glyphSpan.style.backgroundImage = `url("${tileImgPath}")`;
                         glyphSpan.style.backgroundRepeat = 'no-repeat';
                         glyphSpan.style.backgroundSize = `${this.tilesPerRow * 16}px auto`; // 16pxに縮小
                         glyphSpan.style.backgroundPosition = `-${tx / 2}px -${ty / 2}px`;

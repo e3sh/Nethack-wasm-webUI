@@ -425,7 +425,8 @@ class MobileDomClient {
                 cell.el.style.width = `${displaySize}px`;
                 cell.el.style.height = `${displaySize}px`;
                 cell.el.style.display = 'inline-block';
-                cell.el.style.backgroundImage = 'url("pict/nethack_default_32.png")';
+                const imgUrl = (this.options && this.options.tileImage) ? this.options.tileImage : 'pict/nethack_default_32.png';
+                cell.el.style.backgroundImage = `url("${imgUrl}")`;
                 cell.el.style.backgroundRepeat = 'no-repeat';
                 cell.el.style.backgroundSize = `${tilesPerRow * displaySize}px auto`; // 640px auto
                 cell.el.style.backgroundPosition = `-${tx / 2}px -${ty / 2}px`;
@@ -706,7 +707,8 @@ class MobileDomClient {
                     const origTileSize = 32;
                     const tx = (tileIdx % tilesPerRow) * origTileSize;
                     const ty = Math.floor(tileIdx / tilesPerRow) * origTileSize;
-                    tileStyle = `background-image: url("pict/nethack_default_32.png"); background-position: -${tx / 2}px -${ty / 2}px; background-size: 640px auto; width: 16px; height: 16px; display: inline-block; vertical-align: middle; margin-right: 6px; background-repeat: no-repeat;`;
+                    const imgUrl = (this.options && this.options.tileImage) ? this.options.tileImage : 'pict/nethack_default_32.png';
+                    tileStyle = `background-image: url("${imgUrl}"); background-position: -${tx / 2}px -${ty / 2}px; background-size: 640px auto; width: 16px; height: 16px; display: inline-block; vertical-align: middle; margin-right: 6px; background-repeat: no-repeat;`;
                 }
             }
 
