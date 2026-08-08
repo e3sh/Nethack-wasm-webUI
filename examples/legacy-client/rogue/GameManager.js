@@ -41,14 +41,76 @@ function GameManager(g) {
     this.inputContext = "NORMAL";
     this.inputChoices = "";
 
-    // --- NetHackWasmDriver / WorkerBridge Driver Binding ---
+    // --- NetHackWasmDriver / WebUICore Driver Binding ---
     this.bridge = null;
+    this.core = null;
     this.activeResolver = null;
     this.waitingForInput = false;
 
+    this.setCore = function (core) {
+        if (!core) return;
+        this.core = core;
+        this.bridge = core.driver;
+        this.bindCoreEvents(core);
+    };
+
     this.setBridge = function (bridge) {
+        if (!bridge) return;
         this.bridge = bridge;
         this.bindDriverEvents(bridge);
+    };
+
+    this.bindCoreEvents = function (core) {
+        if (!core) return;
+        const bridge = core.driver;
+        if (bridge) {
+            this.bindDriverEvents(bridge);
+        }
+
+        // WebUICore 固有のステータス更新を購読
+        core.on('statusUpdate', (status) => {
+            if (this.UI && this.UI.io && typeof this.UI.io.renderStatus === 'function') {
+                this.UI.io.renderStatus(status);
+            }
+        });
+
+        // WebUICore 固有の gameOver イベントを購読
+        core.on('gameOver', async (result) => {
+            this.playing = false;
+            console.log("[GameManager] WebUICore emitted gameOver event:", result);
+
+            if (!result) return;
+
+            if (result.isGameOver) {
+                const deathMsg = result.translatedDeathMessage || result.deathMessage || "Game Over";
+                this.UI.msg(deathMsg);
+
+                // 墓石・スコアデータを作成
+                const lastRec = result.lastRecord || {};
+                const gameOverData = {
+                    name: result.playerName || lastRec.name || (r && r.globalValiable ? r.globalValiable.playerName : "player") || "player",
+                    death: result.translatedDeath || result.death || lastRec.death || "died",
+                    points: result.finalScore !== undefined ? result.finalScore : (lastRec.points || 0),
+                    role: result.role || lastRec.role || "",
+                    deathLev: lastRec.deathLev || 1,
+                    maxHp: lastRec.maxHp || 1,
+                    ulevel: lastRec.ulevel || 1
+                };
+
+                const scoreboard = result.scoreboard || [];
+                if (typeof this.UI.showGameOverCanvas === 'function') {
+                    await this.UI.showGameOverCanvas(gameOverData, scoreboard);
+                } else if (typeof this.UI.showScoreboard === 'function') {
+                    await this.UI.showScoreboard(scoreboard);
+                }
+
+                // 入力（画面タップ/キー操作）完了後にリスタート
+                location.reload();
+            } else {
+                console.log("[GameManager] Game saved cleanly according to WebUICore.");
+                this.UI.msg("Game saved.");
+            }
+        });
     };
 
     this.bindDriverEvents = function (bridge) {
@@ -70,7 +132,12 @@ function GameManager(g) {
 
         bridge.on('exited', async ({ exitCode }) => {
             this.playing = false;
-            console.log(`[GameManager] Engine exited with code ${exitCode}. Checking save state for game over...`);
+            console.log(`[GameManager] Engine exited with code ${exitCode}.`);
+
+            // Core が設定されている場合は Core の gameOver イベントで一元処理するためスキップ
+            if (this.core) {
+                return;
+            }
 
             let hasSave = false;
             if (this.bridge && typeof this.bridge.autoDetectSavePlayerName === 'function') {
@@ -84,7 +151,7 @@ function GameManager(g) {
                 console.log("[GameManager] Game was saved cleanly.");
                 this.UI.msg("Game saved.");
             } else {
-                console.log("[GameManager] No save detected. Triggering game over (waitForReplay)...");
+                console.log("[GameManager] No save detected. Triggering game over...");
                 if (typeof this.waitForReplay === 'function') {
                     await this.waitForReplay();
                 } else {
@@ -381,8 +448,36 @@ function GameManager(g) {
             }
         });
 
+        let lastDlevelValue = undefined;
+
         bridge.on('status_update', ({ field, value, change, color }) => {
-            if (this.UI && this.UI.updateStatus) {
+            if (this.core && this.core.statusAccessor) {
+                this.core.statusAccessor.updateField(field, value);
+
+                // BL_DLEVEL (20) / BL_LEVELDESC (23) フィールドの明示的な値変更時のみ安全にマップ消去
+                if (field === 20 || field === 23) {
+                    if (lastDlevelValue !== undefined && lastDlevelValue !== value) {
+                        if (this.UI && typeof this.UI.nhClear === 'function') {
+                            this.UI.nhClear(3); // NHW_MAP
+                        }
+                        if (d && typeof d.DSP_MAIN !== 'undefined' && this.UI) {
+                            this.UI.wclear(d.DSP_MAIN);
+                            if (d.USE_GLYPH) {
+                                for (let i = 0; i < 25; i++) {
+                                    this.UI.wmove(d.DSP_MAIN, i, 0);
+                                    this.UI.waddstr(d.DSP_MAIN, "　".repeat(80));
+                                }
+                            }
+                            this.UI.wclear(d.DSP_MODE);
+                        }
+                    }
+                    lastDlevelValue = value;
+                }
+
+                if (this.UI && this.UI.io && typeof this.UI.io.renderStatus === 'function') {
+                    this.UI.io.renderStatus(this.core.getStatus());
+                }
+            } else if (this.UI && this.UI.updateStatus) {
                 this.UI.updateStatus(field, value, change, color);
             }
         });

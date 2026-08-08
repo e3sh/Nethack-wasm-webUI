@@ -166,7 +166,71 @@ function io(r, g) {
 		//debugStatus();
 	}
 
-	function renderStatus() {
+	this.renderStatus = function (statusObj) {
+		if (!statusObj) {
+			renderStatusLegacy();
+			return;
+		}
+
+		const dlvlText = statusObj.dlevel ? (statusObj.dlevel.text || `Dlvl:${statusObj.dlevel.level || 1}`) : "Dlvl:1";
+
+		const statusDsp = d.DSP_STATUS;
+		r.UI.wclear(statusDsp);
+
+		const hpCur = statusObj.hp ? statusObj.hp.current : 0;
+		const hpMax = statusObj.hp ? statusObj.hp.max : 0;
+		const pwCur = statusObj.pw ? statusObj.pw.current : 0;
+		const pwMax = statusObj.pw ? statusObj.pw.max : 0;
+
+		const goldAmount = statusObj.gold ? (statusObj.gold.amount !== undefined ? statusObj.gold.amount : 0) : 0;
+		const goldGlyphId = (statusObj.gold && statusObj.gold.glyphId) ? statusObj.gold.glyphId : 3886;
+		const glyphChar = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
+		const GOLD = `${glyphChar}${goldAmount}`;
+
+		const hpInd = warnIcon(hpCur, hpMax);
+		const enInd = warnIcon(pwCur, pwMax);
+
+		const hungerText = statusObj.hunger ? (r.UI.trancelate ? r.UI.trancelate.message(statusObj.hunger) : statusObj.hunger) : "";
+
+		let condText = "";
+		if (Array.isArray(statusObj.conditions)) {
+			condText = statusObj.conditions.map(c => r.UI.trancelate ? r.UI.trancelate.message(c) : c).join(" ");
+		} else if (typeof statusObj.conditions === 'string') {
+			condText = statusObj.conditions;
+		}
+
+		r.UI.setBarEffect(hpCur, hpMax);
+
+		const stats = statusObj.stats || {};
+		const strStr = stats.str || "--";
+		const dexStr = stats.dex !== undefined ? stats.dex : "--";
+		const conStr = stats.con !== undefined ? stats.con : "--";
+		const intStr = stats.int !== undefined ? stats.int : "--";
+		const wisStr = stats.wis !== undefined ? stats.wis : "--";
+		const chaStr = stats.cha !== undefined ? stats.cha : "--";
+
+		const titleStr = statusObj.title || "";
+		const turnsVal = statusObj.turns !== undefined ? statusObj.turns : 0;
+		const acVal = statusObj.ac !== undefined ? statusObj.ac : 10;
+
+		if (!d.SL_SIMPLE) {
+			r.UI.mvwaddstr(statusDsp, 0, 0,
+				`${titleStr} St:${strStr} Dx:${dexStr} Co:${conStr} In:${intStr} Wi:${wisStr} Ch:${chaStr}`
+			);
+			r.UI.mvwaddstr(statusDsp, 1, 0,
+				`$:${GOLD} ${hpInd}HP:${hpCur}(${hpMax}) ${enInd}Pw:${pwCur}(${pwMax}) AC:${acVal} T:${turnsVal} ${hungerText}`
+			);
+			r.UI.mvwaddstr(statusDsp, 2, 0,
+				`${dlvlText} ${condText}`
+			);
+		} else {
+			r.UI.mvwaddstr(statusDsp, 0, 0, `${titleStr}`);
+			r.UI.mvwaddstr(statusDsp, 1, 0, `${hpInd}HP:${hpCur}(${hpMax}) ${enInd}Pw:${pwCur}(${pwMax})`);
+			r.UI.mvwaddstr(statusDsp, 2, 0, `${dlvlText} ${hungerText} ${condText}`);
+		}
+	};
+
+	function renderStatusLegacy() {
 		const statusDsp = d.DSP_STATUS;
 		const s = d.STAT_FLD;
 		const sf = [];
@@ -178,10 +242,10 @@ function io(r, g) {
 			}
 		});
 
-		let splitwork = sf[s.GOLD].split(":");
-		const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883; // Default to gold piece if parsing fails
+		let splitwork = (sf[s.GOLD] || "0:0").split(":");
+		const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883;
 		const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
-		const GOLD = `${glyphId}${splitwork[1]}`;
+		const GOLD = `${glyphId}${splitwork[1] || "0"}`;
 
 		const hpInd = warnIcon(sf[s.HP], sf[s.HPMAX]);
 		const enInd = warnIcon(sf[s.ENE], sf[s.ENEMAX]);
@@ -211,7 +275,6 @@ function io(r, g) {
 			r.UI.mvwaddstr(statusDsp, 2, 0,
 				`${sf[s.DLEVEL]} ${hungerText} ${sf[s.CAP]} ${condText}`
 			);
-
 		}
 	};
 

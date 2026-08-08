@@ -1135,4 +1135,17 @@ function UIManager(r, g) {
             r.pendingInputResolve = handler;
         });
     };
+
+    /**
+     * WebUICore (GameOverResolver) のスコアボード配列を受け取って Canvas 上に表示
+     * @param {Array} topTen 
+     */
+    this.showScoreboard = function (topTen) {
+        const dummyData = {
+            name: (r && r.globalValiable && r.globalValiable.playerName) ? r.globalValiable.playerName : "player",
+            points: (topTen && topTen[0]) ? topTen[0].points : 0,
+            death: (topTen && topTen[0]) ? topTen[0].death : "died"
+        };
+        return this.showGameOverCanvas(dummyData, topTen);
+    };
 }

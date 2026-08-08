@@ -26,11 +26,17 @@ class sceneControl extends GameTask {
 			this.barEffect = new barEffect(g, 64, 384, 8 * 30, 16); //hpbar
 
 			let bridge = null;
-			if (typeof NetHackWasmWorkerBridge !== 'undefined') {
+			let core = null;
+			if (typeof window.WebUICore !== 'undefined' && typeof NetHackWasmWorkerBridge !== 'undefined') {
+				core = new window.WebUICore({ driver: new NetHackWasmWorkerBridge() });
+			} else if (typeof NetHackWasmWorkerBridge !== 'undefined') {
 				bridge = new NetHackWasmWorkerBridge();
 			}
+
 			const r = new GameManager(g);
-			if (bridge) {
+			if (core) {
+				r.setCore(core);
+			} else if (bridge) {
 				r.setBridge(bridge);
 			}
 			g.rogue = r;
