@@ -1,69 +1,55 @@
 # NetHack Wasm Driver - SolidJS + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/solid-client`) は、**`@nethack/wasm-driver`** を使用して構築された、SolidJS + TypeScript + Solid Signal / Store による爆速・軽量な WebUI アプリケーションです。
+本サンプルクライアント (`examples/solid-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、SolidJS + TypeScript + Solid Signal / Store による爆速・軽量な公式サンプルアプリケーションです。
 
-`examples/README.md` に定義された共通アーキテクチャ・設計基準に 100% 遵守して設計されており、キー入力競合対策・二重応答防止（SafeResolver）・Tile Mapping 2D Canvas 描画・各種モーダル制御などのノウハウが完全実装されています。
+SolidJS Signals (`createSignal` / `createStore`) による仮想 DOM なしのダイレクトリアクティビティ、`WebUICore` の構造化データダイレクトバインド、`sendKeyEvent` 統一キーマッパーを組み込んだ洗練された設計パターンを提示しています。
 
 ---
 
 ## 🎮 ライブデモ (Live Demo)
 
 - 🔗 **[SolidJS サンプルクライアントを今すぐ体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)**
-  *(※ GitHub Pages 公開時は `https://<username>.github.io/<repo>/examples/solid-client/dist/` にてそのまま 1 クリックで動作します)*
 
 ---
 
-## ✨ 主な機能
+## ✨ 主な機能 ＆ コンポーネント構成
 
-- **ハイブリッド 2D Canvas マップ (`MapCanvas.tsx`)**:
-  - `param/tileMapping.js` の正統スプライトマッピング (`nethack_default_32.png`) に対応。
-  - 未割り当てタイルや文字マスは 16 色 TTY カラーの monospace フォントでハイブリッド描画。
-  - 暗闇・未探知マス (`tileId === 0`) でのアリ描画を自動スキップし、漆黒のダンジョン表現を実現。
-  - `curs` イベントによるリアルタイムなプレイヤー位置・カーソル位置のシックなスリム枠線表示。
-- **堅牢なメッセージ & ステータスバー (`StatusBar.tsx`, `MessageLog.tsx`)**:
-  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL`) などをリアルタイム同期。
-  - C コア初期化時のノイズログフィルタリングおよび重複メッセージの自動排他カット。
-- **万能プロンプトハンドラ (`InputPrompt.tsx`)**:
-  - 文字列入力 (`askname`, `getlin`, `#extcmd`) に応じた安全な入力フォーム (+ ESC キャンセル)。
-  - Y/N 質問プロンプトの確定受容 (y/n/q ボタン & ダイレクトキー操作)。
-  - 例外的な質問文言（`"Do you want a tutorial?"` 等）を無表示・操作不能にならず自動吸収する安全フォールバック。
-- **インベントリ & メニューダイアログ (`MenuModal.tsx`)**:
-  - 選択肢アイテムのスプライト表示 & アクセラレータキー (a, b, c...) のクリック/直接打鍵。
-  - 閲覧専用メニュー (`how === 0`) やアイテムなしメニューの自動解放処理。
-- **長文閲覧用テキストモーダル (`TextWindowModal.tsx`)**:
-  - ヘルプファイル (`display_file`) や案内画面 (`display_nhwindow` >= 4) の閲覧モード。
+- **`useNetHackDriver.ts` (`NetHackDriverController`)**:
+  - `WebUICore` を管理する SolidJS 用コントローラー。キーイベント一括委譲 (`sendKeyEvent`)、非同期セーブ削除、安全なリスタートおよび状態同期を担当。
+- **`GameCanvas.tsx`**:
+  - 2D Canvas マップ描画コンポーネント。正統スプライトマッピング (`nethack_default_32.png`) と 16 色 TTY フォント描画に対応。
+- **`StatusBar.tsx`**:
+  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL` 構造化データ) 等のリアルタイムステータス表示。
+- **`InputPrompt.tsx` (第 2 サイクル極限スリム化済)**:
+  - `WebUICore` が生成する構造化プロパティ (`inputType`, `options`, `promptText`, `choicesHint`) をダイレクト参照し、手動パース全廃によりコード量を約 70% 削減した入力プロンプト。
+- **`MenuModal.tsx` / `TextWindowModal.tsx`**:
+  - インベントリ・装備アイテム選択メニューおよび閲覧専用テキスト（`lookupInformation` / ヘルプファイル）のモーダル表示。
+- **`GameOverModal.tsx`**:
+  - 死因・タイトルおよび Top 10 Hall of Fame スコアボードの表示。
 
 ---
 
 ## 🚀 起動 & ビルド方法
-
-### 依存パッケージのインストール
-`examples/solid-client` ディレクトリ内：
-```bash
-npm install
-```
 
 ### 開発用ローカルサーバーの起動 (Vite)
 `examples/solid-client` ディレクトリ内：
 ```bash
 npm run dev
 ```
-自動的に `http://localhost:3003/` が立ち上がり、ホットリロード対応の開発環境がブラウザで開きます。
 
-### スタンドアロン静的ビルド (GitHub Pages / Live Server 用)
+### スタンドアロンビルド
 ```bash
 npm run build
 ```
-ビルドが完了すると、`examples/solid-client/dist/` ディレクトリ内に **Wasm バイナリ・Worker スクリプト・画像データがすべて同梱された完全独立パッケージ** が生成されます。
-この `dist/` フォルダをそのまま Live Server で開いたり、GitHub Pages へ配備するだけで 100% 動作します。
+ビルド完了後、`examples/solid-client/dist/` ディレクトリ内に完全に自己完結した静的パッケージが生成されます。
 
 ---
 
-## 🏛️ 実装のツボ (SolidJS 特有の最適化)
+## 🏛️ アーキテクチャと標準機能
 
-1. **SolidJS Signals (`createSignal` / `createStore`) による爆速描画**:
-   - Virtual DOM を使用せず、変化したシグナル部分のみを直接 DOM 更新するため、極めて高い応答性と省メモリ性能を発揮。
-2. **SafeResolver ラッパーによる二重応答防止**:
-   - NetHack Worker コールバックからの `respond()` / `cancel()` の重複呼び出しを遮断し、ブラウザコンソール警告の発生を 100% 回避。
-3. **キーボード操作遮断ガード**:
-   - テキスト入力フォームフォーカス中、メニューモーダル表示中、テキスト表示モーダル表示中は、グローバル移動キー（矢印キー, hjkl）の Wasm 送信を 100% 遮断。
+`WebUICore` コアパッケージ側に以下の機能が標準搭載されているため、コンポーネント側は数行のダイレクトバインドのみで直観的に実装可能です：
+
+1. **GUI 構造化データパイプライン (`guiData`)**: `inputType` (`'CHOICE_BUTTONS'`, `'LINE_TEXT'`, `'DIRECTION'`, `'MENU'`) および各ボタン配列 (`options`) が自動生成されて届きます。
+2. **統一キーマッパー (`sendKeyEvent`)**: 生の `KeyboardEvent` を一括受容し、Ctrl/Alt 修飾キーや Arrow キーを標準 ASCII コードへ自動変換します。
+3. **SafeResolver (二重応答の自動ガード)**: ボタンクリックとキー入力が重複しても 2 回目以降は安全な no-op となります。
+4. **セーブ削除・リスタート API**: `deleteSaveFile()` およびクリーンリスタート処理に対応。

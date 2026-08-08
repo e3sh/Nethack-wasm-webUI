@@ -62,7 +62,7 @@ import { useNetHackDriver } from '../composables/useNetHackDriver';
 
 const gameStore = useGameStore();
 const { activePrompt } = storeToRefs(gameStore);
-const { respondPrompt } = useNetHackDriver();
+const { respondPrompt, cancelPrompt } = useNetHackDriver();
 
 const inputText = ref('');
 const inputRef = ref<HTMLInputElement | null>(null);
@@ -88,7 +88,7 @@ function submitText() {
 
 function cancelText() {
   inputText.value = '';
-  respondPrompt(27);
+  cancelPrompt();
 }
 </script>
 

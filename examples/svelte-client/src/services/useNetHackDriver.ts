@@ -20,6 +20,13 @@ export class NetHackDriverController {
   private core: any = null;
   private isInitialized = false;
 
+  public cancelPrompt = () => {
+    if (this.core) {
+      activePromptStore.set(null);
+      this.core.cancelPrompt();
+    }
+  };
+
   public respondPrompt = (value: any) => {
     if (this.core) {
       activePromptStore.set(null);
@@ -122,7 +129,7 @@ export class NetHackDriverController {
 
     this.core.on('textWindowModal', (payload: any) => {
       activeTextModalStore.set({
-        title: payload.payload?.rawPrompt || 'Information / Help',
+        title: payload.payload?.title || payload.title || payload.payload?.rawPrompt || 'Information / Help',
         lines: payload.lines || [],
         resolver: payload.resolver,
       });
@@ -178,27 +185,14 @@ export class NetHackDriverController {
     });
   }
 
-  public async restartGame() {
+  public async restartGame(options: { clearStorage?: boolean } = { clearStorage: true }) {
     resetAllState();
 
-    if (this.core) {
-      try {
-        if (typeof this.core.deleteSaveFile === 'function') {
-          await this.core.deleteSaveFile();
-        }
-      } catch (e) {
-        console.warn("Save clear on restart warning:", e);
-      }
+    if (this.core && typeof this.core.restart === 'function') {
+      await this.core.restart(options);
+    } else {
+      window.location.reload();
     }
-
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (e) {
-      console.warn("Storage clear warning:", e);
-    }
-
-    window.location.reload();
   }
 
   public destroy() {

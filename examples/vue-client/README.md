@@ -1,8 +1,8 @@
 # NetHack Wasm Driver - Vue 3 + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/vue-client`) は、**`@nethack/wasm-driver`** を使用して構築された、Vue 3 + TypeScript による公式サンプルアプリケーションです。
+本サンプルクライアント (`examples/vue-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、Vue 3 + TypeScript による公式サンプルアプリケーションです。
 
-Pinia による状態管理、TypeScript による型安全なイベント受容、Vue 3 Composition API と `@nethack/wasm-driver` の連携パターンを提示しています。
+Pinia による状態管理、TypeScript による型安全なイベント受容、Vue 3 Composition API と `WebUICore` の構造化データ・ダイレクトバインド設計パターンを提示しています。
 
 ---
 
@@ -14,16 +14,18 @@ Pinia による状態管理、TypeScript による型安全なイベント受容
 
 ## ✨ 主な機能 ＆ コンポーネント構成
 
-- **`useNetHackDriver.ts` (`driverController`)**:
-  - `NetHackWasmWorkerBridge` を管理する Singleton コントローラー。Vue 3 の Reactive Proxy 変換による Wasm レスポンダーの破損を完全に防止し、安全な通信インターフェースを提供。
-- **`MapCanvas.vue`**:
+- **`useNetHackDriver.ts` (`NetHackDriverController`)**:
+  - `WebUICore` を管理する Vue 3 用コントローラー。キーイベント一括委譲 (`sendKeyEvent`)、非同期セーブ削除、安全なリスタートおよび状態同期を担当。
+- **`GameCanvas.vue`**:
   - 2D Canvas マップ描画コンポーネント。正統スプライトマッピング (`nethack_default_32.png`) と 16 色 TTY フォント描画に対応。
 - **`StatusBar.vue`**:
   - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL` 構造化データ) 等のリアルタイムステータス表示。
-- **`InputPrompt.vue`**:
-  - `promptCategory` に応じた Yes/No ボタン・テキスト入力フォームおよびテンキー/ダイレクトキー受容。
+- **`InputPrompt.vue` (第 2 サイクル極限スリム化済)**:
+  - `WebUICore` が生成する構造化プロパティ (`inputType`, `options`, `promptText`, `choicesHint`) をダイレクト参照し、手動パース全廃によりコード量を約 70% 削減した入力プロンプト。
 - **`MenuModal.vue` / `TextWindowModal.vue`**:
-  - インベントリ・アイテム選択メニューおよび閲覧専用テキスト（`lookupInformation` / ヘルプファイル）のモーダル表示。
+  - インベントリ・装備アイテム選択メニューおよび閲覧専用テキスト（`lookupInformation` / ヘルプファイル）のモーダル表示。
+- **`GameOverModal.vue`**:
+  - 死因・タイトルおよび Top 10 Hall of Fame スコアボードの表示。
 
 ---
 
@@ -46,11 +48,11 @@ npm run build
 
 ---
 
-## 🏛️ アーキテクチャと安全機能
+## 🏛️ アーキテクチャと標準機能
 
-`@nethack/wasm-driver` コアパッケージ側に以下の安全機構が標準搭載されているため、UI 側で複雑なエラーハンドリングを記述する必要はありません：
+`WebUICore` コアパッケージ側に以下の機能が標準搭載されているため、コンポーネント側は数行のダイレクトバインドのみで直観的に実装可能です：
 
-1. **SafeResolver (二重応答の自動ガード)**: ボタンクリックとキー入力が重複しても 2 回目以降は安全な no-op となります。
-2. **unwrapPayload (Proxy ディープコピー解体)**: Vue 3 の State (Proxy) オブジェクトを Worker へ送る際、自動的にディープコピーアンラップされます。
-3. **promptCategory (構造化プロンプトタグ)**: `'YN'`, `'TEXT'`, `'MENU'`, `'KEY'`, `'FILE'` などのタグが自動付与されるため、UI 側はシンプルな条件分岐で実装可能です。
-4. **isUserPromptContext (コンテキスト保護)**: 非入力画面表示による入力待ちプロンプトの誤破棄を自動保護します。
+1. **GUI 構造化データパイプライン (`guiData`)**: `inputType` (`'CHOICE_BUTTONS'`, `'LINE_TEXT'`, `'DIRECTION'`, `'MENU'`) および各ボタン配列 (`options`) が自動生成されて届きます。
+2. **統一キーマッパー (`sendKeyEvent`)**: 生の `KeyboardEvent` を一括受容し、Ctrl/Alt 修飾キーや Arrow キーを標準 ASCII コードへ自動変換します。
+3. **SafeResolver (二重応答の自動ガード)**: ボタンクリックとキー入力が重複しても 2 回目以降は安全な no-op となります。
+4. **セーブ削除・リスタート API**: `deleteSaveFile()` およびクリーンリスタート処理に対応。

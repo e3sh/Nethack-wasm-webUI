@@ -69,8 +69,7 @@ class NetHackDriverController {
     });
 
     this.core.on('textWindowModal', (payload: any) => {
-      const rawP = payload.payload?.rawPrompt || payload.payload?.prompt || '';
-      const cleanTitle = (rawP && rawP.length < 40 && !rawP.includes('Press Space')) ? rawP : 'Information / Help';
+      const cleanTitle = payload.payload?.title || payload.title || payload.payload?.rawPrompt || 'Information / Help';
       gameStore.setTextModal({
         title: cleanTitle,
         lines: payload.lines || [],
@@ -96,7 +95,7 @@ class NetHackDriverController {
       // 2. ヘルプファイル閲覧モーダル (FILE カテゴリ専用)
       if (category === 'FILE') {
         gameStore.setTextModal({
-          title: payload.rawPrompt || prompt || 'Information / Help',
+          title: payload.title || payload.rawPrompt || prompt || 'Information / Help',
           lines: payload.lines || [],
           resolver: resolver,
         });
@@ -181,25 +180,23 @@ class NetHackDriverController {
     gameStore.addMessage('🗑️ セーブデータを完全物理削除しました。');
   }
 
-  public async restartGame() {
+  public async restartGame(options: { clearStorage?: boolean } = { clearStorage: true }) {
     const gameStore = useGameStore();
     gameStore.resetAllState();
 
-    try {
-      await this.deleteSaveFile();
-    } catch (e) {
-      console.warn("Save clear on restart warning:", e);
+    if (this.core && typeof this.core.restart === 'function') {
+      await this.core.restart(options);
+    } else {
+      window.location.reload();
     }
+  }
 
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (e) {
-      console.warn("Storage clear warning:", e);
+  public cancelPrompt() {
+    const gameStore = useGameStore();
+    gameStore.setPrompt(null);
+    if (this.core) {
+      this.core.cancelPrompt();
     }
-
-    // セーブデータ・キャッシュ・メモリを完全破棄してクリーン新規起動
-    window.location.reload();
   }
 
   public respondPrompt(value: any) {
@@ -241,7 +238,8 @@ export function useNetHackDriver() {
   return {
     isInitialized: driverController.isInitialized,
     deleteSaveFile: () => driverController.deleteSaveFile(),
-    restartGame: () => driverController.restartGame(),
+    restartGame: (options?: any) => driverController.restartGame(options),
+    cancelPrompt: () => driverController.cancelPrompt(),
     respondPrompt: (val: any) => driverController.respondPrompt(val),
     respondMenu: (val: any) => driverController.respondMenu(val),
     respondTextModal: (val: any = 0) => driverController.respondTextModal(val),

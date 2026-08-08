@@ -52,18 +52,26 @@ function GpadToKey(g) {
         return newKA;
     }
 
-    let buf;
-    if (Boolean(localStorage.getItem("nh.gpadAssign"))) {
-        buf = JSON.parse(localStorage.getItem("nh.gpadAssign"));
+    let buf = null;
+    try {
+        const raw = localStorage.getItem("nh.gpadAssign");
+        if (raw) buf = JSON.parse(raw);
+    } catch (e) {
+        buf = null;
     }
+
+    const isValidConfig = buf && typeof buf === 'object' && Boolean(buf.NORMAL);
+
     // Default Mapping Setting Resolution:
-    // 1. localStorage (buf)
+    // 1. localStorage (buf) - if valid
     // 2. game.gpadConfigDefault (from gpad_config_default.json)
     // 3. rogueDefines().GPAD_DEFAULT (fallback in code)
-    const KEYASSIGN = Boolean(buf) ? buf : (g.gpadConfigDefault || d.GPAD_DEFAULT);
+    const KEYASSIGN = isValidConfig ? buf : (g.gpadConfigDefault || d.GPAD_DEFAULT);
 
-    if (!Boolean(buf)) {
-        localStorage.setItem("nh.gpadAssign", JSON.stringify(KEYASSIGN));
+    if (!isValidConfig && KEYASSIGN) {
+        try {
+            localStorage.setItem("nh.gpadAssign", JSON.stringify(KEYASSIGN));
+        } catch (e) {}
     }
 
     const threshold = 0.5;
@@ -116,7 +124,7 @@ function GpadToKey(g) {
         let context = (g.rogue) ? g.rogue.inputContext : "NORMAL";
         let choices = (g.rogue) ? g.rogue.inputChoices : "";
 
-        let KA = (KEYASSIGN[mode]) ? KEYASSIGN[mode] : KEYASSIGN["NORMAL"];
+        let KA = (KEYASSIGN && KEYASSIGN[mode]) ? KEYASSIGN[mode] : ((KEYASSIGN && KEYASSIGN["NORMAL"]) ? KEYASSIGN["NORMAL"] : (d.GPAD_DEFAULT ? d.GPAD_DEFAULT["NORMAL"] : {}));
 
         if (mode === "NORMAL" && context !== "NORMAL") {
             KA = applyContextOverlay(KA, context, choices);

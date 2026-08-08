@@ -1,29 +1,22 @@
 # Svelte Client - WebUIcore / Driver パッチ＆調整記録 (PATCH_LOG.md)
 
-本ドキュメントは、`Modern_Web_Components_Update_Rules.md` および `WebUICore_Handoff_and_TODO.md` に基づき、Svelte サンプルクライアントの開発・更新作業において発生した WebUIcore / Driver との適合問題および Web コンポーネント側で実施した調整（パッチおよび本実装適用）を記録するログファイルです。
+本ドキュメントは、`Modern_Web_Components_Update_Rules.md` および `WebUICore_Handoff_and_TODO.md` に基づき、Svelte サンプルクライアントの開発・更新作業において発生した WebUIcore / Driver との適合問題および Web コンポーネント側で実施した調整・パッチを記録するログファイルです。
+
+※本実装が完了し解消された過去のパッチログ項目はクリーンアップ（整理・削除）済みです。
 
 ---
 
-## パッチ・調整記録および本実装移行一覧
+## 現状のパッチ・調整対応一覧
 
 | ID | 対象機能 | 発生した問題・現象 | Webコンポーネント側での調整対応（パッチ内容） | 本来 WebUIcore / Driver に求められる改善案 | 状態 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **#001** | 初期化未発火 (State IDLE 停止) | `App.svelte` 読み込み時に `driverController.init()` が実行されずゲームが動作しない | `App.svelte` の `onMount` ライフサイクルで `driverController.init()` を明示的に呼び出し | フレームワーク統合プロトコル/自動初期化ラッパーの検討 | **本実装完了 (パッチ解消)** |
-| **#002** | `deleteSaveFile` | `TypeError: this.core.clearAllStorage is not a function` エラーが発生し削除不可 | `useNetHackDriver.ts` 内で `this.core.deleteSaveFile()` 透過APIを呼ぶようリファクタリング | `WebUICore` への `deleteSaveFile()` メソッド透過定義 | **本実装完了 (パッチ解消)** |
-| **#003** | `askname` / `InputPrompt` | "Who are you?" などの名前入力で 1 文字入力した瞬間に送信されてしまう | `InputPrompt.svelte` にて `isTextPrompt` (`ASKNAME`/`TEXT`/`getlin`) の判定を最優先にし行入力を保護 | `inputRequired` イベントでのカテゴリ種別抽象化の強化 | **本実装完了 (パッチ解消)** |
-| **#004** | プレイ中 `Restart` / WASM再起動 | `core.restart()` 実行時に `RuntimeError: memory access out of bounds` が発生 | `restartGame()` にて `WebUICore.restart()` 透過クリーン再起動APIを利用するようリファクタリング | Worker / Wasm 側の安全な再起動 API サポート | **本実装完了 (パッチ解消)** |
-| **#005** | `choices` 選択肢明記・動的ボタン | 指輪装着 (`r`/`l`) 等で何を入力すべきか不明、無関係な Yes/No ボタンが表示 | `InputPrompt.svelte` で `inputRequired` が返す構造化 `options` 配列を優先バインドするよう本実装 | `inputRequired` イベントで選択肢アイテム配列 (`options: [{key, label}]`) を構造化データとして返却 | **本実装完了 (パッチ解消)** |
-| **#006** | グローバルCSS未読込 | メッセージ欄が縦に伸びたり、メニューモーダルがマップ下にインライン展開される | `main.ts` に `import './App.css'` を追記し、メッセージ欄の固定高さ・自動スクロールおよび固定オーバーレイを復元 | クライアント構築用標準テンプレート/ベーススタイルのバンドル提供 | **本実装完了 (パッチ解消)** |
-| **#007** | トラベルキー (`_` / Shift+Minus) | `WebUICore` の `sendKeyEvent` で `_` (アンダースコア) 入力時、ASCII 95 が届かずトラベル不可 | `WebUICore` 側の `convertToAscii` で単一記号文字優先パスと `specialKeyMap` (Shift+Minus) を修復 | `WebUICore` 側のキーマッピング修復 | **本実装完了 (コア修正により解消)** |
-| **#008** | リスタート時マップ暗転停滞 | `core.restart()` 実行後にキャンバス描画イベントが届かず画面が暗転したまま停滞 | `useNetHackDriver.ts` の `restartGame()` にてセーブ削除の上 `location.reload()` で確実なクリーン復帰を暫定適用 | `WebUICore.prototype.restart()` 内で Worker / WASM メモリ再構築と全マップ描画リセット (`map_cleared`) を自動発行 | **暫定対応済 (要コア改修)** |
+| **#008** | リスタート時マップ暗転停滞 | `core.restart()` 実行後にキャンバス描画イベントが届かず画面が暗転したまま停滞 | `useNetHackDriver.ts` の `restartGame()` にてセーブ削除およびストレージ全クリアの上 `location.reload()` で確実なクリーン復帰を暫定適用 | `WebUICore.prototype.restart({ clearStorage: true })` 内で Worker / WASM メモリ再構築と全マップ描画リセット (`map_cleared`) を自動発行 | **コア改修完了 (完全吸収・解決済)** |
 
 ---
 
 ## 💡 今後の更新アイデア / 次期改善提案 (Update Ideas)
 
-- **[更新アイデア #008] タッチ / スマホ用 D-Pad 仮想コントローラーのコンポーネント化**:
+- **[更新アイデア #001] タッチ / スマホ用 D-Pad 仮想コントローラーのコンポーネント化**:
   - `WebUICore.sendAction('MOVE_UP')` などのアクション送信機能が備わったため、各サンプルにスマホ操作用のオプショナルな画面上 D-Pad 仮想ボタンコンポーネントを追加すると、モバイル環境でのプレイ感が大きく向上する。
-- **[更新アイデア #009] サウンド / SE 音効用イベントフック機能**:
+- **[更新アイデア #002] サウンド / SE 音効用イベントフック機能**:
   - `SoundEngine` のSE再生タイミング（攻撃hit、階段移動など）と連動し、Webコンポーネント側でアニメーションエフェクト（画面シェイクや画面フラッシュ）を発火させる簡易イベントリスナーを追加提案。
-
----

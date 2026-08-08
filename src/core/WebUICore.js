@@ -16,6 +16,14 @@ import { GlyphHelper } from './renderers/GlyphHelper.js';
 import { KeyMapper } from './input/KeyMapper.js';
 import { PROMPT_CATEGORY } from './types.js';
 
+export const KEYS = {
+    ESC: 27,
+    ENTER: 13,
+    SPACE: 32,
+    BACKSPACE: 8,
+    TAB: 9
+};
+
 export const CoreState = {
     UNINITIALIZED: 'UNINITIALIZED',
     INITIALIZING: 'INITIALIZING',
@@ -332,6 +340,16 @@ export class WebUICore {
         this._initRenderer();
     }
 
+    /**
+     * アクティブなプロンプトを ESC (27) キーで安全にキャンセルする
+     * @returns {boolean} キャンセルが実行されたかどうか
+     */
+    cancelPrompt() {
+        if (!this.activeResolver) return false;
+        this.respond(KEYS.ESC);
+        return true;
+    }
+
     respond(inputVal) {
         if (!this.activeResolver) return;
 
@@ -569,6 +587,7 @@ export class WebUICore {
      * Worker / WASM のクリーン再起動 API
      *
      * @param {Object} [options] - 再起動オプション
+     * @param {boolean} [options.clearStorage=false] - true の場合のみ VFS セーブファイルおよびストレージを消去
      * @returns {Promise<boolean>}
      */
     async restart(options = {}) {
@@ -577,6 +596,21 @@ export class WebUICore {
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
         this.textWindowBuffers = {};
+        this.lastDlevel = undefined;
+        this.lastDlevelText = undefined;
+        this.statusAccessor = new StatusAccessor();
+
+        // clearStorage: true が明示された場合のみセーブデータ・ストレージを破棄
+        if (options.clearStorage === true) {
+            await this.deleteSaveData();
+        }
+
+        if (this.renderer && typeof this.renderer.clearMap === 'function') {
+            this.renderer.clearMap();
+        }
+
+        this.emit('map_cleared');
+        this.emit('inputResolved');
 
         if (this.driver && typeof this.driver.restart === 'function') {
             const success = await this.driver.restart(options);
@@ -674,8 +708,24 @@ export class WebUICore {
             ];
         }
 
+        let title = payload.title || '';
+        if (!title && rawPrompt) {
+            title = rawPrompt.replace(/\(?[P|p]ress\s+(?:[S|s]pace|[E|e]nter|[E|e]sc|[A|a]ny\s+key)[^)]*\)?/gi, '').trim();
+            title = title.replace(/^#/, '').trim();
+        }
+        if (!title || title.length > 50) {
+            if (category === PROMPT_CATEGORY.MENU) title = 'Menu';
+            else if (category === PROMPT_CATEGORY.FILE) title = payload.filename || 'Document';
+            else if (category === PROMPT_CATEGORY.YN) title = 'Choice';
+            else if (category === PROMPT_CATEGORY.TEXT) title = 'Input';
+            else title = 'Dialog';
+        }
+        const translatedTitle = this.translator ? this.translator.translate(title) : title;
+
         return {
             inputType: inputType,
+            title: translatedTitle,
+            rawTitle: title,
             promptText: payload.prompt || rawPrompt,
             rawPromptText: rawPrompt,
             choicesHint: choicesHint,
@@ -767,7 +817,10 @@ export class WebUICore {
         const handleMessageText = (rawText) => {
             if (!rawText) return;
             const translated = this.translator.translate(rawText);
-            this.sound.processLogMessage(translated);
+            const seEffect = this.sound.processLogMessage(translated);
+            if (seEffect) {
+                this.emit('soundEffect', seEffect);
+            }
             this.renderer.appendMessage(translated);
             this.emit('message', translated);
         };

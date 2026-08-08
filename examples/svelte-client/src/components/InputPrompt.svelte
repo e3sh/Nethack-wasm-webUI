@@ -25,7 +25,7 @@
 
   function cancelText() {
     inputText = '';
-    respondPrompt(27);
+    driverController.cancelPrompt();
   }
 </script>
 

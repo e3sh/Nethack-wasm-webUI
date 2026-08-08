@@ -99,9 +99,10 @@ export class SoundEngine {
      * Wasmからのメッセージログを受け取り、正規表現マッチした効果音を自動トリガー
      *
      * @param {string} text - メッセージテキスト
+     * @returns {Object|null} マッチしたルールオブジェクトまたは null
      */
     processLogMessage(text) {
-        if (this.soundMode === 'mute' || !text) return;
+        if (!text) return null;
 
         const now = Date.now();
 
@@ -114,10 +115,18 @@ export class SoundEngine {
             const regex = new RegExp(rule.pattern, 'i');
             if (regex.test(text)) {
                 if (rule.cooldownMs) this.cooldownMap.set(rule.id, now);
-                this.playSoundByRule(rule);
-                break; // 最初に一致したSEを再生
+                if (this.soundMode !== 'mute') {
+                    this.playSoundByRule(rule);
+                }
+                return {
+                    id: rule.id,
+                    sound: rule.sound,
+                    pattern: rule.pattern,
+                    matchedText: text
+                };
             }
         }
+        return null;
     }
 
     /**

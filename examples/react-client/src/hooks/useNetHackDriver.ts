@@ -93,7 +93,7 @@ export function useNetHackDriver() {
 
     core.on('textWindowModal', (payload: any) => {
       useGameStore.getState().setTextModal({
-        title: payload.payload?.rawPrompt || 'Information / Help',
+        title: payload.payload?.title || payload.title || payload.payload?.rawPrompt || 'Information / Help',
         lines: payload.lines || [],
         resolver: payload.resolver,
       });
@@ -149,28 +149,24 @@ export function useNetHackDriver() {
     return isInitializingPromise;
   }, []);
 
-  const restartGame = useCallback(async () => {
+  const cancelPrompt = useCallback(() => {
+    if (globalCore) {
+      useGameStore.getState().setPrompt(null);
+      globalCore.cancelPrompt();
+    }
+  }, []);
+
+  const restartGame = useCallback(async (options?: { clearStorage?: boolean }) => {
     const store = useGameStore.getState();
     store.resetAllState();
 
-    if (globalCore) {
-      try {
-        if (typeof globalCore.deleteSaveFile === 'function') {
-          await globalCore.deleteSaveFile();
-        }
-      } catch (e) {
-        console.warn("Save clear on restart warning:", e);
-      }
-    }
+    const opts = (options && typeof options === 'object' && ('clearStorage' in options)) ? options : { clearStorage: true };
 
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (e) {
-      console.warn("Storage clear warning:", e);
+    if (globalCore && typeof globalCore.restart === 'function') {
+      await globalCore.restart(opts);
+    } else {
+      window.location.reload();
     }
-
-    window.location.reload();
   }, []);
 
   const handleGlobalKeyDown = useCallback((e: KeyboardEvent) => {
@@ -206,6 +202,7 @@ export function useNetHackDriver() {
     isInitialized,
     deleteSaveFile,
     restartGame,
+    cancelPrompt,
     respondPrompt,
     respondMenu,
   };

@@ -259,8 +259,17 @@ class DriverDomTestClient {
         };
 
         if (this.driver) {
-            if (typeof this.driver.autoDetectSavePlayerName === 'function') {
-                this.driver.autoDetectSavePlayerName().then(saveName => {
+            if (typeof this.driver.autoDetectSavePlayerNameAsync === 'function') {
+                this.driver.autoDetectSavePlayerNameAsync().then(saveName => {
+                    applySaveBadge(saveName);
+                }).catch(err => {
+                    console.warn("Failed to detect save name:", err);
+                    applySaveBadge("");
+                });
+                return;
+            } else if (typeof this.driver.autoDetectSavePlayerName === 'function') {
+                const res = this.driver.autoDetectSavePlayerName();
+                Promise.resolve(res).then(saveName => {
                     applySaveBadge(saveName);
                 }).catch(err => {
                     console.warn("Failed to detect save name:", err);

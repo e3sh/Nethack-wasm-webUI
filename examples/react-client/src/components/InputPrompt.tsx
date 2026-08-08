@@ -4,7 +4,7 @@ import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 export const InputPrompt: React.FC = () => {
   const activePrompt = useGameStore((state) => state.activePrompt);
-  const { respondPrompt } = useNetHackDriver();
+  const { respondPrompt, cancelPrompt } = useNetHackDriver();
 
   const [inputText, setInputText] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -28,7 +28,7 @@ export const InputPrompt: React.FC = () => {
 
   const cancelText = () => {
     setInputText('');
-    respondPrompt(27);
+    cancelPrompt();
   };
 
   if (!activePrompt) {

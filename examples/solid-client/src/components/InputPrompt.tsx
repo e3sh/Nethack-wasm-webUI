@@ -18,7 +18,7 @@ export const InputPrompt: Component = () => {
 
   const cancelText = () => {
     setInputText('');
-    driverController.respondPrompt(27);
+    driverController.cancelPrompt();
   };
 
   return (

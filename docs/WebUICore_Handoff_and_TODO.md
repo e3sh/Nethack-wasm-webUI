@@ -87,8 +87,20 @@
 ### 【タスク 8】`restart()` 実行時の Worker / WASM 完全再構築と `map_cleared` 自動発行
 - **概要**: ゲームオーバー後や任意タイトルの「🔄 Restart Game」実行時、`core.restart()` を呼び出しても Worker / WASM メモリ上の状態が完全リセットされず、初期マップのクリア・全描画イベント (`map_cleared` / `print_glyph`) が発火せず画面が真っ暗なまま停滞する現象。
 - **改修仕様**:
-  - `WebUICore.prototype.restart()` 内で Worker スレッドの完全再インスタンス化および `map_cleared` イベントの自律的自動発行を実装。
-- **効果**: クライアント側で `location.reload()` に頼らず、`core.restart()` 一発で瞬時にクリーンな新ゲームへ画面描画付きで移行できるようになる。
+  - `WebUICore.prototype.restart({ clearStorage: true })` 内で Worker スレッドの完全再インスタンス化、VFS セーブ削除、ストレージ全クリア、および `map_cleared` イベントの自律的自動発行を実装。
+- **効果**: クライアント側で `location.reload()` や `localStorage.clear()` に頼らず、`core.restart({ clearStorage: true })` 一発で瞬時にクリーンな新ゲームへ画面描画付きで移行できるようになる。
+
+### 【タスク 9】`cancelPrompt()` キャンセル専用 API / キー定数の提供 (`#E-002`)
+- **改修仕様**: `WebUICore.prototype.cancelPrompt()` または `WebUICore.KEYS.ESC` を提供し、UI 側での ASCII マジックナンバー `27` 直送信を全廃。
+
+### 【タスク 10】`textWindowModal` タイトル自動整形 ＆ 保証 (`#E-003`)
+- **改修仕様**: `WebUICore` 側で "Press Space" 等の不必要な文字を判定・クレンジングし、整形済み `title` プロパティをイベント時に提供。
+
+### 【タスク 11】`GameOverResolver` プロパティ名 `deathMessage` 一体統一 (`#E-004`)
+- **改修仕様**: 死因文字列プロパティを `deathMessage` (翻訳済) に完全一元化し、UI 側の多重フォールバック参照を排斥。
+
+### 【タスク 12】`guiData.options` アクセラレータ一文字 `charStr` 100% 保証 (`#E-005`)
+- **改修仕様**: メニュー用 `options` 配列の全項目で表示用一文字 `charStr` (`'a'`, `'b'` 等) を保証し、UI 側での文字コード変換 (`String.fromCharCode`) を不要化。
 
 ---
 
