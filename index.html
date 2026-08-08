@@ -397,24 +397,40 @@
         <!-- Main Game Modes -->
         <main>
             <div class="play-modes">
-                <!-- Desktop / Canvas Mode -->
-                <a href="game.html" class="mode-card desktop" id="card-play-desktop">
+                <!-- Pure JS / WebUIcore Mode (New Standard) -->
+                <a href="examples/pure-js-client/index.html" class="mode-card desktop" id="card-play-purejs">
+                    <div>
+                        <div class="mode-icon">🚀</div>
+                        <div class="mode-header">
+                            <span class="mode-title" id="txt-purejs-title">Pure JS Client</span>
+                            <span class="mode-tag" id="txt-purejs-tag">WebUIcore 標準</span>
+                        </div>
+                        <p class="mode-desc" id="txt-purejs-desc">共通コア WebUIcore による軽量・フレームワークフリーの最新標準リファレンスクライアント。</p>
+                    </div>
+                    <button class="btn-launch" id="btn-play-purejs">
+                        <span id="txt-purejs-btn">PURE JS START</span>
+                        <span>→</span>
+                    </button>
+                </a>
+
+                <!-- Desktop / Legacy Mode -->
+                <a href="examples/legacy-client/game.html" class="mode-card desktop" id="card-play-desktop" style="background: rgba(22, 27, 34, 0.5);">
                     <div>
                         <div class="mode-icon">⚔️</div>
                         <div class="mode-header">
-                            <span class="mode-title" id="txt-desktop-title">Desktop Mode</span>
-                            <span class="mode-tag" id="txt-desktop-tag">Canvas 描画</span>
+                            <span class="mode-title" id="txt-desktop-title">Legacy Desktop</span>
+                            <span class="mode-tag" id="txt-desktop-tag">Legacy Canvas</span>
                         </div>
-                        <p class="mode-desc" id="txt-desktop-desc">キーボードやゲームパッド操作に最適化。グラフィックタイル＆日本語表示の標準プレイ環境。</p>
+                        <p class="mode-desc" id="txt-desktop-desc">初期プロトタイプ版 Canvas 描画クライアント（レガシー動作参照用）。</p>
                     </div>
-                    <button class="btn-launch" id="btn-play-desktop">
-                        <span id="txt-desktop-btn">GAME START</span>
+                    <button class="btn-launch" id="btn-play-desktop" style="background: #475569; color: #fff;">
+                        <span id="txt-desktop-btn">LEGACY START</span>
                         <span>→</span>
                     </button>
                 </a>
 
                 <!-- Mobile / DOM Mode -->
-                <a href="mobile.html" class="mode-card mobile" id="card-play-mobile">
+                <a href="examples/legacy-client/mobile.html" class="mode-card mobile" id="card-play-mobile">
                     <div>
                         <div class="mode-icon">📱</div>
                         <div class="mode-header">
@@ -432,11 +448,11 @@
 
             <!-- Sub Actions (Config & Save Data) -->
             <div class="sub-actions">
-                <a href="config.html" class="btn-sub" id="link-config">
+                <a href="tools/config.html" class="btn-sub" id="link-config">
                     <span>⚙️</span>
                     <span id="txt-config-btn">システム設定</span>
                 </a>
-                <a href="save_manager.html" class="btn-sub" id="link-save-mgr">
+                <a href="tools/save_manager.html" class="btn-sub" id="link-save-mgr">
                     <span>💾</span>
                     <span id="txt-save-mgr-btn">セーブデータ管理</span>
                 </a>
@@ -449,12 +465,14 @@
                     <span id="txt-dev-tools-title">開発者・カスタマイズツール</span>
                 </div>
                 <div class="tools-grid">
-                    <a href="tr_fail.html" class="tool-link-item" id="link-tr-fail" target="_blank">未翻訳リスト</a>
-                    <a href="tr_manager.html" class="tool-link-item" id="link-tr-manager" target="_blank">翻訳管理</a>
-                    <a href="tr_test.html" class="tool-link-item" id="link-tr-test" target="_blank">Trans Tester</a>
-                    <a href="tile_test.html" class="tool-link-item" id="link-tile-test" target="_blank">Tile Mapping</a>
-                    <a href="rogue/mapping_tool.html" class="tool-link-item" id="link-gp-mapping" target="_blank">GP Mapping</a>
-                    <a href="rogue/touch_mapping_tool.html" class="tool-link-item" id="link-touch-mapping" target="_blank">Touch Mapping</a>
+                    <a href="tools/cltest.html" class="tool-link-item" id="link-cltest" target="_blank" style="color: var(--accent-green); font-weight: 700;">🧪 全クライアントテスト (cltest)</a>
+                    <a href="tools/tr_fail.html" class="tool-link-item" id="link-tr-fail" target="_blank">未翻訳リスト</a>
+                    <a href="tools/tr_manager.html" class="tool-link-item" id="link-tr-manager" target="_blank">翻訳管理</a>
+                    <a href="tools/tr_test.html" class="tool-link-item" id="link-tr-test" target="_blank">Trans Tester</a>
+                    <a href="tests/tile_test.html" class="tool-link-item" id="link-tile-test" target="_blank">Tile Mapping</a>
+                    <a href="tests/sound_test.html" class="tool-link-item" id="link-sound-test" target="_blank">Sound Tester</a>
+                    <a href="examples/legacy-client/rogue/mapping_tool.html" class="tool-link-item" id="link-gp-mapping" target="_blank">GP Mapping</a>
+                    <a href="examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link-item" id="link-touch-mapping" target="_blank">Touch Mapping</a>
                 </div>
             </section>
         </main>
@@ -486,6 +504,7 @@
                 configBtn: "システム設定",
                 saveMgrBtn: "セーブデータ管理",
                 devToolsTitle: "開発者・カスタマイズツール",
+                linkClTest: "🧪 全クライアントテスト (cltest)",
                 linkTrFail: "未翻訳リスト",
                 linkTrManager: "翻訳管理",
                 linkTrTest: "Trans Tester",
@@ -505,6 +524,7 @@
                 configBtn: "System Configuration",
                 saveMgrBtn: "Save Data Manager",
                 devToolsTitle: "Developer Tools",
+                linkClTest: "🧪 All Clients Test (cltest)",
                 linkTrFail: "Untranslated List",
                 linkTrManager: "Translation Manager",
                 linkTrTest: "Trans Tester",
@@ -546,6 +566,7 @@
             document.getElementById("txt-config-btn").textContent = t.configBtn;
             document.getElementById("txt-save-mgr-btn").textContent = t.saveMgrBtn;
             document.getElementById("txt-dev-tools-title").textContent = t.devToolsTitle;
+            if (document.getElementById("link-cltest")) document.getElementById("link-cltest").textContent = t.linkClTest;
             document.getElementById("link-tr-fail").textContent = t.linkTrFail;
             document.getElementById("link-tr-manager").textContent = t.linkTrManager;
             document.getElementById("link-tr-test").textContent = t.linkTrTest;

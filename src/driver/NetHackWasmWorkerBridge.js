@@ -20,10 +20,28 @@
             this.listeners = new Map();
             this.options = options;
             this.state = NetHackWasmWorkerBridge.DriverState.IDLE;
-            this.workerUrl = workerUrl || 'src/driver/nethack.worker.js';
             this._activeResolver = null;
 
-            this.worker = new Worker(this.workerUrl);
+            if (!workerUrl && typeof window !== 'undefined') {
+                const path = window.location.pathname;
+                if (path.includes('/examples/legacy-client/') || path.includes('/examples/pure-js-client/')) {
+                    this.workerUrl = '../../src/driver/nethack.worker.js';
+                } else if (path.includes('/examples/') || path.includes('/tests/') || path.includes('/tools/')) {
+                    this.workerUrl = '../src/driver/nethack.worker.js';
+                } else {
+                    this.workerUrl = 'src/driver/nethack.worker.js';
+                }
+            } else {
+                this.workerUrl = workerUrl || 'src/driver/nethack.worker.js';
+            }
+
+            try {
+                this.worker = new Worker(this.workerUrl);
+            } catch (e) {
+                console.warn(`[NetHackWasmWorkerBridge] Initial worker url (${this.workerUrl}) failed, trying fallback...`, e);
+                this.workerUrl = '../../src/driver/nethack.worker.js';
+                this.worker = new Worker(this.workerUrl);
+            }
             this.setupWorkerListener();
         }
 

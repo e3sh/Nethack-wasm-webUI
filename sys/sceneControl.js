@@ -27,7 +27,7 @@ class sceneControl extends GameTask {
 
 			let bridge = null;
 			if (typeof NetHackWasmWorkerBridge !== 'undefined') {
-				bridge = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
+				bridge = new NetHackWasmWorkerBridge();
 			}
 			const r = new GameManager(g);
 			if (bridge) {

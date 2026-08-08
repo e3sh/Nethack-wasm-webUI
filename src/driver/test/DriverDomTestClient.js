@@ -20,7 +20,7 @@ class DriverDomTestClient {
             dialogOverlayId: 'dialog-overlay',
             usernameInputId: 'username-input',
             useTiles: true,
-            tileImage: 'pict/nethack_default_32.png',
+            tileImage: '../pict/nethack_default_32.png',
             tileSize: 16
         }, options);
 
@@ -473,7 +473,7 @@ class DriverDomTestClient {
         const tx = (tileIdx % tilesPerRow) * origTileSize;
         const ty = Math.floor(tileIdx / tilesPerRow) * origTileSize;
 
-        const imgUrl = (this.options && this.options.tileImage) ? this.options.tileImage : 'pict/nethack_default_32.png';
+        const imgUrl = (this.options && this.options.tileImage) ? this.options.tileImage : '../pict/nethack_default_32.png';
         const posX = -(tx / 2);
         const posY = -(ty / 2);
         return `display: inline-block !important; flex-shrink: 0 !important; width: 16px !important; height: 16px !important; min-width: 16px !important; min-height: 16px !important; vertical-align: middle !important; background-image: url(${imgUrl}) !important; background-position: ${posX}px ${posY}px !important; background-size: 640px auto !important; image-rendering: pixelated !important; margin-right: 6px !important; background-repeat: no-repeat !important; box-sizing: border-box !important;`;

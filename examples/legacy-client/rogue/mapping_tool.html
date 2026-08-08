@@ -530,17 +530,35 @@
         &copy; 2026 GpadToKey Utility - Designed for NetHack Players
     </footer>
 
-    <script src="../param/rogueDefines.js" type="text/javascript"></script>
+    <script src="../../../param/rogueDefines.js" type="text/javascript"></script>
+    <script>
+        // Fallback for script load if rogueDefines is not found at ../../../param/
+        if (typeof rogueDefines === 'undefined') {
+            document.write('<script src="../param/rogueDefines.js"><\/script>');
+        }
+    </script>
     <script>
         // --- Constants & Defaults ---
-        const d = rogueDefines();
-        let DEFAULT_ASSIGN = d.GPAD_DEFAULT;
+        const d = typeof rogueDefines === 'function' ? rogueDefines() : {};
+        let DEFAULT_ASSIGN = d.GPAD_DEFAULT || {};
 
         // Attempt to load external JSON default
         async function loadExternalDefault() {
             try {
-                const res = await fetch("../param/gpad_config_default.json");
-                if (res.ok) {
+                const candidatePaths = [
+                    "../../../param/gpad_config_default.json",
+                    "../../param/gpad_config_default.json",
+                    "../param/gpad_config_default.json",
+                    "/param/gpad_config_default.json"
+                ];
+                let res = null;
+                for (const cp of candidatePaths) {
+                    try {
+                        const r = await fetch(cp);
+                        if (r.ok) { res = r; break; }
+                    } catch (e) {}
+                }
+                if (res && res.ok) {
                     const json = await res.json();
                     DEFAULT_ASSIGN = json;
                     console.log("External default loaded:", DEFAULT_ASSIGN);
@@ -551,7 +569,7 @@
                     }
                 }
             } catch (e) {
-                console.warn("External default not found, using fallback from rogueDefines.js");
+                console.warn("Could not load external json default, using fallback:", e);
             }
         }
         loadExternalDefault();

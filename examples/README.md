@@ -23,6 +23,7 @@
 
 | ディレクトリ | フレームワーク / 技術スタック | 状態 | ライブデモ | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
+| **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | **【標準リファレンス】** | - | フレームワーク非依存の `WebUICore` 直用軽量クライアント |
 | **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
 | **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
 | **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |

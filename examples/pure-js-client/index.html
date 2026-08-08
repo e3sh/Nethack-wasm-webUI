@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetHack Wasm WebUI - Pure JS Reference Client</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- 1. ヘッダーエリア (HeaderPanel) -->
+    <header class="header-panel">
+      <div class="brand">
+        <span class="logo-icon">⚔️</span>
+        <span class="title">NetHack Wasm <small>Pure JS Client</small></span>
+      </div>
+      <div class="quick-actions">
+        <button id="btn-toggle-view" class="btn btn-secondary">ビュー切替: 🎨 Graphic Canvas</button>
+      </div>
+      <div class="controls">
+        <button id="btn-restart" class="btn btn-secondary">🔄 Restart</button>
+        <button id="btn-delete-save" class="btn btn-danger">🗑️ Delete Save</button>
+      </div>
+    </header>
+
+    <!-- 2. メインゲームビュー (game-view) -->
+    <main class="game-view">
+      <!-- メッセージログエリア (MessageLog) -->
+      <div id="message-log" class="message-log"></div>
+
+      <!-- ダンジョンマップエリア (GameCanvas & ASCII Grid & オーバーレイ) -->
+      <section class="game-viewport">
+        <!-- ローディングオーバーレイ -->
+        <div id="loading-overlay" class="overlay">
+          <div id="loading-spinner-box" class="spinner-box">
+            <div class="spinner"></div>
+            <p id="loading-text">Initializing NetHack Core Engine...</p>
+          </div>
+          <!-- セーブデータ存在時の選択ダイアログ -->
+          <div id="start-selector-card" class="selector-card hidden">
+            <h3>💾 Save Data Found</h3>
+            <p>Player: <strong id="start-save-name">Hero</strong></p>
+            <div class="selector-buttons">
+              <button id="btn-start-resume" class="btn btn-primary btn-large">▶️ Continue Game</button>
+              <button id="btn-start-new" class="btn btn-danger">⚠️ New Game (Delete Save)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 描画用 2D Graphic Canvas -->
+        <canvas id="game-canvas" width="1280" height="336"></canvas>
+
+        <!-- 描画用 80x24 Color ASCII Grid -->
+        <div id="ascii-grid" class="ascii-grid hidden"></div>
+      </section>
+
+      <!-- 横型ステータスバー (StatusBar) -->
+      <div class="status-bar">
+        <div class="status-main">
+          <span id="st-name" class="st-item title">Hero</span>
+          <span id="st-dlvl" class="st-item dlvl">Dlvl:1</span>
+          <span id="st-hp" class="st-item hp">HP:0(0)</span>
+          <span id="st-pw" class="st-item pw">Pw:0(0)</span>
+          <span id="st-ac" class="st-item ac">AC:10</span>
+          <span id="st-gold" class="st-item gold">💰 0</span>
+        </div>
+        <div id="status-badges" class="status-badges">
+          <span id="st-cond" class="badge cond-badge hidden">Normal</span>
+        </div>
+      </div>
+
+      <!-- プロンプト入力バー (PromptModal) -->
+      <div id="prompt-bar" class="prompt-bar hidden">
+        <div id="prompt-text" class="prompt-text"></div>
+        <div id="input-controls" class="input-controls"></div>
+      </div>
+    </main>
+
+    <!-- モード別 モーダル表示部 (MenuModal) -->
+    <div id="menu-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h3 id="menu-title">Select Item</h3>
+        <div id="menu-items-container" class="menu-list"></div>
+        <div class="modal-footer">
+          <button id="btn-cancel-menu" class="btn btn-secondary">Cancel (ESC / 0)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over / Record Modal (GameOverModal) -->
+    <div id="gameover-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large">
+        <h2 id="gameover-title">💀 GAME OVER</h2>
+        <div id="gameover-summary" class="gameover-summary"></div>
+        
+        <div class="scoreboard-section">
+          <h3>🏆 Top 10 High Scores</h3>
+          <div id="gameover-scoreboard" class="scoreboard-container"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-gameover-restart" class="btn btn-primary btn-large">🔄 Restart Game</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parameter Scripts -->
+  <script src="../../param/tileMapping.js"></script>
+  <script src="../../param/nhMessage.js"></script>
+
+  <!-- ESM Main Controller -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

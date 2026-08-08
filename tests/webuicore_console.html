@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebUICore 専用デバッグコンソール (WebUICore Debug Console)</title>
-    <script src="./param/tileMapping.js"></script>
-    <script src="./param/nhMessage.js"></script>
+    <script src="../param/tileMapping.js"></script>
+    <script src="../param/nhMessage.js"></script>
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -229,7 +229,7 @@
         // 1. Core & Driver
         const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
         let useCanvas = true;
-        let renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+        let renderer = new CanvasRenderer(canvas, { tileImage: '../pict/nethack_default_32.png', tileSize: 32 });
 
         const core = new WebUICore({
             driver: driver,
@@ -340,7 +340,7 @@
         btnToggleRenderer.onclick = () => {
             useCanvas = !useCanvas;
             if (useCanvas) {
-                renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+                renderer = new CanvasRenderer(canvas, { tileImage: '../pict/nethack_default_32.png', tileSize: 32 });
                 btnToggleRenderer.textContent = "Renderer: CanvasRenderer";
             } else {
                 renderer = new NullRenderer();

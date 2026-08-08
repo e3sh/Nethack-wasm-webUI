@@ -253,7 +253,7 @@
             flex-shrink: 0 !important;
             vertical-align: middle;
             image-rendering: pixelated;
-            background-image: url(pict/nethack_default_32.png) !important;
+            background-image: url(../pict/nethack_default_32.png) !important;
             background-size: 640px auto !important;
             background-repeat: no-repeat !important;
             margin-right: 6px;
@@ -489,11 +489,11 @@
     </script>
 
     <!-- Parameter & Mapping Data -->
-    <script src="param/tileMapping.js"></script>
+    <script src="../param/tileMapping.js"></script>
 
-    <!-- Driver & Test Client Scripts -->
-    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
-    <script src="src/driver/test/DriverDomTestClient.js"></script>
+    <!-- 2. WASM Worker Bridge & Test Client -->
+    <script src="../src/driver/NetHackWasmWorkerBridge.js"></script>
+    <script src="../src/driver/test/DriverDomTestClient.js"></script>
 
     <!-- Startup Bootstrap Script -->
     <script>
@@ -523,7 +523,7 @@
                     };
                 }
 
-                driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
+                driver = new NetHackWasmWorkerBridge(null, {
                     arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
                     gameOptions: {
                         name: initialName,
@@ -546,7 +546,7 @@
                     dialogOverlayId: 'dialog-overlay',
                     usernameInputId: 'username-input',
                     useTiles: true,
-                    tileImage: 'pict/nethack_default_32.png',
+                    tileImage: '../pict/nethack_default_32.png',
                     tileSize: 16
                 });
 

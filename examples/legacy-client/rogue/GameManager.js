@@ -282,47 +282,65 @@ function GameManager(g) {
 
             if (filename) {
                 try {
-                    let jpFilename = filename.includes('.') ? filename.replace('.', '_jp.') : `${filename}_jp`;
-                    let jpPath = `./dat/${jpFilename}`;
-                    let stdPath = `./dat/${filename}`;
+                    let jpFilename = filename.includes('.') ? filename.replace(/(\.[^.]+$)/, '_jp$1') : `${filename}_jp`;
+                    if (filename.includes('_jp')) jpFilename = filename;
+                    const baseFilename = filename.replace(/_jp(\.[^.]+$|$)/, '$1');
 
                     const isLangJp = (this.define && this.define.LANG_JP) || (window.g && window.g.define && window.g.define.LANG_JP) || window.location.pathname.includes('_jp') || document.title.includes('日本語') || document.title.includes('JP');
 
-                    let loadedJpContent = null;
+                    const tryVFSMulti = (targetFile) => {
+                        if (typeof FS === 'undefined' || !FS.analyzePath) return null;
+                        const vfsPaths = [`/dat/${targetFile}`, `./dat/${targetFile}`, `/${targetFile}`, targetFile];
+                        for (const vp of vfsPaths) {
+                            try {
+                                if (FS.analyzePath(vp).exists) {
+                                    const text = FS.readFile(vp, { encoding: 'utf8' });
+                                    if (text && text.length > 0) return text;
+                                }
+                            } catch (e) {}
+                        }
+                        return null;
+                    };
+
+                    const tryFetchMulti = async (targetFile) => {
+                        if (typeof fetch === 'undefined') return null;
+                        const candidatePaths = [
+                            `./dat/${targetFile}`,
+                            `../../dat/${targetFile}`,
+                            `../../../dat/${targetFile}`,
+                            `/dat/${targetFile}`,
+                            `./${targetFile}`
+                        ];
+                        for (const cp of candidatePaths) {
+                            try {
+                                const response = await fetch(cp);
+                                if (response.ok) {
+                                    const text = await response.text();
+                                    if (text && text.trim().length > 0) return text;
+                                }
+                            } catch (e) {}
+                        }
+                        return null;
+                    };
+
+                    let loadedContent = null;
 
                     if (isLangJp) {
-                        // 1. VFS (仮想ファイルシステム) チェック (_jp)
-                        if (typeof FS !== 'undefined' && FS.analyzePath) {
-                            if (FS.analyzePath(jpPath).exists) {
-                                loadedJpContent = FS.readFile(jpPath, { encoding: 'utf8' });
-                            } else if (FS.analyzePath(`/${jpFilename}`).exists) {
-                                loadedJpContent = FS.readFile(`/${jpFilename}`, { encoding: 'utf8' });
-                            }
+                        loadedContent = tryVFSMulti(jpFilename);
+                        if (!loadedContent) {
+                            loadedContent = await tryFetchMulti(jpFilename);
                         }
-
-                        // 2. サーバーからの fetch フォールバック (_jp)
-                        if (!loadedJpContent) {
-                            try {
-                                const response = await fetch(jpPath);
-                                if (response.ok) {
-                                    loadedJpContent = await response.text();
-                                }
-                            } catch (e) { }
+                    } else {
+                        loadedContent = tryVFSMulti(baseFilename);
+                        if (!loadedContent) {
+                            loadedContent = await tryFetchMulti(baseFilename);
                         }
                     }
 
-                    if (loadedJpContent) {
-                        content = loadedJpContent;
+                    if (loadedContent) {
+                        content = loadedContent;
                     } else if (!content) {
-                        // 英語標準ファイルのフォールバック読み込み
-                        if (typeof FS !== 'undefined' && FS.analyzePath && FS.analyzePath(stdPath).exists) {
-                            content = FS.readFile(stdPath, { encoding: 'utf8' });
-                        } else {
-                            const response = await fetch(stdPath);
-                            if (response.ok) {
-                                content = await response.text();
-                            }
-                        }
+                        content = tryVFSMulti(filename) || await tryFetchMulti(filename);
                     }
                 } catch (e) {
                     console.warn("[GameManager] display_file fetch fallback failed:", filename, e);

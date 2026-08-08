@@ -274,8 +274,8 @@
             border-color: rgba(63, 185, 80, 0.2);
         }
     </style>
-    <script type="text/javascript" src="sys/coremin.js"></script>
-    <script type="text/javascript" src="rogue/SoundManager.js"></script>
+    <script type="text/javascript" src="../sys/coremin.js"></script>
+    <script type="text/javascript" src="../examples/legacy-client/rogue/SoundManager.js"></script>
     <script type="text/javascript">
         // 設定のデフォルト値
         const DEFAULT_CONFIG = {
@@ -540,20 +540,20 @@
 
             <div class="actions">
                 <button class="btn btn-primary" id="btn-start" onclick="page_start()">GAME START</button>
-                <a href="index.html" class="btn btn-secondary" id="btn-back-title" style="text-decoration: none; text-align: center;">← Back to Title</a>
+                <a href="../index.html" class="btn btn-secondary" id="btn-back-title" style="text-decoration: none; text-align: center;">← Back to Title</a>
                 <button class="btn btn-danger" id="btn-reset" onclick="reset_config()">Reset to Default</button>
             </div>
 
             <div class="tools-section">
                 <p class="tools-title" id="tools-title">Developer Tools</p>
-                <div class="tool-links">
-                    <a href="sound_test.html" class="tool-link" id="link-sound-test" target="_blank" style="color: var(--accent-color); border-color: rgba(63, 185, 80, 0.3);">🔊 Sound Tester</a>
+                <div class="tool-links" style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
+                    <a href="../tests/sound_test.html" class="tool-link" id="link-sound-test" target="_blank" style="color: var(--accent-color); border-color: rgba(63, 185, 80, 0.3);">🔊 Sound Tester</a>
                     <a href="tr_fail.html" class="tool-link" id="link-tr-fail" target="_blank">未翻訳リスト</a>
                     <a href="tr_manager.html" class="tool-link" id="link-tr-manager" target="_blank">翻訳管理</a>
                     <a href="tr_test.html" class="tool-link" id="link-tr-test" target="_blank">Trans Tester</a>
-                    <a href="tile_test.html" class="tool-link" id="link-tile-test" target="_blank">Tile Mapping</a>
-                    <a href="rogue/mapping_tool.html" class="tool-link" id="link-gp-mapping" target="_blank">GP Mapping</a>
-                    <a href="rogue/touch_mapping_tool.html" class="tool-link" id="link-touch-mapping" target="_blank">Touch Mapping</a>
+                    <a href="../tests/tile_test.html" class="tool-link" id="link-tile-test" target="_blank">Tile Mapping</a>
+                    <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-link" id="link-gp-mapping" target="_blank">GP Mapping</a>
+                    <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link" id="link-touch-mapping" target="_blank">Touch Mapping</a>
                     <a href="save_manager.html" class="tool-link" id="link-save-manager" target="_blank">Save Data Manage</a>
                 </div>
             </div>

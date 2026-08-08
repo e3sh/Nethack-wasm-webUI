@@ -222,7 +222,7 @@
     </div>
 
     <!-- tileMapping.js を読み込む。パスは Release/ からの相対 -->
-    <script src="param/tileMapping.js"></script>
+    <script src="../param/tileMapping.js"></script>
 
     <script>
         let mappingTable = {};
@@ -231,7 +231,7 @@
         let currentOffsets = null;
 
         const img = new Image();
-        img.src = 'pict/nethack_default_32.png';
+        img.src = '../pict/nethack_default_32.png';
         img.onload = async () => {
             console.log("Image loaded:", img.width, "x", img.height);
             await loadGlyphNames();

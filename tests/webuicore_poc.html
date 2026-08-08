@@ -521,16 +521,16 @@
     </div>
 
     <!-- Script imports -->
-    <script src="src/driver/InputResolver.js"></script>
-    <script src="src/driver/NetHackMemory.js"></script>
-    <script src="src/driver/NetHackFSManager.js"></script>
-    <script src="src/driver/NetHackWasmDriver.js"></script>
-    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
-    <script src="param/nhMessage.js"></script>
-    <script src="param/tileMapping.js"></script>
+    <script src="../src/driver/InputResolver.js"></script>
+    <script src="../src/driver/NetHackMemory.js"></script>
+    <script src="../src/driver/NetHackFSManager.js"></script>
+    <script src="../src/driver/NetHackWasmDriver.js"></script>
+    <script src="../src/driver/NetHackWasmWorkerBridge.js"></script>
+    <script src="../param/nhMessage.js"></script>
+    <script src="../param/tileMapping.js"></script>
 
     <script type="module">
-        import { WebUICore } from './src/core/WebUICore.js';
+        import { WebUICore } from '../src/core/WebUICore.js';
 
         // DOM elements
         const canvas = document.getElementById('nh-canvas');
@@ -644,9 +644,14 @@
             }
         };
 
-        // Driver & Core Instantiation
+        // Driver & Core Instantiation (localStorage 設定を自動同期)
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
+
+        core.on('soundEffect', (seData) => {
+            console.log('[WebUICore PoC] Sound effect triggered:', seData);
+            sysLastEvent.textContent = `soundEffect (${seData.id || seData.sound})`;
+        });
 
         const btnClearSave = document.getElementById('btn-clear-save');
         if (btnClearSave) {
@@ -660,7 +665,36 @@
 
         // Tile & Glyph Caching
         const tileImg = new Image();
+        let loadedTileImgPath = '../assets/nethack_default_32.png';
         const glyphGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+
+        function initTileImageWithFallback(paths) {
+            let index = 0;
+            const tryNext = () => {
+                if (index >= paths.length) {
+                    console.warn("[PoC] All tile paths failed.");
+                    return;
+                }
+                const currentPath = paths[index++];
+                tileImg.onload = () => {
+                    console.log(`[PoC] Successfully loaded sprite tile image: ${currentPath}`);
+                    loadedTileImgPath = currentPath;
+                    redrawAllGraphicTiles();
+                };
+                tileImg.onerror = () => tryNext();
+                tileImg.src = currentPath;
+            };
+            tryNext();
+        }
+
+        initTileImageWithFallback([
+            '../assets/nethack_default_32.png',
+            '../pict/nethack_default_32.png',
+            'assets/nethack_default_32.png',
+            'pict/nethack_default_32.png',
+            '../../assets/nethack_default_32.png',
+            '../../pict/nethack_default_32.png'
+        ]);
 
         function redrawAllGraphicTiles() {
             if (!isGraphicCanvasMode || !tileImg.complete || tileImg.naturalWidth === 0) return;
@@ -684,11 +718,6 @@
                 }
             }
         }
-
-        tileImg.onload = () => {
-            redrawAllGraphicTiles();
-        };
-        tileImg.src = 'pict/nethack_default_32.png';
 
         function resetUiForNewGame() {
             clearAllModals();
@@ -940,7 +969,7 @@
             stPw.textContent = `${status.pw.current} / ${status.pw.max}`;
             stAc.textContent = status.ac;
             
-            const goldGlyphHtml = core.getGlyphHtml(status.gold.glyphId || 3886, { displaySize: 14 });
+            const goldGlyphHtml = core.getGlyphHtml(status.gold.glyphId || 3886, { displaySize: 14, tileImage: loadedTileImgPath });
             stGold.innerHTML = `${goldGlyphHtml} <span>$${status.gold.amount}</span>`;
             
             stDlvl.textContent = status.dlevel.text;
@@ -1048,7 +1077,7 @@
                     const badgeHtml = chStr ? `<span class="accelerator">${chStr})</span>` : '';
                     
                     const glyphId = item.glyph !== undefined ? item.glyph : (item.glyphInfo ? item.glyphInfo.glyph : -1);
-                    const glyphHtml = glyphId >= 0 ? core.getGlyphHtml(glyphId, { displaySize: 18 }) : '';
+                    const glyphHtml = glyphId >= 0 ? core.getGlyphHtml(glyphId, { displaySize: 18, tileImage: loadedTileImgPath }) : '';
 
                     btn.innerHTML = `${badgeHtml} ${glyphHtml} <span style="margin-left:6px;">${itemText}</span>`;
                     

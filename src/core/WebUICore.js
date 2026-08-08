@@ -897,7 +897,8 @@ export class WebUICore {
             this.lastInputTime = Date.now();
 
             const FS = (typeof globalThis !== 'undefined' && globalThis.FS) ? globalThis.FS :
-                       (this.driver && this.driver.fsManager ? this.driver.fsManager.FS : null);
+                       (this.driver && this.driver.fsManager ? this.driver.fsManager.FS :
+                       (this.driver && typeof this.driver.getModule === 'function' && this.driver.getModule() ? this.driver.getModule().FS : null));
 
             // VFS チェックおよび HTTP fetch オンデマンド取得を非同期実行
             const targetText = await this.translator.resolveFileText(filename, fileText, FS);

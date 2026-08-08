@@ -54,19 +54,45 @@ export class TranslationEngine {
     }
 
     /**
-     * VFS 探査 ➔ Web サーバー (HTTP fetch) からのオンデマンドローカライズファイル解決 (404最小化)
+     * ファイル名から baseName (英語版) と jpName (日本語版) を分離・算出
+     */
+    getFileVariants(filename) {
+        const cleanName = String(filename).trim().replace(/^\/+/, '').replace(/^dat\//, '');
+        let baseName = cleanName;
+        let jpName = cleanName;
+
+        if (cleanName.includes('_jp')) {
+            baseName = cleanName.replace(/_jp(\.[^.]+$|$)/, '$1');
+            jpName = cleanName;
+        } else {
+            baseName = cleanName;
+            jpName = cleanName.includes('.') ? cleanName.replace(/(\.[^.]+$)/, '_jp$1') : `${cleanName}_jp`;
+        }
+
+        return { cleanName, baseName, jpName };
+    }
+
+    /**
+     * テキスト内に日本語（ひらがな・カタカナ・漢字・全角記号）が含まれるか判定
+     */
+    containsJapanese(text) {
+        if (!text || typeof text !== 'string') return false;
+        return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(text);
+    }
+
+    /**
+     * VFS 探査 ➔ Web サーバー (HTTP fetch) からのオンデマンドローカライズファイル解決 (言語整合性対応)
      */
     async resolveFileText(filename, rawFileText, FS) {
-        if (!this.enabled || !filename) return rawFileText;
+        if (!filename) return rawFileText;
 
-        const cleanName = String(filename).trim().replace(/^\/+/, '').replace(/^dat\//, '');
-        
-        // 標準の日本語ファイル命名規則 (例: "license" -> "license_jp", "nethack.txt" -> "nethack_jp.txt")
-        const targetFile = cleanName.includes('.') ? cleanName.replace(/(\.[^.]+$)/, '_jp$1') : `${cleanName}_jp`;
+        const { cleanName, baseName, jpName } = this.getFileVariants(filename);
+        const desiredTarget = this.enabled ? jpName : baseName;
 
-        // 1. VFS (仮想ファイルシステム) チェック
-        if (FS && FS.analyzePath) {
-            const vfsPaths = [`/dat/${targetFile}`, `/${targetFile}`, targetFile];
+        // VFS (仮想ファイルシステム) チェック用ヘルパー
+        const tryVFS = (target) => {
+            if (!FS || !FS.analyzePath) return null;
+            const vfsPaths = [`/dat/${target}`, `/${target}`, target];
             for (const vp of vfsPaths) {
                 try {
                     if (FS.analyzePath(vp).exists) {
@@ -75,21 +101,58 @@ export class TranslationEngine {
                     }
                 } catch (e) {}
             }
-        }
+            return null;
+        };
 
-        // 2. HTTP fetch オンデマンド取得 (標準 ./dat/ の 1 回のみ試行)
-        if (typeof fetch !== 'undefined') {
-            try {
-                const res = await fetch(`./dat/${targetFile}`);
-                if (res.ok) {
-                    const text = await res.text();
-                    if (text && text.trim().length > 0) {
-                        return text;
+        // HTTP fetch チェック用ヘルパー
+        const tryFetch = async (target) => {
+            if (typeof fetch === 'undefined') return null;
+            const fetchPaths = [
+                `./dat/${target}`,
+                `../dat/${target}`,
+                `../../dat/${target}`,
+                `/dat/${target}`,
+                `./${target}`,
+                `../${target}`
+            ];
+            for (const fp of fetchPaths) {
+                try {
+                    const res = await fetch(fp);
+                    if (res.ok) {
+                        const text = await res.text();
+                        if (text && text.trim().length > 0) return text;
                     }
-                }
-            } catch (e) {}
+                } catch (e) {}
+            }
+            return null;
+        };
+
+        const isRawJp = this.containsJapanese(rawFileText);
+
+        // 1. rawFileText が既に要求言語と一致している場合の即時返却
+        if (this.enabled && isRawJp) {
+            return rawFileText;
+        }
+        if (!this.enabled && !isRawJp && rawFileText && rawFileText.trim().length > 0) {
+            if (!cleanName.includes('_jp')) {
+                return rawFileText;
+            }
         }
 
+        // 2. 要求ターゲット (desiredTarget) を VFS から探索
+        const vfsContent = tryVFS(desiredTarget);
+        if (vfsContent) return vfsContent;
+
+        // 3. 要求ターゲット (desiredTarget) を HTTP fetch から探索
+        const fetchContent = await tryFetch(desiredTarget);
+        if (fetchContent) return fetchContent;
+
+        // 4. 日本語モードで jpName が見つからなかった場合で、rawFileText があるなら rawFileText
+        if (this.enabled && rawFileText && rawFileText.trim().length > 0) {
+            return rawFileText;
+        }
+
+        // 5. 英語モードで baseName が見つからず、rawFileText があるなら rawFileText
         return rawFileText;
     }
 

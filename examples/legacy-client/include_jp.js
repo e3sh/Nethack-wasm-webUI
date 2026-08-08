@@ -3,9 +3,9 @@
 //============================================
 
 const r = "rogue/";
-const p = "param/";
-const s = "sys/";
-const n = "./"; // Wasm files are in the same folder
+const p = "../../param/";
+const s = "../../sys/";
+const n = "../../"; // Wasm files are in root folder
 
 // Universal dynCall polyfill for WebAssembly table execution
 (function setupUniversalDynCalls() {
@@ -88,11 +88,11 @@ const w = [
     s + "ioControl.js",
     s + "sceneControl.js",
     // Driver
-    "src/driver/NetHackMemory.js",
-    "src/driver/NetHackFSManager.js",
-    "src/driver/InputResolver.js",
-    "src/driver/NetHackWasmDriver.js",
-    "src/driver/NetHackWasmWorkerBridge.js",
+    "../../src/driver/NetHackMemory.js",
+    "../../src/driver/NetHackFSManager.js",
+    "../../src/driver/InputResolver.js",
+    "../../src/driver/NetHackWasmDriver.js",
+    "../../src/driver/NetHackWasmWorkerBridge.js",
     // Rogue 
     r + "SoundManager.js",
     r + "GameManager.js",

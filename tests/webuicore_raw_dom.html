@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebUICore 素のDOM最単純検証クライアント (Raw DOM Client)</title>
-    <script src="./param/tileMapping.js"></script>
-    <script src="./param/nhMessage.js"></script>
+    <script src="../param/tileMapping.js"></script>
+    <script src="../param/nhMessage.js"></script>
     <style>
         body {
             background-color: #000;
@@ -60,7 +60,7 @@
 
         // 1. Worker & Renderer
         const driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js');
-        const renderer = new CanvasRenderer(canvas, { tileImage: 'pict/nethack_default_32.png', tileSize: 32 });
+        const renderer = new CanvasRenderer(canvas, { tileImage: '../pict/nethack_default_32.png', tileSize: 32 });
 
         // 2. WebUICore
         const core = new WebUICore({

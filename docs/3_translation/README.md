@@ -40,6 +40,30 @@
 
 ---
 
+## 🌐 WebUIcore (`TranslationEngine`) との統合ワークフロー
+
+現在のモダンクライアント群（Vue, React, Svelte, Solid, Pure JS）では、**`src/core/translation/TranslationEngine.js`** がゲーム内の全メッセージ翻訳を一括管理しています。
+
+```text
+ NetHack WASM Core Engine
+         │
+         ▼
+ WebUIcore (TranslationEngine) ────► 1. 翻訳済メッセージを各 UI クライアントへ送信
+         │
+         ├─► 未翻訳文章の自動記録 ──► localStorage ("nh.temp")
+         │                                   │
+         │                                   ▼
+         │                            tr_manager.html (ブラウザ上での辞書試作・登録)
+         │                                   │
+         └─► カスタム追加辞書の即時適用 ◄────┴─► localStorage ("nh.ext_data")
+```
+
+1. **未翻訳ログの自動収集**: `WebUICore` 搭載クライアントでプレイ中、未翻訳の原文が `localStorage: nh.temp` へ自動ストックされます。
+2. **辞書作成・反映**: プレイ中に別タブで **`tr_manager.html`** を開くことで、`nh.temp` の未翻訳項目をGUI上で直接翻訳・テスト登録できます（`nh.ext_data` へ保存され即座にゲーム画面に適用可能）。
+3. **マスター辞書への同期**: 作成した翻訳は `dictionary.csv` 経由でリポジトリのマスター辞書へ反映されます。
+
+---
+
 ## 🛠️ クイックリファレンス（よく使うコマンド）
 
 ```powershell

@@ -84,6 +84,12 @@
             line-height: 1.6;
         }
 
+        .top-nav {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -154,6 +160,7 @@
         .badge-core { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
         .badge-test { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
         .badge-framework { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-legacy { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
 
         .card-title {
             font-size: 1.25rem;
@@ -253,37 +260,55 @@
         <header>
             <div class="logo-badge">🚀 NetHack Wasm Driver Portal</div>
             <h1>NetHack 5.0 / 3.7 Client Portal (cltest)</h1>
-            <p class="subtitle">コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Vue 3, React, Svelte, SolidJS) サンプルへのワンクリックアクセスダッシュボードです。</p>
+            <p class="subtitle">コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Pure JS, Vue 3, React, Svelte, SolidJS) サンプルへのアクセスダッシュボードです。</p>
+            <div class="top-nav">
+                <a href="../index.html" class="btn btn-secondary">🏠 メインポータルへ戻る (index.html)</a>
+            </div>
         </header>
 
         <main class="grid">
-            <!-- 1. WebUI Canvas -->
-            <div class="card" style="--card-accent: #3b82f6;">
+            <!-- 0. Pure JS Reference Client -->
+            <div class="card" style="--card-accent: #10b981;">
                 <div>
                     <div class="card-header">
-                        <div class="card-icon">🎨</div>
-                        <span class="card-badge badge-core">Core WebUI</span>
+                        <div class="card-icon">🚀</div>
+                        <span class="card-badge badge-core">WebUIcore 標準</span>
                     </div>
-                    <h2 class="card-title">1. WebUI (Canvas 版)</h2>
-                    <p class="card-desc">標準の HTML5 2D Canvas マップ描画、ステータスパネル、ASCII / スプライト切り替え対応の正統 WebUI クライアント。</p>
+                    <h2 class="card-title">0. Pure JS Reference Client</h2>
+                    <p class="card-desc">WebUIcore 直呼び出しによるフレームワークフリーの最新標準リファレンスクライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="index.html" class="btn btn-primary" target="_blank">直接開く (index.html)</a>
+                    <a href="../examples/pure-js-client/index.html" class="btn btn-primary" target="_blank">直接開く (pure-js-client)</a>
                 </div>
             </div>
 
-            <!-- 2. WebUI DOM Mobile -->
+            <!-- 1. WebUI Desktop Legacy -->
+            <div class="card" style="--card-accent: #3b82f6;">
+                <div>
+                    <div class="card-header">
+                        <div class="card-icon">⚔️</div>
+                        <span class="card-badge badge-legacy">Legacy Client</span>
+                    </div>
+                    <h2 class="card-title">1. WebUI (Desktop Canvas 版)</h2>
+                    <p class="card-desc">初期プロトタイプの HTML5 2D Canvas マップ描画クライアント（レガシー動作参照用）。</p>
+                </div>
+                <div class="card-actions">
+                    <a href="../examples/legacy-client/game.html" class="btn btn-primary" target="_blank">直接開く (game.html)</a>
+                </div>
+            </div>
+
+            <!-- 2. WebUI DOM Mobile Legacy -->
             <div class="card" style="--card-accent: #06b6d4;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">📱</div>
-                        <span class="card-badge badge-core">Core WebUI</span>
+                        <span class="card-badge badge-legacy">Legacy Client</span>
                     </div>
                     <h2 class="card-title">2. WebUI (DOM / Mobile 版)</h2>
-                    <p class="card-desc">DOM 要素ベースのレンダリングおよびモバイルタッチ操作に最適化された WebUI レスポンシブクライアント。</p>
+                    <p class="card-desc">初期プロトタイプの DOM ベースモバイルレスポンシブクライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="mobile.html" class="btn btn-primary" target="_blank">直接開く (mobile.html)</a>
+                    <a href="../examples/legacy-client/mobile.html" class="btn btn-primary" target="_blank">直接開く (mobile.html)</a>
                 </div>
             </div>
 
@@ -292,13 +317,13 @@
                 <div>
                     <div class="card-header">
                         <div class="card-icon">⚙️</div>
-                        <span class="card-badge badge-core">New Architecture</span>
+                        <span class="card-badge badge-test">Test & PoC</span>
                     </div>
                     <h2 class="card-title">WebUICore 独立統合実証 (PoC)</h2>
-                    <p class="card-desc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画が統合された検証ポータル。</p>
+                    <p class="card-desc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の検証ポータル。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="webuicore_poc.html" class="btn btn-primary" target="_blank">直接開く (webuicore_poc.html)</a>
+                    <a href="../tests/webuicore_poc.html" class="btn btn-primary" target="_blank">直接開く (webuicore_poc.html)</a>
                 </div>
             </div>
 
@@ -313,7 +338,7 @@
                     <p class="card-desc">NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="driver_test.html" class="btn btn-primary" target="_blank">直接開く (driver_test.html)</a>
+                    <a href="../tests/driver_test.html" class="btn btn-primary" target="_blank">直接開く (driver_test.html)</a>
                 </div>
             </div>
 
@@ -328,7 +353,7 @@
                     <p class="card-desc">NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="driver_dom_test.html" class="btn btn-primary" target="_blank">直接開く (driver_dom_test.html)</a>
+                    <a href="../tests/driver_dom_test.html" class="btn btn-primary" target="_blank">直接開く (driver_dom_test.html)</a>
                 </div>
             </div>
 
@@ -343,8 +368,8 @@
                     <p class="card-desc">Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="examples/vue-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="http://localhost:5173" class="btn btn-secondary" target="_blank">Dev (5173)</a>
+                    <a href="../examples/vue-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/vue-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -359,8 +384,8 @@
                     <p class="card-desc">React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="examples/react-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="http://localhost:5174" class="btn btn-secondary" target="_blank">Dev (5174)</a>
+                    <a href="../examples/react-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/react-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -375,8 +400,8 @@
                     <p class="card-desc">Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="examples/svelte-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="http://localhost:5175" class="btn btn-secondary" target="_blank">Dev (5175)</a>
+                    <a href="../examples/svelte-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/svelte-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -391,8 +416,8 @@
                     <p class="card-desc">SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="examples/solid-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="http://localhost:5176" class="btn btn-secondary" target="_blank">Dev (5176)</a>
+                    <a href="../examples/solid-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/solid-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
         </main>
@@ -400,7 +425,7 @@
         <section class="dev-notes">
             <h3>💡 開運用ヒント</h3>
             <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
-                静的ローカルサーバー（例: <code>npx http-server . -p 8080</code> や Live Server）を起動した状態で <code>http://localhost:8080/cltest.html</code> へアクセスすることで全クライアントを一元管理できます。<br>
+                静的ローカルサーバー（例: <code>python -m http.server 8000</code> や Live Server）を起動した状態で <code>http://localhost:8000/tools/cltest.html</code> へアクセスすることで全クライアントを一元テスト・管理できます。<br>
                 各フレームワークの開発サーバーを起動する場合は <code>npm run dev:vue</code> などをプロジェクトルートで実行してください。
             </p>
         </section>

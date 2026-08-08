@@ -22,40 +22,83 @@ class SoundManagerClass {
                 id: "se_welcome",
                 pattern: "Welcome to NetHack|NetHackへようこそ|ようこそ",
                 sound: "welcome.mp3",
-                beep: { notes: ["C4", "G4", "C5", "E5"], wave: "square", duration: 90, lfo: { freq: 6, wave: "sine", depth: 15 } },
+                beep: { notes: ["C4", "E4", "G4", "C5"], wave: "square", duration: 90, lfo: { freq: 6, wave: "sine", depth: 15 } },
                 volume: 90
             },
             {
-                id: "se_drink_bad",
-                pattern: "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed|気分が悪|体調が悪|毒|病気|幻覚|盲目|混乱|麻痺|しびれ",
-                sound: "drink_bad.mp3",
-                beep: { notes: ["G3", "C#3", "C3"], wave: "sawtooth", duration: 120, lfo: { freq: 12, wave: "sawtooth", depth: 30 } },
-                volume: 90
+                id: "se_die",
+                pattern: "^You die\\.\\.\\.|あなたは死んだ|死亡した",
+                sound: "die.mp3",
+                beep: { notes: ["C4", "B3", "A3", "G3", "F3", "E3", "D3", "C3"], wave: "sawtooth", duration: 150 },
+                volume: 95
             },
             {
-                id: "se_drink_good",
-                pattern: "feel better|feel much better|feel full of energy|see much clearer|feel warm|気分が良|体調が良|元気がみなぎる|はっきり見え|温かく",
-                sound: "drink_good.mp3",
-                beep: { notes: ["C4", "E4", "G4", "C5"], wave: "sine", duration: 70, lfo: { freq: 5, wave: "sine", depth: 10 } },
+                id: "se_hunger",
+                pattern: "^You feel (hungry|weak)\\.|空腹|お腹が空いた|衰弱",
+                sound: "hungry.mp3",
+                beep: { notes: ["E3", "C3"], wave: "sine", duration: 150 },
                 volume: 85
             },
             {
-                id: "se_drink_neutral",
-                pattern: "drink|quaff|chug|potion|tastes|ポーション|飲み|飲んだ|味わっ|呑み|味がした|味がする",
-                sound: "chug.mp3",
-                beep: { notes: ["C4", "G4"], wave: "sine", duration: 80 },
+                id: "se_trap",
+                pattern: "shoots out at you|fall into a pit|bear trap|罠にかかった|落とし穴|矢が飛んできた",
+                sound: "trap.mp3",
+                beep: { notes: ["C6", "C3"], wave: "square", duration: 100 },
+                volume: 90
+            },
+            {
+                id: "se_cast_fail",
+                pattern: "^You fail to cast|呪文の詠唱に失敗",
+                sound: "cast_fail.mp3",
+                beep: { notes: ["F4", "C4"], wave: "sawtooth", duration: 100 },
+                volume: 75
+            },
+            {
+                id: "se_cast_spell",
+                pattern: "^You cast|呪文を唱えた",
+                sound: "cast.mp3",
+                beep: { notes: ["C4", "E4", "G4", "B4", "C5"], wave: "sine", duration: 80 },
+                volume: 85
+            },
+            {
+                id: "se_wand_zap",
+                pattern: "\\bzaps\\b|ビーム|光線|杖を振った",
+                sound: "zap.mp3",
+                beep: { notes: ["C6", "G5", "E5", "C5"], wave: "sawtooth", duration: 60 },
+                volume: 85
+            },
+            {
+                id: "se_shoot_throw",
+                pattern: "^You (shoot|throw)|投げた|射った|放った",
+                sound: "shoot.mp3",
+                beep: { notes: ["G4", "D5"], wave: "triangle", duration: 50 },
                 volume: 80
             },
             {
-                id: "se_eat_food",
-                pattern: "eat|delicious|tasty|blecch|eating|食べた|食した|美味しい|まずい",
-                sound: "eat.mp3",
-                beep: { notes: ["G4", "E4", "C4"], wave: "sine", duration: 70 },
+                id: "se_equip",
+                pattern: "^You (are now wearing|put on|wield|take off|remove)|装備した|外した|身につけた|脱いだ|構えた",
+                sound: "equip.mp3",
+                beep: { notes: ["D4", "A4"], wave: "square", duration: 60 },
                 volume: 80
+            },
+            {
+                id: "se_find_secret",
+                pattern: "^You find a secret|隠し扉|隠し通路|を発見",
+                sound: "secret.mp3",
+                beep: { notes: ["C5", "E5", "G5", "C6"], wave: "sine", duration: 90 },
+                volume: 85
+            },
+            {
+                id: "se_player_damaged",
+                pattern: "(bites|hits|scratches|kicks) you|^The .* bites!|に噛みつかれた|にひっかかれた|に殴られた|攻撃を受けた|ダメージを受けた",
+                sound: "damaged.mp3",
+                beep: { notes: ["F3", "C#3"], wave: "square", duration: 80 },
+                volume: 90,
+                cooldownMs: 100
             },
             {
                 id: "se_attack_hit",
-                pattern: "You hit|hits|に攻撃|攻撃した|ヒット|命中|ダメージ",
+                pattern: "You hit|\\bhits\\b|に攻撃|攻撃した|ヒット|命中|ダメージ|^You kill",
                 sound: "hit.mp3",
                 beep: { notes: ["E5", "G5"], wave: "square", duration: 50 },
                 volume: 80,
@@ -63,11 +106,39 @@ class SoundManagerClass {
             },
             {
                 id: "se_attack_miss",
-                pattern: "You miss|misses|外した|当たらない|空を切っ|かわし|かわさ",
+                pattern: "You miss|\\bmisses\\b|外した|当たらない|空を切っ|かわし|かわさ",
                 sound: "swing.mp3",
                 beep: { notes: ["B4", "F4"], wave: "triangle", duration: 50 },
                 volume: 75,
                 cooldownMs: 100
+            },
+            {
+                id: "se_drink_good",
+                pattern: "feel better|feel much better|feel full of energy|see much clearer|feel warm|気分が良|体調が良|元気がみなぎる|はっきり見え|温かく",
+                sound: "drink_good.mp3",
+                beep: { notes: ["C4", "E4", "G4", "C5"], wave: "sine", duration: 70 },
+                volume: 85
+            },
+            {
+                id: "se_drink_bad",
+                pattern: "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed|気分が悪|体調が悪|毒|病気|幻覚|盲目|混乱|麻痺|しびれ",
+                sound: "drink_bad.mp3",
+                beep: { notes: ["G3", "C#3", "C3"], wave: "sawtooth", duration: 120 },
+                volume: 90
+            },
+            {
+                id: "se_drink_neutral",
+                pattern: "\\bdrink\\b|\\bquaff\\b|\\bchug\\b|potion|tastes|ポーション|飲み|飲んだ|味わっ|呑み|味がした|味がする",
+                sound: "chug.mp3",
+                beep: { notes: ["C4", "G4"], wave: "sine", duration: 80 },
+                volume: 80
+            },
+            {
+                id: "se_eat_food",
+                pattern: "\\beat\\b|\\beating\\b|delicious|tasty|blecch|食べた|食した|美味しい|まずい",
+                sound: "eat.mp3",
+                beep: { notes: ["G4", "E4", "C4"], wave: "sine", duration: 70 },
+                volume: 80
             },
             {
                 id: "se_pickup",
@@ -78,21 +149,21 @@ class SoundManagerClass {
             },
             {
                 id: "se_door",
-                pattern: "door|ドア|扉|locked|鍵|開け|閉め|壊れた|resists|crashes",
+                pattern: "\\bdoor\\b|\\bdoors\\b|\\blocked\\b|ドア|扉|鍵|開け|閉め|壊れた",
                 sound: "door_lock.mp3",
                 beep: { notes: ["G3", "C3"], wave: "square", duration: 80 },
                 volume: 90
             },
             {
                 id: "se_read_scroll",
-                pattern: "read|scroll|turns to dust|fades|disappears|巻物|読ん|唱え|灰になった|消えた",
+                pattern: "\\bread\\b|\\bscroll\\b|turns to dust|fades|巻物|読ん|唱え|灰になった|消えた",
                 sound: "scroll.mp3",
-                beep: { notes: ["F4", "A4", "C5"], wave: "triangle", duration: 80, lfo: { freq: 8, wave: "triangle", depth: 15 } },
+                beep: { notes: ["F4", "A4", "C5"], wave: "triangle", duration: 80 },
                 volume: 80
             },
             {
                 id: "se_stair",
-                pattern: "stair|ladder|階段|降り|登",
+                pattern: "\\bstair\\b|\\bstairs\\b|\\bladder\\b|階段|降り|登",
                 sound: "stair.mp3",
                 beep: { notes: ["C4", "E4", "G4"], wave: "triangle", duration: 70 },
                 volume: 80
@@ -168,8 +239,21 @@ class SoundManagerClass {
                 this.beepCore = new Beepcore();
             }
 
-            const res = await fetch("sound_mapping.json");
-            if (res.ok) {
+            const candidatePaths = [
+                "sound_mapping.json",
+                "../../sound_mapping.json",
+                "../../../sound_mapping.json",
+                "/sound_mapping.json"
+            ];
+            let res = null;
+            for (const cp of candidatePaths) {
+                try {
+                    const r = await fetch(cp);
+                    if (r.ok) { res = r; break; }
+                } catch (e) {}
+            }
+
+            if (res && res.ok) {
                 const data = await res.json();
                 this.soundDir = data.soundDir || "assets/sounds/";
                 if (data.waveGain !== undefined && !localStorage.getItem("nethack_wave_gain")) {
@@ -293,6 +377,14 @@ class SoundManagerClass {
         if (effectiveVolume <= 0) return;
 
         let targetType = this.soundMode; // "auto", "wave", "beep"
+        if (targetType === "beep") {
+            // Beep優先/指定モード時は絶対にWaveファイルを参照せずBeep合成音のみ再生
+            if (rule.beep) {
+                this.playBeep(rule.beep, effectiveVolume);
+            }
+            return;
+        }
+
         if (targetType === "auto") {
             const pref = rule.preferredType || "auto";
             if (pref === "beep") {
@@ -306,7 +398,6 @@ class SoundManagerClass {
 
         if (targetType === "wave" && rule.sound) {
             this.playWave(rule.sound, effectiveVolume, () => {
-                this.log("WARN", `Wave load/playback failed for [${rule.sound}], falling back to Beep`);
                 if (rule.beep) {
                     this.playBeep(rule.beep, effectiveVolume);
                 }

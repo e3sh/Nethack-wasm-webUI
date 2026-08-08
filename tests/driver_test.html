@@ -119,7 +119,7 @@
     </style>
 
     <!-- Driver Dependencies (Worker Bridge) -->
-    <script src="src/driver/NetHackWasmWorkerBridge.js"></script>
+    <script src="../src/driver/NetHackWasmWorkerBridge.js"></script>
 </head>
 <body>
     <h1>NetHackWasmDriver Minimal Test Standard (Phase 2)</h1>
@@ -243,7 +243,7 @@
             appendLog("[Test] Initializing NetHackWasmWorkerBridge...", "log-sys");
             
             try {
-                driver = new NetHackWasmWorkerBridge('src/driver/nethack.worker.js', {
+                driver = new NetHackWasmWorkerBridge(null, {
                     arguments: ['nethack', '-otime,showexp,showvers,number_pad'],
                     gameOptions: {
                         number_pad: 1,

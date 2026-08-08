@@ -18,12 +18,17 @@ async function main() {
     game.keyboard = new inputKeyboard2(true);
     game.keyboard.codeMode();
 
-    // Load Default Configurations from JSON
+    // Load Default Configurations from JSON with multi-path fallbacks
     try {
         const fetchConfig = async (url) => {
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            return await res.json();
+            const prefixes = ["", "../../", "../", "examples/legacy-client/"];
+            for (const prefix of prefixes) {
+                try {
+                    const res = await fetch(prefix + url);
+                    if (res.ok) return await res.json();
+                } catch (e) {}
+            }
+            return null;
         };
         game.gpadConfigDefault = await fetchConfig("param/gpad_config_default.json");
         game.touchConfigDefault = await fetchConfig("param/touch_mapping_default.json");
@@ -39,16 +44,15 @@ async function main() {
 
     window.g = game; // グローバルに公開
 
-    //Game Asset Setup
-    const p = "pict/";
+    // Game Asset Setup with location fallback
+    const isLegacyDir = typeof window !== 'undefined' && window.location.pathname.includes('/examples/legacy-client/');
+    const p = isLegacyDir ? "../../pict/" : "pict/";
     game.asset.imageLoad("ASCII", p + "pdcfont.png");
     game.asset.imageLoad("SMALL", p + "k12x8_jisx0201c.png");
     game.asset.imageLoad("MINIF", p + "font4x6.png");
-    //game.asset.imageLoad("ASCBG", p + "pdcfont_bg.png");
-    //game.asset.imageLoad("SJISK", p + "k12x8_jisx0208c.png")
-    game.asset.imageLoad("ASC32", p + "a32_jisx0201c.png")
-    game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png")
-    game.asset.imageLoad("TILES", p + "nethack_default_32.png") //"tiles32_cl.png");
+    game.asset.imageLoad("ASC32", p + "a32_jisx0201c.png");
+    game.asset.imageLoad("KNJ32", p + "k32_jisx0208.png");
+    game.asset.imageLoad("TILES", p + "nethack_default_32.png");
 
     if (USE_TILE) {
         game.kanji = new fontPrintControl_with_glyph(game,
