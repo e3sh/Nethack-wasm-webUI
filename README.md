@@ -24,7 +24,7 @@ Nethack-wasm-webUI/
 │   ├── react-client/           # React 18 + Zustand + TypeScript 実装
 │   ├── svelte-client/          # Svelte 4/5 + TypeScript 実装
 │   ├── solid-client/           # SolidJS + TypeScript 実装
-│   └── legacy-client/          # [LEGACY] 初期プロトタイプ (game.html, mobile.html, rogue/)
+│   └── legacy-client/          # [Canvas / Mobile] WebUICore 統合済みの独自 Canvas タイル描画 & モバイル DOM タッチクライアント
 ├── tools/                      # 【管理ユーティリティ類】(tools/tr_manager, save_manager, config等)
 ├── tests/                      # 【テストHTML ＆ PoC群】(tests/driver_dom_test, webuicore_poc等)
 ├── docs/                       # 公式ドキュメント類 (docs/3_translation/ 等)
@@ -44,9 +44,9 @@ Nethack-wasm-webUI/
    - **構造化プロンプト & リザルト (`GameOverResolver`)**: YN / TEXT / MENU / FILE プロンプトを完全構造化データとしてバインド可能。
 
 2. **マルチクライアント展開 (`examples/`)**:
+   - **Desktop Canvas & Mobile Touch Client**: 独自グラフィックタイル＆日本語フォントの高度な協調制御、およびレスポンシブバーチャルパッドを備えた Pure JS 実装。
    - **Pure JS リファレンス**: フレームワーク非依存の軽量モジュールクライアント。
    - **モダンフレームワーク版**: Vue 3, React 18, Svelte, SolidJS に対応したスタンドアロンクライアント（ビルド済 `dist/` 対応）。
-   - **レガシー参照**: 初期開発プロトタイプを `examples/legacy-client/` に保存。
 
 3. **Web Worker 隔離アーキテクチャ (`@nethack/wasm-driver`)**:
    - WASM ゲームエンジンをバックグラウンドスレッドで隔離動作させ、メイン UI スレッドのレスポンスを 100% 保証。

@@ -413,31 +413,31 @@
                     </button>
                 </a>
 
-                <!-- Desktop / Legacy Mode -->
-                <a href="examples/legacy-client/game.html" class="mode-card desktop" id="card-play-desktop" style="background: rgba(22, 27, 34, 0.5);">
+                <!-- Desktop / Canvas Mode -->
+                <a href="examples/legacy-client/game.html" class="mode-card desktop" id="card-play-desktop">
                     <div>
                         <div class="mode-icon">⚔️</div>
                         <div class="mode-header">
-                            <span class="mode-title" id="txt-desktop-title">Legacy Desktop</span>
-                            <span class="mode-tag" id="txt-desktop-tag">Legacy Canvas</span>
+                            <span class="mode-title" id="txt-desktop-title">Desktop Canvas Mode</span>
+                            <span class="mode-tag" id="txt-desktop-tag">WebUICore Canvas</span>
                         </div>
-                        <p class="mode-desc" id="txt-desktop-desc">初期プロトタイプ版 Canvas 描画クライアント（レガシー動作参照用）。</p>
+                        <p class="mode-desc" id="txt-desktop-desc">独自グラフィックタイル＆日本語フォントの協調制御。キーボード・ゲームパッド操作に最適な WebUICore 統合 Canvas クライアント。</p>
                     </div>
-                    <button class="btn-launch" id="btn-play-desktop" style="background: #475569; color: #fff;">
-                        <span id="txt-desktop-btn">LEGACY START</span>
+                    <button class="btn-launch" id="btn-play-desktop">
+                        <span id="txt-desktop-btn">CANVAS START</span>
                         <span>→</span>
                     </button>
                 </a>
 
-                <!-- Mobile / DOM Mode -->
+                <!-- Mobile / Touch Mode -->
                 <a href="examples/legacy-client/mobile.html" class="mode-card mobile" id="card-play-mobile">
                     <div>
                         <div class="mode-icon">📱</div>
                         <div class="mode-header">
-                            <span class="mode-title" id="txt-mobile-title">Mobile Mode</span>
-                            <span class="mode-tag" id="txt-mobile-tag">DOM 描画</span>
+                            <span class="mode-title" id="txt-mobile-title">Mobile Touch Mode</span>
+                            <span class="mode-tag" id="txt-mobile-tag">WebUICore Mobile</span>
                         </div>
-                        <p class="mode-desc" id="txt-mobile-desc">スマホ・タブレット向け。省電力で高精細なDOM描画とコンテキストバーチャルパッドを搭載。</p>
+                        <p class="mode-desc" id="txt-mobile-desc">スマホ・タブレット最適化。レスポンシブな下部ステータス表示とバーチャルタッチパッドを搭載した WebUICore 統合モバイルクライアント。</p>
                     </div>
                     <button class="btn-launch" id="btn-play-mobile">
                         <span id="txt-mobile-btn">MOBILE START</span>
@@ -495,11 +495,13 @@
         const I18N = {
             ja: {
                 subTitle: "ブラウザで即座に遊べるローグライクゲーム。日本語翻訳＆各種操作システム対応",
-                desktopTag: "Canvas 描画",
-                desktopDesc: "キーボードやゲームパッド操作に最適化。グラフィックタイル＆日本語表示の標準プレイ環境。",
-                desktopBtn: "GAME START",
-                mobileTag: "DOM 描画",
-                mobileDesc: "スマホ・タブレット向け。省電力で高精細なDOM描画とコンテキストバーチャルパッドを搭載。",
+                desktopTitle: "Desktop Canvas Mode",
+                desktopTag: "WebUICore Canvas",
+                desktopDesc: "独自グラフィックタイル＆日本語フォントの協調制御。キーボード・ゲームパッド操作に最適な WebUICore 統合 Canvas クライアント。",
+                desktopBtn: "CANVAS START",
+                mobileTitle: "Mobile Touch Mode",
+                mobileTag: "WebUICore Mobile",
+                mobileDesc: "スマホ・タブレット最適化。レスポンシブな下部ステータス表示とバーチャルタッチパッドを搭載した WebUICore 統合モバイルクライアント。",
                 mobileBtn: "MOBILE START",
                 configBtn: "システム設定",
                 saveMgrBtn: "セーブデータ管理",
@@ -515,11 +517,13 @@
             },
             en: {
                 subTitle: "Play NetHack 5.0 directly in your browser. Powered by WebAssembly with Canvas/DOM UI.",
-                desktopTag: "Canvas Mode",
-                desktopDesc: "Optimized for Keyboard & Gamepad. Supports graphic tiles and hybrid font rendering.",
-                desktopBtn: "GAME START",
-                mobileTag: "DOM Mode",
-                mobileDesc: "Tailored for smartphones & tablets. High-definition DOM rendering with virtual touch pads.",
+                desktopTitle: "Desktop Canvas Mode",
+                desktopTag: "WebUICore Canvas",
+                desktopDesc: "Powered by WebUICore. Native graphic tiles & hybrid font rendering optimized for Keyboard & Gamepad.",
+                desktopBtn: "CANVAS START",
+                mobileTitle: "Mobile Touch Mode",
+                mobileTag: "WebUICore Mobile",
+                mobileDesc: "Tailored for smartphones & tablets. Responsive status display and virtual touch pads powered by WebUICore.",
                 mobileBtn: "MOBILE START",
                 configBtn: "System Configuration",
                 saveMgrBtn: "Save Data Manager",
@@ -557,9 +561,11 @@
             const t = isJp ? I18N.ja : I18N.en;
 
             document.getElementById("txt-sub-title").textContent = t.subTitle;
+            if (document.getElementById("txt-desktop-title")) document.getElementById("txt-desktop-title").textContent = t.desktopTitle;
             document.getElementById("txt-desktop-tag").textContent = t.desktopTag;
             document.getElementById("txt-desktop-desc").textContent = t.desktopDesc;
             document.getElementById("txt-desktop-btn").textContent = t.desktopBtn;
+            if (document.getElementById("txt-mobile-title")) document.getElementById("txt-mobile-title").textContent = t.mobileTitle;
             document.getElementById("txt-mobile-tag").textContent = t.mobileTag;
             document.getElementById("txt-mobile-desc").textContent = t.mobileDesc;
             document.getElementById("txt-mobile-btn").textContent = t.mobileBtn;

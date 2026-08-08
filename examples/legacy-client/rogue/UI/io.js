@@ -225,7 +225,7 @@ function io(r, g) {
 			);
 		} else {
 			r.UI.mvwaddstr(statusDsp, 0, 0, `${titleStr}`);
-			r.UI.mvwaddstr(statusDsp, 1, 0, `${hpInd}HP:${hpCur}(${hpMax}) ${enInd}Pw:${pwCur}(${pwMax})`);
+			r.UI.mvwaddstr(statusDsp, 1, 0, `$:${GOLD} ${hpInd}HP:${hpCur}(${hpMax}) ${enInd}Pw:${pwCur}(${pwMax})`);
 			r.UI.mvwaddstr(statusDsp, 2, 0, `${dlvlText} ${hungerText} ${condText}`);
 		}
 	};

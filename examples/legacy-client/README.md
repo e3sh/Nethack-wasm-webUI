@@ -1,25 +1,28 @@
-# 🏛️ NetHack WASM WebUI Legacy Prototype Clients (`legacy/`)
+# 🏛️ NetHack WASM WebUI Desktop Canvas & Mobile Touch Clients (`examples/legacy-client/`)
 
-本ディレクトリ (`legacy/`) は、`WebUIcore` (`src/core/`) 導入前に開発された初期のフル機能プロトタイプクライアント群（`game.html`, `game_jp.html`, `mobile.html`, `rogue/` スクリプト等）を格納・隔離した領域です。
+本ディレクトリ (`examples/legacy-client/`) は、**共通コアエンジン `WebUICore` (`src/core/`) に完全フィッティング（統合）**されたバニラ JS クライアント群（`game.html`, `game_jp.html`, `mobile.html`, `rogue/`）を格納している領域です。
+
+歴史的経緯によりフォルダ名は `legacy-client` となっておりますが、内部のデータ通信・状態管理・スコア解析は全て共通コア **`WebUICore`** に接続されています。
 
 ---
 
-## 📌 位置づけと設計原則
+## 📌 アーキテクチャと特徴
 
-1. **歴史的動作実績の保護 (Legacy Reference)**:
-   - 本ディレクトリ内のコードは、`WebUIcore` 設計前のオリジナル実装として動作・構造を保持しています。
-   - 強引なリファクタリングを行わず、過去の動作検証や機能参照用のレガシー環境として固定保存しています。
+1. **`WebUICore` 完全適合**:
+   - `WebUICore` (`src/core/WebUICore.js`) をメディエーター接続し、型安全なステータス参照 (`StatusAccessor`) や全自動スコア/死因解析 (`GameOverResolver`) を一元利用して動作します。
 
-2. **新アーキテクチャへの推奨**:
-   - 新規開発や拡張は、共通コアエンジンである **`WebUIcore` (`src/core/WebUICore.js`)** および `examples/` 配下のモダンクライアント（Vue 3, React 18, Svelte, SolidJS, Pure JS）をご利用ください。
+2. **独自 Canvas タイル描画 & モバイル DOM タッチ操作**:
+   - **`game.html` / `game_jp.html`**: 独自グラフィックタイル＆日本語フォントの高度な協調制御を備えた、キーボード/ゲームパッド操作に最適な Desktop Canvas クライアント。
+   - **`mobile.html`**: スマホ・タブレット向けにレスポンシブな下部ステータス表示枠とコンテキストバーチャルパッドを備えた Touch クライアント。
+
+3. **フレームワーク非依存 (Pure JS)**:
+   - React / Vue 等の外部ライブラリを持たないバニラ JS 実装のため、超軽量かつ高いパフォーマンスを発揮します。
 
 ---
 
 ## 🎮 収録ファイル一覧
 
-- **`game.html`**: デスクトップ用 Canvas 描画初期プロトタイプ (include.js 経由)
-- **`game_jp.html`**: NetHackJP Native UTF-8 動作検証用プロトタイプ (include_jp.js 経由)
-- **`mobile.html`**: スマホ・モバイル端末向け DOM/タッチ操作プロトタイプ
-- **`rogue/`**: 初期プロトprototype用 UI/サウンド/ロジックマネージャー群
-
----
+- **`game.html`**: Desktop Canvas クライアント (WebUICore Canvas モード)
+- **`game_jp.html`**: NetHackJP Native UTF-8 モード
+- **`mobile.html`**: モバイル端末向け DOM/タッチ操作クライアント (WebUICore Mobile モード)
+- **`rogue/`**: Canvas/DOM 描画エンジン、サウンド、UIマネージャー群
