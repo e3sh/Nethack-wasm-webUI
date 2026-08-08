@@ -55,8 +55,6 @@ Nethack-wasm-webUI/
 
 ## 📖 ガイドライン ＆ ドキュメント
 
-- 📘 **[モダンWebコンポーネント版 サンプル更新作業ルール & 開発ガイドライン](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/Modern_Web_Components_Update_Rules.md)** (`docs/Modern_Web_Components_Update_Rules.md`)
-- 📘 **[WebUIcore 次期リファクタリング作業指示書 ＆ ロードマップ](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/WebUICore_Handoff_and_TODO.md)** (`docs/WebUICore_Handoff_and_TODO.md`)
 - 📖 **[WebUIcore 利用方法・機能仕様ガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/WebUICore_Usage_Guide.md)** (`docs/WebUICore_Usage_Guide.md`)
 - 📖 **[翻訳ドキュメント ＆ ガイドインデックス](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_translation/README.md)** (`docs/3_translation/README.md`)
 - 📦 **[WASM Driver パッケージドキュメント](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/README.md)** (`src/driver/README.md`)
