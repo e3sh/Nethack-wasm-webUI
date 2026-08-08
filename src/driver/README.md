@@ -100,7 +100,7 @@ driver.init('nethack.js');
 ## 🧪 単体検証環境 (Driver Test Client)
 
 ドライバーの機能拡張・バグ検証・C コアからのイベント受信確認には、独立検証ツールを使用します：
-- **検証用 HTML**: **[driver_dom_test.html](https://e3sh.github.io/Nethack-wasm-webUI/driver_dom_test.html)**
+- **検証用 HTML**: **[driver_dom_test.html](https://e3sh.github.io/Nethack-wasm-webUI/tools/cltest.html)**
 - **特徴**:
   - `Engine State` (RUNNING) ＆ `Input State` (WAITING_KEY/YN/MENU/TEXT) の 2 軸分離バッジ
   - インラインプロンプト行 (`[INPUT WAITING]`) による矢印キー/テンキー受容
