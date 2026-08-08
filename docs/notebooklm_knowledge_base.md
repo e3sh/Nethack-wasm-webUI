@@ -1,6 +1,10 @@
 # NetHack-wasm-webUI 技術アーキテクチャ & 設計知識ベース (NotebookLM Knowledge Base)
 
-本ドキュメントは、**NetHack-wasm-webUI** プロジェクトの技術スタック、WebAssembly/Web Worker 構成、主要モジュール設計、日本語パース・動的翻訳システム、および IndexedDB を用いたデータ永続化の設計仕様をまとめた構造化ナレッジベースです。
+> [!NOTE]
+> **最終更新日時**: 2026年8月8日 (WebUICore 第 3 サイクル完了時点)  
+> **対象バージョン**: NetHack 5.0 (3.7.0-dev) Wasm Core / WebUICore v1.0 / Driver v1.0
+
+本ドキュメントは、**NetHack-wasm-webUI** プロジェクトの技術スタック、WebAssembly/Web Worker 構成、`WebUICore` 統合アーキテクチャ、主要モジュール設計、日本語パース・動的翻訳システム、データ永続化仕様、および将来拡張ビジョンをまとめた構造化ナレッジベースです。
 NotebookLM 等の LLM コンテキストとして読み込ませ、コードベースの解読・拡張・設計分析に利用することを目的としています。
 
 ---
@@ -8,48 +12,55 @@ NotebookLM 等の LLM コンテキストとして読み込ませ、コードベ�
 ## 1. プロジェクト概要 & 技術スタック (Project Overview & Tech Stack)
 
 ### 1.1 プロジェクトの目的
-ローグライクゲームの金字塔である NetHack (C言語実装コア / NetHackJP) を WebAssembly (Wasm) にコンパイルし、ブラウザ上で動作するモダンな Web UI（DOM/Canvas/マルチフレームワーク対応）およびタッチ/ゲームパッド操作環境、動的日本語翻訳機能を提供すること。
+ローグライクゲームの金字塔である NetHack (C言語実装コア / NetHackJP) を WebAssembly (Wasm) にコンパイルし、無改造の C コアとブラウザ上のモダンな Web UI（Vue 3, React 18, Svelte, SolidJS, DOM/Canvas, モバイル, タッチ/ゲームパッド）を橋渡しする統一アーキテクチャ **`WebUICore`** および動的日本語翻訳環境を提供すること。
 
 ### 1.2 コア技術スタック
 - **Core Engine**: NetHack 3.7.0 (開発版) / NetHack 5.0.0 正式版 / NetHackJP C Core
 - **Compilation / Toolchain**: Emscripten (C to Wasm), Asyncify (C言語のブロッキング呼び出しをJavaScriptのPromiseへ変換)
-- **Execution Environment**: Web Workers (メインスレッドのUIレンダリング描画を保護するためWasmエンジンを別スレッドで実行)
+- **Execution Architecture**: Web Workers (メインスレッドのUIレンダリング描画を保護するためWasmエンジンを別スレッドで非同期実行)
+- **Unified Domain Facade**: `WebUICore` (ゲーム状態、ライフサイクル、入力マッピング、音効、翻訳、レンダラーの統合カプセル化)
 - **Frontend / Rendering**:
-  - HTML5 Canvas (標準 WebUI / 高性能スプライト描画)
-  - DOM UI (モバイル向けレスポンシブ操作画面)
-  - Plain JavaScript (ES6+), ESM モジュール
-  - サンプル UI パッケージ: Vue 3, React, Svelte, SolidJS
-- **Audio Engine**: Web Audio API (Event-driven 音声再生マッピング)
-- **Persistence**: Emscripten IDBFS (IndexedDB による `/save/` ディレクトリの永続化)
+  - HTML5 Canvas (`CanvasRenderer` / 高性能 32x32 スプライト描画)
+  - DOM UI (`DOMGridRenderer` / レスポンシブ操作画面)
+  - サンプル UI パッケージ: Vue 3, React 18, Svelte, SolidJS (`examples/`)
+- **Audio Engine**: Web Audio API (`SoundEngine` / メッセージ連動 SE 再生)
+- **Input System**: `KeyMapper` (生 KeyboardEvent / アクション自動マッピング), `TouchCalculator`, `GamepadManager`
+- **Persistence**: Emscripten IDBFS (IndexedDB による `/save/` ディレクトリの永続化 & セーブデータ安全管理)
 
 ---
 
-## 2. WebAssembly / Web Worker アーキテクチャ & 通信モデル (Wasm/Worker Architecture)
+## 2. WebAssembly / Web Worker / WebUICore 3層アーキテクチャ (3-Tier Architecture)
 
-Wasmコアは計算量の高いゲームループとCモジュール実行を担うため、Web Worker 内で完全非同期実行されます。メインスレッド（UI層）とは Message Passing を介して通信します。
+Wasmコアは計算量の高いゲームループとCモジュール実行を担うため、Web Worker 内で完全非同期実行されます。メインスレッド側では `WebUICore` が統合ファサードとして UI 層と通信ブリッジ（`NetHackWasmWorkerBridge`）をカプセル化します。
 
 ```text
-+-----------------------------------------------------------------------+
-| Main Thread (UI / Renderer)                                          |
-|  - Canvas / DOM / Framework UI (Vue, React, Svelte, SolidJS)          |
-|  - NetHackWasmWorkerBridge (Facade API)                               |
-|  - Input Handling (Keyboard, Touch, Gamepad)                          |
-|  - SoundManager (Web Audio)                                           |
-+-----------------------------------------------------------------------+
-                                 ^ |
-                 Worker Messages | | PostMessage (INIT, START, RESPOND)
-                                 | v
-+-----------------------------------------------------------------------+
-| Web Worker Thread (nethack.worker.js)                                 |
-|  - NetHackWasmDriver (Core Driver)                                    |
-|  - InputResolver (SafeResolver, Prompt Category Parser)               |
-|  - NetHackMemory (Wasm HEAP Reader / Status Decoder)                  |
-|  - NetHackFSManager (Emscripten FS / IDBFS Sync)                      |
-|  - Wasm Module (nethack.wasm / nethack_jp.wasm)                       |
-+-----------------------------------------------------------------------+
++-----------------------------------------------------------------------------------+
+| 1. Presentation Tier (UI / App Components)                                        |
+|  - Vue 3, React 18, Svelte, SolidJS, Mobile DOM, Canvas                           |
++-----------------------------------------------------------------------------------+
+                                       │
+                                       ▼ (Method Calls / Event Subscriptions)
++-----------------------------------------------------------------------------------+
+| 2. Domain / Core Integration Tier (WebUICore Facade)                             |
+|  - WebUICore (Lifecycle State Management: UNINITIALIZED -> RUNNING -> GAME_OVER)   |
+|  - Submodules: StatusAccessor, GameOverResolver, KeyMapper, GlyphHelper,          |
+|                SoundEngine, TranslationEngine, TouchCalculator, GamepadManager    |
+|  - NetHackWasmWorkerBridge (Facade Communications & SafeResolver Wrapper)        |
++-----------------------------------------------------------------------------------+
+                                       │
+                         Message Passing (Worker Protocol)
+                                       │
++-----------------------------------------------------------------------------------+
+| 3. Execution Engine Tier (Web Worker Thread: nethack.worker.js)                   |
+|  - NetHackWasmDriver (Core C-Shim Dispatcher)                                     |
+|  - InputResolver (SafeResolver & Prompt Category Parser)                          |
+|  - NetHackMemory (Wasm HEAP Reader / Status Decoder)                              |
+|  - NetHackFSManager (Emscripten FS / IDBFS Sync)                                  |
+|  - Wasm Module (nethack.wasm / nethack_jp.wasm)                                   |
++-----------------------------------------------------------------------------------+
 ```
 
-### 2.1 Worker ↔ メインスレッド通信プロトコル
+### 2.1 メインスレッド ↔ Worker 通信プロトコル
 
 #### メインスレッド → Worker (Commands)
 | Message Type | Payload / Parameters | 説明 |
@@ -73,61 +84,76 @@ Wasmコアは計算量の高いゲームループとCモジュール実行を担
 
 ---
 
-## 3. 主要ソースファイル & コンポーネント設計 (Key Component Specifications)
+## 3. WebUICore ファサード & コアモジュール設計 (WebUICore & Core Submodules)
 
-### 3.1 `src/driver/NetHackWasmDriver.js`
+### 3.1 `src/core/WebUICore.js`
+- **役割**: クライアント UI（Vue, React 等）から利用される**単一の主要エントリポイント（ファサード）**。
+- **特徴的機能**:
+  - **8 段階ライフサイクル管理 (`CoreState`)**:
+    - `UNINITIALIZED` / `INITIALIZING` / `READY` / `RUNNING` / `WAITING_INPUT` / `GAME_OVER` / `EXITED` / `DESTROYED`
+  - **クリーンリスタート (`restart({ clearStorage: true })`)**:
+    - ブラウザのリロードを行わずに、VFS セーブ削除・全ストレージ破棄・Worker 再定義・`map_cleared` イベントを自動発行して瞬時にニューゲームを開始。
+  - **Safe APIs**:
+    - `cancelPrompt()`: アクティブなプロンプトを `KEYS.ESC` (`27`) で安全にキャンセル。
+    - `deleteSaveFile(targetFilename)` / `clearAllStorage()`: セーブデータの完全削除 Safe API。
+    - `sendKeyEvent(event)` / `sendAction(actionName)`: キーボードイベントや抽象アクションの変換送信。
+
+### 3.2 `src/core/StatusAccessor.js`
+- **役割**: C コアから届く複雑なステータス変更イベントを構造化オブジェクトとして保持し、UI 側へ安全なゲッターを提供するモジュール。
+- **提供プロパティ**: `hp`, `hpmax`, `gold`, `dlevel` (構造化 `dlevelData`), `conditions` (状態異常配列), `stats` (`str`, `dex`, `con`, `int`, `wis`, `cha`) 等。
+
+### 3.3 `src/core/lifecycle/GameOverResolver.js`
+- **役割**: ゲームオーバー（討死・勝利・リタイア）時の勝敗判定、翻訳済み死因文面解析、ハイスコアボード生成を行う自律解析モジュール。
+- **提供プロパティ**: `deathMessage` (翻訳済み死因に一本化), `isVictory`, `scoreboard` (`Array<{ rank, score, name, title, death }>`).
+
+### 3.4 `src/core/input/KeyMapper.js`
+- **役割**: ブラウザの生 `KeyboardEvent` や修飾キー (Ctrl/Alt)、矢印・テンキー、トラベルキー (`_`) を C コア互換の ASCII コードへ自動変換するマッピングエンジン。
+
+### 3.5 `src/core/sound/SoundEngine.js`
+- **役割**: ゲームログメッセージのキーワード（「hits」「kills」「stairs」等）や状態変化を監視し、Web Audio API で効果音 (SE) を自動再生するサウンドエンジン。
+
+### 3.6 `src/core/translation/TranslationEngine.js`
+- **役割**: メッセージログやプロンプトテキストを `dictionary.csv` 由来の辞書引きおよび正規表現パターンでリアルタイムに日本語化する翻訳エンジン。
+
+---
+
+## 4. ドライバー & ブリッジ設計 (`src/driver/`)
+
+### 4.1 `src/driver/NetHackWasmDriver.js`
 - **役割**: Wasm C Shim 関数群（`shim_init_nhwindows`, `shim_putstr`, `shim_select_menu`, `shim_yn_function` 等）をディスパッチし、EventEmitter ベースで JavaScript イベントへ変換するドライバーコア。
-- **特徴的な機能**:
-  - `Asyncify` フック: C コアが入力待ち状態に入った際、JavaScript の `Promise` を返して C 側のスタックを待機状態にする。
-  - C コアノイズログカット (`filterSysconfLogs: true`): 起動時の sysconf 関連ログの自動フィルター。
-  - メッセージ重複除去 (`deduplicateMessages: true`): C コアが連続発行する同文面メッセージのカット。
-  - 空メニュー自動応答 (`autoRespondEmptyMenu: true`): 選択項目がない通知用メニューへの自動応答。
+- **特徴機能**:
+  - `Asyncify` フック: C コアのブロッキング呼び出し時に JavaScript の `Promise` を返してスタックを一時停止。
+  - C コアノイズログカット (`filterSysconfLogs: true`) およびメッセージ重複カット (`deduplicateMessages: true`)。
+  - 空メニュー自動応答 (`autoRespondEmptyMenu: true`): 選択肢がない通知用メニューへの自動即時応答。
 
-### 3.2 `src/driver/NetHackWasmWorkerBridge.js`
+### 4.2 `src/driver/NetHackWasmWorkerBridge.js`
 - **役割**: UI 側メインスレッドで `NetHackWasmDriver` と同一のインターフェースを提供するファサードクラス。
-- **特徴的な機能**:
-  - `Worker` インスタンスの生成・管理。
-  - `inputRequired` イベント受信時、Worker 側の `resolverId` をラップした `SafeResolver` を再構築し、UI から直感的に `.respond(value)` が呼べるようにカプセル化。
-  - `unwrapPayload`: Vue 3 等の UI フレームワークが生成する `Proxy` や複合オブジェクトを透過的に Plain JS Object に分解して postMessage 転送。
-  - `terminate()`: コンポーネント破棄時の Worker スレッド確実な停止処理。
+- **特徴機能**:
+  - `Worker` インスタンスの生成・管理・`terminate()` による安全破棄。
+  - `inputRequired` 受診時、Worker 側の `resolverId` をラップした `SafeResolver` を再構築し、UI から直感的に `.respond(value)` が呼べるようにカプセル化。
+  - `unwrapPayload`: Vue 3 や SolidJS 等の UI フレームワークが生成する `Proxy` や複合オブジェクトを透過的に Plain JS Object に分解して postMessage 転送。
 
-### 3.3 `src/driver/nethack.worker.js`
-- **役割**: Web Worker エントリポイント。
-- **特徴的な機能**:
-  - `importScripts` によるドライバー依存ファイル（`InputResolver`, `NetHackMemory`, `NetHackFSManager`, `NetHackWasmDriver`）の読み込み。
-  - `self.Module.preRun` 内での `ENV.NETHACKOPTIONS` や `SAVEDIR=/save/` などの環境変数の初期化。
-  - `locateFile` の相対パス・サブディレクトリ補正。
-
-### 3.4 `src/driver/InputResolver.js`
+### 4.3 `src/driver/InputResolver.js`
 - **役割**: Wasm C コアからの各種プロンプト・入力要求の自動分類と `SafeResolver` の生成。
-- **特徴的な機能**:
+- **特徴機能**:
   - **`SafeResolver`**: 一度 `.respond()` または `.cancel()` が呼ばれた Resolver に対する二重呼び出しを安全な no-op (無効処理) にする二重応答防止機構。
   - **`promptCategory` パース**: 入力待ちメッセージのテキストから、UI 側が扱いやすい型（`TEXT`, `YN`, `KEY`, `MENU`, `POSKEY`, `FILE`, `OTHER`）を自動判別して付与。
   - **ユーザープロンプト保護 (`isUserPromptContext`)**: 非ブロッキング描画処理が本物のユーザー入力待ち Resolver を上書き・Stale 化することを防ぐ二重チェックバリア。
 
-### 3.5 `src/driver/NetHackMemory.js`
+### 4.4 `src/driver/NetHackMemory.js`
 - **役割**: Emscripten `HEAPU8` / `HEAP32` メモリ領域を直接解析するユーティリティ。
-- **特徴的な機能**:
-  - C コアのポインタから文字列をデコード (`UTF8ToString`)。
+- **特徴機能**:
   - `parseStatusUpdate`: `DLEVEL` (Field 20) 生データ (`"Dlvl:1"`, `"Tut:1"`) からダンジョンブランチ名 (`branch`) と数値階層 (`dlevelNum`) を構造化抽出。
-  - `Gold` (Field 10) 生データの数値パースと `goldData` オブジェクト生成。
 
-### 3.6 `src/driver/NetHackFSManager.js`
+### 4.5 `src/driver/NetHackFSManager.js`
 - **役割**: Emscripten の `FS` および `IDBFS` をカプセル化し、永続化ディレクトリ `/save` の管理とスコア/ログファイルの解析を担当。
-- **特徴的な機能**:
-  - ディレクトリ作成 (`/save`, `/tmp`) および IndexedDB のマウント。
-  - `syncToPersistent(populate)` による双方向データ同期。
-  - `NetHack.cnf` や `.nethackrc` 設定ファイルの初期動的生成。
-
-### 3.7 `rogue/GameManager.js` & `UIManager.js`
-- **役割**: アプリケーション全体のゲーム進行、画面レイアウト、ゲームオーバー処理の統合管理。
-- **特徴的な機能**:
-  - ゲームオーバー時のデータ検証（Wasm 直接メモリ参照 `_get_plname()` と `record` ファイルのタイムスタンプ整合性確認）。
-  - 不一致時の安全なフォールバックゲームオーバー表示構築。
+- **特徴機能**:
+  - `syncToPersistent(populate)` による双方向タイムスタンプ比較データ同期。
+  - セーブファイル削除 API (`deleteSaveFile`) の提供。
 
 ---
 
-## 4. 日本語パース & メッセージ動的翻訳システム (Japanese Parsing & Translation)
+## 5. 日本語パース & メッセージ動的翻訳システム (Japanese Parsing & Translation)
 
 本プロジェクトには、運用目的に応じた **2 種類の日本語動作モード** が搭載されています。
 
@@ -146,24 +172,16 @@ Wasmコアは計算量の高いゲームループとCモジュール実行を担
                               2. Display directly via FontPrintControl
 ```
 
-### 4.1 モード 1: 英語 Wasm + 動的パース翻訳エンジン (JS Translation Engine)
+### 5.1 モード 1: 英語 Wasm + 動的パース翻訳エンジン (JS Translation Engine)
 - **概要**: 英語版 `nethack.wasm` の出力を受け取り、JavaScript 側でリアルタイムに日本語へ分解・構造化・再構築して表示する方式。
-- **関連ファイル**: `dictionary.csv`, `param/nhMessage.js`, `rogue/UI/trancelate.js`
-- **主要仕組み**:
-  1. **辞書引き**: [dictionary.csv](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/dictionary.csv) からビルドされた `nhMessage.js` の完全一致マップによる直接翻訳。
-  2. **品詞意識ルックアップ (`lookup_word`)**: 名詞 (`noun`)、形容詞 (`adj`)、動詞 (`verb`) の文脈に応じた翻訳補正。
-  3. **動的文脈パース (`nhPatterns`)**: `"You kill the goblin!"` などの動的メッセージを正規表現パターンキャプチャし、`「ゴブリンを倒した！」` へ変換。
-  4. **未翻訳収集**: 未翻訳メッセージを検知した際、`localStorage` (`nh.temp`) にログとして蓄積し、[tr_manager.html](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/tr_manager.html) 経由で新単語として抽出可能。
+- **辞書引き & パース**: `dictionary.csv` 由来のマップによる直接翻訳および品詞意識ルックアップ (`lookupWord`)、正規表現キャプチャ変換 (`nhPatterns`)。
 
-### 4.2 モード 2: Native NetHackJP Wasm モード (Direct UTF-8 Pass-through)
+### 5.2 モード 2: Native NetHackJP Wasm モード (Direct UTF-8 Pass-through)
 - **概要**: 日本語版 C コアを直接ビルドした `nethack_jp.wasm` を使用し、C コアレベルでローカライズされた UTF-8 文字列をそのまま表示する方式。
-- **関連ファイル**: [include_jp.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/include_jp.js), `game_jp.html`
-- **制御ロジック**:
-  - [include_jp.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/include_jp.js) 内の `window.g.define.LANG_JP = false` フラグにより、JS 翻訳エンジンをバイパス（パススルー）し、Wasm が吐き出す Native UTF-8 文字列をそのまま描画エンジンに流し込む。
 
 ---
 
-## 5. データ永続化 & セーブシステム (Data Persistence & IndexedDB Design)
+## 6. データ永続化 & セーブシステム (Data Persistence & Safe Cleanup) `[✅ 実装済み]`
 
 Emscripten の仮想ファイルシステム (MEMFS) とブラウザの IndexedDB を組み合わせ、セーブデータやスコアログの同期・永続化を行っています。
 
@@ -177,54 +195,61 @@ Emscripten MEMFS (Virtual RAM)                 Browser IndexedDB (IDBFS)
 +-------------------------------+              +-------------------------------+
 ```
 
-### 5.1 ディレクトリ構成と IDBFS マウント
-- `/save`: IDBFS (IndexedDB) をマウント。ゲームのセーブファイル (`/save/*.gz`) や `record`, `logfile` を永続保存。
-- `/tmp`: MEMFS (一時メモリ)。プレイ中の一時作業ファイル用。
-
-### 5.2 データ同期メカニズムと安全対策
-1. **双方向タイムスタンプ比較同期**:
-   - `syncToPersistent(populate)` 実行時、メモリ上の仮想ファイルシステムと IndexedDB 上の同名ファイルの最終更新日時（タイムスタンプ）を比較。
-   - 古いデータによる最新セーブデータの破棄・上書き事故を防止。
-
-2. **ゲームオーバー・レコード整合性確認**:
-   - ゲームオーバー時、Wasm エクスポート関数 `Module._get_plname()` からメモリ上の最新プレイヤー名を直接読み出し。
-   - `record` ファイルから抽出したデータが現在のプレイヤーデータと合致するか「名前」「最終HP」「到達階層 (Depth)」「ロール」で多重判定。
-   - レコード不整合（ハイスコア枠外での死亡等）を検知した場合、`GameManager.js` のフォールバック表示機構が起動し、メモリ上の直近 `statusFields` から正しい死亡画面を表示。
+### 6.1 実装済みセーブ・データ管理機能
+1. **セーブデータ自動検知 & Auto Resume (自動再開)**:
+   - `core.detectSavedGameInfo()` および `core.hasSaveDataAsync()` により、VFS および IndexedDB 内の既存セーブファイル（プレイヤー名含む）を自動検出。
+2. **クリーン再起動 & ストレージ消去**:
+   - `core.restart({ clearStorage: true })` または `core.deleteSaveFile()` 呼出し時、IndexedDB 内の古セーブファイルと VFS 上の永続データを一括消去し、メモリ破損や暗転停滞を防ぎます。
 
 ---
 
-## 6. イベントフロー詳細図解 (Event Flow Diagrams)
+## 7. マルチフレームワーク統合設計 (Framework Integration)
 
-### 6.1 初期化 & Worker 起動フロー
+`examples/` 配下の各種サンプルクライアント（Vue 3, React 18, Svelte, SolidJS）は、以下の Clean Architecture 原則に従って構築されています。
+
+1. **`driverController` シングルトン原則**:
+   - UI フレームワークの Reactive State (Vue `reactive()`, Solid `createSignal` 等) に `WebUICore` インスタンスや Resolver を直接格納せず、クラスインスタンスによる Singleton 管理を行って Proxy 破損を防ぐ。
+2. **プレゼンテーション層の単純化**:
+   - UI コンポーネントは `WebUICore` から送られる構造化イベント (`inputRequired`, `statusUpdate`, `gameOver`) をそのままバインドし、パースやマッピング処理を UI 側に記述しない。
+
+---
+
+## 8. シークエンス図 (Event Flow Diagrams)
+
+### 8.1 初期化 & Worker 起動フロー
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant UI as Main Thread (UI)
+    participant Core as WebUICore
     participant Bridge as NetHackWasmWorkerBridge
     participant Worker as nethack.worker.js
     participant Driver as NetHackWasmDriver
     participant Wasm as NetHack Wasm Core
 
-    UI->>Bridge: new NetHackWasmWorkerBridge(url, options)
+    UI->>Core: new WebUICore({ driver: bridge })
+    Core->>Bridge: Bind events & init Worker
     Bridge->>Worker: new Worker(url)
-    UI->>Bridge: init(wasmJsUrl, options)
+    UI->>Core: start('nethack.js')
+    Core->>Bridge: init(wasmJsUrl, options)
     Bridge->>Worker: postMessage({ type: 'INIT', payload })
-    Worker->>Worker: Set Module.preRun & ENV
     Worker->>Driver: new NetHackWasmDriver(options)
     Worker->>Bridge: postMessage({ type: 'INIT_DONE' })
-    Bridge->>UI: emit('initialized')
+    Bridge->>Core: emit('initialized')
+    Core->>Core: setState(CoreState.READY)
     
-    UI->>Bridge: start()
+    Core->>Bridge: start()
     Bridge->>Worker: postMessage({ type: 'START' })
     Worker->>Wasm: Module._main()
     Wasm-->>Driver: shim_init_nhwindows()
     Driver-->>Worker: emit('init_nhwindows')
     Worker-->>Bridge: postMessage({ type: 'EVENT', event: 'init_nhwindows' })
-    Bridge-->>UI: emit('init_nhwindows')
+    Bridge-->>Core: emit('init_nhwindows')
+    Core->>Core: setState(CoreState.RUNNING)
 ```
 
-### 6.2 非同期入力プロンプト処理フロー (Asyncify & SafeResolver)
+### 8.2 非同期入力プロンプト処理フロー (Asyncify & SafeResolver)
 
 ```mermaid
 sequenceDiagram
@@ -234,6 +259,7 @@ sequenceDiagram
     participant IR as InputResolver
     participant Worker as nethack.worker.js
     participant Bridge as NetHackWasmWorkerBridge
+    participant Core as WebUICore
     participant UI as Main Thread UI
 
     Wasm->>Driver: shim_yn_function(promptPtr, respPtr, def)
@@ -241,12 +267,14 @@ sequenceDiagram
     IR->>IR: Parse promptCategory ('YN') & wrap SafeResolver
     Driver->>Worker: emit('inputRequired', payload + resolverId)
     Worker->>Bridge: postMessage({ type: 'EVENT', event: 'inputRequired' })
-    Bridge->>Bridge: Wrap SafeResolver (duplicate guard)
-    Bridge->>UI: emit('inputRequired', { prompt, promptCategory, resolver })
+    Bridge->>Bridge: Wrap SafeResolver (duplicate guard & Proxy unwrap)
+    Bridge->>Core: emit('inputRequired', payload)
+    Core->>UI: emit('inputRequired', payload)
     
     Note over Wasm,Driver: Asyncify yields execution (C stack paused)
 
-    UI->>Bridge: resolver.respond('y')
+    UI->>Core: core.respond('y') (or core.sendKey('y'))
+    Core->>Bridge: resolver.respond('y')
     Bridge->>Worker: postMessage({ type: 'RESPOND', payload: { resolverId, value: 'y' } })
     Worker->>IR: resolvePending(resolverId, 'y')
     IR->>Driver: Resolve Promise with 'y'
@@ -255,9 +283,45 @@ sequenceDiagram
 
 ---
 
-## 7. 開発者向けまとめ (Developer Summary)
+## 9. 開発者向けまとめ (Developer Summary)
 
-- **コア層と UI 層の分離**: `NetHackWasmDriver` と `NetHackWasmWorkerBridge` により、Wasm 制御とフレームワーク UI (Vue/React/Vanilla) が完全に疎結合化されています。
-- **入力の安全性**: `SafeResolver` と `isUserPromptContext` により、非同期入力時の連打や非ブロッキング描画による状態破損・フリーズが発生しない堅牢な設計となっています。
-- **多言語対応の柔軟性**: 辞書ベースの動的翻訳（英語版 Wasm）と、NetHackJP Native Wasm の両方に対応可能なデュアルエンジン構造を持っています。
-- **データ保護**: Emscripten IDBFS とタイムスタンプ比較ロジックにより、ブラウザ上のセーブデータおよびスコアログが安全に保持されます。
+- **完全な関心事の分離**: `WebUICore` がドメイン制御・入力マッピング・状態管理・翻訳・音効をすべて吸収し、UI コンポーネントは表示とスタイルだけに専念できます。
+- **入力とメモリの安全性**: `SafeResolver`, `unwrapPayload`, `isUserPromptContext` により、非同期入力時の連打や Proxy 破損、フリーズを防止します。
+- **一発クリーン再起動**: `core.restart({ clearStorage: true })` により、ページリロードなしで Worker 再構築と画面リセットを安全に行えます。
+
+---
+
+## 10. 将来構想と拡張ビジョン (Future Roadmap & Architectural Vision)
+
+> [!IMPORTANT]
+> **本セクションは 2026年8月時点での将来的な拡張・開発アイデアをまとめた構想（Future Roadmap）です。今後の開発フェーズにおいて段階的に導入が検討されます。**
+
+### 10.1 完全多言語 i18n プラグイン差し替えアーキテクチャ構想
+- **`ITranslator` インターフェースによる Dependency Injection (DI)**:
+  - `WebUICore` 内部から特定言語（日本語）固定のコードを完全に切り離し、`ITranslator` インターフェースとして抽象化。
+  - `JapaneseTranslationEngine` (現行 JP エンジン), `CustomDictTranslator` (ユーザー指定他言語 JSON 辞書), `NullTranslator` (英文パススルー) を自由注入可能にする。
+- **`lang` (ロケール) と `translate_enabled` (機能トグル) の分離**:
+  - `context` (`'log'`, `'prompt'`, `'menu_item'`, `'file'`, `'ui'`) を導入し、「UI やプロンプトは日本語化するが、ゲーム進行ログのみ原文英語 (Raw English) で出力する」といった文脈別表示制御を実現。
+- **Typed Pattern Engine ＆ 複合アイテム解析 (`decomposeItemName`)**:
+  - BUC (祝呪), 強化値 (`+1`), 損耗 (`rusty`), 数量, サフィックス等を分解し、ターゲット言語の文法順へ再合成するパースエンジン。
+
+### 10.2 Game Knowledge Layer (ゲーム知識層) 構想
+- **背景と目的**:
+  - NetHack 固有の複雑な仕様（設置物・地形操作、死体・耐性、信仰、NPC 対話）のハードルを下げ、新規プレイヤーが奥深さに速やかに到達できるようにする独立知識支援層。
+- **主要機能コンポーネント**:
+  1. **実行可能なコマンドパレット UI (Executable Command Palette)**:
+     - ヘルプ（`?` キー）を単なるテキスト閲覧ではなく、VS Code のコマンドパレットのように「カテゴリ分類＋検索」ができ、**選択・タップでその場でコマンドが発動する実行型 UI** 化。スマートフォンやゲームパッドでのプレイ感が劇的に向上。
+  2. **設置物・地形のコンテキストアシスト**:
+     - 祭壇・噴水・シンク・宝箱等に乗った際、実行可能アクション（`#offer`, `#dip`, `quaff`, `kick` 等）を自動ポップアップ提示。
+  3. **死体・アイテム知識カード ＆ 軽量 Wiki リンク**:
+     - 「食べると危険/耐性がつく」等のヒント提示、および NetHackWiki (`https://nethackwiki.com/wiki/...`) への自動検索リンク機能。
+- **段階的導入ロードマップ**:
+  - Phase 1: 静的実行可能コマンドパレット
+  - Phase 2: 設置物・アイテムのコンテキストメニュー & 軽量 Wiki 検索リンク
+  - Phase 3: ログ解析・動的ヒント & 近未来の AI 連携の模索
+
+### 10.3 次世代 WebUI プラットフォーム最終形態ビジョン
+- **リアルタイム・デバッグインスペクター (Debug Inspector)**:
+  - Wasm Driver ↔ Core 間で受送信される全イベントのミリ秒タイムスタンプ付きカラーログ出力、State Monitor、および Resolver へのダイレクト入力インジェクター。
+- **WebGL / 次世代描画アダプター**:
+  - 既存の CanvasRenderer / DOMGridRenderer に加えた、高度なパーティクルやシェーダー効果を持つ WebGL スプライトレンダラープラグインのサポート。
