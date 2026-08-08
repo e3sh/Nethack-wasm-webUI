@@ -360,6 +360,14 @@
                 this.state = NetHackWasmWorkerBridge.DriverState.STOPPED;
             }
         }
+
+        async restart(options = {}) {
+            this.terminate();
+            if (typeof this.init === 'function') {
+                return await this.init(options);
+            }
+            return true;
+        }
     }
 
     global.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;

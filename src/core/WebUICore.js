@@ -13,6 +13,7 @@ import { GameOverResolver } from './lifecycle/GameOverResolver.js';
 import { StatusAccessor } from './StatusAccessor.js';
 import { NullRenderer } from './renderers/NullRenderer.js';
 import { GlyphHelper } from './renderers/GlyphHelper.js';
+import { KeyMapper } from './input/KeyMapper.js';
 import { PROMPT_CATEGORY } from './types.js';
 
 export const CoreState = {
@@ -37,6 +38,7 @@ export class WebUICore {
 
         this.gamepad = new GamepadManager(options.gamepadOptions);
         this.touch = new TouchCalculator(options.touchOptions);
+        this.keyMapper = new KeyMapper(options.keyMapperOptions);
         this.sound = new SoundEngine({ soundMode: options.soundMode || 'mute' });
 
         let isTranslateActive = options.translateEnabled;
@@ -413,6 +415,9 @@ export class WebUICore {
             if (rawKey && rawKey.length === 1 && !ctrl && !alt) {
                 return rawKey.charCodeAt(0);
             }
+            if (typeof inputVal === 'string' && inputVal.length === 1 && !ctrl && !alt) {
+                return inputVal.charCodeAt(0);
+            }
 
             const codeStr = typeof inputVal === 'string' ? inputVal : '';
 
@@ -435,10 +440,19 @@ export class WebUICore {
                 'Numpad1': 49,    // '1'
                 'Numpad3': 51,    // '3'
                 'Numpad5': 53,    // '5' (ASCII 53)
-                'Period': 46,     // '.' (Rest)
-                'Comma': 44,
-                'Slash': 47,
-                'IntlRo': 35,     // '#'
+                'Period': shift ? 62 : 46,     // '.' or '>'
+                'Comma': shift ? 60 : 44,      // ',' or '<'
+                'Slash': shift ? 63 : 47,      // '/' or '?'
+                'Minus': shift ? 95 : 45,      // '-' or '_' (Travel key ASCII 95)
+                'Equal': shift ? 43 : 61,      // '=' or '+'
+                'BracketLeft': shift ? 123 : 91,// '[' or '{'
+                'BracketRight': shift ? 125 : 93,// ']' or '}'
+                'Backslash': shift ? 124 : 92, // '\' or '|'
+                'Semicolon': shift ? 58 : 59,  // ';' or ':'
+                'Quote': shift ? 34 : 39,      // "'" or '"'
+                'Backquote': shift ? 126 : 96, // '`' or '~'
+                'IntlRo': shift ? 95 : 92,     // '_' (JIS Travel Key ASCII 95)
+                'IntlYen': shift ? 124 : 92,
                 'Hash': 35
             };
 
@@ -491,6 +505,183 @@ export class WebUICore {
                 this.sendKey(keys);
             }
         }
+    }
+
+    /**
+     * 生の KeyboardEvent を自動変換して NetHack コアへ送信する
+     *
+     * @param {KeyboardEvent} event - ブラウザの KeyboardEvent
+     * @returns {boolean} 送信成功の有無
+     */
+    sendKeyEvent(event) {
+        if (!event) return false;
+        const mappedInput = this.keyMapper.mapKeyEvent(event);
+        if (mappedInput !== null) {
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            this.sendKey(mappedInput, !!event.shiftKey, !!event.ctrlKey, !!event.altKey, event.key);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 汎用アクション名 ('MOVE_UP', 'CONFIRM', 'CANCEL' 等) からコマンドキーを送信する
+     *
+     * @param {string} actionName - アクション名
+     * @returns {boolean} 送信成功の有無
+     */
+    sendAction(actionName) {
+        const mappedKey = this.keyMapper.mapAction(actionName);
+        if (mappedKey !== null) {
+            this.sendKey(mappedKey);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * セーブデータの完全削除 Safe API
+     *
+     * @param {string} [targetFilename] - 削除対象ファイル名 (未指定時は自プレイヤーセーブ)
+     * @returns {Promise<boolean>}
+     */
+    async deleteSaveFile(targetFilename) {
+        if (this.driver) {
+            if (typeof this.driver.deleteSaveFile === 'function') {
+                return await this.driver.deleteSaveFile(targetFilename);
+            } else if (this.driver.fsManager && typeof this.driver.fsManager.deleteSaveFile === 'function') {
+                return await this.driver.fsManager.deleteSaveFile(targetFilename);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ストレージ全削除のエイリアス互換 API
+     */
+    async clearAllStorage() {
+        return await this.deleteSaveFile();
+    }
+
+    /**
+     * Worker / WASM のクリーン再起動 API
+     *
+     * @param {Object} [options] - 再起動オプション
+     * @returns {Promise<boolean>}
+     */
+    async restart(options = {}) {
+        this.activeResolver = null;
+        this.activeMenuItems = [];
+        this.currentPromptCategory = PROMPT_CATEGORY.NONE;
+        this.currentPromptChoices = '';
+        this.textWindowBuffers = {};
+
+        if (this.driver && typeof this.driver.restart === 'function') {
+            const success = await this.driver.restart(options);
+            this._setState(CoreState.INITIALIZING);
+            this.emit('restarted');
+            return success;
+        }
+
+        this._setState(CoreState.INITIALIZING);
+        this.emit('restarted');
+        return true;
+    }
+
+    /**
+     * inputRequired イベント用の GUI 構造化データ (guiData) を構築する
+     *
+     * @param {Object} payload - 生の inputRequired イベントデータ
+     * @returns {Object} 構造化データオブジェクト
+     */
+    _buildGUIInputPayload(payload) {
+        const category = payload.category || payload.promptCategory || PROMPT_CATEGORY.OTHER;
+        const rawPrompt = payload.rawPrompt || payload.prompt || payload.question || payload.message || '';
+        const choices = payload.choices || '';
+        const items = payload.items || payload.menuItems || [];
+
+        let inputType = 'CONFIRM';
+        let options = [];
+        let choicesHint = choices;
+
+        if (category === PROMPT_CATEGORY.MENU || (items && items.length > 0)) {
+            inputType = 'MENU';
+            options = items.map(item => {
+                const charStr = item.charStr || (typeof item.ch === 'number' ? String.fromCharCode(item.ch) : String(item.ch || ''));
+                return {
+                    ...item,
+                    key: charStr,
+                    label: item.str || item.rawStr || item.label || '',
+                    str: item.str || item.rawStr || item.label || '',
+                    charStr: charStr,
+                    accelerator: item.accelerator || item.ch,
+                    identifier: item.identifier,
+                    isSelectable: item.isSelectable !== false
+                };
+            });
+        } else if (category === PROMPT_CATEGORY.YN) {
+            inputType = 'CHOICE_BUTTONS';
+            let keys = [];
+            if (choices) {
+                if (choices.includes(' or ')) {
+                    keys = choices.split(' or ').map(s => s.trim().charAt(0));
+                } else if (choices.includes('/')) {
+                    keys = choices.split('/').map(s => s.trim().charAt(0));
+                } else {
+                    keys = choices.replace(/[^a-zA-Z0-9#]/g, '').split('');
+                }
+            }
+            if (keys.length === 0) {
+                keys = ['y', 'n'];
+            }
+
+            const labelMap = {
+                'y': 'Yes (y)',
+                'n': 'No (n)',
+                'q': 'Quit (q)',
+                'a': 'All (a)',
+                'r': 'Right (r)',
+                'l': 'Left (l)'
+            };
+
+            options = keys.map(k => ({
+                key: k,
+                label: labelMap[k.toLowerCase()] || `${k}`,
+                btnClass: k === 'y' ? 'btn-primary' : (k === 'n' ? 'btn-secondary' : 'btn-default')
+            }));
+        } else if (category === PROMPT_CATEGORY.TEXT || category === PROMPT_CATEGORY.ASKNAME || category === PROMPT_CATEGORY.EXTCMD || payload.context === 'text' || payload.context === 'extcmd' || payload.context === 'get_ext_cmd' || payload.context === 'getlin') {
+            inputType = 'LINE_TEXT';
+        } else if (category === PROMPT_CATEGORY.DIRECTION) {
+            inputType = 'DIRECTION';
+            options = [
+                { key: 'k', label: 'North (k)', direction: 'N' },
+                { key: 'j', label: 'South (j)', direction: 'S' },
+                { key: 'h', label: 'West (h)', direction: 'W' },
+                { key: 'l', label: 'East (l)', direction: 'E' },
+                { key: 'y', label: 'North-West (y)', direction: 'NW' },
+                { key: 'u', label: 'North-East (u)', direction: 'NE' },
+                { key: 'b', label: 'South-West (b)', direction: 'SW' },
+                { key: 'n', label: 'South-East (n)', direction: 'SE' },
+                { key: '<', label: 'Up (<)', direction: 'UP' },
+                { key: '>', label: 'Down (>)', direction: 'DN' }
+            ];
+        } else if (category === PROMPT_CATEGORY.KEY || category === PROMPT_CATEGORY.FILE) {
+            inputType = 'CONFIRM';
+            options = [
+                { key: ' ', label: 'Continue (Space)' }
+            ];
+        }
+
+        return {
+            inputType: inputType,
+            promptText: payload.prompt || rawPrompt,
+            rawPromptText: rawPrompt,
+            choicesHint: choicesHint,
+            options: options,
+            items: options
+        };
     }
 
     async resolveGameOver() {
@@ -790,7 +981,7 @@ export class WebUICore {
 
             this.activeMenuItems = translatedItems;
 
-            const passThroughPayload = {
+            const basePayload = {
                 ...payload,
                 category: category,
                 promptCategory: category,
@@ -801,6 +992,14 @@ export class WebUICore {
                 safeResolver: resolver,
                 resolver: resolver,
                 buttonOverlay: this.gamepad.getButtonOverlay(category, this.currentPromptChoices)
+            };
+
+            const guiData = this._buildGUIInputPayload(basePayload);
+            const passThroughPayload = {
+                ...basePayload,
+                ...guiData,
+                guiData: guiData,
+                guiInput: guiData
             };
 
             this.renderer.showPrompt(passThroughPayload);

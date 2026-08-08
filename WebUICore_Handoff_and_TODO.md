@@ -78,18 +78,6 @@
   - メニュー項目の `accelerator` を統一して1文字 (`char: "a"`) で提供。
   - 上下キーフォーカス移動用の標準インデックス状態を `WebUICore` 側でも認識可能にする。
 
-### 【タスク 7】トラベルキー (`_` / Shift+Minus) 等の記号キーマッピング完全対応
-- **概要**: NetHack のマップ自動移動コマンドであるトラベルキー (`_` アンダースコア) や Shift + 記号キー入力時、`WebUICore` の `sendKeyEvent` / `KeyMapper` で `event.key` の文字 (`'_'`) がそのまま ASCII コード (95) として正しく C コアに変換・送信されず Space や他キーへフォールバックしてしまう不具合。
-- **改修仕様**:
-  - `KeyMapper.mapKeyEvent(event)` および `sendKeyEvent` の ASCII 変換において、`event.key` が長さ 1 の記号文字（`'_'`, `'?'`, `'<'`, `'>'` 等）の場合は `codeStr` の条件判定より優先して `event.key.charCodeAt(0)` を返却するよう修復。
-- **効果**: キーボードからの `_` キー入力によるトラベルコマンド移動が正確に作動するようになる。
-
-### 【タスク 8】`restart()` 実行時の Worker / WASM 完全再構築と `map_cleared` 自動発行
-- **概要**: ゲームオーバー後や任意タイトルの「🔄 Restart Game」実行時、`core.restart()` を呼び出しても Worker / WASM メモリ上の状態が完全リセットされず、初期マップのクリア・全描画イベント (`map_cleared` / `print_glyph`) が発火せず画面が真っ暗なまま停滞する現象。
-- **改修仕様**:
-  - `WebUICore.prototype.restart()` 内で Worker スレッドの完全再インスタンス化および `map_cleared` イベントの自律的自動発行を実装。
-- **効果**: クライアント側で `location.reload()` に頼らず、`core.restart()` 一発で瞬時にクリーンな新ゲームへ画面描画付きで移行できるようになる。
-
 ---
 
 ## 3. 改修後のコンポーネントコード比較 (Before / After)

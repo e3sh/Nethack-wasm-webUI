@@ -82,13 +82,13 @@ class NetHackDriverController {
       const { category, context, prompt, items, choices, resolver } = payload;
 
       // 1. メニューモーダル
-      if (category === 'MENU' || context === 'select_menu') {
+      if (category === 'MENU' || payload.inputType === 'MENU' || context === 'select_menu') {
         gameStore.setMenu({
           windowId: payload.windowId || 1,
-          prompt: prompt || 'Select item:',
-          items: items || [],
+          prompt: payload.promptText || prompt || 'Select item:',
+          items: payload.options || items || payload.menuItems || [],
           resolver: resolver,
-          how: payload.how || 1,
+          how: payload.how !== undefined ? payload.how : 1,
         } as any);
         return;
       }
@@ -103,14 +103,8 @@ class NetHackDriverController {
         return;
       }
 
-      // 3. 通常の入力プロンプト (YN質問, チュートリアル選択, テキスト入力, ターン入力等)
-      gameStore.setPrompt({
-        context: context || category || 'input',
-        prompt: prompt || '[INPUT WAITING]',
-        choices: choices || '',
-        resolver: resolver,
-        category: category,
-      } as any);
+      // 3. 通常の入力プロンプト (WebUICore の最新構造化 payload をそのまま伝達)
+      gameStore.setPrompt(payload);
     });
 
     this.core.on('inputResolved', () => {
@@ -157,15 +151,12 @@ class NetHackDriverController {
     }
 
     const gameStore = useGameStore();
-    if (gameStore.activeTextModal || gameStore.activeMenu || gameStore.activePrompt) {
+    if (gameStore.activeTextModal || gameStore.activeMenu) {
       return;
     }
 
-    if (this.core && this.core.activeResolver) {
-      if (e.ctrlKey || e.altKey) {
-        e.preventDefault();
-      }
-      this.core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+    if (this.core) {
+      this.core.sendKeyEvent(e);
     }
   }
 
@@ -179,8 +170,12 @@ class NetHackDriverController {
 
   public async deleteSaveFile() {
     const gameStore = useGameStore();
-    if (this.core && this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
-      await this.core.driver.deleteSaveFile();
+    if (this.core) {
+      if (typeof this.core.deleteSaveFile === 'function') {
+        await this.core.deleteSaveFile();
+      } else if (this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
+        await this.core.driver.deleteSaveFile();
+      }
     }
     gameStore.setDetectedSaveName(null);
     gameStore.addMessage('🗑️ セーブデータを完全物理削除しました。');
@@ -189,17 +184,22 @@ class NetHackDriverController {
   public async restartGame() {
     const gameStore = useGameStore();
     gameStore.resetAllState();
-    
-    // WebUICore / Worker の再起動
-    if (this.core) {
-      try {
-        this.core.destroy();
-      } catch (e) {
-        console.warn("Core destroy warning:", e);
-      }
-      this.core = null;
+
+    try {
+      await this.deleteSaveFile();
+    } catch (e) {
+      console.warn("Save clear on restart warning:", e);
     }
-    this.startCore();
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("Storage clear warning:", e);
+    }
+
+    // セーブデータ・キャッシュ・メモリを完全破棄してクリーン新規起動
+    window.location.reload();
   }
 
   public respondPrompt(value: any) {

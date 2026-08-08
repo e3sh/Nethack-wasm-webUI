@@ -28,10 +28,17 @@ export interface ActiveMenu {
 }
 
 export interface ActivePrompt {
-  context: string;
-  prompt: string;
+  context?: string;
+  prompt?: string;
   choices?: string;
   resolver: any;
+  category?: string;
+  inputType?: 'CHOICE_BUTTONS' | 'LINE_TEXT' | 'MENU' | 'DIRECTION' | 'CONFIRM' | string;
+  promptText?: string;
+  rawPromptText?: string;
+  choicesHint?: string;
+  options?: Array<{ key: string; label: string; btnClass?: string; [key: string]: any }>;
+  [key: string]: any;
 }
 
 export interface ActiveTextModal {

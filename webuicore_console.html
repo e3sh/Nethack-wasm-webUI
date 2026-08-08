@@ -155,16 +155,23 @@
                 <div class="state-row"><span class="state-label">Driver State</span><span class="state-val" id="mon-driver-state">IDLE</span></div>
                 <div class="state-row"><span class="state-label">Active Resolver</span><span class="state-val" id="mon-resolver">Null</span></div>
                 <div class="state-row"><span class="state-label">Prompt Category</span><span class="state-val" id="mon-category">NONE</span></div>
+                <div class="state-row"><span class="state-label">Input Type (guiData)</span><span class="state-val" id="mon-input-type">-</span></div>
                 <div class="state-row"><span class="state-label">Menu Items Count</span><span class="state-val" id="mon-menu-count">0</span></div>
 
-                <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Direct Key Injector</h4>
+                <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Direct Key / Action Injector</h4>
                 <div class="btn-grid">
                     <button class="btn-cmd" onclick="injectKey('KeyY')">Key 'y'</button>
                     <button class="btn-cmd" onclick="injectKey('KeyN')">Key 'n'</button>
-                    <button class="btn-cmd" onclick="injectKey('KeyA')">Key 'a'</button>
-                    <button class="btn-cmd" onclick="injectKey('KeyB')">Key 'b'</button>
+                    <button class="btn-cmd" onclick="injectAction('MOVE_UP')">Action 'MOVE_UP'</button>
+                    <button class="btn-cmd" onclick="injectAction('CONFIRM')">Action 'CONFIRM'</button>
                     <button class="btn-space" onclick="injectKey('Space')">Press Space (' ')</button>
                     <button class="btn-esc" onclick="injectKey('Escape')">Press ESC (27)</button>
+                </div>
+
+                <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Core APIs (Safe API & Restart)</h4>
+                <div class="btn-grid">
+                    <button class="btn-cmd" style="background:#dc2626;" onclick="testDeleteSave()">Delete Save File</button>
+                    <button class="btn-cmd" style="background:#0284c7;" onclick="testRestart()">Safe Restart Worker</button>
                 </div>
 
                 <h4 style="color:#38bdf8; margin: 12px 0 6px 0;">Direct Resolver Injector</h4>
@@ -194,8 +201,8 @@
             <div class="panel-body" style="display:flex; flex-direction:column; gap:10px;">
                 <div style="flex:1; overflow-y:auto; background:#000; border:1px solid #334155; padding:6px;" id="event-stream-log"></div>
                 <div>
-                    <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">Last inputRequired Event Payload:</div>
-                    <div id="json-preview">{}</div>
+                    <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">guiData Payload Inspector:</div>
+                    <div id="json-preview" style="font-size:11px; max-height:160px; overflow-y:auto; background:#000; border:1px solid #334155; padding:4px; font-family:monospace;">{}</div>
                 </div>
             </div>
         </div>
@@ -259,27 +266,26 @@
             }
         });
 
+        const monInputType = document.getElementById('mon-input-type');
+
         core.on('inputRequired', (data) => {
             monResolver.textContent = 'Active (Pending)';
             monResolver.style.color = '#f59e0b';
             monCategory.textContent = data.category || 'OTHER';
+            const guiData = data.guiData || {};
+            monInputType.textContent = guiData.inputType || '-';
             const items = data.menuItems || data.items || [];
             monMenuCount.textContent = items.length;
 
-            jsonPreview.textContent = JSON.stringify({
-                category: data.category,
-                prompt: data.prompt,
-                rawPrompt: data.rawPrompt,
-                itemsCount: items.length,
-                itemsPreview: items.slice(0, 5)
-            }, null, 2);
+            jsonPreview.textContent = JSON.stringify(guiData, null, 2);
 
-            logEvent('INPUT_REQ', `Category: ${data.category} | Items: ${items.length} | Prompt: "${data.prompt}"`, 'log-input');
+            logEvent('INPUT_REQ', `Category: ${data.category} | inputType: ${guiData.inputType} | Options: ${guiData.options ? guiData.options.length : 0} | Prompt: "${data.prompt}"`, 'log-input');
         });
 
         core.on('inputResolved', () => {
             monResolver.textContent = 'Null (Resolved)';
             monResolver.style.color = '#10b981';
+            monInputType.textContent = '-';
             logEvent('INPUT_RES', 'Resolver Resolved. Ready for next turn.', 'log-resolved');
         });
 
@@ -287,6 +293,24 @@
         window.injectKey = (code) => {
             logEvent('INJECT_KEY', `Sending core.sendKey('${code}')`, 'log-input');
             core.sendKey(code);
+        };
+
+        window.injectAction = (actionName) => {
+            logEvent('INJECT_ACTION', `Sending core.sendAction('${actionName}')`, 'log-input');
+            const res = core.sendAction(actionName);
+            if (!res) logEvent('WARN', `Action '${actionName}' map not found`, 'log-err');
+        };
+
+        window.testDeleteSave = async () => {
+            logEvent('API', 'Executing core.deleteSaveFile()...', 'log-status');
+            const res = await core.deleteSaveFile();
+            logEvent('API_RESULT', `deleteSaveFile result: ${res}`, res ? 'log-resolved' : 'log-err');
+        };
+
+        window.testRestart = async () => {
+            logEvent('API', 'Executing core.restart()...', 'log-status');
+            const res = await core.restart();
+            logEvent('API_RESULT', `restart result: ${res}`, 'log-resolved');
         };
 
         window.injectResolverValue = () => {
@@ -301,6 +325,17 @@
                 logEvent('WARN', 'No Active Resolver pending!', 'log-err');
             }
         };
+
+        // 生の KeyboardEvent テスト用グローバルリスナー
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+            if (core.activeResolver) {
+                const handled = core.sendKeyEvent(e);
+                if (handled) {
+                    logEvent('KEY_EVENT', `sendKeyEvent intercepted '${e.key}' (code:${e.code})`, 'log-input');
+                }
+            }
+        });
 
         btnToggleRenderer.onclick = () => {
             useCanvas = !useCanvas;

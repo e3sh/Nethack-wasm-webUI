@@ -102,6 +102,26 @@ export class TranslationEngine {
     resolveFileText(filename: string, fileText: string, FS?: any): Promise<string>;
 }
 
+export interface GUIInputOption {
+    key: string;
+    label: string;
+    btnClass?: string;
+    charStr?: string;
+    accelerator?: string | number;
+    identifier?: any;
+    isSelectable?: boolean;
+    direction?: string;
+}
+
+export interface GUIInputRequiredPayload {
+    inputType: 'CHOICE_BUTTONS' | 'LINE_TEXT' | 'MENU' | 'DIRECTION' | 'CONFIRM';
+    promptText: string;
+    rawPromptText: string;
+    choicesHint?: string;
+    options: GUIInputOption[];
+    items?: GUIInputOption[];
+}
+
 export class WebUICore {
     constructor(options: WebUICoreOptions);
 
@@ -109,6 +129,7 @@ export class WebUICore {
     renderer: any;
     gamepad: any;
     touch: any;
+    keyMapper: any;
     sound: SoundEngine;
     translator: TranslationEngine;
     statusAccessor: StatusAccessor;
@@ -119,7 +140,7 @@ export class WebUICore {
     activeMenuItems: any[];
 
     start(wasmJsUrl?: string): Promise<number>;
-    restart(): Promise<number>;
+    restart(options?: any): Promise<boolean>;
     destroy(): void;
     getState(): CoreStateType;
     hasSaveData(): boolean;
@@ -135,7 +156,10 @@ export class WebUICore {
     setRenderer(newRenderer: any): void;
     respond(inputVal: any): void;
     sendKey(inputVal: string | number, shift?: boolean, ctrl?: boolean, alt?: boolean, rawKey?: string): void;
+    sendKeyEvent(event: KeyboardEvent): boolean;
+    sendAction(actionName: string): boolean;
     handleTouchPoint(pageX: number, pageY: number, targetRect: DOMRect, scrollX?: number, scrollY?: number): void;
     resolveGameOver(): Promise<GameOverResult>;
+    deleteSaveFile(targetFilename?: string): Promise<boolean>;
     clearAllStorage(): Promise<boolean>;
 }

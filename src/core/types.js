@@ -31,6 +31,7 @@ export const PROMPT_CATEGORY = {
   POSKEY: 'POSKEY',
   FILE: 'FILE',
   ASKNAME: 'ASKNAME',
+  EXTCMD: 'EXTCMD',
   OTHER: 'OTHER'
 };
 

@@ -50,7 +50,7 @@ const { restartGame } = useNetHackDriver();
 
 const topScores = computed(() => {
   if (!gameOverResult.value) return [];
-  return gameOverResult.value.scoreboard || gameOverResult.value.records || gameOverResult.value.topScores || [];
+  return gameOverResult.value.scoreboard || [];
 });
 
 function getDeathText(): string {

@@ -25,8 +25,12 @@ export function useNetHackDriver() {
   }, []);
 
   const deleteSaveFile = useCallback(async () => {
-    if (globalCore && globalCore.driver && typeof globalCore.driver.deleteSaveFile === 'function') {
-      await globalCore.driver.deleteSaveFile();
+    if (globalCore) {
+      if (typeof globalCore.deleteSaveFile === 'function') {
+        await globalCore.deleteSaveFile();
+      } else if (globalCore.driver && typeof globalCore.driver.deleteSaveFile === 'function') {
+        await globalCore.driver.deleteSaveFile();
+      }
     }
     useGameStore.getState().setDetectedSaveName(null);
     useGameStore.getState().addMessage('🗑️ セーブデータを完全物理削除しました。');
@@ -98,24 +102,18 @@ export function useNetHackDriver() {
     core.on('inputRequired', (payload: any) => {
       const { category, context, prompt, items, choices, resolver } = payload;
 
-      if (category === 'MENU' || context === 'select_menu') {
+      if (category === 'MENU' || payload.inputType === 'MENU' || context === 'select_menu') {
         useGameStore.getState().setMenu({
           windowId: payload.windowId || 1,
-          prompt: prompt || 'Select item:',
-          items: items || [],
+          prompt: payload.promptText || prompt || 'Select item:',
+          items: payload.options || items || payload.menuItems || [],
           resolver: resolver,
-          how: payload.how || 1,
+          how: payload.how !== undefined ? payload.how : 1,
         } as any);
         return;
       }
 
-      useGameStore.getState().setPrompt({
-        context: context || category || 'input',
-        prompt: prompt || '[INPUT WAITING]',
-        choices: choices || '',
-        resolver: resolver,
-        category: category,
-      } as any);
+      useGameStore.getState().setPrompt(payload);
     });
 
     core.on('inputResolved', () => {
@@ -135,12 +133,7 @@ export function useNetHackDriver() {
         store.setEngineState('SAVED');
         store.addMessage('ℹ️ ゲームは正常にセーブ中断されました（次回起動時に再開可能です）。');
       } else {
-        store.setEngineState('GAMEOVER');
-        if (result && result.deathMessage) {
-          store.addMessage(`☠️ ${result.deathMessage}`);
-        } else {
-          store.addMessage('☠️ セーブデータがありません。ゲームオーバーです。');
-        }
+        store.addMessage(result?.deathMessage ? `☠️ ${result.deathMessage}` : '☠️ セーブデータがありません。ゲームオーバーです。');
       }
     });
 
@@ -162,15 +155,23 @@ export function useNetHackDriver() {
 
     if (globalCore) {
       try {
-        globalCore.destroy();
+        if (typeof globalCore.deleteSaveFile === 'function') {
+          await globalCore.deleteSaveFile();
+        }
       } catch (e) {
-        console.warn("React core destroy warning:", e);
+        console.warn("Save clear on restart warning:", e);
       }
-      globalCore = null;
-      isCoreInitialized = false;
     }
-    startCore();
-  }, [startCore]);
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("Storage clear warning:", e);
+    }
+
+    window.location.reload();
+  }, []);
 
   const handleGlobalKeyDown = useCallback((e: KeyboardEvent) => {
     const store = useGameStore.getState();
@@ -181,15 +182,12 @@ export function useNetHackDriver() {
     ) {
       return;
     }
-    if (store.activeMenu || store.activeTextModal || store.activePrompt) {
+    if (store.activeMenu || store.activeTextModal) {
       return;
     }
 
-    if (globalCore && globalCore.activeResolver) {
-      if (e.ctrlKey || e.altKey) {
-        e.preventDefault();
-      }
-      globalCore.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+    if (globalCore) {
+      globalCore.sendKeyEvent(e);
     }
   }, []);
 

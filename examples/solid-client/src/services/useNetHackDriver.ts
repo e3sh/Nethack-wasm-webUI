@@ -37,32 +37,20 @@ export class NetHackDriverController {
   };
 
   public deleteSaveFile = async () => {
-    if (this.core && this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
-      await this.core.driver.deleteSaveFile();
+    if (this.core) {
+      if (typeof this.core.deleteSaveFile === 'function') {
+        await this.core.deleteSaveFile();
+      } else if (this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
+        await this.core.driver.deleteSaveFile();
+      }
     }
     setDetectedSaveName(null);
     addMessage('🗑️ セーブデータを完全物理削除しました。');
   };
 
-  public restartGame = async () => {
-    resetAllState();
-
-    if (this.core) {
-      try {
-        this.core.destroy();
-      } catch (e) {
-        console.warn("Solid core destroy warning:", e);
-      }
-      this.core = null;
-      this.isInitialized = false;
-    }
-    this.init();
-  };
-
   private handleGlobalKeyDown = (e: KeyboardEvent) => {
     const currentMenu = activeMenu();
     const currentModal = activeTextModal();
-    const currentPrompt = activePrompt();
 
     if (
       document.activeElement &&
@@ -70,15 +58,12 @@ export class NetHackDriverController {
     ) {
       return;
     }
-    if (currentMenu || currentModal || currentPrompt) {
+    if (currentMenu || currentModal) {
       return;
     }
 
-    if (this.core && this.core.activeResolver) {
-      if (e.ctrlKey || e.altKey) {
-        e.preventDefault();
-      }
-      this.core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+    if (this.core) {
+      this.core.sendKeyEvent(e);
     }
   };
 
@@ -148,24 +133,18 @@ export class NetHackDriverController {
     this.core.on('inputRequired', (payload: any) => {
       const { category, context, prompt, items, choices, resolver } = payload;
 
-      if (category === 'MENU' || context === 'select_menu') {
+      if (category === 'MENU' || payload.inputType === 'MENU' || context === 'select_menu') {
         setActiveMenu({
           windowId: payload.windowId || 1,
-          prompt: prompt || 'Select item:',
-          items: items || [],
+          prompt: payload.promptText || prompt || 'Select item:',
+          items: payload.options || items || payload.menuItems || [],
           resolver: resolver,
-          how: payload.how || 1,
+          how: payload.how !== undefined ? payload.how : 1,
         });
         return;
       }
 
-      setActivePrompt({
-        context: context || category || 'input',
-        prompt: prompt || '[INPUT WAITING]',
-        choices: choices || '',
-        resolver: resolver,
-        category: category,
-      } as any);
+      setActivePrompt(payload);
     });
 
     this.core.on('inputResolved', () => {
@@ -199,6 +178,29 @@ export class NetHackDriverController {
     this.core.start(nethackJsPath).catch((err: any) => {
       console.error("Solid client WebUICore start error:", err);
     });
+  }
+
+  public async restartGame() {
+    resetAllState();
+
+    if (this.core) {
+      try {
+        if (typeof this.core.deleteSaveFile === 'function') {
+          await this.core.deleteSaveFile();
+        }
+      } catch (e) {
+        console.warn("Save clear on restart warning:", e);
+      }
+    }
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("Storage clear warning:", e);
+    }
+
+    window.location.reload();
   }
 
   public destroy() {

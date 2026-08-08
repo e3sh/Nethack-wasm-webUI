@@ -981,6 +981,24 @@
                 return false;
             }
         }
+
+        /**
+         * Driver の再初期化 / リセット Safe API
+         */
+        async restart(options = {}) {
+            if (this.workerBridge && typeof this.workerBridge.restart === 'function') {
+                return await this.workerBridge.restart(options);
+            }
+            if (this.worker && typeof this.worker.terminate === 'function') {
+                try {
+                    this.worker.terminate();
+                } catch(e) {}
+            }
+            if (typeof this.init === 'function') {
+                return await this.init(options);
+            }
+            return true;
+        }
     }
 
     global.NetHackWasmDriver = NetHackWasmDriver;
