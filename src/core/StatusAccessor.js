@@ -121,6 +121,13 @@ export class StatusAccessor {
         const scoreVal = parseInt(rawScore !== undefined ? rawScore : 0, 10) || 0;
         const turnsVal = parseInt(f[16] !== undefined ? f[16] : 0, 10) || 0;
 
+        const rawXp = f[13] !== undefined ? f[13] : 1;
+        const xpVal = parseInt(rawXp, 10) || 1;
+
+        const rawAc = f[14] !== undefined ? f[14] : 10;
+        const parsedAc = parseInt(rawAc, 10);
+        const acVal = isNaN(parsedAc) ? 10 : parsedAc;
+
         return {
             title: f[0] !== undefined ? String(f[0]) : "--",
             hp: { current: curHp, max: maxHp, percent: hpPercent },
@@ -131,7 +138,8 @@ export class StatusAccessor {
             hunger: hungerStr,
             stats: stats,
             score: scoreVal,
-            ac: parseInt(f[13] !== undefined ? f[13] : (f[14] !== undefined ? f[14] : 10), 10) || 10,
+            xp: xpVal,
+            ac: acVal,
             turns: turnsVal,
             allFields: { ...this.fields }
         };
