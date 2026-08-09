@@ -452,6 +452,32 @@
                 <div id="log-box" class="log-box"></div>
             </div>
 
+            <!-- 周辺コンテキスト & 推奨アクション (Knowledge Inspector) -->
+            <div class="panel-box" style="border-color: #00e676;">
+                <div class="panel-title" style="color: #00e676; display: flex; justify-content: space-between;">
+                    <span>🧠 Knowledge & Surroundings</span>
+                    <span id="kn-pos-info" style="color: #aaa; font-weight: normal;">(0,0)</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <!-- 3x3 ミニコンテキストマップ -->
+                    <div id="kn-grid-3x3" style="display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 24px); gap: 2px; background: #000; padding: 4px; border: 1px solid #333; border-radius: 4px; text-align: center; line-height: 24px; font-weight: bold; font-family: monospace;">
+                        <div>.</div><div>.</div><div>.</div>
+                        <div>.</div><div style="color:#00e676;">@</div><div>.</div>
+                        <div>.</div><div>.</div><div>.</div>
+                    </div>
+                    <!-- 足元 & 周辺サマリー -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+                        <div>足元: <b id="kn-feet-info" style="color: #ffe082;">-</b></div>
+                        <div>隣接モンスター: <b id="kn-monsters-info" style="color: #ff5555;">なし</b></div>
+                    </div>
+                </div>
+                <!-- 推奨可能アクションボタンリスト -->
+                <div style="font-size: 10px; color: #888; margin-top: 4px;">推奨可能アクション (Quick Actions):</div>
+                <div id="kn-actions-list" style="display: flex; flex-wrap: wrap; gap: 4px; min-height: 32px; max-height: 90px; overflow-y: auto; background: #121212; padding: 4px; border-radius: 4px; border: 1px solid #2a2a2a;">
+                    <span style="color: #666; font-size: 11px;">(推奨アクションなし)</span>
+                </div>
+            </div>
+
             <!-- ドライバー・システムインスペクター -->
             <div class="panel-box">
                 <div class="panel-title">Driver Inspector</div>
@@ -924,6 +950,105 @@
             renderColorAsciiMap();
         }
 
+        const knPosInfo = document.getElementById('kn-pos-info');
+        const knGrid3x3 = document.getElementById('kn-grid-3x3');
+        const knFeetInfo = document.getElementById('kn-feet-info');
+        const knMonstersInfo = document.getElementById('kn-monsters-info');
+        const knActionsList = document.getElementById('kn-actions-list');
+
+        function updateKnowledgeUI() {
+            const areaState = core.getAreaState(1);
+            if (!areaState) return;
+
+            if (knPosInfo) {
+                knPosInfo.textContent = `(${areaState.playerLocation.x}, ${areaState.playerLocation.y})`;
+            }
+
+            // 1. 3x3 グリッド描画
+            if (knGrid3x3 && areaState.cells) {
+                knGrid3x3.innerHTML = '';
+                areaState.cells.forEach(row => {
+                    row.forEach(cell => {
+                        const cellEl = document.createElement('div');
+                        cellEl.style.fontSize = '12px';
+                        cellEl.style.display = 'flex';
+                        cellEl.style.alignItems = 'center';
+                        cellEl.style.justifyContent = 'center';
+                        
+                        if (cell.relX === 0 && cell.relY === 0) {
+                            cellEl.textContent = '@';
+                            cellEl.style.color = '#00e676';
+                            cellEl.style.background = '#1b5e20';
+                            cellEl.style.borderRadius = '2px';
+                        } else if (cell.top) {
+                            cellEl.textContent = cell.top.type === 'PET' ? 'd' : 'M';
+                            cellEl.style.color = cell.top.type === 'PET' ? '#29b6f6' : '#ff5555';
+                        } else if (cell.middle) {
+                            cellEl.textContent = cell.middle.isPile ? '%' : '$';
+                            cellEl.style.color = '#ffca28';
+                        } else if (cell.bottom) {
+                            cellEl.textContent = '.';
+                            cellEl.style.color = '#666';
+                        } else {
+                            cellEl.textContent = ' ';
+                        }
+                        knGrid3x3.appendChild(cellEl);
+                    });
+                });
+            }
+
+            // 2. 足元サマリー
+            if (knFeetInfo && areaState.feet) {
+                if (areaState.feet.middle) {
+                    knFeetInfo.textContent = `アイテムあり (${areaState.feet.middle.type}${areaState.feet.middle.isPile ? ' 山積み' : ''})`;
+                    knFeetInfo.style.color = '#ffca28';
+                } else if (areaState.feet.bottom) {
+                    knFeetInfo.textContent = `床 (${areaState.feet.bottom.type})`;
+                    knFeetInfo.style.color = '#ffe082';
+                } else {
+                    knFeetInfo.textContent = '-';
+                }
+            }
+
+            // 3. 隣接モンスターサマリー
+            if (knMonstersInfo) {
+                if (areaState.adjacentMonsters && areaState.adjacentMonsters.length > 0) {
+                    const names = areaState.adjacentMonsters.map(m => `${m.dir.name}(${m.dir.key})`).join(', ');
+                    knMonstersInfo.textContent = names;
+                    knMonstersInfo.style.color = '#ff5555';
+                } else {
+                    knMonstersInfo.textContent = 'なし';
+                    knMonstersInfo.style.color = '#aaa';
+                }
+            }
+
+            // 4. 推奨可能アクションボタンの描画
+            if (knActionsList) {
+                const actions = core.getRecommendedActions();
+                knActionsList.innerHTML = '';
+                if (actions && actions.length > 0) {
+                    actions.forEach(action => {
+                        const btn = document.createElement('button');
+                        btn.className = 'action-btn';
+                        btn.style.cssText = 'background:#1b5e20; border:1px solid #00e676; color:#fff; font-size:11px; padding:3px 8px; border-radius:4px; cursor:pointer; display:flex; align-items:center; gap:4px;';
+                        btn.innerHTML = `<b style="color:#00e676;">[${action.charStr || action.key}]</b> ${action.label}`;
+                        btn.onclick = () => {
+                            if (action.charStr) {
+                                core.sendKey(action.charStr);
+                            } else {
+                                core.sendKey(action.key);
+                            }
+                        };
+                        knActionsList.appendChild(btn);
+                    });
+                } else {
+                    knActionsList.innerHTML = '<span style="color:#666; font-size:11px;">(推奨アクションなし)</span>';
+                }
+            }
+        }
+
+        core.on('area_updated', updateKnowledgeUI);
+
         core.on('cursor', ({ x, y }) => {
             const prevX = targetCursorX;
             const prevY = targetCursorY;
@@ -936,6 +1061,7 @@
             if (targetCursorX >= 0 && targetCursorY >= 0) {
                 redrawSingleCell(targetCursorX, targetCursorY);
             }
+            updateKnowledgeUI();
         });
 
         core.on('print_glyph', ({ x, y, glyphInfo, glyph }) => {

@@ -15,6 +15,8 @@ import { NullRenderer } from './renderers/NullRenderer.js';
 import { GlyphHelper } from './renderers/GlyphHelper.js';
 import { KeyMapper } from './input/KeyMapper.js';
 import { PROMPT_CATEGORY } from './types.js';
+import { AreaStateManager } from './knowledge/AreaStateManager.js';
+import { ContextActionEngine } from './knowledge/ContextActionEngine.js';
 
 export const KEYS = {
     ESC: 27,
@@ -71,6 +73,7 @@ export class WebUICore {
 
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
         this.statusAccessor = new StatusAccessor();
+        this.areaStateManager = new AreaStateManager();
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -779,7 +782,9 @@ export class WebUICore {
             if (data && data.x !== undefined && data.y !== undefined) {
                 this.cursorX = data.x;
                 this.cursorY = data.y;
+                this.areaStateManager.updatePlayerPosition(data.x, data.y);
                 this.emit('cursor', { x: data.x, y: data.y, windowId: data.windowId });
+                this.emit('area_updated', this.getAreaState());
             }
         };
         this.driver.on('curs', handleCursorMove);
@@ -791,6 +796,7 @@ export class WebUICore {
                 delete this.textWindowBuffers[data.windowId];
             }
             if (data.windowId === 2 || data.windowId === 0) {
+                this.areaStateManager.resetGrid();
                 if (this.renderer && typeof this.renderer.clearMap === 'function') {
                     this.renderer.clearMap();
                 }
@@ -808,6 +814,7 @@ export class WebUICore {
             const ch = gi.ch || data.ch || ' ';
             const color = gi.color !== undefined ? gi.color : (data.color !== undefined ? data.color : 7);
 
+            this.areaStateManager.updateGlyph(x, y, glyphId, gi);
             const parsedData = { windowId: data.windowId, x, y, glyph: glyphId, ch, color, glyphInfo: gi };
             this.renderer.drawGlyph(x, y, parsedData);
             this.emit('print_glyph', parsedData);
@@ -1106,5 +1113,24 @@ export class WebUICore {
         };
 
         this.gamepadLoopId = requestAnimationFrame(poll);
+    }
+
+    /**
+     * 現在のプレイヤー周辺 (指定半径) の構造化エリア状態を取得
+     * @param {number} [radius=1] 半径 (1 で 3x3)
+     * @returns {Object} 構造化 AreaState
+     */
+    getAreaState(radius = 1) {
+        return this.areaStateManager.getAreaState(this.cursorX, this.cursorY, radius);
+    }
+
+    /**
+     * 現在のコンテキストにおける推奨アクション一覧を取得
+     * @param {number} [radius=1] 半径 (1 で 3x3)
+     * @returns {Array<Object>} 推奨アクション配列
+     */
+    getRecommendedActions(radius = 1) {
+        const areaState = this.getAreaState(radius);
+        return ContextActionEngine.generateActions(areaState);
     }
 }
