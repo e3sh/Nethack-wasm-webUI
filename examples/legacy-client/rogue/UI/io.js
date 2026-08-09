@@ -242,10 +242,13 @@ function io(r, g) {
 			}
 		});
 
-		let splitwork = (sf[s.GOLD] || "0:0").split(":");
-		const goldGlyphId = parseInt(splitwork[0].slice(7), 16) || 3883;
+		let splitwork = String(sf[s.GOLD] || "0:0").split(":");
+		const goldGlyphId = (splitwork[0] && splitwork[0].includes('glyph:')) 
+			? (parseInt(splitwork[0].replace('glyph:', '').trim(), 16) || 3883)
+			: 3883;
 		const glyphId = String.fromCharCode(goldGlyphId + d.GLYPH_BASE);
-		const GOLD = `${glyphId}${splitwork[1] || "0"}`;
+		const goldAmt = splitwork[splitwork.length - 1] || "0";
+		const GOLD = `${glyphId}${goldAmt}`;
 
 		const hpInd = warnIcon(sf[s.HP], sf[s.HPMAX]);
 		const enInd = warnIcon(sf[s.ENE], sf[s.ENEMAX]);

@@ -61,7 +61,7 @@ C コアから届く `field` 番号は `param/rogueDefines.js` の正統イン�
 | field 番号 | 項目名 | 内容 / UI マッピング推奨 |
 | :--- | :--- | :--- |
 | `0` | **TITLE** | ヒーロー名と称号 (`Hero the Novice`) |
-| `10` | **GOLD** | 所持金。`goldData.glyphId` (`3886`) および `goldData.amount` で構造化受容。<br>金貨アイコン (`.st-gold-tile`) を横に描画 |
+| `10` | **GOLD** | 所持金。Driver生イベント (`status_update`) では `goldData.glyphId` (`3886`) および `goldData.amount` で受容。<br>※ `WebUICore` / `StatusAccessor` 統合モデルでは `status.gold.amount` および `status.gold.glyphId` として参照。<br>金貨アイコン (`.st-gold-tile`) を横に描画 |
 | `11` / `12` | **ENE / ENEMAX** | 現在の Pw と 最大 Pw (`Pw:1(6)`) |
 | `13` | **XP** | レベル数値 (`Lvl:1`) |
 | `14` | **AC** | アーマークラス (`AC:10`) |

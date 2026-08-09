@@ -462,15 +462,31 @@ class MobileDomClient {
         if (this.statusBar) {
             const st = this.statusData;
             const nameStr = st[0] || 'Hero';
-            const rankStr = st[1] || 'Novice';
-            const hpStr = `HP:${st[10] || 0}(${st[11] || 0})`;
-            const pwStr = `Pw:${st[12] || 0}(${st[13] || 0})`;
-            const acStr = `AC:${st[14] || 10}`;
-            const goldStr = `Au:${st[9] || 0}`;
-            const lvlStr = `Lvl:${st[18] || 1}`;
+            const hpCur = st[18] !== undefined ? st[18] : 0;
+            const hpMax = st[19] !== undefined ? st[19] : 0;
+            const hpStr = `HP:${hpCur}(${hpMax})`;
+
+            const pwCur = st[11] !== undefined ? st[11] : 0;
+            const pwMax = st[12] !== undefined ? st[12] : 0;
+            const pwStr = `Pw:${pwCur}(${pwMax})`;
+
+            const acStr = `AC:${st[14] !== undefined ? st[14] : 10}`;
+
+            let rawGold = st[10];
+            let goldVal = 0;
+            if (rawGold && typeof rawGold === 'object') {
+                goldVal = rawGold.amount !== undefined ? rawGold.amount : (rawGold.goldData ? rawGold.goldData.amount : 0);
+            } else if (typeof rawGold === 'string') {
+                const parts = rawGold.split(':');
+                goldVal = parseInt(parts[parts.length - 1], 10) || 0;
+            } else if (typeof rawGold === 'number') {
+                goldVal = rawGold;
+            }
+            const goldStr = `Au:${goldVal}`;
+            const lvlStr = `Lvl:${st[13] || 1}`;
 
             this.statusBar.innerHTML = `
-                <span class="st-item st-name">${nameStr} the ${rankStr}</span>
+                <span class="st-item st-name">${nameStr}</span>
                 <span class="st-item st-hp">${hpStr}</span>
                 <span class="st-item st-pw">${pwStr}</span>
                 <span class="st-item st-ac">${acStr}</span>

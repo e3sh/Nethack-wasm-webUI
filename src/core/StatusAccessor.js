@@ -51,11 +51,19 @@ export class StatusAccessor {
         // Gold (10: BL_GOLD)
         let goldAmount = 0;
         const rawGold = f[10];
-        if (rawGold && typeof rawGold === 'object' && rawGold.amount !== undefined) {
-            goldAmount = parseInt(rawGold.amount, 10) || 0;
+        if (rawGold && typeof rawGold === 'object') {
+            if (rawGold.amount !== undefined) {
+                goldAmount = parseInt(rawGold.amount, 10) || 0;
+            } else if (rawGold.goldData && rawGold.goldData.amount !== undefined) {
+                goldAmount = parseInt(rawGold.goldData.amount, 10) || 0;
+            } else if (rawGold.value !== undefined) {
+                const valStr = String(rawGold.value);
+                const parts = valStr.split(':');
+                goldAmount = parseInt(parts[parts.length - 1], 10) || 0;
+            }
         } else if (typeof rawGold === 'string') {
-            const match = rawGold.match(/(\d+)/);
-            goldAmount = match ? parseInt(match[1], 10) : 0;
+            const parts = rawGold.split(':');
+            goldAmount = parseInt(parts[parts.length - 1], 10) || 0;
         } else if (typeof rawGold === 'number') {
             goldAmount = rawGold;
         }
