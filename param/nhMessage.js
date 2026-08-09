@@ -1320,6 +1320,7 @@
         { en: " You are burdened; movement is slightly slowed.", jp: "荷物が重く、移動速度がわずかに低下している。" },
         { en: " You were burdened; movement is slightly slowed.", jp: "荷物が重く、移動速度がわずかに低下していた。" },
         { en: "Miscellaneous:", jp: "その他：" },
+        { en: " You are bare handed.", jp: "あなたは素手です。" },
         { en: " You were bare handed.", jp: "あなたは素手でした。" },
         { en: " You are empty handed.", jp: "あなたは手ぶらだ。" },
         { en: " You were empty handed.", jp: "あなたは手ぶらでした。" },
@@ -1547,6 +1548,7 @@
         { en: "The mixture glows brightly and", jp: "混合物が明るく輝き、それ" },
         { en: "The mixture bubbles, then clears.", jp: "泡立ち、やがて澄み渡る。" },
         { en: " It is nighttime.", jp: "夜です。" },
+        { en: " It was nighttime.", jp: "夜でした。" },
         { en: " You are temporarily blind.", jp: "一時的に目が見えなくなる。" },
         { en: "Moreover, you have no gold.", jp: "さらに、金も持っていない。" },
         { en: "You suddenly yearn for your distant homeland.", jp: "突然、遠い故郷を懐かしく思う。" },
@@ -10849,6 +10851,7 @@
         { en: "pronounce", jp: "発音" },
         { en: "You produce a frightful, grave sound.", jp: "あなたは恐ろしく重々しい音を立てる。" },
         { en: "Your thirst is quenched.", jp: "渇きは癒やされた。" },
+        { en: "You don't have anything to sacrifice.", jp: "犠牲にするものは何もない。" },
     ];
 }
 
@@ -16882,6 +16885,7 @@ function nhPatterns() {
         { pattern: /^freed\s+delayed\s+killer\s+\#(.*)$/, replace: "遅延キラー # $1 を解放" },
         { pattern: /^bad\s+killer\s+format\?\s+\((.*)\)$/, replace: "キラーフォーマットが悪い？ ( $1 )" },
         { pattern: /^What\s+weird\s+role\s+is\s+this\?\s+\((.*)\)$/, replace: "なんだこの変な役は？ ( $1 )" },
+        { pattern: /^(killed\s+by|choked\s+on|poisoned\s+by|died\s+of|drowned\s+in|burned\s+by|dissolved\s+in|crushed\s+to\s+death\s+by|petrified\s+by|turned\s+to\s+slime\s+by)\s+(.*)$/, replace: "$2$1" },
         { pattern: /^,\s+while\s+(.*)$/, replace: "、一方で $1" },
         { pattern: /^version=(.*)\.(.*)\.(.*)$/, replace: "バージョン= $1 。 $1 。 $1" },
         { pattern: /^(.*)=0x(.*)(.*)=(.*)(.*)=0x(.*)$/, replace: "$1 =0x $2  $3 = $4  $5 =0x $2" },
@@ -17006,6 +17010,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+with\s+all\s+your\s+might$/, replace: "$1を全力を込めて" },
         { pattern: /^You\s+feel\s+no\s+(.*)\s+there\.$/, replace: "そこに$1があるようには感じられない。" },
         { pattern: /^The\s+(.*)\s+returns\s+to\s+the\s+(.*)'s\s+hand!$/, replace: "$1が、$2の手元に戻った！" },
+        { pattern: /^a\s+figurine\s+of\s+(.*)$/, replace: "$1の置物" },
     ];
 }
 
