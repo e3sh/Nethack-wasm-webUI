@@ -111,13 +111,14 @@ class sceneControl extends GameTask {
 
 							if (input.space) {
 								// Spaceが押されている場合、Space以外のキーを探す
-								const otherKey = keys.find(k => k !== "Space");
-								if (otherKey) {
-									ctrl = true;
-									effectiveKey = otherKey;
-									spaceUsedAsCtrl = true; // このSpace押下は修飾キーとして使われた
-								}
+								//const otherKey = keys.find(k => k !== "Space");
+								//if (otherKey) {
+								//	ctrl = true;
+								//	effectiveKey = otherKey;
+								//	spaceUsedAsCtrl = true; // このSpace押下は修飾キーとして使われた
+								//}
 							} else {
+								ctrl = input.ctrl; 
 								alt = input.alt;
 							}
 

@@ -148,6 +148,7 @@ class ioControl extends GameTask {
 		input.shift = shift;
 		input.space = space;
 		input.alt = alt;
+		input.ctrl = ctrl;
 
 		this.input = input;
 
