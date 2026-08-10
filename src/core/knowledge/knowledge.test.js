@@ -173,3 +173,106 @@ test('ContextActionEngine - 祭壇・泉・樹木・リスク評価・多言語�
         assert.ok(actions[i].priority >= actions[i + 1].priority, '推奨アクションが優先度降順に並んでいること');
     }
 });
+
+import { InventoryStateManager } from './InventoryStateManager.js';
+import { DirectionalActionResolver } from '../../client/DirectionalActionResolver.js';
+
+test('InventoryStateManager - パースとツール抽出テスト', () => {
+    const inv = new InventoryStateManager();
+    assert.strictEqual(inv.getPickAxe(), null, '未同期時は null を返すこと');
+
+    inv.updateFromMenuItems([
+        { letter: 'a', text: 'a +0 dagger', glyph: 3450, onum: 1 },
+        { letter: 'f', text: 'a blessed +1 pick-axe (weapon in hand)', glyph: 3707, onum: 259 },
+        { letter: 'b', text: 'an iron key', glyph: 3699, onum: 251 }
+    ]);
+
+    assert.strictEqual(inv.isSynced, true);
+    const pickAxe = inv.getPickAxe();
+    assert.ok(pickAxe, 'ツルハシが検出されること');
+    assert.strictEqual(pickAxe.letter, 'f');
+    assert.strictEqual(pickAxe.isPickAxe, true);
+
+    const key = inv.getKeyOrLockPick();
+    assert.ok(key, '鍵が検出されること');
+    assert.strictEqual(key.letter, 'b');
+});
+
+test('ContextActionEngine & DirectionalActionResolver - 所持品連動ノイズ除去およびペット誤爆防止テスト', () => {
+    const manager = new AreaStateManager(80, 21);
+    manager.updatePlayerPosition(5, 5);
+
+    const wallGlyph = 3930; // Wall
+    const petGlyph = GLYPH_OFFSETS.GLYPH_PET_OFF + 5; // Pet
+
+    // 1. 東(6,5)に壁がある場合
+    manager.updateGlyph(6, 5, wallGlyph);
+    let state = manager.getAreaState();
+
+    // 1-A. ツルハシ未所持状態 -> 掘削アクションはノイズ除去されて非生成
+    const invEmpty = new InventoryStateManager();
+    invEmpty.updateFromMenuItems([
+        { letter: 'a', text: 'a +0 dagger' }
+    ]);
+    let actions = ContextActionEngine.generateActions(state, invEmpty);
+    let digAction = actions.find(a => a.id === 'ACTION_DIG_WALL_E');
+    assert.strictEqual(digAction, undefined, 'ツルハシ未所持時は壁掘削アクションがノイズ除去されること');
+
+    let resolveResult = DirectionalActionResolver.resolveDirection('E', state, invEmpty);
+    assert.strictEqual(resolveResult.isWalkable, false);
+    assert.strictEqual(resolveResult.primaryAction, null, '掘削ツールが無い壁への入力はプライマリアクションなし');
+
+    // 1-B. ツルハシ所持状態 -> 掘削アクション生成 & keySequence 挿入
+    const invWithPick = new InventoryStateManager();
+    invWithPick.updateFromMenuItems([
+        { letter: 'f', text: 'a pick-axe', onum: 259 }
+    ]);
+    actions = ContextActionEngine.generateActions(state, invWithPick);
+    digAction = actions.find(a => a.id === 'ACTION_DIG_WALL_E');
+    assert.ok(digAction, 'ツルハシ所持時は壁掘削アクションが生成されること');
+    assert.deepStrictEqual(digAction.keySequence, ['a', 'f', 'l'], 'keySequence が [a, f, l] に設定されること');
+
+    resolveResult = DirectionalActionResolver.resolveDirection('E', state, invWithPick);
+    assert.strictEqual(resolveResult.isWalkable, false);
+    assert.strictEqual(resolveResult.primaryAction.id, 'ACTION_DIG_WALL_E');
+
+    // 2. 北(5,4)にペットがいる場合 -> 攻撃コマンド非生成 & 話しかけるコマンドのみ
+    manager.updateGlyph(5, 4, petGlyph);
+    state = manager.getAreaState();
+    actions = ContextActionEngine.generateActions(state, invEmpty);
+
+    const attackPetAction = actions.find(a => a.id === 'ACTION_ATTACK_N');
+    assert.strictEqual(attackPetAction, undefined, 'ペットに対する攻撃コマンドは絶対生成されないこと（誤爆防止）');
+
+    const chatPetAction = actions.find(a => a.id === 'ACTION_CHAT_N');
+    assert.ok(chatPetAction, 'ペットに対しては話しかけるアクションが生成されること');
+});
+
+test('InventoryStateManager - ロックピック (lock pick) ならず者初期所持＆メッセージ自動検出テスト', () => {
+    const inv = new InventoryStateManager();
+
+    // 1. 初期メニュー同期テスト ("a - a lock pick")
+    inv.updateFromMenuItems([
+        { letter: 'a', text: 'a - a lock pick', glyph: 3707, onum: 250 }
+    ]);
+    assert.strictEqual(inv.isSynced, true);
+    const keyItem = inv.getKeyOrLockPick();
+    assert.ok(keyItem, 'a lock pick が鍵/解錠ツールとして認識されること');
+    assert.strictEqual(keyItem.letter, 'a');
+
+    // 2. メッセージ自動検出テスト ("You start with a lock pick.")
+    const invMsg = new InventoryStateManager();
+    assert.strictEqual(invMsg.isSynced, false);
+    invMsg.updateFromMessage("You start with a lock pick.");
+    assert.strictEqual(invMsg.isSynced, true, '初期所持メッセージで自動同期されること');
+    // 3. 多様なプロパティ名 (str, accelerator, label) 対応テスト
+    const invProp = new InventoryStateManager();
+    invProp.updateFromMenuItems([
+        { accelerator: 'b', str: 'b - a lock pick', glyphInfo: { glyph: 3707, onum: 250 } }
+    ]);
+    assert.strictEqual(invProp.isSynced, true);
+    const keyProp = invProp.getKeyOrLockPick();
+    assert.ok(keyProp, 'str / accelerator 形式の lock pick も認識されること');
+    assert.strictEqual(keyProp.letter, 'b');
+});
+

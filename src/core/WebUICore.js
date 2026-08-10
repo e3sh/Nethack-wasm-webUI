@@ -377,16 +377,23 @@ export class WebUICore {
                            (it.charStr && it.charStr.charCodeAt(0) === charCode);
                 });
 
-                if (matchedItem && matchedItem.identifier !== undefined) {
-                    finalResponse = [{ identifier: matchedItem.identifier, count: -1 }];
+                if (matchedItem) {
+                    if (matchedItem.identifier !== undefined && matchedItem.identifier !== 0 && matchedItem.identifier !== -1) {
+                        finalResponse = [{ identifier: matchedItem.identifier, count: -1 }];
+                    } else {
+                        finalResponse = typeof inputVal === 'number' ? inputVal : inputVal.charCodeAt(0);
+                    }
                 } else {
-                    finalResponse = 0;
+                    finalResponse = typeof inputVal === 'number' ? inputVal : inputVal.charCodeAt(0);
                 }
             } else if (typeof inputVal === 'object') {
                 if (Array.isArray(inputVal)) {
                     finalResponse = inputVal;
-                } else if (inputVal.identifier !== undefined) {
+                } else if (inputVal.identifier !== undefined && inputVal.identifier !== 0 && inputVal.identifier !== -1) {
                     finalResponse = [{ identifier: inputVal.identifier, count: inputVal.count !== undefined ? inputVal.count : -1 }];
+                } else {
+                    const rawCh = inputVal.ch || inputVal.accelerator || inputVal.selector || inputVal.letter || 0;
+                    finalResponse = typeof rawCh === 'number' ? rawCh : (typeof rawCh === 'string' && rawCh.length > 0 ? rawCh.charCodeAt(0) : 0);
                 }
             }
         } else if (this.currentPromptCategory === PROMPT_CATEGORY.YN) {
@@ -414,10 +421,10 @@ export class WebUICore {
         }
     }
 
-    sendKey(inputVal, shift = false, ctrl = false, alt = false, rawKey = '') {
+    sendKey(inputVal, shift = false, ctrl = false, alt = false, rawKey = '', bypassDebounce = false) {
         if (!this.activeResolver) return;
 
-        if (this.lastInputTime && (Date.now() - this.lastInputTime < 120)) {
+        if (!bypassDebounce && this.lastInputTime && (Date.now() - this.lastInputTime < 120)) {
             return;
         }
 
@@ -516,6 +523,47 @@ export class WebUICore {
 
         const asciiCode = convertToAscii();
         this.respond(asciiCode);
+    }
+
+    /**
+     * 多段階プロンプト操作用のキーシーケンス（例: ['a', 'f', 'l']）を安全なディレイ間隔で非同期連続送信
+     * @param {Array<string>} keys - 送信キーの配列
+     * @param {number} [delayMs=200] - キー間の待機ミリ秒
+     */
+    async sendKeySequence(keys, delayMs = 200) {
+        if (!Array.isArray(keys) || keys.length === 0) return;
+
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            this.sendKey(k, false, false, false, k, true);
+            if (i < keys.length - 1) {
+                await new Promise(res => setTimeout(res, delayMs));
+            }
+        }
+    }
+
+    /**
+     * EXTCMD 拡張コマンド（#loot, #chat, #untrap, #pray 等）を安全に非同期連続実行
+     * @param {string} extCmdName - 拡張コマンド名 ('loot', 'chat', 'untrap', 'pray', etc.)
+     * @param {string} [directionKey=null] - オプションの方向キー ('l', 'k', etc.)
+     * @param {number} [delayMs=180] - ステップ間ミリ秒
+     */
+    async sendExtCommand(extCmdName, directionKey = null, delayMs = 180) {
+        if (!extCmdName) return;
+        const cleanCmd = extCmdName.startsWith('#') ? extCmdName.slice(1).trim() : extCmdName.trim();
+
+        // 1. `#` キーを送信
+        this.sendKey('#', false, false, false, '#', true);
+        await new Promise(res => setTimeout(res, delayMs));
+
+        // 2. EXTCMD 名を respond または送信
+        this.respond(cleanCmd);
+        await new Promise(res => setTimeout(res, delayMs));
+
+        // 3. 方向キーがあれば送信
+        if (directionKey) {
+            this.sendKey(directionKey, false, false, false, directionKey, true);
+        }
     }
 
     handleTouchPoint(pageX, pageY, targetRect, scrollX, scrollY) {
@@ -1009,6 +1057,7 @@ export class WebUICore {
                     }
                 }
 
+                //const rawCh = item ? (item.ch !== undefined && item.ch !== 0 && item.ch !== '\0' ? item.ch : (item.accelerator || item.selector || item.letter || (typeof itemStr === 'string' ? itemStr.match(/^([a-zA-Z])[\s\-\.\)]/)?.[1] : 0))) : 0;
                 const rawCh = item ? (item.ch !== undefined && item.ch !== 0 ? item.ch : item.accelerator) : 0;
                 let charCode = 0;
                 let charStr = '';
@@ -1027,7 +1076,10 @@ export class WebUICore {
                     isSelectable = true;
                     charCode = 97 + index;
                     charStr = String.fromCharCode(charCode);
-                }
+                } //else if (item && (item.text || item.str)) {
+                  //何かしらの項目テキストが存在する場合は選択可能アイテムとして補償
+                  //  isSelectable = true;
+                //}
 
                 return {
                     ...item,

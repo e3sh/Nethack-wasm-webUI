@@ -287,7 +287,6 @@
             display: none;
             flex-direction: column;
             gap: 10px;
-            z-index: 100;
         }
 
         .mobile-modal.active {
@@ -348,8 +347,53 @@
         }
 
         .global-cmd-btn:active {
-            background: #00e676;
-            color: #000;
+            background: #3f3f46;
+        }
+
+        /* インベントリ同期インジケーター */
+        .inv-status-panel {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin: 4px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .inv-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        .inv-badge-list {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        .inv-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: bold;
+        }
+        .inv-badge.active {
+            background: #1b5e20;
+            border: 1px solid #00e676;
+            color: #00e676;
+            box-shadow: 0 0 6px rgba(0, 230, 118, 0.3);
+        }
+        .inv-badge.disabled {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #71717a;
         }
     </style>
 </head>
@@ -386,6 +430,20 @@
             <div class="st-item"><span class="st-label">HP</span><span id="st-hp" class="st-val" style="color:#00e676;">- / -</span></div>
             <div class="st-item"><span class="st-label">PW</span><span id="st-pw" class="st-val" style="color:#29b6f6;">- / -</span></div>
             <div class="st-item"><span class="st-label">AC</span><span id="st-ac" class="st-val">-</span></div>
+        </div>
+
+        <!-- 3-B. インベントリ同期インジケーター (主要アイテム認識状態) -->
+        <div id="inv-status-panel" class="inv-status-panel">
+            <div class="inv-panel-header">
+                <span style="font-weight:bold; color:#00e676;">🎒 道具認識状態 (Inventory Sync)</span>
+                <span id="inv-sync-time" style="font-size:10px; color:#888;">未同期 (Press 'i')</span>
+            </div>
+            <div class="inv-badge-list">
+                <div id="badge-pickaxe" class="inv-badge disabled">⛏️ ツルハシ: なし</div>
+                <div id="badge-key" class="inv-badge disabled">🔑 鍵/ピック: なし</div>
+                <div id="badge-axe" class="inv-badge disabled">🪓 斧: なし</div>
+                <div id="badge-wand" class="inv-badge disabled">❄️ 氷の杖: なし</div>
+            </div>
         </div>
 
         <!-- 4. 最下部操作デッキ -->
@@ -445,10 +503,15 @@
     <!-- Cコアファサードスクリプト読み込み -->
     <script type="module">
         import { WebUICore } from '../src/core/WebUICore.js';
+        import { ContextActionEngine } from '../src/core/knowledge/ContextActionEngine.js';
+        import { InventoryStateManager } from '../src/core/knowledge/InventoryStateManager.js';
+        import { DirectionalActionResolver } from '../src/client/DirectionalActionResolver.js';
 
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
+        const inventoryState = new InventoryStateManager();
         window.core = core;
+        window.inventoryState = inventoryState;
 
         // モーダル DOM 参照
         const mobileModal = document.getElementById('mobile-modal');
@@ -464,6 +527,7 @@
         // 1. メッセージログ更新 (message ＆ putstr の両方を受信)
         function appendLogMessage(msgText) {
             if (!msgText) return;
+            inventoryState.updateFromMessage(msgText);
             const line = document.createElement('div');
             line.className = 'log-line';
             line.textContent = msgText;
@@ -501,7 +565,83 @@
             const items = data.menuItems || data.items || [];
             const textLines = data.lines || [];
 
-            // (A) Look Information / HELP / FILE テキストウィンドウ
+            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期
+            if (inventoryState && category === 'MENU' && items && items.length > 0) {
+                inventoryState.updateFromMenuItems(items);
+                if (typeof updateDPadVisuals === 'function') updateDPadVisuals();
+            }
+
+            // (A) インベントリ ＆ オプション選択 MENU 表示 (選択肢アイテム items が存在、または category === 'MENU' の場合は最優先処理)
+            if (category === 'MENU' || (items && items.length > 0)) {
+                mobileModal.className = 'mobile-modal active';
+                modalTitle.textContent = rawPrompt || '選択してください:';
+
+                if (textLines && textLines.length > 0) {
+                    textLines.forEach(lineText => {
+                        try {
+                            const headerDiv = document.createElement('div');
+                            headerDiv.style.fontSize = '11px';
+                            headerDiv.style.color = '#81d4fa';
+                            headerDiv.style.marginTop = '4px';
+                            headerDiv.textContent = typeof lineText === 'string' ? lineText : JSON.stringify(lineText);
+                            modalBody.appendChild(headerDiv);
+                        } catch (e) {}
+                    });
+                }
+
+                if (Array.isArray(items)) {
+                    items.forEach(item => {
+                        try {
+                            if (!item) return;
+                            const itemText = typeof item === 'string' ? item : (item.str || item.text || item.label);// || JSON.stringify(item));
+                            if (item.isSelectable === false) {
+                                const headerDiv = document.createElement('div');
+                                headerDiv.style.fontSize = '11px';
+                                headerDiv.style.color = '#00e676';
+                                headerDiv.style.fontWeight = 'bold';
+                                headerDiv.style.marginTop = '4px';
+                                headerDiv.textContent = itemText;
+                                modalBody.appendChild(headerDiv);
+                                return;
+                            }
+
+                            const btn = document.createElement('button');
+                            btn.className = 'modal-btn';
+                            let chStr = '';
+                            if (typeof item === 'object' && item) {
+                                chStr = item.charStr || item.accelerator || item.selector || item.letter || '';
+                                if (!chStr && typeof item.ch === 'number' && item.ch > 0) {
+                                    chStr = String.fromCharCode(item.ch);
+                                }
+                            }
+                            btn.textContent = chStr ? `[${chStr}] ${itemText}` : itemText;
+                            btn.onclick = () => {
+                                const selectVal = chStr || (item && item.accelerator) || (item && item.selector) || item;
+                                clearModal();
+                                core.respond(selectVal);
+                            };
+                            modalBody.appendChild(btn);
+                        } catch (itemErr) {
+                            console.error("Mobile menu item render error:", itemErr, item);
+                        }
+                    });
+                }
+
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'modal-btn';
+                btnCancel.style.borderColor = '#666';
+                btnCancel.style.color = '#aaa';
+                btnCancel.style.textAlign = 'center';
+                btnCancel.textContent = 'キャンセル (ESC / 0)';
+                btnCancel.onclick = () => {
+                    clearModal();
+                    core.respond(0);
+                };
+                modalBody.appendChild(btnCancel);
+                return;
+            }
+
+            // (B) Look Information / HELP / FILE テキストウィンドウ
             if (textLines && textLines.length > 0) {
                 mobileModal.className = 'mobile-modal active';
                 modalTitle.textContent = rawPrompt || '詳細情報 (Text Window)';
@@ -526,49 +666,6 @@
                 return;
             }
 
-            // (B) インベントリ ＆ オプション選択 MENU 表示
-            if (category === 'MENU' || (items && items.length > 0)) {
-                mobileModal.className = 'mobile-modal active';
-                modalTitle.textContent = rawPrompt || '選択してください:';
-
-                items.forEach(item => {
-                    const itemText = item.str || item.text || (typeof item === 'string' ? item : '');
-                    if (item.isSelectable === false) {
-                        const headerDiv = document.createElement('div');
-                        headerDiv.style.fontSize = '11px';
-                        headerDiv.style.color = '#00e676';
-                        headerDiv.style.fontWeight = 'bold';
-                        headerDiv.style.marginTop = '4px';
-                        headerDiv.textContent = itemText;
-                        modalBody.appendChild(headerDiv);
-                        return;
-                    }
-
-                    const btn = document.createElement('button');
-                    btn.className = 'modal-btn';
-                    const chStr = item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
-                    btn.textContent = chStr ? `[${chStr}] ${itemText}` : itemText;
-                    btn.onclick = () => {
-                        clearModal();
-                        core.respond(item);
-                    };
-                    modalBody.appendChild(btn);
-                });
-
-                const btnCancel = document.createElement('button');
-                btnCancel.className = 'modal-btn';
-                btnCancel.style.borderColor = '#666';
-                btnCancel.style.color = '#aaa';
-                btnCancel.style.textAlign = 'center';
-                btnCancel.textContent = 'キャンセル (ESC / 0)';
-                btnCancel.onclick = () => {
-                    clearModal();
-                    core.respond(0);
-                };
-                modalBody.appendChild(btnCancel);
-                return;
-            }
-
             // (C) ASKNAME (名前プロンプト ➔ 自動で 'Hero' を応答して即時開始)
             if (category === 'ASKNAME') {
                 core.respond('Hero');
@@ -579,8 +676,9 @@
             if (category === 'YN') {
                 mobileModal.className = 'mobile-modal active';
                 modalTitle.textContent = rawPrompt || '質問 [Y/N]';
-                const choices = data.choices || 'yn';
+                const choices = data.choices || data.ynChoices || (rawPrompt.match(/\[(.*?)\]/)?.[1]) || 'ynaq';
                 for (const ch of choices.split('')) {
+                    if (!ch.trim()) continue;
                     const btn = document.createElement('button');
                     btn.className = 'modal-btn';
                     btn.textContent = `${ch.toUpperCase()} (${ch})`;
@@ -720,7 +818,8 @@
                         core.sendKey('5');
                         return;
                     }
-                    // 8方向移動キーは numpad 設定に合わせて安全送信
+
+                    // D-Padの入力は常にシンプルかつ確実な方向キー（移動 / 標準近接攻撃）を安全送信
                     const isNumpadOff = core.options && core.options.number_pad === false;
                     const mappedObj = DIR_KEY_MAP[rawDir];
                     const finalKey = mappedObj ? (isNumpadOff ? mappedObj.vi : mappedObj.numpad) : rawDir;
@@ -729,7 +828,7 @@
             });
         }
 
-        // アクション実行関数 (メインコマンド ➔ 方向キーの自動連続送信対応)
+        // アクション実行関数 (メインコマンド/道具指定のみ送信 ➔ 方向は点灯D-Pad等での手動入力に委ねる)
         window.executeContextAction = function(action) {
             if (!action) return;
             if (action.risk === 'danger') {
@@ -737,24 +836,34 @@
                 if (!ok) return;
             }
 
-            const isNumpadOff = core.options && core.options.number_pad === false;
-            let targetDirKey = action.directionKey;
-            if (targetDirKey && DIR_KEY_MAP[targetDirKey]) {
-                targetDirKey = isNumpadOff ? DIR_KEY_MAP[targetDirKey].vi : DIR_KEY_MAP[targetDirKey].numpad;
+            // (A) EXTCMD 拡張コマンド (#loot, #chat, #untrap, #pray, #offer, #sit, #dip 等)
+            const rawCmdKey = action.charStr || action.key || '';
+            const extCmdName = action.extCmd || (typeof rawCmdKey === 'string' && rawCmdKey.startsWith('#') ? rawCmdKey.slice(1) : null);
+
+            if (extCmdName) {
+                // '#'' ➔ EXTCMD 名 のみ送信（方向指定はプレイヤーの手動D-Pad入力に任せる）
+                core.sendExtCommand(extCmdName, null, 180);
+                return;
             }
 
+            // (B) keySequence が指定されている場合 (例: ['a', 'f', 'l']) ➔ 方向キーを除いたコマンド+道具指定のみ送信
+            if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
+                const seq = [...action.keySequence];
+                // 末尾が方向キー (y,k,u,h,l,b,j,n) であれば除外
+                if (seq.length > 1 && ['y','k','u','h','l','b','j','n'].includes(seq[seq.length - 1])) {
+                    seq.pop();
+                }
+                core.sendKeySequence(seq, 180);
+                return;
+            }
+
+            // (C) 単一コマンド (o: 開ける, c: 閉じる, C-d: 蹴る 等) ➔ メインコマンドのみ送信
             if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
                 // Ctrl+d (蹴る: Kick)
                 core.sendKey('d', false, true, false, 'd');
-                if (targetDirKey) {
-                    setTimeout(() => core.sendKey(targetDirKey), 80);
-                }
             } else {
                 const mainCmd = action.charStr || action.key;
                 core.sendKey(mainCmd);
-                if (targetDirKey && mainCmd !== targetDirKey) {
-                    setTimeout(() => core.sendKey(targetDirKey), 80);
-                }
             }
         };
 
@@ -919,12 +1028,142 @@
             radarCtx.fillRect(x, y, 1, 1);
         }
 
+        // D-Pad ボタンのビジュアル（色・アイコン）動的ハイライト更新
+        function updateDPadVisuals() {
+            const areaState = core.getAreaState ? core.getAreaState() : null;
+            if (!areaState) return;
+
+            const dpadBtns = document.querySelectorAll('.dpad-btn[data-dir]');
+            const originalArrowMap = {
+                'y': '↖', 'k': '↑', 'u': '↗',
+                'h': '←', '5': 'Wait', '_': 'Wait', 'l': '→',
+                'b': '↙', 'j': '↓', 'n': '↘'
+            };
+
+            dpadBtns.forEach(btn => {
+                const rawDir = btn.dataset.dir;
+                if (rawDir === '5' || rawDir === '_') return;
+
+                const resolved = DirectionalActionResolver.resolveDirection(rawDir, areaState, inventoryState);
+
+                if (resolved.isWalkable || !resolved.primaryAction) {
+                    // 通常移動キー (デフォルトデザインにリセット)
+                    btn.style.background = '#27272a';
+                    btn.style.borderColor = '#3f3f46';
+                    btn.style.color = '#f4f4f5';
+                    btn.style.boxShadow = 'none';
+                    btn.textContent = originalArrowMap[rawDir] || rawDir;
+                } else {
+                    // 移動不可＋スマートアクション割り当て中 ➔ ボタンカラー＆アイコン変更！
+                    const act = resolved.primaryAction;
+                    let bg = 'linear-gradient(135deg, #1565c0, #0288d1)';
+                    let border = '#81d4fa';
+                    let icon = '⚡';
+
+                    if (act.id.includes('DOOR')) {
+                        bg = 'linear-gradient(135deg, #1b5e20, #2e7d32)';
+                        border = '#00e676';
+                        icon = '🚪';
+                    } else if (act.id.includes('DIG')) {
+                        bg = 'linear-gradient(135deg, #4e342e, #6d4c41)';
+                        border = '#ffb74d';
+                        icon = '⛏️';
+                    } else if (act.id.includes('TREE')) {
+                        bg = 'linear-gradient(135deg, #33691e, #558b2f)';
+                        border = '#aed581';
+                        icon = '🪓';
+                    } else if (act.id.includes('FREEZE')) {
+                        bg = 'linear-gradient(135deg, #01579b, #0288d1)';
+                        border = '#81d4fa';
+                        icon = '❄️';
+                    } else if (act.id.includes('CHAT')) {
+                        bg = 'linear-gradient(135deg, #4a148c, #6a1b9a)';
+                        border = '#ce93d8';
+                        icon = '💬';
+                    }
+
+                    btn.style.background = bg;
+                    btn.style.borderColor = border;
+                    btn.style.color = '#ffffff';
+                    btn.style.boxShadow = `0 0 8px ${border}88`;
+                    btn.textContent = icon;
+                }
+            });
+        }
+
+        // インベントリ同期状態インジケーター描画
+        function renderInventoryStatus() {
+            const syncTime = document.getElementById('inv-sync-time');
+            const bPick = document.getElementById('badge-pickaxe');
+            const bKey = document.getElementById('badge-key');
+            const bAxe = document.getElementById('badge-axe');
+            const bWand = document.getElementById('badge-wand');
+
+            if (!inventoryState || !syncTime) return;
+
+            if (inventoryState.isSynced) {
+                const count = inventoryState.rawItems ? inventoryState.rawItems.length : 0;
+                syncTime.textContent = `同期済み (${count}点)`;
+                syncTime.style.color = '#00e676';
+            } else {
+                syncTime.textContent = `未同期 (Press 'i')`;
+                syncTime.style.color = '#888';
+            }
+
+            // 1. ツルハシ
+            const pick = inventoryState.getPickAxe();
+            if (pick) {
+                bPick.className = 'inv-badge active';
+                bPick.textContent = `⛏️ [${pick.letter}] ${pick.rawText || 'ツルハシ'}`;
+            } else {
+                bPick.className = 'inv-badge disabled';
+                bPick.textContent = `⛏️ ツルハシ: なし`;
+            }
+
+            // 2. 鍵/ロックピック
+            const key = inventoryState.getKeyOrLockPick();
+            if (key) {
+                bKey.className = 'inv-badge active';
+                bKey.textContent = `🔑 [${key.letter}] ${key.rawText || '鍵'}`;
+            } else {
+                bKey.className = 'inv-badge disabled';
+                bKey.textContent = `🔑 鍵/ピック: なし`;
+            }
+
+            // 3. 斧
+            const axe = inventoryState.getAxe();
+            if (axe) {
+                bAxe.className = 'inv-badge active';
+                bAxe.textContent = `🪓 [${axe.letter}] ${axe.rawText || '斧'}`;
+            } else {
+                bAxe.className = 'inv-badge disabled';
+                bAxe.textContent = `🪓 斧: なし`;
+            }
+
+            // 4. 氷の杖
+            const wand = inventoryState.getFrostWand();
+            if (wand) {
+                bWand.className = 'inv-badge active';
+                bWand.textContent = `❄️ [${wand.letter}] ${wand.rawText || '氷の杖'}`;
+            } else {
+                bWand.className = 'inv-badge disabled';
+                bWand.textContent = `❄️ 氷の杖: なし`;
+            }
+        }
+
         // コントロールデッキ & 巨大プライマリボタン更新
         let currentPrimaryAction = null;
 
         function updateControlDeck() {
-            const actions = core.getRecommendedActions();
+            const areaState = core.getAreaState ? core.getAreaState() : null;
+            const actions = areaState ? ContextActionEngine.generateActions(areaState, inventoryState) : (core.getRecommendedActions ? core.getRecommendedActions() : []);
             subActionsList.innerHTML = '';
+
+            // インベントリ同期インジケーター更新
+            renderInventoryStatus();
+
+            // D-Pad ボタンの色・アイコンを動的ハイライト
+            updateDPadVisuals();
 
             if (actions && actions.length > 0) {
                 // 最優先アクション (actions[0]) を巨大プライマリボタンに割り当て

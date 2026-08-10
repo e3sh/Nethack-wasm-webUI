@@ -17,7 +17,7 @@ export class GlyphHelper {
      * @returns {Object} CSSスタイルオブジェクト
      */
     static getGlyphStyle(glyph, options = {}) {
-        const tileImage = options.tileImage || '../../assets/nethack_default_32.png';
+        const tileImage = options.tileImage || '../pict/nethack_default_32.png';
         const tileSize = options.tileSize || 32;
         const displaySize = options.displaySize || 16;
         const tilesPerRow = options.tilesPerRow || 40;

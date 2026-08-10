@@ -229,13 +229,6 @@
             margin-bottom: 3px;
             font-weight: bold;
         }
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 4px;
-            margin-bottom: 2px;
-        }
 
         .ascii-cell.is-cursor {
             background: #ffe082 !important;
@@ -276,7 +269,6 @@
             color: #f4f4f5;
             font-weight: bold;
             font-size: 12px;
-        }
         }
 
         .val-hp { color: #00e676; }
@@ -385,6 +377,7 @@
             flex-direction: column;
             gap: 12px;
             z-index: 100;
+            gap: 10px;
         }
 
         .menu-modal.active {
@@ -523,6 +516,20 @@
             </div>
         </div>
 
+        <!-- 3-B. インベントリ同期インジケーター (主要アイテム認識状態) -->
+        <div id="inv-status-panel" style="background:#1e1e1e; border:1px solid #333; border-radius:6px; padding:6px 12px; margin-top:6px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                <span style="font-weight:bold; color:#00e676;">🎒 道具認識状態 (Inventory Sync Status)</span>
+                <span id="inv-sync-time" style="font-size:10px; color:#888;">未同期 (Press 'i')</span>
+            </div>
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;">
+                <div id="badge-pickaxe" style="font-size:11px; padding:3px 8px; border-radius:4px; font-family:monospace; background:#2a2a2a; border:1px solid #444; color:#71717a; font-weight:bold;">⛏️ ツルハシ: なし</div>
+                <div id="badge-key" style="font-size:11px; padding:3px 8px; border-radius:4px; font-family:monospace; background:#2a2a2a; border:1px solid #444; color:#71717a; font-weight:bold;">🔑 鍵/ピック: なし</div>
+                <div id="badge-axe" style="font-size:11px; padding:3px 8px; border-radius:4px; font-family:monospace; background:#2a2a2a; border:1px solid #444; color:#71717a; font-weight:bold;">🪓 斧: なし</div>
+                <div id="badge-wand" style="font-size:11px; padding:3px 8px; border-radius:4px; font-family:monospace; background:#2a2a2a; border:1px solid #444; color:#71717a; font-weight:bold;">❄️ 氷の杖: なし</div>
+            </div>
+        </div>
+
         <!-- 4. 最下段: 3列横並び (Knowledge | Recommended Actions | Driver Inspector) -->
         <div class="bottom-deck-container">
             
@@ -637,6 +644,9 @@
 
     <script type="module">
         import { WebUICore } from '../src/core/WebUICore.js';
+        import { InventoryStateManager } from '../src/core/knowledge/InventoryStateManager.js';
+
+        const inventoryState = new InventoryStateManager();
 
         // DOM elements
         const canvas = document.getElementById('nh-canvas');
@@ -771,7 +781,7 @@
 
         // Tile & Glyph Caching
         const tileImg = new Image();
-        let loadedTileImgPath = '../assets/nethack_default_32.png';
+        let loadedTileImgPath = '../pict/nethack_default_32.png';
         const glyphGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
 
         function initTileImageWithFallback(paths) {
@@ -794,12 +804,12 @@
         }
 
         initTileImageWithFallback([
-            '../assets/nethack_default_32.png',
+        //    '../assets/nethack_default_32.png',
             '../pict/nethack_default_32.png',
-            'assets/nethack_default_32.png',
-            'pict/nethack_default_32.png',
-            '../../assets/nethack_default_32.png',
-            '../../pict/nethack_default_32.png'
+        //    'assets/nethack_default_32.png',
+        //    'pict/nethack_default_32.png',
+        //    '../../assets/nethack_default_32.png',
+        //    '../../pict/nethack_default_32.png'
         ]);
 
         function redrawAllGraphicTiles() {
@@ -1030,6 +1040,82 @@
             renderColorAsciiMap();
         }
 
+        // インベントリ同期状態インジケーター描画 (webuicore_poc デスクトップ版)
+        function renderInventoryStatus() {
+            const syncTime = document.getElementById('inv-sync-time');
+            const bPick = document.getElementById('badge-pickaxe');
+            const bKey = document.getElementById('badge-key');
+            const bAxe = document.getElementById('badge-axe');
+            const bWand = document.getElementById('badge-wand');
+
+            if (!inventoryState || !syncTime || !bPick || !bKey || !bAxe || !bWand) return;
+
+            if (inventoryState.isSynced) {
+                const count = inventoryState.rawItems ? inventoryState.rawItems.length : 0;
+                syncTime.textContent = `同期済み (${count}点)`;
+                syncTime.style.color = '#00e676';
+            } else {
+                syncTime.textContent = `未同期 (Press 'i')`;
+                syncTime.style.color = '#888';
+            }
+
+            // 1. ツルハシ
+            const pick = inventoryState.getPickAxe();
+            if (pick) {
+                bPick.style.background = '#1b5e20';
+                bPick.style.borderColor = '#00e676';
+                bPick.style.color = '#00e676';
+                bPick.textContent = `⛏️ [${pick.letter}] ${pick.rawText || 'ツルハシ'}`;
+            } else {
+                bPick.style.background = '#2a2a2a';
+                bPick.style.borderColor = '#444';
+                bPick.style.color = '#71717a';
+                bPick.textContent = `⛏️ ツルハシ: なし`;
+            }
+
+            // 2. 鍵/ロックピック
+            const key = inventoryState.getKeyOrLockPick();
+            if (key) {
+                bKey.style.background = '#1b5e20';
+                bKey.style.borderColor = '#00e676';
+                bKey.style.color = '#00e676';
+                bKey.textContent = `🔑 [${key.letter}] ${key.rawText || '鍵'}`;
+            } else {
+                bKey.style.background = '#2a2a2a';
+                bKey.style.borderColor = '#444';
+                bKey.style.color = '#71717a';
+                bKey.textContent = `🔑 鍵/ピック: なし`;
+            }
+
+            // 3. 斧
+            const axe = inventoryState.getAxe();
+            if (axe) {
+                bAxe.style.background = '#1b5e20';
+                bAxe.style.borderColor = '#00e676';
+                bAxe.style.color = '#00e676';
+                bAxe.textContent = `🪓 [${axe.letter}] ${axe.rawText || '斧'}`;
+            } else {
+                bAxe.style.background = '#2a2a2a';
+                bAxe.style.borderColor = '#444';
+                bAxe.style.color = '#71717a';
+                bAxe.textContent = `🪓 斧: なし`;
+            }
+
+            // 4. 氷の杖
+            const wand = inventoryState.getFrostWand();
+            if (wand) {
+                bWand.style.background = '#1b5e20';
+                bWand.style.borderColor = '#00e676';
+                bWand.style.color = '#00e676';
+                bWand.textContent = `❄️ [${wand.letter}] ${wand.rawText || '氷の杖'}`;
+            } else {
+                bWand.style.background = '#2a2a2a';
+                bWand.style.borderColor = '#444';
+                bWand.style.color = '#71717a';
+                bWand.textContent = `❄️ 氷の杖: なし`;
+            }
+        }
+
         const knPosInfo = document.getElementById('kn-pos-info');
         const knGrid3x3 = document.getElementById('kn-grid-3x3');
         const knFeetInfo = document.getElementById('kn-feet-info');
@@ -1037,6 +1123,7 @@
         const knActionsList = document.getElementById('kn-actions-list');
 
         function updateKnowledgeUI() {
+            renderInventoryStatus();
             const areaState = core.getAreaState(1);
             if (!areaState) return;
 
@@ -1238,6 +1325,10 @@
 
         core.on('message', (msgText) => {
             if (isGameExited) return;
+            if (inventoryState) {
+                inventoryState.updateFromMessage(msgText);
+                renderInventoryStatus();
+            }
             const line = document.createElement('div');
             line.className = 'log-line';
             line.textContent = msgText;
@@ -1314,7 +1405,105 @@
             const items = data.menuItems || data.items || [];
             const textLines = data.lines || [];
 
-            // 1. Look Information / HELP / FILE テキストウィンドウ
+            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期
+            if (inventoryState && category === 'MENU' && items && items.length > 0) {
+                inventoryState.updateFromMenuItems(items);
+                renderInventoryStatus();
+            }
+
+            // 1. MENU 表示 (選択肢アイテム items が存在、または category === 'MENU' の場合は最優先処理)
+            if (category === 'MENU' || (items && items.length > 0)) {
+                isTextWindowMode = false;
+                promptBar.className = 'prompt-bar';
+                menuModal.className = 'menu-modal active';
+                menuTitle.textContent = rawPrompt || '選択してください: (↑↓キー/Enter選択可)';
+
+                selectableMenuButtons = [];
+                activeMenuFocusIndex = 0;
+
+                // もし textLines があればヘッダー案内テキストとして表示
+                if (textLines && textLines.length > 0) {
+                    textLines.forEach(lineText => {
+                        try {
+                            const headerDiv = document.createElement('div');
+                            headerDiv.className = 'menu-header-item';
+                            headerDiv.style.color = '#81d4fa';
+                            headerDiv.textContent = typeof lineText === 'string' ? lineText : JSON.stringify(lineText);
+                            menuItemsContainer.appendChild(headerDiv);
+                        } catch (e) {}
+                    });
+                }
+
+                if (Array.isArray(items)) {
+                    items.forEach((item) => {
+                        try {
+                            if (!item) return;
+                            const itemText = typeof item === 'string' ? item : (item.str || item.text || item.label);// || JSON.stringify(item));
+                            if (item.isSelectable === false) {
+                                const headerDiv = document.createElement('div');
+                                headerDiv.className = 'menu-header-item';
+                                headerDiv.textContent = itemText;
+                                menuItemsContainer.appendChild(headerDiv);
+                                return;
+                            }
+
+                            const btn = document.createElement('button');
+                            btn.className = 'menu-item-btn';
+                            let chStr = '';
+                            if (typeof item === 'object' && item) {
+                                chStr = item.charStr || item.accelerator || item.selector || item.letter || '';
+                                if (!chStr && typeof item.ch === 'number' && item.ch > 0) {
+                                    chStr = String.fromCharCode(item.ch);
+                                }
+                            }
+
+                            const badgeHtml = chStr ? `<span class="accelerator">${chStr})</span>` : '';
+                            
+                            let glyphHtml = '';
+                            try {
+                                const glyphId = (item && typeof item === 'object') ? (item.glyph !== undefined ? item.glyph : (item.glyphInfo ? item.glyphInfo.glyph : -1)) : -1;
+                                if (glyphId >= 0 && typeof core.getGlyphHtml === 'function') {
+                                    glyphHtml = core.getGlyphHtml(glyphId, { displaySize: 18 });
+                                }
+                            } catch (ge) {}
+
+                            btn.innerHTML = `${badgeHtml} ${glyphHtml} <span style="margin-left:6px;">${itemText}</span>`;
+                            
+                            const currentBtnIndex = selectableMenuButtons.length;
+                            selectableMenuButtons.push(btn);
+
+                            btn.onmouseenter = () => {
+                                activeMenuFocusIndex = currentBtnIndex;
+                                updateMenuFocus();
+                            };
+
+                            btn.onclick = () => {
+                                const selectVal = chStr || (item && item.accelerator) || (item && item.selector) || item;
+                                sysLastKey.textContent = `Menu Select: ${typeof selectVal === 'string' ? selectVal : itemText}`;
+                                clearAllModals();
+                                core.respond(selectVal);
+                            };
+                            menuItemsContainer.appendChild(btn);
+                        } catch (itemErr) {
+                            console.error("Menu item render error:", itemErr, item);
+                        }
+                    });
+                }
+
+                if (selectableMenuButtons.length > 0) {
+                    updateMenuFocus();
+                }
+
+                btnCancelMenu.textContent = 'キャンセル (ESC / 0)';
+                btnCancelMenu.onclick = () => {
+                    sysLastKey.textContent = 'Menu Cancel (0)';
+                    clearAllModals();
+                    core.respond(0);
+                };
+                return;
+            }
+
+            // 2. Look Information / HELP / FILE テキストウィンドウ
             if (textLines && textLines.length > 0) {
                 isTextWindowMode = true;
                 promptBar.className = 'prompt-bar';
@@ -1332,63 +1521,6 @@
                 btnCancelMenu.onclick = () => {
                     sysLastKey.textContent = 'Text Window Close (Space)';
                     core.sendKey('Space');
-                };
-                return;
-            }
-
-            // 2. インベントリ ＆ オプション選択 MENU 表示 (上下キー ＋ Enter 選択対応)
-            if (category === 'MENU' || (items && items.length > 0)) {
-                isTextWindowMode = false;
-                promptBar.className = 'prompt-bar';
-                menuModal.className = 'menu-modal active';
-                menuTitle.textContent = rawPrompt || '選択してください: (↑↓キー/Enter選択可)';
-
-                selectableMenuButtons = [];
-                activeMenuFocusIndex = 0;
-
-                items.forEach((item) => {
-                    const itemText = item.str || item.text || (typeof item === 'string' ? item : '');
-                    if (item.isSelectable === false) {
-                        const headerDiv = document.createElement('div');
-                        headerDiv.className = 'menu-header-item';
-                        headerDiv.textContent = itemText;
-                        menuItemsContainer.appendChild(headerDiv);
-                        return;
-                    }
-
-                    const btn = document.createElement('button');
-                    btn.className = 'menu-item-btn';
-                    const chStr = item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
-                    const badgeHtml = chStr ? `<span class="accelerator">${chStr})</span>` : '';
-                    
-                    const glyphId = item.glyph !== undefined ? item.glyph : (item.glyphInfo ? item.glyphInfo.glyph : -1);
-                    const glyphHtml = glyphId >= 0 ? core.getGlyphHtml(glyphId, { displaySize: 18, tileImage: loadedTileImgPath }) : '';
-
-                    btn.innerHTML = `${badgeHtml} ${glyphHtml} <span style="margin-left:6px;">${itemText}</span>`;
-                    
-                    const currentBtnIndex = selectableMenuButtons.length;
-                    selectableMenuButtons.push(btn);
-
-                    btn.onmouseenter = () => {
-                        activeMenuFocusIndex = currentBtnIndex;
-                        updateMenuFocus();
-                    };
-
-                    btn.onclick = () => {
-                        sysLastKey.textContent = `Menu Item: ${chStr || item.str}`;
-                        core.respond(item);
-                    };
-                    menuItemsContainer.appendChild(btn);
-                });
-
-                if (selectableMenuButtons.length > 0) {
-                    updateMenuFocus();
-                }
-
-                btnCancelMenu.textContent = 'キャンセル (ESC / 0)';
-                btnCancelMenu.onclick = () => {
-                    sysLastKey.textContent = 'Menu Cancel (0)';
-                    core.respond(0);
                 };
                 return;
             }
@@ -1419,8 +1551,10 @@
                     inputControls.appendChild(btn);
                     setTimeout(() => { input.focus(); input.select(); }, 50);
                 } else if (category === 'YN') {
-                    const choices = data.choices || 'yn';
-                    for (const ch of choices.split('')) {
+                    // プロンプト文言 "[ynaq]" または "choices" から選択肢文字を全抽出
+                    const promptChoices = data.choices || data.ynChoices || (rawPrompt.match(/\[(.*?)\]/)?.[1]) || 'ynaq';
+                    for (const ch of promptChoices.split('')) {
+                        if (!ch.trim()) continue;
                         const btn = document.createElement('button');
                         btn.textContent = `${ch.toUpperCase()} (${ch})`;
                         btn.onclick = () => {
@@ -1445,9 +1579,8 @@
             }
         });
 
-        // 入力解決時 (テキスト・モーダル残像完全削除)
+        // 入力解決時 (テキスト・モーダルはユーザー明示の選択/閉じるまで保持)
         core.on('inputResolved', () => {
-            clearAllModals();
             sysResolver.textContent = 'NULL (Resolved)';
             sysResolver.className = 'sys-val val-active';
             sysCoreCategory.textContent = 'NONE';
@@ -1464,6 +1597,16 @@
                     e.preventDefault();
                     sysLastKey.textContent = 'Text Window Close (Space)';
                     core.sendKey('Space');
+                    return;
+                }
+            }
+
+            // 1-B. YN プロンプト表示中 (y, n, a, q などのダイレクト選択キー捕獲)
+            if (promptBar.className.includes('active') && sysCoreCategory.textContent === 'YN') {
+                if (e.key && e.key.length === 1) {
+                    e.preventDefault();
+                    sysLastKey.textContent = `YN Key: ${e.key}`;
+                    core.respond(e.key.toLowerCase());
                     return;
                 }
             }
