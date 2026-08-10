@@ -76,36 +76,58 @@
             background: #2e7d32;
         }
 
-        /* メインビューポート */
-        .viewport {
-            flex: 1;
+        /* メインアプリレイアウト (縦並び標準構成) */
+        .app-layout {
             display: flex;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
         }
 
-        /* 描画エリア */
+        /* 1. 最上段 メッセージログ */
+        .message-log-panel {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            padding: 6px 12px;
+        }
+
+        .log-box {
+            height: 120px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #e4e4e7;
+            background: #09090b;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #18181b;
+        }
+
+        /* 2. 中央 マップ描画エリア (80x21 横長アスペクト比維持) */
         .screen-container {
-            flex: 1;
+            width: 100%;
             background: #000;
             border: 1px solid #333;
             border-radius: 6px;
-            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: auto;
+            overflow: hidden;
+            padding: 2px 0;
         }
 
-        /* Canvas レンダラー */
         #nh-canvas {
             background: #000;
             image-rendering: pixelated;
             display: block;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
         }
 
-        /* Color ASCII レンダラー */
         #nh-ascii-grid {
             display: none;
             font-family: 'Consolas', 'Courier New', monospace;
@@ -125,44 +147,88 @@
             text-align: center;
         }
 
-        /* NetHack 16 Color Palette */
-        .clr-0 { color: #000000; } /* Black */
-        .clr-1 { color: #ff5555; } /* Red */
-        .clr-2 { color: #55ff55; } /* Green */
-        .clr-3 { color: #ffaa00; } /* Brown */
-        .clr-4 { color: #5555ff; } /* Blue */
-        .clr-5 { color: #ff55ff; } /* Magenta */
-        .clr-6 { color: #55ffff; } /* Cyan */
-        .clr-7 { color: #aaaaaa; } /* Gray */
-        .clr-8 { color: #555555; } /* Dark Gray */
-        .clr-9 { color: #ff8888; } /* Orange */
-        .clr-10 { color: #00ff00; } /* Bright Green */
-        .clr-11 { color: #ffff55; } /* Yellow */
-        .clr-12 { color: #00ff00; } /* Bright Blue */
-        .clr-13 { color: #ff00ff; } /* Bright Magenta */
-        .clr-14 { color: #00ffff; } /* Bright Cyan */
-        .clr-15 { color: #ffffff; } /* White */
+        /* 3. マップ直下 ステータスバー (4列 × 3行のコンパクト構成) */
+        .status-panel {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            padding: 6px 12px;
+        }
 
-        /* サイドパネル (ステータス・ログ) */
-        .side-panel {
-            width: 320px;
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px 8px;
+            font-size: 11px;
+        }
+
+        @media (max-width: 600px) {
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .status-item {
+            background: #09090b;
+            padding: 3px 5px;
+            border-radius: 4px;
+            border: 1px solid #27272a;
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 9px;
+            color: #71717a;
+            text-transform: uppercase;
+        }
+
+        .status-val {
+            font-size: 12px;
+            font-weight: bold;
+            color: #f4f4f5;
+        }
+
+        /* 4. 最下段デバッグ・支援デッキ (3列横並び: Knowledge | Context Actions | Driver Inspector) */
+        .bottom-deck-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 2px;
+            align-items: stretch;
+        }
+
+        @media (max-width: 900px) {
+            .bottom-deck-container {
+                flex-direction: column;
+            }
+        }
+
+        .deck-card {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            padding: 8px 10px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 4px;
         }
 
         .panel-box {
-            background: #1e1e1e;
-            border: 1px solid #333;
+            background: #18181b;
+            border: 1px solid #27272a;
             border-radius: 6px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            padding: 8px;
         }
 
         .panel-title {
-            font-size: 12px;
+            font-size: 11px;
+            color: #a1a1aa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #27272a;
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            font-weight: bold;
+        }
             color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -184,29 +250,33 @@
             100% { transform: scale(1.15); box-shadow: 0 0 12px #ffb300; }
         }
 
-        /* 構造化ステータスグリッド */
+        /* 構造化ステータスグリッド (4列 × 3行) */
         .status-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            font-size: 12px;
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 4px 8px;
+            font-size: 11px;
         }
 
         .status-item {
-            background: #121212;
-            padding: 4px 6px;
+            background: #09090b;
+            padding: 3px 6px;
             border-radius: 4px;
-            border: 1px solid #2a2a2a;
+            border: 1px solid #27272a;
+            text-align: center;
         }
 
         .status-label {
-            color: #777;
-            font-size: 10px;
+            color: #71717a;
+            font-size: 9px;
+            text-transform: uppercase;
         }
 
         .status-val {
-            color: #fff;
+            color: #f4f4f5;
             font-weight: bold;
+            font-size: 12px;
+        }
         }
 
         .val-hp { color: #00e676; }
@@ -254,12 +324,11 @@
         .val-wait { color: #ff9100; }
         .val-stopped { color: #ff5252; }
 
-        /* インタラクティブ・プロンプトバー (絶対位置固定で画面揺れを100%防止) */
+        /* インタラクティブ・プロンプトバー (アプリレイアウト内に近接インライン配置) */
         .prompt-bar {
-            position: absolute;
-            bottom: 12px;
-            left: 12px;
-            right: 342px;
+            position: relative;
+            margin-top: 6px;
+            width: 100%;
             background: #263238;
             border: 2px solid #00e676;
             box-shadow: 0 0 15px rgba(0,230,118,0.4);
@@ -414,88 +483,99 @@
         </div>
     </header>
 
-    <div class="viewport">
-        <!-- メイン画面 -->
+    <!-- メインアプリレイアウト (標準 NetHack 構成) -->
+    <div class="app-layout">
+        
+        <!-- 1. 最上段: メッセージログ -->
+        <div class="message-log-panel">
+            <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>💬 Message Log</span>
+                <span style="font-size:10px; color:#71717a; text-transform:none;">最新のメッセージログ</span>
+            </div>
+            <div id="log-box" class="log-box"></div>
+        </div>
+
+        <!-- 2. 中央: マップ画面 (80x21 アスペクト比維持) -->
         <div class="screen-container">
             <canvas id="nh-canvas" width="1280" height="336"></canvas>
             <div id="nh-ascii-grid"></div>
         </div>
 
-        <!-- サイドパネル -->
-        <div class="side-panel">
-            <!-- 構造化ステータス -->
-            <div class="panel-box">
-                <div class="panel-title">Player Status</div>
-                <div class="status-grid">
-                    <div class="status-item"><div class="status-label">Title</div><div id="st-title" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">DLevel</div><div id="st-dlvl" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">HP</div><div id="st-hp" class="status-val val-hp">- / -</div></div>
-                    <div class="status-item"><div class="status-label">PW</div><div id="st-pw" class="status-val val-pw">- / -</div></div>
-                    <div class="status-item"><div class="status-label">AC</div><div id="st-ac" class="status-val val-ac">-</div></div>
-                    <div class="status-item"><div class="status-label">Gold</div><div id="st-gold" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">STR</div><div id="st-str" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">DEX</div><div id="st-dex" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">CON</div><div id="st-con" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">INT</div><div id="st-int" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">WIS</div><div id="st-wis" class="status-val">-</div></div>
-                    <div class="status-item"><div class="status-label">CHA</div><div id="st-cha" class="status-val">-</div></div>
-                </div>
-                <div style="font-size: 10px; color: #888; display: flex; justify-content: space-between; margin-top: 4px;">
-                    <span>Turns: <b id="st-turns" style="color:#aaa;">0</b></span>
-                    <span>Cond: <b id="st-cond" style="color:#ffca28;">Normal</b></span>
-                </div>
+        <!-- 3. マップ直下: ステータスバー -->
+        <div class="status-panel">
+            <div class="status-grid">
+                <div class="status-item"><div class="status-label">Title</div><div id="st-title" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">DLevel</div><div id="st-dlvl" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">HP</div><div id="st-hp" class="status-val val-hp">- / -</div></div>
+                <div class="status-item"><div class="status-label">PW</div><div id="st-pw" class="status-val val-pw">- / -</div></div>
+                <div class="status-item"><div class="status-label">AC</div><div id="st-ac" class="status-val val-ac">-</div></div>
+                <div class="status-item"><div class="status-label">Gold</div><div id="st-gold" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">STR</div><div id="st-str" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">DEX</div><div id="st-dex" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">CON</div><div id="st-con" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">INT</div><div id="st-int" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">WIS</div><div id="st-wis" class="status-val">-</div></div>
+                <div class="status-item"><div class="status-label">CHA</div><div id="st-cha" class="status-val">-</div></div>
             </div>
-
-            <!-- メッセージログ -->
-            <div class="panel-box" style="flex:1;">
-                <div class="panel-title">Message Log</div>
-                <div id="log-box" class="log-box"></div>
+            <div style="font-size: 11px; color: #888; display: flex; justify-content: space-between; margin-top: 4px; padding: 0 4px;">
+                <span>Turns: <b id="st-turns" style="color:#aaa;">0</b></span>
+                <span>Cond: <b id="st-cond" style="color:#ffca28;">Normal</b></span>
             </div>
+        </div>
 
-            <!-- 周辺コンテキスト & 推奨アクション (Knowledge Inspector) -->
-            <div class="panel-box" style="border-color: #00e676;">
+        <!-- 4. 最下段: 3列横並び (Knowledge | Recommended Actions | Driver Inspector) -->
+        <div class="bottom-deck-container">
+            
+            <!-- 4-A. Knowledge Inspector -->
+            <div class="deck-card" style="border-color: #00e676; flex: 1;">
                 <div class="panel-title" style="color: #00e676; display: flex; justify-content: space-between;">
-                    <span>🧠 Knowledge & Surroundings</span>
+                    <span>🧠 Knowledge</span>
                     <span id="kn-pos-info" style="color: #aaa; font-weight: normal;">(0,0)</span>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <!-- 3x3 ミニコンテキストマップ -->
-                    <div id="kn-grid-3x3" style="display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 24px); gap: 2px; background: #000; padding: 4px; border: 1px solid #333; border-radius: 4px; text-align: center; line-height: 24px; font-weight: bold; font-family: monospace;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <div id="kn-grid-3x3" style="display: grid; grid-template-columns: repeat(3, 20px); grid-template-rows: repeat(3, 20px); gap: 2px; background: #000; padding: 3px; border: 1px solid #333; border-radius: 4px; text-align: center; line-height: 20px; font-weight: bold; font-family: monospace; font-size: 11px;">
                         <div>.</div><div>.</div><div>.</div>
                         <div>.</div><div style="color:#00e676;">@</div><div>.</div>
                         <div>.</div><div>.</div><div>.</div>
                     </div>
-                    <!-- 足元 & 周辺サマリー -->
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 11px;">
                         <div>足元: <b id="kn-feet-info" style="color: #ffe082;">-</b></div>
-                        <div>隣接モンスター: <b id="kn-monsters-info" style="color: #ff5555;">なし</b></div>
+                        <div>隣接: <b id="kn-monsters-info" style="color: #ff5555;">なし</b></div>
                     </div>
-                </div>
-                <!-- 推奨可能アクションボタンリスト -->
-                <div style="font-size: 10px; color: #888; margin-top: 4px;">推奨可能アクション (Quick Actions):</div>
-                <div id="kn-actions-list" style="display: flex; flex-wrap: wrap; gap: 4px; min-height: 32px; max-height: 90px; overflow-y: auto; background: #121212; padding: 4px; border-radius: 4px; border: 1px solid #2a2a2a;">
-                    <span style="color: #666; font-size: 11px;">(推奨アクションなし)</span>
                 </div>
             </div>
 
-            <!-- ドライバー・システムインスペクター -->
-            <div class="panel-box">
+            <!-- 4-B. 推奨コンテキストアクション (縦幅をゆったり拡大) -->
+            <div class="deck-card" style="border-color: #00e676; flex: 2;">
+                <div class="panel-title" style="color: #00e676; display: flex; justify-content: space-between;">
+                    <span>⚡ Context Actions</span>
+                    <span id="action-count-badge" style="background: #27272a; color: #00e676; padding: 1px 6px; border-radius: 10px; font-size: 10px;">0 actions</span>
+                </div>
+                <div id="toolbar-actions-container" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 64px; max-height: 130px; overflow-y: auto; background: #09090b; padding: 8px; border-radius: 4px; border: 1px solid #27272a;">
+                    <span style="color: #666; font-size: 11px;">(状況に応じた推奨アクション)</span>
+                </div>
+            </div>
+
+            <!-- 4-C. Driver Inspector -->
+            <div class="deck-card" style="flex: 1;">
                 <div class="panel-title">Driver Inspector</div>
-                <div class="sys-info">
-                    <div class="sys-row"><span>Driver State:</span><span id="sys-driver-state" class="sys-val">IDLE</span></div>
-                    <div class="sys-row"><span>Core Category:</span><span id="sys-core-category" class="sys-val">NONE</span></div>
-                    <div class="sys-row"><span>Active Resolver:</span><span id="sys-resolver" class="sys-val">NULL</span></div>
-                    <div class="sys-row"><span>Last Sent Key:</span><span id="sys-last-key" style="color:#ffe082;">-</span></div>
+                <div class="sys-info" style="font-size: 11px; display: flex; flex-direction: column; gap: 2px;">
+                    <div class="sys-row"><span>State:</span><span id="sys-driver-state" class="sys-val">IDLE</span></div>
+                    <div class="sys-row"><span>Category:</span><span id="sys-core-category" class="sys-val">NONE</span></div>
+                    <div class="sys-row"><span>Resolver:</span><span id="sys-resolver" class="sys-val">NULL</span></div>
+                    <div class="sys-row"><span>Last Key:</span><span id="sys-last-key" style="color:#ffe082;">-</span></div>
                     <div class="sys-row"><span>Last Event:</span><span id="sys-last-event" style="color:#888;">-</span></div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- プロンプトバー -->
-    <div id="prompt-bar" class="prompt-bar">
-        <div id="prompt-text" class="prompt-text">What do you want to do?</div>
-        <div id="input-controls" class="input-controls"></div>
+        </div>
+
+        <!-- 5. プロンプトバー (レイアウト内近接配置) -->
+        <div id="prompt-bar" class="prompt-bar">
+            <div id="prompt-text" class="prompt-text">What do you want to do?</div>
+            <div id="input-controls" class="input-controls"></div>
+        </div>
+
     </div>
 
     <!-- モーダル (MENU / Text Window) -->
@@ -1022,28 +1102,107 @@
                 }
             }
 
-            // 4. 推奨可能アクションボタンの描画
-            if (knActionsList) {
-                const actions = core.getRecommendedActions();
-                knActionsList.innerHTML = '';
-                if (actions && actions.length > 0) {
-                    actions.forEach(action => {
-                        const btn = document.createElement('button');
-                        btn.className = 'action-btn';
-                        btn.style.cssText = 'background:#1b5e20; border:1px solid #00e676; color:#fff; font-size:11px; padding:3px 8px; border-radius:4px; cursor:pointer; display:flex; align-items:center; gap:4px;';
-                        btn.innerHTML = `<b style="color:#00e676;">[${action.charStr || action.key}]</b> ${action.label}`;
-                        btn.onclick = () => {
-                            if (action.charStr) {
-                                core.sendKey(action.charStr);
-                            } else {
-                                core.sendKey(action.key);
-                            }
-                        };
-                        knActionsList.appendChild(btn);
-                    });
-                } else {
-                    knActionsList.innerHTML = '<span style="color:#666; font-size:11px;">(推奨アクションなし)</span>';
+            // 4. アクション実行共通関数
+            window.executeContextAction = function(action) {
+                if (!action) return;
+                if (action.risk === 'danger') {
+                    const ok = confirm(`【⚠️ 危険な行動】\n"${action.labelJa || action.label}" を実行しますか？\n\n詳細: ${action.descriptionJa || action.description || ''}`);
+                    if (!ok) return;
                 }
+
+                if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
+                    core.sendKey('d', false, true, false, 'd');
+                    if (action.directionKey) {
+                        setTimeout(() => {
+                            core.sendKey(action.directionKey);
+                        }, 100);
+                    }
+                } else {
+                    const mainCmd = action.charStr || action.key;
+                    core.sendKey(mainCmd);
+                    if (action.directionKey && mainCmd !== action.directionKey) {
+                        setTimeout(() => {
+                            core.sendKey(action.directionKey);
+                        }, 100);
+                    }
+                }
+            };
+
+            // 5. 推奨可能アクションの描画 (足元 vs 隣接 の視覚的分離)
+            const toolbarContainer = document.getElementById('toolbar-actions-container');
+            const actionCountBadge = document.getElementById('action-count-badge');
+            const actions = core.getRecommendedActions();
+
+            if (actionCountBadge) {
+                actionCountBadge.textContent = `${actions ? actions.length : 0} actions`;
+            }
+
+            if (toolbarContainer) {
+                toolbarContainer.innerHTML = '';
+                if (actions && actions.length > 0) {
+                    const feetActions = actions.filter(a => a.target === 'feet');
+                    const adjacentActions = actions.filter(a => a.target === 'adjacent');
+
+                    // (A) 足元アクションセクション
+                    if (feetActions.length > 0) {
+                        const feetSec = document.createElement('div');
+                        feetSec.style.cssText = 'display:flex; align-items:center; gap:6px; flex-wrap:wrap; width:100%; padding-bottom:4px; border-bottom:1px dashed #27272a;';
+                        feetSec.innerHTML = '<span style="font-size:10px; color:#ffe082; font-weight:bold; width:100%; display:flex; align-items:center; gap:4px;"><span>👣</span> 足元のアクション (Feet):</span>';
+                        
+                        feetActions.forEach(action => {
+                            const btn = createActionBtn(action, 'feet');
+                            feetSec.appendChild(btn);
+                        });
+                        toolbarContainer.appendChild(feetSec);
+                    }
+
+                    // (B) 隣接・方向アクションセクション
+                    if (adjacentActions.length > 0) {
+                        const adjSec = document.createElement('div');
+                        adjSec.style.cssText = 'display:flex; align-items:center; gap:6px; flex-wrap:wrap; width:100%; padding-top:4px;';
+                        adjSec.innerHTML = '<span style="font-size:10px; color:#81d4fa; font-weight:bold; width:100%; display:flex; align-items:center; gap:4px;"><span>🧭</span> 隣接・方向アクション (Adjacent):</span>';
+                        
+                        adjacentActions.forEach(action => {
+                            const btn = createActionBtn(action, 'adjacent');
+                            adjSec.appendChild(btn);
+                        });
+                        toolbarContainer.appendChild(adjSec);
+                    }
+                } else {
+                    toolbarContainer.innerHTML = '<span style="color:#666; font-size:11px;">(周囲・足元の状況に応じた推奨アクションなし)</span>';
+                }
+            }
+
+            function createActionBtn(action, type) {
+                const btn = document.createElement('button');
+                btn.className = 'toolbar-action-btn';
+                
+                let borderClr = (type === 'feet') ? '#00e676' : '#29b6f6';
+                let bgClr = (type === 'feet') ? '#1b5e20' : '#0277bd';
+                let textClr = '#ffffff';
+                let icon = (type === 'feet') ? '👣 ' : '🧭 ';
+
+                if (action.risk === 'danger') {
+                    borderClr = '#ff5252';
+                    bgClr = '#2c0d0d';
+                    textClr = '#ff8a80';
+                    icon = '⚠️ ';
+                } else if (action.risk === 'warning') {
+                    borderClr = '#ffb74d';
+                    bgClr = '#2b1d0c';
+                    textClr = '#ffe082';
+                    icon = '⚠️ ';
+                }
+
+                btn.style.cssText = `background:${bgClr}; border:1px solid ${borderClr}; color:${textClr}; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:5px; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 4px rgba(0,0,0,0.3); transition:all 0.15s ease;`;
+                
+                const keyDisp = action.key || (action.charStr + (action.directionKey || ''));
+                const labelDisp = action.labelJa || action.label;
+                
+                btn.innerHTML = `<span style="background:rgba(0,0,0,0.5); padding:1px 4px; border-radius:3px; font-family:monospace; color:${borderClr}; border:1px solid ${borderClr};">[${keyDisp}]</span> <span>${icon}${labelDisp}</span>`;
+                btn.title = action.descriptionJa || action.description || '';
+                btn.onclick = () => window.executeContextAction(action);
+                return btn;
             }
         }
 

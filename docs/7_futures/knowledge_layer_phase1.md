@@ -89,22 +89,59 @@ NetHack には `number_pad: 0` (viキーモード: `h/j/k/l`) と `number_pad: 1
 }
 ```
 
-### 辞書のカテゴリ分類設計案
+### ⚠️ 多段階プロンプト遷移とインベントリ知識連携の課題 (Multi-stage Prompt Traversal)
+
+単一キーやシンプルな 1 段階方向選択（例: `o` ➔ `In what direction?`）とは異なり、`a` (Apply / 掘削・解錠・道具使用) や `t` (Throw / 投げる)、`f` (Fire / 射撃) などのコマンドは、NetHack の仕様上 **2 段階以上のプロンプト状態遷移** を伴います。これがゲーム知識層（Game Knowledge Layer）の自動解決における本質的な難しさの要因です。
+
+#### 多段階遷移のフロー例 (`Apply` で壁を掘削・扉を解錠する場合):
+1. **コマンド送信**: `'a'` (Apply) 送信 ➔ NetHack Core: `What do you want to apply?` (道具選択プロンプト)
+2. **道具選択**: 道具記号 `'f'` (ツルハシ pick-axe や 鍵 lock pick 等) 送信 ➔ NetHack Core: `In what direction?` (方向選択プロンプト)
+3. **方向選択**: 抽象方向 `'DIR_E'` (東) 送信 ➔ 掘削・解錠アクション実行！
+
+#### 知識層レイヤーにおける難しさと今後の解決アプローチ:
+1. **固定文字列の一括送信では解決不可**: プレイヤーのインベントリ内で、ツルハシや鍵などの道具がどのアルファベット記号（`a`〜`z`）に割り当てられているかは動的に変化するため、固定の `keySequence` では処理できません。
+2. **インベントリ知識層 (`InventoryManager`) との統合連携**:
+   - `ContextActionEngine` がアクションを生成する際、対象アイテムカテゴリ（`ITEM_PICKAXE` や `ITEM_KEY` 等）を識別メタデータとして保持。
+   - インベントリ知識層から現在の手持ち割り当て記号を動的に検索・取得し、`keySequence: ['a', dynamicItemChar, 'DIR_E']` のように道具記号を自動埋め込みして一括解決する高度なモジュール間連携を構築します。
+3. **プロンプト状態マシンのフックによるガイド表示**:
+   - 完全自動化を行わない場合でも、NetHack から `What do you want to apply?` プロンプトが届いた瞬間（`inputRequired` / `prompt` イベント）を知識層が検知し、該当する手持ち道具（ツルハシや鍵）をUI上でハイライト表示・ワンタップ選択可能にするガイド支援を実装します。
+
+### 最新の実装構造とインタラクト辞書スキーマ (Current Action Schema)
+
+`ContextActionEngine.js` にて実装された最新のアクションスキーマは、英語名 (`label`) と日本語名 (`labelJa`) のハイブリッド構造、誤操作ガード (`risk: 'danger' | 'warning'`)、および優先度スコア (`priority`) を含む以下の形式に統合・定義されています。
+
+また、水を飲むコマンドは `'q'` (旧 `quaff`)、蹴るコマンドは `'C-d'` (旧 `k`)、コンテナは `isContainer: true` 判定時のみ適用するなど、NetHack の正確なキーバインドおよび最新判定仕様に完全準拠しています。
+
 ```javascript
 const ENTITY_INTERACT_DICTIONARY = {
-    // 設置物 (Fixtures)
-    'ALTAR':    [{ label: '祭壇に捧げる', keySequence: ['#offer'] }, { label: '神に祈る', keySequence: ['#pray'] }],
-    'FOUNTAIN': [{ label: '噴水の水を飲む', keySequence: ['quaff'] }, { label: '手を洗う/浸す', keySequence: ['#dip'] }, { label: '噴水を蹴る', keySequence: ['k'] }],
-    'SINK':     [{ label: 'シンクの水を飲む', keySequence: ['quaff'] }, { label: 'シンクを蹴る', keySequence: ['k'] }],
-    'CHEST':    [{ label: '宝箱を漁る', keySequence: ['#loot'] }, { label: '鍵を開ける', keySequence: ['#apply'] }],
-
-    // NPC / ペット
-    'PET':      [{ label: 'ペットになでる/指示', keySequence: ['m'] }],
-    'NPC_SHOPKEEPER': [{ label: '店主と話す', keySequence: ['#chat'] }, { label: '代金を支払う', keySequence: ['p'] }],
-    'NPC_ORACLE':     [{ label: '神託を聞く', keySequence: ['#chat'] }],
-
-    // ドロップアイテム / 死体
-    'CORPSE':   [{ label: '死体を食べる', keySequence: ['e'] }, { label: '祭壇に捧げる', keySequence: ['#offer'] }]
+    // 祭壇 (Altar)
+    'ALTAR': [
+        { id: 'ACTION_OFFER',    label: 'Offer corpse on altar', labelJa: '死体を捧げる (Offer)', key: '#offer', priority: 85, risk: null },
+        { id: 'ACTION_BUC_DROP', label: 'Drop item to test BUC', labelJa: 'BUC判別・落とす (Drop)', key: 'd', priority: 70, risk: null },
+        { id: 'ACTION_PRAY',     label: 'Pray to god', labelJa: '神に祈る (Pray)', key: '#pray', priority: 60, risk: 'danger' }
+    ],
+    // 泉 (Fountain)
+    'FOUNTAIN': [
+        { id: 'ACTION_QUAFF_FOUNTAIN', label: 'Quaff from fountain', labelJa: '泉の水を飲む (Quaff)', key: 'q', priority: 75, risk: 'warning' },
+        { id: 'ACTION_DIP_FOUNTAIN',   label: 'Dip item in fountain', labelJa: '泉に浸す (Dip)', key: '#dip', priority: 70, risk: null },
+        { id: 'ACTION_KICK_FOUNTAIN',  label: 'Kick fountain', labelJa: '泉を蹴る (Kick)', key: 'C-d', priority: 20, risk: 'danger' }
+    ],
+    // シンク (Sink)
+    'SINK': [
+        { id: 'ACTION_SIT_SINK',   label: 'Sit on sink (Identify ring)', labelJa: '座る・指輪識別 (Sit)', key: '#sit', priority: 75, risk: null },
+        { id: 'ACTION_QUAFF_SINK', label: 'Drink from sink', labelJa: 'シンクから飲む (Quaff)', key: 'q', priority: 70, risk: 'warning' },
+        { id: 'ACTION_KICK_SINK',  label: 'Kick sink', labelJa: 'シンクを蹴る (Kick)', key: 'C-d', priority: 30, risk: 'warning' }
+    ],
+    // コンテナ・宝箱・袋 (isContainer: true 時のみ動的適用)
+    'CONTAINER': [
+        { id: 'ACTION_LOOT',        label: 'Loot container / bag', labelJa: '漁る/開ける (Loot)', key: '#loot', priority: 90, risk: null },
+        { id: 'ACTION_UNTRAP_FEET', label: 'Untrap feet / container', labelJa: '箱の罠解除 (Untrap)', key: '#untrap', priority: 80, risk: null }
+    ],
+    // 樹木 (Tree - 隣接時)
+    'TREE': [
+        { id: 'ACTION_KICK_TREE', label: 'Kick tree', labelJa: '木を蹴る (Kick)', key: 'C-d', target: 'adjacent', priority: 65, risk: null },
+        { id: 'ACTION_CHOP_TREE', label: 'Chop tree', labelJa: '木を伐採 (Apply axe)', key: 'a', target: 'adjacent', priority: 55, risk: null }
+    ]
 };
 ```
 

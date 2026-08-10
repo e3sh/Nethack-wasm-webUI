@@ -45,32 +45,53 @@ export const ENTITY_TYPES = {
  * @returns {Object} CMAP 特性フラグ
  */
 export function getCmapInfo(glyphId) {
-    // glyph 3985: doorway (cmap 12)
-    // glyph 3986, 3987: open door (cmap 13, 14)
-    // glyph 3988, 3989: closed door (cmap 15, 16)
-    // glyph 3998: staircase up (cmap 25)
-    // glyph 3999: staircase down (cmap 26)
-    // glyph 4006..4010: altar (cmap 33)
-    // glyph 4013: sink (cmap 36)
-    // glyph 4014: fountain (cmap 37)
-
+    const isWall = (glyphId >= 3929 && glyphId <= 3984);
+    const isDoorway = (glyphId === 3985);
     const isOpenDoor = (glyphId === 3986 || glyphId === 3987);
     const isClosedDoor = (glyphId === 3988 || glyphId === 3989);
-    const isStairUp = (glyphId === 3998 || glyphId === 4000 || glyphId === 4002);
-    const isStairDown = (glyphId === 3999 || glyphId === 4001 || glyphId === 4003);
+    const isIronBars = (glyphId === 3990);
+    const isTree = (glyphId === 3991);
+    const isFloor = (glyphId === 3992 || glyphId === 3993 || glyphId === 3995 || glyphId === 3996);
+    const isEngraving = (glyphId === 3994 || glyphId === 3997);
+    const isStairUp = (glyphId === 3998 || glyphId === 4000 || glyphId === 4002 || glyphId === 4004);
+    const isStairDown = (glyphId === 3999 || glyphId === 4001 || glyphId === 4003 || glyphId === 4005);
     const isAltar = (glyphId >= 4006 && glyphId <= 4010);
+    const isGrave = (glyphId === 4011);
+    const isThrone = (glyphId === 4012);
     const isSink = (glyphId === 4013);
     const isFountain = (glyphId === 4014);
+    const isWater = (glyphId === 4015 || glyphId === 4025);
+    const isIce = (glyphId === 4016);
+    const isLava = (glyphId === 4017 || glyphId === 4018);
+    const isDrawbridge = (glyphId >= 4019 && glyphId <= 4022);
+    const isTrap = (glyphId >= 4026 && glyphId <= 4048);
+    const isTrappedDoor = (glyphId === 4049);
+    const isTrappedChest = (glyphId === 4050);
 
     return {
+        isWall,
+        isDoorway,
         isOpenDoor,
         isClosedDoor,
         isDoor: isOpenDoor || isClosedDoor,
+        isIronBars,
+        isTree,
+        isFloor,
+        isEngraving,
         isStairUp,
         isStairDown,
         isAltar,
+        isGrave,
+        isThrone,
         isSink,
-        isFountain
+        isFountain,
+        isWater,
+        isIce,
+        isLava,
+        isDrawbridge,
+        isTrap,
+        isTrappedDoor,
+        isTrappedChest
     };
 }
 
@@ -97,7 +118,9 @@ export function classifyGlyph(glyphId) {
         if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) {
             return { type: ENTITY_TYPES.BODY, isPile: true, rawGlyph: glyphId };
         }
-        return { type: ENTITY_TYPES.ITEM, isPile: true, rawGlyph: glyphId };
+        const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF;
+        const isContainer = (objOffset >= 214 && objOffset <= 220);
+        return { type: ENTITY_TYPES.ITEM, subType: objOffset, isContainer, isPile: true, rawGlyph: glyphId };
     }
 
     // 7226〜7991: Statue (像)
@@ -126,9 +149,11 @@ export function classifyGlyph(glyphId) {
     // 3448〜3928: Objects (アイテム)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
         const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_OFF;
+        const isContainer = (objOffset >= 214 && objOffset <= 220);
         return {
             type: ENTITY_TYPES.ITEM,
             subType: objOffset,
+            isContainer,
             isPile: false,
             rawGlyph: glyphId
         };
