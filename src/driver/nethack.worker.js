@@ -120,6 +120,10 @@ self.onmessage = async function(e) {
                         }
                     }
 
+                    if (driver) {
+                        cleanData.isExecutingSequence = driver.isExecutingSequence;
+                    }
+
                     self.postMessage({ type: 'EVENT', event: evtName, data: cleanData });
                 });
             });
@@ -222,6 +226,12 @@ self.onmessage = async function(e) {
             if (driver && typeof driver.cancelSequence === 'function') {
                 driver.cancelSequence();
             }
+            break;
+        }
+
+        case 'GET_LAST_SEQUENCE_BUFFER': {
+            const buffer = (driver && typeof driver.getLastSequenceBuffer === 'function') ? driver.getLastSequenceBuffer() : [];
+            self.postMessage({ type: 'GET_LAST_SEQUENCE_BUFFER_RESULT', buffer, requestId: payload ? payload.requestId : null });
             break;
         }
     }

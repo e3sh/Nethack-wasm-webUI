@@ -21,6 +21,8 @@
             this.options = options;
             this.state = NetHackWasmWorkerBridge.DriverState.IDLE;
             this._activeResolver = null;
+            this.lastSequenceBuffer = [];
+            this.isExecutingSequence = false;
 
             if (!workerUrl && typeof window !== 'undefined') {
                 const path = window.location.pathname;
@@ -99,6 +101,9 @@
                         if (event === 'stateChange' && data && data.state) {
                             this.state = data.state;
                         }
+                        if (data && typeof data.isExecutingSequence === 'boolean') {
+                            this.isExecutingSequence = data.isExecutingSequence;
+                        }
 
                         // inputRequired イベントなどの透過的 resolver 再構築
                         if (data && data.hasResolver) {
@@ -175,6 +180,11 @@
 
                     case 'LIST_SAVE_FILES_RESULT':
                         this.emit('listSaveFilesResult', { saveFiles: data.saveFiles });
+                        break;
+
+                    case 'GET_LAST_SEQUENCE_BUFFER_RESULT':
+                        this.lastSequenceBuffer = e.data.buffer || [];
+                        this.emit('getLastSequenceBufferResult', { buffer: this.lastSequenceBuffer, requestId: e.data.requestId });
                         break;
                 }
             };
@@ -391,6 +401,8 @@
          * GKL シーケンスを Worker 内の Driver へ送信し設定する
          */
         queueSequence(tokens, options = {}) {
+            this.lastSequenceBuffer = [];
+            this.isExecutingSequence = true;
             if (this.worker) {
                 this.worker.postMessage({
                     type: 'QUEUE_SEQUENCE',
@@ -403,11 +415,35 @@
          * GKL シーケンスのキャンセルを Worker 内の Driver へ送信する
          */
         cancelSequence() {
+            this.isExecutingSequence = false;
             if (this.worker) {
                 this.worker.postMessage({
                     type: 'CANCEL_SEQUENCE'
                 });
             }
+        }
+
+        /**
+         * 直近のシーケンス実行結果バッファを Worker 内の Driver から取得
+         * @returns {Promise<Array<Object>>} バッファ配列の Promise
+         */
+        async getLastSequenceBuffer() {
+            return new Promise((resolve) => {
+                if (!this.worker) return resolve([...this.lastSequenceBuffer]);
+                const requestId = Math.random().toString(36).substring(2);
+                const onResult = (data) => {
+                    if (data && data.requestId === requestId) {
+                        this.off('getLastSequenceBufferResult', onResult);
+                        resolve(data.buffer || []);
+                    }
+                };
+                setTimeout(() => {
+                    this.off('getLastSequenceBufferResult', onResult);
+                    resolve([...this.lastSequenceBuffer]);
+                }, 1000);
+                this.on('getLastSequenceBufferResult', onResult);
+                this.worker.postMessage({ type: 'GET_LAST_SEQUENCE_BUFFER', payload: { requestId } });
+            });
         }
     }
 

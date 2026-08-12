@@ -69,7 +69,65 @@ test('NetHackWasmDriver - shim_get_ext_cmd string command resolution', async () 
     const promise = driver.eventHook('shim_get_ext_cmd', []);
     const idx = await promise;
 
-    assert.equal(capturedCategory, 'TEXT');
+    assert.equal(capturedCategory, 'EXTCMD');
     const prayIdx = NetHackWasmDriver.DEFAULT_EXTCMDS.indexOf('pray');
     assert.equal(idx, prayIdx, 'pray string command should map to correct index');
+});
+
+test('NetHackWasmDriver - lastSequenceBuffer functionality', async () => {
+    const driver = new NetHackWasmDriver();
+    driver.queueSequence(['i']);
+    
+    assert.equal(driver.isExecutingSequence, true);
+    assert.deepEqual(driver.getLastSequenceBuffer(), []);
+
+    driver.eventHook('shim_putstr', 1, 0, 'You have a dagger.');
+    
+    const buffer = driver.getLastSequenceBuffer();
+    assert.equal(buffer.length, 1);
+    assert.equal(buffer[0].type, 'putstr');
+    assert.equal(buffer[0].text, 'You have a dagger.');
+
+    // New queueSequence clears previous buffer
+    driver.queueSequence(['v']);
+    assert.deepEqual(driver.getLastSequenceBuffer(), []);
+});
+
+test('NetHackWasmDriver - lastSequenceBuffer menu capture after sequence token consumption', async () => {
+    const driver = new NetHackWasmDriver({ autoRespondEmptyMenu: false });
+    
+    // 1. queueSequence(['i']) を開始
+    driver.queueSequence(['i']);
+    assert.equal(driver.isExecutingSequence, true);
+
+    // 2. Cコアが getch で入力待ちになり 'i' が自走消費される
+    const getchPromise = driver.eventHook('shim_nhgetch', []);
+    const key = await getchPromise;
+    assert.equal(key, 'i');
+    
+    // トークンは消費されたが、Cコアが出力を完了するまで isExecutingSequence は true のまま！
+    assert.equal(driver.isExecutingSequence, true);
+
+    // 3. Cコアがメニューを構築して出力
+    driver.eventHook('shim_start_menu', 1, 1);
+    driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a dagger', 0);
+    driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+    // shim_select_menu を発火
+    const selectPromise = driver.eventHook('shim_select_menu', 1, 1, 0);
+
+    // 4. バッファを確認: select_menu とその中のアイテムが保存されているか！
+    const buffer = driver.getLastSequenceBuffer();
+    assert.equal(buffer.length, 1);
+    assert.equal(buffer[0].type, 'select_menu');
+    assert.equal(buffer[0].prompt, 'Inventory');
+    assert.equal(buffer[0].items.length, 1);
+    assert.equal(buffer[0].items[0].str, 'a - a dagger');
+
+    // 5. メニューに応答し、次の通常入力待ち (poskey等) が発生したら isExecutingSequence が完了して false になる
+    driver.sendInput(0);
+    await selectPromise;
+
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    assert.equal(driver.isExecutingSequence, false);
 });

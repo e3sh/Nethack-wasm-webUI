@@ -158,12 +158,26 @@
     </div>
     <div style="margin-top: 6px; font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <span style="color: #aaa;">サンプル操作プリセット:</span>
+        <button type="button" class="preset-btn" data-seq="i" style="padding: 4px 10px; font-size: 12px; background:#1565c0; cursor:pointer;">インベントリ確認 (i)</button>
+        <button type="button" class="preset-btn" data-seq="+" style="padding: 4px 10px; font-size: 12px; background:#1565c0; cursor:pointer;">呪文一覧確認 (+)</button>
         <button type="button" class="preset-btn" data-seq="#, open, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#2e7d32; cursor:pointer;">扉を開ける (# ➔ open ➔ 東)</button>
         <button type="button" class="preset-btn" data-seq="o, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">扉を開ける (o ➔ 東)</button>
         <button type="button" class="preset-btn" data-seq="a, f, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">壁を掘削する (a ➔ ツール f ➔ 東)</button>
-        <button type="button" class="preset-btn" data-seq="C-d, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">扉・木を蹴る (Kick ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="#, kick, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">扉・木を蹴る (# ➔ kick ➔ 東)</button>
         <button type="button" class="preset-btn" data-seq="#, chat, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">話しかける (# ➔ chat ➔ 東)</button>
         <button type="button" class="preset-btn" data-seq="#, loot, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">箱を漁る (# ➔ loot ➔ 東)</button>
+    </div>
+
+    <!-- lastSequenceBuffer Result Display Container -->
+    <div style="margin-top: 15px; background: #111; border: 1px solid #00897b; border-radius: 4px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h2 style="font-size: 14px; margin: 0; color: #81c784;">lastSequenceBuffer (シーケンス実行結果バッファ)</h2>
+            <div>
+                <button id="fetch-seq-buf-btn" style="background: #0288d1; font-size: 12px; padding: 4px 10px;">バッファ取得/更新 (getLastSequenceBuffer)</button>
+                <button id="clear-seq-buf-btn" style="background: #555; font-size: 12px; padding: 4px 10px;">クリア</button>
+            </div>
+        </div>
+        <textarea id="seq-buffer-display" style="width: 100%; height: 180px; background: #000; color: #00e676; border: 1px solid #333; font-family: monospace; font-size: 12px; box-sizing: border-box; padding: 8px; resize: vertical;" readonly placeholder="シーケンス実行結果 (lastSequenceBuffer) がここに表示されます"></textarea>
     </div>
 
     <script>
@@ -565,10 +579,37 @@
                 setInputActive(false, "Exited");
             });
 
-            // Sequence Controls Binding
+            // Sequence & Buffer Display Binding
             const seqField = document.getElementById('seq-field');
             const seqSendBtn = document.getElementById('seq-send-btn');
-            
+            const fetchBufBtn = document.getElementById('fetch-seq-buf-btn');
+            const clearBufBtn = document.getElementById('clear-seq-buf-btn');
+            const seqBufferDisplay = document.getElementById('seq-buffer-display');
+
+            const updateSeqBufferDisplay = async () => {
+                if (!driver) return;
+                try {
+                    const buf = (typeof driver.getLastSequenceBuffer === 'function') ? 
+                        await driver.getLastSequenceBuffer() : (driver.lastSequenceBuffer || []);
+                    if (seqBufferDisplay) {
+                        seqBufferDisplay.value = JSON.stringify(buf, null, 2);
+                    }
+                } catch (e) {
+                    if (seqBufferDisplay) {
+                        seqBufferDisplay.value = "Error fetching lastSequenceBuffer: " + e.message;
+                    }
+                }
+            };
+
+            if (fetchBufBtn) {
+                fetchBufBtn.onclick = updateSeqBufferDisplay;
+            }
+            if (clearBufBtn) {
+                clearBufBtn.onclick = () => {
+                    if (seqBufferDisplay) seqBufferDisplay.value = "";
+                };
+            }
+
             const executeSequenceFromInput = () => {
                 const rawVal = seqField.value.trim();
                 if (!rawVal || !driver) return;
@@ -576,8 +617,17 @@
                 const tokens = rawVal.split(',').map(s => s.trim()).filter(s => s.length > 0);
                 if (tokens.length === 0) return;
 
+                if (seqBufferDisplay) seqBufferDisplay.value = "(シーケンス実行中...)";
                 appendLog(`[GKL Test] Calling driver.queueSequence([${tokens.map(t => `'${t}'`).join(', ')}])`, "log-input");
                 driver.queueSequence(tokens, { suppressPrompts: false });
+
+                // シーケンス実行完了後に自動でバッファ表示を更新
+                const checkInterval = setInterval(async () => {
+                    if (!driver.isExecutingSequence) {
+                        clearInterval(checkInterval);
+                        setTimeout(updateSeqBufferDisplay, 150);
+                    }
+                }, 100);
             };
 
             if (seqSendBtn) {

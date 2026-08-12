@@ -65,6 +65,7 @@
             this.isExecutingSequence = false;
             this.sequenceOptions = { suppressPrompts: false };
             this.keyMode = 'numpad'; // 'numpad' | 'vi'
+            this.lastSequenceBuffer = [];
 
             // Bind global dispatcher safely
             this.eventHook = this.eventHook.bind(this);
@@ -107,6 +108,7 @@
             this.sequenceQueue = [...tokens];
             this.sequenceOptions = { suppressPrompts: false, ...options };
             this.isExecutingSequence = true;
+            this.lastSequenceBuffer = [];
 
             // すでに入力待ち中であれば、直ちに最初のトークンを消費・応答をキック
             if (this.activeResolver && this.sequenceQueue.length > 0) {
@@ -123,6 +125,32 @@
         }
 
         /**
+         * シーケンス実行中に受信したテキスト・メッセージ・メニュー構造体を記録
+         */
+        recordSequenceBuffer(item) {
+            if (this.isExecutingSequence && item) {
+                try {
+                    const cleanItem = JSON.parse(JSON.stringify(item));
+                    this.lastSequenceBuffer.push(cleanItem);
+                } catch (e) {
+                    this.lastSequenceBuffer.push(item);
+                }
+            }
+        }
+
+        /**
+         * 直近のシーケンス実行結果バッファのクリーンなコピーを取得
+         * @returns {Array<Object>} バッファアイテムの配列
+         */
+        getLastSequenceBuffer() {
+            try {
+                return JSON.parse(JSON.stringify(this.lastSequenceBuffer));
+            } catch (e) {
+                return [...this.lastSequenceBuffer];
+            }
+        }
+
+        /**
          * inputRequired 発生時にシーケンスキューからトークンを自走消費・応答
          * @param {string} promptText - 現在のプロンプト文字列
          * @param {Object} resolver - safeResolver オブジェクト
@@ -130,7 +158,13 @@
          * @returns {boolean} 自動消費に成功しUIへのemitをブロックした場合は true
          */
         tryConsumeSequenceToken(promptText = "", resolver = null, context = "") {
-            if (!this.isExecutingSequence || this.sequenceQueue.length === 0) {
+            if (!this.isExecutingSequence) {
+                return false;
+            }
+
+            if (this.sequenceQueue.length === 0) {
+                // シーケンスのトークンが全消費された状態で次の入力待ちに達した場合、
+                // 前回のシーケンスによる Cコアの出力・処理が完了したことを意味するためフラグをオフにする
                 this.isExecutingSequence = false;
                 return false;
             }
@@ -141,14 +175,11 @@
             // プロンプト文面の「投げっぱなし putmsg 送出」
             if (promptText && typeof promptText === 'string' && !this.sequenceOptions.suppressPrompts) {
                 this.emit("putmsg", { text: promptText, fromSequence: true });
+                this.recordSequenceBuffer({ type: 'putmsg', text: promptText, fromSequence: true });
             }
 
             const rawToken = this.sequenceQueue.shift();
             const token = this.resolveTokenKey(rawToken);
-
-            if (this.sequenceQueue.length === 0) {
-                this.isExecutingSequence = false;
-            }
 
             // resolver の型に応じた柔軟な自動応答
             if (typeof resObj.respond === 'function') {
@@ -598,6 +629,7 @@
                     }
 
                     this.emit("putstr", { windowId: winId, attr, text });
+                    this.recordSequenceBuffer({ type: 'putstr', windowId: winId, attr, text });
                     break;
                 }
 
@@ -653,6 +685,7 @@
 
                     const promptCategory = this.getPromptCategory('display_file', 'file');
 
+                    this.recordSequenceBuffer({ type: 'display_file', filename, complain, fileText });
                     this.emit("display_file", { filename, complain, fileText, promptCategory, resolver: safeResolver });
                     await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -714,17 +747,28 @@
 
                     const promptCategory = this.getPromptCategory('select_menu', 'menu');
 
-                    this.emit("inputRequired", {
-                        context: "select_menu",
-                        type: "menu",
-                        promptCategory,
+                    this.recordSequenceBuffer({
+                        type: 'select_menu',
                         windowId,
                         how,
                         menuItems: items,
                         items: items,
-                        prompt: menuData.prompt,
-                        resolver: safeResolver
+                        prompt: menuData.prompt
                     });
+
+                    if (!this.tryConsumeSequenceToken(menuData.prompt, safeResolver, 'select_menu')) {
+                        this.emit("inputRequired", {
+                            context: "select_menu",
+                            type: "menu",
+                            promptCategory,
+                            windowId,
+                            how,
+                            menuItems: items,
+                            items: items,
+                            prompt: menuData.prompt,
+                            resolver: safeResolver
+                        });
+                    }
 
                     let selectedItems = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -773,6 +817,7 @@
                         this.lastEmittedMessage = cleanText;
                     }
 
+                    this.recordSequenceBuffer({ type: 'raw_print', text });
                     this.emit("raw_print", { text });
                     return 0;
                 }
@@ -793,6 +838,7 @@
                         this.lastEmittedMessage = cleanText;
                     }
 
+                    this.recordSequenceBuffer({ type: 'raw_print_bold', text });
                     this.emit("raw_print_bold", { text });
                     return 0;
                 }
