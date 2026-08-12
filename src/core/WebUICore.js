@@ -93,9 +93,13 @@ export class WebUICore {
         this.gamepadLoopId = null;
         this.lastInputTime = 0;
 
-        // シーケンス実行サイレントガード構造体
-        this.isExecutingSequence = false;
-        this.sequenceQueue = [];
+        // Game Knowledge Layer (GKL) 状態管理モジュール
+        const RequestControllerClass = (typeof window !== 'undefined' && window.RequestController) ? window.RequestController : (typeof globalThis !== 'undefined' && globalThis.RequestController ? globalThis.RequestController : null);
+        if (RequestControllerClass) {
+            this.requestController = new RequestControllerClass(this.driver);
+        } else {
+            this.requestController = null;
+        }
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -309,6 +313,34 @@ export class WebUICore {
      */
     async getHighScoresAsync() {
         return await GameOverResolver.getScoreboardAsync(this.driver);
+    }
+
+    /**
+     * サイレント・インベントリ同期 (Silent Inventory Sync)
+     * ドライバーの queueSequence を利用して ['i', ' '] を画面表示なし・プロンプト非表示でサイレント送出し、
+     * 画面を一切チラつかせることなく InventoryStateManager を 100% 確実に最新同期取得します。
+     * @param {Object} [options={}]
+     */
+    syncInventorySilent(options = {}) {
+        const seq = ['i', ' '];
+        if (this.requestController) {
+            return this.requestController.executeSequence(seq, { suppressPrompts: true, ...options });
+        } else if (this.driver && typeof this.driver.queueSequence === 'function') {
+            this.driver.queueSequence(seq, { suppressPrompts: true, ...options });
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * GKL の単一真実源 (Single Source of Truth) である自動フック済み InventoryStateManager インスタンスを取得
+     * @returns {InventoryStateManager}
+     */
+    getInventoryState() {
+        return this.inventoryStateManager;
+    }
+    getInventoryStateManager() {
+        return this.inventoryStateManager;
     }
 
     /**
@@ -571,37 +603,22 @@ export class WebUICore {
      * EXTCMD 拡張コマンド（#loot, #chat, #untrap, #pray 等）を安全に非同期連続実行
      * @param {string} extCmdName - 拡張コマンド名 ('loot', 'chat', 'untrap', 'pray', etc.)
      * @param {string} [directionKey=null] - オプションの方向キー ('l', 'k', etc.)
-     * @param {number} [delayMs=180] - ステップ間ミリ秒
+     * @param {Object} [options={}] - オプション
      */
-    async sendExtCommand(extCmdName, directionKey = null, delayMs = 180) {
+    async sendExtCommand(extCmdName, directionKey = null, options = {}) {
         if (!extCmdName) return;
         const cleanCmd = typeof extCmdName === 'string' ? extCmdName.replace(/^#+/, '').trim() : '';
         if (!cleanCmd) return;
 
-        this.isExecutingSequence = true;
-        // 1番目の自動応答: cleanCmd ('chat', 'loot' 等)
-        this.sequenceQueue = [cleanCmd];
+        const tokens = ['#', cleanCmd];
         if (directionKey) {
-            // 2番目の自動応答: 方向キー ('k' 等)
-            this.sequenceQueue.push(directionKey);
+            tokens.push(directionKey);
         }
 
-        try {
-            if (this.activeResolver) {
-                this.respond('#');
-            } else {
-                this.sendKey('#', false, false, false, '#', true);
-            }
-
-            // キューが自動消費されるまで待機 (最大2秒タイムアウト)
-            let timeoutCount = 0;
-            while (this.sequenceQueue.length > 0 && timeoutCount < 40) {
-                await new Promise(res => setTimeout(res, 50));
-                timeoutCount++;
-            }
-        } finally {
-            this.isExecutingSequence = false;
-            this.sequenceQueue = [];
+        if (this.requestController) {
+            this.requestController.executeSequence(tokens, options);
+        } else if (this.driver && typeof this.driver.queueSequence === 'function') {
+            this.driver.queueSequence(tokens, options);
         }
     }
 
@@ -651,49 +668,36 @@ export class WebUICore {
     }
 
     /**
-     * ContextActionEngine が生成した推奨アクション (ContextAction) を安全に連続送出・実行する。
-     * keySequence や directionKey が存在する場合は UI モーダル割り込みをサイレント遮断して自動実行する。
+     * ContextActionEngine が生成した推奨アクション (ContextAction) を安全に実行する。
      * @param {Object} action - recommended action オブジェクト
-     * @param {number} [delayMs=150] - 送信ミリ秒間隔
+     * @param {Object} [options={}] - オプション
      */
-    async executeAction(action, delayMs = 150) {
-        if (!action) return;
+    executeAction(action, options = {}) {
+        if (!action) return false;
 
         // 【1】拡張コマンド (#chat, #loot, #untrap 等)
         if (action.extCmd) {
-            await this.sendExtCommand(action.extCmd, action.directionKey, delayMs);
-            return;
+            this.sendExtCommand(action.extCmd, action.directionKey, options);
+            return true;
         }
 
-        // 【2】方向キー付きコマンドまたはシーケンスコマンド (例: ['o', 'j'], ['C-d', 'j'], ['a', 'b', 'j'])
+        // 【2】方向キー付きコマンドまたはシーケンスコマンド (例: ['o', 'DIR_E'], ['a', 'b', 'DIR_E'])
         const mainKey = action.charStr || action.key;
         const hasDirection = !!action.directionKey;
         const seq = action.keySequence ? [...action.keySequence] : (hasDirection ? [mainKey, action.directionKey] : null);
 
         if (seq && seq.length > 0) {
-            this.isExecutingSequence = true;
-            // 2番目以降のキーを自動応答キューにセット
-            this.sequenceQueue = [...seq.slice(1)];
-
-            try {
-                const firstKey = seq[0];
-                this.sendActionKey(firstKey);
-
-                // キューが自動消費されるまで待機 (最大2秒タイムアウト)
-                let timeoutCount = 0;
-                while (this.sequenceQueue.length > 0 && timeoutCount < 40) {
-                    await new Promise(res => setTimeout(res, 50));
-                    timeoutCount++;
-                }
-            } finally {
-                this.isExecutingSequence = false;
-                this.sequenceQueue = [];
+            if (this.requestController) {
+                return this.requestController.executeSequence(seq, options);
+            } else if (this.driver && typeof this.driver.queueSequence === 'function') {
+                this.driver.queueSequence(seq, options);
+                return true;
             }
-            return;
         }
 
         // 【3】単一コマンド
         this.sendActionKey(mainKey);
+        return true;
     }
 
     /**
@@ -1012,6 +1016,10 @@ export class WebUICore {
         // putstr メッセージ・テキストログ分離処理
         const handleMessageText = (rawText) => {
             if (!rawText) return;
+            if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromMessage === 'function') {
+                this.inventoryStateManager.updateFromMessage(rawText);
+                this.emit('inventoryStateUpdated', this.inventoryStateManager);
+            }
             const translated = this.translator.translate(rawText);
             const seEffect = this.sound.processLogMessage(translated);
             if (seEffect) {
@@ -1136,8 +1144,16 @@ export class WebUICore {
 
             let bufferLines = [];
             if (this.textWindowBuffers[windowId] && this.textWindowBuffers[windowId].length > 0) {
-                bufferLines = this.textWindowBuffers[windowId].map(l => this.translator.translate(l));
+                const rawBufferLines = [...this.textWindowBuffers[windowId]];
+                bufferLines = rawBufferLines.map(l => this.translator.translate(l));
                 delete this.textWindowBuffers[windowId];
+
+                // テキスト表現インベントリ (例: 'a - a lock pick') の自動検出・同期パース
+                if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromLines === 'function') {
+                    this.inventoryStateManager.updateFromLines(rawBufferLines);
+                    this.inventoryStateManager.updateFromLines(bufferLines);
+                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                }
             }
 
             const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : 'Press Space or Enter to continue...';
@@ -1165,6 +1181,18 @@ export class WebUICore {
         this.driver.on('inputRequired', (payload) => {
             const resolver = payload.safeResolver || payload.resolver;
             this.activeResolver = resolver;
+
+            // 初回メインゲーム入力待機時に、インベントリ未同期であれば自動サイレント同期を1回安全実行
+            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
+                const ctx = payload.context || payload.type;
+                if (ctx === 'poskey' || ctx === 'getch') {
+                    setTimeout(() => {
+                        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
+                            this.syncInventorySilent();
+                        }
+                    }, 50);
+                }
+            }
             this.lastInputTime = Date.now();
 
             const category = payload.promptCategory || this.driver.getPromptCategory(payload.context || payload.type) || PROMPT_CATEGORY.OTHER;
@@ -1235,6 +1263,14 @@ export class WebUICore {
 
             this.activeMenuItems = translatedItems;
 
+            // GKL インベントリ自動追跡: UIクライアントに依存せず、メニュー発生時に知識層を100%全自動即時同期
+            if ((category === PROMPT_CATEGORY.MENU || payload.context === 'select_menu') && translatedItems.length > 0) {
+                if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromMenuItems === 'function') {
+                    this.inventoryStateManager.updateFromMenuItems(translatedItems);
+                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                }
+            }
+
             const basePayload = {
                 ...payload,
                 category: category,
@@ -1255,14 +1291,6 @@ export class WebUICore {
                 guiData: guiData,
                 guiInput: guiData
             };
-
-            // 【シーケンスサイレント自動応答チェック】
-            if (this.isExecutingSequence && this.sequenceQueue.length > 0) {
-                const nextKey = this.sequenceQueue.shift();
-                this.activeResolver = resolver;
-                this.sendActionKey(nextKey);
-                return; // UIへのemit('inputRequired')およびプロンプト画面表示をスキップ！
-            }
 
             this.renderer.showPrompt(passThroughPayload);
             this.emit('inputRequired', passThroughPayload);

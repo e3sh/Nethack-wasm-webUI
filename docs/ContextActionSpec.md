@@ -6,42 +6,58 @@
 
 ## 1. 概要
 
-`WebUICore.prototype.executeAction(action, delayMs)` は、`ContextActionEngine` またはフロントエンド UI から渡された `ContextAction` オブジェクトを安全に解釈し、NetHack C コアへのキー送信・拡張コマンド発行・方向プロンプト自動応答までをモーダル割り込みなしで連続実行するメイン API です。
+`WebUICore.prototype.executeAction(action)` は、`ContextActionEngine` またはフロントエンド UI から渡された `ContextAction` オブジェクトを解釈し、`RequestController` および `NetHackWasmDriver.prototype.queueSequence(tokens)` へ送出委託を行う統一ファサード API です。
+
+連続プロンプト（拡張コマンド、方向指定、道具選択等）の自動消化・中間状態モーダルの隠蔽・プロンプトログの配信 (`putmsg`) はすべて低レイヤーの **`NetHackWasmDriver`** が自走管理します。
 
 ```mermaid
 flowchart TD
-    A[UI Action Button / AI Agent] -->|ContextAction| B[core.executeAction]
-    B --> C{アクション判定}
-    C -->|extCmd 存在| D[sendExtCommand]
-    C -->|keySequence / directionKey 存在| E[自動シーケンスモード]
-    C -->|単一コマンド| F[sendActionKey]
-    D --> G[# キー送出 ➔ Cコア EXTCMD 自動応答]
-    E --> H[1番目キー送出 ➔ プロンプト判定 ➔ 2番目以降自動応答]
-    F --> I[単一キーまたは Ctrl+D 送出]
+    A[UI Action Button / AI Agent] -->|ContextAction| B[WebUICore.executeAction]
+    B --> C[RequestController.executeSequence]
+    C --> D[NetHackWasmDriver.queueSequence]
+    D --> E{WASM Cコア inputRequired}
+    E -->|1トークン目応答| F[shim_nhgetch / shim_get_ext_cmd]
+    E -->|プロンプト自走消化| G[shim_yn_function / shim_nh_poskey]
+    G --> H[putmsg ログ配信 & 完了]
 ```
 
 ---
 
-## 2. ContextAction データ構造 (Schema)
+## 2. 役割とレイヤー責務の分離 (SoC)
+
+ContextAction 周辺の処理は、以下の明確な 3 レイヤー構成で分離されています。
+
+| レイヤー | コンポーネント | 責務と扱うデータ |
+| :--- | :--- | :--- |
+| **UI / 表示層** | UI Button / CSS / Vue / React | 人間用表示 (`label`, `labelJa`, `descriptionJa`, `risk`, `priority`) |
+| **GKL 知能解析層** | `ContextActionEngine` / `RequestController` | 文脈判断とトークン配列 (`keySequence: ['#', 'open', 'DIR_E']`) の生成および状態管理 |
+| **低レイヤー通信層** | `NetHackWasmDriver` (または WorkerBridge) | WASMプロンプトイベント受動消化・抽象キー (`DIR_*`) 変換・`putmsg` ログ送出 |
+
+---
+
+## 3. ContextAction データ構造 (Schema)
 
 `ContextAction` オブジェクトは以下のプロパティで構成されます。
 
 ```typescript
 interface ContextAction {
-    /** ユニークなアクション識別子 (例: 'ACTION_OPEN_DOOR_n', 'ACTION_SIT_FLOOR') */
+    /** ユニークなアクション識別子 (例: 'ACTION_OPEN_DOOR_N', 'ACTION_UNLOCK_CONTAINER_FEET') */
     id: string;
 
     /** カテゴリ (INTERACT, COMBAT, ITEM, MOVEMENT 等) */
     category: 'INTERACT' | 'COMBAT' | 'ITEM' | 'MOVEMENT';
 
-    /** 英語表示ラベル (例: 'Open door', 'Sit on floor') */
+    /** 英語表示ラベル (例: 'Open door', 'Unlock container') */
     label: string;
 
-    /** 日本語表示ラベル (例: '扉を開ける (Open)', '床に座る (Sit)') */
+    /** 日本語表示ラベル (例: '扉を開ける (Open)', '箱を解錠 (Apply)') */
     labelJa?: string;
 
-    /** 元コマンド表現 (例: 'o', 'C-d', '#sit', 'a') */
+    /** 元キー表現 (例: 'o', 'C-d', '#sit', 'a') */
     key: string;
+
+    /** 連続キー送出シーケンス (例: ['o', 'DIR_E'], ['#', 'open', 'DIR_E'], ['a', 'f', 'DIR_E'], ['C-d', 'DIR_E']) */
+    keySequence?: string[];
 
     /** メイン文字表現 (例: 'o', 'C-d', '#sit') */
     charStr?: string;
@@ -49,22 +65,10 @@ interface ContextAction {
     /** 拡張コマンド名 (# を除いた純粋な名称, 例: 'sit', 'chat', 'loot', 'untrap', 'pay', 'pray') */
     extCmd?: string;
 
-    /** 連続キー送出シーケンス (例: ['o', 'j'], ['a', 'b', 'l'], ['C-d', 'k']) */
-    keySequence?: string[];
-
-    /** アクション対象の方向キー (デフォルト Vi-keys: 'j', 'k', 'h', 'l', 'y', 'u', 'b', 'n') */
+    /** 方向キー表現 (例: 'DIR_N', 'DIR_E', 'DIR_SELF') */
     directionKey?: string;
 
-    /** 方向情報オブジェクト ({ code: 'N'|'NE'|'E'|'SE'|'S'|'SW'|'W'|'NW', name: '北', key: 'k', dx: 0, dy: -1 }) */
-    direction?: {
-        code: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW' | 'SELF';
-        name: string;
-        key: string;
-        dx: number;
-        dy: number;
-    };
-
-    /** リスクレベル (null: 安全, 'warning': 警告, 'danger': 危険・要確証モーダル) */
+    /** リスクレベル (null: 安全, 'warning': 警告, 'danger': 危険・要確証ダイアログ) */
     risk?: null | 'warning' | 'danger';
 
     /** UI表示の優先度 (数値が大きいほど上に配置) */
@@ -83,157 +87,52 @@ interface ContextAction {
 
 ---
 
-## 3. コマンドパターンとフォーマット仕様
+## 4. コマンドトークン規定と送出パターン
 
-`executeAction` は `action` オブジェクトのプロパティ構成によって自動的に最適な処理モードを選択します。
+`keySequence` には、WASM Cコアが入力待ちに入った際に受領される **生キー（翻訳前キー）** または **抽象キー** の配列を定義します。
 
-### パターン 1: 単一コマンド (Single Key Command)
-方向キーや中間入力が不要な単一アクション。
-
-* **使用例**: 探索 (`s`), 上り階段 (`<`), 道具確認 (`i`)
-* **フォーマット**:
-  ```json
-  {
-    "id": "ACTION_SEARCH",
-    "key": "s",
-    "charStr": "s",
-    "labelJa": "隠し扉・罠を探す (Search)"
-  }
-  ```
+### パターン 1: 単一キーコマンド (Single Key Command)
+* **使用例**: 探索 (`['s']`), 階段を下りる (`['>']`), アイテムを拾う (`[',']`)
+* **`keySequence`**: `['s']`
 
 ### パターン 2: 制御キー付きコマンド (Control Key Command)
-`Ctrl+D` (蹴る: Kick) などの制御キーを要するアクション。
-
-* **表記ルールの規定**: `key` や `charStr` に `"C-d"` または `"Ctrl-d"` を指定。
-* **動作メカニズム**: `sendActionKey("C-d")` 内で自動的に **ASCII 4 (Ctrl+D / Kick)** に変換されて C コアへ送信されます。単なる `"C"` (Name コマンド) に誤変換されることはありません。
-* **フォーマット**:
-  ```json
-  {
-    "id": "ACTION_KICK_DOOR_s",
-    "key": "C-dj",
-    "keySequence": ["C-d", "j"],
-    "charStr": "C-d",
-    "directionKey": "j",
-    "labelJa": "扉を蹴破る (Kick)"
-  }
-  ```
+* **使用例**: 蹴る (`['C-d', 'DIR_E']`)
+* **動作**: `C-d` はドライバー内部で `number_pad` モードに応じて `k` または ASCII 4 (`Ctrl+D`) へ自動変換されます。
 
 ### パターン 3: 方向指定付きシーケンスコマンド (Directional Sequence Command)
-コマンド文字と方向キー（および道具選択キー）を連続で自動送出するアクション。
+* **使用例**: 扉を開ける (`['o', 'DIR_E']`), 鍵で解錠 (`['a', 'b', 'DIR_E']`)
+* **動作**: 抽象方向キー (`DIR_N`, `DIR_NE`, `DIR_E`, `DIR_SE`, `DIR_S`, `DIR_SW`, `DIR_W`, `DIR_NW`, `DIR_SELF`) はドライバー受領時にキーモード (`numpad` / `vi`) に応じて即時自動変換されます。
 
-* **使用例**: 扉を開ける (`o` + 方向 `j`), 鍵で解錠 (`a` + 鍵レター `b` + 方向 `l`)
-* **動作メカニズム**:
-  1. `keySequence` または `[charStr, directionKey]` からキーキューを生成。
-  2. 1番目のキーを送信後、`isExecutingSequence = true` に設定して画面モーダル表示をスキップ。
-  3. C コアからのプロンプト（`"In what direction?"` 等）に対し、`sequenceQueue` から2番目以降のキーを自動応答返送。
-* **フォーマット**:
-  ```json
-  {
-    "id": "ACTION_UNLOCK_DOOR_e",
-    "key": "abl",
-    "keySequence": ["a", "b", "l"],
-    "charStr": "a",
-    "directionKey": "l",
-    "labelJa": "扉を解錠 (b)"
-  }
-  ```
-
-### パターン 4: 拡張コマンド (Extended Command)
-`#` で始まる NetHack の拡張コマンドアクション。
-
-* **注意規定**: **必ず `extCmd: 'sit'` のように `#` を除いた純粋なコマンド名を指定**してください。`extCmd` が空の場合、単なる文字送信へ流れて `"Unrecognized extended command"` エラーになります。
-* **使用例**: 床に座る (`#sit`), 祭壇に捧げる (`#offer`), 泉に浸す (`#dip`)
-* **フォーマット**:
-  ```json
-  {
-    "id": "ACTION_SIT_FLOOR",
-    "key": "#sit",
-    "charStr": "#sit",
-    "extCmd": "sit",
-    "labelJa": "床に座る (Sit)"
-  }
-  ```
-
-### パターン 5: 拡張コマンド + 方向指定シーケンス
-方向指定を要する拡張コマンド。
-
-* **使用例**: 対象に話しかける (`#chat` + 方向 `k`), 店主に支払う (`#pay` + 方向 `l`)
-* **動作メカニズム**:
-  1. `#` キーを送信。
-  2. C コアからの `EXTCMD` プロンプトに対し、`extCmd` 名 ('chat') を自動応答。
-  3. C コアからの `DIRECTION` プロンプトに対し、`directionKey` ('k') を自動応答。
-* **フォーマット**:
-  ```json
-  {
-    "id": "ACTION_CHAT_NPC_n",
-    "key": "#chatk",
-    "charStr": "#chat",
-    "extCmd": "chat",
-    "directionKey": "k",
-    "labelJa": "対象に話しかける (#chat)"
-  }
-  ```
+### パターン 4: 拡張コマンド (Extended Command Sequence)
+* **使用例**: 話しかける (`['#', 'chat', 'DIR_E']`), 扉を開ける (`['#', 'open', 'DIR_E']`), 漁る (`['#', 'loot', 'DIR_SELF']`)
+* **動作**: 1トークン目の `'#'` で Cコアが ExtCmd プロンプトへ入り、2トークン目の `'chat'` でコマンド名が返答され、3トークン目の `'DIR_E'` で方向プロンプトが自動消化されます。
 
 ---
 
-## 4. UI クライアント側での呼び出し実装標準
+## 5. UI クライアント側での呼び出し標準
 
-PoC クライアントや将来の Web/モバイル UI では、ボタンの `onclick` イベント等で以下の呼び出し標準を適用してください。
+フロントエンド UI（Web UI / モバイル UI）では、推奨アクションボタンの押下時に以下のように `executeAction` を呼び出します。
 
 ```javascript
-// UI ボタンのイベントハンドラー共通処理
-window.executeContextAction = function(action) {
+// Recommended Action ボタンクリック時の共通ハンドラー
+function handleActionButtonClick(action) {
     if (!action) return;
 
-    // 危険アクションへの確認ダイアログ
+    // 危険アクションに対する事前安全確認
     if (action.risk === 'danger') {
         const ok = confirm(`【⚠️ 危険な行動】\n"${action.labelJa || action.label}" を実行しますか？`);
         if (!ok) return;
     }
 
-    // core.executeAction への一括委任 (推奨呼び出しパターン)
-    if (typeof core.executeAction === 'function') {
-        core.executeAction(action);
-    } else {
-        // フォールバック処理
-        const mainCmd = action.charStr || action.key;
-        core.sendKey(mainCmd);
-    }
-};
+    // executeAction への送出委託
+    core.executeAction(action);
+}
 ```
 
 ---
 
-## 5. まとめ・チェックリスト
+## 6. まとめ
 
-開発者が新たな推奨アクションを `ContextActionEngine` に追加する際は、以下のチェックリストを確認してください。
-
-- [ ] `#` で始まるアクションには `extCmd: 'コマンド名'` (例: `extCmd: 'untrap'`) が付与されているか？
-- [ ] `Ctrl+D` などの制御キーには `key: 'C-d'`, `charStr: 'C-d'` を使用しているか？
-- [ ] 複数ステップ操作には `keySequence: ['a', 'b', 'l']` を明記しているか？
-- [ ] 隣接対象への操作には `directionKey: 'j'` が指定されているか？
-
----
-
-## 6. 方向指定とキーモード変換 (Vi-keys vs NumPad vs Direction Code)
-
-`ContextAction` では、**直接のキー文字列 (`directionKey: 'j'`) とセマンティックな方向コード (`direction.code: 'S'`) の両方を提供** しています。
-
-### 方角コードのマッピング一覧
-
-| 方向コード (`direction.code`) | 日本語名 (`direction.name`) | デフォルト Vi-keys (`directionKey`) | テンキー (NumPad) |
-| :--- | :--- | :--- | :--- |
-| **`N`** | 北 | `k` | `8` |
-| **`NE`** | 北東 | `u` | `9` |
-| **`E`** | 東 | `l` | `6` |
-| **`SE`** | 南東 | `n` | `3` |
-| **`S`** | 南 | `j` | `2` |
-| **`SW`** | 南西 | `b` | `1` |
-| **`W`** | 西 | `h` | `4` |
-| **`NW`** | 北西 | `y` | `7` |
-| **`SELF`** | 足元 | `.` | `5` |
-
-### クライアント UI での活用パターン
-
-* **標準自動実行 (`executeAction`)**: デフォルトの Vi-keys 表現 (`directionKey: 'j'`) で C コアに即座に送信されます。
-* **キーモードカスタマイズ (テンキー設定等)**: UI クライアント側で NetHack の `number_pad` オプションが有効になっている場合、`action.direction.code` (`'S'`) をキーマップ関数に通すことで、自動的に `2` (テンキー) や矢印キーに変換して送信することが可能です。
+- **UI表示データ (翻訳後)**: `labelJa`, `descriptionJa` 等の画面表示専用プロパティ。ドライバー側へは送られず UI レイヤーで利用されます。
+- **実行用トークン (翻訳前/生キー)**: `keySequence: ['#', 'open', 'DIR_E']` などの生キー・抽象トークン。ドライバー側で直接自動消化されます。
+- **ドライバー自動消化化の成果**: コントローラーや UI 側でのビジーウェイト・タイマー待ちは完全不要となり、シンプルで安全な受動的自走アーキテクチャが確立されています。

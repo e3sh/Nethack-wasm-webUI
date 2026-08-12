@@ -19,6 +19,12 @@ export class ContextActionEngine {
         const actions = [];
         const feet = areaState.feet;
 
+        // インベントリツールの事前抽出
+        const keyItem = inventoryState ? inventoryState.getKeyOrLockPick() : null;
+        const pickAxe = inventoryState ? inventoryState.getPickAxe() : null;
+        const axeItem = inventoryState ? inventoryState.getAxe() : null;
+        const frostWand = inventoryState ? inventoryState.getFrostWand() : null;
+
         // =========================================================================
         // 1. 足元 (Stepping on) のアクション判定
         // =========================================================================
@@ -46,6 +52,25 @@ export class ContextActionEngine {
 
                 // (b) コンテナ漁り / 解錠 (箱・袋・コンテナが足元にある場合のみ推奨)
                 if (feet.middle.isContainer) {
+                    // 鍵/ロックピック所持時は箱の解錠アクションを生成
+                    if (keyItem) {
+                        actions.push({
+                            id: 'ACTION_UNLOCK_CONTAINER_FEET',
+                            category: 'INTERACT',
+                            label: `Unlock container with ${keyItem.rawText || 'key'}`,
+                            labelJa: `箱を解錠 (${keyItem.letter})`,
+                            key: `a${keyItem.letter}.`,
+                            keySequence: ['a', keyItem.letter, 'DIR_SELF'],
+                            charStr: 'a',
+                            target: 'feet',
+                            entity: feet.middle,
+                            risk: null,
+                            priority: 92,
+                            description: `Apply ${keyItem.rawText || 'key'} to unlock container on the floor`,
+                            descriptionJa: `手持ちの ${keyItem.rawText || '鍵/ロックピック'} で足元の箱の鍵を解錠します`
+                        });
+                    }
+
                     actions.push({
                         id: 'ACTION_LOOT',
                         category: 'INTERACT',
@@ -392,12 +417,6 @@ export class ContextActionEngine {
         // 2. 隣接マス (Adjacent) のアクション判定
         // =========================================================================
 
-        // インベントリからの特定ツール取得 (未所持/未同期の場合は null)
-        const pickAxe = inventoryState ? inventoryState.getPickAxe() : null;
-        const keyItem = inventoryState ? inventoryState.getKeyOrLockPick() : null;
-        const axeItem = inventoryState ? inventoryState.getAxe() : null;
-        const frostWand = inventoryState ? inventoryState.getFrostWand() : null;
-
         // (2-A) 隣接モンスターへの判定 (ペット誤爆防止・NPC安全性確認)
         if (areaState.adjacentMonsters && areaState.adjacentMonsters.length > 0) {
             areaState.adjacentMonsters.forEach(m => {
@@ -491,12 +510,21 @@ export class ContextActionEngine {
 
         // (2-B) 隣接する設置物・地形 (ドア、壁、木、水、溶岩、鉄格子等)
         if (areaState.adjacentEntities) {
+            const dirToAbstractMap = {
+                'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
+                'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
+                '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
+                '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW',
+                'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
+                'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW'
+            };
+
             areaState.adjacentEntities.forEach(item => {
                 const b = item.cell.bottom;
                 if (!b || !b.cmapFlags) return;
                 const flags = b.cmapFlags;
                 const dirCode = item.dir.code;
-                const dirKey = item.dir.key;
+                const dirKey = dirToAbstractMap[item.dir.code] || dirToAbstractMap[item.dir.key] || item.dir.key;
 
                 // 閉じた扉 (Closed Door)
                 if (flags.isClosedDoor) {
@@ -533,9 +561,9 @@ export class ContextActionEngine {
                             direction: item.dir,
                             target: 'adjacent',
                             risk: null,
-                            priority: 85,
+                            priority: 95,
                             description: `Apply ${keyItem.rawText || 'key'} to unlock door`,
-                            descriptionJa: `扉を ${keyItem.rawText || '鍵'} で解錠します`
+                            descriptionJa: `扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
                         });
                     }
 
@@ -546,7 +574,7 @@ export class ContextActionEngine {
                             label: `Kick door`,
                             labelJa: `扉を蹴破る (Kick)`,
                             key: `#kick${dirKey}`,
-                            keySequence: ['#kick', dirKey],
+                            keySequence: ['#', 'kick', dirKey],
                             charStr: '#kick',
                             extCmd: 'kick',
                             directionKey: dirKey,

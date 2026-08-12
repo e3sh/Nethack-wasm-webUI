@@ -96,7 +96,7 @@ self.onmessage = async function(e) {
                 'display_nhwindow', 'destroy_nhwindow', 'curs', 'putstr', 
                 'display_file', 'status_update', 'bell', 'cliparound', 
                 'inputRequired', 'raw_print', 'raw_print_bold', 'putmixed',
-                'print_glyph'
+                'print_glyph', 'putmsg'
             ];
 
             driverEvents.forEach(evtName => {
@@ -207,6 +207,20 @@ self.onmessage = async function(e) {
                 self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles });
             } else {
                 self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles: [] });
+            }
+            break;
+        }
+
+        case 'QUEUE_SEQUENCE': {
+            if (driver && typeof driver.queueSequence === 'function') {
+                driver.queueSequence(payload.tokens, payload.options);
+            }
+            break;
+        }
+
+        case 'CANCEL_SEQUENCE': {
+            if (driver && typeof driver.cancelSequence === 'function') {
+                driver.cancelSequence();
             }
             break;
         }

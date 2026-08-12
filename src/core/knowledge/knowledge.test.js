@@ -147,7 +147,7 @@ test('ContextActionEngine - 祭壇・泉・樹木・リスク評価・多言語�
 
     const kickTreeAction = actions.find(a => a.id === 'ACTION_KICK_TREE_E');
     assert.ok(kickTreeAction, '東の樹木を蹴るアクションが生成されること');
-    assert.strictEqual(kickTreeAction.key, 'C-dl');
+    assert.strictEqual(kickTreeAction.key, 'C-dDIR_E');
 
     // 4. 足元に通常のアイテム (金貨など) がある場合は LOOT が出ないこと
     const normalItemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 5;
@@ -231,7 +231,7 @@ test('ContextActionEngine & DirectionalActionResolver - 所持品連動ノイズ
     actions = ContextActionEngine.generateActions(state, invWithPick);
     digAction = actions.find(a => a.id === 'ACTION_DIG_WALL_E');
     assert.ok(digAction, 'ツルハシ所持時は壁掘削アクションが生成されること');
-    assert.deepStrictEqual(digAction.keySequence, ['a', 'f', 'l'], 'keySequence が [a, f, l] に設定されること');
+    assert.deepStrictEqual(digAction.keySequence, ['a', 'f', 'DIR_E'], 'keySequence が [a, f, DIR_E] に設定されること');
 
     resolveResult = DirectionalActionResolver.resolveDirection('E', state, invWithPick);
     assert.strictEqual(resolveResult.isWalkable, false);

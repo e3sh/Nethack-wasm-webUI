@@ -150,6 +150,22 @@
         <button id="esc-btn" disabled style="background:#c62828;">ESC (Cancel)</button>
     </div>
 
+    <!-- GKL Sequence Test Controls -->
+    <div class="input-controls" style="border-left: 4px solid #4caf50; background: #1a271c; margin-top: 10px;">
+        <label for="seq-field" style="color: #81c784; font-weight: bold;">シーケンステスト (GKL):</label>
+        <input type="text" id="seq-field" placeholder="例: #, open, DIR_E  または  o, DIR_E  または  a, f, DIR_E" />
+        <button id="seq-send-btn" style="background:#00897b;">シーケンス実行 (queueSequence)</button>
+    </div>
+    <div style="margin-top: 6px; font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <span style="color: #aaa;">サンプル操作プリセット:</span>
+        <button type="button" class="preset-btn" data-seq="#, open, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#2e7d32; cursor:pointer;">扉を開ける (# ➔ open ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="o, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">扉を開ける (o ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="a, f, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">壁を掘削する (a ➔ ツール f ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="C-d, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">扉・木を蹴る (Kick ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="#, chat, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">話しかける (# ➔ chat ➔ 東)</button>
+        <button type="button" class="preset-btn" data-seq="#, loot, DIR_E" style="padding: 4px 10px; font-size: 12px; background:#37474f; cursor:pointer;">箱を漁る (# ➔ loot ➔ 東)</button>
+    </div>
+
     <script>
         // Emscripten Module Setup
         window.Module = {
@@ -547,6 +563,40 @@
                 appendLog(`[Game Exit] ${data.message || ''}`, "log-sys");
                 updateStateDisplay();
                 setInputActive(false, "Exited");
+            });
+
+            // Sequence Controls Binding
+            const seqField = document.getElementById('seq-field');
+            const seqSendBtn = document.getElementById('seq-send-btn');
+            
+            const executeSequenceFromInput = () => {
+                const rawVal = seqField.value.trim();
+                if (!rawVal || !driver) return;
+
+                const tokens = rawVal.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                if (tokens.length === 0) return;
+
+                appendLog(`[GKL Test] Calling driver.queueSequence([${tokens.map(t => `'${t}'`).join(', ')}])`, "log-input");
+                driver.queueSequence(tokens, { suppressPrompts: false });
+            };
+
+            if (seqSendBtn) {
+                seqSendBtn.onclick = executeSequenceFromInput;
+            }
+            if (seqField) {
+                seqField.onkeydown = (e) => {
+                    if (e.key === 'Enter') executeSequenceFromInput();
+                };
+            }
+
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const seq = btn.getAttribute('data-seq');
+                    if (seq) {
+                        seqField.value = seq;
+                        executeSequenceFromInput();
+                    }
+                };
             });
         }
     </script>

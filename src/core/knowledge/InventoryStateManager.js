@@ -28,31 +28,48 @@ export class InventoryStateManager {
      * @param {Array<Object>} menuItems - メニュー項目の配列 [{ letter: 'a', text: 'a blessed +1 pick-axe', glyph: 3707, onum: 259 }, ...]
      */
     updateFromMenuItems(menuItems) {
-        if (!Array.isArray(menuItems)) return;
+        if (!Array.isArray(menuItems) || menuItems.length === 0) return;
 
-        this.items = menuItems.map(mi => {
+        const parsedItems = [];
+
+        menuItems.forEach(mi => {
+            if (!mi) return;
             const rawText = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
-            let letter = mi.charStr || mi.letter || mi.accelerator || mi.selector || '';
+            if (!rawText) return;
+
+            let letter = '';
+            const rawCh = mi.charStr || mi.letter || mi.accelerator || mi.selector || mi.ch || 0;
+            if (typeof rawCh === 'number' && rawCh > 0) {
+                letter = String.fromCharCode(rawCh);
+            } else if (typeof rawCh === 'string' && rawCh.length > 0) {
+                letter = rawCh.trim();
+            }
 
             if (!letter && rawText) {
                 const match = rawText.match(/^([a-zA-Z])[\s\-\.\)]/);
                 if (match) letter = match[1];
             }
-            const glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
-            const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo ? mi.glyphInfo.onum : -1);
 
-            const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
+            // 英字1文字のアイテムのみ有効なスロット項目としてパース
+            if (letter && /^[a-zA-Z]$/.test(letter)) {
+                const glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
+                const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo ? mi.glyphInfo.onum : -1);
+                const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
 
-            return {
-                letter,
-                rawText,
-                glyphId,
-                onum,
-                ...categoryFlags
-            };
-        }).filter(item => item.letter && item.letter.match(/^[a-zA-Z]$/));
+                parsedItems.push({
+                    letter,
+                    rawText,
+                    glyphId,
+                    onum,
+                    ...categoryFlags
+                });
+            }
+        });
 
-        this.isSynced = true;
+        if (parsedItems.length > 0) {
+            this.items = parsedItems;
+            this.isSynced = true;
+        }
     }
 
     /** エイリアスメソッド (互換性担保) */
@@ -197,27 +214,23 @@ export class InventoryStateManager {
     // クエリ API (ContextActionEngine から利用)
     // =========================================================================
 
-    /** ツルハシ/掘削アイテムを取得 (未同期または未所持の場合は null) */
+    /** ツルハシ/掘削アイテムを取得 (所持していない場合は null) */
     getPickAxe() {
-        if (!this.isSynced) return null;
         return this.items.find(i => i.isPickAxe) || null;
     }
 
-    /** 鍵/解錠アイテムを取得 */
+    /** 鍵/解錠アイテムを取得 (所持していない場合は null) */
     getKeyOrLockPick() {
-        if (!this.isSynced) return null;
         return this.items.find(i => i.isKey) || null;
     }
 
-    /** 斧/伐採アイテムを取得 */
+    /** 斧/伐採アイテムを取得 (所持していない場合は null) */
     getAxe() {
-        if (!this.isSynced) return null;
         return this.items.find(i => i.isAxe) || null;
     }
 
-    /** 氷の杖を取得 */
+    /** 氷の杖を取得 (所持していない場合は null) */
     getFrostWand() {
-        if (!this.isSynced) return null;
         return this.items.find(i => i.isFrostWand) || null;
     }
 }

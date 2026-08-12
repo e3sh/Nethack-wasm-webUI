@@ -386,6 +386,29 @@
             }
             return true;
         }
+
+        /**
+         * GKL シーケンスを Worker 内の Driver へ送信し設定する
+         */
+        queueSequence(tokens, options = {}) {
+            if (this.worker) {
+                this.worker.postMessage({
+                    type: 'QUEUE_SEQUENCE',
+                    payload: { tokens, options }
+                });
+            }
+        }
+
+        /**
+         * GKL シーケンスのキャンセルを Worker 内の Driver へ送信する
+         */
+        cancelSequence() {
+            if (this.worker) {
+                this.worker.postMessage({
+                    type: 'CANCEL_SEQUENCE'
+                });
+            }
+        }
     }
 
     global.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;

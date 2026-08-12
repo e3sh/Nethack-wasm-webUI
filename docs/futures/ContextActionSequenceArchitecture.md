@@ -53,3 +53,35 @@
   - **パターンA (安全破棄)**: シーケンスを破棄し、通常の UI モーダル画面を露出してプレイヤーに判断を委ねる。
   - **パターンB (一時停止・復元)**: シーケンスを Pause し、プレイヤーの YN 応答後に残りのシーケンスを再開する。
 - 知識層全体構想（WASM Cコア、ドライバ、知識解析層、フロントUI）との整合性を相談・再定義する。
+
+---
+
+## 4. GKL Phase 2 実装完了実績
+
+### 4.1 低レイヤー自走消化エンジン (`NetHackWasmDriver.js`)
+- `queueSequence(tokens, options)` および `cancelSequence()` を低レイヤー・ドライバー内に実装。
+- Cコアの `inputRequired` イベント（`getch`, `poskey`, `getlin`, `get_ext_cmd`, `yn_function`）と直接同期し、1トークンずつ自動注入・即時応答する自走消化ロジックを確立。
+- 進行中のプロンプト文言を `putmsg`（投げっぱなしログイベント, `fromSequence: true`）としてログ送出し、UIのモーダル画面を非表示化。
+- `yn_function` 経由で発生する方向指定要求（`In what direction?`）の自動解決、および `DIR_*` 抽象方向キーのキーモード別動的変換を完備。
+
+### 4.2 コア状態マシンコントローラー (`RequestController.js`)
+- GKLの制御コアとして 4つの状態 (`IDLE`, `EXECUTING`, `ABORTING_ESC`, `SUSPENDED`) を持つ `RequestController` クラスを `src/core/knowledge/RequestController.js` に新設。
+- ユーザーの物理キーボード入力検出時にキューを安全クリアし、物理入力を最優先する割り込みサスペンド機能を実装。
+
+### 4.3 Web Worker 透過プロキシ (`NetHackWasmWorkerBridge.js`)
+- Web Worker スレッド (`nethack.worker.js`) 経由で動作する WASM 環境に対応。
+- postMessage (`QUEUE_SEQUENCE` / `CANCEL_SEQUENCE`) 経由で Worker 内の `NetHackWasmDriver` へシーケンスを透過リレーするプロキシを実装。
+
+### 4.4 `driver_test.html` での動作テスト標準UI
+- `tests/driver_test.html` にシーケンステスト入力欄 (`#seq-field`) と「Send Sequence」ボタン、および主要な日本語操作プリセットボタン群を配備。
+
+---
+
+## 5. 今後の課題 (Phase 3 検討アジェンダ)
+
+1. **[TODO] インベントリ参照・自動同期・所持品連動の再設計**:
+   - 現段階ではインベントリ参照・パース・所持品連動（ツルハシ・鍵・ロックピック等の認識およびランプ点灯機能）は未解決の技術課題として保留。
+   - UI クライアントにおける `apply` (`a`) ボタンの常設による手動道具使用を維持し、将来的に WASM メモリ直接パース等による完全一元化を再設計する。
+2. **多言語アクション名・メッセージの統一管理 (i18n)**:
+   - 日本語/英語のアクション名・説明の体系的国際化管理。
+

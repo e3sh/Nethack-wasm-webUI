@@ -646,7 +646,8 @@
         import { WebUICore } from '../src/core/WebUICore.js';
         import { InventoryStateManager } from '../src/core/knowledge/InventoryStateManager.js';
 
-        const inventoryState = new InventoryStateManager();
+        // GKL の単一真実源 (Single Source of Truth) である WebUICore 内の自動フック済みインスタンスを参照
+        let inventoryState = null;
 
         // DOM elements
         const canvas = document.getElementById('nh-canvas');
@@ -763,6 +764,13 @@
         // Driver & Core Instantiation (localStorage 設定を自動同期)
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
+        inventoryState = core.getInventoryState();
+        window.inventoryState = inventoryState;
+
+        // GKL がインベントリ知識を全自動更新した際、即座にUIランプ・ステータス表示を再描画
+        core.on('inventoryStateUpdated', () => {
+            renderInventoryStatus();
+        });
 
         core.on('soundEffect', (seData) => {
             console.log('[WebUICore PoC] Sound effect triggered:', seData);
@@ -1407,7 +1415,7 @@
             const items = data.menuItems || data.items || [];
             const textLines = data.lines || [];
 
-            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期
+            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期・ランプ描画
             if (inventoryState && category === 'MENU' && items && items.length > 0) {
                 inventoryState.updateFromMenuItems(items);
                 renderInventoryStatus();

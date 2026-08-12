@@ -60,9 +60,104 @@
             this.messageWindowId = 1;
             this.version = "";
 
+            // GKL Sequence Queue State
+            this.sequenceQueue = [];
+            this.isExecutingSequence = false;
+            this.sequenceOptions = { suppressPrompts: false };
+            this.keyMode = 'numpad'; // 'numpad' | 'vi'
+
             // Bind global dispatcher safely
             this.eventHook = this.eventHook.bind(this);
             this.setupGlobalDispatcher();
+        }
+
+        /**
+         * 抽象方向コード (DIR_*) や制御キーのキーモード変換ヘルパー
+         */
+        resolveTokenKey(token) {
+            if (typeof token !== 'string') return token;
+            const mode = this.keyMode || 'numpad';
+
+            const directionMap = {
+                'numpad': {
+                    'DIR_N': '8', 'DIR_E': '6', 'DIR_S': '2', 'DIR_W': '4',
+                    'DIR_NE': '9', 'DIR_NW': '7', 'DIR_SE': '3', 'DIR_SW': '1',
+                    'DIR_SELF': '.'
+                },
+                'vi': {
+                    'DIR_N': 'k', 'DIR_E': 'l', 'DIR_S': 'j', 'DIR_W': 'h',
+                    'DIR_NE': 'u', 'DIR_NW': 'y', 'DIR_SE': 'n', 'DIR_SW': 'b',
+                    'DIR_SELF': '.'
+                }
+            };
+
+            const map = directionMap[mode] || directionMap['numpad'];
+            if (map[token]) return map[token];
+
+            return token;
+        }
+
+        /**
+         * 連続キー/トークン配列をキューに投入し、inputRequired タイミングに合わせて安全に自動消化する
+         * @param {Array<string|number>} tokens - トークン配列 (例: ['#', 'open', '\r', 'DIR_E'])
+         * @param {Object} [options={}] - { suppressPrompts: boolean }
+         */
+        queueSequence(tokens, options = {}) {
+            if (!Array.isArray(tokens) || tokens.length === 0) return;
+            this.sequenceQueue = [...tokens];
+            this.sequenceOptions = { suppressPrompts: false, ...options };
+            this.isExecutingSequence = true;
+
+            // すでに入力待ち中であれば、直ちに最初のトークンを消費・応答をキック
+            if (this.activeResolver && this.sequenceQueue.length > 0) {
+                this.tryConsumeSequenceToken();
+            }
+        }
+
+        /**
+         * シーケンスを安全に強制キャンセルし、通常状態に復帰
+         */
+        cancelSequence() {
+            this.sequenceQueue = [];
+            this.isExecutingSequence = false;
+        }
+
+        /**
+         * inputRequired 発生時にシーケンスキューからトークンを自走消費・応答
+         * @param {string} promptText - 現在のプロンプト文字列
+         * @param {Object} resolver - safeResolver オブジェクト
+         * @param {string} context - コンテキスト情報
+         * @returns {boolean} 自動消費に成功しUIへのemitをブロックした場合は true
+         */
+        tryConsumeSequenceToken(promptText = "", resolver = null, context = "") {
+            if (!this.isExecutingSequence || this.sequenceQueue.length === 0) {
+                this.isExecutingSequence = false;
+                return false;
+            }
+
+            const resObj = resolver || this.activeResolver;
+            if (!resObj) return false;
+
+            // プロンプト文面の「投げっぱなし putmsg 送出」
+            if (promptText && typeof promptText === 'string' && !this.sequenceOptions.suppressPrompts) {
+                this.emit("putmsg", { text: promptText, fromSequence: true });
+            }
+
+            const rawToken = this.sequenceQueue.shift();
+            const token = this.resolveTokenKey(rawToken);
+
+            if (this.sequenceQueue.length === 0) {
+                this.isExecutingSequence = false;
+            }
+
+            // resolver の型に応じた柔軟な自動応答
+            if (typeof resObj.respond === 'function') {
+                resObj.respond(token);
+            } else if (typeof resObj === 'function') {
+                resObj(token);
+            }
+
+            return true;
         }
 
         getModule() {
@@ -710,12 +805,14 @@
 
                     const promptCategory = this.getPromptCategory('getch', 'char');
 
-                    this.emit("inputRequired", {
-                        context: "getch",
-                        type: "char",
-                        promptCategory,
-                        resolver: safeResolver
-                    });
+                    if (!this.tryConsumeSequenceToken("", safeResolver, 'getch')) {
+                        this.emit("inputRequired", {
+                            context: "getch",
+                            type: "char",
+                            promptCategory,
+                            resolver: safeResolver
+                        });
+                    }
 
                     const key = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -730,12 +827,14 @@
 
                     const promptCategory = this.getPromptCategory('poskey', 'poskey');
 
-                    this.emit("inputRequired", {
-                        context: "poskey",
-                        type: "poskey",
-                        promptCategory,
-                        resolver: safeResolver
-                    });
+                    if (!this.tryConsumeSequenceToken("", safeResolver, 'poskey')) {
+                        this.emit("inputRequired", {
+                            context: "poskey",
+                            type: "poskey",
+                            promptCategory,
+                            resolver: safeResolver
+                        });
+                    }
 
                     const res = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -772,17 +871,19 @@
 
                     const promptCategory = this.getPromptCategory('yn_function', 'yn');
 
-                    this.emit("inputRequired", {
-                        context: "yn_function",
-                        type: "yn",
-                        promptCategory,
-                        query,
-                        question: query,
-                        choices,
-                        defaultChoice: def,
-                        def,
-                        resolver: safeResolver
-                    });
+                    if (!this.tryConsumeSequenceToken(query, safeResolver, 'yn_function')) {
+                        this.emit("inputRequired", {
+                            context: "yn_function",
+                            type: "yn",
+                            promptCategory,
+                            query,
+                            question: query,
+                            choices,
+                            defaultChoice: def,
+                            def,
+                            resolver: safeResolver
+                        });
+                    }
 
                     const rawAns = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -811,11 +912,14 @@
 
                     const ansChar = (ansCode > 0 && !isNaN(ansCode)) ? String.fromCharCode(ansCode) : '';
 
+                    const isDirectionQuery = (typeof query === 'string' && query.toLowerCase().includes("direction"));
+                    const isDirectionChar = (isDirectionQuery || (choices && choices.includes("hjklyubn"))) && /^[1-9hjklyubn.]$/i.test(ansChar);
+
                     // yn_function 安全ガード: Enter(\r/13), LineFeed(\n/10), Space(32), 空回答/NaN/未入力等や未許可文字が返された場合、デフォルト選択肢文字へ安全正規化
                     if (isNaN(ansCode) || ansCode === 13 || ansCode === 10 || ansCode === 32 || ansChar === '\r' || ansChar === '\n' || ansCode <= 0) {
                         const fallbackChar = getSafeFallbackChar();
                         ansCode = fallbackChar ? fallbackChar.charCodeAt(0) : 27;
-                    } else if (choices && typeof choices === 'string' && choices.length > 0) {
+                    } else if (!isDirectionChar && choices && typeof choices === 'string' && choices.length > 0) {
                         if (!choices.includes(ansChar) && ansCode !== 27) {
                             console.warn(`[NetHackWasmDriver] Invalid char '${ansChar}' (${ansCode}) for yn_function ('${choices}'). Falling back to default.`);
                             const fallbackChar = getSafeFallbackChar();
@@ -837,14 +941,16 @@
 
                     const promptCategory = this.getPromptCategory('getlin', 'string');
 
-                    this.emit("inputRequired", {
-                        context: "getlin",
-                        type: "string",
-                        promptCategory,
-                        query,
-                        prompt: query,
-                        resolver: safeResolver
-                    });
+                    if (!this.tryConsumeSequenceToken(query, safeResolver, 'getlin')) {
+                        this.emit("inputRequired", {
+                            context: "getlin",
+                            type: "string",
+                            promptCategory,
+                            query,
+                            prompt: query,
+                            resolver: safeResolver
+                        });
+                    }
 
                     const input = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
@@ -883,12 +989,14 @@
 
                     const promptCategory = this.getPromptCategory('get_ext_cmd', 'ext_cmd');
 
-                    this.emit("inputRequired", {
-                        context: "get_ext_cmd",
-                        type: "ext_cmd",
-                        promptCategory,
-                        resolver: extResolverObj
-                    });
+                    if (!this.tryConsumeSequenceToken("#", extResolverObj, 'get_ext_cmd')) {
+                        this.emit("inputRequired", {
+                            context: "get_ext_cmd",
+                            type: "ext_cmd",
+                            promptCategory,
+                            resolver: extResolverObj
+                        });
+                    }
 
                     const idx = await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);

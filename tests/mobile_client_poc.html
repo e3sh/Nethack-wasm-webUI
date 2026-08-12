@@ -509,9 +509,13 @@
 
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
-        const inventoryState = new InventoryStateManager();
+        const inventoryState = core.getInventoryState();
         window.core = core;
         window.inventoryState = inventoryState;
+
+        core.on('inventoryStateUpdated', () => {
+            if (typeof updateDPadVisuals === 'function') updateDPadVisuals();
+        });
 
         // モーダル DOM 参照
         const mobileModal = document.getElementById('mobile-modal');
@@ -565,7 +569,7 @@
             const items = data.menuItems || data.items || [];
             const textLines = data.lines || [];
 
-            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期
+            // WebUICore がデコードした正規の構造化 MENU データが存在する場合、即座にインベントリ状態へ同期・DPad表示更新
             if (inventoryState && category === 'MENU' && items && items.length > 0) {
                 inventoryState.updateFromMenuItems(items);
                 if (typeof updateDPadVisuals === 'function') updateDPadVisuals();
