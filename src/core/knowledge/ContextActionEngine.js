@@ -4,6 +4,8 @@
  * 現在の自キャラ周辺の文脈・状況に応じた推奨アクション（Recommended Actions）を生成するエンジン
  */
 
+import { isShopkeeperMonster } from './glyphClassifier.js';
+
 export class ContextActionEngine {
     /**
      * エリア状態 (AreaState) およびインベントリ状態を解析し、推奨可能なアクション一覧を優先度順で返却
@@ -51,6 +53,7 @@ export class ContextActionEngine {
                         labelJa: '漁る/開ける (Loot)',
                         key: '#loot',
                         charStr: '#loot',
+                        extCmd: 'loot',
                         target: 'feet',
                         entity: feet.middle,
                         risk: null,
@@ -66,6 +69,7 @@ export class ContextActionEngine {
                         labelJa: '箱の罠解除 (Untrap)',
                         key: '#untrap',
                         charStr: '#untrap',
+                        extCmd: 'untrap',
                         target: 'feet',
                         entity: feet.middle,
                         risk: null,
@@ -137,6 +141,7 @@ export class ContextActionEngine {
                     labelJa: '死体を捧げる (Offer)',
                     key: '#offer',
                     charStr: '#offer',
+                    extCmd: 'offer',
                     target: 'feet',
                     risk: null,
                     priority: 85,
@@ -163,6 +168,7 @@ export class ContextActionEngine {
                     labelJa: '神に祈る (Pray)',
                     key: '#pray',
                     charStr: '#pray',
+                    extCmd: 'pray',
                     target: 'feet',
                     risk: 'danger',
                     priority: 60,
@@ -193,6 +199,7 @@ export class ContextActionEngine {
                     labelJa: '泉に浸す (Dip)',
                     key: '#dip',
                     charStr: '#dip',
+                    extCmd: 'dip',
                     target: 'feet',
                     risk: null,
                     priority: 70,
@@ -206,6 +213,7 @@ export class ContextActionEngine {
                     labelJa: '泉の罠解除 (Untrap)',
                     key: '#untrap',
                     charStr: '#untrap',
+                    extCmd: 'untrap',
                     target: 'feet',
                     risk: null,
                     priority: 65,
@@ -236,6 +244,7 @@ export class ContextActionEngine {
                     labelJa: '座る・指輪識別 (Sit)',
                     key: '#sit',
                     charStr: '#sit',
+                    extCmd: 'sit',
                     target: 'feet',
                     risk: null,
                     priority: 75,
@@ -262,6 +271,7 @@ export class ContextActionEngine {
                     labelJa: 'シンクに浸す (Dip)',
                     key: '#dip',
                     charStr: '#dip',
+                    extCmd: 'dip',
                     target: 'feet',
                     risk: null,
                     priority: 65,
@@ -292,6 +302,7 @@ export class ContextActionEngine {
                     labelJa: '足元の罠解除 (Untrap)',
                     key: '#untrap',
                     charStr: '#untrap',
+                    extCmd: 'untrap',
                     target: 'feet',
                     risk: null,
                     priority: 85,
@@ -305,6 +316,7 @@ export class ContextActionEngine {
                     labelJa: '罠・穴に座る (Sit)',
                     key: '#sit',
                     charStr: '#sit',
+                    extCmd: 'sit',
                     target: 'feet',
                     risk: null,
                     priority: 30,
@@ -322,6 +334,7 @@ export class ContextActionEngine {
                     labelJa: '玉座に座る (Sit)',
                     key: '#sit',
                     charStr: '#sit',
+                    extCmd: 'sit',
                     target: 'feet',
                     risk: 'warning',
                     priority: 80,
@@ -352,6 +365,7 @@ export class ContextActionEngine {
                     labelJa: '床に座る (Sit)',
                     key: '#sit',
                     charStr: '#sit',
+                    extCmd: 'sit',
                     target: 'feet',
                     risk: null,
                     priority: 30,
@@ -411,7 +425,8 @@ export class ContextActionEngine {
                         });
                     }
                 } else {
-                    // モンスター/NPC (平和 NPC 誤爆防止のため、単押し近接自動攻撃化はせず手動/確認優先)
+                    const isShopkeeper = isShopkeeperMonster(m.entity);
+                    // モンスター/NPC (近接攻撃)
                     if (!actions.some(a => a.id.startsWith('ACTION_ATTACK'))) {
                         actions.push({
                             id: `ACTION_ATTACK_${m.dir.code}`,
@@ -425,11 +440,12 @@ export class ContextActionEngine {
                             entity: m.entity,
                             target: 'adjacent',
                             risk: 'warning',
-                            priority: 70,
+                            priority: 80,
                             description: `Attack creature in direction`,
                             descriptionJa: `近接対象に攻撃を試みます`
                         });
                     }
+                    // 話しかける (#chat)
                     if (!actions.some(a => a.id.startsWith('ACTION_CHAT_NPC'))) {
                         actions.push({
                             id: `ACTION_CHAT_NPC_${m.dir.code}`,
@@ -444,12 +460,13 @@ export class ContextActionEngine {
                             entity: m.entity,
                             target: 'adjacent',
                             risk: null,
-                            priority: 60,
+                            priority: isShopkeeper ? 90 : 30,
                             description: `Talk to NPC or shopkeeper`,
                             descriptionJa: `NPCや店主に話しかけます`
                         });
                     }
-                    if (!actions.some(a => a.id.startsWith('ACTION_PAY'))) {
+                    // 店主に代金を支払う (#pay) - 店主 (Shopkeeper) のみ生成
+                    if (isShopkeeper && !actions.some(a => a.id.startsWith('ACTION_PAY'))) {
                         actions.push({
                             id: `ACTION_PAY_${m.dir.code}`,
                             category: 'INTERACT',
@@ -463,7 +480,7 @@ export class ContextActionEngine {
                             entity: m.entity,
                             target: 'adjacent',
                             risk: null,
-                            priority: 85,
+                            priority: 95,
                             description: `Pay shopkeeper for unpaid items`,
                             descriptionJa: `店主に商品の購入代金を支払います`
                         });
@@ -490,6 +507,7 @@ export class ContextActionEngine {
                             label: `Open door`,
                             labelJa: `扉を開ける (Open)`,
                             key: `o${dirKey}`,
+                            keySequence: ['o', dirKey],
                             charStr: 'o',
                             directionKey: dirKey,
                             direction: item.dir,
@@ -527,8 +545,10 @@ export class ContextActionEngine {
                             category: 'INTERACT',
                             label: `Kick door`,
                             labelJa: `扉を蹴破る (Kick)`,
-                            key: `C-d${dirKey}`,
-                            charStr: 'C-d',
+                            key: `#kick${dirKey}`,
+                            keySequence: ['#kick', dirKey],
+                            charStr: '#kick',
+                            extCmd: 'kick',
                             directionKey: dirKey,
                             direction: item.dir,
                             target: 'adjacent',
@@ -567,6 +587,7 @@ export class ContextActionEngine {
                             label: `Close door`,
                             labelJa: `扉を閉める (Close)`,
                             key: `c${dirKey}`,
+                            keySequence: ['c', dirKey],
                             charStr: 'c',
                             directionKey: dirKey,
                             direction: item.dir,

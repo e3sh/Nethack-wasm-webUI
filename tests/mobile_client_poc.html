@@ -828,7 +828,7 @@
             });
         }
 
-        // アクション実行関数 (メインコマンド/道具指定のみ送信 ➔ 方向は点灯D-Pad等での手動入力に委ねる)
+        // アクション実行関数 (推奨アクションを自動実行)
         window.executeContextAction = function(action) {
             if (!action) return;
             if (action.risk === 'danger') {
@@ -836,30 +836,13 @@
                 if (!ok) return;
             }
 
-            // (A) EXTCMD 拡張コマンド (#loot, #chat, #untrap, #pray, #offer, #sit, #dip 等)
-            const rawCmdKey = action.charStr || action.key || '';
-            const extCmdName = action.extCmd || (typeof rawCmdKey === 'string' && rawCmdKey.startsWith('#') ? rawCmdKey.slice(1) : null);
-
-            if (extCmdName) {
-                // '#'' ➔ EXTCMD 名 のみ送信（方向指定はプレイヤーの手動D-Pad入力に任せる）
-                core.sendExtCommand(extCmdName, null, 180);
-                return;
-            }
-
-            // (B) keySequence が指定されている場合 (例: ['a', 'f', 'l']) ➔ 方向キーを除いたコマンド+道具指定のみ送信
-            if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
-                const seq = [...action.keySequence];
-                // 末尾が方向キー (y,k,u,h,l,b,j,n) であれば除外
-                if (seq.length > 1 && ['y','k','u','h','l','b','j','n'].includes(seq[seq.length - 1])) {
-                    seq.pop();
-                }
-                core.sendKeySequence(seq, 180);
-                return;
-            }
-
-            // (C) 単一コマンド (o: 開ける, c: 閉じる, C-d: 蹴る 等) ➔ メインコマンドのみ送信
-            if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
-                // Ctrl+d (蹴る: Kick)
+            if (typeof core.executeAction === 'function') {
+                core.executeAction(action);
+            } else if (action.extCmd) {
+                core.sendExtCommand(action.extCmd, action.directionKey);
+            } else if (action.keySequence) {
+                core.sendKeySequence(action.keySequence);
+            } else if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
                 core.sendKey('d', false, true, false, 'd');
             } else {
                 const mainCmd = action.charStr || action.key;

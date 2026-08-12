@@ -12,6 +12,7 @@ export class AreaStateManager {
         this.height = height;
         this.playerX = 0;
         this.playerY = 0;
+        this.keyMode = 'vi'; // キーモード ('vi' | 'numpad')
         this.grid = [];
         this.resetGrid();
     }
@@ -82,6 +83,16 @@ export class AreaStateManager {
     }
 
     /**
+     * キーモードの指定 ('vi' または 'numpad')
+     * @param {'vi'|'numpad'} mode 
+     */
+    setKeyMode(mode) {
+        if (mode === 'numpad' || mode === 'vi') {
+            this.keyMode = mode;
+        }
+    }
+
+    /**
      * プレイヤー現在地の更新
      * @param {number} x 
      * @param {number} y 
@@ -105,17 +116,18 @@ export class AreaStateManager {
         const adjacentMonsters = [];
         const adjacentEntities = [];
 
-        // 方角マップ
+        // 方角マップ (keyMode に応じて Vi-keys / NumPad キーを動的切替)
         const getDirectionName = (dx, dy) => {
-            if (dx === 0 && dy === -1) return { code: 'N', name: '北', key: 'k' };
-            if (dx === 1 && dy === -1) return { code: 'NE', name: '北東', key: 'u' };
-            if (dx === 1 && dy === 0) return { code: 'E', name: '東', key: 'l' };
-            if (dx === 1 && dy === 1) return { code: 'SE', name: '南東', key: 'n' };
-            if (dx === 0 && dy === 1) return { code: 'S', name: '南', key: 'j' };
-            if (dx === -1 && dy === 1) return { code: 'SW', name: '南西', key: 'b' };
-            if (dx === -1 && dy === 0) return { code: 'W', name: '西', key: 'h' };
-            if (dx === -1 && dy === -1) return { code: 'NW', name: '北西', key: 'y' };
-            return { code: 'SELF', name: '足元', key: '.' };
+            const isNumpad = (this.keyMode === 'numpad');
+            if (dx === 0 && dy === -1) return { code: 'N', name: '北', key: isNumpad ? '8' : 'k' };
+            if (dx === 1 && dy === -1) return { code: 'NE', name: '北東', key: isNumpad ? '9' : 'u' };
+            if (dx === 1 && dy === 0) return { code: 'E', name: '東', key: isNumpad ? '6' : 'l' };
+            if (dx === 1 && dy === 1) return { code: 'SE', name: '南東', key: isNumpad ? '3' : 'n' };
+            if (dx === 0 && dy === 1) return { code: 'S', name: '南', key: isNumpad ? '2' : 'j' };
+            if (dx === -1 && dy === 1) return { code: 'SW', name: '南西', key: isNumpad ? '1' : 'b' };
+            if (dx === -1 && dy === 0) return { code: 'W', name: '西', key: isNumpad ? '4' : 'h' };
+            if (dx === -1 && dy === -1) return { code: 'NW', name: '北西', key: isNumpad ? '7' : 'y' };
+            return { code: 'SELF', name: '足元', key: isNumpad ? '5' : '.' };
         };
 
         let feetState = null;

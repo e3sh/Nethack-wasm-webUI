@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS } from './glyphClassifier.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
+import { WebUICore } from '../WebUICore.js';
 
 test('glyphClassifier - 各種 Glyph ID の正確な分類', () => {
     // Terrain (CMAP - Floor)
@@ -274,5 +275,31 @@ test('InventoryStateManager - ロックピック (lock pick) ならず者初期�
     const keyProp = invProp.getKeyOrLockPick();
     assert.ok(keyProp, 'str / accelerator 形式の lock pick も認識されること');
     assert.strictEqual(keyProp.letter, 'b');
+});
+
+test('AreaStateManager & ContextActionEngine - setKeyMode (numpad / vi) 動的切替テスト', () => {
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(5, 5);
+
+    // デフォルト ('vi'): 北 (dx:0, dy:-1) は 'k'
+    let state = area.getAreaState();
+    const northCellVi = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
+    assert.strictEqual(northCellVi.dir.key, 'k', 'デフォルト vi モードでは北のキーは k');
+
+    // numpad モード切替: 北 (dx:0, dy:-1) は '8'
+    area.setKeyMode('numpad');
+    state = area.getAreaState();
+    const northCellNumpad = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
+    assert.strictEqual(northCellNumpad.dir.key, '8', 'numpad モード切替後は北のキーは 8');
+});
+
+test('WebUICore - 起動オプション (number_pad / numpad) からの keyMode 自動追従テスト', () => {
+    const dummyDriver = { on: () => {}, off: () => {} };
+    const core = new WebUICore({ driver: dummyDriver, numpad: true });
+    
+    core.areaStateManager.updatePlayerPosition(5, 5);
+    const state = core.areaStateManager.getAreaState();
+    const northCell = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
+    assert.strictEqual(northCell.dir.key, '8', 'core の numpad: true オプションにより自動的に北のキーが 8 となること');
 });
 

@@ -1197,7 +1197,14 @@
                     if (!ok) return;
                 }
 
-                if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
+                // WebUICore の安全なシーケンス・拡張コマンド自動送出エンジンを呼ぶ
+                if (typeof core.executeAction === 'function') {
+                    core.executeAction(action);
+                } else if (action.extCmd) {
+                    core.sendExtCommand(action.extCmd, action.directionKey);
+                } else if (action.keySequence) {
+                    core.sendKeySequence(action.keySequence);
+                } else if (action.key === 'C-d' || (typeof action.key === 'string' && action.key.startsWith('C-d'))) {
                     core.sendKey('d', false, true, false, 'd');
                     if (action.directionKey) {
                         setTimeout(() => {
@@ -1207,11 +1214,6 @@
                 } else {
                     const mainCmd = action.charStr || action.key;
                     core.sendKey(mainCmd);
-                    if (action.directionKey && mainCmd !== action.directionKey) {
-                        setTimeout(() => {
-                            core.sendKey(action.directionKey);
-                        }, 100);
-                    }
                 }
             };
 

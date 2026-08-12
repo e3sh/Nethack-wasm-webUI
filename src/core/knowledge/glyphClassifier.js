@@ -171,8 +171,27 @@ export function classifyGlyph(glyphId) {
 
     // 0〜2298: Monster (一般モンスター・透明モンスター・検出モンスター等)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_MON_OFF) {
-        return { type: ENTITY_TYPES.MONSTER, isPile: false, rawGlyph: glyphId };
+        const monOffset = glyphId % 383;
+        const isShopkeeper = (monOffset === 267 || monOffset === 268); // NetHack 3.7 shopkeeper glyph offset
+        return { type: ENTITY_TYPES.MONSTER, subType: monOffset, isShopkeeper, isPile: false, rawGlyph: glyphId };
     }
 
     return { type: ENTITY_TYPES.UNKNOWN, isPile: false, rawGlyph: glyphId };
+}
+
+/**
+ * モンスター/NPC が店主 (Shopkeeper) かどうかを判定
+ * @param {Object} entity 
+ * @returns {boolean}
+ */
+export function isShopkeeperMonster(entity) {
+    if (!entity) return false;
+    if (entity.isShopkeeper) return true;
+    const glyphId = typeof entity.glyph === 'number' ? entity.glyph : (entity.glyphInfo ? entity.glyphInfo.glyph : -1);
+    if (glyphId >= 0) {
+        const info = classifyGlyph(glyphId);
+        if (info.isShopkeeper) return true;
+    }
+    const name = entity.name || entity.str || '';
+    return /\b(shopkeeper|店主)\b/i.test(name);
 }

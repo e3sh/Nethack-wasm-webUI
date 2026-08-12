@@ -31,8 +31,8 @@ export class InventoryStateManager {
         if (!Array.isArray(menuItems)) return;
 
         this.items = menuItems.map(mi => {
-            const rawText = mi.rawStr || (typeof mi === 'string' ? mi : '');
-            let letter = mi.charStr || '';
+            const rawText = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
+            let letter = mi.charStr || mi.letter || mi.accelerator || mi.selector || '';
 
             if (!letter && rawText) {
                 const match = rawText.match(/^([a-zA-Z])[\s\-\.\)]/);
@@ -76,6 +76,16 @@ export class InventoryStateManager {
             if (message.includes('pick-axe')) {
                 this.items = this.items.filter(i => !i.isPickAxe);
             }
+        }
+
+        // ドロップメッセージ検知 (例: "You drop a lock pick.", "You drop the axe.")
+        if (message.includes('You drop') || message.includes('you drop')) {
+            const clean = this.cleanItemText(message);
+            const categoryFlags = this.categorizeItem(clean);
+            if (categoryFlags.isPickAxe) this.items = this.items.filter(i => !i.isPickAxe);
+            if (categoryFlags.isKey) this.items = this.items.filter(i => !i.isKey);
+            if (categoryFlags.isAxe) this.items = this.items.filter(i => !i.isAxe);
+            if (categoryFlags.isFrostWand) this.items = this.items.filter(i => !i.isFrostWand);
         }
 
         // 初期所持・拾得メッセージ自動検出 (例: "You start with a lock pick.", "You pick up a lock pick")
@@ -150,9 +160,8 @@ export class InventoryStateManager {
                     /(鍵|合鍵|ロックピック|クレジットカード)/.test(cleanText);
         }
 
-        if (!isAxe) {
-            isAxe = /\b(axe|battle-axe|pick-axe)\b/i.test(cleanText) ||
-                    /(斧|戦斧|つるはし)/.test(cleanText);
+        if (!isAxe && !isPickAxe) {
+            isAxe = (/(^|[\s])(axe|battle-axe)($|[\s])/i.test(cleanText) || /(斧|戦斧)/.test(cleanText)) && !/pick-axe/i.test(cleanText);
         }
 
         if (!isFrostWand) {

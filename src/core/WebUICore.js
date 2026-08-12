@@ -75,6 +75,12 @@ export class WebUICore {
         this.statusAccessor = new StatusAccessor();
         this.areaStateManager = new AreaStateManager();
 
+        // 起動オプションからの numpad / number_pad 自動連動同期
+        const isNumpadOpt = !!(options.numpad || options.number_pad || options.numberPad || options.keyMode === 'numpad');
+        if (isNumpadOpt) {
+            this.areaStateManager.setKeyMode('numpad');
+        }
+
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
@@ -86,6 +92,10 @@ export class WebUICore {
         this.lastDlevel = undefined;
         this.gamepadLoopId = null;
         this.lastInputTime = 0;
+
+        // シーケンス実行サイレントガード構造体
+        this.isExecutingSequence = false;
+        this.sequenceQueue = [];
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -120,6 +130,12 @@ export class WebUICore {
 
     async start(wasmJsUrl = 'nethack.js', startOptions = {}) {
         this._setState(CoreState.INITIALIZING);
+
+        // startOptions からの numpad / number_pad 自動連動反映
+        const isNumpadOpt = !!(startOptions.numpad || startOptions.number_pad || startOptions.numberPad || startOptions.keyMode === 'numpad');
+        if (isNumpadOpt) {
+            this.setKeyMode('numpad');
+        }
 
         if (startOptions.forceNewGame) {
             await this.deleteSaveData();
@@ -406,8 +422,17 @@ export class WebUICore {
             }
         } else if (this.currentPromptCategory === PROMPT_CATEGORY.TEXT || 
                  this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME || 
-                 this.currentPromptCategory === PROMPT_CATEGORY.FILE) {
+                 this.currentPromptCategory === PROMPT_CATEGORY.FILE ||
+                 this.currentPromptCategory === PROMPT_CATEGORY.EXTCMD) {
             if (typeof inputVal === 'string') {
+                finalResponse = inputVal;
+            }
+        } else if (this.currentPromptCategory === PROMPT_CATEGORY.DIRECTION ||
+                 this.currentPromptCategory === PROMPT_CATEGORY.POSKEY ||
+                 this.currentPromptCategory === PROMPT_CATEGORY.KEY) {
+            if (typeof inputVal === 'string' && inputVal.length > 0) {
+                finalResponse = inputVal.charCodeAt(0);
+            } else if (typeof inputVal === 'number') {
                 finalResponse = inputVal;
             }
         }
@@ -550,19 +575,135 @@ export class WebUICore {
      */
     async sendExtCommand(extCmdName, directionKey = null, delayMs = 180) {
         if (!extCmdName) return;
-        const cleanCmd = extCmdName.startsWith('#') ? extCmdName.slice(1).trim() : extCmdName.trim();
+        const cleanCmd = typeof extCmdName === 'string' ? extCmdName.replace(/^#+/, '').trim() : '';
+        if (!cleanCmd) return;
 
-        // 1. `#` キーを送信
-        this.sendKey('#', false, false, false, '#', true);
-        await new Promise(res => setTimeout(res, delayMs));
-
-        // 2. EXTCMD 名を respond または送信
-        this.respond(cleanCmd);
-        await new Promise(res => setTimeout(res, delayMs));
-
-        // 3. 方向キーがあれば送信
+        this.isExecutingSequence = true;
+        // 1番目の自動応答: cleanCmd ('chat', 'loot' 等)
+        this.sequenceQueue = [cleanCmd];
         if (directionKey) {
-            this.sendKey(directionKey, false, false, false, directionKey, true);
+            // 2番目の自動応答: 方向キー ('k' 等)
+            this.sequenceQueue.push(directionKey);
+        }
+
+        try {
+            if (this.activeResolver) {
+                this.respond('#');
+            } else {
+                this.sendKey('#', false, false, false, '#', true);
+            }
+
+            // キューが自動消費されるまで待機 (最大2秒タイムアウト)
+            let timeoutCount = 0;
+            while (this.sequenceQueue.length > 0 && timeoutCount < 40) {
+                await new Promise(res => setTimeout(res, 50));
+                timeoutCount++;
+            }
+        } finally {
+            this.isExecutingSequence = false;
+            this.sequenceQueue = [];
+        }
+    }
+
+    /**
+     * キー表現 (例: 'o', 'C-d', 'a') を判別し、制御キーおよび NumPad / Vi-keys キーモードに応じて正しく送信する内部ヘルパー
+     * @param {string} k 
+     */
+    sendActionKey(k) {
+        if (!k) return;
+        const isNumpad = (this.areaStateManager && this.areaStateManager.keyMode === 'numpad');
+
+        // 【1】Kick (蹴る) のキー表現の自動切替 (NumPad モードでは 'k', Vi-keys モードでは Ctrl+D)
+        if (k === 'C-d' || k === 'Ctrl-d' || k === 'C-D' || k === 'ctrl-d') {
+            if (isNumpad) {
+                if (this.activeResolver) {
+                    this.respond('k');
+                } else {
+                    this.sendKey('k', false, false, false, 'k', true);
+                }
+            } else {
+                if (this.activeResolver) {
+                    this.respond(4); // Ctrl+D (ASCII 4)
+                } else {
+                    this.sendKey('d', false, true, false, 'd', true);
+                }
+            }
+            return;
+        }
+
+        // 【2】方向キーの Vi-keys ➔ NumPad 自動変換 (numpad モード時)
+        let finalKey = k;
+        if (isNumpad && typeof k === 'string') {
+            const viToNumpadMap = {
+                'k': '8', 'u': '9', 'l': '6', 'n': '3',
+                'j': '2', 'b': '1', 'h': '4', 'y': '7', '.': '5'
+            };
+            if (viToNumpadMap[k]) {
+                finalKey = viToNumpadMap[k];
+            }
+        }
+
+        if (this.activeResolver) {
+            this.respond(finalKey);
+        } else {
+            this.sendKey(finalKey, false, false, false, finalKey, true);
+        }
+    }
+
+    /**
+     * ContextActionEngine が生成した推奨アクション (ContextAction) を安全に連続送出・実行する。
+     * keySequence や directionKey が存在する場合は UI モーダル割り込みをサイレント遮断して自動実行する。
+     * @param {Object} action - recommended action オブジェクト
+     * @param {number} [delayMs=150] - 送信ミリ秒間隔
+     */
+    async executeAction(action, delayMs = 150) {
+        if (!action) return;
+
+        // 【1】拡張コマンド (#chat, #loot, #untrap 等)
+        if (action.extCmd) {
+            await this.sendExtCommand(action.extCmd, action.directionKey, delayMs);
+            return;
+        }
+
+        // 【2】方向キー付きコマンドまたはシーケンスコマンド (例: ['o', 'j'], ['C-d', 'j'], ['a', 'b', 'j'])
+        const mainKey = action.charStr || action.key;
+        const hasDirection = !!action.directionKey;
+        const seq = action.keySequence ? [...action.keySequence] : (hasDirection ? [mainKey, action.directionKey] : null);
+
+        if (seq && seq.length > 0) {
+            this.isExecutingSequence = true;
+            // 2番目以降のキーを自動応答キューにセット
+            this.sequenceQueue = [...seq.slice(1)];
+
+            try {
+                const firstKey = seq[0];
+                this.sendActionKey(firstKey);
+
+                // キューが自動消費されるまで待機 (最大2秒タイムアウト)
+                let timeoutCount = 0;
+                while (this.sequenceQueue.length > 0 && timeoutCount < 40) {
+                    await new Promise(res => setTimeout(res, 50));
+                    timeoutCount++;
+                }
+            } finally {
+                this.isExecutingSequence = false;
+                this.sequenceQueue = [];
+            }
+            return;
+        }
+
+        // 【3】単一コマンド
+        this.sendActionKey(mainKey);
+    }
+
+    /**
+     * キーモード ('vi' または 'numpad') の指定
+     * C コアの number_pad オプション変更時やクライアント環境設定時に呼出
+     * @param {'vi'|'numpad'} mode 
+     */
+    setKeyMode(mode) {
+        if (this.areaState && typeof this.areaState.setKeyMode === 'function') {
+            this.areaState.setKeyMode(mode);
         }
     }
 
@@ -1114,6 +1255,14 @@ export class WebUICore {
                 guiData: guiData,
                 guiInput: guiData
             };
+
+            // 【シーケンスサイレント自動応答チェック】
+            if (this.isExecutingSequence && this.sequenceQueue.length > 0) {
+                const nextKey = this.sequenceQueue.shift();
+                this.activeResolver = resolver;
+                this.sendActionKey(nextKey);
+                return; // UIへのemit('inputRequired')およびプロンプト画面表示をスキップ！
+            }
 
             this.renderer.showPrompt(passThroughPayload);
             this.emit('inputRequired', passThroughPayload);
