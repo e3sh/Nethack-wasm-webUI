@@ -5,6 +5,8 @@
  * CSS スタイル、HTML タグ文字列、Canvas 描画手続きを生成する。
  */
 
+import { getTileMapping } from '../../driver/tileMapping.js';
+
 export class GlyphHelper {
     /**
      * Glyph ID または glyphInfo から CSS スタイルオブジェクトを生成
@@ -32,12 +34,9 @@ export class GlyphHelper {
         if (glyphId < 0) return null;
 
         let tileIdx = -1;
-        if (glyphId >= 0 && typeof window !== 'undefined' && typeof window.tileMapping === 'function') {
+        if (glyphId >= 0) {
             try {
-                const map = window.tileMapping();
-                if (map && map[glyphId] !== undefined) {
-                    tileIdx = map[glyphId];
-                }
+                tileIdx = getTileMapping(glyphId);
             } catch (e) { }
         }
 
@@ -104,10 +103,9 @@ export class GlyphHelper {
         }
 
         let tileIdx = -1;
-        if (glyphId >= 0 && typeof window !== 'undefined' && typeof window.tileMapping === 'function') {
+        if (glyphId >= 0) {
             try {
-                const map = window.tileMapping();
-                if (map && map[glyphId] !== undefined) tileIdx = map[glyphId];
+                tileIdx = getTileMapping(glyphId);
             } catch (e) { }
         }
 

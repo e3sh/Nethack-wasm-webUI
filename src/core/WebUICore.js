@@ -5,20 +5,21 @@
  * driver.init() への引数不一致 (TypeError: Cannot create property 'preRun' on string) を修復。
  */
 
-import { GamepadManager } from './gamepad/GamepadManager.js';
-import { TouchCalculator } from './touch/TouchCalculator.js';
+import { GamepadManager, TouchCalculator, KeyMapper, KEYMAP } from './input/index.js';
 import { SoundEngine } from './sound/SoundEngine.js';
 import { TranslationEngine } from './translation/TranslationEngine.js';
 import { GameOverResolver } from './lifecycle/GameOverResolver.js';
 import { StatusAccessor } from './StatusAccessor.js';
 import { NullRenderer } from './renderers/NullRenderer.js';
 import { GlyphHelper } from './renderers/GlyphHelper.js';
-import { KeyMapper } from './input/KeyMapper.js';
 import { PROMPT_CATEGORY } from './types.js';
 import { AreaStateManager } from './knowledge/AreaStateManager.js';
 import { ContextActionEngine } from './knowledge/ContextActionEngine.js';
 import { InventoryStateManager } from './knowledge/InventoryStateManager.js';
 import { SituationCache } from './knowledge/SituationCache.js';
+import { RequestController } from './knowledge/RequestController.js';
+import { PromptPayloadBuilder } from './prompt/PromptPayloadBuilder.js';
+import { TextWindowManager } from './window/TextWindowManager.js';
 
 export const KEYS = {
     ESC: 27,
@@ -74,6 +75,9 @@ export class WebUICore {
         }
 
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
+        this.promptPayloadBuilder = new PromptPayloadBuilder({ translator: this.translator });
+        this.textWindowManager = new TextWindowManager({ translator: this.translator });
+
         this.statusAccessor = new StatusAccessor();
         this.areaStateManager = new AreaStateManager();
         this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
@@ -98,18 +102,12 @@ export class WebUICore {
         this.activeMenuItems = [];
         this.listeners = new Map();
         
-        this.textWindowBuffers = {};
         this.lastDlevel = undefined;
         this.gamepadLoopId = null;
         this.lastInputTime = 0;
 
         // Game Knowledge Layer (GKL) 状態管理モジュール
-        const RequestControllerClass = (typeof window !== 'undefined' && window.RequestController) ? window.RequestController : (typeof globalThis !== 'undefined' && globalThis.RequestController ? globalThis.RequestController : null);
-        if (RequestControllerClass) {
-            this.requestController = new RequestControllerClass(this.driver);
-        } else {
-            this.requestController = null;
-        }
+        this.requestController = new RequestController(this.driver);
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -243,7 +241,9 @@ export class WebUICore {
     async restart() {
         this.activeResolver = null;
         this.activeMenuItems = [];
-        this.textWindowBuffers = {};
+        if (this.textWindowManager) {
+            this.textWindowManager.resetAll();
+        }
         this.lastDlevel = undefined;
         this.lastDlevelText = undefined;
         this.statusAccessor = new StatusAccessor();
@@ -629,14 +629,11 @@ export class WebUICore {
                 return specialKeyMap[codeStr];
             }
 
-            if (typeof window !== 'undefined' && window.rogueDefines) {
-                const defs = window.rogueDefines();
-                if (defs && defs.KEYMAP && defs.KEYMAP[codeStr]) {
-                    const map = defs.KEYMAP[codeStr];
-                    if (ctrl && map[2] !== undefined) return map[2];
-                    if (shift && map[1] !== undefined) return map[1];
-                    if (map[0] !== undefined) return map[0];
-                }
+            if (KEYMAP && KEYMAP[codeStr]) {
+                const map = KEYMAP[codeStr];
+                if (ctrl && map[2] !== undefined && map[2] !== null) return map[2];
+                if (shift && map[1] !== undefined && map[1] !== null) return map[1];
+                if (map[0] !== undefined && map[0] !== null) return map[0];
             }
 
             if (codeStr.startsWith('Key') && codeStr.length === 4) {
@@ -875,7 +872,9 @@ export class WebUICore {
         this.activeMenuItems = [];
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
-        this.textWindowBuffers = {};
+        if (this.textWindowManager) {
+            this.textWindowManager.resetAll();
+        }
         this.lastDlevel = undefined;
         this.lastDlevelText = undefined;
         this.statusAccessor = new StatusAccessor();
@@ -911,107 +910,7 @@ export class WebUICore {
      * @returns {Object} 構造化データオブジェクト
      */
     _buildGUIInputPayload(payload) {
-        const category = payload.category || payload.promptCategory || PROMPT_CATEGORY.OTHER;
-        const rawPrompt = payload.rawPrompt || payload.prompt || payload.question || payload.message || '';
-        const choices = payload.choices || '';
-        const items = payload.items || payload.menuItems || [];
-
-        let inputType = 'CONFIRM';
-        let options = [];
-        let choicesHint = choices;
-
-        if (category === PROMPT_CATEGORY.MENU || (items && items.length > 0)) {
-            inputType = 'MENU';
-            options = items.map(item => {
-                const charStr = item.charStr || (typeof item.ch === 'number' ? String.fromCharCode(item.ch) : String(item.ch || ''));
-                return {
-                    ...item,
-                    key: charStr,
-                    label: item.str || item.rawStr || item.label || '',
-                    str: item.str || item.rawStr || item.label || '',
-                    charStr: charStr,
-                    accelerator: item.accelerator || item.ch,
-                    identifier: item.identifier,
-                    isSelectable: item.isSelectable !== false
-                };
-            });
-        } else if (category === PROMPT_CATEGORY.YN) {
-            inputType = 'CHOICE_BUTTONS';
-            let keys = [];
-            if (choices) {
-                if (choices.includes(' or ')) {
-                    keys = choices.split(' or ').map(s => s.trim().charAt(0));
-                } else if (choices.includes('/')) {
-                    keys = choices.split('/').map(s => s.trim().charAt(0));
-                } else {
-                    keys = choices.replace(/[^a-zA-Z0-9#]/g, '').split('');
-                }
-            }
-            if (keys.length === 0) {
-                keys = ['y', 'n'];
-            }
-
-            const labelMap = {
-                'y': 'Yes (y)',
-                'n': 'No (n)',
-                'q': 'Quit (q)',
-                'a': 'All (a)',
-                'r': 'Right (r)',
-                'l': 'Left (l)'
-            };
-
-            options = keys.map(k => ({
-                key: k,
-                label: labelMap[k.toLowerCase()] || `${k}`,
-                btnClass: k === 'y' ? 'btn-primary' : (k === 'n' ? 'btn-secondary' : 'btn-default')
-            }));
-        } else if (category === PROMPT_CATEGORY.TEXT || category === PROMPT_CATEGORY.ASKNAME || category === PROMPT_CATEGORY.EXTCMD || payload.context === 'text' || payload.context === 'extcmd' || payload.context === 'get_ext_cmd' || payload.context === 'getlin') {
-            inputType = 'LINE_TEXT';
-        } else if (category === PROMPT_CATEGORY.DIRECTION) {
-            inputType = 'DIRECTION';
-            options = [
-                { key: 'k', label: 'North (k)', direction: 'N' },
-                { key: 'j', label: 'South (j)', direction: 'S' },
-                { key: 'h', label: 'West (h)', direction: 'W' },
-                { key: 'l', label: 'East (l)', direction: 'E' },
-                { key: 'y', label: 'North-West (y)', direction: 'NW' },
-                { key: 'u', label: 'North-East (u)', direction: 'NE' },
-                { key: 'b', label: 'South-West (b)', direction: 'SW' },
-                { key: 'n', label: 'South-East (n)', direction: 'SE' },
-                { key: '<', label: 'Up (<)', direction: 'UP' },
-                { key: '>', label: 'Down (>)', direction: 'DN' }
-            ];
-        } else if (category === PROMPT_CATEGORY.KEY || category === PROMPT_CATEGORY.FILE) {
-            inputType = 'CONFIRM';
-            options = [
-                { key: ' ', label: 'Continue (Space)' }
-            ];
-        }
-
-        let title = payload.title || '';
-        if (!title && rawPrompt) {
-            title = rawPrompt.replace(/\(?[P|p]ress\s+(?:[S|s]pace|[E|e]nter|[E|e]sc|[A|a]ny\s+key)[^)]*\)?/gi, '').trim();
-            title = title.replace(/^#/, '').trim();
-        }
-        if (!title || title.length > 50) {
-            if (category === PROMPT_CATEGORY.MENU) title = 'Menu';
-            else if (category === PROMPT_CATEGORY.FILE) title = payload.filename || 'Document';
-            else if (category === PROMPT_CATEGORY.YN) title = 'Choice';
-            else if (category === PROMPT_CATEGORY.TEXT) title = 'Input';
-            else title = 'Dialog';
-        }
-        const translatedTitle = this.translator ? this.translator.translate(title) : title;
-
-        return {
-            inputType: inputType,
-            title: translatedTitle,
-            rawTitle: title,
-            promptText: payload.prompt || rawPrompt,
-            rawPromptText: rawPrompt,
-            choicesHint: choicesHint,
-            options: options,
-            items: options
-        };
+        return this.promptPayloadBuilder ? this.promptPayloadBuilder.build(payload) : payload;
     }
 
     async resolveGameOver() {
@@ -1069,8 +968,8 @@ export class WebUICore {
 
         // clear_nhwindow (マップウィンドウ等の消去責務を Core/Renderer 側で自動解決)
         this.driver.on('clear_nhwindow', (data) => {
-            if (data.windowId >= 4) {
-                delete this.textWindowBuffers[data.windowId];
+            if (data.windowId >= 4 && this.textWindowManager) {
+                this.textWindowManager.clearWindow(data.windowId);
             }
             if (data.windowId === 2 || data.windowId === 0) {
                 this.areaStateManager.resetGrid();
@@ -1125,11 +1024,8 @@ export class WebUICore {
                 handleMessageText(rawText);
             }
 
-            if (windowId >= 4) {
-                if (!this.textWindowBuffers[windowId]) {
-                    this.textWindowBuffers[windowId] = [];
-                }
-                this.textWindowBuffers[windowId].push(rawText);
+            if (windowId >= 4 && this.textWindowManager) {
+                this.textWindowManager.appendLine(windowId, rawText);
             }
         });
 
@@ -1227,16 +1123,18 @@ export class WebUICore {
             this.lastInputTime = Date.now();
 
             let bufferLines = [];
-            if (this.textWindowBuffers[windowId] && this.textWindowBuffers[windowId].length > 0) {
-                const rawBufferLines = [...this.textWindowBuffers[windowId]];
-                bufferLines = rawBufferLines.map(l => this.translator.translate(l));
-                delete this.textWindowBuffers[windowId];
+            if (this.textWindowManager && this.textWindowManager.hasBuffer(windowId)) {
+                const flushed = this.textWindowManager.flushBuffer(windowId);
+                if (flushed && flushed.lines) {
+                    const rawBufferLines = flushed.lines;
+                    bufferLines = rawBufferLines.map(l => this.translator.translate(l));
 
-                // テキスト表現インベントリ (例: 'a - a lock pick') の自動検出・同期パース
-                if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromLines === 'function') {
-                    this.inventoryStateManager.updateFromLines(rawBufferLines);
-                    this.inventoryStateManager.updateFromLines(bufferLines);
-                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                    // テキスト表現インベントリ (例: 'a - a lock pick') の自動検出・同期パース
+                    if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromLines === 'function') {
+                        this.inventoryStateManager.updateFromLines(rawBufferLines);
+                        this.inventoryStateManager.updateFromLines(bufferLines);
+                        this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                    }
                 }
             }
 

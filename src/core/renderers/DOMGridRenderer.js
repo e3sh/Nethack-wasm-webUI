@@ -28,7 +28,8 @@ export class DOMGridRenderer {
         this.mapWidth = 80;
         this.mapHeight = 21;
         this.cells = [];
-        this.tileMap = typeof window !== 'undefined' && typeof window.tileMapping === 'function' ? window.tileMapping() : null;
+        const fn = getTileMappingFunction();
+        this.tileMap = fn ? fn() : null;
     }
 
     init() {

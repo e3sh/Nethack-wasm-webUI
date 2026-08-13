@@ -6,6 +6,8 @@
  * および コンテキストページ (Center, Left, Right, YN, MENU, LIN) 管理を提供する。
  */
 
+import { TOUCH_DEFAULT } from './defaultDefines.js';
+
 export class TouchCalculator {
     constructor(options = {}) {
         this.ResoX = options.resoX || 960;
@@ -23,7 +25,7 @@ export class TouchCalculator {
     }
 
     /**
-     * タッチ設定の初期化 (localStorage -> 渡された設定 -> rogueDefines.TOUCH_DEFAULT)
+     * タッチ設定の初期化 (localStorage -> 渡された設定 -> TOUCH_DEFAULT)
      */
     initTouchConfig(customConfig) {
         let saved = null;
@@ -39,7 +41,7 @@ export class TouchCalculator {
             } catch (e) { }
         }
 
-        const fallback = (typeof window !== 'undefined' && window.rogueDefines) ? window.rogueDefines().TOUCH_DEFAULT : {};
+        const fallback = TOUCH_DEFAULT;
         this.config = saved || customConfig || fallback;
 
         if (!saved && typeof localStorage !== 'undefined') {

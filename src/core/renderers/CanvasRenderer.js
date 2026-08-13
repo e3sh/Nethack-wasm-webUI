@@ -20,22 +20,28 @@ export class CanvasRenderer {
             rows: 24
         }, options);
 
-        this.ctx = null;
+        this.tileMap = options.tileMap || null;
         this.tileImgObj = null;
-        this.tileMap = null;
         this.glyphCache = new Map();
+
+        this._initCanvas();
+        this._loadTileImage();
     }
 
-    init() {
-        if (!this.canvas) return;
-        this.ctx = this.canvas.getContext('2d');
-        if (typeof Image !== 'undefined') {
-            this.tileImgObj = new Image();
-            this.tileImgObj.onload = () => {
-                this.redrawCache();
-            };
-            this.tileImgObj.src = this.options.tileImage;
-        }
+    _initCanvas() {
+        this.canvas.width = this.options.cols * this.options.tileSize;
+        this.canvas.height = this.options.rows * this.options.tileSize;
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    _loadTileImage() {
+        if (typeof Image === 'undefined') return;
+        this.tileImgObj = new Image();
+        this.tileImgObj.onload = () => {
+            this.redrawCache();
+        };
+        this.tileImgObj.src = this.options.tileImage;
     }
 
     clearMap() {
@@ -74,9 +80,10 @@ export class CanvasRenderer {
         const dy = y * ts;
 
         // tileMapping 関数の動的呼び出し
-        if (!this.tileMap && typeof window !== 'undefined' && typeof window.tileMapping === 'function') {
+        if (!this.tileMap) {
             try {
-                this.tileMap = window.tileMapping();
+                const fn = getTileMappingFunction();
+                if (fn) this.tileMap = fn();
             } catch (e) {}
         }
 

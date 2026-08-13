@@ -6,6 +6,8 @@
  * および localStorage (nh.gpadAssign) 設定との完全同期を提供する。
  */
 
+import { GPAD_DEFAULT, KEYMAP } from './defaultDefines.js';
+
 export class GamepadManager {
     constructor(options = {}) {
         this.threshold = options.threshold || 0.5;
@@ -25,7 +27,7 @@ export class GamepadManager {
     }
 
     /**
-     * ゲームパッド割り当ての初期化 (localStorage -> 渡された設定 -> rogueDefines.GPAD_DEFAULT)
+     * ゲームパッド割り当ての初期化 (localStorage -> 渡された設定 -> GPAD_DEFAULT)
      */
     initKeyAssign(customAssign) {
         let buf = null;
@@ -36,7 +38,7 @@ export class GamepadManager {
             } catch (e) { }
         }
 
-        const fallback = (typeof window !== 'undefined' && window.rogueDefines) ? window.rogueDefines().GPAD_DEFAULT : {};
+        const fallback = GPAD_DEFAULT;
         this.keyAssign = buf || customAssign || fallback;
 
         if (!buf && typeof localStorage !== 'undefined') {
@@ -50,12 +52,10 @@ export class GamepadManager {
      * 文字からキーマップ配列へ逆引き変換
      */
     fCharToKeyArray(char) {
-        if (!char || typeof window === 'undefined' || !window.rogueDefines) return null;
+        if (!char) return null;
         const charCode = char.charCodeAt(0);
-        const d = window.rogueDefines();
-        if (!d || !d.KEYMAP) return null;
 
-        for (const [key, codes] of Object.entries(d.KEYMAP)) {
+        for (const [key, codes] of Object.entries(KEYMAP)) {
             if (codes[0] === charCode) return [key];
             if (codes[1] === charCode) return [key, "ShiftLeft"];
             if (codes[2] === charCode) return [key, "ControlLeft"];
