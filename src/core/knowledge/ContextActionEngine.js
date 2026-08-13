@@ -21,7 +21,7 @@ export class ContextActionEngine {
 
         // インベントリツールの事前抽出
         const keyItem = inventoryState ? inventoryState.getKeyOrLockPick() : null;
-        const pickAxe = inventoryState ? inventoryState.getPickAxe() : null;
+        const pickAxe = inventoryState ? (typeof inventoryState.getDigTool === 'function' ? inventoryState.getDigTool() : inventoryState.getPickAxe()) : null;
         const axeItem = inventoryState ? inventoryState.getAxe() : null;
         const frostWand = inventoryState ? inventoryState.getFrostWand() : null;
 
@@ -646,23 +646,30 @@ export class ContextActionEngine {
                         });
                     }
 
-                    // ツルハシ所持時のみ「掘削」アクションを生成（ノイズ除去）
+                    // ツルハシ・採掘の杖所持時のみ「掘削・破壊」アクションを生成（ノイズ除去）
                     if (pickAxe && !actions.some(a => a.id.startsWith('ACTION_DIG_WALL'))) {
+                        const verb = pickAxe.verb || (pickAxe.isDigWand ? 'z' : 'a');
+                        const isZap = (verb === 'z');
+                        const labelActionName = isZap ? 'Break/Dig wall' : 'Dig wall';
+                        const labelJaName = isZap ? `壁を破壊・発動 (${pickAxe.letter})` : `壁を掘削 (${pickAxe.letter})`;
+                        const descText = isZap ? `Zap ${pickAxe.rawText || 'wand'} to break wall` : `Dig wall with ${pickAxe.rawText || 'pick-axe'}`;
+                        const descJaText = isZap ? `手持ちの ${pickAxe.rawText || '採掘の杖'} で壁を破壊・貫通します` : `壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`;
+
                         actions.push({
                             id: `ACTION_DIG_WALL_${dirCode}`,
                             category: 'INTERACT',
-                            label: `Dig wall with ${pickAxe.rawText || 'pick-axe'}`,
-                            labelJa: `壁を掘削 (${pickAxe.letter})`,
-                            key: `a${pickAxe.letter}${dirKey}`,
-                            keySequence: ['a', pickAxe.letter, dirKey],
-                            charStr: 'a',
+                            label: `${labelActionName} with ${pickAxe.rawText || 'tool'}`,
+                            labelJa: labelJaName,
+                            key: `${verb}${pickAxe.letter}${dirKey}`,
+                            keySequence: [verb, pickAxe.letter, dirKey],
+                            charStr: verb,
                             directionKey: dirKey,
                             direction: item.dir,
                             target: 'adjacent',
                             risk: null,
                             priority: 85,
-                            description: `Dig or mine wall with ${pickAxe.rawText || 'pick-axe'}`,
-                            descriptionJa: `壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`
+                            description: descText,
+                            descriptionJa: descJaText
                         });
                     }
                 }

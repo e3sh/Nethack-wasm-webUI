@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetHack Wasm WebUI - GKL Pure JS Client</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- 1. ヘッダーエリア (HeaderPanel) -->
+    <header class="header-panel">
+      <div class="brand">
+        <span class="logo-icon">🐉</span>
+        <span class="title">NetHack Wasm <small>GKL Pure JS Client</small></span>
+      </div>
+      <div class="quick-actions">
+        <button id="btn-toggle-view" class="btn btn-secondary">ビュー切替: 🎨 Graphic Canvas</button>
+        <button id="btn-toggle-zoom" class="btn btn-secondary">🎯 ズームカメラ: ON</button>
+      </div>
+      <div class="controls">
+        <button id="btn-restart" class="btn btn-secondary">🔄 Restart</button>
+        <button id="btn-delete-save" class="btn btn-danger">🗑️ Delete Save</button>
+      </div>
+    </header>
+
+    <!-- 2. メインゲームビュー (game-view - GKL 2カラム構造) -->
+    <main class="game-view gkl-workspace">
+      <!-- 左エリア: ログ、マップ、ステータス -->
+      <section class="left-workspace">
+        <!-- メッセージログエリア (MessageLog) -->
+        <div id="message-log" class="message-log"></div>
+
+        <!-- ダンジョンマップエリア (GameCanvas & ASCII Grid & オーバーレイ) -->
+        <section class="game-viewport">
+          <!-- ローディングオーバーレイ -->
+          <div id="loading-overlay" class="overlay">
+            <div id="loading-spinner-box" class="spinner-box">
+              <div class="spinner"></div>
+              <p id="loading-text">Initializing NetHack Core Engine & GKL Layer...</p>
+            </div>
+            <!-- セーブデータ存在時の選択ダイアログ -->
+            <div id="start-selector-card" class="selector-card hidden">
+              <h3>💾 Save Data Found</h3>
+              <p>Player: <strong id="start-save-name">Hero</strong></p>
+              <div class="selector-buttons">
+                <button id="btn-start-resume" class="btn btn-primary btn-large">▶️ Continue Game</button>
+                <button id="btn-start-new" class="btn btn-danger">⚠️ New Game (Delete Save)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 描画用 2D Graphic Canvas (全体 80x24 View) -->
+          <canvas id="game-canvas" width="1280" height="336"></canvas>
+
+          <!-- 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ右上固定) -->
+          <div id="zoom-viewport-box" class="zoom-viewport-box">
+            <div class="zoom-header">
+              <span>🎯 FOCUS CAMERA</span>
+              <span id="zoom-pos-badge" class="zoom-badge">@ (0,0)</span>
+            </div>
+            <canvas id="zoom-canvas" width="224" height="224"></canvas>
+          </div>
+
+          <!-- 描画用 80x24 Color ASCII Grid -->
+          <div id="ascii-grid" class="ascii-grid hidden"></div>
+        </section>
+
+        <!-- 横型ステータスバー (StatusBar + HP/MP ゲージバー) -->
+        <div class="status-bar">
+          <div class="status-main">
+            <span id="st-name" class="st-item title">Hero</span>
+            <span id="st-dlvl" class="st-item dlvl">Dlvl:1</span>
+            
+            <!-- HP ゲージバー -->
+            <div class="gauge-box">
+              <span id="st-hp" class="st-item hp">HP:0(0)</span>
+              <div class="gauge-bg"><div id="hp-bar-fill" class="gauge-fill hp-fill" style="width:0%"></div></div>
+            </div>
+
+            <!-- MP ゲージバー -->
+            <div class="gauge-box">
+              <span id="st-pw" class="st-item pw">Pw:0(0)</span>
+              <div class="gauge-bg"><div id="mp-bar-fill" class="gauge-fill mp-fill" style="width:0%"></div></div>
+            </div>
+
+            <span id="st-ac" class="st-item ac">AC:10</span>
+            <span id="st-gold" class="st-item gold">💰 0</span>
+          </div>
+          <div id="status-badges" class="status-badges">
+            <span id="st-cond" class="badge cond-badge hidden">Normal</span>
+          </div>
+        </div>
+
+        <!-- プロンプト入力バー (PromptModal) -->
+        <div id="prompt-bar" class="prompt-bar hidden">
+          <div id="prompt-text" class="prompt-text"></div>
+          <div id="input-controls" class="input-controls"></div>
+        </div>
+      </section>
+
+      <!-- 右エリア: GKL 所持品 ＆ 推奨アクション -->
+      <aside class="gkl-side-panel">
+        <!-- 🎒 アイコン型常時表示インベントリ (上部固定) -->
+        <div class="gkl-card">
+          <div class="gkl-card-header">
+            <span>🎒 所持品アイテム (Icon Inventory)</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button id="btn-refresh-inv" class="btn btn-small" title="所持品情報を即座に最新同期">🔄 同期</button>
+              <span id="gkl-inv-count" class="gkl-badge">0</span>
+            </div>
+          </div>
+          <div id="gkl-inventory-grid" class="gkl-inventory-grid">
+            <div class="gkl-empty-hint">インベントリ空</div>
+          </div>
+        </div>
+
+        <!-- 🧠 GKL 推奨アクションパネル (下部可変) -->
+        <div class="gkl-card">
+          <div class="gkl-card-header">
+            <span>🧠 推奨アクション (ContextActions)</span>
+            <span id="gkl-action-count" class="gkl-badge">0</span>
+          </div>
+          <div id="gkl-action-list" class="gkl-action-list">
+            <div class="gkl-empty-hint">周辺環境に応じたアクションが自動表示されます</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- モード別 モーダル表示部 (MenuModal) -->
+    <div id="menu-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h3 id="menu-title">Select Item</h3>
+        <div id="menu-items-container" class="menu-list"></div>
+        <div class="modal-footer">
+          <button id="btn-cancel-menu" class="btn btn-secondary">Cancel (ESC / 0)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over / Record Modal (GameOverModal) -->
+    <div id="gameover-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large">
+        <h2 id="gameover-title">💀 GAME OVER</h2>
+        <div id="gameover-summary" class="gameover-summary"></div>
+        
+        <div class="scoreboard-section">
+          <h3>🏆 Top 10 High Scores</h3>
+          <div id="gameover-scoreboard" class="scoreboard-container"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-gameover-restart" class="btn btn-primary btn-large">🔄 Restart Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- アイテムツールチップ -->
+    <div id="gkl-item-tooltip" class="gkl-tooltip hidden">
+      <div class="title" id="gkl-tt-name">Item Name</div>
+      <div id="gkl-tt-tags" class="tags"></div>
+    </div>
+  </div>
+
+  <!-- Parameter Scripts -->
+  <script src="../../param/tileMapping.js"></script>
+  <script src="../../param/nhMessage.js"></script>
+
+  <!-- ESM Main Controller -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

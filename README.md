@@ -39,11 +39,15 @@ Nethack-wasm-webUI/
 
 1. **`WebUIcore` によるドメイン一元管理 (`src/core/`)**:
    - **入力統合 (`KeyMapper` / `GamepadManager`)**: 統一キー変換、Ctrl/Alt 修飾キー合成、アクション送信 (`sendAction`)。
+   - **🧠 GKL (Game Knowledge Layer) 状況推論エンジン (`src/core/knowledge/`)**:
+     - C言語 WASM の低レイヤー通信プロトコルから、ダンジョンの 3階層マップ（Bottom:地形, Middle:アイテム, Top:キャラクター）および所持品・ステータス知識をリアルタイム解析・構造化保持。
+     - 周囲の環境・足元の仕掛け・所持している道具（`pick-axe`/`wand of digging`/鍵/杖など）から「今最も有益な行動」を先回り推論して提示するコンテキストアクションエンジン。
    - **翻訳エンジン (`TranslationEngine`)**: メッセージの日本語自動翻訳・辞書マッチング・未翻訳自動ログ出力。
    - **音響エンジン (`SoundEngine`)**: SE 再生、8bit 合成音 (`Beepcore`) / Audio Asset 切替。
    - **構造化プロンプト & リザルト (`GameOverResolver`)**: YN / TEXT / MENU / FILE プロンプトを完全構造化データとしてバインド可能。
 
 2. **マルチクライアント展開 (`examples/`)**:
+   - **GKL Pure JS Client**: GKL 状況推論、推奨アクションパネル、アイコン型所持品インベントリ、🎯自キャラ周辺拡大ズームカメラ（3層透過＆浮遊アニメーション）をフル搭載した最新クライアント。
    - **Desktop Canvas & Mobile Touch Client**: 独自グラフィックタイル＆日本語フォントの高度な協調制御、およびレスポンシブバーチャルパッドを備えた Pure JS 実装。
    - **Pure JS リファレンス**: フレームワーク非依存の軽量モジュールクライアント。
    - **モダンフレームワーク版**: Vue 3, React 18, Svelte, SolidJS に対応したスタンドアロンクライアント（ビルド済 `dist/` 対応）。
@@ -55,6 +59,7 @@ Nethack-wasm-webUI/
 
 ## 📖 ガイドライン ＆ ドキュメント
 
+- 🧠 **[GKL (Game Knowledge Layer) アーキテクチャ ＆ 仕様ドキュメント](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/gkl_documentation.md)** (`docs/3_gkl/gkl_documentation.md`)
 - 📖 **[WebUIcore 利用方法・機能仕様ガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/WebUICore_Usage_Guide.md)** (`docs/WebUICore_Usage_Guide.md`)
 - 📖 **[翻訳ドキュメント ＆ ガイドインデックス](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_translation/README.md)** (`docs/3_translation/README.md`)
 - 📦 **[WASM Driver パッケージドキュメント](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/driver/README.md)** (`src/driver/README.md`)

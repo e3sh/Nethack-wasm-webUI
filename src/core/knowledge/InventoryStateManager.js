@@ -168,10 +168,11 @@ export class InventoryStateManager {
      * @param {string} rawText 
      * @param {number} glyphId 
      * @param {number} onum 
-     * @returns {Object} フラグ構造体 { isPickAxe, isKey, isAxe, isFrostWand }
+     * @returns {Object} フラグ構造体 { isPickAxe, isKey, isAxe, isFrostWand, isDigWand, isDigTool, verb }
      */
     categorizeItem(rawText, glyphId = -1, onum = -1) {
         let isPickAxe = false;
+        let isDigWand = false;
         let isKey = false;
         let isAxe = false;
         let isFrostWand = false;
@@ -181,22 +182,27 @@ export class InventoryStateManager {
             if (onum === 259) isPickAxe = true; // pick-axe
             if (onum === 251 || onum === 250 || onum === 249 || onum === 248) isKey = true; // key, lock pick, credit card, osaku key
             if (onum === 197 || onum === 198) isAxe = true; // axe, battle-axe
+            if (onum === 299) isDigWand = true; // wand of digging (onum 299)
         }
 
         // 【層2】Glyph ID 判定 (GLYPH_OBJ_OFF オフセット)
-        if (!isPickAxe && !isKey && !isAxe && glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
+        if (!isPickAxe && !isDigWand && !isKey && !isAxe && glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
             const info = classifyGlyph(glyphId);
             if (info.type === ENTITY_TYPES.ITEM) {
                 if (info.subType === 259 - 1) isPickAxe = true;
+                if (info.subType === 299 - 1) isDigWand = true;
             }
         }
 
         // 【層3】テキストパース（前処理で不要なBuc/数量/装備タグを除去した上で正規表現）
         const cleanText = this.cleanItemText(rawText);
 
-        if (!isPickAxe) {
-            isPickAxe = /\b(pick-axe|dwarvish mattock|wand of digging)\b/i.test(cleanText) ||
-                         /(つるはし|ドワーフのマトック|採掘の杖)/.test(cleanText);
+        if (!isPickAxe && !isDigWand) {
+            if (/\b(wand of digging)\b/i.test(cleanText) || /採掘の杖/.test(cleanText)) {
+                isDigWand = true;
+            } else if (/\b(pick-axe|dwarvish mattock)\b/i.test(cleanText) || /(つるはし|ドワーフのマトック)/.test(cleanText)) {
+                isPickAxe = true;
+            }
         }
 
         if (!isKey) {
@@ -213,8 +219,14 @@ export class InventoryStateManager {
                           /氷の杖/.test(cleanText);
         }
 
+        // 発動コマンドキー (verb) の付与
+        const verb = isDigWand ? 'z' : 'a';
+
         return {
             isPickAxe,
+            isDigWand,
+            isDigTool: isPickAxe || isDigWand,
+            verb,
             isKey,
             isAxe,
             isFrostWand
@@ -241,9 +253,14 @@ export class InventoryStateManager {
     // クエリ API (ContextActionEngine から利用)
     // =========================================================================
 
-    /** ツルハシ/掘削アイテムを取得 (所持していない場合は null) */
+    /** ツルハシ/掘削ツールを取得 (所持していない場合は null)。verb ('a' か 'z') を含む */
     getPickAxe() {
-        return this.items.find(i => i.isPickAxe) || null;
+        return this.items.find(i => i.isPickAxe || i.isDigWand || i.isDigTool) || null;
+    }
+
+    /** 掘削ツール (ツルハシまたは採掘の杖) を取得 */
+    getDigTool() {
+        return this.items.find(i => i.isDigTool || i.isPickAxe || i.isDigWand) || null;
     }
 
     /** 鍵/解錠アイテムを取得 (所持していない場合は null) */

@@ -342,3 +342,41 @@ test('WebUICore - 起動オプション (number_pad / numpad) からの keyMode 
     assert.strictEqual(northCell.dir.key, '8', 'core の numpad: true オプションにより自動的に北のキーが 8 となること');
 });
 
+test('InventoryStateManager & ContextActionEngine - pick-axe (a) と wand of digging (z) の発動キー分類テスト', () => {
+    const inv = new InventoryStateManager();
+    inv.updateFromMenuItems([
+        { letter: 'a', text: 'a +0 pick-axe', onum: 259 },
+        { letter: 'b', text: 'a wand of digging', onum: 299 }
+    ]);
+
+    const pickAxeItem = inv.items.find(i => i.isPickAxe);
+    assert.ok(pickAxeItem, 'pick-axe が識別されていること');
+    assert.strictEqual(pickAxeItem.verb, 'a', 'pick-axe の発動キーは a であること');
+
+    const digWandItem = inv.items.find(i => i.isDigWand);
+    assert.ok(digWandItem, 'wand of digging が識別されていること');
+    assert.strictEqual(digWandItem.verb, 'z', 'wand of digging の発動キーは z であること');
+
+    // 壁に隣接している場合の ContextAction の keySequence テスト
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(5, 5);
+    area.updateGlyph(6, 5, 3930); // 東側 (relX: 1, relY: 0) に壁を配置
+
+    // 1. wand of digging のみ持っているインベントリ
+    const invWandOnly = new InventoryStateManager();
+    invWandOnly.updateFromMenuItems([{ letter: 'w', text: 'a wand of digging', onum: 299 }]);
+    const actionsWand = ContextActionEngine.generateActions(area.getAreaState(), invWandOnly);
+    const digActionWand = actionsWand.find(a => a.id.startsWith('ACTION_DIG_WALL'));
+    assert.ok(digActionWand, '壁破壊アクションが生成されること');
+    assert.deepStrictEqual(digActionWand.keySequence, ['z', 'w', 'DIR_E'], 'wand of digging の場合は z キーで開始されること');
+
+    // 2. pick-axe のみ持っているインベントリ
+    const invPickOnly = new InventoryStateManager();
+    invPickOnly.updateFromMenuItems([{ letter: 'p', text: 'a pick-axe', onum: 259 }]);
+    const actionsPick = ContextActionEngine.generateActions(area.getAreaState(), invPickOnly);
+    const digActionPick = actionsPick.find(a => a.id.startsWith('ACTION_DIG_WALL'));
+    assert.ok(digActionPick, '壁掘削アクションが生成されること');
+    assert.deepStrictEqual(digActionPick.keySequence, ['a', 'p', 'DIR_E'], 'pick-axe の場合は a キーで開始されること');
+});
+
+

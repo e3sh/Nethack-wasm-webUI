@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack GKL (Game Knowledge Layer) Interactive Demo Client</title>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-panel: #131b2e;
+            --bg-card: #1c273e;
+            --border-color: #2a3b5c;
+            --accent-color: #00e676;
+            --accent-blue: #00b0ff;
+            --accent-danger: #ff5252;
+            --accent-warning: #ffab40;
+            --text-primary: #f0f4f8;
+            --text-secondary: #94a3b8;
+            --tile-size: 32px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 1. ヘッダー / ステータスゲージバー */
+        .header-bar {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .brand-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title .badge {
+            font-size: 10px;
+            background: rgba(0, 230, 118, 0.15);
+            border: 1px solid var(--accent-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .status-gauges {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .gauge-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: 140px;
+        }
+
+        .gauge-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .gauge-bar-bg {
+            height: 10px;
+            background: #0d1321;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .gauge-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .gauge-hp { background: linear-gradient(90deg, #ff5252, #ff1744); }
+        .gauge-hp.warning { background: linear-gradient(90deg, #ffab40, #ff9100); }
+        .gauge-mana { background: linear-gradient(90deg, #00b0ff, #2979ff); }
+
+        .stats-pills {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .pill-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pill-item .val {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        /* メインレイアウト (2カラム) */
+        .main-workspace {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 12px;
+            flex: 1;
+        }
+
+        @media (max-width: 900px) {
+            .main-workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 2. 左カラム: メインビューポート & ミニマップ & ログ */
+        .viewport-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #000;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 100%;
+            height: 480px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            outline: none;
+        }
+
+        .canvas-container:focus {
+            border-color: var(--accent-blue);
+        }
+
+        #main-map-canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* 📍 レーダー風ミニマップオーバーレイ (右上固定) */
+        .minimap-wrapper {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(9, 13, 22, 0.85);
+            border: 1px solid var(--accent-blue);
+            border-radius: 6px;
+            padding: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+
+        .minimap-title {
+            font-size: 9px;
+            color: var(--accent-blue);
+            font-weight: bold;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #minimap-canvas {
+            width: 160px;
+            height: 42px;
+            image-rendering: pixelated;
+            background: #000;
+            display: block;
+            border: 1px solid #1e293b;
+        }
+
+        /* 🕹️ 移動補助クイックコントロールバー */
+        .quick-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        .quick-btn-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .q-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.15s;
+        }
+
+        .q-btn:hover {
+            background: #253352;
+            border-color: var(--accent-blue);
+        }
+
+        /* メッセージログ */
+        .message-log-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            height: 80px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-y: auto;
+            color: var(--text-primary);
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+        }
+
+        .log-line.latest {
+            color: #a7f3d0;
+            font-weight: bold;
+        }
+
+        /* 3. 右カラム: GKL 操作・情報パネル */
+        .gkl-control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card-header {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        /* 8方向移動 D-Pad / ナビゲーションコントローラー */
+        .dpad-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            width: 180px;
+            margin: 0 auto;
+        }
+
+        .dpad-btn {
+            height: 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-weight: bold;
+            font-size: 13px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.15s;
+        }
+
+        .dpad-btn:hover {
+            background: #253352;
+            border-color: var(--accent-blue);
+        }
+
+        .dpad-btn:active {
+            transform: scale(0.95);
+        }
+
+        .dpad-btn.center {
+            background: #0f172a;
+            color: var(--accent-warning);
+        }
+
+        /* GKL 推奨アクションボタンリスト */
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .action-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .action-btn:hover {
+            background: #253352;
+            border-color: var(--accent-color);
+            transform: translateX(2px);
+        }
+
+        .action-btn.danger {
+            border-color: var(--accent-danger);
+            background: rgba(255, 82, 82, 0.1);
+        }
+
+        .action-btn.danger:hover {
+            background: rgba(255, 82, 82, 0.25);
+        }
+
+        .action-key-badge {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            color: var(--accent-blue);
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* アイコン型常時表示インベントリ */
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+            gap: 6px;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .item-slot {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.15s ease;
+        }
+
+        .item-slot:hover {
+            border-color: var(--accent-blue);
+            background: #253352;
+            transform: scale(1.05);
+        }
+
+        .slot-letter {
+            position: absolute;
+            top: 2px;
+            left: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--accent-warning);
+            font-family: monospace;
+        }
+
+        .slot-icon-box {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+        }
+
+        /* ツールチップ (Hover) */
+        #item-tooltip {
+            position: fixed;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--accent-blue);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #fff;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        #item-tooltip .title {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 2px;
+        }
+
+        #item-tooltip .tag {
+            font-size: 10px;
+            background: #1e293b;
+            color: var(--text-secondary);
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-right: 4px;
+        }
+
+        /* 💬 キャラ作成 / プロンプトモーダル */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(9, 13, 22, 0.85);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .prompt-card {
+            background: var(--bg-panel);
+            border: 2px solid var(--accent-blue);
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .prompt-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .prompt-message {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .prompt-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .prompt-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+        }
+
+        .prompt-btn:hover {
+            background: #253352;
+            border-color: var(--accent-color);
+        }
+
+        .prompt-btn strong {
+            color: var(--accent-warning);
+            margin-right: 4px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #00e676, #00b0ff);
+            color: #090d16;
+            font-weight: bold;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .start-btn:hover {
+            opacity: 0.9;
+        }
+
+        .empty-hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-style: italic;
+            text-align: center;
+            padding: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. ヘッダー / ステータスゲージバー -->
+    <header class="header-bar">
+        <div class="brand-title">
+            <span>🐉 NetHack GKL Client</span>
+            <span class="badge">Game Knowledge Layer</span>
+        </div>
+
+        <div class="status-gauges">
+            <div class="gauge-group">
+                <div class="gauge-label">
+                    <span>HP</span>
+                    <span id="hp-val">-- / --</span>
+                </div>
+                <div class="gauge-bar-bg">
+                    <div id="hp-bar" class="gauge-bar-fill gauge-hp" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="gauge-group">
+                <div class="gauge-label">
+                    <span>MP</span>
+                    <span id="mp-val">-- / --</span>
+                </div>
+                <div class="gauge-bar-bg">
+                    <div id="mp-bar" class="gauge-bar-fill gauge-mana" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-pills">
+            <div class="pill-item">🏰 <span id="lbl-dlvl" class="val">Dlvl 1</span></div>
+            <div class="pill-item">💰 <span id="lbl-gold" class="val">0</span></div>
+            <div class="pill-item">🛡️ AC: <span id="lbl-ac" class="val">10</span></div>
+            <div class="pill-item">⭐ Lvl: <span id="lbl-lvl" class="val">1</span></div>
+        </div>
+    </header>
+
+    <!-- メインレイアウト -->
+    <main class="main-workspace">
+        
+        <!-- 2. 左カラム: メインマップ & ミニマップ & クイックバー & ログ -->
+        <section class="viewport-section">
+            <div id="canvas-wrapper" class="canvas-container" tabindex="0">
+                <!-- メインズームマップ Canvas (3層透過+上下バウンスアニメーション) -->
+                <canvas id="main-map-canvas"></canvas>
+
+                <!-- 📍 レーダー風ミニマップ (80x21 全体表示) -->
+                <div class="minimap-wrapper">
+                    <div class="minimap-title">
+                        <span>OVERVIEW MINIMAP</span>
+                        <span id="minimap-pos">80x21</span>
+                    </div>
+                    <canvas id="minimap-canvas" width="160" height="42"></canvas>
+                </div>
+            </div>
+
+            <!-- クイック基本操作ショートカットバー -->
+            <div class="quick-bar">
+                <span style="font-size: 11px; color: var(--text-secondary);">キーボード: [矢印キー / Vi-keys / Numpad] で移動</span>
+                <div class="quick-btn-group">
+                    <button class="q-btn" onclick="sendQuickKey(',')">拾う (,)</button>
+                    <button class="q-btn" onclick="sendQuickKey('s')">探す (s)</button>
+                    <button class="q-btn" onclick="sendQuickKey('>')">降りる (&gt;)</button>
+                    <button class="q-btn" onclick="sendQuickKey('<')">上る (&lt;)</button>
+                    <button class="q-btn" onclick="sendQuickKey('.')">待機 (.)</button>
+                    <button class="q-btn" onclick="sendQuickKey('\x1b')">ESC</button>
+                </div>
+            </div>
+
+            <!-- メッセージログ -->
+            <div id="log-box" class="message-log-panel">
+                <div class="log-line latest">Press 'START GAME' to initialize GKL client...</div>
+            </div>
+        </section>
+
+        <!-- 3. 右カラム: GKL 操作・情報パネル & D-Pad モバイル移動コントローラー -->
+        <aside class="gkl-control-panel">
+            
+            <button id="btn-start" class="start-btn">▶ START NEW GAME</button>
+
+            <!-- 🕹️ 8方向移動バーチャル D-Pad -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <span>🕹️ 8方向移動 D-Pad</span>
+                    <span class="badge">Movement</span>
+                </div>
+                <div class="dpad-container">
+                    <button class="dpad-btn" onclick="sendDirKey('y')">↖ y</button>
+                    <button class="dpad-btn" onclick="sendDirKey('k')">↑ k</button>
+                    <button class="dpad-btn" onclick="sendDirKey('u')">↗ u</button>
+                    <button class="dpad-btn" onclick="sendDirKey('h')">← h</button>
+                    <button class="dpad-btn center" onclick="sendQuickKey('.')">. 待機</button>
+                    <button class="dpad-btn" onclick="sendDirKey('l')">→ l</button>
+                    <button class="dpad-btn" onclick="sendDirKey('b')">↙ b</button>
+                    <button class="dpad-btn" onclick="sendDirKey('j')">↓ j</button>
+                    <button class="dpad-btn" onclick="sendDirKey('n')">↘ n</button>
+                </div>
+            </div>
+
+            <!-- 推奨アクションパネル -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <span>🧠 GKL 推奨アクション (ContextActions)</span>
+                    <span id="action-count-badge" class="badge">0</span>
+                </div>
+                <div id="action-list" class="action-list">
+                    <div class="empty-hint">ゲーム開始後に周辺の環境・状況に応じた推奨アクションがリアルタイム提示されます</div>
+                </div>
+            </div>
+
+            <!-- アイコン型所持品インベントリ -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <span>🎒 所持アイテム (Icon Inventory)</span>
+                    <span id="inv-count-badge" class="badge">0</span>
+                </div>
+                <div id="inventory-grid" class="inventory-grid">
+                    <div class="empty-hint">インベントリ空</div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- 💬 キャラ作成 / プロンプトモーダル -->
+    <div id="prompt-modal" class="modal-overlay hidden">
+        <div class="prompt-card">
+            <div class="prompt-title" id="pm-title">キャラ選択 (Character Selection)</div>
+            <div class="prompt-message" id="pm-message">役割・性別・種族を選択してください</div>
+            <div id="pm-options" class="prompt-options"></div>
+            <button id="btn-auto-prompt" class="start-btn" style="margin-top: 10px;">⚡ ランダム自動選択・即プレイ開始</button>
+        </div>
+    </div>
+
+    <!-- アイテム用ツールチップ -->
+    <div id="item-tooltip">
+        <div class="title" id="tt-name">Item Name</div>
+        <div id="tt-tags"></div>
+    </div>
+
+    <!-- ES Module Script -->
+    <script type="module">
+        import { WebUICore } from '../src/core/WebUICore.js';
+
+        let core = null;
+        let mainCanvas = document.getElementById('main-map-canvas');
+        let mainCtx = mainCanvas.getContext('2d');
+        let miniCanvas = document.getElementById('minimap-canvas');
+        let miniCtx = miniCanvas.getContext('2d');
+        let tooltip = document.getElementById('item-tooltip');
+
+        let isGameRunning = false;
+        let animationFrameId = null;
+
+        // タイル画像キャッシュ
+        const tileImage = new Image();
+        let isTileLoaded = false;
+        tileImage.src = '../pict/nethack_default_32.png';
+        tileImage.onload = () => { isTileLoaded = true; };
+        tileImage.onerror = () => { isTileLoaded = false; };
+
+        // DOM要素
+        const btnStart = document.getElementById('btn-start');
+        const actionList = document.getElementById('action-list');
+        const inventoryGrid = document.getElementById('inventory-grid');
+        const logBox = document.getElementById('log-box');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        // モーダル要素
+        const promptModal = document.getElementById('prompt-modal');
+        const pmTitle = document.getElementById('pm-title');
+        const pmMessage = document.getElementById('pm-message');
+        const pmOptions = document.getElementById('pm-options');
+        const btnAutoPrompt = document.getElementById('btn-auto-prompt');
+
+        let activePromptPayload = null;
+
+        // キーボード操作の確実な受信
+        window.addEventListener('keydown', (e) => {
+            if (!core || !isGameRunning) return;
+
+            const keysToPrevent = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab', 'PageUp', 'PageDown'];
+            if (keysToPrevent.includes(e.code) || keysToPrevent.includes(e.key)) {
+                e.preventDefault();
+            }
+
+            core.sendKeyEvent(e);
+        });
+
+        // 共通グローバル関数
+        window.sendDirKey = function(dirKey) {
+            if (!core || !isGameRunning) return;
+            core.sendActionKey(dirKey);
+        };
+
+        window.sendQuickKey = function(key) {
+            if (!core || !isGameRunning) return;
+            core.sendKey(key, false, false, false, key, true);
+        };
+
+        // ツールチップ追従
+        document.addEventListener('mousemove', (e) => {
+            if (tooltip.style.display === 'block') {
+                tooltip.style.left = (e.clientX + 14) + 'px';
+                tooltip.style.top = (e.clientY + 14) + 'px';
+            }
+        });
+
+        btnStart.addEventListener('click', async () => {
+            if (isGameRunning) return;
+            btnStart.disabled = true;
+            btnStart.textContent = "INITIALIZING REAL WASM...";
+
+            try {
+                if (!window.NetHackWasmWorkerBridge) {
+                    await import('../src/driver/NetHackWasmWorkerBridge.js');
+                }
+
+                const DriverClass = window.NetHackWasmWorkerBridge;
+                if (!DriverClass) {
+                    throw new Error("Failed to load NetHackWasmWorkerBridge.");
+                }
+
+                const bridge = new DriverClass('../src/driver/nethack.worker.js');
+                core = new WebUICore({
+                    driver: bridge,
+                    numpad: false
+                });
+
+                // イベント登録
+                core.on('stateChange', ({ state }) => {
+                    appendLog(`System State: ${state}`);
+                });
+
+                core.driver.on('output', (msg) => {
+                    if (msg && msg.text) appendLog(msg.text);
+                });
+
+                // グリフ/マップ更新描画フック (GKL AreaStateManager 連動)
+                core.on('print_glyph', ({ x, y, glyphInfo, glyph }) => {
+                    const gId = glyphInfo ? glyphInfo.glyph : glyph;
+                    if (core.areaStateManager) {
+                        core.areaStateManager.updateGlyph(x, y, gId, glyphInfo);
+                    }
+                });
+
+                // 1. inputRequired (プロンプト・キャラ作成ダイアログ) 受信
+                core.on('inputRequired', (payload) => {
+                    console.log("[GKL Demo] inputRequired received:", payload);
+                    handlePromptModal(payload);
+                });
+
+                // 2. inputResolved (プロンプト終了)
+                core.on('inputResolved', () => {
+                    promptModal.classList.add('hidden');
+                });
+
+                // アニメーション・描画ループ開始
+                startRenderLoop();
+
+                // WebUICore 起動
+                const saveInfo = await core.detectSavedGameInfo();
+                if (saveInfo.hasSave) {
+                    appendLog(`Resuming saved game for ${saveInfo.savePlayerName || 'Hero'}...`);
+                    await core.start('nethack.js');
+                } else {
+                    appendLog("Starting new game...");
+                    await core.start('nethack.js', { forceNewGame: true });
+                }
+
+                isGameRunning = true;
+                btnStart.textContent = "GAME RUNNING";
+                canvasWrapper.focus();
+            } catch (err) {
+                console.error("Core start error:", err);
+                appendLog(`Error: ${err.message || err}`);
+                btnStart.disabled = false;
+                btnStart.textContent = "▶ RETRY START";
+            }
+        });
+
+        // キャラ作成・選択プロンプトモーダルのハンドリング
+        function handlePromptModal(payload) {
+            if (!payload) return;
+            activePromptPayload = payload;
+            promptModal.classList.remove('hidden');
+
+            pmTitle.textContent = payload.title || payload.rawTitle || 'キャラ作成・選択プロンプト';
+            pmMessage.textContent = payload.promptText || payload.rawPromptText || '選択肢をクリックしてください';
+            pmOptions.innerHTML = '';
+
+            const options = payload.options || payload.items || [];
+            if (options.length > 0) {
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'prompt-btn';
+
+                    const keyStr = opt.key || opt.charStr || (opt.accelerator ? String.fromCharCode(opt.accelerator) : '');
+                    const labelStr = opt.label || opt.text || opt.rawText || '';
+
+                    btn.innerHTML = `<strong>${keyStr ? keyStr + ')' : ''}</strong> ${labelStr}`;
+                    btn.addEventListener('click', () => {
+                        promptModal.classList.add('hidden');
+                        core.respond(keyStr || opt.identifier || 0);
+                    });
+                    pmOptions.appendChild(btn);
+                });
+            } else {
+                pmOptions.innerHTML = '<div class="empty-hint">Enter キーで続行します</div>';
+            }
+        }
+
+        // ランダム自動回答ボタン
+        btnAutoPrompt.addEventListener('click', () => {
+            if (!activePromptPayload || !core) return;
+            promptModal.classList.add('hidden');
+            const options = activePromptPayload.options || activePromptPayload.items || [];
+            if (options.length > 0) {
+                const opt = options[0];
+                const keyStr = opt.key || opt.charStr || (opt.accelerator ? String.fromCharCode(opt.accelerator) : 'a');
+                core.respond(keyStr);
+            } else {
+                core.respond('\n');
+            }
+        });
+
+        function appendLog(text) {
+            if (!text) return;
+            const line = document.createElement('div');
+            line.className = 'log-line latest';
+            line.textContent = text;
+            logBox.appendChild(line);
+
+            const lines = logBox.querySelectorAll('.log-line');
+            if (lines.length > 1) {
+                lines[lines.length - 2].classList.remove('latest');
+            }
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // =========================================================================
+        // メインレンダリング ＆ GKL 状況同期ループ
+        // =========================================================================
+        function startRenderLoop() {
+            function render() {
+                if (core) {
+                    const situation = core.getSituation();
+
+                    // 1. ステータスゲージ更新
+                    updateStatusGauges(situation.status);
+
+                    // 2. 推奨アクション更新
+                    updateActionPalette(situation.actions);
+
+                    // 3. インベントリグリッド更新
+                    updateInventoryGrid(situation.inventory);
+
+                    // 4. マップレンダリング (メインズームマップ ＆ レーダーミニマップ)
+                    renderMaps(situation.area);
+                }
+
+                animationFrameId = requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // 1. ステータス＆ゲージ更新
+        function updateStatusGauges(status) {
+            if (!status) return;
+            const hp = status.hp || { current: 0, max: 1 };
+            const mp = status.mana || { current: 0, max: 1 };
+
+            document.getElementById('hp-val').textContent = `${hp.current} / ${hp.max}`;
+            document.getElementById('mp-val').textContent = `${mp.current} / ${mp.max}`;
+
+            const hpPercent = Math.max(0, Math.min(100, Math.round((hp.current / Math.max(1, hp.max)) * 100)));
+            const mpPercent = Math.max(0, Math.min(100, Math.round((mp.current / Math.max(1, mp.max)) * 100)));
+
+            const hpBar = document.getElementById('hp-bar');
+            hpBar.style.width = `${hpPercent}%`;
+            if (hpPercent <= 25) {
+                hpBar.classList.add('warning');
+            } else {
+                hpBar.classList.remove('warning');
+            }
+
+            document.getElementById('mp-bar').style.width = `${mpPercent}%`;
+
+            if (status.dlevel) document.getElementById('lbl-dlvl').textContent = status.dlevel.text || `Dlvl ${status.dlevel.num || 1}`;
+            if (status.gold !== undefined) document.getElementById('lbl-gold').textContent = status.gold;
+            if (status.ac !== undefined) document.getElementById('lbl-ac').textContent = status.ac;
+            if (status.level !== undefined) document.getElementById('lbl-lvl').textContent = status.level;
+        }
+
+        // 2. GKL 推奨アクションパネル更新
+        function updateActionPalette(actions) {
+            if (!actions) return;
+            document.getElementById('action-count-badge').textContent = actions.length;
+
+            actionList.innerHTML = '';
+            if (actions.length === 0) {
+                actionList.innerHTML = '<div class="empty-hint">推奨アクションなし</div>';
+                return;
+            }
+
+            actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.className = `action-btn ${action.risk === 'danger' ? 'danger' : ''}`;
+
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = action.labelJa || action.label;
+
+                const keyBadge = document.createElement('span');
+                keyBadge.className = 'action-key-badge';
+                keyBadge.textContent = action.charStr || action.key || '?';
+
+                btn.appendChild(labelSpan);
+                btn.appendChild(keyBadge);
+
+                btn.addEventListener('click', () => {
+                    if (action.risk === 'danger') {
+                        if (!confirm(`【⚠️ 危険な行動】\n"${action.labelJa || action.label}" を実行しますか？`)) return;
+                    }
+                    core.executeAction(action);
+                });
+
+                actionList.appendChild(btn);
+            });
+        }
+
+        // 3. 所持アイテム (Icon Inventory) 更新
+        function updateInventoryGrid(inventory) {
+            if (!inventory || !inventory.items) return;
+            const items = inventory.items;
+            document.getElementById('inv-count-badge').textContent = items.length;
+
+            inventoryGrid.innerHTML = '';
+            if (items.length === 0) {
+                inventoryGrid.innerHTML = '<div class="empty-hint">インベントリ空</div>';
+                return;
+            }
+
+            items.forEach(item => {
+                const slot = document.createElement('div');
+                slot.className = 'item-slot';
+
+                const letter = document.createElement('span');
+                letter.className = 'slot-letter';
+                letter.textContent = item.letter;
+
+                const iconBox = document.createElement('div');
+                iconBox.className = 'slot-icon-box';
+
+                if (item.glyphId >= 0 && core) {
+                    const styleObj = core.getGlyphStyle(item.glyphId, { tileSize: 32, displaySize: 28 });
+                    if (styleObj) {
+                        Object.assign(iconBox.style, styleObj);
+                    } else {
+                        iconBox.textContent = getItemSymbol(item);
+                    }
+                } else {
+                    iconBox.textContent = getItemSymbol(item);
+                }
+
+                slot.appendChild(letter);
+                slot.appendChild(iconBox);
+
+                slot.addEventListener('mouseenter', (e) => {
+                    document.getElementById('tt-name').textContent = item.rawText;
+                    const tagBox = document.getElementById('tt-tags');
+                    tagBox.innerHTML = '';
+                    if (item.isPickAxe) tagBox.innerHTML += '<span class="tag">掘削(a)</span>';
+                    if (item.isDigWand) tagBox.innerHTML += '<span class="tag">採掘の杖(z)</span>';
+                    if (item.isKey) tagBox.innerHTML += '<span class="tag">鍵・ピック</span>';
+                    if (item.isAxe) tagBox.innerHTML += '<span class="tag">斧</span>';
+                    if (item.isFrostWand) tagBox.innerHTML += '<span class="tag">氷の杖</span>';
+
+                    tooltip.style.display = 'block';
+                });
+
+                slot.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+
+                slot.addEventListener('click', () => {
+                    if (core) core.sendKey(item.letter, false, false, false, item.letter, true);
+                });
+
+                inventoryGrid.appendChild(slot);
+            });
+        }
+
+        function getItemSymbol(item) {
+            if (item.isPickAxe) return '⛏️';
+            if (item.isDigWand || item.isFrostWand) return '🪄';
+            if (item.isKey) return '🔑';
+            if (item.isAxe) return '🪓';
+            return '📦';
+        }
+
+        // =========================================================================
+        // 4. マップレンダリング (メインズームマップ 3層透過+アニメ & レーダーミニマップ)
+        // =========================================================================
+        function renderMaps(areaState) {
+            if (!core || !core.areaStateManager) return;
+
+            const grid = core.areaStateManager.grid;
+            const width = core.areaStateManager.width || 80;
+            const height = core.areaStateManager.height || 21;
+            const px = core.areaStateManager.playerX || 0;
+            const py = core.areaStateManager.playerY || 0;
+
+            // --- A. レーダー風ミニマップ (160x42 80x21 全体表示) ---
+            miniCtx.fillStyle = '#000000';
+            miniCtx.fillRect(0, 0, 160, 42);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const cell = grid[y][x];
+                    if (!cell) continue;
+
+                    let color = null;
+
+                    if (x === px && y === py) {
+                        color = '#00e676'; // プレイヤー (緑点)
+                    } else if (cell.top) {
+                        color = (cell.top.type === 'PET') ? '#81d4fa' : '#ff5252'; // モンスター/ペット
+                    } else if (cell.middle) {
+                        color = '#ffd54f'; // アイテム (黄点)
+                    } else if (cell.bottom && cell.bottom.cmapFlags) {
+                        const f = cell.bottom.cmapFlags;
+                        if (f.isWall) color = '#334155';
+                        else if (f.isStairUp || f.isStairDown) color = '#a855f7';
+                        else if (f.isAltar || f.isFountain) color = '#38bdf8';
+                        else if (f.isFloor) color = '#1e293b';
+                    }
+
+                    if (color) {
+                        miniCtx.fillStyle = color;
+                        miniCtx.fillRect(x * 2, y * 2, 2, 2);
+                    }
+                }
+            }
+
+            // プレイヤー位置の追従ビュー枠を描画
+            miniCtx.strokeStyle = 'rgba(0, 230, 118, 0.8)';
+            miniCtx.lineWidth = 1;
+            miniCtx.strokeRect(Math.max(0, (px - 6) * 2), Math.max(0, (py - 4) * 2), 26, 18);
+
+            // --- B. メインズームマップ 3層レイヤー描画 ＆ 上下バウンスアニメーション ---
+            const dpr = window.devicePixelRatio || 1;
+            const rect = mainCanvas.getBoundingClientRect();
+            mainCanvas.width = rect.width * dpr;
+            mainCanvas.height = rect.height * dpr;
+            mainCtx.scale(dpr, dpr);
+
+            const containerW = rect.width;
+            const containerH = rect.height;
+            const tileSize = 48; // 大きめズーム表示 (48px)
+
+            mainCtx.fillStyle = '#090d16';
+            mainCtx.fillRect(0, 0, containerW, containerH);
+
+            const offsetX = Math.round(containerW / 2 - (px * tileSize + tileSize / 2));
+            const offsetY = Math.round(containerH / 2 - (py * tileSize + tileSize / 2));
+
+            // キャラクター/敵の上下バウンス浮遊アニメーションオフセット (サイン波)
+            const bounceY = Math.round(Math.sin(Date.now() / 180) * 3);
+
+            const visMinX = Math.max(0, Math.floor((-offsetX) / tileSize));
+            const visMaxX = Math.min(width - 1, Math.ceil((containerW - offsetX) / tileSize));
+            const visMinY = Math.max(0, Math.floor((-offsetY) / tileSize));
+            const visMaxY = Math.min(height - 1, Math.ceil((containerH - offsetY) / tileSize));
+
+            for (let y = visMinY; y <= visMaxY; y++) {
+                for (let x = visMinX; x <= visMaxX; x++) {
+                    const cell = grid[y][x];
+                    if (!cell) continue;
+
+                    const screenX = offsetX + x * tileSize;
+                    const screenY = offsetY + y * tileSize;
+
+                    // 1. Layer 1 (Bottom): ベース地形 / CMAP
+                    if (cell.bottom) {
+                        drawCellLayer(mainCtx, cell.bottom, screenX, screenY, tileSize, 0);
+                    } else {
+                        mainCtx.fillStyle = '#050811';
+                        mainCtx.fillRect(screenX, screenY, tileSize, tileSize);
+                    }
+
+                    // 2. Layer 2 (Middle): アイテム / 箱 / 死体 (透過重ね合わせ)
+                    if (cell.middle) {
+                        drawCellLayer(mainCtx, cell.middle, screenX, screenY, tileSize, 0);
+                    }
+
+                    // 3. Layer 3 (Top): モンスター / ペット / 自キャラ (透過 + 上下バウンスアニメ)
+                    if (cell.top || (x === px && y === py)) {
+                        const topEntity = (x === px && y === py) ? { type: 'PLAYER', rawGlyph: 0 } : cell.top;
+                        drawCellLayer(mainCtx, topEntity, screenX, screenY, tileSize, bounceY);
+                    }
+                }
+            }
+        }
+
+        function drawCellLayer(ctx, entity, x, y, size, animY = 0) {
+            if (!entity) return;
+
+            if (isTileLoaded && entity.rawGlyph !== undefined && core) {
+                const styleObj = core.getGlyphStyle(entity.rawGlyph, { tileSize: 32, displaySize: size });
+                if (styleObj && styleObj.backgroundImage) {
+                    const bgMatch = styleObj.backgroundImage.match(/url\("?(.*?)"?\)/);
+                    if (bgMatch) {
+                        const posX = parseInt(styleObj.backgroundPositionX || '0', 10);
+                        const posY = parseInt(styleObj.backgroundPositionY || '0', 10);
+                        
+                        ctx.drawImage(
+                            tileImage,
+                            Math.abs(posX), Math.abs(posY), 32, 32,
+                            x, y + animY, size, size
+                        );
+                        return;
+                    }
+                }
+            }
+
+            if (entity.type === 'PLAYER') {
+                ctx.fillStyle = 'rgba(0, 230, 118, 0.3)';
+                ctx.fillRect(x + 2, y + 2 + animY, size - 4, size - 4);
+                ctx.fillStyle = '#00e676';
+                ctx.font = 'bold 24px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('@', x + size / 2, y + size / 2 + animY);
+            } else if (entity.type === 'MONSTER' || entity.type === 'PET') {
+                ctx.fillStyle = entity.type === 'PET' ? '#81d4fa' : '#ff5252';
+                ctx.font = 'bold 22px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(entity.isShopkeeper ? '店' : 'D', x + size / 2, y + size / 2 + animY);
+            } else if (entity.type === 'ITEM' || entity.type === 'BODY') {
+                ctx.fillStyle = '#ffd54f';
+                ctx.font = '20px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(entity.isContainer ? '箱' : '?', x + size / 2, y + size / 2);
+            } else if (entity.cmapFlags) {
+                const f = entity.cmapFlags;
+                if (f.isWall) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(x, y, size, size);
+                    ctx.strokeStyle = '#334155';
+                    ctx.strokeRect(x, y, size, size);
+                } else if (f.isAltar) {
+                    ctx.fillStyle = '#0284c7';
+                    ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
+                } else if (f.isOpenDoor || f.isClosedDoor) {
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(x + 6, y + 6, size - 12, size - 12);
+                } else {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(x, y, size, size);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
