@@ -261,9 +261,15 @@
             <div class="logo-badge">🚀 NetHack Wasm Driver Portal</div>
             <h1>NetHack 5.0 / 3.7 Client Portal (cltest)</h1>
             <p class="subtitle">コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Pure JS, Vue 3, React, Svelte, SolidJS) サンプルへのアクセスダッシュボードです。</p>
-            <div class="top-nav">
+            <div class="top-nav" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <a href="../index.html" class="btn btn-secondary">🏠 メインポータルへ戻る (index.html)</a>
+                <button class="btn" id="btnOpenInspector" style="background-color: #89b4fa; color: #11111b; font-weight: bold; border: none;">🔍 開発者用 Debug Inspector Console を起動</button>
             </div>
+            <script>
+                document.getElementById('btnOpenInspector').addEventListener('click', function() {
+                    window.open('../src/core/inspector/inspector_console.html', 'WebUICoreInspectorConsole', 'width=920,height=720,resizable=yes,scrollbars=yes');
+                });
+            </script>
         </header>
 
         <main class="grid">

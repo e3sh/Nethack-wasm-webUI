@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUICore DevTools Inspector</title>
+    <style>
+        :root {
+            --bg-color: #11111b;
+            --panel-bg: #1e1e2e;
+            --card-bg: #252538;
+            --border-color: #313244;
+            --text-color: #cdd6f4;
+            --accent-color: #89b4fa;
+            --success-color: #a6e3a1;
+            --warn-color: #f9e2af;
+            --danger-color: #f38ba8;
+            --font-mono: 'Consolas', 'Fira Code', 'Monaco', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 13px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 画面ヘッダー ＆ エンジン状態インジケーターバー */
+        header {
+            background-color: #181825;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-size: 14px;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .engine-indicators {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .indicator-item {
+            background-color: #1e1e2e;
+            border: 1px solid var(--border-color);
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .indicator-label { color: #a6adc8; font-size: 11px; }
+        .indicator-val { color: var(--success-color); font-weight: bold; }
+        .indicator-val.waiting { color: var(--warn-color); }
+        .indicator-val.active { color: var(--success-color); }
+
+        .status-badge {
+            background-color: #313244;
+            color: var(--success-color);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+        }
+
+        /* タブバー */
+        .tab-bar {
+            background-color: #181825;
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            padding-left: 8px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #a6adc8;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn:hover { color: var(--text-color); background-color: rgba(255,255,255,0.03); }
+        .tab-btn.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+            background-color: var(--panel-bg);
+        }
+
+        /* メインビュー領域 */
+        .view-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background-color: var(--panel-bg);
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 12px;
+        }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        /* JSON Tree インスペクター */
+        .json-tree {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            color: #b4befe;
+        }
+        .json-tree details { margin-left: 12px; }
+        .json-tree summary {
+            cursor: pointer;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .json-key { color: #f9e2af; }
+        .json-string { color: #a6e3a1; }
+        .json-number { color: #fab387; }
+        .json-boolean { color: #cba6f7; }
+
+        /* コンテキストアクションカード */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .action-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .action-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .action-title { font-weight: bold; color: var(--success-color); }
+        .action-key {
+            background-color: #313244;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-color);
+        }
+
+        /* ログストリーム */
+        .toolbar {
+            padding: 8px 0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .toolbar input {
+            background-color: #181825;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            flex: 1;
+        }
+        .btn {
+            background-color: #313244;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn:hover { background-color: #45475a; }
+        .btn-primary { background-color: var(--accent-color); color: #11111b; font-weight: bold; }
+
+        .log-list {
+            flex: 1;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .log-item {
+            background-color: #181825;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-color);
+            word-break: break-all;
+        }
+        .log-item.EVENT-inputRequired { border-left-color: var(--warn-color); }
+        .log-item.INJECT { border-left-color: var(--danger-color); }
+        .log-time { color: #6c7086; margin-right: 8px; font-size: 11px; }
+        .log-cat { color: var(--accent-color); font-weight: bold; margin-right: 8px; }
+
+        /* Direct Injector */
+        .injector-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 600px;
+        }
+        .inject-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ヘッダー ＆ エンジン動作状態インジケーターバー（常時固定表示） -->
+    <header>
+        <h1><span>🔍</span> WebUICore DevTools Inspector</h1>
+        <div class="engine-indicators">
+            <span class="indicator-item">
+                <span class="indicator-label">State:</span>
+                <span class="indicator-val" id="valState">UNINITIALIZED</span>
+            </span>
+            <span class="indicator-item">
+                <span class="indicator-label">Category:</span>
+                <span class="indicator-val" id="valCategory">NONE</span>
+            </span>
+            <span class="indicator-item">
+                <span class="indicator-label">Resolver:</span>
+                <span class="indicator-val" id="valResolver">false</span>
+            </span>
+            <div class="status-badge" id="connectionStatus">Channel Active</div>
+        </div>
+    </header>
+
+    <!-- タブバー -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 GKL State Tree</button>
+        <button class="tab-btn" onclick="switchTab('tabActions')">⚡ Context Actions</button>
+        <button class="tab-btn" onclick="switchTab('tabLogs')">📜 Event Stream</button>
+        <button class="tab-btn" onclick="switchTab('tabInjector')">🎯 Direct Injector</button>
+    </div>
+
+    <div class="view-container">
+
+        <!-- Tab 1: GKL State Tree (JSON インスペクター) -->
+        <div id="tabTree" class="tab-content active">
+            <div style="margin-bottom: 8px; color: #a6adc8;">
+                Core および Game Knowledge Layer (GKL) の生の内部オブジェクトツリー（展開・折りたたみ可能）：
+            </div>
+            <div id="treeContainer" class="json-tree"></div>
+        </div>
+
+        <!-- Tab 2: Context Actions Monitor -->
+        <div id="tabActions" class="tab-content">
+            <div style="margin-bottom: 12px; color: #a6adc8;">
+                現在 ContextActionEngine / SituationCache が推奨提案しているアクション一覧：
+            </div>
+            <div id="actionGrid" class="action-grid">
+                <div style="color: #6c7086;">推奨コンテキストアクションをロード中...</div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Live Event Stream -->
+        <div id="tabLogs" class="tab-content">
+            <div class="toolbar">
+                <input type="text" id="filterInput" placeholder="Filter logs (e.g. inputRequired, message)...">
+                <button class="btn" onclick="clearLogs()">Clear Logs</button>
+            </div>
+            <div class="log-list" id="logList">
+                <div class="log-item">
+                    <span class="log-time">--:--:--</span>
+                    <span class="log-cat">[SYSTEM]</span>
+                    <span>DevTools Console initialized. Waiting for events...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Direct Injector -->
+        <div id="tabInjector" class="tab-content">
+            <div class="injector-panel">
+                <h3 style="color: var(--accent-color); font-size: 14px;">Direct Resolver Response Injector</h3>
+                <p style="color: #a6adc8; font-size: 12px;">ゲーム画面の入力待ち Resolver へ指定の応答を手動割り込み注入します：</p>
+                <div class="inject-btn-grid">
+                    <button class="btn btn-primary" onclick="injectKey('y')">Yes (y)</button>
+                    <button class="btn btn-primary" onclick="injectKey('n')">No (n)</button>
+                    <button class="btn" onclick="injectKey(' ')">Space</button>
+                    <button class="btn" onclick="injectKey('\r')">Enter</button>
+                    <button class="btn" onclick="injectKey('\x1b')">ESC</button>
+                    <button class="btn" onclick="injectAction('WAIT')">Wait (.)</button>
+                    <button class="btn" onclick="injectAction('SEARCH')">Search (s)</button>
+                    <button class="btn" onclick="injectAction('INVENTORY')">Inventory (i)</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <input type="text" id="injectCustomInput" placeholder="Type custom string or key..." style="flex:1; padding:6px; background:#181825; border:1px solid var(--border-color); color:white; border-radius:4px;">
+                    <button class="btn btn-primary" onclick="injectCustom()">Inject Custom</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const channelName = 'webuicore_inspector_channel';
+        const channel = new BroadcastChannel(channelName);
+        let lastSnapshot = null;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        channel.onmessage = (event) => {
+            if (!event || !event.data) return;
+            const { type, entry, snapshot } = event.data;
+
+            if (type === 'INSPECTOR_LOG' && entry) {
+                renderLogEntry(entry);
+            } else if (type === 'INSPECTOR_STATE_SNAPSHOT' && snapshot) {
+                lastSnapshot = snapshot;
+                renderStateSnapshot(snapshot);
+            }
+        };
+
+        function renderLogEntry(entry) {
+            const logList = document.getElementById('logList');
+            const filter = document.getElementById('filterInput').value.trim().toLowerCase();
+            const textContent = `${entry.category} ${JSON.stringify(entry.data)}`.toLowerCase();
+            
+            if (filter && !textContent.includes(filter)) return;
+
+            const item = document.createElement('div');
+            item.className = `log-item ${entry.category.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+            item.innerHTML = `
+                <span class="log-time">${entry.timestamp}</span>
+                <span class="log-cat">[${entry.category}]</span>
+                <span>${typeof entry.data === 'object' ? JSON.stringify(entry.data) : entry.data}</span>
+            `;
+            logList.appendChild(item);
+            logList.scrollTop = logList.scrollHeight;
+        }
+
+        function renderStateSnapshot(s) {
+            // ヘッダーの動作状態インジケーター更新 (常時表示)
+            const valState = document.getElementById('valState');
+            const valCategory = document.getElementById('valCategory');
+            const valResolver = document.getElementById('valResolver');
+
+            if (s.state) {
+                valState.textContent = s.state;
+                if (s.state === 'WAITING_INPUT') {
+                    valState.className = 'indicator-val waiting';
+                } else {
+                    valState.className = 'indicator-val';
+                }
+            }
+            if (s.promptCategory) valCategory.textContent = s.promptCategory;
+            
+            if (s.hasActiveResolver) {
+                valResolver.textContent = 'ACTIVE (Ready)';
+                valResolver.className = 'indicator-val active';
+            } else {
+                valResolver.textContent = 'false';
+                valResolver.className = 'indicator-val';
+            }
+
+            // Tab 1: GKL State Tree の描画
+            const treeContainer = document.getElementById('treeContainer');
+            treeContainer.innerHTML = createJsonTreeHTML(s);
+
+            // Tab 2: Context Actions の描画
+            const actionGrid = document.getElementById('actionGrid');
+            let actionsList = [];
+            if (Array.isArray(s.contextActions) && s.contextActions.length > 0) {
+                actionsList = s.contextActions;
+            } else if (s.situation && (s.situation.actions || s.situation.action)) {
+                const actData = s.situation.actions || s.situation.action;
+                actionsList = Array.isArray(actData) ? actData : (typeof actData === 'object' ? Object.values(actData) : [actData]);
+            }
+
+            if (actionsList.length > 0) {
+                actionGrid.innerHTML = actionsList.map(act => {
+                    if (typeof act === 'string') {
+                        return `<div class="action-card"><div class="action-title">${act}</div></div>`;
+                    }
+                    const title = act.label || act.title || act.name || act.action || act.id || 'Action';
+                    const key = act.key || act.cmd || act.char || act.shortcut || '?';
+                    const id = act.actionId || act.id || act.type || '-';
+
+                    return `
+                        <div class="action-card">
+                            <div class="action-card-header">
+                                <span class="action-title">${title}</span>
+                                <span class="action-key">Key: ${key}</span>
+                            </div>
+                            <div style="font-size:11px; color:#a6adc8;">Action ID: ${id}</div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                actionGrid.innerHTML = `<div style="color:#6c7086;">現在提案中のコンテキストアクションはありません</div>`;
+            }
+        }
+
+        // 折りたたみ式 JSON Tree 生成関数
+        function createJsonTreeHTML(obj, name = 'Root') {
+            if (obj === null || obj === undefined) {
+                return `<div><span class="json-key">${name}:</span> <span class="json-boolean">null</span></div>`;
+            }
+
+            if (typeof obj !== 'object') {
+                let valClass = 'json-string';
+                if (typeof obj === 'number') valClass = 'json-number';
+                if (typeof obj === 'boolean') valClass = 'json-boolean';
+                return `<div><span class="json-key">${name}:</span> <span class="${valClass}">${JSON.stringify(obj)}</span></div>`;
+            }
+
+            const keys = Object.keys(obj);
+            let html = `<details open><summary><span class="json-key">${name}</span> <span style="color:#6c7086; font-size:11px;">(${Array.isArray(obj) ? 'Array[' + obj.length + ']' : 'Object'})</span></summary>`;
+            keys.forEach(k => {
+                html += createJsonTreeHTML(obj[k], k);
+            });
+            html += `</details>`;
+            return html;
+        }
+
+        function clearLogs() {
+            document.getElementById('logList').innerHTML = '';
+        }
+
+        function injectKey(val) {
+            channel.postMessage({ type: 'INJECT_RESPONSE', value: val });
+        }
+
+        function injectAction(actionName) {
+            channel.postMessage({ type: 'INJECT_ACTION', actionName: actionName });
+        }
+
+        function injectCustom() {
+            const input = document.getElementById('injectCustomInput');
+            if (input && input.value) {
+                injectKey(input.value);
+                input.value = '';
+            }
+        }
+
+        // 初期リクエスト
+        channel.postMessage({ type: 'REQUEST_SNAPSHOT' });
+    </script>
+</body>
+</html>

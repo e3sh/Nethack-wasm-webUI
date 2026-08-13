@@ -20,6 +20,7 @@ import { SituationCache } from './knowledge/SituationCache.js';
 import { RequestController } from './knowledge/RequestController.js';
 import { PromptPayloadBuilder } from './prompt/PromptPayloadBuilder.js';
 import { TextWindowManager } from './window/TextWindowManager.js';
+import { DebugInspector } from './inspector/DebugInspector.js';
 
 export const KEYS = {
     ESC: 27,
@@ -48,6 +49,7 @@ export class WebUICore {
 
         this.driver = options.driver;
         this.renderer = options.renderer || new NullRenderer();
+        this.listeners = new Map();
 
         this.gamepad = new GamepadManager(options.gamepadOptions);
         this.touch = new TouchCalculator(options.touchOptions);
@@ -55,16 +57,23 @@ export class WebUICore {
         this.sound = new SoundEngine({ soundMode: options.soundMode || 'mute' });
 
         let isTranslateActive = options.translateEnabled;
-        if (isTranslateActive === undefined && typeof localStorage !== 'undefined') {
+        let isInspectorActive = options.enableInspector;
+
+        if (typeof localStorage !== 'undefined') {
             try {
                 const savedConfigStr = localStorage.getItem("nh.config");
                 if (savedConfigStr) {
                     const savedConfig = JSON.parse(savedConfigStr);
                     if (savedConfig) {
-                        if (savedConfig.lang !== undefined) {
-                            isTranslateActive = !!savedConfig.lang;
-                        } else if (savedConfig.translate_enabled !== undefined) {
-                            isTranslateActive = !!savedConfig.translate_enabled;
+                        if (isTranslateActive === undefined) {
+                            if (savedConfig.lang !== undefined) {
+                                isTranslateActive = !!savedConfig.lang;
+                            } else if (savedConfig.translate_enabled !== undefined) {
+                                isTranslateActive = !!savedConfig.translate_enabled;
+                            }
+                        }
+                        if (isInspectorActive === undefined && savedConfig.debug !== undefined) {
+                            isInspectorActive = !!savedConfig.debug;
                         }
                     }
                 }
@@ -72,6 +81,9 @@ export class WebUICore {
         }
         if (isTranslateActive === undefined) {
             isTranslateActive = true;
+        }
+        if (isInspectorActive === undefined) {
+            isInspectorActive = true;
         }
 
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
@@ -100,7 +112,8 @@ export class WebUICore {
         this.currentPromptChoices = '';
         this.activeResolver = null;
         this.activeMenuItems = [];
-        this.listeners = new Map();
+        
+        this.inspector = isInspectorActive ? new DebugInspector(this, options.inspectorOptions) : null;
         
         this.lastDlevel = undefined;
         this.gamepadLoopId = null;

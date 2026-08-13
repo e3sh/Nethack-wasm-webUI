@@ -78,7 +78,7 @@ export class PromptPayloadBuilder {
             }));
         } else if (category === PROMPT_CATEGORY.TEXT || category === PROMPT_CATEGORY.ASKNAME || category === PROMPT_CATEGORY.EXTCMD || payload.context === 'text' || payload.context === 'extcmd' || payload.context === 'get_ext_cmd' || payload.context === 'getlin') {
             inputType = 'LINE_TEXT';
-        } else if (category === PROMPT_CATEGORY.DIRECTION) {
+        } else if (category === PROMPT_CATEGORY.DIRECTION || category === PROMPT_CATEGORY.POSKEY || category === 'DIRECTION') {
             inputType = 'DIRECTION';
             options = [
                 { key: 'k', label: 'North (k)', direction: 'N' },

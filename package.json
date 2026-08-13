@@ -4,7 +4,12 @@
   "private": true,
   "description": "NetHack 5.0 Wasm WebUI & Driver",
   "scripts": {
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
     "dev:vue": "cd examples/vue-client && npm run dev",
     "build:vue": "cd examples/vue-client && npm run build"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.1"
   }
 }

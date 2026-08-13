@@ -1,3 +1,9 @@
+# Node.js
+node_modules/
+dist/
+.vite/
+*.log
+
 # AI & Internal Translation Utilities
 scratch/
 *.bak

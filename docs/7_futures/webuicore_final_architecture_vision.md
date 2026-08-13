@@ -2,27 +2,31 @@
 
 ## 1. ビジョン概要 (Vision Overview)
 
-本ドキュメントは、NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) の最終形態 (Final Architecture Vision)** および将来的な拡張機能を定義した未来仕様書である。
+本ドキュメントは、NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) の最新アーキテクチャビジョン** および拡張ロードマップを定義した仕様書である。
 
-現段階の開発においては、Wasm Cコアと既存 Webコンポーネント（`mobileCurses.js`, `DisplayManager.js` 等）の間の基本通信・描画・入力を100%安定させる手作業実装を最優先とする。
-その上で、本プロジェクトが最終的に目指すべき「次世代マルチプラットフォーム NetHack SDK」としてのフルスペックな姿と、各種サンプルコード (`examples/`, デバッグコンソール等) から取り込むべき能力をここに体系化する。
+本プロジェクトは「次世代マルチプラットフォーム NetHack SDK」として、Wasm Cコアとフロントエンド（Vue 3, React, Svelte, SolidJS, DOM, Canvas 等）の間の通信・描画・入力を完全に抽象化し、フレームワーク非依存で柔軟に組み込み可能なアーキテクチャを提供する。
 
 ```
 +-----------------------------------------------------------------------------------+
-|                        [WebUICore 最終形態 プラットフォーム]                       |
+|                        [WebUICore 最新プラットフォームアーキテクチャ]                 |
 |                                                                                   |
 |  +---------------------+  +---------------------+  +---------------------------+  |
 |  | Input Modules       |  | Translation Engine  |  | Sound & Effect Engine     |  |
 |  | ・Gamepad Manager   |  | ・nhMessage 辞書     |  | ・BGM / SE Playback       |  |
-|  | ・Touch D-Pad       |  | ・nhPatterns 正規表現|  | ・Message Keyword Trigger |  |
-|  | ・KeyMap Normalizer |  | ・Entity (Mon/Item) |  | ・Sound Mode (SE/Beep/Off)|  |
+|  | ・Touch Calculator  |  | ・nhPatterns 正規表現|  | ・Message Keyword Trigger |  |
+|  | ・KeyMapper / Defs  |  | ・Entity (Mon/Item) |  | ・Sound Mode (SE/Beep/Off)|  |
 |  +---------------------+  +---------------------+  +---------------------------+  |
 |  +---------------------+  +---------------------+  +---------------------------+  |
-|  | Renderer Adapters   |  | Lifecycle & State   |  | Debug & Inspector         |  |
-|  | ・DOM / MobileCurses|  | ・Auto Resume       |  | ・Realtime Event Stream   |  |
-|  | ・Canvas / Sprite   |  | ・GameOver Resolver |  | ・State Monitor           |  |
-|  | ・WebGL (Future)    |  | ・Save/Load Bridge  |  | ・Direct Resolver Injector|  |
+|  | Renderer Adapters   |  | Lifecycle & State   |  | Game Knowledge Layer(GKL) |  |
+|  | ・DOM / MobileCurses|  | ・Auto Resume       |  | ・AreaStateManager        |  |
+|  | ・Canvas / Sprite   |  | ・GameOver Resolver |  | ・InventoryStateManager   |  |
+|  | ・NullRenderer      |  | ・Save/Load Bridge  |  | ・SituationCache / Action |  |
 |  +---------------------+  +---------------------+  +---------------------------+  |
+|  +----------------------------------------------+  +---------------------------+  |
+|  | Prompt & Window Buffers                      |  | Debug Inspector (DevTools)|  |
+|  | ・PromptPayloadBuilder (GUI 構造化)           |  | ・BroadcastChannel 通信    |  |
+|  | ・TextWindowManager    (テキストバッファ)     |  | ・GKL State Tree & Watcher|  |
+|  +----------------------------------------------+  +---------------------------+  |
 +-----------------------------------------------------------------------------------+
                                           ▲
                                           │  (Transparent Protocol)
@@ -34,71 +38,58 @@
 
 ---
 
-## 2. サンプルコード (`examples/` / PoC) から取り込むべき CoreSDK 能力
+## 2. 達成済みコア能力 (Achieved Core Capabilities)
 
-これまでに作成したサンプルコード・デバッグコンソール・PoCクライアントで検証した機能の中から、将来的に CoreSDK へ取り込むべき能力を以下の通り整理・抽出する。
+開発の進行に伴い、以下のコア能力が完全にカプセル化・モジュール化され、組み込み済みとなっている。
 
-### (1) 高度なマルチプラットフォーム入力統合能力 (Input Module)
-- **GamepadManager のコア標準化**:
-  - HTML5 Gamepad API のポーリングおよび `PROMPT_CATEGORY` (YN, MENU, ASKNAME, KEY) に応じた動的ボタンマッピング。
-  - アナログスティックの 8 方向移動キー変換。
-  - ガイド用 UI オーバーレイデータ (`buttonOverlay`) の動的生成。
-- **TouchCalculator (タッチ / 仮想 D-Pad)**:
-  - 画面タップ位置 (x, y) から 3x3 / 5x5 グリッド ID への変換および NetHack 移動キー (`8`, `2`, `4`, `6`, `7`, `9`, `1`, `3`) への即時リスケール変換。
+### (1) モジュール完結型マルチプラットフォーム入力統合 (`src/core/input/`)
+- **完全な ES モジュール化 (`window.*` レガシー依存の排除)**:
+  - ブラウザのグローバル変数 (`window.rogueDefines`) を全廃し、`defaultDefines.js` およびインデックス `src/core/input/index.js` による純粋な ESM インポート体系を確立。
+- **GamepadManager / TouchCalculator / KeyMapper**:
+  - コントローラー動的アサイン、960x600/12x9 タップアスペクト比補正、修飾キーマッピングの一元集約。
 
-### (2) 完全言語中立・i18n プラグイン差し替え翻訳能力 (Translation Engine & i18n Architecture)
-- **特定言語依存の完全脱却 (Language-Agnostic Core)**:
-  - `WebUICore` 内部から日本語 (JP) 辞書コードを切り離し、`ITranslator` インターフェースとして抽象化。
-- **i18n アダプターの依存性注入 (Dependency Injection)**:
-  - `new WebUICore({ translator: new JapaneseTranslationEngine() })` や `new CustomI18nAdapter({ locale: 'zh-CN' })` のように、利用者が自由な翻訳プラグインを注入・差し替えできる設計。
-- **`context`（文脈種別）パラメータによる誤訳抑止と高度表示制御**:
-  - `translate(text, context)` (`'log'`, `'prompt'`, `'menu_item'`, `'file'`, `'ui'`) により同音異義語の誤訳を完全防止。「ログのみ英文、UI/プロンプトは日本語」といった細粒度表示トグルを実現。
-- **3層ハイブリッド翻訳 ＆ デフォルトパススルー**:
-  - `nhMessage()`, `nhPatterns()`, `nhEntities()`, `nhItems()` を備えた日本語エンジンに加え、無翻訳パススルー (`NullTranslator`) や任意言語の辞書プラグインを標準サポート。
-- **localStorage 設定完全同期**:
-  - ユーザーの翻訳 ON/OFF 設定 (`nh.translate_enabled`) の自動保存・読み込み。
+### (2) 責務分離
+- **PromptPayloadBuilder / TextWindowManager**:
+  - GUIモーダル構造化パースおよびテキスト行バッファリング管理の完全独立モジュール化。
 
-### (3) サウンド・演出制御能力 (Sound Engine)
-- **メッセージキーワード連動 SE/BGM 再生**:
-  - `putstr` メッセージ（例: "You hit...", "zap", "die", "gold"）のキーワードを自動検出し、SE (効果音) を遅延なくトリガー。
-- **サウンドモード制御**:
-  - `mute` (消音) / `se` (効果音) / `beep` (ビープ音) の動的切り替え。
+### (3) 高精度 TypeScript 型定義 ＆ 全自動ユニットテスト (Vitest)
+- **`src/core/index.d.ts`**: `any` 型を徹底排除し、`DriverLike`, `RendererLike`, `InputResolverLike` 等の高精度型システムを確立。
+- **10大ユニットテストスイート**: 26件の全テストケースが 0.49秒で全自動検証 (`npm test`)。
 
-### (4) 独立デバッグ・リアルタイムインスペクター能力 (Debug Inspector)
-- **リアルタイム・イベントストリーム監視**:
-  - Wasm Driver ↔ Core 間で受送信される全イベント (`putstr`, `status_update`, `inputRequired`, `display_nhwindow`) のミリ秒タイムスタンプ付きリアルタイムカラーログ出力。
-- **コア状態モニター (State Monitor)**:
-  - `Driver State`, `Prompt Category`, `Active Resolver`, `Menu Items Count` の常時モニタリング。
-- **Direct Resolver Injector**:
-  - UI層を迂回して `activeResolver.respond(...)` に任意のキーやレスポンスを手動注入するデバッグテスター機能。
-
-### (5) ライフサイクル & ゲームオーバー自動判定能力 (Lifecycle Engine)
-- **GameOverResolver**:
-  - 死亡時・勝敗決定時のメッセージログ (`putstr`) および `exited` イベントから、死因・最終スコア・遺言を自動パースして構造化データとして抽出。
-- **Auto Resume (セーブデータ自動復元)**:
-  - IndexedDB (`IDBFS`) 内の既存セーブファイルを自動検知し、`askname` プロンプト時にプレイヤー名を自動注入してセーブデータから一発再開。
+### (4) 開発者用 Debug Inspector DevTools (`src/core/inspector/`)
+- ゲーム画面への物理的干渉 0% の `BroadcastChannel` 別タブ/別ウィンドウ独立デバッグコンソール。
+- 🌳 GKL State Tree (JSONインスペクター), ⚡ Context Actions モニター, 📜 Event Stream ログ, 🎯 Direct Injector (手動応答/アクション割込) の統合。
 
 ---
 
-## 3. 最終形態のアーキテクチャ階層構造
+## 3. 進展版ロードマップ (Updated Roadmap)
 
-最終形態の WebUICore は、高機能でありながら各機能が完全な**プラグイン式モジュール構造**として分離され、利用者が自由に必要な機能のみを組み合わせて起動できる設計とする。
+```
+Phase 1 【完了】        Phase 2 【完了】           Phase 3 【完了】          Phase 4 【将来展望】
+コア基盤 & 完結化     DX & Unit Testing       Debug Inspector DevTools  Next-Gen Multi-Client
+・ESM化/グローバル排除 ・TS型定義(any排除完了) ・BroadcastChannel 独立化 ・GKLデータ駆動UI作成
+・input/ ディレクトリ ・Vitest 10大テスト完成   ・GKL State Tree & Watcher ・Canvas/WebGL 高速化
+・パース/バッファ分離 ・全件0.49s自動検証       ・Direct Injector 完成   ・マルチセーブ Bridge API
+```
 
-- **`WebUICore.js`**: 全モジュールを統括するファサード (Facade) クラス。
-- **`src/core/input/`**: GamepadManager, TouchCalculator, KeyNormalizer
-- **`src/core/translation/`**: TranslationEngine, DictionaryParser
-- **`src/core/sound/`**: SoundEngine, AudioBufferPlayer
-- **`src/core/renderers/`**: MobileCursesAdapter, CanvasRenderer, NullRenderer
-- **`src/core/inspector/`**: DebugInspector, EventLogger, StateMonitor
-- **`src/core/lifecycle/`**: GameOverResolver, AutoResumeManager
+### Phase 1: コア基盤の完全独立・モジュール化 【達成完了】
+- `WebUICore` の独立 ESM 化 (`window.*` 依存排除)。
+- 入力サブシステム (`src/core/input/`) 集約。
+- パース・バッファリングの責任分離 (`PromptPayloadBuilder`, `TextWindowManager`)。
 
----
+### Phase 2: DX (開発者体験)・TypeScript ・ユニットテスト 【達成完了】
+- `src/core/index.d.ts` の `any` 型完全排除と具象型定義の確立。
+- Vitest による 10大モジュール別全自動ユニットテストスイート (26ケース, 0.49s) の構築。
 
-## 4. 将来展望 (Future Roadmap)
+### Phase 3: デバッグ・インスペクター DevTools 【達成完了】
+- `DebugInspector.js` & `inspector_console.html` による独立 4大タブ DevTools コンソール構築。
+- GKL State Tree、Context Actions Monitor、Event Stream、Direct Injector、常時表示動作状態インジケーターの完成。
+- `cltest.html` ツールバーへの起動ボタン配置。
 
-- **Phase I [現在]: 基本コアの完全安定化**
-  - Wasm Driver と既存 Webコンポーネント (mobileCurses 等) 間での描画・キー操作・ステータス更新の 100% 安定動作の確立。
-- **Phase II: サンプルコード機能のモジュール化と組み込み**
-  - 本資料に記載した SoundEngine, TranslationEngine, GamepadManager, DebugInspector をプラグインモジュールとして順次洗練・組み込み。
-- **Phase III: 次世代 WebUI プラットフォーム最終形態の完成**
-  - モバイル、デスクトップ、ゲームパッド、タッチパネル、音声効果、完全日本語化、デバッグインスペクターが一体となった、NetHack WebUI プラットフォームの完成。
+### Phase 4: 次世代データ駆動クライアント ＆ マルチメディア表現拡張 【今後の将来展望】
+- **GKL データ駆動型フロントエンドクライアントの構築**:
+  - Cコードやキーコマンドを一切意識せず、GKL (`situation`, `contextActions`) の JSON データだけで動く新世代 UI / スマホ特化 UI / AI 自動プレイエージェントの作成。
+- **Canvas / WebGL レンダラーの洗練**:
+  - スプライトアニメーション、タイルのスムーズ移動、オーバーレイエフェクトを描画できる高速レンダラーの強化。
+- **Save/Load Bridge API の拡張**:
+  - 複数セーブデータのバックアップ/復元・クラウドストレージ連携 API。
