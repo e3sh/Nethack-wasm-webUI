@@ -26,30 +26,45 @@ FactorioやMMORPGといった現代の複雑なゲームでも「面白さを実
 
 ---
 
-## 3. アーキテクチャ構成案
+## 3. 最新アーキテクチャ構成案 (GKL 4層パイプラインモデル)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Presenter / UI Layer (ツールチップ, Popover, Wikiダイアログ) │
-└───────────────────────────▲─────────────────────────────┘
-                            │ (辞書データ・解析結果の提供)
-┌───────────────────────────┴─────────────────────────────┐
-│ 🧠 Game Knowledge Layer (知識層)                       │
-│  - Entity DB (モンスター/アイテム/効果の静的データベース)        │
-│  - Log Parser (ログ・テキストのコンテキスト解析)             │
-│  - Identification Tracker (プレイヤーの識別状況管理)       │
-│  - Wiki / External Resolver (Wiki URL / 多言語対応)       │
-└───────────────────────────▲─────────────────────────────┘
-                            │ (生のイベント・テキストデータ)
-┌───────────────────────────┴─────────────────────────────┐
-│ ⚙️ WebUI Core (通信・描画基盤)                          │
-│  - WASM Bridge / Event Emitter                          │
-│  - Canvas / Tile / Text Render Core                     │
-└───────────────────────────▲─────────────────────────────┘
-                            │ (C/C++ インターフェース)
-┌───────────────────────────┴─────────────────────────────┐
-│ 🐉 NetHack Core (WASM Engine)                            │
-└─────────────────────────────────────────────────────────┘
+ [ UI Layer / Custom Status UI / AI Agent / Touch Overlay ]
+        │  ▲
+        │  │  gkl.getSituation() / gkl.executeAction() (一元化ファサード)
+        ▼  │
+ ┌──────────────────────────────────────────────────────────┐
+ │ 🧠 Game Knowledge Layer (GKL / 知識・状況管理層)         │
+ │                                                          │
+ │  1. 統合状況キャッシュ層 (Situation / State Cache)         │
+ │     - SituationCache                                     │
+ │       (StatusAccessor + InventoryState + AreaState)      │
+ │                                                          │
+ │  2. 知識補完・意味解釈層 (Knowledge Interpretation)        │
+ │     - Item/Rule Resolver                                 │
+ │       (未識別アイテム・属性・効能・ダンジョン知識の補完)   │
+ │                                                          │
+ │  3. 操作支援・推論エンジン層 (Action Reasoning)           │
+ │     - ContextActionEngine                                │
+ │       (統合状況から「今可能な推奨アクション」を生成)     │
+ │     - DirectionalActionResolver                          │
+ │       (方向キーから文脈に応じた推奨アクションの自動解決) │
+ │                                                          │
+ │  4. 自走実行・制御層 (Execution Controller)              │
+ │     - RequestController                                  │
+ │       (アクションの keySequence トークンを安全自走消化)   │
+ └────────────────────────────┬─────────────────────────────┘
+                              │ querySequenceSilent / executeSequence (SoC完全分離)
+                              ▼
+ ┌──────────────────────────────────────────────────────────┐
+ │ ⚙️ WebUI Core (通信・汎用インフラ層)                     │
+ │  - querySequenceSilent(tokens, options)                  │
+ │  - getLastSequenceBuffer() / Event Emitter               │
+ └────────────────────────────┬─────────────────────────────┘
+                              │ WASM Bridge 通信
+ ┌────────────────────────────┴─────────────────────────────┐
+ │ 🐉 NetHack Core (WASM Engine)                            │
+ └──────────────────────────────────────────────────────────┘
 ```
 
 ---

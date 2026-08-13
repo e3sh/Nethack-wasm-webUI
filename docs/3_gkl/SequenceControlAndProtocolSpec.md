@@ -15,23 +15,25 @@
 ### 1.2 `DIR_*` 抽象キーのキーモード動的変換
 - ドライバー内部の `resolveTokenKey(token)` は、抽象方向キー (`DIR_N`, `DIR_E`, `DIR_S`, `DIR_W` 等) を、現在の操作モード (`numpad` / `vi`) に応じて動的に対応する文字（`'8'`, `'6'`, `'2'`, `'4'` 等 または `'k'`, `'l'`, `'j'`, `'h'` 等）へ安全変換する役割のみを担う。
 
-### 1.3 【将来実装仕様】シーケンス実行結果の一時バッファ獲得 (`lastSequenceBuffer`)
+### 1.3 【実装完了仕様】シーケンス実行結果の一時バッファ獲得 (`lastSequenceBuffer`) ＆ 汎用サイレントクエリ (`querySequenceSilent`)
 
-将来の GKL 知識獲得フェーズにおいて、Cコアの内部メモリをハックすることなくあらゆるコマンドの実行結果を獲得するための共通プロトコル仕様。
+Cコアの内部メモリをハックすることなく、任意のコマンド実行結果を非同期 Promise で安全獲得する通信プロトコル仕様。
 
 ```
- [queueSequence 開始] ──▶ (this.lastSequenceBuffer = [] を初期化)
+ [querySequenceSilent(['i', ' ']) 発行] ──▶ (this.lastSequenceBuffer = [] を初期化)
           │
           ▼
- [シーケンス自走消化中] ──▶ Cコアからの putstr / textWindowBuffers / select_menu を
-                             画面非表示のまま lastSequenceBuffer 配列に自動保存
+ [シーケンス自走消化中] ─────────────────▶ Cコアからの putstr / textWindowBuffers / select_menu を
+                                             画面非表示 (suppressPrompts: true) のまま
+                                             lastSequenceBuffer 配列に自動保存
           │
           ▼
- [シーケンス完了] ────────▶ GKL知識層 / AI は driver.getLastSequenceBuffer() を参照し
-                             インベントリ(i)・スペル(+)・履歴(Ctrl-O) 等の結果を獲得
+ [シーケンス完了待機 (Promise)] ─────────▶ driver.getLastSequenceBuffer() のクリーンコピーを返却
+                                             GKL (SituationCache / InventoryStateManager) や AI は
+                                             100% 正確なバッファデータから状態を一括同期更新
 ```
 
-- **利点**: WASM メモリ参照ハックが 100% 不要。あらゆるコマンドの実行結果を完全な通信テキストデータとして安全・統一獲得可能。
+- **利点**: WASM メモリ参照ハックが 100% 不要。あらゆるコマンドの実行結果を完全な通信テキストデータとして非同期で安全獲得可能。
 
 ---
 

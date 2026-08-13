@@ -72,17 +72,67 @@ export class InventoryStateManager {
         }
     }
 
+    /**
+     * driver.getLastSequenceBuffer() のバッファデータからインベントリメニュー・テキスト行を抽出して一括更新
+     * @param {Array<Object>} sequenceBuffer - シーケンスバッファの配列
+     */
+    updateFromSequenceBuffer(sequenceBuffer) {
+        if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) return;
+
+        for (const item of sequenceBuffer) {
+            if (!item) continue;
+
+            if (item.menuItems || item.items) {
+                const menuItems = item.menuItems || item.items;
+                if (Array.isArray(menuItems) && menuItems.length > 0) {
+                    this.updateFromMenuItems(menuItems);
+                    return;
+                }
+            }
+
+            if (item.lines || item.text) {
+                const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
+                if (Array.isArray(lines) && lines.length > 0) {
+                    this.updateFromLines(lines);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * テキスト行の配列（例: ["a - a lock pick", "b - a +0 dagger"]）からインベントリ状態を抽出・同期
+     * @param {Array<string>} lines 
+     */
+    updateFromLines(lines) {
+        if (!Array.isArray(lines) || lines.length === 0) return;
+
+        const menuItems = [];
+        lines.forEach(line => {
+            if (!line || typeof line !== 'string') return;
+            const match = line.match(/^([a-zA-Z])[\s\-\.\)]+(.+)$/);
+            if (match) {
+                menuItems.push({
+                    letter: match[1],
+                    rawStr: match[2].trim(),
+                    str: match[2].trim()
+                });
+            }
+        });
+
+        if (menuItems.length > 0) {
+            this.updateFromMenuItems(menuItems);
+        }
+    }
+
     /** エイリアスメソッド (互換性担保) */
     syncFromMenu(menuItems) {
         return this.updateFromMenuItems(menuItems);
     }
 
     /**
-     * ログメッセージ（例: "You pick up a key.", "You drop a pick-axe."）を受信した際の差分更新または状態判定
-     * @param {string} message 
-     */
-    /**
-     * ログメッセージ（例: "You start with a lock pick.", "You pick up a key.", "You drop a pick-axe."）を受信した際の差分更新または状態判定
+     * ログメッセージ（例: "You pick up...", "You drop...", "Your pick-axe breaks!"）を受信した際の状態判定
+     * 不確実なアドホック推測登録を行わず、インベントリが変更された可能性があるとして未同期（dirty）化する。
      * @param {string} message 
      */
     updateFromMessage(message) {
@@ -93,41 +143,18 @@ export class InventoryStateManager {
             if (message.includes('pick-axe')) {
                 this.items = this.items.filter(i => !i.isPickAxe);
             }
+            this.isSynced = false;
+            return;
         }
 
-        // ドロップメッセージ検知 (例: "You drop a lock pick.", "You drop the axe.")
-        if (message.includes('You drop') || message.includes('you drop')) {
-            const clean = this.cleanItemText(message);
-            const categoryFlags = this.categorizeItem(clean);
-            if (categoryFlags.isPickAxe) this.items = this.items.filter(i => !i.isPickAxe);
-            if (categoryFlags.isKey) this.items = this.items.filter(i => !i.isKey);
-            if (categoryFlags.isAxe) this.items = this.items.filter(i => !i.isAxe);
-            if (categoryFlags.isFrostWand) this.items = this.items.filter(i => !i.isFrostWand);
-        }
-
-        // 初期所持・拾得メッセージ自動検出 (例: "You start with a lock pick.", "You pick up a lock pick")
-        if (message.includes('start with') || message.includes('pick up') || message.includes('have')) {
-            const clean = this.cleanItemText(message);
-            const categoryFlags = this.categorizeItem(clean);
-
-            if (categoryFlags.isKey || categoryFlags.isPickAxe || categoryFlags.isAxe || categoryFlags.isFrostWand) {
-                // 自動検知されたキーアイテムを推定登録 (デフォルトレター 'a' 等)
-                const existing = this.items.find(i => 
-                    (categoryFlags.isKey && i.isKey) || 
-                    (categoryFlags.isPickAxe && i.isPickAxe) ||
-                    (categoryFlags.isAxe && i.isAxe) ||
-                    (categoryFlags.isFrostWand && i.isFrostWand)
-                );
-
-                if (!existing) {
-                    this.items.push({
-                        letter: 'a', // 推定レター
-                        rawText: message,
-                        ...categoryFlags
-                    });
-                }
-                this.isSynced = true;
-            }
+        // ドロップメッセージ・拾得・状態変更メッセージ検知
+        if (message.includes('You drop') || message.includes('you drop') ||
+            message.includes('pick up') || message.includes('start with') ||
+            message.includes('put on') || message.includes('take off') ||
+            message.includes('wield') || message.includes('wear') || message.includes('remove')) {
+            
+            // 能動取得が必要であることを示すため未同期 (dirty) フラグに変更
+            this.isSynced = false;
         }
     }
 

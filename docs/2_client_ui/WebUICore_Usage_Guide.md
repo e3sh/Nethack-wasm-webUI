@@ -64,6 +64,10 @@ core.destroy();
 | `sendKeyEvent(event)` | `boolean` | 生の `KeyboardEvent` を自動マッピングし C コアへ送信 (`preventDefault` 自動適用) |
 | `sendAction(actionName)` | `boolean` | `'MOVE_UP'`, `'CONFIRM'`, `'CANCEL'` 等の汎用キーアクション名を送信 |
 | `sendKey(inputVal, shift, ctrl, alt, rawKey)` | `void` | キー入力を C コアへ送信 (ASCIIコード・特殊キーマップへ自動変換) |
+| `querySequenceSilent(tokens, options)` | `Promise<Array<Object>>` | トークン配列（`['i', ' ']` 等）を画面非表示で自走実行し、実行結果バッファを返却 |
+| `getLastSequenceBuffer()` | `Array<Object>` | 直近のシーケンス実行結果バッファのクリーンコピーを取得 |
+| `getSituation()` | `Object` | GKL が管理する統合ゲーム状況 (`{ status, inventory, area, tools, actions }`) を一括取得 |
+| `syncInventorySilent(options)` | `Promise<boolean>` | `querySequenceSilent(['i', ' '])` を実行し、`InventoryStateManager` を 100% 正確に最新化 |
 | `respond(inputVal)` | `void` | メニュー選択・YN回答・テキストプロンプト応答を安全送信 |
 | `translate(text)` | `string` | 指定したテキストを内蔵 `TranslationEngine` で動的翻訳 |
 | `lookupWord(word, pos)` | `string` | 品詞 (`noun` 等) を指定して名詞/単語辞書引きを実行 |

@@ -249,7 +249,9 @@ test('ContextActionEngine & DirectionalActionResolver - 所持品連動ノイズ
     assert.ok(chatPetAction, 'ペットに対しては話しかけるアクションが生成されること');
 });
 
-test('InventoryStateManager - ロックピック (lock pick) ならず者初期所持＆メッセージ自動検出テスト', () => {
+import { SituationCache } from './SituationCache.js';
+
+test('InventoryStateManager - ロックピック (lock pick) 初期メニュー同期＆メッセージ検出(dirty化)＆シーケンスバッファ更新テスト', () => {
     const inv = new InventoryStateManager();
 
     // 1. 初期メニュー同期テスト ("a - a lock pick")
@@ -261,12 +263,24 @@ test('InventoryStateManager - ロックピック (lock pick) ならず者初期�
     assert.ok(keyItem, 'a lock pick が鍵/解錠ツールとして認識されること');
     assert.strictEqual(keyItem.letter, 'a');
 
-    // 2. メッセージ自動検出テスト ("You start with a lock pick.")
-    const invMsg = new InventoryStateManager();
-    assert.strictEqual(invMsg.isSynced, false);
-    invMsg.updateFromMessage("You start with a lock pick.");
-    assert.strictEqual(invMsg.isSynced, true, '初期所持メッセージで自動同期されること');
-    // 3. 多様なプロパティ名 (str, accelerator, label) 対応テスト
+    // 2. メッセージ検出テスト (アドホック推測登録ではなく isSynced = false で未同期/dirty化されること)
+    inv.updateFromMessage("You pick up a key.");
+    assert.strictEqual(inv.isSynced, false, 'メッセージ受領時は能動取得を促すため未同期 (dirty) になること');
+
+    // 3. updateFromSequenceBuffer テスト (シーケンスバッファからの正確な復元)
+    const seqBuffer = [
+        {
+            menuItems: [
+                { letter: 'b', text: 'b - a blessed +1 pick-axe', glyph: 3707, onum: 259 }
+            ]
+        }
+    ];
+    inv.updateFromSequenceBuffer(seqBuffer);
+    assert.strictEqual(inv.isSynced, true, 'シーケンスバッファからの復元で同期完了フラグが立つこと');
+    assert.ok(inv.getPickAxe(), 'シーケンスバッファからツルハシが検出されること');
+    assert.strictEqual(inv.getPickAxe().letter, 'b');
+
+    // 4. 多様なプロパティ名 (str, accelerator, label) 対応テスト
     const invProp = new InventoryStateManager();
     invProp.updateFromMenuItems([
         { accelerator: 'b', str: 'b - a lock pick', glyphInfo: { glyph: 3707, onum: 250 } }
@@ -275,6 +289,31 @@ test('InventoryStateManager - ロックピック (lock pick) ならず者初期�
     const keyProp = invProp.getKeyOrLockPick();
     assert.ok(keyProp, 'str / accelerator 形式の lock pick も認識されること');
     assert.strictEqual(keyProp.letter, 'b');
+});
+
+test('SituationCache - GKL 統合状況 (Situation) アクセサテスト', () => {
+    const inv = new InventoryStateManager();
+    inv.updateFromMenuItems([
+        { letter: 'a', text: 'a pick-axe', onum: 259 }
+    ]);
+
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(10, 10);
+
+    const mockStatusAccessor = {
+        getStatus: () => ({ hp: { current: 12, max: 12 }, dlevel: { level: 1 } })
+    };
+
+    const cache = new SituationCache(mockStatusAccessor, inv, area, ContextActionEngine);
+    const sit = cache.getSituation();
+
+    assert.ok(sit.status, 'ステータス情報が含まれること');
+    assert.strictEqual(sit.status.hp.current, 12);
+    assert.ok(sit.inventory, 'インベントリ情報が含まれること');
+    assert.strictEqual(sit.inventory.isSynced, true);
+    assert.ok(sit.tools.pickAxe, '抽出ツールが含まれること');
+    assert.strictEqual(sit.tools.pickAxe.letter, 'a');
+    assert.ok(Array.isArray(sit.actions), '推論アクション配列が含まれること');
 });
 
 test('AreaStateManager & ContextActionEngine - setKeyMode (numpad / vi) 動的切替テスト', () => {

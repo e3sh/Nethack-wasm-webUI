@@ -17,6 +17,8 @@ import { KeyMapper } from './input/KeyMapper.js';
 import { PROMPT_CATEGORY } from './types.js';
 import { AreaStateManager } from './knowledge/AreaStateManager.js';
 import { ContextActionEngine } from './knowledge/ContextActionEngine.js';
+import { InventoryStateManager } from './knowledge/InventoryStateManager.js';
+import { SituationCache } from './knowledge/SituationCache.js';
 
 export const KEYS = {
     ESC: 27,
@@ -74,6 +76,14 @@ export class WebUICore {
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
         this.statusAccessor = new StatusAccessor();
         this.areaStateManager = new AreaStateManager();
+        this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
+
+        this.situationCache = new SituationCache(
+            this.statusAccessor,
+            this.inventoryStateManager,
+            this.areaStateManager,
+            ContextActionEngine
+        );
 
         // 起動オプションからの numpad / number_pad 自動連動同期
         const isNumpadOpt = !!(options.numpad || options.number_pad || options.numberPad || options.keyMode === 'numpad');
@@ -316,17 +326,66 @@ export class WebUICore {
     }
 
     /**
-     * サイレント・インベントリ同期 (Silent Inventory Sync)
-     * ドライバーの queueSequence を利用して ['i', ' '] を画面表示なし・プロンプト非表示でサイレント送出し、
-     * 画面を一切チラつかせることなく InventoryStateManager を 100% 確実に最新同期取得します。
-     * @param {Object} [options={}]
+     * 汎用サイレント・シーケンスクエリ (Generic Silent Sequence Query)
+     * 任意のトークン配列（['i', ' '], ['+', ' '] 等）を画面表示なし（suppressPrompts: true）で自走実行し、
+     * シーケンス完了後に driver.getLastSequenceBuffer() のクリーンな実行結果バッファを返却します。
+     * @param {Array<string|number>} tokens - 実行するトークン配列
+     * @param {Object} [options={}] - オプション
+     * @returns {Promise<Array<Object>>} シーケンス実行結果バッファの配列
      */
-    syncInventorySilent(options = {}) {
-        const seq = ['i', ' '];
+    async querySequenceSilent(tokens, options = {}) {
+        if (!Array.isArray(tokens) || tokens.length === 0) {
+            return [];
+        }
+
+        const opts = { suppressPrompts: true, ...options };
+
+        let started = false;
         if (this.requestController) {
-            return this.requestController.executeSequence(seq, { suppressPrompts: true, ...options });
+            started = this.requestController.executeSequence(tokens, opts);
         } else if (this.driver && typeof this.driver.queueSequence === 'function') {
-            this.driver.queueSequence(seq, { suppressPrompts: true, ...options });
+            this.driver.queueSequence(tokens, opts);
+            started = true;
+        }
+
+        if (!started) return [];
+
+        return new Promise((resolve) => {
+            const checkCompletion = () => {
+                if (this.driver && !this.driver.isExecutingSequence) {
+                    const buffer = typeof this.driver.getLastSequenceBuffer === 'function' ? 
+                                   this.driver.getLastSequenceBuffer() : [];
+                    resolve(buffer);
+                } else {
+                    setTimeout(checkCompletion, 10);
+                }
+            };
+            setTimeout(checkCompletion, 10);
+        });
+    }
+
+    /**
+     * 直近のシーケンス実行結果バッファのクリーンなコピーを取得
+     * @returns {Array<Object>}
+     */
+    getLastSequenceBuffer() {
+        if (this.driver && typeof this.driver.getLastSequenceBuffer === 'function') {
+            return this.driver.getLastSequenceBuffer();
+        }
+        return [];
+    }
+
+    /**
+     * サイレント・インベントリ同期 (Silent Inventory Sync)
+     * querySequenceSilent(['i', ' ']) を実行し、結果を InventoryStateManager へ反映します。
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>}
+     */
+    async syncInventorySilent(options = {}) {
+        const buffer = await this.querySequenceSilent(['i', ' '], options);
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
+            this.inventoryStateManager.updateFromSequenceBuffer(buffer);
+            this.emit('inventoryStateUpdated', this.inventoryStateManager);
             return true;
         }
         return false;
@@ -341,6 +400,31 @@ export class WebUICore {
     }
     getInventoryStateManager() {
         return this.inventoryStateManager;
+    }
+
+    /**
+     * GKL の統合状況アクセサ・キャッシュを取得
+     * @returns {SituationCache}
+     */
+    getSituationCache() {
+        return this.situationCache;
+    }
+
+    /**
+     * GKL が管理する統合ゲーム状況 (Situation: ステータス, 所持品, マップ, アクション等) を一括取得
+     * @returns {Object}
+     */
+    getSituation() {
+        if (this.situationCache) {
+            return this.situationCache.getSituation();
+        }
+        return {
+            status: this.getStatus(),
+            inventory: { items: this.inventoryStateManager ? this.inventoryStateManager.items : [], isSynced: Boolean(this.inventoryStateManager && this.inventoryStateManager.isSynced) },
+            area: this.areaStateManager ? this.areaStateManager.getAreaState() : {},
+            tools: {},
+            actions: []
+        };
     }
 
     /**

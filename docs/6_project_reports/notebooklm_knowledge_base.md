@@ -151,9 +151,47 @@ Wasmコアは計算量の高いゲームループとCモジュール実行を担
   - `syncToPersistent(populate)` による双方向タイムスタンプ比較データ同期。
   - セーブファイル削除 API (`deleteSaveFile`) の提供。
 
+### 4.6 `lastSequenceBuffer` & 汎用サイレントクエリ (`querySequenceSilent`)
+- **役割**: WASM C コアのメモリをハックすることなく、`queueSequence` 実行中のテキスト・メニューデータを一時バッファへキャッチ・蓄積する機構。
+- **特徴機能**:
+  - `WebUICore.querySequenceSilent(tokens, options)` により、任意のコマンド（インベントリ `['i', ' ']`, 呪文 `['+', ' ']` 等）を画面表示なしで自走実行し、実行結果バッファを Promise で非同期獲得。
+  - 推測による不確実なログ解析を全廃し、100% 正確な C コアデータ（Single Source of Truth）によるインベントリ・ステータス同期を実現。
+
 ---
 
-## 5. 日本語パース & メッセージ動的翻訳システム (Japanese Parsing & Translation)
+## 5. Game Knowledge Layer (GKL) 4層アーキテクチャ & 統合状況アクセサ
+
+Game Knowledge Layer (GKL) は、ゲームの難解さを解消し操作支援・知識補完を行う層であり、`WebUICore` と完全な SoC (関心事の分離) を保ちながら以下の 4 層パイプライン構造で運用されます。
+
+```text
++-----------------------------------------------------------------------------------+
+| GKL Layer 1: Situation / State Cache (SituationCache)                            |
+|  - StatusAccessor, InventoryStateManager, AreaStateManager を統合                   |
+|  - getSituation(): { status, inventory, area, tools, actions } を一括提供        |
++-----------------------------------------------------------------------------------+
+                                       │
+                                       ▼
++-----------------------------------------------------------------------------------+
+| GKL Layer 2: Knowledge Interpretation (Item & Rule Resolver)                      |
+|  - 未識別アイテム、効果、耐性、ダンジョン知識の補完                                 |
++-----------------------------------------------------------------------------------+
+                                       │
+                                       ▼
++-----------------------------------------------------------------------------------+
+| GKL Layer 3: Action Reasoning (ContextActionEngine & DirectionalActionResolver)  |
+|  - 統合状況から壁掘削・鍵開け・会話等の推奨アクション (keySequence) を動的生成      |
++-----------------------------------------------------------------------------------+
+                                       │
+                                       ▼
++-----------------------------------------------------------------------------------+
+| GKL Layer 4: Execution Control (RequestController)                               |
+|  - アクションの keySequence トークンを queueSequence で安全自走消化                 |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+## 6. 日本語パース & メッセージ動的翻訳システム (Japanese Parsing & Translation)
 
 本プロジェクトには、運用目的に応じた **2 種類の日本語動作モード** が搭載されています。
 

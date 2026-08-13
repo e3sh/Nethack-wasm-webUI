@@ -121,11 +121,11 @@
                 this.driver.cancelSequence();
             }
 
-            // ESC (\033) 送出
+            // ESC (\u001b) 送出
             if (this.driver.activeResolver) {
-                this.driver.activeResolver.respond('\033');
+                this.driver.activeResolver.respond('\u001b');
             } else if (typeof this.driver.sendKey === 'function') {
-                this.driver.sendKey('\033', false, false, false, '\033', true);
+                this.driver.sendKey('\u001b', false, false, false, '\u001b', true);
             }
 
             this.setState(RequestController.State.IDLE);
