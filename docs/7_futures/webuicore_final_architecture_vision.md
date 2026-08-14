@@ -86,7 +86,10 @@ Phase 1 【完了】        Phase 2 【完了】           Phase 3 【完了】 
 - GKL State Tree、Context Actions Monitor、Event Stream、Direct Injector、常時表示動作状態インジケーターの完成。
 - `cltest.html` ツールバーへの起動ボタン配置。
 
-### Phase 4: 次世代データ駆動クライアント ＆ マルチメディア表現拡張 【今後の将来展望】
+### Phase 4: 次世代データ駆動クライアント ＆ レイヤー完全疎結合プラグイン化 【今後の将来展望】
+- **WebUICore (インフラ層) と GKL (知識制御層) の完全疎結合プラグイン化 (Decoupled Module Architecture)**:
+  - 現状 `WebUICore.js` に直書きされている `inventoryStateManager` や `isNonItemSequence` などの知識層コードを完全に抽出し、`WebUICore` は純粋な低レイヤー通信・入出力インフラストラクチャに特化。
+  - GKL モジュール群 (`RequestController`, `InventoryStateManager`, `AreaStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベントを外部からバインドして動的アタッチする「プラグイン/独立モジュール」構成へ移行し、相互の修正が干渉しない設計を確立。
 - **GKL データ駆動型フロントエンドクライアントの構築**:
   - Cコードやキーコマンドを一切意識せず、GKL (`situation`, `contextActions`) の JSON データだけで動く新世代 UI / スマホ特化 UI / AI 自動プレイエージェントの作成。
 - **Canvas / WebGL レンダラーの洗練**:

@@ -367,6 +367,61 @@ describe('InventoryStateManager', () => {
         expect(touchstone.isTouchstone).toBe(true);
         expect(touchstone.defaultVerb).toBe('a');
     });
+
+    it('updateFromSequenceBuffer: 手ぶら・所持品ゼロ (空バッファ/Not carrying anything) の場合でも isSynced = true と items = [] が正しく設定されること', () => {
+        const manager = new InventoryStateManager();
+        manager.invalidate();
+        expect(manager.isSynced).toBe(false);
+
+        // 空バッファまたは putstr のみのバッファを渡す
+        manager.updateFromSequenceBuffer([{ type: 'putstr', text: 'Not carrying anything.' }]);
+        expect(manager.isSynced).toBe(true);
+        expect(manager.items).toEqual([]);
+    });
+
+    it('updateFromMessage: 日本語および英語の拾得 (pickup / 拾った / 手に入れた) メッセージを正しく検知して dirty 化すること', () => {
+        const manager = new InventoryStateManager();
+        manager.isSynced = true;
+
+        // 英語 "You pick up: a dagger."
+        let updated = manager.updateFromMessage("You pick up: a dagger.");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        // 日本語 "短剣を拾った。"
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("短剣を拾った。");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        // 日本語 "鍵を手に入れた。"
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("鍵を手に入れた。");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        // アイテム名のみのメッセージ "f - a dagger." / "a - 短剣"
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("f - a dagger.");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("a - 短剣");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        // 投げる・射出メッセージ "You throw a dagger." / "You fire a dagger." / "短剣を投げた。"
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("You throw a dagger.");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+
+        manager.isSynced = true;
+        updated = manager.updateFromMessage("短剣を投げた。");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+    });
 });
 
 

@@ -409,6 +409,13 @@ export class WebUICore {
                 return false;
             }
         }
+
+        // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）のガード
+        const lastMsg = (this.lastPutstrText || '').toLowerCase();
+        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+            return false;
+        }
+
         const buffer = await this.querySequenceSilent(['i', ' '], options);
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             this.inventoryStateManager.updateFromSequenceBuffer(buffer);
@@ -580,15 +587,14 @@ export class WebUICore {
             }
         }
 
-        // キャンセル操作 (ESC / 0 / null / undefined) かを判定
-        const isCancel = (inputVal === 0 || inputVal === null || inputVal === undefined || inputVal === 27 || inputVal === '\x1b' || inputVal === 'ESC');
+        // 明示的なアイテム操作キー (拾う ',', 'g', 使う 'a', 投げる 't'/'f'/'Q', 落とす 'd', 食べる 'e', 飲む 'q', 読む 'r', 振る 'z', 装備 'w'/'W'/'T') の場合のみ invalidate
+        const itemInteractionKeys = new Set([',', 'g', 'a', 't', 'f', 'Q', 'd', 'e', 'q', 'r', 'w', 'W', 'T', 'z', 'P', 'R']);
+        const inputStr = typeof inputVal === 'string' ? inputVal.trim() : (typeof inputVal === 'number' && inputVal > 0 ? String.fromCharCode(inputVal) : '');
+        if (itemInteractionKeys.has(inputStr) && this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+            this.inventoryStateManager.invalidate();
+        }
 
         try {
-            // キャンセル以外の有効な応答・選択時のみインベントリを dirty 化 (isSynced = false)
-            if (!isCancel && this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-                this.inventoryStateManager.invalidate();
-            }
-
             if (typeof resolver.respond === 'function') {
                 resolver.respond(finalResponse);
             } else if (typeof resolver === 'function') {
@@ -786,6 +792,36 @@ export class WebUICore {
     }
 
     /**
+     * 指定されたキーシーケンスが純粋な移動・方向指定・カウント入力等の「所持品に影響しない操作」か判定
+     * @param {Array<string|number>} sequence 
+     * @returns {boolean}
+     */
+    isNonItemSequence(sequence) {
+        if (!Array.isArray(sequence) || sequence.length === 0) return false;
+
+        const nonItemKeys = new Set([
+            'k', 'j', 'h', 'l', 'y', 'u', 'b', 'n',
+            'K', 'J', 'H', 'L', 'Y', 'U', 'B', 'N',
+            '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '_', '<', '>',
+            'm', 'M',
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Up', 'Down', 'Left', 'Right'
+        ]);
+
+        return sequence.every(token => {
+            if (typeof token !== 'string' && typeof token !== 'number') return false;
+            const strToken = String(token).trim();
+            if (!strToken) return false;
+
+            if (nonItemKeys.has(strToken)) return true;
+            if (strToken.startsWith('DIR_')) return true;
+            if (/^\d+$/.test(strToken)) return true;
+
+            return false;
+        });
+    }
+
+    /**
      * キーシーケンスを安全に実行し、必要に応じて非同期でサイレント・インベントリ同期を起動する
      * @param {Array<string>} sequence 
      * @param {Object} [options={}] 
@@ -805,10 +841,9 @@ export class WebUICore {
             success = true;
         }
 
-        // シーケンス実行完了後、所持品状態を dirty 化 (isSynced = false) する。
-        // ※ 即時 syncInventorySilent() を呼ぶと Wasmのプロンプト(DIRECTION等)との競合で 'i' が方向キーに誤認識されるため、
-        //    invalidate() に留め、Wasm応答確定後の _handlePromptPayload フックで安全に自動同期させる。
-        if (this.inventoryStateManager) {
+        // アイテム操作を伴うシーケンスの場合のみ、所持品状態を dirty 化 (isSynced = false) する。
+        // （移動・方向指定・カウントキー等の場合は不要な syncInventorySilent の自動発火を防ぐため invalidate をスキップ）
+        if (this.inventoryStateManager && !this.isNonItemSequence(sequence)) {
             if (typeof this.inventoryStateManager.invalidate === 'function') {
                 this.inventoryStateManager.invalidate();
             } else {
@@ -851,8 +886,8 @@ export class WebUICore {
             return this.executeSequence(seq, options);
         }
 
-        // 【4】単一コマンド (拾う ',', 'g' 等を含む)
-        if (this.inventoryStateManager) {
+        // 【4】単一コマンド (拾う ',', アイテム使用等を含む)
+        if (this.inventoryStateManager && !this.isNonItemSequence([mainKey])) {
             this.inventoryStateManager.invalidate();
         }
         this.sendActionKey(mainKey);
@@ -1034,11 +1069,20 @@ export class WebUICore {
         // curs / curs_nhwindow (ターゲットカーソル移動イベント)
         const handleCursorMove = (data) => {
             if (data && data.x !== undefined && data.y !== undefined) {
+                const prevX = this.cursorX;
+                const prevY = this.cursorY;
+                const posChanged = (prevX !== data.x || prevY !== data.y);
+
                 this.cursorX = data.x;
                 this.cursorY = data.y;
-                this.areaStateManager.updatePlayerPosition(data.x, data.y);
-                this.emit('cursor', { x: data.x, y: data.y, windowId: data.windowId });
-                this.emit('area_updated', this.getAreaState());
+                const playerMoved = this.areaStateManager.updatePlayerPosition(data.x, data.y);
+
+                if (posChanged) {
+                    this.emit('cursor', { x: data.x, y: data.y, windowId: data.windowId });
+                }
+                if (playerMoved || posChanged) {
+                    this.emit('area_updated', this.getAreaState());
+                }
             }
         };
         this.driver.on('curs', handleCursorMove);
@@ -1078,8 +1122,10 @@ export class WebUICore {
         const handleMessageText = (rawText) => {
             if (!rawText) return;
             if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromMessage === 'function') {
-                this.inventoryStateManager.updateFromMessage(rawText);
-                this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                const updated = this.inventoryStateManager.updateFromMessage(rawText);
+                if (updated) {
+                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
+                }
             }
             const translated = this.translator.translate(rawText);
             const seEffect = this.sound.processLogMessage(translated);
@@ -1123,7 +1169,7 @@ export class WebUICore {
         // status_update (ダンジョン分岐文字列 Dlvl:1 <-> Tutorial:1 の変化を検知して自動マップクリア)
         this.driver.on('status_update', (data) => {
             if (data && data.field !== undefined) {
-                this.statusAccessor.updateField(data.field, data.value);
+                const valChanged = this.statusAccessor.updateField(data.field, data.value);
                 this.renderer.updateStatus(data);
                 
                 const structuredStatus = this.getStatus();
@@ -1139,14 +1185,16 @@ export class WebUICore {
                     this.lastDlevelText = currentDlevelText;
                 }
 
-                this.emit('statusUpdate', {
-                    field: data.field,
-                    value: data.value,
-                    change: data.change,
-                    color: data.color,
-                    allFields: structuredStatus.allFields,
-                    status: structuredStatus
-                });
+                if (valChanged) {
+                    this.emit('statusUpdate', {
+                        field: data.field,
+                        value: data.value,
+                        change: data.change,
+                        color: data.color,
+                        allFields: structuredStatus.allFields,
+                        status: structuredStatus
+                    });
+                }
             }
         });
 
@@ -1240,8 +1288,12 @@ export class WebUICore {
             this.currentPromptCategory = category;
             this.currentPromptChoices = payload.choices || '';
 
+            // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）の検出
+            const lastText = (this.lastPutstrText || '').toLowerCase();
+            const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
+
             // メインゲーム行動待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
-            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
+            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
                 if (category !== PROMPT_CATEGORY.MENU && 
                     category !== PROMPT_CATEGORY.DIRECTION && 
                     category !== PROMPT_CATEGORY.YN && 
@@ -1250,7 +1302,9 @@ export class WebUICore {
                     category !== PROMPT_CATEGORY.FILE && 
                     category !== PROMPT_CATEGORY.EXTCMD) {
                     setTimeout(() => {
-                        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
+                        const currentMsg = (this.lastPutstrText || '').toLowerCase();
+                        const currentlyPrefixWaiting = currentMsg.includes('プレフィックス') || currentMsg.includes('prefix') || (currentMsg.includes('count') && currentMsg.includes('command'));
+                        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
                             this.syncInventorySilent();
                         }
                     }, 50);

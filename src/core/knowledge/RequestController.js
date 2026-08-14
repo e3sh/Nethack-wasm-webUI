@@ -28,13 +28,31 @@ export class RequestController {
 
         this.autoResumeTimer = null;
         this.listeners = new Map();
+        this._sequenceFinishedHandler = null;
+
+        if (driver) {
+            this.setDriver(driver);
+        }
     }
 
     /**
      * NetHackWasmDriver インスタンスのセット
      */
     setDriver(driver) {
+        if (this.driver && typeof this.driver.off === 'function' && this._sequenceFinishedHandler) {
+            this.driver.off('sequenceFinished', this._sequenceFinishedHandler);
+        }
+
         this.driver = driver;
+
+        if (this.driver && typeof this.driver.on === 'function') {
+            this._sequenceFinishedHandler = () => {
+                if (this.state === RequestController.State.EXECUTING) {
+                    this.setState(RequestController.State.IDLE);
+                }
+            };
+            this.driver.on('sequenceFinished', this._sequenceFinishedHandler);
+        }
     }
 
     /**

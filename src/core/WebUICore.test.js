@@ -1,0 +1,123 @@
+import { describe, it, expect, vi } from 'vitest';
+import { WebUICore } from './WebUICore.js';
+
+function createMockDriver() {
+    return {
+        on: vi.fn(),
+        emit: vi.fn(),
+        queueSequence: vi.fn(),
+        getPromptCategory: vi.fn()
+    };
+}
+
+describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
+    it('isNonItemSequence: 移動キー・カウントキー・抽象方向キーを正しい非アイテム操作と判定すること', () => {
+        const core = new WebUICore({ driver: createMockDriver() });
+
+        expect(core.isNonItemSequence(['k'])).toBe(true);
+        expect(core.isNonItemSequence(['j'])).toBe(true);
+        expect(core.isNonItemSequence(['5'])).toBe(true);
+        expect(core.isNonItemSequence(['DIR_N'])).toBe(true);
+        expect(core.isNonItemSequence(['_'])).toBe(true);
+        expect(core.isNonItemSequence(['5', 'k'])).toBe(true);
+
+        // アイテム操作を含むシーケンスは false
+        expect(core.isNonItemSequence(['d', 'a'])).toBe(false);
+        expect(core.isNonItemSequence(['a', 'f'])).toBe(false);
+        expect(core.isNonItemSequence(['w', 'b'])).toBe(false);
+    });
+
+    it('executeSequence: 移動キーやカウントキー実行時に invalidate() を呼ばないこと', async () => {
+        const mockDriver = createMockDriver();
+        const core = new WebUICore({ driver: mockDriver });
+        const mockInventoryStateManager = {
+            isSynced: true,
+            invalidate: vi.fn()
+        };
+
+        core.inventoryStateManager = mockInventoryStateManager;
+
+        // 1. 移動キー 'k' 実行
+        await core.executeSequence(['k']);
+        expect(mockInventoryStateManager.invalidate).not.toHaveBeenCalled();
+        expect(mockInventoryStateManager.isSynced).toBe(true);
+
+        // 2. カウントキー '5' 実行
+        await core.executeSequence(['5']);
+        expect(mockInventoryStateManager.invalidate).not.toHaveBeenCalled();
+        expect(mockInventoryStateManager.isSynced).toBe(true);
+
+        // 3. アイテム操作 'd' (drop) 実行
+        await core.executeSequence(['d', 'a']);
+        expect(mockInventoryStateManager.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('respond: 単発キー入力・応答時に無条件で invalidate() を呼ばないこと', () => {
+        const mockDriver = createMockDriver();
+        const core = new WebUICore({ driver: mockDriver });
+        const mockInventoryStateManager = {
+            isSynced: true,
+            invalidate: vi.fn()
+        };
+
+        core.inventoryStateManager = mockInventoryStateManager;
+        const mockResolver = { respond: vi.fn() };
+
+        // 'k' 応答
+        core.respond('k', mockResolver);
+        expect(mockInventoryStateManager.invalidate).not.toHaveBeenCalled();
+
+        // '5' カウントキー応答
+        core.respond('5', mockResolver);
+        expect(mockInventoryStateManager.invalidate).not.toHaveBeenCalled();
+    });
+
+    it('syncInventorySilent: カウントプレフィックス待機中の場合、クエリ送出をガードして false を返すこと', async () => {
+        const mockDriver = createMockDriver();
+        const core = new WebUICore({ driver: mockDriver });
+        core.querySequenceSilent = vi.fn().mockResolvedValue([]);
+        core.inventoryStateManager = { items: [], updateFromSequenceBuffer: vi.fn() };
+
+        // 通常状態: syncInventorySilent はクエリを発行する
+        core.lastPutstrText = "You move forward.";
+        await core.syncInventorySilent();
+        expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' '], {});
+
+        core.querySequenceSilent.mockClear();
+
+        // カウントプレフィックス待機中メッセージ検出時: ガードが働き false を返し querySequenceSilent は呼ばれない
+        core.lastPutstrText = "「5」プレフィックスの後には移動コマンドを続けてください。";
+        const result = await core.syncInventorySilent();
+        expect(result).toBe(false);
+        expect(core.querySequenceSilent).not.toHaveBeenCalled();
+    });
+
+    it('handleMessageText: 通常メッセージ受信時に無条件で inventoryStateUpdated を emit しないこと', () => {
+        let emitted = false;
+        const mockDriver = createMockDriver();
+
+        let putstrHandler = null;
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'putstr') putstrHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.inventoryStateManager = {
+            items: [],
+            isSynced: true,
+            updateFromMessage: vi.fn().mockReturnValue(false) // 変更なし
+        };
+
+        core.on('inventoryStateUpdated', () => {
+            emitted = true;
+        });
+
+        // テキストメッセージ（"You see here a gold piece."）を受信
+        if (putstrHandler) {
+            putstrHandler({ windowId: 1, text: "You see here a gold piece." });
+        }
+
+        expect(core.inventoryStateManager.updateFromMessage).toHaveBeenCalledWith("You see here a gold piece.");
+        expect(emitted).toBe(false); // 無用な emit は行われないこと！
+    });
+});

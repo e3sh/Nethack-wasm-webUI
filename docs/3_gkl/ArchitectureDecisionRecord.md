@@ -35,10 +35,19 @@
   - GKL を 1. 統合状況キャッシュ層 (`SituationCache`), 2. 知識補完層, 3. 操作支援・推論層 (`ContextActionEngine`), 4. 自走実行制御層 (`RequestController`) の 4 層モデルとして整理。
   - `SituationCache` は `StatusAccessor` (ステータス/状態異常等), `InventoryStateManager` (所持品/ツール等), `AreaStateManager` (マップ/位置情報) を統一ファサードとして一括束ね、UI クライアント（常時表示ボタン、独自ステータス UI）や AI Agent に `getSituation()` で現況データ `{ status, inventory, area, tools, actions }` を一括提供する。
 
-### 1.7 ログメッセージ推測登録の全廃と未同期 (dirty) フラグ管理
-- **不確実な推測パースの完全排除**:
-  - 従来の `"You pick up a key."` 等のログメッセージから推測でアイテムを追加していた処理を全廃する。
-  - ログメッセージ検知時は単に「インベントリ未同期 (isSynced = false / dirty)」フラグに変更し、`querySequenceSilent(['i', ' '])` 経由の 100% 正確な Cコアデータ（Single Source of Truth）による能動同期を徹底する。
+### 1.8 `WebUICore` (インフラ層) と GKL (知識・制御層) の完全層別分離およびモジュール切り離し方針 (Decoupled Module Architecture)
+- **知識ロジック密結合の排除と完全疎結合化**:
+  - `WebUICore` は Wasm Cコアとの低レイヤー通信・イベント仲介・レンダリング・翻訳・ウィンドウ管理に専念する「通信・UIインフラ基盤」とし、内部に GKL のドメイン知識（`inventoryStateManager` のトリガーロジックや `isNonItemSequence` などの高度なキー判断）を直接ハードコードしない。
+  - GKL モジュール群 (`RequestController`, `InventoryStateManager`, `AreaStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベント (`inputRequired`, `putstr`, `sequenceFinished` 等) を外部からイベントリスナーとしてバインド・アタッチする「独立拡張モジュール/プラグイン」構成とし、どちらの改修も相互に干渉しない綺麗な層分け設計（Separation of Concerns）を徹底する。
+
+### 1.9 アーキテクチャ階層化モデル: 通信インフラ層 ➔ 知識層 (GKL) ➔ 戦略層 (Strategy/Action)
+- **3 レイヤーへの明確な概念再構築**:
+  1. **【低レイヤー / 通信・UIインフラ層 (Infrastructure)】 (`WebUICore`)**:
+     - Wasm Cコアとの入出力、描画、キーマッピング、テキストウィンドウ等の純粋基盤。
+  2. **【知識層 / 事実保持・同期 (Knowledge - True GKL)】 (`InventoryStateManager`, `AreaStateManager`, `StatusAccessor`, `SituationCache`)**:
+     - 現状のゲーム世界の事実（所持品、マップ、ステータス）の最新化と保持・管理に専念。
+  3. **【戦略層 / 推論・意思決定 (Strategy / Action)】 (`ContextActionEngine`, `DirectionalActionResolver`, `RequestController`, AI Agent)**:
+     - 知識層から得た「状況 (Situation)」を評価インプットとし、次に何をすべきかの推論・推薦・アクション選択・自走実行を行う戦略モデル。
 
 ---
 

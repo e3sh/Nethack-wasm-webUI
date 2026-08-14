@@ -32,7 +32,7 @@ export class InventoryStateManager {
      * @param {Array<Object>} menuItems - メニュー項目の配列
      */
     updateFromMenuItems(menuItems) {
-        if (!Array.isArray(menuItems) || menuItems.length === 0) return;
+        if (!Array.isArray(menuItems)) return;
 
         const parsedItems = [];
 
@@ -92,6 +92,9 @@ export class InventoryStateManager {
 
             this.items = parsedItems;
             this.isSynced = true;
+        } else {
+            this.items = [];
+            this.isSynced = true;
         }
     }
 
@@ -100,8 +103,13 @@ export class InventoryStateManager {
      * @param {Array<Object>} sequenceBuffer - シーケンスバッファの配列
      */
     updateFromSequenceBuffer(sequenceBuffer) {
-        if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) return;
+        if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
+            this.items = [];
+            this.isSynced = true;
+            return;
+        }
 
+        let menuParsed = false;
         for (const item of sequenceBuffer) {
             if (!item) continue;
 
@@ -109,6 +117,7 @@ export class InventoryStateManager {
                 const menuItems = item.menuItems || item.items;
                 if (Array.isArray(menuItems) && menuItems.length > 0) {
                     this.updateFromMenuItems(menuItems);
+                    menuParsed = true;
                     return;
                 }
             }
@@ -117,9 +126,16 @@ export class InventoryStateManager {
                 const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
                 if (Array.isArray(lines) && lines.length > 0) {
                     this.updateFromLines(lines);
+                    menuParsed = true;
                     return;
                 }
             }
+        }
+
+        // メニューアイテムも有効テキスト行も見つからなかった場合 ("Not carrying anything." 等)
+        if (!menuParsed) {
+            this.items = [];
+            this.isSynced = true;
         }
     }
 
@@ -143,9 +159,7 @@ export class InventoryStateManager {
             }
         });
 
-        if (menuItems.length > 0) {
-            this.updateFromMenuItems(menuItems);
-        }
+        this.updateFromMenuItems(menuItems);
     }
 
     /** エイリアスメソッド (互換性担保) */
@@ -159,7 +173,10 @@ export class InventoryStateManager {
      * @param {string} message 
      */
     updateFromMessage(message) {
-        if (!message) return;
+        if (!message) return false;
+
+        const prevSynced = this.isSynced;
+        const prevCount = this.items ? this.items.length : 0;
 
         // 壊れたメッセージ検知 ("Your pick-axe breaks!")
         if (message.includes('breaks') || message.includes('destroyed')) {
@@ -167,12 +184,23 @@ export class InventoryStateManager {
                 this.items = this.items.filter(i => !i.isPickAxe);
             }
             this.isSynced = false;
-            return;
+            return true;
         }
 
-        // ドロップメッセージ・拾得・消費・使用・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
+        // アイテム拾得時の単一スロット表示メッセージ検知 ("f - a dagger.", "a - 短剣" 等)
+        const trimmed = message.trim();
+        if (/^[a-zA-Z]\s*[\-\.]\s*.+$/.test(trimmed)) {
+            this.isSynced = false;
+            return prevSynced !== false;
+        }
+
+        // ドロップメッセージ・拾得・投げる/射出・消費・使用・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
         const msg = message.toLowerCase();
-        if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('got ') ||
+        if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('pick') || msg.includes('picked') ||
+            msg.includes('got ') || msg.includes('find') || msg.includes('now have') || msg.includes('obtain') ||
+            msg.includes('grab') || msg.includes('loot') || msg.includes('拾') || msg.includes('手に入れ') || msg.includes('入手') ||
+            msg.includes('throw') || msg.includes('threw') || msg.includes('fire') || msg.includes('fired') ||
+            msg.includes('shoot') || msg.includes('shot') || msg.includes('投') || msg.includes('放つ') || msg.includes('射出') ||
             msg.includes('drop') || msg.includes('start with') ||
             msg.includes('put on') || msg.includes('take off') ||
             msg.includes('wield') || msg.includes('wear') || msg.includes('remove') ||
@@ -182,7 +210,10 @@ export class InventoryStateManager {
             
             // 能動取得が必要であることを示すため未同期 (dirty) フラグに変更
             this.isSynced = false;
+            return prevSynced !== false;
         }
+
+        return (this.items ? this.items.length : 0) !== prevCount || this.isSynced !== prevSynced;
     }
 
     /** インベントリの同期状態を破棄 (dirty 化) し、次回機会での自動再同期を促す */

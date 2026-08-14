@@ -99,9 +99,12 @@ export class AreaStateManager {
      */
     updatePlayerPosition(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            if (this.playerX === x && this.playerY === y) return false;
             this.playerX = x;
             this.playerY = y;
+            return true;
         }
+        return false;
     }
 
     /**

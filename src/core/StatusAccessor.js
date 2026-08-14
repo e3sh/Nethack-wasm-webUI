@@ -17,8 +17,12 @@ export class StatusAccessor {
      */
     updateField(field, value) {
         if (field !== undefined && field !== null) {
+            const prev = this.fields[field];
+            if (prev === value) return false;
             this.fields[field] = value;
+            return true;
         }
+        return false;
     }
 
     /**

@@ -69,6 +69,7 @@
             // Bind global dispatcher safely
             this.eventHook = this.eventHook.bind(this);
             this.setupGlobalDispatcher();
+            this.initSubModules();
         }
 
         get isExecutingSequence() {
@@ -166,7 +167,11 @@
          */
         processNextSequenceTask() {
             if (this.sequenceTaskQueue.length === 0) {
+                const hadTask = !!this.currentTask;
                 this.currentTask = null;
+                if (hadTask) {
+                    this.emit("sequenceFinished");
+                }
                 return;
             }
 
@@ -182,9 +187,13 @@
          * 実行中のシーケンスおよび予約キューを安全に強制キャンセルし、通常状態に復帰
          */
         cancelSequence() {
+            const hadTask = !!this.currentTask || this.sequenceTaskQueue.length > 0;
             this.sequenceTaskQueue = [];
             this.currentTask = null;
             this.lastCompletedBuffer = [];
+            if (hadTask) {
+                this.emit("sequenceFinished");
+            }
         }
 
         /**
