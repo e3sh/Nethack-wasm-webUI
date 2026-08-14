@@ -3,6 +3,7 @@
 > [!IMPORTANT]
 > このドキュメントは **NetHack 5.0.0 正式版** に準拠して更新されています。
 > 従来の「JavaScript側での条件付きシフト再現による動的計算」は廃止され、**完全1:1直接マッピングテーブルの自動生成方式**に移行しました。
+> また、Glyph ID だけでなくアイテムの `onum`（オブジェクト固有番号）およびカテゴリ識別に関しても、Cソース (`objects.h`) の直接参照や動的推測を行わず、ビルド生成物 [tilemappings.lst](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/5_gamedata/tilemappings.lst) の抽出データを**唯一の真実 (Single Source of Truth)** として使用します。
 
 NetHack 5.0 において、Wasm内部データ（グリフ）がどのようにタイルの索引（Tile Index）に変換され、画面上で描画されるかの仕組みについて解説します。
 

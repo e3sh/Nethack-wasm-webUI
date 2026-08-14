@@ -224,7 +224,7 @@ export function getOnumFromGlyph(glyphId) {
  */
 export function getItemInfoFromOnum(onum) {
     if (typeof onum !== 'number' || onum < 0) {
-        return { category: 'OTHER', isPickAxe: false, isKey: false, isAxe: false, isDigWand: false, isFrostWand: false, isContainer: false };
+        return { category: 'OTHER', isPickAxe: false, isKey: false, isAxe: false, isDigWand: false, isFrostWand: false, isContainer: false, isBox: false, isBag: false, isTouchstone: false, isCanOpener: false, isTin: false, isGem: false, isRock: false, isAmmo: false, isLauncher: false };
     }
 
     let category = 'OTHER';
@@ -238,19 +238,19 @@ export function getItemInfoFromOnum(onum) {
         category = 'AMULET';
     } else if (onum === 6 || (onum >= 214 && onum <= 263)) {
         category = 'TOOL';
-    } else if (onum === 7 || (onum >= 264 && onum <= 298)) {
+    } else if (onum === 7 || (onum >= 264 && onum <= 296)) {
         category = 'FOOD';
-    } else if (onum === 8 || (onum >= 299 && onum <= 325)) {
+    } else if (onum === 8 || (onum >= 297 && onum <= 322)) {
         category = 'POTION';
-    } else if (onum === 9 || (onum >= 326 && onum <= 368)) {
+    } else if (onum === 9 || (onum >= 323 && onum <= 365)) {
         category = 'SCROLL';
-    } else if (onum === 10 || (onum >= 369 && onum <= 399)) {
+    } else if (onum === 10 || (onum >= 366 && onum <= 409)) {
         category = 'SPELLBOOK';
-    } else if (onum === 11 || (onum >= 400 && onum <= 435)) {
+    } else if (onum === 11 || (onum >= 410 && onum <= 437)) {
         category = 'WAND';
-    } else if (onum === 12) {
+    } else if (onum === 12 || onum === 438) {
         category = 'COIN';
-    } else if (onum === 13 || (onum >= 436 && onum <= 480)) {
+    } else if (onum === 13 || (onum >= 439 && onum <= 469)) {
         category = 'GEM';
     }
 
@@ -260,6 +260,15 @@ export function getItemInfoFromOnum(onum) {
     const isDigWand = (onum === 428); // wand of digging (428)
     const isFrostWand = (onum === 431); // wand of cold / frost (431)
     const isContainer = (onum >= 214 && onum <= 220); // large box, chest, ice box, sack, oilskin sack, bag of holding, bag of tricks (214-220)
+
+    // docs/5_gamedata/tilemappings.lst 準拠の正確な onum マッピング
+    const isBox = (onum >= 214 && onum <= 216); // large box (214), chest (215), ice box (216)
+    const isBag = (onum >= 217 && onum <= 220); // sack (217), oilskin sack (218), bag of holding (219), bag of tricks (220)
+    const isCanOpener = (onum === 239); // tin opener (239) [tilemappings.lst line 3763]
+    const isTouchstone = (onum === 472); // touchstone (472) [tilemappings.lst line 3996]
+    const isTin = (onum === 296); // tin (296) [tilemappings.lst line 3820]
+    const isGem = (onum >= 439 && onum <= 469); // gems & glasses (439-469)
+    const isRock = (onum === 473 || onum === 474); // flint (473), rock (474)
 
     // 弾薬・投擲物 (Ammunition / Missile): arrow (18-22), bolt (23), dart (24), shuriken (25), boomerang (26), javelin (32), flint (473), rock (474)
     const isAmmo = (onum >= 18 && onum <= 26) || onum === 32 || onum === 473 || onum === 474;
@@ -275,6 +284,13 @@ export function getItemInfoFromOnum(onum) {
         isDigWand,
         isFrostWand,
         isContainer,
+        isBox,
+        isBag,
+        isTouchstone,
+        isCanOpener,
+        isTin,
+        isGem,
+        isRock,
         isAmmo,
         isLauncher
     };

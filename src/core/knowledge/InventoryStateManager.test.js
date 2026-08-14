@@ -275,6 +275,98 @@ describe('InventoryStateManager', () => {
         expect(manager.getItemByLetter('x')).not.toBeNull();
         expect(manager.getItemByLetter('a')).toBeNull();
     });
+
+    it('箱(box)は d(置く)、袋(sack)は a(中を見る)、宝石/石は t(投げる)、缶切りは缶詰がある場合スマートシーケンス(a+缶切り+缶詰)となること', () => {
+        const manager = new InventoryStateManager();
+        const lines = [
+            "a - a heavy iron box",
+            "b - an oilskin sack",
+            "c - a can opener",
+            "d - a tin of spinach",
+            "e - a ruby",
+            "f - a touchstone"
+        ];
+
+        manager.updateFromLines(lines);
+
+        // a: box -> d (drop container)
+        const box = manager.getItemByLetter('a');
+        expect(box.defaultVerb).toBe('d');
+        expect(box.defaultSequence).toEqual(['d', 'a']);
+        expect(box.alternativeActions.some(alt => alt.verb === 'a')).toBe(true);
+
+        // b: sack -> a (look inside)
+        const sack = manager.getItemByLetter('b');
+        expect(sack.defaultVerb).toBe('a');
+        expect(sack.defaultSequence).toEqual(['a', 'b']);
+        expect(sack.alternativeActions.some(alt => alt.verb === 'd')).toBe(true);
+
+        // c: can opener + d: tin -> smart sequence ['a', 'c', 'd']
+        const canOpener = manager.getItemByLetter('c');
+        expect(canOpener.defaultVerb).toBe('a');
+        expect(canOpener.defaultSequence).toEqual(['a', 'c', 'd']);
+        expect(canOpener.defaultActionLabelJa).toContain('缶詰を開ける');
+
+        // d: tin -> e (eat)
+        const tin = manager.getItemByLetter('d');
+        expect(tin.defaultVerb).toBe('e');
+        expect(tin.defaultSequence).toEqual(['e', 'd']);
+
+        // e: ruby -> t (throw)
+        const ruby = manager.getItemByLetter('e');
+        expect(ruby.defaultVerb).toBe('t');
+        expect(ruby.defaultSequence).toEqual(['t', 'e']);
+        expect(ruby.itemCategory).toBe('GEM');
+
+        // f: touchstone -> a (apply)
+        const touchstone = manager.getItemByLetter('f');
+        expect(touchstone.defaultVerb).toBe('a');
+        expect(touchstone.defaultSequence).toEqual(['a', 'f']);
+
+        // getItemDefaultAction から alternativeActions が正しく取得できること
+        const actionInfo = manager.getItemDefaultAction('a');
+        expect(actionInfo).toBeDefined();
+        expect(Array.isArray(actionInfo.alternativeActions)).toBe(true);
+        expect(actionInfo.alternativeActions.length).toBeGreaterThan(0);
+    });
+
+    it('onum / glyphId から直接 isCanOpener, isTin, isBox, isBag, isTouchstone, isGem が確実判定されること', () => {
+        const manager = new InventoryStateManager();
+        const menuItems = [
+            { letter: 'a', text: 'unidentified object A', glyph: 3687, onum: 239 }, // tin opener (onum 239)
+            { letter: 'b', text: 'unidentified object B', glyph: 3744, onum: 296 }, // tin (onum 296)
+            { letter: 'c', text: 'unidentified object C', glyph: 3663, onum: 215 }, // chest (onum 215)
+            { letter: 'd', text: 'unidentified object D', glyph: 3665, onum: 217 }, // sack (onum 217)
+            { letter: 'e', text: 'unidentified object E', glyph: 3920, onum: 472 }  // touchstone (onum 472)
+        ];
+
+        manager.updateFromMenuItems(menuItems);
+
+        // a: can opener + b: tin -> smart sequence ['a', 'a', 'b']
+        const canOpener = manager.getItemByLetter('a');
+        expect(canOpener.isCanOpener).toBe(true);
+        expect(canOpener.defaultSequence).toEqual(['a', 'a', 'b']);
+
+        // b: tin -> eat (e)
+        const tin = manager.getItemByLetter('b');
+        expect(tin.isTin).toBe(true);
+        expect(tin.defaultVerb).toBe('e');
+
+        // c: chest -> drop (d)
+        const chest = manager.getItemByLetter('c');
+        expect(chest.isBox).toBe(true);
+        expect(chest.defaultVerb).toBe('d');
+
+        // d: sack -> look inside (a)
+        const sack = manager.getItemByLetter('d');
+        expect(sack.isBag).toBe(true);
+        expect(sack.defaultVerb).toBe('a');
+
+        // e: touchstone -> apply (a)
+        const touchstone = manager.getItemByLetter('e');
+        expect(touchstone.isTouchstone).toBe(true);
+        expect(touchstone.defaultVerb).toBe('a');
+    });
 });
 
 

@@ -36,6 +36,7 @@ export class InventoryStateManager {
 
         const parsedItems = [];
 
+        // 第1パス: アイテム基本情報のパースと分類
         menuItems.forEach(mi => {
             if (!mi) return;
             const rawText = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
@@ -64,7 +65,6 @@ export class InventoryStateManager {
 
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
                 const equipState = this.parseEquipState(rawText);
-                const defaultAction = this.determineDefaultAction(rawText, categoryFlags, equipState, letter);
 
                 parsedItems.push({
                     letter,
@@ -72,21 +72,28 @@ export class InventoryStateManager {
                     glyphId,
                     onum,
                     ...categoryFlags,
-                    ...equipState,
-                    ...defaultAction
+                    ...equipState
                 });
             }
         });
 
+        // 第2パス: 全件コンテキストを踏まえたスマートアクション/推奨・副次的アクション判定
         if (parsedItems.length > 0) {
+            parsedItems.forEach(item => {
+                const defaultAction = this.determineDefaultAction(
+                    item.rawText,
+                    item,
+                    item,
+                    item.letter,
+                    parsedItems
+                );
+                Object.assign(item, defaultAction);
+            });
+
             this.items = parsedItems;
             this.isSynced = true;
         }
     }
-
-
-
-
 
     /**
      * driver.getLastSequenceBuffer() のバッファデータからインベントリメニュー・テキスト行を抽出して一括更新
@@ -141,8 +148,6 @@ export class InventoryStateManager {
         }
     }
 
-
-
     /** エイリアスメソッド (互換性担保) */
     syncFromMenu(menuItems) {
         return this.updateFromMenuItems(menuItems);
@@ -165,15 +170,24 @@ export class InventoryStateManager {
             return;
         }
 
-        // ドロップメッセージ・拾得・状態変更メッセージ検知
-        if (message.includes('You drop') || message.includes('you drop') ||
-            message.includes('pick up') || message.includes('start with') ||
-            message.includes('put on') || message.includes('take off') ||
-            message.includes('wield') || message.includes('wear') || message.includes('remove')) {
+        // ドロップメッセージ・拾得・消費・使用・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
+        const msg = message.toLowerCase();
+        if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('got ') ||
+            msg.includes('drop') || msg.includes('start with') ||
+            msg.includes('put on') || msg.includes('take off') ||
+            msg.includes('wield') || msg.includes('wear') || msg.includes('remove') ||
+            msg.includes('drink') || msg.includes('eat') || msg.includes('read') ||
+            msg.includes('zap') || msg.includes('quaff') || msg.includes('disappears') ||
+            msg.includes('consume') || msg.includes('swallow')) {
             
             // 能動取得が必要であることを示すため未同期 (dirty) フラグに変更
             this.isSynced = false;
         }
+    }
+
+    /** インベントリの同期状態を破棄 (dirty 化) し、次回機会での自動再同期を促す */
+    invalidate() {
+        this.isSynced = false;
     }
 
     /** エイリアスメソッド (互換性担保) */
@@ -186,7 +200,7 @@ export class InventoryStateManager {
      * @param {string} rawText 
      * @param {number} glyphId 
      * @param {number} onum 
-     * @returns {Object} フラグ構造体 { isPickAxe, isKey, isAxe, isFrostWand, isDigWand, isDigTool, verb, onum }
+     * @returns {Object} フラグ構造体
      */
     categorizeItem(rawText, glyphId = -1, onum = -1) {
         if (typeof onum !== 'number' || onum < 0) {
@@ -197,7 +211,6 @@ export class InventoryStateManager {
             onum = getOnumFromGlyph(glyphId);
         }
 
-
         let isPickAxe = false;
         let isDigWand = false;
         let isKey = false;
@@ -205,6 +218,13 @@ export class InventoryStateManager {
         let isFrostWand = false;
         let isAmmo = false;
         let isLauncher = false;
+        let isCanOpener = false;
+        let isTin = false;
+        let isBox = false;
+        let isBag = false;
+        let isTouchstone = false;
+        let isGem = false;
+        let isRock = false;
         let onumCategory = 'OTHER';
 
         // 【層1】onum (オブジェクト固有番号) による確定判定
@@ -218,12 +238,41 @@ export class InventoryStateManager {
             isFrostWand = info.isFrostWand;
             isAmmo = info.isAmmo;
             isLauncher = info.isLauncher;
+            isCanOpener = info.isCanOpener;
+            isTin = info.isTin;
+            isBox = info.isBox;
+            isBag = info.isBag;
+            isTouchstone = info.isTouchstone;
+            isGem = info.isGem;
+            isRock = info.isRock;
         }
 
         // 【層2】テキストパース（onum が判定不能な場合のフォールバック）
-        const cleanText = this.cleanItemText(rawText);
-
         if (onum < 0) {
+            const cleanText = this.cleanItemText(rawText);
+
+            if (/\bcan opener\b/i.test(cleanText) || /缶切り/.test(cleanText)) {
+                isCanOpener = true;
+            }
+            if (/\b(tin|tins)\b/i.test(cleanText) || /缶詰/.test(cleanText)) {
+                isTin = true;
+            }
+            if (/\b(large box|chest|box)\b/i.test(cleanText) && !/chestplate/i.test(cleanText) || /(大箱|箱|チェスト)/.test(cleanText)) {
+                isBox = true;
+            }
+            if (/\b(sack|bag of holding|oilskin sack|bag|bags)\b/i.test(cleanText) || /(袋|バックパック)/.test(cleanText)) {
+                isBag = true;
+            }
+            if (/\b(touchstone|whetstone)\b/i.test(cleanText) || /(タッチストーン|砥石)/.test(cleanText)) {
+                isTouchstone = true;
+            }
+            if (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText)) {
+                isGem = true;
+            }
+            if (/\b(rock|rocks|flint)\b/i.test(cleanText) || /(岩|石|火打ち石)/.test(cleanText)) {
+                isRock = true;
+            }
+
             if (!isAmmo && !isLauncher) {
                 if (/\b(arrow|arrows|bolt|bolts|dart|darts|shuriken|shurikens|boomerang|boomerangs|javelin|javelins|flint|rock|rocks)\b/i.test(cleanText) || /(矢|ボルト|ダーツ|手裏剣|ブーメラン|ジャベリン|火打ち石|岩|石)/.test(cleanText)) {
                     isAmmo = true;
@@ -261,8 +310,11 @@ export class InventoryStateManager {
         // 装備状態のパース (Wielded, Offhand, Quivered, Worn)
         const equipState = this.parseEquipState(rawText);
 
-        // カテゴリ別デフォルト推奨アクションの判定
-        const defaultAction = this.determineDefaultAction(rawText, { isPickAxe, isDigWand, isKey, isAxe, isFrostWand, isAmmo, isLauncher, onumCategory }, equipState);
+        // カテゴリ別デフォルト推奨アクションおよび副次的アクションの判定
+        const defaultAction = this.determineDefaultAction(rawText, {
+            isPickAxe, isDigWand, isKey, isAxe, isFrostWand, isAmmo, isLauncher,
+            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, onumCategory
+        }, equipState, '', Array.isArray(this.items) ? this.items : []);
 
         return {
             isPickAxe,
@@ -274,6 +326,13 @@ export class InventoryStateManager {
             isFrostWand,
             isAmmo,
             isLauncher,
+            isCanOpener,
+            isTin,
+            isBox,
+            isBag,
+            isTouchstone,
+            isGem,
+            isRock,
             onum,
             onumCategory,
             ...equipState,
@@ -281,25 +340,35 @@ export class InventoryStateManager {
         };
     }
 
-
     /**
-     * カテゴリおよび装備状態からのデフォルト推奨アクション判定
+     * カテゴリおよび装備状態からのデフォルト推奨アクションおよび副次的アクション判定
      * @param {string} rawText 
      * @param {Object} categoryFlags 
      * @param {Object} equipState 
      * @param {string} [letter=''] 
-     * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, itemCategory }
+     * @param {Array<Object>} [allItems=[]]
+     * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, itemCategory, alternativeActions }
      */
-    determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '') {
+    determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '', allItems = []) {
         const cleanText = this.cleanItemText(rawText);
         const { isWielded, isOffhand, isQuivered, isWorn, equipSlot } = equipState;
         const { onumCategory = 'OTHER' } = categoryFlags;
+        const itemList = Array.isArray(allItems) && allItems.length > 0 ? allItems : (Array.isArray(this.items) ? this.items : []);
 
         let defaultVerb = null;
         let defaultSequence = letter ? [letter] : [];
         let defaultActionLabel = 'Select';
         let defaultActionLabelJa = '選択';
         let itemCategory = onumCategory !== 'OTHER' ? onumCategory : 'OTHER';
+        let alternativeActions = [];
+
+        // ヘルパー: 標準選択肢の組み立て
+        const makeAlt = (verb, seq, labelJa, isDefault = false) => ({
+            verb,
+            sequence: seq,
+            labelJa,
+            isDefault
+        });
 
         // 1. 既に装備・着用・装填中のアイテムの解除アクション優先
         if (isWielded || isOffhand) {
@@ -308,12 +377,22 @@ export class InventoryStateManager {
             defaultActionLabel = 'Unwield weapon';
             defaultActionLabelJa = '手放す (w-)';
             itemCategory = 'WEAPON';
+            alternativeActions = [
+                makeAlt('w', ['w', '-'], '手放す (w-)', true),
+                letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+            ].filter(Boolean);
         } else if (isQuivered) {
             defaultVerb = 'Q';
             defaultSequence = ['Q', '-'];
             defaultActionLabel = 'Unquiver ammo';
             defaultActionLabelJa = '装填解除 (Q-)';
             itemCategory = 'WEAPON';
+            alternativeActions = [
+                makeAlt('Q', ['Q', '-'], '装填解除 (Q-)', true),
+                letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+            ].filter(Boolean);
         } else if (isWorn) {
             if (equipSlot === 'ring_left' || equipSlot === 'ring_right' || equipSlot === 'amulet') {
                 defaultVerb = 'R';
@@ -321,154 +400,348 @@ export class InventoryStateManager {
                 defaultActionLabel = 'Remove ring/amulet';
                 defaultActionLabelJa = '外す (R)';
                 itemCategory = equipSlot === 'amulet' ? 'AMULET' : 'RING';
+                alternativeActions = [
+                    makeAlt('R', defaultSequence, '外す (R)', true)
+                ];
             } else {
                 defaultVerb = 'T';
                 defaultSequence = letter ? ['T', letter] : ['T'];
                 defaultActionLabel = 'Take off armor';
                 defaultActionLabelJa = '脱ぐ (T)';
                 itemCategory = 'ARMOR';
+                alternativeActions = [
+                    makeAlt('T', defaultSequence, '脱ぐ (T)', true)
+                ];
             }
         } else {
-            // 2. 弾薬・投擲物 (isAmmo) の優先装填 (Q) 判定
-            if (categoryFlags.isAmmo) {
+            // 2. 缶切り (Can Opener) のスマート判定 (所持品に缶詰 Tin があればスマートシーケンス 'a' + letter + tinLetter)
+            if (categoryFlags.isCanOpener || /can opener|缶切り/i.test(cleanText)) {
+                itemCategory = 'TOOL';
+                const tinItem = itemList.find(i => i.letter && i.letter !== letter && (i.isTin || /tin|缶詰/i.test(i.rawText || '')));
+                if (tinItem && letter) {
+                    defaultVerb = 'a';
+                    defaultSequence = ['a', letter, tinItem.letter];
+                    defaultActionLabel = 'Open tin';
+                    defaultActionLabelJa = `缶詰を開ける (a ➔ ${tinItem.letter})`;
+                    alternativeActions = [
+                        makeAlt('a', defaultSequence, `缶詰を開ける (a ➔ ${tinItem.letter})`, true),
+                        makeAlt('w', ['w', letter], '手に持つ (w)'),
+                        makeAlt('d', ['d', letter], '置く/落とす (d)')
+                    ];
+                } else {
+                    defaultVerb = 'w';
+                    defaultSequence = letter ? ['w', letter] : ['w'];
+                    defaultActionLabel = 'Wield can opener';
+                    defaultActionLabelJa = '手に持つ (w)';
+                    alternativeActions = [
+                        makeAlt('w', defaultSequence, '手に持つ (w)', true),
+                        letter ? makeAlt('a', ['a', letter], '使う (a)') : null,
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                }
+            }
+            // 3. 箱・チェスト (Box / Chest) の重量軽減優先判定 (推奨: d 落とす)
+            else if ((categoryFlags.isBox || /\b(large box|chest|box)\b/i.test(cleanText) || /(大箱|箱|チェスト)/.test(cleanText)) && !/chestplate/i.test(cleanText)) {
+                defaultVerb = 'd';
+                defaultSequence = letter ? ['d', letter] : ['d'];
+                defaultActionLabel = 'Drop container';
+                defaultActionLabelJa = '置く/落とす (d)';
+                itemCategory = 'TOOL';
+                alternativeActions = [
+                    makeAlt('d', defaultSequence, '置く/落とす (d)', true),
+                    letter ? makeAlt('a', ['a', letter], '開ける/使う (a)') : null
+                ].filter(Boolean);
+            }
+            // 4. 袋類 (Sack / Bag of Holding) (推奨: a 中を見る)
+            else if (categoryFlags.isBag || /sack|bag|袋|バックパック/i.test(cleanText)) {
+                defaultVerb = 'a';
+                defaultSequence = letter ? ['a', letter] : ['a'];
+                defaultActionLabel = 'Look inside bag';
+                defaultActionLabelJa = '中を見る/使う (a)';
+                itemCategory = 'TOOL';
+                alternativeActions = [
+                    makeAlt('a', defaultSequence, '中を見る/使う (a)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
+            }
+            // 5. 砥石・タッチストーン (Touchstone / Whetstone)
+            else if (categoryFlags.isTouchstone || /touchstone|whetstone|タッチストーン|砥石/i.test(cleanText)) {
+                defaultVerb = 'a';
+                defaultSequence = letter ? ['a', letter] : ['a'];
+                defaultActionLabel = 'Apply touchstone';
+                defaultActionLabelJa = '使う/鑑定する (a)';
+                itemCategory = 'TOOL';
+                alternativeActions = [
+                    makeAlt('a', defaultSequence, '使う/鑑定する (a)', true),
+                    letter ? makeAlt('w', ['w', letter], '手に持つ (w)') : null,
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
+            }
+            // 6. 宝石・石・鉱石 (Gem / Rock)
+            else if ((categoryFlags.isGem || categoryFlags.isRock || /gem|ruby|diamond|emerald|sapphire|rock|flint|宝石|岩|石/i.test(cleanText)) && !categoryFlags.isAmmo && !categoryFlags.isLauncher) {
+                defaultVerb = 't';
+                defaultSequence = letter ? ['t', letter] : ['t'];
+                defaultActionLabel = 'Throw gem/rock';
+                defaultActionLabelJa = '投げる (t)';
+                itemCategory = categoryFlags.isGem ? 'GEM' : 'OTHER';
+                alternativeActions = [
+                    makeAlt('t', defaultSequence, '投げる (t)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null,
+                    letter ? makeAlt('a', ['a', letter], '使う (a)') : null
+                ].filter(Boolean);
+            }
+            // 7. 缶詰 (Tin)
+            else if (categoryFlags.isTin || /tin|tins|缶詰/i.test(cleanText)) {
+                defaultVerb = 'e';
+                defaultSequence = letter ? ['e', letter] : ['e'];
+                defaultActionLabel = 'Eat tin';
+                defaultActionLabelJa = '開けて食べる (e)';
+                itemCategory = 'FOOD';
+                alternativeActions = [
+                    makeAlt('e', defaultSequence, '開けて食べる (e)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
+            }
+            // 8. 弾薬・投擲物 (isAmmo) の優先装填 (Q) 判定
+            else if (categoryFlags.isAmmo) {
                 defaultVerb = 'Q';
                 defaultSequence = letter ? ['Q', letter] : ['Q'];
                 defaultActionLabel = 'Quiver ammo';
                 defaultActionLabelJa = '装填/矢筒 (Q)';
                 itemCategory = 'WEAPON';
+                alternativeActions = [
+                    makeAlt('Q', defaultSequence, '装填/矢筒 (Q)', true),
+                    letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             }
-            // 3. onumCategory に基づく推奨アクション判定（onum 基準で確実判定）
+            // 9. onumCategory に基づく推奨アクション判定
             else if (onumCategory === 'POTION') {
                 defaultVerb = 'q';
                 defaultSequence = letter ? ['q', letter] : ['q'];
                 defaultActionLabel = 'Quaff potion';
                 defaultActionLabelJa = '飲む (q)';
+                alternativeActions = [
+                    makeAlt('q', defaultSequence, '飲む (q)', true),
+                    letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'FOOD') {
                 defaultVerb = 'e';
                 defaultSequence = letter ? ['e', letter] : ['e'];
                 defaultActionLabel = 'Eat food';
                 defaultActionLabelJa = '食べる (e)';
+                alternativeActions = [
+                    makeAlt('e', defaultSequence, '食べる (e)', true),
+                    letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'SCROLL') {
                 defaultVerb = 'r';
                 defaultSequence = letter ? ['r', letter] : ['r'];
                 defaultActionLabel = 'Read scroll';
                 defaultActionLabelJa = '読む (r)';
+                alternativeActions = [
+                    makeAlt('r', defaultSequence, '読む (r)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'SPELLBOOK') {
                 defaultVerb = 'r';
                 defaultSequence = letter ? ['r', letter] : ['r'];
                 defaultActionLabel = 'Read spellbook';
                 defaultActionLabelJa = '勉強する (r)';
+                alternativeActions = [
+                    makeAlt('r', defaultSequence, '勉強する (r)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'WAND') {
                 defaultVerb = 'z';
                 defaultSequence = letter ? ['z', letter] : ['z'];
                 defaultActionLabel = 'Zap wand';
                 defaultActionLabelJa = '振る (z)';
+                alternativeActions = [
+                    makeAlt('z', defaultSequence, '振る (z)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'RING') {
                 defaultVerb = 'P';
-                const hasLeftRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_left');
-                const hasRightRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_right');
+                const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
+                const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
                 let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
                 defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
                 defaultActionLabel = 'Put on ring';
                 defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+                alternativeActions = [
+                    makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'AMULET') {
                 defaultVerb = 'P';
                 defaultSequence = letter ? ['P', letter] : ['P'];
                 defaultActionLabel = 'Put on amulet';
                 defaultActionLabelJa = '首にかける (P)';
+                alternativeActions = [
+                    makeAlt('P', defaultSequence, '首にかける (P)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'ARMOR') {
                 defaultVerb = 'W';
                 defaultSequence = letter ? ['W', letter] : ['W'];
                 defaultActionLabel = 'Wear armor';
                 defaultActionLabelJa = '着用する (W)';
+                alternativeActions = [
+                    makeAlt('W', defaultSequence, '着用する (W)', true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else if (onumCategory === 'TOOL') {
                 if (categoryFlags.isDigWand) {
                     defaultVerb = 'z';
                     defaultSequence = letter ? ['z', letter] : ['z'];
                     defaultActionLabel = 'Zap wand';
                     defaultActionLabelJa = '振る (z)';
+                    alternativeActions = [
+                        makeAlt('z', defaultSequence, '振る (z)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else {
                     defaultVerb = 'a';
                     defaultSequence = letter ? ['a', letter] : ['a'];
                     defaultActionLabel = 'Apply tool';
                     defaultActionLabelJa = '使う (a)';
+                    alternativeActions = [
+                        makeAlt('a', defaultSequence, '使う (a)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 }
             } else if (onumCategory === 'WEAPON') {
                 defaultVerb = 'w';
                 defaultSequence = letter ? ['w', letter] : ['w'];
                 defaultActionLabel = 'Wield weapon';
                 defaultActionLabelJa = '手に持つ (w)';
+                alternativeActions = [
+                    makeAlt('w', defaultSequence, '手に持つ (w)', true),
+                    letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
             } else {
-                // 4. テキストパターンによるフォールバック判定
+                // 10. テキストパターンによるフォールバック判定
                 if (/\b(potion|potions|milky|smoky|cloudy|bubbly|ruby|pink|clear|viscous|effervescent|murky|fizzy|golden|dark|cyan|yellow|emerald|amber|swirly)\b/i.test(cleanText) || /ポーション|薬/.test(cleanText)) {
                     defaultVerb = 'q';
                     defaultSequence = letter ? ['q', letter] : ['q'];
                     defaultActionLabel = 'Quaff potion';
                     defaultActionLabelJa = '飲む (q)';
                     itemCategory = 'POTION';
+                    alternativeActions = [
+                        makeAlt('q', defaultSequence, '飲む (q)', true),
+                        letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(ration|food|corpse|tripe|apple|carrot|tin|tins|pear|banana|orange|candy|clove|jelly|pie|pancake|cookie|leaf|garlic|mold|meat|egg|melon|spinach|kelp|lump)\b/i.test(cleanText) || /食料|死体|缶詰|りんご|にんじん|トリップ|パン|パイ|クッキー|コンブ|肉|卵/.test(cleanText)) {
                     defaultVerb = 'e';
                     defaultSequence = letter ? ['e', letter] : ['e'];
                     defaultActionLabel = 'Eat food';
                     defaultActionLabelJa = '食べる (e)';
                     itemCategory = 'FOOD';
+                    alternativeActions = [
+                        makeAlt('e', defaultSequence, '食べる (e)', true),
+                        letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(scroll|scrolls|stamped|unlabeled|labeled)\b/i.test(cleanText) || /巻物/.test(cleanText)) {
                     defaultVerb = 'r';
                     defaultSequence = letter ? ['r', letter] : ['r'];
                     defaultActionLabel = 'Read scroll';
                     defaultActionLabelJa = '読む (r)';
                     itemCategory = 'SCROLL';
+                    alternativeActions = [
+                        makeAlt('r', defaultSequence, '読む (r)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(spellbook|spellbooks|book of|paperback|leather-bound|canvas-bound|velvet-bound|parchment|papyrus)\b/i.test(cleanText) || /呪文書|魔法書/.test(cleanText)) {
                     defaultVerb = 'r';
                     defaultSequence = letter ? ['r', letter] : ['r'];
                     defaultActionLabel = 'Read spellbook';
                     defaultActionLabelJa = '勉強する (r)';
                     itemCategory = 'SPELLBOOK';
+                    alternativeActions = [
+                        makeAlt('r', defaultSequence, '勉強する (r)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(wand|wands|balsa|ebony|runed|oak|pine|maple|copper|silver|iron|brass|crystal|marble|platinum|bamboo)\b/i.test(cleanText) || /杖/.test(cleanText) || categoryFlags.isDigWand || categoryFlags.isFrostWand) {
                     defaultVerb = 'z';
                     defaultSequence = letter ? ['z', letter] : ['z'];
                     defaultActionLabel = 'Zap wand';
                     defaultActionLabelJa = '振る (z)';
                     itemCategory = 'WAND';
+                    alternativeActions = [
+                        makeAlt('z', defaultSequence, '振る (z)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(ring|rings|pearl|twisted|wire|engagement|shiny)\b/i.test(cleanText) || /指輪/.test(cleanText)) {
                     defaultVerb = 'P';
-                    const hasLeftRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_left');
-                    const hasRightRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_right');
+                    const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
+                    const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
                     let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
                     defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
                     defaultActionLabel = 'Put on ring';
                     defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
                     itemCategory = 'RING';
+                    alternativeActions = [
+                        makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(amulet|amulets|circular|spherical|oval|triangular|pyramidal|square|concave|hexagonal|octagonal)\b/i.test(cleanText) || /魔よけ|お守り/.test(cleanText)) {
                     defaultVerb = 'P';
                     defaultSequence = letter ? ['P', letter] : ['P'];
                     defaultActionLabel = 'Put on amulet';
                     defaultActionLabelJa = '首にかける (P)';
                     itemCategory = 'AMULET';
+                    alternativeActions = [
+                        makeAlt('P', defaultSequence, '首にかける (P)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(armor|mail|suit|cloak|helm|helmet|boots|shoes|gloves|gauntlets|shield|shirt|robe|hat|cap|apron|coif|bracer)\b/i.test(cleanText) || /鎧|兜|靴|手袋|盾|マント|服|帽子|ローブ/.test(cleanText)) {
                     defaultVerb = 'W';
                     defaultSequence = letter ? ['W', letter] : ['W'];
                     defaultActionLabel = 'Wear armor';
                     defaultActionLabelJa = '着用する (W)';
                     itemCategory = 'ARMOR';
+                    alternativeActions = [
+                        makeAlt('W', defaultSequence, '着用する (W)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (categoryFlags.isKey || categoryFlags.isDigTool || /\b(towel|kit|lamp|lantern|whistle|horn|harp|mirror|leash|touchstone|whetstone|box|chest|sack|bag|blindfold|flute|bell|candle)\b/i.test(cleanText) || /鍵|ピック|タオル|キット|ランプ|笛|鏡|紐|砥石|袋|箱|目隠し/.test(cleanText)) {
                     defaultVerb = 'a';
                     defaultSequence = letter ? ['a', letter] : ['a'];
                     defaultActionLabel = 'Apply tool';
                     defaultActionLabelJa = '使う (a)';
                     itemCategory = 'TOOL';
+                    alternativeActions = [
+                        makeAlt('a', defaultSequence, '使う (a)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else if (/\b(sword|saber|dagger|knife|axe|spear|bow|arrow|crossbow|bolt|sling|flint|mace|flail|hammer|lance|trident|staff|pick-axe|mattock|dart|shuriken|boomerang|whip|scythe|halberd|glaive|javelin|club|katana|wakizashi|tsurugi|blade)\b/i.test(cleanText) || /剣|刀|短剣|ダガー|斧|槍|弓|矢|ツルハシ|棍棒|ハンマー|ダーツ|手裏剣|鞭/.test(cleanText) || categoryFlags.isPickAxe || categoryFlags.isAxe) {
                     defaultVerb = 'w';
                     defaultSequence = letter ? ['w', letter] : ['w'];
                     defaultActionLabel = 'Wield weapon';
                     defaultActionLabelJa = '手に持つ (w)';
                     itemCategory = 'WEAPON';
+                    alternativeActions = [
+                        makeAlt('w', defaultSequence, '手に持つ (w)', true),
+                        letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
                 } else {
                     defaultVerb = 'i';
                     defaultSequence = letter ? ['i', letter] : ['i'];
                     defaultActionLabel = 'Inventory item';
                     defaultActionLabelJa = '一覧から選択 (i)';
                     itemCategory = 'OTHER';
+                    alternativeActions = [
+                        makeAlt('i', defaultSequence, '一覧から選択 (i)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                }
             }
         }
 
@@ -477,17 +750,8 @@ export class InventoryStateManager {
             defaultSequence,
             defaultActionLabel,
             defaultActionLabelJa,
-            itemCategory
-        };
-    }
-
-
-        return {
-            defaultVerb,
-            defaultSequence,
-            defaultActionLabel,
-            defaultActionLabelJa,
-            itemCategory
+            itemCategory,
+            alternativeActions
         };
     }
 
@@ -586,7 +850,8 @@ export class InventoryStateManager {
             defaultSequence: item.defaultSequence,
             defaultActionLabel: item.defaultActionLabel,
             defaultActionLabelJa: item.defaultActionLabelJa,
-            itemCategory: item.itemCategory
+            itemCategory: item.itemCategory,
+            alternativeActions: item.alternativeActions || []
         };
     }
 

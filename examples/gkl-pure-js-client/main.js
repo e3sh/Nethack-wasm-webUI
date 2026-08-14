@@ -568,7 +568,7 @@ class GklPureJSClient {
           else if (item.isWorn) badgeHtml = '<span class="gkl-slot-equip-badge badge-worn" title="着用中 (worn)">着</span>';
 
           return `
-            <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}">
+            <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
               <span class="gkl-slot-letter">${item.letter}</span>
               <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
               ${badgeHtml}
@@ -638,12 +638,6 @@ class GklPureJSClient {
               seq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
             }
 
-            // ワンタッチ操作完了後、少し遅延させて最新の所持品・装備状態をサイレント同期！
-            setTimeout(async () => {
-              if (this.core && typeof this.core.syncInventorySilent === 'function') {
-                await this.core.syncInventorySilent();
-              }
-            }, 300);
           };
         }
 

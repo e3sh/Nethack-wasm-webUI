@@ -389,12 +389,26 @@ export class WebUICore {
     }
 
     /**
-     * サイレント・インベントリ同期 (Silent Inventory Sync)
-     * querySequenceSilent(['i', ' ']) を実行し、結果を InventoryStateManager へ反映します。
-     * @param {Object} [options={}]
+     * 所持品一覧 (inventory) をバックグラウンドでサイレント取得・同期
+     * @param {Object} [options={}] - オプション ({ force: false })
      * @returns {Promise<boolean>}
      */
     async syncInventorySilent(options = {}) {
+        const { force = false } = options;
+
+        // 手動同期(force: true)でない場合、メニュー表示中(MENU)や方向指定(DIRECTION)、会話応答(YN, TEXT等)の最中は 'i' クエリ差し込みをガード
+        if (!force && this.currentPromptCategory) {
+            const cat = this.currentPromptCategory;
+            if (cat === PROMPT_CATEGORY.MENU ||
+                cat === PROMPT_CATEGORY.DIRECTION || 
+                cat === PROMPT_CATEGORY.YN || 
+                cat === PROMPT_CATEGORY.TEXT || 
+                cat === PROMPT_CATEGORY.ASKNAME || 
+                cat === PROMPT_CATEGORY.FILE || 
+                cat === PROMPT_CATEGORY.EXTCMD) {
+                return false;
+            }
+        }
         const buffer = await this.querySequenceSilent(['i', ' '], options);
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             this.inventoryStateManager.updateFromSequenceBuffer(buffer);
@@ -566,12 +580,22 @@ export class WebUICore {
             }
         }
 
+        // キャンセル操作 (ESC / 0 / null / undefined) かを判定
+        const isCancel = (inputVal === 0 || inputVal === null || inputVal === undefined || inputVal === 27 || inputVal === '\x1b' || inputVal === 'ESC');
+
         try {
+            // キャンセル以外の有効な応答・選択時のみインベントリを dirty 化 (isSynced = false)
+            if (!isCancel && this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+                this.inventoryStateManager.invalidate();
+            }
+
             if (typeof resolver.respond === 'function') {
                 resolver.respond(finalResponse);
+            } else if (typeof resolver === 'function') {
+                resolver(finalResponse);
             }
         } catch (e) {
-            console.warn("WebUICore.respond error:", e);
+            console.error('[WebUICore] Error resolving prompt:', e);
         }
     }
 
@@ -781,9 +805,15 @@ export class WebUICore {
             success = true;
         }
 
-        // シーケンス実行完了後、所持品状態が未同期 (isSynced === false) の場合はサイレントインベントリ同期を起動
-        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
-            await this.syncInventorySilent();
+        // シーケンス実行完了後、所持品状態を dirty 化 (isSynced = false) する。
+        // ※ 即時 syncInventorySilent() を呼ぶと Wasmのプロンプト(DIRECTION等)との競合で 'i' が方向キーに誤認識されるため、
+        //    invalidate() に留め、Wasm応答確定後の _handlePromptPayload フックで安全に自動同期させる。
+        if (this.inventoryStateManager) {
+            if (typeof this.inventoryStateManager.invalidate === 'function') {
+                this.inventoryStateManager.invalidate();
+            } else {
+                this.inventoryStateManager.isSynced = false;
+            }
         }
 
         return success;
@@ -799,17 +829,14 @@ export class WebUICore {
 
         // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
         if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
-            const seq = [...action.keySequence];
-            if (this.requestController) {
-                return this.requestController.executeSequence(seq, options);
-            } else if (this.driver && typeof this.driver.queueSequence === 'function') {
-                this.driver.queueSequence(seq, options);
-                return true;
-            }
+            return this.executeSequence([...action.keySequence], options);
         }
 
         // 【2】拡張コマンド (#chat, #loot, #untrap 等)
         if (action.extCmd) {
+            if (this.inventoryStateManager) {
+                this.inventoryStateManager.invalidate();
+            }
             this.sendExtCommand(action.extCmd, action.directionKey, options);
             return true;
         }
@@ -821,15 +848,13 @@ export class WebUICore {
         const seq = (hasDirection && action.directionKey !== mainKey) ? [mainKey, action.directionKey] : null;
 
         if (seq && seq.length > 0) {
-            if (this.requestController) {
-                return this.requestController.executeSequence(seq, options);
-            } else if (this.driver && typeof this.driver.queueSequence === 'function') {
-                this.driver.queueSequence(seq, options);
-                return true;
-            }
+            return this.executeSequence(seq, options);
         }
 
-        // 【4】単一コマンド
+        // 【4】単一コマンド (拾う ',', 'g' 等を含む)
+        if (this.inventoryStateManager) {
+            this.inventoryStateManager.invalidate();
+        }
         this.sendActionKey(mainKey);
         return true;
     }
@@ -1211,10 +1236,19 @@ export class WebUICore {
             const resolver = payload.safeResolver || payload.resolver;
             this.activeResolver = resolver;
 
-            // メインゲーム入力待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
+            const category = payload.promptCategory || this.driver.getPromptCategory(payload.context || payload.type) || PROMPT_CATEGORY.OTHER;
+            this.currentPromptCategory = category;
+            this.currentPromptChoices = payload.choices || '';
+
+            // メインゲーム行動待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
             if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
-                const ctx = payload.context || payload.type;
-                if (ctx === 'poskey' || ctx === 'getch' || ctx === 'yn' || !ctx) {
+                if (category !== PROMPT_CATEGORY.MENU && 
+                    category !== PROMPT_CATEGORY.DIRECTION && 
+                    category !== PROMPT_CATEGORY.YN && 
+                    category !== PROMPT_CATEGORY.TEXT && 
+                    category !== PROMPT_CATEGORY.ASKNAME && 
+                    category !== PROMPT_CATEGORY.FILE && 
+                    category !== PROMPT_CATEGORY.EXTCMD) {
                     setTimeout(() => {
                         if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
                             this.syncInventorySilent();
@@ -1224,10 +1258,6 @@ export class WebUICore {
             }
 
             this.lastInputTime = Date.now();
-
-            const category = payload.promptCategory || this.driver.getPromptCategory(payload.context || payload.type) || PROMPT_CATEGORY.OTHER;
-            this.currentPromptCategory = category;
-            this.currentPromptChoices = payload.choices || '';
 
             let rawPrompt = payload.prompt || payload.question || payload.message || '';
             if ((!rawPrompt || rawPrompt === 'Press Space or Enter to continue...') && (category === PROMPT_CATEGORY.EXTCMD || payload.context === 'extcmd')) {
