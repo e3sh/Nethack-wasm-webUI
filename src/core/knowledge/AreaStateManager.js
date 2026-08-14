@@ -179,6 +179,10 @@ export class AreaStateManager {
             center: { x: cx, y: cy },
             radius,
             playerLocation: { x: this.playerX, y: this.playerY },
+            keyMode: this.keyMode,
+            width: this.width,
+            height: this.height,
+            grid: this.grid,
             feet: feetState,
             cells,
             adjacentMonsters,
@@ -186,3 +190,4 @@ export class AreaStateManager {
         };
     }
 }
+

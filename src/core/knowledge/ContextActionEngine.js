@@ -28,8 +28,45 @@ export class ContextActionEngine {
         // 3. 隣接設置物・地形 (Adjacent Entities / Terrain) のアクション判定
         this.buildAdjacentEntityActions(areaState.adjacentEntities, tools, actions);
 
+        // 4. 8方向レイキャストによる遠隔攻撃 (Ranged Combat: f / t) のアクション判定
+        this.buildRangedActions(areaState, inventoryState, tools, actions);
+
         // 優先度 (priority) 降順でソート
         return actions.sort((a, b) => b.priority - a.priority);
+    }
+
+    /**
+     * 方向オブジェクト (dir) から抽象方向トークン ('DIR_N', 'DIR_NE' 等) を取得
+     * @param {Object|string} dir 
+     * @returns {string} 抽象方向トークン
+     */
+    static getAbstractDirKey(dir) {
+        if (!dir) return 'DIR_SELF';
+        if (typeof dir === 'string') {
+            if (dir.startsWith('DIR_')) return dir;
+            const codeMap = {
+                'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
+                'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
+                'SELF': 'DIR_SELF',
+                '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
+                '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW', '5': 'DIR_SELF',
+                'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
+                'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW', '.': 'DIR_SELF'
+            };
+            return codeMap[dir] || `DIR_${dir}`;
+        }
+        const code = dir.code || '';
+        const key = dir.key || '';
+        const codeMap = {
+            'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
+            'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
+            'SELF': 'DIR_SELF',
+            '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
+            '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW', '5': 'DIR_SELF',
+            'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
+            'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW', '.': 'DIR_SELF'
+        };
+        return codeMap[code] || codeMap[key] || (code ? `DIR_${code}` : 'DIR_SELF');
     }
 
     /**
@@ -453,6 +490,7 @@ export class ContextActionEngine {
 
         adjacentMonsters.forEach(m => {
             const isPet = (m.entity && m.entity.type === 'PET');
+            const dirKey = this.getAbstractDirKey(m.dir);
 
             if (isPet) {
                 // ペット誤爆防止 (攻撃は絶対に生成しない)
@@ -462,10 +500,11 @@ export class ContextActionEngine {
                         category: 'INTERACT',
                         label: `Chat with pet`,
                         labelJa: `ペットに話しかける (#chat)`,
-                        key: `#chat${m.dir.key}`,
+                        key: `#chat${dirKey}`,
+                        keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
                         extCmd: 'chat',
-                        directionKey: m.dir.key,
+                        directionKey: dirKey,
                         direction: m.dir,
                         entity: m.entity,
                         target: 'adjacent',
@@ -484,10 +523,10 @@ export class ContextActionEngine {
                         category: 'COMBAT',
                         label: `Attack target`,
                         labelJa: `対象に近接攻撃`,
-                        key: m.dir.key,
-                        keySequence: [m.dir.key],
-                        charStr: m.dir.key,
-                        directionKey: null,
+                        key: dirKey,
+                        keySequence: [dirKey],
+                        charStr: dirKey,
+                        directionKey: dirKey,
                         direction: m.dir,
                         entity: m.entity,
                         target: 'adjacent',
@@ -504,10 +543,11 @@ export class ContextActionEngine {
                         category: 'INTERACT',
                         label: `Talk / Chat`,
                         labelJa: `対象に話しかける (#chat)`,
-                        key: `#chat${m.dir.key}`,
+                        key: `#chat${dirKey}`,
+                        keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
                         extCmd: 'chat',
-                        directionKey: m.dir.key,
+                        directionKey: dirKey,
                         direction: m.dir,
                         entity: m.entity,
                         target: 'adjacent',
@@ -524,10 +564,11 @@ export class ContextActionEngine {
                         category: 'INTERACT',
                         label: `Pay shopkeeper`,
                         labelJa: `店主に代金を支払う (#pay)`,
-                        key: `#pay${m.dir.key}`,
+                        key: `#pay${dirKey}`,
+                        keySequence: ['#', 'pay', dirKey],
                         charStr: '#pay',
                         extCmd: 'pay',
-                        directionKey: m.dir.key,
+                        directionKey: dirKey,
                         direction: m.dir,
                         entity: m.entity,
                         target: 'adjacent',
@@ -540,6 +581,7 @@ export class ContextActionEngine {
             }
         });
     }
+
 
     /**
      * 3. 隣接設置物・地形 (Terrain / Doors / Walls / Trees) のアクション判定・ビルド
@@ -562,8 +604,9 @@ export class ContextActionEngine {
             if (!b || !b.cmapFlags) return;
             const flags = b.cmapFlags;
             const dirCode = item.dir.code;
-            const dirKey = dirToAbstractMap[item.dir.code] || dirToAbstractMap[item.dir.key] || item.dir.key;
+            const dirKey = this.getAbstractDirKey(item.dir);
             const dirName = item.dir.name || dirCode;
+
 
             // 閉じた扉 (Closed Door)
             if (flags.isClosedDoor) {
@@ -832,6 +875,146 @@ export class ContextActionEngine {
             }
         });
     }
+
+    /**
+     * 4. 8方向レイキャストによる遠隔攻撃 (Ranged Combat: f / t) のアクション判定
+     */
+    static buildRangedActions(areaState, inventoryState, tools, actions) {
+        if (!areaState) return;
+
+        const rangedTargets = this.raycastEightDirections(areaState);
+        if (rangedTargets.length === 0) return;
+
+        // インベントリから弾薬・装備状況の確認
+        const items = (inventoryState && Array.isArray(inventoryState.items)) ? inventoryState.items : [];
+        const quiveredItem = items.find(i => i.isQuivered);
+        const ammoItems = items.filter(i => i.isAmmo && !i.isQuivered);
+
+        rangedTargets.forEach(target => {
+            const { dir, targetKey, entity } = target;
+            const dirCode = dir.code;
+            const dirName = dir.name;
+            const dirToken = `DIR_${dirCode}`;
+
+            // (A) 矢筒にセットされている弾薬がある場合 -> 射撃 (f)
+            if (quiveredItem) {
+                actions.push({
+                    id: `ACTION_FIRE_${dirCode}`,
+                    category: 'COMBAT',
+                    label: `Fire at target (${dirCode})`,
+                    labelJa: `標的に射撃 (f:${dirName})`,
+                    key: `f${targetKey}`,
+                    keySequence: ['f', dirToken],
+                    charStr: 'f',
+                    directionKey: dirToken,
+                    direction: dir,
+                    entity: entity,
+                    target: 'ranged',
+                    risk: 'warning',
+                    priority: 85,
+                    description: `Fire quivered ${quiveredItem.rawText || 'ammunition'} at creature in direction ${dirName}`,
+                    descriptionJa: `矢筒の ${quiveredItem.rawText || '弾薬'} を${dirName}の標的に向けて射撃します`
+                });
+            }
+            // (B) 矢筒未装填だが手元に投擲可能アイテムがある場合 -> 投擲 (t)
+            else if (ammoItems.length > 0) {
+                const ammo = ammoItems[0];
+                actions.push({
+                    id: `ACTION_THROW_${dirCode}`,
+                    category: 'COMBAT',
+                    label: `Throw ${ammo.rawText || 'item'} at target (${dirCode})`,
+                    labelJa: `標的に投擲 (t:${dirName})`,
+                    key: `t${ammo.letter}${targetKey}`,
+                    keySequence: ['t', ammo.letter, dirToken],
+                    charStr: 't',
+                    directionKey: dirToken,
+                    direction: dir,
+                    entity: entity,
+                    target: 'ranged',
+                    risk: 'warning',
+                    priority: 78,
+                    description: `Throw ${ammo.rawText || 'item'} at creature in direction ${dirName}`,
+                    descriptionJa: `手持ちの ${ammo.rawText || 'アイテム'} を${dirName}の標的に投擲します`
+                });
+            }
+        });
+    }
+
+
+    /**
+     * 8方向のレイキャスト走査ルーチン
+     * @param {Object} areaState 
+     * @returns {Array<Object>} 視線が通過し敵が確認された8方向ターゲット情報
+     */
+    static raycastEightDirections(areaState) {
+        const grid = areaState.grid;
+        if (!grid || !Array.isArray(grid)) return [];
+
+        const isNumpad = (areaState.keyMode === 'numpad');
+        const playerX = areaState.playerLocation ? areaState.playerLocation.x : (areaState.center ? areaState.center.x : 0);
+        const playerY = areaState.playerLocation ? areaState.playerLocation.y : (areaState.center ? areaState.center.y : 0);
+
+        const directions = [
+            { code: 'N', name: '北', dx: 0, dy: -1, viKey: 'k', numpadKey: '8' },
+            { code: 'NE', name: '北東', dx: 1, dy: -1, viKey: 'u', numpadKey: '9' },
+            { code: 'E', name: '東', dx: 1, dy: 0, viKey: 'l', numpadKey: '6' },
+            { code: 'SE', name: '南東', dx: 1, dy: 1, viKey: 'n', numpadKey: '3' },
+            { code: 'S', name: '南', dx: 0, dy: 1, viKey: 'j', numpadKey: '2' },
+            { code: 'SW', name: '南西', dx: -1, dy: 1, viKey: 'b', numpadKey: '1' },
+            { code: 'W', name: '西', dx: -1, dy: 0, viKey: 'h', numpadKey: '4' },
+            { code: 'NW', name: '北西', dx: -1, dy: -1, viKey: 'y', numpadKey: '7' }
+        ];
+
+        const targets = [];
+        const width = areaState.width || 80;
+        const height = areaState.height || 21;
+        const maxDist = 15;
+
+        for (const dir of directions) {
+            const targetKey = isNumpad ? dir.numpadKey : dir.viKey;
+
+            for (let dist = 1; dist <= maxDist; dist++) {
+                const tx = playerX + dir.dx * dist;
+                const ty = playerY + dir.dy * dist;
+
+                if (tx < 0 || tx >= width || ty < 0 || ty >= height) break;
+
+                const cell = grid[ty] ? grid[ty][tx] : null;
+                if (!cell) break;
+
+                // 地形による遮断判定 (壁、閉じた扉、鉄格子)
+                if (cell.bottom && cell.bottom.cmapFlags) {
+                    const flags = cell.bottom.cmapFlags;
+                    if (flags.isWall || flags.isClosedDoor || flags.isIronBars) {
+                        break; // 視線遮断
+                    }
+                }
+
+                // モンスター/ペット判定
+                if (cell.top) {
+                    const topType = cell.top.type;
+                    if (topType === 'PET') {
+                        break; // ペット誤爆防止のためレイ停止
+                    } else if (topType === 'MONSTER') {
+                        if (dist >= 2) {
+                            // dist >= 2 の遠隔敵ターゲットを発見！
+                            targets.push({
+                                dir,
+                                dist,
+                                cell,
+                                entity: cell.top,
+                                targetKey
+                            });
+                        }
+                        break; // 最前の敵に当たったらレイ停止
+                    }
+                }
+            }
+        }
+
+        return targets;
+    }
 }
+
 
 

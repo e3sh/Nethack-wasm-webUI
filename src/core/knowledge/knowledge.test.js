@@ -405,8 +405,9 @@ test('ContextActionEngine & WebUICore - 精査修正後の全アクション仕�
 
     const attackAction = actions.find(a => a.id.startsWith('ACTION_ATTACK'));
     assert.ok(attackAction, '近接攻撃アクションが生成されること');
-    assert.deepStrictEqual(attackAction.keySequence, ['k'], '近接攻撃の keySequence は単一方向キーのみであること');
-    assert.strictEqual(attackAction.directionKey, null, 'directionKey は null であり 2重配列化されないこと');
+    assert.deepStrictEqual(attackAction.keySequence, ['DIR_N'], '近接攻撃の keySequence が DIR_N であること');
+    assert.strictEqual(attackAction.directionKey, 'DIR_N', 'directionKey が DIR_N であること');
+
 
     // 3. 足元の Kick/Loot/Untrap の検証
     const chestGlyph = 3663;
@@ -442,7 +443,8 @@ test('ContextActionEngine & WebUICore - 精査修正後の全アクション仕�
     assert.deepStrictEqual(executedTokens, ['#', 'kick', 'DIR_SELF'], 'executeAction で keySequence が最優先実行されること');
 
     core.executeAction(attackAction);
-    assert.deepStrictEqual(executedTokens, ['k'], '近接攻撃が 1キーのみ実行されること');
+    assert.deepStrictEqual(executedTokens, ['DIR_N'], '近接攻撃の keySequence が DIR_N で実行されること');
+
 
     core.destroy();
 });
@@ -467,6 +469,29 @@ test('SituationCache & InventoryStateManager - 二刀流・副武器・装備状
     assert.strictEqual(situation.equipment.quiver.letter, 'c', '矢筒アイテムが letter: c であること');
     assert.strictEqual(situation.equipment.wornList.length, 1, '着用中アイテムが 1 つであること');
 });
+
+test('ContextActionEngine - 8方向レイキャストによる遠隔射撃 (f) / 投擲 (t) 推奨アクションテスト', () => {
+    const area = new AreaStateManager();
+    area.updatePlayerPosition(10, 10);
+    // (10, 7) [3マス北] にモンスター配置 (glyph 1)
+    area.updateGlyph(10, 7, 1);
+
+    const inv = new InventoryStateManager();
+    inv.updateFromMenuItems([
+        { letter: 'a', text: '15 arrows (in quiver)', glyph: 3466, onum: 18 }
+    ]);
+
+    const state = area.getAreaState();
+    const actions = ContextActionEngine.generateActions(state, inv);
+
+    const fireAction = actions.find(a => a.id === 'ACTION_FIRE_N');
+    assert.ok(fireAction, '3マス北のモンスターに対して ACTION_FIRE_N が生成されること');
+    assert.strictEqual(fireAction.directionKey, 'DIR_N', '抽象方向トークンが DIR_N であること');
+    assert.deepStrictEqual(fireAction.keySequence, ['f', 'DIR_N']);
+    assert.strictEqual(fireAction.priority, 85);
+});
+
+
 
 
 
