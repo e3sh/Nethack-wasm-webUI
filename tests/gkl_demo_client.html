@@ -911,7 +911,7 @@
         function startRenderLoop() {
             function render() {
                 if (core) {
-                    const situation = core.getSituation();
+                    const situation = (core && core.gkl) ? core.gkl.getSituation() : {};
 
                     // 1. ステータスゲージ更新
                     updateStatusGauges(situation.status);
@@ -1069,13 +1069,13 @@
         // 4. マップレンダリング (メインズームマップ 3層透過+アニメ & レーダーミニマップ)
         // =========================================================================
         function renderMaps(areaState) {
-            if (!core || !core.areaStateManager) return;
+            if (!core || !core.gkl || !core.gkl.areaStateManager) return;
 
-            const grid = core.areaStateManager.grid;
-            const width = core.areaStateManager.width || 80;
-            const height = core.areaStateManager.height || 21;
-            const px = core.areaStateManager.playerX || 0;
-            const py = core.areaStateManager.playerY || 0;
+            const grid = core.gkl.areaStateManager.grid;
+            const width = core.gkl.areaStateManager.width || 80;
+            const height = core.gkl.areaStateManager.height || 21;
+            const px = core.gkl.areaStateManager.playerX || 0;
+            const py = core.gkl.areaStateManager.playerY || 0;
 
             // --- A. レーダー風ミニマップ (160x42 80x21 全体表示) ---
             miniCtx.fillStyle = '#000000';

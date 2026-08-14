@@ -14,17 +14,17 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
     it('isNonItemSequence: 移動キー・カウントキー・抽象方向キーを正しい非アイテム操作と判定すること', () => {
         const core = new WebUICore({ driver: createMockDriver() });
 
-        expect(core.isNonItemSequence(['k'])).toBe(true);
-        expect(core.isNonItemSequence(['j'])).toBe(true);
-        expect(core.isNonItemSequence(['5'])).toBe(true);
-        expect(core.isNonItemSequence(['DIR_N'])).toBe(true);
-        expect(core.isNonItemSequence(['_'])).toBe(true);
-        expect(core.isNonItemSequence(['5', 'k'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['k'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['j'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['5'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['DIR_N'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['_'])).toBe(true);
+        expect(core.gkl.isNonItemSequence(['5', 'k'])).toBe(true);
 
         // アイテム操作を含むシーケンスは false
-        expect(core.isNonItemSequence(['d', 'a'])).toBe(false);
-        expect(core.isNonItemSequence(['a', 'f'])).toBe(false);
-        expect(core.isNonItemSequence(['w', 'b'])).toBe(false);
+        expect(core.gkl.isNonItemSequence(['d', 'a'])).toBe(false);
+        expect(core.gkl.isNonItemSequence(['a', 'f'])).toBe(false);
+        expect(core.gkl.isNonItemSequence(['w', 'b'])).toBe(false);
     });
 
     it('executeSequence: 移動キーやカウントキー実行時に invalidate() を呼ばないこと', async () => {
@@ -35,7 +35,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             invalidate: vi.fn()
         };
 
-        core.inventoryStateManager = mockInventoryStateManager;
+        core.gkl.inventoryStateManager = mockInventoryStateManager;
 
         // 1. 移動キー 'k' 実行
         await core.executeSequence(['k']);
@@ -60,7 +60,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             invalidate: vi.fn()
         };
 
-        core.inventoryStateManager = mockInventoryStateManager;
+        core.gkl.inventoryStateManager = mockInventoryStateManager;
         const mockResolver = { respond: vi.fn() };
 
         // 'k' 応答
@@ -76,18 +76,18 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         const mockDriver = createMockDriver();
         const core = new WebUICore({ driver: mockDriver });
         core.querySequenceSilent = vi.fn().mockResolvedValue([]);
-        core.inventoryStateManager = { items: [], updateFromSequenceBuffer: vi.fn() };
+        core.gkl.inventoryStateManager = { items: [], updateFromSequenceBuffer: vi.fn() };
 
         // 通常状態: syncInventorySilent はクエリを発行する
         core.lastPutstrText = "You move forward.";
-        await core.syncInventorySilent();
+        await core.gkl.syncInventorySilent();
         expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' '], {});
 
         core.querySequenceSilent.mockClear();
 
         // カウントプレフィックス待機中メッセージ検出時: ガードが働き false を返し querySequenceSilent は呼ばれない
         core.lastPutstrText = "「5」プレフィックスの後には移動コマンドを続けてください。";
-        const result = await core.syncInventorySilent();
+        const result = await core.gkl.syncInventorySilent();
         expect(result).toBe(false);
         expect(core.querySequenceSilent).not.toHaveBeenCalled();
     });
@@ -102,7 +102,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         });
 
         const core = new WebUICore({ driver: mockDriver });
-        core.inventoryStateManager = {
+        core.gkl.inventoryStateManager = {
             items: [],
             isSynced: true,
             updateFromMessage: vi.fn().mockReturnValue(false) // 変更なし
@@ -117,7 +117,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             putstrHandler({ windowId: 1, text: "You see here a gold piece." });
         }
 
-        expect(core.inventoryStateManager.updateFromMessage).toHaveBeenCalledWith("You see here a gold piece.");
+        expect(core.gkl.inventoryStateManager.updateFromMessage).toHaveBeenCalledWith("You see here a gold piece.");
         expect(emitted).toBe(false); // 無用な emit は行われないこと！
     });
 });

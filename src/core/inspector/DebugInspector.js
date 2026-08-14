@@ -87,9 +87,11 @@ export class DebugInspector {
      * GKL 内部構造を含む現在の全体状態のスナップショット送信
      */
     broadcastState() {
-        const situation = (this.core.situationCache && typeof this.core.situationCache.getSituation === 'function')
-            ? this.core.situationCache.getSituation()
-            : null;
+        const situation = (this.core.gkl && typeof this.core.gkl.getSituation === 'function')
+            ? this.core.gkl.getSituation()
+            : (this.core.situationCache && typeof this.core.situationCache.getSituation === 'function'
+                ? this.core.situationCache.getSituation()
+                : null);
 
         let contextActions = [];
         if (situation) {
@@ -110,16 +112,22 @@ export class DebugInspector {
         }
 
         const inventoryItems = (situation && situation.inventory)
-            ? situation.inventory
-            : ((this.core.inventoryStateManager && Array.isArray(this.core.inventoryStateManager.items)) ? this.core.inventoryStateManager.items : []);
+            ? (Array.isArray(situation.inventory) ? situation.inventory : (situation.inventory.items || []))
+            : ((this.core.gkl && this.core.gkl.inventoryStateManager && Array.isArray(this.core.gkl.inventoryStateManager.items))
+                ? this.core.gkl.inventoryStateManager.items
+                : ((this.core.inventoryStateManager && Array.isArray(this.core.inventoryStateManager.items)) ? this.core.inventoryStateManager.items : []));
 
         const statusData = (situation && situation.status)
             ? situation.status
-            : (typeof this.core.getStatus === 'function' ? this.core.getStatus() : {});
+            : (typeof this.core.getStatus === 'function'
+                ? this.core.getStatus()
+                : (this.core.gkl && typeof this.core.gkl.getStatus === 'function' ? this.core.gkl.getStatus() : {}));
 
         const areaData = (situation && situation.area)
             ? situation.area
-            : (typeof this.core.getAreaState === 'function' ? this.core.getAreaState() : null);
+            : (this.core.gkl && this.core.gkl.areaStateManager
+                ? this.core.gkl.areaStateManager.getAreaState()
+                : (typeof this.core.getAreaState === 'function' ? this.core.getAreaState() : null));
 
         const stateSnapshot = {
             state: this.core.state,
@@ -204,7 +212,7 @@ export class DebugInspector {
 
         this.core.on('inventoryStateUpdated', () => {
             this.broadcastLog('EVENT:inventoryStateUpdated', {
-                itemCount: this.core.inventoryStateManager ? this.core.inventoryStateManager.items.length : 0
+                itemCount: (this.core.gkl && this.core.gkl.inventoryStateManager) ? this.core.gkl.inventoryStateManager.items.length : 0
             });
             this.broadcastState();
         });

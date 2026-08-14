@@ -338,8 +338,8 @@ test('WebUICore - 起動オプション (number_pad / numpad) からの keyMode 
     const dummyDriver = { on: () => {}, off: () => {} };
     const core = new WebUICore({ driver: dummyDriver, numpad: true });
     
-    core.areaStateManager.updatePlayerPosition(5, 5);
-    const state = core.areaStateManager.getAreaState();
+    core.gkl.areaStateManager.updatePlayerPosition(5, 5);
+    const state = core.gkl.areaStateManager.getAreaState();
     const northCell = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
     assert.strictEqual(northCell.dir.key, '8', 'core の numpad: true オプションにより自動的に北のキーが 8 となること');
 });

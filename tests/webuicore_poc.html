@@ -764,7 +764,7 @@
         // Driver & Core Instantiation (localStorage 設定を自動同期)
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
-        inventoryState = core.getInventoryState();
+        inventoryState = core.gkl ? core.gkl.getInventoryStateManager() : null;
         window.inventoryState = inventoryState;
 
         // GKL がインベントリ知識を全自動更新した際、即座にUIランプ・ステータス表示を再描画
@@ -907,7 +907,7 @@
             clearAllModals();
             gameoverModal.style.display = 'flex';
             
-            const currentStatus = core.getStatus();
+            const currentStatus = core ? core.getStatus() : {};
             let result = (data && data.gameOverResult) ? data.gameOverResult : currentGameOverResult;
             if (!result || !result.reason) {
                 result = await core.resolveGameOver();
@@ -1132,7 +1132,7 @@
 
         function updateKnowledgeUI() {
             renderInventoryStatus();
-            const areaState = core.getAreaState(1);
+            const areaState = (core.gkl && core.gkl.areaStateManager) ? core.gkl.areaStateManager.getAreaState(undefined, undefined, 1) : null;
             if (!areaState) return;
 
             if (knPosInfo) {
@@ -1228,7 +1228,7 @@
             // 5. 推奨可能アクションの描画 (足元 vs 隣接 の視覚的分離)
             const toolbarContainer = document.getElementById('toolbar-actions-container');
             const actionCountBadge = document.getElementById('action-count-badge');
-            const actions = core.getRecommendedActions();
+            const actions = core.gkl ? core.gkl.getRecommendedActions() : [];
 
             if (actionCountBadge) {
                 actionCountBadge.textContent = `${actions ? actions.length : 0} actions`;

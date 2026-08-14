@@ -195,8 +195,8 @@ class GklPureJSClient {
       if (this.targetCursorX >= 0 && this.targetCursorY >= 0) {
         this.redrawSingleCell(this.targetCursorX, this.targetCursorY);
         // プレイヤーの現在位置を AreaStateManager に同期
-        if (this.core && this.core.areaStateManager) {
-          this.core.areaStateManager.updatePlayerPosition(x, y);
+        if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
+          this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
         }
       }
     });
@@ -215,8 +215,8 @@ class GklPureJSClient {
       }
 
       // GKL の 3階層 AreaStateManager にグリフを即座に同期
-      if (this.core && this.core.areaStateManager && gId >= 0) {
-        this.core.areaStateManager.updateGlyph(x, y, gId, glyphInfo);
+      if (this.core && this.core.gkl && this.core.gkl.areaStateManager && gId >= 0) {
+        this.core.gkl.areaStateManager.updateGlyph(x, y, gId, glyphInfo);
       }
     });
 
@@ -389,7 +389,7 @@ class GklPureJSClient {
   startGklRenderLoop() {
     const loop = () => {
       if (this.core) {
-        const situation = this.core.getSituation();
+        const situation = (this.core && this.core.gkl) ? this.core.gkl.getSituation() : {};
 
         // 1. GKL 推奨アクションパネル
         this.renderGklActions(situation.actions || []);
@@ -409,13 +409,14 @@ class GklPureJSClient {
 
   // 🎯 自キャラ周辺 拡大ズームカメラ描画 (7x7 マス, 32px タイル)
   renderZoomCanvas(areaState) {
-    if (!this.zoomCtx || !this.core || !this.core.areaStateManager) return;
+    const areaMgr = (this.core && this.core.gkl) ? this.core.gkl.areaStateManager : null;
+    if (!this.zoomCtx || !areaMgr) return;
 
-    const grid = this.core.areaStateManager.grid;
-    const px = this.core.areaStateManager.playerX || 0;
-    const py = this.core.areaStateManager.playerY || 0;
-    const width = this.core.areaStateManager.width || 80;
-    const height = this.core.areaStateManager.height || 21;
+    const grid = areaMgr.grid;
+    const px = areaMgr.playerX || 0;
+    const py = areaMgr.playerY || 0;
+    const width = areaMgr.width || 80;
+    const height = areaMgr.height || 21;
 
     if (this.zoomPosBadge) {
       this.zoomPosBadge.textContent = `@ (${px},${py})`;
@@ -693,7 +694,7 @@ class GklPureJSClient {
     const bounceY = Math.round(Math.sin(Date.now() / 180) * 2);
 
     // GKL AreaStateManager の 3層グリッドがある場合は重ね描き
-    const areaGrid = (this.core && this.core.areaStateManager) ? this.core.areaStateManager.grid : null;
+    const areaGrid = (this.core && this.core.gkl && this.core.gkl.areaStateManager) ? this.core.gkl.areaStateManager.grid : null;
 
     for (let y = 0; y < 24; y++) {
       for (let x = 0; x < 80; x++) {
@@ -779,8 +780,8 @@ class GklPureJSClient {
         this.glyphGridBuffer[y][x] = null;
       }
     }
-    if (this.core && this.core.areaStateManager) {
-      this.core.areaStateManager.resetGrid();
+    if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
+      this.core.gkl.areaStateManager.resetGrid();
     }
     if (this.isGraphicCanvasMode) {
       this.ctx.fillStyle = '#000000';

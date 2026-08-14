@@ -509,7 +509,7 @@
 
         const bridge = new NetHackWasmWorkerBridge();
         const core = new WebUICore({ driver: bridge });
-        const inventoryState = core.getInventoryState();
+        const inventoryState = core.gkl ? core.gkl.getInventoryStateManager() : null;
         window.core = core;
         window.inventoryState = inventoryState;
 
@@ -1017,7 +1017,7 @@
 
         // D-Pad ボタンのビジュアル（色・アイコン）動的ハイライト更新
         function updateDPadVisuals() {
-            const areaState = core.getAreaState ? core.getAreaState() : null;
+            const areaState = (core.gkl && core.gkl.areaStateManager) ? core.gkl.areaStateManager.getAreaState() : null;
             if (!areaState) return;
 
             const dpadBtns = document.querySelectorAll('.dpad-btn[data-dir]');
@@ -1142,8 +1142,8 @@
         let currentPrimaryAction = null;
 
         function updateControlDeck() {
-            const areaState = core.getAreaState ? core.getAreaState() : null;
-            const actions = areaState ? ContextActionEngine.generateActions(areaState, inventoryState) : (core.getRecommendedActions ? core.getRecommendedActions() : []);
+            const areaState = (core.gkl && core.gkl.areaStateManager) ? core.gkl.areaStateManager.getAreaState() : null;
+            const actions = core.gkl ? core.gkl.getRecommendedActions() : [];
             subActionsList.innerHTML = '';
 
             // インベントリ同期インジケーター更新

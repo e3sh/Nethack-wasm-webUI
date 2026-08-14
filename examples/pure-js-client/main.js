@@ -592,7 +592,7 @@ class PureJSClient {
     this.clearAllModals();
     this.elGameOverModal.classList.remove('hidden');
 
-    const currentStatus = this.core.getStatus();
+    const currentStatus = this.core ? this.core.getStatus() : {};
     let result = (data && data.gameOverResult) ? data.gameOverResult : this.currentGameOverResult;
     if (!result || !result.reason) {
       result = await this.core.resolveGameOver();

@@ -5,19 +5,15 @@
  * driver.init() への引数不一致 (TypeError: Cannot create property 'preRun' on string) を修復。
  */
 
+import { StatusAccessor } from './StatusAccessor.js';
 import { GamepadManager, TouchCalculator, KeyMapper, KEYMAP } from './input/index.js';
 import { SoundEngine } from './sound/SoundEngine.js';
 import { TranslationEngine } from './translation/TranslationEngine.js';
 import { GameOverResolver } from './lifecycle/GameOverResolver.js';
-import { StatusAccessor } from './StatusAccessor.js';
 import { NullRenderer } from './renderers/NullRenderer.js';
 import { GlyphHelper } from './renderers/GlyphHelper.js';
 import { PROMPT_CATEGORY } from './types.js';
-import { AreaStateManager } from './knowledge/AreaStateManager.js';
-import { ContextActionEngine } from './knowledge/ContextActionEngine.js';
-import { InventoryStateManager } from './knowledge/InventoryStateManager.js';
-import { SituationCache } from './knowledge/SituationCache.js';
-import { RequestController } from './knowledge/RequestController.js';
+import { GKLPlugin } from './knowledge/GKLPlugin.js';
 import { PromptPayloadBuilder } from './prompt/PromptPayloadBuilder.js';
 import { TextWindowManager } from './window/TextWindowManager.js';
 import { DebugInspector } from './inspector/DebugInspector.js';
@@ -41,15 +37,25 @@ export const CoreState = {
     DESTROYED: 'DESTROYED'
 };
 
+/**
+ * WebUICore - NetHack WebUI Core ファサードクラス (インフラ層)
+ *
+ * Wasm Driver との低レイヤー受動通信、入力正規化、描画、ウィンドウ管理、翻訳等の純粋基盤。
+ * GKL (Game Knowledge Layer) 等のドメイン知識は外部プラグイン (GKLPlugin) として use() アタッチされる。
+ */
 export class WebUICore {
     constructor(options = {}) {
-        if (!options.driver) {
+        this.options = options;
+        this.driver = options.driver;
+        if (!this.driver) {
             throw new Error("WebUICore: options.driver is required.");
         }
 
-        this.driver = options.driver;
         this.renderer = options.renderer || new NullRenderer();
         this.listeners = new Map();
+        this.plugins = [];
+        this.gkl = null;
+        this.statusAccessor = new StatusAccessor();
 
         this.gamepad = new GamepadManager(options.gamepadOptions);
         this.touch = new TouchCalculator(options.touchOptions);
@@ -90,22 +96,12 @@ export class WebUICore {
         this.promptPayloadBuilder = new PromptPayloadBuilder({ translator: this.translator });
         this.textWindowManager = new TextWindowManager({ translator: this.translator });
 
-        this.statusAccessor = new StatusAccessor();
-        this.areaStateManager = new AreaStateManager();
-        this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
-
-        this.situationCache = new SituationCache(
-            this.statusAccessor,
-            this.inventoryStateManager,
-            this.areaStateManager,
-            ContextActionEngine
-        );
-
-        // 起動オプションからの numpad / number_pad 自動連動同期
-        const isNumpadOpt = !!(options.numpad || options.number_pad || options.numberPad || options.keyMode === 'numpad');
-        if (isNumpadOpt) {
-            this.areaStateManager.setKeyMode('numpad');
-        }
+        // GKL プラグインのアタッチ (指定がなければデフォルト GKLPlugin をアタッチして透明互換性を保証)
+        const gklPlugin = options.gkl || new GKLPlugin({
+            inventoryStateManager: options.inventoryStateManager,
+            keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined)
+        });
+        this.use(gklPlugin);
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -119,13 +115,29 @@ export class WebUICore {
         this.gamepadLoopId = null;
         this.lastInputTime = 0;
 
-        // Game Knowledge Layer (GKL) 状態管理モジュール
-        this.requestController = new RequestController(this.driver);
-
         this._initRenderer();
         this._bindDriverEvents();
         this._startGamepadPolling();
     }
+
+    /**
+     * プラグインの登録・アタッチ
+     * @param {Object} plugin 
+     * @returns {WebUICore}
+     */
+    use(plugin) {
+        if (!plugin) return this;
+        this.plugins.push(plugin);
+        if (typeof plugin.attach === 'function') {
+            plugin.attach(this);
+        }
+        if (plugin instanceof GKLPlugin || plugin.constructor?.name === 'GKLPlugin' || typeof plugin.getSituation === 'function') {
+            this.gkl = plugin;
+        }
+        return this;
+    }
+
+
 
     _setState(newState) {
         if (this.state === newState) return;
@@ -354,8 +366,8 @@ export class WebUICore {
         const opts = { suppressPrompts: true, ...options };
 
         let started = false;
-        if (this.requestController) {
-            started = this.requestController.executeSequence(tokens, opts);
+        if (this.gkl && this.gkl.requestController) {
+            started = this.gkl.requestController.executeSequence(tokens, opts);
         } else if (this.driver && typeof this.driver.queueSequence === 'function') {
             this.driver.queueSequence(tokens, opts);
             started = true;
@@ -368,6 +380,7 @@ export class WebUICore {
                 if (this.driver && !this.driver.isExecutingSequence) {
                     const buffer = typeof this.driver.getLastSequenceBuffer === 'function' ? 
                                    this.driver.getLastSequenceBuffer() : [];
+                    this.emit('sequenceFinished', { buffer });
                     resolve(buffer);
                 } else {
                     setTimeout(checkCompletion, 10);
@@ -389,83 +402,11 @@ export class WebUICore {
     }
 
     /**
-     * 所持品一覧 (inventory) をバックグラウンドでサイレント取得・同期
-     * @param {Object} [options={}] - オプション ({ force: false })
-     * @returns {Promise<boolean>}
-     */
-    async syncInventorySilent(options = {}) {
-        const { force = false } = options;
-
-        // 手動同期(force: true)でない場合、メニュー表示中(MENU)や方向指定(DIRECTION)、会話応答(YN, TEXT等)の最中は 'i' クエリ差し込みをガード
-        if (!force && this.currentPromptCategory) {
-            const cat = this.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return false;
-            }
-        }
-
-        // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）のガード
-        const lastMsg = (this.lastPutstrText || '').toLowerCase();
-        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
-            return false;
-        }
-
-        const buffer = await this.querySequenceSilent(['i', ' '], options);
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
-            this.inventoryStateManager.updateFromSequenceBuffer(buffer);
-            this.emit('inventoryStateUpdated', this.inventoryStateManager);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * GKL の単一真実源 (Single Source of Truth) である自動フック済み InventoryStateManager インスタンスを取得
-     * @returns {InventoryStateManager}
-     */
-    getInventoryState() {
-        return this.inventoryStateManager;
-    }
-    getInventoryStateManager() {
-        return this.inventoryStateManager;
-    }
-
-    /**
-     * GKL の統合状況アクセサ・キャッシュを取得
-     * @returns {SituationCache}
-     */
-    getSituationCache() {
-        return this.situationCache;
-    }
-
-    /**
-     * GKL が管理する統合ゲーム状況 (Situation: ステータス, 所持品, マップ, アクション等) を一括取得
+     * 現在の構造化ステータスモデルを取得
      * @returns {Object}
      */
-    getSituation() {
-        if (this.situationCache) {
-            return this.situationCache.getSituation();
-        }
-        return {
-            status: this.getStatus(),
-            inventory: { items: this.inventoryStateManager ? this.inventoryStateManager.items : [], isSynced: Boolean(this.inventoryStateManager && this.inventoryStateManager.isSynced) },
-            area: this.areaStateManager ? this.areaStateManager.getAreaState() : {},
-            tools: {},
-            actions: []
-        };
-    }
-
-    /**
-     * 統一ステータスモデルの取得
-     */
     getStatus() {
-        return this.statusAccessor.getStatus();
+        return this.statusAccessor ? this.statusAccessor.getStatus() : {};
     }
 
     /**
@@ -587,11 +528,9 @@ export class WebUICore {
             }
         }
 
-        // 明示的なアイテム操作キー (拾う ',', 'g', 使う 'a', 投げる 't'/'f'/'Q', 落とす 'd', 食べる 'e', 飲む 'q', 読む 'r', 振る 'z', 装備 'w'/'W'/'T') の場合のみ invalidate
-        const itemInteractionKeys = new Set([',', 'g', 'a', 't', 'f', 'Q', 'd', 'e', 'q', 'r', 'w', 'W', 'T', 'z', 'P', 'R']);
         const inputStr = typeof inputVal === 'string' ? inputVal.trim() : (typeof inputVal === 'number' && inputVal > 0 ? String.fromCharCode(inputVal) : '');
-        if (itemInteractionKeys.has(inputStr) && this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-            this.inventoryStateManager.invalidate();
+        if (inputStr) {
+            this.emit('userActionSent', { sequence: [inputStr] });
         }
 
         try {
@@ -739,8 +678,8 @@ export class WebUICore {
             tokens.push(directionKey);
         }
 
-        if (this.requestController) {
-            this.requestController.executeSequence(tokens, options);
+        if (this.gkl && this.gkl.requestController) {
+            this.gkl.requestController.executeSequence(tokens, options);
         } else if (this.driver && typeof this.driver.queueSequence === 'function') {
             this.driver.queueSequence(tokens, options);
         }
@@ -752,7 +691,7 @@ export class WebUICore {
      */
     sendActionKey(k) {
         if (!k) return;
-        const isNumpad = (this.areaStateManager && this.areaStateManager.keyMode === 'numpad');
+        const isNumpad = (this.gkl && this.gkl.areaStateManager && this.gkl.areaStateManager.keyMode === 'numpad');
 
         // 【1】Kick (蹴る) のキー表現の自動切替 (NumPad モードでは 'k', Vi-keys モードでは Ctrl+D)
         if (k === 'C-d' || k === 'Ctrl-d' || k === 'C-D' || k === 'ctrl-d') {
@@ -797,28 +736,10 @@ export class WebUICore {
      * @returns {boolean}
      */
     isNonItemSequence(sequence) {
-        if (!Array.isArray(sequence) || sequence.length === 0) return false;
-
-        const nonItemKeys = new Set([
-            'k', 'j', 'h', 'l', 'y', 'u', 'b', 'n',
-            'K', 'J', 'H', 'L', 'Y', 'U', 'B', 'N',
-            '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '_', '<', '>',
-            'm', 'M',
-            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-            'Up', 'Down', 'Left', 'Right'
-        ]);
-
-        return sequence.every(token => {
-            if (typeof token !== 'string' && typeof token !== 'number') return false;
-            const strToken = String(token).trim();
-            if (!strToken) return false;
-
-            if (nonItemKeys.has(strToken)) return true;
-            if (strToken.startsWith('DIR_')) return true;
-            if (/^\d+$/.test(strToken)) return true;
-
-            return false;
-        });
+        if (this.gkl) {
+            return this.gkl.isNonItemSequence(sequence);
+        }
+        return false;
     }
 
     /**
@@ -841,16 +762,7 @@ export class WebUICore {
             success = true;
         }
 
-        // アイテム操作を伴うシーケンスの場合のみ、所持品状態を dirty 化 (isSynced = false) する。
-        // （移動・方向指定・カウントキー等の場合は不要な syncInventorySilent の自動発火を防ぐため invalidate をスキップ）
-        if (this.inventoryStateManager && !this.isNonItemSequence(sequence)) {
-            if (typeof this.inventoryStateManager.invalidate === 'function') {
-                this.inventoryStateManager.invalidate();
-            } else {
-                this.inventoryStateManager.isSynced = false;
-            }
-        }
-
+        this.emit('userActionSent', { sequence });
         return success;
     }
 
@@ -860,38 +772,10 @@ export class WebUICore {
      * @param {Object} [options={}] - オプション
      */
     executeAction(action, options = {}) {
-        if (!action) return false;
-
-        // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
-        if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
-            return this.executeSequence([...action.keySequence], options);
+        if (this.gkl) {
+            return this.gkl.executeAction(action, options);
         }
-
-        // 【2】拡張コマンド (#chat, #loot, #untrap 等)
-        if (action.extCmd) {
-            if (this.inventoryStateManager) {
-                this.inventoryStateManager.invalidate();
-            }
-            this.sendExtCommand(action.extCmd, action.directionKey, options);
-            return true;
-        }
-
-        // 【3】方向キー付きコマンド
-        const mainKey = action.charStr || action.key;
-        const hasDirection = !!action.directionKey;
-        // mainKey と directionKey が同一（攻撃コマンド等）の場合は2重配列化を防ぐ
-        const seq = (hasDirection && action.directionKey !== mainKey) ? [mainKey, action.directionKey] : null;
-
-        if (seq && seq.length > 0) {
-            return this.executeSequence(seq, options);
-        }
-
-        // 【4】単一コマンド (拾う ',', アイテム使用等を含む)
-        if (this.inventoryStateManager && !this.isNonItemSequence([mainKey])) {
-            this.inventoryStateManager.invalidate();
-        }
-        this.sendActionKey(mainKey);
-        return true;
+        return false;
     }
 
     /**
@@ -1075,14 +959,11 @@ export class WebUICore {
 
                 this.cursorX = data.x;
                 this.cursorY = data.y;
-                const playerMoved = this.areaStateManager.updatePlayerPosition(data.x, data.y);
 
                 if (posChanged) {
                     this.emit('cursor', { x: data.x, y: data.y, windowId: data.windowId });
                 }
-                if (playerMoved || posChanged) {
-                    this.emit('area_updated', this.getAreaState());
-                }
+                this.emit('curs', data);
             }
         };
         this.driver.on('curs', handleCursorMove);
@@ -1094,7 +975,6 @@ export class WebUICore {
                 this.textWindowManager.clearWindow(data.windowId);
             }
             if (data.windowId === 2 || data.windowId === 0) {
-                this.areaStateManager.resetGrid();
                 if (this.renderer && typeof this.renderer.clearMap === 'function') {
                     this.renderer.clearMap();
                 }
@@ -1112,7 +992,6 @@ export class WebUICore {
             const ch = gi.ch || data.ch || ' ';
             const color = gi.color !== undefined ? gi.color : (data.color !== undefined ? data.color : 7);
 
-            this.areaStateManager.updateGlyph(x, y, glyphId, gi);
             const parsedData = { windowId: data.windowId, x, y, glyph: glyphId, ch, color, glyphInfo: gi };
             this.renderer.drawGlyph(x, y, parsedData);
             this.emit('print_glyph', parsedData);
@@ -1121,12 +1000,7 @@ export class WebUICore {
         // putstr メッセージ・テキストログ分離処理
         const handleMessageText = (rawText) => {
             if (!rawText) return;
-            if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromMessage === 'function') {
-                const updated = this.inventoryStateManager.updateFromMessage(rawText);
-                if (updated) {
-                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
-                }
-            }
+            this.emit('messageText', { windowId: 1, text: rawText });
             const translated = this.translator.translate(rawText);
             const seEffect = this.sound.processLogMessage(translated);
             if (seEffect) {
@@ -1169,7 +1043,7 @@ export class WebUICore {
         // status_update (ダンジョン分岐文字列 Dlvl:1 <-> Tutorial:1 の変化を検知して自動マップクリア)
         this.driver.on('status_update', (data) => {
             if (data && data.field !== undefined) {
-                const valChanged = this.statusAccessor.updateField(data.field, data.value);
+                const valChanged = this.statusAccessor ? this.statusAccessor.updateField(data.field, data.value) : false;
                 this.renderer.updateStatus(data);
                 
                 const structuredStatus = this.getStatus();
@@ -1185,6 +1059,7 @@ export class WebUICore {
                     this.lastDlevelText = currentDlevelText;
                 }
 
+                this.emit('status_update', data);
                 if (valChanged) {
                     this.emit('statusUpdate', {
                         field: data.field,
@@ -1293,7 +1168,7 @@ export class WebUICore {
             const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
 
             // メインゲーム行動待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
-            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
+            if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
                 if (category !== PROMPT_CATEGORY.MENU && 
                     category !== PROMPT_CATEGORY.DIRECTION && 
                     category !== PROMPT_CATEGORY.YN && 
@@ -1304,8 +1179,8 @@ export class WebUICore {
                     setTimeout(() => {
                         const currentMsg = (this.lastPutstrText || '').toLowerCase();
                         const currentlyPrefixWaiting = currentMsg.includes('プレフィックス') || currentMsg.includes('prefix') || (currentMsg.includes('count') && currentMsg.includes('command'));
-                        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
-                            this.syncInventorySilent();
+                        if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
+                            this.gkl.syncInventorySilent();
                         }
                     }, 50);
                 }
@@ -1452,24 +1327,5 @@ export class WebUICore {
         };
 
         this.gamepadLoopId = requestAnimationFrame(poll);
-    }
-
-    /**
-     * 現在のプレイヤー周辺 (指定半径) の構造化エリア状態を取得
-     * @param {number} [radius=1] 半径 (1 で 3x3)
-     * @returns {Object} 構造化 AreaState
-     */
-    getAreaState(radius = 1) {
-        return this.areaStateManager.getAreaState(this.cursorX, this.cursorY, radius);
-    }
-
-    /**
-     * 現在のコンテキストにおける推奨アクション一覧を取得
-     * @param {number} [radius=1] 半径 (1 で 3x3)
-     * @returns {Array<Object>} 推奨アクション配列
-     */
-    getRecommendedActions(radius = 1) {
-        const areaState = this.getAreaState(radius);
-        return ContextActionEngine.generateActions(areaState);
     }
 }
