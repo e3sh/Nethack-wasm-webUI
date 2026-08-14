@@ -65,7 +65,29 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
 
 ---
 
-## 3. ドライバー発行イベント一覧 (Driver Events)
+## 3. シーケンス制御 ＆ サイレントクエリ API (Sequence Control)
+
+### `driver.queueSequence(tokens, options = {})`
+連続するキー入力や抽象方向トークンの配列をタスクとして **FIFO（先入れ先出し）タスクキュー** へ投入し、Cコアの `inputRequired` 発生タイミングに合わせて安全に自動消化・自動応答します。
+- **引数**:
+  - `tokens`: `Array<string | number>` - トークン配列 (例: `['#', 'kick', 'DIR_E']` や `['i']`)
+  - `options`: `Object` - `{ suppressPrompts: boolean }` (省略可)
+    - `suppressPrompts`: `true` に設定すると、画面プロンプト（`putmsg`）の発行を抑止してサイレント消化を行います。
+- **特徴**:
+  - 連続で投入された場合でも既存のシーケンスを上書き破棄せず、先行するシーケンスの完了および空いたタイミングで順次安全に開始します。
+
+### `driver.cancelSequence()`
+実行中のシーケンスおよび FIFO タスクキューに予約されている未実行の全シーケンスを即時クリアし、通常状態に安全復帰します。
+
+### `driver.getLastSequenceBuffer()`
+直近に完了したシーケンス、または現在実行中のシーケンスがキャプチャした実行結果バッファ（`putstr`, `select_menu`, `display_file`, `raw_print` 等のオブジェクト配列）のクリーンコピーを取得します。
+
+### `driver.isExecutingSequence` (プロパティ / Read-Only)
+現在ドライバーが自走シーケンスを実行中（アクティブなタスクが存在）かどうかを示す `boolean` フラグです。
+
+---
+
+## 4. ドライバー発行イベント一覧 (Driver Events)
 
 ### `stateChange`
 ドライバーの内部実行状態が変更された際に発火します。
@@ -98,7 +120,7 @@ UI 側からは `resolver.respond(value)` または `resolver.cancel()` を呼�
 
 ---
 
-## 4. エクスポートモジュール一覧
+## 5. エクスポートモジュール一覧
 
 ```javascript
 import {
@@ -115,13 +137,13 @@ import {
 
 ---
 
-## 5. TypeScript 型定義サポート
+## 6. TypeScript 型定義サポート
 
 本パッケージには公式 TypeScript 型定義ファイル `types/index.d.ts` が同梱されており、TypeScript プロジェクトで型補完・型安全性が有効です。
 
 ---
 
-## 6. 履歴・互換性ノート (History & Compatibility)
+## 7. 履歴・互換性ノート (History & Compatibility)
 
 - **Worker 構造の分離**: 初期仕様では C コアがメインスレッドで同期的に直接動作していましたが、バージョン 2.0 以降は Web Worker 上で完全非同期通信（`NetHackWasmWorkerBridge`）を行うアーキテクチャに進化しました。
 - **コンテキスト保護**: 非ブロック画面表示 (`shim_display_nhwindow` `blocking: false`) が `askname` 等の待機中プロンプトを誤って上書き破棄しないコンテキスト保護 (`isUserPromptContext`) が導入されています。

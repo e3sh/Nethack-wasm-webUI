@@ -88,9 +88,10 @@ test('NetHackWasmDriver - lastSequenceBuffer functionality', async () => {
     assert.equal(buffer[0].type, 'putstr');
     assert.equal(buffer[0].text, 'You have a dagger.');
 
-    // New queueSequence clears previous buffer
-    driver.queueSequence(['v']);
+    // Cancel sequence clears buffer and tasks
+    driver.cancelSequence();
     assert.deepEqual(driver.getLastSequenceBuffer(), []);
+    assert.equal(driver.isExecutingSequence, false);
 });
 
 test('NetHackWasmDriver - lastSequenceBuffer menu capture after sequence token consumption', async () => {
@@ -131,3 +132,34 @@ test('NetHackWasmDriver - lastSequenceBuffer menu capture after sequence token c
     driver.eventHook('shim_nh_poskey', 0, 0, 0);
     assert.equal(driver.isExecutingSequence, false);
 });
+
+test('NetHackWasmDriver - FIFO sequence task queue sequential execution and option isolation', async () => {
+    const driver = new NetHackWasmDriver();
+    const emittedPrompts = [];
+    driver.on('putmsg', (payload) => { emittedPrompts.push(payload.text); });
+
+    // 1. Task A (suppressPrompts: false) と Task B (suppressPrompts: true) を連続投入
+    driver.queueSequence(['kick'], { suppressPrompts: false });
+    driver.queueSequence(['i'], { suppressPrompts: true });
+
+    // Task A がアクティブ
+    assert.equal(driver.isExecutingSequence, true);
+    assert.equal(driver.sequenceTaskQueue.length, 1); // Task B が予約待機中
+
+    // 2. Cコアが shim_get_ext_cmd で 'kick' を消費 (suppressPrompts: false なので "#" の putmsg が emit される)
+    const extPromise = driver.eventHook('shim_get_ext_cmd', []);
+    const extIdx = await extPromise;
+    const kickIdx = NetHackWasmDriver.DEFAULT_EXTCMDS.indexOf('kick');
+    assert.equal(extIdx, kickIdx);
+    assert.equal(emittedPrompts.length, 1);
+    assert.equal(emittedPrompts[0], '#');
+
+    // 3. Task A のトークンが消化された。次の Cコア呼び出し (shim_nhgetch) で Task B ('i') へ自動移行して消化
+    const getchPromise = driver.eventHook('shim_nhgetch', ['Inventory prompt']);
+    const getchKey = await getchPromise;
+    assert.equal(getchKey, 'i');
+
+    // Task B の suppressPrompts: true により、'Inventory prompt' の putmsg は emit されず、配列長は 1 のまま！
+    assert.equal(emittedPrompts.length, 1, 'Task B should suppress prompts as specified in its own options');
+});
+

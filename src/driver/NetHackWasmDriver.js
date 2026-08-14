@@ -60,16 +60,60 @@
             this.messageWindowId = 1;
             this.version = "";
 
-            // GKL Sequence Queue State
-            this.sequenceQueue = [];
-            this.isExecutingSequence = false;
-            this.sequenceOptions = { suppressPrompts: false };
+            // GKL Sequence Queue State (FIFO Task Queue)
+            this.sequenceTaskQueue = [];
+            this.currentTask = null;
+            this.lastCompletedBuffer = [];
             this.keyMode = 'numpad'; // 'numpad' | 'vi'
-            this.lastSequenceBuffer = [];
 
             // Bind global dispatcher safely
             this.eventHook = this.eventHook.bind(this);
             this.setupGlobalDispatcher();
+        }
+
+        get isExecutingSequence() {
+            return !!this.currentTask;
+        }
+        set isExecutingSequence(val) {
+            if (!val && this.currentTask) {
+                if (this.currentTask.buffer) {
+                    this.lastCompletedBuffer = [...this.currentTask.buffer];
+                }
+                this.currentTask = null;
+                this.processNextSequenceTask();
+            }
+        }
+
+        get sequenceQueue() {
+            return this.currentTask ? this.currentTask.tokens : [];
+        }
+        set sequenceQueue(val) {
+            if (this.currentTask) {
+                this.currentTask.tokens = Array.isArray(val) ? val : [];
+            }
+        }
+
+        get sequenceOptions() {
+            return this.currentTask ? this.currentTask.options : { suppressPrompts: false };
+        }
+        set sequenceOptions(val) {
+            if (this.currentTask) {
+                this.currentTask.options = { suppressPrompts: false, ...val };
+            }
+        }
+
+        get lastSequenceBuffer() {
+            if (this.currentTask) {
+                return this.currentTask.buffer;
+            }
+            return this.lastCompletedBuffer;
+        }
+        set lastSequenceBuffer(val) {
+            if (this.currentTask) {
+                this.currentTask.buffer = Array.isArray(val) ? val : [];
+            } else {
+                this.lastCompletedBuffer = Array.isArray(val) ? val : [];
+            }
         }
 
         /**
@@ -99,41 +143,60 @@
         }
 
         /**
-         * 連続キー/トークン配列をキューに投入し、inputRequired タイミングに合わせて安全に自動消化する
+         * 連続キー/トークン配列をタスクとしてFIFOキューに投入し、inputRequired タイミングに合わせて安全に自動消化する
          * @param {Array<string|number>} tokens - トークン配列 (例: ['#', 'open', '\r', 'DIR_E'])
          * @param {Object} [options={}] - { suppressPrompts: boolean }
          */
         queueSequence(tokens, options = {}) {
             if (!Array.isArray(tokens) || tokens.length === 0) return;
-            this.sequenceQueue = [...tokens];
-            this.sequenceOptions = { suppressPrompts: false, ...options };
-            this.isExecutingSequence = true;
-            this.lastSequenceBuffer = [];
+            const task = {
+                tokens: [...tokens],
+                options: { suppressPrompts: false, ...options },
+                buffer: []
+            };
+            this.sequenceTaskQueue.push(task);
+
+            if (!this.currentTask) {
+                this.processNextSequenceTask();
+            }
+        }
+
+        /**
+         * FIFOタスクキューから次のシーケンス・タスクを取り出して開始する
+         */
+        processNextSequenceTask() {
+            if (this.sequenceTaskQueue.length === 0) {
+                this.currentTask = null;
+                return;
+            }
+
+            this.currentTask = this.sequenceTaskQueue.shift();
 
             // すでに入力待ち中であれば、直ちに最初のトークンを消費・応答をキック
-            if (this.activeResolver && this.sequenceQueue.length > 0) {
+            if (this.activeResolver && this.currentTask.tokens.length > 0) {
                 this.tryConsumeSequenceToken();
             }
         }
 
         /**
-         * シーケンスを安全に強制キャンセルし、通常状態に復帰
+         * 実行中のシーケンスおよび予約キューを安全に強制キャンセルし、通常状態に復帰
          */
         cancelSequence() {
-            this.sequenceQueue = [];
-            this.isExecutingSequence = false;
+            this.sequenceTaskQueue = [];
+            this.currentTask = null;
+            this.lastCompletedBuffer = [];
         }
 
         /**
          * シーケンス実行中に受信したテキスト・メッセージ・メニュー構造体を記録
          */
         recordSequenceBuffer(item) {
-            if (this.isExecutingSequence && item) {
+            if (this.currentTask && item) {
                 try {
                     const cleanItem = JSON.parse(JSON.stringify(item));
-                    this.lastSequenceBuffer.push(cleanItem);
+                    this.currentTask.buffer.push(cleanItem);
                 } catch (e) {
-                    this.lastSequenceBuffer.push(item);
+                    this.currentTask.buffer.push(item);
                 }
             }
         }
@@ -143,10 +206,11 @@
          * @returns {Array<Object>} バッファアイテムの配列
          */
         getLastSequenceBuffer() {
+            const buf = this.currentTask ? this.currentTask.buffer : this.lastCompletedBuffer;
             try {
-                return JSON.parse(JSON.stringify(this.lastSequenceBuffer));
+                return JSON.parse(JSON.stringify(buf));
             } catch (e) {
-                return [...this.lastSequenceBuffer];
+                return [...buf];
             }
         }
 
@@ -158,14 +222,19 @@
          * @returns {boolean} 自動消費に成功しUIへのemitをブロックした場合は true
          */
         tryConsumeSequenceToken(promptText = "", resolver = null, context = "") {
-            if (!this.isExecutingSequence) {
+            if (!this.currentTask) {
                 return false;
             }
 
-            if (this.sequenceQueue.length === 0) {
+            if (this.currentTask.tokens.length === 0) {
                 // シーケンスのトークンが全消費された状態で次の入力待ちに達した場合、
-                // 前回のシーケンスによる Cコアの出力・処理が完了したことを意味するためフラグをオフにする
-                this.isExecutingSequence = false;
+                // 前回のシーケンスによる Cコアの出力・処理が完了したことを意味するためタスクを移行
+                this.lastCompletedBuffer = [...this.currentTask.buffer];
+                this.processNextSequenceTask();
+
+                if (this.currentTask && this.currentTask.tokens.length > 0) {
+                    return this.tryConsumeSequenceToken(promptText, resolver, context);
+                }
                 return false;
             }
 
@@ -173,12 +242,12 @@
             if (!resObj) return false;
 
             // プロンプト文面の「投げっぱなし putmsg 送出」
-            if (promptText && typeof promptText === 'string' && !this.sequenceOptions.suppressPrompts) {
+            if (promptText && typeof promptText === 'string' && !this.currentTask.options.suppressPrompts) {
                 this.emit("putmsg", { text: promptText, fromSequence: true });
                 this.recordSequenceBuffer({ type: 'putmsg', text: promptText, fromSequence: true });
             }
 
-            const rawToken = this.sequenceQueue.shift();
+            const rawToken = this.currentTask.tokens.shift();
             const token = this.resolveTokenKey(rawToken);
 
             // resolver の型に応じた柔軟な自動応答
