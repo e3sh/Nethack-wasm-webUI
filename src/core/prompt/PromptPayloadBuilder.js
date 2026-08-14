@@ -91,19 +91,9 @@ export class PromptPayloadBuilder {
             inputType = 'LINE_TEXT';
         } else if (category === PROMPT_CATEGORY.DIRECTION || category === PROMPT_CATEGORY.POSKEY || category === 'DIRECTION') {
             inputType = 'DIRECTION';
-            options = [
-                { key: 'k', label: 'North (k)', direction: 'N' },
-                { key: 'j', label: 'South (j)', direction: 'S' },
-                { key: 'h', label: 'West (h)', direction: 'W' },
-                { key: 'l', label: 'East (l)', direction: 'E' },
-                { key: 'y', label: 'North-West (y)', direction: 'NW' },
-                { key: 'u', label: 'North-East (u)', direction: 'NE' },
-                { key: 'b', label: 'South-West (b)', direction: 'SW' },
-                { key: 'n', label: 'South-East (n)', direction: 'SE' },
-                { key: '<', label: 'Up (<)', direction: 'UP' },
-                { key: '>', label: 'Down (>)', direction: 'DN' }
-            ];
+            options = []; // 方向入力時の誤爆を防止するため汎用選択肢ボタンは生成しない
         } else if (category === PROMPT_CATEGORY.KEY || category === PROMPT_CATEGORY.FILE) {
+
             inputType = 'CONFIRM';
             options = [
                 { key: ' ', label: 'Continue (Space)' }

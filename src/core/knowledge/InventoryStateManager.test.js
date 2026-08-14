@@ -162,7 +162,8 @@ describe('InventoryStateManager', () => {
         const menuItems = [
             { letter: 'a', text: 'a mysterious liquid', glyph: 3748, onum: null }, // glyph 3748 -> onum 300 (POTION)
             { letter: 'b', text: 'a strange paper', glyph: 3778, onum: null },  // glyph 3778 -> onum 330 (SCROLL)
-            { letter: 'c', text: 'a wooden stick', glyph: 3864, onum: null },   // glyph 3864 -> onum 416 (WAND of digging)
+            { letter: 'c', text: 'a wooden stick', glyph: 3876, onum: null },   // glyph 3876 -> onum 428 (WAND of digging)
+
             { letter: 'd', text: 'a shiny band', glyph: 3628, onum: null },     // glyph 3628 -> onum 180 (RING)
             { letter: 'e', text: 'a heavy chestplate', glyph: 3569, onum: null }, // glyph 3569 -> onum 121 (ARMOR)
             { letter: 'f', text: 'a sharp blade', glyph: 3488, onum: null }      // glyph 3488 -> onum 40 (WEAPON)
@@ -182,12 +183,13 @@ describe('InventoryStateManager', () => {
         expect(scroll.itemCategory).toBe('SCROLL');
         expect(scroll.defaultVerb).toBe('r');
 
-        // c: Wand of Digging (onum 416) -> z (zap) & isDigWand
+        // c: Wand of Digging (onum 428) -> z (zap) & isDigWand
         const wand = manager.getItemByLetter('c');
-        expect(wand.onum).toBe(416);
+        expect(wand.onum).toBe(428);
         expect(wand.itemCategory).toBe('WAND');
         expect(wand.isDigWand).toBe(true);
         expect(wand.defaultVerb).toBe('z');
+
 
         // d: Ring (onum 180) -> P (put on)
         const ring = manager.getItemByLetter('d');
@@ -250,4 +252,31 @@ describe('InventoryStateManager', () => {
         expect(quiveredArrow.defaultVerb).toBe('Q');
         expect(quiveredArrow.defaultSequence).toEqual(['Q', '-']);
     });
+
+    it('自発同期(syncInventorySilent)による全件インベントリ更新が正しく機能すること', () => {
+        const manager = new InventoryStateManager();
+
+        // 自発同期で全件登録
+        manager.updateFromMenuItems([
+            { letter: 'a', text: 'a +0 dagger', glyph: 3482, onum: 34 },
+            { letter: 'b', text: 'a +0 leather armor', glyph: 3569, onum: 121 },
+            { letter: 'c', text: 'a potion of healing', glyph: 3748, onum: 300 }
+        ]);
+
+        expect(manager.items.length).toBe(3);
+        expect(manager.isSynced).toBe(true);
+
+        // 新しい自発同期データで全件が正しく置き換わること
+        manager.updateFromMenuItems([
+            { letter: 'x', text: 'a wand of wishing', glyph: 3864, onum: 416 }
+        ]);
+
+        expect(manager.items.length).toBe(1);
+        expect(manager.getItemByLetter('x')).not.toBeNull();
+        expect(manager.getItemByLetter('a')).toBeNull();
+    });
 });
+
+
+
+

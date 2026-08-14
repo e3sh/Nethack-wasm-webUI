@@ -47,9 +47,9 @@ describe('PromptPayloadBuilder', () => {
 
         const res = builder.build(payload);
         expect(res.inputType).toBe('DIRECTION');
-        expect(res.options.length).toBeGreaterThanOrEqual(8);
-        expect(res.options[0]).toEqual({ key: 'k', label: 'North (k)', direction: 'N' });
+        expect(res.options.length).toBe(0);
     });
+
 
     it('EXTCMD および LINE_TEXT プロンプトを LINE_TEXT ペイロードにパースできること', () => {
         const builder = new PromptPayloadBuilder();

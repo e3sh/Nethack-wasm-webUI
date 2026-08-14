@@ -185,8 +185,9 @@ test('InventoryStateManager - パースとツール抽出テスト', () => {
     inv.updateFromMenuItems([
         { letter: 'a', text: 'a +0 dagger', glyph: 3450, onum: 1 },
         { letter: 'f', text: 'a blessed +1 pick-axe (weapon in hand)', glyph: 3707, onum: 259 },
-        { letter: 'b', text: 'an iron key', glyph: 3699, onum: 251 }
+        { letter: 'b', text: 'an iron key', glyph: 3669, onum: 221 }
     ]);
+
 
     assert.strictEqual(inv.isSynced, true);
     const pickAxe = inv.getPickAxe();
@@ -256,8 +257,9 @@ test('InventoryStateManager - ロックピック (lock pick) 初期メニュー�
 
     // 1. 初期メニュー同期テスト ("a - a lock pick")
     inv.updateFromMenuItems([
-        { letter: 'a', text: 'a - a lock pick', glyph: 3707, onum: 250 }
+        { letter: 'a', text: 'a - a lock pick', glyph: 3670, onum: 222 }
     ]);
+
     assert.strictEqual(inv.isSynced, true);
     const keyItem = inv.getKeyOrLockPick();
     assert.ok(keyItem, 'a lock pick が鍵/解錠ツールとして認識されること');
@@ -346,8 +348,9 @@ test('InventoryStateManager & ContextActionEngine - pick-axe (a) と wand of dig
     const inv = new InventoryStateManager();
     inv.updateFromMenuItems([
         { letter: 'a', text: 'a +0 pick-axe', onum: 259 },
-        { letter: 'b', text: 'a wand of digging', onum: 299 }
+        { letter: 'b', text: 'a wand of digging', onum: 428 }
     ]);
+
 
     const pickAxeItem = inv.items.find(i => i.isPickAxe);
     assert.ok(pickAxeItem, 'pick-axe が識別されていること');
@@ -490,6 +493,56 @@ test('ContextActionEngine - 8方向レイキャストによる遠隔射撃 (f) /
     assert.deepStrictEqual(fireAction.keySequence, ['f', 'DIR_N']);
     assert.strictEqual(fireAction.priority, 85);
 });
+
+test('ContextActionEngine - 鍵所持時の扉の解錠 (ACTION_UNLOCK_DOOR) および隣接箱の解錠 (ACTION_UNLOCK_CONTAINER) 検証テスト', () => {
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(10, 10);
+
+    // 北(10, 9) に閉じた扉 (Closed Door: glyph 3988)
+    area.updateGlyph(10, 9, 3988);
+
+
+    const inv = new InventoryStateManager();
+    inv.updateFromMenuItems([
+        { letter: 'k', text: 'a lock pick', glyph: 3670, onum: 222 }
+    ]);
+
+    const state = area.getAreaState();
+    const actions = ContextActionEngine.generateActions(state, inv);
+
+    const unlockDoor = actions.find(a => a.id === 'ACTION_UNLOCK_DOOR_N');
+    assert.ok(unlockDoor, '鍵 (onum 222) 所持時に北の扉に対して ACTION_UNLOCK_DOOR_N が生成されること');
+    assert.deepStrictEqual(unlockDoor.keySequence, ['a', 'k', 'DIR_N']);
+    assert.strictEqual(unlockDoor.priority, 95);
+    assert.strictEqual(unlockDoor.isDirectional, true, 'isDirectional フラグが true であること');
+    assert.strictEqual(unlockDoor.dirNameJa, '北', 'dirNameJa が 北 であること');
+    assert.strictEqual(unlockDoor.dirSymbol, '↑', 'dirSymbol が ↑ であること');
+    assert.ok(unlockDoor.labelJa.includes('[北]'), 'labelJa に [北] が含まれること');
+});
+
+test('ContextActionEngine - wand of digging (onum 428) 所持時の壁掘削・破壊アクション生成テスト', () => {
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(10, 10);
+    // 東(11, 10) に壁
+    area.updateGlyph(11, 10, 3930);
+
+    const inv = new InventoryStateManager();
+    inv.updateFromMenuItems([
+        { letter: 'w', text: 'a wand of digging', glyph: 3864, onum: 428 }
+    ]);
+
+    const state = area.getAreaState();
+    const actions = ContextActionEngine.generateActions(state, inv);
+
+    const digWall = actions.find(a => a.id === 'ACTION_DIG_WALL_E');
+    assert.ok(digWall, 'wand of digging (onum 428) 所持時に東の壁に対して ACTION_DIG_WALL_E が生成されること');
+    assert.deepStrictEqual(digWall.keySequence, ['z', 'w', 'DIR_E']);
+    assert.strictEqual(digWall.dirNameJa, '東');
+    assert.ok(digWall.labelJa.includes('[東]'), 'labelJa に [東] が含まれること');
+});
+
+
+
 
 
 

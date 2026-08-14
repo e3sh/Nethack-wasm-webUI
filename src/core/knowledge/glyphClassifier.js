@@ -234,9 +234,9 @@ export function getItemInfoFromOnum(onum) {
         category = 'ARMOR';
     } else if (onum === 4 || (onum >= 177 && onum <= 200)) {
         category = 'RING';
-    } else if (onum === 5 || (onum >= 201 && onum <= 212)) {
+    } else if (onum === 5 || (onum >= 201 && onum <= 213)) {
         category = 'AMULET';
-    } else if (onum === 6 || (onum >= 213 && onum <= 263)) {
+    } else if (onum === 6 || (onum >= 214 && onum <= 263)) {
         category = 'TOOL';
     } else if (onum === 7 || (onum >= 264 && onum <= 298)) {
         category = 'FOOD';
@@ -246,20 +246,20 @@ export function getItemInfoFromOnum(onum) {
         category = 'SCROLL';
     } else if (onum === 10 || (onum >= 369 && onum <= 399)) {
         category = 'SPELLBOOK';
-    } else if (onum === 11 || (onum >= 400 && onum <= 427)) {
+    } else if (onum === 11 || (onum >= 400 && onum <= 435)) {
         category = 'WAND';
     } else if (onum === 12) {
         category = 'COIN';
-    } else if (onum === 13 || (onum >= 428 && onum <= 480)) {
+    } else if (onum === 13 || (onum >= 436 && onum <= 480)) {
         category = 'GEM';
     }
 
-    const isPickAxe = (onum === 259 || onum === 261); // pick-axe (259), dwarvish mattock (261)
-    const isKey = (onum === 251 || onum === 250 || onum === 249 || onum === 248); // key, lock pick, credit card, osaku key
+    const isPickAxe = (onum === 259 || onum === 33); // pick-axe (259), dwarvish mattock (33)
+    const isKey = (onum >= 221 && onum <= 223) || onum === 263; // skeleton key (221), lock pick (222), credit card (223), Bell of Opening (263)
     const isAxe = (onum === 44 || onum === 45); // axe (44), battle-axe (45)
-    const isDigWand = (onum === 416 || onum === 299); // wand of digging
-    const isFrostWand = (onum === 410 || onum === 297); // wand of frost
-    const isContainer = (onum >= 214 && onum <= 220); // large box, chest, sack, etc.
+    const isDigWand = (onum === 428); // wand of digging (428)
+    const isFrostWand = (onum === 431); // wand of cold / frost (431)
+    const isContainer = (onum >= 214 && onum <= 220); // large box, chest, ice box, sack, oilskin sack, bag of holding, bag of tricks (214-220)
 
     // 弾薬・投擲物 (Ammunition / Missile): arrow (18-22), bolt (23), dart (24), shuriken (25), boomerang (26), javelin (32), flint (473), rock (474)
     const isAmmo = (onum >= 18 && onum <= 26) || onum === 32 || onum === 473 || onum === 474;
@@ -279,6 +279,7 @@ export function getItemInfoFromOnum(onum) {
         isLauncher
     };
 }
+
 
 
 

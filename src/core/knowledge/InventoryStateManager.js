@@ -27,6 +27,10 @@ export class InventoryStateManager {
      * インベントリメニューダイアログ等のデータから全リストを更新・同期
      * @param {Array<Object>} menuItems - メニュー項目の配列 [{ letter: 'a', text: 'a blessed +1 pick-axe', glyph: 3707, onum: 259 }, ...]
      */
+    /**
+     * 自発同期(syncInventorySilent)等のメニュー項目からインベントリ全体を更新
+     * @param {Array<Object>} menuItems - メニュー項目の配列
+     */
     updateFromMenuItems(menuItems) {
         if (!Array.isArray(menuItems) || menuItems.length === 0) return;
 
@@ -81,6 +85,9 @@ export class InventoryStateManager {
     }
 
 
+
+
+
     /**
      * driver.getLastSequenceBuffer() のバッファデータからインベントリメニュー・テキスト行を抽出して一括更新
      * @param {Array<Object>} sequenceBuffer - シーケンスバッファの配列
@@ -133,6 +140,8 @@ export class InventoryStateManager {
             this.updateFromMenuItems(menuItems);
         }
     }
+
+
 
     /** エイリアスメソッド (互換性担保) */
     syncFromMenu(menuItems) {

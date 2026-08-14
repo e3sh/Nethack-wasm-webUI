@@ -970,6 +970,11 @@ class GklPureJSClient {
       return;
     }
 
+    if (data.inputType === 'DIRECTION' || !data.options || data.options.length === 0) {
+      this.elPromptBar.classList.add('hidden');
+      return;
+    }
+
     if (data.options && data.options.length > 0) {
       this.elPromptBar.classList.remove('hidden');
       this.elPromptText.textContent = rawPrompt || 'Select Option';
@@ -977,12 +982,15 @@ class GklPureJSClient {
 
       data.options.forEach(opt => {
         const btn = document.createElement('button');
-        btn.textContent = `${opt.label} (${opt.key})`;
+        // opt.label に既に (key) が含まれている場合は二重付加を防ぐ
+        btn.textContent = opt.label.includes(`(${opt.key})`) ? opt.label : `${opt.label} (${opt.key})`;
         btn.onclick = () => this.core.respond(opt.key);
         this.elInputControls.appendChild(btn);
       });
+
       return;
     }
+
   }
 
   updateMenuFocus() {

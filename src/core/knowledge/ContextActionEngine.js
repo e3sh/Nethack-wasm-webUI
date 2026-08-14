@@ -70,6 +70,35 @@ export class ContextActionEngine {
     }
 
     /**
+     * 方向オブジェクト (dir) から方向メタデータ { dirCode, dirNameJa, dirSymbol } を取得
+     * @param {Object|string} dir 
+     * @returns {Object} { dirCode, dirNameJa, dirSymbol }
+     */
+    static getDirectionMeta(dir) {
+        let code = '';
+        if (typeof dir === 'string') {
+            code = dir.replace(/^DIR_/, '');
+        } else if (dir && dir.code) {
+            code = dir.code;
+        }
+
+        const metaMap = {
+            'N': { dirCode: 'N', dirNameJa: '北', dirSymbol: '↑' },
+            'E': { dirCode: 'E', dirNameJa: '東', dirSymbol: '→' },
+            'S': { dirCode: 'S', dirNameJa: '南', dirSymbol: '↓' },
+            'W': { dirCode: 'W', dirNameJa: '西', dirSymbol: '←' },
+            'NE': { dirCode: 'NE', dirNameJa: '北東', dirSymbol: '↗' },
+            'NW': { dirCode: 'NW', dirNameJa: '北西', dirSymbol: '↖' },
+            'SE': { dirCode: 'SE', dirNameJa: '南東', dirSymbol: '↘' },
+            'SW': { dirCode: 'SW', dirNameJa: '南西', dirSymbol: '↙' },
+            'SELF': { dirCode: 'SELF', dirNameJa: '足元', dirSymbol: '・' }
+        };
+
+        return metaMap[code] || { dirCode: code, dirNameJa: code, dirSymbol: '' };
+    }
+
+
+    /**
      * インベントリからキーアイテム・道具を抽出
      * @param {Object} inventoryState 
      * @returns {Object} 抽出ツールオブジェクト
@@ -491,94 +520,109 @@ export class ContextActionEngine {
         adjacentMonsters.forEach(m => {
             const isPet = (m.entity && m.entity.type === 'PET');
             const dirKey = this.getAbstractDirKey(m.dir);
+            const dirMeta = this.getDirectionMeta(m.dir);
+            const { dirNameJa, dirSymbol } = dirMeta;
 
             if (isPet) {
                 // ペット誤爆防止 (攻撃は絶対に生成しない)
-                if (!actions.some(a => a.id.startsWith('ACTION_CHAT'))) {
+                if (!actions.some(a => a.id === `ACTION_CHAT_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_CHAT_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Chat with pet`,
-                        labelJa: `ペットに話しかける (#chat)`,
+                        label: `Chat with pet [${m.dir.code}]`,
+                        labelJa: `ペットに話しかける [${dirNameJa}] (#chat)`,
                         key: `#chat${dirKey}`,
                         keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
                         extCmd: 'chat',
                         directionKey: dirKey,
                         direction: m.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         entity: m.entity,
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Talk to pet`,
-                        descriptionJa: `ペットに話しかけます（方向はD-Pad等で選択）`
+                        description: `Talk to pet in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}のペットに話しかけます`
                     });
                 }
             } else {
                 const isShopkeeper = isShopkeeperMonster(m.entity);
                 // モンスター/NPC (近接攻撃)
-                if (!actions.some(a => a.id.startsWith('ACTION_ATTACK'))) {
+                if (!actions.some(a => a.id === `ACTION_ATTACK_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_ATTACK_${m.dir.code}`,
                         category: 'COMBAT',
-                        label: `Attack target`,
-                        labelJa: `対象に近接攻撃`,
+                        label: `Attack target [${m.dir.code}]`,
+                        labelJa: `対象に攻撃 [${dirNameJa}]`,
                         key: dirKey,
                         keySequence: [dirKey],
                         charStr: dirKey,
                         directionKey: dirKey,
                         direction: m.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         entity: m.entity,
                         target: 'adjacent',
                         risk: 'warning',
                         priority: 80,
-                        description: `Attack creature in direction`,
-                        descriptionJa: `近接対象に攻撃を試みます`
+                        description: `Attack creature in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の対象に攻撃を試みます`
                     });
                 }
                 // 話しかける (#chat)
-                if (!actions.some(a => a.id.startsWith('ACTION_CHAT_NPC'))) {
+                if (!actions.some(a => a.id === `ACTION_CHAT_NPC_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_CHAT_NPC_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Talk / Chat`,
-                        labelJa: `対象に話しかける (#chat)`,
+                        label: `Talk / Chat [${m.dir.code}]`,
+                        labelJa: `対象に話しかける [${dirNameJa}] (#chat)`,
                         key: `#chat${dirKey}`,
                         keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
                         extCmd: 'chat',
                         directionKey: dirKey,
                         direction: m.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         entity: m.entity,
                         target: 'adjacent',
                         risk: null,
                         priority: isShopkeeper ? 90 : 30,
-                        description: `Talk to NPC or shopkeeper`,
-                        descriptionJa: `NPCや店主に話しかけます`
+                        description: `Talk to NPC or shopkeeper in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}のNPCや店主に話しかけます`
                     });
                 }
                 // 店主に代金を支払う (#pay)
-                if (isShopkeeper && !actions.some(a => a.id.startsWith('ACTION_PAY'))) {
+                if (isShopkeeper && !actions.some(a => a.id === `ACTION_PAY_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_PAY_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Pay shopkeeper`,
-                        labelJa: `店主に代金を支払う (#pay)`,
+                        label: `Pay shopkeeper [${m.dir.code}]`,
+                        labelJa: `店主に代金を支払う [${dirNameJa}] (#pay)`,
                         key: `#pay${dirKey}`,
                         keySequence: ['#', 'pay', dirKey],
                         charStr: '#pay',
                         extCmd: 'pay',
                         directionKey: dirKey,
                         direction: m.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         entity: m.entity,
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Pay shopkeeper for unpaid items`,
-                        descriptionJa: `店主に商品の購入代金を支払います`
+                        description: `Pay shopkeeper in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の店主に商品の購入代金を支払います`
                     });
                 }
             }
+
         });
     }
 
@@ -605,48 +649,58 @@ export class ContextActionEngine {
             const flags = b.cmapFlags;
             const dirCode = item.dir.code;
             const dirKey = this.getAbstractDirKey(item.dir);
+            const dirMeta = this.getDirectionMeta(item.dir);
+            const { dirNameJa, dirSymbol } = dirMeta;
             const dirName = item.dir.name || dirCode;
 
 
-            // 閉じた扉 (Closed Door)
-            if (flags.isClosedDoor) {
-                if (!actions.some(a => a.id.startsWith('ACTION_OPEN_DOOR'))) {
+            // 閉じた扉 / 施錠された扉 (Closed Door / Locked Door)
+            if (flags.isClosedDoor || flags.isLockedDoor) {
+                if (!actions.some(a => a.id === `ACTION_OPEN_DOOR_${dirCode}`)) {
                     actions.push({
                         id: `ACTION_OPEN_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Open door`,
-                        labelJa: `扉を開ける (Open)`,
+                        label: `Open door [${dirCode}]`,
+                        labelJa: `扉を開ける [${dirNameJa}]`,
                         key: `o${dirKey}`,
                         keySequence: ['o', dirKey],
                         charStr: 'o',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 90,
-                        description: `Open closed door`,
-                        descriptionJa: `閉じたドアを開けます`
+                        description: `Open closed door in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の閉じたドアを開けます`
                     });
                 }
 
-                if (keyItem && !actions.some(a => a.id.startsWith('ACTION_UNLOCK_DOOR'))) {
+                if (keyItem && !actions.some(a => a.id === `ACTION_UNLOCK_DOOR_${dirCode}`)) {
                     actions.push({
                         id: `ACTION_UNLOCK_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Unlock door with ${keyItem.rawText || 'key'}`,
-                        labelJa: `扉を解錠 (${keyItem.letter})`,
+                        label: `Unlock door [${dirCode}] with ${keyItem.rawText || 'key'}`,
+                        labelJa: `扉を解錠 [${dirNameJa}] (${keyItem.letter})`,
                         key: `a${keyItem.letter}${dirKey}`,
                         keySequence: ['a', keyItem.letter, dirKey],
                         charStr: 'a',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Apply ${keyItem.rawText || 'key'} to unlock door`,
-                        descriptionJa: `扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
+                        description: `Apply ${keyItem.rawText || 'key'} to unlock door in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
                     });
                 }
+
+
 
                 if (!actions.some(a => a.id.startsWith('ACTION_KICK_DOOR'))) {
                     actions.push({
@@ -727,24 +781,30 @@ export class ContextActionEngine {
                     });
                 }
 
-                if (pickAxe && !actions.some(a => a.id.startsWith('ACTION_DIG_WALL'))) {
+                if (pickAxe && !actions.some(a => a.id === `ACTION_DIG_WALL_${dirCode}`)) {
                     const verb = pickAxe.verb || (pickAxe.isDigWand ? 'z' : 'a');
+                    const itemLetter = pickAxe.letter || pickAxe.ch || '';
                     const isZap = (verb === 'z');
-                    const labelActionName = isZap ? 'Break/Dig wall' : 'Dig wall';
-                    const labelJaName = isZap ? `壁を破壊・発動 (${pickAxe.letter})` : `壁を掘削 (${pickAxe.letter})`;
-                    const descText = isZap ? `Zap ${pickAxe.rawText || 'wand'} to break wall` : `Dig wall with ${pickAxe.rawText || 'pick-axe'}`;
-                    const descJaText = isZap ? `手持ちの ${pickAxe.rawText || '採掘の杖'} で壁を破壊・貫通します` : `壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`;
+                    const labelActionName = isZap ? `Break/Dig wall [${dirCode}]` : `Dig wall [${dirCode}]`;
+                    const labelJaName = isZap ? `壁を破壊・発動 [${dirNameJa}] (${itemLetter})` : `壁を掘削 [${dirNameJa}] (${itemLetter})`;
+                    const descText = isZap ? `Zap ${pickAxe.rawText || 'wand'} to break wall in ${dirNameJa}` : `Dig wall in ${dirNameJa} with ${pickAxe.rawText || 'pick-axe'}`;
+                    const descJaText = isZap ? `${dirNameJa}の壁を ${pickAxe.rawText || '採掘の杖'} で破壊・貫通します` : `${dirNameJa}の壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`;
+
+                    const keySeq = itemLetter ? [verb, itemLetter, dirKey] : [verb, dirKey];
 
                     actions.push({
                         id: `ACTION_DIG_WALL_${dirCode}`,
                         category: 'INTERACT',
                         label: `${labelActionName} with ${pickAxe.rawText || 'tool'}`,
                         labelJa: labelJaName,
-                        key: `${verb}${pickAxe.letter}${dirKey}`,
-                        keySequence: [verb, pickAxe.letter, dirKey],
+                        key: `${verb}${itemLetter}${dirKey}`,
+                        keySequence: keySeq,
                         charStr: verb,
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 85,
@@ -752,6 +812,7 @@ export class ContextActionEngine {
                         descriptionJa: descJaText
                     });
                 }
+
             }
 
             // 樹木 (Tree)
@@ -760,19 +821,22 @@ export class ContextActionEngine {
                     actions.push({
                         id: `ACTION_KICK_TREE_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Kick tree`,
-                        labelJa: `樹木を蹴る (Kick)`,
+                        label: `Kick tree [${dirCode}]`,
+                        labelJa: `樹木を蹴る [${dirNameJa}]`,
                         key: `C-d${dirKey}`,
                         keySequence: ['#', 'kick', dirKey],
                         charStr: '#kick',
                         extCmd: 'kick',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 65,
                         description: `Kick tree to knock down fruit or leaves`,
-                        descriptionJa: `樹木を蹴って果物やユーカリの葉を落とします`
+                        descriptionJa: `${dirNameJa}の樹木を蹴って果物やユーカリの葉を落とします`
                     });
                 }
 
@@ -780,18 +844,21 @@ export class ContextActionEngine {
                     actions.push({
                         id: `ACTION_CHOP_TREE_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Chop tree with ${axeItem.rawText || 'axe'}`,
-                        labelJa: `樹木を伐採 (${axeItem.letter})`,
+                        label: `Chop tree [${dirCode}] with ${axeItem.rawText || 'axe'}`,
+                        labelJa: `樹木を伐採 [${dirNameJa}] (${axeItem.letter})`,
                         key: `a${axeItem.letter}${dirKey}`,
                         keySequence: ['a', axeItem.letter, dirKey],
                         charStr: 'a',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 75,
                         description: `Chop tree with ${axeItem.rawText || 'axe'}`,
-                        descriptionJa: `樹木を ${axeItem.rawText || '斧'} で切り倒します`
+                        descriptionJa: `${dirNameJa}の樹木を ${axeItem.rawText || '斧'} で切り倒します`
                     });
                 }
             }
@@ -802,38 +869,72 @@ export class ContextActionEngine {
                     actions.push({
                         id: `ACTION_FREEZE_WATER_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Freeze water with ${frostWand.rawText || 'wand'}`,
-                        labelJa: `水場を凍らせる (${frostWand.letter})`,
+                        label: `Freeze water [${dirCode}] with ${frostWand.rawText || 'wand'}`,
+                        labelJa: `水場を凍らせる [${dirNameJa}] (${frostWand.letter})`,
                         key: `a${frostWand.letter}${dirKey}`,
                         keySequence: ['a', frostWand.letter, dirKey],
                         charStr: 'a',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 75,
                         description: `Use wand of frost to freeze water`,
-                        descriptionJa: `水場や溶岩を ${frostWand.rawText || '氷の杖'} で凍らせます`
+                        descriptionJa: `${dirNameJa}の水場や溶岩を ${frostWand.rawText || '氷の杖'} で凍らせます`
                     });
                 }
                 actions.push({
                     id: `ACTION_THROW_WATER_${dirCode}`,
                     category: 'INTERACT',
-                    label: `Throw item into pool`,
-                    labelJa: `水/溶岩へ投げ込む (Throw)`,
+                    label: `Throw item into pool [${dirCode}]`,
+                    labelJa: `水/溶岩へ投げ込む [${dirNameJa}]`,
                     key: `t${dirKey}`,
                     charStr: 't',
                     directionKey: dirKey,
                     direction: item.dir,
+                    isDirectional: true,
+                    dirNameJa,
+                    dirSymbol,
                     target: 'adjacent',
                     risk: null,
                     priority: 40,
                     description: `Throw item into water or lava`,
-                    descriptionJa: `水や溶岩の中にアイテムを投げ入れます`
+                    descriptionJa: `${dirNameJa}の水や溶岩の中にアイテムを投げ入れます`
                 });
             }
 
+            // 隣接マスの箱 (Adjacent Container)
+            const isAdjContainer = (item.cell.middle && item.cell.middle.isContainer) || flags.isContainer;
+            if (isAdjContainer && keyItem) {
+                if (!actions.some(a => a.id === `ACTION_UNLOCK_CONTAINER_${dirCode}`)) {
+                    actions.push({
+                        id: `ACTION_UNLOCK_CONTAINER_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Unlock container [${dirCode}] with ${keyItem.rawText || 'key'}`,
+                        labelJa: `箱を解錠 [${dirNameJa}] (${keyItem.letter})`,
+                        key: `a${keyItem.letter}${dirKey}`,
+                        keySequence: ['a', keyItem.letter, dirKey],
+                        charStr: 'a',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 95,
+                        description: `Apply ${keyItem.rawText || 'key'} to unlock container`,
+                        descriptionJa: `${dirNameJa}の箱の鍵を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
+                    });
+                }
+            }
+
+
             // 鉄格子 (Iron Bars)
+
             else if (flags.isIronBars) {
                 actions.push({
                     id: `ACTION_MELT_BARS_${dirCode}`,
@@ -893,27 +994,31 @@ export class ContextActionEngine {
         rangedTargets.forEach(target => {
             const { dir, targetKey, entity } = target;
             const dirCode = dir.code;
-            const dirName = dir.name;
             const dirToken = `DIR_${dirCode}`;
+            const dirMeta = this.getDirectionMeta(dir);
+            const { dirNameJa, dirSymbol } = dirMeta;
 
             // (A) 矢筒にセットされている弾薬がある場合 -> 射撃 (f)
             if (quiveredItem) {
                 actions.push({
                     id: `ACTION_FIRE_${dirCode}`,
                     category: 'COMBAT',
-                    label: `Fire at target (${dirCode})`,
-                    labelJa: `標的に射撃 (f:${dirName})`,
+                    label: `Fire at target [${dirCode}]`,
+                    labelJa: `標的に射撃 [${dirNameJa}] (f)`,
                     key: `f${targetKey}`,
                     keySequence: ['f', dirToken],
                     charStr: 'f',
                     directionKey: dirToken,
                     direction: dir,
+                    isDirectional: true,
+                    dirNameJa,
+                    dirSymbol,
                     entity: entity,
                     target: 'ranged',
                     risk: 'warning',
                     priority: 85,
-                    description: `Fire quivered ${quiveredItem.rawText || 'ammunition'} at creature in direction ${dirName}`,
-                    descriptionJa: `矢筒の ${quiveredItem.rawText || '弾薬'} を${dirName}の標的に向けて射撃します`
+                    description: `Fire quivered ${quiveredItem.rawText || 'ammunition'} at creature in ${dirNameJa}`,
+                    descriptionJa: `矢筒の ${quiveredItem.rawText || '弾薬'} を${dirNameJa}の標的に向けて射撃します`
                 });
             }
             // (B) 矢筒未装填だが手元に投擲可能アイテムがある場合 -> 投擲 (t)
@@ -922,22 +1027,26 @@ export class ContextActionEngine {
                 actions.push({
                     id: `ACTION_THROW_${dirCode}`,
                     category: 'COMBAT',
-                    label: `Throw ${ammo.rawText || 'item'} at target (${dirCode})`,
-                    labelJa: `標的に投擲 (t:${dirName})`,
+                    label: `Throw ${ammo.rawText || 'item'} at target [${dirCode}]`,
+                    labelJa: `標的に投擲 [${dirNameJa}] (t:${ammo.letter})`,
                     key: `t${ammo.letter}${targetKey}`,
                     keySequence: ['t', ammo.letter, dirToken],
                     charStr: 't',
                     directionKey: dirToken,
                     direction: dir,
+                    isDirectional: true,
+                    dirNameJa,
+                    dirSymbol,
                     entity: entity,
                     target: 'ranged',
                     risk: 'warning',
                     priority: 78,
-                    description: `Throw ${ammo.rawText || 'item'} at creature in direction ${dirName}`,
-                    descriptionJa: `手持ちの ${ammo.rawText || 'アイテム'} を${dirName}の標的に投擲します`
+                    description: `Throw ${ammo.rawText || 'item'} at creature in ${dirNameJa}`,
+                    descriptionJa: `手持ちの ${ammo.rawText || 'アイテム'} を${dirNameJa}の標的に投擲します`
                 });
             }
         });
+
     }
 
 

@@ -1181,15 +1181,9 @@ export class WebUICore {
                 if (flushed && flushed.lines) {
                     const rawBufferLines = flushed.lines;
                     bufferLines = rawBufferLines.map(l => this.translator.translate(l));
-
-                    // テキスト表現インベントリ (例: 'a - a lock pick') の自動検出・同期パース
-                    if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromLines === 'function') {
-                        this.inventoryStateManager.updateFromLines(rawBufferLines);
-                        this.inventoryStateManager.updateFromLines(bufferLines);
-                        this.emit('inventoryStateUpdated', this.inventoryStateManager);
-                    }
                 }
             }
+
 
             const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : 'Press Space or Enter to continue...';
             const translatedPrompt = this.translator.translate(rawPrompt);
@@ -1217,10 +1211,10 @@ export class WebUICore {
             const resolver = payload.safeResolver || payload.resolver;
             this.activeResolver = resolver;
 
-            // 初回メインゲーム入力待機時に、インベントリ未同期であれば自動サイレント同期を1回安全実行
+            // メインゲーム入力待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
             if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
                 const ctx = payload.context || payload.type;
-                if (ctx === 'poskey' || ctx === 'getch') {
+                if (ctx === 'poskey' || ctx === 'getch' || ctx === 'yn' || !ctx) {
                     setTimeout(() => {
                         if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && !this.driver.isExecutingSequence) {
                             this.syncInventorySilent();
@@ -1228,6 +1222,7 @@ export class WebUICore {
                     }, 50);
                 }
             }
+
             this.lastInputTime = Date.now();
 
             const category = payload.promptCategory || this.driver.getPromptCategory(payload.context || payload.type) || PROMPT_CATEGORY.OTHER;
@@ -1296,15 +1291,11 @@ export class WebUICore {
                 };
             });
 
+            // UIのアクティブメニュー項目としてのみ保持 (GKL インベントリの更新は自発同期 syncInventorySilent のみに一元化)
             this.activeMenuItems = translatedItems;
 
-            // GKL インベントリ自動追跡: UIクライアントに依存せず、メニュー発生時に知識層を100%全自動即時同期
-            if ((category === PROMPT_CATEGORY.MENU || payload.context === 'select_menu') && translatedItems.length > 0) {
-                if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromMenuItems === 'function') {
-                    this.inventoryStateManager.updateFromMenuItems(translatedItems);
-                    this.emit('inventoryStateUpdated', this.inventoryStateManager);
-                }
-            }
+
+
 
             const basePayload = {
                 ...payload,
