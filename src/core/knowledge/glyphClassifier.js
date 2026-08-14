@@ -195,3 +195,90 @@ export function isShopkeeperMonster(entity) {
     const name = entity.name || entity.str || '';
     return /\b(shopkeeper|店主)\b/i.test(name);
 }
+
+/**
+ * Glyph ID から NetHack オブジェクト番号 (onum: 0〜480) を算出
+ * @param {number} glyphId 
+ * @returns {number} onum (該当しない場合は -1)
+ */
+export function getOnumFromGlyph(glyphId) {
+    if (typeof glyphId !== 'number' || glyphId < 0) return -1;
+
+    // 3448〜3928: 通常アイテム (GLYPH_OBJ_OFF = 3448)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF && glyphId < GLYPH_OFFSETS.GLYPH_CMAP_OFF) {
+        return glyphId - GLYPH_OFFSETS.GLYPH_OBJ_OFF;
+    }
+
+    // 7992〜8472: 山積みアイテム (GLYPH_OBJ_PILETOP_OFF = 7992)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF && glyphId < GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) {
+        return glyphId - GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF;
+    }
+
+    return -1;
+}
+
+/**
+ * NetHack オブジェクト番号 (onum: 0〜480) からカテゴリおよび個別特性を判定
+ * @param {number} onum 
+ * @returns {Object} { category, isPickAxe, isKey, isAxe, isDigWand, isFrostWand, isContainer }
+ */
+export function getItemInfoFromOnum(onum) {
+    if (typeof onum !== 'number' || onum < 0) {
+        return { category: 'OTHER', isPickAxe: false, isKey: false, isAxe: false, isDigWand: false, isFrostWand: false, isContainer: false };
+    }
+
+    let category = 'OTHER';
+    if (onum === 2 || (onum >= 18 && onum <= 99)) {
+        category = 'WEAPON';
+    } else if (onum === 3 || (onum >= 100 && onum <= 176)) {
+        category = 'ARMOR';
+    } else if (onum === 4 || (onum >= 177 && onum <= 200)) {
+        category = 'RING';
+    } else if (onum === 5 || (onum >= 201 && onum <= 212)) {
+        category = 'AMULET';
+    } else if (onum === 6 || (onum >= 213 && onum <= 263)) {
+        category = 'TOOL';
+    } else if (onum === 7 || (onum >= 264 && onum <= 298)) {
+        category = 'FOOD';
+    } else if (onum === 8 || (onum >= 299 && onum <= 325)) {
+        category = 'POTION';
+    } else if (onum === 9 || (onum >= 326 && onum <= 368)) {
+        category = 'SCROLL';
+    } else if (onum === 10 || (onum >= 369 && onum <= 399)) {
+        category = 'SPELLBOOK';
+    } else if (onum === 11 || (onum >= 400 && onum <= 427)) {
+        category = 'WAND';
+    } else if (onum === 12) {
+        category = 'COIN';
+    } else if (onum === 13 || (onum >= 428 && onum <= 480)) {
+        category = 'GEM';
+    }
+
+    const isPickAxe = (onum === 259 || onum === 261); // pick-axe (259), dwarvish mattock (261)
+    const isKey = (onum === 251 || onum === 250 || onum === 249 || onum === 248); // key, lock pick, credit card, osaku key
+    const isAxe = (onum === 44 || onum === 45); // axe (44), battle-axe (45)
+    const isDigWand = (onum === 416 || onum === 299); // wand of digging
+    const isFrostWand = (onum === 410 || onum === 297); // wand of frost
+    const isContainer = (onum >= 214 && onum <= 220); // large box, chest, sack, etc.
+
+    // 弾薬・投擲物 (Ammunition / Missile): arrow (18-22), bolt (23), dart (24), shuriken (25), boomerang (26), javelin (32), flint (473), rock (474)
+    const isAmmo = (onum >= 18 && onum <= 26) || onum === 32 || onum === 473 || onum === 474;
+
+    // 射撃武器本体 (Launcher): bows (83-86), sling (87), crossbow (88)
+    const isLauncher = (onum >= 83 && onum <= 88);
+
+    return {
+        category,
+        isPickAxe,
+        isKey,
+        isAxe,
+        isDigWand,
+        isFrostWand,
+        isContainer,
+        isAmmo,
+        isLauncher
+    };
+}
+
+
+

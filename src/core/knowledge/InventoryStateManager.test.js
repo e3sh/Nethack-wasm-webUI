@@ -156,8 +156,98 @@ describe('InventoryStateManager', () => {
         expect(unknownItem.defaultVerb).toBe('i');
         expect(unknownItem.defaultSequence).toEqual(['i', 'x']);
     });
+
+    it('onum が null の場合でも glyphId から onum が自動算出され推奨コマンドが正確に判定されること', () => {
+        const manager = new InventoryStateManager();
+        const menuItems = [
+            { letter: 'a', text: 'a mysterious liquid', glyph: 3748, onum: null }, // glyph 3748 -> onum 300 (POTION)
+            { letter: 'b', text: 'a strange paper', glyph: 3778, onum: null },  // glyph 3778 -> onum 330 (SCROLL)
+            { letter: 'c', text: 'a wooden stick', glyph: 3864, onum: null },   // glyph 3864 -> onum 416 (WAND of digging)
+            { letter: 'd', text: 'a shiny band', glyph: 3628, onum: null },     // glyph 3628 -> onum 180 (RING)
+            { letter: 'e', text: 'a heavy chestplate', glyph: 3569, onum: null }, // glyph 3569 -> onum 121 (ARMOR)
+            { letter: 'f', text: 'a sharp blade', glyph: 3488, onum: null }      // glyph 3488 -> onum 40 (WEAPON)
+        ];
+
+        manager.updateFromMenuItems(menuItems);
+
+        // a: Potion (onum 300) -> q (quaff)
+        const potion = manager.getItemByLetter('a');
+        expect(potion.onum).toBe(300);
+        expect(potion.itemCategory).toBe('POTION');
+        expect(potion.defaultVerb).toBe('q');
+
+        // b: Scroll (onum 330) -> r (read)
+        const scroll = manager.getItemByLetter('b');
+        expect(scroll.onum).toBe(330);
+        expect(scroll.itemCategory).toBe('SCROLL');
+        expect(scroll.defaultVerb).toBe('r');
+
+        // c: Wand of Digging (onum 416) -> z (zap) & isDigWand
+        const wand = manager.getItemByLetter('c');
+        expect(wand.onum).toBe(416);
+        expect(wand.itemCategory).toBe('WAND');
+        expect(wand.isDigWand).toBe(true);
+        expect(wand.defaultVerb).toBe('z');
+
+        // d: Ring (onum 180) -> P (put on)
+        const ring = manager.getItemByLetter('d');
+        expect(ring.onum).toBe(180);
+        expect(ring.itemCategory).toBe('RING');
+        expect(ring.defaultVerb).toBe('P');
+
+        // e: Armor (onum 121) -> W (wear)
+        const armor = manager.getItemByLetter('e');
+        expect(armor.onum).toBe(121);
+        expect(armor.itemCategory).toBe('ARMOR');
+        expect(armor.defaultVerb).toBe('W');
+
+        // f: Weapon (onum 40) -> w (wield)
+        const weapon = manager.getItemByLetter('f');
+        expect(weapon.onum).toBe(40);
+        expect(weapon.itemCategory).toBe('WEAPON');
+        expect(weapon.defaultVerb).toBe('w');
+    });
+
+    it('矢(arrow)・火打ち石(flint)・岩(rock)等の弾薬系は Q (Quiver/装填) が推奨され、スリング本体(sling)は w (Wield) となること', () => {
+        const manager = new InventoryStateManager();
+        const menuItems = [
+            { letter: 'a', text: '15 arrows', glyph: 3466, onum: 18 },      // arrow -> Q (Quiver)
+            { letter: 'b', text: '3 flints', glyph: 3921, onum: 473 },      // flint -> Q (Quiver)
+            { letter: 'c', text: '5 rocks', glyph: 3922, onum: 474 },       // rock -> Q (Quiver)
+            { letter: 'd', text: 'a +0 sling', glyph: 3535, onum: 87 },     // sling -> w (Wield)
+            { letter: 'e', text: '10 arrows (in quiver)', glyph: 3466, onum: 18 } // quivered -> Q-
+        ];
+
+        manager.updateFromMenuItems(menuItems);
+
+        // a: arrow -> Q
+        const arrow = manager.getItemByLetter('a');
+        expect(arrow.isAmmo).toBe(true);
+        expect(arrow.defaultVerb).toBe('Q');
+        expect(arrow.defaultSequence).toEqual(['Q', 'a']);
+
+        // b: flint -> Q
+        const flint = manager.getItemByLetter('b');
+        expect(flint.isAmmo).toBe(true);
+        expect(flint.defaultVerb).toBe('Q');
+        expect(flint.defaultSequence).toEqual(['Q', 'b']);
+
+        // c: rock -> Q
+        const rock = manager.getItemByLetter('c');
+        expect(rock.isAmmo).toBe(true);
+        expect(rock.defaultVerb).toBe('Q');
+        expect(rock.defaultSequence).toEqual(['Q', 'c']);
+
+        // d: sling -> w
+        const sling = manager.getItemByLetter('d');
+        expect(sling.isLauncher).toBe(true);
+        expect(sling.defaultVerb).toBe('w');
+        expect(sling.defaultSequence).toEqual(['w', 'd']);
+
+        // e: quivered arrow -> Q- (Unquiver)
+        const quiveredArrow = manager.getItemByLetter('e');
+        expect(quiveredArrow.isQuivered).toBe(true);
+        expect(quiveredArrow.defaultVerb).toBe('Q');
+        expect(quiveredArrow.defaultSequence).toEqual(['Q', '-']);
+    });
 });
-
-
-
-

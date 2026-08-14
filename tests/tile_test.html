@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>NetHack Tile & Glyph Mapping Test (Fixed)</title>
+    <title>NetHack Tile & Glyph Mapping Test</title>
     <style>
         body {
             background-color: #222;
@@ -148,11 +148,11 @@
 </head>
 
 <body>
-    <h1>NetHack Tile & Glyph Mapping Test (Enhanced)</h1>
+    <h1>NetHack Tile & Glyph Mapping Test</h1>
 
     <div class="info">
-        タイル画像内のタイル番号 (Tile Index) と、それに対応する NetHack のグリフID (Glyph ID) の関係を表示します。<br>
-        `tileMapping.js` の修正後のロジックを読み込んでいます。<br>
+        タイル画像内のタイル番号 (Tile Index) と、それに対応する NetHack のグリフID (Glyph ID) および名称の関係を表示します。<br>
+        `docs/5_gamedata/tilemappings.lst` を自動パースして基準マッピングを生成しています。<br>
         <b>マウス移動:</b> マップ情報の表示 <b>クリック:</b> タイルをサイドパネルに固定
     </div>
 
@@ -165,42 +165,15 @@
     <div class="main-layout">
         <div style="flex-grow: 1;">
             <div class="controls">
-                <div style="width: 100%;">
-                    <h3 style="margin-top: 0;">Wasm Constants / Offsets</h3>
-                    <div id="wasmInputs"
-                        style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.8em; background: #444; padding: 10px; border-radius: 4px;">
-                        <div>NUMMONS: <input type="number" id="W_NUMMONS" value="383"></div>
-                        <div>NUM_OBJECTS: <input type="number" id="W_NUM_OBJECTS" value="481"></div>
-                        <div>MON_OFF: <input type="number" id="W_GLYPH_MON_OFF" value="0"></div>
-                        <div>MON_FEM_OFF: <input type="number" id="W_GLYPH_MON_FEM_OFF" value="383"></div>
-                        <div>OBJ_OFF: <input type="number" id="W_GLYPH_OBJ_OFF" value="3448"></div>
-                        <div>CMAP_OFF: <input type="number" id="W_GLYPH_CMAP_OFF" value="3929"></div>
+                <div style="width: 100%; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <span style="font-size: 0.85em; color: #aaa;">Load tilemappings.lst:</span>
+                        <input type="file" id="glyphidFile" accept=".lst,.txt" onchange="handleFileSelect(event)" style="font-size: 0.85em;">
                     </div>
-                    <div style="margin-top: 10px; display: flex; gap: 10px;">
-                        <button onclick="fetchFromWasm()">Fetch from nethack.js</button>
-                        <button onclick="updateFromInputs()">Apply Manual Changes</button>
-                        <div style="flex-grow: 1;"></div>
-                        <button onclick="toggleJsonPaste()">Toggle JSON Paste</button>
-                    </div>
-                    <div id="jsonArea" style="display: none; margin-top: 10px;">
-                        <textarea id="jsonInput"
-                            style="width: 100%; height: 60px; background: #222; color: #0f0; font-family: monospace;"
-                            placeholder='Paste {"NUMMONS": 394, ...} here'></textarea>
-                        <button onclick="applyJson()">Apply JSON</button>
-                    </div>
-                    <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 10px;">
-                        <span style="font-size: 0.8em; color: #aaa;">Load tilemappings.lst (UTF-8):</span>
-                        <input type="file" id="glyphidFile" accept=".lst,.txt" onchange="handleFileSelect(event)"
-                            style="font-size: 0.8em;">
-                    </div>
-                </div>
-                <hr style="width: 100%; border: 0; border-top: 1px solid #555;">
-                <div style="display: flex; gap: 15px; align-items: center;">
                     <div>Tiles per row: <input type="number" id="tilesPerRow" value="40"></div>
                     <div>Tile size: <input type="number" id="tileSize" value="32"></div>
                     <div>Start Tile: <input type="number" id="startTile" value="0"></div>
-                    <button onclick="render()" style="background: #0f0; color: #000; font-weight: bold;">Update
-                        View</button>
+                    <button onclick="render()" style="background: #0f0; color: #000; font-weight: bold; padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer;">Update View</button>
                 </div>
             </div>
 
@@ -221,21 +194,22 @@
         </div>
     </div>
 
-    <!-- tileMapping.js を読み込む。パスは Release/ からの相対 -->
-    <script src="../param/tileMapping.js"></script>
-
     <script>
         let mappingTable = {};
         let reverseMap = {}; // tileIndex -> [glyphIds]
         let glyphIdMap = {}; // glyphId -> name
-        let currentOffsets = null;
+        let currentOffsets = {
+            GLYPH_MON_OFF: 0,
+            GLYPH_OBJ_OFF: 3448,
+            GLYPH_CMAP_OFF: 3929,
+            GLYPH_INVIS_OFF: 1532
+        };
 
         const img = new Image();
         img.src = '../pict/nethack_default_32.png';
         img.onload = async () => {
             console.log("Image loaded:", img.width, "x", img.height);
             await loadGlyphNames();
-            initMapping();
             render();
             setupHover();
         };
@@ -243,7 +217,7 @@
         async function loadGlyphNames() {
             try {
                 console.log("Attempting to fetch tilemappings.lst...");
-                const response = await fetch('docs/tilemappings.lst');
+                const response = await fetch('../docs/5_gamedata/tilemappings.lst');
                 if (!response.ok) throw new Error("Failed to fetch tilemappings.lst (CORS or 404)");
 
                 const buffer = await response.arrayBuffer();
@@ -259,7 +233,6 @@
             if (!file) return;
             const buffer = await file.arrayBuffer();
             parseTileMappingsBuffer(buffer);
-            initMapping(currentOffsets);
             render();
         }
 
@@ -267,170 +240,83 @@
             const decoder = new TextDecoder('utf-8');
             const text = decoder.decode(buffer);
             const lines = text.split(/\r?\n/);
-            let count = 0;
+
+            mappingTable = {};
+            reverseMap = {};
             glyphIdMap = {};
-            
-            // 例: glyph[3713] [1056] corpse (onum=265)
-            // または: glyph[3930] [1273] main walls vertical (cmap=1)
-            const regex = /glyph\[(\d+)\]\s+\[\d+\]\s+(.+)/;
-            
+            const offsets = { ...currentOffsets };
+
+            let count = 0;
+
+            const constRegex = /^\s*([A-Z0-9_]+)\s*=\s*(\d+)/;
+            const entryRegex = /^\s*glyph\[(\d+)\]\s+\[(\d+)\]\s+(.+)$/;
+
             for (const line of lines) {
-                const match = line.match(regex);
-                if (match) {
-                    const glyphId = parseInt(match[1]);
-                    const name = match[2].trim();
+                const constMatch = line.match(constRegex);
+                if (constMatch) {
+                    offsets[constMatch[1]] = parseInt(constMatch[2], 10);
+                    continue;
+                }
+
+                const entryMatch = line.match(entryRegex);
+                if (entryMatch) {
+                    const glyphId = parseInt(entryMatch[1], 10);
+                    const tileIndex = parseInt(entryMatch[2], 10);
+                    const name = entryMatch[3].trim();
+
+                    mappingTable[glyphId] = tileIndex;
+                    if (!reverseMap[tileIndex]) {
+                        reverseMap[tileIndex] = [];
+                    }
+                    reverseMap[tileIndex].push(glyphId);
                     glyphIdMap[glyphId] = name;
                     count++;
                 }
             }
-            console.log(`Parsed ${count} glyph names from tilemappings.lst.`);
+
+            currentOffsets = offsets;
+
+            if (offsets.GLYPH_OBJ_OFF !== undefined && offsets.GLYPH_CMAP_OFF !== undefined) {
+                const monItem = document.querySelector('.legend-item.mon');
+                const objItem = document.querySelector('.legend-item.obj');
+                const cmapItem = document.querySelector('.legend-item.cmap');
+                if (monItem) monItem.innerText = `Monsters (G:0-${offsets.GLYPH_OBJ_OFF - 1})`;
+                if (objItem) objItem.innerText = `Objects (G:${offsets.GLYPH_OBJ_OFF}-${offsets.GLYPH_CMAP_OFF - 1})`;
+                if (cmapItem) cmapItem.innerText = `CMAP / Others (G:${offsets.GLYPH_CMAP_OFF}+)`;
+            }
+
+            console.log(`Parsed ${count} glyph mappings and constants from tilemappings.lst.`);
             return count;
         }
 
-        function initMapping(offsets) {
-            currentOffsets = offsets || null;
-            if (typeof tileMapping === 'function') {
-                mappingTable = tileMapping(currentOffsets);
-
-                if (currentOffsets !== null){
-                    document.getElementsByClassName('legend-item mon')[0].innerText = `Monsters (G:0-${offsets.GLYPH_OBJ_OFF-1})`;
-                    document.getElementsByClassName("legend-item obj")[0].innerText = `Objects (G:${offsets.GLYPH_OBJ_OFF}-${offsets.GLYPH_CMAP_OFF-1})`;
-                    document.getElementsByClassName("legend-item cmap")[0].innerText = `CMAP/Others (G:${offsets.GLYPH_CMAP_OFF}+)`;
-                }
-
-                // 逆引きテーブルの作成
-                reverseMap = {};
-                for (let glyphId in mappingTable) {
-                    const tileIdx = mappingTable[glyphId];
-                    if (!reverseMap[tileIdx]) reverseMap[tileIdx] = [];
-                    reverseMap[tileIdx].push(parseInt(glyphId));
-                }
-                console.log("Mapping initialized. Reverse map entries:", Object.keys(reverseMap).length);
-            } else {
-                console.error("tileMapping function not found!");
-            }
-        }
-
-        // --- Wasm Integration Logic ---
-
-        function updateFromInputs() {
-            const offsets = {
-                NUMMONS: parseInt(document.getElementById('W_NUMMONS')?.value || 394),
-                NUM_OBJECTS: parseInt(document.getElementById('W_NUM_OBJECTS').value),
-                GLYPH_MON_OFF: parseInt(document.getElementById('W_GLYPH_MON_OFF').value),
-                GLYPH_MON_FEM_OFF: parseInt(document.getElementById('W_GLYPH_MON_FEM_OFF').value),
-                GLYPH_OBJ_OFF: parseInt(document.getElementById('W_GLYPH_OBJ_OFF').value),
-                GLYPH_CMAP_OFF: parseInt(document.getElementById('W_GLYPH_CMAP_OFF').value),
-            };
-
-            initMapping(offsets);
-            render();
-        }
-
-        function toggleJsonPaste() {
-            const area = document.getElementById('jsonArea');
-            area.style.display = area.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function applyJson() {
-            try {
-                const json = JSON.parse(document.getElementById('jsonInput').value);
-                initMapping(json);
-                // 同期的に入力を更新
-                for (let key in json) {
-                    const el = document.getElementById('W_' + key);
-                    if (el) el.value = json[key];
-                }
-                render();
-            } catch (e) {
-                alert("Invalid JSON: " + e.message);
-            }
-        }
-
-        async function fetchFromWasm() {
-            if (window.Module && window.Module._get_nummons) {
-                doFetch();
-                return;
-            }
-
-            console.log("Loading nethack.js...");
-            window.Module = {
-                noInitialRun: true,
-                locateFile: (path) => path,
-                onRuntimeInitialized: () => {
-                    console.log("Wasm Runtime Initialized");
-                    doFetch();
-                }
-            };
-
-            const script = document.createElement('script');
-            script.src = 'nethack.js';
-            document.body.appendChild(script);
-        }
-
-        function doFetch() {
-            try {
-                const nummons = Module._get_nummons();
-                const num_objects = Module._get_num_objects();
-                const nh = {
-                    NUMMONS: nummons,
-                    NUM_OBJECTS: num_objects,
-                    GLYPH_MON_OFF: 0,
-                    GLYPH_MON_FEM_OFF: nummons,
-                    GLYPH_PET_OFF: nummons * 2,
-                    GLYPH_PET_FEM_OFF: nummons * 3,
-                    GLYPH_INVIS_OFF: nummons * 4,
-                    GLYPH_DETECT_OFF: nummons * 4 + 1,
-                    GLYPH_DETECT_FEM_OFF: nummons * 5 + 1,
-                    GLYPH_BODY_OFF: nummons * 6 + 1,
-                    GLYPH_RIDDEN_OFF: nummons * 7 + 1,
-                    GLYPH_RIDDEN_FEM_OFF: nummons * 8 + 1,
-                    GLYPH_OBJ_OFF: nummons * 9 + 1,
-                    GLYPH_CMAP_OFF: nummons * 9 + 1 + num_objects,
-                    MAX_GLYPH: nummons * 9 + 1 + num_objects + 204 // 204 = CMAP + other + warnings etc.
-                };
-                console.log("Fetched from Wasm:", nh);
-
-                // UI入力を更新
-                for (let key in nh) {
-                    const el = document.getElementById('W_' + key);
-                    if (el) el.value = nh[key];
-                }
-
-                initMapping(nh);
-                render();
-            } catch (e) {
-                console.error("Failed to fetch from Wasm:", e);
-                alert("Wasm Fetch Error: " + e.message);
-            }
-        }
-
-       function getCategoryColor(glyphIds) {
+        function getCategoryColor(glyphIds) {
             if (!glyphIds || glyphIds.length === 0) return null;
-            if (currentOffsets === null) return; 
             const gid = glyphIds[0];
             const of = currentOffsets;
-            // カテゴリ判定 (tileMapping.js の定義に準拠)
-            if (gid == of.GLYPH_INVIS_OFF) return '#ff8844'; // Invis
-            if (gid < of.GLYPH_INVIS_OFF) return '#4488ff'; // Monsters (all variants)
-            if (gid < of.GLYPH_CMAP_OFF) return '#44ff44'; // Objects
-            if (gid >= of.GLYPH_CMAP_OFF) return '#ffff44'; // CMAP
+            const invis = of.GLYPH_INVIS_OFF ?? 1532;
+            const obj = of.GLYPH_OBJ_OFF ?? 3448;
+            const cmap = of.GLYPH_CMAP_OFF ?? 3929;
+
+            if (gid === invis) return '#ff8844'; // Invis
+            if (gid < obj) return '#4488ff'; // Monsters
+            if (gid < cmap) return '#44ff44'; // Objects
+            if (gid >= cmap) return '#ffff44'; // CMAP
 
             return '#ffffff';
-       }
+        }
 
         function render() {
-            const tilesPerRow = parseInt(document.getElementById('tilesPerRow').value);
-            const size = parseInt(document.getElementById('tileSize').value);
-            const startTile = parseInt(document.getElementById('startTile').value);
+            const tilesPerRow = parseInt(document.getElementById('tilesPerRow').value, 10);
+            const size = parseInt(document.getElementById('tileSize').value, 10);
+            const startTile = parseInt(document.getElementById('startTile').value, 10);
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
 
             const totalTiles = Math.floor(img.width / size) * Math.floor(img.height / size);
-            const displayCols = 40; // 画面上での表示列数 (大きく見せるために10)
+            const displayCols = 40;
             const hGap = 10;
             const vGap = 40;
-            const displayRows = 100; // とりあえず100行分表示
+            const displayRows = 100;
 
             canvas.width = displayCols * (size + hGap) + 20;
             canvas.height = displayRows * (size + vGap) + 20;
@@ -469,24 +355,23 @@
                 if (glyphIds) {
                     ctx.fillStyle = color || '#ccc';
                     ctx.font = '9px monospace';
-                    // 最初の2つ程度を表示
                     const gText = glyphIds.slice(0, 2).join(',');
                     const more = glyphIds.length > 2 ? '..' : '';
                     ctx.fillText(`G:${gText}${more}`, destX, destY + size + 20);
 
                     // ジャンルの簡易表示
                     let cat = "";
-                    if (currentOffsets !== null) {
-                        const of = currentOffsets;
-                        const gid = glyphIds[0];
-                        if (gid <= of.GLYPH_INVIS_OFF-1) cat = "Mon";
-                        else if (gid == of.GLYPH_INVIS_OFF) cat = "Invis";
-                        else if (gid < of.GLYPH_INVIS_OFF) cat = "Mon-Var";
-                        else if (gid == of.GLYPH_OBJ_OFF) cat = "Strange";
-                        else if (gid < of.GLYPH_CMAP_OFF) cat = "Obj";
-                        else if (gid >= of.GLYPH_CMAP_OFF) cat = "CMAP";
-                        ctx.fillText(cat, destX, destY + size + 30);
-                    }
+                    const of = currentOffsets;
+                    const gid = glyphIds[0];
+                    const invis = of.GLYPH_INVIS_OFF ?? 1532;
+                    const obj = of.GLYPH_OBJ_OFF ?? 3448;
+                    const cmap = of.GLYPH_CMAP_OFF ?? 3929;
+
+                    if (gid === invis) cat = "Invis";
+                    else if (gid < obj) cat = "Mon";
+                    else if (gid < cmap) cat = "Obj";
+                    else if (gid >= cmap) cat = "CMAP";
+                    ctx.fillText(cat, destX, destY + size + 30);
                 }
             }
         }
@@ -524,8 +409,8 @@
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
 
-                const size = parseInt(document.getElementById('tileSize').value);
-                const startTile = parseInt(document.getElementById('startTile').value);
+                const size = parseInt(document.getElementById('tileSize').value, 10);
+                const startTile = parseInt(document.getElementById('startTile').value, 10);
                 const displayCols = 40;
                 const hGap = 10;
                 const vGap = 40;
@@ -574,8 +459,8 @@
                 const rect = canvas.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
-                const size = parseInt(document.getElementById('tileSize').value);
-                const startTile = parseInt(document.getElementById('startTile').value);
+                const size = parseInt(document.getElementById('tileSize').value, 10);
+                const startTile = parseInt(document.getElementById('startTile').value, 10);
                 const hGap = 10;
                 const vGap = 40;
                 const displayCols = 40;
@@ -602,4 +487,4 @@
     </script>
 </body>
 
-</html>
+</html>
