@@ -1,3 +1,11 @@
+---
+title: appearances.ja
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack アイテム出現名（エイリアス名）リスト
 
 NetHackにおいて、未識別状態で表示されるアイテムの外見や素材（エイリアス名）のリストです。

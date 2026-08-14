@@ -1,3 +1,11 @@
+---
+title: ListofActionsbyTerrainTypeinNetHack
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # **NetHack地形別アクション一覧**
 
 [https://gemini.google.com/app/d36d3aebd07a519d](https://gemini.google.com/app/d36d3aebd07a519d)

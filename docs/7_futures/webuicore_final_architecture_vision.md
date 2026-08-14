@@ -1,3 +1,11 @@
+---
+title: webuicore_final_architecture_vision
+status: reference
+last_updated: 2026-08-15
+related_code:
+  - src/core/
+---
+
 # WebUICore 最終形態ビジョンと拡張ロードマップ (Final Architecture Vision & Futures)
 
 ## 1. ビジョン概要 (Vision Overview)

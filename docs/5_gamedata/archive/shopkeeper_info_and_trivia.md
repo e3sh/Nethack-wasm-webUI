@@ -1,3 +1,11 @@
+---
+title: shopkeeper_info_and_trivia
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 5.0 店・店主名生成仕様と考察・辞書対応資料 (Shopkeeper Spec & Trivia)
 
 ## 1. 概要

@@ -1,3 +1,11 @@
+---
+title: canvas_performance_report
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - src/ui/
+---
+
 # Canvas版描画パフォーマンスとYouTube動画停止現象の調査・改善報告書
 
 ## 1. 概要と問題提起

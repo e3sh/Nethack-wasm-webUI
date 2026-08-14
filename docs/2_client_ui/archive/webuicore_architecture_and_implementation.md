@@ -1,3 +1,11 @@
+---
+title: webuicore_architecture_and_implementation
+status: needs-review
+last_updated: 2026-08-15
+related_code:
+  - src/core/WebUICore.js
+---
+
 # WebUICore アーキテクチャ設計・既存Webコンポーネント連携・詳細実装仕様書
 
 ## 1. 概要と基本方針

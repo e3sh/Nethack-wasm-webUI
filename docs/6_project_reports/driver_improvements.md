@@ -1,3 +1,11 @@
+---
+title: driver_improvements
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # NetHackWasmDriver コア機能改善・将来リファクタリング計画 (`docs/driver_improvements.md`)
 
 各種モダン Web フロントエンド（Vue 3, React, Svelte, SolidJS 等）向けサンプルクライアント (`examples/`) および WebUI コアを構築・検証する中で明確になった、**`NetHackWasmDriver` コア本体 (`src/driver/`) の全 16 項目の改善および不具合の完全修正完了ドキュメント**です。

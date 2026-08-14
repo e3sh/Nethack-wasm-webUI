@@ -1,3 +1,11 @@
+---
+title: i18n_translator_plugin_architecture
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # WebUICore i18n プラグイン差し替えアーキテクチャ設計仕様書
 ## (i18n Translator Plugin Architecture & Dependency Injection)
 

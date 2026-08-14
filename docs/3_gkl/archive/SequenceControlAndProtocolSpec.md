@@ -1,3 +1,11 @@
+---
+title: SequenceControlAndProtocolSpec
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/
+---
+
 # Game Knowledge Layer (GKL) シーケンス制御 ＆ WASM Cコア通信プロトコル仕様書
 
 本文書は、NetHack WASM WebUI における Game Knowledge Layer (GKL) Phase 2 のコア仕様である**「多段階プロンプト自走消化エンジン (`queueSequence`)」**、**「WASM Cコア通信プロトコル」**、および**「`RequestController` 状態マシン」** の技術的詳細と設計結果を記録したものです。

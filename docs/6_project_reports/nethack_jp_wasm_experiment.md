@@ -1,3 +1,11 @@
+---
+title: nethack_jp_wasm_experiment
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # NetHackJP Wasm ビルド検証・成果・課題まとめ報告書
 
 ## 1. 概要と目的

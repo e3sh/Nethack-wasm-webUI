@@ -1,3 +1,11 @@
+---
+title: driver_api_reference
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/driver/
+---
+
 # NetHackWasmDriver API リファレンスガイド (API Reference Guide)
 
 本書は `@nethack/wasm-driver` パッケージ (`NetHackWasmDriver`, `NetHackWasmWorkerBridge`, `NetHackMemory`, `NetHackFSManager`, `InputResolver`) のコンストラクタ、起動オプション、公開メソッド、発行イベント、およびレスポンダーオブジェクトの完全な API リファレンスです。

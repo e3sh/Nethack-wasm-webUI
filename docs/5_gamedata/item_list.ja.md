@@ -1,3 +1,11 @@
+---
+title: item_list.ja
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 3.7 アイテムリスト
 
 NetHack 3.7のソースコード（/include/objects.h, artilist.h）から抽出した、出現するアイテムのリストです。

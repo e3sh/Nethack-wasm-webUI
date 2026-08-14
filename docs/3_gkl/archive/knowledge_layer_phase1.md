@@ -1,3 +1,11 @@
+---
+title: knowledge_layer_phase1
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/
+---
+
 # Game Knowledge Layer Phase 1 実績・仕様 ＆ 辞書構築方針ドキュメント
 
 本ドキュメントは、`docs/7_futures/knowledge_layer_concept.md` の構想に基づき、`WebUIcore` に実装された **ゲーム知識層 Phase 1（周辺認知・重ね合わせ復元・推奨アクション生成）** の実績、設計仕様、および今後の **「インタラクト辞書構築方針」** を記録・共有するための資料です。

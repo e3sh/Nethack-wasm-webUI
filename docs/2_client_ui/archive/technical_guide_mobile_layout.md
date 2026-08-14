@@ -1,3 +1,11 @@
+---
+title: technical_guide_mobile_layout
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/ui/
+---
+
 # Webゲームにおけるモバイル対応と座標補正の技術解説
 
 本プロジェクトで行った、スマートフォン対応および画面比率（アスペクト比）の差異を克服するための技術的ノウハウをまとめます。

@@ -1,3 +1,11 @@
+---
+title: modern_client_development_guide
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # 📘 モダン Web フロントエンド対応 クライアント構築・実装ガイド (WebUICore 準拠版)
 
 本ドキュメントは、統合ドメイン層 **`WebUICore`** を使用して、Vue 3、React 18、Svelte、SolidJS 等のモダンな Web フロントエンドフレームワークで NetHack クライアントを構築するための標準実装ガイドおよびベストプラクティス集です。

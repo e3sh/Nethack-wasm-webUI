@@ -1,3 +1,11 @@
+---
+title: notebooklm_knowledge_base
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # NetHack-wasm-webUI 技術アーキテクチャ & 設計知識ベース (NotebookLM Knowledge Base)
 
 > [!NOTE]

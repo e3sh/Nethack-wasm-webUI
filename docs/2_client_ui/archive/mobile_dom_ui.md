@@ -1,3 +1,11 @@
+---
+title: mobile_dom_ui
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/ui/
+---
+
 # モバイル向け DOM UI システム仕様書
 
 ## 1. 概要

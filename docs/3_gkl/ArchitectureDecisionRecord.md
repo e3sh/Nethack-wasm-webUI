@@ -1,3 +1,11 @@
+---
+title: ArchitectureDecisionRecord
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/
+---
+
 # Game Knowledge Layer (GKL) アーキテクチャ決定記録 (ADR)
 
 本文書は、NetHack WASM WebUI の Game Knowledge Layer (GKL) における**設計原則**、**レイヤー境界の定義**、および**将来の設計フローにおける検討事項 (TODO)** を記録した決定文書である。

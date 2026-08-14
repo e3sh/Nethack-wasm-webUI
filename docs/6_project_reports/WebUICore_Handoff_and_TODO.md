@@ -1,3 +1,11 @@
+---
+title: WebUICore_Handoff_and_TODO
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # WebUIcore / Driver 次期リファクタリング作業指示書 ＆ ロードマップ (WebUICore_Handoff_and_TODO.md)
 
 > [!NOTE]

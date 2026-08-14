@@ -1,3 +1,11 @@
+---
+title: ContextActionSpec
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/ContextActionEngine.js
+---
+
 # ContextAction & executeAction API 仕様書
 
 `WebUICore` が提供する文脈依存推奨アクション (`ContextAction`) のデータ構造と、それを自動実行する `core.executeAction(action)` のコマンドフォーマット定義ドキュメントです。

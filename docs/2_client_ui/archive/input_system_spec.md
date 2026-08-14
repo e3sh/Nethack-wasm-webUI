@@ -1,3 +1,11 @@
+---
+title: input_system_spec
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/input/
+---
+
 # 入力システム技術仕様書 (Input System Specification)
 
 NetHack-wasm-webUI におけるタッチパネルおよびゲームパッドの入力制御に関する仕様をまとめます。

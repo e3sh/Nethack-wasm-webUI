@@ -1,3 +1,11 @@
+---
+title: Modern_Web_Components_Update_Rules
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # 📘 モダンWebコンポーネント版 サンプル更新作業ルール & 開発ガイドライン
 
 本ドキュメントは、NetHack Wasm WebUI プロジェクトにおいて、各種モダン Web フロントエンドフレームワーク（Vue 3, React 18, Svelte 4/5, SolidJS 等）のサンプルクライアント（`examples/` 配下）を更新・構築・保守する際に **必ず遵守すべき運用ルール、アーキテクチャ規約、および開発手戻り防止フロー** を定めた参照資料です。

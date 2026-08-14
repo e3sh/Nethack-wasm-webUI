@@ -1,3 +1,11 @@
+---
+title: client_integration_guide
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # WebUI クライアント実装ガイド ＆ 注意事項 (Client Integration Guide)
 
 > 💡 **v2.0 新版ガイドのご案内**: Vue 3, React 18, Svelte, SolidJS などのモダン Web フロントエンドフレームワークを用いた Web Worker 分離非同期型のクライアント構築ノウハウについては、最新の **[モダンクライアント構築・実装ガイド v2.0 (modern_client_development_guide.md)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/2_client_ui/modern_client_development_guide.md)** も合わせてご参照ください。

@@ -1,3 +1,11 @@
+---
+title: itemname_pattern
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack アイテム名出力フォーマット調査結果
 
 NetHack 3.7 のソースコード（主に src/objnam.c）を調査した結果、アイテム名の出力（doname(src/objnam.c#1744-1749) 関数）は以下の順序とルールで構成されていることが分かりました。

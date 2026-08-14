@@ -1,3 +1,11 @@
+---
+title: nethack_wasm_driver_reference
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/driver/
+---
+
 # NetHackWasmDriver API & Message Reference Guide
 
 `NetHackWasmDriver` (`@nethack/wasm-driver`) は、NetHack 5.0 Wasm C コア (`winshim.c`) とクライアント UI（Web 画面、Canvas 描画層、モバイル UI、Vue/React/Svelte/SolidJS 等）を繋ぐイベント駆動型の統合ドライバモジュールです。

@@ -1,3 +1,11 @@
+---
+title: translation_guide
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 5.0 Lookup Information 翻訳手順書 (参考資料・アーカイブ)
 
 > [!NOTE]

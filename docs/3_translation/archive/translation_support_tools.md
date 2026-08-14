@@ -1,3 +1,11 @@
+---
+title: translation_support_tools
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 翻訳支援ツール＆リアルタイム検証環境ガイド
 
 本ドキュメントでは、NetHack Wasm WebUI 移植プロジェクトにおける最新の翻訳支援ツール群（Web UIツールおよびCLIツール）の使い方、ならびにプレイ中に別タブ・別ウィンドウでリアルタイム対比ログや未翻訳管理ツールを並行運用する環境の構築・活用方法を解説します。

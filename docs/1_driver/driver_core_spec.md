@@ -1,3 +1,11 @@
+---
+title: driver_core_spec
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/driver/
+---
+
 # NetHackWasmDriver コア技術仕様書 (Driver Core Specification)
 
 本書は `NetHackWasmDriver` ドライバーレイヤー本体（`NetHackWasmDriver.js`, `NetHackMemory.js`, `NetHackFSManager.js`, `InputResolver.js`, `NetHackWasmWorkerBridge.js`）の内部構造・Wasm メモリバインド・C コア接続仕様についてまとめた純粋なドライバー技術資料です。

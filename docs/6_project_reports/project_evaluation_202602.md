@@ -1,3 +1,11 @@
+---
+title: project_evaluation_202602
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # プロジェクト開発状況レポート (2026年2月)
 
 ## 1. プロジェクトの目的

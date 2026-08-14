@@ -1,3 +1,11 @@
+---
+title: gkl_enhancement_summary
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/
+---
+
 # GKL (Game Knowledge Layer) 高度化＆実装変更点 まとめ資料
 
 本ドキュメントは、NetHack WebUI Core に組み込まれている Game Knowledge Layer (GKL) のリファクタリング、装備状態パース、アイテム最適デフォルトアクション自動判定、指輪左右自動選択、およびフォールバック安全設計の全容を記録した最新の技術仕様書です。

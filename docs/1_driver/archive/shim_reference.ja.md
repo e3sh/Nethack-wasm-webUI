@@ -1,3 +1,11 @@
+---
+title: shim_reference.ja
+status: active
+last_updated: 2026-08-15
+related_code:
+  - sys/share/
+---
+
 # NetHack 5.0 shim イベント & ウィンドウインターフェース リファレンス
 
 > [!IMPORTANT]

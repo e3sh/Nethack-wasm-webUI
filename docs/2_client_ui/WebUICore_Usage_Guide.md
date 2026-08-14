@@ -1,3 +1,11 @@
+---
+title: WebUICore_Usage_Guide
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/core/WebUICore.js
+---
+
 # 📖 WebUICore 利用方法・機能仕様ガイド
 
 本ドキュメントは、各サンプルクライアント（Vue 3, React 18, Svelte, SolidJS, Mobile, HTML DOM 等）の開発者が NetHack Wasm ゲームエンジンと連携するための **`WebUICore` API リファレンスおよび実装ガイド** です。

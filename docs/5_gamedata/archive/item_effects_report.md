@@ -1,3 +1,11 @@
+---
+title: item_effects_report
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack アイテム効果 統合調査報告書
 
 本ドキュメントは、NetHackの主要アイテムおよび実用的なツール類の実装詳細をまとめた報告書です。

@@ -1,3 +1,11 @@
+---
+title: sound_system_spec
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack WASM WebUI 音声再生システム 仕様 & 技術ドキュメント
 
 > [!NOTE]

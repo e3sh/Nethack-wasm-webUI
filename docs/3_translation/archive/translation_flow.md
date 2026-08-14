@@ -1,3 +1,11 @@
+---
+title: translation_flow
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack メッセージ翻訳フロー解説
 
 本ドキュメントでは、`rogue/UI/trancelate.js` における翻訳エンジンの仕組み、翻訳の優先順位、データ構造、ならびにリアルタイムログ表示機能との連携について解説します。

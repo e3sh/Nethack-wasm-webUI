@@ -1,3 +1,11 @@
+---
+title: handover_nethack50.ja
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # NetHack 5.0.0 Wasm 移行作業・引き継ぎ情報 (Handover)
 
 NetHack 5.0.0 正式版対応に伴う Wasmビルド環境構築、タイルマッピング解析、表示およびデータ同期の不具合修正の進捗状況と、次回セッションへ向けた残課題を以下にまとめます。

@@ -1,3 +1,11 @@
+---
+title: glyph_tile_mapping.ja
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 5.0 グリフ・タイルマッピング技術解説
 
 > [!IMPORTANT]

@@ -1,3 +1,11 @@
+---
+title: translation_management_guide_5.0
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 5.0 翻訳システム統合管理ガイド
 
 本書は、NetHack Wasm WebUI 移植プロジェクトにおける NetHack 5.0 対応の翻訳管理システム、これまで確立された技術的知見・実績、および統合管理スクリプト `manage_translations_5.0.py` の使用方法をまとめた技術ドキュメントです。

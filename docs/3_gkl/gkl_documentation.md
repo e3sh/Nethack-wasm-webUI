@@ -1,287 +1,174 @@
-# Game Knowledge Layer (GKL) 総合解説・利用ガイド仕様書
+---
+title: Game Knowledge Layer (GKL) 総合解説・利用ガイド仕様書
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/core/knowledge/
+  - src/core/knowledge/GKLPlugin.js
+  - src/core/knowledge/ContextActionEngine.js
+  - src/core/knowledge/InventoryStateManager.js
+  - src/core/knowledge/AreaStateManager.js
+  - src/core/WebUICore.js
+---
 
-本書は、NetHack WebUI Core に組み込まれている **Game Knowledge Layer (GKL / ゲーム知識層)** の現在の実装状況、機能・能力、取得できる情報データ構造、および利用方法（API）を整理した技術資料です。
+#  Game Knowledge Layer (GKL) 総合解説・利用ガイド仕様書
+
+本書は、NetHack WASM WebUI Core に組み込まれている **Game Knowledge Layer (GKL / ゲーム知識層)** の全体アーキテクチャ、疎結合化プラグイン仕様、主要機能、データ構造、および利用呼び出し規則（API）を解説する公式仕様書です。
 
 ---
 
-## 1. GKL (Game Knowledge Layer) とは
+## 1. GKL (Game Knowledge Layer) の概要
 
-GKL は、NetHack の複雑なゲーム仕様・コンテキスト情報をWebフロントエンド層で安全かつ高精度に解釈し、**リアルタイムな状況認識・知識支援・自動アクション生成・自走シーケンス実行** を提供する知能レイヤーモジュール群です。
+GKL は、NetHack の複雑なゲーム状態・コンテキストを Web フロントエンド層でリアルタイムに解析・復元し、**「状況認知」「知識推論」「先回り推奨アクション」「自動シーケンス実行」** を提供するインテリジェントモジュール群です。
 
-NetHack 特有の「何ができるか分かりづらい設置物（祭壇、噴水、シンク、罠、玉座等）」「複雑なコマンド入力シーケンス（鍵開け、解錠、壁の掘削、樹木の伐採、会話、支払い等）」を抽象化し、UI クライアント（ボタン、タッチ操作、コマンドパレット等）や AI Agent が容易にゲーム操作を行えるように設計されています。
+###  疎結合化プラグイン構造 (Decoupled Plugin Architecture)
+WebUICore コアエンジンと GKL ドメイン知識モジュールは完全な**疎結合設計**となっています。WebUICore 自体は汎用的な通信・イベントバスに専念し、GKL は独立した拡張プラグイン (`GKLPlugin`) としてアタッチ（注入）される呼び出し規則を採用しています。
 
 ---
 
-## 2. 現在の実装アーキテクチャ & コンポーネント構成
+## 2. アーキテクチャ & コンポーネント構成
 
-GKL は以下の 6 つのコアコンポーネントによって構成されています。
+GKL は `src/core/knowledge/` 配下の独立モジュール群で構成され、`GKLPlugin` がアタッチメントポイントとして機能します。
 
-```
- [ UI Layer / Custom Buttons / AI Agent / Debug Inspector ]
-                        │
-                        │  core.getSituation() / core.executeAction(action)
-                        ▼
+```text
+ [ Client UI Layer / Custom Buttons / AI Agent / Debug Inspector ]
+                                │
+                                ▼  core.use(gklPlugin)
  ┌──────────────────────────────────────────────────────────┐
- │ 🧠 Game Knowledge Layer (GKL)                            │
+ │                     WebUICore.js                         │
+ │        (汎用通信・イベントバス / EventHub 基盤)             │
+ └──────────────────────────────┬───────────────────────────┘
+                                │  core.emit() / Events
+                                ▼
+ ┌──────────────────────────────────────────────────────────┐
+ │                 GKLPlugin (アタッチドモジュール)          │
  │                                                          │
- │  1. 状況統合・キャッシュアクセサ                         │
- │     - SituationCache                                     │
- │       (ステータス・マップ・所持品・推奨アクションを一発取得)   │
- │                                                          │
- │  2. 推奨アクション自動生成エンジン                       │
- │     - ContextActionEngine                                │
- │       (周辺マップ環境と所持ツールから最適コマンド群を推論)     │
- │                                                          │
- │  3. エリア・ダンジョンマップ状態マネージャー              │
- │     - AreaStateManager                                   │
- │       (80x21グリッドを3階層[地形/アイテム/モンスター]管理)│
- │                                                          │
- │  4. インベントリ（所持品）状態マネージャー                │
- │     - InventoryStateManager                              │
- │       (ツルハシ・鍵・斧・杖等を三層アルゴリズムで高精度識別) │
- │                                                          │
- │  5. グリフ・エンティティ分類ユーティリティ              │
- │     - glyphClassifier                                    │
- │       (NetHack 5.0/3.7 の Glyph ID を意�| **`InventoryStateManager`** | [`InventoryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/InventoryStateManager.js) | 所持品を管理し、三層識別アルゴリズム (Glyph ID → ONUM → テキスト正規表現) で装備状態 (`isWielded`, `isWorn` 等) および最適推奨操作 (`defaultVerb`, `defaultSequence`) を自動判定。 |
-| **`glyphClassifier`** | [`glyphClassifier.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/glyphClassifier.js) | NetHack 5.0 (3.7) の約10000種類の Glyph ID を意味カテゴリ (`TERRAIN`, `ITEM`, `MONSTER`, `PET`, `BODY` 等) や CMAP フラグへ分類。 |
-| **`RequestController`** | [`RequestController.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/RequestController.js) | 状態マシン (`IDLE`, `EXECUTING`, `ABORTING_ESC`, `SUSPENDED`) を持ち、多段階プロンプトの自走自動消化と割り込み安全キャンセルを制御。 |
+ │  ┌────────────────────────┐   ┌───────────────────────┐  │
+ │  │   AreaStateManager     │   │ InventoryState        │  │
+ │  │ (3層マップ/地形/NPC解析) │   │ Manager (所持品・同期) │  │
+ │  └───────────┬────────────┘   └───────────┬───────────┘  │
+ │              │                            │              │
+ │              └────────────┬───────────────┘              │
+ │                           ▼                              │
+ │            ┌─────────────────────────────┐               │
+ │            │   ContextActionEngine       │               │
+ │            │   (先回り推奨アクション推論)│               │
+ │            └──────────────┬──────────────┘               │
+ │                           │                              │
+ │                           ▼                              │
+ │            ┌─────────────────────────────┐               │
+ │            │      SituationCache         │               │
+ │            └─────────────────────────────┘               │
+ └──────────────────────────────────────────────────────────┘
+```
+
+### 主要コンポーネントの役割
+1. **`GKLPlugin.js`**:
+   - プラグインのエントリーポイント。`core.use(plugin)` または `plugin.attach(core)` で WebUICore にアタッチされ、イベントリスナーを接続。
+2. **`AreaStateManager.js`**:
+   - プレイヤー周辺の地形（箱・祭壇・泉・シンク・罠・扉等）やモンスター/NPCの位置関係を 3層マップ構造でリアルタイム解析。
+3. **`InventoryStateManager.js`**:
+   - 所持品アイテムの識別名、BUC (Blessed/Uncursed/Cursed)、装備状態、各種ツールのキー割り当てを管理。
+   - 低レイヤーでのバックグラウンド・サイレントインベントリ同期を担当。
+4. **`ContextActionEngine.js`**:
+   - 現在地や周辺環境、所持品に応じた「推奨アクション（`ContextAction`）」を自動推論。
+5. **`SituationCache.js`**:
+   - 統合ゲーム状況（`Situation`）のキャッシュ管理と高速データバインドを提供。
 
 ---
 
-## 3. GKL の主要な機能と能力
+## 3. 呼び出し規則と初期化パターン (API Usage)
 
-### ① 周辺環境・文脈に応じた推奨アクション (Contextual Action Recommendation)
-`ContextActionEngine` が自動でゲーム状況を読み取り、以下の環境・対象に応じた実行可能アクションを即座に生成します。
+GKL モジュールは疎結合化されているため、用途に応じた3通りの呼び出し・初期化パターンがサポートされています。
 
-* **足元 (Stepping On)**
-  * **落ちているアイテム**: 拾う (`,`), 落とす (`d`)
-  * **箱・コンテナ**: 漁る/開ける (`#loot`), 鍵で解錠 (`a` + 鍵スロット + `DIR_SELF`), 罠解除 (`#untrap`)
-  * **階段**: 降りる (`>`), 上る (`<`)
-  * **祭壇 (Altar)**: 生贄を捧げる (`#offer`), BUC判別落とし (`d`), 祈る (`#pray`) ※危険度警告付き
-  * **泉 (Fountain)**: 飲む (`q`), 浸す (`#dip`), 罠解除 (`#untrap`), 蹴る (`C-d`)
-  * **シンク (Sink)**: 座る/指輪識別 (`#sit`), 飲む (`q`), 浸す (`#dip`), 蹴る (`C-d`)
-  * **罠 (Trap)**: 解除/埋め立て (`#untrap`), 自ら座る (`#sit`)
-  * **玉座 (Throne)**: 座る (`#sit`)
-  * **床/廊下**: 文字を刻む (`E`), 探す (`s`), 座る (`#sit`)
-* **隣接 8 方向 (Adjacent Tiles & Creatures)**
-  * **モンスター / NPC**: 近接攻撃 (`DIR`), 話しかける (`#chat`), 代金を支払う (`#pay` ※店主のみ)
-  * **ペット (Pet)**: 話しかける (`#chat`) ※ペット誤爆攻撃を完全防止
-  * **扉 (Door)**: 開ける (`o` + `DIR`), 閉める (`c` + `DIR`), 鍵で解錠 (`a` + 鍵 + `DIR`), 蹴破る (`#kick` + `DIR`), 罠解除 (`#untrap` + `DIR`)
-  * **壁 / 隠し扉**: 捜索 (`s`), ツルハシで掘削 (`a` + ツルハシ + `DIR`)
-  * **樹木**: 蹴る (`C-d` + `DIR`), 斧で伐採 (`a` + 斧 + `DIR`)
-  * **水場 / 溶岩**: 氷の杖で凍らせる (`a` + 氷の杖 + `DIR`), アイテムを投げ入れる (`t` + `DIR`)
-  * **鉄格子**: 酸/ツルハシで溶かす・壊す (`a` + `DIR`)
+### パターン 1: プラグイン注入 (`use()` 推奨パターン)
+WebUICore インスタンスを生成後、`use()` メソッドで `GKLPlugin` をアタッチします。
 
-### ② 所持品装備状態の追跡 (Equipment State Tracking)
-`InventoryStateManager` がインベントリテキストから装備スロット情報を全自動でパース・保持します。
+```javascript
+import { WebUICore } from './core/WebUICore.js';
+import { GKLPlugin } from './core/knowledge/GKLPlugin.js';
 
-* **メイン武器 (Wielded)**: `(weapon in hand)`, `(wielded)` ➔ `isWielded: true`
-* **二刀流副武器 (Off-hand)**: `(weapon in left hand)`, `(in off hand)` ➔ `isOffhand: true`
-* **矢筒 (Quiver)**: `(in quiver)` ➔ `isQuivered: true`
-* **着用防具・指輪・お守り (Worn)**: `(being worn)`, `(on left hand)`, `(around neck)` ➔ `isWorn: true`, `equipSlot`
+const core = new WebUICore();
+const gkl = new GKLPlugin({ keyMode: 'vi' });
 
-### ③ 所持品アイテムの最適デフォルト推奨アクション判定 (Item Default Actions)
-タッチUI等のワンタップ操作向けに、アイテムのカテゴリおよび装備状態に応じた推奨操作キー (`defaultVerb`, `defaultSequence`, `defaultActionLabelJa`) を自動判定します。
+// プラグインとして注入
+core.use(gkl);
 
-* **ポーション (Potion / 未識別名含む)**: 飲む ➔ `['q', letter]`
-* **食品 (Food / 各種死体・Ration・缶詰等)**: 食べる ➔ `['e', letter]`
-* **巻物・呪文書 (Scroll/Spellbook)**: 読む・勉強する ➔ `['r', letter]`
-* **杖 (Wand / 未識別材質含む)**: 振る ➔ `['z', letter]`
-* **道具 (Tool / タオル・鍵・ツルハシ・笛・鏡等)**: 使う ➔ `['a', letter]`
-* **未着用防具 / 着用中防具**: 着用する (`['W', letter]`) / 脱ぐ (`['T', letter]`)
-* **未装着指輪 (Ring / 左右手自動判別)**: `ring_left` / `ring_right` の空き状況から自動判定 ➔ `['P', letter, 'l']` または `['P', letter, 'r']`
-* **装着中指輪 / お守り**: 外す ➔ `['R', letter]`
-* **未装備武器 / 装備中武器**: 手に持つ (`['w', letter]`) / 手放す (`['w', '-']`)
-* **判定不能・変名アイテム (OTHER)**: 誤移動コマンド等の暴発を完全に防ぐため、インベントリ表示 `i` を前置した **`['i', letter]`** へ安全フォールバック。
+// GKL からゲーム状況と推奨アクションを取得
+const situation = gkl.getSituation();
+console.log("推奨アクション:", situation.recommendedActions);
+```
 
-### ④ 高精度インベントリツール検出＆動的コマンドキー切替
-所持アイテムについて以下を自動識別し、ツールの分類に応じた正しいコマンドキー (`verb`) を自動的に割り当ててアクションを生成します：
-* **`pickAxe` / ツルハシ類** (`pick-axe`, `dwarvish mattock`): **Apply コマンド (`a`)** で使用 ➔ `['a', letter, DIR]`
-* **`isDigWand` / 採掘の杖** (`wand of digging`): **Zap コマンド (`z`)** で使用 ➔ `['z', letter, DIR]`
-* **`key` / 鍵類** (`skeleton key`, `lock pick`, `credit card`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
-* **`axe` / 斧類** (`axe`, `battle-axe`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
-* **`frostWand` / 氷の杖**: **Zap コマンド (`z`)** ➔ `['z', letter, DIR]`
+### パターン 2: WebUICore オプション経由での自動アタッチ
+コンストラクタオプション `options.gkl` で指定します。（未指定の場合もデフォルトの `GKLPlugin` が自動注入され、透過的互換性が維持されます）
 
-### ⑤ 抽象キー＆プロンプトの自走自動消化
-`['#', 'open', 'DIR_E']` や `['a', 'b', 'DIR_E']` などの多段階コマンドを送信した際、WASM コア側のプロンプト入力待ちを低レイヤーで認識し、画面を乱さずに自動連続送信・完了消化します。
+```javascript
+const core = new WebUICore({
+  gkl: new GKLPlugin({ keyMode: 'numpad' })
+});
 
-### ⑥ バックグラウンド・サイレント同期
-画面表示や UI のちらつきなしに、バックグラウンドでインベントリ (`i`) やコマンドバッファを同期取得可能 (`querySequenceSilent`, `syncInventorySilent`)。ワンタップ操作完了後に自動サイレント同期が走り、消費アイテムの消滅や装備ハイライト枠の点灯/消灯が即座に反映されます。
- や CMAP フラグへ分類。 |
-| **`RequestController`** | [`RequestController.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/RequestController.js) | 状態マシン (`IDLE`, `EXECUTING`, `ABORTING_ESC`, `SUSPENDED`) を持ち、多段階プロンプトの自走自動消化と割り込み安全キャンセルを制御。 |
+// WebUICore 経由の Delegator アクセス
+const situation = core.getSituation();
+```
+
+### パターン 3: スタンドアロン・イベント連携
+`GKLPlugin` 自身が発行するパブリックイベントを直接購読して非同期にUIを更新します。
+
+```javascript
+const gkl = new GKLPlugin();
+gkl.attach(core);
+
+// 状況更新イベントの購読
+gkl.on('situation_updated', (situation) => {
+  renderActionButtons(situation.recommendedActions);
+});
+```
 
 ---
 
-## 3. GKL の主要な機能と能力
+## 4. GKL の主要機能と推奨アクション推論
 
-### ① 周辺環境・文脈に応じた推奨アクション (Contextual Action Recommendation)
-`ContextActionEngine` が自動でゲーム状況を読み取り、以下の環境・対象に応じた実行可能アクションを即座に生成します。
+### ① 周辺環境に応じた推奨アクション推論 (`ContextAction`)
+- **箱・コンテナ (Container)**: 漁る/開ける (`#loot`), 鍵で解錠 (`a` + 鍵 + 方向), 罠解除 (`#untrap`)
+- **祭壇 (Altar)**: 生贄を捧げる (`#offer`), BUC判別落とし (`d`), 祈る (`#pray`) ※危険度警告表示機能付き
+- **泉 (Fountain)**: 飲む (`q`), 浸す (`#dip`), 罠解除 (`#untrap`), 蹴る (`ctrl+d`)
+- **シンク (Sink)**: 座る/指輪識別 (`#sit`), 飲む (`q`), 浸す (`#dip`), 蹴る (`ctrl+d`)
+- **罠 (Trap)**: 解除/埋め立て (`#untrap`), 自ら座る (`#sit`)
+- **扉 (Door)**: 開ける (`o`), 閉める (`c`), 鍵で解錠 (`a`), 蹴破る (`#kick`), 罠解除 (`#untrap`)
+- **モンスター / NPC**: 近接攻撃, 話しかける (`#chat`), 代金を支払う (`#pay` ※店主)
+- **ペット (Pet)**: 話しかける (`#chat`) ※ペットに対する誤攻撃を自動防止
 
-* **足元 (Stepping On)**
-  * **落ちているアイテム**: 拾う (`,`), 落とす (`d`)
-  * **箱・コンテナ**: 漁る/開ける (`#loot`), 鍵で解錠 (`a` + 鍵スロット + `DIR_SELF`), 罠解除 (`#untrap`)
-  * **階段**: 降りる (`>`), 上る (`<`)
-  * **祭壇 (Altar)**: 生贄を捧げる (`#offer`), BUC判別落とし (`d`), 祈る (`#pray`) ※危険度警告付き
-  * **泉 (Fountain)**: 飲む (`q`), 浸す (`#dip`), 罠解除 (`#untrap`), 蹴る (`C-d`)
-  * **シンク (Sink)**: 座る/指輪識別 (`#sit`), 飲む (`q`), 浸す (`#dip`), 蹴る (`C-d`)
-  * **罠 (Trap)**: 解除/埋め立て (`#untrap`), 自ら座る (`#sit`)
-  * **玉座 (Throne)**: 座る (`#sit`)
-  * **床/廊下**: 文字を刻む (`E`), 探す (`s`), 座る (`#sit`)
-* **隣接 8 方向 (Adjacent Tiles & Creatures)**
-  * **モンスター / NPC**: 近接攻撃 (`DIR`), 話しかける (`#chat`), 代金を支払う (`#pay` ※店主のみ)
-  * **ペット (Pet)**: 話しかける (`#chat`) ※ペット誤爆攻撃を完全防止
-  * **扉 (Door)**: 開ける (`o` + `DIR`), 閉める (`c` + `DIR`), 鍵で解錠 (`a` + 鍵 + `DIR`), 蹴破る (`#kick` + `DIR`), 罠解除 (`#untrap` + `DIR`)
-  * **壁 / 隠し扉**: 捜索 (`s`), ツルハシで掘削 (`a` + ツルハシ + `DIR`)
-  * **樹木**: 蹴る (`C-d` + `DIR`), 斧で伐採 (`a` + 斧 + `DIR`)
-  * **水場 / 溶岩**: 氷の杖で凍らせる (`a` + 氷の杖 + `DIR`), アイテムを投げ入れる (`t` + `DIR`)
-  * **鉄格子**: 酸/ツルハシで溶かす・壊す (`a` + `DIR`)
-
-### ② 高精度インベントリツール検出＆動的コマンドキー切替
-所持アイテムについて以下を自動識別し、ツールの分類に応じた正しいコマンドキー (`verb`) を自動的に割り当ててアクションを生成します：
-* **`pickAxe` / ツルハシ類** (`pick-axe`, `dwarvish mattock`): **Apply コマンド (`a`)** で使用 ➔ `['a', letter, DIR]`
-* **`isDigWand` / 採掘の杖** (`wand of digging`): **Zap コマンド (`z`)** で使用 ➔ `['z', letter, DIR]`
-* **`key` / 鍵類** (`skeleton key`, `lock pick`, `credit card`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
-* **`axe` / 斧類** (`axe`, `battle-axe`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
-* **`frostWand` / 氷の杖**: **Zap コマンド (`z`)** ➔ `['z', letter, DIR]`
-
-### ③ 抽象キー＆プロンプトの自走自動消化
-`['#', 'open', 'DIR_E']` や `['a', 'b', 'DIR_N']` などの多段階コマンドを送信した際、WASM コア側のプロンプト入力待ちを低レイヤーで認識し、画面を乱さずに自動連続送信・完了消化します。
-
-### ④ バックグラウンド・サイレント同期
-画面表示や UI のちらつきなしに、バックグラウンドでインベントリ (`i`) やコマンドバッファを同期取得可能 (`querySequenceSilent`, `syncInventorySilent`)。
+### ② バックグラウンド・サイレント同期
+画面表示を乱すことなくインベントリ・状態クエリを裏で発行・パースし、最新のアイテム一覧を非同期で維持。
 
 ---
 
-## 4. GKL から取得できる情報データ構造
+## 5. データ構造
 
-### ① 統合状況データ構造 (`gkl.getSituation()`)
-
+### ① 統合ゲーム状況構造体 (`Situation`)
 ```typescript
-interface Situation {
-    // プレイヤーのステータス情報 (HP, Level, AC, 属性, ゴールド等)
-    status: StructuredStatus;
-
-    // インベントリ情報
-    inventory: {
-        items: InventoryItem[];
-        isSynced: boolean; // 同期済みフラグ
-    };
-
-    // 周辺マップ・位置情報
-    area: {
-        center: { x: number; y: number };
-        feet: CellState;                // 足元のセル情報
-        adjacentMonsters: MonsterInfo[]; // 隣接モンスター一覧
-        adjacentEntities: EntityInfo[]; // 隣接 8 方向のセル情報
-        cells: CellState[][];           // 周辺 3x3 グリッド行列
-    };
-
-    // 検出済み主要ツール
-    tools: {
-        pickAxe: InventoryItem | null;
-        key: InventoryItem | null;
-        axe: InventoryItem | null;
-        frostWand: InventoryItem | null;
-    };
-
-    // 現在実行推奨されるアクション一覧 (priority 降順)
-    actions: ContextAction[];
+interface GameSituation {
+  player: {
+    x: number;
+    y: number;
+    hp: number;
+    maxHp: number;
+    level: number;
+  };
+  currentTile: TileInfo;         // 足元の地形・オブジェクト情報
+  adjacentTiles: TileInfo[];     // 隣接8マスの地形・オブジェクト情報
+  recommendedActions: ContextAction[]; // 推奨アクション一覧
+  inventory: InventoryItem[];    // 所持品一覧
 }
 ```
 
-### ② 推奨アクションデータ構造 (`ContextAction`)
-
+### ② 推奨アクション構造体 (`ContextAction`)
 ```typescript
 interface ContextAction {
-    id: string;            // 一意の識別子 (例: 'ACTION_OPEN_DOOR_N', 'ACTION_OFFER')
-    category: 'INTERACT' | 'COMBAT' | 'ITEM' | 'MOVEMENT';
-    label: string;         // 英語ラベル ("Open door")
-    labelJa?: string;      // 日本語ラベル ("扉を開ける (Open)")
-    key: string;           // 代表キー ("o", "C-d", "#sit")
-    keySequence?: string[];// 連続実行用抽象トークン配列 (['o', 'DIR_E'], ['#', 'loot', 'DIR_SELF'])
-    charStr?: string;      // メイン文字
-    extCmd?: string;       // 拡張コマンド名 ("open", "loot", "chat", "pay", "pray")
-    directionKey?: string; // 抽象方向トークン ("DIR_N", "DIR_E", "DIR_SELF" 等)
-    risk?: null | 'warning' | 'danger'; // リスクレベル ('danger' は確認ダイアログ表示を推薦)
-    priority: number;      // 優先度 (数値が高いものほど画面上位に配置)
-    target?: 'self' | 'feet' | 'adjacent' | 'inventory';
-    description?: string;  // 英語説明文
-    descriptionJa?: string;// 日本語説明文
+  id: string;            // 一意のアクションID (例: "loot_container")
+  label: string;         // UI表示用ラベル (例: "箱を漁る")
+  key: string;           // 代表実行キー (例: "#loot")
+  keySequence?: string[];// 連続実行用トークン配列 (例: ['#', 'loot', 'DIR_E'])
+  dangerLevel: "safe" | "warning" | "dangerous"; // 危険度区分
 }
 ```
-
----
-
-## 5. GKL の具体的な利用方法 (コード例)
-
-WebUI Core インスタンス (`core`) から直接 GKL の API を呼び出すことができます。
-
-### 1) ゲームの統合状況と推奨アクションの取得
-
-```javascript
-// WebUICore インスタンスを取得
-const situation = core.getSituation();
-
-// 1. 現在推奨されているアクションの一覧を取得
-console.log("推奨アクション一覧:", situation.actions);
-
-// 2. 所持ツールの確認
-if (situation.tools.key) {
-    console.log("鍵を所持しています:", situation.tools.key.rawText);
-}
-```
-
-### 2) 推奨アクション (`ContextAction`) の実行
-
-`core.executeAction(action)` を呼ぶだけで、単一キー・拡張コマンド・方向指定シーケンスが安全かつ自動的に送出されます。
-
-```javascript
-// UI ボタンクリック時などのハンドラー
-function onActionButtonClick(action) {
-    if (!action) return;
-
-    // 危険なアクションに対する確認
-    if (action.risk === 'danger') {
-        const confirmOk = window.confirm(`【⚠️ 危険】\n${action.labelJa || action.label} を実行しますか？`);
-        if (!confirmOk) return;
-    }
-
-    // GKL ファサードを通じてアクションを統一実行
-    core.executeAction(action);
-}
-```
-
-### 3) バックグラウンドでのサイレントインベントリ同期
-
-画面のダイアログ表示を出さずにインベントリの状態を更新したい場合：
-
-```javascript
-// バックグラウンドで 'i' コマンドを発行してインベントリ状態を最新化
-await core.syncInventorySilent();
-
-// 最新のインベントリ状態を取得
-const inventoryState = core.getInventoryState();
-console.log("インベントリアイテム数:", inventoryState.items.length);
-```
-
-### 4) 拡張コマンドの直接実行
-
-`#chat`, `#pay`, `#loot`, `#untrap` などの拡張コマンドをプログラムから実行：
-
-```javascript
-// 東方向 (DIR_E) の店主に代金を支払う
-core.sendExtCommand('pay', 'DIR_E');
-
-// 足元の箱を開ける
-core.sendExtCommand('loot', 'DIR_SELF');
-```
-
----
-
-## 6. まとめ
-
-GKL (Game Knowledge Layer) は、以下のような価値を提供しています：
-
-1. **画面非依存・デバイス非依存な統一操作**: キーボードの無いスマホ/タブレット、ゲームパッド、マウス操作、AI Agent からでも安全かつ直感的にゲームをプレイ可能。
-2. **安全な誤操作防止**: ペットへの誤攻撃防止、危険アクション（祈り・泉蹴り等）の事前リスク警告。
-3. **ノイズの少ない最適なコンテキスト選択肢**: 鍵を持っていない場合は「鍵開け」を表示しないなど、所持品と周囲環境を完全に連動させたスマートなアクション提示。

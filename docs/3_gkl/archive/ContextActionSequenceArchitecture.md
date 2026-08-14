@@ -1,3 +1,11 @@
+---
+title: ContextActionSequenceArchitecture
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/ContextActionSequenceExecutor.js
+---
+
 # ContextAction シーケンス処理と割り込み制御アーキテクチャ構想資料
 
 ## 1. 本 Conversation での達成事項・実装概要

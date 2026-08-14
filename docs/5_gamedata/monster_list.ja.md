@@ -1,3 +1,11 @@
+---
+title: monster_list.ja
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack モンスター一覧 (3.7.0)
 
 NetHack 3.7.0 のソースコードから抽出したモンスターの一覧です。

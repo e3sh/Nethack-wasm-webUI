@@ -1,3 +1,11 @@
+---
+title: driver_architecture_and_roadmap
+status: needs-review
+last_updated: 2026-08-15
+related_code:
+  - src/driver/
+---
+
 # NetHackWasmDriver 設計仕様書 & リファクタリングロードマップ
 
 本ドキュメントは、**NetHack 5.0 Wasm WebUI** における C/Wasm コアと JavaScript UI 層の密結合を解き、単体で再利用・テスト可能な汎用ドライバ **`NetHackWasmDriver` (`@nethack/wasm-driver`)** のアーキテクチャ設計仕様および実装完了報告です。

@@ -1,3 +1,11 @@
+---
+title: WebUICore_Development_Summary
+status: archived
+last_updated: 2026-08-15
+related_code:
+  - docs/
+---
+
 # 🐍 NetHack Wasm WebUICore 開発成果まとめ資料
 
 ## 1. プロジェクト概要と開発背景

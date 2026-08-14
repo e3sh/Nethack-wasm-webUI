@@ -1,3 +1,11 @@
+---
+title: knowledge_layer_concept
+status: reference
+last_updated: 2026-08-15
+related_code:
+  - src/gkl/
+---
+
 # Game Knowledge Layer（ゲーム知識層）構想メモ
 
 ## 1. 背景と目的

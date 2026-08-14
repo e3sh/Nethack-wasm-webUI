@@ -1,3 +1,11 @@
+---
+title: DICTIONARY_OPERATION
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # 辞書更新オペレーションガイド
 
 本ドキュメントでは、マスター辞書データ（`dictionary.csv`）と実行用辞書（`param/nhMessage.js`）の連携、基本的なファイル操作コマンド、および翻訳運用フローについて説明します。

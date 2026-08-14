@@ -1,3 +1,11 @@
+---
+title: soundprocs_shim_research
+status: active
+last_updated: 2026-08-15
+related_code:
+  - src/
+---
+
 # NetHack 5.0 soundprocs アーキテクチャと WASM shim 拡張に関する技術考察・研究レポート
 
 > [!NOTE]
