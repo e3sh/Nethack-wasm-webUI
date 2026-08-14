@@ -50,4 +50,25 @@ describe('PromptPayloadBuilder', () => {
         expect(res.options.length).toBeGreaterThanOrEqual(8);
         expect(res.options[0]).toEqual({ key: 'k', label: 'North (k)', direction: 'N' });
     });
+
+    it('EXTCMD および LINE_TEXT プロンプトを LINE_TEXT ペイロードにパースできること', () => {
+        const builder = new PromptPayloadBuilder();
+        const payloadExt = {
+            category: PROMPT_CATEGORY.EXTCMD,
+            prompt: "#Which extended command?"
+        };
+
+        const resExt = builder.build(payloadExt);
+        expect(resExt.inputType).toBe('LINE_TEXT');
+        expect(resExt.title).toBe('Which extended command?');
+        expect(resExt.promptText).toBe('#Which extended command?');
+
+        const payloadGetlin = {
+            context: 'getlin',
+            prompt: "Call a monster:"
+        };
+        const resGetlin = builder.build(payloadGetlin);
+        expect(resGetlin.inputType).toBe('LINE_TEXT');
+        expect(resGetlin.promptText).toBe('Call a monster:');
+    });
 });

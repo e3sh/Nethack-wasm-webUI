@@ -762,6 +762,34 @@ export class WebUICore {
     }
 
     /**
+     * キーシーケンスを安全に実行し、必要に応じて非同期でサイレント・インベントリ同期を起動する
+     * @param {Array<string>} sequence 
+     * @param {Object} [options={}] 
+     * @returns {Promise<boolean>}
+     */
+    async executeSequence(sequence, options = {}) {
+        if (!Array.isArray(sequence) || sequence.length === 0) return false;
+
+        let success = false;
+        if (this.requestController && typeof this.requestController.executeSequence === 'function') {
+            success = await this.requestController.executeSequence(sequence, options);
+        } else if (this.driver && typeof this.driver.queueSequence === 'function') {
+            this.driver.queueSequence(sequence, options);
+            success = true;
+        } else {
+            sequence.forEach(ch => this.sendKey(ch, false, false, false, ch, true));
+            success = true;
+        }
+
+        // シーケンス実行完了後、所持品状態が未同期 (isSynced === false) の場合はサイレントインベントリ同期を起動
+        if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
+            await this.syncInventorySilent();
+        }
+
+        return success;
+    }
+
+    /**
      * ContextActionEngine が生成した推奨アクション (ContextAction) を安全に実行する。
      * @param {Object} action - recommended action オブジェクト
      * @param {Object} [options={}] - オプション
@@ -769,16 +797,28 @@ export class WebUICore {
     executeAction(action, options = {}) {
         if (!action) return false;
 
-        // 【1】拡張コマンド (#chat, #loot, #untrap 等)
+        // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
+        if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
+            const seq = [...action.keySequence];
+            if (this.requestController) {
+                return this.requestController.executeSequence(seq, options);
+            } else if (this.driver && typeof this.driver.queueSequence === 'function') {
+                this.driver.queueSequence(seq, options);
+                return true;
+            }
+        }
+
+        // 【2】拡張コマンド (#chat, #loot, #untrap 等)
         if (action.extCmd) {
             this.sendExtCommand(action.extCmd, action.directionKey, options);
             return true;
         }
 
-        // 【2】方向キー付きコマンドまたはシーケンスコマンド (例: ['o', 'DIR_E'], ['a', 'b', 'DIR_E'])
+        // 【3】方向キー付きコマンド
         const mainKey = action.charStr || action.key;
         const hasDirection = !!action.directionKey;
-        const seq = action.keySequence ? [...action.keySequence] : (hasDirection ? [mainKey, action.directionKey] : null);
+        // mainKey と directionKey が同一（攻撃コマンド等）の場合は2重配列化を防ぐ
+        const seq = (hasDirection && action.directionKey !== mainKey) ? [mainKey, action.directionKey] : null;
 
         if (seq && seq.length > 0) {
             if (this.requestController) {
@@ -789,7 +829,7 @@ export class WebUICore {
             }
         }
 
-        // 【3】単一コマンド
+        // 【4】単一コマンド
         this.sendActionKey(mainKey);
         return true;
     }

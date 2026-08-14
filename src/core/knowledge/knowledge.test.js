@@ -379,4 +379,95 @@ test('InventoryStateManager & ContextActionEngine - pick-axe (a) と wand of dig
     assert.deepStrictEqual(digActionPick.keySequence, ['a', 'p', 'DIR_E'], 'pick-axe の場合は a キーで開始されること');
 });
 
+test('ContextActionEngine & WebUICore - 精査修正後の全アクション仕様と方向シーケンスの検証テスト', () => {
+    const area = new AreaStateManager(80, 21);
+    area.updatePlayerPosition(5, 5);
+
+    // 1. 鉄格子 (Iron Bars: 3990) および 隣接罠 (Trap: 4026) での ReferenceError 防止と keySequence 確認
+    area.updateGlyph(6, 5, 3990); // 東に鉄格子
+    area.updateGlyph(5, 6, 4026); // 南に罠
+    let state = area.getAreaState();
+
+    let actions = ContextActionEngine.generateActions(state);
+    const meltAction = actions.find(a => a.id.startsWith('ACTION_MELT_BARS'));
+    assert.ok(meltAction, '鉄格子アクションがクラッシュせず生成されること');
+    assert.deepStrictEqual(meltAction.keySequence, ['a', 'DIR_E']);
+
+    const untrapAdjAction = actions.find(a => a.id.startsWith('ACTION_UNTRAP_ADJACENT'));
+    assert.ok(untrapAdjAction, '隣接罠解除アクションがクラッシュせず生成されること');
+    assert.deepStrictEqual(untrapAdjAction.keySequence, ['#', 'untrap', 'DIR_S']);
+
+    // 2. 近接攻撃 ACTION_ATTACK の keySequence 単一化と directionKey 重複防止確認
+    const monGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
+    area.updateGlyph(5, 4, monGlyph); // 北にモンスター
+    state = area.getAreaState();
+    actions = ContextActionEngine.generateActions(state);
+
+    const attackAction = actions.find(a => a.id.startsWith('ACTION_ATTACK'));
+    assert.ok(attackAction, '近接攻撃アクションが生成されること');
+    assert.deepStrictEqual(attackAction.keySequence, ['k'], '近接攻撃の keySequence は単一方向キーのみであること');
+    assert.strictEqual(attackAction.directionKey, null, 'directionKey は null であり 2重配列化されないこと');
+
+    // 3. 足元の Kick/Loot/Untrap の検証
+    const chestGlyph = 3663;
+    area.updateGlyph(5, 5, chestGlyph); // 足元に箱
+    state = area.getAreaState();
+    actions = ContextActionEngine.generateActions(state);
+
+    const lootChestAction = actions.find(a => a.id === 'ACTION_LOOT');
+    assert.ok(lootChestAction, '箱の Loot アクションが生成されること');
+    assert.deepStrictEqual(lootChestAction.keySequence, ['l'], 'Loot アクションの keySequence に [l] が設定されていること');
+
+    const fountainGlyph = 4014;
+    area.updateGlyph(5, 5, fountainGlyph); // 足元に泉
+    state = area.getAreaState();
+    actions = ContextActionEngine.generateActions(state);
+
+    const kickFountain = actions.find(a => a.id === 'ACTION_KICK_FOUNTAIN');
+    assert.ok(kickFountain);
+    assert.deepStrictEqual(kickFountain.keySequence, ['#', 'kick', 'DIR_SELF'], '足元の泉を蹴る keySequence に DIR_SELF が含まれること');
+
+    // 4. WebUICore.prototype.executeAction の keySequence 最優先および重複防止実行テスト
+    let executedTokens = null;
+    const dummyController = {
+        executeSequence: (tokens) => {
+            executedTokens = tokens;
+            return true;
+        }
+    };
+    const core = new WebUICore({ driver: { on: () => {}, off: () => {} } });
+    core.requestController = dummyController;
+
+    core.executeAction(kickFountain);
+    assert.deepStrictEqual(executedTokens, ['#', 'kick', 'DIR_SELF'], 'executeAction で keySequence が最優先実行されること');
+
+    core.executeAction(attackAction);
+    assert.deepStrictEqual(executedTokens, ['k'], '近接攻撃が 1キーのみ実行されること');
+
+    core.destroy();
+});
+
+
+test('SituationCache & InventoryStateManager - 二刀流・副武器・装備状態バインドの検証テスト', () => {
+    const inv = new InventoryStateManager();
+    inv.updateFromLines([
+        "a - a +2 silver saber (weapon in right hand)",
+        "b - a +1 dagger (weapon in left hand)",
+        "c - 12 +0 arrows (in quiver)",
+        "d - an uncursed ring of conflict (on right hand)"
+    ]);
+
+    const cache = new SituationCache(null, inv, null, ContextActionEngine);
+    const situation = cache.getSituation();
+
+    assert.ok(situation.equipment, 'situation に equipment オブジェクトが存在すること');
+    assert.strictEqual(situation.equipment.isTwoWeapon, true, '二刀流状態が検知されること');
+    assert.strictEqual(situation.equipment.weapon.letter, 'a', '主武器が letter: a であること');
+    assert.strictEqual(situation.equipment.offhand.letter, 'b', '副武器が letter: b であること');
+    assert.strictEqual(situation.equipment.quiver.letter, 'c', '矢筒アイテムが letter: c であること');
+    assert.strictEqual(situation.equipment.wornList.length, 1, '着用中アイテムが 1 つであること');
+});
+
+
+
 

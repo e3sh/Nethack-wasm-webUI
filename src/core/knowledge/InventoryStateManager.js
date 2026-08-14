@@ -55,13 +55,17 @@ export class InventoryStateManager {
                 const glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
                 const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo ? mi.glyphInfo.onum : -1);
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
+                const equipState = this.parseEquipState(rawText);
+                const defaultAction = this.determineDefaultAction(rawText, categoryFlags, equipState, letter);
 
                 parsedItems.push({
                     letter,
                     rawText,
                     glyphId,
                     onum,
-                    ...categoryFlags
+                    ...categoryFlags,
+                    ...equipState,
+                    ...defaultAction
                 });
             }
         });
@@ -71,6 +75,7 @@ export class InventoryStateManager {
             this.isSynced = true;
         }
     }
+
 
     /**
      * driver.getLastSequenceBuffer() のバッファデータからインベントリメニュー・テキスト行を抽出して一括更新
@@ -222,6 +227,12 @@ export class InventoryStateManager {
         // 発動コマンドキー (verb) の付与
         const verb = isDigWand ? 'z' : 'a';
 
+        // 装備状態のパース (Wielded, Offhand, Quivered, Worn)
+        const equipState = this.parseEquipState(rawText);
+
+        // カテゴリ別デフォルト推奨アクションの判定
+        const defaultAction = this.determineDefaultAction(rawText, { isPickAxe, isDigWand, isKey, isAxe, isFrostWand }, equipState);
+
         return {
             isPickAxe,
             isDigWand,
@@ -229,7 +240,215 @@ export class InventoryStateManager {
             verb,
             isKey,
             isAxe,
-            isFrostWand
+            isFrostWand,
+            ...equipState,
+            ...defaultAction
+        };
+    }
+
+    /**
+     * カテゴリおよび装備状態からのデフォルト推奨アクション判定
+     * @param {string} rawText 
+     * @param {Object} categoryFlags 
+     * @param {Object} equipState 
+     * @param {string} [letter=''] 
+     * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, itemCategory }
+     */
+    determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '') {
+        const cleanText = this.cleanItemText(rawText);
+        const { isWielded, isOffhand, isQuivered, isWorn, equipSlot } = equipState;
+
+        let defaultVerb = null;
+        let defaultSequence = letter ? [letter] : [];
+        let defaultActionLabel = 'Select';
+        let defaultActionLabelJa = '選択';
+        let itemCategory = 'OTHER';
+
+        // 1. 既に装備・着用中のアイテムの解除アクション優先
+        if (isWielded || isOffhand) {
+            defaultVerb = 'w';
+            defaultSequence = ['w', '-'];
+            defaultActionLabel = 'Unwield weapon';
+            defaultActionLabelJa = '手放す (w-)';
+            itemCategory = 'WEAPON';
+        } else if (isWorn) {
+            if (equipSlot === 'ring_left' || equipSlot === 'ring_right' || equipSlot === 'amulet') {
+                defaultVerb = 'R';
+                defaultSequence = letter ? ['R', letter] : ['R'];
+                defaultActionLabel = 'Remove ring/amulet';
+                defaultActionLabelJa = '外す (R)';
+                itemCategory = equipSlot === 'amulet' ? 'AMULET' : 'RING';
+            } else {
+                defaultVerb = 'T';
+                defaultSequence = letter ? ['T', letter] : ['T'];
+                defaultActionLabel = 'Take off armor';
+                defaultActionLabelJa = '脱ぐ (T)';
+                itemCategory = 'ARMOR';
+            }
+        } else {
+            // 2. アイテムカテゴリ別の推奨アクション判定 (未識別品・特殊名称含む網羅パース)
+            // (A) ポーション (Potion / 未識別色名含む)
+            if (/\b(potion|potions|milky|smoky|cloudy|bubbly|ruby|pink|clear|viscous|effervescent|murky|fizzy|golden|dark|cyan|yellow|emerald|amber|swirly)\b/i.test(cleanText) || /ポーション|薬/.test(cleanText)) {
+                defaultVerb = 'q';
+                defaultSequence = letter ? ['q', letter] : ['q'];
+                defaultActionLabel = 'Quaff potion';
+                defaultActionLabelJa = '飲む (q)';
+                itemCategory = 'POTION';
+            }
+            // (B) 食品 (Food / 各種死体・Ration・果物・缶詰・昆布・トリップ等)
+            else if (/\b(ration|food|corpse|tripe|apple|carrot|tin|tins|pear|banana|orange|candy|clove|jelly|pie|pancake|cookie|leaf|garlic|mold|meat|egg|melon|spinach|kelp|lump)\b/i.test(cleanText) || /食料|死体|缶詰|りんご|にんじん|トリップ|パン|パイ|クッキー|コンブ|肉|卵/.test(cleanText)) {
+                defaultVerb = 'e';
+                defaultSequence = letter ? ['e', letter] : ['e'];
+                defaultActionLabel = 'Eat food';
+                defaultActionLabelJa = '食べる (e)';
+                itemCategory = 'FOOD';
+            }
+            // (C) 巻物 (Scroll / 未識別ラベル名含む)
+            else if (/\b(scroll|scrolls|stamped|unlabeled|labeled)\b/i.test(cleanText) || /巻物/.test(cleanText)) {
+                defaultVerb = 'r';
+                defaultSequence = letter ? ['r', letter] : ['r'];
+                defaultActionLabel = 'Read scroll';
+                defaultActionLabelJa = '読む (r)';
+                itemCategory = 'SCROLL';
+            }
+            // (D) 呪文書 (Spellbook / 各種装丁名含む)
+            else if (/\b(spellbook|spellbooks|book of|paperback|leather-bound|canvas-bound|velvet-bound|parchment|papyrus)\b/i.test(cleanText) || /呪文書|魔法書/.test(cleanText)) {
+                defaultVerb = 'r';
+                defaultSequence = letter ? ['r', letter] : ['r'];
+                defaultActionLabel = 'Read spellbook';
+                defaultActionLabelJa = '勉強する (r)';
+                itemCategory = 'SPELLBOOK';
+            }
+            // (E) 杖 (Wand / 未識別材質名含む)
+            else if (/\b(wand|wands|balsa|ebony|runed|oak|pine|maple|copper|silver|iron|brass|crystal|marble|platinum|bamboo)\b/i.test(cleanText) || /杖/.test(cleanText) || categoryFlags.isDigWand || categoryFlags.isFrostWand) {
+                defaultVerb = 'z';
+                defaultSequence = letter ? ['z', letter] : ['z'];
+                defaultActionLabel = 'Zap wand';
+                defaultActionLabelJa = '振る (z)';
+                itemCategory = 'WAND';
+            }
+            // (F) 指輪 (Ring / 未識別装飾含む)
+            else if (/\b(ring|rings|pearl|twisted|wire|engagement|shiny)\b/i.test(cleanText) || /指輪/.test(cleanText)) {
+                defaultVerb = 'P';
+                const hasLeftRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_left');
+                const hasRightRing = Array.isArray(this.items) && this.items.some(i => i.isWorn && i.equipSlot === 'ring_right');
+
+                let targetFinger = 'l'; // デフォルト左手
+                if (hasLeftRing && !hasRightRing) {
+                    targetFinger = 'r'; // 左手が埋まっていれば右手
+                }
+
+                defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
+                defaultActionLabel = 'Put on ring';
+                defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+                itemCategory = 'RING';
+            }
+            // (G) お守り (Amulet / 未識別形状含む)
+            else if (/\b(amulet|amulets|circular|spherical|oval|triangular|pyramidal|square|concave|hexagonal|octagonal)\b/i.test(cleanText) || /魔よけ|お守り/.test(cleanText)) {
+                defaultVerb = 'P';
+                defaultSequence = letter ? ['P', letter] : ['P'];
+                defaultActionLabel = 'Put on amulet';
+                defaultActionLabelJa = '首にかける (P)';
+                itemCategory = 'AMULET';
+            }
+
+            // (H) 防具 (Armor/Shield/Helmet/Boots/Gloves/Cloak/Hat/Cap/Robe)
+            else if (/\b(armor|mail|suit|cloak|helm|helmet|boots|shoes|gloves|gauntlets|shield|shirt|robe|hat|cap|apron|coif|bracer)\b/i.test(cleanText) || /鎧|兜|靴|手袋|盾|マント|服|帽子|ローブ/.test(cleanText)) {
+                defaultVerb = 'W';
+                defaultSequence = letter ? ['W', letter] : ['W'];
+                defaultActionLabel = 'Wear armor';
+                defaultActionLabelJa = '着用する (W)';
+                itemCategory = 'ARMOR';
+            }
+            // (I) 道具 (Tool / Key / Lamp / Towel / Whistle / Kit / Mirror / Leash / Blindfold 等)
+            else if (categoryFlags.isKey || categoryFlags.isDigTool || /\b(towel|kit|lamp|lantern|whistle|horn|harp|mirror|leash|touchstone|whetstone|box|chest|sack|bag|blindfold|flute|bell|candle)\b/i.test(cleanText) || /鍵|ピック|タオル|キット|ランプ|笛|鏡|紐|砥石|袋|箱|目隠し/.test(cleanText)) {
+                defaultVerb = 'a';
+                defaultSequence = letter ? ['a', letter] : ['a'];
+                defaultActionLabel = 'Apply tool';
+                defaultActionLabelJa = '使う (a)';
+                itemCategory = 'TOOL';
+            }
+            // (J) 武器 (Weapon / 未識別材質含む)
+            else if (/\b(sword|saber|dagger|knife|axe|spear|bow|arrow|crossbow|bolt|sling|flint|mace|flail|hammer|lance|trident|staff|pick-axe|mattock|dart|shuriken|boomerang|whip|scythe|halberd|glaive|javelin|club|katana|wakizashi|tsurugi|blade)\b/i.test(cleanText) || /剣|刀|短剣|ダガー|斧|槍|弓|矢|ツルハシ|棍棒|ハンマー|ダーツ|手裏剣|鞭/.test(cleanText) || categoryFlags.isPickAxe || categoryFlags.isAxe) {
+                defaultVerb = 'w';
+                defaultSequence = letter ? ['w', letter] : ['w'];
+                defaultActionLabel = 'Wield weapon';
+                defaultActionLabelJa = '手に持つ (w)';
+                itemCategory = 'WEAPON';
+            }
+            // (K) その他（判別不能・未知の変名アイテム）
+            else {
+                defaultVerb = 'i';
+                defaultSequence = letter ? ['i', letter] : ['i'];
+                defaultActionLabel = 'Inventory item';
+                defaultActionLabelJa = '一覧から選択 (i)';
+                itemCategory = 'OTHER';
+            }
+
+        }
+
+        return {
+            defaultVerb,
+            defaultSequence,
+            defaultActionLabel,
+            defaultActionLabelJa,
+            itemCategory
+        };
+    }
+
+
+    /**
+     * テキスト表現からの装備状態（Wielded, Offhand, Quivered, Worn, スロット）のパース
+     * @param {string} rawText 
+     * @returns {Object} { isWielded, isOffhand, isQuivered, isWorn, equipSlot }
+     */
+    parseEquipState(rawText) {
+        if (!rawText || typeof rawText !== 'string') {
+            return { isWielded: false, isOffhand: false, isQuivered: false, isWorn: false, equipSlot: null };
+        }
+
+        let isWielded = false;
+        let isOffhand = false;
+        let isQuivered = false;
+        let isWorn = false;
+        let equipSlot = null;
+
+        // メイン武器 (weapon in hand, weapon in hands, weapon in right hand, wielded)
+        if (/\b(weapon in hand|weapon in hands|weapon in right hand|\(wielded\))\b/i.test(rawText) || /手に持っている/i.test(rawText)) {
+            isWielded = true;
+            equipSlot = 'weapon';
+        }
+
+        // サブ武器 / 二刀流 (weapon in left hand, in off hand, off-hand, alternate weapon)
+        if (/\b(weapon in left hand|in off hand|off-hand|alternate weapon)\b/i.test(rawText) || /左手に持っている|副武器/i.test(rawText)) {
+            isOffhand = true;
+            equipSlot = 'offhand';
+        }
+
+        // 矢筒 (in quiver, quivered)
+        if (/\b(in quiver|quivered)\b/i.test(rawText) || /矢筒/i.test(rawText)) {
+            isQuivered = true;
+            equipSlot = 'quiver';
+        }
+
+        // 着用中 (being worn, on left hand, on right hand, around neck, on head, on feet, on hands)
+        if (/\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(rawText) || /着用|装備中/i.test(rawText)) {
+            isWorn = true;
+            if (!equipSlot) {
+                if (/on left hand/i.test(rawText)) equipSlot = 'ring_left';
+                else if (/on right hand/i.test(rawText)) equipSlot = 'ring_right';
+                else if (/around neck/i.test(rawText)) equipSlot = 'amulet';
+                else if (/shield/i.test(rawText)) equipSlot = 'shield';
+                else equipSlot = 'worn';
+            }
+        }
+
+        return {
+            isWielded,
+            isOffhand,
+            isQuivered,
+            isWorn,
+            equipSlot
         };
     }
 
@@ -250,8 +469,30 @@ export class InventoryStateManager {
     }
 
     // =========================================================================
-    // クエリ API (ContextActionEngine から利用)
+    // クエリ API (ContextActionEngine & UI から利用)
     // =========================================================================
+
+    /** レター (英字1文字) から指定アイテムオブジェクトを取得 */
+    getItemByLetter(letter) {
+        if (!letter || typeof letter !== 'string') return null;
+        const targetStr = letter.trim();
+        return this.items.find(i => i.letter === targetStr) || null;
+    }
+
+    /** レター (英字1文字) から指定アイテムのデフォルト推奨アクション情報を取得 */
+    getItemDefaultAction(letter) {
+        const item = this.getItemByLetter(letter);
+        if (!item) return null;
+        return {
+            letter: item.letter,
+            rawText: item.rawText,
+            defaultVerb: item.defaultVerb,
+            defaultSequence: item.defaultSequence,
+            defaultActionLabel: item.defaultActionLabel,
+            defaultActionLabelJa: item.defaultActionLabelJa,
+            itemCategory: item.itemCategory
+        };
+    }
 
     /** ツルハシ/掘削ツールを取得 (所持していない場合は null)。verb ('a' か 'z') を含む */
     getPickAxe() {
@@ -277,4 +518,43 @@ export class InventoryStateManager {
     getFrostWand() {
         return this.items.find(i => i.isFrostWand) || null;
     }
+
+    /** 手に持っているメイン武器を取得 */
+    getWieldedWeapon() {
+        return this.items.find(i => i.isWielded) || null;
+    }
+
+    /** 二刀流時の副武器 (Off-hand weapon) を取得 */
+    getOffhandWeapon() {
+        return this.items.find(i => i.isOffhand) || null;
+    }
+
+    /** 現在「二刀流」状態かどうか判定 */
+    isTwoWeaponing() {
+        return !!(this.getWieldedWeapon() && this.getOffhandWeapon());
+    }
+
+    /** 矢筒 (Quiver) にセットされているアイテムを取得 */
+    getQuiveredItem() {
+        return this.items.find(i => i.isQuivered) || null;
+    }
+
+    /** 装備中の全アイテムを取得 */
+    getEquippedItems() {
+        return this.items.filter(i => i.isWielded || i.isOffhand || i.isQuivered || i.isWorn);
+    }
+
+    /** スロット別の詳細装備マップを取得 */
+    getEquipmentMap() {
+        return {
+            weapon: this.getWieldedWeapon(),
+            offhand: this.getOffhandWeapon(),
+            isTwoWeapon: this.isTwoWeaponing(),
+            quiver: this.getQuiveredItem(),
+            wornList: this.items.filter(i => i.isWorn),
+            equippedList: this.getEquippedItems()
+        };
+    }
 }
+
+

@@ -450,6 +450,31 @@ body {
   transition: all 0.15s ease;
 }
 
+/* 装備中のハイライト枠とエフェクト */
+.gkl-item-slot.is-wielded {
+  border: 2px solid var(--accent-gold, #e9c46a);
+  background: #342a18;
+  box-shadow: 0 0 8px rgba(233, 196, 106, 0.6);
+}
+
+.gkl-item-slot.is-offhand {
+  border: 2px solid #4ea8de;
+  background: #182b3a;
+  box-shadow: 0 0 8px rgba(78, 168, 222, 0.6);
+}
+
+.gkl-item-slot.is-quivered {
+  border: 2px solid #2a9d8f;
+  background: #15332e;
+  box-shadow: 0 0 8px rgba(42, 157, 143, 0.6);
+}
+
+.gkl-item-slot.is-worn {
+  border: 2px solid #9d4edd;
+  background: #2a1838;
+  box-shadow: 0 0 6px rgba(157, 78, 221, 0.5);
+}
+
 .gkl-item-slot:hover {
   border-color: var(--accent-blue);
   background: #233154;
@@ -465,6 +490,42 @@ body {
   color: var(--accent-gold);
   font-family: var(--font-mono);
 }
+
+/* 装備スロットバッジ */
+.gkl-slot-equip-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 0 2px;
+  border-radius: 3px;
+  line-height: 1.1;
+  color: #ffffff;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.gkl-slot-equip-badge.badge-wielded {
+  background: var(--accent-gold, #e9c46a);
+  color: #1a1a2e;
+}
+
+.gkl-slot-equip-badge.badge-offhand {
+  background: #4ea8de;
+  color: #0f172a;
+}
+
+.gkl-slot-equip-badge.badge-quivered {
+  background: #2a9d8f;
+  color: #ffffff;
+}
+
+.gkl-slot-equip-badge.badge-worn {
+  background: #9d4edd;
+  color: #ffffff;
+}
+
 
 .gkl-slot-icon {
   width: 32px;

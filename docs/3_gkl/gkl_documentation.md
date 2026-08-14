@@ -42,28 +42,72 @@ GKL は以下の 6 つのコアコンポーネントによって構成されて�
  │                                                          │
  │  5. グリフ・エンティティ分類ユーティリティ              │
  │     - glyphClassifier                                    │
- │       (NetHack 5.0/3.7 の Glyph ID を意味カテゴリに分類)  │
- │                                                          │
- │  6. シーケンス自走実行・状態制御コントローラー            │
- │     - RequestController                                  │
- │       (トークン配列の自動消化・手動割り込み・復帰制御)       │
- └────────────────────────────┬─────────────────────────────┘
-                              │ queueSequence / querySequenceSilent
-                              ▼
- ┌──────────────────────────────────────────────────────────┐
- │ ⚙️ WebUI Core & NetHack WASM Core                         │
- └──────────────────────────────────────────────────────────┘
-```
-
-### コアコンポーネント詳細
-
-| コンポーネント | ソースコード | 主な責務・役割 |
-| :--- | :--- | :--- |
-| **`SituationCache`** | [`SituationCache.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SituationCache.js) | ゲームの全状態（ステータス、マップ、所持品、推奨アクション）を統合ファサードとして一括提供するキャッシュアクセサ。 |
-| **`ContextActionEngine`** | [`ContextActionEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ContextActionEngine.js) | 足元・隣接マスの環境とインベントリツールを解析し、今可能なアクション (`ContextAction`) を優先度順で自動判定・生成。 |
-| **`AreaStateManager`** | [`AreaStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/AreaStateManager.js) | 80x21グリッドの 3 階層（Bottom: 地形/トラップ, Middle: アイテム/死体/箱, Top: モンスター/ペット）のマップ状態をリアルタイム更新・保持。 |
-| **`InventoryStateManager`** | [`InventoryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/InventoryStateManager.js) | 所持品を管理し、三層識別アルゴリズム (Glyph ID → ONUM → テキスト正規表現) で重要ツール (ツルハシ, 鍵, 斧, 氷の杖) を検出。 |
+ │       (NetHack 5.0/3.7 の Glyph ID を意�| **`InventoryStateManager`** | [`InventoryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/InventoryStateManager.js) | 所持品を管理し、三層識別アルゴリズム (Glyph ID → ONUM → テキスト正規表現) で装備状態 (`isWielded`, `isWorn` 等) および最適推奨操作 (`defaultVerb`, `defaultSequence`) を自動判定。 |
 | **`glyphClassifier`** | [`glyphClassifier.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/glyphClassifier.js) | NetHack 5.0 (3.7) の約10000種類の Glyph ID を意味カテゴリ (`TERRAIN`, `ITEM`, `MONSTER`, `PET`, `BODY` 等) や CMAP フラグへ分類。 |
+| **`RequestController`** | [`RequestController.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/RequestController.js) | 状態マシン (`IDLE`, `EXECUTING`, `ABORTING_ESC`, `SUSPENDED`) を持ち、多段階プロンプトの自走自動消化と割り込み安全キャンセルを制御。 |
+
+---
+
+## 3. GKL の主要な機能と能力
+
+### ① 周辺環境・文脈に応じた推奨アクション (Contextual Action Recommendation)
+`ContextActionEngine` が自動でゲーム状況を読み取り、以下の環境・対象に応じた実行可能アクションを即座に生成します。
+
+* **足元 (Stepping On)**
+  * **落ちているアイテム**: 拾う (`,`), 落とす (`d`)
+  * **箱・コンテナ**: 漁る/開ける (`#loot`), 鍵で解錠 (`a` + 鍵スロット + `DIR_SELF`), 罠解除 (`#untrap`)
+  * **階段**: 降りる (`>`), 上る (`<`)
+  * **祭壇 (Altar)**: 生贄を捧げる (`#offer`), BUC判別落とし (`d`), 祈る (`#pray`) ※危険度警告付き
+  * **泉 (Fountain)**: 飲む (`q`), 浸す (`#dip`), 罠解除 (`#untrap`), 蹴る (`C-d`)
+  * **シンク (Sink)**: 座る/指輪識別 (`#sit`), 飲む (`q`), 浸す (`#dip`), 蹴る (`C-d`)
+  * **罠 (Trap)**: 解除/埋め立て (`#untrap`), 自ら座る (`#sit`)
+  * **玉座 (Throne)**: 座る (`#sit`)
+  * **床/廊下**: 文字を刻む (`E`), 探す (`s`), 座る (`#sit`)
+* **隣接 8 方向 (Adjacent Tiles & Creatures)**
+  * **モンスター / NPC**: 近接攻撃 (`DIR`), 話しかける (`#chat`), 代金を支払う (`#pay` ※店主のみ)
+  * **ペット (Pet)**: 話しかける (`#chat`) ※ペット誤爆攻撃を完全防止
+  * **扉 (Door)**: 開ける (`o` + `DIR`), 閉める (`c` + `DIR`), 鍵で解錠 (`a` + 鍵 + `DIR`), 蹴破る (`#kick` + `DIR`), 罠解除 (`#untrap` + `DIR`)
+  * **壁 / 隠し扉**: 捜索 (`s`), ツルハシで掘削 (`a` + ツルハシ + `DIR`)
+  * **樹木**: 蹴る (`C-d` + `DIR`), 斧で伐採 (`a` + 斧 + `DIR`)
+  * **水場 / 溶岩**: 氷の杖で凍らせる (`a` + 氷の杖 + `DIR`), アイテムを投げ入れる (`t` + `DIR`)
+  * **鉄格子**: 酸/ツルハシで溶かす・壊す (`a` + `DIR`)
+
+### ② 所持品装備状態の追跡 (Equipment State Tracking)
+`InventoryStateManager` がインベントリテキストから装備スロット情報を全自動でパース・保持します。
+
+* **メイン武器 (Wielded)**: `(weapon in hand)`, `(wielded)` ➔ `isWielded: true`
+* **二刀流副武器 (Off-hand)**: `(weapon in left hand)`, `(in off hand)` ➔ `isOffhand: true`
+* **矢筒 (Quiver)**: `(in quiver)` ➔ `isQuivered: true`
+* **着用防具・指輪・お守り (Worn)**: `(being worn)`, `(on left hand)`, `(around neck)` ➔ `isWorn: true`, `equipSlot`
+
+### ③ 所持品アイテムの最適デフォルト推奨アクション判定 (Item Default Actions)
+タッチUI等のワンタップ操作向けに、アイテムのカテゴリおよび装備状態に応じた推奨操作キー (`defaultVerb`, `defaultSequence`, `defaultActionLabelJa`) を自動判定します。
+
+* **ポーション (Potion / 未識別名含む)**: 飲む ➔ `['q', letter]`
+* **食品 (Food / 各種死体・Ration・缶詰等)**: 食べる ➔ `['e', letter]`
+* **巻物・呪文書 (Scroll/Spellbook)**: 読む・勉強する ➔ `['r', letter]`
+* **杖 (Wand / 未識別材質含む)**: 振る ➔ `['z', letter]`
+* **道具 (Tool / タオル・鍵・ツルハシ・笛・鏡等)**: 使う ➔ `['a', letter]`
+* **未着用防具 / 着用中防具**: 着用する (`['W', letter]`) / 脱ぐ (`['T', letter]`)
+* **未装着指輪 (Ring / 左右手自動判別)**: `ring_left` / `ring_right` の空き状況から自動判定 ➔ `['P', letter, 'l']` または `['P', letter, 'r']`
+* **装着中指輪 / お守り**: 外す ➔ `['R', letter]`
+* **未装備武器 / 装備中武器**: 手に持つ (`['w', letter]`) / 手放す (`['w', '-']`)
+* **判定不能・変名アイテム (OTHER)**: 誤移動コマンド等の暴発を完全に防ぐため、インベントリ表示 `i` を前置した **`['i', letter]`** へ安全フォールバック。
+
+### ④ 高精度インベントリツール検出＆動的コマンドキー切替
+所持アイテムについて以下を自動識別し、ツールの分類に応じた正しいコマンドキー (`verb`) を自動的に割り当ててアクションを生成します：
+* **`pickAxe` / ツルハシ類** (`pick-axe`, `dwarvish mattock`): **Apply コマンド (`a`)** で使用 ➔ `['a', letter, DIR]`
+* **`isDigWand` / 採掘の杖** (`wand of digging`): **Zap コマンド (`z`)** で使用 ➔ `['z', letter, DIR]`
+* **`key` / 鍵類** (`skeleton key`, `lock pick`, `credit card`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
+* **`axe` / 斧類** (`axe`, `battle-axe`): **Apply コマンド (`a`)** ➔ `['a', letter, DIR]`
+* **`frostWand` / 氷の杖**: **Zap コマンド (`z`)** ➔ `['z', letter, DIR]`
+
+### ⑤ 抽象キー＆プロンプトの自走自動消化
+`['#', 'open', 'DIR_E']` や `['a', 'b', 'DIR_E']` などの多段階コマンドを送信した際、WASM コア側のプロンプト入力待ちを低レイヤーで認識し、画面を乱さずに自動連続送信・完了消化します。
+
+### ⑥ バックグラウンド・サイレント同期
+画面表示や UI のちらつきなしに、バックグラウンドでインベントリ (`i`) やコマンドバッファを同期取得可能 (`querySequenceSilent`, `syncInventorySilent`)。ワンタップ操作完了後に自動サイレント同期が走り、消費アイテムの消滅や装備ハイライト枠の点灯/消灯が即座に反映されます。
+ や CMAP フラグへ分類。 |
 | **`RequestController`** | [`RequestController.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/RequestController.js) | 状態マシン (`IDLE`, `EXECUTING`, `ABORTING_ESC`, `SUSPENDED`) を持ち、多段階プロンプトの自走自動消化と割り込み安全キャンセルを制御。 |
 
 ---

@@ -55,6 +55,10 @@ export class SituationCache {
             frostWand: inventoryState && typeof inventoryState.getFrostWand === 'function' ? inventoryState.getFrostWand() : null
         };
 
+        // 装備状態マップの抽出 (二刀流/武器/矢筒/防具)
+        const equipment = inventoryState && typeof inventoryState.getEquipmentMap === 'function' ?
+            inventoryState.getEquipmentMap() : { weapon: null, offhand: null, isTwoWeapon: false, quiver: null, wornList: [], equippedList: [] };
+
         // 推奨アクションの自動計算 (ContextActionEngine が設定されている場合)
         let actions = [];
         if (this.actionEngineClass && typeof this.actionEngineClass.generateActions === 'function') {
@@ -67,9 +71,11 @@ export class SituationCache {
                 items: inventoryItems,
                 isSynced: isInventorySynced
             },
+            equipment,
             area: areaState,
             tools,
             actions
         };
     }
 }
+

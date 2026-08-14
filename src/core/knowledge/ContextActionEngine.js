@@ -17,17 +17,44 @@ export class ContextActionEngine {
         if (!areaState || !areaState.feet) return [];
 
         const actions = [];
-        const feet = areaState.feet;
+        const tools = this.extractTools(inventoryState);
 
-        // インベントリツールの事前抽出
-        const keyItem = inventoryState ? inventoryState.getKeyOrLockPick() : null;
-        const pickAxe = inventoryState ? (typeof inventoryState.getDigTool === 'function' ? inventoryState.getDigTool() : inventoryState.getPickAxe()) : null;
-        const axeItem = inventoryState ? inventoryState.getAxe() : null;
-        const frostWand = inventoryState ? inventoryState.getFrostWand() : null;
-
-        // =========================================================================
         // 1. 足元 (Stepping on) のアクション判定
-        // =========================================================================
+        this.buildFeetActions(areaState.feet, tools, actions);
+
+        // 2. 隣接モンスター (Adjacent Monsters) のアクション判定
+        this.buildMonsterActions(areaState.adjacentMonsters, tools, actions);
+
+        // 3. 隣接設置物・地形 (Adjacent Entities / Terrain) のアクション判定
+        this.buildAdjacentEntityActions(areaState.adjacentEntities, tools, actions);
+
+        // 優先度 (priority) 降順でソート
+        return actions.sort((a, b) => b.priority - a.priority);
+    }
+
+    /**
+     * インベントリからキーアイテム・道具を抽出
+     * @param {Object} inventoryState 
+     * @returns {Object} 抽出ツールオブジェクト
+     */
+    static extractTools(inventoryState) {
+        if (!inventoryState) {
+            return { keyItem: null, pickAxe: null, axeItem: null, frostWand: null };
+        }
+        return {
+            keyItem: inventoryState.getKeyOrLockPick(),
+            pickAxe: typeof inventoryState.getDigTool === 'function' ? inventoryState.getDigTool() : inventoryState.getPickAxe(),
+            axeItem: inventoryState.getAxe(),
+            frostWand: inventoryState.getFrostWand()
+        };
+    }
+
+    /**
+     * 1. 足元 (Feet) のアクション判定・ビルド
+     */
+    static buildFeetActions(feet, tools, actions) {
+        if (!feet) return;
+        const { keyItem } = tools;
 
         // (1-A) 足元のアイテム・コンテナ・死体・像
         if (feet.middle) {
@@ -50,9 +77,8 @@ export class ContextActionEngine {
                     descriptionJa: '足元に落ちているアイテムをインベントリに入れます'
                 });
 
-                // (b) コンテナ漁り / 解錠 (箱・袋・コンテナが足元にある場合のみ推奨)
+                // (b) コンテナ漁り / 解錠
                 if (feet.middle.isContainer) {
-                    // 鍵/ロックピック所持時は箱の解錠アクションを生成
                     if (keyItem) {
                         actions.push({
                             id: 'ACTION_UNLOCK_CONTAINER_FEET',
@@ -76,8 +102,9 @@ export class ContextActionEngine {
                         category: 'INTERACT',
                         label: 'Loot container / bag',
                         labelJa: '漁る/開ける (Loot)',
-                        key: '#loot',
-                        charStr: '#loot',
+                        key: 'l',
+                        keySequence: ['l'],
+                        charStr: 'l',
                         extCmd: 'loot',
                         target: 'feet',
                         entity: feet.middle,
@@ -93,8 +120,10 @@ export class ContextActionEngine {
                         label: 'Untrap feet / container',
                         labelJa: '箱の罠解除 (Untrap)',
                         key: '#untrap',
+                        keySequence: ['#', 'untrap', 'DIR_SELF'],
                         charStr: '#untrap',
                         extCmd: 'untrap',
+                        directionKey: 'DIR_SELF',
                         target: 'feet',
                         entity: feet.middle,
                         risk: null,
@@ -125,7 +154,7 @@ export class ContextActionEngine {
         if (feet.bottom && feet.bottom.cmapFlags) {
             const flags = feet.bottom.cmapFlags;
 
-            // 階段 (Stairs / Ladders)
+            // 階段
             if (flags.isStairDown) {
                 actions.push({
                     id: 'ACTION_STAIR_DOWN',
@@ -157,7 +186,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 祭壇 (Altar)
+            // 祭壇
             if (flags.isAltar) {
                 actions.push({
                     id: 'ACTION_OFFER',
@@ -202,7 +231,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 泉 (Fountain)
+            // 泉
             if (flags.isFountain) {
                 actions.push({
                     id: 'ACTION_QUAFF_FOUNTAIN',
@@ -251,6 +280,7 @@ export class ContextActionEngine {
                     label: 'Kick fountain',
                     labelJa: '泉を蹴る (Kick)',
                     key: 'C-d',
+                    keySequence: ['#', 'kick', 'DIR_SELF'],
                     charStr: 'C-d',
                     target: 'feet',
                     risk: 'danger',
@@ -260,7 +290,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // シンク (Sink)
+            // シンク
             if (flags.isSink) {
                 actions.push({
                     id: 'ACTION_SIT_SINK',
@@ -309,6 +339,7 @@ export class ContextActionEngine {
                     label: 'Kick sink',
                     labelJa: 'シンクを蹴る (Kick)',
                     key: 'C-d',
+                    keySequence: ['#', 'kick', 'DIR_SELF'],
                     charStr: 'C-d',
                     target: 'feet',
                     risk: 'warning',
@@ -318,7 +349,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 罠 (Traps)
+            // 罠
             if (flags.isTrap) {
                 actions.push({
                     id: 'ACTION_UNTRAP_TRAP',
@@ -350,7 +381,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 玉座 (Throne)
+            // 玉座
             if (flags.isThrone) {
                 actions.push({
                     id: 'ACTION_SIT_THRONE',
@@ -368,7 +399,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 床 / 廊下全般 (Floor / Corridor)
+            // 床 / 廊下全般
             if (flags.isFloor || flags.isCorridor || flags.isEngraving) {
                 actions.push({
                     id: 'ACTION_ENGRAVE',
@@ -412,390 +443,395 @@ export class ContextActionEngine {
                 });
             }
         }
+    }
 
-        // =========================================================================
-        // 2. 隣接マス (Adjacent) のアクション判定
-        // =========================================================================
+    /**
+     * 2. 隣接モンスター (Monsters / PET / NPC) のアクション判定・ビルド
+     */
+    static buildMonsterActions(adjacentMonsters, tools, actions) {
+        if (!adjacentMonsters || adjacentMonsters.length === 0) return;
 
-        // (2-A) 隣接モンスターへの判定 (ペット誤爆防止・NPC安全性確認)
-        if (areaState.adjacentMonsters && areaState.adjacentMonsters.length > 0) {
-            areaState.adjacentMonsters.forEach(m => {
-                const isPet = (m.entity && m.entity.type === 'PET');
+        adjacentMonsters.forEach(m => {
+            const isPet = (m.entity && m.entity.type === 'PET');
 
-                if (isPet) {
-                    // ペットの場合は攻撃アクションを絶対生成せず、話しかける / 移動のみ
-                    if (!actions.some(a => a.id.startsWith('ACTION_CHAT'))) {
-                        actions.push({
-                            id: `ACTION_CHAT_${m.dir.code}`,
-                            category: 'INTERACT',
-                            label: `Chat with pet`,
-                            labelJa: `ペットに話しかける (#chat)`,
-                            key: `#chat${m.dir.key}`,
-                            charStr: '#chat',
-                            extCmd: 'chat',
-                            directionKey: m.dir.key,
-                            direction: m.dir,
-                            entity: m.entity,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 95,
-                            description: `Talk to pet`,
-                            descriptionJa: `ペットに話しかけます（方向はD-Pad等で選択）`
-                        });
-                    }
-                } else {
-                    const isShopkeeper = isShopkeeperMonster(m.entity);
-                    // モンスター/NPC (近接攻撃)
-                    if (!actions.some(a => a.id.startsWith('ACTION_ATTACK'))) {
-                        actions.push({
-                            id: `ACTION_ATTACK_${m.dir.code}`,
-                            category: 'COMBAT',
-                            label: `Attack target`,
-                            labelJa: `対象に近接攻撃`,
-                            key: m.dir.key,
-                            charStr: m.dir.key,
-                            directionKey: m.dir.key,
-                            direction: m.dir,
-                            entity: m.entity,
-                            target: 'adjacent',
-                            risk: 'warning',
-                            priority: 80,
-                            description: `Attack creature in direction`,
-                            descriptionJa: `近接対象に攻撃を試みます`
-                        });
-                    }
-                    // 話しかける (#chat)
-                    if (!actions.some(a => a.id.startsWith('ACTION_CHAT_NPC'))) {
-                        actions.push({
-                            id: `ACTION_CHAT_NPC_${m.dir.code}`,
-                            category: 'INTERACT',
-                            label: `Talk / Chat`,
-                            labelJa: `対象に話しかける (#chat)`,
-                            key: `#chat${m.dir.key}`,
-                            charStr: '#chat',
-                            extCmd: 'chat',
-                            directionKey: m.dir.key,
-                            direction: m.dir,
-                            entity: m.entity,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: isShopkeeper ? 90 : 30,
-                            description: `Talk to NPC or shopkeeper`,
-                            descriptionJa: `NPCや店主に話しかけます`
-                        });
-                    }
-                    // 店主に代金を支払う (#pay) - 店主 (Shopkeeper) のみ生成
-                    if (isShopkeeper && !actions.some(a => a.id.startsWith('ACTION_PAY'))) {
-                        actions.push({
-                            id: `ACTION_PAY_${m.dir.code}`,
-                            category: 'INTERACT',
-                            label: `Pay shopkeeper`,
-                            labelJa: `店主に代金を支払う (#pay)`,
-                            key: `#pay${m.dir.key}`,
-                            charStr: '#pay',
-                            extCmd: 'pay',
-                            directionKey: m.dir.key,
-                            direction: m.dir,
-                            entity: m.entity,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 95,
-                            description: `Pay shopkeeper for unpaid items`,
-                            descriptionJa: `店主に商品の購入代金を支払います`
-                        });
-                    }
-                }
-            });
-        }
-
-        // (2-B) 隣接する設置物・地形 (ドア、壁、木、水、溶岩、鉄格子等)
-        if (areaState.adjacentEntities) {
-            const dirToAbstractMap = {
-                'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
-                'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
-                '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
-                '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW',
-                'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
-                'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW'
-            };
-
-            areaState.adjacentEntities.forEach(item => {
-                const b = item.cell.bottom;
-                if (!b || !b.cmapFlags) return;
-                const flags = b.cmapFlags;
-                const dirCode = item.dir.code;
-                const dirKey = dirToAbstractMap[item.dir.code] || dirToAbstractMap[item.dir.key] || item.dir.key;
-
-                // 閉じた扉 (Closed Door)
-                if (flags.isClosedDoor) {
-                    if (!actions.some(a => a.id.startsWith('ACTION_OPEN_DOOR'))) {
-                        actions.push({
-                            id: `ACTION_OPEN_DOOR_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Open door`,
-                            labelJa: `扉を開ける (Open)`,
-                            key: `o${dirKey}`,
-                            keySequence: ['o', dirKey],
-                            charStr: 'o',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 90,
-                            description: `Open closed door`,
-                            descriptionJa: `閉じたドアを開けます`
-                        });
-                    }
-
-                    // 鍵/ピック所持時のみ「解錠」アクションを生成（ノイズ除去）
-                    if (keyItem && !actions.some(a => a.id.startsWith('ACTION_UNLOCK_DOOR'))) {
-                        actions.push({
-                            id: `ACTION_UNLOCK_DOOR_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Unlock door with ${keyItem.rawText || 'key'}`,
-                            labelJa: `扉を解錠 (${keyItem.letter})`,
-                            key: `a${keyItem.letter}${dirKey}`,
-                            keySequence: ['a', keyItem.letter, dirKey],
-                            charStr: 'a',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 95,
-                            description: `Apply ${keyItem.rawText || 'key'} to unlock door`,
-                            descriptionJa: `扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
-                        });
-                    }
-
-                    if (!actions.some(a => a.id.startsWith('ACTION_KICK_DOOR'))) {
-                        actions.push({
-                            id: `ACTION_KICK_DOOR_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Kick door`,
-                            labelJa: `扉を蹴破る (Kick)`,
-                            key: `#kick${dirKey}`,
-                            keySequence: ['#', 'kick', dirKey],
-                            charStr: '#kick',
-                            extCmd: 'kick',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: 'warning',
-                            priority: 60,
-                            description: `Kick door to break it down`,
-                            descriptionJa: `扉を蹴破ります`
-                        });
-                    }
-                    if (!actions.some(a => a.id.startsWith('ACTION_UNTRAP_DOOR'))) {
-                        actions.push({
-                            id: `ACTION_UNTRAP_DOOR_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Untrap door`,
-                            labelJa: `扉の罠解除 (#untrap)`,
-                            key: `#untrap${dirKey}`,
-                            charStr: '#untrap',
-                            extCmd: 'untrap',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 75,
-                            description: `Disarm trap on door`,
-                            descriptionJa: `扉にかかった罠を解除します`
-                        });
-                    }
-                }
-
-                // 開いた扉 (Open Door)
-                else if (flags.isOpenDoor) {
-                    if (!actions.some(a => a.id.startsWith('ACTION_CLOSE_DOOR'))) {
-                        actions.push({
-                            id: `ACTION_CLOSE_DOOR_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Close door`,
-                            labelJa: `扉を閉める (Close)`,
-                            key: `c${dirKey}`,
-                            keySequence: ['c', dirKey],
-                            charStr: 'c',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 70,
-                            description: `Close open door`,
-                            descriptionJa: `開いたドアを閉めます`
-                        });
-                    }
-                }
-
-                // 壁 / 隠し扉 (Wall / Secret Door)
-                else if (flags.isWall) {
-                    if (!actions.some(a => a.id === 'ACTION_SEARCH_WALL')) {
-                        actions.push({
-                            id: 'ACTION_SEARCH_WALL',
-                            category: 'INTERACT',
-                            label: 'Search secret door',
-                            labelJa: '隠し扉・罠を探す (Search)',
-                            key: 's',
-                            charStr: 's',
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 50,
-                            description: 'Search surrounding walls for secret doors',
-                            descriptionJa: '周囲の壁に隠し扉がないか一括捜索します'
-                        });
-                    }
-
-                    // ツルハシ・採掘の杖所持時のみ「掘削・破壊」アクションを生成（ノイズ除去）
-                    if (pickAxe && !actions.some(a => a.id.startsWith('ACTION_DIG_WALL'))) {
-                        const verb = pickAxe.verb || (pickAxe.isDigWand ? 'z' : 'a');
-                        const isZap = (verb === 'z');
-                        const labelActionName = isZap ? 'Break/Dig wall' : 'Dig wall';
-                        const labelJaName = isZap ? `壁を破壊・発動 (${pickAxe.letter})` : `壁を掘削 (${pickAxe.letter})`;
-                        const descText = isZap ? `Zap ${pickAxe.rawText || 'wand'} to break wall` : `Dig wall with ${pickAxe.rawText || 'pick-axe'}`;
-                        const descJaText = isZap ? `手持ちの ${pickAxe.rawText || '採掘の杖'} で壁を破壊・貫通します` : `壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`;
-
-                        actions.push({
-                            id: `ACTION_DIG_WALL_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `${labelActionName} with ${pickAxe.rawText || 'tool'}`,
-                            labelJa: labelJaName,
-                            key: `${verb}${pickAxe.letter}${dirKey}`,
-                            keySequence: [verb, pickAxe.letter, dirKey],
-                            charStr: verb,
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 85,
-                            description: descText,
-                            descriptionJa: descJaText
-                        });
-                    }
-                }
-
-                // 樹木 (Tree)
-                else if (flags.isTree) {
-                    if (!actions.some(a => a.id.startsWith('ACTION_KICK_TREE'))) {
-                        actions.push({
-                            id: `ACTION_KICK_TREE_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Kick tree`,
-                            labelJa: `樹木を蹴る (Kick)`,
-                            key: `C-d${dirKey}`,
-                            charStr: 'C-d',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 65,
-                            description: `Kick tree to knock down fruit or leaves`,
-                            descriptionJa: `樹木を蹴って果物やユーカリの葉を落とします`
-                        });
-                    }
-
-                    // 斧所持時のみ「伐採」アクションを生成
-                    if (axeItem && !actions.some(a => a.id.startsWith('ACTION_CHOP_TREE'))) {
-                        actions.push({
-                            id: `ACTION_CHOP_TREE_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Chop tree with ${axeItem.rawText || 'axe'}`,
-                            labelJa: `樹木を伐採 (${axeItem.letter})`,
-                            key: `a${axeItem.letter}${dirKey}`,
-                            keySequence: ['a', axeItem.letter, dirKey],
-                            charStr: 'a',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 75,
-                            description: `Chop tree with ${axeItem.rawText || 'axe'}`,
-                            descriptionJa: `樹木を ${axeItem.rawText || '斧'} で切り倒します`
-                        });
-                    }
-                }
-
-                // 水場・溶岩 (Water / Lava)
-                else if (flags.isWater || flags.isLava) {
-                    if (frostWand && !actions.some(a => a.id.startsWith('ACTION_FREEZE_WATER'))) {
-                        actions.push({
-                            id: `ACTION_FREEZE_WATER_${dirCode}`,
-                            category: 'INTERACT',
-                            label: `Freeze water with ${frostWand.rawText || 'wand'}`,
-                            labelJa: `水場を凍らせる (${frostWand.letter})`,
-                            key: `a${frostWand.letter}${dirKey}`,
-                            keySequence: ['a', frostWand.letter, dirKey],
-                            charStr: 'a',
-                            directionKey: dirKey,
-                            direction: item.dir,
-                            target: 'adjacent',
-                            risk: null,
-                            priority: 75,
-                            description: `Use wand of frost to freeze water`,
-                            descriptionJa: `水場や溶岩を ${frostWand.rawText || '氷の杖'} で凍らせます`
-                        });
-                    }
+            if (isPet) {
+                // ペット誤爆防止 (攻撃は絶対に生成しない)
+                if (!actions.some(a => a.id.startsWith('ACTION_CHAT'))) {
                     actions.push({
-                        id: `ACTION_THROW_WATER_${dirCode}`,
+                        id: `ACTION_CHAT_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Throw item into pool`,
-                        labelJa: `水/溶岩へ投げ込む (Throw)`,
-                        key: `t${dirKey}`,
-                        charStr: 't',
+                        label: `Chat with pet`,
+                        labelJa: `ペットに話しかける (#chat)`,
+                        key: `#chat${m.dir.key}`,
+                        charStr: '#chat',
+                        extCmd: 'chat',
+                        directionKey: m.dir.key,
+                        direction: m.dir,
+                        entity: m.entity,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 95,
+                        description: `Talk to pet`,
+                        descriptionJa: `ペットに話しかけます（方向はD-Pad等で選択）`
+                    });
+                }
+            } else {
+                const isShopkeeper = isShopkeeperMonster(m.entity);
+                // モンスター/NPC (近接攻撃)
+                if (!actions.some(a => a.id.startsWith('ACTION_ATTACK'))) {
+                    actions.push({
+                        id: `ACTION_ATTACK_${m.dir.code}`,
+                        category: 'COMBAT',
+                        label: `Attack target`,
+                        labelJa: `対象に近接攻撃`,
+                        key: m.dir.key,
+                        keySequence: [m.dir.key],
+                        charStr: m.dir.key,
+                        directionKey: null,
+                        direction: m.dir,
+                        entity: m.entity,
+                        target: 'adjacent',
+                        risk: 'warning',
+                        priority: 80,
+                        description: `Attack creature in direction`,
+                        descriptionJa: `近接対象に攻撃を試みます`
+                    });
+                }
+                // 話しかける (#chat)
+                if (!actions.some(a => a.id.startsWith('ACTION_CHAT_NPC'))) {
+                    actions.push({
+                        id: `ACTION_CHAT_NPC_${m.dir.code}`,
+                        category: 'INTERACT',
+                        label: `Talk / Chat`,
+                        labelJa: `対象に話しかける (#chat)`,
+                        key: `#chat${m.dir.key}`,
+                        charStr: '#chat',
+                        extCmd: 'chat',
+                        directionKey: m.dir.key,
+                        direction: m.dir,
+                        entity: m.entity,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: isShopkeeper ? 90 : 30,
+                        description: `Talk to NPC or shopkeeper`,
+                        descriptionJa: `NPCや店主に話しかけます`
+                    });
+                }
+                // 店主に代金を支払う (#pay)
+                if (isShopkeeper && !actions.some(a => a.id.startsWith('ACTION_PAY'))) {
+                    actions.push({
+                        id: `ACTION_PAY_${m.dir.code}`,
+                        category: 'INTERACT',
+                        label: `Pay shopkeeper`,
+                        labelJa: `店主に代金を支払う (#pay)`,
+                        key: `#pay${m.dir.key}`,
+                        charStr: '#pay',
+                        extCmd: 'pay',
+                        directionKey: m.dir.key,
+                        direction: m.dir,
+                        entity: m.entity,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 95,
+                        description: `Pay shopkeeper for unpaid items`,
+                        descriptionJa: `店主に商品の購入代金を支払います`
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * 3. 隣接設置物・地形 (Terrain / Doors / Walls / Trees) のアクション判定・ビルド
+     */
+    static buildAdjacentEntityActions(adjacentEntities, tools, actions) {
+        if (!adjacentEntities || adjacentEntities.length === 0) return;
+
+        const { keyItem, pickAxe, axeItem, frostWand } = tools;
+        const dirToAbstractMap = {
+            'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
+            'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
+            '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
+            '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW',
+            'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
+            'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW'
+        };
+
+        adjacentEntities.forEach(item => {
+            const b = item.cell.bottom;
+            if (!b || !b.cmapFlags) return;
+            const flags = b.cmapFlags;
+            const dirCode = item.dir.code;
+            const dirKey = dirToAbstractMap[item.dir.code] || dirToAbstractMap[item.dir.key] || item.dir.key;
+            const dirName = item.dir.name || dirCode;
+
+            // 閉じた扉 (Closed Door)
+            if (flags.isClosedDoor) {
+                if (!actions.some(a => a.id.startsWith('ACTION_OPEN_DOOR'))) {
+                    actions.push({
+                        id: `ACTION_OPEN_DOOR_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Open door`,
+                        labelJa: `扉を開ける (Open)`,
+                        key: `o${dirKey}`,
+                        keySequence: ['o', dirKey],
+                        charStr: 'o',
                         directionKey: dirKey,
                         direction: item.dir,
                         target: 'adjacent',
                         risk: null,
-                        priority: 40,
-                        description: `Throw item into water or lava`,
-                        descriptionJa: `水や溶岩の中にアイテムを投げ入れます`
+                        priority: 90,
+                        description: `Open closed door`,
+                        descriptionJa: `閉じたドアを開けます`
                     });
                 }
 
-                // 鉄格子 (Iron Bars)
-                else if (flags.isIronBars) {
+                if (keyItem && !actions.some(a => a.id.startsWith('ACTION_UNLOCK_DOOR'))) {
                     actions.push({
-                        id: `ACTION_MELT_BARS_${dirCode}`,
+                        id: `ACTION_UNLOCK_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Melt / Break bars (${dirCode})`,
-                        labelJa: `${dirName}の鉄格子を溶かす/破壊 (Apply)`,
-                        key: `a${dirKey}`,
+                        label: `Unlock door with ${keyItem.rawText || 'key'}`,
+                        labelJa: `扉を解錠 (${keyItem.letter})`,
+                        key: `a${keyItem.letter}${dirKey}`,
+                        keySequence: ['a', keyItem.letter, dirKey],
                         charStr: 'a',
                         directionKey: dirKey,
                         direction: item.dir,
                         target: 'adjacent',
                         risk: null,
-                        priority: 55,
-                        description: `Apply acid or pick-axe to break iron bars in direction ${dirName}`,
-                        descriptionJa: `${dirName}の鉄格子を酸のポーションで溶かすか壊します`
+                        priority: 95,
+                        description: `Apply ${keyItem.rawText || 'key'} to unlock door`,
+                        descriptionJa: `扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
                     });
                 }
 
-                // 隣接マスにある罠 (Trap)
-                else if (flags.isTrap) {
+                if (!actions.some(a => a.id.startsWith('ACTION_KICK_DOOR'))) {
                     actions.push({
-                        id: `ACTION_UNTRAP_ADJACENT_${dirCode}`,
+                        id: `ACTION_KICK_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Untrap (${dirCode})`,
-                        labelJa: `${dirName}の罠を解除 (Untrap)`,
+                        label: `Kick door`,
+                        labelJa: `扉を蹴破る (Kick)`,
+                        key: `#kick${dirKey}`,
+                        keySequence: ['#', 'kick', dirKey],
+                        charStr: '#kick',
+                        extCmd: 'kick',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: 'warning',
+                        priority: 60,
+                        description: `Kick door to break it down`,
+                        descriptionJa: `扉を蹴破ります`
+                    });
+                }
+                if (!actions.some(a => a.id.startsWith('ACTION_UNTRAP_DOOR'))) {
+                    actions.push({
+                        id: `ACTION_UNTRAP_DOOR_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Untrap door`,
+                        labelJa: `扉の罠解除 (#untrap)`,
                         key: `#untrap${dirKey}`,
                         charStr: '#untrap',
+                        extCmd: 'untrap',
                         directionKey: dirKey,
                         direction: item.dir,
                         target: 'adjacent',
                         risk: null,
                         priority: 75,
-                        description: `Disarm trap in direction ${dirName}`,
-                        descriptionJa: `${dirName}にある罠の解除を試みます`
+                        description: `Disarm trap on door`,
+                        descriptionJa: `扉にかかった罠を解除します`
                     });
                 }
-            });
-        }
+            }
 
-        // 優先度 (priority) 降順でソート
-        actions.sort((a, b) => b.priority - a.priority);
+            // 開いた扉 (Open Door)
+            else if (flags.isOpenDoor) {
+                if (!actions.some(a => a.id.startsWith('ACTION_CLOSE_DOOR'))) {
+                    actions.push({
+                        id: `ACTION_CLOSE_DOOR_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Close door`,
+                        labelJa: `扉を閉める (Close)`,
+                        key: `c${dirKey}`,
+                        keySequence: ['c', dirKey],
+                        charStr: 'c',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 70,
+                        description: `Close open door`,
+                        descriptionJa: `開いたドアを閉めます`
+                    });
+                }
+            }
 
-        return actions;
+            // 壁 / 隠し扉 (Wall / Secret Door)
+            else if (flags.isWall) {
+                if (!actions.some(a => a.id === 'ACTION_SEARCH_WALL')) {
+                    actions.push({
+                        id: 'ACTION_SEARCH_WALL',
+                        category: 'INTERACT',
+                        label: 'Search secret door',
+                        labelJa: '隠し扉・罠を探す (Search)',
+                        key: 's',
+                        charStr: 's',
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 50,
+                        description: 'Search surrounding walls for secret doors',
+                        descriptionJa: '周囲の壁に隠し扉がないか一括捜索します'
+                    });
+                }
+
+                if (pickAxe && !actions.some(a => a.id.startsWith('ACTION_DIG_WALL'))) {
+                    const verb = pickAxe.verb || (pickAxe.isDigWand ? 'z' : 'a');
+                    const isZap = (verb === 'z');
+                    const labelActionName = isZap ? 'Break/Dig wall' : 'Dig wall';
+                    const labelJaName = isZap ? `壁を破壊・発動 (${pickAxe.letter})` : `壁を掘削 (${pickAxe.letter})`;
+                    const descText = isZap ? `Zap ${pickAxe.rawText || 'wand'} to break wall` : `Dig wall with ${pickAxe.rawText || 'pick-axe'}`;
+                    const descJaText = isZap ? `手持ちの ${pickAxe.rawText || '採掘の杖'} で壁を破壊・貫通します` : `壁を ${pickAxe.rawText || 'ツルハシ'} で掘削・破壊します`;
+
+                    actions.push({
+                        id: `ACTION_DIG_WALL_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `${labelActionName} with ${pickAxe.rawText || 'tool'}`,
+                        labelJa: labelJaName,
+                        key: `${verb}${pickAxe.letter}${dirKey}`,
+                        keySequence: [verb, pickAxe.letter, dirKey],
+                        charStr: verb,
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 85,
+                        description: descText,
+                        descriptionJa: descJaText
+                    });
+                }
+            }
+
+            // 樹木 (Tree)
+            else if (flags.isTree) {
+                if (!actions.some(a => a.id.startsWith('ACTION_KICK_TREE'))) {
+                    actions.push({
+                        id: `ACTION_KICK_TREE_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Kick tree`,
+                        labelJa: `樹木を蹴る (Kick)`,
+                        key: `C-d${dirKey}`,
+                        keySequence: ['#', 'kick', dirKey],
+                        charStr: '#kick',
+                        extCmd: 'kick',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 65,
+                        description: `Kick tree to knock down fruit or leaves`,
+                        descriptionJa: `樹木を蹴って果物やユーカリの葉を落とします`
+                    });
+                }
+
+                if (axeItem && !actions.some(a => a.id.startsWith('ACTION_CHOP_TREE'))) {
+                    actions.push({
+                        id: `ACTION_CHOP_TREE_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Chop tree with ${axeItem.rawText || 'axe'}`,
+                        labelJa: `樹木を伐採 (${axeItem.letter})`,
+                        key: `a${axeItem.letter}${dirKey}`,
+                        keySequence: ['a', axeItem.letter, dirKey],
+                        charStr: 'a',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 75,
+                        description: `Chop tree with ${axeItem.rawText || 'axe'}`,
+                        descriptionJa: `樹木を ${axeItem.rawText || '斧'} で切り倒します`
+                    });
+                }
+            }
+
+            // 水場・溶岩 (Water / Lava)
+            else if (flags.isWater || flags.isLava) {
+                if (frostWand && !actions.some(a => a.id.startsWith('ACTION_FREEZE_WATER'))) {
+                    actions.push({
+                        id: `ACTION_FREEZE_WATER_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Freeze water with ${frostWand.rawText || 'wand'}`,
+                        labelJa: `水場を凍らせる (${frostWand.letter})`,
+                        key: `a${frostWand.letter}${dirKey}`,
+                        keySequence: ['a', frostWand.letter, dirKey],
+                        charStr: 'a',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        target: 'adjacent',
+                        risk: null,
+                        priority: 75,
+                        description: `Use wand of frost to freeze water`,
+                        descriptionJa: `水場や溶岩を ${frostWand.rawText || '氷の杖'} で凍らせます`
+                    });
+                }
+                actions.push({
+                    id: `ACTION_THROW_WATER_${dirCode}`,
+                    category: 'INTERACT',
+                    label: `Throw item into pool`,
+                    labelJa: `水/溶岩へ投げ込む (Throw)`,
+                    key: `t${dirKey}`,
+                    charStr: 't',
+                    directionKey: dirKey,
+                    direction: item.dir,
+                    target: 'adjacent',
+                    risk: null,
+                    priority: 40,
+                    description: `Throw item into water or lava`,
+                    descriptionJa: `水や溶岩の中にアイテムを投げ入れます`
+                });
+            }
+
+            // 鉄格子 (Iron Bars)
+            else if (flags.isIronBars) {
+                actions.push({
+                    id: `ACTION_MELT_BARS_${dirCode}`,
+                    category: 'INTERACT',
+                    label: `Melt / Break bars (${dirCode})`,
+                    labelJa: `${dirName}の鉄格子を溶かす/破壊 (Apply)`,
+                    key: `a${dirKey}`,
+                    keySequence: ['a', dirKey],
+                    charStr: 'a',
+                    directionKey: dirKey,
+                    direction: item.dir,
+                    target: 'adjacent',
+                    risk: null,
+                    priority: 55,
+                    description: `Apply acid or pick-axe to break iron bars in direction ${dirName}`,
+                    descriptionJa: `${dirName}の鉄格子を酸のポーションで溶かすか壊します`
+                });
+            }
+
+            // 隣接マスにある罠 (Trap)
+            else if (flags.isTrap) {
+                actions.push({
+                    id: `ACTION_UNTRAP_ADJACENT_${dirCode}`,
+                    category: 'INTERACT',
+                    label: `Untrap (${dirCode})`,
+                    labelJa: `${dirName}の罠を解除 (Untrap)`,
+                    key: `#untrap${dirKey}`,
+                    keySequence: ['#', 'untrap', dirKey],
+                    charStr: '#untrap',
+                    extCmd: 'untrap',
+                    directionKey: dirKey,
+                    direction: item.dir,
+                    target: 'adjacent',
+                    risk: null,
+                    priority: 75,
+                    description: `Disarm trap in direction ${dirName}`,
+                    descriptionJa: `${dirName}にある罠の解除を試みます`
+                });
+            }
+        });
     }
 }
+
 

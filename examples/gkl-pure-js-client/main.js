@@ -553,12 +553,28 @@ class GklPureJSClient {
 
     const newHtml = items.length === 0
       ? '<div class="gkl-empty-hint">インベントリ空</div>'
-      : items.map(item => `
-          <div class="gkl-item-slot" data-letter="${item.letter}">
-            <span class="gkl-slot-letter">${item.letter}</span>
-            <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
-          </div>
-        `).join('');
+      : items.map(item => {
+          const equipClasses = [];
+          if (item.isWielded) equipClasses.push('is-wielded');
+          if (item.isOffhand) equipClasses.push('is-offhand');
+          if (item.isQuivered) equipClasses.push('is-quivered');
+          if (item.isWorn) equipClasses.push('is-worn');
+          const equipClassStr = equipClasses.join(' ');
+
+          let badgeHtml = '';
+          if (item.isWielded) badgeHtml = '<span class="gkl-slot-equip-badge badge-wielded" title="メイン武器 (wielded)">手</span>';
+          else if (item.isOffhand) badgeHtml = '<span class="gkl-slot-equip-badge badge-offhand" title="副武器 (off-hand)">副</span>';
+          else if (item.isQuivered) badgeHtml = '<span class="gkl-slot-equip-badge badge-quivered" title="矢筒 (quivered)">筒</span>';
+          else if (item.isWorn) badgeHtml = '<span class="gkl-slot-equip-badge badge-worn" title="着用中 (worn)">着</span>';
+
+          return `
+            <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}">
+              <span class="gkl-slot-letter">${item.letter}</span>
+              <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
+              ${badgeHtml}
+            </div>
+          `;
+        }).join('');
 
     if (this._lastInvHtml !== newHtml) {
       this._lastInvHtml = newHtml;
@@ -585,6 +601,16 @@ class GklPureJSClient {
           slot.onmouseenter = () => {
             this.elGklTtName.textContent = item.rawText;
             this.elGklTtTags.innerHTML = '';
+
+            if (item.isWielded) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#e9c46a;color:#1a1a2e;font-weight:bold;">手持ち武器</span>';
+            if (item.isOffhand) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#4ea8de;color:#0f172a;font-weight:bold;">副武器</span>';
+            if (item.isQuivered) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#2a9d8f;color:#fff;font-weight:bold;">矢筒</span>';
+            if (item.isWorn) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#9d4edd;color:#fff;font-weight:bold;">着用中</span>';
+
+            if (item.defaultActionLabelJa && item.defaultVerb) {
+              this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#ffffff;font-weight:bold;">ワンタップ: ${item.defaultActionLabelJa}</span>`;
+            }
+
             if (item.isPickAxe) this.elGklTtTags.innerHTML += '<span class="tag">掘削(a)</span>';
             if (item.isDigWand) this.elGklTtTags.innerHTML += '<span class="tag">採掘の杖(z)</span>';
             if (item.isKey) this.elGklTtTags.innerHTML += '<span class="tag">鍵・ピック</span>';
@@ -598,13 +624,34 @@ class GklPureJSClient {
             this.elGklTooltip.classList.add('hidden');
           };
 
-          slot.onclick = () => {
-            this.core.sendKey(item.letter, false, false, false, item.letter, true);
+          slot.onclick = async () => {
+            if (!this.core) return;
+            const seq = (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0)
+              ? item.defaultSequence
+              : [item.letter];
+
+            if (typeof this.core.executeSequence === 'function') {
+              await this.core.executeSequence(seq);
+            } else if (this.core.requestController && typeof this.core.requestController.executeSequence === 'function') {
+              await this.core.requestController.executeSequence(seq);
+            } else {
+              seq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
+            }
+
+            // ワンタッチ操作完了後、少し遅延させて最新の所持品・装備状態をサイレント同期！
+            setTimeout(async () => {
+              if (this.core && typeof this.core.syncInventorySilent === 'function') {
+                await this.core.syncInventorySilent();
+              }
+            }, 300);
           };
         }
+
+
       });
     }
   }
+
 
   getItemSymbol(item) {
     if (item.isPickAxe) return '⛏️';
@@ -877,23 +924,21 @@ class GklPureJSClient {
       return;
     }
 
-    if (data.options && data.options.length > 0) {
-      this.elPromptBar.classList.remove('hidden');
-      this.elPromptText.textContent = rawPrompt || 'Select Option';
-      this.elInputControls.innerHTML = '';
+    const isLineText = data.inputType === 'LINE_TEXT' || 
+                       category === 'TEXT' || 
+                       category === 'ASKNAME' || 
+                       category === 'FILE' || 
+                       category === 'EXTCMD' || 
+                       category === 'LINE' || 
+                       data.context === 'getlin' || 
+                       data.context === 'get_ext_cmd' || 
+                       data.context === 'text' || 
+                       data.context === 'extcmd';
 
-      data.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.textContent = `${opt.label} (${opt.key})`;
-        btn.onclick = () => this.core.respond(opt.key);
-        this.elInputControls.appendChild(btn);
-      });
-      return;
-    }
-
-    if (category === 'TEXT' || category === 'ASKNAME' || category === 'FILE') {
+    if (isLineText) {
       this.elPromptBar.classList.remove('hidden');
-      this.elPromptText.textContent = rawPrompt || 'Enter text:';
+      const promptTitle = data.promptText || data.title || rawPrompt || 'Enter text:';
+      this.elPromptText.textContent = promptTitle;
       this.elInputControls.innerHTML = `
         <input type="text" id="prompt-text-input" placeholder="Type here..." />
         <button id="btn-submit-text">OK</button>
@@ -912,9 +957,31 @@ class GklPureJSClient {
         if (e.key === 'Enter') {
           e.preventDefault();
           submitAction();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (typeof this.core.cancelPrompt === 'function') {
+            this.core.cancelPrompt();
+          } else {
+            this.core.respond('\x1b');
+          }
         }
       };
       setTimeout(() => inputEl.focus(), 50);
+      return;
+    }
+
+    if (data.options && data.options.length > 0) {
+      this.elPromptBar.classList.remove('hidden');
+      this.elPromptText.textContent = rawPrompt || 'Select Option';
+      this.elInputControls.innerHTML = '';
+
+      data.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.textContent = `${opt.label} (${opt.key})`;
+        btn.onclick = () => this.core.respond(opt.key);
+        this.elInputControls.appendChild(btn);
+      });
+      return;
     }
   }
 
