@@ -8,11 +8,16 @@
 import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemInfoFromOnum } from './glyphClassifier.js';
 
 export class InventoryStateManager {
-    constructor() {
+    constructor(options = {}) {
         // 所持品アイテムのリスト
-        // item: { letter: 'f', name: 'pick-axe', rawText: '...', glyphId: 3707, onum: 259, isPickAxe: true, ... }
+        // item: { letter: 'f', name: 'pick-axe', rawText: '...', glyphId: 3707, onum: 259, isPickAxe: true, knowledge: {...} }
         this.items = [];
         this.isSynced = false; // 一度でもインベントリを同期したかフラグ
+        this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
+    }
+
+    setStructuredKnowledgeEngine(ske) {
+        this.structuredKnowledgeEngine = ske;
     }
 
     /**
@@ -66,11 +71,21 @@ export class InventoryStateManager {
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
                 const equipState = this.parseEquipState(rawText);
 
+                // 🎯 ナレッジ自動物理アタッチ (DevTool Inspector & クライアントデータ連携の要)
+                let knowledge = mi.knowledge || null;
+                if (!knowledge && this.structuredKnowledgeEngine) {
+                    if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
+                        knowledge = this.structuredKnowledgeEngine.getKnowledge(mi) ||
+                                    this.structuredKnowledgeEngine.getKnowledge(onum >= 0 ? onum : rawText, { translate: true });
+                    }
+                }
+
                 parsedItems.push({
                     letter,
                     rawText,
                     glyphId,
                     onum,
+                    knowledge,
                     ...categoryFlags,
                     ...equipState
                 });

@@ -163,6 +163,7 @@ body {
   max-height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
+  cursor: crosshair;
 }
 
 /* 80x24 Color ASCII Grid */
@@ -691,12 +692,12 @@ body {
 .modal-backdrop {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(0, 0, 0, 0.75);
+  background-color: rgba(15, 15, 26, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 
 .hidden { display: none !important; }
@@ -884,4 +885,94 @@ body {
   border-radius: 4px;
   image-rendering: pixelated;
   display: block;
+  cursor: crosshair;
 }
+
+/* 💡 GKL ナレッジカード表示 */
+.gkl-knowledge-content {
+  font-size: 12px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kn-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 6px;
+}
+
+.kn-title {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--primary-color);
+}
+
+.kn-danger-badge {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.kn-danger-LETHAL { background: rgba(231, 76, 60, 0.25); color: #e74c3c; border: 1px solid #e74c3c; }
+.kn-danger-HIGH { background: rgba(230, 126, 34, 0.25); color: #e67e22; border: 1px solid #e67e22; }
+.kn-danger-MEDIUM { background: rgba(241, 196, 15, 0.25); color: #f1c40f; border: 1px solid #f1c40f; }
+.kn-danger-LOW { background: rgba(46, 204, 113, 0.25); color: #2ecc71; border: 1px solid #2ecc71; }
+.kn-danger-ITEM { background: rgba(149, 165, 166, 0.25); color: #95a5a6; border: 1px solid #95a5a6; }
+
+.kn-stats-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.kn-section-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.kn-warning-box {
+  background: rgba(231, 76, 60, 0.15);
+  border-left: 3px solid #e74c3c;
+  color: #f1948a;
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.kn-unid-box {
+  background: rgba(52, 152, 219, 0.15);
+  border-left: 3px solid #3498db;
+  color: #85c1e9;
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.kn-advice-list {
+  padding-left: 16px;
+  margin: 0;
+}
+

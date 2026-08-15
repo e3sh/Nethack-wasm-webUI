@@ -102,4 +102,19 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         const actions = plugin.getRecommendedActions(1);
         expect(Array.isArray(actions)).toBe(true);
     });
+
+    it('structuredKnowledge: GKL プラグインが StructuredKnowledgeEngine を保持し attach 時に translator がバインドされること', () => {
+        const plugin = new GKLPlugin();
+        expect(plugin.structuredKnowledge).toBeDefined();
+
+        const mockTranslator = { translate: vi.fn(text => `TR:${text}`) };
+        const mockCore = createMockCore();
+        mockCore.translator = mockTranslator;
+
+        plugin.attach(mockCore);
+
+        const mon = plugin.structuredKnowledge.getMonsterKnowledge('cockatrice', { translate: true });
+        expect(mockTranslator.translate).toHaveBeenCalled();
+        expect(mon.name).toBe('TR:cockatrice');
+    });
 });

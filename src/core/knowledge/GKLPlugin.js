@@ -4,6 +4,7 @@ import { InventoryStateManager } from './InventoryStateManager.js';
 import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
 import { RequestController } from './RequestController.js';
+import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -34,6 +35,14 @@ export class GKLPlugin {
             this.areaStateManager.setKeyMode(mode);
         }
 
+        this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
+            translationEngine: options.translationEngine || null
+        });
+
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
+            this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
+        }
+
         this.core = null;
         this.requestController = null;
     }
@@ -45,6 +54,14 @@ export class GKLPlugin {
     attach(core) {
         if (!core) return;
         this.core = core;
+
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
+            this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
+        }
+
+        if (core.translator && typeof this.structuredKnowledge.setTranslationEngine === 'function') {
+            this.structuredKnowledge.setTranslationEngine(core.translator);
+        }
 
         if (core.driver) {
             this.requestController = new RequestController(core.driver);

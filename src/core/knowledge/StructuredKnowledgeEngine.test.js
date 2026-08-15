@@ -1,0 +1,123 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
+import { GLYPH_OFFSETS } from './glyphClassifier.js';
+
+describe('StructuredKnowledgeEngine', () => {
+    let engine;
+    let mockTranslationEngine;
+
+    beforeEach(() => {
+        mockTranslationEngine = {
+            translate: (text) => {
+                const dict = {
+                    'cockatrice': 'コカトリス',
+                    'wand of digging': '掘削の杖',
+                    'Petrifies instantly if touched or eaten without gloves!': '手袋なしで触ると石化します！',
+                    'Engrave Elbereth to keep away': 'Elbereth(Eの字)を刻んで遠ざける',
+                    'Digs holes or tunnels in walls and floor.': '壁や床に穴や通路を掘る。'
+                };
+                return dict[text] || text;
+            }
+        };
+
+        engine = new StructuredKnowledgeEngine({
+            translationEngine: mockTranslationEngine
+        });
+    });
+
+    describe('Monster Knowledge Retrieval', () => {
+        it('should retrieve monster knowledge by ID string', () => {
+            const mon = engine.getMonsterKnowledge('cockatrice', { translate: false });
+            expect(mon).not.toBeNull();
+            expect(mon.id).toBe('cockatrice');
+            expect(mon.name).toBe('cockatrice');
+            expect(mon.dangerLevel).toBe('LETHAL');
+            expect(mon.stats.hd).toBe(5);
+        });
+
+        it('should retrieve monster knowledge by monOffset number', () => {
+            const mon = engine.getMonsterKnowledge(28, { translate: false }); // tilemappings.lst floating eye mnum = 28
+            expect(mon).not.toBeNull();
+            expect(mon.id).toBe('floating_eye');
+            expect(mon.dangerLevel).toBe('HIGH');
+        });
+
+        it('should retrieve monster knowledge by glyphId number', () => {
+            // NetHack cockatrice glyphId = 25 (monOffset 25)
+            const mon = engine.getMonsterKnowledge(25, { translate: false });
+            expect(mon).not.toBeNull();
+            expect(mon.id).toBe('cockatrice');
+        });
+
+        it('should return null for unknown monster', () => {
+            const mon = engine.getMonsterKnowledge('non_existent_monster');
+            expect(mon).toBeNull();
+        });
+    });
+
+    describe('Item Knowledge Retrieval', () => {
+        it('should retrieve item knowledge by ID string', () => {
+            const item = engine.getItemKnowledge('wand_of_digging', { translate: false });
+            expect(item).not.toBeNull();
+            expect(item.id).toBe('wand_of_digging');
+            expect(item.onum).toBe(428);
+            expect(item.category).toBe('WAND');
+        });
+
+        it('should retrieve item knowledge by onum number', () => {
+            const item = engine.getItemKnowledge(428, { translate: false });
+            expect(item).not.toBeNull();
+            expect(item.id).toBe('wand_of_digging');
+        });
+
+        it('should retrieve item knowledge by glyphId number', () => {
+            // GLYPH_OBJ_OFF (3448) + 428 = 3876
+            const wandGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 428;
+            const item = engine.getItemKnowledge(wandGlyph, { translate: false });
+            expect(item).not.toBeNull();
+            expect(item.id).toBe('wand_of_digging');
+        });
+
+        it('should resolve item knowledge from complex NetHack inventory strings', () => {
+            const item = engine.getItemKnowledge('a - 2 uncursed rations of cram', { translate: false });
+            expect(item).not.toBeNull();
+            expect(item.name).toBe('ration of cram');
+            expect(item.category).toBe('FOOD');
+        });
+    });
+
+    describe('TranslationEngine Localizing Integration', () => {
+        it('should return raw English data when translate is false', () => {
+            const mon = engine.getMonsterKnowledge('cockatrice', { translate: false });
+            expect(mon.name).toBe('cockatrice');
+            expect(mon.corpseInfo.warningNote).toBe('Petrifies instantly if touched or eaten without gloves!');
+            expect(mon.tacticalAdvice[0]).toBe('Engrave Elbereth to keep away');
+        });
+
+        it('should return localized Japanese data when translate is true', () => {
+            const mon = engine.getMonsterKnowledge('cockatrice', { translate: true });
+            expect(mon.name).toBe('コカトリス');
+            expect(mon.corpseInfo.warningNote).toBe('手袋なしで触ると石化します！');
+            expect(mon.tacticalAdvice[0]).toBe('Elbereth(Eの字)を刻んで遠ざける');
+        });
+
+        it('should automatically detect unidentified item appearances and return unidentified tips', () => {
+            const unidPotion = engine.getItemKnowledge('ruby potion', { translate: false });
+            expect(unidPotion).not.toBeNull();
+            expect(unidPotion.isUnidentified).toBe(true);
+            expect(unidPotion.category).toBe('POTION');
+            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
+
+            const unidScroll = engine.getItemKnowledge('scroll labelled FOO', { translate: false });
+            expect(unidScroll).not.toBeNull();
+            expect(unidScroll.isUnidentified).toBe(true);
+            expect(unidScroll.category).toBe('SCROLL');
+        });
+
+        it('should localize item fields when translate is true', () => {
+            const item = engine.getItemKnowledge('wand_of_digging', { translate: true });
+            expect(item.name).toBe('掘削の杖');
+            expect(item.effectSummary).toBe('壁や床に穴や通路を掘る。');
+        });
+    });
+});

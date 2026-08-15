@@ -172,6 +172,23 @@ export class DebugInspector {
             this.broadcastLog('INJECT', `Action sent: ${msg.actionName}`);
         } else if (msg.type === 'REQUEST_SNAPSHOT') {
             this.broadcastState();
+        } else if (msg.type === 'QUERY_KNOWLEDGE') {
+            const ske = (this.core.gkl && this.core.gkl.structuredKnowledge) || this.core.structuredKnowledge;
+            if (ske) {
+                const result = msg.entityType === 'ITEM'
+                    ? ske.getItemKnowledge(msg.identifier, { translate: msg.translate !== false })
+                    : ske.getMonsterKnowledge(msg.identifier, { translate: msg.translate !== false });
+
+                if (this.channel && this.isBroadcasting) {
+                    try {
+                        this.channel.postMessage({
+                            type: 'KNOWLEDGE_QUERY_RESULT',
+                            query: msg,
+                            result: result
+                        });
+                    } catch (e) {}
+                }
+            }
         }
     }
 

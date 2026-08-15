@@ -8,14 +8,21 @@
 export class TranslationEngine {
     constructor(options = {}) {
         this.enabled = options.enabled !== undefined ? options.enabled : true;
-
+        this.options = options;
         this.trMap = new Map();
         this.lookupDict = options.lookupDict || {};
+        this.entitiesAndItems = {};
         this.itemCache = {};
+        this.initDictionaries();
+    }
 
+    /**
+     * window.nhMessage / nhEntities / nhItems からの辞書ロード処理
+     */
+    initDictionaries() {
         // 1. nhMessage() の完全一致辞書をロード
-        const rawDict = options.lookupDict || (typeof window !== 'undefined' && typeof window.nhMessage === 'function' ? window.nhMessage() : []);
-        if (Array.isArray(rawDict)) {
+        const rawDict = this.options.lookupDict || (typeof window !== 'undefined' && typeof window.nhMessage === 'function' ? window.nhMessage() : []);
+        if (Array.isArray(rawDict) && rawDict.length > 0) {
             for (const item of rawDict) {
                 if (item && item.en !== undefined && item.jp !== undefined) {
                     this.trMap.set(item.en, item.jp);
@@ -24,7 +31,7 @@ export class TranslationEngine {
         }
 
         // 2. nhMessagePattern() パターン辞書をロード
-        const rawPatterns = options.patternDict || (
+        const rawPatterns = this.options.patternDict || (
             typeof window !== 'undefined' && typeof window.nhMessagePattern === 'function' ? window.nhMessagePattern() : (
             typeof window !== 'undefined' && typeof window.nhPatterns === 'function' ? window.nhPatterns() : []
         ));
@@ -35,6 +42,15 @@ export class TranslationEngine {
         const entities = (typeof window !== 'undefined' && typeof window.nhEntities === 'function') ? window.nhEntities() : {};
         const items = (typeof window !== 'undefined' && typeof window.nhItems === 'function') ? window.nhItems() : {};
         this.entitiesAndItems = { ...entities, ...items };
+    }
+
+    /**
+     * 辞書が未ロードの場合は遅延ロードを自動実行
+     */
+    ensureDictionariesLoaded() {
+        if (this.trMap.size === 0 || Object.keys(this.entitiesAndItems).length === 0) {
+            this.initDictionaries();
+        }
     }
 
     setEnabled(enabled) {
@@ -161,6 +177,7 @@ export class TranslationEngine {
      */
     lookupWord(word, pos = 'noun') {
         if (!word) return null;
+        this.ensureDictionariesLoaded();
         const entry = this.entitiesAndItems[word] || this.lookupDict[word];
         if (!entry) return null;
         if (typeof entry === 'string') return entry;
@@ -172,6 +189,8 @@ export class TranslationEngine {
      */
     translate(text) {
         if (!this.enabled || !text || typeof text !== 'string') return text;
+
+        this.ensureDictionariesLoaded();
 
         const cleanMsg = text.replace(/\r/g, "").replace(/_+$/, "");
 

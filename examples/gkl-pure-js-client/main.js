@@ -54,6 +54,7 @@ class GklPureJSClient {
     this.elBtnDirReset = document.getElementById('btn-dir-reset');
     this.elGklInventoryGrid = document.getElementById('gkl-inventory-grid');
     this.elGklInvCount = document.getElementById('gkl-inv-count');
+    this.elGklKnowledgeContent = document.getElementById('gkl-knowledge-content');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
     this.elGklTtName = document.getElementById('gkl-tt-name');
     this.elGklTtTags = document.getElementById('gkl-tt-tags');
@@ -302,6 +303,58 @@ class GklPureJSClient {
         this.elGklTooltip.style.top = (e.clientY + 14) + 'px';
       }
     });
+
+    // ズームカメラ (zoom-canvas) 内の受信連動 7x7 マス ホバーナレッジ表示 (Top -> Middle -> Bottom 優先順位)
+    if (this.zoomCanvas) {
+      this.zoomCanvas.addEventListener('mousemove', (e) => {
+        const rect = this.zoomCanvas.getBoundingClientRect();
+        const tileX = Math.floor(((e.clientX - rect.left) * (this.zoomCanvas.width / rect.width)) / 32);
+        const tileY = Math.floor(((e.clientY - rect.top) * (this.zoomCanvas.height / rect.height)) / 32);
+
+        const dx = tileX - 3;
+        const dy = tileY - 3;
+
+        // プレイヤー最新座標の安全取得 (AreaStateManager -> targetCursorX -> default)
+        const asm = this.core?.gkl?.areaStateManager;
+        const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
+        const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
+
+        const gx = px + dx;
+        const gy = py + dy;
+
+        if (gx >= 0 && gx < 80 && gy >= 0 && gy < 24) {
+          const cell = asm?.grid?.[gy]?.[gx];
+          // 優先順位: 1. Top (モンスター) -> 2. Middle (アイテム) -> 3. Bottom (地形)
+          const targetEntity = cell?.top || cell?.middle || cell?.bottom;
+
+          if (targetEntity) {
+            const glyphId = (typeof targetEntity.glyph === 'number')
+              ? targetEntity.glyph
+              : (targetEntity.glyphInfo && typeof targetEntity.glyphInfo.glyph === 'number'
+                  ? targetEntity.glyphInfo.glyph
+                  : (typeof targetEntity.rawGlyph === 'number' ? targetEntity.rawGlyph : -1));
+            if (glyphId >= 0) {
+              this.renderKnowledgeCard(glyphId);
+            } else {
+              this.renderKnowledgeCard(targetEntity);
+            }
+          } else {
+            const gData = this.glyphGridBuffer[gy] ? this.glyphGridBuffer[gy][gx] : null;
+            if (gData && gData.glyph >= 0) {
+              this.renderKnowledgeCard(gData.glyph);
+            } else {
+              this.renderKnowledgeCard(null);
+            }
+          }
+        } else {
+          this.renderKnowledgeCard(null);
+        }
+      });
+
+      this.zoomCanvas.addEventListener('mouseleave', () => {
+        this.renderKnowledgeCard(null);
+      });
+    }
 
     window.addEventListener('keydown', (e) => this.handleGlobalKeyDown(e));
   }
@@ -662,6 +715,107 @@ class GklPureJSClient {
     }
   }
 
+  renderKnowledgeCard(target) {
+    if (!this.elGklKnowledgeContent) return;
+
+    if (!target) {
+      this.elGklKnowledgeContent.innerHTML = `
+        <div class="gkl-empty-hint">
+          マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます
+        </div>`;
+      return;
+    }
+
+    let data = null;
+    if (target && typeof target === 'object' && target.knowledge) {
+      data = target.knowledge;
+    } else if (this.core && this.core.gkl && this.core.gkl.structuredKnowledge) {
+      data = this.core.gkl.structuredKnowledge.getKnowledge(target, { translate: true });
+    }
+
+    if (!data) {
+      this.elGklKnowledgeContent.innerHTML = '<div class="gkl-empty-hint">該当するナレッジ情報がありません</div>';
+      return;
+    }
+
+    if (data.dangerLevel) {
+      const badgeClass = `kn-danger-${data.dangerLevel || 'LOW'}`;
+      this.elGklKnowledgeContent.innerHTML = `
+        <div class="kn-card">
+          <div class="kn-header">
+            <span class="kn-title">${data.name}</span>
+            <span class="kn-danger-badge ${badgeClass}">${data.dangerLevel} DANGER</span>
+          </div>
+          <div class="kn-stats-row">
+            <span>HD:${data.stats?.hd ?? '-'}</span>
+            <span>AC:${data.stats?.ac ?? '-'}</span>
+            <span>Spd:${data.stats?.speed ?? '-'}</span>
+            <span>MR:${data.stats?.mr ?? 0}%</span>
+          </div>
+          ${data.corpseInfo?.warningNote ? `<div class="kn-warning-box">⚠️ ${data.corpseInfo.warningNote}</div>` : ''}
+          ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
+          ${data.tacticalAdvice && data.tacticalAdvice.length > 0 ? `
+            <div style="margin-top:6px;">
+              <div class="kn-section-label">💡 実戦戦術アドバイス</div>
+              <ul class="kn-advice-list">${data.tacticalAdvice.map(adv => `<li>• ${adv}</li>`).join('')}</ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      let statsHtml = '';
+      if (data.stats) {
+        const s = data.stats;
+        const parts = [];
+        if (s.sdam) parts.push(`⚔️ 攻撃力: <strong style="color:#fff;">${s.sdam}</strong> (小型) / <strong style="color:#fff;">${s.ldam || s.sdam}</strong> (大型)`);
+        if (s.ac !== undefined) parts.push(`🛡️ 防御力: <strong style="color:#fff;">AC ${s.ac}</strong>`);
+        if (s.material) parts.push(`素材: ${s.material}`);
+        if (s.hands) parts.push(`${s.hands}手持ち`);
+        if (parts.length > 0) {
+          statsHtml = `<div class="kn-stats-row" style="margin:6px 0; padding:6px 10px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; font-size:12px; color:#38bdf8; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">${parts.map(p => `<span>${p}</span>`).join('')}</div>`;
+        }
+      }
+
+      let bucHtml = '';
+      if (data.bucEffects) {
+        const b = data.bucEffects;
+        const bParts = [];
+        if (b.blessed) bParts.push(`<li style="color:#2ecc71;"><strong>祝福:</strong> ${b.blessed}</li>`);
+        if (b.uncursed) bParts.push(`<li style="color:#bdc3c7;"><strong>通常:</strong> ${b.uncursed}</li>`);
+        if (b.cursed) bParts.push(`<li style="color:#e74c3c;"><strong>呪い:</strong> ${b.cursed}</li>`);
+        if (bParts.length > 0) {
+          bucHtml = `<ul class="kn-advice-list">${bParts.join('')}</ul>`;
+        }
+      }
+
+      this.elGklKnowledgeContent.innerHTML = `
+        <div class="kn-card">
+          <div class="kn-header">
+            <span class="kn-title">${data.inventoryLabel || data.name}</span>
+            <span class="kn-danger-badge kn-danger-ITEM">${data.category}${data.isUnidentified ? ' (未識別)' : ''}</span>
+          </div>
+          ${statsHtml}
+          ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
+          ${data.flavorNote ? `<div style="font-style:italic; font-size:11px; color:#94a3b8; margin:4px 0;">" ${data.flavorNote} "</div>` : ''}
+          ${bucHtml ? `
+            <div>
+              <div class="kn-section-label">⚖️ BUC効果</div>
+              ${bucHtml}
+            </div>
+          ` : ''}
+          ${data.unidentifiedTips && data.unidentifiedTips.length > 0 ? `
+            <div class="kn-unid-box">
+              <div class="kn-section-label" style="color:#3498db;">🔍 識別テスト・コツ</div>
+              <ul class="kn-advice-list">
+                ${data.unidentifiedTips.map(t => `<li>${t}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+  }
+
   /**
    * 方向キーパッドの点灯・バッジ状態を更新
    * @param {Map<string, number>} dirCounts - 各方向の件数マップ
@@ -814,6 +968,7 @@ class GklPureJSClient {
 
         if (slot) {
           slot.onmouseenter = () => {
+            this.renderKnowledgeCard(item);
             this.elGklTtName.textContent = item.rawText;
             this.elGklTtTags.innerHTML = '';
 

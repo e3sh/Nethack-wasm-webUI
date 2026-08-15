@@ -92,8 +92,10 @@ export class WebUICore {
             isInspectorActive = true;
         }
 
+        let isKnowledgeActive = options.enableKnowledge !== false;
+
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
-        this.promptPayloadBuilder = new PromptPayloadBuilder({ translator: this.translator });
+        this.promptPayloadBuilder = new PromptPayloadBuilder({ translator: this.translator, enableKnowledge: isKnowledgeActive });
         this.textWindowManager = new TextWindowManager({ translator: this.translator });
 
         // GKL プラグインのアタッチ (指定がなければデフォルト GKLPlugin をアタッチして透明互換性を保証)
@@ -102,6 +104,10 @@ export class WebUICore {
             keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined)
         });
         this.use(gklPlugin);
+
+        if (this.promptPayloadBuilder && this.gkl) {
+            this.promptPayloadBuilder.setGkl(this.gkl);
+        }
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -133,6 +139,9 @@ export class WebUICore {
         }
         if (plugin instanceof GKLPlugin || plugin.constructor?.name === 'GKLPlugin' || typeof plugin.getSituation === 'function') {
             this.gkl = plugin;
+            if (this.promptPayloadBuilder) {
+                this.promptPayloadBuilder.setGkl(plugin);
+            }
         }
         return this;
     }
@@ -796,6 +805,17 @@ export class WebUICore {
             if (keys) {
                 this.sendKey(keys);
             }
+        }
+    }
+
+    /**
+     * ターゲットナレッジ機能の動的 ON / OFF トグル
+     * @param {boolean} enabled 
+     */
+    setKnowledgeEnabled(enabled) {
+        const active = !!enabled;
+        if (this.promptPayloadBuilder) {
+            this.promptPayloadBuilder.setKnowledgeEnabled(active);
         }
     }
 

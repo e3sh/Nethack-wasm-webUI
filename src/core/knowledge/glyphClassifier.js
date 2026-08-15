@@ -149,7 +149,7 @@ export function classifyGlyph(glyphId) {
     // 3448〜3928: Objects (アイテム)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
         const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_OFF;
-        const isContainer = (objOffset >= 214 && objOffset <= 220);
+        const isContainer = (objOffset >= 168 && objOffset <= 174);
         return {
             type: ENTITY_TYPES.ITEM,
             subType: objOffset,
@@ -294,6 +294,28 @@ export function getItemInfoFromOnum(onum) {
         isAmmo,
         isLauncher
     };
+}
+
+/**
+ * docs/5_gamedata/tilemappings.lst (Single Source of Truth) に完全準拠した onum 範囲物理カテゴリ分類関数
+ * @param {number} onum 
+ * @returns {string} カテゴリ ('WEAPON'|'ARMOR'|'RING'|'AMULET'|'CONTAINER'|'TOOL'|'FOOD'|'POTION'|'SCROLL'|'SPELLBOOK'|'WAND'|'GEM')
+ */
+export function getCategoryFromOnum(onum) {
+    if (typeof onum !== 'number' || onum < 0) return 'TOOL';
+    if (onum >= 18 && onum <= 88) return 'WEAPON';
+    if (onum >= 89 && onum <= 172) return 'ARMOR';
+    if (onum >= 173 && onum <= 200) return 'RING';
+    if (onum >= 201 && onum <= 213) return 'AMULET';
+    if (onum >= 214 && onum <= 220) return 'CONTAINER'; // チェスト、箱、バッグ
+    if (onum >= 221 && onum <= 263) return 'TOOL';      // カギ、ランプ、ホイッスル、ツルハシ等
+    if (onum >= 264 && onum <= 296) return 'FOOD';      // トリッパ、死体、卵、りんご、クラム、缶詰
+    if (onum >= 297 && onum <= 322) return 'POTION';    // ポーション (297〜322)
+    if (onum >= 323 && onum <= 365) return 'SCROLL';    // 巻物 (323〜365)
+    if (onum >= 366 && onum <= 409) return 'SPELLBOOK';  // 魔法書 (366〜409)
+    if (onum >= 410 && onum <= 437) return 'WAND';      // 杖 (410〜437)
+    if (onum >= 439 && onum <= 475) return 'GEM';       // 宝石/硝子/石 (439〜475)
+    return 'TOOL';
 }
 
 

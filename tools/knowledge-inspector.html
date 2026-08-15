@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WebUI - Structured Knowledge Inspector</title>
+    <!-- 統合実行辞書 nhMessage.js のロード -->
+    <script src="../param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+
+            --danger-lethal: #ef4444;
+            --danger-high: #f97316;
+            --danger-medium: #eab308;
+            --danger-low: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 span.badge {
+            font-size: 0.75rem;
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent-color);
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--accent-color);
+        }
+
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .lang-toggle {
+            display: flex;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 2px;
+        }
+
+        .lang-toggle button {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-toggle button.active {
+            background: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左カラム: リスト・検索 */
+        .sidebar {
+            width: 340px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-box {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .search-box input, .search-box select {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-box input:focus, .search-box select:focus {
+            border-color: var(--accent-color);
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .entity-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        .entity-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.15s;
+        }
+
+        .entity-item:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .entity-item.active {
+            background-color: rgba(56, 189, 248, 0.15);
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .entity-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .entity-title {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .entity-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .tag-badge {
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .tag-LETHAL { background: rgba(239, 68, 68, 0.2); color: var(--danger-lethal); border: 1px solid var(--danger-lethal); }
+        .tag-HIGH { background: rgba(249, 115, 22, 0.2); color: var(--danger-high); border: 1px solid var(--danger-high); }
+        .tag-MEDIUM { background: rgba(234, 179, 8, 0.2); color: var(--danger-medium); border: 1px solid var(--danger-medium); }
+        .tag-LOW { background: rgba(34, 197, 94, 0.2); color: var(--danger-low); border: 1px solid var(--danger-low); }
+
+        .tag-ITEM { background: rgba(148, 163, 184, 0.2); color: var(--text-secondary); border: 1px solid var(--text-secondary); }
+
+        /* 右カラム: ナレッジプレビューカード */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .knowledge-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 680px;
+            padding: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        .card-title-group h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .card-title-group .raw-name {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-box .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-top: 2px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-block {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .warning-block {
+            background: rgba(239, 68, 68, 0.1);
+            border-left-color: var(--danger-lethal);
+            color: #fca5a5;
+        }
+
+        .advice-list {
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .buc-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .buc-item {
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .buc-blessed { border-left: 3px solid #22c55e; }
+        .buc-uncursed { border-left: 3px solid #94a3b8; }
+        .buc-cursed { border-left: 3px solid #ef4444; }
+
+        .empty-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 100px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>
+            <span>🛠️</span> Structured Knowledge Inspector
+            <span class="badge" id="totalCountBadge">0 Entities</span>
+            <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" style="font-size:0.75rem; color:#38bdf8; text-decoration:none; margin-left:10px; padding:2px 8px; border:1px dashed #38bdf8; border-radius:4px;">📄 CSV Dictionary</a>
+        </h1>
+        <div class="controls-bar">
+            <div class="lang-toggle">
+                <button id="btnJp" class="active">日本語 (JP)</button>
+                <button id="btnEn">English (EN)</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- 左カラム: 検索＆エンティティ一覧 -->
+        <div class="sidebar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search name, ID, or category...">
+                <div class="filters-row">
+                    <select id="typeFilter">
+                        <option value="ALL">All Types</option>
+                        <option value="MONSTER">Monsters</option>
+                        <option value="ITEM">Items</option>
+                    </select>
+                    <select id="dangerFilter">
+                        <option value="ALL">All Danger</option>
+                        <option value="LETHAL">LETHAL</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="LOW">LOW</option>
+                    </select>
+                </div>
+            </div>
+            <ul class="entity-list" id="entityList"></ul>
+        </div>
+
+        <!-- 右カラム: プレビューカード -->
+        <div class="content-area">
+            <div class="knowledge-card" id="knowledgeCard" style="display: none;"></div>
+            <div class="empty-placeholder" id="emptyPlaceholder">
+                <p>Select an entity from the list to preview its structured knowledge card.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Module Script -->
+    <script type="module">
+        import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/StructuredKnowledgeEngine.js';
+        import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
+        import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
+
+        // window.nhMessage(), nhEntities(), nhItems() を自動参照する TranslationEngine
+        const translator = new TranslationEngine({ enabled: true });
+        const knowledgeEngine = new StructuredKnowledgeEngine({ translationEngine: translator });
+
+        let currentLang = 'ja'; // 'ja' | 'en'
+        let selectedEntityId = 'cockatrice';
+        let selectedEntityType = 'MONSTER';
+
+        // 全エンティティ (全モンスター + 全481アイテム) の完全リスト統合
+        const itemEntities = Array.from(knowledgeEngine.onumMap.values()).map(i => ({ ...i, type: 'ITEM' }));
+        const monsterEntities = MONSTER_KNOWLEDGE_BASE.map(m => ({ ...m, type: 'MONSTER' }));
+
+        const allEntities = [
+            ...monsterEntities,
+            ...itemEntities
+        ];
+
+        // UI DOM 要素の取得
+        const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
+        const dangerFilter = document.getElementById('dangerFilter');
+        const entityList = document.getElementById('entityList');
+        const knowledgeCard = document.getElementById('knowledgeCard');
+        const emptyPlaceholder = document.getElementById('emptyPlaceholder');
+        const totalCountBadge = document.getElementById('totalCountBadge');
+        const btnJp = document.getElementById('btnJp');
+        const btnEn = document.getElementById('btnEn');
+
+        // 言語設定切り替えイベント
+        btnJp.addEventListener('click', () => {
+            currentLang = 'ja';
+            translator.setEnabled(true);
+            btnJp.classList.add('active');
+            btnEn.classList.remove('active');
+            renderList();
+            renderCard();
+        });
+
+        btnEn.addEventListener('click', () => {
+            currentLang = 'en';
+            translator.setEnabled(false);
+            btnEn.classList.add('active');
+            btnJp.classList.remove('active');
+            renderList();
+            renderCard();
+        });
+
+        // フィルターイベント
+        searchInput.addEventListener('input', renderList);
+        typeFilter.addEventListener('change', renderList);
+        dangerFilter.addEventListener('change', renderList);
+
+        // リスト描画
+        function renderList() {
+            const query = searchInput.value.toLowerCase().trim();
+            const typeVal = typeFilter.value;
+            const dangerVal = dangerFilter.value;
+
+            const filtered = allEntities.filter(e => {
+                if (typeVal !== 'ALL' && e.type !== typeVal) return false;
+                if (dangerVal !== 'ALL' && e.dangerLevel !== dangerVal) return false;
+                if (query) {
+                    const matchId = e.id.toLowerCase().includes(query);
+                    const matchName = e.name.toLowerCase().includes(query);
+                    const matchTr = translator.translate(e.name).toLowerCase().includes(query);
+                    return matchId || matchName || matchTr;
+                }
+                return true;
+            });
+
+            totalCountBadge.textContent = `${filtered.length} / ${allEntities.length} Entities`;
+            entityList.innerHTML = '';
+
+            filtered.forEach(e => {
+                const li = document.createElement('li');
+                li.className = `entity-item ${e.id === selectedEntityId ? 'active' : ''}`;
+                
+                const localizedName = currentLang === 'ja' ? translator.translate(e.name) : e.name;
+                const badgeClass = e.type === 'MONSTER' ? `tag-${e.dangerLevel || 'LOW'}` : 'tag-ITEM';
+                const badgeText = e.type === 'MONSTER' ? e.dangerLevel : e.category;
+
+                li.innerHTML = `
+                    <div class="entity-info">
+                        <div class="entity-title">${localizedName}</div>
+                        <div class="entity-subtitle">${e.name}</div>
+                    </div>
+                    <span class="tag-badge ${badgeClass}">${badgeText}</span>
+                `;
+
+                li.addEventListener('click', () => {
+                    selectedEntityId = e.id;
+                    selectedEntityType = e.type;
+                    renderList();
+                    renderCard();
+                });
+
+                entityList.appendChild(li);
+            });
+        }
+
+        // プレビューカード描画
+        function renderCard() {
+            if (!selectedEntityId) {
+                knowledgeCard.style.display = 'none';
+                emptyPlaceholder.style.display = 'block';
+                return;
+            }
+
+            const isTranslate = (currentLang === 'ja');
+            let data = null;
+
+            if (selectedEntityType === 'MONSTER') {
+                data = knowledgeEngine.getMonsterKnowledge(selectedEntityId, { translate: isTranslate });
+            } else {
+                data = knowledgeEngine.getItemKnowledge(selectedEntityId, { translate: isTranslate });
+            }
+
+            if (!data) {
+                knowledgeCard.style.display = 'none';
+                emptyPlaceholder.style.display = 'block';
+                return;
+            }
+
+            knowledgeCard.style.display = 'flex';
+            emptyPlaceholder.style.display = 'none';
+
+            if (selectedEntityType === 'MONSTER') {
+                renderMonsterCard(data);
+            } else {
+                renderItemCard(data);
+            }
+        }
+
+        function renderMonsterCard(mon) {
+            const badgeClass = `tag-${mon.dangerLevel || 'LOW'}`;
+            const stats = mon.stats || {};
+            const corpse = mon.corpseInfo || {};
+
+            let attacksHtml = (mon.attacks || []).map(a => 
+                `<li><strong>${a.type}</strong>${a.damage ? ` (${a.damage})` : ''}${a.effect ? `: <em>${a.effect}</em>` : ''}</li>`
+            ).join('');
+
+            let adviceHtml = (mon.tacticalAdvice || []).map(adv => 
+                `<li>${adv}</li>`
+            ).join('');
+
+            knowledgeCard.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h2>${mon.name}</h2>
+                        <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
+                    </div>
+                    <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box"><div class="stat-label">Hit Dice</div><div class="stat-value">${stats.hd ?? '-'}</div></div>
+                    <div class="stat-box"><div class="stat-label">Armor Class</div><div class="stat-value">${stats.ac ?? '-'}</div></div>
+                    <div class="stat-box"><div class="stat-label">Speed</div><div class="stat-value">${stats.speed ?? '-'}</div></div>
+                    <div class="stat-box"><div class="stat-label">Magic Resist</div><div class="stat-value">${stats.mr ?? 0}%</div></div>
+                </div>
+
+                ${mon.attacks && mon.attacks.length > 0 ? `
+                    <div>
+                        <div class="section-title">⚔️ Attacks</div>
+                        <ul class="advice-list">${attacksHtml}</ul>
+                    </div>
+                ` : ''}
+
+                ${mon.resistances && mon.resistances.length > 0 ? `
+                    <div>
+                        <div class="section-title">🛡️ Innate Resistances</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${mon.resistances.map(r => `<span class="tag-badge tag-ITEM">${r}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${corpse.warningNote ? `
+                    <div class="info-block warning-block">
+                        <div class="section-title" style="color:#ef4444;">⚠️ Corpse Warning</div>
+                        <div>${corpse.warningNote}</div>
+                    </div>
+                ` : ''}
+
+                ${mon.tacticalAdvice && mon.tacticalAdvice.length > 0 ? `
+                    <div>
+                        <div class="section-title">💡 Tactical Advice</div>
+                        <ul class="advice-list">${adviceHtml}</ul>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function renderItemCard(item) {
+            const stats = item.stats || {};
+
+            let bucHtml = '';
+            if (item.bucEffects) {
+                bucHtml = Object.entries(item.bucEffects).map(([k, v]) => 
+                    `<div class="buc-item buc-${k}"><strong>${k.toUpperCase()}:</strong> ${v}</div>`
+                ).join('');
+            }
+
+            let unidentifiedHtml = (item.unidentifiedTips || []).map(tip => 
+                `<li>${tip}</li>`
+            ).join('');
+
+            let adviceHtml = (item.usageAdvice || []).map(adv => 
+                `<li>${adv}</li>`
+            ).join('');
+
+            knowledgeCard.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h2>${item.name}</h2>
+                        <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}</div>
+                    </div>
+                    <span class="tag-badge tag-ITEM">${item.category}</span>
+                </div>
+
+                ${item.effectSummary ? `
+                    <div class="info-block">
+                        <div class="section-title">✨ Primary Effect</div>
+                        <div>${item.effectSummary}</div>
+                    </div>
+                ` : ''}
+
+                ${(stats.sdam || stats.ac !== undefined || stats.material) ? `
+                    <div class="stats-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+                        ${stats.sdam ? `<div class="stat-box" style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">⚔️ Damage (S/M / L)</div><div class="stat-value" style="font-size:14px; font-weight:bold; color:#f8fafc;">${stats.sdam} / ${stats.ldam || stats.sdam}</div></div>` : ''}
+                        ${stats.ac !== undefined ? `<div class="stat-box" style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">🛡️ Base AC</div><div class="stat-value" style="font-size:14px; font-weight:bold; color:#f8fafc;">AC ${stats.ac}</div></div>` : ''}
+                        ${stats.material ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Material</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.material}</div></div>` : ''}
+                        ${stats.hands ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Hands</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.hands}-Handed</div></div>` : ''}
+                        ${stats.weight !== undefined ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Weight</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.weight}</div></div>` : ''}
+                    </div>
+                ` : ''}
+
+                ${bucHtml ? `
+                    <div>
+                        <div class="section-title">⚖️ BUC Effects</div>
+                        <div class="buc-grid">${bucHtml}</div>
+                    </div>
+                ` : ''}
+
+                ${item.unidentifiedTips && item.unidentifiedTips.length > 0 ? `
+                    <div>
+                        <div class="section-title">🔍 Unidentified Identification Tips</div>
+                        <ul class="advice-list">${unidentifiedHtml}</ul>
+                    </div>
+                ` : ''}
+
+                ${item.usageAdvice && item.usageAdvice.length > 0 ? `
+                    <div>
+                        <div class="section-title">💡 Usage Advice</div>
+                        <ul class="advice-list">${adviceHtml}</ul>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // 初期描画実行
+        renderList();
+        renderCard();
+    </script>
+</body>
+</html>

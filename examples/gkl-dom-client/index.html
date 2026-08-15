@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetHack GKL DOM-Grid Reference Client</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- 日本語辞書パラメータの事前読み込み -->
+  <script src="../../param/nhMessage.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- トップバー -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo-icon">🎮</span>
+        <span class="logo-text">NetHack GKL <small>DOM-Grid Reference Client</small></span>
+      </div>
+      <div class="header-status">
+        <span id="game-status-badge" class="badge badge-init">Initializing...</span>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="main-container">
+      <!-- 左側：ゲームエリア (マップ Grid + ログ + ステータス) -->
+      <main class="game-area">
+        <!-- メッセージログ -->
+        <div class="panel log-panel">
+          <div id="message-log" class="message-log">NetHack WebUI Core を準備中...</div>
+        </div>
+
+        <!-- DOM Grid ダンジョンマップ (80x21 マス) -->
+        <div class="panel map-panel">
+          <div id="map-grid" class="map-grid"></div>
+        </div>
+
+        <!-- プレイヤー ステータスバー -->
+        <div class="panel status-panel">
+          <div id="status-bar" class="status-bar">
+            <span>HP: -/-</span> <span>St: -</span> <span>Dx: -</span> <span>Co: -</span> <span>In: -</span> <span>Wi: -</span> <span>Ch: -</span>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右側：GKL 構造化ナレッジ & 所持品サイドパネル -->
+      <aside class="side-area">
+        <!-- 💡 GKL 構造化ナレッジカード -->
+        <div class="panel knowledge-panel">
+          <div class="panel-header">
+            <span class="panel-title">💡 構造化ナレッジ (GKL)</span>
+            <span class="panel-subtitle">DOM Hover / Selection Help</span>
+          </div>
+          <div id="knowledge-content" class="knowledge-content">
+            <div class="gkl-empty-hint">
+              マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます
+            </div>
+          </div>
+        </div>
+
+        <!-- 所持アイテム一覧 -->
+        <div class="panel inventory-panel">
+          <div class="panel-header">
+            <span class="panel-title">🎒 所持アイテム</span>
+          </div>
+          <div id="inventory-list" class="inventory-list">
+            <div class="empty-inv">アイテムがありません</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- JavaScript エントリポイント -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>

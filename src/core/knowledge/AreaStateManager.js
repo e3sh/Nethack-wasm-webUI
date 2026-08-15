@@ -7,7 +7,7 @@
 import { classifyGlyph, ENTITY_TYPES } from './glyphClassifier.js';
 
 export class AreaStateManager {
-    constructor(width = 80, height = 21) {
+    constructor(width = 80, height = 24) {
         this.width = width;
         this.height = height;
         this.playerX = 0;
@@ -54,7 +54,7 @@ export class AreaStateManager {
             case ENTITY_TYPES.TERRAIN:
             case ENTITY_TYPES.UNEXPLORED:
                 // 地形が届いた場合、Bottom に上書き。そのマスにアイテムやモンスターが無ければ Middle/Top もリセット
-                cell.bottom = { ...info, glyphInfo };
+                cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.middle = null;
                 cell.top = null;
                 break;
@@ -63,14 +63,14 @@ export class AreaStateManager {
             case ENTITY_TYPES.BODY:
             case ENTITY_TYPES.STATUE:
                 // アイテム類が届いた場合、Middle に記録。Top はクリア
-                cell.middle = { ...info, glyphInfo };
+                cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 break;
 
             case ENTITY_TYPES.MONSTER:
             case ENTITY_TYPES.PET:
                 // モンスターが届いた場合、Top に記録 (Bottom/Middle は保持される)
-                cell.top = { ...info, glyphInfo };
+                cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 break;
 
             case ENTITY_TYPES.EFFECT:

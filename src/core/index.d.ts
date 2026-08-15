@@ -239,6 +239,47 @@ export class RequestController {
     requestInventory(): Promise<any>;
 }
 
+export interface MonsterKnowledge {
+    id: string;
+    monOffset?: number;
+    name: string;
+    dangerLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' | 'LETHAL';
+    stats: { hd: number; ac: number; speed: number; mr: number };
+    attacks: Array<{ type: string; damage?: string; effect?: string }>;
+    resistances: string[];
+    corpseInfo?: { edible?: boolean; poisonous?: boolean; grantResist?: string; warningNote?: string };
+    tacticalAdvice?: string[];
+}
+
+export interface ItemKnowledge {
+    id: string;
+    onum?: number;
+    name: string;
+    category: 'WEAPON' | 'ARMOR' | 'POTION' | 'SCROLL' | 'WAND' | 'RING' | 'AMULET' | 'TOOL' | 'FOOD' | 'GEM' | 'OTHER';
+    stats?: { damageSmall?: string; damageLarge?: string; acBonus?: number; mcLevel?: number; weight?: number };
+    effectSummary?: string;
+    bucEffects?: { blessed?: string; uncursed?: string; cursed?: string };
+    unidentifiedTips?: string[];
+    usageAdvice?: string[];
+}
+
+export class StructuredKnowledgeEngine {
+    constructor(options?: { translationEngine?: TranslationEngine });
+    setTranslationEngine(translationEngine: TranslationEngine): void;
+    getMonsterKnowledge(identifier: number | string, options?: { translate?: boolean }): MonsterKnowledge | null;
+    getItemKnowledge(identifier: number | string, options?: { translate?: boolean }): ItemKnowledge | null;
+}
+
+export class GKLPlugin {
+    constructor(options?: { inventoryStateManager?: InventoryStateManager; keyMode?: 'vi' | 'numpad'; structuredKnowledgeEngine?: StructuredKnowledgeEngine });
+    attach(core: any): void;
+    statusAccessor: StatusAccessor;
+    areaStateManager: AreaStateManager;
+    inventoryStateManager: InventoryStateManager;
+    situationCache: SituationCache;
+    structuredKnowledge: StructuredKnowledgeEngine;
+}
+
 // --- サウンド ＆ 翻訳 ---
 export class SoundEngine {
     constructor(options?: { soundMode?: 'mute' | 'se' | 'all' | 'beep'; volume?: number; soundDir?: string });
@@ -292,6 +333,7 @@ export class WebUICore {
     keyMapper: KeyMapper;
     sound: SoundEngine;
     translator: TranslationEngine;
+    gkl: GKLPlugin;
     statusAccessor: StatusAccessor;
     areaStateManager: AreaStateManager;
     inventoryStateManager: InventoryStateManager;

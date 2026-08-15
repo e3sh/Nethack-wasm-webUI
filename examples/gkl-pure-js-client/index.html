@@ -99,9 +99,9 @@
         </div>
       </section>
 
-      <!-- 右エリア: GKL 所持品 ＆ 推奨アクション -->
+      <!-- 右エリア: GKL 所持品 ＆ 推奨アクション ＆ 構造化ナレッジ -->
       <aside class="gkl-side-panel">
-        <!-- 🎒 アイコン型常時表示インベントリ (上部固定) -->
+        <!-- 🎒 アイコン型常時表示インベントリ (最上部) -->
         <div class="gkl-card">
           <div class="gkl-card-header">
             <span>🎒 所持品アイテム (Icon Inventory)</span>
@@ -115,7 +115,7 @@
           </div>
         </div>
 
-        <!-- 🧠 GKL 推奨アクションパネル (下部可変) -->
+        <!-- 🧠 GKL 推奨アクションパネル (中段) -->
         <div class="gkl-card">
           <div class="gkl-card-header">
             <span>🧠 推奨アクション (ContextActions)</span>
@@ -143,6 +143,16 @@
 
           <div id="gkl-action-list" class="gkl-action-list">
             <div class="gkl-empty-hint">周辺環境に応じたアクションが自動表示されます</div>
+          </div>
+        </div>
+
+        <!-- 💡 GKL 構造化ナレッジカード (最下部) -->
+        <div class="gkl-card">
+          <div class="gkl-card-header">
+            <span>💡 構造化ナレッジ (GKL Knowledge)</span>
+          </div>
+          <div id="gkl-knowledge-content" class="gkl-knowledge-content" style="padding:10px; max-height:220px; overflow-y:auto;">
+            <div class="gkl-empty-hint">ズームカメラホバーまたは所持品選択でナレッジ表示</div>
           </div>
         </div>
       </aside>

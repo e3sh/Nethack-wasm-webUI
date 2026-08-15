@@ -10,10 +10,20 @@ import { PROMPT_CATEGORY } from '../types.js';
 export class PromptPayloadBuilder {
     constructor(options = {}) {
         this.translator = options.translator || null;
+        this.gkl = options.gkl || null;
+        this.enableKnowledge = options.enableKnowledge !== false;
     }
 
     setTranslator(translator) {
         this.translator = translator;
+    }
+
+    setGkl(gkl) {
+        this.gkl = gkl;
+    }
+
+    setKnowledgeEnabled(enabled) {
+        this.enableKnowledge = !!enabled;
     }
 
     /**
@@ -35,11 +45,28 @@ export class PromptPayloadBuilder {
             inputType = 'MENU';
             options = items.map(item => {
                 const charStr = item.charStr || (typeof item.ch === 'number' ? String.fromCharCode(item.ch) : String(item.ch || ''));
+                const labelStr = item.str || item.rawStr || item.label || '';
+
+                // ナレッジ自動パイプライン (enableKnowledge が true の時のみ自動添付)
+                let knowledge = item.knowledge || null;
+                if (this.enableKnowledge && !knowledge && this.gkl) {
+                    if (typeof this.gkl.getKnowledge === 'function') {
+                        knowledge = this.gkl.getKnowledge(item) || this.gkl.getKnowledge(labelStr);
+                    }
+                    if (!knowledge && this.gkl.structuredKnowledge && typeof this.gkl.structuredKnowledge.getKnowledge === 'function') {
+                        knowledge = this.gkl.structuredKnowledge.getKnowledge(item, { translate: true }) || this.gkl.structuredKnowledge.getKnowledge(labelStr, { translate: true });
+                    }
+                }
+
+                // 元のアイテムオブジェクト自体にもナレッジを確実に物理アタッチ！
+                item.knowledge = knowledge;
+
                 return {
                     ...item,
+                    knowledge: knowledge,
                     key: charStr,
-                    label: item.str || item.rawStr || item.label || '',
-                    str: item.str || item.rawStr || item.label || '',
+                    label: labelStr,
+                    str: labelStr,
                     charStr: charStr,
                     accelerator: item.accelerator || item.ch,
                     identifier: item.identifier,

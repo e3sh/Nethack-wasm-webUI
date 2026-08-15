@@ -11,9 +11,7 @@ export default defineConfig({
       'src/core/input/*.test.js',
       'src/core/translation/*.test.js',
       'src/core/lifecycle/GameOverResolver.test.js',
-      'src/core/knowledge/InventoryStateManager.test.js',
-      'src/core/knowledge/RequestControllerSynchronization.test.js',
-      'src/core/knowledge/GKLPlugin.test.js',
+      'src/core/knowledge/*.test.js',
       'src/core/inspector/*.test.js'
     ]
   }
