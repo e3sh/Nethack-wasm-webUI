@@ -377,6 +377,119 @@ body {
 }
 
 /* GKL 推奨アクションボタン */
+/* 方向フィルターインジケーター (「囲」キーパッド) */
+.gkl-dir-filter-container {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.gkl-dir-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+}
+
+.gkl-filter-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.gkl-dir-reset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gkl-dir-reset-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--primary-color);
+}
+
+.gkl-dir-reset-btn.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.gkl-direction-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.gkl-dir-btn {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 6px 2px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+/* アクションが存在する方向（点灯・ハイライト） */
+.gkl-dir-btn.has-action {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #60a5fa;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.gkl-dir-btn.has-action:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: #93c5fd;
+  color: #ffffff;
+  transform: scale(1.04);
+}
+
+/* フィルター選択中の方向 (アクティブ) */
+.gkl-dir-btn.active {
+  background: #2563eb !important;
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+}
+
+.gkl-dir-badge {
+  display: none;
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: bold;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.gkl-dir-btn.has-action .gkl-dir-badge {
+  display: inline-block;
+}
+
 .gkl-action-list {
   display: flex;
   flex-direction: column;

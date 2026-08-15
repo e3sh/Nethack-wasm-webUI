@@ -49,11 +49,18 @@ class GklPureJSClient {
     // GKL Elements
     this.elGklActionList = document.getElementById('gkl-action-list');
     this.elGklActionCount = document.getElementById('gkl-action-count');
+    this.elGklDirectionPad = document.getElementById('gkl-direction-pad');
+    this.elGklFilterLabel = document.getElementById('gkl-filter-label');
+    this.elBtnDirReset = document.getElementById('btn-dir-reset');
     this.elGklInventoryGrid = document.getElementById('gkl-inventory-grid');
     this.elGklInvCount = document.getElementById('gkl-inv-count');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
     this.elGklTtName = document.getElementById('gkl-tt-name');
     this.elGklTtTags = document.getElementById('gkl-tt-tags');
+
+    // GKL 方向フィルター状態
+    this.selectedDir = 'ALL';
+    this.initDirectionPadEvents();
 
     // GameOver Modal
     this.elGameOverModal = document.getElementById('gameover-modal');
@@ -386,10 +393,61 @@ class GklPureJSClient {
   // =========================================================================
   // GKL (Game Knowledge Layer) リアルタイム同期 & UI レンダリング
   // =========================================================================
+
+  /**
+   * プレイヤーの移動 (位置座標・階層・ターン変化) を検知して方向フィルターを 'ALL' に自動リセット
+   */
+  checkPlayerMovementAndResetFilter(situation) {
+    if (!situation) return;
+    const area = situation.area;
+    const status = situation.status;
+
+    let posKey = '';
+
+    // 1. area.playerLocation または area.center ({ x, y })
+    if (area && (area.playerLocation || area.center)) {
+      const p = area.playerLocation || area.center;
+      posKey += `pos:${p.x},${p.y}`;
+    }
+
+    // 2. status ({ x, y, dlvl, turn })
+    if (status) {
+      if (status.x !== undefined && status.y !== undefined) {
+        posKey += `_st:${status.x},${status.y}`;
+      }
+      if (status.dlvl !== undefined || status.dlevel !== undefined) {
+        posKey += `_d:${status.dlvl || status.dlevel}`;
+      }
+      if (status.turn !== undefined || status.turns !== undefined) {
+        posKey += `_t:${status.turn || status.turns}`;
+      }
+    }
+
+    // 3. situation 直下の turn
+    if (situation.turn !== undefined) {
+      posKey += `_sit:${situation.turn}`;
+    }
+
+    if (posKey && this._lastPlayerPosKey && this._lastPlayerPosKey !== posKey) {
+      // プレイヤーが移動またはターン進行したため、方向フィルターを 'ALL' に自動リセット
+      if (this.selectedDir !== 'ALL') {
+        this.selectedDir = 'ALL';
+        this._lastActionHtml = null;
+      }
+    }
+
+    if (posKey) {
+      this._lastPlayerPosKey = posKey;
+    }
+  }
+
   startGklRenderLoop() {
     const loop = () => {
       if (this.core) {
         const situation = (this.core && this.core.gkl) ? this.core.gkl.getSituation() : {};
+
+        // プレイヤー移動時の方向フィルター自動リセットチェック
+        this.checkPlayerMovementAndResetFilter(situation);
 
         // 1. GKL 推奨アクションパネル
         this.renderGklActions(situation.actions || []);
@@ -514,32 +572,188 @@ class GklPureJSClient {
     }
   }
 
+  // =========================================================================
+  // GKL 方向フィルターインジケーター (「囲」キーパッド) 関連処理
+  // =========================================================================
+
+  /**
+   * 推奨アクションから正規の方向コード (N, NE, E, SE, S, SW, W, NW, SELF) を抽出
+   * ※ コマンドキー(action.key)と混同しないよう、方向プロパティ(directionKey, direction, dirCode, target)のみを参照
+   * @param {Object} action - 推奨アクションオブジェクト
+   * @returns {string} 方向コード ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF', または 'NONE')
+   */
+  extractDirectionCode(action) {
+    if (!action) return 'NONE';
+
+    // 1. directionKey プロパティ (例: 'DIR_N', 'DIR_NE', 'DIR_SELF')
+    let rawDir = action.directionKey;
+
+    // 2. direction プロパティ (例: { code: 'N' }, 'DIR_N', 'N')
+    if (!rawDir && action.direction) {
+      if (typeof action.direction === 'string') {
+        rawDir = action.direction;
+      } else if (typeof action.direction === 'object') {
+        rawDir = action.direction.code || action.direction.key || action.direction.name;
+      }
+    }
+
+    // 3. dirCode プロパティ
+    if (!rawDir && action.dirCode) {
+      rawDir = action.dirCode;
+    }
+
+    // 4. keySequence 配列内の DIR_* トークン
+    if (!rawDir && Array.isArray(action.keySequence)) {
+      const dirToken = action.keySequence.find(t => typeof t === 'string' && t.startsWith('DIR_'));
+      if (dirToken) rawDir = dirToken;
+    }
+
+    // 5. target が 'feet' の場合、または非方向性アクションの場合は 'SELF' (足元)
+    if (!rawDir) {
+      if (action.target === 'feet' || action.isDirectional === false) {
+        return 'SELF';
+      }
+      return 'NONE';
+    }
+
+    // 文字列のクリーンアップ ('DIR_N' -> 'N', 'DIR_SELF' -> 'SELF')
+    const cleaned = String(rawDir).toUpperCase().replace(/^DIR_/, '');
+    const validDirections = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
+
+    if (validDirections.has(cleaned)) {
+      return cleaned;
+    }
+
+    // 名前表現マッピング
+    const nameMap = {
+      'NORTH': 'N', 'UP': 'N',
+      'EAST': 'E', 'RIGHT': 'E',
+      'SOUTH': 'S', 'DOWN': 'S',
+      'WEST': 'W', 'LEFT': 'W',
+      'NORTHEAST': 'NE',
+      'NORTHWEST': 'NW',
+      'SOUTHEAST': 'SE',
+      'SOUTHWEST': 'SW',
+      'FEET': 'SELF', 'HERE': 'SELF'
+    };
+
+    return nameMap[cleaned] || 'NONE';
+  }
+
+  /**
+   * 方向フィルターインジケーターのイベント初期設定
+   */
+  initDirectionPadEvents() {
+    if (this.elGklDirectionPad) {
+      this.elGklDirectionPad.addEventListener('click', (e) => {
+        const btn = e.target.closest('.gkl-dir-btn');
+        if (!btn) return;
+        const dir = btn.dataset.dir;
+        this.selectedDir = (this.selectedDir === dir) ? 'ALL' : dir;
+        this._lastActionHtml = null; // リセットして再描画を強制
+      });
+    }
+
+    if (this.elBtnDirReset) {
+      this.elBtnDirReset.addEventListener('click', () => {
+        this.selectedDir = 'ALL';
+        this._lastActionHtml = null;
+      });
+    }
+  }
+
+  /**
+   * 方向キーパッドの点灯・バッジ状態を更新
+   * @param {Map<string, number>} dirCounts - 各方向の件数マップ
+   */
+  renderDirectionPad(dirCounts) {
+    if (!this.elGklDirectionPad) return;
+
+    const dirNameMap = {
+      'ALL': '全て',
+      'N': '北 (N)', 'NE': '北東 (NE)', 'E': '東 (E)', 'SE': '南東 (SE)',
+      'S': '南 (S)', 'SW': '南西 (SW)', 'W': '西 (W)', 'NW': '北西 (NW)',
+      'SELF': '足元 (SELF)'
+    };
+
+    // リセットボタンの状態
+    if (this.elBtnDirReset) {
+      this.elBtnDirReset.classList.toggle('active', this.selectedDir === 'ALL');
+    }
+
+    // ラベル表示
+    if (this.elGklFilterLabel) {
+      this.elGklFilterLabel.textContent = `表示: ${dirNameMap[this.selectedDir] || this.selectedDir}`;
+    }
+
+    // 各方向ボタンの表示更新
+    const buttons = this.elGklDirectionPad.querySelectorAll('.gkl-dir-btn');
+    buttons.forEach(btn => {
+      const dir = btn.dataset.dir;
+      const count = dirCounts.get(dir) || 0;
+      const badge = btn.querySelector('.gkl-dir-badge');
+
+      if (badge) {
+        badge.textContent = count > 0 ? count : '';
+      }
+
+      // アクションの有無によるハイライト
+      btn.classList.toggle('has-action', count > 0);
+      // アクティブ選択中のハイライト
+      btn.classList.toggle('active', this.selectedDir === dir);
+    });
+  }
+
   renderGklActions(actions) {
     if (!this.elGklActionList) return;
-    this.elGklActionCount.textContent = actions.length;
 
-    // 前回のHTMLと比較し変化が無ければ書き換えない (軽量化)
-    const newHtml = actions.length === 0 
-      ? '<div class="gkl-empty-hint">周辺環境に応じたアクションが自動表示されます</div>'
-      : actions.map(action => `
-          <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
-            <span>${action.labelJa || action.label}</span>
-            <span class="gkl-key-badge">${action.charStr || action.key || '?'}</span>
-          </button>
-        `).join('');
+    // 1. 各方向のアクション件数を算出
+    const dirCounts = new Map();
+    actions.forEach(action => {
+      const dirCode = this.extractDirectionCode(action);
+      dirCounts.set(dirCode, (dirCounts.get(dirCode) || 0) + 1);
+    });
 
-    if (this._lastActionHtml !== newHtml) {
-      this._lastActionHtml = newHtml;
+    // 2. 方向フィルターインジケーター（「囲」キーパッド）の表示更新
+    this.renderDirectionPad(dirCounts);
+
+    // 3. 選択中フィルターに応じてアクションを絞り込み
+    const filteredActions = (this.selectedDir === 'ALL')
+      ? actions
+      : actions.filter(action => this.extractDirectionCode(action) === this.selectedDir);
+
+    // 件数バッジの表示 (例: 絞り込み時は 3/10、全体時は 10)
+    this.elGklActionCount.textContent = (this.selectedDir === 'ALL')
+      ? actions.length
+      : `${filteredActions.length}/${actions.length}`;
+
+    // 4. 前回のHTMLと比較し変化が無ければ書き換えない (軽量化)
+    const actionKeyStr = `${this.selectedDir}_${filteredActions.map(a => `${a.id}:${a.label}`).join('|')}`;
+    if (this._lastActionHtml !== actionKeyStr) {
+      this._lastActionHtml = actionKeyStr;
+
+      const newHtml = filteredActions.length === 0 
+        ? `<div class="gkl-empty-hint">${this.selectedDir === 'ALL' ? '周辺環境に応じたアクションが自動表示されます' : 'この方向の推奨アクションはありません'}</div>`
+        : filteredActions.map(action => `
+            <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
+              <span>${action.labelJa || action.label}</span>
+              <span class="gkl-key-badge">${action.charStr || action.key || '?'}</span>
+            </button>
+          `).join('');
+
       this.elGklActionList.innerHTML = newHtml;
 
       // ボタンイベント登録
-      actions.forEach(action => {
+      filteredActions.forEach(action => {
         const btn = this.elGklActionList.querySelector(`[data-act-id="${action.id}"]`);
         if (btn) {
           btn.onclick = () => {
             if (action.risk === 'danger') {
               if (!confirm(`【⚠️ 危険な行動】\n"${action.labelJa || action.label}" を実行しますか？`)) return;
             }
+            // アクション実行時にフィルターを 'ALL' に自動リセット
+            this.selectedDir = 'ALL';
+            this._lastActionHtml = null;
             this.core.executeAction(action);
           };
         }

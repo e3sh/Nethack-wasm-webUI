@@ -121,6 +121,26 @@
             <span>🧠 推奨アクション (ContextActions)</span>
             <span id="gkl-action-count" class="gkl-badge">0</span>
           </div>
+
+          <!-- 🎯 方向フィルターインジケーター (「囲」型 3x3 キーパッド) -->
+          <div class="gkl-dir-filter-container">
+            <div class="gkl-dir-filter-bar">
+              <span id="gkl-filter-label" class="gkl-filter-label">表示: 全て</span>
+              <button id="btn-dir-reset" class="gkl-dir-reset-btn active" data-dir="ALL" title="フィルター解除 (すべて表示)">全表示</button>
+            </div>
+            <div id="gkl-direction-pad" class="gkl-direction-pad">
+              <button class="gkl-dir-btn" data-dir="NW" title="北西 (7 / y / ↖)">↖<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="N" title="北 (8 / k / ↑)">↑<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="NE" title="北東 (9 / u / ↗)">↗<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="W" title="西 (4 / h / ←)">←<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="SELF" title="足元 (5 / . / ・)">足元<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="E" title="東 (6 / l / →)">→<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="SW" title="南西 (1 / b / ↙)">↙<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="S" title="南 (2 / j / ↓)">↓<span class="gkl-dir-badge"></span></button>
+              <button class="gkl-dir-btn" data-dir="SE" title="南東 (3 / n / ↘)">↘<span class="gkl-dir-badge"></span></button>
+            </div>
+          </div>
+
           <div id="gkl-action-list" class="gkl-action-list">
             <div class="gkl-empty-hint">周辺環境に応じたアクションが自動表示されます</div>
           </div>
