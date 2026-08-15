@@ -43,8 +43,8 @@ describe('StructuredKnowledgeEngine', () => {
         });
 
         it('should retrieve monster knowledge by glyphId number', () => {
-            // NetHack cockatrice glyphId = 25 (monOffset 25)
-            const mon = engine.getMonsterKnowledge(25, { translate: false });
+            // NetHack cockatrice monOffset = 10
+            const mon = engine.getMonsterKnowledge(10, { translate: false });
             expect(mon).not.toBeNull();
             expect(mon.id).toBe('cockatrice');
         });

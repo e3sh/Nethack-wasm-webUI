@@ -377,9 +377,9 @@
         let selectedEntityId = 'cockatrice';
         let selectedEntityType = 'MONSTER';
 
-        // 全エンティティ (全モンスター + 全481アイテム) の完全リスト統合
+        // 全エンティティ (全 384 モンスター + 全 481 アイテム) の完全リスト統合
         const itemEntities = Array.from(knowledgeEngine.onumMap.values()).map(i => ({ ...i, type: 'ITEM' }));
-        const monsterEntities = MONSTER_KNOWLEDGE_BASE.map(m => ({ ...m, type: 'MONSTER' }));
+        const monsterEntities = Array.from(knowledgeEngine.monOffsetMap.values()).map(m => ({ ...m, type: 'MONSTER' }));
 
         const allEntities = [
             ...monsterEntities,
@@ -396,6 +396,33 @@
         const totalCountBadge = document.getElementById('totalCountBadge');
         const btnJp = document.getElementById('btnJp');
         const btnEn = document.getElementById('btnEn');
+
+        // スラッシュ (/) および 波括弧 ({}) 区切り名対応の翻訳ヘルパー関数
+        function translateNameWithSlash(name) {
+            if (!name || typeof name !== 'string') return name || '';
+            if (currentLang !== 'ja') return name;
+
+            // 1. 波括弧 {subName} または ｛subName｝ が含まれる場合の分割翻訳
+            // 例: "dwarf leader {dwarf lord}" -> "dwarf leader" と "dwarf lord" を個別翻訳
+            const braceMatch = name.match(/^([^{｛]+)[{｛]([^}｝]+)[}｝]/);
+            if (braceMatch) {
+                const part1 = braceMatch[1].trim();
+                const part2 = braceMatch[2].trim();
+                const tr1 = translateNameWithSlash(part1);
+                const tr2 = translateNameWithSlash(part2);
+                return `${tr1} / ${tr2}`;
+            }
+
+            // 2. スラッシュ (/) で分割されている場合の分割翻訳
+            if (name.includes('/')) {
+                return name.split('/')
+                    .map(part => translator.translate(part.trim()))
+                    .join(' / ');
+            }
+
+            // 3. 通常の単一名称
+            return translator.translate(name);
+        }
 
         // 言語設定切り替えイベント
         btnJp.addEventListener('click', () => {
@@ -433,7 +460,7 @@
                 if (query) {
                     const matchId = e.id.toLowerCase().includes(query);
                     const matchName = e.name.toLowerCase().includes(query);
-                    const matchTr = translator.translate(e.name).toLowerCase().includes(query);
+                    const matchTr = translateNameWithSlash(e.name).toLowerCase().includes(query);
                     return matchId || matchName || matchTr;
                 }
                 return true;
@@ -446,7 +473,7 @@
                 const li = document.createElement('li');
                 li.className = `entity-item ${e.id === selectedEntityId ? 'active' : ''}`;
                 
-                const localizedName = currentLang === 'ja' ? translator.translate(e.name) : e.name;
+                const localizedName = currentLang === 'ja' ? translateNameWithSlash(e.name) : e.name;
                 const badgeClass = e.type === 'MONSTER' ? `tag-${e.dangerLevel || 'LOW'}` : 'tag-ITEM';
                 const badgeText = e.type === 'MONSTER' ? e.dangerLevel : e.category;
 
@@ -515,10 +542,12 @@
                 `<li>${adv}</li>`
             ).join('');
 
+            const displayTitle = currentLang === 'ja' ? translateNameWithSlash(mon.name) : mon.name;
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div class="card-title-group">
-                        <h2>${mon.name}</h2>
+                        <h2>${displayTitle}</h2>
                         <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
                     </div>
                     <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
@@ -581,10 +610,12 @@
                 `<li>${adv}</li>`
             ).join('');
 
+            const displayTitle = currentLang === 'ja' ? translateNameWithSlash(item.name) : item.name;
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div class="card-title-group">
-                        <h2>${item.name}</h2>
+                        <h2>${displayTitle}</h2>
                         <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}</div>
                     </div>
                     <span class="tag-badge tag-ITEM">${item.category}</span>

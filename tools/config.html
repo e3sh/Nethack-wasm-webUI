@@ -302,17 +302,15 @@
                 btnTestSound: "サウンドテスト再生",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "NetHack本体のオプションを追加できます (改行区切り)",
-                btnStart: "ゲーム起動",
                 btnBackTitle: "← タイトルへ戻る",
                 btnReset: "設定を初期化",
-                toolsTitle: "開発者向けツール",
-                linkTrFail: "未翻訳リスト",
-                linkTrManager: "翻訳管理",
-                linkTrTest: "Trans Tester",
-                linkTileTest: "Tile Mapping",
-                linkGpMapping: "GP Mapping",
-                linkTouchMapping: "Touch Mapping",
-                linkSaveManager: "セーブデータ管理",
+                toolsTitle: "関連ツール & 開発者ポータル",
+                linkSoundTest: "🔊 Sound Tester",
+                linkGpMapping: "🎮 GP Mapping",
+                linkTouchMapping: "📱 Touch Mapping",
+                linkSaveManager: "💾 セーブデータ管理",
+                linkKnowledgeInspector: "🔍 ナレッジインスペクター",
+                linkDevToolsHub: "🛠️ 全開発者ツール一覧",
                 resetConfirm: "設定をすべて初期化しますか？"
             },
             en: {
@@ -328,17 +326,15 @@
                 btnTestSound: "Test Sound",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "Add extra NetHack OPTIONS (newline separated)",
-                btnStart: "GAME START",
                 btnBackTitle: "← Back to Title",
                 btnReset: "Reset to Default",
-                toolsTitle: "Developer Tools",
-                linkTrFail: "Untranslated List",
-                linkTrManager: "Translation Manager",
-                linkTrTest: "Trans Tester",
-                linkTileTest: "Tile Mapping",
-                linkGpMapping: "GP Mapping",
-                linkTouchMapping: "Touch Mapping",
-                linkSaveManager: "Save Data Manager",
+                toolsTitle: "Related Tools & Dev Portal",
+                linkSoundTest: "🔊 Sound Tester",
+                linkGpMapping: "🎮 GP Mapping",
+                linkTouchMapping: "📱 Touch Mapping",
+                linkSaveManager: "💾 Save Data Manager",
+                linkKnowledgeInspector: "🔍 Knowledge Inspector",
+                linkDevToolsHub: "🛠️ All Dev Tools",
                 resetConfirm: "Are you sure you want to reset all configurations?"
             }
         };
@@ -358,17 +354,16 @@
             if (document.getElementById("btn-test-sound")) document.getElementById("btn-test-sound").textContent = t.btnTestSound;
             document.getElementById("label-extra-opts").textContent = t.labelExtraOpts;
             document.getElementById("desc-extra-opts").textContent = t.descExtraOpts;
-            document.getElementById("btn-start").textContent = t.btnStart;
+            if (document.getElementById("btn-start")) document.getElementById("btn-start").textContent = t.btnStart;
             document.getElementById("btn-back-title").textContent = t.btnBackTitle;
             document.getElementById("btn-reset").textContent = t.btnReset;
             document.getElementById("tools-title").textContent = t.toolsTitle;
-            document.getElementById("link-tr-fail").textContent = t.linkTrFail;
-            document.getElementById("link-tr-manager").textContent = t.linkTrManager;
-            document.getElementById("link-tr-test").textContent = t.linkTrTest;
-            document.getElementById("link-tile-test").textContent = t.linkTileTest;
-            document.getElementById("link-gp-mapping").textContent = t.linkGpMapping;
-            document.getElementById("link-touch-mapping").textContent = t.linkTouchMapping;
-            document.getElementById("link-save-manager").textContent = t.linkSaveManager;
+            if (document.getElementById("link-sound-test")) document.getElementById("link-sound-test").textContent = t.linkSoundTest;
+            if (document.getElementById("link-gp-mapping")) document.getElementById("link-gp-mapping").textContent = t.linkGpMapping;
+            if (document.getElementById("link-touch-mapping")) document.getElementById("link-touch-mapping").textContent = t.linkTouchMapping;
+            if (document.getElementById("link-save-manager")) document.getElementById("link-save-manager").textContent = t.linkSaveManager;
+            if (document.getElementById("link-knowledge-inspector")) document.getElementById("link-knowledge-inspector").textContent = t.linkKnowledgeInspector;
+            if (document.getElementById("link-dev-tools-hub")) document.getElementById("link-dev-tools-hub").textContent = t.linkDevToolsHub;
         }
 
         function test_sound() {
@@ -399,6 +394,25 @@
             }
         }
 
+        function saveCurrentConfig() {
+            const soundModeEl = document.getElementById("sound_mode");
+            const soundVolEl = document.getElementById("sound_volume");
+            const currentSoundMode = soundModeEl ? soundModeEl.value : (localStorage.getItem("nethack_sound_mode") || "mute");
+            const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : parseInt(localStorage.getItem("nethack_sound_volume") || "80", 10);
+
+            const config = {
+                gryph: document.getElementById("gryph") ? document.getElementById("gryph").checked : true,
+                lang: document.getElementById("lang") ? document.getElementById("lang").checked : true,
+                larn: document.getElementById("larn") ? document.getElementById("larn").checked : false,
+                debug: document.getElementById("debug") ? document.getElementById("debug").checked : false,
+                sound_mode: currentSoundMode,
+                sound_volume: currentSoundVol,
+                extra_options: document.getElementById("extra_options") ? document.getElementById("extra_options").value : ""
+            };
+
+            localStorage.setItem("nh.config", JSON.stringify(config));
+        }
+
         function auto_start() {
             if (window.SoundManager) window.SoundManager.init();
 
@@ -420,6 +434,7 @@
                 volEl.addEventListener("input", (e) => {
                     volVal.textContent = `${e.target.value}%`;
                     if (window.SoundManager) window.SoundManager.setVolume(parseInt(e.target.value, 10));
+                    saveCurrentConfig();
                 });
             }
 
@@ -427,37 +442,29 @@
             if (modeEl && window.SoundManager) {
                 modeEl.addEventListener("change", (e) => {
                     window.SoundManager.setMode(e.target.value);
+                    saveCurrentConfig();
                 });
             }
 
             updateLanguageUI(savedConfig.lang);
 
-            const langCheckbox = document.getElementById("lang");
-            if (langCheckbox) {
-                langCheckbox.addEventListener("change", (e) => {
-                    updateLanguageUI(e.target.checked);
+            // 全設定項目の変更時自動保存イベントバインド
+            ["gryph", "lang", "larn", "debug"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener("change", (e) => {
+                        if (id === "lang") updateLanguageUI(e.target.checked);
+                        saveCurrentConfig();
+                    });
+                }
+            });
+
+            const extraEl = document.getElementById("extra_options");
+            if (extraEl) {
+                extraEl.addEventListener("input", () => {
+                    saveCurrentConfig();
                 });
             }
-        }
-
-        function page_start() {
-            const soundModeEl = document.getElementById("sound_mode");
-            const soundVolEl = document.getElementById("sound_volume");
-            const currentSoundMode = soundModeEl ? soundModeEl.value : (localStorage.getItem("nethack_sound_mode") || "mute");
-            const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : parseInt(localStorage.getItem("nethack_sound_volume") || "80", 10);
-
-            const config = {
-                gryph: document.getElementById("gryph").checked,
-                lang: document.getElementById("lang").checked,
-                larn: document.getElementById("larn").checked,
-                debug: document.getElementById("debug").checked,
-                sound_mode: currentSoundMode,
-                sound_volume: currentSoundVol,
-                extra_options: document.getElementById("extra_options").value
-            };
-
-            localStorage.setItem("nh.config", JSON.stringify(config));
-            window.location.href = 'game.html';
         }
 
         function reset_config() {
@@ -539,22 +546,19 @@
             </div>
 
             <div class="actions">
-                <button class="btn btn-primary" id="btn-start" onclick="page_start()">GAME START</button>
                 <a href="../index.html" class="btn btn-secondary" id="btn-back-title" style="text-decoration: none; text-align: center;">← Back to Title</a>
                 <button class="btn btn-danger" id="btn-reset" onclick="reset_config()">Reset to Default</button>
             </div>
 
             <div class="tools-section">
-                <p class="tools-title" id="tools-title">Developer Tools</p>
+                <p class="tools-title" id="tools-title">Developer & Config Tools</p>
                 <div class="tool-links" style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
                     <a href="../tests/sound_test.html" class="tool-link" id="link-sound-test" target="_blank" style="color: var(--accent-color); border-color: rgba(63, 185, 80, 0.3);">🔊 Sound Tester</a>
-                    <a href="tr_fail.html" class="tool-link" id="link-tr-fail" target="_blank">未翻訳リスト</a>
-                    <a href="tr_manager.html" class="tool-link" id="link-tr-manager" target="_blank">翻訳管理</a>
-                    <a href="tr_test.html" class="tool-link" id="link-tr-test" target="_blank">Trans Tester</a>
-                    <a href="../tests/tile_test.html" class="tool-link" id="link-tile-test" target="_blank">Tile Mapping</a>
-                    <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-link" id="link-gp-mapping" target="_blank">GP Mapping</a>
-                    <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link" id="link-touch-mapping" target="_blank">Touch Mapping</a>
-                    <a href="save_manager.html" class="tool-link" id="link-save-manager" target="_blank">Save Data Manage</a>
+                    <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-link" id="link-gp-mapping" target="_blank">🎮 GP Mapping</a>
+                    <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link" id="link-touch-mapping" target="_blank">📱 Touch Mapping</a>
+                    <a href="save_manager.html" class="tool-link" id="link-save-manager" target="_blank">💾 セーブデータ管理</a>
+                    <a href="knowledge-inspector.html" class="tool-link" id="link-knowledge-inspector" target="_blank">🔍 ナレッジインスペクター</a>
+                    <a href="dev_tools.html" class="tool-link" id="link-dev-tools-hub" style="font-weight: 700; color: var(--text-primary); border-color: rgba(255, 255, 255, 0.2);">🛠️ 全開発者ツール一覧</a>
                 </div>
             </div>
         </div>

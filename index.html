@@ -280,10 +280,10 @@
             box-shadow: 0 4px 14px rgba(88, 166, 255, 0.4);
         }
 
-        /* サブメニューボタン群 (設定・セーブデータ) */
+        /* サブメニューボタン群 (設定・セーブデータ・開発ツール) */
         .sub-actions {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 12px;
             margin-bottom: 28px;
         }
@@ -462,7 +462,7 @@
                 </a>
             </div>
 
-            <!-- Sub Actions (Config & Save Data) -->
+            <!-- Sub Actions (Config, Save Data, Dev Tools) -->
             <div class="sub-actions">
                 <a href="tools/config.html" class="btn-sub" id="link-config">
                     <span>⚙️</span>
@@ -472,25 +472,11 @@
                     <span>💾</span>
                     <span id="txt-save-mgr-btn">セーブデータ管理</span>
                 </a>
+                <a href="tools/dev_tools.html" class="btn-sub" id="link-dev-tools">
+                    <span>🛠️</span>
+                    <span id="txt-dev-tools-btn">開発者ツール</span>
+                </a>
             </div>
-
-            <!-- Developer Tools Section -->
-            <section class="dev-tools-card">
-                <div class="dev-tools-title">
-                    <span>🔧</span>
-                    <span id="txt-dev-tools-title">開発者・カスタマイズツール</span>
-                </div>
-                <div class="tools-grid">
-                    <a href="tools/cltest.html" class="tool-link-item" id="link-cltest" target="_blank" style="color: var(--accent-green); font-weight: 700;">🧪 全クライアントテスト (cltest)</a>
-                    <a href="tools/tr_fail.html" class="tool-link-item" id="link-tr-fail" target="_blank">未翻訳リスト</a>
-                    <a href="tools/tr_manager.html" class="tool-link-item" id="link-tr-manager" target="_blank">翻訳管理</a>
-                    <a href="tools/tr_test.html" class="tool-link-item" id="link-tr-test" target="_blank">Trans Tester</a>
-                    <a href="tests/tile_test.html" class="tool-link-item" id="link-tile-test" target="_blank">Tile Mapping</a>
-                    <a href="tests/sound_test.html" class="tool-link-item" id="link-sound-test" target="_blank">Sound Tester</a>
-                    <a href="examples/legacy-client/rogue/mapping_tool.html" class="tool-link-item" id="link-gp-mapping" target="_blank">GP Mapping</a>
-                    <a href="examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link-item" id="link-touch-mapping" target="_blank">Touch Mapping</a>
-                </div>
-            </section>
         </main>
 
         <!-- Footer -->
@@ -521,14 +507,7 @@
                 mobileBtn: "MOBILE START",
                 configBtn: "システム設定",
                 saveMgrBtn: "セーブデータ管理",
-                devToolsTitle: "開発者・カスタマイズツール",
-                linkClTest: "🧪 全クライアントテスト (cltest)",
-                linkTrFail: "未翻訳リスト",
-                linkTrManager: "翻訳管理",
-                linkTrTest: "Trans Tester",
-                linkTileTest: "Tile Mapping",
-                linkGpMapping: "GP Mapping",
-                linkTouchMapping: "Touch Mapping",
+                devToolsBtn: "開発者ツール",
                 langToggle: "🌐 English"
             },
             en: {
@@ -543,14 +522,7 @@
                 mobileBtn: "MOBILE START",
                 configBtn: "System Configuration",
                 saveMgrBtn: "Save Data Manager",
-                devToolsTitle: "Developer Tools",
-                linkClTest: "🧪 All Clients Test (cltest)",
-                linkTrFail: "Untranslated List",
-                linkTrManager: "Translation Manager",
-                linkTrTest: "Trans Tester",
-                linkTileTest: "Tile Mapping",
-                linkGpMapping: "GP Mapping",
-                linkTouchMapping: "Touch Mapping",
+                devToolsBtn: "Developer Tools",
                 langToggle: "🌐 日本語"
             }
         };
@@ -587,14 +559,7 @@
             document.getElementById("txt-mobile-btn").textContent = t.mobileBtn;
             document.getElementById("txt-config-btn").textContent = t.configBtn;
             document.getElementById("txt-save-mgr-btn").textContent = t.saveMgrBtn;
-            document.getElementById("txt-dev-tools-title").textContent = t.devToolsTitle;
-            if (document.getElementById("link-cltest")) document.getElementById("link-cltest").textContent = t.linkClTest;
-            document.getElementById("link-tr-fail").textContent = t.linkTrFail;
-            document.getElementById("link-tr-manager").textContent = t.linkTrManager;
-            document.getElementById("link-tr-test").textContent = t.linkTrTest;
-            document.getElementById("link-tile-test").textContent = t.linkTileTest;
-            document.getElementById("link-gp-mapping").textContent = t.linkGpMapping;
-            document.getElementById("link-touch-mapping").textContent = t.linkTouchMapping;
+            if (document.getElementById("txt-dev-tools-btn")) document.getElementById("txt-dev-tools-btn").textContent = t.devToolsBtn;
             document.getElementById("btn-toggle-lang").textContent = t.langToggle;
         }
 
