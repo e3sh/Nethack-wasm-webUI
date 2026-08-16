@@ -11388,6 +11388,7 @@
         { en: "Changes wearer's gender or alignment.", jp: "装着者の性別や属性を変化させる。" },
         { en: "Quaff with 'q' to apply magical effect, or dip items with '#dip'. Unidentified potions can be identified via Scroll of Identify, Altar testing, or Dip testing.", jp: "飲む('q')と魔法効果を発揮、または浸す('#dip')。未鑑定の薬は識別の巻物、神壇テスト、浸しテストで解明可能。" },
         { en: "Use '>' key to descend to deeper dungeon floor.", jp: "'>' キーでより深いダンジョン階層へ降りる。" },
+        { en: "Having fun sitting on the floor?", jp: "床に座って楽しんでる？" },
     ];
 }
 

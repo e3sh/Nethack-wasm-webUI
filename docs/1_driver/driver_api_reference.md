@@ -10,6 +10,10 @@ related_code:
 
 本書は `@nethack/wasm-driver` パッケージ (`NetHackWasmDriver`, `NetHackWasmWorkerBridge`, `NetHackMemory`, `NetHackFSManager`, `InputResolver`) のコンストラクタ、起動オプション、公開メソッド、発行イベント、およびレスポンダーオブジェクトの完全な API リファレンスです。
 
+> [!TIP]
+> **導入手順・起動フロー・Wasmコア差し替えガイド**
+> ゼロからの導入手順、起動コード例、Wasmコア（`nethack.js` / `.wasm`）のバージョン変更・切り替え方法については 📄 **[ドライバー導入・クイックスタートガイド](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/1_driver/driver_quickstart_guide.md)** をご覧ください。
+
 ---
 
 ## 1. コンストラクタ `new NetHackWasmDriver(options)`
