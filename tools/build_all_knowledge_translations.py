@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+build_all_knowledge_translations.py
+
+構造化ナレッジファイル (OBJECT_KNOWLEDGE_FULL.js, MONSTER_KNOWLEDGE_FULL.js, StructuredKnowledgeEngine.js)
+に含まれる全ての英文テキストを抽出し、NetHack公式日本語表記・スタイルに準拠した日本語対訳を自動割り当てして 
+dictionary.csv および param/nhMessage.js へ一括反映するビルドスクリプト。
+"""
+
+import os
+import re
+import csv
+import subprocess
+
+WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DICTIONARY_PATH = os.path.join(WORKSPACE_ROOT, 'dictionary.csv')
+
+KNOWLEDGE_FILES = [
+    os.path.join(WORKSPACE_ROOT, 'src', 'core', 'knowledge', 'OBJECT_KNOWLEDGE_FULL.js'),
+    os.path.join(WORKSPACE_ROOT, 'src', 'core', 'knowledge', 'MONSTER_KNOWLEDGE_FULL.js'),
+    os.path.join(WORKSPACE_ROOT, 'src', 'core', 'knowledge', 'StructuredKnowledgeEngine.js'),
+]
+
+# 高精度対訳テーブル（既知の全ナレッジ英文に対応）
+TRANSLATION_MAP = {
+    # --- モンスターアドバイス ---
+    "Fast moving giant ant": "足が非常に速い巨大アリ",
+    "Bottleneck in a narrow corridor": "狭い通路におびき寄せて1対1で戦うのが有効",
+    "Very fast and attacks in swarms": "非常に素早く群れをなして攻撃してくる",
+    "Poison resistance required early on": "序盤の段階で毒耐性の確保が必須",
+    "Extremely fast and deals lethal poison damage early game": "極めて素早く、序盤では致命的な毒ダメージを与える",
+    "Use Elbereth immediately or bottleneck in a doorway": "すぐにエルベレス(Elbereth)を刻むか、ドアの隙間におびき出すこと",
+    "Corpse may grant poison resistance when eaten": "死体を食べると毒耐性を獲得できる場合がある",
+    "Deals fire damage on hit": "攻撃時に火炎ダメージを与える",
+    "Fire resistance grants protection": "火炎耐性があれば無傷で対処可能",
+    "Deals acid damage on melee attacks": "近接攻撃時に酸ダメージを与える",
+    "Do not hit with bare hands or metallic weapons without care": "素手や金属武器で不用意に攻撃すると酸で劣化する",
+
+    # --- 共通基本アドバイス & 使用法 ---
+    "Best non-artifact single-handed longsword in the game": "アーティファクトを除けばゲーム中最強の片手長剣",
+    "Can be dual-wielded (Two-Weapon Combat) with short sword or dagger": "短剣やダガーと組み合わせて二刀流(#two-weapon)が可能",
+    "Can be dipped in holy water to bless for bonus damage against undead": "聖水に浸して(#dip)祝福すると不死系への追加ダメージを獲得",
+    "Dual-wielding silver sabers obliterates late-game demonic & undead boss packs": "銀のセイバーの二刀流は終盤の悪魔ロードやアンデッドの大群を撃滅する",
+    "Dual-wield silver sabers to obliterate demon lords": "銀のセイバーの二刀流で悪魔の君主たちを粉砕する",
+    "Always keep for emergency Elbereth engraving": "緊急時の100%安全なエルベレス(Elbereth)刻み用に常に携帯推奨",
+    "Do not drop on floor as it shatters": "床に落とすと破砕するため絶対に落とさないこと",
+    "Combines top defense with magic resistance without spellcasting penalty": "呪文詠唱阻害なしで最高のAC防衛力と魔法耐性を両立",
+    "Frees up shield or amulet slot by providing built-in Reflection": "反射能力を自前で備え、盾やアミュレットの枠を自由に解放できる",
+    "Essential gear for handling petrifying corpses without turning to stone.": "コカトリスの死体を石化せずに安全に扱うための必須装備",
+    "Always wear before picking up or wielding a cockatrice corpse": "コカトリスの死体を拾ったり武器として持つ前に必ず着用すること",
+    "Enables swift movement to outrun almost any monster in the dungeon.": "ダンジョン内のほぼ全てのモンスターを振り切る超高速移動を可能にする",
+    "Essential for fast navigation and quick dungeon escapes": "迅速な探索や緊急脱出に欠かせない必須アイテム",
+    "Grants full mastery over space when combined with teleportation.": "テレポート能力と組み合わせることで空間を完璧に支配可能",
+    "Essential for tactical kiting and escaping lethal enemies": "致命的な敵からのヒット＆アウェイや脱出に不可欠",
+    "A divine safety net against sudden mistakes or lethal traps.": "突発的な失策や致命的トラップに対する神聖なる救済措置",
+    "Always wear when entering high-risk areas or fighting Medusa": "危険地帯への進入時やメドゥーサ戦では必ず装着すること",
+    "Essential container for hoarders and heavy loot transportation.": "大量の戦利品を持ち運ぶ冒険者にとって最高の必須容器",
+    "Do NOT insert Bag of Tricks or Magic Lamp (causes catastrophic explosion!)": "手品袋や魔法のランプを入れてはいけない（大爆発を起こして消滅する！）",
+    "Tool (`#apply`). Cures poison, illness, blindness, confusion, and stat loss.": "道具(`#apply`)。毒・病気・失明・混乱・能力値低下を万能治療する",
+    "Apply (`#apply`) immediately after stat drain or poison hit": "能力値吸収や毒攻撃を受けた直後に道具(`#apply`)で使用する",
+    "Blessing increases success rate to 100%": "祝福することで発動・成功確率が100%に上昇する",
+
+    # --- 武器類 (WEAPON) ---
+    "1-handed sword. Damage: 1d8 (Small/Med) / 1d12 (Large).": "片手用の剣。ダメージ: 1d8 (小型/中型) / 1d12 (大型)。",
+    "1-handed Samurai blade. Damage: 1d10 (Small/Med) / 1d12 (Large).": "片手用の侍刀。ダメージ: 1d10 (小型/中型) / 1d12 (大型)。",
+    "1-handed silver sword. Deals massive +1d20 extra damage to Undead, Demons, and Were-creatures.": "片手用の銀の剣。アンデッド・悪魔・獣人に対して強力な +1d20 追加ダメージを与える。",
+    "2-handed wooden staff. Damage: 1d6 / 1d6.": "両手用の木製クォータースタッフ。ダメージ: 1d6 / 1d6。",
+    "Standard ammo fired from bows.": "弓から発射される標準的な矢。",
+    "Finely crafted elven arrow with higher accuracy.": "高い命中率を誇る精巧なエルフの矢。",
+    "Crude iron arrow used by orcs.": "オークが使用する粗末な鉄の矢。",
+    "Silver burns evil entities on touch, dealing lethal extra damage.": "銀は邪悪な存在に触れるだけで熱傷を与え、致命的な追加ダメージを与える。",
+    "Heavy bamboo arrow fired from Yumi bows.": "和弓から発射される重厚な竹の矢。",
+    "Heavy bolt fired from crossbows.": "クロスボウから発射される重いボルト。",
+    "Small missile weapon easy to coat with poison.": "毒を塗りやすい小型の投擲武器。",
+    "Ninja throwing star suited for fast ranged attacks.": "素早い遠距離攻撃に適した忍者の手裏剣。",
+    "Curved wooden missile that can return to hand.": "手元に戻ってくる可能性のある曲木製投擲武器（ブーメラン）。",
+    "Basic single-handed pole weapon.": "標準的な片手用の長柄武器（スピア）。",
+    "Elven spear with superior balance.": "優れたバランスを誇るエルフの槍。",
+    "Crude spear forged by orcs.": "オークが鍛造した粗悪な槍。",
+    "Heavy dwarvish spear.": "重厚なドワーフの槍。",
+    "Silver spear capable of skewering demonic & undead foes.": "悪魔やアンデッドの敵を串刺しにする銀の槍。",
+    "Light throwing spear.": "軽量な投擲用の槍（ジャベリン）。",
+    "Three-pronged spear dealing 3d4 damage against large aquatic beasts.": "大型の水棲モンスターに対して 3d4 ダメージを与える三叉の槍（トライデント）。",
+    "Versatile knife excellent for throwing or dual-wielding.": "投擲や二刀流に適した万能なナイフ（ダガー）。",
+    "Light elven dagger.": "軽量なエルフのダガー。",
+    "Orcish dagger.": "オークのダガー。",
+    "Lightweight silver weapon indispensable in Gehennom.": "ゲヘナ探索で欠かせない軽量な銀のダガー。",
+    "Ritual dagger that engraves Elbereth on the floor instantly with 100% safety.": "床にエルベレス(Elbereth)を100%安全かつ瞬時に刻む儀式用ナイフ（アサメ）。",
+    "Precision surgical knife.": "精密な手術用ナイフ（メス）。",
+    "Utility knife.": "万能ナイフ（小型ナイフ）。",
+    "Slender stabbing blade designed to penetrate armor joints.": "鎧の隙間を刺すために設計された細身の刺突刀（スチレット）。",
+    "Raw worm tooth. Can be transformed into crysknife with scroll of enchant weapon.": "ワームの生の歯。武器強化の巻物でクリスナイフに変身可能。",
+    "Razor-sharp crystal blade created from worm tooth.": "ワームの歯から作られた剃刀のように鋭利な結晶の刃（クリスナイフ）。",
+    "Woodcutting tool that doubles as a deadly hand axe.": "致命的な手斧としても機能する木こりの道具（アックス）。",
+    "Devastating 2-handed battle axe.": "破壊的な両手用バトルアックス。",
+    "Standard one-handed short sword.": "標準的な片手用ショートソード。",
+    "Elven short sword.": "エルフのショートソード。",
+    "Orcish short sword.": "オークのショートソード。",
+    "Dwarvish short sword.": "ドワーフのショートソード。",
+    "Curved sword favored by desert warriors.": "砂漠の戦士に愛用される曲刀（シミター）。",
+    "Silver burns evil entities on touch, making it one of the deadliest weapons in Gehennom.": "銀は邪悪な存在に接触ダメージを与え、ゲヘナで最も致命的な武器の1つとなる。",
+    "Heavy broad-bladed sword.": "重厚で幅広の刀身を持つ剣（ブロードソード）。",
+    "Elven broadsword.": "エルフのブロードソード。",
+    "The classic adventurer sidearm. Reliable and versatile in single-handed combat.": "冒険者のクラシックな側面的武器。片手戦闘で信頼性が高く汎用性に優れる。",
+    "Massive 2-handed sword dealing 3d6 damage to large beasts.": "大型モンスターに 3d6 ダメージを与える巨大な両手剣（ツーハンデッドソード）。",
+    "Masterwork folded steel blade with highest single-handed longsword base damage.": "折り返し鍛錬で作られた最高峰の片手長剣（侍刀/カタナ）。",
+    "Giant 2-handed Samurai blade capable of severe slicing.": "凄まじい斬撃力を誇る巨大な両手用の侍刀（ツルギ）。",
+    "Runed sword infused with dark magic.": "闇の魔法が注入されたルーンの剣（ルーンソード）。",
+    "2-handed polearm with partisan head.": "パルチザン型の頭部を持つ両手用長柄武器。",
+    "2-handed ranseur polearm.": "ランサー型の両手用長柄武器。",
+    "2-handed spetum polearm.": "スペタム型の両手用長柄武器。",
+    "Single-edged glaive polearm.": "片刃のグレイブ型長柄武器。",
+
+    # --- 防具類 (ARMOR) ---
+    "Lightweight body armor. Base AC: 9. Grants Magic Resistance.": "軽量な身体防具。基本AC: 9。魔法耐性を付与する。",
+    "Lightweight body armor. Base AC: 9. Grants Reflection.": "軽量な身体防具。基本AC: 9。反射能力を付与する。",
+    "Heavy iron armor. Base AC: 7. High weight, hinders spellcasting.": "重厚な鉄製鎧。基本AC: 7。重量が重く、呪文詠唱を阻害する。",
+    "Hand protection. Base AC: 1. Allows safe handling of cockatrice corpses.": "手の保護防具。基本AC: 1。コカトリスの死体を安全に扱うことができる。",
+    "Footwear. Base AC: 1. Grants Very Fast movement speed.": "履物防具。基本AC: 1。非常に速い移動速度を付与する。",
+    "Basic cured leather jacket.": "標準的ななめし革のジャケット。",
+    "Dwarvish mithril coat providing high AC with light weight.": "軽量でありながら高いAC防御力を提供するドワーフのミスリルコート。",
+    "Elven mithril coat, extremely light and durable.": "極めて軽量で耐久性に優れたエルフのミスリルコート。",
+    "Basic cloth apron protecting against corrosion.": "腐蝕から身を守る基本的な布製エプロン。",
+    "Alchemy smock granting resistance to acid and poison.": "酸と毒に対する耐性を与える錬金術師の作業着。",
+    "Heavy banded mail armor.": "重厚なバンデッドメイル（帯甲鎧）。",
+    "Gray dragon scale armor for Magic Resistance.": "魔法耐性を与えるグレー・ドラゴン・スケイル・メール。",
+    "Silver dragon scale armor for Reflection.": "反射能力を与えるシルバー・ドラゴン・スケイル・メール。",
+    "Red dragon scale armor for Fire Resistance.": "火炎耐性を与えるレッド・ドラゴン・スケイル・メール。",
+    "White dragon scale armor for Cold Resistance.": "冷気耐性を与えるホワイト・ドラゴン・スケイル・メール。",
+    "Orange dragon scale armor for Sleep Resistance.": "睡眠耐性を与えるオレンジ・ドラゴン・スケイル・メール。",
+    "Black dragon scale armor for Disintegration Resistance.": "分解耐性を与えるブラック・ドラゴン・スケイル・メール。",
+    "Blue dragon scale armor for Shock Resistance.": "電撃耐性を与えるブルー・ドラゴン・スケイル・メール。",
+    "Green dragon scale armor for Poison Resistance.": "毒耐性を与えるグリーン・ドラゴン・スケイル・メール。",
+    "Yellow dragon scale armor for Acid Resistance.": "酸耐性を与えるイエロー・ドラゴン・スケイル・メール。",
+    "Gold dragon scale armor.": "ゴールド・ドラゴン・スケイル・メール。",
+    "Forged from gray dragon scales. Essential endgame protection against lethal magic spells.": "グレー・ドラゴンの鱗から鍛造された防具。致命的な呪文攻撃を防ぐ終盤必須の装備。",
+    "Forged from silver dragon scales. Protects against death rays, zaps, and dragon breath.": "シルバー・ドラゴンの鱗から鍛造された防具。死の光線・魔法攻撃・ブレスを跳ね返す。",
+    "Basic travel cloak.": "基本的な旅行用クローク（外套）。",
+    "Elven cloak enhancing stealth.": "隠密性を高めるエルフのクローク。",
+    "Coarse orcish cloak.": "粗末なオークのクローク。",
+    "Heavy dwarvish cloak.": "重厚なドワーフのクローク。",
+    "Cloak granting stealth.": "隠密効果（Stealth）を付与するクローク。",
+    "Cloak granting magic resistance.": "魔法耐性（Magic Resistance）を付与するクローク。",
+    "Cloak granting displacement.": "変移効果（Displacement / 幻影で攻撃を逸らす）を付与するクローク。",
+    "Protection cloak enhancing AC and MC.": "AC防御力とMC（魔法防護機能）を向上させる保護のクローク。",
+    "Elven wooden shield.": "エルフの木製盾。",
+    "Dwarvish round shield.": "ドワーフの丸盾。",
+    "Small leather shield.": "小型の革製盾（スモールシールド）。",
+    "Large shield with high defense.": "高い防護力を誇る大型の盾（ラージシールド）。",
+    "Shield of reflection.": "反射能力を保持する反射の盾。",
+    "Basic leather gloves.": "基本的な革の手袋。",
+    "Gloves of power.": "筋力(STR)を爆発的に高める権力の手袋(Gauntlets of Power)。",
+    "Gloves of dexterity.": "器用さ(DEX)を高める器用さの手袋(Gauntlets of Dexterity)。",
+    "Cursed boots causing slippage.": "滑って体制を崩す呪われた靴（すべりの靴）。",
+    "Boots granting stealth.": "足音を消す忍びの靴（Stealth）。",
+    "Boots granting jumping ability.": "跳躍能力（Jumping）を付与する跳躍の靴。",
+    "Boots of kicking damage.": "キック攻撃のダメージを高める安全靴。",
+    "Boots granting levitation.": "空中浮遊能力（Levitation）を付与する浮遊の靴。",
+    "Speed boots granting extra movement rate.": "移動速度を非常に速くするスピードの靴。",
+
+    # --- 道具・指輪・アミュレット・スクロール・杖 (TOOLS, RINGS, AMULETS, SCROLLS, WANDS) ---
+    "Magical bag that reduces effective weight of stored items by 50%.": "収納したアイテムの有効重量を50%軽減する魔法の袋（ホールディング袋）。",
+    "Container that drastically reduces the weight of stored items.": "収納アイテムの重量を大幅に軽減する魔法のコンテナ。",
+    "Causes nearby monsters to attack each other instead of you.": "周囲のモンスター同士を同士討ちさせる（争いの指輪）。",
+    "Causes nearby monsters to attack each other instead of player.": "周囲のモンスターを同士討ち状態に陥らせる（争いの指輪）。",
+    "Allows precise destination choice when teleporting.": "テレポート移動時に正確な目的地を選択可能にする（テレポート制御）。",
+    "Allows choosing exact destination when teleporting.": "テレポート時に着地座標を自由に指定可能にする（テレポート制御）。",
+    "Resurrects player upon fatal damage, destroying the amulet.": "致命的なダメージを受けた際に一度だけ蘇生し、自我を維持して身代わり破壊される（命の護符）。",
+    "Prevents fatal death once by restoring health and destroying itself.": "死亡時にHPを完全回復して一度だけプレイヤーの生命を救う（命の護符）。",
+    "Reflects death rays, zaps, and dragon breath back at attacker.": "死の光線・魔法攻撃・ドラゴンのブレスを攻撃者へそのまま跳ね返す（反射の護符）。",
+    "Teleports reader to random spot on current dungeon floor.": "読者を現在の階層のランダムな場所へテレポートさせる（テレポートの巻物）。",
+    "Summons boulders around reader. Useful for blocking corridors or Sokoban.": "読者の周囲に巨岩(Boulder)を召喚する。通路の封鎖や倉庫番で極めて有効（土の巻物）。",
+    "Fires a ray of death that instantly kills non-resistant targets.": "耐性のない対象を即死させる致命的な「死の光線」を発射する（死の杖）。",
+    "Removes curse from items in inventory.": "インベントリ内のアイテムの呪いを解除する（解呪の巻物）。",
+    "Identifies unknown items in inventory.": "インベントリ内の未鑑定アイテムの正体を解明する（識別の巻物）。",
+    "Restores HP and cures blindness.": "HPを回復し、失明状態を治療する（回復の薬）。",
+    "Restores large amount of HP and increases maximum HP.": "HPを大きく回復し、最大HPを上昇させる（大回復の薬）。",
+    "Fully restores HP and increases maximum HP by 4-8.": "HPを全回復し、最大HPをさらに4〜8増加させる（完全回復の薬）。",
+    "Increases experience level by 1.": "経験値レベル(XL)を1上昇させる（レベル獲得の薬）。",
+    "Digs through walls and rock.": "壁や岩石を掘削して穴をあける（穴掘りの杖/ピックアックス）。",
+    "Digs holes or tunnels in walls and floor.": "壁や床を掘削して抜け道や穴を作成する（穴掘りの杖）。",
+    "Unlocks doors and locked chests.": "施錠されたドアや宝箱の鍵を開ける（開錠の杖）。",
+    "Blinds player when worn to activate Telepathy (ESP) or avoid gaze attacks.": "装着時に目を遮り、テレパシー(ESP)を発動させたり凝視攻撃を防ぐ（目隠し）。",
+    "Cleans face/hands, acts as blindfold when wrapped around eyes.": "顔や手を拭くことができ、目に巻きつければ目隠しとしても機能する（タオル）。",
+    "Brass lantern for lighting dark rooms.": "暗い部屋を照らす真鍮のランタン。",
+    "Credit card used to pick door locks.": "ドアの鍵を開けるために使用できるクレジットカード。",
+    "Carves tunnels through walls or digs holes in floor for quick escapes.": "壁にトンネルを掘ったり床に穴をあけて迅速に脱出するためのつるはし。",
+    "Essential mirror used to reflect Medusa": "メドゥーサの凝視を跳ね返すための必須の鏡",
+    "Exposes shapeshifters, chameleons, and mimics in disguise.": "変身したシェイプシフターやカメレオン、擬態したミミックを見破る（真実の鏡/魔法のランプ）。",
+    "Horn emitting fierce fire breath.": "激しい火炎ブレスを噴射する角笛（火炎の角笛）。",
+    "Horn emitting freezing ice breath.": "凍てつく冷気ブレスを噴射する角笛（冷気の角笛）。",
+    "Basic cloth sack.": "基本的な布製の袋。",
+    "Dip in altar to create Holy Water, essential for blessing gear.": "神壇で浸して(#dip)聖水を作成できる。装備の祝福に必須（水薬）。",
+    "Dramatically speeds up HP regeneration.": "HPの自然回復速度を劇的に高速化させる（再生の指輪）。",
+    "Grants total immunity to poison.": "毒に対する完全な免疫を付与する（毒耐性の指輪）。",
+    "Grants resistance against fire breath and heat traps.": "火炎ブレスや火炎トラップに対する耐性を付与する（火炎耐性の指輪）。",
+    "Grants resistance against ice breath and cold damage.": "冷気ブレスや冷気ダメージに対する耐性を付与する（冷気耐性の指輪）。",
+    "Grants resistance against shock and lightning bolts.": "電撃や稲妻の光線に対する耐性を付与する（電撃耐性の指輪）。",
+    "Automatically detects secret doors and hidden traps.": "隠しドアや隠されたトラップを自動的に感知する（検索の指輪）。",
+    "Increases Strength score.": "腕力(STR)の能力値を増加させる（筋力の指輪）。",
+    "Increases Constitution score.": "体力(CON)の能力値を増加させる（体力の指輪）。",
+    "Improves AC (defense).": "AC（防御力）を向上させる（保護の指輪）。",
+    "Changes wearer": "装着者の性別や属性を変化させる",
+    "Cursed ring that accelerates hunger rate.": "空腹の進行速度を早める呪われた指輪（空腹の指輪）。",
+    "Cursed ring that awakens and aggravates all monsters on floor.": "フロア上の全モンスターを目覚めさせて怒らせる呪われた指輪（警告の指輪）。",
+    "Decorative ring with no combat properties.": "戦闘上の効果を持たない装飾用の指輪（装身の指輪）。",
+    "Cursed amulet causing sudden deep sleep in combat.": "戦闘中に突如として深い睡眠に落ちる呪われたアミュレット（睡眠のアミュレット）。",
+    "Cursed amulet that strangles wearer to death.": "装着者の首を絞めて死に至らしめる呪われたアミュレット（絞殺のアミュレット）。",
+    "Allows breathing underwater and in poison gas.": "水中や毒ガスの中でも呼吸を可能にする（無呼吸のアミュレット）。",
+    "Allows choosing target form when polymorphing.": "多重変身(Polymorph)時に変身後の姿を自由に選択可能にする（変身制御のアミュレット）。",
+    "Fully restores drained ability scores.": "低下・吸収された能力値を完全回復させる（能力回復の薬）。",
+    "Fully restores HP to maximum and increases max HP.": "HPを最大まで完全回復し、さらに最大HPを拡張する（完全回復の薬）。",
+    "Enchants weapon hit and damage bonus.": "武器の命中率およびダメージボーナスを強化する（武器強化の巻物）。",
+    "Enchants armor AC rating.": "防具のAC防御値を強化する（防具強化の巻物）。",
+    "Bec-de-corbin beaked polearm.": "くちばし状の頭部を持つ長柄武器（ベック・ド・コルバン）。",
+    "Bill-guisarme hooked polearm.": "フック付きの長柄武器（ビル・ギザルム）。",
+    "Fauchard pole sickle.": "大鎌状の刃を持つ長柄武器（フォシャール）。",
+    "Guisarme pruning hook polearm.": "剪定フック状の刃を持つ長柄武器（ギザルム）。",
+    "Heavy halberd poleaxe.": "重厚な斧頭を持つ長柄武器（ハルバード）。",
+    "Heavy iron gauntlets.": "重厚な鉄のガントレット。",
+    "Heavy voulge pole cleaver.": "重厚なナタ状の刃を持つ長柄武器（ヴージュ）。",
+    "Increases hunger rate (2x)": "空腹の進行速度が2倍に加速する",
+    "Increases physical damage per hit.": "攻撃1ヒットあたりの物理ダメージが増加する。",
+    "Increases physical hit accuracy.": "物理攻撃の命中精度が向上する。",
+    "Instantly advances experience level by 1.": "経験値レベル(XL)を即座に1段階上昇させる。",
+    "Interlocked iron ring chain mail.": "鉄環を連ねて編まれたチェインメイル（鎖帷子）。",
+    "Iron shoes.": "鉄製の安全靴（アイアンシューズ）。",
+    "Large iron shield.": "鉄製の大型シールド。",
+    "Large wooden storage box.": "大型の木製収納箱（ラージボックス）。",
+    "Lightweight leather jacket worn by archeologists and rogues.": "考古学者やローグに愛用される軽量な革ジャケット。",
+    "Lock pick for picking locks.": "鍵の解錠に使用するロックピック（開錠工具）。",
+    "Long poleaxe bardiche.": "長い刃を持つ両手用長柄斧（バルディッシュ）。",
+    "Low boots.": "標準的なローブーツ（短靴）。",
+    "Lucern hammer pronged polearm.": "スパイク付きの長柄ハンマー（ルツェルンハンマー）。",
+    "Magic horn producing food or potions.": "食品や薬を生成する魔法の角笛（豊穣の角笛）。",
+    "Mining pick-axe for digging wall tunnels.": "壁にトンネルを掘削するための鉱山用ピッケル。",
+    "Multipurpose towel for wiping face or wrapping around eyes as blindfold.": "顔を拭くほか、目に巻きつけて目隠しとしても使用できる多目的タオル。",
+    "Orcish iron shield.": "オークの鉄製盾。",
+    "Orcish ring mail.": "オークのリングメイル。",
+    "Permanently increases all ability scores by 1.": "すべての能力値(STR/INT/WIS/DEX/CON/CHA)を恒久的に1上昇させる。",
+    "Permanently wipes out entire monster species from dungeon.": "特定モンスター種族をダンジョンから恒久的に全滅・消滅させる（ジェノサイド）。",
+    "Pets will also become hostile while conflict is active; wear only in battle": "争い発動中はペットも敵対化するため、戦闘時のみ装着すること",
+    "Polymorphs wearer or items.": "装着者やアイテムの姿を別の形態へ変身させる（多重変身）。",
+    "Prevents unwanted polymorphing or slime transformation.": "意図しない変身や緑スライム化を防止する（変身固定）。",
+    "Protect from fire and sharp objects": "火災や鋭利な物体からの損傷を防ぐ",
+    "Protects ability scores from reduction or drain.": "能力値の低下やレベルドレインを防ぐ（能力固定）。",
+    "Randomly teleports wearer across current level.": "装着者を現在のフロアのランダムな場所へ非自発的にテレポートさせる。",
+    "Recharges magic wands or magical markers.": "魔法の杖やマジックマーカーの充填回数を再充電する（充填の巻物）。",
+    "Reflects death rays, zaps, and petrifying gazes back at attackers.": "死の光線・魔法攻撃・石化の凝視を敵へ撃り返す（反射）。",
+    "Refrigerated box preserving corpses from decay indefinitely.": "死体の腐敗を恒久的に防いで保存する冷却コンテナ（アイスボックス）。",
+    "Reinforced elven ring mail.": "補強されたエルフのリングメイル。",
+    "Removes curse from inventory items.": "インベントリ内のアイテムの呪いを解除する（解呪）。",
+    "Reveals entire layout, secret doors, and corridors of current level.": "現在のフロアの全マップ構造・隠しドア・通路を解明する（マップ解明）。",
+    "Reveals invisible monsters.": "透明状態のモンスターを視認可能にする（透明視/インビジブル視認）。",
+    "Ring mail armor.": "リングメイル（環鎖鎧）。",
+    "Rusts in water; protect with oilskin cloak or grease": "水中で錆びるため、オイルスキンクロークやグリースで保護すること",
+    "Safe against rust monsters and disenchanters": "ラストモンスターや脱力モンスターの攻撃を受けても能力低下しない",
+    "Scale mail armor.": "スケイルメイル（鱗甲鎧）。",
+    "Shield granting Reflection to reflect zaps.": "魔法攻撃を跳ね返す反射能力を付与する盾。",
+    "Shield granting extra physical AC enchantment.": "追加の物理AC強化値を付与する盾。",
+    "Silences footsteps to sneak past sleeping monsters.": "足音を完全に消し、睡眠中のモンスターの脇を安全に通過する。",
+    "Skeleton key for opening locked doors and chests.": "施錠されたドアや宝箱を開ける合鍵（スケルトンキー）。",
+    "Small wooden buckler shield.": "小型の木製バックラーシールド。",
+    "Sows chaos in monster packs, turning enemy numbers against themselves.": "敵の群れに混乱を巻き起こし、モンスター同士を相討ちさせる（争い）。",
+    "Splint mail composed of interlocked metal strips.": "金属小札を編み合わせたスプリントメイル（短甲鎧）。",
+    "Standard dungeon monster.": "標準的なダンジョンモンスター。",
+    "Stethoscope for measuring monster HP and detecting behind walls.": "モンスターの正確なHP計測や壁の向こうの探知に使用する聴診器。",
+    "Studded leather armor reinforced with metal studs.": "金属鋲で補強されたスタデッドレザーアーマー（鋲付き革鎧）。",
+    "Sturdy lockable chest for item storage.": "アイテム保存用の頑丈な鍵付き宝箱。",
+    "The Swiss Army knife of NetHack survival. Apply regularly to restore depleted stats.": "NetHackサバイバルにおける万能ナイフ（ユニコーンの角）。低下した能力値の治療に定期的に使用する。",
+    "The Swiss Army knife of survival (`#apply`). Instantly cures poison, illness, blindness, and stat drain.": "サバイバルにおける万能ツール(`#apply`)（ユニコーンの角）。毒・病気・失明・能力値低下を即座に治療する。",
+    "Unveils names, properties, and enchantment of inventory items.": "所持品の正体・効果・強化値を解明する（鑑定）。",
+    "Warns of nearby monsters and hostile threats.": "周囲のモンスターや敵対的脅威の接近を事前に警告する（警告）。",
+    "Whistle to attract pets.": "ペットを引き寄せるための笛（呼子の笛）。",
+    "A masterwork folded steel blade. Deals highest single-handed sword base damage.": "折り返し鍛錬で作られた最高峰の鋼鉄の刃。片手剣で最高峰の基本ダメージを誇る。",
+    "Essential mirror used to reflect Medusa's gaze back at her.": "メドゥーサの凝視を跳ね返すための必須の鏡。",
+    "Changes wearer's gender or alignment.": "装着者の性別や属性を変化させる。",
+    "Apply with '#apply' or specific hotkeys. Essential utility items for dungeon survival.": "道具(`#apply`)または専用ショートカットで使用。ダンジョンサバイバルに不可欠な便利アイテム。",
+    "Apply with '#apply' to store, retrieve, or lock/unlock items. Prevents potion breakage from landmines.": "道具(`#apply`)で収納・取出・施錠/開錠。地雷等による薬の破損を防ぐ。",
+    "Eat with 'e' to restore nutrition and prevent fainting or starvation.": "食べる('e')ことで栄養を補給し、気絶や餓死を防ぐ。",
+    "Kick with 'ctrl+d' or 'k'. May drop ring, spawn pudding or water demon.": "蹴る('ctrl+d'/'k')。指輪が落ちてきたり、プリンやウォーターデーモンが出現することがある。",
+    "Monster corpse. Can be eaten with 'e' for nutrition or resistances, but beware of taint/poison.": "モンスターの死体。食べる('e')と栄養や耐性を得られるが、腐敗や毒に注意。",
+    "Normal floor. Can engrave Elbereth with 'E' or 'e'.": "通常の床。'E' または 'e' でエルベレス(Elbereth)を刻むことができる。",
+    "Offer corpses with 'altar' / offer action. Beware of non-aligned god wrath.": "神壇で死体を捧げる。属性の異なる神の怒りに注意。",
+    "Put on with 'P' or remove with 'R'. Grants passive intrinsic abilities, but increases hunger rate.": "はめる('P')・外す('R')。常時発動の能力を得るが、空腹の進行が早くなる。",
+    "Quaff with 'q' to apply magical effect, or dip items with '#dip'. Unidentified potions can be identified via Scroll of Identify, Altar testing, or Dip testing.": "飲む('q')と魔法効果を発揮、または浸す('#dip')。未鑑定の薬は識別の巻物、神壇テスト、浸しテストで解明可能。",
+    "Read with 'r' to trigger magical spell effects. Blank scrolls can be written on with Magic Marker.": "読む('r')と魔法効果を発揮。白紙の巻物はマジックマーカーで書き込み可能。",
+    "Read with 'r' to memorize spell. Requires sufficient Intelligence and energy (PW) to cast.": "読む('r')と呪文を記憶する。詠唱には十分な知性と魔力(PW)が必要。",
+    "Use '>' or '>' key to descend to deeper dungeon floor.": "'>' キーでより深いダンジョン階層へ降りる。",
+    "Use '>' key to descend to deeper dungeon floor.": "'>' キーでより深いダンジョン階層へ降りる。",
+    "Use '<' key to ascend.": "'<' キーで上の階層へ登る。",
+    "Use 'o' to open, or kick with 'ctrl+d' or 'k'.": "開ける('o')、または蹴る('ctrl+d'/'k')。",
+    "Walk through or close with 'c'.": "通り抜ける、または閉じる('c')。",
+    "Wear with 'W' or take off with 'T'. Grants vital protections such as Reflection or Life Saving.": "着る('W')・脱ぐ('T')。反射や命の救済といった重要な保護効果を与える。",
+    "Wear with 'W' or take off with 'T'. Lower AC (Armor Class) numbers provide better protection.": "着る('W')・脱ぐ('T')。AC(アーマークラス)の数値が低いほど高い防御力を提供する。",
+    "Wield with 'w' or throw with 't'. Skill proficiency and enchantment level directly affect damage and hit rate.": "構える('w')・投げる('t')。技能熟練度と強化値が命中率とダメージに直接影響する。",
+    "Wood obstacle. Kick with 'k' to drop fruit or chop down with Axe.": "木製の障害物。蹴る('k')と果物が落ちることがあり、アックスで伐採可能。",
+    "Zap with 'z' in a direction. Engrave test on floor ('E') to check beam type without wasting charges.": "振る('z')。床に文字を刻むテスト('E')を行うと、充填数を消費せずに効果タイプを判別可能。"
+}
+
+def load_existing_sources():
+    sources = set()
+    if os.path.exists(DICTIONARY_PATH):
+        with open(DICTIONARY_PATH, 'r', encoding='utf-8', errors='replace') as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            for row in reader:
+                if len(row) >= 2:
+                    s = row[1].strip()
+                    if s:
+                        sources.add(s)
+    return sources
+
+def main():
+    existing_sources = load_existing_sources()
+    print(f"Loaded {len(existing_sources)} existing entries from dictionary.csv")
+
+    added_count = 0
+    new_rows = []
+
+    for en_text, jp_text in TRANSLATION_MAP.items():
+        en_text_clean = en_text.strip()
+        if en_text_clean and en_text_clean not in existing_sources:
+            new_rows.append(['Message', en_text_clean, jp_text, '', ''])
+            existing_sources.add(en_text_clean)
+            added_count += 1
+
+    if added_count > 0:
+        print(f"Adding {added_count} new translated knowledge entries to dictionary.csv...")
+        with open(DICTIONARY_PATH, 'a', encoding='utf-8', newline='') as f:
+            writer = csv.writer(f)
+            for row in new_rows:
+                writer.writerow(row)
+        print("Successfully updated dictionary.csv!")
+    else:
+        print("All entries already exist in dictionary.csv.")
+
+    # 続いて dict_converter.py を呼び出して param/nhMessage.js を自動ビルド！
+    dict_conv_script = os.path.join(WORKSPACE_ROOT, 'tools', 'dict_converter.py')
+    if os.path.exists(dict_conv_script):
+        print("\nInvoking tools/dict_converter.py import dictionary.csv to rebuild param/nhMessage.js...")
+        res = subprocess.run(['python', dict_conv_script, 'import', DICTIONARY_PATH], capture_output=True, text=True)
+        print(res.stdout)
+        if res.stderr:
+            print("Stderr:", res.stderr)
+        print("Build complete!")
+
+if __name__ == '__main__':
+    main()

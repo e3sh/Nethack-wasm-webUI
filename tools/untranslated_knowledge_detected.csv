@@ -1,0 +1,20 @@
+Group,Source,Translation,SourceFiles
+Message,A masterwork folded steel blade. Deals highest single-handed sword base damage.,,src\core\knowledge\StructuredKnowledgeEngine.js:flavorNote
+Message,Apply with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Changes wearer\,,src\core\knowledge\OBJECT_KNOWLEDGE_FULL.js:flavorNote
+Message,Eat with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Essential mirror used to reflect Medusa\,,src\core\knowledge\OBJECT_KNOWLEDGE_FULL.js:flavorNote
+Message,Kick with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Monster corpse. Can be eaten with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,NetHack\,,src\core\knowledge\OBJECT_KNOWLEDGE_FULL.js:flavorNote
+Message,Normal floor. Can engrave Elbereth with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Offer corpses with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Put on with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Quaff with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Read with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Use \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Walk through or close with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Wear with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Wield with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Wood obstacle. Kick with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary; src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
+Message,Zap with \,,src\core\knowledge\StructuredKnowledgeEngine.js:effectSummary
