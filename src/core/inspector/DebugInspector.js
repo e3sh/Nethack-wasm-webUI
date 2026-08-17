@@ -6,6 +6,8 @@
  * Wasm 通信ログ・状態遷移・GKL キャッシュの配信およびダイレクト応答注入を行う。
  */
 
+import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/OBJECT_KNOWLEDGE_FULL.js';
+
 export class DebugInspector {
     constructor(core, options = {}) {
         if (!core) {
@@ -173,21 +175,35 @@ export class DebugInspector {
         } else if (msg.type === 'REQUEST_SNAPSHOT') {
             this.broadcastState();
         } else if (msg.type === 'QUERY_KNOWLEDGE') {
-            const ske = (this.core.gkl && this.core.gkl.structuredKnowledge) || this.core.structuredKnowledge;
+            const ske = (this.core && this.core.gkl && this.core.gkl.structuredKnowledge) || (this.core && this.core.structuredKnowledge);
+            let result = null;
             if (ske) {
-                const result = msg.entityType === 'ITEM'
+                result = msg.entityType === 'ITEM'
                     ? ske.getItemKnowledge(msg.identifier, { translate: msg.translate !== false })
                     : ske.getMonsterKnowledge(msg.identifier, { translate: msg.translate !== false });
+            }
 
-                if (this.channel && this.isBroadcasting) {
-                    try {
-                        this.channel.postMessage({
-                            type: 'KNOWLEDGE_QUERY_RESULT',
-                            query: msg,
-                            result: result
-                        });
-                    } catch (e) {}
+            // ske で未検出の場合の静的ナレッジ (onum 検索等) フォールバック
+            if (!result && (msg.entityType === 'ITEM' || !msg.entityType)) {
+                let targetOnum = -1;
+                if (typeof msg.identifier === 'number') {
+                    targetOnum = msg.identifier;
+                } else if (typeof msg.identifier === 'string' && /^\d+$/.test(msg.identifier.trim())) {
+                    targetOnum = parseInt(msg.identifier.trim(), 10);
                 }
+                if (targetOnum >= 0 && OBJECT_KNOWLEDGE_MAP.has(targetOnum)) {
+                    result = OBJECT_KNOWLEDGE_MAP.get(targetOnum);
+                }
+            }
+
+            if (this.channel && this.isBroadcasting) {
+                try {
+                    this.channel.postMessage({
+                        type: 'KNOWLEDGE_QUERY_RESULT',
+                        query: msg,
+                        result: result
+                    });
+                } catch (e) {}
             }
         }
     }

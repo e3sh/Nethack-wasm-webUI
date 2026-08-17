@@ -621,6 +621,14 @@
                     <span class="tag-badge tag-ITEM">${item.category}</span>
                 </div>
 
+                ${item.defaultVerb ? `
+                    <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); padding:8px 12px; border-radius:6px; margin-bottom:10px; display:flex; gap:12px; align-items:center;">
+                        <span style="font-weight:bold; color:var(--accent-color); font-size:0.85rem;">⚡ Default Verb:</span>
+                        <span style="background:#22c55e; color:#000; font-weight:bold; font-size:0.75rem; padding:2px 8px; border-radius:4px;">${item.defaultVerb} (${item.verbKey || '-'})</span>
+                        <span style="color:#cbd5e1; font-size:0.85rem;">${item.actionLabelJa || '-'}</span>
+                    </div>
+                ` : ''}
+
                 ${item.effectSummary ? `
                     <div class="info-block">
                         <div class="section-title">✨ Primary Effect</div>

@@ -441,6 +441,7 @@ test('ContextActionEngine & WebUICore - 精査修正後の全アクション仕�
     };
     const core = new WebUICore({ driver: { on: () => {}, off: () => {} } });
     core.requestController = dummyController;
+    if (core.gkl) core.gkl.requestController = dummyController;
 
     core.executeAction(kickFountain);
     assert.deepStrictEqual(executedTokens, ['#', 'kick', 'DIR_SELF'], 'executeAction で keySequence が最優先実行されること');

@@ -5,13 +5,124 @@
  * Single Source of Truth: docs/5_gamedata/tilemappings.lst
  */
 
-import { getCategoryFromOnum } from './glyphClassifier.js';
+import { getCategoryFromOnum, getItemInfoFromOnum } from './glyphClassifier.js';
 import { OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
 
 export const OBJECT_KNOWLEDGE_MAP = new Map();
 
+/**
+ * onum および category, itemInfo, detail からデフォルト推奨操作動詞情報を判定する
+ * @param {number} onum 
+ * @param {string} category 
+ * @param {Object} itemInfo 
+ * @param {Object} [detail={}] 
+ * @returns {Object} { defaultVerb, verbKey, actionLabelJa, defaultActionLabel }
+ */
+export function getDefaultVerbForObject(onum, category, itemInfo = {}, detail = {}) {
+    // 🎯 個別アイテム辞書 (SPECIFIC_ITEM_DETAILS) でのオーバーライド指定を最優先
+    if (detail && detail.defaultVerb) {
+        return {
+            defaultVerb: detail.defaultVerb,
+            verbKey: detail.verbKey || 'a',
+            actionLabelJa: detail.actionLabelJa || `使う (${detail.verbKey || 'a'})`,
+            defaultActionLabel: detail.defaultActionLabel || 'Apply'
+        };
+    }
+
+    // 特殊アイテム個別判定
+    if (itemInfo.isAmmo) {
+        return { defaultVerb: 'quiver', verbKey: 'Q', actionLabelJa: '装填/矢筒 (Q)', defaultActionLabel: 'Quiver ammo' };
+    }
+    if (itemInfo.isCanOpener) {
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply can opener' };
+    }
+    if (itemInfo.isBox) {
+        return { defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)', defaultActionLabel: 'Drop container' };
+    }
+    if (itemInfo.isBag) {
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '中を見る/使う (a)', defaultActionLabel: 'Look inside bag' };
+    }
+    if (itemInfo.isTouchstone) {
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う/鑑定する (a)', defaultActionLabel: 'Apply touchstone' };
+    }
+    if (itemInfo.isGem || itemInfo.isRock) {
+        return { defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)', defaultActionLabel: 'Throw gem/rock' };
+    }
+    if (itemInfo.isTin) {
+        return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '開けて食べる (e)', defaultActionLabel: 'Eat tin' };
+    }
+    if (itemInfo.isDigWand) {
+        return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand' };
+    }
+
+    // カテゴリ別標準判定
+    switch (category) {
+        case 'WEAPON':
+            return { defaultVerb: 'wield', verbKey: 'w', actionLabelJa: '手に持つ (w)', defaultActionLabel: 'Wield weapon' };
+        case 'ARMOR':
+            return { defaultVerb: 'wear', verbKey: 'W', actionLabelJa: '着用する (W)', defaultActionLabel: 'Wear armor' };
+        case 'POTION':
+            return { defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', defaultActionLabel: 'Quaff potion' };
+        case 'SCROLL':
+            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', defaultActionLabel: 'Read scroll' };
+        case 'SPELLBOOK':
+            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)', defaultActionLabel: 'Read spellbook' };
+        case 'WAND':
+            return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand' };
+        case 'RING':
+            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: 'はめる (P)', defaultActionLabel: 'Put on ring' };
+        case 'AMULET':
+            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: '首にかける (P)', defaultActionLabel: 'Put on amulet' };
+        case 'FOOD':
+            return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', defaultActionLabel: 'Eat food' };
+        case 'TOOL':
+        case 'CONTAINER':
+            return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply tool' };
+        default:
+            return { defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)', defaultActionLabel: 'Inventory item' };
+    }
+}
+
+const goldDetail = { 
+    flavorNote: 'Gold coins used for dungeon commerce, donating at temples for divine protection (+AC), and purchasing items from shopkeepers.',
+    effectSummary: 'Universal dungeon currency. Donate to temple priests for permanent AC protection, or buy gear from shopkeepers.',
+    defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)',
+    usageAdvice: [
+        '店主からの装備品・消耗品の購入に使用します',
+        '寺院の僧侶(Priest)に十分な金貨を寄付すると、永久的なACボーナス(加護/Protection)を獲得できます',
+        '重量が増加するため、大金を持ち歩く際は袋(Bag)に入れるかダンジョン内に一時保管推奨'
+    ]
+};
+
 // 特徴的・重要アイテムの特定定義辞書 (onum 主軸による100%完全網羅)
 const SPECIFIC_ITEM_DETAILS = {
+    // 🪙 特殊・クエスト・通貨 (onum 0〜17, 436〜438)
+    "1": { 
+        flavorNote: 'The ultimate prize of the dungeon. Carrying it grants immense power but attracts severe divine wrath.',
+        effectSummary: 'NetHack\'s ultimate goal item. Carry to the Astral Plane to offer to your deity and ascend.',
+        defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)',
+        usageAdvice: ['Do not drop or lose track of the Amulet', 'Increases monster difficulty and magic energy drain while carried']
+    },
+    "2": { 
+        flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.',
+        effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.',
+        defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)'
+    },
+    "3": { 
+        flavorNote: 'Seven-pinnacled candelabrum used for the sacred Invocation Ritual.',
+        effectSummary: 'Attach 7 candles and apply with \'a\' to light during Invocation.',
+        defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '灯す/使う (a)'
+    },
+    "4": { 
+        flavorNote: 'The ancient papyrus spellbook required to perform the Invocation Ritual.',
+        effectSummary: 'Read with \'r\' at the vibrating square during the Invocation Ritual.',
+        defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)'
+    },
+    "12": goldDetail,
+    "436": goldDetail,
+    "437": goldDetail,
+    "438": goldDetail,
+
     // ⚔️ 武器 (WEAPON: onum 18〜88)
     "18": { stats: { sdam: '1d6', ldam: '1d6', hands: 1, material: 'wood', weight: 1 }, flavorNote: 'Standard ammo fired from bows.' },
     "19": { stats: { sdam: '1d7', ldam: '1d5', hands: 1, material: 'wood', weight: 1 }, flavorNote: 'Finely crafted elven arrow with higher accuracy.' },
@@ -231,6 +342,50 @@ const SPECIFIC_ITEM_DETAILS = {
     "242": { flavorNote: 'Magical marker used to write scrolls and spellbooks.' },
     "245": { flavorNote: 'Whistle to attract pets.' },
     "246": { flavorNote: 'Instantly teleports your pets to your side from anywhere on floor.' },
+    "260": { flavorNote: 'Iron grappling hook attached to a long rope.', effectSummary: 'Apply with \'a\' to climb across pits, scale walls, or pull distant items closer.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)' },
+    "261": { flavorNote: 'Sacred horn of a unicorn. Ultimate status restore tool.', effectSummary: 'Tool (`#apply`). Cures poison, illness, blindness, confusion, and stat loss.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', usageAdvice: ['Apply (`#apply`) immediately after stat drain or poison hit', 'Blessing increases success rate to 100%'] },
+    "262": { flavorNote: 'Seven-pinnacled candelabrum used for the sacred Invocation Ritual.', effectSummary: 'Attach 7 candles and apply with \'a\' to light during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '灯す/使う (a)' },
+    "263": { flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.', effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)' },
+
+    // 🍖 食料 (FOOD: onum 264〜296)
+    "264": { flavorNote: 'Raw monster meat corpse.', effectSummary: 'Eating monster corpses can grant intrinsics (Poison, Fire resistance), but rots quickly causing food poisoning.', usageAdvice: ['Eat fresh corpses immediately to gain intrinsic resistances', 'Do not eat old/tainted corpses unless immune to poison'] },
+    "274": { flavorNote: 'Lizard corpse.', effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', usageAdvice: ['CRITICAL: Always keep a lizard corpse in inventory to cure cockatrice stoning'] },
+    "286": { flavorNote: 'Standard dungeon rations. High nutrition value.', effectSummary: 'Basic food ration providing 800 nutrition points.' },
+    "287": { flavorNote: 'Military grade emergency food ration with high nutrition.', effectSummary: 'Provides 900 nutrition points.' },
+    "288": { flavorNote: 'Elven bread ration.', effectSummary: 'Provides 800 nutrition points.' },
+    "296": { flavorNote: 'Hard metal tin containing preserved meat.', effectSummary: 'Requires a can opener or axe to open. Tins never rot.' },
+
+    // 🧪 ポーション (POTION: onum 297〜322)
+    "322": { flavorNote: 'Clear pure water. Can be converted to Holy Water or Unholy Water on altars.', effectSummary: 'Dip items into Holy Water to bless them, or pray on altars with uncursed water.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Drop on coaligned altar to convert to Holy Water (blessed potion of water)'] },
+    "315": { flavorNote: 'Restores HP and cures blindness.', effectSummary: 'Restores 10-30 HP. Blessed restores more HP.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
+    "298": { flavorNote: 'Potion of paralysis.', effectSummary: 'Paralyzes drinker for 20-40 turns. Dangerous when drunk!', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Do not drink! Throw at tough monsters to freeze them'] },
+    "297": { flavorNote: 'Potion of confusion.', effectSummary: 'Causes confusion.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
+    "309": { flavorNote: 'Potion of speed / gain level.', effectSummary: 'Quaffing blessed advances player level by 1.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
+
+    // 📜 巻物 (SCROLL: onum 323〜365)
+    "336": { flavorNote: 'Scroll of Identify.', effectSummary: 'Identifies unknown items in inventory. Blessed identifies multiple items.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to identify entire inventory at once'] },
+    "327": { flavorNote: 'Scroll of Remove Curse.', effectSummary: 'Uncurses cursed items in inventory or equipped gear.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Blessed uncurses all carried items; uncursed removes curse from equipped items only'] },
+    "328": { flavorNote: 'Scroll of Enchant Weapon.', effectSummary: 'Increases weapon attack/damage bonus by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
+    "323": { flavorNote: 'Scroll of Enchant Armor.', effectSummary: 'Increases armor defense AC by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
+    "342": { flavorNote: 'Scroll of Charging.', effectSummary: 'Recharges magic wands or magic markers.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to recharge wands to maximum charges'] },
+    "331": { flavorNote: 'Scroll of Genocide.', effectSummary: 'Wipes out an entire species of monsters from the dungeon!', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Genocide lethal species like cockatrices, mind flayers, or liches'] },
+    "337": { flavorNote: 'Scroll of Magic Mapping.', effectSummary: 'Reveals the entire floor layout including secret corridors.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
+
+    // 📖 魔導書 (SPELLBOOK: onum 357〜398)
+    "357": { flavorNote: 'Blank spellbook with no spell.', effectSummary: 'Can be written on using magic marker.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "358": { flavorNote: 'Spellbook of Force Bolt.', effectSummary: 'Teaches Force Bolt spell (Level 1 Attack).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "359": { flavorNote: 'Spellbook of Healing.', effectSummary: 'Teaches Healing spell (Level 1 Healing).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "360": { flavorNote: 'Spellbook of Magic Missile.', effectSummary: 'Teaches Magic Missile spell (Level 2 Attack).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "361": { flavorNote: 'Spellbook of Cure Sickness.', effectSummary: 'Teaches Cure Sickness spell (Level 3 Healing).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "362": { flavorNote: 'Spellbook of Identify.', effectSummary: 'Teaches Identify spell (Level 3 Divination).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+    "363": { flavorNote: 'Spellbook of Finger of Death.', effectSummary: 'Teaches Finger of Death spell (Level 7 Attack). Lethal instantaneous ray!', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)' },
+
+    // 💎 宝石・ガラス (GEM: onum 439〜469)
+    "439": { flavorNote: 'Valuable red ruby gem.', effectSummary: 'Hardness 9. High trade value in shops.', defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)' },
+    "440": { flavorNote: 'Precious diamond gem.', effectSummary: 'Hardness 10. Highest value gem in dungeon. Can engrave glass/mirrors.', defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)' },
+    "441": { flavorNote: 'Precious green emerald gem.', effectSummary: 'Hardness 9. High trade value.', defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)' },
+    "442": { flavorNote: 'Precious blue sapphire gem.', effectSummary: 'Hardness 9. High trade value.', defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)' },
+    "443": { flavorNote: 'Cheap worthless piece of colored glass.', effectSummary: 'Hardness 6. Low value. Can be identified using a touchstone.', defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)' },
     "250": { flavorNote: 'Horn emitting freezing ice breath.' },
     "251": { flavorNote: 'Horn emitting fierce fire breath.' },
     "252": { flavorNote: 'Magic horn producing food or potions.' },
@@ -277,10 +432,24 @@ export function initFullObjectKnowledge() {
 
         let flavorNote = detail.flavorNote || null;
         if (!flavorNote) {
-            flavorNote = `${category} item for dungeon exploration.`;
+            switch (category) {
+                case 'POTION': flavorNote = 'Alchemical liquid contained in a glass bottle. Drink or dip items.'; break;
+                case 'SCROLL': flavorNote = 'Parchment inscribed with magical runes. Read to cast one-time magic.'; break;
+                case 'SPELLBOOK': flavorNote = 'Tome containing arcane knowledge. Read to memorize spells.'; break;
+                case 'FOOD': flavorNote = 'Edible item providing nutrition to stave off starvation.'; break;
+                case 'GEM': flavorNote = 'Precious gemstone or colored glass. Can be traded or thrown.'; break;
+                case 'RING': flavorNote = 'Magical ring granting passive intrinsic powers when worn.'; break;
+                case 'AMULET': flavorNote = 'Sacred amulet worn around the neck granting divine protections.'; break;
+                case 'WAND': flavorNote = 'Magical rod emitting magical rays when zapped.'; break;
+                case 'TOOL': flavorNote = 'Dungeon utility tool essential for survival.'; break;
+                default: flavorNote = `${category} item useful for dungeon exploration.`; break;
+            }
         }
 
-        const effectSummary = detail.effectSummary || detail.flavorNote || `${category} item for dungeon survival.`;
+        const effectSummary = detail.effectSummary || detail.flavorNote || flavorNote;
+
+        const itemInfo = getItemInfoFromOnum(i);
+        const verbInfo = getDefaultVerbForObject(i, category, itemInfo, detail);
 
         const entry = {
             id: `item_onum_${i}`,
@@ -290,6 +459,10 @@ export function initFullObjectKnowledge() {
             stats: stats,
             effectSummary: effectSummary,
             flavorNote: flavorNote,
+            defaultVerb: verbInfo.defaultVerb,
+            verbKey: verbInfo.verbKey,
+            actionLabelJa: verbInfo.actionLabelJa,
+            defaultActionLabel: verbInfo.defaultActionLabel,
             unidentifiedTips: detail.unidentifiedTips || [],
             usageAdvice: detail.usageAdvice || []
         };

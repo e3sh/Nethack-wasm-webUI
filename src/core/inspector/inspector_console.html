@@ -263,6 +263,7 @@
     <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 GKL State Tree</button>
         <button class="tab-btn" onclick="switchTab('tabActions')">⚡ Context Actions</button>
+        <button class="tab-btn" onclick="switchTab('tabFlags')">📦 Knowledge & Flags</button>
         <button class="tab-btn" onclick="switchTab('tabLogs')">📜 Event Stream</button>
         <button class="tab-btn" onclick="switchTab('tabInjector')">🎯 Direct Injector</button>
     </div>
@@ -287,7 +288,28 @@
             </div>
         </div>
 
-        <!-- Tab 3: Live Event Stream -->
+        <!-- Tab 3: Knowledge & Inventory Flags Inspector -->
+        <div id="tabFlags" class="tab-content">
+            <div style="margin-bottom: 12px; color: #a6adc8;">
+                ナレッジデータ (OBJECT_KNOWLEDGE_FULL) および所持品の分類フラグ・推奨操作動詞 (defaultVerb) のリアルタイム/単体インスペクター：
+            </div>
+
+            <!-- スタンドアロン クエリツール -->
+            <div class="toolbar" style="margin-bottom: 16px; background: #181825; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <span style="font-weight: bold; color: var(--accent-color); font-size: 13px;">🔍 ナレッジ検索 (onum / 名称):</span>
+                <input type="text" id="knowledgeQueryInput" placeholder="Enter onum (0..480), e.g., 259, 297, or name..." style="flex:1; padding: 6px 10px; background: #11111b; border: 1px solid var(--border-color); color: white; border-radius: 4px;" onkeypress="if(event.key==='Enter') queryKnowledge()">
+                <button class="btn btn-primary" onclick="queryKnowledge()">Query Knowledge</button>
+            </div>
+
+            <div id="queryResultContainer" style="margin-bottom: 16px; display: none;"></div>
+
+            <h3 style="color: var(--accent-color); font-size: 13px; margin-bottom: 8px;">🎒 リアルタイム所持品 & ナレッジ統合フラグ一覧</h3>
+            <div id="flagsGrid" class="action-grid">
+                <div style="color: #6c7086;">所持品ナレッジ・フラグデータをロード中...</div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Live Event Stream -->
         <div id="tabLogs" class="tab-content">
             <div class="toolbar">
                 <input type="text" id="filterInput" placeholder="Filter logs (e.g. inputRequired, message)...">
@@ -302,7 +324,7 @@
             </div>
         </div>
 
-        <!-- Tab 4: Direct Injector -->
+        <!-- Tab 5: Direct Injector -->
         <div id="tabInjector" class="tab-content">
             <div class="injector-panel">
                 <h3 style="color: var(--accent-color); font-size: 14px;">Direct Resolver Response Injector</h3>
@@ -334,11 +356,12 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+            if (btn) btn.classList.add('active');
 
-            if (event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
-            document.getElementById(tabId).classList.add('active');
+            const content = document.getElementById(tabId);
+            if (content) content.classList.add('active');
         }
 
         channel.onmessage = (event) => {
@@ -350,6 +373,9 @@
             } else if (type === 'INSPECTOR_STATE_SNAPSHOT' && snapshot) {
                 lastSnapshot = snapshot;
                 renderStateSnapshot(snapshot);
+                renderKnowledgeFlags(snapshot);
+            } else if (type === 'KNOWLEDGE_QUERY_RESULT') {
+                renderQueryResult(event.data);
             }
         };
 
@@ -431,6 +457,103 @@
             } else {
                 actionGrid.innerHTML = `<div style="color:#6c7086;">現在提案中のコンテキストアクションはありません</div>`;
             }
+        }
+
+        function renderKnowledgeFlags(s) {
+            const flagsGrid = document.getElementById('flagsGrid');
+            if (!flagsGrid) return;
+
+            let items = [];
+            if (Array.isArray(s.inventoryItems) && s.inventoryItems.length > 0) {
+                items = s.inventoryItems;
+            } else if (s.situation && s.situation.inventory && Array.isArray(s.situation.inventory.items)) {
+                items = s.situation.inventory.items;
+            }
+
+            if (items.length === 0) {
+                flagsGrid.innerHTML = `<div style="color:#6c7086;">同期済みの所持品アイテムはありません</div>`;
+                return;
+            }
+
+            flagsGrid.innerHTML = items.map(item => {
+                const letter = item.letter || '?';
+                const rawText = item.rawText || item.str || item.name || 'Unknown item';
+                const onum = typeof item.onum === 'number' ? item.onum : -1;
+                const k = item.knowledge || {};
+
+                const defaultVerb = item.defaultVerb || k.defaultVerb || '-';
+                const verbKey = item.defaultVerbKey || item.verbKey || k.verbKey || item.verb || '-';
+                const actionLabelJa = item.defaultActionLabelJa || item.actionLabelJa || k.actionLabelJa || '-';
+                const itemCategory = item.itemCategory || k.category || item.onumCategory || 'OTHER';
+
+                const flagNames = [
+                    'isPickAxe', 'isDigWand', 'isDigTool', 'isKey', 'isAxe', 'isFrostWand',
+                    'isAmmo', 'isLauncher', 'isCanOpener', 'isTin', 'isBox', 'isBag',
+                    'isTouchstone', 'isGem', 'isRock'
+                ];
+                const activeFlags = flagNames.filter(f => item[f] === true || k[f] === true);
+
+                const equipStates = [];
+                if (item.isWielded) equipStates.push('Wielded');
+                if (item.isOffhand) equipStates.push('Offhand');
+                if (item.isQuivered) equipStates.push('Quivered');
+                if (item.isWorn) equipStates.push(`Worn (${item.equipSlot || 'armor'})`);
+
+                return `
+                    <div class="action-card" style="border-left: 4px solid var(--accent-color);">
+                        <div class="action-card-header">
+                            <span class="action-title">[${letter}] ${rawText}</span>
+                            <span class="action-key" style="background:#313244; color:#a6e3a1; font-weight:bold;">${actionLabelJa}</span>
+                        </div>
+                        <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px;">
+                            <span style="background:#45475a; color:#cdd6f4; padding:2px 6px; border-radius:3px;">Category: ${itemCategory} (onum: ${onum})</span>
+                            <span style="background:#2d384c; color:#89b4fa; padding:2px 6px; border-radius:3px; font-weight:bold;">defaultVerb: ${defaultVerb} (${verbKey})</span>
+                            ${equipStates.map(eq => `<span style="background:#585b70; color:#f9e2af; padding:2px 6px; border-radius:3px;">${eq}</span>`).join('')}
+                            ${activeFlags.map(flg => `<span style="background:#313244; color:#f5c2e7; padding:2px 6px; border-radius:3px;">flag: ${flg}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function queryKnowledge() {
+            const input = document.getElementById('knowledgeQueryInput');
+            if (!input || !input.value.trim()) return;
+            const queryVal = input.value.trim();
+            const identifier = /^\d+$/.test(queryVal) ? parseInt(queryVal, 10) : queryVal;
+
+            channel.postMessage({
+                type: 'QUERY_KNOWLEDGE',
+                entityType: 'ITEM',
+                identifier: identifier
+            });
+        }
+
+        function renderQueryResult(data) {
+            const container = document.getElementById('queryResultContainer');
+            if (!container) return;
+            container.style.display = 'block';
+
+            if (!data || !data.result) {
+                container.innerHTML = `<div style="background:#313244; color:#f38ba8; padding:10px; border-radius:6px;">ナレッジが見つかりませんでした: ${JSON.stringify(data.query ? data.query.identifier : '')}</div>`;
+                return;
+            }
+
+            const res = data.result;
+            container.innerHTML = `
+                <div style="background:#181825; border:1px solid var(--accent-color); padding:12px; border-radius:6px;">
+                    <div style="font-weight:bold; color:var(--accent-color); font-size:14px;">🔍 ナレッジ検索結果: [onum: ${res.onum !== undefined ? res.onum : '-'}] ${res.name || 'Item'}</div>
+                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px;">
+                        <span style="background:#2d384c; color:#89b4fa; padding:2px 8px; border-radius:4px; font-weight:bold;">defaultVerb: ${res.defaultVerb || '-'} (${res.verbKey || '-'})</span>
+                        <span style="background:#313244; color:#a6e3a1; padding:2px 8px; border-radius:4px;">actionLabelJa: ${res.actionLabelJa || '-'}</span>
+                        <span style="background:#45475a; color:#cdd6f4; padding:2px 8px; border-radius:4px;">Category: ${res.category || '-'}</span>
+                    </div>
+                    <div style="margin-top:8px; font-size:12px; color:#a6adc8;">
+                        <div><strong>Effect Summary:</strong> ${res.effectSummary || '-'}</div>
+                        <div><strong>Flavor Note:</strong> ${res.flavorNote || '-'}</div>
+                    </div>
+                </div>
+            `;
         }
 
         // 折りたたみ式 JSON Tree 生成関数

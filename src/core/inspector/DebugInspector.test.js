@@ -74,4 +74,23 @@ describe('DebugInspector', () => {
 
         expect(core.sendAction).toHaveBeenCalledWith('WAIT');
     });
+
+    it('QUERY_KNOWLEDGE メッセージを処理して defaultVerb を含むナレッジを postMessage 配信すること', () => {
+        const core = createMockCore();
+        const inspector = new DebugInspector(core, { autoStart: false });
+        let postedMsg = null;
+        inspector.channel = { postMessage: (msg) => { postedMsg = msg; } };
+        inspector.isBroadcasting = true;
+
+        inspector._handleConsoleMessage({
+            data: { type: 'QUERY_KNOWLEDGE', entityType: 'ITEM', identifier: 259 }
+        });
+
+        expect(postedMsg).toBeDefined();
+        expect(postedMsg.type).toBe('KNOWLEDGE_QUERY_RESULT');
+        expect(postedMsg.result).toBeDefined();
+        expect(postedMsg.result.onum).toBe(259);
+        expect(postedMsg.result.defaultVerb).toBe('apply');
+        expect(postedMsg.result.verbKey).toBe('a');
+    });
 });

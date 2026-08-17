@@ -149,7 +149,7 @@ export function classifyGlyph(glyphId) {
     // 3448〜3928: Objects (アイテム)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
         const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_OFF;
-        const isContainer = (objOffset >= 168 && objOffset <= 174);
+        const isContainer = (objOffset >= 214 && objOffset <= 220);
         return {
             type: ENTITY_TYPES.ITEM,
             subType: objOffset,
@@ -248,7 +248,7 @@ export function getItemInfoFromOnum(onum) {
         category = 'SPELLBOOK';
     } else if (onum === 11 || (onum >= 410 && onum <= 437)) {
         category = 'WAND';
-    } else if (onum === 12 || onum === 438) {
+    } else if (onum === 12 || (onum >= 436 && onum <= 438)) {
         category = 'COIN';
     } else if (onum === 13 || (onum >= 439 && onum <= 469)) {
         category = 'GEM';

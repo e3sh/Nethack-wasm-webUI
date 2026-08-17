@@ -65,20 +65,21 @@ def extract_strings_from_file(file_path):
     extracted = []
 
     for key in TARGET_KEYS:
-        # パターン1: key: '...' または key: "..."
-        pattern_single = re.compile(rf'{key}\s*:\s*(["\'])(.*?)\1', re.DOTALL)
-        for match in pattern_single.finditer(content):
-            val = match.group(2).strip()
-            val = val.replace("\\'", "'").replace('\\"', '"')
+        # パターン1: single quote or double quote with proper escape handling
+        pattern = re.compile(rf"{key}\s*:\s*(?:'((?:\\'|[^'])*)'|\"((?:\\\"|[^\"])*)\")", re.DOTALL)
+        for match in pattern.finditer(content):
+            val = match.group(1) if match.group(1) is not None else match.group(2)
+            val = val.strip().replace("\\'", "'").replace('\\"', '"')
             if val and is_primarily_english(val):
                 extracted.append((key, val))
 
-        # パターン2: key: [ '...', "..." ] (配列形式)
+        # パターン2: key: [ ... ] 配列形式
         pattern_array = re.compile(rf'{key}\s*:\s*\[\s*(.*?)\s*\]', re.DOTALL)
         for match in pattern_array.finditer(content):
             arr_content = match.group(1)
-            str_matches = re.findall(r'(["\'])(.*?)\1', arr_content, re.DOTALL)
-            for _, val in str_matches:
+            str_matches = re.finditer(r"(?:'((?:\\'|[^'])*)'|\"((?:\\\"|[^\"])*)\")", arr_content, re.DOTALL)
+            for m in str_matches:
+                val = m.group(1) if m.group(1) is not None else m.group(2)
                 val = val.strip().replace("\\'", "'").replace('\\"', '"')
                 if val and is_primarily_english(val):
                     extracted.append((key, val))

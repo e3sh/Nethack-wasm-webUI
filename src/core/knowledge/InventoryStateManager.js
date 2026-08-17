@@ -6,6 +6,7 @@
  */
 
 import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemInfoFromOnum } from './glyphClassifier.js';
+import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 
 export class InventoryStateManager {
     constructor(options = {}) {
@@ -79,6 +80,9 @@ export class InventoryStateManager {
                                     this.structuredKnowledgeEngine.getKnowledge(onum >= 0 ? onum : rawText, { translate: true });
                     }
                 }
+                if (!knowledge && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+                    knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
+                }
 
                 parsedItems.push({
                     letter,
@@ -100,7 +104,8 @@ export class InventoryStateManager {
                     item,
                     item,
                     item.letter,
-                    parsedItems
+                    parsedItems,
+                    item
                 );
                 Object.assign(item, defaultAction);
             });
@@ -293,61 +298,62 @@ export class InventoryStateManager {
             isRock = info.isRock;
         }
 
-        // 【層2】テキストパース（onum が判定不能な場合のフォールバック）
-        if (onum < 0) {
-            const cleanText = this.cleanItemText(rawText);
+        // 【層2】テキストパース（onum で未特定または不一致のフォールバック）
+        const cleanText = this.cleanItemText(rawText);
 
-            if (/\bcan opener\b/i.test(cleanText) || /缶切り/.test(cleanText)) {
-                isCanOpener = true;
-            }
-            if (/\b(tin|tins)\b/i.test(cleanText) || /缶詰/.test(cleanText)) {
-                isTin = true;
-            }
-            if (/\b(large box|chest|box)\b/i.test(cleanText) && !/chestplate/i.test(cleanText) || /(大箱|箱|チェスト)/.test(cleanText)) {
-                isBox = true;
-            }
-            if (/\b(sack|bag of holding|oilskin sack|bag|bags)\b/i.test(cleanText) || /(袋|バックパック)/.test(cleanText)) {
-                isBag = true;
-            }
-            if (/\b(touchstone|whetstone)\b/i.test(cleanText) || /(タッチストーン|砥石)/.test(cleanText)) {
-                isTouchstone = true;
-            }
-            if (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText)) {
-                isGem = true;
-            }
-            if (/\b(rock|rocks|flint)\b/i.test(cleanText) || /(岩|石|火打ち石)/.test(cleanText)) {
-                isRock = true;
-            }
+        if (!isCanOpener && (/\bcan opener\b/i.test(cleanText) || /缶切り/.test(cleanText))) {
+            isCanOpener = true;
+        }
+        if (!isTin && (/\b(tin|tins)\b/i.test(cleanText) || /缶詰/.test(cleanText))) {
+            isTin = true;
+        }
+        if (!isBox && (/\b(large box|chest|box)\b/i.test(cleanText) && !/chestplate/i.test(cleanText) || /(大箱|箱|チェスト)/.test(cleanText))) {
+            isBox = true;
+        }
+        if (!isBag && (/\b(sack|bag of holding|oilskin sack|bag|bags)\b/i.test(cleanText) || /(袋|バックパック)/.test(cleanText))) {
+            isBag = true;
+        }
+        if (!isTouchstone && (/\b(touchstone|whetstone)\b/i.test(cleanText) || /(タッチストーン|砥石)/.test(cleanText))) {
+            isTouchstone = true;
+        }
+        if (!isGem && !/ring|amulet|鎧|指輪|魔よけ/i.test(cleanText) && (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText))) {
+            isGem = true;
+        }
+        if (onumCategory === 'RING' || onumCategory === 'AMULET' || /ring|amulet|指輪|魔よけ/i.test(cleanText)) {
+            isGem = false;
+        }
+        if (!isRock && (/\b(rock|rocks|flint)\b/i.test(cleanText) || /(岩|石|火打ち石)/.test(cleanText))) {
+            isRock = true;
+        }
 
-            if (!isAmmo && !isLauncher) {
-                if (/\b(arrow|arrows|bolt|bolts|dart|darts|shuriken|shurikens|boomerang|boomerangs|javelin|javelins|flint|rock|rocks)\b/i.test(cleanText) || /(矢|ボルト|ダーツ|手裏剣|ブーメラン|ジャベリン|火打ち石|岩|石)/.test(cleanText)) {
-                    isAmmo = true;
-                } else if (/\b(bow|bows|yumi|sling|slings|crossbow|crossbows)\b/i.test(cleanText) || /(弓|スリング|投石器|クロスボウ)/.test(cleanText)) {
-                    isLauncher = true;
-                }
+        if (!isAmmo && !isLauncher) {
+            if (/\b(arrow|arrows|bolt|bolts|dart|darts|shuriken|shurikens|boomerang|boomerangs|javelin|javelins|flint|rock|rocks)\b/i.test(cleanText) || /(矢|ボルト|ダーツ|手裏剣|ブーメラン|ジャベリン|火打ち石|岩|石)/.test(cleanText)) {
+                isAmmo = true;
+            } else if (/\b(bow|bows|yumi|sling|slings|crossbow|crossbows)\b/i.test(cleanText) || /(弓|スリング|投石器|クロスボウ)/.test(cleanText)) {
+                isLauncher = true;
             }
+        }
 
-            if (!isPickAxe && !isDigWand) {
-                if (/\b(wand of digging)\b/i.test(cleanText) || /採掘の杖/.test(cleanText)) {
-                    isDigWand = true;
-                } else if (/\b(pick-axe|dwarvish mattock)\b/i.test(cleanText) || /(つるはし|ドワーフのマトック)/.test(cleanText)) {
-                    isPickAxe = true;
-                }
+        if (!isPickAxe && !isDigWand) {
+            if (/\b(wand of digging)\b/i.test(cleanText) || /採掘の杖/.test(cleanText)) {
+                isDigWand = true;
+            } else if (/\b(pick-axe|dwarvish mattock)\b/i.test(cleanText) || /(つるはし|ドワーフのマトック)/.test(cleanText)) {
+                isPickAxe = true;
             }
+        }
 
-            if (!isKey) {
-                isKey = /\b(skeleton key|lock\s*pick|lockpick|lock-pick|credit card|\b\w+\s+key|keys?)\b/i.test(cleanText) ||
-                        /(鍵|合鍵|ロックピック|クレジットカード)/.test(cleanText);
-            }
+        if (!isKey) {
+            isKey = /\b(skeleton key|lock\s*pick|lockpick|lock-pick|credit card|\b\w+\s+key|keys?)\b/i.test(cleanText) ||
+                    /(鍵|合鍵|ロックピック|クレジットカード)/.test(cleanText);
+        }
 
-            if (!isAxe && !isPickAxe) {
-                isAxe = (/(^|[\s])(axe|battle-axe)($|[\s])/i.test(cleanText) || /(斧|戦斧)/.test(cleanText)) && !/pick-axe/i.test(cleanText);
-            }
+        if (!isAxe && !isPickAxe) {
+            isAxe = (/(^|[\s])(axe|battle-axe)($|[\s])/i.test(cleanText) || /(斧|戦斧)/.test(cleanText)) && !/pick-axe/i.test(cleanText);
+        }
 
-            if (!isFrostWand) {
-                isFrostWand = /\bwand of frost\b/i.test(cleanText) ||
-                              /氷の杖/.test(cleanText);
-            }
+        if (!isFrostWand) {
+            isFrostWand = /\bwand of frost\b/i.test(cleanText) ||
+                          /氷の杖/.test(cleanText);
         }
 
         // 発動コマンドキー (verb) の付与
@@ -393,19 +399,30 @@ export class InventoryStateManager {
      * @param {Object} equipState 
      * @param {string} [letter=''] 
      * @param {Array<Object>} [allItems=[]]
+     * @param {Object} [itemObj=null]
      * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, itemCategory, alternativeActions }
      */
-    determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '', allItems = []) {
+    determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '', allItems = [], itemObj = null) {
         const cleanText = this.cleanItemText(rawText);
         const { isWielded, isOffhand, isQuivered, isWorn, equipSlot } = equipState;
         const { onumCategory = 'OTHER' } = categoryFlags;
         const itemList = Array.isArray(allItems) && allItems.length > 0 ? allItems : (Array.isArray(this.items) ? this.items : []);
 
+        // itemObj / categoryFlags から knowledge または onum を解明
+        let knowledge = (itemObj && itemObj.knowledge) || categoryFlags.knowledge || null;
+        const onum = (itemObj && typeof itemObj.onum === 'number' && itemObj.onum >= 0)
+            ? itemObj.onum
+            : (typeof categoryFlags.onum === 'number' && categoryFlags.onum >= 0 ? categoryFlags.onum : -1);
+
+        if (!knowledge && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+            knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
+        }
+
         let defaultVerb = null;
         let defaultSequence = letter ? [letter] : [];
         let defaultActionLabel = 'Select';
         let defaultActionLabelJa = '選択';
-        let itemCategory = onumCategory !== 'OTHER' ? onumCategory : 'OTHER';
+        let itemCategory = (knowledge && knowledge.category) ? knowledge.category : (onumCategory !== 'OTHER' ? onumCategory : 'OTHER');
         let alternativeActions = [];
 
         // ヘルパー: 標準選択肢の組み立て
@@ -416,7 +433,7 @@ export class InventoryStateManager {
             isDefault
         });
 
-        // 1. 既に装備・着用・装填中のアイテムの解除アクション優先
+        // 1. 既に装備・着用・装填中のアイテムの解除アクション優先 (動的状態判定)
         if (isWielded || isOffhand) {
             defaultVerb = 'w';
             defaultSequence = ['w', '-'];
@@ -461,9 +478,10 @@ export class InventoryStateManager {
             }
         } else {
             // 2. 缶切り (Can Opener) のスマート判定 (所持品に缶詰 Tin があればスマートシーケンス 'a' + letter + tinLetter)
-            if (categoryFlags.isCanOpener || /can opener|缶切り/i.test(cleanText)) {
+            const isCanOpener = categoryFlags.isCanOpener || (knowledge && (knowledge.isCanOpener || knowledge.onum === 239)) || /can opener|缶切り/i.test(cleanText);
+            if (isCanOpener) {
                 itemCategory = 'TOOL';
-                const tinItem = itemList.find(i => i.letter && i.letter !== letter && (i.isTin || /tin|缶詰/i.test(i.rawText || '')));
+                const tinItem = itemList.find(i => i.letter && i.letter !== letter && (i.isTin || (i.knowledge && (i.knowledge.isTin || i.knowledge.onum === 263 || i.knowledge.onum === 296)) || /tin|缶詰/i.test(i.rawText || '')));
                 if (tinItem && letter) {
                     defaultVerb = 'a';
                     defaultSequence = ['a', letter, tinItem.letter];
@@ -471,22 +489,69 @@ export class InventoryStateManager {
                     defaultActionLabelJa = `缶詰を開ける (a ➔ ${tinItem.letter})`;
                     alternativeActions = [
                         makeAlt('a', defaultSequence, `缶詰を開ける (a ➔ ${tinItem.letter})`, true),
-                        makeAlt('w', ['w', letter], '手に持つ (w)'),
+                        makeAlt('a', ['a', letter], '使う (a)'),
                         makeAlt('d', ['d', letter], '置く/落とす (d)')
                     ];
                 } else {
-                    defaultVerb = 'w';
-                    defaultSequence = letter ? ['w', letter] : ['w'];
-                    defaultActionLabel = 'Wield can opener';
-                    defaultActionLabelJa = '手に持つ (w)';
+                    defaultVerb = 'a';
+                    defaultSequence = letter ? ['a', letter] : ['a'];
+                    defaultActionLabel = 'Apply can opener';
+                    defaultActionLabelJa = '使う (a)';
                     alternativeActions = [
-                        makeAlt('w', defaultSequence, '手に持つ (w)', true),
-                        letter ? makeAlt('a', ['a', letter], '使う (a)') : null,
+                        makeAlt('a', defaultSequence, '使う (a)', true),
+                        letter ? makeAlt('w', ['w', letter], '手に持つ (w)') : null,
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                     ].filter(Boolean);
                 }
             }
-            // 3. 箱・チェスト (Box / Chest) の重量軽減優先判定 (推奨: d 落とす)
+            // 3. 指輪 (RING) の左右装着キー構築
+            else if (itemCategory === 'RING' || (knowledge && (knowledge.category === 'RING' || knowledge.defaultVerb === 'put_on' && knowledge.category !== 'AMULET'))) {
+                defaultVerb = 'P';
+                const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
+                const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
+                let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
+                defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
+                defaultActionLabel = 'Put on ring';
+                defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+                itemCategory = 'RING';
+                alternativeActions = [
+                    makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean);
+            }
+            // 4. ナレッジデータ駆動 (Single Source of Truth 参照)
+            else if (knowledge && knowledge.defaultVerb) {
+                const verbKeyMap = {
+                    wield: 'w',
+                    wear: 'W',
+                    quaff: 'q',
+                    read: 'r',
+                    zap: 'z',
+                    apply: 'a',
+                    quiver: 'Q',
+                    put_on: 'P',
+                    eat: 'e',
+                    throw: 't',
+                    drop: 'd',
+                    inventory: 'i'
+                };
+                const verbKey = knowledge.verbKey || verbKeyMap[knowledge.defaultVerb] || 'a';
+                defaultVerb = verbKey;
+                defaultSequence = letter ? [verbKey, letter] : [verbKey];
+                defaultActionLabel = knowledge.defaultActionLabel || 'Action';
+                defaultActionLabelJa = knowledge.actionLabelJa || '選択';
+                itemCategory = knowledge.category || onumCategory;
+
+                const alts = [makeAlt(verbKey, defaultSequence, defaultActionLabelJa, true)];
+                if (letter && verbKey !== 'd') {
+                    alts.push(makeAlt('d', ['d', letter], '置く/落とす (d)'));
+                }
+                if (letter && verbKey !== 't' && (itemCategory === 'WEAPON' || itemCategory === 'GEM')) {
+                    alts.push(makeAlt('t', ['t', letter], '投げる (t)'));
+                }
+                alternativeActions = alts;
+            }
+            // 5. 箱・チェスト (Box / Chest) の重量軽減優先判定 (推奨: d 落とす)
             else if ((categoryFlags.isBox || /\b(large box|chest|box)\b/i.test(cleanText) || /(大箱|箱|チェスト)/.test(cleanText)) && !/chestplate/i.test(cleanText)) {
                 defaultVerb = 'd';
                 defaultSequence = letter ? ['d', letter] : ['d'];
