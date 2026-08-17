@@ -1297,11 +1297,8 @@ export class WebUICore {
                 guiInput: guiData
             };
 
-            const isSilentSequence = this.driver.sequenceOptions && this.driver.sequenceOptions.suppressPrompts;
-            if (!isSilentSequence) {
-                this.renderer.showPrompt(passThroughPayload);
-                this.emit('inputRequired', passThroughPayload);
-            }
+            this.renderer.showPrompt(passThroughPayload);
+            this.emit('inputRequired', passThroughPayload);
         });
 
         // inputResolved
