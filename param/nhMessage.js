@@ -1533,6 +1533,7 @@
         { en: "You hear clanking from the pipes...", jp: "パイプからガチャンという音が聞こえる..." },
         { en: "You shudder for a moment.", jp: "一瞬、身震いする。" },
         { en: "You hear maniacal laughter in the distance.", jp: "遠くで狂った笑い声が聞こえる。" },
+        { en: "You hear maniacal laughter close by.", jp: "すぐ近くで、狂気じみた笑い声が聞こえてくる。" },
         { en: "Put this amulet on", jp: "この護符を身につける" },
         { en: "The water is contaminated!", jp: "水が汚染されている！" },
         { en: "You are suddenly moving much faster.", jp: "突然、動きがずっと速くなった。" },
@@ -9848,6 +9849,7 @@
         { en: "don't know any spells right now.", jp: "今は呪文を何も知りません。" },
         { en: "don't know that spell.", jp: "その呪文を知りません。" },
         { en: "skin feels warm for a moment.", jp: "皮膚が一瞬暖かく感じます。" },
+        { en: "Your knowledge of this spell is twisted.", jp: "この呪文に関するあなたの知識は歪められています。" },
         { en: "knowledge of this spell is twisted.", jp: "この呪文に関する知識は歪んでいます。" },
         { en: "It invokes nightmarish images in your mind...", jp: "それはあなたの心の中に悪夢のようなイメージを呼び起こします..." },
         { en: "strain to recall the spell.", jp: "緊張して呪文を思い出してください。" },
@@ -10794,7 +10796,8 @@
         { en: "ELF_IRON", jp: "エルフの鉄装備" },
         { en: "FLY", jp: "飛行中" },
         { en: "FOODPOIS", jp: "食中毒" },
-        { en: "GLOWHANDS,光る手,,\nMessage,GRAB\"", jp: "何かを掴んでいる" },
+        { en: "GLOWHANDS", jp: "光る手" },
+        { en: "GRAB", jp: "何かを掴んでいる" },
         { en: "HALLU", jp: "幻覚状態" },
         { en: "HELD", jp: "拘束状態" },
         { en: "ICY", jp: "凍結状態" },
@@ -10813,7 +10816,8 @@
         { en: "TETHERED", jp: "拘束（繋がれている）" },
         { en: "TRAPPED", jp: "罠にかかった" },
         { en: "UNCONSC", jp: "意識不明" },
-        { en: "WOUNDEDL,脚の負傷,,\nMessage,HOLDING\"", jp: "何かを持っている" },
+        { en: "WOUNDEDL", jp: "脚の負傷" },
+        { en: "HOLDING", jp: "何かを持っている" },
         { en: "You are being punished for your misbehavior!", jp: "君は、その悪行のせいで罰を受けている！" },
         { en: " You are chained to a heavy iron ball.", jp: "君は重い鉄の玉に鎖でつながれている。" },
         { en: "Saved by the bell!", jp: "間一髪で助かった！" },
@@ -11510,12 +11514,14 @@
         { en: "Attach 7 candles and apply with 'a' to light during Invocation.", jp: "7本のローソクを取り付け、道具(#apply)で点灯して祈祷を行う。" },
         { en: "Attach 7 candles and apply with 'a' to light during the Invocation Ritual.", jp: "7本のローソクを取り付け、道具(#apply)で点灯して祈祷の儀式を行う。" },
         { en: "Read with 'r' at the vibrating square during the Invocation Ritual.", jp: "振動するマス(vibrating square)の上で読む(#read)ことで祈祷の儀式を行う。" },
+        { en: "\"Many enter the dungeon, and few return to the sunlit lands.\"", jp: "「ダンジョンに足を踏み入れる者は多いが、陽光あふれる大地へと戻ってくる者はほとんどいない。」" },
     ];
 }
 
 function nhEntities() {
     return {
         "you": "あなた",
+        "you again": "再度あなた",
         "god": "神",
         "goddess": "女神",
         "Her": "彼女",
