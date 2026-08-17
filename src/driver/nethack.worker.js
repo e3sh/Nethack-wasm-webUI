@@ -227,7 +227,23 @@ self.onmessage = async function(e) {
 
         case 'QUEUE_SEQUENCE': {
             if (driver && typeof driver.queueSequence === 'function') {
-                driver.queueSequence(payload.tokens, payload.options);
+                const seqId = payload.sequenceId || (payload.options ? payload.options.sequenceId : null);
+                const options = { ...payload.options, sequenceId: seqId };
+                driver.queueSequence(payload.tokens, options)
+                    .then(buffer => {
+                        self.postMessage({
+                            type: 'SEQUENCE_FINISHED',
+                            sequenceId: seqId,
+                            buffer: buffer || []
+                        });
+                    })
+                    .catch(err => {
+                        self.postMessage({
+                            type: 'SEQUENCE_CANCELLED',
+                            sequenceId: seqId,
+                            error: err ? err.message : 'Cancelled'
+                        });
+                    });
             }
             break;
         }

@@ -26,6 +26,7 @@
             this.isTopLevelTurn = false;
             this._canAcceptSequenceInterruption = false;
             this._driverDebugStatus = null;
+            this._pendingSequences = new Map();
 
             if (!workerUrl && typeof window !== 'undefined') {
                 const path = window.location.pathname;
@@ -197,6 +198,31 @@
                     case 'LIST_SAVE_FILES_RESULT':
                         this.emit('listSaveFilesResult', { saveFiles: data.saveFiles });
                         break;
+
+                    case 'SEQUENCE_FINISHED': {
+                        const seqId = e.data.sequenceId || (data ? data.sequenceId : null);
+                        const buf = e.data.buffer || (data ? data.buffer : []);
+                        this.lastSequenceBuffer = buf;
+                        if (seqId && this._pendingSequences.has(seqId)) {
+                            const pending = this._pendingSequences.get(seqId);
+                            this._pendingSequences.delete(seqId);
+                            pending.resolve(buf);
+                        }
+                        this.emit('sequenceFinished', { sequenceId: seqId, buffer: buf });
+                        break;
+                    }
+
+                    case 'SEQUENCE_CANCELLED': {
+                        const seqId = e.data.sequenceId || (data ? data.sequenceId : null);
+                        const err = e.data.error || 'Sequence cancelled';
+                        if (seqId && this._pendingSequences.has(seqId)) {
+                            const pending = this._pendingSequences.get(seqId);
+                            this._pendingSequences.delete(seqId);
+                            pending.reject(new Error(err));
+                        }
+                        this.emit('sequenceCancelled', { sequenceId: seqId, error: err });
+                        break;
+                    }
 
                     case 'GET_LAST_SEQUENCE_BUFFER_RESULT':
                         this.lastSequenceBuffer = e.data.buffer || [];
@@ -448,16 +474,40 @@
 
         /**
          * GKL シーケンスを Worker 内の Driver へ送信し設定する
+         * @param {Array<string|number>} tokens
+         * @param {Object} [options={}]
+         * @returns {Promise<Array<Object>>} シーケンス結果バッファの Promise
          */
         queueSequence(tokens, options = {}) {
+            if (!Array.isArray(tokens) || tokens.length === 0) return Promise.resolve([]);
             this.lastSequenceBuffer = [];
             this.isExecutingSequence = true;
-            if (this.worker) {
-                this.worker.postMessage({
-                    type: 'QUEUE_SEQUENCE',
-                    payload: { tokens, options }
-                });
-            }
+
+            const sequenceId = options.sequenceId || `seq_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const payloadOptions = { ...options, sequenceId };
+
+            return new Promise((resolve, reject) => {
+                if (options.isSilentSync) {
+                    this._pendingSequences.forEach((pending, id) => {
+                        if (pending.isSilentSync) {
+                            pending.reject(new Error('Sequence cancelled: superseded by new silent sync'));
+                            this._pendingSequences.delete(id);
+                        }
+                    });
+                }
+
+                this._pendingSequences.set(sequenceId, { resolve, reject, isSilentSync: !!options.isSilentSync });
+
+                if (this.worker) {
+                    this.worker.postMessage({
+                        type: 'QUEUE_SEQUENCE',
+                        payload: { tokens, options: payloadOptions, sequenceId }
+                    });
+                } else {
+                    this._pendingSequences.delete(sequenceId);
+                    resolve([]);
+                }
+            });
         }
 
         /**
@@ -465,6 +515,13 @@
          */
         cancelSequence() {
             this.isExecutingSequence = false;
+            this._pendingSequences.forEach((pending) => {
+                if (typeof pending.reject === 'function') {
+                    pending.reject(new Error('Sequence cancelled'));
+                }
+            });
+            this._pendingSequences.clear();
+
             if (this.worker) {
                 this.worker.postMessage({
                     type: 'CANCEL_SEQUENCE'

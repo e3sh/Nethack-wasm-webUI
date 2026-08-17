@@ -372,17 +372,20 @@ export class WebUICore {
             return [];
         }
 
-        const opts = { suppressPrompts: true, ...options };
+        const opts = { suppressPrompts: true, isSilentSync: true, ...options };
 
-        let started = false;
-        if (this.gkl && this.gkl.requestController) {
-            started = this.gkl.requestController.executeSequence(tokens, opts);
-        } else if (this.driver && typeof this.driver.queueSequence === 'function') {
-            this.driver.queueSequence(tokens, opts);
-            started = true;
+        if (this.driver && typeof this.driver.queueSequence === 'function') {
+            try {
+                const buffer = await this.driver.queueSequence(tokens, opts);
+                const bufArray = Array.isArray(buffer) ? buffer : [];
+                this.emit('sequenceFinished', { buffer: bufArray });
+                return bufArray;
+            } catch (e) {
+                return [];
+            }
+        } else if (this.gkl && this.gkl.requestController) {
+            this.gkl.requestController.executeSequence(tokens, opts);
         }
-
-        if (!started) return [];
 
         return new Promise((resolve) => {
             const checkCompletion = () => {
@@ -1204,26 +1207,9 @@ export class WebUICore {
             const lastText = (this.lastPutstrText || '').toLowerCase();
             const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
 
-            // メインゲーム行動待機時（isTopLevelTurn === true）に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
-            const isTopLevel = !this.driver || typeof this.driver.canAcceptSequenceInterruption !== 'function' || this.driver.isTopLevelTurn;
-            if (isTopLevel && this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
-                if (category !== PROMPT_CATEGORY.MENU && 
-                    category !== PROMPT_CATEGORY.DIRECTION && 
-                    category !== PROMPT_CATEGORY.POSKEY && 
-                    category !== PROMPT_CATEGORY.YN && 
-                    category !== PROMPT_CATEGORY.TEXT && 
-                    category !== PROMPT_CATEGORY.ASKNAME && 
-                    category !== PROMPT_CATEGORY.FILE && 
-                    category !== PROMPT_CATEGORY.EXTCMD) {
-                    setTimeout(() => {
-                        const currentMsg = (this.lastPutstrText || '').toLowerCase();
-                        const currentlyPrefixWaiting = currentMsg.includes('プレフィックス') || currentMsg.includes('prefix') || (currentMsg.includes('count') && currentMsg.includes('command'));
-                        const stillTopLevel = !this.driver || typeof this.driver.canAcceptSequenceInterruption !== 'function' || this.driver.isTopLevelTurn;
-                        if (stillTopLevel && this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
-                            this.gkl.syncInventorySilent();
-                        }
-                    }, 50);
-                }
+            // インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を依頼（キューで安全に待機・実行されます）
+            if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !isPrefixWaiting) {
+                this.gkl.syncInventorySilent();
             }
 
             this.lastInputTime = Date.now();
@@ -1239,6 +1225,9 @@ export class WebUICore {
             if (category === PROMPT_CATEGORY.ASKNAME || rawPrompt.includes('Who are you') || rawPrompt.includes('your name') || payload.context === 'askname') {
                 if (this.isResumingSave || this.resumeSavePlayerName) {
                     const finalName = this.resumeSavePlayerName || payload.detectedName || 'Hero';
+                    if (this.gkl && this.gkl.inventoryStateManager) {
+                        this.gkl.inventoryStateManager.invalidate();
+                    }
                     this.respond(finalName.trim());
                     return;
                 }

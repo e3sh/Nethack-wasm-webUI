@@ -118,7 +118,10 @@ export class RequestController {
         }
 
         this.setState(RequestController.State.EXECUTING);
-        this.driver.queueSequence(tokens, options);
+        const resPromise = this.driver.queueSequence(tokens, options);
+        if (resPromise && typeof resPromise.catch === 'function') {
+            resPromise.catch(() => {});
+        }
         return true;
     }
 

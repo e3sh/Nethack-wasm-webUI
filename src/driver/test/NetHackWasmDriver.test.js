@@ -76,7 +76,8 @@ test('NetHackWasmDriver - shim_get_ext_cmd string command resolution', async () 
 
 test('NetHackWasmDriver - lastSequenceBuffer functionality', async () => {
     const driver = new NetHackWasmDriver();
-    driver.queueSequence(['i']);
+    const seqPromise = driver.queueSequence(['i']);
+    seqPromise.catch(() => {});
     
     assert.equal(driver.isExecutingSequence, true);
     assert.deepEqual(driver.getLastSequenceBuffer(), []);
@@ -161,5 +162,39 @@ test('NetHackWasmDriver - FIFO sequence task queue sequential execution and opti
 
     // Task B の suppressPrompts: true により、'Inventory prompt' の putmsg は emit されず、配列長は 1 のまま！
     assert.equal(emittedPrompts.length, 1, 'Task B should suppress prompts as specified in its own options');
+});
+
+test('NetHackWasmDriver - queueSequence Promise resolution and isSilentSync cancellation safeguards', async () => {
+    const driver = new NetHackWasmDriver({ autoRespondEmptyMenu: false });
+
+    // 1. queueSequence が Promise を返し、バッファで解約されるか
+    const seqPromise = driver.queueSequence(['i'], { isSilentSync: true });
+
+    driver.eventHook('shim_nhgetch', []);
+    driver.eventHook('shim_start_menu', 1, 1);
+    driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a dagger', 0);
+    driver.eventHook('shim_end_menu', 1, 'Inventory');
+    const selectPromise = driver.eventHook('shim_select_menu', 1, 1, 0);
+
+    driver.sendInput(0);
+    await selectPromise;
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+
+    const buffer = await seqPromise;
+    assert.equal(Array.isArray(buffer), true);
+    assert.equal(buffer.length, 1);
+    assert.equal(buffer[0].type, 'select_menu');
+
+    // 2. 新しい isSilentSync が投入された際、未実行の旧 isSilentSync がキャンセルされるか
+    const p1 = driver.queueSequence(['i'], { isSilentSync: true });
+    let p1Rejected = false;
+    p1.catch(err => { p1Rejected = true; });
+
+    const p2 = driver.queueSequence(['i'], { isSilentSync: true });
+    await Promise.resolve();
+
+    assert.equal(p1Rejected, true, 'Previous unexecuted silent sync task should be cancelled when a new one arrives');
+    driver.cancelSequence();
+    p2.catch(() => {});
 });
 

@@ -215,32 +215,72 @@
         /**
          * 連続キー/トークン配列をタスクとしてFIFOキューに投入し、inputRequired タイミングに合わせて安全に自動消化する
          * @param {Array<string|number>} tokens - トークン配列 (例: ['#', 'open', '\r', 'DIR_E'])
-         * @param {Object} [options={}] - { suppressPrompts: boolean }
+         * @param {Object} [options={}] - { suppressPrompts: boolean, isSilentSync: boolean, sequenceId: string }
+         * @returns {Promise<Array<Object>>} シーケンス実行完了時に獲得されたバッファの Promise
          */
         queueSequence(tokens, options = {}) {
-            if (!Array.isArray(tokens) || tokens.length === 0) return;
-            const task = {
-                tokens: [...tokens],
-                options: { suppressPrompts: false, ...options },
-                buffer: []
-            };
-            this.sequenceTaskQueue.push(task);
+            if (!Array.isArray(tokens) || tokens.length === 0) return Promise.resolve([]);
+            const sequenceId = options.sequenceId || `seq_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
-            if (!this.currentTask) {
-                this.processNextSequenceTask();
-            }
+            return new Promise((resolve, reject) => {
+                // 1. 古い未実行の同種サイレント同期タスクがキューに残っていればキャンセル
+                if (options.isSilentSync) {
+                    if (this.currentTask && this.currentTask.options && this.currentTask.options.isSilentSync) {
+                        if (typeof this.currentTask.reject === 'function') {
+                            this.currentTask.reject(new Error('Sequence cancelled: superseded by new silent sync'));
+                        }
+                        this.currentTask = null;
+                    }
+                    this.sequenceTaskQueue = this.sequenceTaskQueue.filter(task => {
+                        if (task.options && task.options.isSilentSync) {
+                            if (typeof task.reject === 'function') {
+                                task.reject(new Error('Sequence cancelled: superseded by new silent sync'));
+                            }
+                            return false;
+                        }
+                        return true;
+                    });
+                }
+
+                // 2. キュー長上限ガード (最大16件)
+                while (this.sequenceTaskQueue.length >= 16) {
+                    const dropped = this.sequenceTaskQueue.shift();
+                    if (dropped && typeof dropped.reject === 'function') {
+                        dropped.reject(new Error('Sequence cancelled: queue limit exceeded'));
+                    }
+                }
+
+                const task = {
+                    sequenceId,
+                    tokens: [...tokens],
+                    options: { suppressPrompts: false, ...options },
+                    buffer: [],
+                    resolve,
+                    reject
+                };
+                this.sequenceTaskQueue.push(task);
+
+                if (!this.currentTask) {
+                    this.processNextSequenceTask();
+                }
+            });
         }
 
         /**
          * FIFOタスクキューから次のシーケンス・タスクを取り出して開始する
          */
         processNextSequenceTask() {
-            if (this.sequenceTaskQueue.length === 0) {
-                const hadTask = !!this.currentTask;
+            if (this.currentTask) {
+                const finishedTask = this.currentTask;
                 this.currentTask = null;
-                if (hadTask) {
-                    this.emit("sequenceFinished");
+                const buf = finishedTask.buffer ? JSON.parse(JSON.stringify(finishedTask.buffer)) : [];
+                if (typeof finishedTask.resolve === 'function') {
+                    finishedTask.resolve(buf);
                 }
+                this.emit("sequenceFinished", { sequenceId: finishedTask.sequenceId, buffer: buf });
+            }
+
+            if (this.sequenceTaskQueue.length === 0) {
                 return;
             }
 
@@ -256,13 +296,21 @@
          * 実行中のシーケンスおよび予約キューを安全に強制キャンセルし、通常状態に復帰
          */
         cancelSequence() {
-            const hadTask = !!this.currentTask || this.sequenceTaskQueue.length > 0;
-            this.sequenceTaskQueue = [];
-            this.currentTask = null;
-            this.lastCompletedBuffer = [];
-            if (hadTask) {
-                this.emit("sequenceFinished");
+            if (this.currentTask) {
+                const finishedTask = this.currentTask;
+                this.currentTask = null;
+                if (typeof finishedTask.reject === 'function') {
+                    finishedTask.reject(new Error('Sequence cancelled'));
+                }
             }
+            this.sequenceTaskQueue.forEach(task => {
+                if (typeof task.reject === 'function') {
+                    task.reject(new Error('Sequence cancelled'));
+                }
+            });
+            this.sequenceTaskQueue = [];
+            this.lastCompletedBuffer = [];
+            this.emit("sequenceFinished", { sequenceId: null, buffer: [] });
         }
 
         /**
@@ -1271,6 +1319,18 @@
         }
 
         sendInput(value) {
+            // 手動入力介入時、待機中の古い自動同期 (isSilentSync) タスクを安全キャンセル
+            if (this.sequenceTaskQueue.length > 0) {
+                this.sequenceTaskQueue = this.sequenceTaskQueue.filter(task => {
+                    if (task.options && task.options.isSilentSync) {
+                        if (typeof task.reject === 'function') {
+                            task.reject(new Error('Sequence cancelled due to manual input'));
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+            }
             return this.inputResolver ? this.inputResolver.respond(value) : false;
         }
 
