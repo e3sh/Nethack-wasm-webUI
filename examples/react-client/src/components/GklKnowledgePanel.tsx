@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 export const GklKnowledgePanel: React.FC = () => {
   const gklSituation = useGameStore((state) => state.gklSituation);
   const hoveredTileKnowledge = useGameStore((state) => state.hoveredTileKnowledge);
-  const { executeAction, executeSequence, getGlyphStyle, extractDirectionCode, getZoomAreaTiles, syncInventorySilent } = useNetHackDriver();
 
-  const [selectedDir, setSelectedDir] = useState('ALL');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { executeAction, getGlyphStyle, extractDirectionCode, getZoomAreaTiles, syncInventorySilent, executeSequence } = useNetHackDriver();
+
+  const [selectedDir, setSelectedDir] = useState<string>('ALL');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [hoveredItem, setHoveredItem] = useState<any | null>(null);
   const [selectedAreaTile, setSelectedAreaTile] = useState<any | null>(null);
   const [hoveredAreaTile, setHoveredAreaTile] = useState<any | null>(null);
@@ -25,8 +26,6 @@ export const GklKnowledgePanel: React.FC = () => {
     { id: 'SE', label: '南東', icon: '↘' },
   ];
 
-  const zoomTiles = getZoomAreaTiles(3); // 7x7
-
   const safeText = (val: any): string => {
     if (!val) return '';
     if (typeof val === 'string' || typeof val === 'number') return String(val);
@@ -36,46 +35,96 @@ export const GklKnowledgePanel: React.FC = () => {
     return String(val);
   };
 
-  const allActions = gklSituation?.actions || gklSituation?.recommendedActions || [];
+  const zoomTiles = useMemo(() => getZoomAreaTiles(3), [getZoomAreaTiles, gklSituation, hoveredTileKnowledge]); // 7x7
 
-  const filteredActions = selectedDir === 'ALL'
-    ? allActions
-    : allActions.filter((act: any) => extractDirectionCode(act) === selectedDir);
+  const allActions = useMemo(() => {
+    return gklSituation?.actions || gklSituation?.recommendedActions || [];
+  }, [gklSituation]);
 
-  const inventoryItems = gklSituation?.inventory?.items || [];
+  const filteredActions = useMemo(() => {
+    if (selectedDir === 'ALL') return allActions;
+    return allActions.filter((act: any) => extractDirectionCode(act) === selectedDir);
+  }, [allActions, selectedDir, extractDirectionCode]);
 
-  const activeKnowledge = (hoveredItem && hoveredItem.knowledge)
-    ? hoveredItem.knowledge
-    : (hoveredAreaTile && hoveredAreaTile.knowledge)
-      ? hoveredAreaTile.knowledge
-      : (selectedAreaTile && selectedAreaTile.knowledge)
-        ? selectedAreaTile.knowledge
-        : (hoveredTileKnowledge && hoveredTileKnowledge.knowledge)
-          ? hoveredTileKnowledge.knowledge
-          : null;
+  const inventoryItems = useMemo(() => {
+    return gklSituation?.inventory?.items || [];
+  }, [gklSituation]);
 
-  const activeCoord = (hoveredAreaTile && hoveredAreaTile.x !== undefined && hoveredAreaTile.x >= 0)
-    ? { x: hoveredAreaTile.x, y: hoveredAreaTile.y }
-    : (selectedAreaTile && selectedAreaTile.x !== undefined && selectedAreaTile.x >= 0)
-      ? { x: selectedAreaTile.x, y: selectedAreaTile.y }
-      : (hoveredTileKnowledge && hoveredTileKnowledge.x !== undefined)
-        ? { x: hoveredTileKnowledge.x, y: hoveredTileKnowledge.y }
-        : null;
+  const activeKnowledge = useMemo(() => {
+    if (hoveredItem?.knowledge) return hoveredItem.knowledge;
+    if (hoveredAreaTile?.knowledge) return hoveredAreaTile.knowledge;
+    if (selectedAreaTile?.knowledge) return selectedAreaTile.knowledge;
+    if (hoveredTileKnowledge?.knowledge) return hoveredTileKnowledge.knowledge;
+    return null;
+  }, [hoveredItem, hoveredAreaTile, selectedAreaTile, hoveredTileKnowledge]);
 
-  const activeTileInfo = (() => {
+  const activeCoord = useMemo(() => {
+    if (hoveredAreaTile?.x !== undefined && hoveredAreaTile?.x >= 0) return { x: hoveredAreaTile.x, y: hoveredAreaTile.y };
+    if (selectedAreaTile?.x !== undefined && selectedAreaTile?.x >= 0) return { x: selectedAreaTile.x, y: selectedAreaTile.y };
+    if (hoveredTileKnowledge?.x !== undefined) return { x: hoveredTileKnowledge.x, y: hoveredTileKnowledge.y };
+    return null;
+  }, [hoveredAreaTile, selectedAreaTile, hoveredTileKnowledge]);
+
+  const activeTileInfo = useMemo(() => {
     const tile = hoveredAreaTile || selectedAreaTile;
     if (!tile || tile.x < 0) return '🔍 マスにホバー/タップで解説';
     return `📍 (${tile.x}, ${tile.y}): ${tile.nameJa}`;
-  })();
+  }, [hoveredAreaTile, selectedAreaTile]);
 
-  const currentFilterLabel = (() => {
+  const currentFilterLabel = useMemo(() => {
     if (selectedDir === 'ALL') return '全方向';
     const found = dpadButtons.find(b => b.id === selectedDir);
     return found ? `${found.label} (${found.icon})` : selectedDir;
-  })();
+  }, [selectedDir]);
 
   const getActionCountForDir = (dirId: string): number => {
     return allActions.filter((act: any) => extractDirectionCode(act) === dirId).length;
+  };
+
+  const getItemCategoryLabel = (cat: string | undefined): string => {
+    if (!cat) return 'Knowledge';
+    const map: Record<string, string> = {
+      WEAPON: '⚔️ 武器', ARMOR: '🛡️ 防具', RING: '💍 指輪', AMULET: '📿 魔除け',
+      WAND: '🪄 杖', SCROLL: '📜 巻物', POTION: '🧪 薬', SPELLBOOK: '📖 呪文書',
+      FOOD: '🍖 食料', TOOL: '🧰 道具', GEM: '💎 宝石', COIN: '🪙 金貨',
+      CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット'
+    };
+    return map[cat.toUpperCase()] || cat;
+  };
+
+  const getDangerBadgeInfo = (level: string | undefined) => {
+    if (!level) return null;
+    const l = String(level).toUpperCase();
+    if (l === 'LETHAL' || l === 'EXTREME' || l === 'VERY_HIGH') {
+      return { label: `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
+    }
+    if (l === 'HIGH') {
+      return { label: `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
+    }
+    if (l === 'MEDIUM') {
+      return { label: `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
+    }
+    return { label: `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
+  };
+
+  const formatResistances = (res: any): string => {
+    if (!res || !Array.isArray(res) || res.length === 0) return '';
+    const map: Record<string, string> = {
+      fire: '火炎', cold: '冷気', sleep: '睡眠', poison: '毒', electricity: '電撃',
+      acid: '酸', shock: '電撃', petrify: '石化', drain: 'ドレイン', magic: '魔法'
+    };
+    return res.map((r: string) => map[r.toLowerCase()] || r).join(', ');
+  };
+
+  const formatAttacks = (attacks: any): string => {
+    if (!attacks || !Array.isArray(attacks) || attacks.length === 0) return '';
+    return attacks.map((a: any) => {
+      if (typeof a === 'string') return a;
+      const type = a.type || a.name || '攻撃';
+      const dmg = a.damage ? `(${a.damage})` : '';
+      const eff = a.effect ? ` [${a.effect}]` : '';
+      return `${type}${dmg}${eff}`;
+    }).join(', ');
   };
 
   const getEquipBorderStyle = (item: any): React.CSSProperties => {
@@ -127,12 +176,15 @@ export const GklKnowledgePanel: React.FC = () => {
     return 'btn-primary';
   };
 
+  const dangerBadge = getDangerBadgeInfo(activeKnowledge?.dangerLevel);
+  const adviceList = activeKnowledge?.tacticalAdvice || activeKnowledge?.usageAdvice || [];
+
   return (
-    <div className="gkl-panel" style={{ background: '#181b24', border: '1px solid #3b4252', borderRadius: '6px', padding: '12px 16px', color: '#e5e9f0', fontFamily: 'system-ui, sans-serif', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ background: '#181b24', border: '1px solid #3b4252', borderRadius: '6px', padding: '12px 16px', color: '#e5e9f0', fontFamily: 'system-ui, sans-serif', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* 1. ヘッダー ＆ ステータス */}
-      <div className="gkl-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2e3440', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2e3440', paddingBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="gkl-badge" style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', fontWeight: 'bold', fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
+          <span style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', fontWeight: 'bold', fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
             🧠 GKL 状況推論 ＆ ナレッジアシスト
           </span>
           <button onClick={handleSyncInventory} disabled={isSyncing} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
@@ -141,7 +193,7 @@ export const GklKnowledgePanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. 所持品インベントリ（アイコン即時実行 ＋ フローティング解説ポップアップ） */}
+      {/* 2. 所持品インベントリ */}
       {inventoryItems.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#ebcb8b', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -151,9 +203,7 @@ export const GklKnowledgePanel: React.FC = () => {
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {inventoryItems.map((item: any) => {
-              const styleObj = item.glyphId !== undefined && item.glyphId >= 0
-                ? getGlyphStyle(item.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 24 })
-                : null;
+              const spriteStyle = getGlyphStyle(item.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 });
               const equipStyle = getEquipBorderStyle(item);
               const isHovered = hoveredItem?.letter === item.letter;
 
@@ -172,39 +222,28 @@ export const GklKnowledgePanel: React.FC = () => {
                     transition: 'all 0.15s ease-in-out',
                     ...equipStyle,
                   }}
-                  onClick={(e) => { e.stopPropagation(); handleOneTapItem(item); }}
+                  onClick={() => handleOneTapItem(item)}
                   onMouseEnter={() => setHoveredItem(item)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontWeight: 'bold', color: '#88c0d0', fontFamily: 'monospace', fontSize: '12px' }}>[{item.letter}]</span>
-                    {styleObj && <div style={{ width: '24px', height: '24px', borderRadius: '3px', flexShrink: 0, ...styleObj }} />}
+                    {item.glyphId !== undefined && item.glyphId >= 0 && (
+                      <div style={{ width: '24px', height: '24px', borderRadius: '3px', flexShrink: 0, ...spriteStyle }} />
+                    )}
                     {item.isWielded && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#1a1a2e', background: '#e9c46a' }} title="メイン武器">手</span>}
                     {item.isOffhand && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#1a1a2e', background: '#4ea8de' }} title="副武器">副</span>}
                     {item.isQuivered && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#fff', background: '#2a9d8f' }} title="矢筒">筒</span>}
                     {item.isWorn && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#fff', background: '#9d4edd' }} title="着用中">着</span>}
                   </div>
 
-                  {/* 💡 フローティング解説ポップアップ */}
+                  {/* 💡 フローティングポップアップ */}
                   {isHovered && (
                     <div style={{
-                      position: 'absolute',
-                      bottom: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginBottom: '6px',
-                      background: '#2e3440',
-                      border: '1px solid #88c0d0',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      zIndex: 100,
-                      width: 'max-content',
-                      maxWidth: '260px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                      pointerEvents: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
+                      position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '6px',
+                      background: '#2e3440', border: '1px solid #88c0d0', borderRadius: '6px', padding: '8px 12px', zIndex: 100,
+                      width: 'max-content', maxWidth: '260px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', pointerEvents: 'none',
+                      display: 'flex', flexDirection: 'column', gap: '4px',
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#ebcb8b', fontSize: '11px' }}>
                         {safeText(item.knowledge?.nameJa || item.name || item.rawText)}
@@ -228,7 +267,7 @@ export const GklKnowledgePanel: React.FC = () => {
         </div>
       )}
 
-      {/* 3. 🧠 🎯 方向フィルター ＆ 🔍 7x7 高精細ズームカメラ */}
+      {/* 3. アクションフィルター ＆ 🔍 7x7 ズームカメラ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ebcb8b' }}>
@@ -238,7 +277,7 @@ export const GklKnowledgePanel: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          {/* 左側: 🎯 D-Pad 8方向操作フィルター */}
+          {/* 左側: 🎯 D-Pad */}
           <div style={{ minWidth: '170px', background: '#232834', border: '1px solid #2e3440', borderRadius: '6px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#88c0d0', borderBottom: '1px solid #2e3440', paddingBottom: '4px' }}>
               🎯 方向フィルター
@@ -255,16 +294,8 @@ export const GklKnowledgePanel: React.FC = () => {
                       background: isActive ? '#88c0d0' : '#2e3440',
                       color: isActive ? '#2e3440' : '#d8dee9',
                       border: `1px solid ${isActive ? '#88c0d0' : count > 0 ? '#ebcb8b' : '#4c566a'}`,
-                      borderRadius: '4px',
-                      height: '36px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      padding: '2px',
-                      fontWeight: isActive ? 'bold' : 'normal',
+                      borderRadius: '4px', height: '36px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', position: 'relative', padding: '2px', fontWeight: isActive ? 'bold' : 'normal',
                     }}
                   >
                     <span style={{ fontSize: '11px', lineHeight: 1 }}>{dp.icon}</span>
@@ -283,55 +314,37 @@ export const GklKnowledgePanel: React.FC = () => {
               style={{
                 background: selectedDir === 'ALL' ? '#88c0d0' : '#2e3440',
                 color: selectedDir === 'ALL' ? '#2e3440' : '#d8dee9',
-                border: '1px solid #4c566a',
-                borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '11px',
-                fontWeight: selectedDir === 'ALL' ? 'bold' : 'normal',
-                cursor: 'pointer',
-                marginTop: '4px',
+                border: '1px solid #4c566a', borderRadius: '4px', padding: '6px 12px', fontSize: '11px',
+                fontWeight: selectedDir === 'ALL' ? 'bold' : 'normal', cursor: 'pointer', marginTop: '4px',
               }}
             >
               全表示 (ALL)
             </button>
           </div>
 
-          {/* 右側: 🔍 7x7 洗練ズームミニマップビューア */}
+          {/* 右側: 🔍 7x7 ズームカメラ */}
           <div style={{ background: '#232834', border: '1px solid #2e3440', borderRadius: '6px', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#88c0d0', borderBottom: '1px solid #2e3440', paddingBottom: '4px', width: '100%' }}>
               🔍 7x7 ダンジョンズームカメラ
             </div>
 
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, 24px)',
-              gridTemplateRows: 'repeat(7, 24px)',
-              gap: '2px',
-              background: '#141720',
-              padding: '4px',
-              borderRadius: '4px',
-              border: '1px solid #3b4252'
+              display: 'grid', gridTemplateColumns: 'repeat(7, 24px)', gridTemplateRows: 'repeat(7, 24px)', gap: '2px',
+              background: '#141720', padding: '4px', borderRadius: '4px', border: '1px solid #3b4252'
             }}>
               {zoomTiles.map((tile: any, idx: number) => {
-                const spriteStyle = tile.glyphId >= 0
-                  ? getGlyphStyle(tile.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 })
-                  : null;
                 const isSelected = selectedAreaTile?.x === tile.x && selectedAreaTile?.y === tile.y;
+                const spriteStyle = tile.glyphId >= 0 ? getGlyphStyle(tile.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 }) : null;
 
                 return (
                   <div
-                    key={idx}
+                    key={`${tile.dx},${tile.dy}-${idx}`}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '24px', height: '24px',
                       background: tile.isPlayer ? '#3b3626' : isSelected ? '#2e3b38' : '#1e222d',
                       border: `1px solid ${tile.isPlayer ? '#ebcb8b' : isSelected ? '#a3be8c' : 'transparent'}`,
                       boxShadow: tile.isPlayer ? '0 0 8px #ebcb8b' : 'none',
-                      borderRadius: '2px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                       transition: 'all 0.1s ease-in-out',
                     }}
                     onClick={() => handleSelectZoomTile(tile)}
@@ -389,7 +402,7 @@ export const GklKnowledgePanel: React.FC = () => {
       {/* 4. 💡 構造化ナレッジカード */}
       {activeKnowledge && (
         <div style={{ background: '#2e3440', border: '1px solid #88c0d0', borderRadius: '4px', padding: '10px 14px', marginTop: '4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', color: '#a3be8c' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', color: '#a3be8c' }}>
             <span>
               {safeText(activeKnowledge.nameJa)}
               {(activeKnowledge.nameEn || activeKnowledge.name) && (
@@ -398,11 +411,81 @@ export const GklKnowledgePanel: React.FC = () => {
                 </span>
               )}
             </span>
-            <span style={{ fontSize: '10px', color: '#88c0d0' }}>{safeText(activeKnowledge.category || activeKnowledge.type || 'Knowledge')}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {dangerBadge && (
+                <span style={{ color: dangerBadge.color, background: dangerBadge.bg, border: `1px solid ${dangerBadge.border}`, fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px' }}>
+                  {dangerBadge.label}
+                </span>
+              )}
+              <span style={{ fontSize: '10px', color: '#88c0d0' }}>{getItemCategoryLabel(activeKnowledge.category || activeKnowledge.type)}</span>
+            </div>
           </div>
+
           <div style={{ fontSize: '11px', color: '#e5e9f0', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {/* 武器・防具・モンスター・アイテムステータスグリッド */}
+            {activeKnowledge.stats && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                {/* モンスター用 */}
+                {activeKnowledge.stats.hd !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.hd}</strong></span>}
+                {activeKnowledge.stats.ac !== undefined && (activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER') && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.ac}</strong></span>}
+                {activeKnowledge.stats.speed !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.speed}</strong></span>}
+                {activeKnowledge.stats.mr !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.mr}</strong></span>}
+
+                {/* 武器用 */}
+                {activeKnowledge.stats.sdam && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>対小型ダメ: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.sdam}</strong></span>}
+                {activeKnowledge.stats.ldam && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>対大型ダメ: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.ldam}</strong></span>}
+                {activeKnowledge.stats.skill && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>スキル: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.skill}</strong></span>}
+                {activeKnowledge.stats.hands && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>持ち手: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.hands}手</strong></span>}
+
+                {/* 防具用 */}
+                {activeKnowledge.stats.ac !== undefined && activeKnowledge.category === 'ARMOR' && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>Base AC: <strong style={{ color: '#ebcb8b' }}>+{activeKnowledge.stats.ac}</strong></span>}
+                {activeKnowledge.stats.mc !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>MC: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.mc}</strong></span>}
+                {activeKnowledge.stats.reflection && <span style={{ background: '#232834', border: '1px solid #e9c46a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#e9c46a' }}>✨ 反射 (Reflection)</span>}
+                {activeKnowledge.stats.magicResistance && <span style={{ background: '#232834', border: '1px solid #88c0d0', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>🛡️ 魔耐 (MR)</span>}
+
+                {/* 共通物理特性 */}
+                {activeKnowledge.stats.material && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>材質: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.material}</strong></span>}
+                {activeKnowledge.stats.weight && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>重量: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.weight}</strong></span>}
+              </div>
+            )}
+
+            {/* 💡 おすすめワンタップ操作表示 */}
+            {(activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa) && (
+              <p style={{ margin: 0, color: '#a3be8c', fontWeight: 'bold' }}>
+                💡 <strong>おすすめ操作:</strong> {safeText(activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa)}
+              </p>
+            )}
+
+            {/* 攻撃方法 ＆ 耐性 */}
+            {formatAttacks(activeKnowledge.attacks) && (
+              <p style={{ margin: 0, color: '#d8dee9' }}>
+                🗡️ <strong>攻撃パターン:</strong> {formatAttacks(activeKnowledge.attacks)}
+              </p>
+            )}
+            {formatResistances(activeKnowledge.resistances) && (
+              <p style={{ margin: 0, color: '#d8dee9' }}>
+                🛡️ <strong>固有耐性:</strong> {formatResistances(activeKnowledge.resistances)}
+              </p>
+            )}
+
+            {/* 効果解説 ＆ フレーバーテキスト */}
             {activeKnowledge.effectSummary && <p style={{ margin: 0 }}>💡 {safeText(activeKnowledge.effectSummary)}</p>}
-            {activeKnowledge.description && <p style={{ margin: 0 }}>📖 {safeText(activeKnowledge.description)}</p>}
+            {(activeKnowledge.description || activeKnowledge.flavorNote) && (
+              <p style={{ margin: 0, opacity: 0.9 }}>📖 {safeText(activeKnowledge.description || activeKnowledge.flavorNote)}</p>
+            )}
+
+            {/* アドバイス */}
+            {adviceList.length > 0 && (
+              <div style={{ background: '#232834', borderLeft: '3px solid #ebcb8b', padding: '6px 10px', borderRadius: '0 4px 4px 0', marginTop: '4px' }}>
+                <div style={{ fontWeight: 'bold', color: '#ebcb8b', fontSize: '10px' }}>🎯 ガイド ＆ 活用アドバイス:</div>
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '10px', color: '#e5e9f0' }}>
+                  {adviceList.map((adv: string, idx: number) => (
+                    <li key={idx}>{adv}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {activeCoord && (
               <p style={{ fontSize: '10px', color: '#d8dee9', opacity: 0.8, margin: 0 }}>
                 📍 マップセル座標: ({activeCoord.x}, {activeCoord.y})

@@ -153,11 +153,68 @@
             ({{ activeKnowledge.nameEn || activeKnowledge.name }})
           </span>
         </span>
-        <span class="detail-cat">{{ activeKnowledge.category || activeKnowledge.type || 'Knowledge' }}</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span v-if="getDangerBadgeInfo(activeKnowledge.dangerLevel)"
+                :style="{ color: getDangerBadgeInfo(activeKnowledge.dangerLevel)!.color, background: getDangerBadgeInfo(activeKnowledge.dangerLevel)!.bg, border: `1px solid ${getDangerBadgeInfo(activeKnowledge.dangerLevel)!.border}` }"
+                class="danger-level-badge">
+            {{ getDangerBadgeInfo(activeKnowledge.dangerLevel)!.label }}
+          </span>
+          <span class="detail-cat">{{ getItemCategoryLabel(activeKnowledge.category || activeKnowledge.type) }}</span>
+        </div>
       </div>
       <div class="detail-body">
+        <!-- 武器・防具・アイテム専用ステータスグリッド -->
+        <div v-if="activeKnowledge.stats" class="monster-stats-grid">
+          <!-- モンスター用 -->
+          <span v-if="activeKnowledge.stats.hd !== undefined" class="stat-pill">HD: <strong>{{ activeKnowledge.stats.hd }}</strong></span>
+          <span v-if="activeKnowledge.stats.ac !== undefined && (activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER')" class="stat-pill">AC: <strong>{{ activeKnowledge.stats.ac }}</strong></span>
+          <span v-if="activeKnowledge.stats.speed !== undefined" class="stat-pill">Speed: <strong>{{ activeKnowledge.stats.speed }}</strong></span>
+          <span v-if="activeKnowledge.stats.mr !== undefined" class="stat-pill">MR: <strong>{{ activeKnowledge.stats.mr }}</strong></span>
+
+          <!-- 武器用 -->
+          <span v-if="activeKnowledge.stats.sdam" class="stat-pill">対小型ダメ: <strong>{{ activeKnowledge.stats.sdam }}</strong></span>
+          <span v-if="activeKnowledge.stats.ldam" class="stat-pill">対大型ダメ: <strong>{{ activeKnowledge.stats.ldam }}</strong></span>
+          <span v-if="activeKnowledge.stats.skill" class="stat-pill">スキル: <strong>{{ activeKnowledge.stats.skill }}</strong></span>
+          <span v-if="activeKnowledge.stats.hands" class="stat-pill">持ち手: <strong>{{ activeKnowledge.stats.hands }}手</strong></span>
+
+          <!-- 防具用 -->
+          <span v-if="activeKnowledge.stats.ac !== undefined && activeKnowledge.category === 'ARMOR'" class="stat-pill">Base AC: <strong>+{{ activeKnowledge.stats.ac }}</strong></span>
+          <span v-if="activeKnowledge.stats.mc !== undefined" class="stat-pill">MC: <strong>{{ activeKnowledge.stats.mc }}</strong></span>
+          <span v-if="activeKnowledge.stats.reflection" class="stat-pill" style="border-color: #e9c46a; color: #e9c46a;">✨ 反射 (Reflection)</span>
+          <span v-if="activeKnowledge.stats.magicResistance" class="stat-pill" style="border-color: #88c0d0; color: #88c0d0;">🛡️ 魔耐 (MR)</span>
+
+          <!-- 共通物理特性 -->
+          <span v-if="activeKnowledge.stats.material" class="stat-pill">材質: <strong>{{ activeKnowledge.stats.material }}</strong></span>
+          <span v-if="activeKnowledge.stats.weight" class="stat-pill">重量: <strong>{{ activeKnowledge.stats.weight }}</strong></span>
+        </div>
+
+        <!-- 💡 おすすめワンタップ操作表示 -->
+        <p v-if="activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa" class="detail-text monster-detail-row" style="color: #a3be8c !important;">
+          💡 <strong>おすすめ操作:</strong> {{ activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa }}
+        </p>
+
+        <!-- 攻撃方法 ＆ 耐性 -->
+        <p v-if="formatAttacks(activeKnowledge.attacks)" class="detail-text monster-detail-row">
+          🗡️ <strong>攻撃パターン:</strong> {{ formatAttacks(activeKnowledge.attacks) }}
+        </p>
+        <p v-if="formatResistances(activeKnowledge.resistances)" class="detail-text monster-detail-row">
+          🛡️ <strong>固有耐性:</strong> {{ formatResistances(activeKnowledge.resistances) }}
+        </p>
+
+        <!-- 効果解説 ＆ フレーバーテキスト -->
         <p v-if="activeKnowledge.effectSummary" class="detail-text">💡 {{ activeKnowledge.effectSummary }}</p>
-        <p v-if="activeKnowledge.description" class="detail-text">📖 {{ activeKnowledge.description }}</p>
+        <p v-if="activeKnowledge.description || activeKnowledge.flavorNote" class="detail-text" style="opacity: 0.9;">
+          📖 {{ activeKnowledge.description || activeKnowledge.flavorNote }}
+        </p>
+
+        <!-- モンスター戦術 ＆ アイテムアドバイス -->
+        <div v-if="(activeKnowledge.tacticalAdvice && activeKnowledge.tacticalAdvice.length > 0) || (activeKnowledge.usageAdvice && activeKnowledge.usageAdvice.length > 0)" class="tactical-advice-box">
+          <div class="advice-title">🎯 ガイド ＆ 活用アドバイス:</div>
+          <ul class="advice-list">
+            <li v-for="(adv, idx) in (activeKnowledge.tacticalAdvice || activeKnowledge.usageAdvice)" :key="idx">{{ adv }}</li>
+          </ul>
+        </div>
+
         <p v-if="activeCoord" class="detail-coord">
           📍 マップセル座標: ({{ activeCoord.x }}, {{ activeCoord.y }})
         </p>
@@ -281,6 +338,52 @@ async function handleSyncInventory() {
   isSyncing.value = true;
   await syncInventorySilent();
   isSyncing.value = false;
+}
+
+function getItemCategoryLabel(cat: string | undefined): string {
+  if (!cat) return 'Knowledge';
+  const map: Record<string, string> = {
+    WEAPON: '⚔️ 武器', ARMOR: '🛡️ 防具', RING: '💍 指輪', AMULET: '📿 魔除け',
+    WAND: '🪄 杖', SCROLL: '📜 巻物', POTION: '🧪 薬', SPELLBOOK: '📖 呪文書',
+    FOOD: '🍖 食料', TOOL: '🧰 道具', GEM: '💎 宝石', COIN: '🪙 金貨',
+    CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット'
+  };
+  return map[cat.toUpperCase()] || cat;
+}
+
+function getDangerBadgeInfo(level: string | undefined) {
+  if (!level) return null;
+  const l = String(level).toUpperCase();
+  if (l === 'LETHAL' || l === 'EXTREME' || l === 'VERY_HIGH') {
+    return { label: `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
+  }
+  if (l === 'HIGH') {
+    return { label: `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
+  }
+  if (l === 'MEDIUM') {
+    return { label: `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
+  }
+  return { label: `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
+}
+
+function formatResistances(res: any): string {
+  if (!res || !Array.isArray(res) || res.length === 0) return '';
+  const map: Record<string, string> = {
+    fire: '火炎', cold: '冷気', sleep: '睡眠', poison: '毒', electricity: '電撃',
+    acid: '酸', shock: '電撃', petrify: '石化', drain: 'ドレイン', magic: '魔法'
+  };
+  return res.map((r: string) => map[r.toLowerCase()] || r).join(', ');
+}
+
+function formatAttacks(attacks: any): string {
+  if (!attacks || !Array.isArray(attacks) || attacks.length === 0) return '';
+  return attacks.map((a: any) => {
+    if (typeof a === 'string') return a;
+    const type = a.type || a.name || '攻撃';
+    const dmg = a.damage ? `(${a.damage})` : '';
+    const eff = a.effect ? ` [${a.effect}]` : '';
+    return `${type}${dmg}${eff}`;
+  }).join(', ');
 }
 
 function handleExecuteAction(act: any) {
@@ -685,4 +788,52 @@ function getActionClass(act: any) {
 .detail-body { font-size: 11px; color: #e5e9f0; margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .detail-text { margin: 0; }
 .detail-coord { font-size: 10px; color: #d8dee9; margin: 0; opacity: 0.8; }
+
+.danger-level-badge {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.monster-stats-grid {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.stat-pill {
+  background: #232834;
+  border: 1px solid #4c566a;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #88c0d0;
+}
+.stat-pill strong {
+  color: #ebcb8b;
+}
+
+.monster-detail-row {
+  color: #d8dee9 !important;
+  font-size: 11px;
+}
+
+.tactical-advice-box {
+  background: #232834;
+  border-left: 3px solid #ebcb8b;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+  margin-top: 4px;
+}
+.advice-title {
+  font-weight: bold;
+  color: #ebcb8b;
+  font-size: 10px;
+}
+.advice-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 10px;
+  color: #e5e9f0;
+}
 </style>

@@ -38,10 +38,7 @@ export const GklKnowledgePanel: Component = () => {
     const dir = selectedDir();
     const acts = allActions();
     if (dir === 'ALL') return acts;
-    return acts.filter((act: any) => {
-      const dirCode = driverController.extractDirectionCode(act);
-      return dirCode === dir;
-    });
+    return acts.filter((act: any) => driverController.extractDirectionCode(act) === dir);
   };
 
   const inventoryItems = () => gklSituation()?.inventory?.items || [];
@@ -83,6 +80,52 @@ export const GklKnowledgePanel: Component = () => {
 
   const getActionCountForDir = (dirId: string): number => {
     return allActions().filter((act: any) => driverController.extractDirectionCode(act) === dirId).length;
+  };
+
+  const getItemCategoryLabel = (cat: string | undefined): string => {
+    if (!cat) return 'Knowledge';
+    const map: Record<string, string> = {
+      WEAPON: '⚔️ 武器', ARMOR: '🛡️ 防具', RING: '💍 指輪', AMULET: '📿 魔除け',
+      WAND: '🪄 杖', SCROLL: '📜 巻物', POTION: '🧪 薬', SPELLBOOK: '📖 呪文書',
+      FOOD: '🍖 食料', TOOL: '🧰 道具', GEM: '💎 宝石', COIN: '🪙 金貨',
+      CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット'
+    };
+    return map[cat.toUpperCase()] || cat;
+  };
+
+  const getDangerBadgeInfo = (level: string | undefined) => {
+    if (!level) return null;
+    const l = String(level).toUpperCase();
+    if (l === 'LETHAL' || l === 'EXTREME' || l === 'VERY_HIGH') {
+      return { label: `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
+    }
+    if (l === 'HIGH') {
+      return { label: `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
+    }
+    if (l === 'MEDIUM') {
+      return { label: `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
+    }
+    return { label: `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
+  };
+
+  const formatResistances = (res: any): string => {
+    if (!res || !Array.isArray(res) || res.length === 0) return '';
+    const map: Record<string, string> = {
+      fire: '火炎', cold: '冷気', sleep: '睡眠', poison: '毒', electricity: '電撃',
+      acid: '酸', shock: '電撃', petrify: '石化', drain: 'ドレイン', magic: '魔法'
+    };
+    return res.map((r: string) => map[r.toLowerCase()] || r).join(', ');
+  };
+
+  const formatAttacks = (attacks: any): string => {
+    if (!attacks || !Array.isArray(attacks) || attacks.length === 0) return '';
+    return attacks.map((a: any) => {
+      if (typeof a === 'string') return a;
+      const type = a.type || a.name || '攻撃';
+      const dmg = a.damage ? `(${a.damage})` : '';
+      const eff = a.effect ? ` [${a.effect}]` : '';
+      return `${type}${dmg}${eff}`;
+    }).join(', ');
   };
 
   const getSolidGlyphStyle = (glyphId: number) => {
@@ -162,7 +205,7 @@ export const GklKnowledgePanel: Component = () => {
         </div>
       </div>
 
-      {/* 2. 所持品インベントリ（アイコン即時実行 ＋ フローティング解説ポップアップ） */}
+      {/* 2. 所持品インベントリ */}
       <Show when={inventoryItems().length > 0}>
         <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
           <div style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b', display: 'flex', 'align-items': 'center', gap: '6px' }}>
@@ -214,26 +257,13 @@ export const GklKnowledgePanel: Component = () => {
                       </Show>
                     </div>
 
-                    {/* 💡 フローティング解説ポップアップ */}
+                    {/* 💡 フローティングポップアップ */}
                     <Show when={isHovered()}>
                       <div style={{
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        'margin-bottom': '6px',
-                        background: '#2e3440',
-                        border: '1px solid #88c0d0',
-                        'border-radius': '6px',
-                        padding: '8px 12px',
-                        'z-index': 100,
-                        width: 'max-content',
-                        'max-width': '260px',
-                        'box-shadow': '0 4px 12px rgba(0,0,0,0.5)',
-                        'pointer-events': 'none',
-                        display: 'flex',
-                        'flex-direction': 'column',
-                        gap: '4px',
+                        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', 'margin-bottom': '6px',
+                        background: '#2e3440', border: '1px solid #88c0d0', 'border-radius': '6px', padding: '8px 12px', 'z-index': 100,
+                        width: 'max-content', 'max-width': '260px', 'box-shadow': '0 4px 12px rgba(0,0,0,0.5)', 'pointer-events': 'none',
+                        display: 'flex', 'flex-direction': 'column', gap: '4px',
                       }}>
                         <div style={{ 'font-weight': 'bold', color: '#ebcb8b', 'font-size': '11px' }}>
                           {safeText(item.knowledge?.nameJa || item.name || item.rawText)}
@@ -258,7 +288,7 @@ export const GklKnowledgePanel: Component = () => {
         </div>
       </Show>
 
-      {/* 3. 🧠 🎯 方向フィルター ＆ 🔍 7x7 高精細ズームカメラ */}
+      {/* 3. アクションフィルター ＆ 🔍 7x7 ズームカメラ */}
       <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
         <div style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center' }}>
           <span style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b' }}>
@@ -268,7 +298,7 @@ export const GklKnowledgePanel: Component = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '16px', 'flex-wrap': 'wrap', 'align-items': 'flex-start' }}>
-          {/* 左側: 🎯 D-Pad 8方向操作フィルター */}
+          {/* 左側: 🎯 D-Pad */}
           <div style={{ 'min-width': '170px', background: '#232834', border: '1px solid #2e3440', 'border-radius': '6px', padding: '10px', display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
             <div style={{ 'font-size': '11px', 'font-weight': 'bold', color: '#88c0d0', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '4px' }}>
               🎯 方向フィルター
@@ -285,16 +315,8 @@ export const GklKnowledgePanel: Component = () => {
                         background: isActive() ? '#88c0d0' : '#2e3440',
                         color: isActive() ? '#2e3440' : '#d8dee9',
                         border: `1px solid ${isActive() ? '#88c0d0' : count() > 0 ? '#ebcb8b' : '#4c566a'}`,
-                        'border-radius': '4px',
-                        height: '36px',
-                        display: 'flex',
-                        'flex-direction': 'column',
-                        'align-items': 'center',
-                        'justify-content': 'center',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        padding: '2px',
-                        'font-weight': isActive() ? 'bold' : 'normal',
+                        'border-radius': '4px', height: '36px', display: 'flex', 'flex-direction': 'column', 'align-items': 'center', 'justify-content': 'center',
+                        cursor: 'pointer', position: 'relative', padding: '2px', 'font-weight': isActive() ? 'bold' : 'normal',
                       }}
                     >
                       <span style={{ 'font-size': '11px', 'line-height': 1 }}>{dp.icon}</span>
@@ -314,34 +336,23 @@ export const GklKnowledgePanel: Component = () => {
               style={{
                 background: selectedDir() === 'ALL' ? '#88c0d0' : '#2e3440',
                 color: selectedDir() === 'ALL' ? '#2e3440' : '#d8dee9',
-                border: '1px solid #4c566a',
-                'border-radius': '4px',
-                padding: '6px 12px',
-                'font-size': '11px',
-                'font-weight': selectedDir() === 'ALL' ? 'bold' : 'normal',
-                cursor: 'pointer',
-                'margin-top': '4px',
+                border: '1px solid #4c566a', 'border-radius': '4px', padding: '6px 12px', 'font-size': '11px',
+                'font-weight': selectedDir() === 'ALL' ? 'bold' : 'normal', cursor: 'pointer', 'margin-top': '4px',
               }}
             >
               全表示 (ALL)
             </button>
           </div>
 
-          {/* 右側: 🔍 7x7 洗練ズームミニマップビューア */}
+          {/* 右側: 🔍 7x7 ズームカメラ */}
           <div style={{ background: '#232834', border: '1px solid #2e3440', 'border-radius': '6px', padding: '10px', display: 'flex', 'flex-direction': 'column', 'align-items': 'center', gap: '8px' }}>
             <div style={{ 'font-size': '11px', 'font-weight': 'bold', color: '#88c0d0', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '4px', width: '100%' }}>
               🔍 7x7 ダンジョンズームカメラ
             </div>
 
             <div style={{
-              display: 'grid',
-              'grid-template-columns': 'repeat(7, 24px)',
-              'grid-template-rows': 'repeat(7, 24px)',
-              gap: '2px',
-              background: '#141720',
-              padding: '4px',
-              'border-radius': '4px',
-              border: '1px solid #3b4252'
+              display: 'grid', 'grid-template-columns': 'repeat(7, 24px)', 'grid-template-rows': 'repeat(7, 24px)', gap: '2px',
+              background: '#141720', padding: '4px', 'border-radius': '4px', border: '1px solid #3b4252'
             }}>
               <For each={zoomTiles()}>
                 {(tile: any) => {
@@ -351,16 +362,11 @@ export const GklKnowledgePanel: Component = () => {
                   return (
                     <div
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '24px', height: '24px',
                         background: tile.isPlayer ? '#3b3626' : isSelected() ? '#2e3b38' : '#1e222d',
                         border: `1px solid ${tile.isPlayer ? '#ebcb8b' : isSelected() ? '#a3be8c' : 'transparent'}`,
                         'box-shadow': tile.isPlayer ? '0 0 8px #ebcb8b' : 'none',
-                        'border-radius': '2px',
-                        display: 'flex',
-                        'align-items': 'center',
-                        'justify-content': 'center',
-                        cursor: 'pointer',
+                        'border-radius': '2px', display: 'flex', 'align-items': 'center', 'justify-content': 'center', cursor: 'pointer',
                         transition: 'all 0.1s ease-in-out',
                       }}
                       onClick={() => handleSelectZoomTile(tile)}
@@ -423,34 +429,109 @@ export const GklKnowledgePanel: Component = () => {
 
       {/* 4. 💡 構造化ナレッジカード */}
       <Show when={activeKnowledge()}>
-        <div style={{ background: '#2e3440', border: '1px solid #88c0d0', 'border-radius': '4px', padding: '10px 14px', 'margin-top': '4px' }}>
-          <div style={{ display: 'flex', 'justify-content': 'space-between', 'font-weight': 'bold', 'font-size': '13px', color: '#a3be8c' }}>
-            <span>
-              {safeText(activeKnowledge().nameJa)}
-              <Show when={activeKnowledge().nameEn || activeKnowledge().name}>
-                <span style={{ 'font-size': '11px', opacity: 0.8, 'margin-left': '4px' }}>
-                  ({safeText(activeKnowledge().nameEn || activeKnowledge().name)})
+        {(() => {
+          const kn = () => activeKnowledge();
+          const dangerBadge = () => getDangerBadgeInfo(kn()?.dangerLevel);
+          const adviceList = () => kn()?.tacticalAdvice || kn()?.usageAdvice || [];
+
+          return (
+            <div style={{ background: '#2e3440', border: '1px solid #88c0d0', 'border-radius': '4px', padding: '10px 14px', 'margin-top': '4px' }}>
+              <div style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', 'font-weight': 'bold', 'font-size': '13px', color: '#a3be8c' }}>
+                <span>
+                  {safeText(kn().nameJa)}
+                  <Show when={kn().nameEn || kn().name}>
+                    <span style={{ 'font-size': '11px', opacity: 0.8, 'margin-left': '4px' }}>
+                      ({safeText(kn().nameEn || kn().name)})
+                    </span>
+                  </Show>
                 </span>
-              </Show>
-            </span>
-            <span style={{ 'font-size': '10px', color: '#88c0d0' }}>{safeText(activeKnowledge().category || activeKnowledge().type || 'Knowledge')}</span>
-          </div>
-          <div style={{ 'font-size': '11px', color: '#e5e9f0', 'margin-top': '6px', display: 'flex', 'flex-direction': 'column', gap: '4px' }}>
-            <Show when={activeKnowledge().effectSummary}>
-              <p style={{ margin: 0 }}>💡 {safeText(activeKnowledge().effectSummary)}</p>
-            </Show>
-            <Show when={activeKnowledge().description}>
-              <p style={{ margin: 0 }}>📖 {safeText(activeKnowledge().description)}</p>
-            </Show>
-            <Show when={activeCoord()}>
-              {(coord) => (
-                <p style={{ 'font-size': '10px', color: '#d8dee9', opacity: 0.8, margin: 0 }}>
-                  📍 マップセル座標: ({coord().x}, {coord().y})
-                </p>
-              )}
-            </Show>
-          </div>
-        </div>
+                <div style={{ display: 'flex', 'align-items': 'center', gap: '6px' }}>
+                  <Show when={dangerBadge()}>
+                    <span style={{ color: dangerBadge()!.color, background: dangerBadge()!.bg, border: `1px solid ${dangerBadge()!.border}`, 'font-size': '10px', 'font-weight': 'bold', padding: '2px 6px', 'border-radius': '4px' }}>
+                      {dangerBadge()!.label}
+                    </span>
+                  </Show>
+                  <span style={{ 'font-size': '10px', color: '#88c0d0' }}>{getItemCategoryLabel(kn().category || kn().type)}</span>
+                </div>
+              </div>
+
+              <div style={{ 'font-size': '11px', color: '#e5e9f0', 'margin-top': '6px', display: 'flex', 'flex-direction': 'column', gap: '4px' }}>
+                {/* 武器・防具・モンスター・アイテムステータスグリッド */}
+                <Show when={kn().stats}>
+                  <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap', 'margin-bottom': '4px' }}>
+                    {/* モンスター用 */}
+                    <Show when={kn().stats.hd !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{kn().stats.hd}</strong></span></Show>
+                    <Show when={kn().stats.ac !== undefined && (kn().category === 'MONSTER' || kn().type === 'MONSTER')}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{kn().stats.ac}</strong></span></Show>
+                    <Show when={kn().stats.speed !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{kn().stats.speed}</strong></span></Show>
+                    <Show when={kn().stats.mr !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{kn().stats.mr}</strong></span></Show>
+
+                    {/* 武器用 */}
+                    <Show when={kn().stats.sdam}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>対小型ダメ: <strong style={{ color: '#ebcb8b' }}>{kn().stats.sdam}</strong></span></Show>
+                    <Show when={kn().stats.ldam}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>対大型ダメ: <strong style={{ color: '#ebcb8b' }}>{kn().stats.ldam}</strong></span></Show>
+                    <Show when={kn().stats.skill}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>スキル: <strong style={{ color: '#ebcb8b' }}>{kn().stats.skill}</strong></span></Show>
+                    <Show when={kn().stats.hands}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>持ち手: <strong style={{ color: '#ebcb8b' }}>{kn().stats.hands}手</strong></span></Show>
+
+                    {/* 防具用 */}
+                    <Show when={kn().stats.ac !== undefined && kn().category === 'ARMOR'}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>Base AC: <strong style={{ color: '#ebcb8b' }}>+{kn().stats.ac}</strong></span></Show>
+                    <Show when={kn().stats.mc !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>MC: <strong style={{ color: '#ebcb8b' }}>{kn().stats.mc}</strong></span></Show>
+                    <Show when={kn().stats.reflection}><span style={{ background: '#232834', border: '1px solid #e9c46a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#e9c46a' }}>✨ 反射 (Reflection)</span></Show>
+                    <Show when={kn().stats.magicResistance}><span style={{ background: '#232834', border: '1px solid #88c0d0', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>🛡️ 魔耐 (MR)</span></Show>
+
+                    {/* 共通物理特性 */}
+                    <Show when={kn().stats.material}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>材質: <strong style={{ color: '#ebcb8b' }}>{kn().stats.material}</strong></span></Show>
+                    <Show when={kn().stats.weight}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>重量: <strong style={{ color: '#ebcb8b' }}>{kn().stats.weight}</strong></span></Show>
+                  </div>
+                </Show>
+
+                {/* 💡 おすすめワンタップ操作表示 */}
+                <Show when={kn().actionLabelJa || kn().defaultActionLabelJa}>
+                  <p style={{ margin: 0, color: '#a3be8c', 'font-weight': 'bold' }}>
+                    💡 <strong>おすすめ操作:</strong> {safeText(kn().actionLabelJa || kn().defaultActionLabelJa)}
+                  </p>
+                </Show>
+
+                {/* 攻撃方法 ＆ 耐性 */}
+                <Show when={formatAttacks(kn().attacks)}>
+                  <p style={{ margin: 0, color: '#d8dee9' }}>
+                    🗡️ <strong>攻撃パターン:</strong> {formatAttacks(kn().attacks)}
+                  </p>
+                </Show>
+                <Show when={formatResistances(kn().resistances)}>
+                  <p style={{ margin: 0, color: '#d8dee9' }}>
+                    🛡️ <strong>固有耐性:</strong> {formatResistances(kn().resistances)}
+                  </p>
+                </Show>
+
+                {/* 効果解説 ＆ フレーバーテキスト */}
+                <Show when={kn().effectSummary}>
+                  <p style={{ margin: 0 }}>💡 {safeText(kn().effectSummary)}</p>
+                </Show>
+                <Show when={kn().description || kn().flavorNote}>
+                  <p style={{ margin: 0, opacity: 0.9 }}>📖 {safeText(kn().description || kn().flavorNote)}</p>
+                </Show>
+
+                <Show when={adviceList().length > 0}>
+                  <div style={{ background: '#232834', 'border-left': '3px solid #ebcb8b', padding: '6px 10px', 'border-radius': '0 4px 4px 0', 'margin-top': '4px' }}>
+                    <div style={{ 'font-weight': 'bold', color: '#ebcb8b', 'font-size': '10px' }}>🎯 ガイド ＆ 活用アドバイス:</div>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, 'font-size': '10px', color: '#e5e9f0' }}>
+                      <For each={adviceList()}>
+                        {(adv: string) => <li>{adv}</li>}
+                      </For>
+                    </ul>
+                  </div>
+                </Show>
+
+                <Show when={activeCoord()}>
+                  {(coord) => (
+                    <p style={{ 'font-size': '10px', color: '#d8dee9', opacity: 0.8, margin: 0 }}>
+                      📍 マップセル座標: ({coord().x}, {coord().y})
+                    </p>
+                  )}
+                </Show>
+              </div>
+            </div>
+          );
+        })()}
       </Show>
     </div>
   );

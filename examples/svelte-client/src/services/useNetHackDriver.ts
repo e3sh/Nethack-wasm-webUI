@@ -256,6 +256,17 @@ export class NetHackDriverController {
     return null;
   }
 
+  public getGlyphStyleString(glyphId: number, options: any = {}): string {
+    const styleObj = this.getGlyphStyle(glyphId, options);
+    if (!styleObj) return '';
+    return Object.entries(styleObj)
+      .map(([k, v]) => {
+        const kebabKey = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+        return `${kebabKey}:${v}`;
+      })
+      .join(';');
+  }
+
   public extractDirectionCode(action: any): string {
     if (!action) return 'NONE';
 
