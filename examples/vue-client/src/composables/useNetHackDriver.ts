@@ -1,6 +1,7 @@
 import { ref, onMounted } from 'vue';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
+import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
 import { useGameStore } from '../stores/gameStore';
 
 class NetHackDriverController {
@@ -31,6 +32,10 @@ class NetHackDriverController {
 
     this.core = new WebUICore({ driver });
 
+    // GKL (Game Knowledge Layer) プラグインの自動アタッチ
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad' });
+    gklPlugin.attach(this.core);
+
     // 2. WebUICore イベントのバインド
     this.core.on('stateChange', ({ state }: { state: string }) => {
       if (state === 'RUNNING' || state === 'WAITING_INPUT') {
@@ -58,10 +63,21 @@ class NetHackDriverController {
 
     this.core.on('cursor', ({ x, y }: { x: number; y: number }) => {
       gameStore.setCursorPos(x, y);
+      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
+        this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
+      }
+      this.updateGklSituation();
     });
 
     this.core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       gameStore.updateTile(x, y, glyph, ch, color);
+      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
+        this.core.gkl.areaStateManager.updateGlyph(x, y, glyph);
+      }
+    });
+
+    this.core.on('inventoryStateUpdated', () => {
+      this.updateGklSituation();
     });
 
     this.core.on('map_cleared', () => {
@@ -100,6 +116,12 @@ class NetHackDriverController {
           resolver: resolver,
         });
         return;
+      }
+
+      // GKL (Game Knowledge Layer) 状況の同期更新 (core.gkl.getSituation())
+      if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
+        const situation = this.core.gkl.getSituation();
+        gameStore.setGklSituation(situation);
       }
 
       // 3. 通常の入力プロンプト (WebUICore の最新構造化 payload をそのまま伝達)
@@ -226,6 +248,220 @@ class NetHackDriverController {
       }
     }
   }
+  private updateGklSituation() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
+      const gameStore = useGameStore();
+      gameStore.setGklSituation(this.core.gkl.getSituation());
+    }
+  }
+
+  public executeAction(action: any) {
+    if (this.core) {
+      if (typeof this.core.executeAction === 'function') {
+        return this.core.executeAction(action);
+      } else if (this.core.gkl && typeof this.core.gkl.executeAction === 'function') {
+        return this.core.gkl.executeAction(action);
+      }
+    }
+    return false;
+  }
+
+  public executeSequence(sequence: any[]) {
+    if (!this.core) return false;
+
+    // Vue 3 Proxy の解除と純粋な文字列配列化
+    const rawSeq = Array.isArray(sequence)
+      ? sequence.map(item => typeof item === 'object' ? (item.key || item.letter || String(item)) : String(item))
+      : [String(sequence)];
+
+    if (typeof this.core.executeSequence === 'function') {
+      return this.core.executeSequence(rawSeq);
+    } else if (this.core.requestController && typeof this.core.requestController.executeSequence === 'function') {
+      return this.core.requestController.executeSequence(rawSeq);
+    } else if (typeof this.core.sendKey === 'function') {
+      rawSeq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
+      return true;
+    }
+    return false;
+  }
+
+  public getGlyphStyle(glyphId: number, options: any = {}) {
+    if (this.core && typeof this.core.getGlyphStyle === 'function') {
+      return this.core.getGlyphStyle(glyphId, options);
+    }
+    return null;
+  }
+
+  public extractDirectionCode(action: any): string {
+    if (!action) return 'NONE';
+
+    let rawDir = action.directionKey;
+
+    if (!rawDir && action.direction) {
+      if (typeof action.direction === 'string') {
+        rawDir = action.direction;
+      } else if (typeof action.direction === 'object') {
+        rawDir = action.direction.code || action.direction.key || action.direction.name;
+      }
+    }
+
+    if (!rawDir && action.dirCode) {
+      rawDir = action.dirCode;
+    }
+
+    if (!rawDir && Array.isArray(action.keySequence)) {
+      const dirToken = action.keySequence.find((t: any) => typeof t === 'string' && t.startsWith('DIR_'));
+      if (dirToken) rawDir = dirToken;
+    }
+
+    if (!rawDir) {
+      if (action.target === 'feet' || action.isDirectional === false) {
+        return 'SELF';
+      }
+      return 'NONE';
+    }
+
+    const cleaned = String(rawDir).toUpperCase().replace(/^DIR_/, '');
+    const validDirections = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
+
+    if (validDirections.has(cleaned)) {
+      return cleaned;
+    }
+
+    const nameMap: Record<string, string> = {
+      'NORTH': 'N', 'UP': 'N',
+      'EAST': 'E', 'RIGHT': 'E',
+      'SOUTH': 'S', 'DOWN': 'S',
+      'WEST': 'W', 'LEFT': 'W',
+      'NORTHEAST': 'NE', 'NORTHWEST': 'NW',
+      'SOUTHEAST': 'SE', 'SOUTHWEST': 'SW',
+      'FEET': 'SELF', 'HERE': 'SELF', 'CURRENT': 'SELF'
+    };
+
+    return nameMap[cleaned] || 'NONE';
+  }
+
+  public getZoomAreaTiles(radius: number = 3): Array<{ dx: number; dy: number; glyphId: number; symbol: string; color: number; nameJa: string; knowledge: any; x: number; y: number; isPlayer: boolean }> {
+    const gameStore = useGameStore();
+    const px = gameStore.cursorPos ? gameStore.cursorPos.x : -1;
+    const py = gameStore.cursorPos ? gameStore.cursorPos.y : -1;
+
+    const tiles: Array<any> = [];
+    const gkl = this.core ? this.core.gkl : null;
+    const sk = gkl ? gkl.structuredKnowledge : null;
+    const asm = gkl ? gkl.areaStateManager : null;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const tx = px + dx;
+        const ty = py + dy;
+        const isPlayer = (dx === 0 && dy === 0);
+        let glyphId = -1;
+        let symbol = ' ';
+        let color = 7;
+        let knowledge: any = null;
+        let nameJa = '視界外';
+
+        if (px >= 0 && py >= 0 && tx >= 0 && tx < 80 && ty >= 0 && ty < 21) {
+          const gridTile = gameStore.mapGrid[ty]?.[tx];
+          if (gridTile) {
+            symbol = gridTile.symbol || ' ';
+            color = gridTile.color;
+            if (gridTile.tileId === 0 && symbol === ' ') {
+              glyphId = -1;
+              nameJa = '未探索';
+            } else {
+              glyphId = gridTile.tileId;
+            }
+          }
+
+          if (asm && typeof asm.getGlyph === 'function') {
+            const asmGlyph = asm.getGlyph(tx, ty);
+            if (asmGlyph > 0) glyphId = asmGlyph;
+          }
+
+          if (glyphId > 0 && sk && typeof sk.getKnowledge === 'function') {
+            knowledge = sk.getKnowledge(glyphId);
+            if (knowledge && knowledge.nameJa) {
+              nameJa = knowledge.nameJa;
+            }
+          } else if (glyphId === 0 && symbol !== ' ' && sk && typeof sk.getKnowledge === 'function') {
+            knowledge = sk.getKnowledge(0);
+            if (knowledge && knowledge.nameJa) nameJa = knowledge.nameJa;
+          } else if (symbol === ' ') {
+            nameJa = '未探索';
+          }
+        }
+
+        tiles.push({
+          dx,
+          dy,
+          glyphId,
+          symbol,
+          color,
+          nameJa,
+          knowledge,
+          x: tx,
+          y: ty,
+          isPlayer,
+        });
+      }
+    }
+
+    return tiles;
+  }
+
+  public inspectTileKnowledge(x: number, y: number) {
+    const gameStore = useGameStore();
+    if (!this.core || !this.core.gkl) {
+      gameStore.setHoveredTileKnowledge(null);
+      return;
+    }
+
+    const ix = Math.floor(x);
+    const iy = Math.floor(y);
+
+    if (ix < 0 || ix >= 80 || iy < 0 || iy >= 21) {
+      gameStore.setHoveredTileKnowledge(null);
+      return;
+    }
+
+    const gkl = this.core.gkl;
+    const asm = gkl ? gkl.areaStateManager : null;
+    let glyphId = -1;
+
+    if (asm && typeof asm.getGlyph === 'function') {
+      glyphId = asm.getGlyph(ix, iy);
+    }
+
+    if (glyphId < 0) {
+      const gridTile = gameStore.mapGrid[iy]?.[ix];
+      if (gridTile) glyphId = gridTile.tileId;
+    }
+
+    if (glyphId >= 0 && gkl && gkl.structuredKnowledge && typeof gkl.structuredKnowledge.getKnowledge === 'function') {
+      const knowledge = gkl.structuredKnowledge.getKnowledge(glyphId);
+      gameStore.setHoveredTileKnowledge({ x: ix, y: iy, glyphId, knowledge });
+    } else {
+      gameStore.setHoveredTileKnowledge(null);
+    }
+  }
+
+  public sendAction(action: string | any) {
+    if (this.core && typeof this.core.sendAction === 'function') {
+      this.core.sendAction(action);
+    } else if (this.core && typeof this.core.respond === 'function') {
+      this.core.respond(action);
+    }
+  }
+
+  public async syncInventorySilent() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.syncInventorySilent === 'function') {
+      await this.core.gkl.syncInventorySilent();
+      const gameStore = useGameStore();
+      gameStore.setGklSituation(this.core.gkl.getSituation());
+    }
+  }
 }
 
 export const driverController = new NetHackDriverController();
@@ -242,6 +478,15 @@ export function useNetHackDriver() {
     cancelPrompt: () => driverController.cancelPrompt(),
     respondPrompt: (val: any) => driverController.respondPrompt(val),
     respondMenu: (val: any) => driverController.respondMenu(val),
-    respondTextModal: (val: any = 0) => driverController.respondTextModal(val),
+    respondTextModal: (val?: any) => driverController.respondTextModal(val),
+    sendAction: (act: any) => driverController.sendAction(act),
+    executeAction: (act: any) => driverController.executeAction(act),
+    executeSequence: (seq: any[]) => driverController.executeSequence(seq),
+    getGlyphStyle: (glyphId: number, options?: any) => driverController.getGlyphStyle(glyphId, options),
+    extractDirectionCode: (act: any) => driverController.extractDirectionCode(act),
+    getZoomAreaTiles: (radius?: number) => driverController.getZoomAreaTiles(radius),
+    getAdjacentAreaTiles: () => driverController.getZoomAreaTiles(1),
+    inspectTileKnowledge: (x: number, y: number) => driverController.inspectTileKnowledge(x, y),
+    syncInventorySilent: () => driverController.syncInventorySilent(),
   };
 }

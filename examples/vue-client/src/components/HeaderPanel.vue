@@ -1,7 +1,7 @@
 <template>
   <header class="header-panel">
     <div class="header-title">
-      <h1>NetHack Wasm Driver</h1>
+      <h1>NetHack WebUICore</h1>
       <span class="subtitle">Vue 3 Sample Client</span>
     </div>
 

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { getTileMapping } from '../utils/tileMapping';
+import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 const TILE_SIZE = 32;
 const COLS = 80;
@@ -12,10 +13,35 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mapGrid = useGameStore((state) => state.mapGrid);
   const cursorPos = useGameStore((state) => state.cursorPos);
+  const { inspectTileKnowledge } = useNetHackDriver();
 
   const tileImageRef = useRef<HTMLImageElement | null>(null);
   const isTileLoadedRef = useRef(false);
   const tileMapTableRef = useRef<Record<number, number>>({});
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      inspectTileKnowledge(gridX, gridY);
+    } else {
+      inspectTileKnowledge(-1, -1);
+    }
+  }, [inspectTileKnowledge]);
+
+  const handleMouseLeave = useCallback(() => {
+    inspectTileKnowledge(-1, -1);
+  }, [inspectTileKnowledge]);
 
   useEffect(() => {
     tileMapTableRef.current = getTileMapping();
@@ -145,6 +171,8 @@ export const GameCanvas: React.FC = () => {
         width={canvasWidth}
         height={canvasHeight}
         className="game-canvas"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
     </div>
   );

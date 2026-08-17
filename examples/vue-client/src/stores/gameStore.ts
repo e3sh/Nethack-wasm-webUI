@@ -202,6 +202,18 @@ export const useGameStore = defineStore('game', () => {
     gameOverResult.value = result;
   }
 
+  // 10. GKL (Game Knowledge Layer) 統合状況＆推奨アクション状態
+  const gklSituation = ref<any | null>(null);
+  const hoveredTileKnowledge = ref<any | null>(null);
+
+  function setGklSituation(situation: any) {
+    gklSituation.value = situation;
+  }
+
+  function setHoveredTileKnowledge(knowledge: any) {
+    hoveredTileKnowledge.value = knowledge;
+  }
+
   function resetAllState() {
     messages.value = [];
     status.title = '';
@@ -220,6 +232,8 @@ export const useGameStore = defineStore('game', () => {
     activeMenu.value = null;
     activeTextModal.value = null;
     gameOverResult.value = null;
+    gklSituation.value = null;
+    hoveredTileKnowledge.value = null;
     engineState.value = 'RUNNING';
     clearMapGrid();
   }
@@ -235,6 +249,8 @@ export const useGameStore = defineStore('game', () => {
     engineState,
     detectedSaveName,
     gameOverResult,
+    gklSituation,
+    hoveredTileKnowledge,
     addMessage,
     updateStatus,
     updateTile,
@@ -246,6 +262,8 @@ export const useGameStore = defineStore('game', () => {
     setEngineState,
     setDetectedSaveName,
     setGameOverResult,
+    setGklSituation,
+    setHoveredTileKnowledge,
     resetAllState,
   };
 });

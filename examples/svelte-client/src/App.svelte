@@ -5,6 +5,7 @@
   import GameCanvas from './components/GameCanvas.svelte';
   import StatusBar from './components/StatusBar.svelte';
   import PromptModal from './components/PromptModal.svelte';
+  import GklKnowledgePanel from './components/GklKnowledgePanel.svelte';
   import MenuModal from './components/MenuModal.svelte';
   import TextWindowModal from './components/TextWindowModal.svelte';
   import GameOverModal from './components/GameOverModal.svelte';
@@ -32,6 +33,9 @@
 
     <!-- 5. 入力プロンプト (PromptModal) -->
     <PromptModal />
+
+    <!-- 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) -->
+    <GklKnowledgePanel />
   </main>
 
   <!-- 6. インベントリ / メニューモーダル (MenuModal) -->

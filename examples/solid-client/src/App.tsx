@@ -4,6 +4,7 @@ import { MessageLog } from './components/MessageLog';
 import { GameCanvas } from './components/GameCanvas';
 import { StatusBar } from './components/StatusBar';
 import { PromptModal } from './components/PromptModal';
+import { GklKnowledgePanel } from './components/GklKnowledgePanel';
 import { MenuModal } from './components/MenuModal';
 import { TextWindowModal } from './components/TextWindowModal';
 import { GameOverModal } from './components/GameOverModal';
@@ -33,6 +34,9 @@ export const App: Component = () => {
 
         {/* 5. 入力プロンプト (PromptModal) */}
         <PromptModal />
+
+        {/* 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) */}
+        <GklKnowledgePanel />
       </main>
 
       {/* 6. インベントリ / メニューモーダル (MenuModal) */}

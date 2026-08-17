@@ -1,55 +1,45 @@
-# NetHack Wasm Driver - Svelte (Svelte 4/5) + Vite + TypeScript サンプルクライアント
+# NetHack WebUICore - Svelte + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/svelte-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、Svelte + TypeScript + Svelte Store による公式サンプルアプリケーションです。
+本サンプルクライアント (`examples/svelte-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、Svelte + TypeScript による公式サンプルアプリケーションです。
 
-Svelte Store (`writable`) による超軽量・高速な状態管理、`WebUICore` の構造化データダイレクトバインド、`sendKeyEvent` 統一キーマッパーを組み込んだ洗練された設計パターンを提示しています。
+Svelte Writable Store によるリアクティブ状態管理、`WebUICore` / `GKLPlugin` の構造化データ・ダイレクトバインド設計パターンを提示しています。
 
 ---
 
 ## 🎮 ライブデモ (Live Demo)
 
-- 🔗 **[Svelte サンプルクライアントを今すぐ体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
+- 🔗 **[Svelte サンプルクライアントを体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
 
 ---
 
 ## ✨ 主な機能 ＆ コンポーネント構成
 
 - **`useNetHackDriver.ts` (`NetHackDriverController`)**:
-  - `WebUICore` を管理する Svelte 用コントローラー。キーイベント一括委譲 (`sendKeyEvent`)、非同期セーブ削除、安全なリスタートおよび状態同期を担当。
-- **`GameCanvas.svelte`**:
-  - 2D Canvas マップ描画コンポーネント。正統スプライトマッピング (`nethack_default_32.png`) と 16 色 TTY フォント描画に対応。
-- **`StatusBar.svelte`**:
-  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL` 構造化データ) 等のリアルタイムステータス表示。
-- **`InputPrompt.svelte` (第 2 サイクル極限スリム化済)**:
-  - `WebUICore` が生成する構造化プロパティ (`inputType`, `options`, `promptText`, `choicesHint`) をダイレクト参照し、手動パース全廃によりコード量を約 75% 削減した入力プロンプト。
-- **`MenuModal.svelte` / `TextWindowModal.svelte`**:
-  - インベントリ・装備アイテム選択メニューおよび閲覧専用テキスト（`lookupInformation` / ヘルプファイル）のモーダル表示。
-- **`GameOverModal.svelte`**:
-  - 死因・タイトルおよび Top 10 Hall of Fame スコアボードの表示。
+  - `WebUICore` と Svelte ストアを連携するコントローラークラス。
+- **`GklKnowledgePanel.svelte` (🧠 GKL 状況推論 ＆ ナレッジアシスト)**:
+  - **⚡ アイコン即時自動実行**: 所持品アイコンタップで `executeSequence` による装備・使用の一発即時実行。
+  - **💡 浮き出し解説ポップアップ**: ホバー時にアイテム名・ワンタップアクション予告・日本語効果解説を浮き出し表示。
+  - **🎽 装備バッジ ＆ 枠線カラー**: メイン武器 (`[手]`), 副武器 (`[副]`), 矢筒 (`[筒]`), 着用防具 (`[着]`)。
+  - **🎯 8方向アクションフィルター (`extractDirectionCode`)**: Svelte の完全リアクティブ宣言 (`$: dirCounts = ...`) による方向別数値バッジ。
+  - **🔍 7x7 高精細ダンジョンズームカメラ**: `$cursorPosStore` と `$mapGridStore` のリアクティブバインド (`$: zoomTiles = ($cursorPosStore, $mapGridStore, driverController.getZoomAreaTiles(3));`) によるリアルタイムズーム更新。
 
 ---
 
 ## 🚀 起動 & ビルド方法
 
-### 開発用ローカルサーバーの起動 (Vite)
-`examples/svelte-client` ディレクトリ内：
 ```bash
-npm run dev
-```
+# 開発起動 (ルートより)
+npm run dev:svelte
 
-### スタンドアロンビルド
-```bash
+# スタンドアロンビルド (examples/svelte-client にて)
 npm run build
 ```
-ビルド完了後、`examples/svelte-client/dist/` ディレクトリ内に完全に自己完結した静的パッケージが生成されます。
 
 ---
 
-## 🏛️ アーキテクチャと標準機能
+## 🏛️ アーキテクチャと構築ガイドライン
 
-`WebUICore` コアパッケージ側に以下の機能が標準搭載されているため、コンポーネント側は数行のダイレクトバインドのみで直観的に実装可能です：
-
-1. **GUI 構造化データパイプライン (`guiData`)**: `inputType` (`'CHOICE_BUTTONS'`, `'LINE_TEXT'`, `'DIRECTION'`, `'MENU'`) および各ボタン配列 (`options`) が自動生成されて届きます。
-2. **統一キーマッパー (`sendKeyEvent`)**: 生の `KeyboardEvent` を一括受容し、Ctrl/Alt 修飾キーや Arrow キーを標準 ASCII コードへ自動変換します。
-3. **SafeResolver (二重応答の自動ガード)**: ボタンクリックとキー入力が重複しても 2 回目以降は安全な no-op となります。
-4. **セーブ削除・リスタート API**: `deleteSaveFile()` およびクリーンリスタート処理に対応。
+1. **Svelte ストアリアクティビティのバインドノウハウ**:
+   Svelte コンポーネント内でメソッド経由でストアを参照する場合、`$: zoomTiles = ($cursorPosStore, $mapGridStore, driverController.getZoomAreaTiles(3));` のように参照ストアをリアクティブトリガーに明示的に含めることで、ストア更新時にコンポーネントが 100% 確実に再計算されます。
+2. **未探索セル (`glyphId = 0`) の誤検出防止**:
+   `tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い、`giant ant` の誤判定を防ぎます。

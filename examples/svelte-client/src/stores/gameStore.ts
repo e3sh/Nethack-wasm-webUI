@@ -91,6 +91,8 @@ export const activeTextModalStore = writable<ActiveTextModal | null>(null);
 export const engineStateStore = writable<EngineState>('IDLE');
 export const detectedSaveNameStore = writable<string | null>(null);
 export const gameOverResultStore = writable<any | null>(null);
+export const gklSituationStore = writable<any | null>(null);
+export const hoveredTileKnowledgeStore = writable<any | null>(null);
 
 // Actions / Helpers
 export const addMessage = (text: string) => {
@@ -230,5 +232,7 @@ export const resetAllState = () => {
   activeTextModalStore.set(null);
   engineStateStore.set('RUNNING');
   gameOverResultStore.set(null);
+  gklSituationStore.set(null);
+  hoveredTileKnowledgeStore.set(null);
   clearMapGrid();
 };

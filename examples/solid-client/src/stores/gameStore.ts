@@ -92,6 +92,8 @@ export const [activeTextModal, setActiveTextModal] = createSignal<ActiveTextModa
 export const [engineState, setEngineState] = createSignal<EngineState>('IDLE');
 export const [detectedSaveName, setDetectedSaveName] = createSignal<string | null>(null);
 export const [gameOverResult, setGameOverResult] = createSignal<any | null>(null);
+export const [gklSituation, setGklSituation] = createSignal<any | null>(null);
+export const [hoveredTileKnowledge, setHoveredTileKnowledge] = createSignal<any | null>(null);
 
 // Actions / Helpers
 export const addMessage = (text: string) => {
@@ -215,5 +217,7 @@ export const resetAllState = () => {
   setActiveTextModal(null);
   setEngineState('RUNNING');
   setGameOverResult(null);
+  setGklSituation(null);
+  setHoveredTileKnowledge(null);
   clearMapGrid();
 };

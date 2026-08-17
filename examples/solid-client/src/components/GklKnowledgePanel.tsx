@@ -1,0 +1,457 @@
+import { Component, For, Show, createSignal } from 'solid-js';
+import { gklSituation, hoveredTileKnowledge } from '../stores/gameStore';
+import { driverController } from '../services/useNetHackDriver';
+
+export const GklKnowledgePanel: Component = () => {
+  const [selectedDir, setSelectedDir] = createSignal('ALL');
+  const [isSyncing, setIsSyncing] = createSignal(false);
+  const [hoveredItem, setHoveredItem] = createSignal<any | null>(null);
+  const [selectedAreaTile, setSelectedAreaTile] = createSignal<any | null>(null);
+  const [hoveredAreaTile, setHoveredAreaTile] = createSignal<any | null>(null);
+
+  const dpadButtons = [
+    { id: 'NW', label: '北西', icon: '↖' },
+    { id: 'N', label: '北', icon: '↑' },
+    { id: 'NE', label: '北東', icon: '↗' },
+    { id: 'W', label: '西', icon: '←' },
+    { id: 'SELF', label: '足元', icon: '・' },
+    { id: 'E', label: '東', icon: '→' },
+    { id: 'SW', label: '南西', icon: '↙' },
+    { id: 'S', label: '南', icon: '↓' },
+    { id: 'SE', label: '南東', icon: '↘' },
+  ];
+
+  const safeText = (val: any): string => {
+    if (!val) return '';
+    if (typeof val === 'string' || typeof val === 'number') return String(val);
+    if (typeof val === 'object') {
+      return val.code || val.labelJa || val.label || val.name || val.key || '';
+    }
+    return String(val);
+  };
+
+  const zoomTiles = () => driverController.getZoomAreaTiles(3); // 7x7
+
+  const allActions = () => gklSituation()?.actions || gklSituation()?.recommendedActions || [];
+
+  const filteredActions = () => {
+    const dir = selectedDir();
+    const acts = allActions();
+    if (dir === 'ALL') return acts;
+    return acts.filter((act: any) => {
+      const dirCode = driverController.extractDirectionCode(act);
+      return dirCode === dir;
+    });
+  };
+
+  const inventoryItems = () => gklSituation()?.inventory?.items || [];
+
+  const activeKnowledge = () => {
+    const item = hoveredItem();
+    if (item && item.knowledge) return item.knowledge;
+    const haTile = hoveredAreaTile();
+    if (haTile && haTile.knowledge) return haTile.knowledge;
+    const saTile = selectedAreaTile();
+    if (saTile && saTile.knowledge) return saTile.knowledge;
+    const tile = hoveredTileKnowledge();
+    if (tile && tile.knowledge) return tile.knowledge;
+    return null;
+  };
+
+  const activeCoord = () => {
+    const haTile = hoveredAreaTile();
+    if (haTile && haTile.x !== undefined && haTile.x >= 0) return { x: haTile.x, y: haTile.y };
+    const saTile = selectedAreaTile();
+    if (saTile && saTile.x !== undefined && saTile.x >= 0) return { x: saTile.x, y: saTile.y };
+    const tile = hoveredTileKnowledge();
+    if (tile && tile.x !== undefined) return { x: tile.x, y: tile.y };
+    return null;
+  };
+
+  const activeTileInfo = () => {
+    const tile = hoveredAreaTile() || selectedAreaTile();
+    if (!tile || tile.x < 0) return '🔍 マスにホバー/タップで解説';
+    return `📍 (${tile.x}, ${tile.y}): ${tile.nameJa}`;
+  };
+
+  const currentFilterLabel = () => {
+    const dir = selectedDir();
+    if (dir === 'ALL') return '全方向';
+    const found = dpadButtons.find(b => b.id === dir);
+    return found ? `${found.label} (${found.icon})` : dir;
+  };
+
+  const getActionCountForDir = (dirId: string): number => {
+    return allActions().filter((act: any) => driverController.extractDirectionCode(act) === dirId).length;
+  };
+
+  const getSolidGlyphStyle = (glyphId: number) => {
+    const rawStyle = driverController.getGlyphStyle(glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 });
+    if (!rawStyle) return {};
+    return {
+      'background-image': rawStyle.backgroundImage || 'none',
+      'background-position': rawStyle.backgroundPosition || '0px 0px',
+      'background-size': rawStyle.backgroundSize || 'auto',
+      'background-repeat': 'no-repeat',
+      width: rawStyle.width || '22px',
+      height: rawStyle.height || '22px',
+      display: 'inline-block',
+    };
+  };
+
+  const getEquipBorderStyle = (item: any) => {
+    if (item.isWielded) return { border: '2px solid #e9c46a', 'box-shadow': '0 0 6px rgba(233, 196, 106, 0.5)' };
+    if (item.isOffhand) return { border: '2px solid #4ea8de', 'box-shadow': '0 0 6px rgba(78, 168, 222, 0.5)' };
+    if (item.isQuivered) return { border: '2px solid #2a9d8f', 'box-shadow': '0 0 6px rgba(42, 157, 143, 0.5)' };
+    if (item.isWorn) return { border: '2px solid #9d4edd', 'box-shadow': '0 0 6px rgba(157, 78, 221, 0.5)' };
+    return { border: '1px solid #3b4252' };
+  };
+
+  const handleSelectZoomTile = (tile: any) => {
+    setSelectedAreaTile(tile);
+    const dirMap: Record<string, string> = {
+      '-1,-1': 'NW', '0,-1': 'N', '1,-1': 'NE',
+      '-1,0': 'W',   '0,0': 'SELF', '1,0': 'E',
+      '-1,1': 'SW',  '0,1': 'S',  '1,1': 'SE',
+    };
+    const key = `${tile.dx},${tile.dy}`;
+    if (dirMap[key]) {
+      setSelectedDir(dirMap[key]);
+    }
+  };
+
+  const handleSyncInventory = async () => {
+    setIsSyncing(true);
+    await driverController.syncInventorySilent();
+    setIsSyncing(false);
+  };
+
+  const handleExecuteAction = (act: any) => {
+    if (act.risk === 'danger' || act.isDanger) {
+      const label = safeText(act.labelJa || act.label || '操作');
+      if (!window.confirm(`【⚠️ 危険な行動】\n"${label}" を実行しますか？`)) return;
+    }
+    setSelectedDir('ALL');
+    driverController.executeAction(act);
+  };
+
+  const handleOneTapItem = (item: any) => {
+    const seq = (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0)
+      ? item.defaultSequence
+      : [item.letter];
+    driverController.executeSequence(seq);
+  };
+
+  const getActionClass = (act: any) => {
+    if (act.risk === 'danger' || act.category === 'ATTACK' || act.isDanger) return 'btn-danger';
+    if (act.category === 'UNCOMMITTED' || act.category === 'ITEM') return 'btn-info';
+    return 'btn-primary';
+  };
+
+  return (
+    <div class="gkl-panel" style={{ background: '#181b24', border: '1px solid #3b4252', 'border-radius': '6px', padding: '12px 16px', color: '#e5e9f0', 'font-family': 'system-ui, sans-serif', 'margin-top': '8px', display: 'flex', 'flex-direction': 'column', gap: '12px' }}>
+      {/* 1. ヘッダー ＆ ステータス */}
+      <div class="gkl-header" style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '8px' }}>
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '10px' }}>
+          <span class="gkl-badge" style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', 'font-weight': 'bold', 'font-size': '11px', padding: '4px 8px', 'border-radius': '4px' }}>
+            🧠 GKL 状況推論 ＆ ナレッジアシスト
+          </span>
+          <button onClick={handleSyncInventory} disabled={isSyncing()} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', 'border-radius': '4px', 'font-size': '11px', cursor: 'pointer' }}>
+            {isSyncing() ? '...同期中' : '🔄 インベントリ同期'}
+          </button>
+        </div>
+      </div>
+
+      {/* 2. 所持品インベントリ（アイコン即時実行 ＋ フローティング解説ポップアップ） */}
+      <Show when={inventoryItems().length > 0}>
+        <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
+          <div style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b', display: 'flex', 'align-items': 'center', gap: '6px' }}>
+            <span>🎒 所持品ナレッジ・ガイド ({inventoryItems().length}個)</span>
+            <span style={{ 'font-size': '10px', color: '#88c0d0', 'font-weight': 'normal' }}>※ アイコンタップで即時使用・装備</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap' }}>
+            <For each={inventoryItems()}>
+              {(item: any) => {
+                const solidStyle = getSolidGlyphStyle(item.glyphId);
+                const equipStyle = getEquipBorderStyle(item);
+                const isHovered = () => hoveredItem()?.letter === item.letter;
+
+                return (
+                  <div
+                    style={{
+                      background: isHovered() ? '#2e3440' : '#232834',
+                      'border-radius': '6px',
+                      padding: '6px 10px',
+                      display: 'flex',
+                      'align-items': 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.15s ease-in-out',
+                      ...equipStyle,
+                    }}
+                    onClick={() => handleOneTapItem(item)}
+                    onMouseEnter={() => setHoveredItem(item)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                  >
+                    <div style={{ display: 'flex', 'align-items': 'center', gap: '6px' }}>
+                      <span style={{ 'font-weight': 'bold', color: '#88c0d0', 'font-family': 'monospace', 'font-size': '12px' }}>[{item.letter}]</span>
+                      <Show when={item.glyphId !== undefined && item.glyphId >= 0}>
+                        <div style={{ width: '24px', height: '24px', 'border-radius': '3px', 'flex-shrink': 0, ...solidStyle }} />
+                      </Show>
+                      <Show when={item.isWielded}>
+                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#e9c46a' }} title="メイン武器">手</span>
+                      </Show>
+                      <Show when={item.isOffhand}>
+                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#4ea8de' }} title="副武器">副</span>
+                      </Show>
+                      <Show when={item.isQuivered}>
+                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#2a9d8f' }} title="矢筒">筒</span>
+                      </Show>
+                      <Show when={item.isWorn}>
+                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#9d4edd' }} title="着用中">着</span>
+                      </Show>
+                    </div>
+
+                    {/* 💡 フローティング解説ポップアップ */}
+                    <Show when={isHovered()}>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '100%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        'margin-bottom': '6px',
+                        background: '#2e3440',
+                        border: '1px solid #88c0d0',
+                        'border-radius': '6px',
+                        padding: '8px 12px',
+                        'z-index': 100,
+                        width: 'max-content',
+                        'max-width': '260px',
+                        'box-shadow': '0 4px 12px rgba(0,0,0,0.5)',
+                        'pointer-events': 'none',
+                        display: 'flex',
+                        'flex-direction': 'column',
+                        gap: '4px',
+                      }}>
+                        <div style={{ 'font-weight': 'bold', color: '#ebcb8b', 'font-size': '11px' }}>
+                          {safeText(item.knowledge?.nameJa || item.name || item.rawText)}
+                        </div>
+                        <Show when={item.defaultActionLabelJa || item.knowledge?.actionLabelJa}>
+                          <div style={{ 'font-size': '10px', color: '#a3be8c', 'font-weight': 'bold' }}>
+                            💡 ワンタップ: {safeText(item.defaultActionLabelJa || item.knowledge?.actionLabelJa)} [{item.letter}]
+                          </div>
+                        </Show>
+                        <Show when={item.knowledge?.effectSummary || item.knowledge?.description}>
+                          <div style={{ 'font-size': '10px', color: '#e5e9f0', opacity: 0.9 }}>
+                            {safeText(item.knowledge?.effectSummary || item.knowledge?.description)}
+                          </div>
+                        </Show>
+                      </div>
+                    </Show>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      {/* 3. 🧠 🎯 方向フィルター ＆ 🔍 7x7 高精細ズームカメラ */}
+      <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center' }}>
+          <span style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b' }}>
+            🎯 アクションフィルター ＆ 🔍 7x7 ダンジョンズームカメラ
+          </span>
+          <span style={{ 'font-size': '11px', color: '#88c0d0' }}>表示: {currentFilterLabel()}</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', 'flex-wrap': 'wrap', 'align-items': 'flex-start' }}>
+          {/* 左側: 🎯 D-Pad 8方向操作フィルター */}
+          <div style={{ 'min-width': '170px', background: '#232834', border: '1px solid #2e3440', 'border-radius': '6px', padding: '10px', display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
+            <div style={{ 'font-size': '11px', 'font-weight': 'bold', color: '#88c0d0', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '4px' }}>
+              🎯 方向フィルター
+            </div>
+            <div style={{ display: 'grid', 'grid-template-columns': 'repeat(3, 46px)', gap: '4px', 'justify-content': 'center' }}>
+              <For each={dpadButtons}>
+                {(dp) => {
+                  const count = () => getActionCountForDir(dp.id);
+                  const isActive = () => selectedDir() === dp.id;
+                  return (
+                    <button
+                      onClick={() => setSelectedDir(dp.id)}
+                      style={{
+                        background: isActive() ? '#88c0d0' : '#2e3440',
+                        color: isActive() ? '#2e3440' : '#d8dee9',
+                        border: `1px solid ${isActive() ? '#88c0d0' : count() > 0 ? '#ebcb8b' : '#4c566a'}`,
+                        'border-radius': '4px',
+                        height: '36px',
+                        display: 'flex',
+                        'flex-direction': 'column',
+                        'align-items': 'center',
+                        'justify-content': 'center',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        padding: '2px',
+                        'font-weight': isActive() ? 'bold' : 'normal',
+                      }}
+                    >
+                      <span style={{ 'font-size': '11px', 'line-height': 1 }}>{dp.icon}</span>
+                      <span style={{ 'font-size': '8px', opacity: 0.8 }}>{dp.label}</span>
+                      <Show when={count() > 0}>
+                        <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#bf616a', color: '#fff', 'font-size': '9px', 'border-radius': '50%', width: '15px', height: '15px', display: 'flex', 'align-items': 'center', 'justify-content': 'center', 'font-weight': 'bold' }}>
+                          {count()}
+                        </span>
+                      </Show>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+            <button
+              onClick={() => setSelectedDir('ALL')}
+              style={{
+                background: selectedDir() === 'ALL' ? '#88c0d0' : '#2e3440',
+                color: selectedDir() === 'ALL' ? '#2e3440' : '#d8dee9',
+                border: '1px solid #4c566a',
+                'border-radius': '4px',
+                padding: '6px 12px',
+                'font-size': '11px',
+                'font-weight': selectedDir() === 'ALL' ? 'bold' : 'normal',
+                cursor: 'pointer',
+                'margin-top': '4px',
+              }}
+            >
+              全表示 (ALL)
+            </button>
+          </div>
+
+          {/* 右側: 🔍 7x7 洗練ズームミニマップビューア */}
+          <div style={{ background: '#232834', border: '1px solid #2e3440', 'border-radius': '6px', padding: '10px', display: 'flex', 'flex-direction': 'column', 'align-items': 'center', gap: '8px' }}>
+            <div style={{ 'font-size': '11px', 'font-weight': 'bold', color: '#88c0d0', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '4px', width: '100%' }}>
+              🔍 7x7 ダンジョンズームカメラ
+            </div>
+
+            <div style={{
+              display: 'grid',
+              'grid-template-columns': 'repeat(7, 24px)',
+              'grid-template-rows': 'repeat(7, 24px)',
+              gap: '2px',
+              background: '#141720',
+              padding: '4px',
+              'border-radius': '4px',
+              border: '1px solid #3b4252'
+            }}>
+              <For each={zoomTiles()}>
+                {(tile: any) => {
+                  const isSelected = () => selectedAreaTile()?.x === tile.x && selectedAreaTile()?.y === tile.y;
+                  const solidSprite = () => tile.glyphId >= 0 ? getSolidGlyphStyle(tile.glyphId) : null;
+
+                  return (
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        background: tile.isPlayer ? '#3b3626' : isSelected() ? '#2e3b38' : '#1e222d',
+                        border: `1px solid ${tile.isPlayer ? '#ebcb8b' : isSelected() ? '#a3be8c' : 'transparent'}`,
+                        'box-shadow': tile.isPlayer ? '0 0 8px #ebcb8b' : 'none',
+                        'border-radius': '2px',
+                        display: 'flex',
+                        'align-items': 'center',
+                        'justify-content': 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.1s ease-in-out',
+                      }}
+                      onClick={() => handleSelectZoomTile(tile)}
+                      onMouseEnter={() => setHoveredAreaTile(tile)}
+                      onMouseLeave={() => setHoveredAreaTile(null)}
+                      title={`${tile.nameJa} (${tile.x}, ${tile.y})`}
+                    >
+                      <Show when={solidSprite()} fallback={
+                        <span style={{ 'font-family': 'monospace', 'font-size': '14px', color: '#d8dee9' }}>
+                          {tile.symbol}
+                        </span>
+                      }>
+                        {(sprite) => <div style={{ width: '22px', height: '22px', 'border-radius': '2px', ...sprite() }} />}
+                      </Show>
+                    </div>
+                  );
+                }}
+              </For>
+            </div>
+
+            <div style={{ 'font-size': '9px', color: '#a3be8c', height: '14px', 'text-align': 'center', 'margin-top': '4px' }}>
+              {activeTileInfo()}
+            </div>
+          </div>
+        </div>
+
+        {/* アクションボタンリスト */}
+        <Show when={filteredActions().length > 0} fallback={
+          <div style={{ 'font-size': '11px', color: '#4c566a', padding: '4px 0' }}>
+            {selectedDir() === 'ALL' ? '待機中 (周りに特殊対象なし / 移動可能)' : `${currentFilterLabel()} 方向に推奨アクションはありません`}
+          </div>
+        }>
+          <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap' }}>
+            <For each={filteredActions()}>
+              {(act: any) => {
+                const labelText = () => safeText(act.labelJa || act.label || act.actionLabelJa);
+                const keyText = () => safeText(act.key || act.verbKey || act.charStr);
+                const dirCode = () => driverController.extractDirectionCode(act);
+                return (
+                  <button
+                    onClick={() => handleExecuteAction(act)}
+                    class={`btn ${getActionClass(act)}`}
+                    style={{ padding: '6px 12px', 'font-size': '12px', 'font-weight': 600, cursor: 'pointer', border: 'none', 'border-radius': '4px', display: 'flex', 'align-items': 'center', gap: '6px' }}
+                    title={safeText(act.description || act.label)}
+                  >
+                    <Show when={keyText()}>
+                      <span style={{ 'font-weight': 'bold', 'font-family': 'monospace' }}>[{keyText()}]</span>
+                    </Show>
+                    <span>{labelText()}</span>
+                    <Show when={dirCode() !== 'NONE'}>
+                      <span style={{ 'font-size': '10px', opacity: 0.8 }}>({dirCode()})</span>
+                    </Show>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
+      </div>
+
+      {/* 4. 💡 構造化ナレッジカード */}
+      <Show when={activeKnowledge()}>
+        <div style={{ background: '#2e3440', border: '1px solid #88c0d0', 'border-radius': '4px', padding: '10px 14px', 'margin-top': '4px' }}>
+          <div style={{ display: 'flex', 'justify-content': 'space-between', 'font-weight': 'bold', 'font-size': '13px', color: '#a3be8c' }}>
+            <span>
+              {safeText(activeKnowledge().nameJa)}
+              <Show when={activeKnowledge().nameEn || activeKnowledge().name}>
+                <span style={{ 'font-size': '11px', opacity: 0.8, 'margin-left': '4px' }}>
+                  ({safeText(activeKnowledge().nameEn || activeKnowledge().name)})
+                </span>
+              </Show>
+            </span>
+            <span style={{ 'font-size': '10px', color: '#88c0d0' }}>{safeText(activeKnowledge().category || activeKnowledge().type || 'Knowledge')}</span>
+          </div>
+          <div style={{ 'font-size': '11px', color: '#e5e9f0', 'margin-top': '6px', display: 'flex', 'flex-direction': 'column', gap: '4px' }}>
+            <Show when={activeKnowledge().effectSummary}>
+              <p style={{ margin: 0 }}>💡 {safeText(activeKnowledge().effectSummary)}</p>
+            </Show>
+            <Show when={activeKnowledge().description}>
+              <p style={{ margin: 0 }}>📖 {safeText(activeKnowledge().description)}</p>
+            </Show>
+            <Show when={activeCoord()}>
+              {(coord) => (
+                <p style={{ 'font-size': '10px', color: '#d8dee9', opacity: 0.8, margin: 0 }}>
+                  📍 マップセル座標: ({coord().x}, {coord().y})
+                </p>
+              )}
+            </Show>
+          </div>
+        </div>
+      </Show>
+    </div>
+  );
+};

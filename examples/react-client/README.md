@@ -1,55 +1,47 @@
-# NetHack Wasm Driver - React 18 + Vite + TypeScript サンプルクライアント
+# NetHack WebUICore - React 18 + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/react-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、React 18 + TypeScript + Zustand による公式サンプルアプリケーションです。
+本サンプルクライアント (`examples/react-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、React 18 + TypeScript による公式サンプルアプリケーションです。
 
-Zustand による軽量・高パフォーマンスな状態管理、`WebUICore` の構造化データダイレクトバインド、`sendKeyEvent` 統一キーマッパーを組み込んだ洗練された設計パターンを提示しています。
+Zustand による軽量状態管理、TypeScript による型安全なイベント受容、React Hook (`useNetHackDriver`) と `WebUICore` / `GKLPlugin` の構造化データ・ダイレクトバインド設計パターンを提示しています。
 
 ---
 
 ## 🎮 ライブデモ (Live Demo)
 
-- 🔗 **[React 18 サンプルクライアントを今すぐ体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
+- 🔗 **[React 18 サンプルクライアントを体験する (Live Demo)](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
 
 ---
 
 ## ✨ 主な機能 ＆ コンポーネント構成
 
-- **`useNetHackDriver.ts`**:
-  - `WebUICore` を管理する Custom Hook コントローラー。キーイベント一括委譲 (`sendKeyEvent`)、非同期セーブ削除、安全なリスタートおよび状態同期を担当。
-- **`GameCanvas.tsx`**:
-  - 2D Canvas マップ描画コンポーネント。正統スプライトマッピング (`nethack_default_32.png`) と 16 色 TTY フォント描画に対応。
-- **`StatusBar.tsx`**:
-  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL` 構造化データ) 等のリアルタイムステータス表示。
-- **`InputPrompt.tsx` (第 2 サイクル極限スリム化済)**:
-  - `WebUICore` が生成する構造化プロパティ (`inputType`, `options`, `promptText`, `choicesHint`) をダイレクト参照し、手動パース全廃によりコード量を約 60% 削減した入力プロンプト。
-- **`MenuModal.tsx` / `TextWindowModal.tsx`**:
-  - インベントリ・装備アイテム選択メニューおよび閲覧専用テキスト（`lookupInformation` / ヘルプファイル）のモーダル表示。
-- **`GameOverModal.tsx`**:
-  - 死因・タイトルおよび Top 10 Hall of Fame スコアボードの表示。
+- **`useNetHackDriver.ts` (React カスタムフック)**:
+  - `WebUICore` と状態ストアを仲介するフック。`getZoomAreaTiles` や `executeSequence` などの安全なバインドを提供。
+- **`GklKnowledgePanel.tsx` (🧠 GKL 状況推論 ＆ ナレッジアシスト)**:
+  - **⚡ アイコン即時自動実行**: 所持品アイコンタップで `executeSequence` による装備・使用の一発即時実行。
+  - **💡 浮き出し解説ポップアップ**: ホバー時にアイテム名・ワンタップアクション予告・日本語効果解説を浮き出し表示。
+  - **🎽 装備バッジ ＆ 枠線カラー**: メイン武器 (`[手]`, `#e9c46a`)、副武器 (`[副]`, `#4ea8de`)、矢筒 (`[筒]`, `#2a9d8f`)、着用防具 (`[着]`, `#9d4edd`)。
+  - **🎯 8方向アクションフィルター (`extractDirectionCode`)**: 8方向 ＋ 足元 (`SELF`) の正規化コードによる一貫したアクション絞り込み。
+  - **🔍 7x7 高精細ダンジョンズームカメラ**: プレイヤーを中心とした半径3マス（7x7=全49マス）の 24px スプライトタイル高密度ミニマップビューア。
+- **`GameCanvas.tsx` / `StatusBar.tsx` / `PromptModal.tsx`**:
+  - React コンポーネントによるゲーム画面・ステータス・モーダルダイアログ。
 
 ---
 
 ## 🚀 起動 & ビルド方法
 
-### 開発用ローカルサーバーの起動 (Vite)
-`examples/react-client` ディレクトリ内：
 ```bash
-npm run dev
-```
+# 開発起動 (ルートより)
+npm run dev:react
 
-### スタンドアロンビルド
-```bash
+# スタンドアロンビルド (examples/react-client にて)
 npm run build
 ```
-ビルド完了後、`examples/react-client/dist/` ディレクトリ内に完全に自己完結した静的パッケージが生成されます。
 
 ---
 
-## 🏛️ アーキテクチャと標準機能
+## 🏛️ アーキテクチャと構築ガイドライン
 
-`WebUICore` コアパッケージ側に以下の機能が標準搭載されているため、コンポーネント側は数行のダイレクトバインドのみで直観的に実装可能です：
-
-1. **GUI 構造化データパイプライン (`guiData`)**: `inputType` (`'CHOICE_BUTTONS'`, `'LINE_TEXT'`, `'DIRECTION'`, `'MENU'`) および各ボタン配列 (`options`) が自動生成されて届きます。
-2. **統一キーマッパー (`sendKeyEvent`)**: 生の `KeyboardEvent` を一括受容し、Ctrl/Alt 修飾キーや Arrow キーを標準 ASCII コードへ自動変換します。
-3. **SafeResolver (二重応答の自動ガード)**: ボタンクリックとキー入力が重複しても 2 回目以降は安全な no-op となります。
-4. **セーブ削除・リスタート API**: `deleteSaveFile()` およびクリーンリスタート処理に対応。
+1. **完全な疎結合設計 (GKL オプショナル設計)**:
+   `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも通常プレイに一切影響を与えません。
+2. **未探索セル (`glyphId = 0`) の誤検出防止**:
+   NetHack の Glyph ID 0 は `giant ant` に該当するため、`tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い誤判定を防ぎます。

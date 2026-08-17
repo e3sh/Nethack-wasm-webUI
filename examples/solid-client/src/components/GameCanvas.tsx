@@ -1,6 +1,7 @@
-import { Component, onMount, onCleanup, createEffect } from 'solid-js';
+import { Component, onMount, onCleanup } from 'solid-js';
 import { mapGrid, cursorPos } from '../stores/gameStore';
 import { getTileMapping } from '../utils/tileMapping';
+import { driverController } from '../services/useNetHackDriver';
 
 const TILE_SIZE = 32;
 const COLS = 80;
@@ -14,6 +15,29 @@ export const GameCanvas: Component = () => {
   let isTileLoaded = false;
   let animFrameId: number | null = null;
   let tileMapTable: Record<number, number> = {};
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!canvasRef) return;
+    const rect = canvasRef.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      driverController.inspectTileKnowledge(gridX, gridY);
+    } else {
+      driverController.inspectTileKnowledge(-1, -1);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    driverController.inspectTileKnowledge(-1, -1);
+  };
 
   const getTTYColor = (colorIdx: number): string => {
     const colors: Record<number, string> = {
@@ -146,6 +170,8 @@ export const GameCanvas: Component = () => {
         width={canvasWidth}
         height={canvasHeight}
         class="game-canvas"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
     </div>
   );

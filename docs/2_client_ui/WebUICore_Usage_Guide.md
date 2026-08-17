@@ -142,3 +142,31 @@ KEYS.TAB;       // 9
    - `cursor` イベント受診時、操作中のターゲットカーソル座標 `(x, y)` の位置に金色のフォーカス枠を描画。セルサイズ 16px * 14px の**内側 1px（`dx+1.5, dy+1.5, 13px * 11px`）**に描画して残像ゴミの発生を抑止すること。
 5. **ローディングガード**:
    - `state === CoreState.INITIALIZING` 時は全操作入力を受け付けず、画面中央にローディングインジケーターを表示すること。
+
+---
+
+## 6. GKL (Game Knowledge Layer) 状況推論 ＆ ナレッジアシストの統合パターン
+
+### 6.1 完全疎結合・オプショナルプラグイン設計
+`WebUICore` は `GKLPlugin`（Game Knowledge Layer）を完全にオプショナルなプラグインとして扱います。
+`GKLPlugin` を接続しない場合でも、キャンバス描画、キー入力、メニュー、プロンプト、ステータス表示は 100% 独立して通常プレイ可能です。
+
+### 6.2 ナレッジ UI 構築のベストプラクティス
+1. **⚡ アイコン即時一発実行**:
+   所持品一覧のアイテムアイコンをタップした際、`executeSequence(['w', item.letter])` や `executeSequence([item.letter])` を送出することで、確認ダイアログなしで即座に装備・使用が可能です。（Vue 3 では Reactive Proxy を `Array.from()` で解くこと）。
+2. **💡 浮き出しポップオーバー (Popover)**:
+   アイコンのホバー時に「アイテム名」「ワンタップ時の予想動作 (`💡 ワンタップ: 装備する [w]`)」「日本語効果サマリー」を表示する UX パターン。
+3. **🎯 方向フィルター (`extractDirectionCode`)**:
+   アクション配列から `extractDirectionCode(act)` を通して `'NW'`, `'N'`, `'NE'`, `'W'`, `'SELF'`, `'E'`, `'SW'`, `'S'`, `'SE'` を判定し、キーパッドへ件数バッジを表示。
+4. **🔍 7x7 ダンジョンズームカメラ (`getZoomAreaTiles(radius = 3)`)**:
+   `cursorPos` を中心に 7x7 (49マス) の 24px スプライト格子を描画。
+   ※ NetHack の Glyph ID `0` は `giant ant` のため、`tileId === 0` かつ `symbol === ' '` のマスは `glyphId = -1` (未探索) として扱うこと。
+5. **フレームワーク別リアクティビティバインド**:
+   - **Svelte**: `$: zoomTiles = ($cursorPosStore, $mapGridStore, driverController.getZoomAreaTiles(3));`
+   - **SolidJS**: `getSolidGlyphStyle` によるハイフン区切り (`background-image`) スタイル展開。
+
+---
+
+## 7. まとめ
+
+`WebUICore` は、コアのゲーム駆動ロジックとフロントエンド表示層・ナレッジ層を明確に分離したクリーンアーキテクチャを提供します。開発者はコンポーネントフレームワーク（Vue, React, Svelte, SolidJS）の違いに関わらず、最小限のコードで高品質な NetHack Web アプリケーションを構築できます。

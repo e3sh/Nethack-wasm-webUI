@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { mapGridStore, cursorPosStore } from '../stores/gameStore';
   import { getTileMapping } from '../utils/tileMapping';
+  import { driverController } from '../services/useNetHackDriver';
 
   const TILE_SIZE = 32;
   const COLS = 80;
@@ -133,6 +134,29 @@
     animFrameId = requestAnimationFrame(renderLoop);
   });
 
+  function handleMouseMove(e: MouseEvent) {
+    if (!canvasRef) return;
+    const rect = canvasRef.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      driverController.inspectTileKnowledge(gridX, gridY);
+    } else {
+      driverController.inspectTileKnowledge(-1, -1);
+    }
+  }
+
+  function handleMouseLeave() {
+    driverController.inspectTileKnowledge(-1, -1);
+  }
+
   onDestroy(() => {
     if (animFrameId !== null) {
       cancelAnimationFrame(animFrameId);
@@ -146,6 +170,8 @@
     width={canvasWidth}
     height={canvasHeight}
     class="game-canvas"
+    on:mousemove={handleMouseMove}
+    on:mouseleave={handleMouseLeave}
   ></canvas>
 </div>
 

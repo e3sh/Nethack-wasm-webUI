@@ -15,7 +15,7 @@ export const HeaderPanel: React.FC = () => {
   return (
     <header className="header-panel">
       <div className="header-title">
-        <h1>NetHack Wasm Driver</h1>
+        <h1>NetHack WebUICore</h1>
         <span className="subtitle">React 18 Sample Client</span>
       </div>
 

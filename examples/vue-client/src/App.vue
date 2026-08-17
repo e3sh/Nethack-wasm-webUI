@@ -16,15 +16,18 @@
 
       <!-- 5. 入力プロンプト (PromptModal) -->
       <PromptModal />
+
+      <!-- 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) -->
+      <GklKnowledgePanel />
     </main>
 
-    <!-- 6. インベントリ / メニューモーダル (MenuModal) -->
+    <!-- 7. インベントリ / メニューモーダル (MenuModal) -->
     <MenuModal />
 
-    <!-- 7. テキスト・ヘルプ閲覧モーダル (TextWindowModal) -->
+    <!-- 8. テキスト・ヘルプ閲覧モーダル (TextWindowModal) -->
     <TextWindowModal />
 
-    <!-- 8. ゲームオーバー & スコアボード (GameOverModal) -->
+    <!-- 9. ゲームオーバー & スコアボード (GameOverModal) -->
     <GameOverModal />
   </div>
 </template>
@@ -35,6 +38,7 @@ import MessageLog from './components/MessageLog.vue';
 import GameCanvas from './components/GameCanvas.vue';
 import StatusBar from './components/StatusBar.vue';
 import PromptModal from './components/PromptModal.vue';
+import GklKnowledgePanel from './components/GklKnowledgePanel.vue';
 import MenuModal from './components/MenuModal.vue';
 import TextWindowModal from './components/TextWindowModal.vue';
 import GameOverModal from './components/GameOverModal.vue';

@@ -5,6 +5,8 @@
       :width="canvasWidth"
       :height="canvasHeight"
       class="game-canvas"
+      @mousemove="handleMouseMove"
+      @mouseleave="handleMouseLeave"
     ></canvas>
   </div>
 </template>
@@ -14,6 +16,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { getTileMapping } from '../utils/tileMapping';
+import { useNetHackDriver } from '../composables/useNetHackDriver';
 
 const TILE_SIZE = 32; // スプライトタイルセルサイズ (32x32)
 const COLS = 80;
@@ -24,11 +27,36 @@ const canvasHeight = ROWS * TILE_SIZE;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const gameStore = useGameStore();
 const { mapGrid, cursorPos } = storeToRefs(gameStore);
+const { inspectTileKnowledge } = useNetHackDriver();
 
 let tileImage: HTMLImageElement | null = null;
 let isTileLoaded = false;
 let animFrameId: number | null = null;
 let tileMapTable: Record<number, number> = {};
+
+function handleMouseMove(e: MouseEvent) {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvasWidth / rect.width;
+  const scaleY = canvasHeight / rect.height;
+
+  const canvasX = (e.clientX - rect.left) * scaleX;
+  const canvasY = (e.clientY - rect.top) * scaleY;
+
+  const gridX = Math.floor(canvasX / TILE_SIZE);
+  const gridY = Math.floor(canvasY / TILE_SIZE);
+
+  if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+    inspectTileKnowledge(gridX, gridY);
+  } else {
+    inspectTileKnowledge(-1, -1);
+  }
+}
+
+function handleMouseLeave() {
+  inspectTileKnowledge(-1, -1);
+}
 
 onMounted(() => {
   tileMapTable = getTileMapping();
