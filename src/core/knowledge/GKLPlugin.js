@@ -201,7 +201,7 @@ export class GKLPlugin {
             return false;
         }
 
-        const buffer = await this.core.querySequenceSilent(['i', ' '], options);
+        const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], options);
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             this.inventoryStateManager.updateFromSequenceBuffer(buffer);
             this.core.emit('inventoryStateUpdated', this.inventoryStateManager);

@@ -284,14 +284,12 @@ class GklPureJSClient {
     const btnRefreshInv = document.getElementById('btn-refresh-inv');
     if (btnRefreshInv) {
       btnRefreshInv.onclick = async () => {
-        if (this.core && typeof this.core.syncInventorySilent === 'function') {
+        if (this.core && this.core.gkl && typeof this.core.gkl.syncInventorySilent === 'function') {
           btnRefreshInv.disabled = true;
           btnRefreshInv.textContent = '...';
-          await this.core.syncInventorySilent();
+          await this.core.gkl.syncInventorySilent();
           btnRefreshInv.disabled = false;
           btnRefreshInv.textContent = '🔄 同期';
-        } else if (this.core) {
-          this.core.sendKey('i');
         }
       };
     }

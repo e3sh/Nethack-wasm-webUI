@@ -81,7 +81,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         // 通常状態: syncInventorySilent はクエリを発行する
         core.lastPutstrText = "You move forward.";
         await core.gkl.syncInventorySilent();
-        expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' '], {});
+        expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' ', '\x1b'], {});
 
         core.querySequenceSilent.mockClear();
 

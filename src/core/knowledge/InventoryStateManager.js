@@ -459,7 +459,16 @@ export class InventoryStateManager {
         } else if (isWorn) {
             if (equipSlot === 'ring_left' || equipSlot === 'ring_right' || equipSlot === 'amulet') {
                 defaultVerb = 'R';
-                defaultSequence = letter ? ['R', letter] : ['R'];
+                const wornRingCount = Array.isArray(itemList) ? itemList.filter(i => i.isWorn && (i.equipSlot === 'ring_left' || i.equipSlot === 'ring_right')).length : 0;
+                if (equipSlot === 'amulet') {
+                    defaultSequence = letter ? ['R', letter] : ['R'];
+                } else if (wornRingCount <= 1) {
+                    // 指輪が1個だけ装着されている場合、R を押すだけで NetHack が外すため余剰キーを送信しない
+                    defaultSequence = ['R'];
+                } else {
+                    // 指輪が2個装着されている場合のみ、R の後に指輪文字を指定する
+                    defaultSequence = letter ? ['R', letter] : ['R'];
+                }
                 defaultActionLabel = 'Remove ring/amulet';
                 defaultActionLabelJa = '外す (R)';
                 itemCategory = equipSlot === 'amulet' ? 'AMULET' : 'RING';
@@ -509,15 +518,28 @@ export class InventoryStateManager {
                 defaultVerb = 'P';
                 const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
                 const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
-                let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
-                defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
-                defaultActionLabel = 'Put on ring';
-                defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
-                itemCategory = 'RING';
-                alternativeActions = [
-                    makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
-                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                ].filter(Boolean);
+                if (hasLeftRing && hasRightRing) {
+                    defaultSequence = ['P'];
+                    defaultActionLabel = 'Already wearing two rings';
+                    defaultActionLabelJa = '両手に装着中 (P)';
+                    itemCategory = 'RING';
+                    alternativeActions = [
+                        makeAlt('P', ['P'], '両手に装着中 (P)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                } else {
+                    const isOneRingWorn = (hasLeftRing && !hasRightRing) || (!hasLeftRing && hasRightRing);
+                    let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
+                    // 1個装着中の場合は自動的に空いている手に入るため targetFinger を送ってはならない
+                    defaultSequence = isOneRingWorn ? (letter ? ['P', letter] : ['P']) : (letter ? ['P', letter, targetFinger] : ['P']);
+                    defaultActionLabel = 'Put on ring';
+                    defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+                    itemCategory = 'RING';
+                    alternativeActions = [
+                        makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                }
             }
             // 4. ナレッジデータ駆動 (Single Source of Truth 参照)
             else if (knowledge && knowledge.defaultVerb) {
@@ -678,14 +700,26 @@ export class InventoryStateManager {
                 defaultVerb = 'P';
                 const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
                 const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
-                let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
-                defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
-                defaultActionLabel = 'Put on ring';
-                defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
-                alternativeActions = [
-                    makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
-                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                ].filter(Boolean);
+                if (hasLeftRing && hasRightRing) {
+                    defaultSequence = ['P'];
+                    defaultActionLabel = 'Already wearing two rings';
+                    defaultActionLabelJa = '両手に装着中 (P)';
+                    alternativeActions = [
+                        makeAlt('P', ['P'], '両手に装着中 (P)', true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                } else {
+                    const isOneRingWorn = (hasLeftRing && !hasRightRing) || (!hasLeftRing && hasRightRing);
+                    let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
+                    // 1個装着中の場合は自動的に空いている手に入るため targetFinger を送ってはならない
+                    defaultSequence = isOneRingWorn ? (letter ? ['P', letter] : ['P']) : (letter ? ['P', letter, targetFinger] : ['P']);
+                    defaultActionLabel = 'Put on ring';
+                    defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+                    alternativeActions = [
+                        makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
+                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                    ].filter(Boolean);
+                }
             } else if (onumCategory === 'AMULET') {
                 defaultVerb = 'P';
                 defaultSequence = letter ? ['P', letter] : ['P'];
@@ -902,14 +936,14 @@ export class InventoryStateManager {
             equipSlot = 'quiver';
         }
 
-        // 着用中 (being worn, on left hand, on right hand, around neck, on head, on feet, on hands)
-        if (/\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(rawText) || /着用|装備中/i.test(rawText)) {
+        // 着用中 (being worn, on left hand, on right hand, around neck, on head, on feet, on hands, 左手, 右手)
+        if (/\b(being worn|on left hand|on right hand|on left finger|on right finger|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(rawText) || /(着用|装備中|左手|右手)/i.test(rawText)) {
             isWorn = true;
             if (!equipSlot) {
-                if (/on left hand/i.test(rawText)) equipSlot = 'ring_left';
-                else if (/on right hand/i.test(rawText)) equipSlot = 'ring_right';
-                else if (/around neck/i.test(rawText)) equipSlot = 'amulet';
-                else if (/shield/i.test(rawText)) equipSlot = 'shield';
+                if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(rawText)) equipSlot = 'ring_left';
+                else if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(rawText)) equipSlot = 'ring_right';
+                else if (/around neck|首/i.test(rawText)) equipSlot = 'amulet';
+                else if (/shield|盾/i.test(rawText)) equipSlot = 'shield';
                 else equipSlot = 'worn';
             }
         }

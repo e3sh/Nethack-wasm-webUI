@@ -70,9 +70,12 @@
 * **機能**: C コアに対して `+`（習得魔法一覧）のサイレントクエリを実行し、習得中の魔法リスト（呪文名、レベル、カテゴリ、詠唱失敗率、残り保持ターン）を GKL 内にキャッシュ保持します。
 * **効果**: 現在使用可能な魔法を正確に把握し、魔法アクションの生成基盤を作ります。
 
-### 施策 B: 属性耐性・隠れ能力の自律同期 (`AttributeStateManager` / `^X` 同期)
-* **機能**: `#attributes`（`^X`）コマンドを裏で自律実行・パースし、ステータス行には表示されない**「火炎・冷気・魔法耐性 (MR)」「反射 (Reflection)」「スキルランク」**を保持します。
-* **同期タイミング**: イベント駆動（レベルアップ時・装備変更時・耐性獲得メッセージ検知時）でサイレント実行し、パフォーマンスロスを防ぎます。
+### 施策 B: 属性耐性・隠れ能力の自律同期 (`AttributeStateManager` / `^X` + 装備耐性統合)
+* **機能**: `#attributes`（`^X`）コマンドを裏で自律実行・パースし、内因性耐性 (Intrinsics) を取得します。
+* **★指輪・装備品耐性 (Extrinsics) の自動結合**:
+  NetHack の仕様上、**指輪 (`ring of poison resistance` 等) や装備品による耐性は `^X` に表示されない**ため、`AttributeStateManager` は `^X` の結果に加えて `InventoryStateManager` から装備中の指輪・アミュレット・防具の付加耐性を自動合算（マージ）します：
+  $$\text{TotalResistances} = \text{Intrinsics (from } \text{^X)} \cup \text{Extrinsics (from Equipped Rings/Gear)}$$
+* **同期タイミング**: イベント駆動（レベルアップ時・装備変更時・耐性獲得メッセージ検知時）でサイレント実行し、確実かつ網羅的な耐性状態を保持します。
 
 ### 施策 C: 未識別（鑑定未済）アイテムの判定・リスク管理
 * **機能**: `InventoryStateManager` と `StructuredKnowledgeEngine` を拡張し、アイテムの**「鑑定状態レベル（Fully Identified / Unidentified / Price-Identified）」**を判定・管理します。
@@ -175,6 +178,14 @@ $$\text{AdviceScore} = (\text{緊急度} \times \text{危険度}) + \text{期待
   - **再視認 / 撃破 / 8ターン経過**: 位置再同期または記憶消去 ($\text{Weight} = 0.0$)
 * **効果**:
   システムを無駄に複雑化させることなく、シンプルかつ高速に「地形の破壊・変化」と「視界外モンスターの推測」を両立できる。
+
+#### 7. `^X` の表示限界と指輪・装備品耐性 (Extrinsics) の自動結合
+* **`^X` (`#attributes`) の表示仕様限界**:
+  NetHack の標準仕様上、`^X` コマンドで一覧表示されるのはプレイヤー自身が元々持っている**内因性耐性 (Intrinsics)** であり、**指輪 (`ring of fire resistance` 等) や防具・アミュレット等の装備品による外因性耐性 (Extrinsics) は `^X` には表示されない**。
+* **`SituationCache` での耐性統合合成仕様**:
+  参謀エンジン（ETA）が「現在何に耐性があるか」を判定する際、`^X` のパース結果だけに頼ると指輪による耐性を見落とし、誤った警告を出してしまうリスクがある。
+  そのため、`AttributeStateManager` は `^X`（天性耐性）と `InventoryStateManager`（装備中の指輪・装備品の付加耐性）の2つを常に**自動合算（ユニオン結合）**して完全な耐性マップを構築する：
+  $$\text{EffectiveResistances} = \text{Intrinsics (from } \text{^X)} \;\cup\; \text{Extrinsics (from Equipped Rings/Armors)}$$
 
 ---
 *更新日: 2026-08-17*  

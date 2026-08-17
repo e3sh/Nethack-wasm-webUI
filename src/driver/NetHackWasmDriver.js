@@ -764,7 +764,14 @@
                     const promptCategory = this.getPromptCategory('display_file', 'file');
 
                     this.recordSequenceBuffer({ type: 'display_file', filename, complain, fileText });
-                    this.emit("display_file", { filename, complain, fileText, promptCategory, resolver: safeResolver });
+                    if (!this.sequenceOptions.suppressPrompts) {
+                        this.emit("display_file", { filename, complain, fileText, promptCategory, resolver: safeResolver });
+                    }
+                    if (!this.tryConsumeSequenceToken("", safeResolver, 'display_file')) {
+                        if (this.sequenceOptions.suppressPrompts && safeResolver) {
+                            safeResolver(0);
+                        }
+                    }
                     await promise;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     return 0;
@@ -835,17 +842,19 @@
                     });
 
                     if (!this.tryConsumeSequenceToken(menuData.prompt, safeResolver, 'select_menu')) {
-                        this.emit("inputRequired", {
-                            context: "select_menu",
-                            type: "menu",
-                            promptCategory,
-                            windowId,
-                            how,
-                            menuItems: items,
-                            items: items,
-                            prompt: menuData.prompt,
-                            resolver: safeResolver
-                        });
+                        if (!this.sequenceOptions.suppressPrompts) {
+                            this.emit("inputRequired", {
+                                context: "select_menu",
+                                type: "menu",
+                                promptCategory,
+                                windowId,
+                                how,
+                                menuItems: items,
+                                items: items,
+                                prompt: menuData.prompt,
+                                resolver: safeResolver
+                            });
+                        }
                     }
 
                     let selectedItems = await promise;
@@ -930,12 +939,14 @@
                     const promptCategory = this.getPromptCategory('getch', 'char');
 
                     if (!this.tryConsumeSequenceToken("", safeResolver, 'getch')) {
-                        this.emit("inputRequired", {
-                            context: "getch",
-                            type: "char",
-                            promptCategory,
-                            resolver: safeResolver
-                        });
+                        if (!this.sequenceOptions.suppressPrompts) {
+                            this.emit("inputRequired", {
+                                context: "getch",
+                                type: "char",
+                                promptCategory,
+                                resolver: safeResolver
+                            });
+                        }
                     }
 
                     const key = await promise;
@@ -952,12 +963,14 @@
                     const promptCategory = this.getPromptCategory('poskey', 'poskey');
 
                     if (!this.tryConsumeSequenceToken("", safeResolver, 'poskey')) {
-                        this.emit("inputRequired", {
-                            context: "poskey",
-                            type: "poskey",
-                            promptCategory,
-                            resolver: safeResolver
-                        });
+                        if (!this.sequenceOptions.suppressPrompts) {
+                            this.emit("inputRequired", {
+                                context: "poskey",
+                                type: "poskey",
+                                promptCategory,
+                                resolver: safeResolver
+                            });
+                        }
                     }
 
                     const res = await promise;
