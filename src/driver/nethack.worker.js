@@ -122,6 +122,8 @@ self.onmessage = async function(e) {
 
                     if (driver) {
                         cleanData.isExecutingSequence = driver.isExecutingSequence;
+                        cleanData.isTopLevelTurn = driver.isTopLevelTurn;
+                        cleanData.canAcceptSequenceInterruption = typeof driver.canAcceptSequenceInterruption === 'function' ? driver.canAcceptSequenceInterruption() : true;
                     }
 
                     self.postMessage({ type: 'EVENT', event: evtName, data: cleanData });
@@ -211,6 +213,14 @@ self.onmessage = async function(e) {
                 self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles });
             } else {
                 self.postMessage({ type: 'LIST_SAVE_FILES_RESULT', saveFiles: [] });
+            }
+            break;
+        }
+
+        case 'GET_DEBUG_STATUS': {
+            if (driver && typeof driver.getDebugStatus === 'function') {
+                const status = driver.getDebugStatus();
+                self.postMessage({ type: 'DEBUG_STATUS_RESULT', status });
             }
             break;
         }

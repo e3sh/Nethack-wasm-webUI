@@ -419,6 +419,23 @@ export class WebUICore {
     }
 
     /**
+     * ドライバー層および自動同期キューのデバッグステータスを取得
+     * @returns {Object}
+     */
+    getDriverDebugStatus() {
+        if (this.driver && typeof this.driver.getDebugStatus === 'function') {
+            return this.driver.getDebugStatus();
+        }
+        return {
+            state: 'UNKNOWN',
+            isTopLevelTurn: false,
+            canAcceptSequenceInterruption: false,
+            isExecutingSequence: false,
+            sequenceQueueLength: 0
+        };
+    }
+
+    /**
      * クライアント UI 層から個別に直接呼び出し可能な動的翻訳 API
      */
     translate(text) {
@@ -1187,10 +1204,12 @@ export class WebUICore {
             const lastText = (this.lastPutstrText || '').toLowerCase();
             const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
 
-            // メインゲーム行動待機時に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
-            if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
+            // メインゲーム行動待機時（isTopLevelTurn === true）に、インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を安全実行
+            const isTopLevel = !this.driver || typeof this.driver.canAcceptSequenceInterruption !== 'function' || this.driver.isTopLevelTurn;
+            if (isTopLevel && this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !isPrefixWaiting) {
                 if (category !== PROMPT_CATEGORY.MENU && 
                     category !== PROMPT_CATEGORY.DIRECTION && 
+                    category !== PROMPT_CATEGORY.POSKEY && 
                     category !== PROMPT_CATEGORY.YN && 
                     category !== PROMPT_CATEGORY.TEXT && 
                     category !== PROMPT_CATEGORY.ASKNAME && 
@@ -1199,7 +1218,8 @@ export class WebUICore {
                     setTimeout(() => {
                         const currentMsg = (this.lastPutstrText || '').toLowerCase();
                         const currentlyPrefixWaiting = currentMsg.includes('プレフィックス') || currentMsg.includes('prefix') || (currentMsg.includes('count') && currentMsg.includes('command'));
-                        if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
+                        const stillTopLevel = !this.driver || typeof this.driver.canAcceptSequenceInterruption !== 'function' || this.driver.isTopLevelTurn;
+                        if (stillTopLevel && this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !this.driver.isExecutingSequence && !currentlyPrefixWaiting) {
                             this.gkl.syncInventorySilent();
                         }
                     }, 50);

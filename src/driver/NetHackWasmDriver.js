@@ -66,10 +66,79 @@
             this.lastCompletedBuffer = [];
             this.keyMode = 'numpad'; // 'numpad' | 'vi'
 
+            // 階層サブモード状態フラグ
+            this.isTargetingMode = false;               // '/' ';' ':' '_' '^' '\' の視察/ターゲットカーソル操作中
+            this._enteredPoskeyInTargetingMode = false;  // ターゲットモード中に nh_poskey/getch を経由したか
+            this.isMenuOpen = false;                    // menu 表示・選択中
+            this.isTextWindowOpen = false;              // display_file / モーダルテキスト表示中
+            this.isPromptOpen = false;                  // yn_function, getlin, get_ext_cmd 開閉中
+            this.isTopLevelTurn = false;                // 真のメインターン自由行動待機中か
+            this.lastRawPrintText = "";
+
             // Bind global dispatcher safely
             this.eventHook = this.eventHook.bind(this);
             this.setupGlobalDispatcher();
             this.initSubModules();
+        }
+
+        /**
+         * 視察・ターゲット開始キー（'/', ';', ':', '_', '^', '\'）が送出されたかを検出
+         */
+        checkTargetingCommandStart(key) {
+            if (typeof key !== 'string') return;
+            const cleanKey = key.trim();
+            const targetCmds = ['/', ';', ':', '_', '^', '\\'];
+            if (targetCmds.includes(cleanKey) || cleanKey === 'whatis' || cleanKey === 'travel') {
+                this.isTargetingMode = true;
+                this._enteredPoskeyInTargetingMode = false;
+                this.isTopLevelTurn = false;
+            }
+        }
+
+        /**
+         * nh_poskey 復帰後以降に決定キー（Space, Enter, ., y, n等）または ESC が押された場合のターゲットモード解除
+         */
+        checkTargetingCommandEnd(key) {
+            if (!this.isTargetingMode) return;
+            
+            // nh_poskey / nhgetch を経由した後の決定 / キャンセル操作でのみ解除
+            if (this._enteredPoskeyInTargetingMode) {
+                const k = typeof key === 'string' ? key : (typeof key === 'number' ? String.fromCharCode(key) : '');
+                if (k === ' ' || k === '\r' || k === '\n' || k === '.' || k === '\x1b' || key === 27 || key === 32 || key === 13 || key === 10) {
+                    this.isTargetingMode = false;
+                    this._enteredPoskeyInTargetingMode = false;
+                }
+            }
+        }
+
+        /**
+         * 現在のすべてのサブモードが閉じており、真のメインターン自由行動待ちであるか
+         * @returns {boolean}
+         */
+        canAcceptSequenceInterruption() {
+            if (this.state !== NetHackWasmDriver.DriverState.WAITING_INPUT) return false;
+            if (this.isTargetingMode || this.isMenuOpen || this.isTextWindowOpen || this.isPromptOpen) {
+                return false;
+            }
+            return Boolean(this.isTopLevelTurn);
+        }
+
+        /**
+         * 開発者・DevTools・DebugInspector 用デバッグステータスの一括取得
+         */
+        getDebugStatus() {
+            return {
+                state: this.state,
+                isTopLevelTurn: this.isTopLevelTurn,
+                canAcceptSequenceInterruption: this.canAcceptSequenceInterruption(),
+                isExecutingSequence: this.isExecutingSequence,
+                sequenceQueueLength: this.sequenceTaskQueue.length,
+                isTargetingMode: this.isTargetingMode,
+                isMenuOpen: this.isMenuOpen,
+                isTextWindowOpen: this.isTextWindowOpen,
+                isPromptOpen: this.isPromptOpen,
+                lastRawPrintText: this.lastRawPrintText
+            };
         }
 
         get isExecutingSequence() {
@@ -247,6 +316,11 @@
                 return false;
             }
 
+            // ターゲットカーソル操作中 ( Look / Travel 等 ) のみ自走トークン消費を保留
+            if (this.isTargetingMode) {
+                return false;
+            }
+
             const resObj = resolver || this.activeResolver;
             if (!resObj) return false;
 
@@ -258,6 +332,9 @@
 
             const rawToken = this.currentTask.tokens.shift();
             const token = this.resolveTokenKey(rawToken);
+
+            this.checkTargetingCommandStart(token);
+            this.checkTargetingCommandEnd(token);
 
             // resolver の型に応じた柔軟な自動応答
             if (typeof resObj.respond === 'function') {
@@ -690,6 +767,10 @@
                     const text = args[2] || "";
                     const cleanText = text.trim();
 
+                    if (cleanText.length > 0) {
+                        this.lastRawPrintText = cleanText;
+                    }
+
                     if (this.options.filterSysconfLogs && (cleanText.includes("sysconf") || cleanText.startsWith("OPTIONS="))) {
                         break;
                     }
@@ -756,6 +837,8 @@
                         console.warn("[NetHackWasmDriver] Failed to read display file:", filename, e);
                     }
 
+                    this.isTextWindowOpen = true;
+                    this.isTopLevelTurn = false;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('display_file', { filename }) :
@@ -773,11 +856,14 @@
                         }
                     }
                     await promise;
+                    this.isTextWindowOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     return 0;
                 }
 
                 case "shim_start_menu":
+                    this.isMenuOpen = true;
+                    this.isTopLevelTurn = false;
                     this.menuBuffer[args[0]] = { behavior: args[1], items: [], prompt: "" };
                     return 0;
 
@@ -858,6 +944,7 @@
                     }
 
                     let selectedItems = await promise;
+                    this.isMenuOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
                     // normalizeMenuResponse
@@ -931,6 +1018,10 @@
                 }
 
                 case "shim_nhgetch": {
+                    if (this.isTargetingMode) {
+                        this._enteredPoskeyInTargetingMode = true;
+                    }
+                    this.isTopLevelTurn = !this.isTargetingMode && !this.isMenuOpen && !this.isTextWindowOpen && !this.isPromptOpen;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('getch') :
@@ -955,6 +1046,10 @@
                 }
 
                 case "shim_nh_poskey": {
+                    if (this.isTargetingMode) {
+                        this._enteredPoskeyInTargetingMode = true;
+                    }
+                    this.isTopLevelTurn = !this.isTargetingMode && !this.isMenuOpen && !this.isTextWindowOpen && !this.isPromptOpen;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('poskey') :
@@ -1001,6 +1096,8 @@
                     const choices = args[1] || "";
                     const def = args[2] || "";
 
+                    this.isPromptOpen = true;
+                    this.isTopLevelTurn = false;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('yn_function', { query, choices, def }) :
@@ -1023,6 +1120,7 @@
                     }
 
                     const rawAns = await promise;
+                    this.isPromptOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
                     const getSafeFallbackChar = () => {
@@ -1071,6 +1169,8 @@
                     const query = args[0];
                     const bufp = args[1];
 
+                    this.isPromptOpen = true;
+                    this.isTopLevelTurn = false;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('getlin', { query }) :
@@ -1090,6 +1190,7 @@
                     }
 
                     const input = await promise;
+                    this.isPromptOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
                     const M = this.getModule();
@@ -1102,6 +1203,8 @@
                 }
 
                 case "shim_get_ext_cmd": {
+                    this.isPromptOpen = true;
+                    this.isTopLevelTurn = false;
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('get_ext_cmd') :
@@ -1136,6 +1239,7 @@
                     }
 
                     const idx = await promise;
+                    this.isPromptOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     return typeof idx === 'number' ? idx : -1;
                 }

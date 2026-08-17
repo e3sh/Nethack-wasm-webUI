@@ -216,7 +216,7 @@ export class InventoryStateManager {
 
         // ドロップメッセージ・拾得・投げる/射出・消費・使用・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
         const msg = message.toLowerCase();
-        if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('pick') || msg.includes('picked') ||
+        if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('picking up') ||
             msg.includes('got ') || msg.includes('find') || msg.includes('now have') || msg.includes('obtain') ||
             msg.includes('grab') || msg.includes('loot') || msg.includes('拾') || msg.includes('手に入れ') || msg.includes('入手') ||
             msg.includes('throw') || msg.includes('threw') || msg.includes('fire') || msg.includes('fired') ||

@@ -131,11 +131,24 @@ export class DebugInspector {
                 ? this.core.gkl.areaStateManager.getAreaState()
                 : (typeof this.core.getAreaState === 'function' ? this.core.getAreaState() : null));
 
+        const rawDriverStatus = (typeof this.core.getDriverDebugStatus === 'function') 
+            ? this.core.getDriverDebugStatus() 
+            : (this.core.driver && typeof this.core.driver.getDebugStatus === 'function' ? this.core.driver.getDebugStatus() : null);
+
+        // イベントログの視認性を損なわないスリム要約表現
+        const driverSummary = rawDriverStatus ? {
+            state: rawDriverStatus.state,
+            topLevel: Boolean(rawDriverStatus.isTopLevelTurn),
+            canInterrupt: Boolean(rawDriverStatus.canAcceptSequenceInterruption),
+            queueLen: rawDriverStatus.sequenceQueueLength || 0
+        } : null;
+
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
             promptChoices: this.core.currentPromptChoices,
             hasActiveResolver: !!this.core.activeResolver,
+            driverStatus: driverSummary,
             status: statusData,
             areaState: areaData,
             inventoryItems: inventoryItems,

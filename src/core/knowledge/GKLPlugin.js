@@ -152,7 +152,7 @@ export class GKLPlugin {
             'k', 'j', 'h', 'l', 'y', 'u', 'b', 'n',
             'K', 'J', 'H', 'L', 'Y', 'U', 'B', 'N',
             '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '_', '<', '>',
-            'm', 'M',
+            '/', ';', ':', '^', '\\', '?', 'm', 'M',
             'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
             'Up', 'Down', 'Left', 'Right'
         ]);

@@ -202,12 +202,19 @@ class GklPureJSClient {
       if (prevX >= 0 && prevY >= 0) this.redrawSingleCell(prevX, prevY);
       if (this.targetCursorX >= 0 && this.targetCursorY >= 0) {
         this.redrawSingleCell(this.targetCursorX, this.targetCursorY);
-        // プレイヤーの現在位置を AreaStateManager に同期
+        // プレイヤーの現在位置を AreaStateManager に同期 (ターゲットカーソル移動中でないメインターン時のみ)
         if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-          this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
+          if (!this.core.driver || typeof this.core.driver.canAcceptSequenceInterruption !== 'function' || this.core.driver.isTopLevelTurn) {
+            this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
+          }
         }
       }
     });
+
+    if (typeof window !== 'undefined') {
+      window.core = this.core;
+      window.gkl = this.core.gkl;
+    }
 
     // 5. Print Glyph (Map Update & GKL AreaStateManager 同期)
     this.core.on('print_glyph', ({ x, y, glyphInfo, glyph }) => {
@@ -584,9 +591,6 @@ class GklPureJSClient {
               // Layer 3: Top (キャラクター/モンスター + バウンス)
               if (cell.top && cell.top.rawGlyph >= 0) {
                 this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
-              } else if (gx === px && gy === py) {
-                // プレイヤー自キャラ位置
-                this.drawZoomTile(0, cols, tileMap, screenX, screenY, bounceY);
               }
             } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
               this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);

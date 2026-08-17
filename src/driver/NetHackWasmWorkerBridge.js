@@ -23,6 +23,9 @@
             this._activeResolver = null;
             this.lastSequenceBuffer = [];
             this.isExecutingSequence = false;
+            this.isTopLevelTurn = false;
+            this._canAcceptSequenceInterruption = false;
+            this._driverDebugStatus = null;
 
             if (!workerUrl && typeof window !== 'undefined') {
                 const path = window.location.pathname;
@@ -104,6 +107,12 @@
                         if (data && typeof data.isExecutingSequence === 'boolean') {
                             this.isExecutingSequence = data.isExecutingSequence;
                         }
+                        if (data && typeof data.isTopLevelTurn === 'boolean') {
+                            this.isTopLevelTurn = data.isTopLevelTurn;
+                        }
+                        if (data && typeof data.canAcceptSequenceInterruption === 'boolean') {
+                            this._canAcceptSequenceInterruption = data.canAcceptSequenceInterruption;
+                        }
 
                         // inputRequired イベントなどの透過的 resolver 再構築
                         if (data && data.hasResolver) {
@@ -176,6 +185,13 @@
 
                     case 'DETECT_SAVE_NAME_RESULT':
                         this.emit('detectSaveNameResult', { saveName });
+                        break;
+
+                    case 'DEBUG_STATUS_RESULT':
+                        if (msgData && msgData.status) {
+                            this._driverDebugStatus = msgData.status;
+                        }
+                        this.emit('debugStatusResult', msgData ? msgData.status : null);
                         break;
 
                     case 'LIST_SAVE_FILES_RESULT':
@@ -395,6 +411,39 @@
                 return await this.init(options);
             }
             return true;
+        }
+
+        /**
+         * 現在のドライバ状態がメインターン行動待ちであり、自走シーケンスの割り込み実行が安全に可能か判定
+         * @returns {boolean}
+         */
+        canAcceptSequenceInterruption() {
+            if (this.state !== NetHackWasmWorkerBridge.DriverState.WAITING_INPUT) return false;
+            if (typeof this._canAcceptSequenceInterruption === 'boolean') {
+                return this._canAcceptSequenceInterruption;
+            }
+            return Boolean(this.isTopLevelTurn);
+        }
+
+        /**
+         * 開発者・DevTools・DebugInspector 用デバッグステータスの一括取得
+         */
+        getDebugStatus() {
+            if (this._driverDebugStatus) {
+                return {
+                    ...this._driverDebugStatus,
+                    bridgeState: this.state,
+                    bridgeExecutingSequence: this.isExecutingSequence,
+                    canAcceptSequenceInterruption: this.canAcceptSequenceInterruption()
+                };
+            }
+            return {
+                state: this.state,
+                isTopLevelTurn: this.isTopLevelTurn,
+                canAcceptSequenceInterruption: this.canAcceptSequenceInterruption(),
+                isExecutingSequence: this.isExecutingSequence,
+                sequenceQueueLength: 0
+            };
         }
 
         /**
