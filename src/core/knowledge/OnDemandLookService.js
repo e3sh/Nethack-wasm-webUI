@@ -89,11 +89,27 @@ export class OnDemandLookService {
             text = rawBuffer;
         }
 
-        const lower = text.toLowerCase();
+        const trimmed = text.trim();
+        const lower = trimmed.toLowerCase();
+        const hasResult = trimmed.length > 0;
+
         const isPlayer = lower.includes('you (') || lower.includes('yourself') || lower.startsWith('you ') || lower === 'you';
-        const isPeaceful = !isPlayer && (lower.includes('(peaceful)') || lower.includes('appears peaceful') || lower.includes('seems peaceful'));
-        const isTamed = !isPlayer && (lower.includes('(tamed)') || lower.includes('(friendly)') || lower.includes('is tamed') || lower.includes('is friendly'));
-        const isHostile = !isPlayer && !isPeaceful && !isTamed;
+        const isPeaceful = !isPlayer && (
+            lower.includes('peaceful') || 
+            lower.includes('appears peaceful') || 
+            lower.includes('seems peaceful') ||
+            trimmed.includes('平和')
+        );
+        const isTamed = !isPlayer && (
+            lower.includes('tamed') || 
+            lower.includes('friendly') || 
+            lower.includes('is tamed') || 
+            lower.includes('is friendly') ||
+            trimmed.includes('大人しい') ||
+            trimmed.includes('おとなしい') ||
+            trimmed.includes('ペット')
+        );
+        const isHostile = !isPlayer && !isPeaceful && !isTamed && hasResult;
 
         return {
             rawText: text,
@@ -101,7 +117,7 @@ export class OnDemandLookService {
             isPeaceful,
             isTamed,
             isHostile,
-            hasResult: text.length > 0
+            hasResult
         };
     }
 

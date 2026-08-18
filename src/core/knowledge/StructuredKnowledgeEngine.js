@@ -783,12 +783,20 @@ export class StructuredKnowledgeEngine {
         } else if (isPet) {
             result.dangerLevel = 'SAFE';
             result.dispositionStatus = 'TAMED';
-        } else if (dynamicState && typeof dynamicState.isPeaceful === 'boolean') {
+        } else if (dynamicState && dynamicState.hasResult !== false && (dynamicState.isPeaceful || dynamicState.isTamed || dynamicState.isHostile)) {
             if (dynamicState.isPeaceful) {
                 result.dangerLevel = 'SAFE';
                 result.dispositionStatus = 'PEACEFUL';
-            } else {
+            } else if (dynamicState.isTamed) {
+                result.dangerLevel = 'SAFE';
+                result.dispositionStatus = 'TAMED';
+            } else if (dynamicState.isHostile) {
                 result.dangerLevel = found.dangerLevel || 'LETHAL';
+                result.dispositionStatus = 'HOSTILE';
+            } else if (found.defaultPeaceful) {
+                result.dangerLevel = 'SAFE';
+                result.dispositionStatus = 'DEFAULT_PEACEFUL';
+            } else {
                 result.dispositionStatus = 'HOSTILE';
             }
         } else if (found.defaultPeaceful) {

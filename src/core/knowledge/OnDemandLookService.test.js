@@ -41,11 +41,23 @@ describe('OnDemandLookService', () => {
     });
 
     describe('parseLookResponse', () => {
-        it('peaceful モンスターを判定できること', () => {
-            const res = service.parseLookResponse('a shopkeeper (peaceful)');
-            expect(res.isPeaceful).toBe(true);
-            expect(res.isTamed).toBe(false);
-            expect(res.isHostile).toBe(false);
+        it('peaceful モンスターを判定できること (括弧あり・なし・日本語)', () => {
+            const res1 = service.parseLookResponse('a shopkeeper (peaceful)');
+            expect(res1.isPeaceful).toBe(true);
+            expect(res1.isTamed).toBe(false);
+            expect(res1.isHostile).toBe(false);
+
+            const res2 = service.parseLookResponse('a peaceful shopkeeper');
+            expect(res2.isPeaceful).toBe(true);
+            expect(res2.isHostile).toBe(false);
+
+            const res3 = service.parseLookResponse('a peaceful watchman');
+            expect(res3.isPeaceful).toBe(true);
+            expect(res3.isHostile).toBe(false);
+
+            const res4 = service.parseLookResponse('平和な店主');
+            expect(res4.isPeaceful).toBe(true);
+            expect(res4.isHostile).toBe(false);
         });
 
         it('tamed / friendly モンスターを判定できること', () => {
@@ -54,6 +66,9 @@ describe('OnDemandLookService', () => {
 
             const res2 = service.parseLookResponse('a kitten (tamed)');
             expect(res2.isTamed).toBe(true);
+
+            const res3 = service.parseLookResponse('おとなしい子猫');
+            expect(res3.isTamed).toBe(true);
         });
 
         it('標記なしの通常モンスターを hostile と判定できること', () => {
@@ -61,6 +76,14 @@ describe('OnDemandLookService', () => {
             expect(res.isPeaceful).toBe(false);
             expect(res.isTamed).toBe(false);
             expect(res.isHostile).toBe(true);
+            expect(res.hasResult).toBe(true);
+        });
+
+        it('空のレスポンスの場合は hasResult: false かつ isHostile: false となること', () => {
+            const res = service.parseLookResponse('');
+            expect(res.hasResult).toBe(false);
+            expect(res.isHostile).toBe(false);
+            expect(res.isPeaceful).toBe(false);
         });
     });
 
@@ -91,10 +114,19 @@ describe('StructuredKnowledgeEngine defaultPeaceful & Dynamic State Integration'
     it('店主が敵対化した (isHostile) 動的状態では LETHAL に上書きされること', () => {
         const mon = engine.getMonsterKnowledge(271, {
             translate: false,
-            dynamicState: { isPeaceful: false, isHostile: true }
+            dynamicState: { isPeaceful: false, isHostile: true, hasResult: true }
         });
         expect(mon.dangerLevel).toBe('LETHAL');
         expect(mon.dispositionStatus).toBe('HOSTILE');
+    });
+
+    it('Look 応答の取得に失敗した場合 (hasResult: false) でも店主の DEFAULT_PEACEFUL が維持されること', () => {
+        const mon = engine.getMonsterKnowledge(271, {
+            translate: false,
+            dynamicState: { isPeaceful: false, isHostile: false, hasResult: false }
+        });
+        expect(mon.dangerLevel).toBe('SAFE');
+        expect(mon.dispositionStatus).toBe('DEFAULT_PEACEFUL');
     });
 
     it('自キャラ (isPlayer: true) は dangerLevel: NONE と評価されること', () => {
