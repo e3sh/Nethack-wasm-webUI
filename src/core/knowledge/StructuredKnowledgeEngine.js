@@ -744,7 +744,32 @@ export class StructuredKnowledgeEngine {
 
         if (!found) return null;
 
-        return shouldTranslate ? this.localizeKnowledge(found) : found;
+        // 動的状態 (dynamicState / cell / isPet / isPlayer) による脅威度の補正計算
+        const result = { ...found };
+        const isPet = options.isPet || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET);
+        const isPlayer = options.isPlayer || false;
+        const dynamicState = options.dynamicState || null;
+
+        if (isPlayer) {
+            result.dangerLevel = 'NONE';
+            result.dispositionStatus = 'PLAYER';
+        } else if (isPet) {
+            result.dangerLevel = 'SAFE';
+            result.dispositionStatus = 'TAMED';
+        } else if (dynamicState && typeof dynamicState.isPeaceful === 'boolean') {
+            if (dynamicState.isPeaceful) {
+                result.dangerLevel = 'SAFE';
+                result.dispositionStatus = 'PEACEFUL';
+            } else {
+                result.dangerLevel = found.dangerLevel || 'LETHAL';
+                result.dispositionStatus = 'HOSTILE';
+            }
+        } else if (found.defaultPeaceful) {
+            result.dangerLevel = 'SAFE';
+            result.dispositionStatus = 'DEFAULT_PEACEFUL';
+        }
+
+        return shouldTranslate ? this.localizeKnowledge(result) : result;
     }
 
     /**

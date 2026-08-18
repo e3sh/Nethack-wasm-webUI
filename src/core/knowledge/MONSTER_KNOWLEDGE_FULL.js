@@ -272,6 +272,28 @@ function inferDangerLevel(name, hd) {
     return 'LOW';
 }
 
+/**
+ * 種族・名前・インデックスからデフォルトで平和的 (peaceful) に生成されるか判定
+ */
+function isDefaultPeaceful(name, monOffset) {
+    const lower = name.toLowerCase();
+
+    // 1. クエストリーダー (344~356) およびガーディアン/NPC (369~382)
+    if ((monOffset >= 344 && monOffset <= 356) || (monOffset >= 369 && monOffset <= 382)) {
+        return true;
+    }
+
+    // 2. 店主, オラクル, 警備兵, 看護師, 聖職者等の一般平和的NPC
+    if (lower.includes('shopkeeper') || lower.includes('oracle') || lower.includes('guard') || 
+        lower.includes('watchman') || lower.includes('watch captain') || lower.includes('nurse') || 
+        lower.includes('cleric') || lower.includes('priest') || lower.includes('attendant') ||
+        lower.includes('guide') || lower.includes('prisoner')) {
+        return true;
+    }
+
+    return false;
+}
+
 // 全 384 モンスター構造化マップの構築 (0 〜 382)
 for (let i = 0; i <= 382; i++) {
     const offsetKey = String(i);
@@ -295,12 +317,14 @@ for (let i = 0; i <= 382; i++) {
     };
 
     const dangerLevel = specific.dangerLevel || inferDangerLevel(rawName, stats.hd);
+    const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
 
     const monsterEntry = {
         id: cleanId || `mon_${i}`,
         monOffset: i,
         name: rawName,
         dangerLevel: dangerLevel,
+        defaultPeaceful: defaultPeaceful,
         stats: stats,
         attacks: specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }],
         resistances: specific.resistances || [],

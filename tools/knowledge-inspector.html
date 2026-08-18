@@ -367,6 +367,7 @@
     <script type="module">
         import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/StructuredKnowledgeEngine.js';
         import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
+        import { getItemInfoFromOnum } from '../src/core/knowledge/glyphClassifier.js';
         import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
 
         // window.nhMessage(), nhEntities(), nhItems() を自動参照する TranslationEngine
@@ -544,6 +545,14 @@
 
             const displayTitle = currentLang === 'ja' ? translateNameWithSlash(mon.name) : mon.name;
 
+            // フラグ算出
+            const flags = [];
+            flags.push({ label: 'defaultPeaceful', value: !!mon.defaultPeaceful, badge: mon.defaultPeaceful ? 'background:#22c55e; color:#000;' : 'background:#475569; color:#fff;' });
+            flags.push({ label: 'dangerLevel', value: mon.dangerLevel || 'LOW', badge: `background:var(--accent-color); color:#000;` });
+            if (mon.dispositionStatus) {
+                flags.push({ label: 'dispositionStatus', value: mon.dispositionStatus, badge: 'background:#a855f7; color:#fff;' });
+            }
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div class="card-title-group">
@@ -551,6 +560,13 @@
                         <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
                     </div>
                     <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
+                </div>
+
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; margin-bottom:12px;">
+                    <div class="section-title" style="margin-bottom:6px; font-size:0.8rem; color:var(--accent-color);">🚩 Structured Knowledge Flags</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        ${flags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; ${f.badge}">${f.label}: ${f.value}</span>`).join('')}
+                    </div>
                 </div>
 
                 <div class="stats-grid">
@@ -612,6 +628,19 @@
 
             const displayTitle = currentLang === 'ja' ? translateNameWithSlash(item.name) : item.name;
 
+            // 🎯 純粋インスペクター設計: ナレッジオブジェクトが実際に保持しているプロパティをそのまま素直に表示
+            const itemFlags = [];
+            itemFlags.push({ label: 'category', value: item.category || 'OTHER' });
+            itemFlags.push({ label: 'onum', value: item.onum ?? 'N/A' });
+            if (item.defaultVerb) itemFlags.push({ label: 'defaultVerb', value: `${item.defaultVerb} (${item.verbKey || '-'})` });
+
+            // item オブジェクト内の真偽値フラグ (is*) を生データからそのまま抽出表示
+            Object.keys(item).forEach(key => {
+                if (key.startsWith('is') && typeof item[key] === 'boolean' && item[key] === true) {
+                    itemFlags.push({ label: key, value: 'true' });
+                }
+            });
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div class="card-title-group">
@@ -621,9 +650,16 @@
                     <span class="tag-badge tag-ITEM">${item.category}</span>
                 </div>
 
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; margin-bottom:12px;">
+                    <div class="section-title" style="margin-bottom:6px; font-size:0.8rem; color:var(--accent-color);">🚩 Structured Knowledge & Item Flags</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        ${itemFlags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;">${f.label}: ${f.value}</span>`).join('')}
+                    </div>
+                </div>
+
                 ${item.defaultVerb ? `
                     <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); padding:8px 12px; border-radius:6px; margin-bottom:10px; display:flex; gap:12px; align-items:center;">
-                        <span style="font-weight:bold; color:var(--accent-color); font-size:0.85rem;">⚡ Default Verb:</span>
+                        <span style="font-weight:bold; color:var(--accent-color); font-size:0.85rem;">⚡ Default Action:</span>
                         <span style="background:#22c55e; color:#000; font-weight:bold; font-size:0.75rem; padding:2px 8px; border-radius:4px;">${item.defaultVerb} (${item.verbKey || '-'})</span>
                         <span style="color:#cbd5e1; font-size:0.85rem;">${item.actionLabelJa || '-'}</span>
                     </div>

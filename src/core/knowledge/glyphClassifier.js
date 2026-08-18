@@ -254,7 +254,7 @@ export function getItemInfoFromOnum(onum) {
         category = 'GEM';
     }
 
-    const isPickAxe = (onum === 259 || onum === 33); // pick-axe (259), dwarvish mattock (33)
+    const isPickAxe = (onum === 259 || onum === 71); // pick-axe (259), dwarvish mattock (71)
     const isKey = (onum >= 221 && onum <= 223) || onum === 263; // skeleton key (221), lock pick (222), credit card (223), Bell of Opening (263)
     const isAxe = (onum === 44 || onum === 45); // axe (44), battle-axe (45)
     const isDigWand = (onum === 428); // wand of digging (428)
