@@ -59,14 +59,17 @@ related_code:
   - 文字列（`"pray"`, `"jump"` 等）や `#` 付き文字列が入力された際、正当なインデックス数値へマッピングして `safeResolver.respond()` を実行。
 
 ### 2.5 シーケンス自走消化 ＆ FIFOタスクキュー構造 (`queueSequence`)
-- **タスクオブジェクトによる FIFO 管理**:
-  - シーケンス呼び出しを単一のグローバル配列で直接上書き管理するのではなく、個別のタスクオブジェクト `{ id, tokens, options, buffer }` として `sequenceTaskQueue` 配列（FIFO）に安全に保持します。
-- **先行シーケンスの非破棄順次消化**:
-  - 先行するシーケンスが自走消化中、または現在 Cコアからの入力問い合わせ中（`activeResolver` 保持時）であっても、投入された新しいシーケンスが既存キューを破棄することはありません。先行タスクの全トークンが消化され Cコアの処理が一段落したタイミングで自動的に次のタスクを開始します。
-- **実行結果バッファと表示オプションの隔離**:
-  - 各タスクは独自の実行結果バッファ (`buffer`) と表示制御オプション (`suppressPrompts`) をカプセル化して保持します。これにより、サイレントクエリ（`suppressPrompts: true`）と通常シーケンスが連続投入された場合でも、画面プロンプト抑止やバッファ取得の独立性が 100% 保証されます。
+- **タスクオブジェクトによる FIFO 管理 ＆ Promise 結果返却**:
+  - シーケンス呼び出しを単一のグローバル配列で管理するのではなく、個別のタスクオブジェクト `{ sequenceId, tokens, options, buffer, resolve, reject }` として `sequenceTaskQueue` 配列（FIFO）に保持します。
+  - `queueSequence` 呼び出し時は Promise を返却し、全トークン消化およびCコア処理の完了後に `resolve(buffer)` が実行され、呼び出し元へ直接レスポンスバッファが届きます。
+- **Web Worker / WorkerBridge 間の `sequenceId` 追跡**:
+  - Web Worker 経由で動作する場合、一意の `sequenceId` を Worker へ送信し、Worker 内 Driver 完了時に `SEQUENCE_FINISHED` メッセージ（`sequenceId`, `buffer`）を postMessage で送信することでメインスレッド側の Pending Promise を非同期解決します。
+- **明確なキャンセル保護ガード (Cancellation Safeguards)**:
+  - **重複サイレントタスクの安全破棄**: 同一のサイレント同期タスク（`isSilentSync: true`）が投入された際、未実行の旧サイレントタスクは勝手に統合せず明示的に `reject` キャンセルします。
+  - **手動操作介入時の自動キャンセル**: プレイヤーが `sendInput()` で新しい手動入力を行った際、待機中の旧自動同期タスクは明示的に `reject` キャンセルされ、人の操作を妨害しません。
+  - **ターゲット指定モード (`isTargetingMode`) での保護待機**: `/` キー等の視察・ターゲット指定中はキュー内でタスクが待機し、ターゲット解散直後に自動的に再開・Promise 解決されます。
 - **安全な一括キャンセル (`cancelSequence`)**:
-  - `cancelSequence()` が呼び出された場合、進行中のアクティブタスクに加えて FIFO キュー内に保留されている未実行予約タスクも一括で完全消去されます。
+  - `cancelSequence()` が呼び出された場合、進行中のアクティブタスクに加えて FIFO キュー内に保留されている未実行予約タスクも一括で `reject(new Error('Sequence cancelled'))` キャンセル・消去されます。
 
 ---
 

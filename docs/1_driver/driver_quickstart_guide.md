@@ -118,6 +118,11 @@ bridge.init(targetWasmJs, {
 });
 ```
 
+// 4. シーケンス自走消化 (queueSequence) の非同期実行と結果バッファ取得例
+// await queueSequence(tokens) を実行すると、完了を待機してキャプチャされた結果バッファを直接返します
+const buffer = await bridge.queueSequence(['i', ' ', '\x1b'], { suppressPrompts: true, isSilentSync: true });
+console.log('実行結果バッファ:', buffer);
+
 ---
 
 ## 3. Wasm コアの差し替え・バージョンアップ手順 (Upgrading Wasm Core)

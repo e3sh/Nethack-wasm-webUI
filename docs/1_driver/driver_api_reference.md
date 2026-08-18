@@ -79,20 +79,26 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
 
 ## 3. シーケンス制御 ＆ サイレントクエリ API (Sequence Control)
 
-### `driver.queueSequence(tokens, options = {})`
+### `await driver.queueSequence(tokens, options = {})`
 連続するキー入力や抽象方向トークンの配列をタスクとして **FIFO（先入れ先出し）タスクキュー** へ投入し、Cコアの `inputRequired` 発生タイミングに合わせて安全に自動消化・自動応答します。
 - **引数**:
-  - `tokens`: `Array<string | number>` - トークン配列 (例: `['#', 'kick', 'DIR_E']` や `['i']`)
-  - `options`: `Object` - `{ suppressPrompts: boolean }` (省略可)
+  - `tokens`: `Array<string | number>` - トークン配列 (例: `['#', 'kick', 'DIR_E']` や `['i', ' ', '\x1b']`)
+  - `options`: `Object` - 省略可
     - `suppressPrompts`: `true` に設定すると、画面プロンプト（`putmsg`）の発行を抑止してサイレント消化を行います。
-- **特徴**:
-  - 連続で投入された場合でも既存のシーケンスを上書き破棄せず、先行するシーケンスの完了および空いたタイミングで順次安全に開始します。
+    - `isSilentSync`: `true` に設定すると、自動同期タスクとして認識され、未実行の旧サイレントタスクが残留している場合に古いタスクを安全にキャンセル（`reject`）して重複を防ぎます。
+    - `sequenceId`: タスクを特定する一意の識別 ID（自動生成されます）。
+- **戻り値**: `Promise<Array<Object>>`
+  - シーケンス実行完了時に、その実行中にキャプチャされた出力バッファ（`putstr`, `select_menu`, `display_file` 等）の配列を直接返却します。手動での `getLastSequenceBuffer()` ポーリングは不要です。
+- **特徴・安全ガード**:
+  - ターゲットモード操作中（`/` キー等）はキュー内でタスクが一時待機し、ターゲットモード解散直後に自動的に安全実行・Promise 解決されます。
+  - 手動入力（`sendInput`）が介入した場合、待機中の古い自動同期タスクは明示的にキャンセル（`reject`）して破棄されます。
+  - キューの最大保持件数上限（`maxQueueSize = 16`）を超過した場合は古いタスクをキャンセル破棄します。
 
 ### `driver.cancelSequence()`
-実行中のシーケンスおよび FIFO タスクキューに予約されている未実行の全シーケンスを即時クリアし、通常状態に安全復帰します。
+実行中のシーケンスおよび FIFO タスクキューに予約されている未実行の全シーケンスを即時クリアし、全 Pending Promise を `reject(new Error('Sequence cancelled'))` 解決して通常状態に安全復帰します。
 
 ### `driver.getLastSequenceBuffer()`
-直近に完了したシーケンス、または現在実行中のシーケンスがキャプチャした実行結果バッファ（`putstr`, `select_menu`, `display_file`, `raw_print` 等のオブジェクト配列）のクリーンコピーを取得します。
+直近に完了したシーケンス、または現在実行中のシーケンスがキャプチャした実行結果バッファ（`putstr`, `select_menu`, `display_file`, `raw_print` 等のオブジェクト配列）のクリーンコピーを取得します（※ `await queueSequence()` の戻り値として直接取得することも可能です）。
 
 ### `driver.isExecutingSequence` (プロパティ / Read-Only)
 現在ドライバーが自走シーケンスを実行中（アクティブなタスクが存在）かどうかを示す `boolean` フラグです。

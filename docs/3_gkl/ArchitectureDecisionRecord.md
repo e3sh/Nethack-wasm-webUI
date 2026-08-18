@@ -36,7 +36,7 @@ related_code:
 ### 1.5 `WebUICore` と GKL の責務分離 (SoC) と 汎用サイレントクエリ (`querySequenceSilent`)
 - **`WebUICore` の純粋汎用インフラ化**:
   - `WebUICore` はゲームルールやインベントリ等のドメイン知識を一切持たない純粋な通信インフラ層とし、Cコアへの汎用サイレント問い合わせ API `querySequenceSilent(tokens, options)` および直近バッファアクセサ `getLastSequenceBuffer()` のみを提供する。
-  - `querySequenceSilent(['i', ' '])` や `querySequenceSilent(['+', ' '])` を呼び出すことで、画面非表示で自走実行し、シーケンス完了時に `driver.getLastSequenceBuffer()` のバッファを Promise として返却する統一パイプラインを確立。
+  - `querySequenceSilent(['i', ' '])` や `querySequenceSilent(['+', ' '])` を呼び出すことで、画面非表示で自走実行し、シーケンス完了時に実行結果バッファ（`buffer`）を Promise の戻り値として直接受領する統一パイプラインを確立（`getLastSequenceBuffer()` の手動ポーリングは不要）。
 
 ### 1.6 GKL 統合状況アクセサ (`SituationCache`) と 4 層パイプライン構造
 - **GKL の階層化と統一アクセサの導入**:
@@ -66,8 +66,8 @@ related_code:
 2. **実行開始時のクリア**: `driver.queueSequence(tokens, options)` の呼び出し冒頭で `this.lastSequenceBuffer = []` を自動初期化。
 3. **実行中の受動蓄積**:
    - `isExecutingSequence === true` の間、`putstr` (テキスト行), `textWindowBuffers` (テキストバッファ), `select_menu` (メニュー構造体) が Cコアから発行された際、画面表示および `putmsg` 配信の有無に関わらず `lastSequenceBuffer` 配列へ自動プッシュ保存。
-4. **完了後の参照 API**:
-   - `driver.getLastSequenceBuffer()` (または `core.getLastSequenceBuffer()`) および `core.querySequenceSilent(tokens, options)` を通じて、実行結果のクリーンなコピーを非同期で上位層へ提供。
+4. **完了後の参照・直接返却 API**:
+   - `await queueSequence(tokens)` (および `await querySequenceSilent(tokens)`) の戻り値 Promise として、シーケンス完了時に結果バッファのクリーンなコピーを直接受領可能（`driver.getLastSequenceBuffer()` でも参照可能）。
 
 ### 2.2 本設計の定量的メリット
 - **WASM メモリハック 0%**: C言語の構造体ポインタ（`struct obj *invent` 等）の解析が一切不要。
