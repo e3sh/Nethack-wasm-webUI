@@ -1,9 +1,11 @@
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
+import { OnDemandLookService } from '../../src/core/knowledge/OnDemandLookService.js';
 
 class GklPureJSClient {
   constructor() {
     this.core = null;
+    this.lookService = null;
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
     this.asciiGrid = document.getElementById('ascii-grid');
@@ -163,6 +165,7 @@ class GklPureJSClient {
     const workerPath = '../../src/driver/nethack.worker.js';
     const bridge = new NetHackWasmWorkerBridge(workerPath);
     this.core = new WebUICore({ driver: bridge });
+    this.lookService = new OnDemandLookService({ core: this.core });
 
     this.bindCoreEvents();
   }
@@ -309,55 +312,70 @@ class GklPureJSClient {
       }
     });
 
-    // ズームカメラ (zoom-canvas) 内の受信連動 7x7 マス ホバーナレッジ表示 (Top -> Middle -> Bottom 優先順位)
+    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御)
+    const handleCanvasInspect = async (gx, gy, isHover) => {
+      if (gx >= 0 && gx < 80 && gy >= 0 && gy < 24) {
+        if (this.core?.gkl?.inspectCellOnDemand) {
+          const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
+          if (cardData) {
+            this.renderKnowledgeCard(cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
+          }
+        }
+      }
+    };
+
+    // 1. メインキャンバス (Graphic & Ascii Canvas) のクリック＆ホバーイベント
+    [this.canvasGraphic, this.canvasAscii].forEach(cvs => {
+      if (!cvs) return;
+      cvs.addEventListener('mousemove', async (e) => {
+        const rect = cvs.getBoundingClientRect();
+        const gx = Math.floor(((e.clientX - rect.left) * (cvs.width / rect.width)) / 32);
+        const gy = Math.floor(((e.clientY - rect.top) * (cvs.height / rect.height)) / 32);
+        await handleCanvasInspect(gx, gy, true); // 仮ホバー
+      });
+
+      cvs.addEventListener('click', async (e) => {
+        const rect = cvs.getBoundingClientRect();
+        const gx = Math.floor(((e.clientX - rect.left) * (cvs.width / rect.width)) / 32);
+        const gy = Math.floor(((e.clientY - rect.top) * (cvs.height / rect.height)) / 32);
+        await handleCanvasInspect(gx, gy, false); // 確定クリック調査！
+      });
+    });
+
+    // 2. ズームカメラ (zoom-canvas) のクリック＆ホバーイベント
     if (this.zoomCanvas) {
-      this.zoomCanvas.addEventListener('mousemove', (e) => {
+      this.zoomCanvas.addEventListener('mousemove', async (e) => {
         const rect = this.zoomCanvas.getBoundingClientRect();
         const tileX = Math.floor(((e.clientX - rect.left) * (this.zoomCanvas.width / rect.width)) / 32);
         const tileY = Math.floor(((e.clientY - rect.top) * (this.zoomCanvas.height / rect.height)) / 32);
 
-        const dx = tileX - 3;
-        const dy = tileY - 3;
-
-        // プレイヤー最新座標の安全取得 (AreaStateManager -> targetCursorX -> default)
         const asm = this.core?.gkl?.areaStateManager;
         const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
         const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
 
-        const gx = px + dx;
-        const gy = py + dy;
+        const gx = px + (tileX - 3);
+        const gy = py + (tileY - 3);
 
-        if (gx >= 0 && gx < 80 && gy >= 0 && gy < 24) {
-          const cell = asm?.grid?.[gy]?.[gx];
-          // 優先順位: 1. Top (モンスター) -> 2. Middle (アイテム) -> 3. Bottom (地形)
-          const targetEntity = cell?.top || cell?.middle || cell?.bottom;
-
-          if (targetEntity) {
-            const glyphId = (typeof targetEntity.glyph === 'number')
-              ? targetEntity.glyph
-              : (targetEntity.glyphInfo && typeof targetEntity.glyphInfo.glyph === 'number'
-                  ? targetEntity.glyphInfo.glyph
-                  : (typeof targetEntity.rawGlyph === 'number' ? targetEntity.rawGlyph : -1));
-            if (glyphId >= 0) {
-              this.renderKnowledgeCard(glyphId);
-            } else {
-              this.renderKnowledgeCard(targetEntity);
-            }
-          } else {
-            const gData = this.glyphGridBuffer[gy] ? this.glyphGridBuffer[gy][gx] : null;
-            if (gData && gData.glyph >= 0) {
-              this.renderKnowledgeCard(gData.glyph);
-            } else {
-              this.renderKnowledgeCard(null);
-            }
-          }
-        } else {
-          this.renderKnowledgeCard(null);
-        }
+        await handleCanvasInspect(gx, gy, true); // 仮ホバー
       });
 
       this.zoomCanvas.addEventListener('mouseleave', () => {
         this.renderKnowledgeCard(null);
+      });
+
+      this.zoomCanvas.addEventListener('click', async (e) => {
+        const rect = this.zoomCanvas.getBoundingClientRect();
+        const tileX = Math.floor(((e.clientX - rect.left) * (this.zoomCanvas.width / rect.width)) / 32);
+        const tileY = Math.floor(((e.clientY - rect.top) * (this.zoomCanvas.height / rect.height)) / 32);
+
+        const asm = this.core?.gkl?.areaStateManager;
+        const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
+        const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
+
+        const gx = px + (tileX - 3);
+        const gy = py + (tileY - 3);
+
+        await handleCanvasInspect(gx, gy, false); // 確定クリック調査！
       });
     }
 
@@ -717,7 +735,7 @@ class GklPureJSClient {
     }
   }
 
-  renderKnowledgeCard(target) {
+  renderKnowledgeCard(target, options = {}) {
     if (!this.elGklKnowledgeContent) return;
 
     if (!target) {
@@ -729,10 +747,30 @@ class GklPureJSClient {
     }
 
     let data = null;
-    if (target && typeof target === 'object' && target.knowledge) {
-      data = target.knowledge;
+    let dynamicState = options.dynamicState || target.dynamicState || null;
+    let isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
+    let isPlayer = options.isPlayer || target.isPlayer || target.type === 'PLAYER' || (dynamicState && dynamicState.isPlayer);
+
+    // 👤 1. プレイヤー自身の場合はリアルタイムステータスカードを優先採用
+    if (isPlayer) {
+      data = (target && target.stats && target.stats.hp) ? target : {
+        name: '自分 (Player)',
+        category: 'PLAYER',
+        dangerLevel: 'NONE',
+        dispositionStatus: 'PLAYER',
+        stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
+        effectSummary: 'ダンジョンを探索中のプレイヤー自身です。'
+      };
+    } else if (target && (target.dangerLevel || target.category === 'MONSTER' || target.category === 'CORPSE' || target.category === 'GOLD' || target.isUnidentified)) {
+      // すでに完全な構造化カードデータである場合
+      data = target;
     } else if (this.core && this.core.gkl && this.core.gkl.structuredKnowledge) {
-      data = this.core.gkl.structuredKnowledge.getKnowledge(target, { translate: true });
+      // 🎯 2. 万能統合ナレッジアクセサ getKnowledge を直接安全呼び出し
+      data = this.core.gkl.structuredKnowledge.getKnowledge(target, { dynamicState, isPet, isPlayer, translate: true });
+    }
+
+    if (!data && target && typeof target === 'object' && target.knowledge) {
+      data = target.knowledge;
     }
 
     if (!data) {
@@ -740,19 +778,48 @@ class GklPureJSClient {
       return;
     }
 
-    if (data.dangerLevel) {
-      const badgeClass = `kn-danger-${data.dangerLevel || 'LOW'}`;
+    // 🎯 3. 明確な型判定: モンスター/ペット/プレイヤー vs アイテム/死体/地形
+    const isMonsterType = data.dangerLevel || data.category === 'MONSTER' || data.dispositionStatus || isPet;
+
+    if (isMonsterType) {
+      const badgeClass = `kn-danger-${data.dangerLevel || 'MEDIUM'}`;
+      let dispositionBadge = '';
+      let dispositionNote = '';
+
+      if (data.dispositionStatus === 'PEACEFUL') {
+        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">☮️ 平和的 (SAFE)</span>`;
+      } else if (data.dispositionStatus === 'DEFAULT_PEACEFUL') {
+        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">☮️ 通常平和 (SAFE)</span>`;
+        dispositionNote = `<div style="font-size:11px; color:#a6adc8; margin-top:4px;">※ 通常は平和的ですが、攻撃・泥棒を行うと敵対化 (LETHAL) します</div>`;
+      } else if (data.dispositionStatus === 'TAMED' || isPet) {
+        dispositionBadge = `<span class="kn-status-badge kn-status-tamed">🐾 ペット (TAMED)</span>`;
+      } else if (data.dispositionStatus === 'PLAYER' || isPlayer) {
+        dispositionBadge = `<span class="kn-status-badge kn-status-player">👤 プレイヤー</span>`;
+      } else {
+        dispositionBadge = `<span class="kn-status-badge kn-status-hostile">⚔️ 敵対的 (${data.dangerLevel || 'LETHAL'})</span>`;
+      }
+
+      const clickBadge = options.isClickConfirmed ? `<span class="kn-status-badge kn-status-confirmed">🔍 Look確認済み</span>` : '';
+
       this.elGklKnowledgeContent.innerHTML = `
         <div class="kn-card">
           <div class="kn-header">
             <span class="kn-title">${data.name}</span>
-            <span class="kn-danger-badge ${badgeClass}">${data.dangerLevel} DANGER</span>
+            <span class="kn-danger-badge ${badgeClass}">${data.dangerLevel || 'MEDIUM'} DANGER</span>
           </div>
-          <div class="kn-stats-row">
-            <span>HD:${data.stats?.hd ?? '-'}</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 6px 0;">
+            ${dispositionBadge}
+            ${clickBadge}
+          </div>
+          ${dispositionNote}
+          <div class="kn-stats-row" style="margin-top:6px; flex-wrap:wrap; gap:8px;">
+            <span>HD/Lv:${data.stats?.hd ?? '-'}</span>
             <span>AC:${data.stats?.ac ?? '-'}</span>
-            <span>Spd:${data.stats?.speed ?? '-'}</span>
-            <span>MR:${data.stats?.mr ?? 0}%</span>
+            ${data.stats?.hp ? `<span style="color:#4ade80;">HP:${data.stats.hp}</span>` : ''}
+            ${data.stats?.pw ? `<span style="color:#60a5fa;">Pw:${data.stats.pw}</span>` : ''}
+            ${data.stats?.gold ? `<span style="color:#facc15;">金:${data.stats.gold}</span>` : ''}
+            ${data.stats?.dlvl ? `<span>${data.stats.dlvl}</span>` : ''}
+            ${data.inventoryCount !== undefined ? `<span style="color:#c084fc;">🎒所持品:${data.inventoryCount}個</span>` : ''}
           </div>
           ${data.corpseInfo?.warningNote ? `<div class="kn-warning-box">⚠️ ${data.corpseInfo.warningNote}</div>` : ''}
           ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
@@ -765,6 +832,7 @@ class GklPureJSClient {
         </div>
       `;
     } else {
+      // 🎒 4. アイテム / 死体 / 地形カードのレンダリング
       let statsHtml = '';
       if (data.stats) {
         const s = data.stats;
@@ -786,15 +854,35 @@ class GklPureJSClient {
         if (b.uncursed) bParts.push(`<li style="color:#bdc3c7;"><strong>通常:</strong> ${b.uncursed}</li>`);
         if (b.cursed) bParts.push(`<li style="color:#e74c3c;"><strong>呪い:</strong> ${b.cursed}</li>`);
         if (bParts.length > 0) {
-          bucHtml = `<ul class="kn-advice-list">${bParts.join('')}</ul>`;
+          bucHtml = `<div><div class="kn-section-label">⚖️ BUC効果</div><ul class="kn-advice-list">${bParts.join('')}</ul></div>`;
         }
+      }
+
+      let adviceHtml = '';
+      if (data.usageAdvice && data.usageAdvice.length > 0) {
+        adviceHtml = `
+          <div style="margin-top:6px;">
+            <div class="kn-section-label">💡 用途・活用アドバイス</div>
+            <ul class="kn-advice-list">${data.usageAdvice.map(adv => `<li>• ${adv}</li>`).join('')}</ul>
+          </div>
+        `;
+      }
+
+      let tipsHtml = '';
+      if (data.unidentifiedTips && data.unidentifiedTips.length > 0) {
+        tipsHtml = `
+          <div style="margin-top:6px;">
+            <div class="kn-section-label">🔍 識別戦術テクニック</div>
+            <ul class="kn-advice-list">${data.unidentifiedTips.map(tip => `<li>• ${tip}</li>`).join('')}</ul>
+          </div>
+        `;
       }
 
       this.elGklKnowledgeContent.innerHTML = `
         <div class="kn-card">
           <div class="kn-header">
-            <span class="kn-title">${data.inventoryLabel || data.name}</span>
-            <span class="kn-danger-badge kn-danger-ITEM">${data.category}${data.isUnidentified ? ' (未識別)' : ''}</span>
+            <span class="kn-title">${data.name}</span>
+            <span class="kn-category-badge">${data.category || 'ITEM'}</span>
           </div>
           ${statsHtml}
           ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}

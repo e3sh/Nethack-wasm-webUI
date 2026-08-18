@@ -738,8 +738,35 @@ export class StructuredKnowledgeEngine {
 
         // B. 文字列指定 (id または Name)
         if (!found && typeof identifier === 'string') {
-            const cleanKey = identifier.trim().toLowerCase().replace(/\s+/g, '_');
-            found = this.monsters.get(cleanKey) || this.monsters.get(identifier.trim().toLowerCase()) || null;
+            let clean = identifier.trim().toLowerCase();
+            // "human samurai called Hero" -> "samurai" や "shopkeeper called Foo" のクリーニング
+            clean = clean.replace(/\bcalled\s+[^\s\(\)]+/gi, '')
+                         .replace(/\bnamed\s+[^\s\(\)]+/gi, '')
+                         .replace(/\b(an?|the|human|elf|dwarf|gnome|orc)\b/gi, '')
+                         .replace(/[\(\)]/g, '')
+                         .trim();
+
+            const cleanKey = clean.replace(/\s+/g, '_');
+            found = this.monsters.get(cleanKey) || this.monsters.get(clean) || this.monsters.get(identifier.trim().toLowerCase()) || null;
+
+            if (!found && MONSTER_TILEMAP_NAMES) {
+                const entry = Object.entries(MONSTER_TILEMAP_NAMES).find(([mOffset, fullName]) => {
+                    if (!fullName) return false;
+                    const parts = fullName.toLowerCase().split('/').map(p => p.trim());
+                    return parts.some(part => part === clean || (clean.length >= 3 && part.includes(clean)) || (clean.length >= 3 && clean.includes(part)));
+                });
+                if (entry) {
+                    monOffset = parseInt(entry[0], 10);
+                    found = this.monOffsetMap.get(monOffset) || {
+                        id: `mon_${monOffset}`,
+                        monOffset,
+                        name: entry[1].split('/')[0].trim(),
+                        dangerLevel: 'MEDIUM',
+                        stats: { hd: 1, ac: 10, speed: 12, mr: 0 },
+                        effectSummary: 'Standard dungeon monster.'
+                    };
+                }
+            }
         }
 
         if (!found) return null;
@@ -767,6 +794,9 @@ export class StructuredKnowledgeEngine {
         } else if (found.defaultPeaceful) {
             result.dangerLevel = 'SAFE';
             result.dispositionStatus = 'DEFAULT_PEACEFUL';
+        } else {
+            // 🎯 一般のダンジョンモンスターはデフォルト敵対的 (HOSTILE)
+            result.dispositionStatus = 'HOSTILE';
         }
 
         return shouldTranslate ? this.localizeKnowledge(result) : result;
@@ -885,18 +915,22 @@ export class StructuredKnowledgeEngine {
             originalDisplayName = identifier;
         }
 
-        // 1. オブジェクト指定 ({ onum, glyph, rawGlyph, str, rawText, name, label })
-        if (typeof identifier === 'object') {
+        // 1. オブジェクト指定 ({ onum, subType, glyph, rawGlyph, str, rawText, name, label })
+        if (typeof identifier === 'object' && identifier !== null) {
             if (typeof identifier.onum === 'number' && identifier.onum >= 0) {
                 targetOnum = identifier.onum;
+            } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 500) {
+                targetOnum = identifier.subType;
             } else if (typeof identifier.glyph === 'number' && identifier.glyph >= 0) {
                 targetOnum = getOnumFromGlyph(identifier.glyph);
+                if (targetOnum < 0 && identifier.glyph < 500) targetOnum = identifier.glyph;
             } else if (typeof identifier.rawGlyph === 'number' && identifier.rawGlyph >= 0) {
                 targetOnum = getOnumFromGlyph(identifier.rawGlyph);
+                if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
             }
             if (targetOnum < 0) {
                 const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
-                return this.getItemKnowledge(rawName, options);
+                if (rawName) return this.getItemKnowledge(rawName, options);
             }
         }
         // 2. 数値指定 (onum または glyphId)
@@ -992,6 +1026,11 @@ export class StructuredKnowledgeEngine {
 
         let rawObj = null;
 
+        if (typeof identifier === 'object') {
+            const glyphId = (typeof identifier.glyph === 'number') ? identifier.glyph : (identifier.rawGlyph ?? -1);
+            return this.getTerrainKnowledge(glyphId >= 0 ? glyphId : (identifier.name || identifier.id || ''), options);
+        }
+
         if (typeof identifier === 'number') {
             const cmapInfo = getCmapInfo(identifier);
             if (cmapInfo.isStairDown) {
@@ -1059,6 +1098,67 @@ export class StructuredKnowledgeEngine {
     }
 
     /**
+     * 死体 (Corpse) の構造化ナレッジ取得
+     * @param {number|Object|string} identifier 
+     * @param {Object} [options] 
+     * @returns {Object|null} 死体ナレッジ
+     */
+    getCorpseKnowledge(identifier, options = {}) {
+        if (identifier === null || identifier === undefined) return null;
+
+        let glyphId = -1;
+        let monOffset = -1;
+        let rawName = '';
+
+        if (typeof identifier === 'object') {
+            glyphId = typeof identifier.glyph === 'number' ? identifier.glyph : (identifier.rawGlyph ?? -1);
+            rawName = identifier.name || identifier.str || identifier.rawText || '';
+        } else if (typeof identifier === 'number') {
+            glyphId = identifier;
+        } else if (typeof identifier === 'string') {
+            rawName = identifier;
+        }
+
+        if (typeof identifier === 'object' && identifier !== null) {
+            if (typeof identifier.subType === 'number' && identifier.subType >= 0) {
+                monOffset = identifier.subType % 383;
+            }
+        }
+
+        if (monOffset < 0) {
+            if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_OFF && glyphId < GLYPH_OFFSETS.GLYPH_RIDDEN_OFF) {
+                monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_BODY_OFF) % 383;
+            } else if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF && glyphId < GLYPH_OFFSETS.GLYPH_STATUE_MALE_PILETOP_OFF) {
+                monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) % 383;
+            }
+        }
+
+        let monKnowledge = null;
+        if (monOffset >= 0) {
+            monKnowledge = this.getMonsterKnowledge(monOffset, options);
+        } else if (rawName) {
+            const cleanMonName = rawName.replace(/corpse/i, '').replace(/dead/i, '').trim();
+            monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+        }
+
+        const baseName = monKnowledge ? monKnowledge.name : 'Unknown Creature';
+        const corpseName = `${baseName} の死体 (corpse)`;
+
+        const corpseObj = {
+            id: `corpse_${monOffset >= 0 ? monOffset : 'unknown'}`,
+            name: corpseName,
+            category: 'CORPSE',
+            corpseInfo: monKnowledge?.corpseInfo || null,
+            effectSummary: monKnowledge?.corpseInfo?.warningNote ? 
+                `食中毒・呪い警告: ${monKnowledge.corpseInfo.warningNote}` : 
+                `モンスター (${baseName}) の死体です。食料として食べるか、祭壇で捧げることができます。`
+        };
+
+        const shouldTranslate = options.translate !== false;
+        return shouldTranslate ? this.localizeKnowledge(corpseObj) : corpseObj;
+    }
+
+    /**
      * 万能統合ナレッジアクセサ (アイテム -> モンスター -> 地形 -> 汎用フォールバックの自動判定取得)
      * @param {number|string|Object} identifier 
      * @param {Object} [options] 
@@ -1067,13 +1167,31 @@ export class StructuredKnowledgeEngine {
     getKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
-        // 0. 数値 glyphId の場合、まず classifyGlyph でエンティティ種別を正確に物理統一検索！
+        // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
+        if (typeof identifier === 'object' && identifier !== null) {
+            if (identifier.type === 'BODY') {
+                return this.getCorpseKnowledge(identifier, options);
+            }
+            if (identifier.type === 'TERRAIN' || identifier.type === 'UNEXPLORED') {
+                return this.getTerrainKnowledge(identifier, options);
+            }
+            if (identifier.type === 'MONSTER' || identifier.type === 'PET') {
+                return this.getMonsterKnowledge(identifier, options);
+            }
+            if (identifier.type === 'ITEM' || identifier.type === 'STATUE') {
+                return this.getItemKnowledge(identifier, options);
+            }
+        }
+
+        // 1. 数値 glyphId の場合、まず classifyGlyph でエンティティ種別を正確に物理統一検索！
         if (typeof identifier === 'number') {
             const info = classifyGlyph(identifier);
             if (info) {
                 if (info.type === ENTITY_TYPES.MONSTER || info.type === ENTITY_TYPES.PET) {
                     return this.getMonsterKnowledge(identifier, options);
-                } else if (info.type === ENTITY_TYPES.ITEM || info.type === ENTITY_TYPES.BODY || info.type === ENTITY_TYPES.STATUE) {
+                } else if (info.type === ENTITY_TYPES.BODY) {
+                    return this.getCorpseKnowledge(identifier, options);
+                } else if (info.type === ENTITY_TYPES.ITEM || info.type === ENTITY_TYPES.STATUE) {
                     return this.getItemKnowledge(identifier, options);
                 } else if (info.type === ENTITY_TYPES.TERRAIN || info.type === ENTITY_TYPES.TRAP || info.type === ENTITY_TYPES.CMAP || info.type === ENTITY_TYPES.UNEXPLORED) {
                     return this.getTerrainKnowledge(identifier, options);

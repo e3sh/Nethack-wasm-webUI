@@ -84,6 +84,9 @@ export function getDefaultVerbForObject(onum, category, itemInfo = {}, detail = 
 }
 
 const goldDetail = { 
+    id: 'gold_piece',
+    name: 'gold piece',
+    category: 'GOLD',
     flavorNote: 'Gold coins used for dungeon commerce, donating at temples for divine protection (+AC), and purchasing items from shopkeepers.',
     effectSummary: 'Universal dungeon currency. Donate to temple priests for permanent AC protection, or buy gear from shopkeepers.',
     defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)',

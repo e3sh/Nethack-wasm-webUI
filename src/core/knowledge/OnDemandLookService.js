@@ -90,15 +90,17 @@ export class OnDemandLookService {
         }
 
         const lower = text.toLowerCase();
-        const isPeaceful = lower.includes('(peaceful)') || lower.includes('appears peaceful') || lower.includes('seems peaceful');
-        const isTamed = lower.includes('(tamed)') || lower.includes('(friendly)') || lower.includes('is tamed') || lower.includes('is friendly');
-        const isHostile = !isPeaceful && !isTamed && (lower.includes('angry') || lower.includes('hostile') || text.length > 0);
+        const isPlayer = lower.includes('you (') || lower.includes('yourself') || lower.startsWith('you ') || lower === 'you';
+        const isPeaceful = !isPlayer && (lower.includes('(peaceful)') || lower.includes('appears peaceful') || lower.includes('seems peaceful'));
+        const isTamed = !isPlayer && (lower.includes('(tamed)') || lower.includes('(friendly)') || lower.includes('is tamed') || lower.includes('is friendly'));
+        const isHostile = !isPlayer && !isPeaceful && !isTamed;
 
         return {
             rawText: text,
+            isPlayer,
             isPeaceful,
             isTamed,
-            isHostile: !isPeaceful && !isTamed,
+            isHostile,
             hasResult: text.length > 0
         };
     }

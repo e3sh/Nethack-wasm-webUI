@@ -105,35 +105,40 @@ export function classifyGlyph(glyphId) {
         return { type: ENTITY_TYPES.UNKNOWN, isPile: false, rawGlyph: glyphId };
     }
 
-    // 9622: 未探索
+    // 9622〜: 未探索 / 背景
     if (glyphId >= GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
         return { type: ENTITY_TYPES.UNEXPLORED, isPile: false, rawGlyph: glyphId };
     }
 
-    // 7992〜9621: Piletop (山積みアイテム / 山積み死体 / 山積み像)
+    // 8856〜9621: 山積み像 (GLYPH_STATUE_MALE_PILETOP_OFF = 8856)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF || glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_MALE_PILETOP_OFF) {
+        return { type: ENTITY_TYPES.STATUE, isPile: true, rawGlyph: glyphId };
+    }
+
+    // 8473〜8855: 山積み死体 (GLYPH_BODY_PILETOP_OFF = 8473)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) {
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) % 383;
+        return { type: ENTITY_TYPES.BODY, subType: monOffset, isPile: true, rawGlyph: glyphId };
+    }
+
+    // 7992〜8472: 山積みアイテム (GLYPH_OBJ_PILETOP_OFF = 7992, NUM_OBJECTS = 481)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF) {
-        if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF) {
-            return { type: ENTITY_TYPES.STATUE, isPile: true, rawGlyph: glyphId };
-        }
-        if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF) {
-            return { type: ENTITY_TYPES.BODY, isPile: true, rawGlyph: glyphId };
-        }
         const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF;
         const isContainer = (objOffset >= 214 && objOffset <= 220);
         return { type: ENTITY_TYPES.ITEM, subType: objOffset, isContainer, isPile: true, rawGlyph: glyphId };
     }
 
-    // 7226〜7991: Statue (像)
+    // 7226〜7991: 単体彫像 (GLYPH_STATUE_OFF = 7226)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_OFF) {
         return { type: ENTITY_TYPES.STATUE, isPile: false, rawGlyph: glyphId };
     }
 
-    // 4051〜7225: Effects (ビーム、爆発、警告など)
+    // 4051〜7225: エフェクト・ビーム・警告 (GLYPH_ZAP_OFF = 4051)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_ZAP_OFF) {
         return { type: ENTITY_TYPES.EFFECT, isPile: false, rawGlyph: glyphId };
     }
 
-    // 3929〜4050: CMAP (ダンジョン地形: 壁、床、扉、階段、罠、噴水、祭壇等)
+    // 3929〜4050: 地形 CMAP (GLYPH_CMAP_OFF = 3929)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_CMAP_OFF) {
         const cmapOffset = glyphId - GLYPH_OFFSETS.GLYPH_CMAP_OFF;
         const cmapFlags = getCmapInfo(glyphId);
@@ -146,7 +151,7 @@ export function classifyGlyph(glyphId) {
         };
     }
 
-    // 3448〜3928: Objects (アイテム)
+    // 3448〜3928: 単体アイテム (GLYPH_OBJ_OFF = 3448, NUM_OBJECTS = 481)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_OBJ_OFF) {
         const objOffset = glyphId - GLYPH_OFFSETS.GLYPH_OBJ_OFF;
         const isContainer = (objOffset >= 214 && objOffset <= 220);
@@ -159,20 +164,21 @@ export function classifyGlyph(glyphId) {
         };
     }
 
-    // 2299〜3447: Body / Corpse (死体)
+    // 2299〜3447: 単体死体・騎乗 (GLYPH_BODY_OFF = 2299)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_OFF) {
-        return { type: ENTITY_TYPES.BODY, isPile: false, rawGlyph: glyphId };
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_BODY_OFF) % 383;
+        return { type: ENTITY_TYPES.BODY, subType: monOffset, isPile: false, rawGlyph: glyphId };
     }
 
-    // 766〜1531: Pet (ペット・友好モンスター)
+    // 766〜1531: ペット (GLYPH_PET_OFF = 766)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_PET_OFF && glyphId < GLYPH_OFFSETS.GLYPH_INVIS_OFF) {
         return { type: ENTITY_TYPES.PET, isPile: false, rawGlyph: glyphId };
     }
 
-    // 0〜2298: Monster (一般モンスター・透明モンスター・検出モンスター等)
+    // 0〜765, 1532〜2298: モンスター (GLYPH_MON_OFF = 0, NUMMONS = 383)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_MON_OFF) {
         const monOffset = glyphId % 383;
-        const isShopkeeper = (monOffset === 267 || monOffset === 268); // NetHack 3.7 shopkeeper glyph offset
+        const isShopkeeper = (monOffset === 267 || monOffset === 268);
         return { type: ENTITY_TYPES.MONSTER, subType: monOffset, isShopkeeper, isPile: false, rawGlyph: glyphId };
     }
 

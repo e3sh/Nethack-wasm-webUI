@@ -101,13 +101,10 @@
         checkTargetingCommandEnd(key) {
             if (!this.isTargetingMode) return;
             
-            // nh_poskey / nhgetch を経由した後の決定 / キャンセル操作でのみ解除
-            if (this._enteredPoskeyInTargetingMode) {
-                const k = typeof key === 'string' ? key : (typeof key === 'number' ? String.fromCharCode(key) : '');
-                if (k === ' ' || k === '\r' || k === '\n' || k === '.' || k === '\x1b' || key === 27 || key === 32 || key === 13 || key === 10) {
-                    this.isTargetingMode = false;
-                    this._enteredPoskeyInTargetingMode = false;
-                }
+            const k = typeof key === 'string' ? key : (typeof key === 'number' ? String.fromCharCode(key) : '');
+            if (k === ' ' || k === '\r' || k === '\n' || k === '.' || k === '\x1b' || k === '\u001b' || key === 27 || key === 32 || key === 13 || key === 10) {
+                this.isTargetingMode = false;
+                this._enteredPoskeyInTargetingMode = false;
             }
         }
 
@@ -364,11 +361,6 @@
                 return false;
             }
 
-            // ターゲットカーソル操作中 ( Look / Travel 等 ) のみ自走トークン消費を保留
-            if (this.isTargetingMode) {
-                return false;
-            }
-
             const resObj = resolver || this.activeResolver;
             if (!resObj) return false;
 
@@ -512,6 +504,14 @@
         }
 
         emit(event, payload) {
+            // 🤫 サイレント同期タスク (isSilentSync: true) 実行中はログ・メッセージ・プロンプト関連イベントの外部通知を抑止
+            if (this.currentTask && this.currentTask.options && this.currentTask.options.isSilentSync) {
+                const suppressedEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
+                if (suppressedEvents.includes(event)) {
+                    return false;
+                }
+            }
+
             if (!this.listeners.has(event)) return false;
             const list = this.listeners.get(event);
             list.forEach(fn => {

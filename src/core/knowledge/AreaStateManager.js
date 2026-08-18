@@ -53,7 +53,7 @@ export class AreaStateManager {
         switch (info.type) {
             case ENTITY_TYPES.TERRAIN:
             case ENTITY_TYPES.UNEXPLORED:
-                // 地形が届いた場合、Bottom に上書き。そのマスにアイテムやモンスターが無ければ Middle/Top もリセット
+                // 地形が届いた場合、Bottom に上書き。そのマスが地形単体になったため Middle/Top もリセット
                 cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.middle = null;
                 cell.top = null;
@@ -69,8 +69,11 @@ export class AreaStateManager {
 
             case ENTITY_TYPES.MONSTER:
             case ENTITY_TYPES.PET:
-                // モンスターが届いた場合、Top に記録 (Bottom/Middle は保持される)
-                cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
+                // モンスターが届いた場合、Top に記録 (同じモンスターなら確定動的状態 dynamicState も保持)
+                const existingDynamic = (cell.top && (cell.top.monOffset === info.monOffset || cell.top.glyph === glyphId))
+                    ? cell.top.dynamicState
+                    : null;
+                cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
                 break;
 
             case ENTITY_TYPES.EFFECT:

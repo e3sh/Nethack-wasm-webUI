@@ -101,6 +101,15 @@ self.onmessage = async function(e) {
 
             driverEvents.forEach(evtName => {
                 driver.on(evtName, async (data) => {
+                    // 🤫 サイレント同期タスク (isSilentSync: true) の実行中は、メインスレッドへの UI/メッセージログイベント通知を抑止
+                    const isSilentSync = driver && driver.currentTask && driver.currentTask.options && driver.currentTask.options.isSilentSync;
+                    if (isSilentSync) {
+                        const uiEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
+                        if (uiEvents.includes(evtName)) {
+                            return;
+                        }
+                    }
+
                     let cleanData = data ? { ...data } : {};
                     
                     // resolver (関数を含む) はスレッド境界を越えられないため、IDでマッピング管理する
