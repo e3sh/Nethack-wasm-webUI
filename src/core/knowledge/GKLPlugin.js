@@ -356,7 +356,7 @@ export class GKLPlugin {
             const pwMax = (typeof st.pw === 'object' && st.pw !== null) ? (st.pw.max ?? st.pwmax ?? 0) : (st.pwmax ?? st.maxpw ?? 0);
             const pwStr = `${pwCur}/${pwMax}`;
 
-            const goldVal = (typeof st.gold === 'object' && st.gold !== null) ? (st.gold.current ?? st.gold.val ?? st.gold.gold ?? 0) : (st.gold ?? 0);
+            const goldVal = (typeof st.gold === 'object' && st.gold !== null) ? (st.gold.amount ?? st.gold.current ?? st.gold.val ?? st.gold.gold ?? 0) : (st.gold ?? 0);
 
             const playerKnowledge = {
                 name: st.name ? `${st.name} (${st.role || 'Hero'})` : '自分 (Player)',
