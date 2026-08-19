@@ -353,8 +353,8 @@ class GklPureJSClient {
         const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
         const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
 
-        const gx = px + (tileX - 3);
-        const gy = py + (tileY - 3);
+        const gx = px + (tileX - 10);
+        const gy = py + (tileY - 4);
 
         await handleCanvasInspect(gx, gy, true); // 仮ホバー
       });
@@ -372,8 +372,8 @@ class GklPureJSClient {
         const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
         const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
 
-        const gx = px + (tileX - 3);
-        const gy = py + (tileY - 3);
+        const gx = px + (tileX - 10);
+        const gy = py + (tileY - 4);
 
         await handleCanvasInspect(gx, gy, false); // 確定クリック調査！
       });
@@ -541,7 +541,7 @@ class GklPureJSClient {
     loop();
   }
 
-  // 🎯 自キャラ周辺 拡大ズームカメラ描画 (7x7 マス, 32px タイル)
+  // 🎯 自キャラ周辺 拡大ズームカメラ描画 (21x9 マス, 32px タイル)
   renderZoomCanvas(areaState) {
     const areaMgr = (this.core && this.core.gkl) ? this.core.gkl.areaStateManager : null;
     if (!this.zoomCtx || !areaMgr) return;
@@ -559,24 +559,25 @@ class GklPureJSClient {
     const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
     const cols = (this.tileImg && this.tileImg.width) ? Math.floor(this.tileImg.width / 32) : 40;
 
-    const canvasW = this.zoomCanvas.width; // 224
-    const canvasH = this.zoomCanvas.height; // 224
+    const canvasW = this.zoomCanvas.width; // 672
+    const canvasH = this.zoomCanvas.height; // 288
     const zoomTileSize = 32; // 拡大 32px タイル
 
     this.zoomCtx.fillStyle = '#090916';
     this.zoomCtx.fillRect(0, 0, canvasW, canvasH);
 
-    // 7x7 マスを中心（3,3）に配置
-    const halfRange = 3;
+    // 21x9 マスを中心（10,4）に配置
+    const halfRangeX = 10;
+    const halfRangeY = 4;
     const bounceY = Math.round(Math.sin(Date.now() / 180) * 2);
 
-    for (let dy = -halfRange; dy <= halfRange; dy++) {
-      for (let dx = -halfRange; dx <= halfRange; dx++) {
+    for (let dy = -halfRangeY; dy <= halfRangeY; dy++) {
+      for (let dx = -halfRangeX; dx <= halfRangeX; dx++) {
         const gx = px + dx;
         const gy = py + dy;
 
-        const screenX = (dx + halfRange) * zoomTileSize;
-        const screenY = (dy + halfRange) * zoomTileSize;
+        const screenX = (dx + halfRangeX) * zoomTileSize;
+        const screenY = (dy + halfRangeY) * zoomTileSize;
 
         if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
           const cell = grid[gy][gx];

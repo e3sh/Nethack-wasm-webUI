@@ -841,11 +841,12 @@ body {
   background-color: #000;
 }
 
-/* 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ右上固定) */
+/* 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ中央固定) */
 .zoom-viewport-box {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: rgba(15, 15, 26, 0.9);
   border: 1px solid var(--primary-color);
   border-radius: 6px;
@@ -878,8 +879,8 @@ body {
 }
 
 #zoom-canvas {
-  width: 224px;
-  height: 224px;
+  width: 672px;
+  height: 288px;
   background: #000;
   border: 1px solid var(--border-color);
   border-radius: 4px;
