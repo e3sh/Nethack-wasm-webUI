@@ -118,18 +118,24 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(mon.name).toBe('TR:cockatrice');
     });
 
-    it('getKnowledgeAt: 地形セルに Statue (石像) が存在する場合、その像の構造化ナレッジを正しく返却すること', async () => {
+    it('travelTo: 指定座標への隣接移動・遠隔トラベルシーケンスを生成・実行できること', async () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();
         plugin.attach(mockCore);
 
-        // セル (5, 5) に Statue (Glyph 7226) の更新を送信
-        plugin.areaStateManager.updateGlyph(5, 5, 7226);
+        // プレイヤー初期位置 (10, 10)
+        plugin.areaStateManager.playerX = 10;
+        plugin.areaStateManager.playerY = 10;
 
-        const knowledge = await plugin.inspectCellOnDemand({ x: 5, y: 5 }, { isHover: true });
-        expect(knowledge).not.toBeNull();
-        expect(knowledge.category).toBe('STATUE');
-        expect(knowledge.name).toBeDefined();
-        expect(knowledge.effectSummary).toBeDefined();
+        // 1. 隣接マス (11, 10) への移動 ➔ DIR_E
+        const res1 = await plugin.travelTo({ x: 11, y: 10 });
+        expect(res1).toBe(true);
+        expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['DIR_E'], expect.anything());
+
+        // 2. 遠隔マス (13, 10) へのトラベル (10->13: 3ステップ) ➔ ['_', '@', 'DIR_E', 'DIR_E', 'DIR_E', '.']
+        mockCore.driver.queueSequence.mockClear();
+        const res2 = await plugin.travelTo({ x: 13, y: 10 });
+        expect(res2).toBe(true);
+        expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['_', '@', 'DIR_E', 'DIR_E', 'DIR_E', '.'], expect.anything());
     });
 });

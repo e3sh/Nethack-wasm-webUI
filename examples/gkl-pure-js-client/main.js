@@ -312,15 +312,20 @@ class GklPureJSClient {
       }
     });
 
-    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御)
+    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御 + GKL自動移動)
     const handleCanvasInspect = async (gx, gy, isHover) => {
-      if (gx >= 0 && gx < 80 && gy >= 0 && gy < 24) {
-        if (this.core?.gkl?.inspectCellOnDemand) {
-          const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
-          if (cardData) {
-            this.renderKnowledgeCard(cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
-          }
+      if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
+
+      if (this.core?.gkl?.inspectCellOnDemand) {
+        const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
+        if (cardData) {
+          this.renderKnowledgeCard(cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
         }
+      }
+
+      // 🏃‍♂️ 確定クリック時 (isHover === false): GKL プラグインの高レベル travelTo API を直接呼び出し
+      if (!isHover && this.core?.gkl?.travelTo) {
+        await this.core.gkl.travelTo({ x: gx, y: gy });
       }
     };
 
