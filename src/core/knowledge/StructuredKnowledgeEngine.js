@@ -579,6 +579,25 @@ export class StructuredKnowledgeEngine {
      * @private
      */
     _initDatabase() {
+        // 0. MONSTER_TILEMAP_NAMES (全 384 モンスター: monOffset 0〜382) をあらかじめ 100% monOffsetMap にデフォルトインデックス登録！
+        if (MONSTER_TILEMAP_NAMES) {
+            for (const [mnumStr, fullName] of Object.entries(MONSTER_TILEMAP_NAMES)) {
+                const mnum = parseInt(mnumStr, 10);
+                if (!isNaN(mnum)) {
+                    const monName = fullName ? fullName.split('/')[0].trim() : `Monster ${mnum}`;
+                    this.monOffsetMap.set(mnum, {
+                        id: `mon_${mnum}`,
+                        monOffset: mnum,
+                        name: monName,
+                        dangerLevel: 'MEDIUM',
+                        stats: { hd: 1, ac: 10, speed: 12, mr: 0 },
+                        effectSummary: 'Standard dungeon monster.'
+                    });
+                }
+            }
+        }
+
+        // 1. MONSTER_KNOWLEDGE_BASE (詳細設定辞書) で詳細データを上書きインデックス登録
         for (const mon of MONSTER_KNOWLEDGE_BASE) {
             this.monsters.set(mon.id, mon);
             this.monsters.set(mon.name.toLowerCase(), mon);
@@ -712,26 +731,27 @@ export class StructuredKnowledgeEngine {
 
         // A. 数値指定 (monOffset または glyphId)
         if (typeof identifier === 'number') {
-            if (this.monOffsetMap.has(identifier)) {
-                found = this.monOffsetMap.get(identifier);
+            if (options.isMonOffset === true || (identifier >= 0 && identifier < 383)) {
+                monOffset = identifier;
             } else {
                 const info = classifyGlyph(identifier);
                 if (info && (info.type === ENTITY_TYPES.MONSTER || info.type === ENTITY_TYPES.PET)) {
                     monOffset = typeof info.subType === 'number' ? info.subType : identifier;
-                    found = this.monOffsetMap.get(monOffset) || null;
+                }
+            }
 
-                    // ナレッジベース未登録の通常モンスターでも tilemappings.lst (mnum) から名前を完全解決
-                    if (!found && typeof monOffset === 'number' && monOffset >= 0) {
-                        const monName = MONSTER_TILEMAP_NAMES[monOffset] || 'monster';
-                        found = {
-                            id: `mon_${monOffset}`,
-                            monOffset,
-                            name: monName,
-                            dangerLevel: 'MEDIUM',
-                            stats: { hd: 1, ac: 10, speed: 12, mr: 0 },
-                            effectSummary: 'Standard dungeon monster.'
-                        };
-                    }
+            if (typeof monOffset === 'number' && monOffset >= 0) {
+                found = this.monOffsetMap.get(monOffset) || null;
+                if (!found && MONSTER_TILEMAP_NAMES[monOffset]) {
+                    const monName = MONSTER_TILEMAP_NAMES[monOffset] || 'monster';
+                    found = {
+                        id: `mon_${monOffset}`,
+                        monOffset,
+                        name: monName,
+                        dangerLevel: 'MEDIUM',
+                        stats: { hd: 1, ac: 10, speed: 12, mr: 0 },
+                        effectSummary: 'Standard dungeon monster.'
+                    };
                 }
             }
         }
@@ -949,6 +969,9 @@ export class StructuredKnowledgeEngine {
 
         // 1. オブジェクト指定 ({ onum, subType, glyph, rawGlyph, str, rawText, name, label })
         if (typeof identifier === 'object' && identifier !== null) {
+            if (identifier.onum === 476 || identifier.subType === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
+                return this.getStatueKnowledge(identifier, options);
+            }
             if (typeof identifier.onum === 'number' && identifier.onum >= 0) {
                 targetOnum = identifier.onum;
             } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 500) {
@@ -1006,12 +1029,14 @@ export class StructuredKnowledgeEngine {
 
             if (!found && targetOnum < 0 && cleaned.length > 0) {
                 const categoryData = inferObjectCategory(cleaned);
-                found = {
-                    id: `item_${cleanKey}`,
-                    name: cleaned,
-                    category: categoryData.category,
-                    effectSummary: categoryData.effectSummary
-                };
+                if (categoryData && (categoryData.category !== 'TOOL' || options.allowFallback === true)) {
+                    found = {
+                        id: `item_${cleanKey}`,
+                        name: cleaned,
+                        category: categoryData.category,
+                        effectSummary: categoryData.effectSummary
+                    };
+                }
             }
         }
 
@@ -1100,25 +1125,33 @@ export class StructuredKnowledgeEngine {
 
         if (!rawObj && typeof identifier === 'string') {
             const lower = identifier.toLowerCase();
-            if (lower.includes('fountain')) {
+            if (lower.includes('fountain') || lower.includes('噴水')) {
                 rawObj = { id: 'fountain', name: 'Fountain', category: 'FOUNTAIN', effectSummary: 'Quaff with \'q\' or dip items with \'#dip\'. May grant luck, spawn a djinn, or cause poison.' };
-            } else if (lower.includes('sink')) {
+            } else if (lower.includes('sink') || lower.includes('流し')) {
                 rawObj = { id: 'sink', name: 'Sink', category: 'SINK', effectSummary: 'Kick with \'ctrl+d\' or \'k\'. May drop ring, spawn pudding or water demon.' };
-            } else if (lower.includes('stair') && lower.includes('down')) {
+            } else if ((lower.includes('stair') || lower.includes('階段')) && (lower.includes('down') || lower.includes('下'))) {
                 rawObj = { id: 'stairs_down', name: 'Stairs Down', category: 'STAIRS', effectSummary: 'Use \'>\' key to descend to deeper dungeon floor.' };
-            } else if (lower.includes('stair') && lower.includes('up')) {
+            } else if ((lower.includes('stair') || lower.includes('階段')) && (lower.includes('up') || lower.includes('上'))) {
                 rawObj = { id: 'stairs_up', name: 'Stairs Up', category: 'STAIRS', effectSummary: 'Use \'<\' key to ascend.' };
-            } else if (lower.includes('door')) {
+            } else if (lower.includes('door') || lower.includes('扉') || lower.includes('ドア')) {
                 rawObj = { id: 'closed_door', name: 'Closed Door', category: 'DOOR', effectSummary: 'Use \'o\' to open, or kick with \'ctrl+d\' or \'k\'.' };
-            } else if (lower.includes('altar')) {
+            } else if (lower.includes('altar') || lower.includes('祭壇')) {
                 rawObj = { id: 'altar', name: 'Altar', category: 'ALTAR', effectSummary: 'Offer corpses with \'altar\' / offer action. Beware of non-aligned god wrath.' };
-            } else if (lower.includes('tree')) {
+            } else if (lower.includes('grave') || lower.includes('墓')) {
+                rawObj = { id: 'grave', name: 'Grave', category: 'GRAVE', effectSummary: 'Gravesite. Dig with Pick-axe for loot, but beware of Ghoul/Zombie spawn and alignment penalty.' };
+            } else if (lower.includes('tree') || lower.includes('木')) {
                 rawObj = { id: 'tree', name: 'Tree', category: 'TREE', effectSummary: 'Wood obstacle. Kick with \'k\' to drop fruit or chop down with Axe.' };
-            } else if (lower.includes('lava')) {
+            } else if (lower.includes('lava') || lower.includes('溶岩')) {
                 rawObj = { id: 'lava', name: 'Lava', category: 'LAVA', effectSummary: 'Lethal fire terrain. Instantly burns player and items unless levitating.' };
-            } else if (lower.includes('wall')) {
+            } else if (lower.includes('water') || lower.includes('pool') || lower.includes('水')) {
+                rawObj = { id: 'pool_of_water', name: 'Pool of Water', category: 'WATER', effectSummary: 'Water obstacle. Items get wet when walking through without levitation/water walking.' };
+            } else if (lower.includes('bars') || lower.includes('鉄格子')) {
+                rawObj = { id: 'iron_bars', name: 'Iron Bars', category: 'BARS', effectSummary: 'Impassable bars. Can pass through when polymorphed into small creature or using Wand of Opening.' };
+            } else if (lower.includes('trap') || lower.includes('罠')) {
+                rawObj = { id: 'trap', name: 'Trap', category: 'TRAP', effectSummary: 'Disarm or avoid. Can be covered with Elbereth or boulders.' };
+            } else if (lower.includes('wall') || lower.includes('壁')) {
                 rawObj = { id: 'dungeon_wall', name: 'Dungeon Wall', category: 'WALL', effectSummary: 'Solid rock wall. Dig with Wand of Digging or Pick-axe.' };
-            } else {
+            } else if (lower.includes('floor') || lower.includes('床') || lower.includes('room') || lower.includes('corridor') || lower.includes('dark part')) {
                 rawObj = { id: 'dungeon_floor', name: 'Dungeon Floor', category: 'FLOOR', effectSummary: 'Normal floor. Can engrave Elbereth with \'E\' or \'e\'.' };
             }
         }
@@ -1167,14 +1200,16 @@ export class StructuredKnowledgeEngine {
 
         let monKnowledge = null;
         if (monOffset >= 0) {
-            monKnowledge = this.getMonsterKnowledge(monOffset, options);
+            monKnowledge = this.getMonsterKnowledge(monOffset, { ...options, isMonOffset: true });
         } else if (rawName) {
-            const cleanMonName = rawName.replace(/corpse/i, '').replace(/dead/i, '').trim();
-            monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+            const cleanMonName = rawName.replace(/corpse/i, '').replace(/dead/i, '').replace(/死体/g, '').trim();
+            if (cleanMonName.length > 0) {
+                monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+            }
         }
 
-        const baseName = monKnowledge ? monKnowledge.name : 'Unknown Creature';
-        const corpseName = `${baseName} の死体 (corpse)`;
+        const baseName = monKnowledge ? monKnowledge.name : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const corpseName = baseName ? `${baseName} の死体 (corpse)` : '死体 (corpse)';
 
         const corpseObj = {
             id: `corpse_${monOffset >= 0 ? monOffset : 'unknown'}`,
@@ -1183,7 +1218,7 @@ export class StructuredKnowledgeEngine {
             corpseInfo: monKnowledge?.corpseInfo || null,
             effectSummary: monKnowledge?.corpseInfo?.warningNote ? 
                 `食中毒・呪い警告: ${monKnowledge.corpseInfo.warningNote}` : 
-                `モンスター (${baseName}) の死体です。食料として食べるか、祭壇で捧げることができます。`
+                (baseName ? `モンスター (${baseName}) の死体です。食料として食べるか、祭壇で捧げることができます。` : 'モンスターの死体です。食料として食べるか、祭壇で捧げることができます。')
         };
 
         const shouldTranslate = options.translate !== false;
@@ -1204,10 +1239,14 @@ export class StructuredKnowledgeEngine {
         let rawName = '';
 
         if (typeof identifier === 'object') {
-            glyphId = typeof identifier.glyph === 'number' ? identifier.glyph : (identifier.rawGlyph ?? -1);
-            rawName = identifier.name || identifier.str || identifier.rawText || '';
-            if (typeof identifier.subType === 'number' && identifier.subType >= 0) {
-                monOffset = identifier.subType % 383;
+            glyphId = typeof identifier.glyph === 'number' ? identifier.glyph : 
+                      (typeof identifier.rawGlyph === 'number' ? identifier.rawGlyph :
+                      (typeof identifier.glyphInfo?.glyph === 'number' ? identifier.glyphInfo.glyph : -1));
+            rawName = identifier.name || identifier.str || identifier.rawText || identifier.label || '';
+
+            // subType が 476 (アイテム番号) 以外の 0〜382 (モンスター番号) の場合のみ monOffset とする
+            if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 383) {
+                monOffset = identifier.subType;
             }
         } else if (typeof identifier === 'number') {
             glyphId = identifier;
@@ -1225,20 +1264,24 @@ export class StructuredKnowledgeEngine {
 
         let monKnowledge = null;
         if (monOffset >= 0) {
-            monKnowledge = this.getMonsterKnowledge(monOffset, options);
+            monKnowledge = this.getMonsterKnowledge(monOffset, { ...options, isMonOffset: true });
         } else if (rawName) {
             const cleanMonName = rawName.replace(/statue\s*(of)?/i, '').replace(/像/g, '').trim();
-            monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+            if (cleanMonName.length > 0) {
+                monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+            }
         }
 
-        const baseName = monKnowledge ? monKnowledge.name : 'Unknown Creature';
-        const statueName = `${baseName} の像 (statue)`;
+        const baseName = monKnowledge ? monKnowledge.name : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const statueName = baseName ? `${baseName} の像 (statue)` : '石像 (statue)';
 
         const statueObj = {
             id: `statue_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: statueName,
             category: 'STATUE',
-            effectSummary: `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`
+            effectSummary: baseName ? 
+                `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。` :
+                `石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`
         };
 
         const shouldTranslate = options.translate !== false;
@@ -1254,12 +1297,17 @@ export class StructuredKnowledgeEngine {
     getKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
+        // 🎯 -1. すでに完成した構造化ナレッジオブジェクト (category 及び effectSummary を保持) の場合、二重検索で破壊せずにそのまま返却！
+        if (typeof identifier === 'object' && identifier !== null && identifier.category && identifier.effectSummary) {
+            return identifier;
+        }
+
         // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, STATUE, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
         if (typeof identifier === 'object' && identifier !== null) {
             if (identifier.type === 'BODY') {
                 return this.getCorpseKnowledge(identifier, options);
             }
-            if (identifier.type === 'STATUE') {
+            if (identifier.type === 'STATUE' || identifier.subType === 476 || identifier.onum === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
                 return this.getStatueKnowledge(identifier, options);
             }
             if (identifier.type === 'TERRAIN' || identifier.type === 'UNEXPLORED') {
@@ -1288,6 +1336,48 @@ export class StructuredKnowledgeEngine {
                 } else if (info.type === ENTITY_TYPES.TERRAIN || info.type === ENTITY_TYPES.TRAP || info.type === ENTITY_TYPES.CMAP || info.type === ENTITY_TYPES.UNEXPLORED) {
                     return this.getTerrainKnowledge(identifier, options);
                 }
+            }
+        }
+
+        // 1.5. 文字列または型指定のないオブジェクトの場合のキー抽出とキーワード優先分岐
+        let searchKey = '';
+        if (typeof identifier === 'string') {
+            searchKey = identifier;
+        } else if (typeof identifier === 'object' && identifier !== null) {
+            searchKey = identifier.name || identifier.label || identifier.str || identifier.rawText || identifier.id || '';
+        }
+
+        if (typeof searchKey === 'string' && searchKey.trim().length > 0) {
+            const lowerKey = searchKey.toLowerCase();
+
+            // 石像 (Statue) の優先判定
+            if (lowerKey.includes('statue') || lowerKey.includes('石像') || lowerKey.includes('像')) {
+                const statueData = this.getStatueKnowledge(identifier, options);
+                if (statueData) return statueData;
+            }
+
+            // 死体 (Corpse/Body) の優先判定
+            if (lowerKey.includes('corpse') || lowerKey.includes('死体')) {
+                const corpseData = this.getCorpseKnowledge(identifier, options);
+                if (corpseData) return corpseData;
+            }
+
+            // 地形 (Terrain/Cmap) の優先判定
+            if (lowerKey.includes('fountain') || lowerKey.includes('噴水') ||
+                lowerKey.includes('sink') || lowerKey.includes('流し') ||
+                lowerKey.includes('wall') || lowerKey.includes('壁') ||
+                lowerKey.includes('floor') || lowerKey.includes('床') ||
+                lowerKey.includes('stair') || lowerKey.includes('階段') ||
+                lowerKey.includes('door') || lowerKey.includes('扉') || lowerKey.includes('ドア') ||
+                lowerKey.includes('altar') || lowerKey.includes('祭壇') ||
+                lowerKey.includes('grave') || lowerKey.includes('墓') ||
+                lowerKey.includes('tree') || lowerKey.includes('木') ||
+                lowerKey.includes('lava') || lowerKey.includes('溶岩') ||
+                lowerKey.includes('water') || lowerKey.includes('pool') || lowerKey.includes('水') ||
+                lowerKey.includes('bars') || lowerKey.includes('鉄格子') ||
+                lowerKey.includes('trap') || lowerKey.includes('罠')) {
+                const terrainData = this.getTerrainKnowledge(searchKey, options);
+                if (terrainData) return terrainData;
             }
         }
 

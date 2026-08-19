@@ -11,6 +11,7 @@ describe('StructuredKnowledgeEngine', () => {
             translate: (text) => {
                 const dict = {
                     'cockatrice': 'コカトリス',
+                    'plains centaur': '平原のケンタウロス',
                     'wand of digging': '掘削の杖',
                     'Petrifies instantly if touched or eaten without gloves!': '手袋なしで触ると石化します！',
                     'Engrave Elbereth to keep away': 'Elbereth(Eの字)を刻んで遠ざける',
@@ -143,6 +144,65 @@ describe('StructuredKnowledgeEngine', () => {
             expect(statue).not.toBeNull();
             expect(statue.category).toBe('STATUE');
             expect(statue.name).toContain('像');
+        });
+
+        it('should resolve Statue and Terrain knowledge correctly from text/name without falling back to TOOL', () => {
+            // 石像 (statue)
+            const statueStr = engine.getKnowledge('statue of goblin', { translate: true });
+            expect(statueStr).not.toBeNull();
+            expect(statueStr.category).toBe('STATUE');
+
+            // 噴水 (fountain)
+            const fountainStr = engine.getKnowledge('fountain', { translate: true });
+            expect(fountainStr).not.toBeNull();
+            expect(fountainStr.category).toBe('FOUNTAIN');
+
+            // ダンジョン壁 (dungeon wall)
+            const wallStr = engine.getKnowledge('dungeon wall', { translate: true });
+            expect(wallStr).not.toBeNull();
+            expect(wallStr.category).toBe('WALL');
+
+            // ダンジョン床 (dungeon floor)
+            const floorStr = engine.getKnowledge('dungeon floor', { translate: true });
+            expect(floorStr).not.toBeNull();
+            expect(floorStr.category).toBe('FLOOR');
+
+            // オブジェクト ({ name: 'fountain' })
+            const fountainObj = engine.getKnowledge({ name: 'fountain' }, { translate: true });
+            expect(fountainObj).not.toBeNull();
+            expect(fountainObj.category).toBe('FOUNTAIN');
+        });
+
+        it('should resolve specific monster name for statue glyph IDs (e.g. plains centaur 7356 / subType 130) even on hover', () => {
+            // Glyph ID 7356 = GLYPH_STATUE_OFF (7226) + 130 (plains centaur)
+            const statueGlyph = engine.getKnowledge(7356, { translate: true });
+            expect(statueGlyph).not.toBeNull();
+            expect(statueGlyph.category).toBe('STATUE');
+            expect(statueGlyph.name).toContain('平原のケンタウロス');
+
+            // オブジェクト { type: 'STATUE', subType: 130, rawGlyph: 7356 }
+            const statueEntity = engine.getKnowledge({ type: 'STATUE', subType: 130, rawGlyph: 7356 }, { translate: true });
+            expect(statueEntity).not.toBeNull();
+            expect(statueEntity.category).toBe('STATUE');
+            expect(statueEntity.name).toContain('平原のケンタウロス');
+
+            // モンスター情報のない単なる石像テキスト/オブジェクトの場合、Unknown Creature にならずシンプルな「石像」になること
+            const genericStatue = engine.getKnowledge({ name: 'statue' }, { translate: true });
+            expect(genericStatue).not.toBeNull();
+            expect(genericStatue.category).toBe('STATUE');
+            expect(genericStatue.name).not.toContain('Unknown Creature');
+            expect(genericStatue.name).toContain('石像');
+
+            // マップセル上のアイテムオブジェクト ({ type: 'ITEM', subType: 476, glyph: 7356 }) も正しく転送され平原のケンタウロス像になること
+            const mapItemStatue = engine.getKnowledge({ type: 'ITEM', subType: 476, glyph: 7356 }, { translate: true });
+            expect(mapItemStatue).not.toBeNull();
+            expect(mapItemStatue.category).toBe('STATUE');
+            expect(mapItemStatue.name).toContain('平原のケンタウロス');
+
+            // すでに完成したナレッジカードオブジェクトが getKnowledge に再投入されてもそのまま返却され上書き破棄されないこと
+            const re投入Result = engine.getKnowledge(mapItemStatue, { translate: true });
+            expect(re投入Result).toEqual(mapItemStatue);
+            expect(re投入Result.name).toContain('平原のケンタウロス');
         });
     });
 });

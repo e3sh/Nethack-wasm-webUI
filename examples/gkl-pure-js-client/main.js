@@ -761,7 +761,7 @@ class GklPureJSClient {
         stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
         effectSummary: 'ダンジョンを探索中のプレイヤー自身です。'
       };
-    } else if (target && (target.dangerLevel || target.category === 'MONSTER' || target.category === 'CORPSE' || target.category === 'GOLD' || target.isUnidentified)) {
+    } else if (target && (target.dangerLevel || target.category || target.isUnidentified || target.effectSummary)) {
       // すでに完全な構造化カードデータである場合
       data = target;
     } else if (this.core && this.core.gkl && this.core.gkl.structuredKnowledge) {
