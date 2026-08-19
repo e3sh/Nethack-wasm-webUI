@@ -26,4 +26,24 @@ describe('StatusAccessor', () => {
         expect(res.dlevel.text).toBe("Dlvl:3");
         expect(res.dlevel.level).toBe(3);
     });
+
+    it('アライメント (BL_ALIGN = 7) および各基本能力値 (BL_STR~BL_CHA = 1~6) が正常にパースできること', () => {
+        const status = new StatusAccessor();
+        status.updateField(7, "Neutral");
+        status.updateField(1, "18/50");
+        status.updateField(2, 16);
+        status.updateField(3, 15);
+        status.updateField(4, 12);
+        status.updateField(5, 10);
+        status.updateField(6, 9);
+
+        const res = status.getStatus();
+        expect(res.align).toBe("Neutral");
+        expect(res.stats.str).toBe("18/50");
+        expect(res.stats.dex).toBe(16);
+        expect(res.stats.con).toBe(15);
+        expect(res.stats.int).toBe(12);
+        expect(res.stats.wis).toBe(10);
+        expect(res.stats.cha).toBe(9);
+    });
 });

@@ -120,17 +120,36 @@ export class StatusAccessor {
             cha: parseInt(f[6] !== undefined ? f[6] : 0, 10) || 0
         };
 
-        // Score (8: BL_SCORE) & Turns (16: BL_TIME)
-        const rawScore = f[8] !== undefined ? f[8] : f[21];
-        const scoreVal = parseInt(rawScore !== undefined ? rawScore : 0, 10) || 0;
-        const turnsVal = parseInt(f[16] !== undefined ? f[16] : 0, 10) || 0;
+        // 数値・文字列混合フィールドから安全に数字を抽出するヘルパー
+        const parseNum = (val, defaultVal = 0) => {
+            if (val === undefined || val === null) return defaultVal;
+            if (typeof val === 'number') return isNaN(val) ? defaultVal : val;
+            if (typeof val === 'string') {
+                const match = val.match(/-?\d+/);
+                if (match) return parseInt(match[0], 10);
+            }
+            return defaultVal;
+        };
 
-        const rawXp = f[13] !== undefined ? f[13] : 1;
-        const xpVal = parseInt(rawXp, 10) || 1;
+        // Score (8: BL_SCORE) & Turns (16: BL_TIME)
+        const scoreVal = parseNum(f[8], 0);
+        const turnsVal = parseNum(f[16], 0);
+
+        // Level (13: BL_XP) & Experience Points (21: BL_EXP)
+        const levelVal = parseNum(f[13], 1);
+        const expPointsVal = parseNum(f[21], 0);
+
+        // オプショナルフィールド送出有無
+        const hasScore = f[8] !== undefined && f[8] !== null && f[8] !== "";
+        const hasTime = f[16] !== undefined && f[16] !== null && f[16] !== "";
+        const hasExp = f[21] !== undefined && f[21] !== null && f[21] !== "";
 
         const rawAc = f[14] !== undefined ? f[14] : 10;
-        const parsedAc = parseInt(rawAc, 10);
-        const acVal = isNaN(parsedAc) ? 10 : parsedAc;
+        const acVal = parseNum(rawAc, 10);
+
+        // Alignment (7: BL_ALIGN)
+        const rawAlign = f[7] !== undefined ? String(f[7]).trim() : "Neutral";
+        const alignVal = rawAlign || "Neutral";
 
         return {
             title: f[0] !== undefined ? String(f[0]) : "--",
@@ -141,10 +160,16 @@ export class StatusAccessor {
             conditions: conditions,
             hunger: hungerStr,
             stats: stats,
+            align: alignVal,
             score: scoreVal,
-            xp: xpVal,
+            hasScore: hasScore,
+            level: levelVal,
+            exp: expPointsVal,
+            hasExp: hasExp,
+            xp: levelVal, // 後方互換性保持
             ac: acVal,
             turns: turnsVal,
+            hasTime: hasTime,
             allFields: { ...this.fields }
         };
     }

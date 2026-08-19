@@ -67,7 +67,7 @@
         </section>
 
         <!-- 横型ステータスバー (StatusBar + HP/MP ゲージバー) -->
-        <div class="status-bar">
+        <div id="status-bar" class="status-bar">
           <div class="status-main">
             <span id="st-name" class="st-item title">Hero</span>
             <span id="st-dlvl" class="st-item dlvl">Dlvl:1</span>
@@ -86,9 +86,29 @@
 
             <span id="st-ac" class="st-item ac">AC:10</span>
             <span id="st-gold" class="st-item gold">💰 0</span>
+
+            <button id="btn-toggle-status-details" class="btn-status-toggle" title="詳細ステータス切替 (クリックで固定)">▼</button>
           </div>
           <div id="status-badges" class="status-badges">
             <span id="st-cond" class="badge cond-badge hidden">Normal</span>
+          </div>
+
+          <!-- 展開詳細行 (詳細ステータス領域) -->
+          <div id="status-details" class="status-details">
+            <div class="status-stats-grid">
+              <span class="st-item stat"><label>St:</label><span id="st-str">--</span></span>
+              <span class="st-item stat"><label>Dx:</label><span id="st-dex">--</span></span>
+              <span class="st-item stat"><label>Co:</label><span id="st-con">--</span></span>
+              <span class="st-item stat"><label>In:</label><span id="st-int">--</span></span>
+              <span class="st-item stat"><label>Wi:</label><span id="st-wis">--</span></span>
+              <span class="st-item stat"><label>Ch:</label><span id="st-cha">--</span></span>
+            </div>
+            <div class="status-extra-grid">
+              <span id="st-item-align" class="st-item align"><label>Align:</label><span id="st-align">Neutral</span></span>
+              <span id="st-item-exp" class="st-item exp"><label>Exp:</label><span id="st-exp">1</span></span>
+              <span id="st-item-turns" class="st-item turns hidden"><label>T:</label><span id="st-turns">0</span></span>
+              <span id="st-item-score" class="st-item score hidden"><label>Score:</label><span id="st-score">0</span></span>
+            </div>
           </div>
         </div>
 

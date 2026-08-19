@@ -238,6 +238,13 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.status-bar:hover {
+  border-color: #34495e;
 }
 
 .status-main {
@@ -255,6 +262,27 @@ body {
 .st-item.pw { color: #3498db; }
 .st-item.ac { color: #9b59b6; }
 .st-item.gold { color: #f1c40f; }
+
+.btn-status-toggle {
+  background: transparent;
+  border: none;
+  color: #7f8c8d;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: transform 0.3s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-status-toggle:hover {
+  color: #4ecca3;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-bar.is-expanded .btn-status-toggle {
+  transform: rotate(180deg);
+  color: #4ecca3;
+}
 
 .gauge-box {
   display: flex;
@@ -295,6 +323,62 @@ body {
   background-color: #c0392b;
   color: #ffffff;
 }
+
+/* アコーディオン展開詳細領域 */
+.status-details {
+  width: 100%;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.3s ease, padding-top 0.3s ease;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 1px dashed transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* ホバー時またはトグル固定時の展開状態 */
+.status-bar:hover .status-details,
+.status-bar.is-expanded .status-details {
+  max-height: 150px;
+  opacity: 1;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.status-stats-grid,
+.status-extra-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.status-stats-grid {
+  color: #a6adc8;
+}
+
+.status-stats-grid label,
+.status-extra-grid label {
+  color: #7f8c8d;
+  margin-right: 3px;
+  font-size: 12px;
+}
+
+.status-stats-grid span,
+.status-extra-grid span {
+  font-weight: bold;
+  color: #89b4fa;
+}
+
+.status-extra-grid .st-item.align span { color: #a6e3a1; }
+.status-extra-grid .st-item.exp span { color: #f9e2af; }
+.status-extra-grid .st-item.turns span { color: #cba6f7; }
+.status-extra-grid .st-item.score span { color: #fab387; }
 
 /* Prompt Bar */
 .prompt-bar {

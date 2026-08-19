@@ -9486,9 +9486,7 @@
         { en: "; resume eating them?", jp: ";それらを食べることを再開しますか？" },
         { en: "There is 1 gold piece here; eat it?", jp: "ここには金貨が 1 つあります。食べる？" },
         { en: "Your stomach acid melts straight through the ice!", jp: "胃酸が氷を通って真っ直ぐに溶けてしまいます！" },
-        { en: "%s now.", jp: "％雪。" },
         { en: "wobble in the saddle.", jp: "サドルでぐらつく。" },
-        { en: "%s...", jp: "%s..." },
         { en: "deathly sick.", jp: "致命的な病気。" },
         { en: "somewhat better.", jp: "多少は良くなりました。" },
         { en: "cured.  What a relief!", jp: "治った。  なんという安心でしょう！" },
@@ -11515,6 +11513,9 @@
         { en: "Attach 7 candles and apply with 'a' to light during the Invocation Ritual.", jp: "7本のローソクを取り付け、道具(#apply)で点灯して祈祷の儀式を行う。" },
         { en: "Read with 'r' at the vibrating square during the Invocation Ritual.", jp: "振動するマス(vibrating square)の上で読む(#read)ことで祈祷の儀式を行う。" },
         { en: "\"Many enter the dungeon, and few return to the sunlit lands.\"", jp: "「ダンジョンに足を踏み入れる者は多いが、陽光あふれる大地へと戻ってくる者はほとんどいない。」" },
+        { en: "You slip and nearly fall.", jp: "あなたは足を滑らせ、危うく転びそうになる。" },
+        { en: "You land on a set of sharp iron spikes!", jp: "鋭い鉄の棘の上に落ちてしまった！" },
+        { en: "You finish disrobing.", jp: "服を脱ぎ終える。" },
     ];
 }
 
@@ -14021,6 +14022,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+steals\s+(.*)!$/, replace: "$1は$2を盗んだ！" },
         { pattern: /^She\s+stole\s+(.*)\.$/, replace: "彼女は$1を盗んだ！" },
         { pattern: /^(.*)\s+disarms\s+your\s+(.*)\.$/, replace: "$1はあなたの$2を解除します。" },
+        { pattern: /^(.*)\s+disarms\s+(.*)\.$/, replace: "$1は$2を取り出します。" },
         { pattern: /^You\s+finish\s+taking\s+off\s+your\s+(.*)\.$/, replace: "$1を外し終えた。" },
         { pattern: /^(.*)\s+stole\s+(.*)\.$/, replace: "$1は$2を盗んだ！" },
         { pattern: /^(.*)\s+tries\s+to\s+rob\s+you,\s+but\s+there\s+is\s+nothing\s+to\s+steal!$/, replace: "$1は盗もうとしたが、盗める物がなかった。" },
@@ -17192,8 +17194,6 @@ function nhPatterns() {
         { pattern: /^There\s+is\s+a\s+bear\s+trap\s+here\s+\((.*)\);\s+eat\s+it\?$/, replace: "ここにはクマの罠があります ( $1 );食べる？" },
         { pattern: /^You\s+only\s+manage\s+to\s+(.*)\s+the\s+bear\s+trap\.$/, replace: "クマトラップを $1 することしかできません。" },
         { pattern: /^There\s+are\s+(.*)\s+gold\s+pieces\s+here;\s+eat\s+them\?$/, replace: "ここには $1 個の金貨があります。それらを食べる？" },
-        { pattern: /^There\s+(.*)$/, replace: "そこに $1" },
-        { pattern: /^here;\s+(.*)\s+(.*)\?$/, replace: "ここ; $1  $2 ?" },
         { pattern: /^less\s+(.*)\s+now\.$/, replace: "今では $1 が減りました。" },
         { pattern: /^(.*)\s+worse\.$/, replace: "$1 さらに悪い。" },
         { pattern: /^As\s+you\s+open\s+the\s+bottle,\s+(.*)\s+emerges\.$/, replace: "ボトルを開けると $1 が現れます。" },
@@ -17551,8 +17551,9 @@ function nhPatterns() {
         { pattern: /^(.*)\s+is\s+already\s+covered\s+by\s+a\s+towel\.$/, replace: "$1 はすでにタオルで覆われています。" },
         { pattern: /^putting\s+on\s+unexpected\s+type\s+of\s+accessory:\s+(.*)$/, replace: "予期しないタイプのアクセサリーを身に着けています: $1" },
         { pattern: /^(.*)(.*)\s+are\s+full,\s+and\s+you're\s+already\s+wearing\s+an\s+amulet\s+and\s+(.*)\.$/, replace: "$1  $2 はいっぱいで、すでにお守りと $3 を身に着けています。" },
-        { pattern: /^The\s+beautiful\s+(.*)\s+seduces\s+you\s+and\s+you\s+take\s+off\s+your\s+(.*)\.$/, replace: "美しい$1があなたを誘惑し、あなたは$2を脱ぎます。" },
-        { pattern: /^(.*)\s+off\s+your\s+(.*)\.$/, replace: "$1 を $2 から削減します。" },
+        { pattern: /^(.*)\s+off\s+your\s+(.*)\.$/, replace: "$1、あなたは$2を脱ぎ始める。" },
+        { pattern: /^The\s+beautiful\s+(.*)\s+seduces\s+you\s+and\s+you\s+taking$/, replace: "美しい$1があなたを誘惑し" },
+        { pattern: /^The\s+beautiful\s+(.*)\s+seduces\s+you\s+and\s+you\s+start\s+taking$/, replace: "美しい$1があなたを誘惑し" },
         { pattern: /^(.*)\s+(.*)(.*)\s+from\s+your\s+(.*)(.*)\.$/, replace: "$1  $2  $3 あなたの $4  $5 から。" },
         { pattern: /^(.*)\s+(.*)(.*)\s+(.*)(.*)\s+from\s+your\s+(.*)(.*)\.$/, replace: "$1  $2  $3  $4  $5 から $6  $7 。" },
         { pattern: /^cannot\s+(.*)\s+to\s+remove\s+the\s+ring\.$/, replace: "$1 リングを取り外すことができません。" },
@@ -17834,6 +17835,9 @@ function nhPatterns() {
         { pattern: /^(.*)\s+talks\s+about\s+the\s+problem\s+of\s+shoplifters\.$/, replace: "$1は万引きの問題について語っている。" },
         { pattern: /^(.*)\s+talks\s+about\s+mining\.$/, replace: "$1は採掘について話している。" },
         { pattern: /^You\s+bought\s+(.*)\s+for\s+(.*)\s+gold\s+pieces\.$/, replace: "あなたは$1を$2ゴールドで購入しました。" },
+        { pattern: /^(.*)\s+gets\s+zapped!$/, replace: "$1が感電した！" },
+        { pattern: /^(.*)\s+grunts\.$/, replace: "$1がうめき声を上げる。" },
+        { pattern: /^There\s+is\s+(.*)\s+here,\s+but\s+you\s+cannot\s+lift\s+any\s+more\.$/, replace: "ここには$1がありますが、これ以上持ち上げることはできません。" },
     ];
 }
 

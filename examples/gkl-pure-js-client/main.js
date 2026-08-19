@@ -38,6 +38,8 @@ class GklPureJSClient {
     this.elBtnCancelMenu = document.getElementById('btn-cancel-menu');
 
     // Status & Gauge Elements
+    this.elStatusBar = document.getElementById('status-bar');
+    this.elBtnToggleStatusDetails = document.getElementById('btn-toggle-status-details');
     this.elStName = document.getElementById('st-name');
     this.elStDlvl = document.getElementById('st-dlvl');
     this.elStHp = document.getElementById('st-hp');
@@ -47,6 +49,20 @@ class GklPureJSClient {
     this.elStCond = document.getElementById('st-cond');
     this.elHpBarFill = document.getElementById('hp-bar-fill');
     this.elMpBarFill = document.getElementById('mp-bar-fill');
+
+    // Status Details Elements (Expandable)
+    this.elStStr = document.getElementById('st-str');
+    this.elStDex = document.getElementById('st-dex');
+    this.elStCon = document.getElementById('st-con');
+    this.elStInt = document.getElementById('st-int');
+    this.elStWis = document.getElementById('st-wis');
+    this.elStCha = document.getElementById('st-cha');
+    this.elStAlign = document.getElementById('st-align');
+    this.elStExp = document.getElementById('st-exp');
+    this.elStTurns = document.getElementById('st-turns');
+    this.elStScore = document.getElementById('st-score');
+    this.elStItemTurns = document.getElementById('st-item-turns');
+    this.elStItemScore = document.getElementById('st-item-score');
 
     // GKL Elements
     this.elGklActionList = document.getElementById('gkl-action-list');
@@ -290,6 +306,13 @@ class GklPureJSClient {
     document.getElementById('btn-restart').onclick = () => this.restartGame();
     document.getElementById('btn-delete-save').onclick = () => this.deleteSaveFile();
     document.getElementById('btn-gameover-restart').onclick = () => this.restartGame();
+
+    if (this.elStatusBar) {
+      this.elStatusBar.addEventListener('click', (e) => {
+        // ステータスバー（または切り替えボタン）のクリックで固定トグル展開を切替
+        this.elStatusBar.classList.toggle('is-expanded');
+      });
+    }
 
     const btnRefreshInv = document.getElementById('btn-refresh-inv');
     if (btnRefreshInv) {
@@ -1308,6 +1331,48 @@ class GklPureJSClient {
       this.elStCond.textContent = conds.join(', ');
     } else {
       this.elStCond.classList.add('hidden');
+    }
+
+    // 展開詳細ステータス (Str, Dex, Con, Int, Wis, Cha, Align, Exp, Turns, Score)
+    if (status.stats) {
+      if (this.elStStr) this.elStStr.textContent = status.stats.str !== undefined ? status.stats.str : '--';
+      if (this.elStDex) this.elStDex.textContent = status.stats.dex !== undefined ? status.stats.dex : '--';
+      if (this.elStCon) this.elStCon.textContent = status.stats.con !== undefined ? status.stats.con : '--';
+      if (this.elStInt) this.elStInt.textContent = status.stats.int !== undefined ? status.stats.int : '--';
+      if (this.elStWis) this.elStWis.textContent = status.stats.wis !== undefined ? status.stats.wis : '--';
+      if (this.elStCha) this.elStCha.textContent = status.stats.cha !== undefined ? status.stats.cha : '--';
+    }
+    if (this.elStAlign) this.elStAlign.textContent = status.align || 'Neutral';
+
+    // 累積経験値 (showexp オプション有効時 / status.hasExp かつ pts > 0 時のみ併記)
+    if (this.elStExp) {
+      const lvl = status.level !== undefined ? status.level : (status.xp !== undefined ? status.xp : 1);
+      const pts = status.exp !== undefined ? status.exp : 0;
+      if (status.hasExp && pts > 0) {
+        this.elStExp.textContent = `${lvl}/${pts}`;
+      } else {
+        this.elStExp.textContent = `${lvl}`;
+      }
+    }
+
+    // 経過ターン数 (time オプション有効時 / status.hasTime かつ turns > 0 時のみ表示)
+    if (this.elStItemTurns && this.elStTurns) {
+      if (status.hasTime || status.turns > 0) {
+        this.elStItemTurns.classList.remove('hidden');
+        this.elStTurns.textContent = String(status.turns);
+      } else {
+        this.elStItemTurns.classList.add('hidden');
+      }
+    }
+
+    // スコア (showscore オプション有効時 / status.hasScore かつ score > 0 時のみ表示)
+    if (this.elStItemScore && this.elStScore) {
+      if (status.hasScore || status.score > 0) {
+        this.elStItemScore.classList.remove('hidden');
+        this.elStScore.textContent = String(status.score);
+      } else {
+        this.elStItemScore.classList.add('hidden');
+      }
     }
   }
 
