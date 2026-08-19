@@ -117,4 +117,19 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(mockTranslator.translate).toHaveBeenCalled();
         expect(mon.name).toBe('TR:cockatrice');
     });
+
+    it('getKnowledgeAt: 地形セルに Statue (石像) が存在する場合、その像の構造化ナレッジを正しく返却すること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        // セル (5, 5) に Statue (Glyph 7226) の更新を送信
+        plugin.areaStateManager.updateGlyph(5, 5, 7226);
+
+        const knowledge = await plugin.inspectCellOnDemand({ x: 5, y: 5 }, { isHover: true });
+        expect(knowledge).not.toBeNull();
+        expect(knowledge.category).toBe('STATUE');
+        expect(knowledge.name).toBeDefined();
+        expect(knowledge.effectSummary).toBeDefined();
+    });
 });

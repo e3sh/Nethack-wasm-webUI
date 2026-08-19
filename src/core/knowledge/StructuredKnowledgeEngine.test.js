@@ -120,4 +120,29 @@ describe('StructuredKnowledgeEngine', () => {
             expect(item.effectSummary).toBe('壁や床に穴や通路を掘る。');
         });
     });
+
+    describe('Statue Knowledge Tests', () => {
+        it('should resolve Statue knowledge by glyph ID for both single and pile statues', () => {
+            // 単体像 (GLYPH_STATUE_OFF = 7226) -> monOffset 0 (ジャッカル / jackal など)
+            const statue1 = engine.getKnowledge(7226, { translate: true });
+            expect(statue1).not.toBeNull();
+            expect(statue1.category).toBe('STATUE');
+            expect(statue1.name).toContain('像');
+            expect(statue1.effectSummary).toContain('石像');
+
+            // 山積み像 (GLYPH_STATUE_PILETOP_OFF = 8856)
+            const statuePile = engine.getKnowledge(8856, { translate: true });
+            expect(statuePile).not.toBeNull();
+            expect(statuePile.category).toBe('STATUE');
+            expect(statuePile.name).toContain('像');
+        });
+
+        it('should resolve Statue knowledge from classifier entity object', () => {
+            const entity = { type: 'STATUE', subType: 0, rawGlyph: 7226 };
+            const statue = engine.getKnowledge(entity, { translate: true });
+            expect(statue).not.toBeNull();
+            expect(statue.category).toBe('STATUE');
+            expect(statue.name).toContain('像');
+        });
+    });
 });

@@ -112,7 +112,8 @@ export function classifyGlyph(glyphId) {
 
     // 8856〜9621: 山積み像 (GLYPH_STATUE_MALE_PILETOP_OFF = 8856)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF || glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_MALE_PILETOP_OFF) {
-        return { type: ENTITY_TYPES.STATUE, isPile: true, rawGlyph: glyphId };
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF) % 383;
+        return { type: ENTITY_TYPES.STATUE, subType: monOffset, isPile: true, rawGlyph: glyphId };
     }
 
     // 8473〜8855: 山積み死体 (GLYPH_BODY_PILETOP_OFF = 8473)
@@ -130,7 +131,8 @@ export function classifyGlyph(glyphId) {
 
     // 7226〜7991: 単体彫像 (GLYPH_STATUE_OFF = 7226)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_OFF) {
-        return { type: ENTITY_TYPES.STATUE, isPile: false, rawGlyph: glyphId };
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_STATUE_OFF) % 383;
+        return { type: ENTITY_TYPES.STATUE, subType: monOffset, isPile: false, rawGlyph: glyphId };
     }
 
     // 4051〜7225: エフェクト・ビーム・警告 (GLYPH_ZAP_OFF = 4051)
@@ -178,7 +180,7 @@ export function classifyGlyph(glyphId) {
     // 0〜765, 1532〜2298: モンスター (GLYPH_MON_OFF = 0, NUMMONS = 383)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_MON_OFF) {
         const monOffset = glyphId % 383;
-        const isShopkeeper = (monOffset === 267 || monOffset === 268);
+        const isShopkeeper = (monOffset === 271 || monOffset === 267 || monOffset === 268);
         return { type: ENTITY_TYPES.MONSTER, subType: monOffset, isShopkeeper, isPile: false, rawGlyph: glyphId };
     }
 

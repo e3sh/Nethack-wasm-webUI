@@ -103,12 +103,46 @@ describe('OnDemandLookService', () => {
 
 describe('StructuredKnowledgeEngine defaultPeaceful & Dynamic State Integration', () => {
     const engine = new StructuredKnowledgeEngine({ autoInit: true });
+    const lookService = new OnDemandLookService();
 
     it('店主 (shopkeeper) の未確定時の脅威度が SAFE (DEFAULT_PEACEFUL) と判定されること', () => {
         const mon = engine.getMonsterKnowledge(271, { translate: false });
         expect(mon.defaultPeaceful).toBe(true);
         expect(mon.dangerLevel).toBe('SAFE');
         expect(mon.dispositionStatus).toBe('DEFAULT_PEACEFUL');
+    });
+
+    it('店主に対し固有名詞 (a peaceful Lord Carnarvon) の Look 応答が渡された場合に Peaceful かつ統合表示名が解決されること', () => {
+        const dynamicState = lookService.parseLookResponse('a peaceful Lord Carnarvon');
+        expect(dynamicState.isPeaceful).toBe(true);
+        expect(dynamicState.isHostile).toBe(false);
+
+        const mon = engine.getMonsterKnowledge(271, {
+            translate: false,
+            dynamicState
+        });
+        expect(mon.dangerLevel).toBe('SAFE');
+        expect(mon.dispositionStatus).toBe('PEACEFUL');
+        expect(mon.name).toBe('Lord Carnarvon (Shopkeeper)');
+    });
+
+    it('マルチステップ移動時のバッファ配列 (floor of a room, corridor 等) から通過地形を除外して店主の固有名のみ抽出できること', () => {
+        const buffer = [
+            'Pick a direction or location',
+            'floor of a room',
+            'open door',
+            'corridor',
+            'a peaceful Lord Carnarvon'
+        ];
+        const dynamicState = lookService.parseLookResponse(buffer);
+        expect(dynamicState.isPeaceful).toBe(true);
+        expect(dynamicState.rawText).toBe('a peaceful Lord Carnarvon');
+
+        const mon = engine.getMonsterKnowledge(271, {
+            translate: false,
+            dynamicState
+        });
+        expect(mon.name).toBe('Lord Carnarvon (Shopkeeper)');
     });
 
     it('店主が敵対化した (isHostile) 動的状態では LETHAL に上書きされること', () => {

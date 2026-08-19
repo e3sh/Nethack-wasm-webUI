@@ -17837,3 +17837,7 @@ Message,Attach 7 candles and apply with 'a' to light during Invocation.,7本の�
 Message,Attach 7 candles and apply with 'a' to light during the Invocation Ritual.,7本のローソクを取り付け、道具(#apply)で点灯して祈祷の儀式を行う。,,
 Message,Read with 'r' at the vibrating square during the Invocation Ritual.,振動するマス(vibrating square)の上で読む(#read)ことで祈祷の儀式を行う。,,
 Message,"""Many enter the dungeon, and few return to the sunlit lands.""",「ダンジョンに足を踏み入れる者は多いが、陽光あふれる大地へと戻ってくる者はほとんどいない。」,,
+Pattern,^(.*) talks about the problem of shoplifters\.$,$1は万引きの問題について語っている。,,
+Pattern,^(.*) talks about mining\.$,$1は採掘について話している。,,
+Pattern,^You bought (.*) for (.*) gold pieces\.$,あなたは$1を$2ゴールドで購入しました。,,
+

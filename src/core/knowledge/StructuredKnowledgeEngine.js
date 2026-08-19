@@ -8,7 +8,7 @@
  *   オンデマンドで動的に翻訳処理を行って返却する。
  */
 
-import { classifyGlyph, getCmapInfo, getOnumFromGlyph, getCategoryFromOnum, ENTITY_TYPES } from './glyphClassifier.js';
+import { classifyGlyph, getCmapInfo, getOnumFromGlyph, getCategoryFromOnum, ENTITY_TYPES, GLYPH_OFFSETS } from './glyphClassifier.js';
 import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { ALL_MONSTER_KNOWLEDGE_BASE } from './MONSTER_KNOWLEDGE_FULL.js';
@@ -739,10 +739,10 @@ export class StructuredKnowledgeEngine {
         // B. 文字列指定 (id または Name)
         if (!found && typeof identifier === 'string') {
             let clean = identifier.trim().toLowerCase();
-            // "human samurai called Hero" -> "samurai" や "shopkeeper called Foo" のクリーニング
+            // "human samurai called Hero" -> "samurai" や "a peaceful Lord Carnarvon" -> "lord carnarvon" のクリーニング
             clean = clean.replace(/\bcalled\s+[^\s\(\)]+/gi, '')
                          .replace(/\bnamed\s+[^\s\(\)]+/gi, '')
-                         .replace(/\b(an?|the|human|elf|dwarf|gnome|orc)\b/gi, '')
+                         .replace(/\b(an?|the|human|elf|dwarf|gnome|orc|peaceful|tamed|friendly|hostile)\b/gi, '')
                          .replace(/[\(\)]/g, '')
                          .trim();
 
@@ -767,12 +767,36 @@ export class StructuredKnowledgeEngine {
                     };
                 }
             }
+
+            // 未知の個人名表記（店主等）の場合、options.isShopkeeper や glyph 判定から shopkeeper (monOffset 271) へフォールバック
+            if (!found) {
+                const isSk = options.isShopkeeper || (typeof options.glyph === 'number' && classifyGlyph(options.glyph)?.isShopkeeper);
+                if (isSk) {
+                    found = this.monOffsetMap.get(271) || null;
+                }
+            }
         }
 
         if (!found) return null;
 
         // 動的状態 (dynamicState / cell / isPet / isPlayer) による脅威度の補正計算
         const result = { ...found };
+
+        // 🏪 店主 (Shopkeeper: 271) で Look 応答の個人名テキストが存在する場合、表示名を統合解決 ("Lord Carnarvon (Shopkeeper)")
+        if (found.monOffset === 271 || found.id === 'shopkeeper' || found.name === 'shopkeeper') {
+            const rawText = options.dynamicState?.rawText || (typeof identifier === 'string' ? identifier : '');
+            if (rawText) {
+                const personName = rawText
+                    .replace(/\b(floor of a room|dark part of a room|corridor|open door|closed door|staircase|solid rock|wall)\b/gi, '')
+                    .replace(/\b(an?|the|peaceful|tamed|friendly|hostile)\b/gi, '')
+                    .replace(/[\(\)]/g, '')
+                    .trim();
+                if (personName && personName.toLowerCase() !== 'shopkeeper' && personName.toLowerCase() !== '店主') {
+                    result.personalName = personName;
+                    result.name = `${personName} (Shopkeeper)`;
+                }
+            }
+        }
         const isPet = options.isPet || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET);
         const isPlayer = options.isPlayer || false;
         const dynamicState = options.dynamicState || null;
@@ -1167,6 +1191,61 @@ export class StructuredKnowledgeEngine {
     }
 
     /**
+     * 石像 (Statue) の構造化ナレッジ取得
+     * @param {number|string|Object} identifier 
+     * @param {Object} [options] 
+     * @returns {Object|null} 石像ナレッジ
+     */
+    getStatueKnowledge(identifier, options = {}) {
+        if (identifier === null || identifier === undefined) return null;
+
+        let glyphId = -1;
+        let monOffset = -1;
+        let rawName = '';
+
+        if (typeof identifier === 'object') {
+            glyphId = typeof identifier.glyph === 'number' ? identifier.glyph : (identifier.rawGlyph ?? -1);
+            rawName = identifier.name || identifier.str || identifier.rawText || '';
+            if (typeof identifier.subType === 'number' && identifier.subType >= 0) {
+                monOffset = identifier.subType % 383;
+            }
+        } else if (typeof identifier === 'number') {
+            glyphId = identifier;
+        } else if (typeof identifier === 'string') {
+            rawName = identifier;
+        }
+
+        if (monOffset < 0 && glyphId >= 0) {
+            if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF && glyphId < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+                monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF) % 383;
+            } else if (glyphId >= GLYPH_OFFSETS.GLYPH_STATUE_OFF && glyphId < GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF) {
+                monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_STATUE_OFF) % 383;
+            }
+        }
+
+        let monKnowledge = null;
+        if (monOffset >= 0) {
+            monKnowledge = this.getMonsterKnowledge(monOffset, options);
+        } else if (rawName) {
+            const cleanMonName = rawName.replace(/statue\s*(of)?/i, '').replace(/像/g, '').trim();
+            monKnowledge = this.getMonsterKnowledge(cleanMonName, options);
+        }
+
+        const baseName = monKnowledge ? monKnowledge.name : 'Unknown Creature';
+        const statueName = `${baseName} の像 (statue)`;
+
+        const statueObj = {
+            id: `statue_${monOffset >= 0 ? monOffset : 'unknown'}`,
+            name: statueName,
+            category: 'STATUE',
+            effectSummary: `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`
+        };
+
+        const shouldTranslate = options.translate !== false;
+        return shouldTranslate ? this.localizeKnowledge(statueObj) : statueObj;
+    }
+
+    /**
      * 万能統合ナレッジアクセサ (アイテム -> モンスター -> 地形 -> 汎用フォールバックの自動判定取得)
      * @param {number|string|Object} identifier 
      * @param {Object} [options] 
@@ -1175,10 +1254,13 @@ export class StructuredKnowledgeEngine {
     getKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
-        // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
+        // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, STATUE, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
         if (typeof identifier === 'object' && identifier !== null) {
             if (identifier.type === 'BODY') {
                 return this.getCorpseKnowledge(identifier, options);
+            }
+            if (identifier.type === 'STATUE') {
+                return this.getStatueKnowledge(identifier, options);
             }
             if (identifier.type === 'TERRAIN' || identifier.type === 'UNEXPLORED') {
                 return this.getTerrainKnowledge(identifier, options);
@@ -1186,7 +1268,7 @@ export class StructuredKnowledgeEngine {
             if (identifier.type === 'MONSTER' || identifier.type === 'PET') {
                 return this.getMonsterKnowledge(identifier, options);
             }
-            if (identifier.type === 'ITEM' || identifier.type === 'STATUE') {
+            if (identifier.type === 'ITEM') {
                 return this.getItemKnowledge(identifier, options);
             }
         }
@@ -1199,7 +1281,9 @@ export class StructuredKnowledgeEngine {
                     return this.getMonsterKnowledge(identifier, options);
                 } else if (info.type === ENTITY_TYPES.BODY) {
                     return this.getCorpseKnowledge(identifier, options);
-                } else if (info.type === ENTITY_TYPES.ITEM || info.type === ENTITY_TYPES.STATUE) {
+                } else if (info.type === ENTITY_TYPES.STATUE) {
+                    return this.getStatueKnowledge(identifier, options);
+                } else if (info.type === ENTITY_TYPES.ITEM) {
                     return this.getItemKnowledge(identifier, options);
                 } else if (info.type === ENTITY_TYPES.TERRAIN || info.type === ENTITY_TYPES.TRAP || info.type === ENTITY_TYPES.CMAP || info.type === ENTITY_TYPES.UNEXPLORED) {
                     return this.getTerrainKnowledge(identifier, options);

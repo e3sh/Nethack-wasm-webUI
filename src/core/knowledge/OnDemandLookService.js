@@ -83,36 +83,66 @@ export class OnDemandLookService {
      */
     parseLookResponse(rawBuffer) {
         let text = '';
+        let targetText = '';
+
         if (Array.isArray(rawBuffer)) {
-            text = rawBuffer.map(b => (typeof b === 'string' ? b : (b.text || b.str || ''))).join(' ');
+            const lines = rawBuffer
+                .map(b => (typeof b === 'string' ? b : (b.text || b.str || '')))
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            text = lines.join(' ');
+
+            // 地形メッセージや操作プロンプトを除外した「ターゲットマスの確定情報」を抽出
+            const isTerrainOrPrompt = (line) => {
+                const l = line.toLowerCase();
+                return (
+                    l.startsWith('pick a direction') ||
+                    l.startsWith('far look') ||
+                    l.includes('floor of a room') ||
+                    l.includes('dark part of a room') ||
+                    l.includes('corridor') ||
+                    l.includes('open door') ||
+                    l.includes('closed door') ||
+                    l.includes('staircase') ||
+                    l.includes('solid rock') ||
+                    l === 'wall' || l.endsWith(' wall')
+                );
+            };
+
+            const entityLines = lines.filter(l => !isTerrainOrPrompt(l));
+            targetText = entityLines.length > 0 ? entityLines[entityLines.length - 1] : (lines.length > 0 ? lines[lines.length - 1] : '');
         } else if (typeof rawBuffer === 'string') {
             text = rawBuffer;
+            targetText = rawBuffer;
         }
 
-        const trimmed = text.trim();
+        const trimmed = targetText.trim() || text.trim();
         const lower = trimmed.toLowerCase();
+        const fullLower = text.toLowerCase();
         const hasResult = trimmed.length > 0;
 
         const isPlayer = lower.includes('you (') || lower.includes('yourself') || lower.startsWith('you ') || lower === 'you';
         const isPeaceful = !isPlayer && (
-            lower.includes('peaceful') || 
-            lower.includes('appears peaceful') || 
-            lower.includes('seems peaceful') ||
-            trimmed.includes('平和')
+            fullLower.includes('peaceful') || 
+            fullLower.includes('appears peaceful') || 
+            fullLower.includes('seems peaceful') ||
+            text.includes('平和')
         );
         const isTamed = !isPlayer && (
-            lower.includes('tamed') || 
-            lower.includes('friendly') || 
-            lower.includes('is tamed') || 
-            lower.includes('is friendly') ||
-            trimmed.includes('大人しい') ||
-            trimmed.includes('おとなしい') ||
-            trimmed.includes('ペット')
+            fullLower.includes('tamed') || 
+            fullLower.includes('friendly') || 
+            fullLower.includes('is tamed') || 
+            fullLower.includes('is friendly') ||
+            text.includes('大人しい') ||
+            text.includes('おとなしい') ||
+            text.includes('ペット')
         );
         const isHostile = !isPlayer && !isPeaceful && !isTamed && hasResult;
 
         return {
-            rawText: text,
+            rawText: trimmed,
+            fullBufferText: text,
             isPlayer,
             isPeaceful,
             isTamed,

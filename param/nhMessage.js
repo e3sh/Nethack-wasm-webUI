@@ -17831,6 +17831,9 @@ function nhPatterns() {
         { pattern: /^Standard\s+dungeon\s+encounter\s+\((.*)\)\.$/, replace: "標準的なダンジョンでの遭遇($1)" },
         { pattern: /^(.*).\s+Use\s+standard\s+combat\s+tactics\.$/, replace: "$1。標準的な戦闘戦術を用いる。" },
         { pattern: /^(.*)\s+item\s+for\s+dungeon\s+survival\.$/, replace: "ダンジョンサバイバル用の$1アイテム" },
+        { pattern: /^(.*)\s+talks\s+about\s+the\s+problem\s+of\s+shoplifters\.$/, replace: "$1は万引きの問題について語っている。" },
+        { pattern: /^(.*)\s+talks\s+about\s+mining\.$/, replace: "$1は採掘について話している。" },
+        { pattern: /^You\s+bought\s+(.*)\s+for\s+(.*)\s+gold\s+pieces\.$/, replace: "あなたは$1を$2ゴールドで購入しました。" },
     ];
 }
 
