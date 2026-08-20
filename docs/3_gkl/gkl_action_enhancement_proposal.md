@@ -179,14 +179,12 @@ $$\text{AdviceScore} = (\text{緊急度} \times \text{危険度}) + \text{期待
 * **効果**:
   システムを無駄に複雑化させることなく、シンプルかつ高速に「地形の破壊・変化」と「視界外モンスターの推測」を両立できる。
 
-#### 7. `^X` の表示限界と指輪・装備品耐性 (Extrinsics) の自動結合
-* **`^X` (`#attributes`) の表示仕様限界**:
-  NetHack の標準仕様上、`^X` コマンドで一覧表示されるのはプレイヤー自身が元々持っている**内因性耐性 (Intrinsics)** であり、**指輪 (`ring of fire resistance` 等) や防具・アミュレット等の装備品による外因性耐性 (Extrinsics) は `^X` には表示されない**。
-* **`SituationCache` での耐性統合合成仕様**:
-  参謀エンジン（ETA）が「現在何に耐性があるか」を判定する際、`^X` のパース結果だけに頼ると指輪による耐性を見落とし、誤った警告を出してしまうリスクがある。
-  そのため、`AttributeStateManager` は `^X`（天性耐性）と `InventoryStateManager`（装備中の指輪・装備品の付加耐性）の2つを常に**自動合算（ユニオン結合）**して完全な耐性マップを構築する：
-  $$\text{EffectiveResistances} = \text{Intrinsics (from } \text{^X)} \;\cup\; \text{Extrinsics (from Equipped Rings/Armors)}$$
+#### 8. スキル・装備適正に基づく推奨装備 ＆ 着替えガイダンス (Skill & Gear Suitability Guidance)
+* **スキル連動の最適武器推奨 (Skill-based Weapon Recommendation)**:
+  所持品内の武器とプレイヤーの Skill ランク (Unskilled, Basic, Skilled, Expert) を突合し、現在最も高い命中・ダメージ補正が得られる熟練武器（熟練度 Expert の武器や二刀流セット等）への装備切り替え（`w` / `#twoweapon`）を推薦提示。
+* **魔法阻害ガード ＆ 着替えガイド (Metallic Armor Penalty Warning)**:
+  NetHack の仕様上、鉄・金属製防具（Metallic Armor/Helm/Shield）を着用すると魔法詠唱失敗率が激増するため、`SpellStateManager` と連携し、「⚠️ 鉄製防具により魔法失敗率上昇中 ➔ ローブ / 非金属防具への着替え (`T` / `W`)」をスマートガイダンスとして注意喚起。
 
 ---
-*更新日: 2026-08-17*  
+*更新日: 2026-08-20*  
 *保存先: `docs/3_gkl/gkl_action_enhancement_proposal.md`*

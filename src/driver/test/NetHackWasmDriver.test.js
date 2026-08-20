@@ -198,3 +198,44 @@ test('NetHackWasmDriver - queueSequence Promise resolution and isSilentSync canc
     p2.catch(() => {});
 });
 
+test('NetHackWasmDriver - queueSequence stepDelayMs and allowMapUpdates options', async () => {
+    const driver = new NetHackWasmDriver();
+
+    let mapDisplayEmitted = false;
+    let putstrEmitted = false;
+
+    driver.on('display_nhwindow', (data) => {
+        if (data.windowId <= 3 && !data.blocking) {
+            mapDisplayEmitted = true;
+        }
+    });
+    driver.on('putstr', () => {
+        putstrEmitted = true;
+    });
+
+    const startTime = Date.now();
+    const seqPromise = driver.queueSequence(['j'], { isSilentSync: true, stepDelayMs: 30, allowMapUpdates: true });
+
+    // 1. isSilentSync 時でも allowMapUpdates: true / stepDelayMs > 0 の場合、非ブロック display_nhwindow (windowId: 2) が emit されるか確認
+    driver.eventHook('shim_display_nhwindow', 2, 0); // WIN_MAP non-blocking
+    assert.equal(mapDisplayEmitted, true, 'Map display_nhwindow should be emitted when allowMapUpdates or stepDelayMs > 0 is set');
+
+    // 2. putstr 等のメッセージ系イベントは依然として抑止されることの確認
+    driver.eventHook('shim_putstr', 1, 0, 'Test message');
+    assert.equal(putstrEmitted, false, 'Message putstr should still be suppressed during silent sync');
+
+    // 3. stepDelayMs に応じて自動応答が遅延されることを確認
+    const getchPromise = driver.eventHook('shim_nhgetch');
+    const midTime = Date.now();
+    assert.ok(midTime - startTime < 20, 'Should reach nhgetch before stepDelayMs completes');
+
+    const key = await getchPromise;
+    const endTime = Date.now();
+    assert.equal(key, 'j');
+    assert.ok(endTime - startTime >= 25, `Should delay response by ~30ms (elapsed: ${endTime - startTime}ms)`);
+
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    await seqPromise;
+});
+
+

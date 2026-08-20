@@ -104,9 +104,15 @@ self.onmessage = async function(e) {
                     // 🤫 サイレント同期タスク (isSilentSync: true) の実行中は、メインスレッドへの UI/メッセージログイベント通知を抑止
                     const isSilentSync = driver && driver.currentTask && driver.currentTask.options && driver.currentTask.options.isSilentSync;
                     if (isSilentSync) {
-                        const uiEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
-                        if (uiEvents.includes(evtName)) {
-                            return;
+                        const opts = driver.currentTask.options || {};
+                        const allowMap = !!(opts.allowMapUpdates || (opts.stepDelayMs > 0));
+                        const isMapUpdateDisplay = (evtName === 'display_nhwindow' && data && data.windowId <= 3 && !data.blocking);
+
+                        if (!isMapUpdateDisplay || !allowMap) {
+                            const uiEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
+                            if (uiEvents.includes(evtName)) {
+                                return;
+                            }
                         }
                     }
 

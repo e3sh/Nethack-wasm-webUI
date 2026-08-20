@@ -376,11 +376,21 @@
             this.checkTargetingCommandStart(token);
             this.checkTargetingCommandEnd(token);
 
-            // resolver の型に応じた柔軟な自動応答
-            if (typeof resObj.respond === 'function') {
-                resObj.respond(token);
-            } else if (typeof resObj === 'function') {
-                resObj(token);
+            const doRespond = () => {
+                if (typeof resObj.respond === 'function') {
+                    resObj.respond(token);
+                } else if (typeof resObj === 'function') {
+                    resObj(token);
+                }
+            };
+
+            const stepDelayMs = (this.currentTask && this.currentTask.options) ? Number(this.currentTask.options.stepDelayMs) || 0 : 0;
+            if (stepDelayMs > 0) {
+                setTimeout(() => {
+                    doRespond();
+                }, stepDelayMs);
+            } else {
+                doRespond();
             }
 
             return true;
@@ -506,9 +516,15 @@
         emit(event, payload) {
             // 🤫 サイレント同期タスク (isSilentSync: true) 実行中はログ・メッセージ・プロンプト関連イベントの外部通知を抑止
             if (this.currentTask && this.currentTask.options && this.currentTask.options.isSilentSync) {
-                const suppressedEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
-                if (suppressedEvents.includes(event)) {
-                    return false;
+                const opts = this.currentTask.options;
+                const allowMap = !!(opts.allowMapUpdates || (opts.stepDelayMs > 0));
+                const isMapUpdateDisplay = (event === 'display_nhwindow' && payload && payload.windowId <= 3 && !payload.blocking);
+
+                if (!isMapUpdateDisplay || !allowMap) {
+                    const suppressedEvents = ['putmsg', 'putstr', 'raw_print', 'raw_print_bold', 'putmixed', 'inputRequired', 'display_nhwindow', 'clear_nhwindow'];
+                    if (suppressedEvents.includes(event)) {
+                        return false;
+                    }
                 }
             }
 

@@ -481,11 +481,17 @@ export class GKLPlugin {
         };
 
         // 4. 移動実行
+        const travelOptions = {
+            isSilentSync: true,
+            suppressPrompts: true,
+            ...options
+        };
+
         if (dist === 1) {
             // 隣接8マス移動
             const token = dirTokenMap[`${dx},${dy}`];
             if (token) {
-                return this.executeSequence([token], options);
+                return this.executeSequence([token], travelOptions);
             }
         } else if (dist > 1) {
             // 遠隔 Auto-Travel シーケンス一括投入
@@ -508,7 +514,7 @@ export class GKLPlugin {
             }
             seqTokens.push('.');
 
-            return this.executeSequence(seqTokens, options);
+            return this.executeSequence(seqTokens, travelOptions);
         }
 
         return false;
