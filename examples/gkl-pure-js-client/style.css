@@ -1077,3 +1077,50 @@ body {
   margin: 0;
 }
 
+/* ============================================================================
+   GKL Attributes & Spells Badges
+   ============================================================================ */
+.gkl-attr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.gkl-attr-badge.active {
+  background: rgba(78, 204, 163, 0.2);
+  color: #4ecca3;
+  border: 1px solid #4ecca3;
+  box-shadow: 0 0 6px rgba(78, 204, 163, 0.3);
+}
+
+.gkl-attr-badge.inactive {
+  background: rgba(255, 255, 255, 0.04);
+  color: #475569;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0.6;
+}
+
+.gkl-spell-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  white-space: nowrap;
+}
+
+.gkl-spell-badge small {
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+

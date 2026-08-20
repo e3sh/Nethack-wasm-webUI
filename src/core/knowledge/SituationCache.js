@@ -14,27 +14,33 @@ export class SituationCache {
      * @param {Object} [inventoryStateManager=null] - InventoryStateManager インスタンス
      * @param {Object} [areaStateManager=null] - AreaStateManager インスタンス
      * @param {Object} [actionEngineClass=null] - ContextActionEngine クラス
+     * @param {Object} [spellStateManager=null] - SpellStateManager インスタンス
+     * @param {Object} [attributeStateManager=null] - AttributeStateManager インスタンス
      */
-    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null) {
+    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null) {
         this.statusAccessor = statusAccessor;
         this.inventoryStateManager = inventoryStateManager;
         this.areaStateManager = areaStateManager;
         this.actionEngineClass = actionEngineClass;
+        this.spellStateManager = spellStateManager;
+        this.attributeStateManager = attributeStateManager;
     }
 
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
         if (actionEngineClass) this.actionEngineClass = actionEngineClass;
+        if (spellStateManager) this.spellStateManager = spellStateManager;
+        if (attributeStateManager) this.attributeStateManager = attributeStateManager;
     }
 
     /**
      * 現在のゲーム統合状況 (Situation) を一括取得
-     * @returns {Object} { status, inventory, area, tools, actions }
+     * @returns {Object} { status, inventory, equipment, area, tools, spells, attributes, actions }
      */
     getSituation() {
         const status = this.statusAccessor && typeof this.statusAccessor.getStatus === 'function' ?
@@ -59,6 +65,21 @@ export class SituationCache {
         const equipment = inventoryState && typeof inventoryState.getEquipmentMap === 'function' ?
             inventoryState.getEquipmentMap() : { weapon: null, offhand: null, isTwoWeapon: false, quiver: null, wornList: [], equippedList: [] };
 
+        // 習得魔法抽出
+        const spellState = this.spellStateManager;
+        const spellItems = spellState ? (typeof spellState.getSpells === 'function' ? spellState.getSpells() : (spellState.spells || [])) : [];
+        const isSpellSynced = spellState ? Boolean(spellState.isSynced) : false;
+
+        // 属性・耐性抽出
+        const attrState = this.attributeStateManager;
+        const attributes = attrState && typeof attrState.getAttributes === 'function' ?
+            attrState.getAttributes() : {
+                effectiveResistances: {},
+                intrinsics: {},
+                extrinsics: {},
+                isSynced: false
+            };
+
         // 推奨アクションの自動計算 (ContextActionEngine が設定されている場合)
         let actions = [];
         if (this.actionEngineClass && typeof this.actionEngineClass.generateActions === 'function') {
@@ -74,6 +95,11 @@ export class SituationCache {
             equipment,
             area: areaState,
             tools,
+            spells: {
+                items: spellItems,
+                isSynced: isSpellSynced
+            },
+            attributes,
             actions
         };
     }

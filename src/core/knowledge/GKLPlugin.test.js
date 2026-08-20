@@ -87,14 +87,42 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(emitted).toBe(true);
     });
 
-    it('getSituation: 統合状況 (Situation: status, inventory, area, actions) を返却すること', () => {
+    it('getSituation: 統合状況 (Situation: status, inventory, area, spells, attributes, actions) を返却すること', () => {
         const plugin = new GKLPlugin();
         const situation = plugin.getSituation();
 
         expect(situation).toHaveProperty('status');
         expect(situation).toHaveProperty('inventory');
         expect(situation).toHaveProperty('area');
+        expect(situation).toHaveProperty('spells');
+        expect(situation).toHaveProperty('attributes');
         expect(situation).toHaveProperty('actions');
+
+        expect(Array.isArray(situation.spells.items)).toBe(true);
+        expect(situation.attributes).toHaveProperty('effectiveResistances');
+    });
+
+    it('syncSpellsSilent & syncAttributesSilent: サイレント同期が実行され状態が更新されること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.querySequenceSilent.mockResolvedValue([
+            { lines: ['a - force bolt          1      attack      0%'] }
+        ]);
+
+        plugin.attach(mockCore);
+
+        const spellRes = await plugin.syncSpellsSilent();
+        expect(spellRes).toBe(true);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledWith(['+', ' ', '\x1b'], expect.anything());
+        expect(plugin.spellStateManager.getSpells().length).toBe(1);
+
+        mockCore.querySequenceSilent.mockResolvedValue([
+            { lines: ['You are fire resistant.'] }
+        ]);
+        const attrRes = await plugin.syncAttributesSilent();
+        expect(attrRes).toBe(true);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledWith(['\x18', ' ', '\x1b'], expect.anything());
+        expect(plugin.attributeStateManager.getEffectiveResistances().fire).toBe(true);
     });
 
     it('getRecommendedActions: 推奨アクション配列を返却すること', () => {

@@ -563,6 +563,10 @@ class GklPureJSClient {
         if (this.isZoomMode && this.zoomCtx) {
           this.renderZoomCanvas(situation.area);
         }
+
+        // 4. 属性耐性 (全25種) & 修得魔法の描画
+        this.renderGklAttributes(situation.attributes);
+        this.renderGklSpells(situation.spells);
       }
       requestAnimationFrame(loop);
     };
@@ -1135,6 +1139,82 @@ class GklPureJSClient {
     }
   }
 
+  /**
+   * 属性耐性・固有能力の描画 (所持している有効耐性のみ表示)
+   * @param {Object} attrObj 
+   */
+  renderGklAttributes(attrObj) {
+    const elBadges = document.getElementById('status-attr-badges');
+    const elDetail = document.getElementById('status-attr-detail');
+    const elContainer = document.getElementById('gkl-attributes-list') || elDetail;
+    const res = attrObj?.effectiveResistances || {};
+
+    // メインのステータス欄（上部）には耐性を表示せず状態異常専用スペースを確保
+    if (elBadges) {
+      elBadges.innerHTML = '';
+    }
+
+    if (!elContainer) return;
+
+    const allResistances = [
+        { key: 'fire', label: '🔥火炎' },
+        { key: 'cold', label: '❄️冷気' },
+        { key: 'shock', label: '⚡電撃' },
+        { key: 'disint', label: '💥分解' },
+        { key: 'sleep', label: '💤睡眠' },
+        { key: 'poison', label: '🧪毒' },
+        { key: 'drain', label: '🩸ドレイン' },
+        { key: 'death', label: '💀即死' },
+        { key: 'stoning', label: '🗿石化' },
+        { key: 'conf', label: '💫混乱' },
+        { key: 'hallu', label: '🌀幻覚' },
+        { key: 'reflect', label: '🛡️反射' },
+        { key: 'invis', label: '👻透明' },
+        { key: 'seeInvis', label: '👁️可視' },
+        { key: 'teleport', label: '🔮テレポ' },
+        { key: 'teleportControl', label: '🎯テレポ制御' },
+        { key: 'regen', label: '💖再生' },
+        { key: 'warning', label: '⚠️警戒' },
+        { key: 'slowDigest', label: '🍖腹減りにくい' },
+        { key: 'freeAction', label: '🤸自由行動' },
+        { key: 'stealth', label: '👟隠密' },
+        { key: 'levitation', label: '🪶浮遊' },
+        { key: 'fast', label: '⚡倍速' },
+        { key: 'infravision', label: '🌙暗視' },
+        { key: 'searching', label: '🔍探索' }
+    ];
+
+    const activeRes = allResistances.filter(item => !!res[item.key]);
+
+    if (activeRes.length === 0) {
+      elContainer.innerHTML = '<span style="color:#64748b; font-size:11px;">🛡️ 属性耐性: なし</span>';
+    } else {
+      const activeHtml = activeRes.map(item => {
+        return `<span class="gkl-attr-badge active" title="${item.label} (有効)">${item.label}</span>`;
+      }).join(' ');
+      elContainer.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🛡️ 属性耐性:</strong> ${activeHtml}</div>`;
+    }
+  }
+
+  /**
+   * 修得魔法一覧の描画
+   * @param {Object} spellsObj 
+   */
+  renderGklSpells(spellsObj) {
+    const elSpellsDetail = document.getElementById('status-spells-detail');
+    if (!elSpellsDetail) return;
+    const spells = spellsObj?.items || [];
+    if (spells.length === 0) {
+      elSpellsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">📖 修得魔法: なし</span>';
+      return;
+    }
+
+    const listHtml = spells.map(sp => {
+      return `<span class="gkl-spell-badge" title="キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate})">✨ [${sp.letter}] ${sp.name} <small>(Lv.${sp.level} ${sp.failRate})</small></span>`;
+    }).join(' ');
+
+    elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">📖 修得魔法:</strong> ${listHtml}</div>`;
+  }
 
   getItemSymbol(item) {
     if (item.isPickAxe) return '⛏️';

@@ -1,6 +1,8 @@
 import { StatusAccessor } from '../StatusAccessor.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
+import { SpellStateManager } from './SpellStateManager.js';
+import { AttributeStateManager } from './AttributeStateManager.js';
 import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
 import { RequestController } from './RequestController.js';
@@ -11,24 +13,30 @@ import { PROMPT_CATEGORY } from '../types.js';
 /**
  * Game Knowledge Layer (GKL) 独立拡張プラグイン
  * WebUICore のパブリックイベント・サイレントクエリ基盤と連携し、
- * ゲーム状態追跡 (Inventory/Area/Status) およびコンテキストアクション推薦を一元管理する。
+ * ゲーム状態追跡 (Inventory/Area/Status/Spells/Attributes) およびコンテキストアクション推薦を一元管理する。
  */
 export class GKLPlugin {
     /**
      * @param {Object} [options={}]
      * @param {InventoryStateManager} [options.inventoryStateManager]
+     * @param {SpellStateManager} [options.spellStateManager]
+     * @param {AttributeStateManager} [options.attributeStateManager]
      * @param {'vi'|'numpad'} [options.keyMode]
      */
     constructor(options = {}) {
         this.statusAccessor = new StatusAccessor();
         this.areaStateManager = new AreaStateManager();
         this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
+        this.spellStateManager = options.spellStateManager || new SpellStateManager();
+        this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
 
         this.situationCache = new SituationCache(
             this.statusAccessor,
             this.inventoryStateManager,
             this.areaStateManager,
-            ContextActionEngine
+            ContextActionEngine,
+            this.spellStateManager,
+            this.attributeStateManager
         );
 
         if (options.keyMode || options.numpad) {
@@ -92,21 +100,45 @@ export class GKLPlugin {
             }
         });
 
-        // 2. シーケンス実行完了・直近バッファ確定時のインベントリ自動更新
+        // 2. シーケンス実行完了・直近バッファ確定時の自動更新
         core.on('sequenceFinished', ({ buffer }) => {
-            if (buffer && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
-                this.inventoryStateManager.updateFromSequenceBuffer(buffer);
-                core.emit('inventoryStateUpdated', this.inventoryStateManager);
+            if (buffer) {
+                if (typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
+                    this.inventoryStateManager.updateFromSequenceBuffer(buffer);
+                    core.emit('inventoryStateUpdated', this.inventoryStateManager);
+                }
+                if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
+                    this.spellStateManager.updateFromSequenceBuffer(buffer);
+                }
+                if (this.attributeStateManager && typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
+                    this.attributeStateManager.updateFromSequenceBuffer(buffer);
+                }
             }
         });
 
         // 3. テキストメッセージ受信時の更新
         core.on('messageText', ({ text }) => {
-            if (text && typeof this.inventoryStateManager.updateFromMessage === 'function') {
-                const updated = this.inventoryStateManager.updateFromMessage(text);
-                if (updated) {
-                    core.emit('inventoryStateUpdated', this.inventoryStateManager);
+            if (text) {
+                if (typeof this.inventoryStateManager.updateFromMessage === 'function') {
+                    const updated = this.inventoryStateManager.updateFromMessage(text);
+                    if (updated) {
+                        core.emit('inventoryStateUpdated', this.inventoryStateManager);
+                    }
                 }
+                if (this.spellStateManager && typeof this.spellStateManager.updateFromMessage === 'function') {
+                    this.spellStateManager.updateFromMessage(text);
+                }
+                if (this.attributeStateManager && typeof this.attributeStateManager.updateFromMessage === 'function') {
+                    this.attributeStateManager.updateFromMessage(text);
+                }
+            }
+        });
+
+        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算
+        core.on('inventoryStateUpdated', (invMgr) => {
+            if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
+                const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
+                this.attributeStateManager.updateExtrinsicsFromInventory(items);
             }
         });
 
@@ -215,6 +247,86 @@ export class GKLPlugin {
     }
 
     /**
+     * バックグラウンドで画面を一切汚さずに `+` (習得魔法一覧) キーシーケンスをサイレント実行し、
+     * 最新の魔法データを非同期で同期獲得する。
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>} 同期成功の有無
+     */
+    async syncSpellsSilent(options = {}) {
+        if (!this.core) return false;
+
+        const { force = false } = options;
+
+        if (!force && this.core.currentPromptCategory) {
+            const cat = this.core.currentPromptCategory;
+            if (cat === PROMPT_CATEGORY.MENU ||
+                cat === PROMPT_CATEGORY.DIRECTION || 
+                cat === PROMPT_CATEGORY.YN || 
+                cat === PROMPT_CATEGORY.TEXT || 
+                cat === PROMPT_CATEGORY.ASKNAME || 
+                cat === PROMPT_CATEGORY.FILE || 
+                cat === PROMPT_CATEGORY.EXTCMD) {
+                return false;
+            }
+        }
+
+        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
+        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+            return false;
+        }
+
+        const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], options);
+        if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
+            this.spellStateManager.updateFromSequenceBuffer(buffer, true);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * バックグラウンドで画面を一切汚さずに `^X` (#attributes 属性・耐性一覧) キーシーケンスをサイレント実行し、
+     * 最新の内因性耐性および装備品耐性を非同期で同期獲得する。
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>} 同期成功の有無
+     */
+    async syncAttributesSilent(options = {}) {
+        if (!this.core) return false;
+
+        const { force = false } = options;
+
+        if (!force && this.core.currentPromptCategory) {
+            const cat = this.core.currentPromptCategory;
+            if (cat === PROMPT_CATEGORY.MENU ||
+                cat === PROMPT_CATEGORY.DIRECTION || 
+                cat === PROMPT_CATEGORY.YN || 
+                cat === PROMPT_CATEGORY.TEXT || 
+                cat === PROMPT_CATEGORY.ASKNAME || 
+                cat === PROMPT_CATEGORY.FILE || 
+                cat === PROMPT_CATEGORY.EXTCMD) {
+                return false;
+            }
+        }
+
+        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
+        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+            return false;
+        }
+
+        // '\x18' is Ctrl+X (^X)
+        const buffer = await this.core.querySequenceSilent(['\x18', ' ', '\x1b'], options);
+        if (this.attributeStateManager) {
+            if (typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
+                this.attributeStateManager.updateFromSequenceBuffer(buffer, true);
+            }
+            if (this.inventoryStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
+                this.attributeStateManager.updateExtrinsicsFromInventory(this.inventoryStateManager.items);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * GKL の統合状況 (Situation: ステータス, 所持品, マップ, アクション等) を一括取得
      * @returns {Object}
      */
@@ -226,6 +338,8 @@ export class GKLPlugin {
             status: this.getStatus(),
             inventory: { items: this.inventoryStateManager ? this.inventoryStateManager.items : [], isSynced: Boolean(this.inventoryStateManager && this.inventoryStateManager.isSynced) },
             area: this.areaStateManager ? this.areaStateManager.getAreaState() : {},
+            spells: { items: this.spellStateManager ? this.spellStateManager.spells : [], isSynced: Boolean(this.spellStateManager && this.spellStateManager.isSynced) },
+            attributes: this.attributeStateManager ? this.attributeStateManager.getAttributes() : {},
             tools: {},
             actions: []
         };
@@ -244,6 +358,14 @@ export class GKLPlugin {
 
     getInventoryStateManager() {
         return this.inventoryStateManager;
+    }
+
+    getSpellStateManager() {
+        return this.spellStateManager;
+    }
+
+    getAttributeStateManager() {
+        return this.attributeStateManager;
     }
 
     getAreaStateManager() {
