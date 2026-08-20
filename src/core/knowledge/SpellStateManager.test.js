@@ -89,38 +89,39 @@ describe('SpellStateManager Tests', () => {
         expect(spellManager.getSpells()[0].name).toBe('magic missile');
     });
 
-    it('日本語および英語の魔法習得メッセージから自動的に呪文が登録・更新されること', () => {
-        spellManager.reset();
+    it('日本語および英語の魔法習得・忘却メッセージからキャッシュが無効化 (invalidate) されること', () => {
+        spellManager.isSynced = true;
         
-        // 日本語: 初回習得
+        // 日本語: 初回習得メッセージで invalidate
         const res1 = spellManager.updateFromMessage('「力のボルト」の呪文を習得した.');
         expect(res1).toBe(true);
-        expect(spellManager.getSpells().length).toBe(1);
-        expect(spellManager.getSpells()[0]).toEqual({
-            letter: 'a',
-            name: '力のボルト',
-            level: 1,
-            category: 'attack',
-            categoryRaw: 'attack',
-            failRate: '0%',
-            retention: '',
-            rawText: 'a - 力のボルト  1  attack  0%'
-        });
+        expect(spellManager.isSynced).toBe(false);
 
-        // 日本語: スロット指定習得
-        const res2 = spellManager.updateFromMessage('「治癒」の呪文を呪文一覧に\'b\'として加えた.');
+        // 再同期後、英語メッセージで invalidate
+        spellManager.isSynced = true;
+        const res2 = spellManager.updateFromMessage('You add "magic missile" to your repertoire.');
         expect(res2).toBe(true);
-        expect(spellManager.getSpells().length).toBe(2);
-        expect(spellManager.getSpells()[1].letter).toBe('b');
-        expect(spellManager.getSpells()[1].name).toBe('治癒');
-        expect(spellManager.getSpells()[1].category).toBe('healing');
+        expect(spellManager.isSynced).toBe(false);
 
-        // 英語: 習得
-        const res3 = spellManager.updateFromMessage('You add "magic missile" to your repertoire.');
+        // 忘却メッセージで invalidate
+        spellManager.isSynced = true;
+        const res3 = spellManager.updateFromMessage('You forget the spell force bolt!');
         expect(res3).toBe(true);
-        expect(spellManager.getSpells().length).toBe(3);
-        expect(spellManager.getSpells()[2].name).toBe('magic missile');
-        expect(spellManager.getSpells()[2].level).toBe(2);
+        expect(spellManager.isSynced).toBe(false);
+    });
+
+    it('アイテム比較メッセージ等の無関係なメッセージで誤検知・無効化されないこと', () => {
+        spellManager.isSynced = true;
+
+        // アイテム比較メッセージ
+        const res1 = spellManager.updateFromMessage('You learn more about your items by comparing them.');
+        expect(res1).toBe(false);
+        expect(spellManager.isSynced).toBe(true);
+
+        // 一般メッセージ
+        const res2 = spellManager.updateFromMessage('You hit the goblin.');
+        expect(res2).toBe(false);
+        expect(spellManager.isSynced).toBe(true);
     });
 
     it('インベントリのアイテム行やバッファが魔法として誤パースされないこと', () => {
@@ -146,9 +147,14 @@ describe('SpellStateManager Tests', () => {
         expect(spellManager.getSpells().length).toBe(0);
     });
 
-    it('reset() で初期化されること', () => {
+    it('reset() および invalidate() で適切に状態変更されること', () => {
         spellManager.updateFromLines(['a - force bolt 1 attack 0%']);
         expect(spellManager.getSpells().length).toBe(1);
+        expect(spellManager.isSynced).toBe(true);
+
+        spellManager.invalidate();
+        expect(spellManager.isSynced).toBe(false);
+        expect(spellManager.getSpells().length).toBe(1); // キャッシュ自体は保持
 
         spellManager.reset();
         expect(spellManager.getSpells().length).toBe(0);

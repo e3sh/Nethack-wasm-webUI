@@ -81,7 +81,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         // 通常状態: syncInventorySilent はクエリを発行する
         core.lastPutstrText = "You move forward.";
         await core.gkl.syncInventorySilent();
-        expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' ', '\x1b'], {});
+        expect(core.querySequenceSilent).toHaveBeenCalledWith(['i', ' ', '\x1b'], { syncType: 'inventory' });
 
         core.querySequenceSilent.mockClear();
 
@@ -119,5 +119,30 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
 
         expect(core.gkl.inventoryStateManager.updateFromMessage).toHaveBeenCalledWith("You see here a gold piece.");
         expect(emitted).toBe(false); // 無用な emit は行われないこと！
+    });
+
+    it('inputRequired: 未同期ステートが存在する場合に syncPendingStateSilent が自動的に実行されること', async () => {
+        let inputRequiredHandler = null;
+        const mockDriver = createMockDriver();
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'inputRequired') inputRequiredHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.gkl.syncSpellsSilent = vi.fn().mockResolvedValue(true);
+        core.gkl.syncInventorySilent = vi.fn().mockResolvedValue(true);
+
+        // 魔法未同期・インベントリ同期済みの状態で inputRequired 発火
+        core.gkl.spellStateManager.isSynced = false;
+        core.gkl.inventoryStateManager.isSynced = true;
+
+        if (inputRequiredHandler) {
+            inputRequiredHandler({ context: 'yn', prompt: 'Continue? [yn]' });
+        }
+
+        await new Promise(r => setTimeout(r, 10));
+
+        expect(core.gkl.syncSpellsSilent).toHaveBeenCalledTimes(1);
+        expect(core.gkl.syncInventorySilent).not.toHaveBeenCalled();
     });
 });

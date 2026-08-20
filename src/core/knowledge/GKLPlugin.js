@@ -55,6 +55,7 @@ export class GKLPlugin {
         this.core = null;
         this.requestController = null;
         this.lookService = new OnDemandLookService();
+        this._isSyncing = false;
     }
 
     /**
@@ -89,7 +90,7 @@ export class GKLPlugin {
      * @private
      */
     _bindCoreEvents(core) {
-        // 1. ユーザーアクション送出時のインベントリ dirty 化判定
+        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定
         core.on('userActionSent', ({ sequence }) => {
             if (sequence && !this.isNonItemSequence(sequence)) {
                 if (typeof this.inventoryStateManager.invalidate === 'function') {
@@ -97,26 +98,13 @@ export class GKLPlugin {
                 } else {
                     this.inventoryStateManager.isSynced = false;
                 }
-            }
-        });
-
-        // 2. シーケンス実行完了・直近バッファ確定時の自動更新
-        core.on('sequenceFinished', ({ buffer }) => {
-            if (buffer) {
-                if (typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
-                    this.inventoryStateManager.updateFromSequenceBuffer(buffer);
-                    core.emit('inventoryStateUpdated', this.inventoryStateManager);
-                }
-                if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
-                    this.spellStateManager.updateFromSequenceBuffer(buffer);
-                }
-                if (this.attributeStateManager && typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
-                    this.attributeStateManager.updateFromSequenceBuffer(buffer);
+                if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
+                    this.spellStateManager.invalidate();
                 }
             }
         });
 
-        // 3. テキストメッセージ受信時の更新
+        // 2. テキストメッセージ受信時の更新
         core.on('messageText', ({ text }) => {
             if (text) {
                 if (typeof this.inventoryStateManager.updateFromMessage === 'function') {
@@ -173,6 +161,12 @@ export class GKLPlugin {
         core.on('status_update', (data) => {
             if (data && data.field !== undefined && this.statusAccessor) {
                 this.statusAccessor.updateField(data.field, data.value);
+                // 経験レベル (level / exp) の変動時にも魔法失敗率が変化するため再同期
+                if ((data.field === 'level' || data.field === 'exp_level') && this.spellStateManager) {
+                    if (typeof this.spellStateManager.invalidate === 'function') {
+                        this.spellStateManager.invalidate();
+                    }
+                }
             }
         });
     }
@@ -208,6 +202,29 @@ export class GKLPlugin {
     }
 
     /**
+     * 未同期状態のステート（所持品・魔法等）を検知し、直列かつ安全にサイレント同期を実行する。
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>}
+     */
+    async syncPendingStateSilent(options = {}) {
+        if (this._isSyncing || !this.core) return false;
+        this._isSyncing = true;
+        try {
+            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
+                await this.syncInventorySilent(options);
+            }
+            if (this.spellStateManager && !this.spellStateManager.isSynced) {
+                await this.syncSpellsSilent(options);
+            }
+            return true;
+        } catch (e) {
+            return false;
+        } finally {
+            this._isSyncing = false;
+        }
+    }
+
+    /**
      * バックグラウンドで画面を一切汚さずに `i ` (インベントリ一覧) キーシーケンスをサイレント実行し、
      * 最新の所持品データを非同期で同期獲得する。
      * @param {Object} [options={}]
@@ -238,9 +255,10 @@ export class GKLPlugin {
             return false;
         }
 
-        const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], options);
+        const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             this.inventoryStateManager.updateFromSequenceBuffer(buffer);
+            this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
             return true;
         }
         return false;
@@ -275,7 +293,7 @@ export class GKLPlugin {
             return false;
         }
 
-        const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], options);
+        const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], { syncType: 'spells', ...options });
         if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
             this.spellStateManager.updateFromSequenceBuffer(buffer, true);
             return true;
@@ -313,7 +331,7 @@ export class GKLPlugin {
         }
 
         // '\x18' is Ctrl+X (^X)
-        const buffer = await this.core.querySequenceSilent(['\x18', ' ', '\x1b'], options);
+        const buffer = await this.core.querySequenceSilent(['\x18', ' ', '\x1b'], { syncType: 'attributes', ...options });
         if (this.attributeStateManager) {
             if (typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
                 this.attributeStateManager.updateFromSequenceBuffer(buffer, true);

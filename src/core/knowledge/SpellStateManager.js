@@ -266,9 +266,16 @@ export class SpellStateManager {
      * @param {boolean} [force=false] 
      */
     updateFromSequenceBuffer(sequenceBuffer, force = false) {
-        if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) return;
+        if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
+            if (force) {
+                this.spells = [];
+                this.isSynced = true;
+            }
+            return;
+        }
         if (!force && !this.isSpellBuffer(sequenceBuffer)) return;
 
+        let parsed = false;
         for (const item of sequenceBuffer) {
             if (!item) continue;
 
@@ -276,6 +283,7 @@ export class SpellStateManager {
                 const menuItems = item.menuItems || item.items;
                 if (Array.isArray(menuItems) && menuItems.length > 0) {
                     this.updateFromMenuItems(menuItems);
+                    parsed = true;
                     return;
                 }
             }
@@ -284,9 +292,16 @@ export class SpellStateManager {
                 const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
                 if (Array.isArray(lines) && lines.length > 0) {
                     this.updateFromLines(lines);
+                    parsed = true;
                     return;
                 }
             }
+        }
+
+        // force (明示的サイレント同期) の場合で、魔法リストが抽出されなかった場合 (魔法を覚えていない時など)
+        if (force && !parsed) {
+            this.spells = [];
+            this.isSynced = true;
         }
     }
 
@@ -382,89 +397,55 @@ export class SpellStateManager {
     }
 
     /**
-     * メッセージテキストからの動的更新・学習検知
+     * キャッシュの無効化（次回入力待ち等でのサイレント再同期を要求）
+     */
+    invalidate() {
+        this.isSynced = false;
+    }
+
+    /**
+     * メッセージテキストからの学習・忘却・変化検知
+     * メッセージから勝手にリストを捏造せず、検知時にキャッシュを無効化 (invalidate) して
+     * 正式なサイレント同期 (+ キー) を促す。
      * @param {string} text 
-     * @returns {boolean} 更新があったかどうか
+     * @returns {boolean} 無効化・変化があったかどうか
      */
     updateFromMessage(text) {
         if (!text || typeof text !== 'string') return false;
 
         const lower = text.toLowerCase();
 
-        // 1. 日本語版の学習メッセージ:
-        // 例: 「力のボルト」の呪文を習得した. / "force bolt"を習得した.
-        // 例: 「治癒」の呪文を呪文一覧に'b'として加えた. / "cure blindness"を呪文一覧に'b'として加えた.
-        let matchJp = text.match(/[「"]([^「"」]+)[」"](?:の呪文)?を(?:呪文一覧に'([a-zA-Z])'として加えた|習得した|覚えた)/);
-        if (!matchJp) {
-            matchJp = text.match(/[「"]([^「"」]+)[」"](?:の呪文)?に関する知識は(?:より鋭くなった|元に戻った)/);
-        }
+        // 1. 日本語版の学習・復習・忘却メッセージ:
+        // 例: 「力のボルト」の呪文を習得した. / 「治癒」の呪文を呪文一覧に'b'として加えた.
+        // 例: 「力のボルト」の呪文に関する知識はより鋭くなった.
+        const isJpLearn = /[「"]([^「"」]+)[」"](?:の呪文)?を(?:呪文一覧に'([a-zA-Z])'として加えた|習得した|覚えた)/.test(text) ||
+                          /[「"]([^「"」]+)[」"](?:の呪文)?に関する知識は(?:より鋭くなった|元に戻った)/.test(text);
 
-        if (matchJp) {
-            const rawName = matchJp[1].trim();
-            const letter = matchJp[2] || this._getNextAvailableLetter();
-            this._addOrUpdateSpell(rawName, letter);
-            this.isSynced = true;
+        if (isJpLearn) {
+            this.invalidate();
             return true;
         }
 
-        // 2. 英語版の学習メッセージ:
+        // 2. 英語版の学習・復習メッセージ:
         // 例: You add "force bolt" to your repertoire.
-        // 例: You learn the spell force bolt! / You learn force bolt.
-        const matchEn = text.match(/You add "([^"]+)" to your repertoire/i) ||
-                        text.match(/You learn (?:the spell\s+)?([^!\.]+)/i) ||
-                        text.match(/Your knowledge of "([^"]+)" is (?:sharper|restored)/i);
+        // 例: You learn the spell force bolt!
+        // 例: Your knowledge of "force bolt" is sharper.
+        const isEnLearn = /You add "[^"]+" to your repertoire/i.test(text) ||
+                          /You learn the spell\s+/i.test(text) ||
+                          /Your knowledge of "[^"]+" is (?:sharper|restored)/i.test(text);
 
-        if (matchEn) {
-            const rawName = matchEn[1].trim();
-            const letter = this._getNextAvailableLetter();
-            this._addOrUpdateSpell(rawName, letter);
-            this.isSynced = true;
+        if (isEnLearn) {
+            this.invalidate();
             return true;
         }
 
         // 3. 忘却メッセージ
-        if (lower.includes('forget the spell') || lower.includes('呪文を忘れた')) {
-            this.isSynced = false;
+        if (lower.includes('forget the spell') || lower.includes('forgot the spell') ||
+            lower.includes('knowledge of the spell') || lower.includes('呪文を忘れた')) {
+            this.invalidate();
             return true;
         }
 
         return false;
-    }
-
-    _getNextAvailableLetter() {
-        const usedLetters = new Set(this.spells.map(s => s.letter.toLowerCase()));
-        for (let code = 97; code <= 122; code++) { // 'a' - 'z'
-            const ch = String.fromCharCode(code);
-            if (!usedLetters.has(ch)) return ch;
-        }
-        for (let code = 65; code <= 90; code++) { // 'A' - 'Z'
-            const ch = String.fromCharCode(code);
-            if (!usedLetters.has(ch.toLowerCase())) return ch;
-        }
-        return 'a';
-    }
-
-    _addOrUpdateSpell(name, letter) {
-        const catalog = SpellStateManager.SPELL_CATALOG;
-        const lowerName = name.toLowerCase();
-        const catalogEntry = catalog[lowerName] || catalog[name] || { level: 1, category: 'unknown' };
-
-        const existingIndex = this.spells.findIndex(s => s.name.toLowerCase() === lowerName || s.letter === letter);
-        const spellObj = {
-            letter,
-            name,
-            level: catalogEntry.level,
-            category: catalogEntry.category,
-            categoryRaw: catalogEntry.category,
-            failRate: '0%',
-            retention: '',
-            rawText: `${letter} - ${name}  ${catalogEntry.level}  ${catalogEntry.category}  0%`
-        };
-
-        if (existingIndex >= 0) {
-            this.spells[existingIndex] = { ...this.spells[existingIndex], ...spellObj };
-        } else {
-            this.spells.push(spellObj);
-        }
     }
 }

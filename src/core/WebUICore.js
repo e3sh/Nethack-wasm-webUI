@@ -378,7 +378,7 @@ export class WebUICore {
             try {
                 const buffer = await this.driver.queueSequence(tokens, opts);
                 const bufArray = Array.isArray(buffer) ? buffer : [];
-                this.emit('sequenceFinished', { buffer: bufArray });
+                this.emit('sequenceFinished', { buffer: bufArray, isSilentSync: true, syncType: opts.syncType });
                 return bufArray;
             } catch (e) {
                 return [];
@@ -392,7 +392,7 @@ export class WebUICore {
                 if (this.driver && !this.driver.isExecutingSequence) {
                     const buffer = typeof this.driver.getLastSequenceBuffer === 'function' ? 
                                    this.driver.getLastSequenceBuffer() : [];
-                    this.emit('sequenceFinished', { buffer });
+                    this.emit('sequenceFinished', { buffer, isSilentSync: true, syncType: opts.syncType });
                     resolve(buffer);
                 } else {
                     setTimeout(checkCompletion, 10);
@@ -1207,8 +1207,10 @@ export class WebUICore {
             const lastText = (this.lastPutstrText || '').toLowerCase();
             const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
 
-            // インベントリ未同期 (isSynced === false) であれば裏で自動サイレント同期を依頼（キューで安全に待機・実行されます）
-            if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !isPrefixWaiting) {
+            // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（直列・排他制御で安全に実行）
+            if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function' && !isPrefixWaiting) {
+                this.gkl.syncPendingStateSilent();
+            } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !isPrefixWaiting) {
                 this.gkl.syncInventorySilent();
             }
 
@@ -1227,6 +1229,9 @@ export class WebUICore {
                     const finalName = this.resumeSavePlayerName || payload.detectedName || 'Hero';
                     if (this.gkl && this.gkl.inventoryStateManager) {
                         this.gkl.inventoryStateManager.invalidate();
+                    }
+                    if (this.gkl && this.gkl.spellStateManager) {
+                        this.gkl.spellStateManager.invalidate();
                     }
                     this.respond(finalName.trim());
                     return;

@@ -68,25 +68,6 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.inventoryStateManager.invalidate).toHaveBeenCalledTimes(1);
     });
 
-    it('sequenceFinished: シーケンス完了イベントを受信して updateFromSequenceBuffer が実行されること', () => {
-        const plugin = new GKLPlugin();
-        const mockCore = createMockCore();
-        let emitted = false;
-        mockCore.on('inventoryStateUpdated', () => { emitted = true; });
-
-        plugin.inventoryStateManager = {
-            updateFromSequenceBuffer: vi.fn()
-        };
-
-        plugin.attach(mockCore);
-
-        const mockBuffer = [{ text: 'a - a rusty dagger' }];
-        mockCore.emit('sequenceFinished', { buffer: mockBuffer });
-
-        expect(plugin.inventoryStateManager.updateFromSequenceBuffer).toHaveBeenCalledWith(mockBuffer);
-        expect(emitted).toBe(true);
-    });
-
     it('getSituation: 統合状況 (Situation: status, inventory, area, spells, attributes, actions) を返却すること', () => {
         const plugin = new GKLPlugin();
         const situation = plugin.getSituation();
@@ -123,6 +104,22 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(attrRes).toBe(true);
         expect(mockCore.querySequenceSilent).toHaveBeenCalledWith(['\x18', ' ', '\x1b'], expect.anything());
         expect(plugin.attributeStateManager.getEffectiveResistances().fire).toBe(true);
+    });
+
+    it('syncPendingStateSilent: 未同期ステートを直列・排他制御で安全に同期すること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.querySequenceSilent.mockResolvedValue([]);
+        plugin.attach(mockCore);
+
+        plugin.inventoryStateManager.isSynced = false;
+        plugin.spellStateManager.isSynced = false;
+
+        const res = await plugin.syncPendingStateSilent();
+        expect(res).toBe(true);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(2);
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(1, ['i', ' ', '\x1b'], { syncType: 'inventory' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['+', ' ', '\x1b'], { syncType: 'spells' });
     });
 
     it('getRecommendedActions: 推奨アクション配列を返却すること', () => {
