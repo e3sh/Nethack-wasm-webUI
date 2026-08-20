@@ -86,6 +86,34 @@ export class DebugInspector {
     }
 
     /**
+     * 翻訳ログの配信
+     */
+    broadcastTranslationLog(data) {
+        const entry = {
+            id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            timestamp: new Date().toLocaleTimeString(),
+            category: 'TRANSLATION',
+            data: data
+        };
+
+        this.logs.push(entry);
+        if (this.logs.length > this.maxLogCount) {
+            this.logs.shift();
+        }
+
+        if (this.channel && this.isBroadcasting) {
+            try {
+                this.channel.postMessage({
+                    type: 'TRANSLATION_LOG',
+                    data: data,
+                    entry: entry
+                });
+            } catch (e) {}
+        }
+        return entry;
+    }
+
+    /**
      * GKL 内部構造を含む現在の全体状態のスナップショット送信
      */
     broadcastState() {
@@ -273,6 +301,34 @@ export class DebugInspector {
 
         this.core.on('soundEffect', (effect) => {
             this.broadcastLog('EVENT:soundEffect', effect);
+        });
+
+        this.core.on('translationLog', (data) => {
+            this.broadcastTranslationLog(data);
+        });
+
+        this.core.on('messageUntranslated', (data) => {
+            const entry = {
+                id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                timestamp: new Date().toLocaleTimeString(),
+                category: 'UNTRANSLATED',
+                data: data
+            };
+
+            this.logs.push(entry);
+            if (this.logs.length > this.maxLogCount) {
+                this.logs.shift();
+            }
+
+            if (this.channel && this.isBroadcasting) {
+                try {
+                    this.channel.postMessage({
+                        type: 'MESSAGE_UNTRANSLATED',
+                        data: data,
+                        entry: entry
+                    });
+                } catch (e) {}
+            }
         });
 
         // --- Driver 低レベル Wasm イベントのバインド ---

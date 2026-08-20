@@ -13,6 +13,10 @@ export class TranslationEngine {
         this.lookupDict = options.lookupDict || {};
         this.entitiesAndItems = {};
         this.itemCache = {};
+        this.lastMatchSuccess = false;
+        this.lastMatchMethod = 'none';
+        this.lastRawText = '';
+        this.lastTranslatedText = '';
         this.initDictionaries();
     }
 
@@ -26,6 +30,12 @@ export class TranslationEngine {
             for (const item of rawDict) {
                 if (item && item.en !== undefined && item.jp !== undefined) {
                     this.trMap.set(item.en, item.jp);
+                }
+            }
+        } else if (rawDict && typeof rawDict === 'object') {
+            for (const [k, v] of Object.entries(rawDict)) {
+                if (typeof v === 'string') {
+                    this.trMap.set(k, v);
                 }
             }
         }
@@ -185,9 +195,44 @@ export class TranslationEngine {
     }
 
     /**
+     * 直近の翻訳マッチ成否およびメタデータを取得
+     * @returns {{success: boolean, method: string, raw: string, translated: string}}
+     */
+    getLastMatchInfo() {
+        return {
+            success: this.lastMatchSuccess,
+            method: this.lastMatchMethod,
+            raw: this.lastRawText,
+            translated: this.lastTranslatedText
+        };
+    }
+
+    /**
+     * 翻訳辞書登録が不要なノイズメッセージか判定
+     * (数字のみ、単一文字、時刻比率など)
+     * @param {string} text 
+     * @returns {boolean}
+     */
+    isNoiseMessage(text) {
+        if (!text || typeof text !== 'string') return true;
+        const trimmed = text.trim();
+        if (!trimmed) return true;
+        if (/^\d+$/.test(trimmed)) return true; // 数字のみ
+        if (/^[a-zA-Z$]$/.test(trimmed)) return true; // 単一文字
+        if (/^\d+:\d+$/.test(trimmed)) return true; // 12:34 等の比率・時間
+        if (/^\d+\/\d+$/.test(trimmed)) return true; // 1/2 等の分数
+        return false;
+    }
+
+    /**
      * メイン動的翻訳関数
      */
     translate(text) {
+        this.lastRawText = text;
+        this.lastMatchSuccess = false;
+        this.lastMatchMethod = 'none';
+        this.lastTranslatedText = text;
+
         if (!this.enabled || !text || typeof text !== 'string') return text;
 
         this.ensureDictionariesLoaded();
@@ -196,21 +241,37 @@ export class TranslationEngine {
 
         // 1. 完全一致辞書引き
         if (this.trMap.has(cleanMsg)) {
-            return this.trMap.get(cleanMsg);
+            const res = this.trMap.get(cleanMsg);
+            this.lastMatchSuccess = true;
+            this.lastMatchMethod = 'exact';
+            this.lastTranslatedText = res;
+            return res;
         }
 
         // 2. 単体単語辞書引き
         const wordTr = this.lookupWord(cleanMsg);
-        if (wordTr) return wordTr;
+        if (wordTr) {
+            this.lastMatchSuccess = true;
+            this.lastMatchMethod = 'word';
+            this.lastTranslatedText = wordTr;
+            return wordTr;
+        }
 
         // 2.5 アイテムキャッシュ検査
         if (this.itemCache[cleanMsg]) {
-            return this.itemCache[cleanMsg];
+            const cached = this.itemCache[cleanMsg];
+            this.lastMatchSuccess = true;
+            this.lastMatchMethod = 'decompose';
+            this.lastTranslatedText = cached;
+            return cached;
         }
 
         // 3. 正規表現パターンマッチング
         const patternResult = this.applyPatterns(cleanMsg);
         if (patternResult) {
+            this.lastMatchSuccess = true;
+            this.lastMatchMethod = 'pattern';
+            this.lastTranslatedText = patternResult;
             return patternResult;
         }
 
@@ -218,6 +279,9 @@ export class TranslationEngine {
         const decomposedResult = this.decomposeItemName(cleanMsg);
         if (decomposedResult && decomposedResult !== cleanMsg) {
             this.itemCache[cleanMsg] = decomposedResult;
+            this.lastMatchSuccess = true;
+            this.lastMatchMethod = 'decompose';
+            this.lastTranslatedText = decomposedResult;
             return decomposedResult;
         }
 

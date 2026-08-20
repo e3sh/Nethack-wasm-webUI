@@ -1,4 +1,4 @@
-import { test, beforeEach, describe } from 'node:test';
+import { test, beforeEach, describe } from 'vitest';
 import assert from 'node:assert';
 import RequestController from './RequestController.js';
 

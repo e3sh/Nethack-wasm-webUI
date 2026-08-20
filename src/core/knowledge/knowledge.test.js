@@ -4,7 +4,7 @@
  */
 
 import assert from 'node:assert';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS } from './glyphClassifier.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { ContextActionEngine } from './ContextActionEngine.js';

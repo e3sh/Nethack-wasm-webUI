@@ -93,4 +93,25 @@ describe('DebugInspector', () => {
         expect(postedMsg.result.defaultVerb).toBe('apply');
         expect(postedMsg.result.verbKey).toBe('a');
     });
+
+    it('translationLog および messageUntranslated イベントを購読し BroadcastChannel に配信すること', () => {
+        const core = createMockCore();
+        const inspector = new DebugInspector(core, { autoStart: false });
+        const postedMsgs = [];
+        inspector.channel = { postMessage: (msg) => { postedMsgs.push(msg); } };
+        inspector.isBroadcasting = true;
+        inspector._bindCoreEvents();
+
+        // 1. translationLog 発火
+        const trData = { raw: 'You hit the Jackal.', translated: 'ジャッカルを攻撃した。', success: true, method: 'exact' };
+        core.emit('translationLog', trData);
+
+        expect(postedMsgs.some(m => m.type === 'TRANSLATION_LOG' && m.data.raw === 'You hit the Jackal.')).toBe(true);
+
+        // 2. messageUntranslated 発火
+        const untranslatedData = { raw: 'New monster screams.', translated: 'New monster screams.' };
+        core.emit('messageUntranslated', untranslatedData);
+
+        expect(postedMsgs.some(m => m.type === 'MESSAGE_UNTRANSLATED' && m.data.raw === 'New monster screams.')).toBe(true);
+    });
 });

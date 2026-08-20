@@ -145,4 +145,43 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(core.gkl.syncSpellsSilent).toHaveBeenCalledTimes(1);
         expect(core.gkl.syncInventorySilent).not.toHaveBeenCalled();
     });
+
+    it('メッセージ受信時に translationLog および messageUntranslated が正しく発火されること', () => {
+        let putstrHandler = null;
+        const mockDriver = createMockDriver();
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'putstr') putstrHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.translator.trMap.set('Known message', '既知のメッセージ');
+
+        const trLogs = [];
+        const untranslatedLogs = [];
+
+        core.on('translationLog', (log) => trLogs.push(log));
+        core.on('messageUntranslated', (log) => untranslatedLogs.push(log));
+
+        // 1. 既知メッセージの受信
+        putstrHandler({ windowId: 1, text: 'Known message' });
+        expect(trLogs).toHaveLength(1);
+        expect(trLogs[0].raw).toBe('Known message');
+        expect(trLogs[0].translated).toBe('既知のメッセージ');
+        expect(trLogs[0].success).toBe(true);
+        expect(untranslatedLogs).toHaveLength(0);
+
+        // 2. 未翻訳メッセージの受信
+        putstrHandler({ windowId: 1, text: 'The goblin hits you hard!' });
+        expect(trLogs).toHaveLength(2);
+        expect(trLogs[1].raw).toBe('The goblin hits you hard!');
+        expect(trLogs[1].success).toBe(false);
+        expect(untranslatedLogs).toHaveLength(1);
+        expect(untranslatedLogs[0].raw).toBe('The goblin hits you hard!');
+
+        // 3. ノイズメッセージ（数字のみ）の受信時は messageUntranslated を発火しないこと
+        putstrHandler({ windowId: 1, text: '12345' });
+        expect(trLogs).toHaveLength(3);
+        expect(trLogs[2].success).toBe(false);
+        expect(untranslatedLogs).toHaveLength(1); // 増加しないこと
+    });
 });

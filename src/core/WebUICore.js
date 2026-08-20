@@ -1042,6 +1042,25 @@ export class WebUICore {
             if (!rawText) return;
             this.emit('messageText', { windowId: 1, text: rawText });
             const translated = this.translator.translate(rawText);
+            const isSuccess = Boolean(this.translator.lastMatchSuccess);
+            const method = this.translator.lastMatchMethod || 'none';
+
+            this.emit('translationLog', {
+                raw: rawText,
+                translated: translated,
+                success: isSuccess,
+                method: method,
+                timestamp: Date.now()
+            });
+
+            if (!isSuccess && !this.translator.isNoiseMessage(rawText)) {
+                this.emit('messageUntranslated', {
+                    raw: rawText,
+                    translated: translated,
+                    timestamp: Date.now()
+                });
+            }
+
             const seEffect = this.sound.processLogMessage(translated);
             if (seEffect) {
                 this.emit('soundEffect', seEffect);
