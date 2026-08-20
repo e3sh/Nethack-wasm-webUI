@@ -19,6 +19,7 @@ class GklDomClient {
     this.elStatusBar = document.getElementById('status-bar');
     this.elKnowledgeContent = document.getElementById('knowledge-content');
     this.elInventoryList = document.getElementById('inventory-list');
+    this.elSkillsDetail = document.getElementById('status-skills-detail');
     this.elBadge = document.getElementById('game-status-badge');
   }
 
@@ -365,6 +366,39 @@ class GklDomClient {
       <span>Dvl: ${dlvl}</span>
       <span>Gold: ${gold}</span>
     `;
+
+    this.renderGklSkills();
+  }
+
+  /**
+   * 🥋 GKL スキル熟練度バッジの描画
+   */
+  renderGklSkills() {
+    if (!this.elSkillsDetail) return;
+    if (!this.core || !this.core.gkl || !this.core.gkl.skillStateManager) {
+      this.elSkillsDetail.innerHTML = '';
+      return;
+    }
+
+    const activeSkills = this.core.gkl.skillStateManager.getActiveSkills();
+    if (!activeSkills || activeSkills.length === 0) {
+      this.elSkillsDetail.innerHTML = '<span class="gkl-skill-title">🥋 スキル:</span> <span style="font-size:0.75rem; color:#64748b;">(未熟 / なし)</span>';
+      return;
+    }
+
+    const badgesHtml = activeSkills.map(skill => {
+      const rankKey = skill.rank ? skill.rank.key : 'basic';
+      const rankLabel = skill.rank ? (skill.rank.label || skill.rank.en) : '入門';
+      const enhanceClass = skill.canEnhance ? 'skill-badge-enhanceable' : '';
+      const star = skill.canEnhance ? '<span class="skill-star">⭐</span>' : '';
+      return `
+        <span class="skill-badge skill-badge-${rankKey} ${enhanceClass}" title="${skill.rawText || skill.name}">
+          ${star}<strong>${skill.name}</strong> [${rankLabel}]
+        </span>
+      `;
+    }).join('');
+
+    this.elSkillsDetail.innerHTML = `<span class="gkl-skill-title">🥋 スキル:</span> ${badgesHtml}`;
   }
 
   /**

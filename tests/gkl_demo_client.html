@@ -462,6 +462,24 @@
             margin-right: 4px;
         }
 
+        /* 🥋 スキルバッジ */
+        .skill-chip {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .skill-chip.basic { border-color: #3b82f6; color: #93c5fd; }
+        .skill-chip.skilled { border-color: #10b981; color: #6ee7b7; font-weight: bold; }
+        .skill-chip.expert { border-color: #8b5cf6; color: #c4b5fd; font-weight: bold; }
+        .skill-chip.master { border-color: #f59e0b; color: #fcd34d; font-weight: bold; }
+        .skill-chip.enhanceable { border-color: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.4); }
+
         /* 💬 キャラ作成 / プロンプトモーダル */
         .modal-overlay {
             position: fixed;
@@ -684,6 +702,17 @@
                 </div>
                 <div id="inventory-grid" class="inventory-grid">
                     <div class="empty-hint">インベントリ空</div>
+                </div>
+            </div>
+
+            <!-- 🥋 スキル熟練度パネル -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <span>🥋 スキル熟練度 (#enhance)</span>
+                    <span id="skill-count-badge" class="badge">0</span>
+                </div>
+                <div id="skills-list" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
+                    <div class="empty-hint">スキル未同期</div>
                 </div>
             </div>
         </aside>
@@ -922,13 +951,48 @@
                     // 3. インベントリグリッド更新
                     updateInventoryGrid(situation.inventory);
 
-                    // 4. マップレンダリング (メインズームマップ ＆ レーダーミニマップ)
+                    // 4. スキル熟練度更新
+                    updateSkillsList(situation.skills);
+
+                    // 5. マップレンダリング (メインズームマップ ＆ レーダーミニマップ)
                     renderMaps(situation.area);
                 }
 
                 animationFrameId = requestAnimationFrame(render);
             }
             render();
+        }
+
+        // スキル熟練度パネル更新
+        function updateSkillsList(skillsObj) {
+            const container = document.getElementById('skills-list');
+            const badge = document.getElementById('skill-count-badge');
+            if (!container || !badge) return;
+
+            const activeSkills = skillsObj ? (skillsObj.activeItems || []) : [];
+            badge.textContent = activeSkills.length;
+
+            if (!skillsObj || !skillsObj.isSynced) {
+                container.innerHTML = '<div class="empty-hint">スキル未同期</div>';
+                return;
+            }
+
+            if (activeSkills.length === 0) {
+                container.innerHTML = '<div class="empty-hint">有効スキルなし (未熟)</div>';
+                return;
+            }
+
+            container.innerHTML = activeSkills.map(skill => {
+                const rankKey = skill.rank ? skill.rank.key : 'basic';
+                const rankLabel = skill.rank ? (skill.rank.label || skill.rank.en) : '入門';
+                const enhClass = skill.canEnhance ? 'enhanceable' : '';
+                const star = skill.canEnhance ? '⭐ ' : '';
+                return `
+                    <div class="skill-chip ${rankKey} ${enhClass}" title="${skill.rawText || skill.name}">
+                        ${star}<strong>${skill.name}</strong> [${rankLabel}]
+                    </div>
+                `;
+            }).join('');
         }
 
         // 1. ステータス＆ゲージ更新

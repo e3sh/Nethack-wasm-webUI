@@ -8,12 +8,13 @@ import { isShopkeeperMonster } from './glyphClassifier.js';
 
 export class ContextActionEngine {
     /**
-     * エリア状態 (AreaState) およびインベントリ状態を解析し、推奨可能なアクション一覧を優先度順で返却
+     * エリア状態 (AreaState) およびインベントリ状態・スキル熟練度を解析し、推奨可能なアクション一覧を優先度順で返却
      * @param {Object} areaState - AreaStateManager.getAreaState() の返却値
      * @param {Object} [inventoryState] - InventoryStateManager インスタンス
+     * @param {Object} [skillStateManager] - SkillStateManager インスタンス
      * @returns {Array<Object>} 推奨アクションの配列 (priority 降順)
      */
-    static generateActions(areaState, inventoryState = null) {
+    static generateActions(areaState, inventoryState = null, skillStateManager = null) {
         if (!areaState || !areaState.feet) return [];
 
         const actions = [];
@@ -29,7 +30,10 @@ export class ContextActionEngine {
         this.buildAdjacentEntityActions(areaState.adjacentEntities, tools, actions);
 
         // 4. 8方向レイキャストによる遠隔攻撃 (Ranged Combat: f / t) のアクション判定
-        this.buildRangedActions(areaState, inventoryState, tools, actions);
+        this.buildRangedActions(areaState, inventoryState, tools, actions, skillStateManager);
+
+        // 5. スキル熟練度に基づくおすすめ装備提案 (Recommended Wield / Equipment)
+        this.buildEquipmentRecommendations(inventoryState, skillStateManager, actions);
 
         // 優先度 (priority) 降順でソート
         return actions.sort((a, b) => b.priority - a.priority);
@@ -980,7 +984,7 @@ export class ContextActionEngine {
     /**
      * 4. 8方向レイキャストによる遠隔攻撃 (Ranged Combat: f / t) のアクション判定
      */
-    static buildRangedActions(areaState, inventoryState, tools, actions) {
+    static buildRangedActions(areaState, inventoryState, tools, actions, skillStateManager = null) {
         if (!areaState) return;
 
         const rangedTargets = this.raycastEightDirections(areaState);
@@ -991,6 +995,17 @@ export class ContextActionEngine {
         const quiveredItem = items.find(i => i.isQuivered);
         const ammoItems = items.filter(i => i.isAmmo && !i.isQuivered);
 
+        // スキル熟練度に基づく投擲可能アイテムのソート (スキルが高い武器・弾薬を優先)
+        if (ammoItems.length > 1 && skillStateManager) {
+            ammoItems.sort((a, b) => {
+                const skillA = this.matchWeaponToSkill(a);
+                const skillB = this.matchWeaponToSkill(b);
+                const rankA = skillStateManager.getSkillRank(skillA);
+                const rankB = skillStateManager.getSkillRank(skillB);
+                return (rankB.score || 0) - (rankA.score || 0);
+            });
+        }
+
         rangedTargets.forEach(target => {
             const { dir, targetKey, entity } = target;
             const dirCode = dir.code;
@@ -1000,6 +1015,15 @@ export class ContextActionEngine {
 
             // (A) 矢筒にセットされている弾薬がある場合 -> 射撃 (f)
             if (quiveredItem) {
+                let firePriority = 85;
+                if (skillStateManager) {
+                    const quiveredSkill = this.matchWeaponToSkill(quiveredItem);
+                    const rank = skillStateManager.getSkillRank(quiveredSkill);
+                    if (rank.score > 0) {
+                        firePriority += Math.min(10, Math.floor(rank.score / 4));
+                    }
+                }
+
                 actions.push({
                     id: `ACTION_FIRE_${dirCode}`,
                     category: 'COMBAT',
@@ -1016,7 +1040,7 @@ export class ContextActionEngine {
                     entity: entity,
                     target: 'ranged',
                     risk: 'warning',
-                    priority: 85,
+                    priority: firePriority,
                     description: `Fire quivered ${quiveredItem.rawText || 'ammunition'} at creature in ${dirNameJa}`,
                     descriptionJa: `矢筒の ${quiveredItem.rawText || '弾薬'} を${dirNameJa}の標的に向けて射撃します`
                 });
@@ -1024,6 +1048,15 @@ export class ContextActionEngine {
             // (B) 矢筒未装填だが手元に投擲可能アイテムがある場合 -> 投擲 (t)
             else if (ammoItems.length > 0) {
                 const ammo = ammoItems[0];
+                let throwPriority = 78;
+                if (skillStateManager) {
+                    const ammoSkill = this.matchWeaponToSkill(ammo);
+                    const rank = skillStateManager.getSkillRank(ammoSkill);
+                    if (rank.score > 0) {
+                        throwPriority += Math.min(8, Math.floor(rank.score / 5));
+                    }
+                }
+
                 actions.push({
                     id: `ACTION_THROW_${dirCode}`,
                     category: 'COMBAT',
@@ -1040,13 +1073,153 @@ export class ContextActionEngine {
                     entity: entity,
                     target: 'ranged',
                     risk: 'warning',
-                    priority: 78,
+                    priority: throwPriority,
                     description: `Throw ${ammo.rawText || 'item'} at creature in ${dirNameJa}`,
                     descriptionJa: `手持ちの ${ammo.rawText || 'アイテム'} を${dirNameJa}の標的に投擲します`
                 });
             }
         });
+    }
 
+    /**
+     * 武器・アイテムから該当する NetHack スキル種別名をマッチング
+     * @param {Object} item 
+     * @returns {string} スキル種別名 (英語)
+     */
+    static matchWeaponToSkill(item) {
+        if (!item) return 'bare hands';
+        const text = ((item.name || '') + ' ' + (item.rawText || '')).toLowerCase();
+
+        // 剣・刀類
+        if (text.includes('long sword') || text.includes('長剣') || text.includes('katana') || text.includes('カタナ') || text.includes('刀') || text.includes('tsurugi')) return 'long sword';
+        if (text.includes('two-handed sword') || text.includes('両手剣')) return 'two-handed sword';
+        if (text.includes('broadsword') || text.includes('広刃')) return 'broadsword';
+        if (text.includes('short sword') || text.includes('小剣') || (text.includes('短剣') && !text.includes('dagger'))) return 'short sword';
+        if (text.includes('dagger') || text.includes('ダガー') || text.includes('athame') || text.includes('アサメ') || text.includes('短刀') || text.includes('knife') || text.includes('ナイフ')) return 'dagger';
+        if (text.includes('scimitar') || text.includes('シミター') || text.includes('saber') || text.includes('サーベル')) return 'saber';
+
+        // 弓・投擲・射撃 (crossbow を bow より先に判定)
+        if (text.includes('crossbow') || text.includes('クロスボウ') || text.includes('ボルト') || text.includes('bolt')) return 'crossbow';
+        if (text.includes('bow') || text.includes('弓') || text.includes('arrow') || text.includes('矢') || text.includes('yumi') || text.includes('ya')) return 'bow';
+        if (text.includes('sling') || text.includes('スリング') || text.includes('flint') || text.includes('rock') || text.includes('石')) return 'sling';
+        if (text.includes('dart') || text.includes('ダーツ')) return 'dart';
+        if (text.includes('shuriken') || text.includes('手裏剣')) return 'shuriken';
+        if (text.includes('boomerang') || text.includes('ブーメラン')) return 'boomerang';
+
+        // 槍・ポールアーム
+        if (text.includes('javelin') || text.includes('投げ槍') || text.includes('spear') || text.includes('槍')) return 'spear';
+        if (text.includes('trident') || text.includes('三叉槍') || text.includes('トライデント')) return 'trident';
+        if (text.includes('halberd') || text.includes('ハルバード') || text.includes('polearm') || text.includes('lance') || text.includes('glaive') || text.includes('bardiche') || text.includes('spetum')) return 'polearms';
+
+        // 鈍器・斧
+        if (text.includes('pick-axe') || text.includes('pick') || text.includes('ツルハシ')) return 'pick-axe';
+        if (text.includes('axe') || text.includes('斧')) return 'axe';
+        if (text.includes('mace') || text.includes('メイス')) return 'mace';
+        if (text.includes('morning star') || text.includes('モーニングスター')) return 'morning star';
+        if (text.includes('flail') || text.includes('フレイル')) return 'flail';
+        if (text.includes('hammer') || text.includes('ハンマー') || text.includes('war hammer')) return 'hammer';
+        if (text.includes('quarterstaff') || text.includes('六尺棒') || text.includes('staff') || text.includes('杖')) return 'quarterstaff';
+        if (text.includes('club') || text.includes('こん棒') || text.includes('棍棒') || text.includes('aklys')) return 'club';
+
+        // 鞭・特殊
+        if (text.includes('whip') || text.includes('鞭') || text.includes('bullwhip') || text.includes('rubber hose')) return 'whip';
+        if (text.includes('unicorn horn') || text.includes('ユニコーンの角')) return 'unicorn horn';
+
+        return 'bare hands';
+    }
+
+    /**
+     * 5. スキル熟練度に基づくおすすめ武器装備アクション (Recommended Wield / Equipment) の生成
+     * @param {Object} inventoryState 
+     * @param {Object} skillStateManager 
+     * @param {Array<Object>} actions 
+     */
+    static buildEquipmentRecommendations(inventoryState, skillStateManager, actions) {
+        if (!inventoryState || !Array.isArray(inventoryState.items) || inventoryState.items.length === 0) return;
+
+        const items = inventoryState.items;
+        // 武器アイテムの抽出 (isWeapon または名前から武器と判定されるもの)
+        const weapons = items.filter(item => {
+            if (!item || !item.letter) return false;
+            if (item.isWeapon || item.category === 'WEAPON') return true;
+            const text = (item.rawText || '').toLowerCase();
+            return text.includes('sword') || text.includes('dagger') || text.includes('knife') ||
+                   text.includes('axe') || text.includes('mace') || text.includes('spear') ||
+                   text.includes('bow') || text.includes('crossbow') || text.includes('staff') ||
+                   text.includes('club') || text.includes('saber') || text.includes('scimitar') ||
+                   text.includes('blade') || text.includes('tsurugi') || text.includes('katana') ||
+                   text.includes('flail') || text.includes('hammer') || text.includes('whip') ||
+                   text.includes('刀') || text.includes('剣') || text.includes('槍') || text.includes('斧');
+        });
+
+        if (weapons.length === 0) return;
+
+        // 現在装備中の武器
+        const currentWielded = weapons.find(w => w.isWielded || (w.rawText && (w.rawText.includes('weapon in hand') || w.rawText.includes('wielded'))));
+
+        // 各武器のスコア計算
+        const scoredWeapons = weapons.map(weapon => {
+            const skillName = this.matchWeaponToSkill(weapon);
+            let skillScore = 0;
+            let skillRank = { key: 'unskilled', label: '未熟', en: 'Unskilled' };
+            if (skillStateManager && typeof skillStateManager.getSkillRank === 'function') {
+                skillRank = skillStateManager.getSkillRank(skillName);
+                skillScore = skillRank.score || 0;
+            }
+
+            // 武器の追加ボーナス (強化値 +1, +2 等、祝福 blessed 等)
+            let bonus = 0;
+            const raw = (weapon.rawText || '').toLowerCase();
+            const plusMatch = raw.match(/\+(\d+)/);
+            if (plusMatch) bonus += parseInt(plusMatch[1], 10) * 5;
+            const minusMatch = raw.match(/\-(\d+)/);
+            if (minusMatch) bonus -= parseInt(minusMatch[1], 10) * 5;
+            if (raw.includes('blessed') || raw.includes('祝福')) bonus += 5;
+            if (!raw.includes('uncursed') && (raw.includes('cursed') || raw.includes('呪われ'))) bonus -= 15;
+
+            const totalScore = skillScore + bonus;
+            return {
+                weapon,
+                skillName,
+                skillRank,
+                skillScore,
+                totalScore,
+                isCurrent: weapon === currentWielded
+            };
+        });
+
+        // スコア降順ソート
+        scoredWeapons.sort((a, b) => b.totalScore - a.totalScore);
+        const best = scoredWeapons[0];
+        if (!best) return;
+
+        // 現在装備中の武器のスコア
+        const currentScore = currentWielded ? (scoredWeapons.find(sw => sw.isCurrent)?.totalScore ?? 0) : -999;
+
+        // 推奨条件:
+        // 1. 現在武器を何も装備していない場合
+        // 2. 現在の武器よりも最高スコアの武器の方が優れている場合 (スコア差が +10 以上など)
+        if (!currentWielded || (!best.isCurrent && best.totalScore > currentScore)) {
+            const wItem = best.weapon;
+            const rankLabel = best.skillRank.label || best.skillRank.en || '未熟';
+            const isBetterSwitch = Boolean(currentWielded);
+
+            actions.push({
+                id: `ACTION_WIELD_RECOMMENDED_${wItem.letter}`,
+                category: 'EQUIPMENT',
+                label: isBetterSwitch ? `Switch to skilled weapon [${wItem.name || wItem.rawText}]` : `Wield recommended weapon [${wItem.name || wItem.rawText}]`,
+                labelJa: isBetterSwitch ? `熟練武器に持ち替え [${wItem.name || wItem.rawText}] (熟練度: ${rankLabel})` : `おすすめ武器を装備 [${wItem.name || wItem.rawText}] (熟練度: ${rankLabel})`,
+                key: `w${wItem.letter}`,
+                keySequence: ['w', wItem.letter],
+                charStr: 'w',
+                target: 'inventory',
+                entity: wItem,
+                risk: null,
+                priority: isBetterSwitch ? 68 : 82,
+                description: `Wield ${wItem.rawText || 'weapon'} (${best.skillName} skill: ${rankLabel})`,
+                descriptionJa: `熟練している ${wItem.rawText || '武器'} (${best.skillName} スキル: ${rankLabel}) を装備します`
+            });
+        }
     }
 
 

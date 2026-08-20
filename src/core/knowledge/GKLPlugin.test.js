@@ -68,7 +68,7 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.inventoryStateManager.invalidate).toHaveBeenCalledTimes(1);
     });
 
-    it('getSituation: 統合状況 (Situation: status, inventory, area, spells, attributes, actions) を返却すること', () => {
+    it('getSituation: 統合状況 (Situation: status, inventory, area, spells, skills, attributes, actions) を返却すること', () => {
         const plugin = new GKLPlugin();
         const situation = plugin.getSituation();
 
@@ -76,14 +76,16 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(situation).toHaveProperty('inventory');
         expect(situation).toHaveProperty('area');
         expect(situation).toHaveProperty('spells');
+        expect(situation).toHaveProperty('skills');
         expect(situation).toHaveProperty('attributes');
         expect(situation).toHaveProperty('actions');
 
         expect(Array.isArray(situation.spells.items)).toBe(true);
+        expect(Array.isArray(situation.skills.items)).toBe(true);
         expect(situation.attributes).toHaveProperty('effectiveResistances');
     });
 
-    it('syncSpellsSilent & syncAttributesSilent: サイレント同期が実行され状態が更新されること', async () => {
+    it('syncSpellsSilent & syncAttributesSilent & syncSkillsSilent: サイレント同期が実行され状態が更新されること', async () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();
         mockCore.querySequenceSilent.mockResolvedValue([
@@ -104,6 +106,15 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(attrRes).toBe(true);
         expect(mockCore.querySequenceSilent).toHaveBeenCalledWith(['\x18', ' ', '\x1b'], expect.anything());
         expect(plugin.attributeStateManager.getEffectiveResistances().fire).toBe(true);
+
+        mockCore.querySequenceSilent.mockResolvedValue([
+            { lines: ['* long sword [Skilled]'] }
+        ]);
+        const skillRes = await plugin.syncSkillsSilent();
+        expect(skillRes).toBe(true);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledWith(['#', 'enhance', ' ', '\x1b'], expect.anything());
+        expect(plugin.skillStateManager.getSkills().length).toBe(1);
+        expect(plugin.skillStateManager.getSkills()[0].name).toBe('long sword');
     });
 
     it('syncPendingStateSilent: 未同期ステートを直列・排他制御で安全に同期すること', async () => {
@@ -114,12 +125,31 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
 
         plugin.inventoryStateManager.isSynced = false;
         plugin.spellStateManager.isSynced = false;
+        plugin.skillStateManager.isSynced = false;
 
         const res = await plugin.syncPendingStateSilent();
         expect(res).toBe(true);
-        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(2);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(3);
         expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(1, ['i', ' ', '\x1b'], { syncType: 'inventory' });
         expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['+', ' ', '\x1b'], { syncType: 'spells' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
+    });
+
+    it('syncAllSilent: インベントリ、魔法、スキルの一括直列同期が実行されること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.querySequenceSilent.mockResolvedValue([]);
+        plugin.attach(mockCore);
+
+        plugin.inventoryStateManager.isSynced = false;
+        plugin.spellStateManager.isSynced = false;
+        plugin.skillStateManager.isSynced = false;
+
+        await plugin.syncAllSilent();
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(3);
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(1, ['i', ' ', '\x1b'], { syncType: 'inventory' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['+', ' ', '\x1b'], { syncType: 'spells' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
     });
 
     it('getRecommendedActions: 推奨アクション配列を返却すること', () => {

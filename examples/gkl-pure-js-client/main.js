@@ -564,9 +564,10 @@ class GklPureJSClient {
           this.renderZoomCanvas(situation.area);
         }
 
-        // 4. 属性耐性 (全25種) & 修得魔法の描画
+        // 4. 属性耐性 (全25種) & 修得魔法 & スキル熟練度の描画
         this.renderGklAttributes(situation.attributes);
         this.renderGklSpells(situation.spells);
+        this.renderGklSkills(situation.skills);
       }
       requestAnimationFrame(loop);
     };
@@ -1214,6 +1215,36 @@ class GklPureJSClient {
     }).join(' ');
 
     elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">📖 修得魔法:</strong> ${listHtml}</div>`;
+  }
+
+  /**
+   * 🥋 スキル熟練度一覧の描画
+   * @param {Object} skillsObj 
+   */
+  renderGklSkills(skillsObj) {
+    const elSkillsDetail = document.getElementById('status-skills-detail');
+    if (!elSkillsDetail) return;
+
+    const activeSkills = skillsObj ? (skillsObj.activeItems || []) : [];
+    if (!skillsObj || !skillsObj.isSynced) {
+      elSkillsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">🥋 スキル: 未同期</span>';
+      return;
+    }
+
+    if (activeSkills.length === 0) {
+      elSkillsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">🥋 スキル: なし (未熟)</span>';
+      return;
+    }
+
+    const listHtml = activeSkills.map(skill => {
+      const rankKey = skill.rank ? skill.rank.key : 'basic';
+      const rankLabel = skill.rank ? (skill.rank.label || skill.rank.en) : '入門';
+      const enhClass = skill.canEnhance ? 'enhanceable' : '';
+      const star = skill.canEnhance ? '⭐ ' : '';
+      return `<span class="gkl-skill-badge gkl-skill-badge-${rankKey} ${enhClass}" title="${skill.rawText || skill.name}">${star}<strong>${skill.name}</strong> [${rankLabel}]</span>`;
+    }).join(' ');
+
+    elSkillsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🥋 スキル:</strong> ${listHtml}</div>`;
   }
 
   getItemSymbol(item) {

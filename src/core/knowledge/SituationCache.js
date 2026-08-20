@@ -16,31 +16,34 @@ export class SituationCache {
      * @param {Object} [actionEngineClass=null] - ContextActionEngine クラス
      * @param {Object} [spellStateManager=null] - SpellStateManager インスタンス
      * @param {Object} [attributeStateManager=null] - AttributeStateManager インスタンス
+     * @param {Object} [skillStateManager=null] - SkillStateManager インスタンス
      */
-    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null) {
+    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null) {
         this.statusAccessor = statusAccessor;
         this.inventoryStateManager = inventoryStateManager;
         this.areaStateManager = areaStateManager;
         this.actionEngineClass = actionEngineClass;
         this.spellStateManager = spellStateManager;
         this.attributeStateManager = attributeStateManager;
+        this.skillStateManager = skillStateManager;
     }
 
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
         if (actionEngineClass) this.actionEngineClass = actionEngineClass;
         if (spellStateManager) this.spellStateManager = spellStateManager;
         if (attributeStateManager) this.attributeStateManager = attributeStateManager;
+        if (skillStateManager) this.skillStateManager = skillStateManager;
     }
 
     /**
      * 現在のゲーム統合状況 (Situation) を一括取得
-     * @returns {Object} { status, inventory, equipment, area, tools, spells, attributes, actions }
+     * @returns {Object} { status, inventory, equipment, area, tools, spells, skills, attributes, actions }
      */
     getSituation() {
         const status = this.statusAccessor && typeof this.statusAccessor.getStatus === 'function' ?
@@ -70,6 +73,12 @@ export class SituationCache {
         const spellItems = spellState ? (typeof spellState.getSpells === 'function' ? spellState.getSpells() : (spellState.spells || [])) : [];
         const isSpellSynced = spellState ? Boolean(spellState.isSynced) : false;
 
+        // スキル熟練度抽出
+        const skillState = this.skillStateManager;
+        const skillItems = skillState ? (typeof skillState.getSkills === 'function' ? skillState.getSkills() : (skillState.skills || [])) : [];
+        const activeSkills = skillState && typeof skillState.getActiveSkills === 'function' ? skillState.getActiveSkills() : [];
+        const isSkillSynced = skillState ? Boolean(skillState.isSynced) : false;
+
         // 属性・耐性抽出
         const attrState = this.attributeStateManager;
         const attributes = attrState && typeof attrState.getAttributes === 'function' ?
@@ -83,7 +92,7 @@ export class SituationCache {
         // 推奨アクションの自動計算 (ContextActionEngine が設定されている場合)
         let actions = [];
         if (this.actionEngineClass && typeof this.actionEngineClass.generateActions === 'function') {
-            actions = this.actionEngineClass.generateActions(areaState, inventoryState);
+            actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager);
         }
 
         return {
@@ -98,6 +107,11 @@ export class SituationCache {
             spells: {
                 items: spellItems,
                 isSynced: isSpellSynced
+            },
+            skills: {
+                items: skillItems,
+                activeItems: activeSkills,
+                isSynced: isSkillSynced
             },
             attributes,
             actions

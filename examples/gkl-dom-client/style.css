@@ -359,3 +359,85 @@ body {
   font-size: 0.8rem;
   padding: 20px;
 }
+
+/* 🥋 GKL スキル熟練度ステータス行 */
+.gkl-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 8px 12px;
+  min-height: 28px;
+  background: rgba(15, 23, 42, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gkl-skill-title {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--accent-cyan);
+  margin-right: 4px;
+}
+
+.skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  transition: all 0.15s ease;
+}
+
+.skill-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.skill-badge-basic {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.skill-badge-skilled {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  font-weight: bold;
+}
+
+.skill-badge-expert {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  font-weight: bold;
+}
+
+.skill-badge-master,
+.skill-badge-grandmaster {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  font-weight: bold;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+}
+
+.skill-badge-enhanceable {
+  border-color: #f59e0b !important;
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+.skill-star {
+  color: #fbbf24;
+  font-size: 0.75rem;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.6); }
+}

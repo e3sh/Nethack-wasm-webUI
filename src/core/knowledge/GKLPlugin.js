@@ -2,6 +2,7 @@ import { StatusAccessor } from '../StatusAccessor.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
 import { SpellStateManager } from './SpellStateManager.js';
+import { SkillStateManager } from './SkillStateManager.js';
 import { AttributeStateManager } from './AttributeStateManager.js';
 import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
@@ -13,13 +14,14 @@ import { PROMPT_CATEGORY } from '../types.js';
 /**
  * Game Knowledge Layer (GKL) 独立拡張プラグイン
  * WebUICore のパブリックイベント・サイレントクエリ基盤と連携し、
- * ゲーム状態追跡 (Inventory/Area/Status/Spells/Attributes) およびコンテキストアクション推薦を一元管理する。
+ * ゲーム状態追跡 (Inventory/Area/Status/Spells/Skills/Attributes) およびコンテキストアクション推薦を一元管理する。
  */
 export class GKLPlugin {
     /**
      * @param {Object} [options={}]
      * @param {InventoryStateManager} [options.inventoryStateManager]
      * @param {SpellStateManager} [options.spellStateManager]
+     * @param {SkillStateManager} [options.skillStateManager]
      * @param {AttributeStateManager} [options.attributeStateManager]
      * @param {'vi'|'numpad'} [options.keyMode]
      */
@@ -28,6 +30,7 @@ export class GKLPlugin {
         this.areaStateManager = new AreaStateManager();
         this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
         this.spellStateManager = options.spellStateManager || new SpellStateManager();
+        this.skillStateManager = options.skillStateManager || new SkillStateManager();
         this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
 
         this.situationCache = new SituationCache(
@@ -36,7 +39,8 @@ export class GKLPlugin {
             this.areaStateManager,
             ContextActionEngine,
             this.spellStateManager,
-            this.attributeStateManager
+            this.attributeStateManager,
+            this.skillStateManager
         );
 
         if (options.keyMode || options.numpad) {
@@ -116,6 +120,9 @@ export class GKLPlugin {
                 if (this.spellStateManager && typeof this.spellStateManager.updateFromMessage === 'function') {
                     this.spellStateManager.updateFromMessage(text);
                 }
+                if (this.skillStateManager && typeof this.skillStateManager.updateFromMessage === 'function') {
+                    this.skillStateManager.updateFromMessage(text);
+                }
                 if (this.attributeStateManager && typeof this.attributeStateManager.updateFromMessage === 'function') {
                     this.attributeStateManager.updateFromMessage(text);
                 }
@@ -161,10 +168,13 @@ export class GKLPlugin {
         core.on('status_update', (data) => {
             if (data && data.field !== undefined && this.statusAccessor) {
                 this.statusAccessor.updateField(data.field, data.value);
-                // 経験レベル (level / exp) の変動時にも魔法失敗率が変化するため再同期
-                if ((data.field === 'level' || data.field === 'exp_level') && this.spellStateManager) {
-                    if (typeof this.spellStateManager.invalidate === 'function') {
+                // 経験レベル (level / exp) の変動時にも魔法失敗率やスキル向上可能状態が変化するため再同期
+                if (data.field === 'level' || data.field === 'exp_level') {
+                    if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
                         this.spellStateManager.invalidate();
+                    }
+                    if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
+                        this.skillStateManager.invalidate();
                     }
                 }
             }
@@ -202,7 +212,7 @@ export class GKLPlugin {
     }
 
     /**
-     * 未同期状態のステート（所持品・魔法等）を検知し、直列かつ安全にサイレント同期を実行する。
+     * 未同期状態のステート（所持品・魔法・スキル等）を検知し、直列かつ安全にサイレント同期を実行する。
      * @param {Object} [options={}]
      * @returns {Promise<boolean>}
      */
@@ -215,6 +225,9 @@ export class GKLPlugin {
             }
             if (this.spellStateManager && !this.spellStateManager.isSynced) {
                 await this.syncSpellsSilent(options);
+            }
+            if (this.skillStateManager && !this.skillStateManager.isSynced) {
+                await this.syncSkillsSilent(options);
             }
             return true;
         } catch (e) {
@@ -345,6 +358,62 @@ export class GKLPlugin {
     }
 
     /**
+     * バックグラウンドで安全に `#enhance` シーケンスを実行し、スキル熟練度データを同期獲得
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>} 同期成功の有無
+     */
+    async syncSkillsSilent(options = {}) {
+        if (!this.core) return false;
+
+        const { force = false } = options;
+
+        if (!force && this.core.currentPromptCategory) {
+            const cat = this.core.currentPromptCategory;
+            if (cat === PROMPT_CATEGORY.MENU ||
+                cat === PROMPT_CATEGORY.DIRECTION || 
+                cat === PROMPT_CATEGORY.YN || 
+                cat === PROMPT_CATEGORY.TEXT || 
+                cat === PROMPT_CATEGORY.ASKNAME || 
+                cat === PROMPT_CATEGORY.FILE || 
+                cat === PROMPT_CATEGORY.EXTCMD) {
+                return false;
+            }
+        }
+
+        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
+        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+            return false;
+        }
+
+        const buffer = await this.core.querySequenceSilent(['#', 'enhance', ' ', '\x1b'], { syncType: 'skills', ...options });
+        if (this.skillStateManager && typeof this.skillStateManager.updateFromSequenceBuffer === 'function') {
+            this.skillStateManager.updateFromSequenceBuffer(buffer, true);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * ゲーム初期化時や同期ボタン押下時の一括直列同期
+     * 先行タスクキャンセルを防止するため直列に await 実行
+     * @param {Object} [options={}]
+     */
+    async syncAllSilent(options = {}) {
+        // 1. インベントリ取得 (完了するまで await)
+        await this.syncInventorySilent(options);
+        
+        // 2. 続けて魔法一覧取得 (直列実行)
+        if (this.spellStateManager && !this.spellStateManager.isSynced) {
+            await this.syncSpellsSilent(options);
+        }
+
+        // 3. 続けてスキル一覧取得 (直列実行)
+        if (this.skillStateManager && !this.skillStateManager.isSynced) {
+            await this.syncSkillsSilent(options);
+        }
+    }
+
+    /**
      * GKL の統合状況 (Situation: ステータス, 所持品, マップ, アクション等) を一括取得
      * @returns {Object}
      */
@@ -357,6 +426,11 @@ export class GKLPlugin {
             inventory: { items: this.inventoryStateManager ? this.inventoryStateManager.items : [], isSynced: Boolean(this.inventoryStateManager && this.inventoryStateManager.isSynced) },
             area: this.areaStateManager ? this.areaStateManager.getAreaState() : {},
             spells: { items: this.spellStateManager ? this.spellStateManager.spells : [], isSynced: Boolean(this.spellStateManager && this.spellStateManager.isSynced) },
+            skills: {
+                items: this.skillStateManager ? this.skillStateManager.getSkills() : [],
+                activeItems: this.skillStateManager ? this.skillStateManager.getActiveSkills() : [],
+                isSynced: Boolean(this.skillStateManager && this.skillStateManager.isSynced)
+            },
             attributes: this.attributeStateManager ? this.attributeStateManager.getAttributes() : {},
             tools: {},
             actions: []
@@ -382,6 +456,10 @@ export class GKLPlugin {
         return this.spellStateManager;
     }
 
+    getSkillStateManager() {
+        return this.skillStateManager;
+    }
+
     getAttributeStateManager() {
         return this.attributeStateManager;
     }
@@ -401,7 +479,7 @@ export class GKLPlugin {
      */
     getRecommendedActions(radius = 1) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState(undefined, undefined, radius) : {};
-        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager);
+        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager);
     }
 
     /**

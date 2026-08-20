@@ -180,11 +180,60 @@ $$\text{AdviceScore} = (\text{緊急度} \times \text{危険度}) + \text{期待
   システムを無駄に複雑化させることなく、シンプルかつ高速に「地形の破壊・変化」と「視界外モンスターの推測」を両立できる。
 
 #### 8. スキル・装備適正に基づく推奨装備 ＆ 着替えガイダンス (Skill & Gear Suitability Guidance)
+
 * **スキル連動の最適武器推奨 (Skill-based Weapon Recommendation)**:
-  所持品内の武器とプレイヤーの Skill ランク (Unskilled, Basic, Skilled, Expert) を突合し、現在最も高い命中・ダメージ補正が得られる熟練武器（熟練度 Expert の武器や二刀流セット等）への装備切り替え（`w` / `#twoweapon`）を推薦提示。
-* **魔法阻害ガード ＆ 着替えガイド (Metallic Armor Penalty Warning)**:
-  NetHack の仕様上、鉄・金属製防具（Metallic Armor/Helm/Shield）を着用すると魔法詠唱失敗率が激増するため、`SpellStateManager` と連携し、「⚠️ 鉄製防具により魔法失敗率上昇中 ➔ ローブ / 非金属防具への着替え (`T` / `W`)」をスマートガイダンスとして注意喚起。
+  所持品内の武器とプレイヤーの Skill ランク (`SkillStateManager`: Unskilled, Basic, Skilled, Expert, Master, Grand Master) を突合し、現在最も高い命中・ダメージ補正が得られる熟練武器（熟練度 Expert の武器や二刀流セット等）への装備切り替え（`w` / `#twoweapon`）を推薦提示。
+
+##### 【具体設計案：構造化ナレッジ (`OBJECT_KNOWLEDGE_FULL.js`) 連携 ＆ 総合評価パイプライン】
+
+単なるアイテム名文字列のあいまい検索ではなく、静的ナレッジ層（`OBJECT_KNOWLEDGE_FULL.js`）の各オブジェクト定義に確定パラメータを持たせ、`SituationCache` の多次元情報と掛け合わせて総合スコアを算出するデータ駆動アーキテクチャを採用する。
+
+1. **静的ナレッジ層へのパラメータ拡充 (`OBJECT_KNOWLEDGE_FULL.js`)**:
+   全481アイテムのマスターデータに、戦闘・装備適正に関する以下の構造化メタデータを定義：
+   ```javascript
+   {
+     onum: 23,
+     name: "long sword",
+     category: "WEAPON",
+     skill: "long sword",       // 🎯 対応する NetHack スキル種別名
+     hands: 1,                  // 1: 片手武器 / 2: 両手武器
+     damageSmall: "1d8",        // 対小型モンスター基礎ダメージ
+     damageLarge: "1d12",       // 対大型モンスター基礎ダメージ
+     material: "iron",          // 材質 (iron, silver, wood, mithril 等)
+     isSilver: false,           // 銀製フラグ (アンデッド・悪魔特効)
+     isLaunchableWith: null     // 弾薬の場合の対応ランチャー (e.g. 'bow')
+   }
+   ```
+
+2. **多次元スコアリング計算モデル (Scoring Pipeline)**:
+   $$\text{TotalScore} = \text{SkillScore} + \text{BasePower} + \text{EnchantBonus} + \text{SlayingBonus} - \text{Penalty}$$
+
+   * **スキル熟練度スコア (`SkillScore`)**:
+     `SkillStateManager` の現在ランクに応じた基本点
+     - `Grand Master` (師範): +80点
+     - `Master` (名人): +60点
+     - `Expert` (達人): +40点
+     - `Skilled` (熟練): +25点
+     - `Basic` (入門): +10点
+     - `Unskilled` (未熟): +0点
+     - `Restricted` (制限/不可): -10点
+   * **武器ベース性能値 (`BasePower`)**:
+     小型・大型モンスターに対する平均期待値ダメージ（例: 1d8 なら 4.5点、両手剣 1d10 なら 5.5点）。
+   * **エンチャント・状態補正 (`EnchantBonus`)**:
+     強化値 $+N \times 5$、祝福 $+5$、呪い $-15$（※文字列判定時の `uncursed` 誤判定を完全防止）。
+   * **状況・特効ボーナス (`SlayingBonus`)**:
+     視界・隣接エリアにアンデッド・悪魔・人狼等の特効対象モンスターが存在する場合の銀製（`isSilver: true`）武器ボーナス (+20点)。
+   * **装備整合性ペナルティ (`Penalty`)**:
+     盾（Shield）を装備中に両手武器（`hands: 2`）を持つ場合の減点・着脱考慮。
+
+3. **遠隔射撃・投擲への最適化連動 (Ranged & Throwing Suitability)**:
+   - 矢筒（Quiver `Q`）への最適弾薬装填提案（弓スキルが高い時は矢、スリングスキルが高い時は小石）。
+   - 射撃（`f`）および投擲（`t`）アクションの優先度にスキル熟練度ボーナスを加算。
+
+4. **魔法阻害ガード ＆ 着替えガイド (Metallic Armor Penalty Warning)**:
+   NetHack の仕様上、鉄・金属製防具（Metallic Armor/Helm/Shield）を着用すると魔法詠唱失敗率が激増するため、`SpellStateManager` と連携し、「⚠️ 鉄製防具により魔法失敗率上昇中 ➔ ローブ / 非金属防具への着替え (`T` / `W`)」をスマートガイダンスとして注意喚起。
 
 ---
-*更新日: 2026-08-20*  
+*更新日: 2026-08-20 (スキル熟練度管理・構造化ナレッジ連携具体案を追記)*  
 *保存先: `docs/3_gkl/gkl_action_enhancement_proposal.md`*
+
