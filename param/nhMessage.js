@@ -11516,6 +11516,8 @@
         { en: "You slip and nearly fall.", jp: "あなたは足を滑らせ、危うく転びそうになる。" },
         { en: "You land on a set of sharp iron spikes!", jp: "鋭い鉄の棘の上に落ちてしまった！" },
         { en: "You finish disrobing.", jp: "服を脱ぎ終える。" },
+        { en: "You hear a strange wind.", jp: "奇妙な風の音が聞こえる。" },
+        { en: "You feel sluggish.", jp: "体が重く感じる。" },
     ];
 }
 
@@ -13136,6 +13138,11 @@ function nhEntities() {
         "Dark One": "闇の者",
         "invisible mon": "透明なモンスター",
         "ice troll": "アイス・トロール",
+        "vampire leader": "吸血鬼の指導者",
+        "high cleric": "高位聖職者",
+        "high priest": "大神官",
+        "sergeant": "軍曹",
+        "cleric": "聖職者",
     };
 }
 
@@ -13860,6 +13867,25 @@ function nhItems() {
         "splash of venom": "毒液の飛沫",
         "splash of blinding venom": "目つぶしの毒液の飛沫",
         "splash of acid venom": "酸の毒液の飛沫",
+        "shield of drain resistance": "ドレイン耐性の盾",
+        "shield of shock resistance": "衝撃耐性の盾",
+        "guarding": "守護",
+        "flying": "飛行",
+        "magic whistle": "魔法の笛",
+        "magic flute": "魔法のフルート",
+        "frost horn": "氷の角笛",
+        "fire horn": "炎の角笛",
+        "horn of plenty": "豊穣の角笛",
+        "wooden harp": "木製のハープ",
+        "magic harp": "魔法のハープ",
+        "turn undead": "アンデッド退散",
+        "create familiar": "使い魔の創造",
+        "novel": "小説",
+        "Book of the Dead": "死者の書",
+        "stasis": "静止",
+        "magic lamp": "魔法のランプ",
+        "jacinth": "ジルコン",
+        "black opal": "ブラックオパール",
     };
 }
 
@@ -17838,6 +17864,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+gets\s+zapped!$/, replace: "$1が感電した！" },
         { pattern: /^(.*)\s+grunts\.$/, replace: "$1がうめき声を上げる。" },
         { pattern: /^There\s+is\s+(.*)\s+here,\s+but\s+you\s+cannot\s+lift\s+any\s+more\.$/, replace: "ここには$1がありますが、これ以上持ち上げることはできません。" },
+        { pattern: /^(.*)\s+blinds\s+you!$/, replace: "$1があなたの視界を奪う！" },
     ];
 }
 
