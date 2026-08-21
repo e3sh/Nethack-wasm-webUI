@@ -12,6 +12,7 @@ import { classifyGlyph, getCmapInfo, getOnumFromGlyph, getCategoryFromOnum, ENTI
 import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { ALL_MONSTER_KNOWLEDGE_BASE } from './MONSTER_KNOWLEDGE_FULL.js';
+import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentificationResolver.js';
 
 export const OBJECT_CATEGORY_ADVICE = {
     POTION: {
@@ -20,6 +21,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '識別の巻物を読んだり、流し台(#apply sink)や神壇でテストして鑑定するのが安全です',
             '未鑑定の薬の飲み試しは麻痺・失明・毒・変身などのリスクを伴います'
+        ],
+        usageAdvice: [
+            '戦闘中の緊急回復や、余剰ポーションの#dip調合、投擲による敵への状態異常付与に活用します'
         ]
     },
     SCROLL: {
@@ -28,6 +32,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '安全な部屋で試読(\'r\')するか、店主の価格鑑定や識別の巻物で解明してください',
             '呪われた巻物は逆効果を発揮するためお祓い(Remove Curse)推奨'
+        ],
+        usageAdvice: [
+            '緊急脱出(テレポート)、装備強化、呪縛解除など、戦況を一変させる切り札として保持・使用します'
         ]
     },
     WAND: {
@@ -36,14 +43,20 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '床に文字を刻むテスト(\'E\')を行うと、充填数を消費せずに効果タイプを判別できます',
             '識別の巻物で残り充填回数と効果を解明可能です'
+        ],
+        usageAdvice: [
+            '壁の掘削によるショートカット作成、遠距離からの必殺攻撃や状態異常の付与に有効です'
         ]
     },
     RING: {
         category: 'RING',
         effectSummary: 'Put on with \'P\' or remove with \'R\'. Grants passive intrinsic abilities, but increases hunger rate.',
         unidentifiedTips: [
-            '流し台(#apply sink)に指輪を落とすと、特有の現象や音で正体が確定します',
+            '流し台(#apply sink)に指輪を落すと、特有の現象や音で正体が確定します',
             '呪われた指輪は外せなくなる(\'R\'不可)ため、解呪の手段を用意して装着してください'
+        ],
+        usageAdvice: [
+            '探索中や戦闘時など必要な場面に応じて付け替え(\'P\'/\'R\')し、空腹度の増加を抑えます'
         ]
     },
     AMULET: {
@@ -52,6 +65,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '首にかける(\'W\')と強力な耐性を得られますが、絞殺のアミュレット等に注意',
             '識別の巻物で鑑定してから装着するのが最も安全です'
+        ],
+        usageAdvice: [
+            '反射(Reflection)や命の魔除け(Life Saving)など、致命的な死を防ぐ中盤以降の最重要防具です'
         ]
     },
     WEAPON: {
@@ -60,6 +76,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '装備(\'w\')して攻撃命中率やダメージの変化を確認できます',
             '呪われた武器は手に貼り付くため、神壇(Altar)で呪いチェック推奨'
+        ],
+        usageAdvice: [
+            '武器スキル熟練度を上げ、敵のサイズ(中型/大型)や耐性に応じた武器を選択します'
         ]
     },
     ARMOR: {
@@ -68,6 +87,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '着脱(\'W\'/\'T\')して AC の変化を確認することで強化値を推定可能',
             '神壇(Altar)の上に置くと、呪い・祝福・通常が色で判別できます'
+        ],
+        usageAdvice: [
+            'ACと魔法防御(MC)を高め、詠唱ペナルティ(Metallic Armor)に注意して防具を選定します'
         ]
     },
     FOOD: {
@@ -75,6 +97,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         effectSummary: 'Eat with \'e\' to restore nutrition and prevent fainting or starvation.',
         unidentifiedTips: [
             '食べる(\'e\')ことで空腹を回復します。死体は腐敗(Poison/Taint)に注意'
+        ],
+        usageAdvice: [
+            '空腹(Hungry)状態になってから食べ、貴重な携行食料(Ration)は温存します'
         ]
     },
     TOOL: {
@@ -82,6 +107,9 @@ export const OBJECT_CATEGORY_ADVICE = {
         effectSummary: 'Apply with \'#apply\' or specific hotkeys. Essential utility items for dungeon survival.',
         unidentifiedTips: [
             '\'#apply\' キーで使用し、専用の機能や探索効果を発揮します'
+        ],
+        usageAdvice: [
+            '鍵開け、解毒(ユニコーンの角)、照明など状況に応じたツールをショートカットで活用します'
         ]
     },
     CONTAINER: {
@@ -89,20 +117,28 @@ export const OBJECT_CATEGORY_ADVICE = {
         effectSummary: 'Apply with \'#apply\' to store, retrieve, or lock/unlock items. Prevents potion breakage from landmines.',
         unidentifiedTips: [
             '\'#apply\' で開閉・鍵開け・収納。貴重な薬や巻物を保護できます'
+        ],
+        usageAdvice: [
+            '爆発トラップによるポーション破損や水濡れからアイテムを守るため袋に収納します'
         ]
     },
     SPELLBOOK: {
         category: 'SPELLBOOK',
         effectSummary: 'Read with \'r\' to memorize spell. Requires sufficient Intelligence and energy (PW) to cast.',
         unidentifiedTips: [
-            '読む(\'r\')ことで呪文を記憶します。高難度魔法書は解読に失敗すると失明等'
+            '読む(\'r\')ことで呪文を記憶します。高難度魔法書は解読に失敗すると失明等の反動があります'
+        ],
+        usageAdvice: [
+            '呪文詠唱の失敗率(Armor制限やInt依存)を確認し、安全な部屋で勉強(\'r\')して記憶します'
         ]
     },
     GEM: {
         category: 'GEM',
         effectSummary: 'Throw at monsters or sell for gold. Touchstone can distinguish real gems from worthless glass.',
         unidentifiedTips: [
-            'タッチストーン(Touchstone)で引っ掻くテストをすると本物の宝石と硝子を判別可能',
+            'タッチストーン(Touchstone)で引っ掻くテストをすると本物の宝石と硝子を判別可能'
+        ],
+        usageAdvice: [
             'モンスターに投げつけるか売却して高額な金貨を獲得できます'
         ]
     }
@@ -561,9 +597,18 @@ export class StructuredKnowledgeEngine {
         this.items = new Map();
         this.monOffsetMap = new Map();
         this.onumMap = new Map();
+        this.discoveryStateManager = options.discoveryStateManager || null;
 
         // マスターデータの初期化インデックス構築
         this._initDatabase();
+    }
+
+    /**
+     * DiscoveryStateManager インスタンスの設定/更新
+     * @param {Object} discoveryStateManager 
+     */
+    setDiscoveryStateManager(discoveryStateManager) {
+        this.discoveryStateManager = discoveryStateManager;
     }
 
     /**
@@ -851,6 +896,8 @@ export class StructuredKnowledgeEngine {
             result.dispositionStatus = 'HOSTILE';
         }
 
+        result.canBeUnidentified = false;
+
         return shouldTranslate ? this.localizeKnowledge(result) : result;
     }
 
@@ -861,57 +908,40 @@ export class StructuredKnowledgeEngine {
      */
     isUnidentifiedAppearance(str) {
         if (!str || typeof str !== 'string') return false;
-        const lower = str.toLowerCase();
-        const isKind = /\b(potion|scroll|ring|wand|amulet|spellbook)\b/i.test(lower);
-        const isApp = /\b(ruby|pink|smoky|clear|milky|cloudy|green|blue|red|yellow|purple|dark|bright|sparkling|effervescent|swirly|labeled|labelled|engraved|runed|wooden|copper|iron|glass|granite|marble)\b/i.test(lower);
-        const isReal = /\b(healing|extra healing|full healing|gain level|digging|death|remove curse|identify|teleportation|conflict|reflection)\b/i.test(lower);
-        return isKind && (isApp || !isReal);
+        const res = ItemIdentificationResolver.resolve(str);
+        return Boolean(res.isUnidentified);
     }
 
     /**
      * 未識別アイテム用の構造化ナレッジを自動生成
-     * @param {string} rawName 
+     * @param {string|Object} rawInput 
      * @param {Object} [options] 
      * @returns {Object} 未識別アイテムナレッジ
      */
-    getUnidentifiedItemKnowledge(rawName, options = {}) {
-        const lower = String(rawName).toLowerCase();
-        let category = 'OTHER';
-        let tips = [];
+    getUnidentifiedItemKnowledge(rawInput, options = {}) {
+        const idRes = (rawInput && typeof rawInput === 'object' && rawInput.idLevel)
+            ? rawInput
+            : ItemIdentificationResolver.resolve(rawInput);
 
-        if (lower.includes('potion')) {
-            category = 'POTION';
-            tips = [
-                'Price ID: 50zm -> healing or poison',
-                'Price ID: 100zm -> extra healing or gain level',
-                'Safe test: Dip unicorn horn to neutralize poison',
-                'Read Scroll of Identify for 100% safe identification'
-            ];
-        } else if (lower.includes('scroll')) {
-            category = 'SCROLL';
-            tips = [
-                'Engrave test: Write Elbereth on floor then read scroll over it to identify safely',
-                'Price ID: 20zm -> Scroll of Identify (Most common)',
-                'Price ID: 50zm -> Scroll of Remove Curse'
-            ];
-        } else if (lower.includes('wand')) {
-            category = 'WAND';
-            tips = [
-                'Engrave test: Zap or engrave on floor to identify 100% safely by message'
-            ];
-        } else {
-            category = 'OTHER';
-            tips = [
-                'Unidentified item. Price ID or Scroll of Identify recommended.'
-            ];
-        }
+        const category = idRes.category || 'OTHER';
+        const adviceObj = OBJECT_CATEGORY_ADVICE[category] || OBJECT_CATEGORY_ADVICE.TOOL;
+        const tips = (idRes.identificationTips && idRes.identificationTips.length > 0)
+            ? idRes.identificationTips
+            : (adviceObj.unidentifiedTips || []);
 
         const rawObj = {
-            id: 'unidentified_item',
-            name: rawName,
+            id: `unidentified_${category.toLowerCase()}`,
+            name: idRes.displayName || idRes.appearanceName || (typeof rawInput === 'string' ? rawInput : (rawInput.name || rawInput.str || 'Unidentified item')),
             category,
             isUnidentified: true,
-            unidentifiedTips: tips
+            appearanceName: idRes.appearanceName,
+            calledName: idRes.calledName,
+            bucStatus: idRes.bucStatus,
+            effectSummary: adviceObj.effectSummary || 'Unidentified item. Price ID or Scroll of Identify recommended.',
+            unidentifiedTips: tips,
+            usageAdvice: [],
+            canBeUnidentified: true,
+            identification: idRes
         };
 
         const shouldTranslate = options.translate !== false;
@@ -969,6 +999,10 @@ export class StructuredKnowledgeEngine {
 
         // 1. オブジェクト指定 ({ onum, subType, glyph, rawGlyph, str, rawText, name, label })
         if (typeof identifier === 'object' && identifier !== null) {
+            const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
+            if (rawName && this.isUnidentifiedAppearance(rawName)) {
+                return this.getUnidentifiedItemKnowledge(rawName, options);
+            }
             if (identifier.onum === 476 || identifier.subType === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
                 return this.getStatueKnowledge(identifier, options);
             }
@@ -1042,6 +1076,17 @@ export class StructuredKnowledgeEngine {
 
         // onum が定まっている場合は onumMap からナレッジを取得
         if (!found && targetOnum >= 0) {
+            // 🕵️ DiscoveryStateManager による未識別床アイテムのネタバレ防止ガード
+            if (this.discoveryStateManager && options.forceFullKnowledge !== true) {
+                if (!this.discoveryStateManager.isIdentified(targetOnum)) {
+                    const catStr = getCategoryFromOnum(targetOnum);
+                    const randomizableCats = ['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK'];
+                    if (randomizableCats.includes(catStr)) {
+                        return this.getUnidentifiedItemKnowledge({ category: catStr, onum: targetOnum, name: originalDisplayName || `Unidentified ${catStr}` }, options);
+                    }
+                }
+            }
+
             found = this.onumMap.get(targetOnum) || null;
 
             // onumMap に手動エントリーが未登録でも公式名前 & onum 範囲カテゴリから100%正確に生成！
@@ -1055,7 +1100,8 @@ export class StructuredKnowledgeEngine {
                     name: itemName,
                     category: catStr,
                     effectSummary: adviceObj.effectSummary,
-                    unidentifiedTips: adviceObj.unidentifiedTips
+                    unidentifiedTips: adviceObj.unidentifiedTips,
+                    usageAdvice: adviceObj.usageAdvice || []
                 };
             }
         }
@@ -1157,6 +1203,7 @@ export class StructuredKnowledgeEngine {
         }
 
         if (!rawObj) return null;
+        rawObj.canBeUnidentified = false;
 
         const shouldTranslate = options.translate !== false;
         return shouldTranslate ? this.localizeKnowledge(rawObj) : rawObj;
@@ -1215,6 +1262,7 @@ export class StructuredKnowledgeEngine {
             id: `corpse_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: corpseName,
             category: 'CORPSE',
+            canBeUnidentified: false,
             corpseInfo: monKnowledge?.corpseInfo || null,
             effectSummary: monKnowledge?.corpseInfo?.warningNote ? 
                 `食中毒・呪い警告: ${monKnowledge.corpseInfo.warningNote}` : 
@@ -1279,6 +1327,7 @@ export class StructuredKnowledgeEngine {
             id: `statue_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: statueName,
             category: 'STATUE',
+            canBeUnidentified: false,
             effectSummary: baseName ? 
                 `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。` :
                 `石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`

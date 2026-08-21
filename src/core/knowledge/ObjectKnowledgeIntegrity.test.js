@@ -158,4 +158,37 @@ describe('OBJECT_KNOWLEDGE_FULL Integrity & Property Coverage', () => {
         expect(effective.teleport).toBe(true);
         expect(effective.cold).toBe(false);
     });
+
+    it('should correctly set canBeUnidentified flag for randomized vs non-randomized items', () => {
+        // Randomized categories must have canBeUnidentified === true
+        const healPotion = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'POTION' && b.name === 'healing');
+        expect(healPotion).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(healPotion.onum).canBeUnidentified).toBe(true);
+
+        const idScroll = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'SCROLL' && b.name === 'identify');
+        expect(idScroll).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(idScroll.onum).canBeUnidentified).toBe(true);
+
+        const digWand = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'WAND' && b.name === 'digging');
+        expect(digWand).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(digWand.onum).canBeUnidentified).toBe(true);
+
+        // Randomized tool / armor
+        const touchstone = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'touchstone');
+        expect(touchstone).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(touchstone.onum).canBeUnidentified).toBe(true);
+
+        // Fixed items: food, dagger, pick-axe must have canBeUnidentified === false
+        const foodRation = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'food ration');
+        expect(foodRation).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(foodRation.onum).canBeUnidentified).toBe(false);
+
+        const dagger = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'dagger');
+        expect(dagger).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(dagger.onum).canBeUnidentified).toBe(false);
+
+        const pickAxe = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'pick-axe');
+        expect(pickAxe).toBeDefined();
+        expect(OBJECT_KNOWLEDGE_MAP.get(pickAxe.onum).canBeUnidentified).toBe(false);
+    });
 });

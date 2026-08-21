@@ -925,11 +925,44 @@ class GklPureJSClient {
         `;
       }
 
+      const id = data.identification || (data.knowledge && data.knowledge.identification) || {};
+      const isUnid = !!id.isUnidentified || !!data.isUnidentified;
+      const canBeUnid = (data.canBeUnidentified !== undefined) ? !!data.canBeUnidentified : isUnid;
+      const rawLower = (data.rawText || data.name || '').toLowerCase();
+      const bucStatus = id.bucStatus || data.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
+
+      const idBadges = [];
+      if (canBeUnid) {
+        if (isUnid) {
+          idBadges.push('<span class="kn-status-badge kn-status-unid">🔍 未識別 (UNIDENTIFIED)</span>');
+        } else {
+          idBadges.push('<span class="kn-status-badge kn-status-known">✅ 識別済み (IDENTIFIED)</span>');
+        }
+      }
+
+      if (bucStatus === 'BLESSED') {
+        idBadges.push('<span class="kn-status-badge kn-status-blessed">✨ 祝福 (BLESSED)</span>');
+      } else if (bucStatus === 'CURSED') {
+        idBadges.push('<span class="kn-status-badge kn-status-cursed">💀 呪い (CURSED)</span>');
+      } else if (bucStatus === 'UNCURSED' && canBeUnid) {
+        idBadges.push('<span class="kn-status-badge kn-status-uncursed">⚪ 通常 (UNCURSED)</span>');
+      }
+
+      if (id.appearanceName) {
+        idBadges.push(`<span class="kn-status-badge kn-status-named">🎨 外見: ${id.appearanceName}</span>`);
+      }
+      if (id.calledName) {
+        idBadges.push(`<span class="kn-status-badge kn-status-named">🏷️ 仮名: ${id.calledName}</span>`);
+      }
+
       this.elGklKnowledgeContent.innerHTML = `
         <div class="kn-card">
           <div class="kn-header">
             <span class="kn-title">${data.name}</span>
             <span class="kn-category-badge">${data.category || 'ITEM'}</span>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 6px 0;">
+            ${idBadges.join('')}
           </div>
           ${statsHtml}
           ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
@@ -1078,12 +1111,27 @@ class GklPureJSClient {
             skillBadgeHtml = `<span class="gkl-slot-equip-badge" style="background:#22c55e; color:#000; font-weight:bold; right:auto; left:2px;" title="得意武器 (${item.skillBadge?.label || '+'})">+</span>`;
           }
 
+          const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
+          const isUnidentified = !!id.isUnidentified;
+          const rawLower = (item.rawText || '').toLowerCase();
+          const bucStatus = id.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
+
+          let bucBadgeHtml = '';
+          if (isUnidentified) {
+            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-unid" title="未識別 (Unidentified)">?</span>';
+          } else if (bucStatus === 'CURSED') {
+            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-cursed" title="呪い (Cursed)">-</span>';
+          } else if (bucStatus === 'BLESSED') {
+            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-blessed" title="祝福 (Blessed)">+</span>';
+          }
+
           return `
             <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
               <span class="gkl-slot-letter">${item.letter}</span>
               <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
               ${badgeHtml}
               ${skillBadgeHtml}
+              ${bucBadgeHtml}
             </div>
           `;
         }).join('');

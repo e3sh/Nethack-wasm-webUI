@@ -27,6 +27,97 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
 
     const cat = knowledge.category || 'OTHER';
     const stats = knowledge.stats || {};
+    const identification = options.identification || knowledge.identification || null;
+    const isUnidentified = Boolean(knowledge.isUnidentified || (identification && identification.isUnidentified));
+
+    // 🕵️ 未識別アイテム (UNIDENTIFIED) 専用の適応型バッジ＆マスク表示
+    if (isUnidentified) {
+        specs.push({
+            id: 'identification_status',
+            label: 'Status',
+            labelJa: '識別状態',
+            value: '未識別 (Unidentified)',
+            type: 'warning',
+            highlight: true
+        });
+
+        const appearance = knowledge.appearanceName || (identification && identification.appearanceName);
+        if (appearance) {
+            specs.push({
+                id: 'appearance',
+                label: 'Appearance',
+                labelJa: '外見',
+                value: appearance,
+                type: 'info'
+            });
+        }
+
+        const called = knowledge.calledName || (identification && identification.calledName);
+        if (called) {
+            specs.push({
+                id: 'calledName',
+                label: 'Called',
+                labelJa: '仮名',
+                value: called,
+                type: 'info',
+                highlight: true
+            });
+        }
+
+        const buc = knowledge.bucStatus || (identification && identification.bucStatus);
+        if (buc && buc !== 'UNKNOWN') {
+            const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
+            specs.push({
+                id: 'bucStatus',
+                label: 'BUC',
+                labelJa: '呪縛状態',
+                value: bucJaMap[buc] || buc,
+                type: buc === 'CURSED' ? 'warning' : 'magic',
+                highlight: true
+            });
+        }
+
+        // 未識別カテゴリ別マスク表示
+        if (cat === 'WEAPON') {
+            specs.push({
+                id: 'damage',
+                label: 'Damage (S/L)',
+                labelJa: '攻撃力 (小/大)',
+                value: '? / ? (未鑑定)',
+                type: 'weapon'
+            });
+        } else if (cat === 'ARMOR') {
+            specs.push({
+                id: 'ac',
+                label: 'Defense (AC)',
+                labelJa: '防御力 (AC)',
+                value: '+? (未鑑定)',
+                type: 'armor'
+            });
+        } else if (cat === 'WAND') {
+            specs.push({
+                id: 'charges',
+                label: 'Charges',
+                labelJa: '残チャージ',
+                value: '(? charges)',
+                type: 'magic'
+            });
+        }
+
+        // 鑑定ヒント
+        const tips = knowledge.unidentifiedTips || (identification && identification.identificationTips) || [];
+        if (Array.isArray(tips) && tips.length > 0) {
+            specs.push({
+                id: 'idTip',
+                label: 'Test Tip',
+                labelJa: '鑑定ヒント',
+                value: tips[0],
+                type: 'info'
+            });
+        }
+
+        return specs;
+    }
 
     // 1. ⚔️ 武器 (WEAPON)
     if (cat === 'WEAPON') {

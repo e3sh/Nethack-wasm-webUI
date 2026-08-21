@@ -422,6 +422,36 @@ describe('InventoryStateManager', () => {
         expect(updated).toBe(true);
         expect(manager.isSynced).toBe(false);
     });
+
+    it('未識別アイテムがインベントリに追加された際、identification 構造化データが正しく付与されること', () => {
+        const manager = new InventoryStateManager();
+        const menuItems = [
+            { letter: 'a', text: 'a ruby potion', glyph: 3748, onum: 300 },
+            { letter: 'b', text: 'a blessed conical hat called brilliance?', glyph: 3569, onum: 121 },
+            { letter: 'c', text: 'an uncursed +1 dagger', glyph: 3482, onum: 34 }
+        ];
+
+        manager.updateFromMenuItems(menuItems);
+
+        const rubyPotion = manager.getItemByLetter('a');
+        expect(rubyPotion.identification).toBeDefined();
+        expect(rubyPotion.identification.isUnidentified).toBe(true);
+        expect(rubyPotion.identification.idLevel).toBe('UNIDENTIFIED');
+        expect(rubyPotion.identification.appearanceName).toBe('ruby potion');
+
+        const conicalHat = manager.getItemByLetter('b');
+        expect(conicalHat.identification).toBeDefined();
+        expect(conicalHat.identification.isUnidentified).toBe(true);
+        expect(conicalHat.identification.idLevel).toBe('NAMED');
+        expect(conicalHat.identification.calledName).toBe('brilliance?');
+        expect(conicalHat.identification.bucStatus).toBe('BLESSED');
+
+        const dagger = manager.getItemByLetter('c');
+        expect(dagger.identification).toBeDefined();
+        expect(dagger.identification.isUnidentified).toBe(false);
+        expect(dagger.identification.idLevel).toBe('FULLY_IDENTIFIED');
+        expect(dagger.identification.enchantment).toBe(1);
+    });
 });
 
 

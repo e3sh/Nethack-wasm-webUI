@@ -251,6 +251,140 @@
         .tr-log-row { border-bottom: 1px solid rgba(255,255,255,0.05); }
         .tr-log-row:hover { background-color: rgba(255,255,255,0.03); }
         .tr-log-row td { padding: 5px 8px; vertical-align: top; word-break: break-all; }
+
+        /* 構造化ナレッジカードスタイル */
+        .knowledge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 14px;
+        }
+        .knowledge-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
+            transition: border-color 0.15s ease;
+        }
+        .knowledge-card:hover {
+            border-color: var(--accent-color);
+        }
+        .k-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 8px;
+        }
+        .k-item-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .k-item-slot {
+            background-color: #313244;
+            color: var(--accent-color);
+            font-family: var(--font-mono);
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .k-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+        }
+        .k-badge {
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .k-badge-id-unid { background-color: #854d0e; color: #fef08a; border: 1px solid #ca8a04; }
+        .k-badge-id-known { background-color: #14532d; color: #bbf7d0; border: 1px solid #16a34a; }
+        .k-badge-buc-blessed { background-color: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .k-badge-buc-cursed { background-color: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+        .k-badge-buc-uncursed { background-color: #374151; color: #e5e7eb; border: 1px solid #6b7280; }
+        .k-badge-named { background-color: #581c87; color: #e9d5ff; border: 1px solid #9333ea; }
+        .k-badge-equip { background-color: #713f12; color: #fed7aa; border: 1px solid #f97316; font-weight: bold; }
+        .k-badge-cat { background-color: #1e1e2e; color: #cdd6f4; border: 1px solid var(--border-color); }
+        .k-badge-skill { background-color: #064e3b; color: #6ee7b7; border: 1px solid #10b981; font-weight: bold; }
+
+        .k-specs-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .k-spec-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: #181825;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #bac2de;
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .k-spec-tag strong { color: #ffffff; }
+        .k-spec-tag.highlight { border-color: var(--accent-color); color: var(--accent-color); font-weight: bold; }
+
+        .k-desc-box {
+            background-color: #181825;
+            padding: 8px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #cdd6f4;
+            line-height: 1.4;
+        }
+        .k-flavor-text {
+            font-size: 11px;
+            color: #9399b2;
+            font-style: italic;
+            margin-top: 4px;
+        }
+        .k-advice-box {
+            border-left: 3px solid #f59e0b;
+            background-color: rgba(245, 158, 11, 0.08);
+            padding: 6px 10px;
+            border-radius: 0 4px 4px 0;
+            font-size: 11px;
+            color: #fcd34d;
+            line-height: 1.4;
+        }
+        .k-usage-box {
+            border-left: 3px solid #3b82f6;
+            background-color: rgba(59, 130, 246, 0.08);
+            padding: 6px 10px;
+            border-radius: 0 4px 4px 0;
+            font-size: 11px;
+            color: #93c5fd;
+            line-height: 1.4;
+        }
+        .k-action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -321,7 +455,7 @@
             <div id="queryResultContainer" style="margin-bottom: 16px; display: none;"></div>
 
             <h3 style="color: var(--accent-color); font-size: 13px; margin-bottom: 8px;">🎒 リアルタイム所持品 & ナレッジ統合フラグ一覧</h3>
-            <div id="flagsGrid" class="action-grid">
+            <div id="flagsGrid" class="knowledge-grid">
                 <div style="color: #6c7086;">所持品ナレッジ・フラグデータをロード中...</div>
             </div>
         </div>
@@ -562,49 +696,200 @@
             }
 
             if (items.length === 0) {
-                flagsGrid.innerHTML = `<div style="color:#6c7086;">同期済みの所持品アイテムはありません</div>`;
+                flagsGrid.innerHTML = `<div style="color:#6c7086; padding: 20px; text-align: center; grid-column: 1 / -1;">同期済みの所持品アイテムはありません</div>`;
                 return;
             }
 
-            flagsGrid.innerHTML = items.map(item => {
-                const letter = item.letter || '?';
-                const rawText = item.rawText || item.str || item.name || 'Unknown item';
-                const onum = typeof item.onum === 'number' ? item.onum : -1;
-                const k = item.knowledge || {};
+            flagsGrid.innerHTML = items.map(item => createRichItemKnowledgeCard(item)).join('');
+        }
 
-                const defaultVerb = item.defaultVerb || k.defaultVerb || '-';
-                const verbKey = item.defaultVerbKey || item.verbKey || k.verbKey || item.verb || '-';
-                const actionLabelJa = item.defaultActionLabelJa || item.actionLabelJa || k.actionLabelJa || '-';
-                const itemCategory = item.itemCategory || k.category || item.onumCategory || 'OTHER';
+        function createRichItemKnowledgeCard(item, isQueryResult = false) {
+            const letter = item.letter || '';
+            const rawText = item.rawText || item.str || item.name || 'Unknown item';
+            const onum = typeof item.onum === 'number' ? item.onum : (item.knowledge?.onum ?? -1);
+            const k = item.knowledge || {};
+            const id = item.identification || k.identification || {};
 
-                const flagNames = [
-                    'isPickAxe', 'isDigWand', 'isDigTool', 'isKey', 'isAxe', 'isFrostWand',
-                    'isAmmo', 'isLauncher', 'isCanOpener', 'isTin', 'isBox', 'isBag',
-                    'isTouchstone', 'isGem', 'isRock'
-                ];
-                const activeFlags = flagNames.filter(f => item[f] === true || k[f] === true);
+            const defaultVerb = item.defaultVerb || k.defaultVerb || '-';
+            const verbKey = item.defaultVerbKey || item.verbKey || k.verbKey || item.verb || '-';
+            const actionLabelJa = item.defaultActionLabelJa || item.actionLabelJa || k.actionLabelJa || '-';
+            const itemCategory = item.itemCategory || k.category || item.onumCategory || 'OTHER';
 
-                const equipStates = [];
-                if (item.isWielded) equipStates.push('Wielded');
-                if (item.isOffhand) equipStates.push('Offhand');
-                if (item.isQuivered) equipStates.push('Quivered');
-                if (item.isWorn) equipStates.push(`Worn (${item.equipSlot || 'armor'})`);
+            // 1. 識別・BUC・仮名バッジの生成
+            const idBadges = [];
+            const canBeUnid = (k.canBeUnidentified !== undefined) ? !!k.canBeUnidentified : (item.canBeUnidentified !== undefined ? !!item.canBeUnidentified : !!id.isUnidentified);
+            if (canBeUnid) {
+                if (id.isUnidentified) {
+                    idBadges.push(`<span class="k-badge k-badge-id-unid">🔍 未識別 (Lv.${id.idLevel ?? 0})</span>`);
+                } else if (id.idLevel >= 3 || (!id.isUnidentified && id.idLevel !== undefined)) {
+                    idBadges.push(`<span class="k-badge k-badge-id-known">✅ 識別済み (Lv.${id.idLevel ?? 3})</span>`);
+                }
+            }
 
-                return `
-                    <div class="action-card" style="border-left: 4px solid var(--accent-color);">
-                        <div class="action-card-header">
-                            <span class="action-title">[${letter}] ${rawText}</span>
-                            <span class="action-key" style="background:#313244; color:#a6e3a1; font-weight:bold;">${actionLabelJa}</span>
+            const buc = (id.bucStatus || (rawText.includes('blessed') ? 'BLESSED' : rawText.includes('cursed') ? 'CURSED' : rawText.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN')).toUpperCase();
+            if (buc === 'BLESSED') idBadges.push(`<span class="k-badge k-badge-buc-blessed">✨ 祝福 (Blessed)</span>`);
+            else if (buc === 'CURSED') idBadges.push(`<span class="k-badge k-badge-buc-cursed">💀 呪い (Cursed)</span>`);
+            else if (buc === 'UNCURSED' && canBeUnid) idBadges.push(`<span class="k-badge k-badge-buc-uncursed">⚪ 通常 (Uncursed)</span>`);
+
+            if (id.appearanceName) idBadges.push(`<span class="k-badge k-badge-named">🎨 外見: ${id.appearanceName}</span>`);
+            if (id.calledName) idBadges.push(`<span class="k-badge k-badge-named">🏷️ 仮名: ${id.calledName}</span>`);
+            if (item.skillBadge && item.skillBadge.labelJa) {
+                idBadges.push(`<span class="k-badge k-badge-skill">⭐ ${item.skillBadge.labelJa}</span>`);
+            }
+            if (item.isRecommendedWeapon) {
+                idBadges.push(`<span class="k-badge k-badge-skill" style="background:#047857; color:#a7f3d0;">⚔️ おすすめ武器</span>`);
+            }
+
+            // 2. 装備状態
+            const equipBadges = [];
+            if (item.isWielded) equipBadges.push('Wielded (主手)');
+            if (item.isOffhand) equipBadges.push('Offhand (逆手)');
+            if (item.isQuivered) equipBadges.push('Quivered (矢筒)');
+            if (item.isWorn) equipBadges.push(`Worn (${item.equipSlot || 'Armor'})`);
+
+            // 3. スペックバッジ群
+            const specTags = [];
+            const st = k.stats || {};
+            const sdam = st.sdam || k.sdam;
+            const ldam = st.ldam || k.ldam;
+            if (sdam || ldam) {
+                specTags.push(`<span class="k-spec-tag highlight">⚔️ 威力: <strong>${sdam || '-'}/${ldam || '-'}</strong></span>`);
+            }
+            if (st.hands === 2 || k.hands === 2) {
+                specTags.push(`<span class="k-spec-tag" style="border-color:#f97316; color:#fdba74;">👐 <strong>両手持ち (2H)</strong></span>`);
+            }
+            if (st.skill || k.skill) {
+                specTags.push(`<span class="k-spec-tag">🎯 スキル: <strong>${st.skill || k.skill}</strong></span>`);
+            }
+            if (st.hitBonus !== undefined || k.hitBonus !== undefined) {
+                const hb = st.hitBonus ?? k.hitBonus;
+                specTags.push(`<span class="k-spec-tag">🎯 命中: <strong>${hb >= 0 ? '+' + hb : hb}</strong></span>`);
+            }
+
+            const ac = st.ac ?? k.ac;
+            if (ac !== undefined) {
+                specTags.push(`<span class="k-spec-tag highlight">🛡️ AC: <strong>${ac}</strong></span>`);
+            }
+            const mc = st.mc ?? k.mc;
+            if (mc !== undefined && mc > 0) {
+                specTags.push(`<span class="k-spec-tag">🔮 MC: <strong>${mc}</strong></span>`);
+            }
+            if (st.bodySlot || k.armorSlot || item.equipSlot) {
+                specTags.push(`<span class="k-spec-tag">👕 部位: <strong>${st.bodySlot || k.armorSlot || item.equipSlot}</strong></span>`);
+            }
+            if (k.conveys) {
+                specTags.push(`<span class="k-spec-tag" style="border-color:#38bdf8; color:#bae6fd;">✨ 付与: <strong>${k.conveys}</strong></span>`);
+            }
+
+            if (st.charges !== undefined || id.charges !== undefined) {
+                specTags.push(`<span class="k-spec-tag highlight">⚡ チャージ: <strong>${id.charges !== undefined ? id.charges : st.charges}</strong></span>`);
+            }
+            if (st.zapType || k.zapType) {
+                specTags.push(`<span class="k-spec-tag">⚡ 種別: <strong>${st.zapType || k.zapType}</strong></span>`);
+            }
+            if (st.spellLevel !== undefined || k.spellLevel !== undefined) {
+                specTags.push(`<span class="k-spec-tag">📖 Lv.<strong>${st.spellLevel ?? k.spellLevel}</strong> (${st.spellSkill || k.school || '-'})</span>`);
+            }
+            if (st.cost || k.cost) {
+                specTags.push(`<span class="k-spec-tag">💰 価格: <strong>$${st.cost || k.cost}</strong></span>`);
+            }
+            if (st.nutrition || k.nutrition) {
+                specTags.push(`<span class="k-spec-tag">🍖 栄養: <strong>${st.nutrition || k.nutrition} nut</strong></span>`);
+            }
+            if (st.material || k.material) {
+                specTags.push(`<span class="k-spec-tag">🧱 材質: <strong>${st.material || k.material}</strong></span>`);
+            }
+            if (st.weight || k.weight) {
+                specTags.push(`<span class="k-spec-tag">⚖️ 重量: <strong>${st.weight || k.weight} wt</strong></span>`);
+            }
+
+            // 4. フラグ
+            const flagNames = [
+                'isPickAxe', 'isDigWand', 'isDigTool', 'isKey', 'isAxe', 'isFrostWand',
+                'isAmmo', 'isLauncher', 'isCanOpener', 'isTin', 'isBox', 'isBag',
+                'isTouchstone', 'isGem', 'isRock'
+            ];
+            const activeFlags = flagNames.filter(f => item[f] === true || k[f] === true);
+
+            // 5. アクションシーケンス & 代替アクション
+            const defSeq = Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0
+                ? `推奨手順: [ <strong>${item.defaultSequence.join('</strong> ➔ <strong>')}</strong> ]`
+                : `主動詞: <strong>${defaultVerb}</strong> (${verbKey})`;
+
+            let altActionsStr = '';
+            if (Array.isArray(item.alternativeActions) && item.alternativeActions.length > 0) {
+                altActionsStr = item.alternativeActions.map(a => `<span style="background:#27273a; border:1px solid #3b3b54; padding:1px 5px; border-radius:3px;">${a.labelJa || a.label || a.verb} (${a.key || a.verb})</span>`).join(' ');
+            }
+
+            // 6. Tips & Advice (重複の完全排除)
+            let rawTips = (id.identificationTips && id.identificationTips.length > 0)
+                ? id.identificationTips
+                : (id.isUnidentified && k.unidentifiedTips ? (Array.isArray(k.unidentifiedTips) ? k.unidentifiedTips : [k.unidentifiedTips]) : []);
+            const tips = rawTips.map(t => String(t).trim()).filter(Boolean);
+
+            let rawUsage = Array.isArray(k.usageAdvice) ? k.usageAdvice : (k.usageAdvice ? [k.usageAdvice] : []);
+            const tipsSet = new Set(tips);
+            const usageAdv = rawUsage.map(u => String(u).trim()).filter(u => u && !tipsSet.has(u));
+
+            return `
+                <div class="knowledge-card">
+                    <div class="k-card-header">
+                        <div class="k-item-title">
+                            ${letter ? `<span class="k-item-slot">[${letter}]</span>` : ''}
+                            <span>${rawText}</span>
                         </div>
-                        <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px;">
-                            <span style="background:#45475a; color:#cdd6f4; padding:2px 6px; border-radius:3px;">Category: ${itemCategory} (onum: ${onum})</span>
-                            <span style="background:#2d384c; color:#89b4fa; padding:2px 6px; border-radius:3px; font-weight:bold;">defaultVerb: ${defaultVerb} (${verbKey})</span>
-                            ${equipStates.map(eq => `<span style="background:#585b70; color:#f9e2af; padding:2px 6px; border-radius:3px;">${eq}</span>`).join('')}
-                            ${activeFlags.map(flg => `<span style="background:#313244; color:#f5c2e7; padding:2px 6px; border-radius:3px;">flag: ${flg}</span>`).join('')}
+                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                            ${equipBadges.map(eq => `<span class="k-badge k-badge-equip">${eq}</span>`).join('')}
+                            <span class="action-key" style="background:#1e3a8a; color:#93c5fd; font-weight:bold; font-size:12px; padding:3px 8px; border-radius:4px;">
+                                ${actionLabelJa}
+                            </span>
                         </div>
                     </div>
-                `;
-            }).join('');
+
+                    <!-- 識別・属性・カテゴリバッジ -->
+                    <div class="k-badge-row">
+                        <span class="k-badge k-badge-cat">📦 ${itemCategory} (onum: ${onum})</span>
+                        ${idBadges.join('')}
+                    </div>
+
+                    <!-- スペックスペックバッジ群 -->
+                    ${specTags.length > 0 ? `<div class="k-specs-grid">${specTags.join('')}</div>` : ''}
+
+                    <!-- 効果概要・フレーバー -->
+                    ${k.effectSummary ? `
+                        <div class="k-desc-box">
+                            <div><strong>効果概要:</strong> ${k.effectSummary}</div>
+                            ${k.flavorNote ? `<div class="k-flavor-text">※ ${k.flavorNote}</div>` : ''}
+                        </div>
+                    ` : ''}
+
+                    <!-- 鑑定ヒント / テスト手順 -->
+                    ${tips.length > 0 ? `
+                        <div class="k-advice-box">
+                            💡 <strong>鑑定ヒント:</strong> ${tips.join(' / ')}
+                        </div>
+                    ` : ''}
+
+                    <!-- 戦術アドバイス -->
+                    ${usageAdv.length > 0 ? `
+                        <div class="k-usage-box">
+                            📘 <strong>戦術アドバイス:</strong> ${usageAdv.join(' / ')}
+                        </div>
+                    ` : ''}
+
+                    <!-- アクション手順・代替操作・フラグ -->
+                    <div class="k-action-row">
+                        <div style="color: #a6adc8;">${defSeq}</div>
+                        ${altActionsStr ? `<div style="display:flex; gap:4px; align-items:center;"><span style="color:#6c7086;">代替:</span> ${altActionsStr}</div>` : ''}
+                    </div>
+                    ${activeFlags.length > 0 ? `
+                        <div style="font-size: 10px; color: #6c7086; display: flex; gap: 4px; flex-wrap: wrap;">
+                            <span>Active Flags:</span>
+                            ${activeFlags.map(f => `<span style="background:#181825; padding:1px 4px; border-radius:2px; color:#f5c2e7;">${f}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
         }
 
         function queryKnowledge() {
@@ -635,33 +920,23 @@
             
             if (isMonster) {
                 container.innerHTML = `
-                    <div style="background:#181825; border:1px solid var(--accent-color); padding:12px; border-radius:6px;">
-                        <div style="font-weight:bold; color:var(--accent-color); font-size:14px;">🐉 モンスターナレッジ検索結果: [monOffset: ${res.monOffset !== undefined ? res.monOffset : '-'}] ${res.name || 'Monster'}</div>
+                    <div style="background:#181825; border:1px solid var(--accent-color); padding:14px; border-radius:8px;">
+                        <div style="font-weight:bold; color:var(--accent-color); font-size:15px; margin-bottom:8px;">🐉 モンスターナレッジ: [monOffset: ${res.monOffset !== undefined ? res.monOffset : '-'}] ${res.name || 'Monster'}</div>
                         <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px;">
-                            <span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold;">Danger: ${res.dangerLevel || 'LOW'}</span>
-                            <span style="background:${res.defaultPeaceful ? '#22c55e' : '#45475a'}; color:${res.defaultPeaceful ? '#000' : '#fff'}; padding:2px 8px; border-radius:4px; font-weight:bold;">defaultPeaceful: ${!!res.defaultPeaceful}</span>
-                            ${res.dispositionStatus ? `<span style="background:#a855f7; color:#fff; padding:2px 8px; border-radius:4px;">dispositionStatus: ${res.dispositionStatus}</span>` : ''}
+                            <span style="background:#ef4444; color:#fff; padding:3px 8px; border-radius:4px; font-weight:bold;">Danger: ${res.dangerLevel || 'LOW'}</span>
+                            <span style="background:${res.defaultPeaceful ? '#22c55e' : '#45475a'}; color:${res.defaultPeaceful ? '#000' : '#fff'}; padding:3px 8px; border-radius:4px; font-weight:bold;">defaultPeaceful: ${!!res.defaultPeaceful}</span>
+                            ${res.dispositionStatus ? `<span style="background:#a855f7; color:#fff; padding:3px 8px; border-radius:4px;">dispositionStatus: ${res.dispositionStatus}</span>` : ''}
                         </div>
-                        <div style="margin-top:8px; font-size:12px; color:#a6adc8;">
+                        <div style="margin-top:10px; font-size:12px; color:#cdd6f4; line-height:1.6;">
                             <div><strong>Stats:</strong> HD: ${res.stats?.hd ?? '-'}, AC: ${res.stats?.ac ?? '-'}, Speed: ${res.stats?.speed ?? '-'}, MR: ${res.stats?.mr ?? 0}%</div>
-                            ${res.effectSummary ? `<div><strong>Effect:</strong> ${res.effectSummary}</div>` : ''}
+                            ${res.effectSummary ? `<div style="margin-top:6px; background:#11111b; padding:8px; border-radius:4px;"><strong>Effect:</strong> ${res.effectSummary}</div>` : ''}
                         </div>
                     </div>
                 `;
             } else {
                 container.innerHTML = `
-                    <div style="background:#181825; border:1px solid var(--accent-color); padding:12px; border-radius:6px;">
-                        <div style="font-weight:bold; color:var(--accent-color); font-size:14px;">🎒 アイテムナレッジ検索結果: [onum: ${res.onum !== undefined ? res.onum : '-'}] ${res.name || 'Item'}</div>
-                        <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px;">
-                            <span style="background:#2d384c; color:#89b4fa; padding:2px 8px; border-radius:4px; font-weight:bold;">defaultVerb: ${res.defaultVerb || '-'} (${res.verbKey || '-'})</span>
-                            <span style="background:#313244; color:#a6e3a1; padding:2px 8px; border-radius:4px;">actionLabelJa: ${res.actionLabelJa || '-'}</span>
-                            <span style="background:#45475a; color:#cdd6f4; padding:2px 8px; border-radius:4px;">Category: ${res.category || '-'}</span>
-                        </div>
-                        <div style="margin-top:8px; font-size:12px; color:#a6adc8;">
-                            <div><strong>Effect Summary:</strong> ${res.effectSummary || '-'}</div>
-                            <div><strong>Flavor Note:</strong> ${res.flavorNote || '-'}</div>
-                        </div>
-                    </div>
+                    <div style="margin-bottom:8px; font-weight:bold; color:var(--accent-color);">🎒 ナレッジ検索結果:</div>
+                    ${createRichItemKnowledgeCard({ knowledge: res, name: res.name, onum: res.onum, itemCategory: res.category, defaultVerb: res.defaultVerb, verbKey: res.verbKey, actionLabelJa: res.actionLabelJa }, true)}
                 `;
             }
         }

@@ -9,6 +9,7 @@ import { ContextActionEngine } from './ContextActionEngine.js';
 import { RequestController } from './RequestController.js';
 import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
+import { DiscoveryStateManager } from './DiscoveryStateManager.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -48,9 +49,16 @@ export class GKLPlugin {
             this.areaStateManager.setKeyMode(mode);
         }
 
+        this.discoveryStateManager = options.discoveryStateManager || new DiscoveryStateManager();
+
         this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
-            translationEngine: options.translationEngine || null
+            translationEngine: options.translationEngine || null,
+            discoveryStateManager: this.discoveryStateManager
         });
+
+        if (this.structuredKnowledge && typeof this.structuredKnowledge.setDiscoveryStateManager === 'function') {
+            this.structuredKnowledge.setDiscoveryStateManager(this.discoveryStateManager);
+        }
 
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
             this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
@@ -63,6 +71,7 @@ export class GKLPlugin {
         this.requestController = null;
         this.lookService = new OnDemandLookService();
         this._isSyncing = false;
+        this._isSyncingDiscoveries = false;
     }
 
     /**
@@ -132,13 +141,29 @@ export class GKLPlugin {
             }
         });
 
-        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算
+        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算 ＆ 鑑定済みアイテムの DiscoveryCache 学習
         core.on('inventoryStateUpdated', (invMgr) => {
+            const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
             if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
-                const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
                 this.attributeStateManager.updateExtrinsicsFromInventory(items);
             }
+            if (this.discoveryStateManager && Array.isArray(items)) {
+                for (const item of items) {
+                    if (item && item.onum >= 0 && item.identification && !item.identification.isUnidentified) {
+                        this.discoveryStateManager.registerKnownItem(item.onum, item.rawText);
+                    }
+                }
+            }
         });
+
+        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期
+        const triggerDiscoverySync = () => {
+            this.syncDiscoveriesSilent();
+        };
+        core.on('game_ready', triggerDiscoverySync);
+        core.on('game_started', triggerDiscoverySync);
+        core.on('restore', triggerDiscoverySync);
+        core.on('game_restored', triggerDiscoverySync);
 
         // 4. カーソル位置・プレイヤー移動の同期
         const handlePlayerPosUpdate = (data) => {
@@ -522,6 +547,39 @@ export class GKLPlugin {
         }
         this.core.sendActionKey(mainKey);
         return true;
+    }
+
+    /**
+     * 発見済みアイテムリスト (Discoveries `\`) のバックグラウンド自動同期・リハイドレーション
+     * @returns {Promise<boolean>}
+     */
+    async syncDiscoveriesSilent() {
+        if (!this.core || this._isSyncingDiscoveries) return false;
+        this._isSyncingDiscoveries = true;
+
+        try {
+            if (typeof this.core.silentQuery === 'function') {
+                const buffer = await this.core.silentQuery(['\\', ' ']);
+                if (buffer && this.discoveryStateManager) {
+                    this.discoveryStateManager.updateFromDiscoveriesText(buffer);
+                    this.core.emit('discoveriesSynced', this.discoveryStateManager);
+                    return true;
+                }
+            } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+                this.core.driver.queueSequence(['\\', ' '], { silent: true });
+                const buffer = this.core.driver.getLastSequenceBuffer ? this.core.driver.getLastSequenceBuffer() : null;
+                if (buffer && this.discoveryStateManager) {
+                    this.discoveryStateManager.updateFromDiscoveriesText(buffer);
+                    this.core.emit('discoveriesSynced', this.discoveryStateManager);
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.warn('[GKLPlugin] syncDiscoveriesSilent error:', e);
+        } finally {
+            this._isSyncingDiscoveries = false;
+        }
+        return false;
     }
 
     /**

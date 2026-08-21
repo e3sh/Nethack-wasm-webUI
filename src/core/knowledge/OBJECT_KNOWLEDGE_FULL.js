@@ -501,6 +501,15 @@ export function initFullObjectKnowledge() {
         const itemInfo = getItemInfoFromOnum(i);
         const verbInfo = getDefaultVerbForObject(i, category, itemInfo, detail);
 
+        // 🎲 ランダム外見・鑑定概念を持つアイテムかどうかの判定 (Single Source of Truth)
+        const RANDOM_CATEGORIES = new Set(['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK', 'GEM']);
+        let canBeUnidentified = RANDOM_CATEGORIES.has(category);
+        if (!canBeUnidentified && category !== 'FOOD' && category !== 'GOLD') {
+            if (tileName.includes('/') || base.descr || detail.canBeUnidentified === true) {
+                canBeUnidentified = true;
+            }
+        }
+
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
@@ -508,6 +517,7 @@ export function initFullObjectKnowledge() {
             descr: base.descr || null,
             tileName: tileName,
             category: category,
+            canBeUnidentified: !!canBeUnidentified,
             stats: stats,
             // 🎯 確定プロパティのトップレベル展開 (完全型安全・文字列判定脱却用)
             skill: skill,

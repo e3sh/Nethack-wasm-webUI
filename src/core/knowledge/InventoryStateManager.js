@@ -8,6 +8,7 @@
 import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemInfoFromOnum } from './glyphClassifier.js';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { getSkillProficiencyBadge } from './ItemSpecPresenter.js';
+import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentificationResolver.js';
 
 export class InventoryStateManager {
     constructor(options = {}) {
@@ -77,21 +78,26 @@ export class InventoryStateManager {
 
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
                 const equipState = this.parseEquipState(rawText);
+                const identification = ItemIdentificationResolver.resolve({
+                    rawText,
+                    onum,
+                    glyphId
+                });
 
                 // 🎯 ナレッジ自動物理アタッチ (DevTool Inspector & クライアントデータ連携の要)
                 let knowledge = mi.knowledge || null;
                 if (!knowledge && this.structuredKnowledgeEngine) {
                     if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
                         knowledge = this.structuredKnowledgeEngine.getKnowledge(mi) ||
-                                    this.structuredKnowledgeEngine.getKnowledge(onum >= 0 ? onum : rawText, { translate: true });
+                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { translate: true });
                     }
                 }
-                if (!knowledge && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+                if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
                     knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
                 }
 
                 let skillBadge = null;
-                if (knowledge && this.skillStateManager) {
+                if (knowledge && this.skillStateManager && !identification.isUnidentified) {
                     skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager);
                 }
 
@@ -100,9 +106,10 @@ export class InventoryStateManager {
                     rawText,
                     glyphId,
                     onum,
+                    identification,
                     knowledge,
                     skillBadge,
-                    isRecommendedWeapon: Boolean(skillBadge && skillBadge.isProficient),
+                    isRecommendedWeapon: Boolean(skillBadge && skillBadge.isProficient && !identification.isUnidentified),
                     ...categoryFlags,
                     ...equipState
                 });

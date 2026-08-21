@@ -724,6 +724,80 @@ body {
   color: #ffffff;
 }
 
+/* 右肩 BUC / 鑑定状態バッジ */
+.gkl-slot-buc-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: 900;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  text-align: center;
+  border-radius: 50%;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gkl-slot-buc-badge.badge-buc-unid {
+  background: #eab308;
+  color: #000000;
+}
+
+.gkl-slot-buc-badge.badge-buc-cursed {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.gkl-slot-buc-badge.badge-buc-blessed {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+/* ナレッジカードのBUC & 識別状態バッジ */
+.kn-status-badge.kn-status-unid {
+  background: rgba(234, 179, 8, 0.2);
+  border-color: #eab308;
+  color: #fde047;
+}
+
+.kn-status-badge.kn-status-known {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.kn-status-badge.kn-status-blessed {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #93c5fd;
+  font-weight: bold;
+}
+
+.kn-status-badge.kn-status-cursed {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+  font-weight: bold;
+}
+
+.kn-status-badge.kn-status-uncursed {
+  background: rgba(100, 116, 139, 0.2);
+  border-color: #64748b;
+  color: #cbd5e1;
+}
+
+.kn-status-badge.kn-status-named {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #d8b4fe;
+}
+
 
 .gkl-slot-icon {
   width: 32px;

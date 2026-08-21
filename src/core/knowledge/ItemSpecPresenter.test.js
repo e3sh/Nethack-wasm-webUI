@@ -117,4 +117,50 @@ describe('ItemSpecPresenter Adaptive Formatting', () => {
         const unlearnedBadge = getSkillProficiencyBadge(twoHandedSword, skillManager);
         expect(unlearnedBadge).toBeNull();
     });
+
+    it('should generate masked specs and identification badges for unidentified items', () => {
+        const unidentifiedPotion = {
+            id: 'unidentified_potion',
+            name: 'ruby potion',
+            category: 'POTION',
+            isUnidentified: true,
+            appearanceName: 'ruby potion',
+            calledName: 'healing?',
+            bucStatus: 'BLESSED',
+            unidentifiedTips: ['流し台(#apply sink)でテスト可能']
+        };
+
+        const specs = getAdaptiveItemSpecs(unidentifiedPotion);
+        const ids = specs.map(s => s.id);
+
+        expect(ids).toContain('identification_status');
+        expect(ids).toContain('appearance');
+        expect(ids).toContain('calledName');
+        expect(ids).toContain('bucStatus');
+        expect(ids).toContain('idTip');
+
+        const statusSpec = specs.find(s => s.id === 'identification_status');
+        expect(statusSpec.value).toBe('未識別 (Unidentified)');
+
+        const appSpec = specs.find(s => s.id === 'appearance');
+        expect(appSpec.value).toBe('ruby potion');
+
+        const calledSpec = specs.find(s => s.id === 'calledName');
+        expect(calledSpec.value).toBe('healing?');
+
+        const bucSpec = specs.find(s => s.id === 'bucStatus');
+        expect(bucSpec.value).toContain('祝福');
+
+        // 未識別武器のマスク値テスト
+        const unidentifiedWeapon = {
+            id: 'unidentified_weapon',
+            name: 'conical hat',
+            category: 'ARMOR',
+            isUnidentified: true,
+            appearanceName: 'conical hat'
+        };
+        const armorSpecs = getAdaptiveItemSpecs(unidentifiedWeapon);
+        const acSpec = armorSpecs.find(s => s.id === 'ac');
+        expect(acSpec.value).toBe('+? (未鑑定)');
+    });
 });
