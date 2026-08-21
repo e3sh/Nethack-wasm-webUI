@@ -1,9 +1,9 @@
 ---
 title: ArchitectureDecisionRecord
 status: active
-last_updated: 2026-08-15
+last_updated: 2026-08-21
 related_code:
-  - src/gkl/
+  - src/core/knowledge/
 ---
 
 # Game Knowledge Layer (GKL) アーキテクチャ決定記録 (ADR)
@@ -36,25 +36,28 @@ related_code:
 ### 1.5 `WebUICore` と GKL の責務分離 (SoC) と 汎用サイレントクエリ (`querySequenceSilent`)
 - **`WebUICore` の純粋汎用インフラ化**:
   - `WebUICore` はゲームルールやインベントリ等のドメイン知識を一切持たない純粋な通信インフラ層とし、Cコアへの汎用サイレント問い合わせ API `querySequenceSilent(tokens, options)` および直近バッファアクセサ `getLastSequenceBuffer()` のみを提供する。
-  - `querySequenceSilent(['i', ' '])` や `querySequenceSilent(['+', ' '])` を呼び出すことで、画面非表示で自走実行し、シーケンス完了時に実行結果バッファ（`buffer`）を Promise の戻り値として直接受領する統一パイプラインを確立（`getLastSequenceBuffer()` の手動ポーリングは不要）。
+  - `querySequenceSilent(['i', ' '])` や `querySequenceSilent(['+', ' '])`、`querySequenceSilent(['#', 'enhance', ' '])` などを呼び出すことで、画面非表示で自走実行し、シーケンス完了時に実行結果バッファ（`buffer`）を Promise の戻り値として直接受領する統一パイプラインを確立（`getLastSequenceBuffer()` の手動ポーリングは不要）。
 
 ### 1.6 GKL 統合状況アクセサ (`SituationCache`) と 4 層パイプライン構造
 - **GKL の階層化と統一アクセサの導入**:
-  - GKL を 1. 統合状況キャッシュ層 (`SituationCache`), 2. 知識補完層, 3. 操作支援・推論層 (`ContextActionEngine`), 4. 自走実行制御層 (`RequestController`) の 4 層モデルとして整理。
-  - `SituationCache` は `StatusAccessor` (ステータス/状態異常等), `InventoryStateManager` (所持品/ツール等), `AreaStateManager` (マップ/位置情報) を統一ファサードとして一括束ね、UI クライアント（常時表示ボタン、独自ステータス UI）や AI Agent に `getSituation()` で現況データ `{ status, inventory, area, tools, actions }` を一括提供する。
+  - GKL を 1. 統合状況キャッシュ層 (`SituationCache`), 2. 知識補完・静的辞書層 (`StructuredKnowledgeEngine`, `OBJECT_KNOWLEDGE_FULL`, `MONSTER_KNOWLEDGE_FULL`), 3. 操作支援・推論層 (`ContextActionEngine`, `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookService`), 4. 自走実行制御層 (`RequestController`) の 4 層モデルとして整理。
+  - `SituationCache` は `StatusAccessor` (ステータス/状態異常等), `InventoryStateManager` (所持品/ツール等), `AreaStateManager` (マップ/位置情報), `SpellStateManager` (習得魔法/詠唱成功率), `AttributeStateManager` (`^X` 耐性/固有能力), `SkillStateManager` (`#enhance` スキル熟練度), `DiscoveryStateManager` (`\` 発見/鑑定台帳) を統一ファサードとして一括束ね、UI クライアント（常時表示ボタン、独自ステータス UI）や AI Agent に `getSituation()` で現況データを一括提供する。
 
 ### 1.8 `WebUICore` (インフラ層) と GKL (知識・制御層) の完全層別分離およびモジュール切り離し方針 (Decoupled Module Architecture)
 - **知識ロジック密結合の排除と完全疎結合化**:
-  - `WebUICore` は Wasm Cコアとの低レイヤー通信・イベント仲介・レンダリング・翻訳・ウィンドウ管理に専念する「通信・UIインフラ基盤」とし、内部に GKL のドメイン知識（`inventoryStateManager` のトリガーロジックや `isNonItemSequence` などの高度なキー判断）を直接ハードコードしない。
-  - GKL モジュール群 (`RequestController`, `InventoryStateManager`, `AreaStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベント (`inputRequired`, `putstr`, `sequenceFinished` 等) を外部からイベントリスナーとしてバインド・アタッチする「独立拡張モジュール/プラグイン」構成とし、どちらの改修も相互に干渉しない綺麗な層分け設計（Separation of Concerns）を徹底する。
+  - `WebUICore` は Wasm Cコアとの低レイヤー通信・イベント仲介・レンダリング・翻訳・ウィンドウ管理に専念する「通信・UIインフラ基盤」とし、内部に GKL のドメイン知識を直接ハードコードしない。
+  - GKL モジュール群 (`RequestController`, `InventoryStateManager`, `AreaStateManager`, `SpellStateManager`, `AttributeStateManager`, `SkillStateManager`, `DiscoveryStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベント (`inputRequired`, `putstr`, `sequenceFinished` 等) を外部からイベントリスナーとしてバインド・アタッチする「独立拡張モジュール/プラグイン」構成とし、どちらの改修も相互に干渉しない綺麗な層分け設計（Separation of Concerns）を徹底する。
 
 ### 1.9 アーキテクチャ階層化モデル: 通信インフラ層 ➔ 知識層 (GKL) ➔ 戦略層 (Strategy/Action)
 - **3 レイヤーへの明確な概念再構築**:
-  1. **【低レイヤー / 通信・UIインフラ層 (Infrastructure)】 (`WebUICore`)**:
+  1. **【低レイヤー / 通信・UIインフラ層 (Infrastructure)】 (`WebUICore`, `NetHackWasmDriver`)**:
      - Wasm Cコアとの入出力、描画、キーマッピング、テキストウィンドウ等の純粋基盤。
-  2. **【知識層 / 事実保持・同期 (Knowledge - True GKL)】 (`InventoryStateManager`, `AreaStateManager`, `StatusAccessor`, `SituationCache`)**:
-     - 現状のゲーム世界の事実（所持品、マップ、ステータス）の最新化と保持・管理に専念。
-  3. **【戦略層 / 推論・意思決定 (Strategy / Action)】 (`ContextActionEngine`, `DirectionalActionResolver`, `RequestController`, AI Agent)**:
+  2. **【知識層 / 事実保持・同期 (Knowledge - True GKL)】**:
+     - **動的状態管理**: `InventoryStateManager`, `AreaStateManager`, `StatusAccessor`, `SpellStateManager`, `AttributeStateManager`, `SkillStateManager`, `DiscoveryStateManager`, `SituationCache`
+     - **静的ドメイン知識**: `StructuredKnowledgeEngine`, `glyphClassifier`, `OBJECT_KNOWLEDGE_FULL`, `MONSTER_KNOWLEDGE_FULL`
+     - **知識解決・整形**: `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookService`
+     - 現状のゲーム世界の事実（所持品、マップ、ステータス、耐性、魔法、鑑定状態）の最新化と保持・管理に専念。
+  3. **【戦略層 / 推論・意思決定 (Strategy / Action)】 (`ContextActionEngine`, `RequestController`, AI Agent)**:
      - 知識層から得た「状況 (Situation)」を評価インプットとし、次に何をすべきかの推論・推薦・アクション選択・自走実行を行う戦略モデル。
 
 ---

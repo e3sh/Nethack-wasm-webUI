@@ -112,11 +112,11 @@
 
 ## 4. 段階的実装ロードマップ
 
-| フェーズ | 施策内容 | 主な成果物 |
+| フェーズ | 施策内容 | 実装ステータス ＆ 主な成果物 |
 | :--- | :--- | :--- |
-| **Phase 1: 情報取得・同期基盤の構築** | ・`SpellStateManager.js` の新設 (`+` キー同期)<br>・`AttributeStateManager.js` の新設 (`^X` 自律同期)<br>・`InventoryStateManager` の未識別（鑑定未済）ステート拡張 | 魔法習得リストおよび耐性・能力の GKL キャッシュ化 |
-| **Phase 2: アイテムスマートガード・未識別判定 ＆ 魔法推奨の統合** | ・コンテキスト連動型アイテムガイド（無駄使い防止・毒/HP低下時の緊急ハイライト）の導入<br>・未識別リスク警告 ＆ 識別アクションの促進ロジック組み込み<br>・`ContextActionEngine.js` への魔法・アイテム評価ロジック統合 | アイテム誤操作防止・鑑定ガイド ＆ 魔法使い職等の基本戦術アクション提示 |
-| **Phase 3: 高度戦術・環境脅威度＆演出連携** | ・敵耐性と自己耐性を考慮した自爆回避・属性攻撃判定<br>・`dangerLevel` や地形ハザードと連携した UI/カメラ演出機能 | 全職業・全状況に対応した完全版推論エンジン ＆ 演出強化 |
+| **Phase 1: 情報取得・同期基盤の構築** | ・`SpellStateManager.js` の新設 (`+` キー同期)<br>・`AttributeStateManager.js` の新設 (`^X` 自律同期 ＋ 装備耐性自動合算)<br>・`DiscoveryStateManager.js` の新設 (`\` 発見台帳同期) | **【✅ 実装完了】**<br>[`SpellStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SpellStateManager.js)<br>[`AttributeStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/AttributeStateManager.js)<br>[`DiscoveryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/DiscoveryStateManager.js) |
+| **Phase 2: 識別判定・スキル連動・Look調査 ＆ 魔法評価の統合** | ・未識別/価格識別/確定識別の厳密判定<br>・スキル熟練度 (`#enhance`) の自律同期<br>・オンデマンドLook (`;`) 調査サービス<br>・UIスペック提示成形 (`ItemSpecPresenter`)<br>・`ContextActionEngine.js` への戦術スコアリング統合 | **【✅ 実装完了】**<br>[`ItemIdentificationResolver.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ItemIdentificationResolver.js)<br>[`SkillStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SkillStateManager.js)<br>[`OnDemandLookService.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/OnDemandLookService.js)<br>[`ItemSpecPresenter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ItemSpecPresenter.js) |
+| **Phase 3: 高度戦術演出・環境脅威度＆カメラ演出連携** | ・敵耐性と自己耐性を考慮した自爆回避・属性攻撃判定<br>・`dangerLevel` や地形ハザードと連携した UI/カメラパルス演出機能 | **【進行中 / 計画中 (Planned)】**<br>全職業・全状況に対応した演出強化 ＆ UI連動 |
 
 ---
 
@@ -234,6 +234,6 @@ $$\text{AdviceScore} = (\text{緊急度} \times \text{危険度}) + \text{期待
    NetHack の仕様上、鉄・金属製防具（Metallic Armor/Helm/Shield）を着用すると魔法詠唱失敗率が激増するため、`SpellStateManager` と連携し、「⚠️ 鉄製防具により魔法失敗率上昇中 ➔ ローブ / 非金属防具への着替え (`T` / `W`)」をスマートガイダンスとして注意喚起。
 
 ---
-*更新日: 2026-08-20 (スキル熟練度管理・構造化ナレッジ連携具体案を追記)*  
+*更新日: 2026-08-21 (Phase 1/Phase 2 実装完了ステータス反映)*  
 *保存先: `docs/3_gkl/gkl_action_enhancement_proposal.md`*
 

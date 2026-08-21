@@ -27,15 +27,15 @@
 ## 3. 実装マイルストーン (Implementation Milestones)
 
 ### Phase 1: ナレッジマスターデータへの推奨動詞 (`defaultVerb`) 定義の拡充
-- **対象ファイル**: [`src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js`](file:///c:/Users/e3-sh/Documents/GitHub/NetHack-wasm-webUI/src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js)
+- **対象ファイル**: [`src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js`](/src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js)
 - **内容**: 全 481 アイテムの定義に対し、標準的な操作動詞 `defaultVerb` (例: 武器➔`wield`, 防具➔`wear`, 薬➔`quaff`, 巻物➔`read`, 杖➔`zap`, ツルハシ/鍵➔`apply`) を定義。
 
 ### Phase 2: `InventoryStateManager.js` のデータ駆動化
-- **対象ファイル**: [`src/core/knowledge/InventoryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/NetHack-wasm-webUI/src/core/knowledge/InventoryStateManager.js)
+- **対象ファイル**: [`src/core/knowledge/InventoryStateManager.js`](/src/core/knowledge/InventoryStateManager.js)
 - **内容**: ハードコード分岐を廃止し、`item.knowledge` から `defaultVerb` および `actionLabelJa` を読み込んで `defaultSequence` を動的に自動算出する処理へ移行。
 
 ### Phase 3: `ContextActionEngine.js` のナレッジ参照一元化
-- **対象ファイル**: [`src/core/knowledge/ContextActionEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/NetHack-wasm-webUI/src/core/knowledge/ContextActionEngine.js)
+- **対象ファイル**: [`src/core/knowledge/ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js)
 - **内容**: 足元・隣接エンティティからのアクション生成時に、ナレッジオブジェクトの `category` や `effectSummary` を参照してプライオリティ判定を一元化。
 
 ### Phase 4: 全自動テストによる回帰検証

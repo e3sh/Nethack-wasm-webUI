@@ -1,3 +1,15 @@
+---
+title: GKL Structured Knowledge データ参照・利用ガイド (Usage Guide)
+status: active
+last_updated: 2026-08-21
+related_code:
+  - src/core/knowledge/StructuredKnowledgeEngine.js
+  - src/core/knowledge/GKLPlugin.js
+  - src/core/knowledge/ItemSpecPresenter.js
+  - src/core/knowledge/ItemIdentificationResolver.js
+  - src/core/knowledge/OnDemandLookService.js
+---
+
 # GKL Structured Knowledge データ参照・利用ガイド (Usage Guide)
 
 ## 1. はじめに (Overview)
@@ -27,103 +39,61 @@ const knowledge = core.gkl.getKnowledge(glyphId, { translate: true });
 const knowledge = gklPlugin.structuredKnowledge.getKnowledge(glyphId, { translate: true });
 ```
 
-### パターン 2: 所持品アイテムから物理アタッチデータ (`item.knowledge`) を直接使う
-`InventoryStateManager` によってパースされた全所持品アイテムには、あらかじめ `item.knowledge` が添付されています。
+### パターン 2: UIスペック整形プレゼンター (`ItemSpecPresenter`) を使う
+アイテムオブジェクトから、鑑定状態や強化値を考慮した表示用スペック一式（ヘッダー、d値、AC、特効、警告文）を 1 呼び出しで取得します。
 
 ```javascript
-// 所持品一覧 (items) から直接参照
 const item = core.gkl.inventoryStateManager.items[0];
+const spec = core.gkl.itemSpecPresenter.present(item);
 
-console.log(item.knowledge.name);            // 例: "silver arrow" (銀の矢)
-console.log(item.knowledge.stats.sdam);      // 例: "1d6+1" (小型攻撃力)
-console.log(item.knowledge.unidentifiedTips);// 例: ["銀は触れるだけで邪悪な存在を焼き灼く..."]
+console.log(spec.header);        // 例: "長剣 (long sword) +1"
+console.log(spec.damageSmall);    // 例: "1d8+1"
+console.log(spec.damageLarge);    // 例: "1d12+1"
+console.log(spec.warning);        // 例: "⚠️ 未識別 (麻痺・毒・呪いのリスクあり)"
+console.log(spec.effectSummary);  // 例: "標準的な片手剣。..."
 ```
 
-### パターン 3: AI プロンプトペイロード (`PromptPayloadBuilder`) で使う
-SituationSnapshot 生成時、プレイヤーの周辺状況 (`surroundings`) や所持品アイテムにナレッジが自動的に統合されます。
+### パターン 3: アイテムの識別状態 (`ItemIdentificationResolver`) を直接判定
+```javascript
+import { ItemIdentificationResolver } from './core/knowledge/ItemIdentificationResolver.js';
 
-周囲にいる敵（モンスター）や地形（階段・罠・扉など）に対しても、**プロンプト用ペイロードおよびUI描画の両方で 100% 自動的にナレッジが付加** されます。
+const status = core.gkl.itemIdentificationResolver.resolveStatus(item);
+// 返り値: 'FULLY_IDENTIFIED' | 'PRICE_IDENTIFIED' | 'UNIDENTIFIED'
+
+if (status === 'UNIDENTIFIED') {
+  console.log("未識別アイテムです。リスク警告を表示します。");
+}
+```
+
+### パターン 4: オンデマンド Look 調査 (`OnDemandLookService`) を使う
+任意のマス (x, y) に対して Look (`;`) コマンドをサイレント実行し、詳細テキストを非同期に取得します。
 
 ```javascript
-const snapshot = promptPayloadBuilder.buildSnapshot();
+const lookResult = await core.gkl.onDemandLookService.lookAt(targetX, targetY);
+console.log("調査結果テキスト:", lookResult.text);
+```
 
-// 1. 周囲の敵 (モンスター) のナレッジ参照
-const enemy = snapshot.surroundings.find(e => e.type === 'MONSTER');
-console.log(enemy.knowledge.dangerLevel);   // 例: "LOW"
-console.log(enemy.knowledge.tacticalAdvice);// 例: ["距離を保って矢で攻撃しましょう"]
+### パターン 5: 統合状況 (`getSituation`) から魔法・耐性・スキルを参照
+```javascript
+const situation = core.getSituation();
 
-// 2. 周囲の地形 (階段・扉等) のナレッジ参照
-const stairs = snapshot.surroundings.find(e => e.category === 'STAIRS');
-console.log(stairs.knowledge.effectSummary); // 例: "'>' キーを押すことで、より深い階層へ移動します"
+// 1. 習得魔法リスト
+situation.spells.forEach(spell => {
+  console.log(`${spell.name} (Lv.${spell.level}) - 失敗率 ${spell.failRate}%`);
+});
+
+// 2. 属性耐性 (内在 + 装備合算)
+if (situation.attributes.resistances.fire) {
+  console.log("火炎耐性を保持中（Fireball自爆安全）");
+}
+
+// 3. 向上可能スキル
+const upgradeableSkills = situation.skills.filter(s => s.canEnhance);
 ```
 
 ---
 
-## 3. ナレッジデータの構造モデル (Data Schema)
-
-`getKnowledge()` または `item.knowledge` から返されるデータオブジェクトの構造です。
-
-### 3.1 モンスターナレッジ (`ENTITY_TYPES.MONSTER`)
-```json
-{
-  "name": "kobold (コボルド)",
-  "category": "MONSTER",
-  "dangerLevel": "LOW",
-  "stats": {
-    "hd": 1,
-    "ac": 10,
-    "speed": 6,
-    "mr": 0
-  },
-  "corpseInfo": {
-    "warningNote": "毒持ちの肉である可能性があります。"
-  },
-  "effectSummary": "ダンジョンの序盤に現れる小型のモンスター。",
-  "tacticalAdvice": [
-    "距離を保って間合いを詰めて攻撃しましょう。",
-    "矢や投げナイフなどの遠距離攻撃が有効です。"
-  ]
-}
-```
-
-### 3.2 アイテムナレッジ (`ENTITY_TYPES.ITEM`)
-```json
-{
-  "name": "silver arrow (銀の矢)",
-  "category": "WEAPON",
-  "isUnidentified": false,
-  "stats": {
-    "sdam": "1d6+1",
-    "ldam": "1d6+1",
-    "ac": undefined,
-    "material": "silver",
-    "hands": 1
-  },
-  "bucEffects": {
-    "blessed": "命中率とダメージが向上します。",
-    "uncursed": "通常の効果です。",
-    "cursed": "射撃時に一定確率で外れます。"
-  },
-  "effectSummary": "銀製の矢。邪悪な怪物に対して追加の特効傷害を与えます。",
-  "flavorNote": "\"Silver burns evil entities on touch...\"",
-  "unidentifiedTips": [
-    "銀製品は触れるだけで一部の怪物を焼き灼きます。"
-  ]
-}
-```
-
-### 3.3 地形ナレッジ (`ENTITY_TYPES.TERRAIN`)
-```json
-{
-  "name": "staircase down (下り階段)",
-  "category": "STAIRS",
-  "effectSummary": "'>' キーを押すことで、より深いダンジョン階層へと移動します。"
-}
-```
-
----
-
-## 4. UI レンダリングでの利用パターン (UI Client Patterns)
+## 3. UI レンダリングでの利用パターン (UI Client Patterns)
 
 ### パターン A: ターゲットナレッジカードの描画 (HTML/DOM レンダリング)
 
@@ -135,29 +105,37 @@ function renderKnowledgeCard(target) {
     return;
   }
 
-  // 1. オブジェクトまたは Glyph ID からナレッジを取得
-  const data = (typeof target === 'object' && target.knowledge)
-    ? target.knowledge
-    : core.gkl.getKnowledge(target, { translate: true });
+  // 1. アイテムオブジェクトの場合は ItemSpecPresenter で成形
+  if (typeof target === 'object' && target.letter) {
+    const spec = core.gkl.itemSpecPresenter.present(target);
+    container.innerHTML = `
+      <div class="card item-card">
+        <h3>${spec.header}</h3>
+        ${spec.damageSmall ? `<p>⚔️ 攻撃力: ${spec.damageSmall} (対大: ${spec.damageLarge})</p>` : ''}
+        ${spec.ac !== undefined ? `<p>🛡️ 防御力: AC ${spec.ac}</p>` : ''}
+        ${spec.warning ? `<p class="warning">${spec.warning}</p>` : ''}
+        <p>${spec.effectSummary || ''}</p>
+      </div>`;
+    return;
+  }
 
+  // 2. モンスターまたは地形の場合は getKnowledge で取得
+  const data = core.gkl.getKnowledge(target, { translate: true });
   if (!data) return;
 
-  // 2. モンスターカード vs アイテム/地形カードの条件分岐描画
   if (data.dangerLevel) {
     // モンスターカード描画
     container.innerHTML = `
-      <div class="card">
-        <h3>${data.name} <span class="badge">${data.dangerLevel}</span></h3>
+      <div class="card monster-card">
+        <h3>${data.name} <span class="badge ${data.dangerLevel}">${data.dangerLevel}</span></h3>
         <p>HD:${data.stats.hd} AC:${data.stats.ac} Spd:${data.stats.speed}</p>
         <p>${data.effectSummary}</p>
       </div>`;
   } else {
-    // アイテム・地形カード描画
+    // 地形カード描画
     container.innerHTML = `
-      <div class="card">
-        <h3>${data.name} <span class="badge">${data.category}</span></h3>
-        ${data.stats?.sdam ? `<p>⚔️ 攻撃力: ${data.stats.sdam}</p>` : ''}
-        ${data.stats?.ac !== undefined ? `<p>🛡️ 防御力: AC ${data.stats.ac}</p>` : ''}
+      <div class="card terrain-card">
+        <h3>${data.name}</h3>
         <p>${data.effectSummary || ''}</p>
       </div>`;
   }
@@ -186,9 +164,9 @@ zoomCanvas.addEventListener('mousemove', (e) => {
 });
 ```
 
-### パターン C: IconInventory スロットでのツールチップ ＆ ナレッジ表示
+### パターン C: IconInventory スロットでのツールチップ ＆ ワンタップ操作
 
-所持品アイコンにマウスを乗せた時、ツールチップとサイドバーナレッジを同時更新します。
+所持品アイコンにマウスを乗せた時、スペックカードを即時表示し、クリックで推奨操作を実行します。
 
 ```javascript
 items.forEach(item => {
@@ -196,11 +174,11 @@ items.forEach(item => {
   
   // ホバー時：ナレッジカードとツールチップの更新
   slot.onmouseenter = () => {
-    renderKnowledgeCard(item); // item.knowledge が参照される
+    renderKnowledgeCard(item);
     showTooltip(item.rawText);
   };
   
-  // クリック時：ワンタップ推奨操作 (例: 装備/使用/掘削) の発火
+  // クリック時：ワンタップ推奨操作 (例: 装備/使用/解錠) の発火
   slot.onclick = () => {
     core.executeSequence(item.defaultSequence || [item.letter]);
   };
@@ -209,6 +187,6 @@ items.forEach(item => {
 
 ---
 
-## 5. まとめ
+## 4. まとめ
 
-Structured Knowledge は、複雑な NetHack の内部パラメータを整理し、**「1つの統一アクセサ `getKnowledge` または `item.knowledge` を呼ぶだけ」** で、直ちに UI レンダリングや AI プロンプトに活用できる美しいクリーン設計となっています。
+Structured Knowledge は、複雑な NetHack の内部パラメータを整理し、**「`getKnowledge` や `ItemSpecPresenter`、`getSituation` を呼ぶだけ」** で、直ちに UI レンダリングや AI 推論に活用できるクリーン設計となっています。
