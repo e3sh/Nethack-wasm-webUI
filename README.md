@@ -1,6 +1,6 @@
 # NetHack WASM WebUI
 
-NetHack 5.0 (および NetHackJP) を WebAssembly にコンパイルし、Web Worker と共通コア `WebUICore` を通じてブラウザ上で動作・操作できるようにしたプロジェクトです。
+NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `WebUICore` を通じてブラウザ上で動作・操作できるようにしたプロジェクトです。
 
 コア層で入出力や状態管理、日本語翻訳、音響、補助機能（GKL）をまとめて扱えるように設計されており、Pure JS や各種モダンフレームワーク（Vue, React, Svelte, SolidJS）から利用できます。
 
@@ -34,7 +34,6 @@ NetHack 5.0 (および NetHackJP) を WebAssembly にコンパイルし、Web Wo
 | ディレクトリ | 構成 | 説明 |
 | :--- | :--- | :--- |
 | `examples/gkl-pure-js-client` | Vanilla JS / CSS | 推奨アクション提示・ズームカメラ・アイコンインベントリを含む実装 |
-| `examples/gkl-dom-client` | DOM Grid | DOM グリッドベースの描画クライアント |
 | `examples/vue-client` | Vue 3 + TypeScript | Vue 3 と Pinia による実装 |
 | `examples/react-client` | React 18 + TypeScript | React 18 と Zustand による実装 |
 | `examples/svelte-client` | Svelte + TypeScript | Svelte による実装 |
