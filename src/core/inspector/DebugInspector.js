@@ -252,6 +252,30 @@ export class DebugInspector {
     _bindCoreEvents() {
         if (!this.core || typeof this.core.on !== 'function') return;
 
+        // --- ライフサイクル / 状態遷移イベント ---
+        this.core.on('stateChange', (payload) => {
+            this.broadcastLog('EVENT:stateChange', {
+                state: payload ? payload.state : this.core.state,
+                oldState: payload ? payload.oldState : undefined
+            });
+            this.broadcastState();
+        });
+
+        this.core.on('restarted', () => {
+            this.broadcastLog('EVENT:restarted', {
+                timestamp: Date.now()
+            });
+            this.broadcastState();
+        });
+
+        this.core.on('map_cleared', () => {
+            this.broadcastLog('EVENT:map_cleared', {});
+        });
+
+        this.core.on('inputResolved', () => {
+            this.broadcastLog('EVENT:inputResolved', {});
+        });
+
         // --- Core 高レベルイベントのバインド ---
         this.core.on('inputRequired', (payload) => {
             this.broadcastLog('EVENT:inputRequired', {

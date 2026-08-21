@@ -349,7 +349,7 @@ export class WebUICore {
     activeMenuItems: GUIInputOption[];
 
     start(wasmJsUrl?: string, startOptions?: { numpad?: boolean; number_pad?: boolean; keyMode?: string; forceNewGame?: boolean }): Promise<number>;
-    restart(options?: { clearStorage?: boolean }): Promise<boolean>;
+    restart(options?: { clearStorage?: boolean; autoStart?: boolean; wasmJsUrl?: string; startOptions?: { numpad?: boolean; number_pad?: boolean; keyMode?: string; forceNewGame?: boolean } }): Promise<boolean>;
     destroy(): void;
     getState(): CoreStateType;
     hasSaveData(): boolean;

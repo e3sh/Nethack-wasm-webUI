@@ -226,4 +226,34 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(mockResolver2.respond).toHaveBeenCalledWith(56);
         expect(core.isPendingPrefix).toBe(false); // 方向入力完了でプレフィックス解除
     });
+
+    it('restart: 状態を初期化し、イベントを発行して安全に再起動できること', async () => {
+        const mockDriver = createMockDriver();
+        mockDriver.restart = vi.fn().mockResolvedValue(true);
+        mockDriver.init = vi.fn();
+        mockDriver.start = vi.fn().mockResolvedValue(0);
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.isPendingPrefix = true;
+        core.activeMenuItems = [{ key: 'a', label: 'item' }];
+
+        const stateChanges = [];
+        core.on('stateChange', (payload) => stateChanges.push(payload.state));
+
+        const restartedHandler = vi.fn();
+        core.on('restarted', restartedHandler);
+
+        const mapClearedHandler = vi.fn();
+        core.on('map_cleared', mapClearedHandler);
+
+        // autoStart: false で restart 実行
+        const res = await core.restart({ clearStorage: false, autoStart: false });
+        expect(res).toBe(true);
+        expect(mockDriver.restart).toHaveBeenCalled();
+        expect(core.isPendingPrefix).toBe(false);
+        expect(core.activeMenuItems).toEqual([]);
+        expect(mapClearedHandler).toHaveBeenCalled();
+        expect(restartedHandler).toHaveBeenCalled();
+        expect(stateChanges).toContain('INITIALIZING');
+    });
 });

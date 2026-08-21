@@ -646,15 +646,26 @@ class PureJSClient {
   }
 
   async restartGame() {
-    this.clearAllModals();
+    this.resetUiForNewGame();
+    this.elLoading.classList.remove('hidden');
     this.elGameOverModal.classList.add('hidden');
-    await this.core.restart({ clearStorage: true });
+    this.elSelectorCard.classList.add('hidden');
+    this.elSpinnerBox.classList.remove('hidden');
+
+    await this.core.restart({ clearStorage: false, autoStart: false });
+    await this.bootstrapGame();
   }
 
   async deleteSaveFile() {
     if (confirm("保存されているセーブデータを完全削除し最初から始めますか？")) {
-      await this.core.deleteSaveData();
-      location.reload();
+      this.resetUiForNewGame();
+      this.elLoading.classList.remove('hidden');
+      this.elGameOverModal.classList.add('hidden');
+      this.elSelectorCard.classList.add('hidden');
+      this.elSpinnerBox.classList.remove('hidden');
+
+      await this.core.restart({ clearStorage: true, autoStart: false });
+      await this.bootstrapGame();
     }
   }
 }

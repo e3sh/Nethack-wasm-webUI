@@ -270,35 +270,6 @@ export class WebUICore {
         }
     }
 
-    /**
-     * ページリロード不要で安全にニューゲームを再スタート
-     */
-    async restart() {
-        this.activeResolver = null;
-        this.activeMenuItems = [];
-        this.isPendingPrefix = false;
-        if (this.textWindowManager) {
-            this.textWindowManager.resetAll();
-        }
-        this.lastDlevel = undefined;
-        this.lastDlevelText = undefined;
-        this.statusAccessor = new StatusAccessor();
-
-        if (this.renderer && typeof this.renderer.clearMap === 'function') {
-            this.renderer.clearMap();
-        }
-
-        this.emit('map_cleared');
-        this.emit('inputResolved');
-
-        this._setState(CoreState.INITIALIZING);
-
-        if (typeof this.driver.reset === 'function') {
-            await this.driver.reset();
-        }
-
-        return this.start();
-    }
 
     /**
      * リソース・イベントリスナーの一括安全破棄
@@ -920,6 +891,9 @@ export class WebUICore {
      *
      * @param {Object} [options] - 再起動オプション
      * @param {boolean} [options.clearStorage=false] - true の場合のみ VFS セーブファイルおよびストレージを消去
+     * @param {boolean} [options.autoStart=true] - true の場合、自動的に Wasm の再起動 (start) を実行する
+     * @param {string} [options.wasmJsUrl='nethack.js'] - Wasm JS の URL パス
+     * @param {Object} [options.startOptions={}] - start メソッドに渡す起動オプション
      * @returns {Promise<boolean>}
      */
     async restart(options = {}) {
@@ -927,6 +901,7 @@ export class WebUICore {
         this.activeMenuItems = [];
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
+        this.isPendingPrefix = false;
         if (this.textWindowManager) {
             this.textWindowManager.resetAll();
         }
@@ -947,14 +922,24 @@ export class WebUICore {
         this.emit('inputResolved');
 
         if (this.driver && typeof this.driver.restart === 'function') {
-            const success = await this.driver.restart(options);
-            this._setState(CoreState.INITIALIZING);
-            this.emit('restarted');
-            return success;
+            await this.driver.restart(options);
         }
 
         this._setState(CoreState.INITIALIZING);
         this.emit('restarted');
+
+        // autoStart が false でない場合は自動で start() を呼び出してメインループを再開
+        if (options.autoStart !== false) {
+            const wasmJsUrl = options.wasmJsUrl || 'nethack.js';
+            const startOpts = Object.assign({}, options.startOptions, {
+                forceNewGame: options.clearStorage === true
+            });
+            // バックグラウンドでゲーム起動プロミスを開始
+            this.start(wasmJsUrl, startOpts).catch(err => {
+                console.error("[WebUICore] Error starting game after restart:", err);
+            });
+        }
+
         return true;
     }
 

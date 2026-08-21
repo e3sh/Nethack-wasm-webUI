@@ -41,6 +41,10 @@
                 this.workerUrl = workerUrl || 'src/driver/nethack.worker.js';
             }
 
+            this.createWorkerInstance();
+        }
+
+        createWorkerInstance() {
             try {
                 this.worker = new Worker(this.workerUrl);
             } catch (e) {
@@ -433,8 +437,21 @@
 
         async restart(options = {}) {
             this.terminate();
-            if (typeof this.init === 'function') {
-                return await this.init(options);
+            this.state = NetHackWasmWorkerBridge.DriverState.IDLE;
+            this._activeResolver = null;
+            this.lastSequenceBuffer = [];
+            this.isExecutingSequence = false;
+            this.isTopLevelTurn = false;
+            this._canAcceptSequenceInterruption = false;
+            this._driverDebugStatus = null;
+            if (this._pendingSequences && typeof this._pendingSequences.clear === 'function') {
+                this._pendingSequences.clear();
+            }
+
+            this.createWorkerInstance();
+
+            if (options && options.wasmJsUrl) {
+                this.init(options.wasmJsUrl, options);
             }
             return true;
         }

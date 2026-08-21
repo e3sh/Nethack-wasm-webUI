@@ -1694,18 +1694,26 @@ class GklPureJSClient {
   }
 
   async restartGame() {
+    this.resetUiForNewGame();
     this.elLoading.classList.remove('hidden');
     this.elGameOverModal.classList.add('hidden');
     this.elSelectorCard.classList.add('hidden');
     this.elSpinnerBox.classList.remove('hidden');
 
-    await this.core.restart({ clearStorage: false });
+    await this.core.restart({ clearStorage: false, autoStart: false });
+    await this.bootstrapGame();
   }
 
   async deleteSaveFile() {
     if (confirm("セーブファイルを完全に削除しますか？")) {
-      await this.core.deleteSaveData();
-      await this.restartGame();
+      this.resetUiForNewGame();
+      this.elLoading.classList.remove('hidden');
+      this.elGameOverModal.classList.add('hidden');
+      this.elSelectorCard.classList.add('hidden');
+      this.elSpinnerBox.classList.remove('hidden');
+
+      await this.core.restart({ clearStorage: true, autoStart: false });
+      await this.bootstrapGame();
     }
   }
 
