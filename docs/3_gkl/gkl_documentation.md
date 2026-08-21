@@ -90,20 +90,20 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
 
 | レイヤー | モジュール名 | 役割と責務 |
 | :--- | :--- | :--- |
-| **統合** | [`GKLPlugin.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/GKLPlugin.js) | GKL のエントリーポイント。`WebUICore` へのイベントバインドと全モジュールのライフサイクル管理。 |
-| **ファサード** | [`SituationCache.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SituationCache.js) | 分散する全マネージャの状態を集約し、最新の統合状況（`Situation`）を一括提供。 |
-| **動的状態** | [`InventoryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/InventoryStateManager.js) | 所持品（インベントリ）の解析・BUC状態・装備・各アイテムへの `item.knowledge` 物理アタッチ。 |
-| **動的状態** | [`AreaStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/AreaStateManager.js) | プレイヤー周辺地形・エンティティを 3 層（Top: 敵/NPC, Middle: アイテム, Bottom: 地形）で解析。 |
-| **動的状態** | [`SpellStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SpellStateManager.js) | `+` コマンド結果の解析・保持。習得中の魔法一覧、レベル、カテゴリ、詠唱失敗率の管理。 |
-| **動的状態** | [`AttributeStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/AttributeStateManager.js) | `^X` 耐性・特性の解析 ＋ 装備品（指輪・防具）の付加耐性を自動合算（Extrinsics統合）。 |
-| **動的状態** | [`SkillStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/SkillStateManager.js) | `#enhance` メニューの解析。武器・魔法スキルの現在ランクおよび向上可能状態の管理。 |
-| **動的状態** | [`DiscoveryStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/DiscoveryStateManager.js) | `\` (Discoveries) メニューの解析。ゲーム内で既に発見・判明済みのアイテム外見・正体の記録。 |
-| **知識解決** | [`ItemIdentificationResolver.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ItemIdentificationResolver.js) | 発見台帳とアイテム外見から「完全識別 (Fully) / 未識別 (Unidentified) / 価格識別」を厳密判定。 |
-| **知識整形** | [`ItemSpecPresenter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ItemSpecPresenter.js) | ナレッジと識別状態を組み合わせ、UI 描画用フォーマット（d値、AC、特効、警告文）へ成形。 |
-| **調査サービス** | [`OnDemandLookService.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/OnDemandLookService.js) | 任意のマスに対して `;` (Look) コマンドをサイレント実行し、視界外・未知タイルの詳細情報を取得。 |
-| **静的知識** | [`StructuredKnowledgeEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/StructuredKnowledgeEngine.js) | 全 481 アイテムおよび 2,000 体以上のモンスター・地形に関する不変のドメイン知識辞書。 |
-| **推論・戦略** | [`ContextActionEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/ContextActionEngine.js) | 周辺状況・所持品・耐性・スキルから次に取るべき行動（解錠・戦闘・魔法・食事等）を推論・スコアリング。 |
-| **制御** | [`RequestController.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/RequestController.js) | サイレントクエリ (`querySequenceSilent`) や自動シーケンスの多重実行制御・キュー管理。 |
+| **統合** | [`GKLPlugin.js`](/src/core/knowledge/GKLPlugin.js) | GKL のエントリーポイント。`WebUICore` へのイベントバインドと全モジュールのライフサイクル管理。 |
+| **ファサード** | [`SituationCache.js`](/src/core/knowledge/SituationCache.js) | 分散する全マネージャの状態を集約し、最新の統合状況（`Situation`）を一括提供。 |
+| **動的状態** | [`InventoryStateManager.js`](/src/core/knowledge/InventoryStateManager.js) | 所持品（インベントリ）の解析・BUC状態・装備・各アイテムへの `item.knowledge` 物理アタッチ。 |
+| **動的状態** | [`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) | プレイヤー周辺地形・エンティティを 3 層（Top: 敵/NPC, Middle: アイテム, Bottom: 地形）で解析。 |
+| **動的状態** | [`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js) | `+` コマンド結果の解析・保持。習得中の魔法一覧、レベル、カテゴリ、詠唱失敗率の管理。 |
+| **動的状態** | [`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js) | `^X` 耐性・特性の解析 ＋ 装備品（指輪・防具）の付加耐性を自動合算（Extrinsics統合）。 |
+| **動的状態** | [`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js) | `#enhance` メニューの解析。武器・魔法スキルの現在ランクおよび向上可能状態の管理。 |
+| **動的状態** | [`DiscoveryStateManager.js`](/src/core/knowledge/DiscoveryStateManager.js) | `\` (Discoveries) メニューの解析。ゲーム内で既に発見・判明済みのアイテム外見・正体の記録。 |
+| **知識解決** | [`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js) | 発見台帳とアイテム外見から「完全識別 (Fully) / 未識別 (Unidentified) / 価格識別」を厳密判定。 |
+| **知識整形** | [`ItemSpecPresenter.js`](/src/core/knowledge/ItemSpecPresenter.js) | ナレッジと識別状態を組み合わせ、UI 描画用フォーマット（d値、AC、特効、警告文）へ成形。 |
+| **調査サービス** | [`OnDemandLookService.js`](/src/core/knowledge/OnDemandLookService.js) | 任意のマスに対して `;` (Look) コマンドをサイレント実行し、視界外・未知タイルの詳細情報を取得。 |
+| **静的知識** | [`StructuredKnowledgeEngine.js`](/src/core/knowledge/StructuredKnowledgeEngine.js) | 全 481 アイテムおよび 2,000 体以上のモンスター・地形に関する不変のドメイン知識辞書。 |
+| **推論・戦略** | [`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | 周辺状況・所持品・耐性・スキルから次に取るべき行動（解錠・戦闘・魔法・食事等）を推論・スコアリング。 |
+| **制御** | [`RequestController.js`](/src/core/knowledge/RequestController.js) | サイレントクエリ (`querySequenceSilent`) や自動シーケンスの多重実行制御・キュー管理。 |
 
 ---
 
