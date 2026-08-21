@@ -1,12 +1,75 @@
 <template>
   <div class="gkl-panel">
-    <!-- 1. ヘッダー ＆ ステータス -->
+    <!-- 1. ヘッダー ＆ ステータス同期 -->
     <div class="gkl-header">
       <div class="gkl-title-box">
         <span class="gkl-badge">🧠 GKL 状況推論 ＆ ナレッジアシスト</span>
-        <button @click="handleSyncInventory" class="btn-sync" :disabled="isSyncing">
-          {{ isSyncing ? '...同期中' : '🔄 インベントリ同期' }}
-        </button>
+        <div style="display: flex; gap: 6px;">
+          <button @click="handleSyncInventory" class="btn-sync" :disabled="isSyncing">
+            {{ isSyncing ? '...同期中' : '🔄 インベントリ同期' }}
+          </button>
+          <button @click="handleSyncSkills" class="btn-sync" title="スキル同期 (#enhance)">
+            🥋 スキル同期
+          </button>
+          <button @click="handleSyncSpells" class="btn-sync" title="習得魔法同期 (+)">
+            📖 魔法同期
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー -->
+    <div class="gkl-status-overview-panel">
+      <!-- 🛡️ 属性・固有耐性 -->
+      <div class="gkl-overview-row">
+        <strong class="overview-label">🛡️ 属性耐性:</strong>
+        <div v-if="activeAttributes.length > 0" class="overview-badges-list">
+          <span
+            v-for="attr in activeAttributes"
+            :key="attr.key"
+            class="gkl-attr-badge active"
+            :title="`${attr.label} / ${attr.en} (有効)`"
+          >
+            {{ attr.label }}
+          </span>
+        </div>
+        <span v-else class="overview-empty">なし</span>
+      </div>
+
+      <!-- 🥋 スキル熟練度 -->
+      <div class="gkl-overview-row">
+        <strong class="overview-label">🥋 スキル:</strong>
+        <div v-if="activeSkills.length > 0" class="overview-badges-list">
+          <span
+            v-for="skill in activeSkills"
+            :key="skill.name"
+            class="gkl-skill-badge"
+            :class="[`gkl-skill-badge-${skill.rank?.key || 'basic'}`, { 'gkl-skill-badge-enhanceable': skill.canEnhance }]"
+            :title="skill.rawText || skill.name"
+            @click="handleEnhanceSkill(skill)"
+          >
+            <span v-if="skill.canEnhance" class="skill-star">⭐</span>
+            <strong>{{ skill.name }}</strong> [{{ skill.rank?.label || skill.rank?.en || '入門' }}]
+          </span>
+        </div>
+        <span v-else class="overview-empty">{{ isSkillsSynced ? 'なし (未熟)' : '未同期' }}</span>
+      </div>
+
+      <!-- 📖 習得魔法 -->
+      <div class="gkl-overview-row">
+        <strong class="overview-label">📖 習得魔法:</strong>
+        <div v-if="activeSpells.length > 0" class="overview-badges-list">
+          <button
+            v-for="sp in activeSpells"
+            :key="sp.letter"
+            class="gkl-spell-badge"
+            :title="`キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`"
+            @click="handleCastSpell(sp.letter)"
+          >
+            ✨ [{{ sp.letter }}] {{ sp.name }} <small>(Lv.{{ sp.level }} {{ sp.failRate }})</small>
+          </button>
+        </div>
+        <span v-else class="overview-empty">なし</span>
       </div>
     </div>
 
@@ -27,7 +90,7 @@
           @mouseenter="hoveredItem = item"
           @mouseleave="hoveredItem = null"
         >
-          <!-- 普段の表示: レター + スプライト画像 + 装備文字バッジ -->
+          <!-- 普段の表示: レター + スプライト画像 + 装備文字バッジ + 得意武器バッジ -->
           <div class="inv-item-compact">
             <span class="inv-letter">[{{ item.letter }}]</span>
             <div
@@ -39,6 +102,13 @@
             <span v-else-if="item.isOffhand" class="equip-badge badge-offhand" title="副武器">副</span>
             <span v-else-if="item.isQuivered" class="equip-badge badge-quivered" title="矢筒">筒</span>
             <span v-else-if="item.isWorn" class="equip-badge badge-worn" title="着用中">着</span>
+
+            <!-- 🥋 得意武器適性バッジ (+) -->
+            <span
+              v-if="item.skillBadge?.isProficient || item.isRecommendedWeapon"
+              class="equip-badge badge-proficient"
+              :title="`得意武器 (${item.skillBadge?.label || '+'})`"
+            >+</span>
           </div>
 
           <!-- 💡 フローティング解説ポップアップ -->
@@ -46,6 +116,9 @@
             <div class="popover-title">{{ item.knowledge?.nameJa || item.name || item.rawText }}</div>
             <div v-if="item.defaultActionLabelJa || item.knowledge?.actionLabelJa" class="popover-action">
               💡 ワンタップ: {{ item.defaultActionLabelJa || item.knowledge?.actionLabelJa }} [{{ item.letter }}]
+            </div>
+            <div v-if="item.skillBadge?.label" class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
+              🥋 武器適性: {{ item.skillBadge.label }}
             </div>
             <div v-if="item.knowledge?.effectSummary || item.knowledge?.description" class="popover-desc">
               {{ item.knowledge?.effectSummary || item.knowledge?.description }}
@@ -163,29 +236,26 @@
         </div>
       </div>
       <div class="detail-body">
-        <!-- 武器・防具・アイテム専用ステータスグリッド -->
-        <div v-if="activeKnowledge.stats" class="monster-stats-grid">
-          <!-- モンスター用 -->
-          <span v-if="activeKnowledge.stats.hd !== undefined" class="stat-pill">HD: <strong>{{ activeKnowledge.stats.hd }}</strong></span>
-          <span v-if="activeKnowledge.stats.ac !== undefined && (activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER')" class="stat-pill">AC: <strong>{{ activeKnowledge.stats.ac }}</strong></span>
-          <span v-if="activeKnowledge.stats.speed !== undefined" class="stat-pill">Speed: <strong>{{ activeKnowledge.stats.speed }}</strong></span>
-          <span v-if="activeKnowledge.stats.mr !== undefined" class="stat-pill">MR: <strong>{{ activeKnowledge.stats.mr }}</strong></span>
+        <!-- 👾 モンスター専用ステータス -->
+        <div v-if="activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER'" class="monster-stats-grid">
+          <span v-if="activeKnowledge.stats?.hd !== undefined" class="stat-pill">HD: <strong>{{ activeKnowledge.stats.hd }}</strong></span>
+          <span v-if="activeKnowledge.stats?.ac !== undefined" class="stat-pill">AC: <strong>{{ activeKnowledge.stats.ac }}</strong></span>
+          <span v-if="activeKnowledge.stats?.speed !== undefined" class="stat-pill">Speed: <strong>{{ activeKnowledge.stats.speed }}</strong></span>
+          <span v-if="activeKnowledge.stats?.mr !== undefined" class="stat-pill">MR: <strong>{{ activeKnowledge.stats.mr }}</strong></span>
+        </div>
 
-          <!-- 武器用 -->
-          <span v-if="activeKnowledge.stats.sdam" class="stat-pill">対小型ダメ: <strong>{{ activeKnowledge.stats.sdam }}</strong></span>
-          <span v-if="activeKnowledge.stats.ldam" class="stat-pill">対大型ダメ: <strong>{{ activeKnowledge.stats.ldam }}</strong></span>
-          <span v-if="activeKnowledge.stats.skill" class="stat-pill">スキル: <strong>{{ activeKnowledge.stats.skill }}</strong></span>
-          <span v-if="activeKnowledge.stats.hands" class="stat-pill">持ち手: <strong>{{ activeKnowledge.stats.hands }}手</strong></span>
-
-          <!-- 防具用 -->
-          <span v-if="activeKnowledge.stats.ac !== undefined && activeKnowledge.category === 'ARMOR'" class="stat-pill">Base AC: <strong>+{{ activeKnowledge.stats.ac }}</strong></span>
-          <span v-if="activeKnowledge.stats.mc !== undefined" class="stat-pill">MC: <strong>{{ activeKnowledge.stats.mc }}</strong></span>
-          <span v-if="activeKnowledge.stats.reflection" class="stat-pill" style="border-color: #e9c46a; color: #e9c46a;">✨ 反射 (Reflection)</span>
-          <span v-if="activeKnowledge.stats.magicResistance" class="stat-pill" style="border-color: #88c0d0; color: #88c0d0;">🛡️ 魔耐 (MR)</span>
-
-          <!-- 共通物理特性 -->
-          <span v-if="activeKnowledge.stats.material" class="stat-pill">材質: <strong>{{ activeKnowledge.stats.material }}</strong></span>
-          <span v-if="activeKnowledge.stats.weight" class="stat-pill">重量: <strong>{{ activeKnowledge.stats.weight }}</strong></span>
+        <!-- 🎒 アイテム全カテゴリ適応型スペックバッジ (武器/防具/杖/巻物/魔法書/食料/道具/指輪/アミュレット等) -->
+        <div v-else-if="adaptiveSpecs.length > 0" class="adaptive-specs-grid">
+          <span
+            v-for="s in adaptiveSpecs"
+            :key="s.id"
+            class="spec-badge"
+            :class="{ 'spec-highlight': s.highlight }"
+          >
+            <span class="spec-label">{{ s.labelJa || s.label }}:</span>
+            <strong class="spec-value">{{ s.value }}</strong>
+            <span v-if="s.skillBadge" class="spec-skill-badge">{{ s.skillBadge.label }}</span>
+          </span>
         </div>
 
         <!-- 💡 おすすめワンタップ操作表示 -->
@@ -193,7 +263,7 @@
           💡 <strong>おすすめ操作:</strong> {{ activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa }}
         </p>
 
-        <!-- 攻撃方法 ＆ 耐性 -->
+        <!-- 攻撃方法 ＆ 耐性 (モンスター) -->
         <p v-if="formatAttacks(activeKnowledge.attacks)" class="detail-text monster-detail-row">
           🗡️ <strong>攻撃パターン:</strong> {{ formatAttacks(activeKnowledge.attacks) }}
         </p>
@@ -201,11 +271,29 @@
           🛡️ <strong>固有耐性:</strong> {{ formatResistances(activeKnowledge.resistances) }}
         </p>
 
+        <!-- ⚖️ BUC効果 (アイテム) -->
+        <div v-if="activeKnowledge.bucEffects" class="buc-effects-box">
+          <div class="buc-title">⚖️ BUC効果:</div>
+          <ul class="buc-list">
+            <li v-if="activeKnowledge.bucEffects.blessed" style="color: #2ecc71;"><strong>祝福:</strong> {{ activeKnowledge.bucEffects.blessed }}</li>
+            <li v-if="activeKnowledge.bucEffects.uncursed" style="color: #cbd5e1;"><strong>通常:</strong> {{ activeKnowledge.bucEffects.uncursed }}</li>
+            <li v-if="activeKnowledge.bucEffects.cursed" style="color: #e74c3c;"><strong>呪い:</strong> {{ activeKnowledge.bucEffects.cursed }}</li>
+          </ul>
+        </div>
+
         <!-- 効果解説 ＆ フレーバーテキスト -->
         <p v-if="activeKnowledge.effectSummary" class="detail-text">💡 {{ activeKnowledge.effectSummary }}</p>
         <p v-if="activeKnowledge.description || activeKnowledge.flavorNote" class="detail-text" style="opacity: 0.9;">
           📖 {{ activeKnowledge.description || activeKnowledge.flavorNote }}
         </p>
+
+        <!-- 🔍 未識別識別Tips -->
+        <div v-if="activeKnowledge.unidentifiedTips && activeKnowledge.unidentifiedTips.length > 0" class="unid-tips-box">
+          <div class="unid-title">🔍 識別Tips:</div>
+          <ul class="advice-list">
+            <li v-for="(tip, idx) in activeKnowledge.unidentifiedTips" :key="idx">{{ tip }}</li>
+          </ul>
+        </div>
 
         <!-- モンスター戦術 ＆ アイテムアドバイス -->
         <div v-if="(activeKnowledge.tacticalAdvice && activeKnowledge.tacticalAdvice.length > 0) || (activeKnowledge.usageAdvice && activeKnowledge.usageAdvice.length > 0)" class="tactical-advice-box">
@@ -227,17 +315,59 @@
 import { ref, computed } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
-import { useNetHackDriver } from '../composables/useNetHackDriver';
+import { useNetHackDriver, ATTRIBUTE_DEFINITIONS } from '../composables/useNetHackDriver';
 
 const gameStore = useGameStore();
 const { gklSituation, hoveredTileKnowledge } = storeToRefs(gameStore);
-const { executeAction, executeSequence, getGlyphStyle, extractDirectionCode, getZoomAreaTiles, syncInventorySilent } = useNetHackDriver();
+const {
+  executeAction,
+  executeSequence,
+  getGlyphStyle,
+  extractDirectionCode,
+  getZoomAreaTiles,
+  syncInventorySilent,
+  syncSkillsSilent,
+  syncSpellsSilent,
+  moveToCell,
+  castSpell,
+  enhanceSkill,
+  getAdaptiveSpecs,
+} = useNetHackDriver();
 
 const selectedDir = ref('ALL');
 const isSyncing = ref(false);
 const hoveredItem = ref<any | null>(null);
 const selectedAreaTile = ref<any | null>(null);
 const hoveredAreaTile = ref<any | null>(null);
+
+// 🛡️ 属性・耐性一覧
+const activeAttributes = computed(() => {
+  const res = gklSituation.value?.attributes?.effectiveResistances || {};
+  return ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
+});
+
+// 🥋 スキル一覧
+const isSkillsSynced = computed(() => Boolean(gklSituation.value?.skills?.isSynced));
+const activeSkills = computed(() => gklSituation.value?.skills?.activeItems || []);
+
+// 📖 習得魔法一覧
+const activeSpells = computed(() => gklSituation.value?.spells?.items || []);
+
+async function handleSyncSkills() {
+  await syncSkillsSilent();
+}
+
+async function handleSyncSpells() {
+  await syncSpellsSilent();
+}
+
+function handleCastSpell(letter: string) {
+  castSpell(letter);
+}
+
+function handleEnhanceSkill(skill?: any) {
+  enhanceSkill(skill);
+}
 
 const dpadButtons = [
   { id: 'NW', label: '北西', icon: '↖' },
@@ -279,6 +409,11 @@ const activeKnowledge = computed(() => {
     return hoveredTileKnowledge.value.knowledge;
   }
   return null;
+});
+
+const adaptiveSpecs = computed(() => {
+  if (!activeKnowledge.value) return [];
+  return getAdaptiveSpecs(activeKnowledge.value);
 });
 
 const activeCoord = computed(() => {
@@ -813,6 +948,78 @@ function getActionClass(act: any) {
   color: #ebcb8b;
 }
 
+/* 🎒 アイテム全カテ適応型スペックバッジ */
+.adaptive-specs-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+.spec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid #334155;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.spec-badge.spec-highlight {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.15);
+}
+.spec-label {
+  color: #94a3b8;
+  font-size: 10px;
+}
+.spec-badge.spec-highlight .spec-label {
+  color: #38bdf8;
+}
+.spec-value {
+  color: #f8fafc;
+  font-weight: bold;
+}
+.spec-skill-badge {
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+/* ⚖️ BUC効果 */
+.buc-effects-box {
+  background: #232834;
+  border-left: 3px solid #60a5fa;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+  margin-top: 4px;
+}
+.buc-title {
+  font-weight: bold;
+  color: #60a5fa;
+  font-size: 10px;
+}
+.buc-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 10px;
+}
+
+/* 🔍 未識別識別Tips */
+.unid-tips-box {
+  background: #232834;
+  border-left: 3px solid #a78bfa;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+  margin-top: 4px;
+}
+.unid-title {
+  font-weight: bold;
+  color: #a78bfa;
+  font-size: 10px;
+}
+
 .monster-detail-row {
   color: #d8dee9 !important;
   font-size: 11px;
@@ -835,5 +1042,144 @@ function getActionClass(act: any) {
   padding: 0;
   font-size: 10px;
   color: #e5e9f0;
+}
+
+/* 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */
+.gkl-status-overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #232834;
+  border: 1px solid #3b4252;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.gkl-overview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.overview-label {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.overview-badges-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.overview-empty {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* 🛡️ 属性耐性バッジ */
+.gkl-attr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(30, 41, 59, 0.7);
+  color: #94a3b8;
+  border: 1px solid #334155;
+  white-space: nowrap;
+}
+.gkl-attr-badge.active {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: #38bdf8;
+  color: #7dd3fc;
+  font-weight: bold;
+}
+
+/* 🥋 スキル熟練度バッジ */
+.gkl-skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(30, 41, 59, 0.7);
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gkl-skill-badge:hover {
+  filter: brightness(1.15);
+}
+.gkl-skill-badge-basic {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+.gkl-skill-badge-skilled {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  font-weight: bold;
+}
+.gkl-skill-badge-expert {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  font-weight: bold;
+}
+.gkl-skill-badge-master,
+.gkl-skill-badge-grandmaster {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  font-weight: bold;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+}
+.gkl-skill-badge-enhanceable {
+  border-color: #f59e0b !important;
+  animation: pulse-skill 2s infinite ease-in-out;
+}
+@keyframes pulse-skill {
+  0%, 100% { box-shadow: 0 0 2px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); }
+}
+.skill-star {
+  color: #f59e0b;
+  font-size: 11px;
+}
+
+/* 📖 習得魔法バッジ */
+.gkl-spell-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid #a78bfa;
+  color: #ddd6fe;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.gkl-spell-badge:hover {
+  background: rgba(139, 92, 246, 0.3);
+  filter: brightness(1.15);
+}
+.gkl-spell-badge small {
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+/* 🎽 得意武器適性バッジ (+) */
+.badge-proficient {
+  background: #22c55e !important;
+  color: #000 !important;
+  font-weight: bold !important;
+  left: 2px !important;
+  right: auto !important;
 }
 </style>

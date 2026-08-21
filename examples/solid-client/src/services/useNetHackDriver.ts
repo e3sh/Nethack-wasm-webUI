@@ -1,6 +1,8 @@
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
 import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
+import { ATTRIBUTE_DEFINITIONS } from '@core/knowledge/AttributeStateManager.js';
+import { getAdaptiveItemSpecs } from '@core/knowledge/ItemSpecPresenter.js';
 import {
   addMessage,
   updateStatus,
@@ -429,6 +431,46 @@ export class NetHackDriverController {
     }
   }
 
+  public async syncSkillsSilent() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.syncSkillsSilent === 'function') {
+      await this.core.gkl.syncSkillsSilent();
+      setGklSituation(this.core.gkl.getSituation());
+    }
+  }
+
+  public async syncSpellsSilent() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.syncSpellsSilent === 'function') {
+      await this.core.gkl.syncSpellsSilent();
+      setGklSituation(this.core.gkl.getSituation());
+    }
+  }
+
+  public moveToCell(x: number, y: number) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.moveToCell === 'function') {
+      return this.core.gkl.moveToCell(x, y);
+    }
+    return false;
+  }
+
+  public castSpell(letter: string) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.castSpell === 'function') {
+      return this.core.gkl.castSpell(letter);
+    }
+    return this.executeSequence([letter]);
+  }
+
+  public enhanceSkill(skill?: any) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.enhanceSkill === 'function') {
+      return this.core.gkl.enhanceSkill(skill);
+    }
+    return this.executeSequence(['#enhance']);
+  }
+
+  public getAdaptiveSpecs(knowledge: any) {
+    const sm = this.core?.gkl?.skillStateManager || null;
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
+  }
+
   public destroy() {
     window.removeEventListener('keydown', this.handleGlobalKeyDown);
     if (this.core) {
@@ -438,4 +480,5 @@ export class NetHackDriverController {
   }
 }
 
+export { ATTRIBUTE_DEFINITIONS };
 export const driverController = new NetHackDriverController();

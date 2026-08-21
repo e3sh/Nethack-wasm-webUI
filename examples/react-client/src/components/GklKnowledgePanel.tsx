@@ -1,13 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { useNetHackDriver } from '../hooks/useNetHackDriver';
+import { useNetHackDriver, ATTRIBUTE_DEFINITIONS } from '../hooks/useNetHackDriver';
 import { getAdaptiveItemSpecs } from '../../../../src/core/knowledge/ItemSpecPresenter.js';
 
 export const GklKnowledgePanel: React.FC = () => {
   const gklSituation = useGameStore((state) => state.gklSituation);
   const hoveredTileKnowledge = useGameStore((state) => state.hoveredTileKnowledge);
 
-  const { executeAction, getGlyphStyle, extractDirectionCode, getZoomAreaTiles, syncInventorySilent, executeSequence } = useNetHackDriver();
+  const {
+    executeAction,
+    getGlyphStyle,
+    extractDirectionCode,
+    getZoomAreaTiles,
+    syncInventorySilent,
+    syncSkillsSilent,
+    syncSpellsSilent,
+    executeSequence,
+    moveToCell,
+    castSpell,
+    enhanceSkill,
+    getAdaptiveSpecs,
+  } = useNetHackDriver();
 
   const [selectedDir, setSelectedDir] = useState<string>('ALL');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -155,6 +168,31 @@ export const GklKnowledgePanel: React.FC = () => {
     setIsSyncing(false);
   };
 
+  const activeAttributes = useMemo(() => {
+    const res = gklSituation?.attributes?.effectiveResistances || {};
+    return ATTRIBUTE_DEFINITIONS.filter((item: any) => Boolean(res[item.key]));
+  }, [gklSituation]);
+
+  const isSkillsSynced = useMemo(() => Boolean(gklSituation?.skills?.isSynced), [gklSituation]);
+  const activeSkills = useMemo(() => gklSituation?.skills?.activeItems || [], [gklSituation]);
+  const activeSpells = useMemo(() => gklSituation?.spells?.items || [], [gklSituation]);
+
+  const handleSyncSkills = async () => {
+    await syncSkillsSilent();
+  };
+
+  const handleSyncSpells = async () => {
+    await syncSpellsSilent();
+  };
+
+  const handleCastSpell = (letter: string) => {
+    castSpell(letter);
+  };
+
+  const handleEnhanceSkill = (skill?: any) => {
+    enhanceSkill(skill);
+  };
+
   const handleExecuteAction = (act: any) => {
     if (act.risk === 'danger' || act.isDanger) {
       const label = safeText(act.labelJa || act.label || '操作');
@@ -182,7 +220,7 @@ export const GklKnowledgePanel: React.FC = () => {
 
   return (
     <div style={{ background: '#181b24', border: '1px solid #3b4252', borderRadius: '6px', padding: '12px 16px', color: '#e5e9f0', fontFamily: 'system-ui, sans-serif', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* 1. ヘッダー ＆ ステータス */}
+      {/* 1. ヘッダー ＆ 同期コントロール */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2e3440', paddingBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', fontWeight: 'bold', fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
@@ -191,6 +229,96 @@ export const GklKnowledgePanel: React.FC = () => {
           <button onClick={handleSyncInventory} disabled={isSyncing} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
             {isSyncing ? '...同期中' : '🔄 インベントリ同期'}
           </button>
+          <button onClick={handleSyncSkills} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
+            🥋 スキル同期
+          </button>
+          <button onClick={handleSyncSpells} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
+            📖 魔法同期
+          </button>
+        </div>
+      </div>
+
+      {/* 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#232834', border: '1px solid #3b4252', borderRadius: '6px', padding: '8px 12px' }}>
+        {/* 🛡️ 属性・耐性 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>🛡️ 属性耐性:</strong>
+          {activeAttributes.length > 0 ? (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {activeAttributes.map((attr: any) => (
+                <span key={attr.key} style={{ background: 'rgba(14, 165, 233, 0.15)', border: '1px solid #38bdf8', color: '#7dd3fc', padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }} title={`${attr.label} / ${attr.en} (有効)`}>
+                  {attr.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: '11px', color: '#64748b' }}>なし</span>
+          )}
+        </div>
+
+        {/* 🥋 スキル */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>🥋 スキル:</strong>
+          {activeSkills.length > 0 ? (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {activeSkills.map((skill: any) => {
+                const isEnhanceable = skill.canEnhance;
+                return (
+                  <span
+                    key={skill.name}
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: isEnhanceable ? '1px solid #f59e0b' : '1px solid #3b82f6',
+                      color: '#93c5fd',
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    title={skill.rawText || skill.name}
+                    onClick={() => handleEnhanceSkill(skill)}
+                  >
+                    {isEnhanceable && <span style={{ color: '#f59e0b' }}>⭐</span>}
+                    <strong>{skill.name}</strong> [{skill.rank?.label || skill.rank?.en || '入門'}]
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <span style={{ fontSize: '11px', color: '#64748b' }}>{isSkillsSynced ? 'なし (未熟)' : '未同期'}</span>
+          )}
+        </div>
+
+        {/* 📖 習得魔法 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>📖 習得魔法:</strong>
+          {activeSpells.length > 0 ? (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {activeSpells.map((sp: any) => (
+                <button
+                  key={sp.letter}
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid #a78bfa',
+                    color: '#ddd6fe',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                  }}
+                  title={`キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`}
+                  onClick={() => handleCastSpell(sp.letter)}
+                >
+                  ✨ [{sp.letter}] {sp.name} <small style={{ color: '#94a3b8' }}>(Lv.{sp.level} {sp.failRate})</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: '11px', color: '#64748b' }}>なし</span>
+          )}
         </div>
       </div>
 
@@ -478,10 +606,34 @@ export const GklKnowledgePanel: React.FC = () => {
               </p>
             )}
 
+            {/* ⚖️ BUC効果 (アイテム) */}
+            {activeKnowledge.bucEffects && (
+              <div style={{ background: '#232834', borderLeft: '3px solid #60a5fa', padding: '6px 10px', borderRadius: '0 4px 4px 0', marginTop: '4px' }}>
+                <div style={{ fontWeight: 'bold', color: '#60a5fa', fontSize: '10px' }}>⚖️ BUC効果:</div>
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '10px' }}>
+                  {activeKnowledge.bucEffects.blessed && <li style={{ color: '#2ecc71' }}><strong>祝福:</strong> {activeKnowledge.bucEffects.blessed}</li>}
+                  {activeKnowledge.bucEffects.uncursed && <li style={{ color: '#cbd5e1' }}><strong>通常:</strong> {activeKnowledge.bucEffects.uncursed}</li>}
+                  {activeKnowledge.bucEffects.cursed && <li style={{ color: '#e74c3c' }}><strong>呪い:</strong> {activeKnowledge.bucEffects.cursed}</li>}
+                </ul>
+              </div>
+            )}
+
             {/* 効果解説 ＆ フレーバーテキスト */}
             {activeKnowledge.effectSummary && <p style={{ margin: 0 }}>💡 {safeText(activeKnowledge.effectSummary)}</p>}
             {(activeKnowledge.description || activeKnowledge.flavorNote) && (
               <p style={{ margin: 0, opacity: 0.9 }}>📖 {safeText(activeKnowledge.description || activeKnowledge.flavorNote)}</p>
+            )}
+
+            {/* 🔍 未識別識別Tips */}
+            {activeKnowledge.unidentifiedTips && activeKnowledge.unidentifiedTips.length > 0 && (
+              <div style={{ background: '#232834', borderLeft: '3px solid #a78bfa', padding: '6px 10px', borderRadius: '0 4px 4px 0', marginTop: '4px' }}>
+                <div style={{ fontWeight: 'bold', color: '#a78bfa', fontSize: '10px' }}>🔍 識別Tips:</div>
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '10px', color: '#e5e9f0' }}>
+                  {activeKnowledge.unidentifiedTips.map((tip: string, idx: number) => (
+                    <li key={idx}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             {/* アドバイス */}

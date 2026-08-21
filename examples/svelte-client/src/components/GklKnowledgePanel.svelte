@@ -1,12 +1,37 @@
 <script lang="ts">
   import { gklSituationStore, hoveredTileKnowledgeStore, cursorPosStore, mapGridStore } from '../stores/gameStore';
-  import { driverController } from '../services/useNetHackDriver';
+  import { driverController, ATTRIBUTE_DEFINITIONS } from '../services/useNetHackDriver';
 
   let selectedDir = 'ALL';
   let isSyncing = false;
   let hoveredItem: any = null;
   let selectedAreaTile: any = null;
   let hoveredAreaTile: any = null;
+
+  $: activeAttributes = (() => {
+    const res = $gklSituationStore?.attributes?.effectiveResistances || {};
+    return ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
+  })();
+
+  $: isSkillsSynced = Boolean($gklSituationStore?.skills?.isSynced);
+  $: activeSkills = $gklSituationStore?.skills?.activeItems || [];
+  $: activeSpells = $gklSituationStore?.spells?.items || [];
+
+  async function handleSyncSkills() {
+    await driverController.syncSkillsSilent();
+  }
+
+  async function handleSyncSpells() {
+    await driverController.syncSpellsSilent();
+  }
+
+  function handleCastSpell(letter: string) {
+    driverController.castSpell(letter);
+  }
+
+  function handleEnhanceSkill(skill?: any) {
+    driverController.enhanceSkill(skill);
+  }
 
   const dpadButtons = [
     { id: 'NW', label: '北西', icon: '↖' },
@@ -56,6 +81,8 @@
     if ($hoveredTileKnowledgeStore && $hoveredTileKnowledgeStore.knowledge) return $hoveredTileKnowledgeStore.knowledge;
     return null;
   })();
+
+  $: adaptiveSpecs = activeKnowledge ? driverController.getAdaptiveSpecs(activeKnowledge) : [];
 
   $: activeCoord = (() => {
     if (hoveredAreaTile && hoveredAreaTile.x !== undefined && hoveredAreaTile.x >= 0) {
@@ -201,6 +228,75 @@
       <button on:click={handleSyncInventory} disabled={isSyncing} class="btn-sync">
         {isSyncing ? '...同期中' : '🔄 インベントリ同期'}
       </button>
+      <button on:click={handleSyncSkills} class="btn-sync" title="スキル同期 (#enhance)">
+        🥋 スキル同期
+      </button>
+      <button on:click={handleSyncSpells} class="btn-sync" title="習得魔法同期 (+)">
+        📖 魔法同期
+      </button>
+    </div>
+  </div>
+
+  <!-- 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー -->
+  <div class="gkl-status-overview-panel">
+    <!-- 🛡️ 属性・耐性 -->
+    <div class="gkl-overview-row">
+      <strong class="overview-label">🛡️ 属性耐性:</strong>
+      {#if activeAttributes.length > 0}
+        <div class="overview-badges-list">
+          {#each activeAttributes as attr}
+            <span class="gkl-attr-badge active" title="{attr.label} / {attr.en} (有効)">
+              {attr.label}
+            </span>
+          {/each}
+        </div>
+      {:else}
+        <span class="overview-empty">なし</span>
+      {/if}
+    </div>
+
+    <!-- 🥋 スキル -->
+    <div class="gkl-overview-row">
+      <strong class="overview-label">🥋 スキル:</strong>
+      {#if activeSkills.length > 0}
+        <div class="overview-badges-list">
+          {#each activeSkills as skill}
+            <button
+              type="button"
+              class="gkl-skill-badge gkl-skill-badge-{skill.rank?.key || 'basic'}"
+              class:gkl-skill-badge-enhanceable={skill.canEnhance}
+              title={skill.rawText || skill.name}
+              on:click={() => handleEnhanceSkill(skill)}
+            >
+              {#if skill.canEnhance}<span class="skill-star">⭐</span>{/if}
+              <strong>{skill.name}</strong> [{skill.rank?.label || skill.rank?.en || '入門'}]
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <span class="overview-empty">{isSkillsSynced ? 'なし (未熟)' : '未同期'}</span>
+      {/if}
+    </div>
+
+    <!-- 📖 習得魔法 -->
+    <div class="gkl-overview-row">
+      <strong class="overview-label">📖 習得魔法:</strong>
+      {#if activeSpells.length > 0}
+        <div class="overview-badges-list">
+          {#each activeSpells as sp}
+            <button
+              type="button"
+              class="gkl-spell-badge"
+              title="キー: {sp.letter}, Lv.{sp.level} {sp.category} (失敗率: {sp.failRate}) - クリックで詠唱"
+              on:click={() => handleCastSpell(sp.letter)}
+            >
+              ✨ [{sp.letter}] {sp.name} <small>(Lv.{sp.level} {sp.failRate})</small>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <span class="overview-empty">なし</span>
+      {/if}
     </div>
   </div>
 
@@ -215,8 +311,11 @@
       <div class="gkl-inventory-grid">
         {#each inventoryItems as item}
           <div
+            role="button"
+            tabindex="0"
             class="inv-item-card {getEquipBorderClass(item)}"
             on:click|stopPropagation={() => handleOneTapItem(item)}
+            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleOneTapItem(item); }}
             on:mouseenter={() => (hoveredItem = item)}
             on:mouseleave={() => (hoveredItem = null)}
           >
@@ -237,6 +336,9 @@
               {#if item.isWorn}
                 <span class="equip-badge badge-worn" title="着用中">着</span>
               {/if}
+              {#if item.skillBadge?.isProficient || item.isRecommendedWeapon}
+                <span class="equip-badge badge-proficient" title="得意武器 ({item.skillBadge?.label || '+'})">+</span>
+              {/if}
             </div>
 
             <!-- 💡 フローティングポップアップ -->
@@ -248,6 +350,11 @@
                 {#if item.defaultActionLabelJa || item.knowledge?.actionLabelJa}
                   <div class="popover-action">
                     💡 ワンタップ: {safeText(item.defaultActionLabelJa || item.knowledge?.actionLabelJa)} [{item.letter}]
+                  </div>
+                {/if}
+                {#if item.skillBadge?.label}
+                  <div class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
+                    🥋 武器適性: {item.skillBadge.label}
                   </div>
                 {/if}
                 {#if item.knowledge?.effectSummary || item.knowledge?.description}
@@ -313,10 +420,13 @@
             {@const spriteStyleStr = tile.glyphId >= 0 ? getStyleStr(tile.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 }) : ''}
 
             <div
+              role="button"
+              tabindex="0"
               class="zoom-cell"
               class:player-cell={tile.isPlayer}
               class:selected-cell={isSelected}
               on:click={() => handleSelectZoomTile(tile)}
+              on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectZoomTile(tile); }}
               on:mouseenter={() => (hoveredAreaTile = tile)}
               on:mouseleave={() => (hoveredAreaTile = null)}
               title="{tile.nameJa} ({tile.x}, {tile.y})"
@@ -390,30 +500,24 @@
       </div>
 
       <div class="detail-body">
-        <!-- 武器・防具・モンスター・アイテムステータスグリッド -->
-        {#if activeKnowledge.stats}
+        <!-- 👾 モンスター専用ステータス -->
+        {#if activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER'}
           <div class="monster-stats-grid">
-            <!-- モンスター用 -->
-            {#if activeKnowledge.stats.hd !== undefined}<span class="stat-pill">HD: <strong>{activeKnowledge.stats.hd}</strong></span>{/if}
-            {#if activeKnowledge.stats.ac !== undefined && (activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER')}<span class="stat-pill">AC: <strong>{activeKnowledge.stats.ac}</strong></span>{/if}
-            {#if activeKnowledge.stats.speed !== undefined}<span class="stat-pill">Speed: <strong>{activeKnowledge.stats.speed}</strong></span>{/if}
-            {#if activeKnowledge.stats.mr !== undefined}<span class="stat-pill">MR: <strong>{activeKnowledge.stats.mr}</strong></span>{/if}
-
-            <!-- 武器用 -->
-            {#if activeKnowledge.stats.sdam}<span class="stat-pill">対小型ダメ: <strong>{activeKnowledge.stats.sdam}</strong></span>{/if}
-            {#if activeKnowledge.stats.ldam}<span class="stat-pill">対大型ダメ: <strong>{activeKnowledge.stats.ldam}</strong></span>{/if}
-            {#if activeKnowledge.stats.skill}<span class="stat-pill">スキル: <strong>{activeKnowledge.stats.skill}</strong></span>{/if}
-            {#if activeKnowledge.stats.hands}<span class="stat-pill">持ち手: <strong>{activeKnowledge.stats.hands}手</strong></span>{/if}
-
-            <!-- 防具用 -->
-            {#if activeKnowledge.stats.ac !== undefined && activeKnowledge.category === 'ARMOR'}<span class="stat-pill">Base AC: <strong>+{activeKnowledge.stats.ac}</strong></span>{/if}
-            {#if activeKnowledge.stats.mc !== undefined}<span class="stat-pill">MC: <strong>{activeKnowledge.stats.mc}</strong></span>{/if}
-            {#if activeKnowledge.stats.reflection}<span class="stat-pill stat-gold">✨ 反射 (Reflection)</span>{/if}
-            {#if activeKnowledge.stats.magicResistance}<span class="stat-pill stat-cyan">🛡️ 魔耐 (MR)</span>{/if}
-
-            <!-- 共通物理特性 -->
-            {#if activeKnowledge.stats.material}<span class="stat-pill">材質: <strong>{activeKnowledge.stats.material}</strong></span>{/if}
-            {#if activeKnowledge.stats.weight}<span class="stat-pill">重量: <strong>{activeKnowledge.stats.weight}</strong></span>{/if}
+            {#if activeKnowledge.stats?.hd !== undefined}<span class="stat-pill">HD: <strong>{activeKnowledge.stats.hd}</strong></span>{/if}
+            {#if activeKnowledge.stats?.ac !== undefined}<span class="stat-pill">AC: <strong>{activeKnowledge.stats.ac}</strong></span>{/if}
+            {#if activeKnowledge.stats?.speed !== undefined}<span class="stat-pill">Speed: <strong>{activeKnowledge.stats.speed}</strong></span>{/if}
+            {#if activeKnowledge.stats?.mr !== undefined}<span class="stat-pill">MR: <strong>{activeKnowledge.stats.mr}</strong></span>{/if}
+          </div>
+        <!-- 🎒 アイテム全カテゴリ適応型スペックバッジ -->
+        {:else if adaptiveSpecs.length > 0}
+          <div class="adaptive-specs-grid">
+            {#each adaptiveSpecs as s (s.id)}
+              <span class="spec-badge" class:spec-highlight={s.highlight}>
+                <span class="spec-label">{s.labelJa || s.label}:</span>
+                <strong class="spec-value">{s.value}</strong>
+                {#if s.skillBadge}<span class="spec-skill-badge">{s.skillBadge.label}</span>{/if}
+              </span>
+            {/each}
           </div>
         {/if}
 
@@ -424,7 +528,7 @@
           </p>
         {/if}
 
-        <!-- 攻撃方法 ＆ 耐性 -->
+        <!-- 攻撃方法 ＆ 耐性 (モンスター) -->
         {#if formatAttacks(activeKnowledge.attacks)}
           <p class="detail-text monster-detail-row">
             🗡️ <strong>攻撃パターン:</strong> {formatAttacks(activeKnowledge.attacks)}
@@ -436,6 +540,18 @@
           </p>
         {/if}
 
+        <!-- ⚖️ BUC効果 (アイテム) -->
+        {#if activeKnowledge.bucEffects}
+          <div class="buc-effects-box">
+            <div class="buc-title">⚖️ BUC効果:</div>
+            <ul class="buc-list">
+              {#if activeKnowledge.bucEffects.blessed}<li style="color: #2ecc71;"><strong>祝福:</strong> {activeKnowledge.bucEffects.blessed}</li>{/if}
+              {#if activeKnowledge.bucEffects.uncursed}<li style="color: #cbd5e1;"><strong>通常:</strong> {activeKnowledge.bucEffects.uncursed}</li>{/if}
+              {#if activeKnowledge.bucEffects.cursed}<li style="color: #e74c3c;"><strong>呪い:</strong> {activeKnowledge.bucEffects.cursed}</li>{/if}
+            </ul>
+          </div>
+        {/if}
+
         <!-- 効果解説 ＆ フレーバーテキスト -->
         {#if activeKnowledge.effectSummary}
           <p class="detail-text">💡 {safeText(activeKnowledge.effectSummary)}</p>
@@ -444,6 +560,19 @@
           <p class="detail-text" style="opacity: 0.9;">📖 {safeText(activeKnowledge.description || activeKnowledge.flavorNote)}</p>
         {/if}
 
+        <!-- 🔍 未識別識別Tips -->
+        {#if activeKnowledge.unidentifiedTips && activeKnowledge.unidentifiedTips.length > 0}
+          <div class="unid-tips-box">
+            <div class="unid-title">🔍 識別Tips:</div>
+            <ul class="advice-list">
+              {#each activeKnowledge.unidentifiedTips as tip}
+                <li>{tip}</li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+
+        <!-- モンスター戦術 ＆ アイテムアドバイス -->
         {#if adviceList.length > 0}
           <div class="tactical-advice-box">
             <div class="advice-title">🎯 ガイド ＆ 活用アドバイス:</div>
@@ -545,8 +674,51 @@
   .stat-gold { border-color: #e9c46a !important; color: #e9c46a !important; }
   .stat-cyan { border-color: #88c0d0 !important; color: #88c0d0 !important; }
 
+  /* 🎒 アイテム適応型スペックバッジ */
+  .adaptive-specs-grid { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+  .spec-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; padding: 2px 7px; border-radius: 4px; font-size: 11px; }
+  .spec-badge.spec-highlight { border-color: #38bdf8; background: rgba(14, 165, 233, 0.15); }
+  .spec-label { color: #94a3b8; font-size: 10px; }
+  .spec-badge.spec-highlight .spec-label { color: #38bdf8; }
+  .spec-value { color: #f8fafc; font-weight: bold; }
+  .spec-skill-badge { color: #22c55e; font-weight: bold; font-size: 10px; margin-left: 2px; }
+
+  /* ⚖️ BUC効果 */
+  .buc-effects-box { background: #232834; border-left: 3px solid #60a5fa; padding: 6px 10px; border-radius: 0 4px 4px 0; margin-top: 4px; }
+  .buc-title { font-weight: bold; color: #60a5fa; font-size: 10px; }
+  .buc-list { margin: 4px 0 0 16px; padding: 0; font-size: 10px; }
+
+  /* 🔍 未識別識別Tips */
+  .unid-tips-box { background: #232834; border-left: 3px solid #a78bfa; padding: 6px 10px; border-radius: 0 4px 4px 0; margin-top: 4px; }
+  .unid-title { font-weight: bold; color: #a78bfa; font-size: 10px; }
+
   .monster-detail-row { color: #d8dee9 !important; font-size: 11px; }
   .tactical-advice-box { background: #232834; border-left: 3px solid #ebcb8b; padding: 6px 10px; border-radius: 0 4px 4px 0; margin-top: 4px; }
   .advice-title { font-weight: bold; color: #ebcb8b; font-size: 10px; }
   .advice-list { margin: 4px 0 0 16px; padding: 0; font-size: 10px; color: #e5e9f0; }
+
+  /* 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */
+  .gkl-status-overview-panel { display: flex; flex-direction: column; gap: 6px; background: #232834; border: 1px solid #3b4252; border-radius: 6px; padding: 8px 12px; }
+  .gkl-overview-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .overview-label { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+  .overview-badges-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .overview-empty { font-size: 11px; color: #64748b; }
+
+  .gkl-attr-badge { display: inline-flex; align-items: center; padding: 2px 7px; font-size: 11px; border-radius: 4px; background: rgba(30, 41, 59, 0.7); color: #94a3b8; border: 1px solid #334155; white-space: nowrap; }
+  .gkl-attr-badge.active { background: rgba(14, 165, 233, 0.15); border-color: #38bdf8; color: #7dd3fc; font-weight: bold; }
+
+  .gkl-skill-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; font-size: 11px; border-radius: 4px; background: rgba(30, 41, 59, 0.7); color: #cbd5e1; border: 1px solid #334155; white-space: nowrap; cursor: pointer; transition: all 0.15s ease; }
+  .gkl-skill-badge:hover { filter: brightness(1.15); }
+  .gkl-skill-badge-basic { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+  .gkl-skill-badge-skilled { border-color: #10b981; background: rgba(16, 185, 129, 0.15); color: #6ee7b7; font-weight: bold; }
+  .gkl-skill-badge-expert { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; font-weight: bold; }
+  .gkl-skill-badge-master, .gkl-skill-badge-grandmaster { border-color: #f59e0b; background: rgba(245, 158, 11, 0.2); color: #fcd34d; font-weight: bold; box-shadow: 0 0 6px rgba(245, 158, 11, 0.3); }
+  .gkl-skill-badge-enhanceable { border-color: #f59e0b !important; }
+  .skill-star { color: #f59e0b; font-size: 11px; }
+
+  .gkl-spell-badge { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 11px; border-radius: 4px; background: rgba(139, 92, 246, 0.15); border: 1px solid #a78bfa; color: #ddd6fe; cursor: pointer; white-space: nowrap; transition: all 0.15s ease; }
+  .gkl-spell-badge:hover { background: rgba(139, 92, 246, 0.3); filter: brightness(1.15); }
+  .gkl-spell-badge small { color: #94a3b8; margin-left: 4px; }
+
+  .badge-proficient { background: #22c55e !important; color: #000 !important; font-weight: bold !important; }
 </style>

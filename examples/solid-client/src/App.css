@@ -9,12 +9,40 @@ body {
 }
 
 .app-container {
-  max-width: 960px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.game-workspace {
+  display: grid;
+  grid-template-columns: minmax(640px, 1fr) minmax(400px, 560px);
+  gap: 14px;
+  align-items: start;
+}
+
+.game-main-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.game-side-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+@media (max-width: 1140px) {
+  .game-workspace {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-header {

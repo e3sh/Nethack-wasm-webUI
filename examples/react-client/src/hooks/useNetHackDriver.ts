@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
 import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
+import { ATTRIBUTE_DEFINITIONS } from '@core/knowledge/AttributeStateManager.js';
+import { getAdaptiveItemSpecs } from '@core/knowledge/ItemSpecPresenter.js';
 import { useGameStore } from '../stores/gameStore';
 
 let globalCore: any = null;
@@ -437,6 +439,52 @@ export function useNetHackDriver() {
     }
   }, []);
 
+  const syncSkillsSilent = useCallback(async () => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.syncSkillsSilent === 'function') {
+      await globalCore.gkl.syncSkillsSilent();
+      useGameStore.getState().setGklSituation(globalCore.gkl.getSituation());
+    }
+  }, []);
+
+  const syncSpellsSilent = useCallback(async () => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.syncSpellsSilent === 'function') {
+      await globalCore.gkl.syncSpellsSilent();
+      useGameStore.getState().setGklSituation(globalCore.gkl.getSituation());
+    }
+  }, []);
+
+  const moveToCell = useCallback((x: number, y: number) => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.moveToCell === 'function') {
+      return globalCore.gkl.moveToCell(x, y);
+    }
+    return false;
+  }, []);
+
+  const castSpell = useCallback((letter: string) => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.castSpell === 'function') {
+      return globalCore.gkl.castSpell(letter);
+    }
+    if (globalCore && typeof globalCore.executeSequence === 'function') {
+      return globalCore.executeSequence(['Z', letter]);
+    }
+    return false;
+  }, []);
+
+  const enhanceSkill = useCallback((skill?: any) => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.enhanceSkill === 'function') {
+      return globalCore.gkl.enhanceSkill(skill);
+    }
+    if (globalCore && typeof globalCore.executeSequence === 'function') {
+      return globalCore.executeSequence(['#enhance']);
+    }
+    return false;
+  }, []);
+
+  const getAdaptiveSpecs = useCallback((knowledge: any) => {
+    const sm = globalCore?.gkl?.skillStateManager || null;
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
+  }, []);
+
   return {
     isInitialized,
     deleteSaveFile,
@@ -454,5 +502,14 @@ export function useNetHackDriver() {
     getAdjacentAreaTiles,
     inspectTileKnowledge,
     syncInventorySilent,
+    syncSkillsSilent,
+    syncSpellsSilent,
+    moveToCell,
+    castSpell,
+    enhanceSkill,
+    getAdaptiveSpecs,
   };
 }
+
+export { ATTRIBUTE_DEFINITIONS };
+

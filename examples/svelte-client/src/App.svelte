@@ -20,31 +20,37 @@
   <!-- 1. ヘッダーエリア (HeaderPanel) -->
   <HeaderPanel />
 
-  <!-- メインゲームビュー -->
-  <main class="game-view">
-    <!-- 2. メッセージログ (MessageLog) -->
-    <MessageLog />
+  <!-- メインゲームビュー (2カラム ワークスペース) -->
+  <main class="game-workspace">
+    <!-- 左エリア: ゲーム画面・ログ・ステータス -->
+    <section class="game-main-area">
+      <!-- 2. メッセージログ (MessageLog) -->
+      <MessageLog />
 
-    <!-- 3. ダンジョンマップ (GameCanvas) -->
-    <GameCanvas />
+      <!-- 3. ダンジョンマップ (GameCanvas) -->
+      <GameCanvas />
 
-    <!-- 4. ステータスバー (StatusBar) -->
-    <StatusBar />
+      <!-- 4. ステータスバー (StatusBar) -->
+      <StatusBar />
 
-    <!-- 5. 入力プロンプト (PromptModal) -->
-    <PromptModal />
+      <!-- 5. 入力プロンプト (PromptModal) -->
+      <PromptModal />
+    </section>
 
-    <!-- 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) -->
-    <GklKnowledgePanel />
+    <!-- 右エリア: GKL ナレッジ ＆ 推奨アクション -->
+    <aside class="game-side-area">
+      <!-- 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) -->
+      <GklKnowledgePanel />
+    </aside>
   </main>
 
-  <!-- 6. インベントリ / メニューモーダル (MenuModal) -->
+  <!-- 7. インベントリ / メニューモーダル (MenuModal) -->
   <MenuModal />
 
-  <!-- 7. テキスト・ヘルプ閲覧モーダル (TextWindowModal) -->
+  <!-- 8. テキスト・ヘルプ閲覧モーダル (TextWindowModal) -->
   <TextWindowModal />
 
-  <!-- 8. ゲームオーバー & スコアボード (GameOverModal) -->
+  <!-- 9. ゲームオーバー & スコアボード (GameOverModal) -->
   <GameOverModal />
 </div>
 
@@ -59,17 +65,39 @@
 }
 
 .app-container {
-  max-width: 960px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.game-view {
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-sizing: border-box;
+}
+
+.game-workspace {
+  display: grid;
+  grid-template-columns: minmax(640px, 1fr) minmax(400px, 560px);
+  gap: 14px;
+  align-items: start;
+}
+
+.game-main-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.game-side-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+@media (max-width: 1140px) {
+  .game-workspace {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

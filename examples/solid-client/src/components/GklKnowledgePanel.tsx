@@ -1,6 +1,6 @@
 import { Component, For, Show, createSignal } from 'solid-js';
 import { gklSituation, hoveredTileKnowledge } from '../stores/gameStore';
-import { driverController } from '../services/useNetHackDriver';
+import { driverController, ATTRIBUTE_DEFINITIONS } from '../services/useNetHackDriver';
 
 export const GklKnowledgePanel: Component = () => {
   const [selectedDir, setSelectedDir] = createSignal('ALL');
@@ -8,6 +8,31 @@ export const GklKnowledgePanel: Component = () => {
   const [hoveredItem, setHoveredItem] = createSignal<any | null>(null);
   const [selectedAreaTile, setSelectedAreaTile] = createSignal<any | null>(null);
   const [hoveredAreaTile, setHoveredAreaTile] = createSignal<any | null>(null);
+
+  const activeAttributes = () => {
+    const res = gklSituation()?.attributes?.effectiveResistances || {};
+    return ATTRIBUTE_DEFINITIONS.filter((item: any) => Boolean(res[item.key]));
+  };
+
+  const isSkillsSynced = () => Boolean(gklSituation()?.skills?.isSynced);
+  const activeSkills = () => gklSituation()?.skills?.activeItems || [];
+  const activeSpells = () => gklSituation()?.spells?.items || [];
+
+  const handleSyncSkills = async () => {
+    await driverController.syncSkillsSilent();
+  };
+
+  const handleSyncSpells = async () => {
+    await driverController.syncSpellsSilent();
+  };
+
+  const handleCastSpell = (letter: string) => {
+    driverController.castSpell(letter);
+  };
+
+  const handleEnhanceSkill = (skill?: any) => {
+    driverController.enhanceSkill(skill);
+  };
 
   const dpadButtons = [
     { id: 'NW', label: '北西', icon: '↖' },
@@ -202,6 +227,96 @@ export const GklKnowledgePanel: Component = () => {
           <button onClick={handleSyncInventory} disabled={isSyncing()} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', 'border-radius': '4px', 'font-size': '11px', cursor: 'pointer' }}>
             {isSyncing() ? '...同期中' : '🔄 インベントリ同期'}
           </button>
+          <button onClick={handleSyncSkills} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', 'border-radius': '4px', 'font-size': '11px', cursor: 'pointer' }}>
+            🥋 スキル同期
+          </button>
+          <button onClick={handleSyncSpells} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', 'border-radius': '4px', 'font-size': '11px', cursor: 'pointer' }}>
+            📖 魔法同期
+          </button>
+        </div>
+      </div>
+
+      {/* 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */}
+      <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px', background: '#232834', border: '1px solid #3b4252', 'border-radius': '6px', padding: '8px 12px' }}>
+        {/* 🛡️ 属性・耐性 */}
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '8px', 'flex-wrap': 'wrap' }}>
+          <strong style={{ 'font-size': '11px', color: '#94a3b8', 'white-space': 'nowrap' }}>🛡️ 属性耐性:</strong>
+          <Show when={activeAttributes().length > 0} fallback={<span style={{ 'font-size': '11px', color: '#64748b' }}>なし</span>}>
+            <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
+              <For each={activeAttributes()}>
+                {(attr: any) => (
+                  <span style={{ background: 'rgba(14, 165, 233, 0.15)', border: '1px solid #38bdf8', color: '#7dd3fc', padding: '2px 7px', 'border-radius': '4px', 'font-size': '11px', 'font-weight': 'bold' }} title={`${attr.label} / ${attr.en} (有効)`}>
+                    {attr.label}
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        {/* 🥋 スキル */}
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '8px', 'flex-wrap': 'wrap' }}>
+          <strong style={{ 'font-size': '11px', color: '#94a3b8', 'white-space': 'nowrap' }}>🥋 スキル:</strong>
+          <Show when={activeSkills().length > 0} fallback={<span style={{ 'font-size': '11px', color: '#64748b' }}>{isSkillsSynced() ? 'なし (未熟)' : '未同期'}</span>}>
+            <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
+              <For each={activeSkills()}>
+                {(skill: any) => {
+                  const isEnhanceable = skill.canEnhance;
+                  return (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        border: isEnhanceable ? '1px solid #f59e0b' : '1px solid #3b82f6',
+                        color: '#93c5fd',
+                        padding: '2px 7px',
+                        'border-radius': '4px',
+                        'font-size': '11px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        'align-items': 'center',
+                        gap: '4px',
+                      }}
+                      title={skill.rawText || skill.name}
+                      onClick={() => handleEnhanceSkill(skill)}
+                    >
+                      <Show when={isEnhanceable}><span style={{ color: '#f59e0b' }}>⭐</span></Show>
+                      <strong>{skill.name}</strong> [{skill.rank?.label || skill.rank?.en || '入門'}]
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        {/* 📖 習得魔法 */}
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '8px', 'flex-wrap': 'wrap' }}>
+          <strong style={{ 'font-size': '11px', color: '#94a3b8', 'white-space': 'nowrap' }}>📖 習得魔法:</strong>
+          <Show when={activeSpells().length > 0} fallback={<span style={{ 'font-size': '11px', color: '#64748b' }}>なし</span>}>
+            <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
+              <For each={activeSpells()}>
+                {(sp: any) => (
+                  <button
+                    type="button"
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      border: '1px solid #a78bfa',
+                      color: '#ddd6fe',
+                      padding: '2px 8px',
+                      'border-radius': '4px',
+                      'font-size': '11px',
+                      cursor: 'pointer',
+                    }}
+                    title={`キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`}
+                    onClick={() => handleCastSpell(sp.letter)}
+                  >
+                    ✨ [{sp.letter}] {sp.name} <small style={{ color: '#94a3b8' }}>(Lv.{sp.level} {sp.failRate})</small>
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
       </div>
 
@@ -254,6 +369,9 @@ export const GklKnowledgePanel: Component = () => {
                       </Show>
                       <Show when={item.isWorn}>
                         <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#9d4edd' }} title="着用中">着</span>
+                      </Show>
+                      <Show when={item.skillBadge?.isProficient || item.isRecommendedWeapon}>
+                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#000', background: '#22c55e' }} title={`得意武器 (${item.skillBadge?.label || '+'})`}>+</span>
                       </Show>
                     </div>
 
@@ -456,31 +574,45 @@ export const GklKnowledgePanel: Component = () => {
               </div>
 
               <div style={{ 'font-size': '11px', color: '#e5e9f0', 'margin-top': '6px', display: 'flex', 'flex-direction': 'column', gap: '4px' }}>
-                {/* 武器・防具・モンスター・アイテムステータスグリッド */}
-                <Show when={kn().stats}>
-                  <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap', 'margin-bottom': '4px' }}>
-                    {/* モンスター用 */}
-                    <Show when={kn().stats.hd !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{kn().stats.hd}</strong></span></Show>
-                    <Show when={kn().stats.ac !== undefined && (kn().category === 'MONSTER' || kn().type === 'MONSTER')}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{kn().stats.ac}</strong></span></Show>
-                    <Show when={kn().stats.speed !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{kn().stats.speed}</strong></span></Show>
-                    <Show when={kn().stats.mr !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{kn().stats.mr}</strong></span></Show>
-
-                    {/* 武器用 */}
-                    <Show when={kn().stats.sdam}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>対小型ダメ: <strong style={{ color: '#ebcb8b' }}>{kn().stats.sdam}</strong></span></Show>
-                    <Show when={kn().stats.ldam}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>対大型ダメ: <strong style={{ color: '#ebcb8b' }}>{kn().stats.ldam}</strong></span></Show>
-                    <Show when={kn().stats.skill}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>スキル: <strong style={{ color: '#ebcb8b' }}>{kn().stats.skill}</strong></span></Show>
-                    <Show when={kn().stats.hands}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>持ち手: <strong style={{ color: '#ebcb8b' }}>{kn().stats.hands}手</strong></span></Show>
-
-                    {/* 防具用 */}
-                    <Show when={kn().stats.ac !== undefined && kn().category === 'ARMOR'}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>Base AC: <strong style={{ color: '#ebcb8b' }}>+{kn().stats.ac}</strong></span></Show>
-                    <Show when={kn().stats.mc !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>MC: <strong style={{ color: '#ebcb8b' }}>{kn().stats.mc}</strong></span></Show>
-                    <Show when={kn().stats.reflection}><span style={{ background: '#232834', border: '1px solid #e9c46a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#e9c46a' }}>✨ 反射 (Reflection)</span></Show>
-                    <Show when={kn().stats.magicResistance}><span style={{ background: '#232834', border: '1px solid #88c0d0', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>🛡️ 魔耐 (MR)</span></Show>
-
-                    {/* 共通物理特性 */}
-                    <Show when={kn().stats.material}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>材質: <strong style={{ color: '#ebcb8b' }}>{kn().stats.material}</strong></span></Show>
-                    <Show when={kn().stats.weight}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>重量: <strong style={{ color: '#ebcb8b' }}>{kn().stats.weight}</strong></span></Show>
-                  </div>
+                {/* 👾 モンスター専用ステータス */}
+                <Show
+                  when={kn().category === 'MONSTER' || kn().type === 'MONSTER'}
+                  fallback={
+                    (() => {
+                      const specs = driverController.getAdaptiveSpecs(kn());
+                      if (!specs || specs.length === 0) return null;
+                      return (
+                        <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap', 'margin-bottom': '4px' }}>
+                          <For each={specs}>
+                            {(s: any) => {
+                              const isHigh = s.highlight;
+                              const borderCol = isHigh ? '#38bdf8' : '#334155';
+                              const labelCol = isHigh ? '#38bdf8' : '#94a3b8';
+                              const valCol = '#f8fafc';
+                              return (
+                                <span style={{ background: isHigh ? 'rgba(14, 165, 233, 0.15)' : 'rgba(30, 41, 59, 0.7)', border: `1px solid ${borderCol}`, padding: '2px 7px', 'border-radius': '4px', 'font-size': '11px', display: 'inline-flex', 'align-items': 'center', gap: '4px' }}>
+                                  <span style={{ color: labelCol, 'font-size': '10px' }}>{s.labelJa || s.label}:</span>
+                                  <strong style={{ color: valCol }}>{s.value}</strong>
+                                  <Show when={s.skillBadge}>
+                                    <span style={{ color: '#22c55e', 'font-weight': 'bold', 'font-size': '10px', 'margin-left': '2px' }}>{s.skillBadge.label}</span>
+                                  </Show>
+                                </span>
+                              );
+                            }}
+                          </For>
+                        </div>
+                      );
+                    })()
+                  }
+                >
+                  <Show when={kn().stats}>
+                    <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap', 'margin-bottom': '4px' }}>
+                      <Show when={kn().stats.hd !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{kn().stats.hd}</strong></span></Show>
+                      <Show when={kn().stats.ac !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{kn().stats.ac}</strong></span></Show>
+                      <Show when={kn().stats.speed !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{kn().stats.speed}</strong></span></Show>
+                      <Show when={kn().stats.mr !== undefined}><span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', 'border-radius': '3px', 'font-size': '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{kn().stats.mr}</strong></span></Show>
+                    </div>
+                  </Show>
                 </Show>
 
                 {/* 💡 おすすめワンタップ操作表示 */}
@@ -502,12 +634,36 @@ export const GklKnowledgePanel: Component = () => {
                   </p>
                 </Show>
 
+                {/* ⚖️ BUC効果 (アイテム) */}
+                <Show when={kn().bucEffects}>
+                  <div style={{ background: '#232834', 'border-left': '3px solid #60a5fa', padding: '6px 10px', 'border-radius': '0 4px 4px 0', 'margin-top': '4px' }}>
+                    <div style={{ 'font-weight': 'bold', color: '#60a5fa', 'font-size': '10px' }}>⚖️ BUC効果:</div>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, 'font-size': '10px' }}>
+                      <Show when={kn().bucEffects.blessed}><li style={{ color: '#2ecc71' }}><strong>祝福:</strong> {kn().bucEffects.blessed}</li></Show>
+                      <Show when={kn().bucEffects.uncursed}><li style={{ color: '#cbd5e1' }}><strong>通常:</strong> {kn().bucEffects.uncursed}</li></Show>
+                      <Show when={kn().bucEffects.cursed}><li style={{ color: '#e74c3c' }}><strong>呪い:</strong> {kn().bucEffects.cursed}</li></Show>
+                    </ul>
+                  </div>
+                </Show>
+
                 {/* 効果解説 ＆ フレーバーテキスト */}
                 <Show when={kn().effectSummary}>
                   <p style={{ margin: 0 }}>💡 {safeText(kn().effectSummary)}</p>
                 </Show>
                 <Show when={kn().description || kn().flavorNote}>
                   <p style={{ margin: 0, opacity: 0.9 }}>📖 {safeText(kn().description || kn().flavorNote)}</p>
+                </Show>
+
+                {/* 🔍 未識別識別Tips */}
+                <Show when={kn().unidentifiedTips && kn().unidentifiedTips.length > 0}>
+                  <div style={{ background: '#232834', 'border-left': '3px solid #a78bfa', padding: '6px 10px', 'border-radius': '0 4px 4px 0', 'margin-top': '4px' }}>
+                    <div style={{ 'font-weight': 'bold', color: '#a78bfa', 'font-size': '10px' }}>🔍 識別Tips:</div>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, 'font-size': '10px', color: '#e5e9f0' }}>
+                      <For each={kn().unidentifiedTips}>
+                        {(tip: string) => <li>{tip}</li>}
+                      </For>
+                    </ul>
+                  </div>
                 </Show>
 
                 <Show when={adviceList().length > 0}>

@@ -2,6 +2,8 @@ import { ref, onMounted } from 'vue';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
 import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
+import { ATTRIBUTE_DEFINITIONS } from '@core/knowledge/AttributeStateManager.js';
+import { getAdaptiveItemSpecs } from '@core/knowledge/ItemSpecPresenter.js';
 import { useGameStore } from '../stores/gameStore';
 
 class NetHackDriverController {
@@ -462,8 +464,49 @@ class NetHackDriverController {
       gameStore.setGklSituation(this.core.gkl.getSituation());
     }
   }
+
+  public async syncSkillsSilent() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.syncSkillsSilent === 'function') {
+      await this.core.gkl.syncSkillsSilent();
+      this.updateGklSituation();
+    }
+  }
+
+  public async syncSpellsSilent() {
+    if (this.core && this.core.gkl && typeof this.core.gkl.syncSpellsSilent === 'function') {
+      await this.core.gkl.syncSpellsSilent();
+      this.updateGklSituation();
+    }
+  }
+
+  public moveToCell(x: number, y: number) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.moveToCell === 'function') {
+      return this.core.gkl.moveToCell(x, y);
+    }
+    return false;
+  }
+
+  public castSpell(letter: string) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.castSpell === 'function') {
+      return this.core.gkl.castSpell(letter);
+    }
+    return this.executeSequence(['Z', letter]);
+  }
+
+  public enhanceSkill(skill?: any) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.enhanceSkill === 'function') {
+      return this.core.gkl.enhanceSkill(skill);
+    }
+    return this.executeSequence(['#enhance']);
+  }
+
+  public getAdaptiveSpecs(knowledge: any) {
+    const sm = this.core?.gkl?.skillStateManager || null;
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
+  }
 }
 
+export { ATTRIBUTE_DEFINITIONS };
 export const driverController = new NetHackDriverController();
 
 export function useNetHackDriver() {
@@ -488,5 +531,11 @@ export function useNetHackDriver() {
     getAdjacentAreaTiles: () => driverController.getZoomAreaTiles(1),
     inspectTileKnowledge: (x: number, y: number) => driverController.inspectTileKnowledge(x, y),
     syncInventorySilent: () => driverController.syncInventorySilent(),
+    syncSkillsSilent: () => driverController.syncSkillsSilent(),
+    syncSpellsSilent: () => driverController.syncSpellsSilent(),
+    moveToCell: (x: number, y: number) => driverController.moveToCell(x, y),
+    castSpell: (letter: string) => driverController.castSpell(letter),
+    enhanceSkill: (skill?: any) => driverController.enhanceSkill(skill),
+    getAdaptiveSpecs: (knowledge: any) => driverController.getAdaptiveSpecs(knowledge),
   };
 }

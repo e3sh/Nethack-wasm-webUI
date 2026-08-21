@@ -14,7 +14,7 @@
  * @param {Object} [options={}] - オプション
  * @param {Object} [options.skillStateManager] - SkillStateManager インスタンス
  * @param {boolean} [options.includeCommonPhysics=true] - 材質・重量の共通物理属性を含めるか
- * @returns {Array<{ id: string, label: string, labelJa: string, value: string, type: string, highlight?: boolean }>}
+ * @returns {Array<{ id: string, label: string, labelJa: string, value: string, type: string, highlight?: boolean, skillBadge?: { id?: string, label?: string, isProficient?: boolean, isEnhanceable?: boolean, rankKey?: string, rankLabel?: string, [key: string]: any } | null, [key: string]: any }>}
  */
 export function getAdaptiveItemSpecs(knowledge, options = {}) {
     const specs = [];
