@@ -114,4 +114,56 @@ describe('DebugInspector', () => {
 
         expect(postedMsgs.some(m => m.type === 'MESSAGE_UNTRANSLATED' && m.data.raw === 'New monster screams.')).toBe(true);
     });
+
+    it('skillsStateUpdated, spellsStateUpdated, discoveriesStateUpdated, attributesStateUpdated イベントを購読しログ・スナップショットを配信すること', () => {
+        const core = createMockCore();
+        core.gkl = {
+            skillStateManager: {
+                getSkills: () => [{ name: 'dagger', rank: { key: 'basic', label: '入門' }, canEnhance: true }],
+                getActiveSkills: () => [{ name: 'dagger', rank: { key: 'basic', label: '入門' }, canEnhance: true }]
+            },
+            spellStateManager: {
+                getSpells: () => [{ letter: 'a', name: 'force bolt', level: 1, failRate: '0%' }]
+            },
+            discoveryStateManager: {
+                discoveredOnums: new Set([259]),
+                appearanceMap: new Map([['ruby potion', 'potion of healing']]),
+                isSynced: true
+            },
+            attributeStateManager: {
+                getAttributes: () => ({
+                    effectiveResistances: { fire: true }
+                })
+            }
+        };
+
+        const inspector = new DebugInspector(core, { autoStart: false });
+        const postedMsgs = [];
+        inspector.channel = { postMessage: (msg) => { postedMsgs.push(msg); } };
+        inspector.isBroadcasting = true;
+        inspector._bindCoreEvents();
+
+        // 1. skillsStateUpdated
+        core.emit('skillsStateUpdated');
+        expect(postedMsgs.some(m => m.type === 'INSPECTOR_LOG' && m.entry.category === 'EVENT:skillsStateUpdated' && m.entry.data.enhanceableCount === 1)).toBe(true);
+
+        // 2. spellsStateUpdated
+        core.emit('spellsStateUpdated');
+        expect(postedMsgs.some(m => m.type === 'INSPECTOR_LOG' && m.entry.category === 'EVENT:spellsStateUpdated' && m.entry.data.spellCount === 1)).toBe(true);
+
+        // 3. discoveriesStateUpdated
+        core.emit('discoveriesStateUpdated');
+        expect(postedMsgs.some(m => m.type === 'INSPECTOR_LOG' && m.entry.category === 'EVENT:discoveriesStateUpdated' && m.entry.data.discoveredCount === 1)).toBe(true);
+
+        // 4. attributesStateUpdated
+        core.emit('attributesStateUpdated');
+        expect(postedMsgs.some(m => m.type === 'INSPECTOR_LOG' && m.entry.category === 'EVENT:attributesStateUpdated' && m.entry.data.resistances.fire === true)).toBe(true);
+
+        // 5. broadcastState スナップショットの検証
+        const snapshot = inspector.broadcastState();
+        expect(snapshot.skills).toHaveLength(1);
+        expect(snapshot.spells).toHaveLength(1);
+        expect(snapshot.attributes.effectiveResistances.fire).toBe(true);
+        expect(snapshot.discoveries.discoveredCount).toBe(1);
+    });
 });

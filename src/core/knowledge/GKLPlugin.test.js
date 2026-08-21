@@ -193,4 +193,74 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(res2).toBe(true);
         expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['_', '@', 'DIR_E', 'DIR_E', 'DIR_E', '.'], expect.anything());
     });
+
+    it('サイレント同期完了時に spellsStateUpdated, attributesStateUpdated, skillsStateUpdated, discoveriesStateUpdated が発火すること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        const emittedEvents = [];
+        const origEmit = mockCore.emit;
+        mockCore.emit = (evt, data) => {
+            emittedEvents.push(evt);
+            origEmit(evt, data);
+        };
+        plugin.attach(mockCore);
+
+        // 1. syncSpellsSilent
+        mockCore.querySequenceSilent.mockResolvedValueOnce([
+            { lines: ['a - force bolt          1      attack      0%'] }
+        ]);
+        await plugin.syncSpellsSilent();
+        expect(emittedEvents).toContain('spellsStateUpdated');
+
+        // 2. syncAttributesSilent
+        mockCore.querySequenceSilent.mockResolvedValueOnce([
+            { lines: ['You are fire resistant.'] }
+        ]);
+        await plugin.syncAttributesSilent();
+        expect(emittedEvents).toContain('attributesStateUpdated');
+
+        // 3. syncSkillsSilent
+        mockCore.querySequenceSilent.mockResolvedValueOnce([
+            { lines: ['* long sword [Skilled]'] }
+        ]);
+        await plugin.syncSkillsSilent();
+        expect(emittedEvents).toContain('skillsStateUpdated');
+
+        // 4. syncDiscoveriesSilent
+        mockCore.silentQuery = vi.fn().mockResolvedValueOnce('potion: ruby - healing');
+        await plugin.syncDiscoveriesSilent();
+        expect(emittedEvents).toContain('discoveriesStateUpdated');
+    });
+
+    it('messageText および inventoryStateUpdated による状態変化時に各イベントが発火すること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        const emittedEvents = [];
+        const origEmit = mockCore.emit;
+        mockCore.emit = (evt, data) => {
+            emittedEvents.push(evt);
+            origEmit(evt, data);
+        };
+        plugin.attach(mockCore);
+
+        // 1. スキル向上メッセージ検知 ➔ skillsStateUpdated
+        mockCore.emit('messageText', { text: 'You feel more confident in your dagger skills.' });
+        expect(emittedEvents).toContain('skillsStateUpdated');
+
+        // 2. 呪文習得メッセージ検知 ➔ spellsStateUpdated
+        mockCore.emit('messageText', { text: 'You learn the spell force bolt!' });
+        expect(emittedEvents).toContain('spellsStateUpdated');
+
+        // 3. 耐性獲得メッセージ検知 ➔ attributesStateUpdated
+        mockCore.emit('messageText', { text: 'You feel very hot.' });
+        expect(emittedEvents).toContain('attributesStateUpdated');
+
+        // 4. インベントリ更新で未登録の鑑定済みアイテムが出現 ➔ discoveriesStateUpdated
+        mockCore.emit('inventoryStateUpdated', {
+            items: [
+                { onum: 297, rawText: 'a wand of digging', identification: { isUnidentified: false } }
+            ]
+        });
+        expect(emittedEvents).toContain('discoveriesStateUpdated');
+    });
 });

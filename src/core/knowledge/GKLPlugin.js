@@ -130,13 +130,22 @@ export class GKLPlugin {
                     }
                 }
                 if (this.spellStateManager && typeof this.spellStateManager.updateFromMessage === 'function') {
-                    this.spellStateManager.updateFromMessage(text);
+                    const updated = this.spellStateManager.updateFromMessage(text);
+                    if (updated) {
+                        core.emit('spellsStateUpdated', this.spellStateManager);
+                    }
                 }
                 if (this.skillStateManager && typeof this.skillStateManager.updateFromMessage === 'function') {
-                    this.skillStateManager.updateFromMessage(text);
+                    const updated = this.skillStateManager.updateFromMessage(text);
+                    if (updated) {
+                        core.emit('skillsStateUpdated', this.skillStateManager);
+                    }
                 }
                 if (this.attributeStateManager && typeof this.attributeStateManager.updateFromMessage === 'function') {
-                    this.attributeStateManager.updateFromMessage(text);
+                    const updated = this.attributeStateManager.updateFromMessage(text);
+                    if (updated) {
+                        core.emit('attributesStateUpdated', this.attributeStateManager);
+                    }
                 }
             }
         });
@@ -147,12 +156,20 @@ export class GKLPlugin {
             if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
                 this.attributeStateManager.updateExtrinsicsFromInventory(items);
             }
+            let newlyDiscovered = false;
             if (this.discoveryStateManager && Array.isArray(items)) {
                 for (const item of items) {
                     if (item && item.onum >= 0 && item.identification && !item.identification.isUnidentified) {
+                        const prevDiscovered = this.discoveryStateManager.discoveredOnums.has(item.onum);
                         this.discoveryStateManager.registerKnownItem(item.onum, item.rawText);
+                        if (!prevDiscovered && this.discoveryStateManager.discoveredOnums.has(item.onum)) {
+                            newlyDiscovered = true;
+                        }
                     }
                 }
+            }
+            if (newlyDiscovered) {
+                core.emit('discoveriesStateUpdated', this.discoveryStateManager);
             }
         });
 
@@ -340,6 +357,7 @@ export class GKLPlugin {
         const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], { syncType: 'spells', ...options });
         if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
             this.spellStateManager.updateFromSequenceBuffer(buffer, true);
+            this.core.emit('spellsStateUpdated', this.spellStateManager);
             return true;
         }
         return false;
@@ -384,6 +402,7 @@ export class GKLPlugin {
             if (this.inventoryStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
                 this.attributeStateManager.updateExtrinsicsFromInventory(this.inventoryStateManager.items);
             }
+            this.core.emit('attributesStateUpdated', this.attributeStateManager);
             return true;
         }
         return false;
@@ -421,6 +440,7 @@ export class GKLPlugin {
         const buffer = await this.core.querySequenceSilent(['#', 'enhance', ' ', '\x1b'], { syncType: 'skills', ...options });
         if (this.skillStateManager && typeof this.skillStateManager.updateFromSequenceBuffer === 'function') {
             this.skillStateManager.updateFromSequenceBuffer(buffer, true);
+            this.core.emit('skillsStateUpdated', this.skillStateManager);
             return true;
         }
         return false;
@@ -567,7 +587,7 @@ export class GKLPlugin {
                 const buffer = await this.core.silentQuery(['\\', ' ']);
                 if (buffer && this.discoveryStateManager) {
                     this.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                    this.core.emit('discoveriesSynced', this.discoveryStateManager);
+                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
                     return true;
                 }
             } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
@@ -575,7 +595,7 @@ export class GKLPlugin {
                 const buffer = this.core.driver.getLastSequenceBuffer ? this.core.driver.getLastSequenceBuffer() : null;
                 if (buffer && this.discoveryStateManager) {
                     this.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                    this.core.emit('discoveriesSynced', this.discoveryStateManager);
+                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
                     return true;
                 }
             }

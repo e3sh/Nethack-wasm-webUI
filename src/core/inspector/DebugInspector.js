@@ -171,6 +171,25 @@ export class DebugInspector {
             queueLen: rawDriverStatus.sequenceQueueLength || 0
         } : null;
 
+        const spellsData = (situation && situation.spells)
+            ? (Array.isArray(situation.spells) ? situation.spells : (situation.spells.items || []))
+            : ((this.core.gkl && this.core.gkl.spellStateManager) ? this.core.gkl.spellStateManager.getSpells() : []);
+
+        const skillsData = (situation && situation.skills)
+            ? (Array.isArray(situation.skills) ? situation.skills : (situation.skills.items || []))
+            : ((this.core.gkl && this.core.gkl.skillStateManager) ? this.core.gkl.skillStateManager.getSkills() : []);
+
+        const attributesData = (situation && situation.attributes)
+            ? situation.attributes
+            : ((this.core.gkl && this.core.gkl.attributeStateManager) ? this.core.gkl.attributeStateManager.getAttributes() : {});
+
+        const dsm = (this.core.gkl && this.core.gkl.discoveryStateManager) || this.core.discoveryStateManager || null;
+        const discoveriesData = dsm ? {
+            discoveredCount: dsm.discoveredOnums ? dsm.discoveredOnums.size : 0,
+            appearancesCount: dsm.appearanceMap ? dsm.appearanceMap.size : 0,
+            isSynced: Boolean(dsm.isSynced)
+        } : null;
+
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
@@ -180,6 +199,10 @@ export class DebugInspector {
             status: statusData,
             areaState: areaData,
             inventoryItems: inventoryItems,
+            spells: spellsData,
+            skills: skillsData,
+            attributes: attributesData,
+            discoveries: discoveriesData,
             situation: situation,
             contextActions: contextActions
         };
@@ -311,6 +334,46 @@ export class DebugInspector {
         this.core.on('inventoryStateUpdated', () => {
             this.broadcastLog('EVENT:inventoryStateUpdated', {
                 itemCount: (this.core.gkl && this.core.gkl.inventoryStateManager) ? this.core.gkl.inventoryStateManager.items.length : 0
+            });
+            this.broadcastState();
+        });
+
+        this.core.on('skillsStateUpdated', () => {
+            const skills = (this.core.gkl && this.core.gkl.skillStateManager) ? this.core.gkl.skillStateManager.getSkills() : [];
+            const activeSkills = (this.core.gkl && this.core.gkl.skillStateManager) ? this.core.gkl.skillStateManager.getActiveSkills() : [];
+            const enhanceable = skills.filter(s => s && s.canEnhance);
+            this.broadcastLog('EVENT:skillsStateUpdated', {
+                totalSkills: skills.length,
+                activeSkills: activeSkills.length,
+                enhanceableCount: enhanceable.length,
+                enhanceableList: enhanceable.map(s => s.name)
+            });
+            this.broadcastState();
+        });
+
+        this.core.on('spellsStateUpdated', () => {
+            const spells = (this.core.gkl && this.core.gkl.spellStateManager) ? this.core.gkl.spellStateManager.getSpells() : [];
+            this.broadcastLog('EVENT:spellsStateUpdated', {
+                spellCount: spells.length,
+                spells: spells.map(s => `${s.letter || '-'} - ${s.name} (Lv.${s.level ?? '?'}, 失敗率:${s.failRate ?? '?'})`)
+            });
+            this.broadcastState();
+        });
+
+        const handleDiscoveriesUpdated = () => {
+            const dsm = (this.core.gkl && this.core.gkl.discoveryStateManager) || this.core.discoveryStateManager;
+            this.broadcastLog('EVENT:discoveriesStateUpdated', {
+                discoveredCount: dsm && dsm.discoveredOnums ? dsm.discoveredOnums.size : 0,
+                appearancesCount: dsm && dsm.appearanceMap ? dsm.appearanceMap.size : 0
+            });
+            this.broadcastState();
+        };
+        this.core.on('discoveriesStateUpdated', handleDiscoveriesUpdated);
+
+        this.core.on('attributesStateUpdated', () => {
+            const attr = (this.core.gkl && this.core.gkl.attributeStateManager) ? this.core.gkl.attributeStateManager.getAttributes() : null;
+            this.broadcastLog('EVENT:attributesStateUpdated', {
+                resistances: attr ? attr.effectiveResistances : {}
             });
             this.broadcastState();
         });
