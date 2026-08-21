@@ -246,6 +246,7 @@ export class GKLPlugin {
      */
     async syncPendingStateSilent(options = {}) {
         if (this._isSyncing || !this.core) return false;
+        if (this.core.isPendingPrefix) return false;
         this._isSyncing = true;
         try {
             if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
@@ -273,6 +274,7 @@ export class GKLPlugin {
      */
     async syncInventorySilent(options = {}) {
         if (!this.core) return false;
+        if (this.core.isPendingPrefix) return false;
 
         const { force = false } = options;
 
@@ -313,6 +315,7 @@ export class GKLPlugin {
      */
     async syncSpellsSilent(options = {}) {
         if (!this.core) return false;
+        if (this.core.isPendingPrefix) return false;
 
         const { force = false } = options;
 
@@ -350,6 +353,7 @@ export class GKLPlugin {
      */
     async syncAttributesSilent(options = {}) {
         if (!this.core) return false;
+        if (this.core.isPendingPrefix) return false;
 
         const { force = false } = options;
 
@@ -392,6 +396,7 @@ export class GKLPlugin {
      */
     async syncSkillsSilent(options = {}) {
         if (!this.core) return false;
+        if (this.core.isPendingPrefix) return false;
 
         const { force = false } = options;
 

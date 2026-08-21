@@ -160,4 +160,19 @@ describe('SpellStateManager Tests', () => {
         expect(spellManager.getSpells().length).toBe(0);
         expect(spellManager.isSynced).toBe(false);
     });
+
+    it('魔法未習得メッセージ受信時またはforceサイレント同期時にisSynced=trueかつspells=[]となること', () => {
+        // メッセージからの未習得検知
+        spellManager.isSynced = false;
+        const res = spellManager.updateFromMessage("You don't know any spells right now.");
+        expect(res).toBe(true);
+        expect(spellManager.isSynced).toBe(true);
+        expect(spellManager.getSpells()).toEqual([]);
+
+        // forceサイレント同期での空バッファ
+        spellManager.isSynced = false;
+        spellManager.updateFromSequenceBuffer([{ type: 'raw_print', text: "You don't know any spells right now." }], true);
+        expect(spellManager.isSynced).toBe(true);
+        expect(spellManager.getSpells()).toEqual([]);
+    });
 });

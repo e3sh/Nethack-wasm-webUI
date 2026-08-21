@@ -184,4 +184,46 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(trLogs[2].success).toBe(false);
         expect(untranslatedLogs).toHaveLength(1); // 増加しないこと
     });
+
+    it('「5」などのプレフィックスキー入力直後は isPendingPrefix により syncPendingStateSilent が抑止され、デバウンスがバイパスされること', async () => {
+        let inputRequiredHandler = null;
+        const mockDriver = createMockDriver();
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'inputRequired') inputRequiredHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.gkl.syncSpellsSilent = vi.fn().mockResolvedValue(true);
+        core.gkl.syncInventorySilent = vi.fn().mockResolvedValue(true);
+        core.gkl.spellStateManager.isSynced = true;
+        core.gkl.inventoryStateManager.isSynced = true;
+
+        const mockResolver1 = { respond: vi.fn(), cancel: vi.fn() };
+        const mockResolver2 = { respond: vi.fn(), cancel: vi.fn() };
+
+        // 1. 最初の入力待ちで「5」キーを送信
+        if (inputRequiredHandler) {
+            inputRequiredHandler({ context: 'poskey', promptCategory: 'POSKEY', resolver: mockResolver1 });
+        }
+        core.respond('5');
+        expect(mockResolver1.respond).toHaveBeenCalledWith(53);
+        expect(core.isPendingPrefix).toBe(true);
+
+        // 2. 「5」直後の方向入力待ち inputRequired が発生した際、未同期ステートがあっても自動同期が抑止されること
+        core.gkl.syncSpellsSilent.mockClear();
+        core.gkl.syncInventorySilent.mockClear();
+        core.gkl.spellStateManager.isSynced = false;
+        if (inputRequiredHandler) {
+            inputRequiredHandler({ context: 'poskey', promptCategory: 'POSKEY', resolver: mockResolver2 });
+        }
+        await new Promise(r => setTimeout(r, 10));
+        expect(core.gkl.syncSpellsSilent).not.toHaveBeenCalled();
+        expect(core.gkl.syncInventorySilent).not.toHaveBeenCalled();
+
+        // 3. 素早い2打目の方向キー入力（120ms以内）がデバウンスでドロップされずに届くこと
+        core.lastInputTime = Date.now();
+        core.sendKey('Numpad8', false, false, false, '8');
+        expect(mockResolver2.respond).toHaveBeenCalledWith(56);
+        expect(core.isPendingPrefix).toBe(false); // 方向入力完了でプレフィックス解除
+    });
 });

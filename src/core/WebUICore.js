@@ -120,6 +120,7 @@ export class WebUICore {
         this.lastDlevel = undefined;
         this.gamepadLoopId = null;
         this.lastInputTime = 0;
+        this.isPendingPrefix = false;
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -275,6 +276,7 @@ export class WebUICore {
     async restart() {
         this.activeResolver = null;
         this.activeMenuItems = [];
+        this.isPendingPrefix = false;
         if (this.textWindowManager) {
             this.textWindowManager.resetAll();
         }
@@ -560,6 +562,21 @@ export class WebUICore {
         const inputStr = typeof inputVal === 'string' ? inputVal.trim() : (typeof inputVal === 'number' && inputVal > 0 ? String.fromCharCode(inputVal) : '');
         if (inputStr) {
             this.emit('userActionSent', { sequence: [inputStr] });
+
+            // プレフィックスキー（5, g, G, m, M, F, _, n）の追跡
+            const prefixKeys = new Set(['5', 'g', 'G', 'm', 'M', 'F', '_', 'n']);
+            if (prefixKeys.has(inputStr)) {
+                this.isPendingPrefix = true;
+            } else {
+                this.isPendingPrefix = false;
+            }
+        }
+
+        // ユーザーの手動入力時、実行中のサイレント同期タスクがあれば手動入力を優先して安全にキャンセル
+        if (this.driver && typeof this.driver.cancelSequence === 'function') {
+            if (this.driver.currentTask && this.driver.currentTask.options && this.driver.currentTask.options.isSilentSync) {
+                this.driver.cancelSequence();
+            }
         }
 
         try {
@@ -576,7 +593,8 @@ export class WebUICore {
     sendKey(inputVal, shift = false, ctrl = false, alt = false, rawKey = '', bypassDebounce = false) {
         if (!this.activeResolver) return;
 
-        if (!bypassDebounce && this.lastInputTime && (Date.now() - this.lastInputTime < 120)) {
+        const shouldBypassDebounce = bypassDebounce || this.isPendingPrefix;
+        if (!shouldBypassDebounce && this.lastInputTime && (Date.now() - this.lastInputTime < 120)) {
             return;
         }
 
@@ -1224,7 +1242,10 @@ export class WebUICore {
 
             // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）の検出
             const lastText = (this.lastPutstrText || '').toLowerCase();
-            const isPrefixWaiting = lastText.includes('プレフィックス') || lastText.includes('prefix') || (lastText.includes('count') && lastText.includes('command'));
+            const isPrefixWaiting = Boolean(this.isPendingPrefix) || 
+                                    lastText.includes('プレフィックス') || 
+                                    lastText.includes('prefix') || 
+                                    (lastText.includes('count') && lastText.includes('command'));
 
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（直列・排他制御で安全に実行）
             if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function' && !isPrefixWaiting) {
@@ -1348,6 +1369,7 @@ export class WebUICore {
         this.driver.on('exited', async (data) => {
             this.activeResolver = null;
             this.activeMenuItems = [];
+            this.isPendingPrefix = false;
             this.currentPromptCategory = PROMPT_CATEGORY.NONE;
             this.currentPromptChoices = '';
             this.lastPutstrText = '';

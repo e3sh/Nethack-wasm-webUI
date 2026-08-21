@@ -273,6 +273,19 @@ export class SpellStateManager {
             }
             return;
         }
+
+        // バッファ内に「魔法を覚えていない」メッセージがあるかチェック
+        for (const item of sequenceBuffer) {
+            if (!item) continue;
+            const text = (item.text || item.str || item.prompt || '').toLowerCase();
+            if (text.includes("don't know any spells") || text.includes("know no spells") || 
+                text.includes("呪文を覚えて") || text.includes("魔法を覚えて") || text.includes("呪文を知ら")) {
+                this.spells = [];
+                this.isSynced = true;
+                return;
+            }
+        }
+
         if (!force && !this.isSpellBuffer(sequenceBuffer)) return;
 
         let parsed = false;
@@ -414,6 +427,15 @@ export class SpellStateManager {
         if (!text || typeof text !== 'string') return false;
 
         const lower = text.toLowerCase();
+
+        // 0. 魔法を覚えていないメッセージの検知:
+        // 例: You don't know any spells right now. / 呪文を覚えていない
+        if (lower.includes("don't know any spells") || lower.includes("know no spells") ||
+            lower.includes("呪文を覚えて") || lower.includes("魔法を覚えて") || lower.includes("呪文を知ら")) {
+            this.spells = [];
+            this.isSynced = true;
+            return true;
+        }
 
         // 1. 日本語版の学習・復習・忘却メッセージ:
         // 例: 「力のボルト」の呪文を習得した. / 「治癒」の呪文を呪文一覧に'b'として加えた.
