@@ -104,14 +104,22 @@ export class SkillStateManager {
         if (!skillOrWeaponName) return { ...SKILL_RANKS.UNSKILLED };
         const target = skillOrWeaponName.toLowerCase().trim();
 
-        // 完全一致または前方一致・部分一致でスキルを検索
-        const found = this.skills.find(s => {
-            const sName = (s.name || '').toLowerCase();
-            const sRaw = (s.nameRaw || '').toLowerCase();
-            return sName === target || sRaw === target ||
-                   target.includes(sName) || sName.includes(target) ||
-                   target.includes(sRaw) || sRaw.includes(target);
+        // 1. 完全一致を最優先
+        let found = this.skills.find(s => {
+            const sName = (s.name || '').toLowerCase().trim();
+            const sRaw = (s.nameRaw || '').toLowerCase().trim();
+            return sName === target || sRaw === target;
         });
+
+        // 2. 部分一致 (空文字除外)
+        if (!found) {
+            found = this.skills.find(s => {
+                const sName = (s.name || '').toLowerCase().trim();
+                const sRaw = (s.nameRaw || '').toLowerCase().trim();
+                return (sName && (target.includes(sName) || sName.includes(target))) ||
+                       (sRaw && (target.includes(sRaw) || sRaw.includes(target)));
+            });
+        }
 
         if (found && found.rank) {
             return found.rank;

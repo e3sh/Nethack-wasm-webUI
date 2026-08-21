@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
+import { getAdaptiveItemSpecs } from '../../../../src/core/knowledge/ItemSpecPresenter.js';
 
 export const GklKnowledgePanel: React.FC = () => {
   const gklSituation = useGameStore((state) => state.gklSituation);
@@ -235,6 +236,9 @@ export const GklKnowledgePanel: React.FC = () => {
                     {item.isOffhand && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#1a1a2e', background: '#4ea8de' }} title="副武器">副</span>}
                     {item.isQuivered && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#fff', background: '#2a9d8f' }} title="矢筒">筒</span>}
                     {item.isWorn && <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#fff', background: '#9d4edd' }} title="着用中">着</span>}
+                    {(item.skillBadge?.isProficient || item.isRecommendedWeapon) && (
+                      <span style={{ fontSize: '9px', fontWeight: 'bold', padding: '1px 4px', borderRadius: '3px', color: '#000', background: '#22c55e' }} title={`得意武器 (${item.skillBadge?.label || '+'})`}>+</span>
+                    )}
                   </div>
 
                   {/* 💡 フローティングポップアップ */}
@@ -422,31 +426,37 @@ export const GklKnowledgePanel: React.FC = () => {
           </div>
 
           <div style={{ fontSize: '11px', color: '#e5e9f0', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {/* 武器・防具・モンスター・アイテムステータスグリッド */}
-            {activeKnowledge.stats && (
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                {/* モンスター用 */}
-                {activeKnowledge.stats.hd !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.hd}</strong></span>}
-                {activeKnowledge.stats.ac !== undefined && (activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER') && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.ac}</strong></span>}
-                {activeKnowledge.stats.speed !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.speed}</strong></span>}
-                {activeKnowledge.stats.mr !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.mr}</strong></span>}
-
-                {/* 武器用 */}
-                {activeKnowledge.stats.sdam && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>対小型ダメ: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.sdam}</strong></span>}
-                {activeKnowledge.stats.ldam && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>対大型ダメ: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.ldam}</strong></span>}
-                {activeKnowledge.stats.skill && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>スキル: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.skill}</strong></span>}
-                {activeKnowledge.stats.hands && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>持ち手: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.hands}手</strong></span>}
-
-                {/* 防具用 */}
-                {activeKnowledge.stats.ac !== undefined && activeKnowledge.category === 'ARMOR' && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>Base AC: <strong style={{ color: '#ebcb8b' }}>+{activeKnowledge.stats.ac}</strong></span>}
-                {activeKnowledge.stats.mc !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>MC: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.mc}</strong></span>}
-                {activeKnowledge.stats.reflection && <span style={{ background: '#232834', border: '1px solid #e9c46a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#e9c46a' }}>✨ 反射 (Reflection)</span>}
-                {activeKnowledge.stats.magicResistance && <span style={{ background: '#232834', border: '1px solid #88c0d0', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>🛡️ 魔耐 (MR)</span>}
-
-                {/* 共通物理特性 */}
-                {activeKnowledge.stats.material && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>材質: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.material}</strong></span>}
-                {activeKnowledge.stats.weight && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>重量: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.weight}</strong></span>}
-              </div>
+            {/* モンスター/アイテム ステータスグリッド (アダプティブ表示) */}
+            {activeKnowledge.category === 'MONSTER' || activeKnowledge.type === 'MONSTER' ? (
+              activeKnowledge.stats && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                  {activeKnowledge.stats.hd !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>HD: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.hd}</strong></span>}
+                  {activeKnowledge.stats.ac !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>AC: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.ac}</strong></span>}
+                  {activeKnowledge.stats.speed !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>Speed: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.speed}</strong></span>}
+                  {activeKnowledge.stats.mr !== undefined && <span style={{ background: '#232834', border: '1px solid #4c566a', padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: '#88c0d0' }}>MR: <strong style={{ color: '#ebcb8b' }}>{activeKnowledge.stats.mr}</strong></span>}
+                </div>
+              )
+            ) : (
+              (() => {
+                const specs = getAdaptiveItemSpecs(activeKnowledge);
+                if (specs.length === 0) return null;
+                return (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                    {specs.map((s) => {
+                      const isHigh = s.highlight;
+                      const borderCol = isHigh ? '#88c0d0' : '#4c566a';
+                      const labelCol = isHigh ? '#88c0d0' : '#94a3b8';
+                      const valCol = isHigh ? '#ebcb8b' : '#d8dee9';
+                      return (
+                        <span key={s.id} style={{ background: '#232834', border: `1px solid ${borderCol}`, padding: '2px 6px', borderRadius: '3px', fontSize: '10px', color: labelCol }}>
+                          {s.labelJa || s.label}: <strong style={{ color: valCol }}>{s.value}</strong>
+                          {s.skillBadge && <span style={{ marginLeft: '4px', color: '#22c55e', fontWeight: 'bold' }}>{s.skillBadge.label}</span>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()
             )}
 
             {/* 💡 おすすめワンタップ操作表示 */}

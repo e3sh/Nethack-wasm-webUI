@@ -8,8 +8,8 @@ describe('AttributeStateManager Tests', () => {
         attrManager = new AttributeStateManager();
     });
 
-    it('全25種類の属性キーが定義されており、初期状態ではすべて false であること', () => {
-        expect(ATTRIBUTE_KEYS.length).toBe(25);
+    it('全38種類の属性キーが定義されており、初期状態ではすべて false であること', () => {
+        expect(ATTRIBUTE_KEYS.length).toBe(38);
         const attrs = attrManager.getAttributes();
         expect(attrs.isSynced).toBe(false);
 
@@ -68,10 +68,13 @@ describe('AttributeStateManager Tests', () => {
         expect(eff.cold).toBe(false);
     });
 
-    it('装備中アイテム（指輪・防具等）から外因性耐性 (Extrinsics) を正しく自動抽出・マージできること', () => {
+    it('装備中アイテム（指輪・防具・靴・外套・盾等）から外因性耐性 (Extrinsics) を正しく自動抽出・マージできること', () => {
         const inventoryItems = [
             { rawText: 'a blessed ring of fire resistance (on right hand)', isWornRight: true },
             { rawText: 'a +1 silver dragon scale mail (being worn)', isWorn: true },
+            { rawText: 'a pair of water walking boots (being worn)', isWorn: true },
+            { rawText: 'a cloak of protection (being worn)', isWorn: true },
+            { rawText: 'a cloak of magic resistance (being worn)', isWorn: true },
             { rawText: 'a ring of levitation (on left hand)', isWornLeft: true },
             { rawText: 'a ring of cold resistance in pack', isWorn: false } // 装備していない指輪
         ];
@@ -81,12 +84,18 @@ describe('AttributeStateManager Tests', () => {
         const attrs = attrManager.getAttributes();
         expect(attrs.extrinsics.fire).toBe(true);
         expect(attrs.extrinsics.reflect).toBe(true); // silver dragon scale mail provides reflection
+        expect(attrs.extrinsics.wwalking).toBe(true); // water walking boots
+        expect(attrs.extrinsics.protection).toBe(true); // cloak of protection
+        expect(attrs.extrinsics.antimagic).toBe(true); // cloak of magic resistance
         expect(attrs.extrinsics.levitation).toBe(true);
         expect(attrs.extrinsics.cold).toBe(false); // バッグ内なので無効
 
         // 内因性と外因性の統合 (EffectiveResistances)
         expect(attrs.effectiveResistances.fire).toBe(true);
         expect(attrs.effectiveResistances.reflect).toBe(true);
+        expect(attrs.effectiveResistances.wwalking).toBe(true);
+        expect(attrs.effectiveResistances.protection).toBe(true);
+        expect(attrs.effectiveResistances.antimagic).toBe(true);
         expect(attrs.effectiveResistances.levitation).toBe(true);
         expect(attrs.effectiveResistances.cold).toBe(false);
     });

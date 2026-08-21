@@ -1,6 +1,8 @@
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
 import { OnDemandLookService } from '../../src/core/knowledge/OnDemandLookService.js';
+import { getAdaptiveItemSpecs } from '../../src/core/knowledge/ItemSpecPresenter.js';
+import { ATTRIBUTE_DEFINITIONS } from '../../src/core/knowledge/AttributeStateManager.js';
 
 class GklPureJSClient {
   constructor() {
@@ -868,16 +870,27 @@ class GklPureJSClient {
     } else {
       // 🎒 4. アイテム / 死体 / 地形カードのレンダリング
       let statsHtml = '';
-      if (data.stats) {
-        const s = data.stats;
-        const parts = [];
-        if (s.sdam) parts.push(`⚔️ 攻撃力: <strong style="color:#fff;">${s.sdam}</strong> (小型) / <strong style="color:#fff;">${s.ldam || s.sdam}</strong> (大型)`);
-        if (s.ac !== undefined) parts.push(`🛡️ 防御力: <strong style="color:#fff;">AC ${s.ac}</strong>`);
-        if (s.material) parts.push(`素材: ${s.material}`);
-        if (s.hands) parts.push(`${s.hands}手持ち`);
-        if (parts.length > 0) {
-          statsHtml = `<div class="kn-stats-row" style="margin:6px 0; padding:6px 10px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; font-size:12px; color:#38bdf8; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">${parts.map(p => `<span>${p}</span>`).join('')}</div>`;
-        }
+      const sm = this.core?.gkl?.skillStateManager || null;
+      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm });
+
+      if (adaptiveSpecs.length > 0) {
+        statsHtml = `
+          <div class="kn-stats-row" style="margin:6px 0; padding:6px 10px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; font-size:12px; color:#38bdf8; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            ${adaptiveSpecs.map(s => {
+              const borderStyle = s.highlight ? 'border:1px solid #38bdf8; background:rgba(56,189,248,0.2);' : 'border:1px solid #475569; background:rgba(255,255,255,0.05);';
+              const valColor = s.highlight ? '#f8fafc' : '#cbd5e1';
+              const labelColor = s.highlight ? '#38bdf8' : '#94a3b8';
+              const skillBadgeHtml = s.skillBadge ? `<span style="color:#22c55e; font-weight:bold; margin-left:4px;">${s.skillBadge.label}</span>` : '';
+              return `
+                <span style="${borderStyle} padding:2px 6px; border-radius:3px;">
+                  <span style="color:${labelColor}; font-size:10px;">${s.labelJa || s.label}:</span>
+                  <strong style="color:${valColor};">${s.value}</strong>
+                  ${skillBadgeHtml}
+                </span>
+              `;
+            }).join('')}
+          </div>
+        `;
       }
 
       let bucHtml = '';
@@ -1060,11 +1073,17 @@ class GklPureJSClient {
           else if (item.isQuivered) badgeHtml = '<span class="gkl-slot-equip-badge badge-quivered" title="矢筒 (quivered)">筒</span>';
           else if (item.isWorn) badgeHtml = '<span class="gkl-slot-equip-badge badge-worn" title="着用中 (worn)">着</span>';
 
+          let skillBadgeHtml = '';
+          if (item.skillBadge?.isProficient || item.isRecommendedWeapon) {
+            skillBadgeHtml = `<span class="gkl-slot-equip-badge" style="background:#22c55e; color:#000; font-weight:bold; right:auto; left:2px;" title="得意武器 (${item.skillBadge?.label || '+'})">+</span>`;
+          }
+
           return `
             <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
               <span class="gkl-slot-letter">${item.letter}</span>
               <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
               ${badgeHtml}
+              ${skillBadgeHtml}
             </div>
           `;
         }).join('');
@@ -1141,7 +1160,7 @@ class GklPureJSClient {
   }
 
   /**
-   * 属性耐性・固有能力の描画 (所持している有効耐性のみ表示)
+   * 属性耐性・固有能力の描画 (所持している有効耐性・付加能力を全件表示)
    * @param {Object} attrObj 
    */
   renderGklAttributes(attrObj) {
@@ -1157,43 +1176,15 @@ class GklPureJSClient {
 
     if (!elContainer) return;
 
-    const allResistances = [
-        { key: 'fire', label: '🔥火炎' },
-        { key: 'cold', label: '❄️冷気' },
-        { key: 'shock', label: '⚡電撃' },
-        { key: 'disint', label: '💥分解' },
-        { key: 'sleep', label: '💤睡眠' },
-        { key: 'poison', label: '🧪毒' },
-        { key: 'drain', label: '🩸ドレイン' },
-        { key: 'death', label: '💀即死' },
-        { key: 'stoning', label: '🗿石化' },
-        { key: 'conf', label: '💫混乱' },
-        { key: 'hallu', label: '🌀幻覚' },
-        { key: 'reflect', label: '🛡️反射' },
-        { key: 'invis', label: '👻透明' },
-        { key: 'seeInvis', label: '👁️可視' },
-        { key: 'teleport', label: '🔮テレポ' },
-        { key: 'teleportControl', label: '🎯テレポ制御' },
-        { key: 'regen', label: '💖再生' },
-        { key: 'warning', label: '⚠️警戒' },
-        { key: 'slowDigest', label: '🍖腹減りにくい' },
-        { key: 'freeAction', label: '🤸自由行動' },
-        { key: 'stealth', label: '👟隠密' },
-        { key: 'levitation', label: '🪶浮遊' },
-        { key: 'fast', label: '⚡倍速' },
-        { key: 'infravision', label: '🌙暗視' },
-        { key: 'searching', label: '🔍探索' }
-    ];
-
-    const activeRes = allResistances.filter(item => !!res[item.key]);
+    const activeRes = ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
 
     if (activeRes.length === 0) {
       elContainer.innerHTML = '<span style="color:#64748b; font-size:11px;">🛡️ 属性耐性: なし</span>';
     } else {
       const activeHtml = activeRes.map(item => {
-        return `<span class="gkl-attr-badge active" title="${item.label} (有効)">${item.label}</span>`;
+        return `<span class="gkl-attr-badge active" title="${item.label} / ${item.en} (有効)">${item.label}</span>`;
       }).join(' ');
-      elContainer.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🛡️ 属性耐性:</strong> ${activeHtml}</div>`;
+      elContainer.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🛡️ 属性・能力:</strong> ${activeHtml}</div>`;
     }
   }
 

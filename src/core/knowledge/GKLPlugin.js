@@ -55,6 +55,9 @@ export class GKLPlugin {
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
             this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
         }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setSkillStateManager === 'function') {
+            this.inventoryStateManager.setSkillStateManager(this.skillStateManager);
+        }
 
         this.core = null;
         this.requestController = null;

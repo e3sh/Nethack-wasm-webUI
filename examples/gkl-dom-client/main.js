@@ -9,6 +9,7 @@
 
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
+import { getAdaptiveItemSpecs } from '../../src/core/knowledge/ItemSpecPresenter.js';
 
 class GklDomClient {
   constructor() {
@@ -309,12 +310,36 @@ class GklDomClient {
       `;
     } else {
       // アイテム / 未識別ガイド / 地形カード
+      const sm = this.core?.gkl?.skillStateManager || null;
+      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm });
+      let specsHtml = '';
+      if (adaptiveSpecs.length > 0) {
+        specsHtml = `
+          <div class="kn-stats-row" style="margin:6px 0; padding:6px 10px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; font-size:12px; color:#38bdf8; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            ${adaptiveSpecs.map(s => {
+              const borderStyle = s.highlight ? 'border:1px solid #38bdf8; background:rgba(56,189,248,0.2);' : 'border:1px solid #475569; background:rgba(255,255,255,0.05);';
+              const valColor = s.highlight ? '#f8fafc' : '#cbd5e1';
+              const labelColor = s.highlight ? '#38bdf8' : '#94a3b8';
+              const skillBadgeHtml = s.skillBadge ? `<span style="color:#22c55e; font-weight:bold; margin-left:4px;">${s.skillBadge.label}</span>` : '';
+              return `
+                <span style="${borderStyle} padding:2px 6px; border-radius:3px;">
+                  <span style="color:${labelColor}; font-size:10px;">${s.labelJa || s.label}:</span>
+                  <strong style="color:${valColor};">${s.value}</strong>
+                  ${skillBadgeHtml}
+                </span>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
       this.elKnowledgeContent.innerHTML = `
         <div class="kn-card">
           <div class="kn-header">
             <span class="kn-title">${data.inventoryLabel || data.name}</span>
             <span class="kn-category-badge">${data.category || 'INFO'}</span>
           </div>
+          ${specsHtml}
           ${data.effectSummary ? `
             <div class="kn-effect-box">${data.effectSummary}</div>
           ` : ''}

@@ -7,6 +7,7 @@
 
 import { getCategoryFromOnum, getItemInfoFromOnum } from './glyphClassifier.js';
 import { OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
+import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
 
 export const OBJECT_KNOWLEDGE_MAP = new Map();
 
@@ -99,31 +100,42 @@ const goldDetail = {
 
 // 特徴的・重要アイテムの特定定義辞書 (onum 主軸による100%完全網羅)
 const SPECIFIC_ITEM_DETAILS = {
-    // 🪙 特殊・クエスト・通貨 (onum 0〜17, 436〜438)
-    "1": { 
+    // 📦 クラス総称・ジェネリックダミー (onum 0〜17)
+    "0": {
+        flavorNote: 'Dummy object for unknown or uninitialized items.',
+        effectSummary: 'NetHack内部の未初期化・未定義アイテム用プレースホルダーです。',
+        defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)'
+    },
+    "1": { flavorNote: 'Generic placeholder for illegal object class.', effectSummary: '不正オブジェクトクラスの総称ダミーです。' },
+    "2": { flavorNote: 'Generic placeholder for weapons.', effectSummary: '武器(Weapon)クラスの総称ダミーです。個別武器(剣・弓・矢など)を参照してください。' },
+    "3": { flavorNote: 'Generic placeholder for armor.', effectSummary: '防具(Armor)クラスの総称ダミーです。個別防具(鎧・兜・盾など)を参照してください。' },
+    "4": { flavorNote: 'Generic placeholder for rings.', effectSummary: '指輪(Ring)クラスの総称ダミーです。' },
+    "5": { flavorNote: 'Generic placeholder for amulets.', effectSummary: '魔よけ(Amulet)クラスの総称ダミーです。' },
+    "6": { flavorNote: 'Generic placeholder for tools.', effectSummary: '道具(Tool)クラスの総称ダミーです。' },
+    "7": { flavorNote: 'Generic placeholder for food.', effectSummary: '食料(Food)クラスの総称ダミーです。' },
+    "8": { flavorNote: 'Generic placeholder for potions.', effectSummary: '薬品(Potion)クラスの総称ダミーです。' },
+    "9": { flavorNote: 'Generic placeholder for scrolls.', effectSummary: '巻物(Scroll)クラスの総称ダミーです。' },
+    "10": { flavorNote: 'Generic placeholder for spellbooks.', effectSummary: '魔法書(Spellbook)クラスの総称ダミーです。' },
+    "11": { flavorNote: 'Generic placeholder for wands.', effectSummary: '杖(Wand)クラスの総称ダミーです。' },
+    "12": { flavorNote: 'Generic placeholder for coins/currency.', effectSummary: '通貨(Coin)クラスの総称ダミーです。' },
+    "13": { flavorNote: 'Generic placeholder for gems and stones.', effectSummary: '宝石(Gem)クラスの総称ダミーです。' },
+    "14": { flavorNote: 'Generic placeholder for boulders and statues.', effectSummary: '巨岩・彫像(Rock)クラスの総称ダミーです。' },
+    "15": { flavorNote: 'Generic placeholder for heavy iron balls.', effectSummary: '鉄球(Ball)クラスの総称ダミーです。' },
+    "16": { flavorNote: 'Generic placeholder for iron chains.', effectSummary: '鉄鎖(Chain)クラスの総称ダミーです。' },
+    "17": { flavorNote: 'Generic placeholder for venoms.', effectSummary: '毒液(Venom)クラスの総称ダミーです。' },
+
+    // 📿 重要クエスト・祈祷アイテム (正式 onum 割り当て)
+    "213": { 
         flavorNote: 'The ultimate prize of the dungeon. Carrying it grants immense power but attracts severe divine wrath.',
         effectSummary: 'NetHack\'s ultimate goal item. Carry to the Astral Plane to offer to your deity and ascend.',
         defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)',
         usageAdvice: ['Do not drop or lose track of the Amulet', 'Increases monster difficulty and magic energy drain while carried']
     },
-    "2": { 
-        flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.',
-        effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.',
-        defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)'
-    },
-    "3": { 
-        flavorNote: 'Seven-pinnacled candelabrum used for the sacred Invocation Ritual.',
-        effectSummary: 'Attach 7 candles and apply with \'a\' to light during Invocation.',
-        defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '灯す/使う (a)'
-    },
-    "4": { 
+    "409": { 
         flavorNote: 'The ancient papyrus spellbook required to perform the Invocation Ritual.',
         effectSummary: 'Read with \'r\' at the vibrating square during the Invocation Ritual.',
         defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)'
     },
-    "12": goldDetail,
-    "436": goldDetail,
-    "437": goldDetail,
     "438": goldDetail,
 
     // ⚔️ 武器 (WEAPON: onum 18〜88)
@@ -419,19 +431,54 @@ export function initFullObjectKnowledge() {
 
     for (let i = 0; i <= 480; i++) {
         const onumStr = String(i);
-        const name = OBJECT_TILEMAP_NAMES[onumStr] || `object #${i}`;
-        const category = getCategoryFromOnum(i);
+        const tileName = OBJECT_TILEMAP_NAMES[onumStr] || `object #${i}`;
+        const base = OBJECT_KNOWLEDGE_BASE[i] || {};
+        const category = base.category && base.category !== 'OTHER' ? base.category : getCategoryFromOnum(i);
         
         const detail = SPECIFIC_ITEM_DETAILS[onumStr] || {};
         
-        let stats = detail.stats || null;
-        if (!stats) {
-            if (category === 'WEAPON') {
-                stats = { sdam: '1d6', ldam: '1d6', hands: 1, material: 'iron', weight: 30 };
-            } else if (category === 'ARMOR') {
-                stats = { ac: 1, material: 'leather', weight: 20 };
-            }
-        }
+        // 🎯 確定スペックの構築 (公式 C ソース OBJECT_KNOWLEDGE_BASE を 100% 正として優先)
+        const sdam = base.sdam || (detail.stats && detail.stats.sdam) || '0';
+        const ldam = base.ldam || (detail.stats && detail.stats.ldam) || '0';
+        const hands = (base.hands !== undefined) ? base.hands : ((detail.stats && detail.stats.hands) || 1);
+        const material = (base.material && base.material !== 'none') ? base.material : ((detail.stats && detail.stats.material) || 'none');
+        const weight = (base.weight !== undefined) ? base.weight : ((detail.stats && detail.stats.weight) || 0);
+        const cost = (base.cost !== undefined) ? base.cost : ((detail.stats && detail.stats.cost) || 0);
+        const ac = (base.ac !== undefined) ? base.ac : (detail.stats && detail.stats.ac);
+        const acBonus = (base.acBonus !== undefined) ? base.acBonus : (ac !== undefined && ac !== null ? 10 - ac : 0);
+        const mc = (base.mc !== undefined) ? base.mc : (detail.stats && detail.stats.mc !== undefined ? detail.stats.mc : 0);
+        const skill = base.skill || 'none';
+        const skillEnum = base.skillEnum || 'P_NONE';
+        const strikeType = base.strikeType || ['none'];
+        const hitBonus = base.hitBonus || 0;
+        const propConveyed = base.propConveyed || null;
+        const armorSlot = base.armorSlot || null;
+        const nutrition = base.nutrition || 0;
+        const spellLevel = base.spellLevel || null;
+        const spellSkill = base.spellSkill || null;
+        const zapType = base.zapType || null;
+
+        const stats = {
+            sdam,
+            ldam,
+            hands,
+            material,
+            weight,
+            cost,
+            ac,
+            acBonus,
+            mc,
+            skill,
+            skillEnum,
+            strikeType,
+            hitBonus,
+            propConveyed,
+            armorSlot,
+            nutrition,
+            spellLevel,
+            spellSkill,
+            zapType
+        };
 
         let flavorNote = detail.flavorNote || null;
         if (!flavorNote) {
@@ -457,25 +504,57 @@ export function initFullObjectKnowledge() {
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
-            name: name,
+            name: base.name || tileName,
+            descr: base.descr || null,
+            tileName: tileName,
             category: category,
             stats: stats,
+            // 🎯 確定プロパティのトップレベル展開 (完全型安全・文字列判定脱却用)
+            skill: skill,
+            skillEnum: skillEnum,
+            hands: hands,
+            material: material,
+            sdam: sdam,
+            ldam: ldam,
+            sdamMax: base.sdamMax || 0,
+            ldamMax: base.ldamMax || 0,
+            hitBonus: hitBonus,
+            strikeType: strikeType,
+            ac: ac,
+            acBonus: acBonus,
+            mc: mc,
+            armorSlot: armorSlot,
+            propConveyed: propConveyed,
+            weight: weight,
+            cost: cost,
+            delay: base.delay || 0,
+            prob: base.prob || 0,
+            color: base.color || 'CLR_WHITE',
+            sn: base.sn || '',
+            nutrition: nutrition,
+            spellLevel: spellLevel,
+            spellSkill: spellSkill,
+            zapType: zapType,
+            isMagical: !!base.isMagical,
+            isCharged: !!base.isCharged,
+            isStackable: !!base.isStackable,
+            isUnique: !!base.isUnique,
             // 🎯 機能フラグの完全データ化 (Single Source of Truth)
-            isPickAxe: !!itemInfo.isPickAxe,
+            isPickAxe: !!itemInfo.isPickAxe || skill === 'pick-axe',
             isKey: !!itemInfo.isKey,
-            isAxe: !!itemInfo.isAxe,
+            isAxe: !!itemInfo.isAxe || skill === 'axe',
             isDigWand: !!itemInfo.isDigWand,
             isFrostWand: !!itemInfo.isFrostWand,
-            isContainer: !!itemInfo.isContainer,
+            isContainer: !!itemInfo.isContainer || !!base.isContainer,
             isBox: !!itemInfo.isBox,
             isBag: !!itemInfo.isBag,
             isTouchstone: !!itemInfo.isTouchstone,
             isCanOpener: !!itemInfo.isCanOpener,
             isTin: !!itemInfo.isTin,
-            isGem: !!itemInfo.isGem,
-            isRock: !!itemInfo.isRock,
-            isAmmo: !!itemInfo.isAmmo,
-            isLauncher: !!itemInfo.isLauncher,
+            isGem: !!itemInfo.isGem || category === 'GEM',
+            isRock: !!itemInfo.isRock || category === 'ROCK',
+            isAmmo: !!itemInfo.isAmmo || !!base.isAmmo,
+            isLauncher: !!itemInfo.isLauncher || !!base.isLauncher,
             effectSummary: effectSummary,
             flavorNote: flavorNote,
             defaultVerb: verbInfo.defaultVerb,

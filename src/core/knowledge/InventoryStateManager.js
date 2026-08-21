@@ -7,6 +7,7 @@
 
 import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemInfoFromOnum } from './glyphClassifier.js';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
+import { getSkillProficiencyBadge } from './ItemSpecPresenter.js';
 
 export class InventoryStateManager {
     constructor(options = {}) {
@@ -15,10 +16,15 @@ export class InventoryStateManager {
         this.items = [];
         this.isSynced = false; // 一度でもインベントリを同期したかフラグ
         this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
+        this.skillStateManager = options.skillStateManager || null;
     }
 
     setStructuredKnowledgeEngine(ske) {
         this.structuredKnowledgeEngine = ske;
+    }
+
+    setSkillStateManager(sm) {
+        this.skillStateManager = sm;
     }
 
     /**
@@ -84,12 +90,19 @@ export class InventoryStateManager {
                     knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
                 }
 
+                let skillBadge = null;
+                if (knowledge && this.skillStateManager) {
+                    skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager);
+                }
+
                 parsedItems.push({
                     letter,
                     rawText,
                     glyphId,
                     onum,
                     knowledge,
+                    skillBadge,
+                    isRecommendedWeapon: Boolean(skillBadge && skillBadge.isProficient),
                     ...categoryFlags,
                     ...equipState
                 });

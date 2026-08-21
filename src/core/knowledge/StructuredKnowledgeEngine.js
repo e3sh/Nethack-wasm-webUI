@@ -800,7 +800,7 @@ export class StructuredKnowledgeEngine {
         if (!found) return null;
 
         // 動的状態 (dynamicState / cell / isPet / isPlayer) による脅威度の補正計算
-        const result = { ...found };
+        const result = { type: 'MONSTER', category: 'MONSTER', ...found };
 
         // 🏪 店主 (Shopkeeper: 271) で Look 応答の個人名テキストが存在する場合、表示名を統合解決 ("Lord Carnarvon (Shopkeeper)")
         if (found.monOffset === 271 || found.id === 'shopkeeper' || found.name === 'shopkeeper') {

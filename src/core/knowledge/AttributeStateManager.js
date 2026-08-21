@@ -6,41 +6,56 @@
  * 実効耐性 (Effective Resistances) を提供するマネージャー。
  */
 
+import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
+
 export const ATTRIBUTE_KEYS = [
-    // 1. 基本元素耐性 (4種)
+    // 1. 基本元素耐性 (5種)
     'fire',
     'cold',
     'shock',
     'disint',
+    'acid',
 
-    // 2. 生体・状態・即死耐性 (5種)
+    // 2. 生体・状態・即死耐性 (6種)
     'sleep',
     'poison',
     'drain',
     'death',
     'stoning',
+    'antimagic',
 
     // 3. 精神・感覚耐性 (2種)
     'conf',
     'hallu',
 
-    // 4. 特殊保護・能力 (7種)
+    // 4. 特殊保護・能力 (11種)
     'reflect',
+    'protection',
     'invis',
     'seeInvis',
     'teleport',
     'teleportControl',
+    'polymorph',
+    'polymorphControl',
     'regen',
     'warning',
+    'lifesaved',
 
-    // 5. 身体能力・行動・代謝属性 (7種)
+    // 5. 身体能力・行動・代謝属性 (12種)
     'slowDigest',
     'freeAction',
     'stealth',
     'levitation',
     'fast',
+    'wwalking',
+    'jumping',
+    'magicalBreathing',
     'infravision',
-    'searching'
+    'searching',
+    'telepat',
+    'clairvoyant',
+    'displaced',
+    'fixedAbil'
 ];
 
 export const ATTRIBUTE_DEFINITIONS = [
@@ -48,27 +63,40 @@ export const ATTRIBUTE_DEFINITIONS = [
     { key: 'cold', label: '❄️冷気', en: 'Cold Resistance' },
     { key: 'shock', label: '⚡電撃', en: 'Shock Resistance' },
     { key: 'disint', label: '💥分解', en: 'Disintegration Resistance' },
+    { key: 'acid', label: '🧪耐酸', en: 'Acid Resistance' },
     { key: 'sleep', label: '💤睡眠', en: 'Sleep Resistance' },
     { key: 'poison', label: '🧪毒', en: 'Poison Resistance' },
     { key: 'drain', label: '🩸ドレイン', en: 'Drain Resistance' },
     { key: 'death', label: '💀即死', en: 'Death Resistance' },
     { key: 'stoning', label: '🗿石化', en: 'Stoning Resistance' },
+    { key: 'antimagic', label: '🔮耐魔', en: 'Magic Resistance' },
     { key: 'conf', label: '💫混乱', en: 'Confusion Resistance' },
     { key: 'hallu', label: '🌀幻覚', en: 'Hallucination Resistance' },
     { key: 'reflect', label: '🛡️反射', en: 'Reflection' },
+    { key: 'protection', label: '✨加護', en: 'Protection' },
     { key: 'invis', label: '👻透明', en: 'Invisibility' },
     { key: 'seeInvis', label: '👁️可視', en: 'See Invisible' },
     { key: 'teleport', label: '🔮テレポ', en: 'Teleportation' },
     { key: 'teleportControl', label: '🎯テレポ制御', en: 'Teleport Control' },
+    { key: 'polymorph', label: '🌀変化', en: 'Polymorph' },
+    { key: 'polymorphControl', label: '🎯変化制御', en: 'Polymorph Control' },
     { key: 'regen', label: '💖再生', en: 'Regeneration' },
     { key: 'warning', label: '⚠️警戒', en: 'Warning' },
+    { key: 'lifesaved', label: '💖救命', en: 'Life Saving' },
     { key: 'slowDigest', label: '🍖腹減りにくい', en: 'Slow Digestion' },
     { key: 'freeAction', label: '🤸自由行動', en: 'Free Action' },
     { key: 'stealth', label: '👟隠密', en: 'Stealth' },
     { key: 'levitation', label: '🪶浮遊', en: 'Levitation' },
     { key: 'fast', label: '⚡倍速', en: 'Fast / Speed' },
+    { key: 'wwalking', label: '🌊水上歩行', en: 'Water Walking' },
+    { key: 'jumping', label: '🦘跳躍', en: 'Jumping' },
+    { key: 'magicalBreathing', label: '🫧水中呼吸', en: 'Magical Breathing' },
     { key: 'infravision', label: '🌙暗視', en: 'Infravision' },
-    { key: 'searching', label: '🔍探索', en: 'Searching' }
+    { key: 'searching', label: '🔍探索', en: 'Searching' },
+    { key: 'telepat', label: '🧠テレパシー', en: 'Telepathy (ESP)' },
+    { key: 'clairvoyant', label: '🔮透視', en: 'Clairvoyance' },
+    { key: 'displaced', label: '👥幻影', en: 'Displacement' },
+    { key: 'fixedAbil', label: '🔒能力維持', en: 'Sustain Ability' }
 ];
 
 export class AttributeStateManager {
@@ -312,6 +340,56 @@ export class AttributeStateManager {
                 if (!hasEquipTag) return;
             }
 
+            // 🎯 1. 構造化ナレッジ (Single Source of Truth: propConveyed) による確定判定
+            const onum = typeof item.onum === 'number' ? item.onum : -1;
+            const knowledge = item.knowledge || (onum >= 0 ? OBJECT_KNOWLEDGE_MAP.get(onum) : null);
+            const prop = (knowledge && knowledge.propConveyed) || (knowledge && knowledge.stats && knowledge.stats.propConveyed) || null;
+
+            if (prop) {
+                switch (prop) {
+                    case 'FIRE_RES': newExtrinsics.fire = true; break;
+                    case 'COLD_RES': newExtrinsics.cold = true; break;
+                    case 'SHOCK_RES': newExtrinsics.shock = true; break;
+                    case 'DISINT_RES': newExtrinsics.disint = true; break;
+                    case 'ACID_RES': newExtrinsics.acid = true; break;
+                    case 'SLEEP_RES': newExtrinsics.sleep = true; break;
+                    case 'POISON_RES': newExtrinsics.poison = true; break;
+                    case 'DRAIN_RES': newExtrinsics.drain = true; break;
+                    case 'STONE_RES': newExtrinsics.stoning = true; break;
+                    case 'UNCHANGING': newExtrinsics.stoning = true; break;
+                    case 'ANTIMAGIC': newExtrinsics.antimagic = true; break;
+                    case 'CONFUSION': newExtrinsics.conf = true; break;
+                    case 'HALLUC': newExtrinsics.hallu = true; break;
+                    case 'REFLECTING': newExtrinsics.reflect = true; break;
+                    case 'PROTECTION': newExtrinsics.protection = true; break;
+                    case 'INVIS': newExtrinsics.invis = true; break;
+                    case 'SEE_INVIS': newExtrinsics.seeInvis = true; break;
+                    case 'TELEPORT': newExtrinsics.teleport = true; break;
+                    case 'TELEPORT_CONTROL':
+                    case 'TELEPORT_CNTRL': newExtrinsics.teleportControl = true; break;
+                    case 'POLYMORPH': newExtrinsics.polymorph = true; break;
+                    case 'POLYMORPH_CONTROL': newExtrinsics.polymorphControl = true; break;
+                    case 'REGENERATION': newExtrinsics.regen = true; break;
+                    case 'WARNING': newExtrinsics.warning = true; break;
+                    case 'LIFESAVED': newExtrinsics.lifesaved = true; break;
+                    case 'SLOW_DIGESTION': newExtrinsics.slowDigest = true; break;
+                    case 'FREE_ACTION': newExtrinsics.freeAction = true; break;
+                    case 'STEALTH': newExtrinsics.stealth = true; break;
+                    case 'LEVITATION': newExtrinsics.levitation = true; break;
+                    case 'FAST': newExtrinsics.fast = true; break;
+                    case 'WWALKING': newExtrinsics.wwalking = true; break;
+                    case 'JUMPING': newExtrinsics.jumping = true; break;
+                    case 'MAGICAL_BREATHING': newExtrinsics.magicalBreathing = true; break;
+                    case 'INFRAVISION': newExtrinsics.infravision = true; break;
+                    case 'SEARCHING': newExtrinsics.searching = true; break;
+                    case 'TELEPAT': newExtrinsics.telepat = true; break;
+                    case 'CLAIRVOYANT': newExtrinsics.clairvoyant = true; break;
+                    case 'DISPLACED': newExtrinsics.displaced = true; break;
+                    case 'FIXED_ABIL': newExtrinsics.fixedAbil = true; break;
+                }
+            }
+
+            // 🎯 2. テキストフォールバック（アーティファクト、未識別、特殊装備用）
             const rawText = (item.rawText || '').toLowerCase();
             const itemName = (item.name || '').toLowerCase();
             const combined = `${rawText} ${itemName}`;
@@ -359,6 +437,12 @@ export class AttributeStateManager {
             if (combined.includes('reflection') || combined.includes('shield of reflection') || combined.includes('silver dragon')) {
                 newExtrinsics.reflect = true;
             }
+            if (combined.includes('cloak of protection') || combined.includes('ring of protection')) {
+                newExtrinsics.protection = true;
+            }
+            if (combined.includes('cloak of magic resistance') || combined.includes('magic resistance') || combined.includes('gray dragon')) {
+                newExtrinsics.antimagic = true;
+            }
             if (combined.includes('invisibility') || combined.includes('cloak of invisibility') || combined.includes('ring of invisibility')) {
                 newExtrinsics.invis = true;
             }
@@ -371,11 +455,20 @@ export class AttributeStateManager {
             if (combined.includes('teleport control') || combined.includes('ring of teleport control')) {
                 newExtrinsics.teleportControl = true;
             }
+            if (combined.includes('polymorph control') || combined.includes('ring of polymorph control')) {
+                newExtrinsics.polymorphControl = true;
+            }
+            if (combined.includes('ring of polymorph')) {
+                newExtrinsics.polymorph = true;
+            }
             if (combined.includes('regeneration') || combined.includes('ring of regeneration')) {
                 newExtrinsics.regen = true;
             }
             if (combined.includes('warning') || combined.includes('ring of warning') || combined.includes('helm of warning')) {
                 newExtrinsics.warning = true;
+            }
+            if (combined.includes('amulet of life saving') || combined.includes('life saving')) {
+                newExtrinsics.lifesaved = true;
             }
 
             // --- 5. 身体能力・行動・代謝属性 ---
@@ -394,11 +487,32 @@ export class AttributeStateManager {
             if (combined.includes('speed boots') || combined.includes('increase speed') || combined.includes('boots of speed')) {
                 newExtrinsics.fast = true;
             }
+            if (combined.includes('water walking') || combined.includes('water walking boots')) {
+                newExtrinsics.wwalking = true;
+            }
+            if (combined.includes('jumping') || combined.includes('jumping boots')) {
+                newExtrinsics.jumping = true;
+            }
+            if (combined.includes('magical breathing') || combined.includes('amulet of magical breathing')) {
+                newExtrinsics.magicalBreathing = true;
+            }
             if (combined.includes('infravision') || combined.includes('ring of infravision')) {
                 newExtrinsics.infravision = true;
             }
             if (combined.includes('searching') || combined.includes('ring of searching') || combined.includes('helm of brilliance')) {
                 newExtrinsics.searching = true;
+            }
+            if (combined.includes('telepathy') || combined.includes('helm of telepathy') || combined.includes('amulet of ESP')) {
+                newExtrinsics.telepat = true;
+            }
+            if (combined.includes('clairvoyance') || combined.includes('cornuthaum')) {
+                newExtrinsics.clairvoyant = true;
+            }
+            if (combined.includes('cloak of displacement') || combined.includes('displacement')) {
+                newExtrinsics.displaced = true;
+            }
+            if (combined.includes('ring of sustain ability')) {
+                newExtrinsics.fixedAbil = true;
             }
         });
 

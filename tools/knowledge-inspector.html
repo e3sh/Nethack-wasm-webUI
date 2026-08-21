@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NetHack WebUI - Structured Knowledge Inspector</title>
-    <!-- 統合実行辞書 nhMessage.js のロード -->
+    <!-- 統合実行辞書 nhMessage.js および タイルマッピングのロード -->
     <script src="../param/nhMessage.js"></script>
+    <script src="../param/tileMapping.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -145,12 +146,13 @@
         }
 
         .entity-item {
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
             transition: background 0.15s;
         }
 
@@ -163,10 +165,43 @@
             border-left: 4px solid var(--accent-color);
         }
 
+        .entity-left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .entity-icon-slot {
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .card-icon-slot {
+            width: 52px;
+            height: 52px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+        }
+
         .entity-info {
             display: flex;
             flex-direction: column;
             gap: 2px;
+            min-width: 0;
         }
 
         .entity-title {
@@ -367,7 +402,9 @@
     <script type="module">
         import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/StructuredKnowledgeEngine.js';
         import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
-        import { getItemInfoFromOnum } from '../src/core/knowledge/glyphClassifier.js';
+        import { getAdaptiveItemSpecs } from '../src/core/knowledge/ItemSpecPresenter.js';
+        import { getItemInfoFromOnum, GLYPH_OFFSETS } from '../src/core/knowledge/glyphClassifier.js';
+        import { GlyphHelper } from '../src/core/renderers/GlyphHelper.js';
         import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
 
         // window.nhMessage(), nhEntities(), nhItems() を自動参照する TranslationEngine
@@ -377,6 +414,43 @@
         let currentLang = 'ja'; // 'ja' | 'en'
         let selectedEntityId = 'cockatrice';
         let selectedEntityType = 'MONSTER';
+
+        /**
+         * エンティティに対応する Glyph ID を算出
+         */
+        function getEntityGlyphId(entity) {
+            if (!entity) return -1;
+            const isMonster = entity.type === 'MONSTER' ||
+                              entity.category === 'MONSTER' ||
+                              (entity.monOffset !== undefined && entity.monOffset !== null) ||
+                              (entity.dangerLevel !== undefined);
+
+            if (isMonster) {
+                const monOffset = (entity.monOffset !== undefined && entity.monOffset !== null)
+                    ? entity.monOffset
+                    : (entity.monNum !== undefined ? entity.monNum : 0);
+                return GLYPH_OFFSETS.GLYPH_MON_OFF + monOffset;
+            } else {
+                const onum = (entity.onum !== undefined && entity.onum !== null)
+                    ? entity.onum
+                    : (typeof entity.id === 'string' && entity.id.startsWith('item_onum_') ? parseInt(entity.id.replace('item_onum_', ''), 10) : 0);
+                return GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum;
+            }
+        }
+
+        /**
+         * Glyph ID からインライン CSS スタイル文字列を生成
+         */
+        function getEntityGlyphStyleString(glyphId, displaySize = 24) {
+            if (glyphId < 0) return '';
+            const styleObj = GlyphHelper.getGlyphStyle(glyphId, {
+                tileImage: '../pict/nethack_default_32.png',
+                tileSize: 32,
+                displaySize: displaySize
+            });
+            if (!styleObj) return '';
+            return Object.entries(styleObj).map(([k, v]) => `${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${v};`).join(' ');
+        }
 
         // 全エンティティ (全 384 モンスター + 全 481 アイテム) の完全リスト統合
         const itemEntities = Array.from(knowledgeEngine.onumMap.values()).map(i => ({ ...i, type: 'ITEM' }));
@@ -478,10 +552,18 @@
                 const badgeClass = e.type === 'MONSTER' ? `tag-${e.dangerLevel || 'LOW'}` : 'tag-ITEM';
                 const badgeText = e.type === 'MONSTER' ? e.dangerLevel : e.category;
 
+                const glyphId = getEntityGlyphId(e);
+                const iconStyle = getEntityGlyphStyleString(glyphId, 24);
+
                 li.innerHTML = `
-                    <div class="entity-info">
-                        <div class="entity-title">${localizedName}</div>
-                        <div class="entity-subtitle">${e.name}</div>
+                    <div class="entity-left-group">
+                        <div class="entity-icon-slot">
+                            ${iconStyle ? `<div style="${iconStyle}"></div>` : ''}
+                        </div>
+                        <div class="entity-info">
+                            <div class="entity-title">${localizedName}</div>
+                            <div class="entity-subtitle">${e.name}</div>
+                        </div>
                     </div>
                     <span class="tag-badge ${badgeClass}">${badgeText}</span>
                 `;
@@ -553,11 +635,19 @@
                 flags.push({ label: 'dispositionStatus', value: mon.dispositionStatus, badge: 'background:#a855f7; color:#fff;' });
             }
 
+            const glyphId = getEntityGlyphId(mon);
+            const iconStyle = getEntityGlyphStyleString(glyphId, 48);
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
-                    <div class="card-title-group">
-                        <h2>${displayTitle}</h2>
-                        <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div class="card-icon-slot">
+                            ${iconStyle ? `<div style="${iconStyle}"></div>` : ''}
+                        </div>
+                        <div class="card-title-group">
+                            <h2>${displayTitle}</h2>
+                            <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
+                        </div>
                     </div>
                     <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
                 </div>
@@ -641,11 +731,19 @@
                 }
             });
 
+            const glyphId = getEntityGlyphId(item);
+            const iconStyle = getEntityGlyphStyleString(glyphId, 48);
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
-                    <div class="card-title-group">
-                        <h2>${displayTitle}</h2>
-                        <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}</div>
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div class="card-icon-slot">
+                            ${iconStyle ? `<div style="${iconStyle}"></div>` : ''}
+                        </div>
+                        <div class="card-title-group">
+                            <h2>${displayTitle}</h2>
+                            <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}</div>
+                        </div>
                     </div>
                     <span class="tag-badge tag-ITEM">${item.category}</span>
                 </div>
@@ -672,15 +770,25 @@
                     </div>
                 ` : ''}
 
-                ${(stats.sdam || stats.ac !== undefined || stats.material) ? `
-                    <div class="stats-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
-                        ${stats.sdam ? `<div class="stat-box" style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">⚔️ Damage (S/M / L)</div><div class="stat-value" style="font-size:14px; font-weight:bold; color:#f8fafc;">${stats.sdam} / ${stats.ldam || stats.sdam}</div></div>` : ''}
-                        ${stats.ac !== undefined ? `<div class="stat-box" style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">🛡️ Base AC</div><div class="stat-value" style="font-size:14px; font-weight:bold; color:#f8fafc;">AC ${stats.ac}</div></div>` : ''}
-                        ${stats.material ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Material</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.material}</div></div>` : ''}
-                        ${stats.hands ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Hands</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.hands}-Handed</div></div>` : ''}
-                        ${stats.weight !== undefined ? `<div class="stat-box" style="background:rgba(255,255,255,0.05); border:1px solid #334155; padding:6px 12px; border-radius:6px;"><div class="stat-label" style="font-size:10px; color:#94a3b8;">Weight</div><div class="stat-value" style="font-size:13px; color:#cbd5e1;">${stats.weight}</div></div>` : ''}
-                    </div>
-                ` : ''}
+                ${(() => {
+                    const adaptiveSpecs = getAdaptiveItemSpecs(item);
+                    if (adaptiveSpecs.length === 0) return '';
+                    return `
+                        <div class="stats-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+                            ${adaptiveSpecs.map(s => {
+                                const borderStyle = s.highlight ? 'background:rgba(56,189,248,0.15); border:1px solid #38bdf8;' : 'background:rgba(255,255,255,0.05); border:1px solid #334155;';
+                                const labelColor = s.highlight ? '#38bdf8' : '#94a3b8';
+                                const valColor = s.highlight ? '#f8fafc' : '#cbd5e1';
+                                return `
+                                    <div class="stat-box" style="${borderStyle} padding:6px 12px; border-radius:6px;">
+                                        <div class="stat-label" style="font-size:10px; color:${labelColor}; font-weight:bold;">${s.labelJa || s.label}</div>
+                                        <div class="stat-value" style="font-size:13px; color:${valColor}; font-weight:bold;">${s.value}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                })()}
 
                 ${bucHtml ? `
                     <div>
