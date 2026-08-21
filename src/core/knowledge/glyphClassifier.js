@@ -166,18 +166,39 @@ export function classifyGlyph(glyphId) {
         };
     }
 
-    // 2299〜3447: 単体死体・騎乗 (GLYPH_BODY_OFF = 2299)
+    // 2682〜3447: 騎乗モンスター (GLYPH_RIDDEN_OFF = 2682, NUMMONS * 2 = 766)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_RIDDEN_OFF) {
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_RIDDEN_OFF) % 383;
+        const isShopkeeper = (monOffset === 271 || monOffset === 267 || monOffset === 268);
+        return { type: ENTITY_TYPES.MONSTER, subType: monOffset, isRidden: true, isShopkeeper, isPile: false, rawGlyph: glyphId };
+    }
+
+    // 2299〜2681: 単体死体 (GLYPH_BODY_OFF = 2299, NUMMONS = 383)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_BODY_OFF) {
         const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_BODY_OFF) % 383;
         return { type: ENTITY_TYPES.BODY, subType: monOffset, isPile: false, rawGlyph: glyphId };
     }
 
-    // 766〜1531: ペット (GLYPH_PET_OFF = 766)
-    if (glyphId >= GLYPH_OFFSETS.GLYPH_PET_OFF && glyphId < GLYPH_OFFSETS.GLYPH_INVIS_OFF) {
-        return { type: ENTITY_TYPES.PET, isPile: false, rawGlyph: glyphId };
+    // 1533〜2298: 探知モンスター (GLYPH_DETECT_OFF = 1533, NUMMONS * 2 = 766)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_DETECT_OFF) {
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_DETECT_OFF) % 383;
+        const isShopkeeper = (monOffset === 271 || monOffset === 267 || monOffset === 268);
+        return { type: ENTITY_TYPES.MONSTER, subType: monOffset, isDetected: true, isShopkeeper, isPile: false, rawGlyph: glyphId };
     }
 
-    // 0〜765, 1532〜2298: モンスター (GLYPH_MON_OFF = 0, NUMMONS = 383)
+    // 1532: 不可視モンスター (GLYPH_INVIS_OFF = 1532)
+    if (glyphId === GLYPH_OFFSETS.GLYPH_INVIS_OFF) {
+        return { type: ENTITY_TYPES.MONSTER, isInvisible: true, isPile: false, rawGlyph: glyphId };
+    }
+
+    // 766〜1531: ペット (GLYPH_PET_OFF = 766, NUMMONS * 2 = 766)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_PET_OFF && glyphId < GLYPH_OFFSETS.GLYPH_INVIS_OFF) {
+        const monOffset = (glyphId - GLYPH_OFFSETS.GLYPH_PET_OFF) % 383;
+        const isShopkeeper = (monOffset === 271 || monOffset === 267 || monOffset === 268);
+        return { type: ENTITY_TYPES.PET, subType: monOffset, isPet: true, isShopkeeper, isPile: false, rawGlyph: glyphId };
+    }
+
+    // 0〜765: モンスター (GLYPH_MON_OFF = 0, NUMMONS * 2 = 766)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_MON_OFF) {
         const monOffset = glyphId % 383;
         const isShopkeeper = (monOffset === 271 || monOffset === 267 || monOffset === 268);

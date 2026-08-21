@@ -801,13 +801,32 @@ export class StructuredKnowledgeEngine {
             }
         }
 
+        // A-2. オブジェクト指定 ({ monOffset, subType, glyph, name, id ... })
+        if (!found && typeof identifier === 'object' && identifier !== null) {
+            const targetOffset = (typeof identifier.subType === 'number') ? identifier.subType :
+                                 (typeof identifier.monOffset === 'number') ? identifier.monOffset :
+                                 (typeof identifier.glyph === 'number') ? classifyGlyph(identifier.glyph)?.subType :
+                                 (typeof identifier.rawGlyph === 'number') ? classifyGlyph(identifier.rawGlyph)?.subType : null;
+            if (typeof targetOffset === 'number' && targetOffset >= 0) {
+                monOffset = targetOffset;
+                found = this.monOffsetMap.get(monOffset) || null;
+            }
+            if (!found && (identifier.name || identifier.id || identifier.str)) {
+                return this.getMonsterKnowledge(identifier.name || identifier.id || identifier.str, {
+                    ...options,
+                    isPet: options.isPet ?? (identifier.type === 'PET' || identifier.isPet),
+                    glyph: identifier.glyph ?? identifier.rawGlyph
+                });
+            }
+        }
+
         // B. 文字列指定 (id または Name)
         if (!found && typeof identifier === 'string') {
             let clean = identifier.trim().toLowerCase();
             // "human samurai called Hero" -> "samurai" や "a peaceful Lord Carnarvon" -> "lord carnarvon" のクリーニング
             clean = clean.replace(/\bcalled\s+[^\s\(\)]+/gi, '')
                          .replace(/\bnamed\s+[^\s\(\)]+/gi, '')
-                         .replace(/\b(an?|the|human|elf|dwarf|gnome|orc|peaceful|tamed|friendly|hostile)\b/gi, '')
+                         .replace(/\b(an?|the|human|elf|dwarf|gnome|orc|peaceful|tamed|friendly|hostile|pet)\b/gi, '')
                          .replace(/[\(\)]/g, '')
                          .trim();
 
@@ -862,7 +881,7 @@ export class StructuredKnowledgeEngine {
                 }
             }
         }
-        const isPet = options.isPet || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET);
+        const isPet = options.isPet || (typeof identifier === 'object' && (identifier?.type === 'PET' || identifier?.isPet)) || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET);
         const isPlayer = options.isPlayer || false;
         const dynamicState = options.dynamicState || null;
 

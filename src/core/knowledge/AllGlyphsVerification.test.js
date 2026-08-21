@@ -81,4 +81,21 @@ describe('All Glyphs (0 ~ 9622) Full Stress & Verification Test', () => {
         expect(asm.grid[5][10].middle).toBeNull();
         expect(asm.grid[5][10].top).toBeNull();
     });
+
+    it('should test that all pet glyphs (766 to 1531) resolve to valid monster knowledge with TAMED disposition', () => {
+        let petSuccessCount = 0;
+        for (let g = 766; g < 1532; g++) {
+            const petInfo = classifyGlyph(g);
+            expect(petInfo.type).toBe(ENTITY_TYPES.PET);
+            expect(petInfo.subType).toBeGreaterThanOrEqual(0);
+            expect(petInfo.subType).toBeLessThan(383);
+
+            const monData = engine.getMonsterKnowledge(g, { translate: false });
+            expect(monData).not.toBeNull();
+            expect(monData.dangerLevel).toBe('SAFE');
+            expect(monData.dispositionStatus).toBe('TAMED');
+            petSuccessCount++;
+        }
+        expect(petSuccessCount).toBe(1532 - 766);
+    });
 });

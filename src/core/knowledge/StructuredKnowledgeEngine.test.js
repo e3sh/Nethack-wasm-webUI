@@ -12,6 +12,8 @@ describe('StructuredKnowledgeEngine', () => {
                 const dict = {
                     'cockatrice': 'コカトリス',
                     'plains centaur': '平原のケンタウロス',
+                    'kitten': '子猫',
+                    'little dog': '小犬',
                     'wand of digging': '掘削の杖',
                     'Petrifies instantly if touched or eaten without gloves!': '手袋なしで触ると石化します！',
                     'Engrave Elbereth to keep away': 'Elbereth(Eの字)を刻んで遠ざける',
@@ -203,6 +205,50 @@ describe('StructuredKnowledgeEngine', () => {
             const re投入Result = engine.getKnowledge(mapItemStatue, { translate: true });
             expect(re投入Result).toEqual(mapItemStatue);
             expect(re投入Result.name).toContain('平原のケンタウロス');
+        });
+    });
+
+    describe('Pet and Special Monster Knowledge Tests', () => {
+        it('should correctly resolve pet knowledge from pet glyph IDs (GLYPH_PET_OFF: 766~1531)', () => {
+            // GLYPH_PET_OFF (766) + 32 (子猫 / kitten)
+            const kittenGlyph = 766 + 32;
+            const kittenKnowledge = engine.getKnowledge(kittenGlyph, { translate: true });
+            expect(kittenKnowledge).not.toBeNull();
+            expect(kittenKnowledge.category).toBe('MONSTER');
+            expect(kittenKnowledge.name).toContain('子猫');
+            expect(kittenKnowledge.dangerLevel).toBe('SAFE');
+            expect(kittenKnowledge.dispositionStatus).toBe('TAMED');
+
+            // GLYPH_PET_OFF (766) + 16 (小犬 / little dog)
+            const dogGlyph = 766 + 16;
+            const dogKnowledge = engine.getMonsterKnowledge(dogGlyph, { translate: true });
+            expect(dogKnowledge).not.toBeNull();
+            expect(dogKnowledge.name).toContain('小犬');
+            expect(dogKnowledge.dangerLevel).toBe('SAFE');
+            expect(dogKnowledge.dispositionStatus).toBe('TAMED');
+        });
+
+        it('should correctly resolve pet knowledge from classifier entity object ({ type: "PET", ... })', () => {
+            const petEntity = { type: 'PET', subType: 32, rawGlyph: 766 + 32 };
+            const petKnowledge = engine.getKnowledge(petEntity, { translate: true });
+            expect(petKnowledge).not.toBeNull();
+            expect(petKnowledge.name).toContain('子猫');
+            expect(petKnowledge.dangerLevel).toBe('SAFE');
+            expect(petKnowledge.dispositionStatus).toBe('TAMED');
+        });
+
+        it('should resolve ridden and detected monsters by glyph ID', () => {
+            // GLYPH_RIDDEN_OFF (2682) + 130 (平原のケンタウロス)
+            const riddenGlyph = 2682 + 130;
+            const riddenKnowledge = engine.getKnowledge(riddenGlyph, { translate: true });
+            expect(riddenKnowledge).not.toBeNull();
+            expect(riddenKnowledge.name).toContain('平原のケンタウロス');
+
+            // GLYPH_DETECT_OFF (1533) + 130
+            const detectGlyph = 1533 + 130;
+            const detectKnowledge = engine.getKnowledge(detectGlyph, { translate: true });
+            expect(detectKnowledge).not.toBeNull();
+            expect(detectKnowledge.name).toContain('平原のケンタウロス');
         });
     });
 });

@@ -134,9 +134,15 @@ export class OnDemandLookService {
             fullLower.includes('friendly') || 
             fullLower.includes('is tamed') || 
             fullLower.includes('is friendly') ||
+            fullLower.includes('(pet)') ||
+            fullLower.includes('(tame)') ||
+            fullLower.includes('pet ') ||
+            fullLower.endsWith(' pet') ||
+            fullLower.startsWith('your ') ||
             text.includes('大人しい') ||
             text.includes('おとなしい') ||
-            text.includes('ペット')
+            text.includes('ペット') ||
+            text.includes('あなたの')
         );
         const isHostile = !isPlayer && !isPeaceful && !isTamed && hasResult;
 
