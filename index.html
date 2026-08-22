@@ -413,50 +413,18 @@
                     </button>
                 </a>
 
-                <!-- Pure JS / WebUIcore Mode (New Standard) -->
-                <a href="examples/pure-js-client/index.html" class="mode-card desktop" id="card-play-purejs">
+                <!-- All Clients Test Portal (cltest) -->
+                <a href="tools/cltest.html" class="mode-card mobile" id="card-play-cltest" style="border: 2px solid #8b5cf6; background: rgba(139, 92, 246, 0.05);">
                     <div>
-                        <div class="mode-icon">🚀</div>
+                        <div class="mode-icon">🧪</div>
                         <div class="mode-header">
-                            <span class="mode-title" id="txt-purejs-title">Pure JS Client</span>
-                            <span class="mode-tag" id="txt-purejs-tag">WebUIcore 標準</span>
+                            <span class="mode-title" id="txt-cltest-title">全クライアントテスト (cltest)</span>
+                            <span class="mode-tag" id="txt-cltest-tag" style="background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid #8b5cf6;">🚀 統合ポータル・検証</span>
                         </div>
-                        <p class="mode-desc" id="txt-purejs-desc">共通コア WebUIcore による軽量・フレームワークフリーの最新標準リファレンスクライアント。</p>
+                        <p class="mode-desc" id="txt-cltest-desc">Pure JS, 各種モダンフレームワーク (Vue 3, React, Svelte, SolidJS), Canvas, モバイルなど全クライアントを一元管理・起動できるテストポータル。</p>
                     </div>
-                    <button class="btn-launch" id="btn-play-purejs">
-                        <span id="txt-purejs-btn">PURE JS START</span>
-                        <span>→</span>
-                    </button>
-                </a>
-
-                <!-- Desktop / Canvas Mode -->
-                <a href="examples/legacy-client/game.html" class="mode-card desktop" id="card-play-desktop">
-                    <div>
-                        <div class="mode-icon">⚔️</div>
-                        <div class="mode-header">
-                            <span class="mode-title" id="txt-desktop-title">Desktop Canvas Mode</span>
-                            <span class="mode-tag" id="txt-desktop-tag">WebUICore Canvas</span>
-                        </div>
-                        <p class="mode-desc" id="txt-desktop-desc">独自グラフィックタイル＆日本語フォントの協調制御。キーボード・ゲームパッド操作に最適な WebUICore 統合 Canvas クライアント。</p>
-                    </div>
-                    <button class="btn-launch" id="btn-play-desktop">
-                        <span id="txt-desktop-btn">CANVAS START</span>
-                        <span>→</span>
-                    </button>
-                </a>
-
-                <!-- Mobile / Touch Mode -->
-                <a href="examples/legacy-client/mobile.html" class="mode-card mobile" id="card-play-mobile">
-                    <div>
-                        <div class="mode-icon">📱</div>
-                        <div class="mode-header">
-                            <span class="mode-title" id="txt-mobile-title">Mobile Touch Mode</span>
-                            <span class="mode-tag" id="txt-mobile-tag">WebUICore Mobile</span>
-                        </div>
-                        <p class="mode-desc" id="txt-mobile-desc">スマホ・タブレット最適化。レスポンシブな下部ステータス表示とバーチャルタッチパッドを搭載した WebUICore 統合モバイルクライアント。</p>
-                    </div>
-                    <button class="btn-launch" id="btn-play-mobile">
-                        <span id="txt-mobile-btn">MOBILE START</span>
+                    <button class="btn-launch" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #ffffff; font-weight: bold;">
+                        <span id="txt-cltest-btn">PORTAL START</span>
                         <span>→</span>
                     </button>
                 </a>
@@ -500,17 +468,10 @@
                 gklpurejsTag: "🧠 状況推論＆行動アシスト",
                 gklpurejsDesc: "【最新・最高機能】周囲の状況から今最適な行動を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズーム（3層透過＆浮遊アニメーション）搭載。",
                 gklpurejsBtn: "GKL CLIENT START",
-                purejsTag: "WebUIcore 標準",
-                purejsDesc: "共通コア WebUIcore による軽量・フレームワークフリーの最新標準リファレンスクライアント。",
-                purejsBtn: "PURE JS START",
-                desktopTitle: "Desktop Canvas Mode",
-                desktopTag: "WebUICore Canvas",
-                desktopDesc: "独自グラフィックタイル＆日本語フォントの協調制御。キーボード・ゲームパッド操作に最適な WebUICore 統合 Canvas クライアント。",
-                desktopBtn: "CANVAS START",
-                mobileTitle: "Mobile Touch Mode",
-                mobileTag: "WebUICore Mobile",
-                mobileDesc: "スマホ・タブレット最適化。レスポンシブな下部ステータス表示とバーチャルタッチパッドを搭載した WebUICore 統合モバイルクライアント。",
-                mobileBtn: "MOBILE START",
+                cltestTitle: "全クライアントテスト (cltest)",
+                cltestTag: "🚀 統合ポータル・検証",
+                cltestDesc: "Pure JS, 各種モダンフレームワーク (Vue 3, React, Svelte, SolidJS), Canvas, モバイルなど全クライアントを一元管理・起動できるテストポータル。",
+                cltestBtn: "PORTAL START",
                 configBtn: "システム設定",
                 saveMgrBtn: "セーブデータ管理",
                 devToolsBtn: "開発者ツール",
@@ -521,17 +482,10 @@
                 gklpurejsTag: "🧠 Context & Action Assist",
                 gklpurejsDesc: "[Flagship] Auto-suggests optimal actions based on context, features item tooltips & dynamic 3-layer zoom animation.",
                 gklpurejsBtn: "GKL CLIENT START",
-                purejsTag: "WebUIcore Standard",
-                purejsDesc: "Lightweight & framework-free standard reference client powered by WebUIcore.",
-                purejsBtn: "PURE JS START",
-                desktopTitle: "Desktop Canvas Mode",
-                desktopTag: "WebUICore Canvas",
-                desktopDesc: "Powered by WebUICore. Native graphic tiles & hybrid font rendering optimized for Keyboard & Gamepad.",
-                desktopBtn: "CANVAS START",
-                mobileTitle: "Mobile Touch Mode",
-                mobileTag: "WebUICore Mobile",
-                mobileDesc: "Tailored for smartphones & tablets. Responsive status display and virtual touch pads powered by WebUICore.",
-                mobileBtn: "MOBILE START",
+                cltestTitle: "All Clients Test Portal (cltest)",
+                cltestTag: "🚀 Client Portal & Tests",
+                cltestDesc: "Portal for testing and launching all clients: Pure JS, modern frameworks (Vue 3, React, Svelte, SolidJS), Canvas, and Mobile.",
+                cltestBtn: "PORTAL START",
                 configBtn: "System Configuration",
                 saveMgrBtn: "Save Data Manager",
                 devToolsBtn: "Developer Tools",
@@ -564,21 +518,14 @@
             if (document.getElementById("txt-gklpurejs-tag")) document.getElementById("txt-gklpurejs-tag").textContent = t.gklpurejsTag;
             if (document.getElementById("txt-gklpurejs-desc")) document.getElementById("txt-gklpurejs-desc").textContent = t.gklpurejsDesc;
             if (document.getElementById("txt-gklpurejs-btn")) document.getElementById("txt-gklpurejs-btn").textContent = t.gklpurejsBtn;
-            if (document.getElementById("txt-purejs-tag")) document.getElementById("txt-purejs-tag").textContent = t.purejsTag;
-            if (document.getElementById("txt-purejs-desc")) document.getElementById("txt-purejs-desc").textContent = t.purejsDesc;
-            if (document.getElementById("txt-purejs-btn")) document.getElementById("txt-purejs-btn").textContent = t.purejsBtn;
-            if (document.getElementById("txt-desktop-title")) document.getElementById("txt-desktop-title").textContent = t.desktopTitle;
-            document.getElementById("txt-desktop-tag").textContent = t.desktopTag;
-            document.getElementById("txt-desktop-desc").textContent = t.desktopDesc;
-            document.getElementById("txt-desktop-btn").textContent = t.desktopBtn;
-            if (document.getElementById("txt-mobile-title")) document.getElementById("txt-mobile-title").textContent = t.mobileTitle;
-            document.getElementById("txt-mobile-tag").textContent = t.mobileTag;
-            document.getElementById("txt-mobile-desc").textContent = t.mobileDesc;
-            document.getElementById("txt-mobile-btn").textContent = t.mobileBtn;
-            document.getElementById("txt-config-btn").textContent = t.configBtn;
-            document.getElementById("txt-save-mgr-btn").textContent = t.saveMgrBtn;
+            if (document.getElementById("txt-cltest-title")) document.getElementById("txt-cltest-title").textContent = t.cltestTitle;
+            if (document.getElementById("txt-cltest-tag")) document.getElementById("txt-cltest-tag").textContent = t.cltestTag;
+            if (document.getElementById("txt-cltest-desc")) document.getElementById("txt-cltest-desc").textContent = t.cltestDesc;
+            if (document.getElementById("txt-cltest-btn")) document.getElementById("txt-cltest-btn").textContent = t.cltestBtn;
+            if (document.getElementById("txt-config-btn")) document.getElementById("txt-config-btn").textContent = t.configBtn;
+            if (document.getElementById("txt-save-mgr-btn")) document.getElementById("txt-save-mgr-btn").textContent = t.saveMgrBtn;
             if (document.getElementById("txt-dev-tools-btn")) document.getElementById("txt-dev-tools-btn").textContent = t.devToolsBtn;
-            document.getElementById("btn-toggle-lang").textContent = t.langToggle;
+            if (document.getElementById("btn-toggle-lang")) document.getElementById("btn-toggle-lang").textContent = t.langToggle;
         }
 
         function toggleLanguage() {

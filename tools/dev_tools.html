@@ -217,6 +217,57 @@
         .tag-inspect { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid rgba(63, 185, 80, 0.3); }
         .tag-trans { background: rgba(188, 140, 255, 0.15); color: var(--accent-purple); border: 1px solid rgba(188, 140, 255, 0.3); }
 
+        details.section-group {
+            cursor: default;
+        }
+
+        details.section-group summary {
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+        }
+
+        details.section-group summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details.section-group:not([open]) .section-header {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .toggle-badge {
+            margin-left: auto;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            padding: 5px 12px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        details.section-group summary:hover .toggle-badge {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        details.section-group[open] .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .toggle-arrow {
+            display: inline-block;
+            transition: transform 0.2s ease;
+            font-size: 10px;
+        }
+
         footer {
             margin-top: 32px;
             font-size: 12px;
@@ -339,16 +390,20 @@
             </div>
         </section>
 
-        <!-- 3. 🌐 翻訳・ローカライズ作業系 (Translation & i18n) -->
-        <section class="section-group">
-            <div class="section-header">
+        <!-- 3. 🌐 翻訳・ローカライズ作業系 (Translation & i18n - Legacy) -->
+        <details class="section-group" id="sec-legacy-trans">
+            <summary class="section-header">
                 <span class="section-icon">🌐</span>
                 <div class="section-title-group">
-                    <h2 id="txt-sec3-title">翻訳・ローカライズ管理</h2>
-                    <p id="txt-sec3-desc">日本語メッセージ辞書の編集・未翻訳検出・動的パース検証</p>
+                    <h2 id="txt-sec3-title">翻訳・ローカライズ管理（旧システム）</h2>
+                    <p id="txt-sec3-desc">※最新の翻訳機能は Knowledge Inspector に統合されています（クリックして旧ツールを展開）</p>
                 </div>
-            </div>
-            <div class="tools-grid">
+                <span class="toggle-badge">
+                    <span id="txt-sec3-toggle">旧ツールを開く</span>
+                    <span class="toggle-arrow">▼</span>
+                </span>
+            </summary>
+            <div class="tools-grid" style="margin-top: 18px;">
                 <a href="tr_manager.html" class="tool-card" target="_blank">
                     <div>
                         <div class="tool-card-head">
@@ -393,7 +448,7 @@
                     <span class="tag-badge tag-trans">LOG</span>
                 </a>
             </div>
-        </section>
+        </details>
     </div>
 
     <footer>
@@ -410,8 +465,10 @@
                 sec1Desc: "サウンド設定、ゲームパッド・タッチ操作マッピング、セーブデータ管理",
                 sec2Title: "参照・インスペクター・システム検証",
                 sec2Desc: "構造化ナレッジ閲覧、クライアント動作検証、タイルマッピング、ログ調査",
-                sec3Title: "翻訳・ローカライズ管理",
-                sec3Desc: "日本語メッセージ辞書の編集・未翻訳検出・動的パース検証",
+                sec3Title: "翻訳・ローカライズ管理（旧システム）",
+                sec3Desc: "※最新の翻訳機能は Knowledge Inspector に統合されています（クリックして旧ツールを展開）",
+                sec3ToggleOpen: "旧ツールを開く",
+                sec3ToggleClose: "閉じる",
                 soundName: "Sound Tester",
                 soundDesc: "サウンド再生システム (BEEP / WAVE / Auto) の動作確認と音量テスト",
                 gpName: "GP Mapping Tool",
@@ -443,8 +500,10 @@
                 sec1Desc: "Audio configuration, Gamepad & Touch controls mapping, Save data management",
                 sec2Title: "Inspection & System Reference",
                 sec2Desc: "Structured knowledge base inspector, client test suites, tile mappings, log viewers",
-                sec3Title: "Translation & i18n Workspace",
-                sec3Desc: "Japanese message dictionary management, untranslated logs, dynamic parse testing",
+                sec3Title: "Translation & i18n (Legacy System)",
+                sec3Desc: "Note: Modern translation workflow is integrated into Knowledge Inspector (Click to expand legacy tools)",
+                sec3ToggleOpen: "Expand Legacy Tools",
+                sec3ToggleClose: "Collapse",
                 soundName: "Sound Tester",
                 soundDesc: "Audio engine test harness for BEEP, WAVE, and Auto sound rules",
                 gpName: "GP Mapping Tool",
@@ -484,6 +543,15 @@
             }
         }
 
+        function updateToggleText() {
+            const details = document.getElementById("sec-legacy-trans");
+            const toggleEl = document.getElementById("txt-sec3-toggle");
+            if (details && toggleEl) {
+                const t = isJp ? I18N.ja : I18N.en;
+                toggleEl.textContent = details.open ? t.sec3ToggleClose : t.sec3ToggleOpen;
+            }
+        }
+
         function updateUI() {
             const t = isJp ? I18N.ja : I18N.en;
 
@@ -497,6 +565,7 @@
             document.getElementById("txt-sec2-desc").textContent = t.sec2Desc;
             document.getElementById("txt-sec3-title").textContent = t.sec3Title;
             document.getElementById("txt-sec3-desc").textContent = t.sec3Desc;
+            updateToggleText();
 
             document.getElementById("t-sound-name").textContent = t.soundName;
             document.getElementById("t-sound-desc").textContent = t.soundDesc;
@@ -541,6 +610,13 @@
         window.addEventListener("DOMContentLoaded", () => {
             loadLangSetting();
             updateUI();
+
+            const legacySec = document.getElementById("sec-legacy-trans");
+            if (legacySec) {
+                legacySec.addEventListener("toggle", () => {
+                    updateToggleText();
+                });
+            }
         });
     </script>
 </body>
