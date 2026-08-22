@@ -95,6 +95,12 @@ export class WebUICore {
         let isKnowledgeActive = options.enableKnowledge !== false;
 
         this.translator = new TranslationEngine({ enabled: isTranslateActive });
+        this.translator.onTranslate = (logData) => {
+            this.emit('translationLog', logData);
+            if (!logData.success && !this.translator.isNoiseMessage(logData.raw)) {
+                this.emit('messageUntranslated', logData);
+            }
+        };
         this.promptPayloadBuilder = new PromptPayloadBuilder({ translator: this.translator, enableKnowledge: isKnowledgeActive });
         this.textWindowManager = new TextWindowManager({ translator: this.translator });
 
@@ -1045,24 +1051,6 @@ export class WebUICore {
             if (!rawText) return;
             this.emit('messageText', { windowId: 1, text: rawText });
             const translated = this.translator.translate(rawText);
-            const isSuccess = Boolean(this.translator.lastMatchSuccess);
-            const method = this.translator.lastMatchMethod || 'none';
-
-            this.emit('translationLog', {
-                raw: rawText,
-                translated: translated,
-                success: isSuccess,
-                method: method,
-                timestamp: Date.now()
-            });
-
-            if (!isSuccess && !this.translator.isNoiseMessage(rawText)) {
-                this.emit('messageUntranslated', {
-                    raw: rawText,
-                    translated: translated,
-                    timestamp: Date.now()
-                });
-            }
 
             const seEffect = this.sound.processLogMessage(translated);
             if (seEffect) {

@@ -17,6 +17,8 @@ export class TranslationEngine {
         this.lastMatchMethod = 'none';
         this.lastRawText = '';
         this.lastTranslatedText = '';
+        this.onTranslate = options.onTranslate || null;
+        this._translateDepth = 0;
         this.initDictionaries();
     }
 
@@ -235,57 +237,82 @@ export class TranslationEngine {
 
         if (!this.enabled || !text || typeof text !== 'string') return text;
 
-        this.ensureDictionariesLoaded();
-
-        const cleanMsg = text.replace(/\r/g, "").replace(/_+$/, "");
-
-        // 1. 完全一致辞書引き
-        if (this.trMap.has(cleanMsg)) {
-            const res = this.trMap.get(cleanMsg);
+        // すでに日本語（ひらがな・カタカナ・漢字・全角記号）が含まれている場合は翻訳不要（既翻訳・オリジナル日本語）
+        if (this.containsJapanese(text)) {
             this.lastMatchSuccess = true;
-            this.lastMatchMethod = 'exact';
-            this.lastTranslatedText = res;
-            return res;
+            this.lastMatchMethod = 'already_japanese';
+            this.lastTranslatedText = text;
+            return text;
         }
 
-        // 2. 単体単語辞書引き
-        const wordTr = this.lookupWord(cleanMsg);
-        if (wordTr) {
-            this.lastMatchSuccess = true;
-            this.lastMatchMethod = 'word';
-            this.lastTranslatedText = wordTr;
-            return wordTr;
+        this._translateDepth++;
+        let result = text;
+        try {
+            this.ensureDictionariesLoaded();
+
+            const cleanMsg = text.replace(/\r/g, "").replace(/_+$/, "");
+
+            // 1. 完全一致辞書引き
+            if (this.trMap.has(cleanMsg)) {
+                const res = this.trMap.get(cleanMsg);
+                this.lastMatchSuccess = true;
+                this.lastMatchMethod = 'exact';
+                this.lastTranslatedText = res;
+                result = res;
+            } else {
+                // 2. 単体単語辞書引き
+                const wordTr = this.lookupWord(cleanMsg);
+                if (wordTr) {
+                    this.lastMatchSuccess = true;
+                    this.lastMatchMethod = 'word';
+                    this.lastTranslatedText = wordTr;
+                    result = wordTr;
+                } else if (this.itemCache[cleanMsg]) {
+                    // 2.5 アイテムキャッシュ検査
+                    const cached = this.itemCache[cleanMsg];
+                    this.lastMatchSuccess = true;
+                    this.lastMatchMethod = 'decompose';
+                    this.lastTranslatedText = cached;
+                    result = cached;
+                } else {
+                    // 3. 正規表現パターンマッチング
+                    const patternResult = this.applyPatterns(cleanMsg);
+                    if (patternResult) {
+                        this.lastMatchSuccess = true;
+                        this.lastMatchMethod = 'pattern';
+                        this.lastTranslatedText = patternResult;
+                        result = patternResult;
+                    } else {
+                        // 4. NetHack アイテム名分解構文解析
+                        const decomposedResult = this.decomposeItemName(cleanMsg);
+                        if (decomposedResult && decomposedResult !== cleanMsg) {
+                            this.itemCache[cleanMsg] = decomposedResult;
+                            this.lastMatchSuccess = true;
+                            this.lastMatchMethod = 'decompose';
+                            this.lastTranslatedText = decomposedResult;
+                            result = decomposedResult;
+                        }
+                    }
+                }
+            }
+        } finally {
+            this._translateDepth--;
+            if (this._translateDepth === 0 && typeof this.onTranslate === 'function') {
+                try {
+                    this.onTranslate({
+                        raw: text,
+                        translated: result,
+                        success: this.lastMatchSuccess,
+                        method: this.lastMatchMethod,
+                        timestamp: Date.now()
+                    });
+                } catch (e) {
+                    console.error('TranslationEngine onTranslate error:', e);
+                }
+            }
         }
 
-        // 2.5 アイテムキャッシュ検査
-        if (this.itemCache[cleanMsg]) {
-            const cached = this.itemCache[cleanMsg];
-            this.lastMatchSuccess = true;
-            this.lastMatchMethod = 'decompose';
-            this.lastTranslatedText = cached;
-            return cached;
-        }
-
-        // 3. 正規表現パターンマッチング
-        const patternResult = this.applyPatterns(cleanMsg);
-        if (patternResult) {
-            this.lastMatchSuccess = true;
-            this.lastMatchMethod = 'pattern';
-            this.lastTranslatedText = patternResult;
-            return patternResult;
-        }
-
-        // 4. NetHack アイテム名分解構文解析
-        const decomposedResult = this.decomposeItemName(cleanMsg);
-        if (decomposedResult && decomposedResult !== cleanMsg) {
-            this.itemCache[cleanMsg] = decomposedResult;
-            this.lastMatchSuccess = true;
-            this.lastMatchMethod = 'decompose';
-            this.lastTranslatedText = decomposedResult;
-            return decomposedResult;
-        }
-
-        return text;
+        return result;
     }
 
     /**

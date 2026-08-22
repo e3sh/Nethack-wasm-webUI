@@ -1,4 +1,4 @@
-﻿Group,Source,Translation,Adj,Verb
+Group,Source,Translation,Adj,Verb
 Message,"Shall I pick character's race, role, gender and alignment for you? [ynaq]",キャラクターの種族、役割、性別、属性を選んであげましょうか？ [ynaq],,
 Message,"    After the Creation, the cruel god Moloch rebelled",    天地創造の後、残酷な神モロクは,,
 Message,    against the authority of Marduk the Creator.,    創造主マルドゥクの権威に反逆した。,,
@@ -17871,7 +17871,8 @@ Item,stasis,静止,,
 Item,magic lamp,魔法のランプ,,
 Item,jacinth,ジルコン,,
 Item,black opal,ブラックオパール,,
-
-
-
-
+Item,mineral,鉱物,,
+Item,dragon scale,ドラゴンの鱗,,
+Item,mithril,ミスリル,,
+Item,platinum,白金,,
+Item,bamboo,竹,,

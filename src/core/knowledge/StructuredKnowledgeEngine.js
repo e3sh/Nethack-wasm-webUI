@@ -757,6 +757,13 @@ export class StructuredKnowledgeEngine {
             cloned.stats.material = tr(cloned.stats.material);
         }
 
+        // 8. 推奨アクションラベルのローカライズ
+        if (cloned.actionLabelJa) {
+            cloned.actionLabel = cloned.actionLabelJa;
+        } else if (cloned.defaultActionLabel) {
+            cloned.actionLabel = tr(cloned.defaultActionLabel);
+        }
+
         return cloned;
     }
 

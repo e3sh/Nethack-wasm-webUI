@@ -127,27 +127,47 @@ export class PromptPayloadBuilder {
             ];
         }
 
-        let title = payload.title || '';
-        if (!title && rawPrompt) {
-            title = rawPrompt.replace(/\(?[P|p]ress\s+(?:[S|s]pace|[E|e]nter|[E|e]sc|[A|a]ny\s+key)[^)]*\)?/gi, '').trim();
-            title = title.replace(/^#/, '').trim();
+const DEFAULT_TITLES = {
+    [PROMPT_CATEGORY.MENU]: { en: 'Menu', ja: 'メニュー' },
+    [PROMPT_CATEGORY.FILE]: { en: 'Document', ja: 'ドキュメント' },
+    [PROMPT_CATEGORY.YN]: { en: 'Choice', ja: '選択' },
+    [PROMPT_CATEGORY.EXTCMD]: { en: 'Extended Command', ja: '拡張コマンド' },
+    [PROMPT_CATEGORY.TEXT]: { en: 'Input', ja: '入力' },
+    OTHER: { en: 'Dialog', ja: 'ダイアログ' }
+};
+
+        let rawTitle = payload.rawTitle || payload.title || '';
+        let translatedTitle = payload.title || '';
+        let usedFallback = false;
+
+        if (!rawTitle && rawPrompt) {
+            rawTitle = rawPrompt.replace(/\(?[P|p]ress\s+(?:[S|s]pace|[E|e]nter|[E|e]sc|[A|a]ny\s+key)[^)]*\)?/gi, '').trim();
+            rawTitle = rawTitle.replace(/^#/, '').trim();
         }
-        if (!title || title.length > 50) {
-            if (category === PROMPT_CATEGORY.MENU) title = 'Menu';
-            else if (category === PROMPT_CATEGORY.FILE) title = payload.filename || 'Document';
-            else if (category === PROMPT_CATEGORY.YN) title = 'Choice';
-            else if (category === PROMPT_CATEGORY.EXTCMD) title = 'Extended Command';
-            else if (category === PROMPT_CATEGORY.TEXT || inputType === 'LINE_TEXT') title = 'Input';
-            else title = 'Dialog';
+
+        if (!rawTitle || rawTitle.length > 50) {
+            usedFallback = true;
+            const isJapanese = this.translator ? this.translator.enabled !== false : true;
+            const fb = DEFAULT_TITLES[category] || (inputType === 'LINE_TEXT' ? DEFAULT_TITLES[PROMPT_CATEGORY.TEXT] : DEFAULT_TITLES.OTHER);
+            if (category === PROMPT_CATEGORY.FILE && payload.filename) {
+                rawTitle = payload.filename;
+                translatedTitle = payload.filename;
+            } else {
+                rawTitle = fb.en;
+                translatedTitle = isJapanese ? fb.ja : fb.en;
+            }
         }
-        const translatedTitle = (this.translator && typeof this.translator.translate === 'function')
-            ? this.translator.translate(title)
-            : title;
+
+        if (!usedFallback && (!translatedTitle || translatedTitle === rawTitle)) {
+            translatedTitle = (this.translator && typeof this.translator.translate === 'function')
+                ? this.translator.translate(rawTitle)
+                : rawTitle;
+        }
 
         return {
             inputType: inputType,
             title: translatedTitle,
-            rawTitle: title,
+            rawTitle: rawTitle,
             promptText: payload.prompt || rawPrompt,
             rawPromptText: rawPrompt,
             choicesHint: choicesHint,

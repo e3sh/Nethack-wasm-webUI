@@ -22,65 +22,67 @@ export const OBJECT_KNOWLEDGE_MAP = new Map();
 export function getDefaultVerbForObject(onum, category, itemInfo = {}, detail = {}) {
     // 🎯 個別アイテム辞書 (SPECIFIC_ITEM_DETAILS) でのオーバーライド指定を最優先
     if (detail && detail.defaultVerb) {
+        const verbKey = detail.verbKey || 'a';
         return {
             defaultVerb: detail.defaultVerb,
-            verbKey: detail.verbKey || 'a',
-            actionLabelJa: detail.actionLabelJa || `使う (${detail.verbKey || 'a'})`,
-            defaultActionLabel: detail.defaultActionLabel || 'Apply'
+            verbKey: verbKey,
+            actionLabelJa: detail.actionLabelJa || `使う (${verbKey})`,
+            defaultActionLabel: detail.defaultActionLabel || detail.actionLabelEn || 'Apply',
+            actionLabelEn: detail.actionLabelEn || detail.defaultActionLabel || `Apply (${verbKey})`
         };
     }
 
     // 特殊アイテム個別判定
     if (itemInfo.isAmmo) {
-        return { defaultVerb: 'quiver', verbKey: 'Q', actionLabelJa: '装填/矢筒 (Q)', defaultActionLabel: 'Quiver ammo' };
+        return { defaultVerb: 'quiver', verbKey: 'Q', actionLabelJa: '装填/矢筒 (Q)', defaultActionLabel: 'Quiver ammo', actionLabelEn: 'Quiver (Q)' };
     }
     if (itemInfo.isCanOpener) {
-        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply can opener' };
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply can opener', actionLabelEn: 'Apply (a)' };
     }
     if (itemInfo.isBox) {
-        return { defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)', defaultActionLabel: 'Drop container' };
+        return { defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)', defaultActionLabel: 'Drop container', actionLabelEn: 'Drop (d)' };
     }
     if (itemInfo.isBag) {
-        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '中を見る/使う (a)', defaultActionLabel: 'Look inside bag' };
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '中を見る/使う (a)', defaultActionLabel: 'Look inside bag', actionLabelEn: 'Apply/Look inside (a)' };
     }
     if (itemInfo.isTouchstone) {
-        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う/鑑定する (a)', defaultActionLabel: 'Apply touchstone' };
+        return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う/鑑定する (a)', defaultActionLabel: 'Apply touchstone', actionLabelEn: 'Apply/Identify (a)' };
     }
     if (itemInfo.isGem || itemInfo.isRock) {
-        return { defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)', defaultActionLabel: 'Throw gem/rock' };
+        return { defaultVerb: 'throw', verbKey: 't', actionLabelJa: '投げる (t)', defaultActionLabel: 'Throw gem/rock', actionLabelEn: 'Throw (t)' };
     }
     if (itemInfo.isTin) {
-        return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '開けて食べる (e)', defaultActionLabel: 'Eat tin' };
+        return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '開けて食べる (e)', defaultActionLabel: 'Eat tin', actionLabelEn: 'Open & Eat (e)' };
     }
     if (itemInfo.isDigWand) {
-        return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand' };
+        return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand', actionLabelEn: 'Zap (z)' };
     }
 
     // カテゴリ別標準判定
     switch (category) {
         case 'WEAPON':
-            return { defaultVerb: 'wield', verbKey: 'w', actionLabelJa: '手に持つ (w)', defaultActionLabel: 'Wield weapon' };
+            return { defaultVerb: 'wield', verbKey: 'w', actionLabelJa: '手に持つ (w)', defaultActionLabel: 'Wield weapon', actionLabelEn: 'Wield (w)' };
         case 'ARMOR':
-            return { defaultVerb: 'wear', verbKey: 'W', actionLabelJa: '着用する (W)', defaultActionLabel: 'Wear armor' };
+            return { defaultVerb: 'wear', verbKey: 'W', actionLabelJa: '着用する (W)', defaultActionLabel: 'Wear armor', actionLabelEn: 'Wear (W)' };
         case 'POTION':
-            return { defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', defaultActionLabel: 'Quaff potion' };
+            return { defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', defaultActionLabel: 'Quaff potion', actionLabelEn: 'Quaff (q)' };
         case 'SCROLL':
-            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', defaultActionLabel: 'Read scroll' };
+            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', defaultActionLabel: 'Read scroll', actionLabelEn: 'Read (r)' };
         case 'SPELLBOOK':
-            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)', defaultActionLabel: 'Read spellbook' };
+            return { defaultVerb: 'read', verbKey: 'r', actionLabelJa: '勉強する (r)', defaultActionLabel: 'Read spellbook', actionLabelEn: 'Read (r)' };
         case 'WAND':
-            return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand' };
+            return { defaultVerb: 'zap', verbKey: 'z', actionLabelJa: '振る (z)', defaultActionLabel: 'Zap wand', actionLabelEn: 'Zap (z)' };
         case 'RING':
-            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: 'はめる (P)', defaultActionLabel: 'Put on ring' };
+            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: 'はめる (P)', defaultActionLabel: 'Put on ring', actionLabelEn: 'Put on (P)' };
         case 'AMULET':
-            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: '首にかける (P)', defaultActionLabel: 'Put on amulet' };
+            return { defaultVerb: 'put_on', verbKey: 'P', actionLabelJa: '首にかける (P)', defaultActionLabel: 'Put on amulet', actionLabelEn: 'Put on (P)' };
         case 'FOOD':
-            return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', defaultActionLabel: 'Eat food' };
+            return { defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', defaultActionLabel: 'Eat food', actionLabelEn: 'Eat (e)' };
         case 'TOOL':
         case 'CONTAINER':
-            return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply tool' };
+            return { defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', defaultActionLabel: 'Apply tool', actionLabelEn: 'Apply (a)' };
         default:
-            return { defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)', defaultActionLabel: 'Inventory item' };
+            return { defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)', defaultActionLabel: 'Inventory item', actionLabelEn: 'Select (i)' };
     }
 }
 
@@ -570,6 +572,7 @@ export function initFullObjectKnowledge() {
             defaultVerb: verbInfo.defaultVerb,
             verbKey: verbInfo.verbKey,
             actionLabelJa: verbInfo.actionLabelJa,
+            actionLabelEn: verbInfo.actionLabelEn,
             defaultActionLabel: verbInfo.defaultActionLabel,
             unidentifiedTips: detail.unidentifiedTips || [],
             usageAdvice: detail.usageAdvice || []

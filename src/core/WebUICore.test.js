@@ -185,6 +185,70 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(untranslatedLogs).toHaveLength(1); // 増加しないこと
     });
 
+    it('メニュー項目 (select_menu) およびテキストウィンドウ (display_nhwindow) 処理時にも translationLog が漏れなく発火されること', () => {
+        let inputRequiredHandler = null;
+        let displayNhwindowHandler = null;
+        let putstrHandler = null;
+        const mockDriver = createMockDriver();
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'inputRequired') inputRequiredHandler = handler;
+            if (event === 'display_nhwindow') displayNhwindowHandler = handler;
+            if (event === 'putstr') putstrHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.translator.trMap.set('Inventory', '所持品');
+        core.translator.trMap.set('a - a dagger', 'a - ダガー');
+
+        const trLogs = [];
+        const untranslatedLogs = [];
+
+        core.on('translationLog', (log) => trLogs.push(log));
+        core.on('messageUntranslated', (log) => untranslatedLogs.push(log));
+
+        // 1. メニュー画面 (inputRequired context: 'select_menu')
+        inputRequiredHandler({
+            context: 'select_menu',
+            prompt: 'Inventory',
+            items: [
+                { str: 'a - a dagger', ch: 'a'.charCodeAt(0) },
+                { str: 'b - an unquoted unknown wand', ch: 'b'.charCodeAt(0) }
+            ],
+            resolver: { respond: vi.fn() }
+        });
+
+        // プロンプト + アイテム2件 = 計3件のログ
+        expect(trLogs.length).toBeGreaterThanOrEqual(3);
+        const invPromptLog = trLogs.find(l => l.raw === 'Inventory');
+        expect(invPromptLog).toBeDefined();
+        expect(invPromptLog.translated).toBe('所持品');
+        expect(invPromptLog.success).toBe(true);
+
+        const daggerLog = trLogs.find(l => l.raw === 'a - a dagger');
+        expect(daggerLog).toBeDefined();
+        expect(daggerLog.translated).toBe('a - ダガー');
+        expect(daggerLog.success).toBe(true);
+
+        const wandLog = trLogs.find(l => l.raw === 'b - an unquoted unknown wand');
+        expect(wandLog).toBeDefined();
+        expect(wandLog.success).toBe(false);
+        expect(untranslatedLogs.some(l => l.raw === 'b - an unquoted unknown wand')).toBe(true);
+
+        // 2. テキストウィンドウ (putstr windowId: 4 + display_nhwindow)
+        putstrHandler({ windowId: 4, text: 'First line of text window' });
+        putstrHandler({ windowId: 4, text: 'Second line of text window' });
+
+        displayNhwindowHandler({
+            windowId: 4,
+            blocking: true,
+            resolver: { respond: vi.fn() }
+        });
+
+        expect(trLogs.some(l => l.raw === 'First line of text window')).toBe(true);
+        expect(trLogs.some(l => l.raw === 'Second line of text window')).toBe(true);
+        expect(untranslatedLogs.some(l => l.raw === 'First line of text window')).toBe(true);
+    });
+
     it('「5」などのプレフィックスキー入力直後は isPendingPrefix により syncPendingStateSilent が抑止され、デバウンスがバイパスされること', async () => {
         let inputRequiredHandler = null;
         const mockDriver = createMockDriver();

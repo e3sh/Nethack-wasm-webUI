@@ -71,4 +71,46 @@ describe('PromptPayloadBuilder', () => {
         expect(resGetlin.inputType).toBe('LINE_TEXT');
         expect(resGetlin.promptText).toBe('Call a monster:');
     });
+
+    it('タイトルがすでに日本語または指定済みの場合に二重翻訳を回避すること', () => {
+        const mockTranslator = {
+            translate: vi.fn(t => `TR:${t}`)
+        };
+        const builder = new PromptPayloadBuilder({ translator: mockTranslator });
+
+        const payload = {
+            category: PROMPT_CATEGORY.MENU,
+            title: 'インベントリ (所持品)',
+            rawTitle: 'Inventory',
+            prompt: '所持品一覧',
+            rawPrompt: 'Inventory items',
+            items: []
+        };
+
+        const res = builder.build(payload);
+        expect(res.title).toBe('インベントリ (所持品)');
+        // 既に title が指定されているため、translator.translate は呼ばれない
+        expect(mockTranslator.translate).not.toHaveBeenCalled();
+    });
+
+    it('タイトル未指定時にフォールバック定数マップから直接言語に応じたタイトルが設定され translator.translate を呼ばないこと', () => {
+        const mockTranslator = {
+            enabled: true,
+            translate: vi.fn(t => `TR:${t}`)
+        };
+        const builder = new PromptPayloadBuilder({ translator: mockTranslator });
+
+        // 1. 日本語モードでの MENU フォールバック
+        const resMenu = builder.build({ category: PROMPT_CATEGORY.MENU, items: [] });
+        expect(resMenu.title).toBe('メニュー');
+        expect(resMenu.rawTitle).toBe('Menu');
+        expect(mockTranslator.translate).not.toHaveBeenCalled();
+
+        // 2. 英語モードでの YN フォールバック
+        mockTranslator.enabled = false;
+        const resYn = builder.build({ category: PROMPT_CATEGORY.YN, choices: 'y/n' });
+        expect(resYn.title).toBe('Choice');
+        expect(resYn.rawTitle).toBe('Choice');
+        expect(mockTranslator.translate).not.toHaveBeenCalled();
+    });
 });

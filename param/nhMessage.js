@@ -1,4 +1,4 @@
-﻿function nhMessage() {
+function nhMessage() {
     return [
         { en: "Shall I pick character's race, role, gender and alignment for you? [ynaq]", jp: "キャラクターの種族、役割、性別、属性を選んであげましょうか？ [ynaq]" },
         { en: "    After the Creation, the cruel god Moloch rebelled", jp: "天地創造の後、残酷な神モロクは" },
@@ -8108,7 +8108,21 @@
         { en: "ring of teleportation", jp: "テレポーテーションの指輪" },
         { en: "wand of teleportation", jp: "テレポーテーションの杖" },
         { en: "wand of digging", jp: "掘削の杖" },
-        { en: "material", jp: "材料" },
+        { en: "material", jp: "素材" },
+        { en: "mineral", jp: "鉱物" },
+        { en: "dragon scale", jp: "ドラゴンの鱗" },
+        { en: "mithril", jp: "ミスリル" },
+        { en: "platinum", jp: "白金" },
+        { en: "bamboo", jp: "竹" },
+        { en: "copper", jp: "銅" },
+        { en: "iron", jp: "鉄" },
+        { en: "wood", jp: "木" },
+        { en: "leather", jp: "革" },
+        { en: "cloth", jp: "布" },
+        { en: "glass", jp: "ガラス" },
+        { en: "bone", jp: "骨" },
+        { en: "wax", jp: "蝋" },
+        { en: "plastic", jp: "プラスチック" },
         { en: "], y=p[", jp: "]、y=p[" },
         { en: "Warning: themeroom '", jp: "警告: テーマルーム '" },
         { en: "' is ineligible", jp: "「」は対象外です" },

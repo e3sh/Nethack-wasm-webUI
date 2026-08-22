@@ -15,6 +15,7 @@ describe('StructuredKnowledgeEngine', () => {
                     'kitten': '子猫',
                     'little dog': '小犬',
                     'wand of digging': '掘削の杖',
+                    'mineral': '鉱物',
                     'Petrifies instantly if touched or eaten without gloves!': '手袋なしで触ると石化します！',
                     'Engrave Elbereth to keep away': 'Elbereth(Eの字)を刻んで遠ざける',
                     'Digs holes or tunnels in walls and floor.': '壁や床に穴や通路を掘る。'
@@ -121,6 +122,21 @@ describe('StructuredKnowledgeEngine', () => {
             const item = engine.getItemKnowledge('wand_of_digging', { translate: true });
             expect(item.name).toBe('掘削の杖');
             expect(item.effectSummary).toBe('壁や床に穴や通路を掘る。');
+            expect(item.actionLabel).toBe('振る (z)');
+        });
+
+        it('should localize stats.material (e.g. mineral) when translate is true', () => {
+            // onum 472 (black opal 等の mineral 素材アイテム)
+            const item = engine.getItemKnowledge(472, { translate: true });
+            expect(item).not.toBeNull();
+            expect(item.stats.material).toBe('鉱物');
+        });
+
+        it('should keep English action labels when translate is false', () => {
+            const item = engine.getItemKnowledge('wand_of_digging', { translate: false });
+            expect(item.name).toBe('wand of digging');
+            expect(item.actionLabelEn).toBe('Zap (z)');
+            expect(item.actionLabelJa).toBe('振る (z)');
         });
     });
 
