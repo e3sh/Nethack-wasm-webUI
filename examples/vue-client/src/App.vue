@@ -35,6 +35,9 @@
 
     <!-- 9. ゲームオーバー & スコアボード (GameOverModal) -->
     <GameOverModal />
+
+    <!-- 10. セーブデータ検出・選択ダイアログ (SaveSelectorModal) -->
+    <SaveSelectorModal />
   </div>
 </template>
 
@@ -48,6 +51,7 @@ import GklKnowledgePanel from './components/GklKnowledgePanel.vue';
 import MenuModal from './components/MenuModal.vue';
 import TextWindowModal from './components/TextWindowModal.vue';
 import GameOverModal from './components/GameOverModal.vue';
+import SaveSelectorModal from './components/SaveSelectorModal.vue';
 </script>
 
 <style>

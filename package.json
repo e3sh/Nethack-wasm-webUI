@@ -6,8 +6,16 @@
   "scripts": {
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "dev:vue": "cd examples/vue-client && npm run dev",
-    "build:vue": "cd examples/vue-client && npm run build"
+    "dev:vue": "npm --prefix examples/vue-client run dev",
+    "build:vue": "npm --prefix examples/vue-client run build",
+    "dev:react": "npm --prefix examples/react-client run dev",
+    "build:react": "npm --prefix examples/react-client run build",
+    "dev:solid": "npm --prefix examples/solid-client run dev",
+    "build:solid": "npm --prefix examples/solid-client run build",
+    "dev:svelte": "npm --prefix examples/svelte-client run dev",
+    "build:svelte": "npm --prefix examples/svelte-client run build",
+    "build:all-examples": "npm run build:vue && npm run build:react && npm run build:solid && npm run build:svelte",
+    "build:all": "npm test && npm run build:all-examples"
   },
   "devDependencies": {
     "vitest": "^1.6.1"

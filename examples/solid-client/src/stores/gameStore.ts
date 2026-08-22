@@ -91,6 +91,7 @@ export const [activeMenu, setActiveMenu] = createSignal<ActiveMenu | null>(null)
 export const [activeTextModal, setActiveTextModal] = createSignal<ActiveTextModal | null>(null);
 export const [engineState, setEngineState] = createSignal<EngineState>('IDLE');
 export const [detectedSaveName, setDetectedSaveName] = createSignal<string | null>(null);
+export const [pendingSaveInfo, setPendingSaveInfo] = createSignal<{ hasSave: boolean; savePlayerName?: string } | null>(null);
 export const [gameOverResult, setGameOverResult] = createSignal<any | null>(null);
 export const [gklSituation, setGklSituation] = createSignal<any | null>(null);
 export const [hoveredTileKnowledge, setHoveredTileKnowledge] = createSignal<any | null>(null);
@@ -216,6 +217,7 @@ export const resetAllState = () => {
   setActiveMenu(null);
   setActiveTextModal(null);
   setEngineState('RUNNING');
+  setPendingSaveInfo(null);
   setGameOverResult(null);
   setGklSituation(null);
   setHoveredTileKnowledge(null);

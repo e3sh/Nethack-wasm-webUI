@@ -90,6 +90,7 @@ export const activeMenuStore = writable<ActiveMenu | null>(null);
 export const activeTextModalStore = writable<ActiveTextModal | null>(null);
 export const engineStateStore = writable<EngineState>('IDLE');
 export const detectedSaveNameStore = writable<string | null>(null);
+export const pendingSaveInfoStore = writable<{ hasSave: boolean; savePlayerName?: string } | null>(null);
 export const gameOverResultStore = writable<any | null>(null);
 export const gklSituationStore = writable<any | null>(null);
 export const hoveredTileKnowledgeStore = writable<any | null>(null);
@@ -231,6 +232,7 @@ export const resetAllState = () => {
   activeMenuStore.set(null);
   activeTextModalStore.set(null);
   engineStateStore.set('RUNNING');
+  pendingSaveInfoStore.set(null);
   gameOverResultStore.set(null);
   gklSituationStore.set(null);
   hoveredTileKnowledgeStore.set(null);

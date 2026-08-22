@@ -4,7 +4,7 @@ import { driverController } from '../services/useNetHackDriver';
 
 export const GameOverModal: Component = () => {
   const handleRestart = () => {
-    driverController.restartGame();
+    driverController.restartGame({ clearStorage: true });
   };
 
   const topScores = () =>

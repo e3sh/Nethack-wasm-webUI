@@ -64,7 +64,7 @@ function getDeathText(): string {
 }
 
 function handleRestart() {
-  restartGame();
+  restartGame({ clearStorage: true });
 }
 </script>
 

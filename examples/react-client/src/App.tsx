@@ -8,6 +8,7 @@ import { GklKnowledgePanel } from './components/GklKnowledgePanel';
 import { MenuModal } from './components/MenuModal';
 import { TextWindowModal } from './components/TextWindowModal';
 import { GameOverModal } from './components/GameOverModal';
+import { SaveSelectorModal } from './components/SaveSelectorModal';
 import './App.css';
 
 export const App: React.FC = () => {
@@ -48,6 +49,9 @@ export const App: React.FC = () => {
 
       {/* 9. ゲームオーバー & スコアボード (GameOverModal) */}
       <GameOverModal />
+
+      {/* 10. セーブデータ検出・選択ダイアログ (SaveSelectorModal) */}
+      <SaveSelectorModal />
     </div>
   );
 };

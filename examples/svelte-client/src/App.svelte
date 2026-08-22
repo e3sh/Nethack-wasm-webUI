@@ -9,6 +9,7 @@
   import MenuModal from './components/MenuModal.svelte';
   import TextWindowModal from './components/TextWindowModal.svelte';
   import GameOverModal from './components/GameOverModal.svelte';
+  import SaveSelectorModal from './components/SaveSelectorModal.svelte';
   import { driverController } from './services/useNetHackDriver';
 
   onMount(() => {
@@ -52,6 +53,9 @@
 
   <!-- 9. ゲームオーバー & スコアボード (GameOverModal) -->
   <GameOverModal />
+
+  <!-- 10. セーブデータ検出・選択ダイアログ (SaveSelectorModal) -->
+  <SaveSelectorModal />
 </div>
 
 <style>

@@ -71,6 +71,7 @@ export interface GameStore {
   activeTextModal: ActiveTextModal | null;
   engineState: 'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER';
   detectedSaveName: string | null;
+  pendingSaveInfo: { hasSave: boolean; savePlayerName?: string } | null;
   gameOverResult: any | null;
   gklSituation: any | null;
   hoveredTileKnowledge: any | null;
@@ -85,6 +86,7 @@ export interface GameStore {
   setTextModal: (textData: ActiveTextModal | null) => void;
   setEngineState: (state: 'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER') => void;
   setDetectedSaveName: (name: string | null) => void;
+  setPendingSaveInfo: (info: { hasSave: boolean; savePlayerName?: string } | null) => void;
   setGameOverResult: (result: any | null) => void;
   setGklSituation: (situation: any) => void;
   setHoveredTileKnowledge: (knowledge: any) => void;
@@ -261,6 +263,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ detectedSaveName: name });
   },
 
+  pendingSaveInfo: null,
+  setPendingSaveInfo: (info: { hasSave: boolean; savePlayerName?: string } | null) => {
+    set({ pendingSaveInfo: info });
+  },
+
   gklSituation: null,
   hoveredTileKnowledge: null,
 
@@ -298,6 +305,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeMenu: null,
       activeTextModal: null,
       engineState: 'RUNNING',
+      pendingSaveInfo: null,
       gameOverResult: null,
       gklSituation: null,
       hoveredTileKnowledge: null,

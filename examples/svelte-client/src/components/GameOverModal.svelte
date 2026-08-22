@@ -17,7 +17,7 @@
     'You have perished in the Dungeons of Doom...';
 
   function handleRestart() {
-    driverController.restartGame();
+    driverController.restartGame({ clearStorage: true });
   }
 </script>
 

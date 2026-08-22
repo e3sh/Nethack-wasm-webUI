@@ -8,6 +8,7 @@ import { useGameStore } from '../stores/gameStore';
 
 class NetHackDriverController {
   private core: any = null;
+  private nethackJsPath: string = '';
   public isInitialized = ref(false);
 
   public init() {
@@ -22,7 +23,7 @@ class NetHackDriverController {
       ? './src/driver/nethack.worker.js'
       : '/src/driver/nethack.worker.js';
 
-    const nethackJsPath = import.meta.env.PROD
+    this.nethackJsPath = import.meta.env.PROD
       ? './nethack.js'
       : '/nethack.js';
 
@@ -86,6 +87,10 @@ class NetHackDriverController {
       gameStore.clearMapGrid();
     });
 
+    this.core.on('restarted', () => {
+      gameStore.resetAllState();
+    });
+
     this.core.on('textWindowModal', (payload: any) => {
       const cleanTitle = payload.payload?.title || payload.title || payload.payload?.rawPrompt || 'Information / Help';
       gameStore.setTextModal({
@@ -144,7 +149,18 @@ class NetHackDriverController {
 
       if (result && result.reason === 'save_and_exit') {
         gameStore.setEngineState('SAVED');
-        gameStore.addMessage('ℹ️ ゲームは正常にセーブ中断されました（次回起動時に再開可能です）。');
+        gameStore.addMessage('ℹ️ ゲームは正常にセーブ中断されました（再開可能です）。');
+        // セーブ終了後はセーブデータを保持したまま待機し、選択モーダルを表示
+        if (this.core && typeof this.core.restart === 'function') {
+          this.core.restart({ clearStorage: false, autoStart: false }).then(async () => {
+            const saveInfo = await this.core.detectSavedGameInfo();
+            if (saveInfo && saveInfo.hasSave) {
+              gameStore.setPendingSaveInfo(saveInfo);
+            }
+          }).catch((err: any) => {
+            console.warn("Failed to reset core after save:", err);
+          });
+        }
       } else {
         gameStore.setEngineState('GAMEOVER');
         if (result && result.deathMessage) {
@@ -158,10 +174,24 @@ class NetHackDriverController {
     window.removeEventListener('keydown', this.handleGlobalKeyDown.bind(this));
     window.addEventListener('keydown', this.handleGlobalKeyDown.bind(this));
 
-    this.core.start(nethackJsPath).then(() => {
-      this.isInitialized.value = true;
+    this.core.detectSavedGameInfo().then((saveInfo: any) => {
+      if (saveInfo && saveInfo.hasSave) {
+        gameStore.setPendingSaveInfo(saveInfo);
+        this.isInitialized.value = true;
+      } else {
+        this.core.start(this.nethackJsPath).then(() => {
+          this.isInitialized.value = true;
+        }).catch((err: any) => {
+          console.error("WebUICore start error:", err);
+        });
+      }
     }).catch((err: any) => {
-      console.error("WebUICore start error:", err);
+      console.warn("Save detection failed, starting default game:", err);
+      this.core.start(this.nethackJsPath).then(() => {
+        this.isInitialized.value = true;
+      }).catch((startErr: any) => {
+        console.error("WebUICore start error:", startErr);
+      });
     });
   }
 
@@ -191,6 +221,22 @@ class NetHackDriverController {
     }
   }
 
+  public async resumeSavedGame() {
+    const gameStore = useGameStore();
+    gameStore.setPendingSaveInfo(null);
+    if (this.core) {
+      await this.core.start(this.nethackJsPath);
+    }
+  }
+
+  public async startNewGame() {
+    const gameStore = useGameStore();
+    gameStore.setPendingSaveInfo(null);
+    if (this.core) {
+      await this.core.start(this.nethackJsPath, { forceNewGame: true });
+    }
+  }
+
   public async deleteSaveFile() {
     const gameStore = useGameStore();
     if (this.core) {
@@ -204,12 +250,33 @@ class NetHackDriverController {
     gameStore.addMessage('🗑️ セーブデータを完全物理削除しました。');
   }
 
-  public async restartGame(options: { clearStorage?: boolean } = { clearStorage: true }) {
+  public async restartGame(options: { clearStorage?: boolean; autoStart?: boolean; wasmJsUrl?: string } = { clearStorage: false }) {
     const gameStore = useGameStore();
     gameStore.resetAllState();
 
+    const shouldClear = options.clearStorage ?? false;
+
     if (this.core && typeof this.core.restart === 'function') {
-      await this.core.restart(options);
+      await this.core.restart({
+        wasmJsUrl: this.nethackJsPath,
+        clearStorage: shouldClear,
+        autoStart: false,
+        ...options,
+      });
+
+      if (!shouldClear) {
+        try {
+          const saveInfo = await this.core.detectSavedGameInfo();
+          if (saveInfo && saveInfo.hasSave) {
+            gameStore.setPendingSaveInfo(saveInfo);
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to detect save on restart:", e);
+        }
+      }
+
+      await this.core.start(this.nethackJsPath, { forceNewGame: shouldClear });
     } else {
       window.location.reload();
     }
@@ -516,6 +583,8 @@ export function useNetHackDriver() {
 
   return {
     isInitialized: driverController.isInitialized,
+    resumeSavedGame: () => driverController.resumeSavedGame(),
+    startNewGame: () => driverController.startNewGame(),
     deleteSaveFile: () => driverController.deleteSaveFile(),
     restartGame: (options?: any) => driverController.restartGame(options),
     cancelPrompt: () => driverController.cancelPrompt(),

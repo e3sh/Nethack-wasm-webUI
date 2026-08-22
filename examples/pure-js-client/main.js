@@ -204,6 +204,10 @@ class PureJSClient {
       this.clearMapGrid();
     });
 
+    this.core.on('restarted', () => {
+      this.resetUiForNewGame();
+    });
+
     // 7. Input Required Prompts & Modals
     this.core.on('inputRequired', (data) => {
       this.handleInputRequired(data);

@@ -89,6 +89,7 @@ export const useGameStore = defineStore('game', () => {
   // 8. エンジン状態
   const engineState = ref<'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER'>('IDLE');
   const detectedSaveName = ref<string | null>(null);
+  const pendingSaveInfo = ref<{ hasSave: boolean; savePlayerName?: string } | null>(null);
 
   // 9. ゲームオーバー・スコアボード情報
   const gameOverResult = ref<any | null>(null);
@@ -214,6 +215,10 @@ export const useGameStore = defineStore('game', () => {
     hoveredTileKnowledge.value = knowledge;
   }
 
+  function setPendingSaveInfo(info: { hasSave: boolean; savePlayerName?: string } | null) {
+    pendingSaveInfo.value = info;
+  }
+
   function resetAllState() {
     messages.value = [];
     status.title = '';
@@ -232,6 +237,7 @@ export const useGameStore = defineStore('game', () => {
     activeMenu.value = null;
     activeTextModal.value = null;
     gameOverResult.value = null;
+    pendingSaveInfo.value = null;
     gklSituation.value = null;
     hoveredTileKnowledge.value = null;
     engineState.value = 'RUNNING';
@@ -248,6 +254,7 @@ export const useGameStore = defineStore('game', () => {
     activeTextModal,
     engineState,
     detectedSaveName,
+    pendingSaveInfo,
     gameOverResult,
     gklSituation,
     hoveredTileKnowledge,
@@ -261,6 +268,7 @@ export const useGameStore = defineStore('game', () => {
     setTextModal,
     setEngineState,
     setDetectedSaveName,
+    setPendingSaveInfo,
     setGameOverResult,
     setGklSituation,
     setHoveredTileKnowledge,

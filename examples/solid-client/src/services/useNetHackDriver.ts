@@ -17,6 +17,7 @@ import {
   setActiveTextModal,
   setEngineState,
   setDetectedSaveName,
+  setPendingSaveInfo,
   setGameOverResult,
   setGklSituation,
   setHoveredTileKnowledge,
@@ -27,6 +28,7 @@ import {
 
 export class NetHackDriverController {
   private core: any = null;
+  private nethackJsPath: string = '';
   private isInitialized = false;
 
   public sendAction = (action: any) => {
@@ -97,7 +99,7 @@ export class NetHackDriverController {
       ? './src/driver/nethack.worker.js'
       : '/src/driver/nethack.worker.js';
 
-    const nethackJsPath = import.meta.env.PROD
+    this.nethackJsPath = import.meta.env.PROD
       ? './nethack.js'
       : '/nethack.js';
 
@@ -162,6 +164,10 @@ export class NetHackDriverController {
       clearMapGrid();
     });
 
+    this.core.on('restarted', () => {
+      resetAllState();
+    });
+
     this.core.on('textWindowModal', (payload: any) => {
       setActiveTextModal({
         title: payload.payload?.title || payload.title || payload.payload?.rawPrompt || 'Information / Help',
@@ -205,7 +211,18 @@ export class NetHackDriverController {
 
       if (result && result.reason === 'save_and_exit') {
         setEngineState('SAVED');
-        addMessage('ℹ️ ゲームは正常にセーブ中断されました（次回起動時に再開可能です）。');
+        addMessage('ℹ️ ゲームは正常にセーブ中断されました（再開可能です）。');
+        // セーブ終了後はセーブデータを保持したまま待機し、選択モーダルを表示
+        if (this.core && typeof this.core.restart === 'function') {
+          this.core.restart({ clearStorage: false, autoStart: false }).then(async () => {
+            const saveInfo = await this.core.detectSavedGameInfo();
+            if (saveInfo && saveInfo.hasSave) {
+              setPendingSaveInfo(saveInfo);
+            }
+          }).catch((err: any) => {
+            console.warn("Failed to reset core after save:", err);
+          });
+        }
       } else {
         setEngineState('GAMEOVER');
         if (result && result.deathMessage) {
@@ -219,16 +236,62 @@ export class NetHackDriverController {
     window.removeEventListener('keydown', this.handleGlobalKeyDown);
     window.addEventListener('keydown', this.handleGlobalKeyDown);
 
-    this.core.start(nethackJsPath).catch((err: any) => {
-      console.error("Solid client WebUICore start error:", err);
+    this.core.detectSavedGameInfo().then((saveInfo: any) => {
+      if (saveInfo && saveInfo.hasSave) {
+        setPendingSaveInfo(saveInfo);
+      } else {
+        this.core.start(this.nethackJsPath).catch((err: any) => {
+          console.error("Solid client WebUICore start error:", err);
+        });
+      }
+    }).catch((err: any) => {
+      console.warn("Save detection failed, starting default game:", err);
+      this.core.start(this.nethackJsPath).catch((startErr: any) => {
+        console.error("Solid client WebUICore start error:", startErr);
+      });
     });
   }
 
-  public async restartGame(options: { clearStorage?: boolean } = { clearStorage: true }) {
+  public async resumeSavedGame() {
+    setPendingSaveInfo(null);
+    if (this.core) {
+      await this.core.start(this.nethackJsPath);
+    }
+  }
+
+  public async startNewGame() {
+    setPendingSaveInfo(null);
+    if (this.core) {
+      await this.core.start(this.nethackJsPath, { forceNewGame: true });
+    }
+  }
+
+  public async restartGame(options: { clearStorage?: boolean; autoStart?: boolean; wasmJsUrl?: string } = { clearStorage: false }) {
     resetAllState();
 
+    const shouldClear = options.clearStorage ?? false;
+
     if (this.core && typeof this.core.restart === 'function') {
-      await this.core.restart(options);
+      await this.core.restart({
+        wasmJsUrl: this.nethackJsPath,
+        clearStorage: shouldClear,
+        autoStart: false,
+        ...options,
+      });
+
+      if (!shouldClear) {
+        try {
+          const saveInfo = await this.core.detectSavedGameInfo();
+          if (saveInfo && saveInfo.hasSave) {
+            setPendingSaveInfo(saveInfo);
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to detect save on restart:", e);
+        }
+      }
+
+      await this.core.start(this.nethackJsPath, { forceNewGame: shouldClear });
     } else {
       window.location.reload();
     }

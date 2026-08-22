@@ -59,7 +59,7 @@ export const GameOverModal: React.FC = () => {
         )}
 
         <div className="modal-footer">
-          <button onClick={() => restartGame()} className="btn btn-restart">
+          <button onClick={() => restartGame({ clearStorage: true })} className="btn btn-restart">
             🔄 Restart Game
           </button>
         </div>
