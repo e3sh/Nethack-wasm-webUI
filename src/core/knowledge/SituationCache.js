@@ -17,8 +17,9 @@ export class SituationCache {
      * @param {Object} [spellStateManager=null] - SpellStateManager インスタンス
      * @param {Object} [attributeStateManager=null] - AttributeStateManager インスタンス
      * @param {Object} [skillStateManager=null] - SkillStateManager インスタンス
+     * @param {Object} [options={}] - オプション
      */
-    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null) {
+    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null, options = {}) {
         this.statusAccessor = statusAccessor;
         this.inventoryStateManager = inventoryStateManager;
         this.areaStateManager = areaStateManager;
@@ -26,12 +27,22 @@ export class SituationCache {
         this.spellStateManager = spellStateManager;
         this.attributeStateManager = attributeStateManager;
         this.skillStateManager = skillStateManager;
+        this.language = (options && options.language) || 'ja';
+    }
+
+    /**
+     * 表示言語の設定
+     * @param {'ja'|'en'} lang
+     */
+    setLanguage(lang = 'ja') {
+        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
+        this.language = isJa ? 'ja' : 'en';
     }
 
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, language }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
@@ -39,6 +50,7 @@ export class SituationCache {
         if (spellStateManager) this.spellStateManager = spellStateManager;
         if (attributeStateManager) this.attributeStateManager = attributeStateManager;
         if (skillStateManager) this.skillStateManager = skillStateManager;
+        if (language) this.setLanguage(language);
     }
 
     /**
@@ -92,7 +104,7 @@ export class SituationCache {
         // 推奨アクションの自動計算 (ContextActionEngine が設定されている場合)
         let actions = [];
         if (this.actionEngineClass && typeof this.actionEngineClass.generateActions === 'function') {
-            actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager);
+            actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager, { language: this.language });
         }
 
         return {

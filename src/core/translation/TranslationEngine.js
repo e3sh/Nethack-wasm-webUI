@@ -8,6 +8,7 @@
 export class TranslationEngine {
     constructor(options = {}) {
         this.enabled = options.enabled !== undefined ? options.enabled : true;
+        this.language = options.language || (this.enabled ? 'ja' : 'en');
         this.options = options;
         this.trMap = new Map();
         this.lookupDict = options.lookupDict || {};
@@ -67,6 +68,7 @@ export class TranslationEngine {
 
     setEnabled(enabled) {
         this.enabled = !!enabled;
+        this.language = this.enabled ? 'ja' : 'en';
         if (typeof localStorage !== 'undefined') {
             try {
                 let nhConfig = {};
@@ -79,6 +81,12 @@ export class TranslationEngine {
                 localStorage.setItem("nh.config", JSON.stringify(nhConfig));
             } catch (e) {}
         }
+    }
+
+    setLanguage(lang = 'ja') {
+        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
+        this.language = isJa ? 'ja' : 'en';
+        this.setEnabled(isJa);
     }
 
     /**

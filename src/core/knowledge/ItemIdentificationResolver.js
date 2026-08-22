@@ -92,7 +92,7 @@ export const APPEARANCE_PATTERNS = {
     ]
 };
 
-// カテゴリ別鑑定ヒント (Identification Tips)
+// カテゴリ別鑑定ヒント (Identification Tips - 日本語)
 export const IDENTIFICATION_TIPS = {
     POTION: [
         '流し台(#apply sink)や神壇でテストして安全に鑑定可能',
@@ -129,6 +129,46 @@ export const IDENTIFICATION_TIPS = {
     ],
     OTHER: [
         '識別の巻物または店主の価格判定で解明可能'
+    ]
+};
+
+// カテゴリ別鑑定ヒント (Identification Tips - 英語)
+export const IDENTIFICATION_TIPS_EN = {
+    POTION: [
+        'Safely identify by testing on sinks (#apply sink) or altars.',
+        'Dip a unicorn horn (#dip) to neutralize poisons and test potion types safely.',
+        'Reading a Scroll of Identify definitely reveals its true identity.'
+    ],
+    SCROLL: [
+        'Engrave Elbereth on the floor and read-test (\'r\') in a secure room.',
+        'Use shopkeeper buy/sell prices for Price Identification (Price ID).'
+    ],
+    WAND: [
+        'Engrave-test on the floor (\'E\') to determine the wand type without spending charges.',
+        'Scroll of Identify reveals full identity and remaining charges.'
+    ],
+    RING: [
+        'Drop into a sink (#apply sink) to observe unique identification messages.',
+        'Cursed rings weld to your fingers; altar-test BUC status before wearing.'
+    ],
+    AMULET: [
+        'Beware of fatal hazards like Amulets of Strangulation; identify with scrolls before wearing.',
+        'Check blessed/cursed status on an altar.'
+    ],
+    ARMOR: [
+        'Wear/remove (\'W\'/\'T\') to monitor AC changes and calculate enchantment bonuses.',
+        'Drop onto an altar to detect blessed/uncursed/cursed status.'
+    ],
+    WEAPON: [
+        'Check for curses on an altar before wielding.',
+        'Estimate enchantment from combat hit rate and damage.'
+    ],
+    GEM_STONE: [
+        'Rub gray stones with a Touchstone to identify Luckstones, Touchstones, or Loadstones.',
+        'Distinguish valuable gemstones from worthless glass pieces using a Touchstone.'
+    ],
+    OTHER: [
+        'Identify via Scrolls of Identify or shop price testing.'
     ]
 };
 
@@ -186,7 +226,11 @@ export class ItemIdentificationResolver {
             appearanceName: appearanceMatch.appearanceName
         });
 
-        const tips = IDENTIFICATION_TIPS[category] || IDENTIFICATION_TIPS.OTHER;
+        const lang = options.language || 'ja';
+        const isEn = lang === 'en';
+        const tipsJa = IDENTIFICATION_TIPS[category] || IDENTIFICATION_TIPS.OTHER;
+        const tipsEn = IDENTIFICATION_TIPS_EN[category] || IDENTIFICATION_TIPS_EN.OTHER;
+        const tips = isEn ? tipsEn : tipsJa;
 
         return {
             idLevel,
@@ -202,6 +246,8 @@ export class ItemIdentificationResolver {
             displayName,
             rawText: cleanText,
             identificationTips: tips,
+            identificationTipsEn: tipsEn,
+            identificationTipsJa: tipsJa,
             hasKnownEnchantment: enchantment !== null,
             hasKnownCharges: charges !== null,
             isMasked: isUnidentified

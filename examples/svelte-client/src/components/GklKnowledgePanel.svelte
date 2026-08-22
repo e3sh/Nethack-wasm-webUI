@@ -1,12 +1,14 @@
 <script lang="ts">
   import { gklSituationStore, hoveredTileKnowledgeStore, cursorPosStore, mapGridStore } from '../stores/gameStore';
-  import { driverController, ATTRIBUTE_DEFINITIONS } from '../services/useNetHackDriver';
+  import { driverController, ATTRIBUTE_DEFINITIONS, currentLanguageStore } from '../services/useNetHackDriver';
 
   let selectedDir = 'ALL';
   let isSyncing = false;
   let hoveredItem: any = null;
   let selectedAreaTile: any = null;
   let hoveredAreaTile: any = null;
+
+  $: isEn = $currentLanguageStore === 'en';
 
   $: activeAttributes = (() => {
     const res = $gklSituationStore?.attributes?.effectiveResistances || {};
@@ -33,23 +35,23 @@
     driverController.enhanceSkill(skill);
   }
 
-  const dpadButtons = [
-    { id: 'NW', label: '北西', icon: '↖' },
-    { id: 'N', label: '北', icon: '↑' },
-    { id: 'NE', label: '北東', icon: '↗' },
-    { id: 'W', label: '西', icon: '←' },
-    { id: 'SELF', label: '足元', icon: '・' },
-    { id: 'E', label: '東', icon: '→' },
-    { id: 'SW', label: '南西', icon: '↙' },
-    { id: 'S', label: '南', icon: '↓' },
-    { id: 'SE', label: '南東', icon: '↘' },
+  $: dpadButtons = [
+    { id: 'NW', label: isEn ? 'NW' : '北西', icon: '↖' },
+    { id: 'N', label: isEn ? 'N' : '北', icon: '↑' },
+    { id: 'NE', label: isEn ? 'NE' : '北東', icon: '↗' },
+    { id: 'W', label: isEn ? 'W' : '西', icon: '←' },
+    { id: 'SELF', label: isEn ? 'Self' : '足元', icon: '・' },
+    { id: 'E', label: isEn ? 'E' : '東', icon: '→' },
+    { id: 'SW', label: isEn ? 'SW' : '南西', icon: '↙' },
+    { id: 'S', label: isEn ? 'S' : '南', icon: '↓' },
+    { id: 'SE', label: isEn ? 'SE' : '南東', icon: '↘' },
   ];
 
   function safeText(val: any): string {
     if (!val) return '';
     if (typeof val === 'string' || typeof val === 'number') return String(val);
     if (typeof val === 'object') {
-      return val.code || val.labelJa || val.label || val.name || val.key || '';
+      return val.code || val.label || val.name || val.key || '';
     }
     return String(val);
   }
@@ -99,12 +101,12 @@
 
   $: activeTileInfo = (() => {
     const tile = hoveredAreaTile || selectedAreaTile;
-    if (!tile || tile.x < 0) return '🔍 マスにホバー/タップで解説';
-    return `📍 (${tile.x}, ${tile.y}): ${tile.nameJa}`;
+    if (!tile || tile.x < 0) return isEn ? '🔍 Hover/Tap tile to inspect' : '🔍 マスにホバー/タップで解説';
+    return `📍 (${tile.x}, ${tile.y}): ${tile.name || tile.nameJa}`;
   })();
 
   $: currentFilterLabel = (() => {
-    if (selectedDir === 'ALL') return '全方向';
+    if (selectedDir === 'ALL') return isEn ? 'All' : '全方向';
     const found = dpadButtons.find(b => b.id === selectedDir);
     return found ? `${found.label} (${found.icon})` : selectedDir;
   })();
@@ -114,13 +116,22 @@
   }
 
   function getItemCategoryLabel(cat: string | undefined): string {
-    if (!cat) return 'Knowledge';
-    const map: Record<string, string> = {
+    if (!cat) return isEn ? 'Knowledge' : '解説';
+    const enMap: Record<string, string> = {
+      WEAPON: '⚔️ Weapon', ARMOR: '🛡️ Armor', RING: '💍 Ring', AMULET: '📿 Amulet',
+      WAND: '🪄 Wand', SCROLL: '📜 Scroll', POTION: '🧪 Potion', SPELLBOOK: '📖 Spellbook',
+      FOOD: '🍖 Food', TOOL: '🧰 Tool', GEM: '💎 Gem', COIN: '🪙 Gold',
+      CONTAINER: '🧰 Container', TERRAIN: '🗺️ Terrain', MONSTER: '👾 Monster', PET: '🐶 Pet',
+      CORPSE: '🍖 Corpse', STATUE: '🗿 Statue'
+    };
+    const jaMap: Record<string, string> = {
       WEAPON: '⚔️ 武器', ARMOR: '🛡️ 防具', RING: '💍 指輪', AMULET: '📿 魔除け',
       WAND: '🪄 杖', SCROLL: '📜 巻物', POTION: '🧪 薬', SPELLBOOK: '📖 呪文書',
       FOOD: '🍖 食料', TOOL: '🧰 道具', GEM: '💎 宝石', COIN: '🪙 金貨',
-      CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット'
+      CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット',
+      CORPSE: '🍖 死体', STATUE: '🗿 石像'
     };
+    const map = isEn ? enMap : jaMap;
     return map[cat.toUpperCase()] || cat;
   }
 
@@ -128,19 +139,20 @@
     if (!level) return null;
     const l = String(level).toUpperCase();
     if (l === 'LETHAL' || l === 'EXTREME' || l === 'VERY_HIGH') {
-      return { label: `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
+      return { label: isEn ? `☠️ Lethal (${l})` : `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
     }
     if (l === 'HIGH') {
-      return { label: `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
+      return { label: isEn ? `⚠️ Danger (HIGH)` : `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
     }
     if (l === 'MEDIUM') {
-      return { label: `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
+      return { label: isEn ? `⚡ Warning (MEDIUM)` : `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
     }
-    return { label: `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
+    return { label: isEn ? `🟢 Safe (${l})` : `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
   }
 
   function formatResistances(res: any): string {
     if (!res || !Array.isArray(res) || res.length === 0) return '';
+    if (isEn) return res.join(', ');
     const map: Record<string, string> = {
       fire: '火炎', cold: '冷気', sleep: '睡眠', poison: '毒', electricity: '電撃',
       acid: '酸', shock: '電撃', petrify: '石化', drain: 'ドレイン', magic: '魔法'
@@ -152,7 +164,7 @@
     if (!attacks || !Array.isArray(attacks) || attacks.length === 0) return '';
     return attacks.map((a: any) => {
       if (typeof a === 'string') return a;
-      const type = a.type || a.name || '攻撃';
+      const type = a.type || a.name || (isEn ? 'Attack' : '攻撃');
       const dmg = a.damage ? `(${a.damage})` : '';
       const eff = a.effect ? ` [${a.effect}]` : '';
       return `${type}${dmg}${eff}`;
@@ -188,7 +200,7 @@
 
   function handleExecuteAction(act: any) {
     if (act.risk === 'danger' || act.isDanger) {
-      const label = safeText(act.labelJa || act.label || '操作');
+      const label = safeText(act.label || '操作');
       if (!confirm(`【⚠️ 危険な行動】\n"${label}" を実行しますか？`)) return;
     }
     selectedDir = 'ALL';
@@ -223,16 +235,16 @@
   <div class="gkl-header">
     <div class="gkl-header-left">
       <span class="gkl-badge">
-        🧠 GKL 状況推論 ＆ ナレッジアシスト
+        {isEn ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト'}
       </span>
       <button on:click={handleSyncInventory} disabled={isSyncing} class="btn-sync">
-        {isSyncing ? '...同期中' : '🔄 インベントリ同期'}
+        {isSyncing ? (isEn ? '...Syncing' : '...同期中') : (isEn ? '🔄 Sync Inventory' : '🔄 インベントリ同期')}
       </button>
-      <button on:click={handleSyncSkills} class="btn-sync" title="スキル同期 (#enhance)">
-        🥋 スキル同期
+      <button on:click={handleSyncSkills} class="btn-sync" title={isEn ? 'Sync Skills (#enhance)' : 'スキル同期 (#enhance)'}>
+        {isEn ? '🥋 Sync Skills' : '🥋 スキル同期'}
       </button>
-      <button on:click={handleSyncSpells} class="btn-sync" title="習得魔法同期 (+)">
-        📖 魔法同期
+      <button on:click={handleSyncSpells} class="btn-sync" title={isEn ? 'Sync Spells (+)' : '習得魔法同期 (+)'}>
+        {isEn ? '📖 Sync Spells' : '📖 魔法同期'}
       </button>
     </div>
   </div>
@@ -241,23 +253,23 @@
   <div class="gkl-status-overview-panel">
     <!-- 🛡️ 属性・耐性 -->
     <div class="gkl-overview-row">
-      <strong class="overview-label">🛡️ 属性耐性:</strong>
+      <strong class="overview-label">{isEn ? '🛡️ Resistances:' : '🛡️ 属性耐性:'}</strong>
       {#if activeAttributes.length > 0}
         <div class="overview-badges-list">
           {#each activeAttributes as attr}
             <span class="gkl-attr-badge active" title="{attr.label} / {attr.en} (有効)">
-              {attr.label}
+              {isEn ? (attr.en || attr.label) : attr.label}
             </span>
           {/each}
         </div>
       {:else}
-        <span class="overview-empty">なし</span>
+        <span class="overview-empty">{isEn ? 'None' : 'なし'}</span>
       {/if}
     </div>
 
     <!-- 🥋 スキル -->
     <div class="gkl-overview-row">
-      <strong class="overview-label">🥋 スキル:</strong>
+      <strong class="overview-label">{isEn ? '🥋 Skills:' : '🥋 スキル:'}</strong>
       {#if activeSkills.length > 0}
         <div class="overview-badges-list">
           {#each activeSkills as skill}
@@ -269,25 +281,25 @@
               on:click={() => handleEnhanceSkill(skill)}
             >
               {#if skill.canEnhance}<span class="skill-star">⭐</span>{/if}
-              <strong>{skill.name}</strong> [{skill.rank?.label || skill.rank?.en || '入門'}]
+              <strong>{skill.name}</strong> [{(isEn ? (skill.rank?.en || skill.rank?.label) : (skill.rank?.label || skill.rank?.en)) || (isEn ? 'Basic' : '入門')}]
             </button>
           {/each}
         </div>
       {:else}
-        <span class="overview-empty">{isSkillsSynced ? 'なし (未熟)' : '未同期'}</span>
+        <span class="overview-empty">{isSkillsSynced ? (isEn ? 'None (Unskilled)' : 'なし (未熟)') : (isEn ? 'Not Synced' : '未同期')}</span>
       {/if}
     </div>
 
     <!-- 📖 習得魔法 -->
     <div class="gkl-overview-row">
-      <strong class="overview-label">📖 習得魔法:</strong>
+      <strong class="overview-label">{isEn ? '📖 Spells:' : '📖 習得魔法:'}</strong>
       {#if activeSpells.length > 0}
         <div class="overview-badges-list">
           {#each activeSpells as sp}
             <button
               type="button"
               class="gkl-spell-badge"
-              title="キー: {sp.letter}, Lv.{sp.level} {sp.category} (失敗率: {sp.failRate}) - クリックで詠唱"
+              title="Key: {sp.letter}, Lv.{sp.level} {sp.category} (Fail: {sp.failRate})"
               on:click={() => handleCastSpell(sp.letter)}
             >
               ✨ [{sp.letter}] {sp.name} <small>(Lv.{sp.level} {sp.failRate})</small>
@@ -295,7 +307,7 @@
           {/each}
         </div>
       {:else}
-        <span class="overview-empty">なし</span>
+        <span class="overview-empty">{isEn ? 'None' : 'なし'}</span>
       {/if}
     </div>
   </div>
@@ -304,8 +316,8 @@
   {#if inventoryItems.length > 0}
     <div class="gkl-inventory-section">
       <div class="gkl-section-title">
-        <span>🎒 所持品ナレッジ・ガイド ({inventoryItems.length}個)</span>
-        <span class="gkl-subtext">※ アイコンタップで即時使用・装備</span>
+        <span>{isEn ? `🎒 Inventory Guide (${inventoryItems.length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems.length}個)`}</span>
+        <span class="gkl-subtext">{isEn ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備'}</span>
       </div>
 
       <div class="gkl-inventory-grid">
@@ -325,19 +337,19 @@
                 <div class="inv-glyph-icon" style={getStyleStr(item.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 22 })} />
               {/if}
               {#if item.isWielded}
-                <span class="equip-badge badge-wielded" title="メイン武器">手</span>
+                <span class="equip-badge badge-wielded" title={isEn ? 'Main weapon' : 'メイン武器'}>{isEn ? 'Main' : '手'}</span>
               {/if}
               {#if item.isOffhand}
-                <span class="equip-badge badge-offhand" title="副武器">副</span>
+                <span class="equip-badge badge-offhand" title={isEn ? 'Off-hand weapon' : '副武器'}>{isEn ? 'Off' : '副'}</span>
               {/if}
               {#if item.isQuivered}
-                <span class="equip-badge badge-quivered" title="矢筒">筒</span>
+                <span class="equip-badge badge-quivered" title={isEn ? 'Quiver' : '矢筒'}>{isEn ? 'Quiv' : '筒'}</span>
               {/if}
               {#if item.isWorn}
-                <span class="equip-badge badge-worn" title="着用中">着</span>
+                <span class="equip-badge badge-worn" title={isEn ? 'Worn' : '着用中'}>{isEn ? 'Worn' : '着'}</span>
               {/if}
               {#if item.skillBadge?.isProficient || item.isRecommendedWeapon}
-                <span class="equip-badge badge-proficient" title="得意武器 ({item.skillBadge?.label || '+'})">+</span>
+                <span class="equip-badge badge-proficient" title="Proficient ({item.skillBadge?.label || '+'})">+</span>
               {/if}
             </div>
 
@@ -345,16 +357,16 @@
             {#if hoveredItem?.letter === item.letter}
               <div class="inv-floating-popover">
                 <div class="popover-title">
-                  {safeText(item.knowledge?.nameJa || item.name || item.rawText)}
+                  {safeText(item.knowledge?.name || item.name || item.rawText)}
                 </div>
-                {#if item.defaultActionLabelJa || item.knowledge?.actionLabelJa}
+                {#if item.knowledge?.actionLabel || item.defaultActionLabel}
                   <div class="popover-action">
-                    💡 ワンタップ: {safeText(item.defaultActionLabelJa || item.knowledge?.actionLabelJa)} [{item.letter}]
+                    💡 {isEn ? 'One-Tap:' : 'ワンタップ:'} {safeText(item.knowledge?.actionLabel || item.defaultActionLabel)} [{item.letter}]
                   </div>
                 {/if}
                 {#if item.skillBadge?.label}
                   <div class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
-                    🥋 武器適性: {item.skillBadge.label}
+                    🥋 {isEn ? 'Weapon Skill:' : '武器適性:'} {item.skillBadge.label}
                   </div>
                 {/if}
                 {#if item.knowledge?.effectSummary || item.knowledge?.description}
@@ -374,15 +386,15 @@
   <div class="gkl-main-section">
     <div class="gkl-section-header">
       <span class="gkl-section-title">
-        🎯 アクションフィルター ＆ 🔍 7x7 ダンジョンズームカメラ
+        {isEn ? '🎯 Action Filters & 🔍 7x7 Zoom Camera' : '🎯 アクションフィルター ＆ 🔍 7x7 ダンジョンズームカメラ'}
       </span>
-      <span class="gkl-filter-status">表示: {currentFilterLabel}</span>
+      <span class="gkl-filter-status">{isEn ? 'Filter:' : '表示:'} {currentFilterLabel}</span>
     </div>
 
     <div class="gkl-split-container">
       <!-- 左側: 🎯 D-Pad -->
       <div class="dpad-card">
-        <div class="card-subtitle">🎯 方向フィルター</div>
+        <div class="card-subtitle">{isEn ? '🎯 Direction Filter' : '🎯 方向フィルター'}</div>
         <div class="dpad-grid">
           {#each dpadButtons as dp}
             {@const count = allActions.filter((act) => driverController.extractDirectionCode(act) === dp.id).length}
@@ -406,13 +418,13 @@
           class="btn-all-filter"
           class:active={selectedDir === 'ALL'}
         >
-          全表示 (ALL)
+          {isEn ? 'Show All (ALL)' : '全表示 (ALL)'}
         </button>
       </div>
 
       <!-- 右側: 🔍 7x7 ズームカメラ -->
       <div class="zoom-camera-card">
-        <div class="card-subtitle">🔍 7x7 ダンジョンズームカメラ</div>
+        <div class="card-subtitle">{isEn ? '🔍 7x7 Dungeon Zoom Camera' : '🔍 7x7 ダンジョンズームカメラ'}</div>
 
         <div class="zoom-grid">
           {#each zoomTiles as tile}
@@ -429,7 +441,7 @@
               on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectZoomTile(tile); }}
               on:mouseenter={() => (hoveredAreaTile = tile)}
               on:mouseleave={() => (hoveredAreaTile = null)}
-              title="{tile.nameJa} ({tile.x}, {tile.y})"
+              title="{tile.name || tile.nameJa} ({tile.x}, {tile.y})"
             >
               {#if tile.glyphId >= 0}
                 <div class="zoom-sprite" style={spriteStyleStr} />
@@ -450,7 +462,7 @@
     {#if filteredActions.length > 0}
       <div class="gkl-actions-grid">
         {#each filteredActions as act}
-          {@const labelText = safeText(act.labelJa || act.label || act.actionLabelJa)}
+          {@const labelText = safeText(act.label)}
           {@const keyText = safeText(act.key || act.verbKey || act.charStr)}
           {@const dirCode = driverController.extractDirectionCode(act)}
           <button
@@ -470,7 +482,7 @@
       </div>
     {:else}
       <div class="gkl-empty">
-        <span>{selectedDir === 'ALL' ? '待機中 (周りに特殊対象なし / 移動可能)' : `${currentFilterLabel} 方向に推奨アクションはありません`}</span>
+        <span>{selectedDir === 'ALL' ? (isEn ? 'Idle (No special targets around / Can move)' : '待機中 (周りに特殊対象なし / 移動可能)') : (isEn ? `No recommended actions in ${currentFilterLabel}` : `${currentFilterLabel} 方向に推奨アクションはありません`)}</span>
       </div>
     {/if}
   </div>
@@ -482,10 +494,10 @@
     <div class="gkl-knowledge-detail">
       <div class="detail-header">
         <span class="detail-name">
-          {safeText(activeKnowledge.nameJa)}
-          {#if activeKnowledge.nameEn || activeKnowledge.name}
+          {safeText(activeKnowledge.name)}
+          {#if activeKnowledge.nameEn && activeKnowledge.nameEn !== activeKnowledge.name}
             <span class="detail-subname">
-              ({safeText(activeKnowledge.nameEn || activeKnowledge.name)})
+              ({safeText(activeKnowledge.nameEn)})
             </span>
           {/if}
         </span>
@@ -513,7 +525,7 @@
           <div class="adaptive-specs-grid">
             {#each adaptiveSpecs as s (s.id)}
               <span class="spec-badge" class:spec-highlight={s.highlight}>
-                <span class="spec-label">{s.labelJa || s.label}:</span>
+                <span class="spec-label">{s.label}:</span>
                 <strong class="spec-value">{s.value}</strong>
                 {#if s.skillBadge}<span class="spec-skill-badge">{s.skillBadge.label}</span>{/if}
               </span>
@@ -522,32 +534,32 @@
         {/if}
 
         <!-- 💡 おすすめワンタップ操作表示 -->
-        {#if activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa}
+        {#if activeKnowledge.actionLabel}
           <p class="detail-text monster-detail-row" style="color: #a3be8c !important;">
-            💡 <strong>おすすめ操作:</strong> {safeText(activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa)}
+            💡 <strong>{isEn ? 'Recommended Action:' : 'おすすめ操作:'}</strong> {safeText(activeKnowledge.actionLabel)}
           </p>
         {/if}
 
         <!-- 攻撃方法 ＆ 耐性 (モンスター) -->
         {#if formatAttacks(activeKnowledge.attacks)}
           <p class="detail-text monster-detail-row">
-            🗡️ <strong>攻撃パターン:</strong> {formatAttacks(activeKnowledge.attacks)}
+            🗡️ <strong>{isEn ? 'Attacks:' : '攻撃パターン:'}</strong> {formatAttacks(activeKnowledge.attacks)}
           </p>
         {/if}
         {#if formatResistances(activeKnowledge.resistances)}
           <p class="detail-text monster-detail-row">
-            🛡️ <strong>固有耐性:</strong> {formatResistances(activeKnowledge.resistances)}
+            🛡️ <strong>{isEn ? 'Resistances:' : '固有耐性:'}</strong> {formatResistances(activeKnowledge.resistances)}
           </p>
         {/if}
 
         <!-- ⚖️ BUC効果 (アイテム) -->
         {#if activeKnowledge.bucEffects}
           <div class="buc-effects-box">
-            <div class="buc-title">⚖️ BUC効果:</div>
+            <div class="buc-title">⚖️ {isEn ? 'BUC Effects:' : 'BUC効果:'}</div>
             <ul class="buc-list">
-              {#if activeKnowledge.bucEffects.blessed}<li style="color: #2ecc71;"><strong>祝福:</strong> {activeKnowledge.bucEffects.blessed}</li>{/if}
-              {#if activeKnowledge.bucEffects.uncursed}<li style="color: #cbd5e1;"><strong>通常:</strong> {activeKnowledge.bucEffects.uncursed}</li>{/if}
-              {#if activeKnowledge.bucEffects.cursed}<li style="color: #e74c3c;"><strong>呪い:</strong> {activeKnowledge.bucEffects.cursed}</li>{/if}
+              {#if activeKnowledge.bucEffects.blessed}<li style="color: #2ecc71;"><strong>{isEn ? 'Blessed:' : '祝福:'}</strong> {activeKnowledge.bucEffects.blessed}</li>{/if}
+              {#if activeKnowledge.bucEffects.uncursed}<li style="color: #cbd5e1;"><strong>{isEn ? 'Uncursed:' : '通常:'}</strong> {activeKnowledge.bucEffects.uncursed}</li>{/if}
+              {#if activeKnowledge.bucEffects.cursed}<li style="color: #e74c3c;"><strong>{isEn ? 'Cursed:' : '呪い:'}</strong> {activeKnowledge.bucEffects.cursed}</li>{/if}
             </ul>
           </div>
         {/if}
@@ -563,7 +575,7 @@
         <!-- 🔍 未識別識別Tips -->
         {#if activeKnowledge.unidentifiedTips && activeKnowledge.unidentifiedTips.length > 0}
           <div class="unid-tips-box">
-            <div class="unid-title">🔍 識別Tips:</div>
+            <div class="unid-title">🔍 {isEn ? 'Identification Tips:' : '識別Tips:'}</div>
             <ul class="advice-list">
               {#each activeKnowledge.unidentifiedTips as tip}
                 <li>{tip}</li>
@@ -575,7 +587,7 @@
         <!-- モンスター戦術 ＆ アイテムアドバイス -->
         {#if adviceList.length > 0}
           <div class="tactical-advice-box">
-            <div class="advice-title">🎯 ガイド ＆ 活用アドバイス:</div>
+            <div class="advice-title">🎯 {isEn ? 'Guide & Advice:' : 'ガイド ＆ 活用アドバイス:'}</div>
             <ul class="advice-list">
               {#each adviceList as adv}
                 <li>{adv}</li>
@@ -586,7 +598,7 @@
 
         {#if activeCoord}
           <p class="detail-coord">
-            📍 マップセル座標: ({activeCoord.x}, {activeCoord.y})
+            📍 {isEn ? 'Cell Coordinates:' : 'マップセル座標:'} ({activeCoord.x}, {activeCoord.y})
           </p>
         {/if}
       </div>

@@ -1,5 +1,6 @@
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
+import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
 import { OnDemandLookService } from '../../src/core/knowledge/OnDemandLookService.js';
 import { getAdaptiveItemSpecs } from '../../src/core/knowledge/ItemSpecPresenter.js';
 import { ATTRIBUTE_DEFINITIONS } from '../../src/core/knowledge/AttributeStateManager.js';
@@ -8,6 +9,7 @@ class GklPureJSClient {
   constructor() {
     this.core = null;
     this.lookService = null;
+    this.currentLanguage = 'ja';
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
     this.asciiGrid = document.getElementById('ascii-grid');
@@ -183,12 +185,24 @@ class GklPureJSClient {
     const workerPath = '../../src/driver/nethack.worker.js';
     const bridge = new NetHackWasmWorkerBridge(workerPath);
     this.core = new WebUICore({ driver: bridge });
+    this.currentLanguage = this.core.language || 'ja';
+
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: this.currentLanguage });
+    gklPlugin.attach(this.core);
+
     this.lookService = new OnDemandLookService({ core: this.core });
 
     this.bindCoreEvents();
+    this.onLanguageChanged();
   }
 
   bindCoreEvents() {
+    // 0. Language Changed
+    this.core.on('languageChanged', ({ language }) => {
+      this.currentLanguage = language || 'ja';
+      this.onLanguageChanged();
+    });
+
     // 1. State Change
     this.core.on('stateChange', ({ state }) => {
       if (state === 'INITIALIZING') {
@@ -488,6 +502,11 @@ class GklPureJSClient {
         };
 
         document.getElementById('btn-start-new').onclick = async () => {
+          const isEn = this.currentLanguage === 'en';
+          const confirmMsg = isEn
+            ? 'Delete saved game and start a new game?'
+            : '保存されているセーブデータを破棄して最初から開始しますか？';
+          if (!window.confirm(confirmMsg)) return;
           this.elSelectorCard.classList.add('hidden');
           this.elSpinnerBox.classList.remove('hidden');
           await this.core.start('nethack.js', { forceNewGame: true });
@@ -775,13 +794,51 @@ class GklPureJSClient {
     }
   }
 
+  onLanguageChanged() {
+    this._lastActionHtml = null;
+    this._lastInvHtml = null;
+    const isEn = this.currentLanguage === 'en';
+
+    // 静的DOMヘッダー・ボタンの更新
+    const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
+    if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
+
+    const elBtnRefreshInv = document.getElementById('btn-refresh-inv');
+    if (elBtnRefreshInv) elBtnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
+
+    const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');
+    if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
+
+    const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
+    if (elKnHeader) elKnHeader.textContent = isEn ? '💡 Structured Knowledge (GKL Knowledge)' : '💡 構造化ナレッジ (GKL Knowledge)';
+
+    const btnStartResume = document.getElementById('btn-start-resume');
+    if (btnStartResume) btnStartResume.textContent = isEn ? '▶️ Continue Game' : '▶️ セーブデータから再開';
+
+    const btnStartNew = document.getElementById('btn-start-new');
+    if (btnStartNew) btnStartNew.textContent = isEn ? '⚠️ New Game (Delete Save)' : '⚠️ 新規ゲーム開始 (セーブ破棄)';
+
+    if (this.core && this.core.gkl) {
+      if (typeof this.core.gkl.setLanguage === 'function') {
+        this.core.gkl.setLanguage(this.currentLanguage);
+      }
+      const situation = this.core.gkl.getSituation();
+      this.renderGklActions(situation.actions || []);
+      this.renderGklInventory(situation.inventory);
+      this.renderGklAttributes(situation.attributes);
+      this.renderGklSpells(situation.spells);
+      this.renderGklSkills(situation.skills);
+    }
+  }
+
   renderKnowledgeCard(target, options = {}) {
     if (!this.elGklKnowledgeContent) return;
+    const isEn = this.currentLanguage === 'en';
 
     if (!target) {
       this.elGklKnowledgeContent.innerHTML = `
         <div class="gkl-empty-hint">
-          マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます
+          ${isEn ? 'Hover or tap a dungeon tile<br>to inspect real-time structured knowledge' : 'マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます'}
         </div>`;
       return;
     }
@@ -794,19 +851,19 @@ class GklPureJSClient {
     // 👤 1. プレイヤー自身の場合はリアルタイムステータスカードを優先採用
     if (isPlayer) {
       data = (target && target.stats && target.stats.hp) ? target : {
-        name: '自分 (Player)',
+        name: isEn ? 'You (Player)' : '自分 (Player)',
         category: 'PLAYER',
         dangerLevel: 'NONE',
         dispositionStatus: 'PLAYER',
         stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
-        effectSummary: 'ダンジョンを探索中のプレイヤー自身です。'
+        effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
       };
     } else if (target && (target.dangerLevel || target.category || target.isUnidentified || target.effectSummary)) {
       // すでに完全な構造化カードデータである場合
       data = target;
     } else if (this.core && this.core.gkl && this.core.gkl.structuredKnowledge) {
       // 🎯 2. 万能統合ナレッジアクセサ getKnowledge を直接安全呼び出し
-      data = this.core.gkl.structuredKnowledge.getKnowledge(target, { dynamicState, isPet, isPlayer, translate: true });
+      data = this.core.gkl.structuredKnowledge.getKnowledge(target, { dynamicState, isPet, isPlayer, translate: true, language: this.currentLanguage });
     }
 
     if (!data && target && typeof target === 'object' && target.knowledge) {
@@ -814,7 +871,7 @@ class GklPureJSClient {
     }
 
     if (!data) {
-      this.elGklKnowledgeContent.innerHTML = '<div class="gkl-empty-hint">該当するナレッジ情報がありません</div>';
+      this.elGklKnowledgeContent.innerHTML = `<div class="gkl-empty-hint">${isEn ? 'No knowledge data available' : '該当するナレッジ情報がありません'}</div>`;
       return;
     }
 
@@ -827,19 +884,19 @@ class GklPureJSClient {
       let dispositionNote = '';
 
       if (data.dispositionStatus === 'PEACEFUL') {
-        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">☮️ 平和的 (SAFE)</span>`;
+        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">${isEn ? '☮️ Peaceful (SAFE)' : '☮️ 平和的 (SAFE)'}</span>`;
       } else if (data.dispositionStatus === 'DEFAULT_PEACEFUL') {
-        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">☮️ 通常平和 (SAFE)</span>`;
-        dispositionNote = `<div style="font-size:11px; color:#a6adc8; margin-top:4px;">※ 通常は平和的ですが、攻撃・泥棒を行うと敵対化 (LETHAL) します</div>`;
+        dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">${isEn ? '☮️ Normally Peaceful' : '☮️ 通常平和 (SAFE)'}</span>`;
+        dispositionNote = `<div style="font-size:11px; color:#a6adc8; margin-top:4px;">${isEn ? '※ Normally peaceful; becomes hostile (LETHAL) if attacked or stolen from.' : '※ 通常は平和的ですが、攻撃・泥棒を行うと敵対化 (LETHAL) します'}</div>`;
       } else if (data.dispositionStatus === 'TAMED' || isPet) {
-        dispositionBadge = `<span class="kn-status-badge kn-status-tamed">🐾 ペット (TAMED)</span>`;
+        dispositionBadge = `<span class="kn-status-badge kn-status-tamed">${isEn ? '🐾 Pet (TAMED)' : '🐾 ペット (TAMED)'}</span>`;
       } else if (data.dispositionStatus === 'PLAYER' || isPlayer) {
-        dispositionBadge = `<span class="kn-status-badge kn-status-player">👤 プレイヤー</span>`;
+        dispositionBadge = `<span class="kn-status-badge kn-status-player">${isEn ? '👤 Player' : '👤 プレイヤー'}</span>`;
       } else {
-        dispositionBadge = `<span class="kn-status-badge kn-status-hostile">⚔️ 敵対的 (${data.dangerLevel || 'LETHAL'})</span>`;
+        dispositionBadge = `<span class="kn-status-badge kn-status-hostile">${isEn ? `⚔️ Hostile (${data.dangerLevel || 'LETHAL'})` : `⚔️ 敵対的 (${data.dangerLevel || 'LETHAL'})`}</span>`;
       }
 
-      const clickBadge = options.isClickConfirmed ? `<span class="kn-status-badge kn-status-confirmed">🔍 Look確認済み</span>` : '';
+      const clickBadge = options.isClickConfirmed ? `<span class="kn-status-badge kn-status-confirmed">${isEn ? '🔍 Look Inspected' : '🔍 Look確認済み'}</span>` : '';
 
       this.elGklKnowledgeContent.innerHTML = `
         <div class="kn-card">
@@ -857,15 +914,15 @@ class GklPureJSClient {
             <span>AC:${data.stats?.ac ?? '-'}</span>
             ${data.stats?.hp ? `<span style="color:#4ade80;">HP:${data.stats.hp}</span>` : ''}
             ${data.stats?.pw ? `<span style="color:#60a5fa;">Pw:${data.stats.pw}</span>` : ''}
-            ${data.stats?.gold ? `<span style="color:#facc15;">金:${data.stats.gold}</span>` : ''}
+            ${data.stats?.gold ? `<span style="color:#facc15;">${isEn ? 'Gold:' : '金:'}${data.stats.gold}</span>` : ''}
             ${data.stats?.dlvl ? `<span>${data.stats.dlvl}</span>` : ''}
-            ${data.inventoryCount !== undefined ? `<span style="color:#c084fc;">🎒所持品:${data.inventoryCount}個</span>` : ''}
+            ${data.inventoryCount !== undefined ? `<span style="color:#c084fc;">🎒${isEn ? 'Items:' : '所持品:'}${data.inventoryCount}</span>` : ''}
           </div>
           ${data.corpseInfo?.warningNote ? `<div class="kn-warning-box">⚠️ ${data.corpseInfo.warningNote}</div>` : ''}
           ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
           ${data.tacticalAdvice && data.tacticalAdvice.length > 0 ? `
             <div style="margin-top:6px;">
-              <div class="kn-section-label">💡 実戦戦術アドバイス</div>
+              <div class="kn-section-label">💡 ${isEn ? 'Tactical Advice' : '実戦戦術アドバイス'}</div>
               <ul class="kn-advice-list">${data.tacticalAdvice.map(adv => `<li>• ${adv}</li>`).join('')}</ul>
             </div>
           ` : ''}
@@ -875,7 +932,7 @@ class GklPureJSClient {
       // 🎒 4. アイテム / 死体 / 地形カードのレンダリング
       let statsHtml = '';
       const sm = this.core?.gkl?.skillStateManager || null;
-      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm });
+      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm, language: this.currentLanguage });
 
       if (adaptiveSpecs.length > 0) {
         statsHtml = `
@@ -887,7 +944,7 @@ class GklPureJSClient {
               const skillBadgeHtml = s.skillBadge ? `<span style="color:#22c55e; font-weight:bold; margin-left:4px;">${s.skillBadge.label}</span>` : '';
               return `
                 <span style="${borderStyle} padding:2px 6px; border-radius:3px;">
-                  <span style="color:${labelColor}; font-size:10px;">${s.labelJa || s.label}:</span>
+                  <span style="color:${labelColor}; font-size:10px;">${s.label}:</span>
                   <strong style="color:${valColor};">${s.value}</strong>
                   ${skillBadgeHtml}
                 </span>
@@ -901,11 +958,11 @@ class GklPureJSClient {
       if (data.bucEffects) {
         const b = data.bucEffects;
         const bParts = [];
-        if (b.blessed) bParts.push(`<li style="color:#2ecc71;"><strong>祝福:</strong> ${b.blessed}</li>`);
-        if (b.uncursed) bParts.push(`<li style="color:#bdc3c7;"><strong>通常:</strong> ${b.uncursed}</li>`);
-        if (b.cursed) bParts.push(`<li style="color:#e74c3c;"><strong>呪い:</strong> ${b.cursed}</li>`);
+        if (b.blessed) bParts.push(`<li style="color:#2ecc71;"><strong>${isEn ? 'Blessed:' : '祝福:'}</strong> ${b.blessed}</li>`);
+        if (b.uncursed) bParts.push(`<li style="color:#bdc3c7;"><strong>${isEn ? 'Uncursed:' : '通常:'}</strong> ${b.uncursed}</li>`);
+        if (b.cursed) bParts.push(`<li style="color:#e74c3c;"><strong>${isEn ? 'Cursed:' : '呪い:'}</strong> ${b.cursed}</li>`);
         if (bParts.length > 0) {
-          bucHtml = `<div><div class="kn-section-label">⚖️ BUC効果</div><ul class="kn-advice-list">${bParts.join('')}</ul></div>`;
+          bucHtml = `<div><div class="kn-section-label">⚖️ ${isEn ? 'BUC Effects' : 'BUC効果'}</div><ul class="kn-advice-list">${bParts.join('')}</ul></div>`;
         }
       }
 
@@ -913,7 +970,7 @@ class GklPureJSClient {
       if (data.usageAdvice && data.usageAdvice.length > 0) {
         adviceHtml = `
           <div style="margin-top:6px;">
-            <div class="kn-section-label">💡 用途・活用アドバイス</div>
+            <div class="kn-section-label">💡 ${isEn ? 'Usage & Strategy Advice' : '用途・活用アドバイス'}</div>
             <ul class="kn-advice-list">${data.usageAdvice.map(adv => `<li>• ${adv}</li>`).join('')}</ul>
           </div>
         `;
@@ -923,7 +980,7 @@ class GklPureJSClient {
       if (data.unidentifiedTips && data.unidentifiedTips.length > 0) {
         tipsHtml = `
           <div style="margin-top:6px;">
-            <div class="kn-section-label">🔍 識別戦術テクニック</div>
+            <div class="kn-section-label">🔍 ${isEn ? 'Identification Tips' : '識別戦術テクニック'}</div>
             <ul class="kn-advice-list">${data.unidentifiedTips.map(tip => `<li>• ${tip}</li>`).join('')}</ul>
           </div>
         `;
@@ -938,25 +995,25 @@ class GklPureJSClient {
       const idBadges = [];
       if (canBeUnid) {
         if (isUnid) {
-          idBadges.push('<span class="kn-status-badge kn-status-unid">🔍 未識別 (UNIDENTIFIED)</span>');
+          idBadges.push(`<span class="kn-status-badge kn-status-unid">${isEn ? '🔍 UNIDENTIFIED' : '🔍 未識別 (UNIDENTIFIED)'}</span>`);
         } else {
-          idBadges.push('<span class="kn-status-badge kn-status-known">✅ 識別済み (IDENTIFIED)</span>');
+          idBadges.push(`<span class="kn-status-badge kn-status-known">${isEn ? '✅ IDENTIFIED' : '✅ 識別済み (IDENTIFIED)'}</span>`);
         }
       }
 
       if (bucStatus === 'BLESSED') {
-        idBadges.push('<span class="kn-status-badge kn-status-blessed">✨ 祝福 (BLESSED)</span>');
+        idBadges.push(`<span class="kn-status-badge kn-status-blessed">${isEn ? '✨ BLESSED' : '✨ 祝福 (BLESSED)'}</span>`);
       } else if (bucStatus === 'CURSED') {
-        idBadges.push('<span class="kn-status-badge kn-status-cursed">💀 呪い (CURSED)</span>');
+        idBadges.push(`<span class="kn-status-badge kn-status-cursed">${isEn ? '💀 CURSED' : '💀 呪い (CURSED)'}</span>`);
       } else if (bucStatus === 'UNCURSED' && canBeUnid) {
-        idBadges.push('<span class="kn-status-badge kn-status-uncursed">⚪ 通常 (UNCURSED)</span>');
+        idBadges.push(`<span class="kn-status-badge kn-status-uncursed">${isEn ? '⚪ UNCURSED' : '⚪ 通常 (UNCURSED)'}</span>`);
       }
 
       if (id.appearanceName) {
-        idBadges.push(`<span class="kn-status-badge kn-status-named">🎨 外見: ${id.appearanceName}</span>`);
+        idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🎨 Appearance: ${id.appearanceName}` : `🎨 外見: ${id.appearanceName}`}</span>`);
       }
       if (id.calledName) {
-        idBadges.push(`<span class="kn-status-badge kn-status-named">🏷️ 仮名: ${id.calledName}</span>`);
+        idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🏷️ Called: ${id.calledName}` : `🏷️ 仮名: ${id.calledName}`}</span>`);
       }
 
       this.elGklKnowledgeContent.innerHTML = `
@@ -971,20 +1028,9 @@ class GklPureJSClient {
           ${statsHtml}
           ${data.effectSummary ? `<div style="font-size:12px; margin-top:4px;">${data.effectSummary}</div>` : ''}
           ${data.flavorNote ? `<div style="font-style:italic; font-size:11px; color:#94a3b8; margin:4px 0;">" ${data.flavorNote} "</div>` : ''}
-          ${bucHtml ? `
-            <div>
-              <div class="kn-section-label">⚖️ BUC効果</div>
-              ${bucHtml}
-            </div>
-          ` : ''}
-          ${data.unidentifiedTips && data.unidentifiedTips.length > 0 ? `
-            <div class="kn-unid-box">
-              <div class="kn-section-label" style="color:#3498db;">🔍 識別テスト・コツ</div>
-              <ul class="kn-advice-list">
-                ${data.unidentifiedTips.map(t => `<li>${t}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
+          ${bucHtml}
+          ${tipsHtml}
+          ${adviceHtml}
         </div>
       `;
     }
@@ -996,22 +1042,33 @@ class GklPureJSClient {
    */
   renderDirectionPad(dirCounts) {
     if (!this.elGklDirectionPad) return;
+    const isEn = this.currentLanguage === 'en';
 
-    const dirNameMap = {
+    const dirNameMapEn = {
+      'ALL': 'All',
+      'N': 'N', 'NE': 'NE', 'E': 'E', 'SE': 'SE',
+      'S': 'S', 'SW': 'SW', 'W': 'W', 'NW': 'NW',
+      'SELF': 'Self'
+    };
+    const dirNameMapJa = {
       'ALL': '全て',
       'N': '北 (N)', 'NE': '北東 (NE)', 'E': '東 (E)', 'SE': '南東 (SE)',
       'S': '南 (S)', 'SW': '南西 (SW)', 'W': '西 (W)', 'NW': '北西 (NW)',
       'SELF': '足元 (SELF)'
     };
+    const dirNameMap = isEn ? dirNameMapEn : dirNameMapJa;
 
     // リセットボタンの状態
     if (this.elBtnDirReset) {
       this.elBtnDirReset.classList.toggle('active', this.selectedDir === 'ALL');
+      this.elBtnDirReset.textContent = isEn ? 'Show All (ALL)' : '全表示 (ALL)';
     }
 
     // ラベル表示
     if (this.elGklFilterLabel) {
-      this.elGklFilterLabel.textContent = `表示: ${dirNameMap[this.selectedDir] || this.selectedDir}`;
+      this.elGklFilterLabel.textContent = isEn
+        ? `Filter: ${dirNameMap[this.selectedDir] || this.selectedDir}`
+        : `表示: ${dirNameMap[this.selectedDir] || this.selectedDir}`;
     }
 
     // 各方向ボタンの表示更新
@@ -1034,6 +1091,7 @@ class GklPureJSClient {
 
   renderGklActions(actions) {
     if (!this.elGklActionList) return;
+    const isEn = this.currentLanguage === 'en';
 
     // 1. 各方向のアクション件数を算出
     const dirCounts = new Map();
@@ -1056,15 +1114,15 @@ class GklPureJSClient {
       : `${filteredActions.length}/${actions.length}`;
 
     // 4. 前回のHTMLと比較し変化が無ければ書き換えない (軽量化)
-    const actionKeyStr = `${this.selectedDir}_${filteredActions.map(a => `${a.id}:${a.label}`).join('|')}`;
+    const actionKeyStr = `${this.currentLanguage}_${this.selectedDir}_${filteredActions.map(a => `${a.id}:${a.label}`).join('|')}`;
     if (this._lastActionHtml !== actionKeyStr) {
       this._lastActionHtml = actionKeyStr;
 
       const newHtml = filteredActions.length === 0 
-        ? `<div class="gkl-empty-hint">${this.selectedDir === 'ALL' ? '周辺環境に応じたアクションが自動表示されます' : 'この方向の推奨アクションはありません'}</div>`
+        ? `<div class="gkl-empty-hint">${this.selectedDir === 'ALL' ? (isEn ? 'Recommended actions for nearby targets will be shown automatically' : '周辺環境に応じたアクションが自動表示されます') : (isEn ? 'No recommended actions in this direction' : 'この方向の推奨アクションはありません')}</div>`
         : filteredActions.map(action => `
             <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
-              <span>${action.labelJa || action.label}</span>
+              <span>${action.label}</span>
               <span class="gkl-key-badge">${action.charStr || action.key || '?'}</span>
             </button>
           `).join('');
@@ -1077,7 +1135,8 @@ class GklPureJSClient {
         if (btn) {
           btn.onclick = () => {
             if (action.risk === 'danger') {
-              if (!confirm(`【⚠️ 危険な行動】\n"${action.labelJa || action.label}" を実行しますか？`)) return;
+              const confirmMsg = isEn ? `[⚠️ Dangerous Action]\nExecute "${action.label}"?` : `【⚠️ 危険な行動】\n"${action.label}" を実行しますか？`;
+              if (!confirm(confirmMsg)) return;
             }
             // アクション実行時にフィルターを 'ALL' に自動リセット
             this.selectedDir = 'ALL';
@@ -1091,11 +1150,12 @@ class GklPureJSClient {
 
   renderGklInventory(inventory) {
     if (!this.elGklInventoryGrid || !inventory) return;
+    const isEn = this.currentLanguage === 'en';
     const items = inventory.items || [];
     this.elGklInvCount.textContent = items.length;
 
     const newHtml = items.length === 0
-      ? '<div class="gkl-empty-hint">インベントリ空</div>'
+      ? `<div class="gkl-empty-hint">${isEn ? 'Inventory Empty' : 'インベントリ空'}</div>`
       : items.map(item => {
           const equipClasses = [];
           if (item.isWielded) equipClasses.push('is-wielded');
@@ -1105,14 +1165,14 @@ class GklPureJSClient {
           const equipClassStr = equipClasses.join(' ');
 
           let badgeHtml = '';
-          if (item.isWielded) badgeHtml = '<span class="gkl-slot-equip-badge badge-wielded" title="メイン武器 (wielded)">手</span>';
-          else if (item.isOffhand) badgeHtml = '<span class="gkl-slot-equip-badge badge-offhand" title="副武器 (off-hand)">副</span>';
-          else if (item.isQuivered) badgeHtml = '<span class="gkl-slot-equip-badge badge-quivered" title="矢筒 (quivered)">筒</span>';
-          else if (item.isWorn) badgeHtml = '<span class="gkl-slot-equip-badge badge-worn" title="着用中 (worn)">着</span>';
+          if (item.isWielded) badgeHtml = `<span class="gkl-slot-equip-badge badge-wielded" title="${isEn ? 'Main weapon' : 'メイン武器'}">${isEn ? 'Main' : '手'}</span>`;
+          else if (item.isOffhand) badgeHtml = `<span class="gkl-slot-equip-badge badge-offhand" title="${isEn ? 'Off-hand weapon' : '副武器'}">${isEn ? 'Off' : '副'}</span>`;
+          else if (item.isQuivered) badgeHtml = `<span class="gkl-slot-equip-badge badge-quivered" title="${isEn ? 'Quiver' : '矢筒'}">${isEn ? 'Quiv' : '筒'}</span>`;
+          else if (item.isWorn) badgeHtml = `<span class="gkl-slot-equip-badge badge-worn" title="${isEn ? 'Worn' : '着用中'}">${isEn ? 'Worn' : '着'}</span>`;
 
           let skillBadgeHtml = '';
           if (item.skillBadge?.isProficient || item.isRecommendedWeapon) {
-            skillBadgeHtml = `<span class="gkl-slot-equip-badge" style="background:#22c55e; color:#000; font-weight:bold; right:auto; left:2px;" title="得意武器 (${item.skillBadge?.label || '+'})">+</span>`;
+            skillBadgeHtml = `<span class="gkl-slot-equip-badge" style="background:#22c55e; color:#000; font-weight:bold; right:auto; left:2px;" title="${isEn ? 'Proficient weapon' : '得意武器'} (${item.skillBadge?.label || '+'})">+</span>`;
           }
 
           const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
@@ -1122,11 +1182,11 @@ class GklPureJSClient {
 
           let bucBadgeHtml = '';
           if (isUnidentified) {
-            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-unid" title="未識別 (Unidentified)">?</span>';
+            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
           } else if (bucStatus === 'CURSED') {
-            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-cursed" title="呪い (Cursed)">-</span>';
+            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
           } else if (bucStatus === 'BLESSED') {
-            bucBadgeHtml = '<span class="gkl-slot-buc-badge badge-buc-blessed" title="祝福 (Blessed)">+</span>';
+            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-blessed" title="${isEn ? 'Blessed' : '祝福'}">+</span>`;
           }
 
           return `
@@ -1140,8 +1200,8 @@ class GklPureJSClient {
           `;
         }).join('');
 
-    if (this._lastInvHtml !== newHtml) {
-      this._lastInvHtml = newHtml;
+    if (this._lastInvHtml !== `${this.currentLanguage}_${newHtml}`) {
+      this._lastInvHtml = `${this.currentLanguage}_${newHtml}`;
       this.elGklInventoryGrid.innerHTML = newHtml;
 
       // アイテムスタイルとツールチップイベント
@@ -1167,20 +1227,21 @@ class GklPureJSClient {
             this.elGklTtName.textContent = item.rawText;
             this.elGklTtTags.innerHTML = '';
 
-            if (item.isWielded) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#e9c46a;color:#1a1a2e;font-weight:bold;">手持ち武器</span>';
-            if (item.isOffhand) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#4ea8de;color:#0f172a;font-weight:bold;">副武器</span>';
-            if (item.isQuivered) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#2a9d8f;color:#fff;font-weight:bold;">矢筒</span>';
-            if (item.isWorn) this.elGklTtTags.innerHTML += '<span class="tag" style="background:#9d4edd;color:#fff;font-weight:bold;">着用中</span>';
+            if (item.isWielded) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#e9c46a;color:#1a1a2e;font-weight:bold;">${isEn ? 'Main weapon' : '手持ち武器'}</span>`;
+            if (item.isOffhand) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#4ea8de;color:#0f172a;font-weight:bold;">${isEn ? 'Off-hand weapon' : '副武器'}</span>`;
+            if (item.isQuivered) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#fff;font-weight:bold;">${isEn ? 'Quiver' : '矢筒'}</span>`;
+            if (item.isWorn) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#9d4edd;color:#fff;font-weight:bold;">${isEn ? 'Worn' : '着用中'}</span>`;
 
-            if (item.defaultActionLabelJa && item.defaultVerb) {
-              this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#ffffff;font-weight:bold;">ワンタップ: ${item.defaultActionLabelJa}</span>`;
+            const tapAction = item.knowledge?.actionLabel || item.defaultActionLabel;
+            if (tapAction && item.defaultVerb) {
+              this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#ffffff;font-weight:bold;">${isEn ? 'One-Tap:' : 'ワンタップ:'} ${tapAction}</span>`;
             }
 
-            if (item.isPickAxe) this.elGklTtTags.innerHTML += '<span class="tag">掘削(a)</span>';
-            if (item.isDigWand) this.elGklTtTags.innerHTML += '<span class="tag">採掘の杖(z)</span>';
-            if (item.isKey) this.elGklTtTags.innerHTML += '<span class="tag">鍵・ピック</span>';
-            if (item.isAxe) this.elGklTtTags.innerHTML += '<span class="tag">斧</span>';
-            if (item.isFrostWand) this.elGklTtTags.innerHTML += '<span class="tag">氷の杖</span>';
+            if (item.isPickAxe) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Dig(a)' : '掘削(a)'}</span>`;
+            if (item.isDigWand) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Wand of Digging(z)' : '採掘の杖(z)'}</span>`;
+            if (item.isKey) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Key/Lockpick' : '鍵・ピック'}</span>`;
+            if (item.isAxe) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Axe' : '斧'}</span>`;
+            if (item.isFrostWand) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Wand of Cold' : '氷の杖'}</span>`;
 
             this.elGklTooltip.classList.remove('hidden');
           };
@@ -1202,11 +1263,8 @@ class GklPureJSClient {
             } else {
               seq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
             }
-
           };
         }
-
-
       });
     }
   }
@@ -1220,8 +1278,8 @@ class GklPureJSClient {
     const elDetail = document.getElementById('status-attr-detail');
     const elContainer = document.getElementById('gkl-attributes-list') || elDetail;
     const res = attrObj?.effectiveResistances || {};
+    const isEn = this.currentLanguage === 'en';
 
-    // メインのステータス欄（上部）には耐性を表示せず状態異常専用スペースを確保
     if (elBadges) {
       elBadges.innerHTML = '';
     }
@@ -1231,12 +1289,13 @@ class GklPureJSClient {
     const activeRes = ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
 
     if (activeRes.length === 0) {
-      elContainer.innerHTML = '<span style="color:#64748b; font-size:11px;">🛡️ 属性耐性: なし</span>';
+      elContainer.innerHTML = `<span style="color:#64748b; font-size:11px;">${isEn ? '🛡️ Resistances: None' : '🛡️ 属性耐性: なし'}</span>`;
     } else {
       const activeHtml = activeRes.map(item => {
-        return `<span class="gkl-attr-badge active" title="${item.label} / ${item.en} (有効)">${item.label}</span>`;
+        const displayLabel = isEn ? (item.en || item.label) : item.label;
+        return `<span class="gkl-attr-badge active" title="${item.label} / ${item.en} (有効)">${displayLabel}</span>`;
       }).join(' ');
-      elContainer.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🛡️ 属性・能力:</strong> ${activeHtml}</div>`;
+      elContainer.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '🛡️ Resistances:' : '🛡️ 属性・能力:'}</strong> ${activeHtml}</div>`;
     }
   }
 
@@ -1247,17 +1306,21 @@ class GklPureJSClient {
   renderGklSpells(spellsObj) {
     const elSpellsDetail = document.getElementById('status-spells-detail');
     if (!elSpellsDetail) return;
+    const isEn = this.currentLanguage === 'en';
     const spells = spellsObj?.items || [];
     if (spells.length === 0) {
-      elSpellsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">📖 修得魔法: なし</span>';
+      elSpellsDetail.innerHTML = `<span style="color:#64748b; font-size:11px;">${isEn ? '📖 Spells: None' : '📖 修得魔法: なし'}</span>`;
       return;
     }
 
     const listHtml = spells.map(sp => {
-      return `<span class="gkl-spell-badge" title="キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate})">✨ [${sp.letter}] ${sp.name} <small>(Lv.${sp.level} ${sp.failRate})</small></span>`;
+      const titleStr = isEn
+        ? `Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate})`
+        : `キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate})`;
+      return `<span class="gkl-spell-badge" title="${titleStr}">✨ [${sp.letter}] ${sp.name} <small>(Lv.${sp.level} ${sp.failRate})</small></span>`;
     }).join(' ');
 
-    elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">📖 修得魔法:</strong> ${listHtml}</div>`;
+    elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '📖 Spells:' : '📖 修得魔法:'}</strong> ${listHtml}</div>`;
   }
 
   /**
@@ -1267,27 +1330,30 @@ class GklPureJSClient {
   renderGklSkills(skillsObj) {
     const elSkillsDetail = document.getElementById('status-skills-detail');
     if (!elSkillsDetail) return;
+    const isEn = this.currentLanguage === 'en';
 
     const activeSkills = skillsObj ? (skillsObj.activeItems || []) : [];
     if (!skillsObj || !skillsObj.isSynced) {
-      elSkillsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">🥋 スキル: 未同期</span>';
+      elSkillsDetail.innerHTML = `<span style="color:#64748b; font-size:11px;">${isEn ? '🥋 Skills: Not Synced' : '🥋 スキル: 未同期'}</span>`;
       return;
     }
 
     if (activeSkills.length === 0) {
-      elSkillsDetail.innerHTML = '<span style="color:#64748b; font-size:11px;">🥋 スキル: なし (未熟)</span>';
+      elSkillsDetail.innerHTML = `<span style="color:#64748b; font-size:11px;">${isEn ? '🥋 Skills: None (Unskilled)' : '🥋 スキル: なし (未熟)'}</span>`;
       return;
     }
 
     const listHtml = activeSkills.map(skill => {
       const rankKey = skill.rank ? skill.rank.key : 'basic';
-      const rankLabel = skill.rank ? (skill.rank.label || skill.rank.en) : '入門';
+      const rankLabel = isEn
+        ? (skill.rank ? (skill.rank.en || skill.rank.label) : 'Basic')
+        : (skill.rank ? (skill.rank.label || skill.rank.en) : '入門');
       const enhClass = skill.canEnhance ? 'enhanceable' : '';
       const star = skill.canEnhance ? '⭐ ' : '';
       return `<span class="gkl-skill-badge gkl-skill-badge-${rankKey} ${enhClass}" title="${skill.rawText || skill.name}">${star}<strong>${skill.name}</strong> [${rankLabel}]</span>`;
     }).join(' ');
 
-    elSkillsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">🥋 スキル:</strong> ${listHtml}</div>`;
+    elSkillsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '🥋 Skills:' : '🥋 スキル:'}</strong> ${listHtml}</div>`;
   }
 
   getItemSymbol(item) {

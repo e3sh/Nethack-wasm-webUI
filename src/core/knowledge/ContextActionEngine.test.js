@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ContextActionEngine } from './ContextActionEngine.js';
 import { SkillStateManager } from './SkillStateManager.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
@@ -47,7 +47,8 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
         // 最高スコアである dagger (c) が選ばれていること
         expect(wieldAction.id).toBe('ACTION_WIELD_RECOMMENDED_c');
         expect(wieldAction.key).toBe('wc');
-        expect(wieldAction.labelJa).toContain('達人');
+        expect(wieldAction.label).toContain('達人');
+        expect(wieldAction.labelJa).toBeUndefined();
     });
 
     it('低スキル武器を装備中、高スキル武器（熟練/達人）を所持している場合に持ち替えが提案されること', () => {
@@ -74,8 +75,36 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
         const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
         expect(wieldAction).toBeDefined();
         expect(wieldAction.id).toBe('ACTION_WIELD_RECOMMENDED_b');
-        expect(wieldAction.labelJa).toContain('持ち替え');
-        expect(wieldAction.labelJa).toContain('達人');
+        expect(wieldAction.label).toContain('持ち替え');
+        expect(wieldAction.label).toContain('達人');
+    });
+
+    it('options.language = "en" の場合、英語の推奨アクションラベルと説明文が返ること', () => {
+        const invMgr = new InventoryStateManager();
+        invMgr.items = [
+            { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', isWeapon: true, isWielded: true },
+            { letter: 'b', name: 'long sword', rawText: 'b - a +2 long sword', isWeapon: true, isWielded: false }
+        ];
+
+        const skillMgr = new SkillStateManager();
+        skillMgr.updateFromLines([
+            'short sword [Unskilled]',
+            'long sword [Expert]'
+        ]);
+
+        const areaState = {
+            feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+            adjacentMonsters: [],
+            adjacentEntities: []
+        };
+
+        const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr, { language: 'en' });
+
+        const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
+        expect(wieldAction).toBeDefined();
+        expect(wieldAction.label).toContain('Switch to');
+        expect(wieldAction.label).toContain('Expert');
+        expect(wieldAction.labelJa).toBeUndefined();
     });
 
     it('すでに最高スコアの武器を装備している場合は持ち替え提案が生成されないこと', () => {

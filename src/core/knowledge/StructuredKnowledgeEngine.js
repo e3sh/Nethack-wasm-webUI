@@ -22,8 +22,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '識別の巻物を読んだり、流し台(#apply sink)や神壇でテストして鑑定するのが安全です',
             '未鑑定の薬の飲み試しは麻痺・失明・毒・変身などのリスクを伴います'
         ],
+        unidentifiedTipsEn: [
+            'Identify safely using a Scroll of Identify, price identification at shops, or altar BUC testing.',
+            'Quaff-testing unknown potions carries risks like paralysis, blindness, poison, or polymorph.'
+        ],
         usageAdvice: [
             '戦闘中の緊急回復や、余剰ポーションの#dip調合、投擲による敵への状態異常付与に活用します'
+        ],
+        usageAdviceEn: [
+            'Use for emergency healing in combat, #dip alchemy mixing, or throwing at enemies for status effects.'
         ]
     },
     SCROLL: {
@@ -33,8 +40,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '安全な部屋で試読(\'r\')するか、店主の価格鑑定や識別の巻物で解明してください',
             '呪われた巻物は逆効果を発揮するためお祓い(Remove Curse)推奨'
         ],
+        unidentifiedTipsEn: [
+            'Read-test in a secure room, or identify via shop price identification or Scrolls of Identify.',
+            'Cursed scrolls often produce harmful opposite effects; uncurse before reading.'
+        ],
         usageAdvice: [
             '緊急脱出(テレポート)、装備強化、呪縛解除など、戦況を一変させる切り札として保持・使用します'
+        ],
+        usageAdviceEn: [
+            'Keep as trump cards for emergency escapes (teleportation), equipment enchanting, or curse removal.'
         ]
     },
     WAND: {
@@ -44,8 +58,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '床に文字を刻むテスト(\'E\')を行うと、充填数を消費せずに効果タイプを判別できます',
             '識別の巻物で残り充填回数と効果を解明可能です'
         ],
+        unidentifiedTipsEn: [
+            'Engrave-test on the floor (\'E\') to identify wand type without expending any charges.',
+            'Scrolls of Identify reveal both the exact magical effect and remaining charges.'
+        ],
         usageAdvice: [
             '壁の掘削によるショートカット作成、遠距離からの必殺攻撃や状態異常の付与に有効です'
+        ],
+        usageAdviceEn: [
+            'Use for digging shortcuts through walls, ranged offensive attacks, or applying lethal crowd control.'
         ]
     },
     RING: {
@@ -55,8 +76,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '流し台(#apply sink)に指輪を落すと、特有の現象や音で正体が確定します',
             '呪われた指輪は外せなくなる(\'R\'不可)ため、解呪の手段を用意して装着してください'
         ],
+        unidentifiedTipsEn: [
+            'Drop into a sink (#apply sink) to observe unique messages and identify the ring.',
+            'Cursed rings cannot be removed (\'R\'); ensure you have curse removal ready before wearing.'
+        ],
         usageAdvice: [
             '探索中や戦闘時など必要な場面に応じて付け替え(\'P\'/\'R\')し、空腹度の増加を抑えます'
+        ],
+        usageAdviceEn: [
+            'Wear (\'P\') and remove (\'R\') situationally to conserve nutrition and prevent excessive hunger.'
         ]
     },
     AMULET: {
@@ -66,8 +94,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '首にかける(\'W\')と強力な耐性を得られますが、絞殺のアミュレット等に注意',
             '識別の巻物で鑑定してから装着するのが最も安全です'
         ],
+        unidentifiedTipsEn: [
+            'Wearing (\'W\') grants powerful protections, but beware of hazardous items like Amulets of Strangulation.',
+            'Identifying with a scroll before wearing is the safest approach.'
+        ],
         usageAdvice: [
             '反射(Reflection)や命の魔除け(Life Saving)など、致命的な死を防ぐ中盤以降の最重要防具です'
+        ],
+        usageAdviceEn: [
+            'Crucial mid-to-late game gear providing game-saving protection like Reflection or Life Saving.'
         ]
     },
     WEAPON: {
@@ -77,8 +112,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '装備(\'w\')して攻撃命中率やダメージの変化を確認できます',
             '呪われた武器は手に貼り付くため、神壇(Altar)で呪いチェック推奨'
         ],
+        unidentifiedTipsEn: [
+            'Wield (\'w\') to observe changes in hit rate and damage output.',
+            'Cursed weapons weld to your hand; test BUC status on an altar before wielding.'
+        ],
         usageAdvice: [
             '武器スキル熟練度を上げ、敵のサイズ(中型/大型)や耐性に応じた武器を選択します'
+        ],
+        usageAdviceEn: [
+            'Enhance weapon skill proficiency and switch weapons based on monster size and intrinsic resistances.'
         ]
     },
     ARMOR: {
@@ -88,8 +130,15 @@ export const OBJECT_CATEGORY_ADVICE = {
             '着脱(\'W\'/\'T\')して AC の変化を確認することで強化値を推定可能',
             '神壇(Altar)の上に置くと、呪い・祝福・通常が色で判別できます'
         ],
+        unidentifiedTipsEn: [
+            'Wear/take off (\'W\'/\'T\') to monitor AC changes and estimate enchantment bonuses.',
+            'Drop onto an altar to safely detect blessed, uncursed, or cursed status.'
+        ],
         usageAdvice: [
             'ACと魔法防御(MC)を高め、詠唱ペナルティ(Metallic Armor)に注意して防具を選定します'
+        ],
+        usageAdviceEn: [
+            'Maximize AC and Magic Cancellation (MC), keeping spellcasting penalties from metallic armor in mind.'
         ]
     },
     FOOD: {
@@ -98,8 +147,14 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '食べる(\'e\')ことで空腹を回復します。死体は腐敗(Poison/Taint)に注意'
         ],
+        unidentifiedTipsEn: [
+            'Eat with \'e\' to recover nutrition. Beware of spoiled or poisonous corpses.'
+        ],
         usageAdvice: [
             '空腹(Hungry)状態になってから食べ、貴重な携行食料(Ration)は温存します'
+        ],
+        usageAdviceEn: [
+            'Wait until hungry to eat perishable corpses, saving long-lasting food rations for later.'
         ]
     },
     TOOL: {
@@ -108,8 +163,14 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '\'#apply\' キーで使用し、専用の機能や探索効果を発揮します'
         ],
+        unidentifiedTipsEn: [
+            'Use via \'#apply\' or dedicated hotkeys to activate specialized exploration and utility features.'
+        ],
         usageAdvice: [
             '鍵開け、解毒(ユニコーンの角)、照明など状況に応じたツールをショートカットで活用します'
+        ],
+        usageAdviceEn: [
+            'Use lockpicks, unicorn horns (poison cure), and light sources dynamically for survival.'
         ]
     },
     CONTAINER: {
@@ -118,8 +179,14 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '\'#apply\' で開閉・鍵開け・収納。貴重な薬や巻物を保護できます'
         ],
+        unidentifiedTipsEn: [
+            'Use \'#apply\' to open, lock/unlock, and store gear. Protects delicate potions and scrolls from damage.'
+        ],
         usageAdvice: [
             '爆発トラップによるポーション破損や水濡れからアイテムを守るため袋に収納します'
+        ],
+        usageAdviceEn: [
+            'Store vulnerable potions and scrolls in bags to shield them from explosion traps and water hazards.'
         ]
     },
     SPELLBOOK: {
@@ -128,8 +195,14 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             '読む(\'r\')ことで呪文を記憶します。高難度魔法書は解読に失敗すると失明等の反動があります'
         ],
+        unidentifiedTipsEn: [
+            'Read with \'r\' to memorize spells. Harder spellbooks carry backlash risks like blindness on failure.'
+        ],
         usageAdvice: [
             '呪文詠唱の失敗率(Armor制限やInt依存)を確認し、安全な部屋で勉強(\'r\')して記憶します'
+        ],
+        usageAdviceEn: [
+            'Check failure rate (armor penalties / Int) and study in a safe room to memorize spells.'
         ]
     },
     GEM: {
@@ -138,8 +211,14 @@ export const OBJECT_CATEGORY_ADVICE = {
         unidentifiedTips: [
             'タッチストーン(Touchstone)で引っ掻くテストをすると本物の宝石と硝子を判別可能'
         ],
+        unidentifiedTipsEn: [
+            'Test with a Touchstone (#apply) to distinguish genuine gems from worthless glass pieces.'
+        ],
         usageAdvice: [
             'モンスターに投げつけるか売却して高額な金貨を獲得できます'
+        ],
+        usageAdviceEn: [
+            'Throw gems at certain monsters (like unicorns) or sell them to shopkeepers for high gold payouts.'
         ]
     }
 };
@@ -589,9 +668,11 @@ export class StructuredKnowledgeEngine {
     /**
      * @param {Object} options 
      * @param {Object} [options.translationEngine] - WebUICore.TranslationEngine インスタンス
+     * @param {'ja'|'en'} [options.language='ja'] - 表示言語
      */
     constructor(options = {}) {
         this.translationEngine = options.translationEngine || null;
+        this.language = options.language || (this.translationEngine && this.translationEngine.language) || 'ja';
 
         this.monsters = new Map();
         this.items = new Map();
@@ -601,6 +682,15 @@ export class StructuredKnowledgeEngine {
 
         // マスターデータの初期化インデックス構築
         this._initDatabase();
+    }
+
+    /**
+     * 表示言語の設定
+     * @param {'ja'|'en'} lang
+     */
+    setLanguage(lang = 'ja') {
+        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
+        this.language = isJa ? 'ja' : 'en';
     }
 
     /**
@@ -617,6 +707,9 @@ export class StructuredKnowledgeEngine {
      */
     setTranslationEngine(translationEngine) {
         this.translationEngine = translationEngine;
+        if (translationEngine && translationEngine.language) {
+            this.language = translationEngine.language;
+        }
     }
 
     /**
@@ -697,24 +790,31 @@ export class StructuredKnowledgeEngine {
     /**
      * 構造化オブジェクト内の各種テキストプロパティを TranslationEngine で動的ローカライズ
      * @param {Object} obj 
+     * @param {Object} [options={}]
      * @returns {Object} ローカライズ済みディープコピー
      */
-    localizeKnowledge(obj) {
+    localizeKnowledge(obj, options = {}) {
         if (!obj || typeof obj !== 'object') return obj;
-        if (!this.translationEngine || typeof this.translationEngine.translate !== 'function') {
-            return obj; // 翻訳エンジン未設定時は英語標準のまま返却
-        }
+
+        const lang = options.language || this.language || (this.translationEngine && this.translationEngine.language) || 'ja';
+        const isEn = (lang === 'en' || (this.translationEngine && this.translationEngine.enabled === false));
 
         const tr = (str) => {
             if (!str || typeof str !== 'string') return str;
+            if (isEn) return str;
+            if (!this.translationEngine || typeof this.translationEngine.translate !== 'function') return str;
             return this.translationEngine.translate(str);
         };
 
         const cloned = JSON.parse(JSON.stringify(obj));
+        const originalName = obj.name || '';
+        cloned.nameEn = originalName;
 
-        // 1. 名前の翻訳
-        if (cloned.name) {
-            cloned.name = tr(cloned.name);
+        // 1. 名前の設定
+        if (isEn) {
+            cloned.name = originalName;
+        } else {
+            cloned.name = tr(originalName);
         }
 
         // 2. モンスター死体・警告の翻訳
@@ -728,27 +828,38 @@ export class StructuredKnowledgeEngine {
         }
 
         // 3. 戦術アドバイスの配列翻訳
-        if (Array.isArray(cloned.tacticalAdvice)) {
+        if (isEn && Array.isArray(obj.tacticalAdviceEn) && obj.tacticalAdviceEn.length > 0) {
+            cloned.tacticalAdvice = obj.tacticalAdviceEn;
+        } else if (Array.isArray(cloned.tacticalAdvice)) {
             cloned.tacticalAdvice = cloned.tacticalAdvice.map(adv => tr(adv));
         }
 
         // 4. アイテム基本効果の翻訳
-        if (cloned.effectSummary) {
+        if (isEn && obj.effectSummaryEn) {
+            cloned.effectSummary = obj.effectSummaryEn;
+        } else if (cloned.effectSummary) {
             cloned.effectSummary = tr(cloned.effectSummary);
         }
 
         // 5. BUC効果の翻訳
-        if (cloned.bucEffects) {
+        if (isEn && obj.bucEffectsEn) {
+            cloned.bucEffects = obj.bucEffectsEn;
+        } else if (cloned.bucEffects) {
             for (const key of Object.keys(cloned.bucEffects)) {
                 cloned.bucEffects[key] = tr(cloned.bucEffects[key]);
             }
         }
 
         // 6. 未識別ヒント & 用途アドバイスの翻訳
-        if (Array.isArray(cloned.unidentifiedTips)) {
+        if (isEn && Array.isArray(obj.unidentifiedTipsEn) && obj.unidentifiedTipsEn.length > 0) {
+            cloned.unidentifiedTips = obj.unidentifiedTipsEn;
+        } else if (Array.isArray(cloned.unidentifiedTips)) {
             cloned.unidentifiedTips = cloned.unidentifiedTips.map(tip => tr(tip));
         }
-        if (Array.isArray(cloned.usageAdvice)) {
+
+        if (isEn && Array.isArray(obj.usageAdviceEn) && obj.usageAdviceEn.length > 0) {
+            cloned.usageAdvice = obj.usageAdviceEn;
+        } else if (Array.isArray(cloned.usageAdvice)) {
             cloned.usageAdvice = cloned.usageAdvice.map(adv => tr(adv));
         }
 
@@ -758,11 +869,23 @@ export class StructuredKnowledgeEngine {
         }
 
         // 8. 推奨アクションラベルのローカライズ
-        if (cloned.actionLabelJa) {
-            cloned.actionLabel = cloned.actionLabelJa;
-        } else if (cloned.defaultActionLabel) {
-            cloned.actionLabel = tr(cloned.defaultActionLabel);
+        if (isEn) {
+            cloned.actionLabel = obj.actionLabelEn || obj.defaultActionLabel || 'Apply';
+        } else {
+            cloned.actionLabel = obj.actionLabelJa || (obj.defaultActionLabel ? tr(obj.defaultActionLabel) : (obj.actionLabel ? tr(obj.actionLabel) : ''));
         }
+
+        // 9. 不要な重複プロパティの削除（スキーマ一本化）
+        delete cloned.actionLabelJa;
+        delete cloned.actionLabelEn;
+        delete cloned.defaultActionLabel;
+        delete cloned.defaultActionLabelJa;
+        delete cloned.nameJa;
+        delete cloned.unidentifiedTipsEn;
+        delete cloned.usageAdviceEn;
+        delete cloned.tacticalAdviceEn;
+        delete cloned.effectSummaryEn;
+        delete cloned.bucEffectsEn;
 
         return cloned;
     }
@@ -924,7 +1047,7 @@ export class StructuredKnowledgeEngine {
 
         result.canBeUnidentified = false;
 
-        return shouldTranslate ? this.localizeKnowledge(result) : result;
+        return shouldTranslate ? this.localizeKnowledge(result, options) : result;
     }
 
     /**
@@ -947,13 +1070,16 @@ export class StructuredKnowledgeEngine {
     getUnidentifiedItemKnowledge(rawInput, options = {}) {
         const idRes = (rawInput && typeof rawInput === 'object' && rawInput.idLevel)
             ? rawInput
-            : ItemIdentificationResolver.resolve(rawInput);
+            : ItemIdentificationResolver.resolve(rawInput, options);
 
         const category = idRes.category || 'OTHER';
         const adviceObj = OBJECT_CATEGORY_ADVICE[category] || OBJECT_CATEGORY_ADVICE.TOOL;
         const tips = (idRes.identificationTips && idRes.identificationTips.length > 0)
             ? idRes.identificationTips
             : (adviceObj.unidentifiedTips || []);
+        const tipsEn = (idRes.identificationTipsEn && idRes.identificationTipsEn.length > 0)
+            ? idRes.identificationTipsEn
+            : (adviceObj.unidentifiedTipsEn || []);
 
         const rawObj = {
             id: `unidentified_${category.toLowerCase()}`,
@@ -964,14 +1090,17 @@ export class StructuredKnowledgeEngine {
             calledName: idRes.calledName,
             bucStatus: idRes.bucStatus,
             effectSummary: adviceObj.effectSummary || 'Unidentified item. Price ID or Scroll of Identify recommended.',
+            effectSummaryEn: adviceObj.effectSummary,
             unidentifiedTips: tips,
-            usageAdvice: [],
+            unidentifiedTipsEn: tipsEn,
+            usageAdvice: adviceObj.usageAdvice || [],
+            usageAdviceEn: adviceObj.usageAdviceEn || [],
             canBeUnidentified: true,
             identification: idRes
         };
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(rawObj) : rawObj;
+        return shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
     }
 
     /**
@@ -1126,13 +1255,29 @@ export class StructuredKnowledgeEngine {
                     name: itemName,
                     category: catStr,
                     effectSummary: adviceObj.effectSummary,
+                    effectSummaryEn: adviceObj.effectSummary,
                     unidentifiedTips: adviceObj.unidentifiedTips,
-                    usageAdvice: adviceObj.usageAdvice || []
+                    unidentifiedTipsEn: adviceObj.unidentifiedTipsEn || [],
+                    usageAdvice: adviceObj.usageAdvice || [],
+                    usageAdviceEn: adviceObj.usageAdviceEn || []
                 };
             }
         }
 
         if (!found) return null;
+
+        // カテゴリの未識別Tips/アドバイスを補完
+        const cat = found.category || 'TOOL';
+        const defaultAdvice = OBJECT_CATEGORY_ADVICE[cat] || OBJECT_CATEGORY_ADVICE.TOOL;
+        if (!found.unidentifiedTips && defaultAdvice.unidentifiedTips) {
+            found = {
+                ...found,
+                unidentifiedTips: defaultAdvice.unidentifiedTips,
+                unidentifiedTipsEn: defaultAdvice.unidentifiedTipsEn || [],
+                usageAdvice: found.usageAdvice || defaultAdvice.usageAdvice || [],
+                usageAdviceEn: found.usageAdviceEn || defaultAdvice.usageAdviceEn || []
+            };
+        }
 
         if (originalDisplayName && originalDisplayName.trim().length > 0) {
             found = {
@@ -1141,7 +1286,7 @@ export class StructuredKnowledgeEngine {
             };
         }
 
-        return shouldTranslate ? this.localizeKnowledge(found) : found;
+        return shouldTranslate ? this.localizeKnowledge(found, options) : found;
     }
 
     /**
@@ -1232,7 +1377,7 @@ export class StructuredKnowledgeEngine {
         rawObj.canBeUnidentified = false;
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(rawObj) : rawObj;
+        return shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
     }
 
     /**
@@ -1281,22 +1426,26 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        const baseName = monKnowledge ? monKnowledge.name : (monOffset >= 0 ? `Monster ${monOffset}` : '');
-        const corpseName = baseName ? `${baseName} の死体 (corpse)` : '死体 (corpse)';
+        const isEn = (options.language || this.language) === 'en';
+        const baseName = monKnowledge ? (isEn ? (monKnowledge.nameEn || monKnowledge.name) : monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const corpseName = isEn ? (baseName ? `${baseName} corpse` : 'corpse') : (baseName ? `${baseName} の死体 (corpse)` : '死体 (corpse)');
 
         const corpseObj = {
             id: `corpse_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: corpseName,
+            nameEn: baseName ? `${baseName} corpse` : 'corpse',
             category: 'CORPSE',
             canBeUnidentified: false,
             corpseInfo: monKnowledge?.corpseInfo || null,
-            effectSummary: monKnowledge?.corpseInfo?.warningNote ? 
-                `食中毒・呪い警告: ${monKnowledge.corpseInfo.warningNote}` : 
-                (baseName ? `モンスター (${baseName}) の死体です。食料として食べるか、祭壇で捧げることができます。` : 'モンスターの死体です。食料として食べるか、祭壇で捧げることができます。')
+            effectSummary: isEn ?
+                (monKnowledge?.corpseInfo?.warningNote ? `Warning: ${monKnowledge.corpseInfo.warningNote}` : (baseName ? `Corpse of ${baseName}. Can be eaten or offered at an altar.` : 'Monster corpse. Can be eaten or offered at an altar.')) :
+                (monKnowledge?.corpseInfo?.warningNote ? 
+                    `食中毒・呪い警告: ${monKnowledge.corpseInfo.warningNote}` : 
+                    (baseName ? `モンスター (${baseName}) の死体です。食料として食べるか、祭壇で捧げることができます。` : 'モンスターの死体です。食料として食べるか、祭壇で捧げることができます。'))
         };
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(corpseObj) : corpseObj;
+        return shouldTranslate ? this.localizeKnowledge(corpseObj, options) : corpseObj;
     }
 
     /**
@@ -1346,21 +1495,25 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        const baseName = monKnowledge ? monKnowledge.name : (monOffset >= 0 ? `Monster ${monOffset}` : '');
-        const statueName = baseName ? `${baseName} の像 (statue)` : '石像 (statue)';
+        const isEn = (options.language || this.language) === 'en';
+        const baseName = monKnowledge ? (isEn ? (monKnowledge.nameEn || monKnowledge.name) : monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const statueName = isEn ? (baseName ? `statue of ${baseName}` : 'statue') : (baseName ? `${baseName} の像 (statue)` : '石像 (statue)');
 
         const statueObj = {
             id: `statue_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: statueName,
+            nameEn: baseName ? `statue of ${baseName}` : 'statue',
             category: 'STATUE',
             canBeUnidentified: false,
-            effectSummary: baseName ? 
-                `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。` :
-                `石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`
+            effectSummary: isEn ?
+                (baseName ? `Statue of ${baseName}. Can be broken with pick-axe / wand of striking, or carried.` : 'Statue. Can be broken with pick-axe / wand of striking, or carried.') :
+                (baseName ? 
+                    `モンスター (${baseName}) の石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。` :
+                    `石像です。ツルハシ(#apply pick-axe)や打撃の杖(Wand of Striking)で破壊するか、持ち運ぶことができます。`)
         };
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(statueObj) : statueObj;
+        return shouldTranslate ? this.localizeKnowledge(statueObj, options) : statueObj;
     }
 
     /**

@@ -9,11 +9,13 @@
 
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
+import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
 import { getAdaptiveItemSpecs } from '../../src/core/knowledge/ItemSpecPresenter.js';
 
 class GklDomClient {
   constructor() {
     this.core = null;
+    this.currentLanguage = 'ja';
     this.domGridElements = []; // 2D array [21][80] of DOM elements
     this.elMapGrid = document.getElementById('map-grid');
     this.elMessageLog = document.getElementById('message-log');
@@ -34,6 +36,10 @@ class GklDomClient {
     const workerPath = '../../src/driver/nethack.worker.js';
     const bridge = new NetHackWasmWorkerBridge(workerPath);
     this.core = new WebUICore({ driver: bridge });
+    this.currentLanguage = this.core.language || 'ja';
+
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: this.currentLanguage });
+    gklPlugin.attach(this.core);
 
     // イベントバインド
     this.setupCoreEvents();
@@ -93,6 +99,15 @@ class GklDomClient {
    */
   setupGklListener() {
     if (!this.core) return;
+
+    // 0. Language Changed
+    this.core.on('languageChanged', ({ language }) => {
+      this.currentLanguage = language || 'ja';
+      if (this.core.gkl && typeof this.core.gkl.setLanguage === 'function') {
+        this.core.gkl.setLanguage(this.currentLanguage);
+      }
+      this.renderGklSkills();
+    });
 
     // 1. State Change (ゲーム状態)
     this.core.on('stateChange', ({ state }) => {
@@ -250,7 +265,7 @@ class GklDomClient {
     }
 
     // GKL アクセサ呼び出し（万能統合アクセサ getKnowledge）
-    const data = this.core.gkl.structuredKnowledge.getKnowledge(rawGlyph, { translate: true });
+    const data = this.core.gkl.structuredKnowledge.getKnowledge(rawGlyph, { translate: true, language: this.currentLanguage });
     this.renderKnowledgeCard(data);
   }
 
@@ -265,14 +280,15 @@ class GklDomClient {
    * 💡 GKL 構造化ナレッジカードの DOM レンダリング
    */
   renderKnowledgeCard(target) {
+    const isEn = this.currentLanguage === 'en';
     const data = (target && typeof target === 'object' && target.knowledge)
       ? target.knowledge
-      : ((target && typeof target === 'object' && (target.name || target.dangerLevel || target.category)) ? target : (this.core && this.core.gkl ? this.core.gkl.getKnowledge(target) : null));
+      : ((target && typeof target === 'object' && (target.name || target.dangerLevel || target.category)) ? target : (this.core && this.core.gkl ? this.core.gkl.getKnowledge(target, { language: this.currentLanguage }) : null));
 
     if (!data) {
       this.elKnowledgeContent.innerHTML = `
         <div class="gkl-empty-hint">
-          マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます
+          ${isEn ? 'Hover or tap a dungeon tile<br>to inspect real-time structured knowledge' : 'マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます'}
         </div>`;
       return;
     }
@@ -300,7 +316,7 @@ class GklDomClient {
           ` : ''}
           ${data.tacticalAdvice && data.tacticalAdvice.length > 0 ? `
             <div class="kn-section">
-              <span class="kn-section-title">💡 実戦戦術アドバイス</span>
+              <span class="kn-section-title">💡 ${isEn ? 'Tactical Advice' : '実戦戦術アドバイス'}</span>
               <ul class="kn-list">
                 ${data.tacticalAdvice.map(adv => `<li>• ${adv}</li>`).join('')}
               </ul>
@@ -311,7 +327,7 @@ class GklDomClient {
     } else {
       // アイテム / 未識別ガイド / 地形カード
       const sm = this.core?.gkl?.skillStateManager || null;
-      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm });
+      const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm, language: this.currentLanguage });
       let specsHtml = '';
       if (adaptiveSpecs.length > 0) {
         specsHtml = `
@@ -323,7 +339,7 @@ class GklDomClient {
               const skillBadgeHtml = s.skillBadge ? `<span style="color:#22c55e; font-weight:bold; margin-left:4px;">${s.skillBadge.label}</span>` : '';
               return `
                 <span style="${borderStyle} padding:2px 6px; border-radius:3px;">
-                  <span style="color:${labelColor}; font-size:10px;">${s.labelJa || s.label}:</span>
+                  <span style="color:${labelColor}; font-size:10px;">${s.label}:</span>
                   <strong style="color:${valColor};">${s.value}</strong>
                   ${skillBadgeHtml}
                 </span>
@@ -345,7 +361,7 @@ class GklDomClient {
           ` : ''}
           ${data.unidentifiedTips && data.unidentifiedTips.length > 0 ? `
             <div class="kn-section">
-              <span class="kn-section-title">🔍 未識別解明ヒント</span>
+              <span class="kn-section-title">🔍 ${isEn ? 'Identification Tips' : '未識別解明ヒント'}</span>
               <ul class="kn-list">
                 ${data.unidentifiedTips.map(tip => `<li>• ${tip}</li>`).join('')}
               </ul>
@@ -353,7 +369,7 @@ class GklDomClient {
           ` : ''}
           ${data.usageAdvice && data.usageAdvice.length > 0 ? `
             <div class="kn-section">
-              <span class="kn-section-title">💡 使用アドバイス</span>
+              <span class="kn-section-title">💡 ${isEn ? 'Usage Advice' : '使用アドバイス'}</span>
               <ul class="kn-list">
                 ${data.usageAdvice.map(adv => `<li>• ${adv}</li>`).join('')}
               </ul>
@@ -400,6 +416,7 @@ class GklDomClient {
    */
   renderGklSkills() {
     if (!this.elSkillsDetail) return;
+    const isEn = this.currentLanguage === 'en';
     if (!this.core || !this.core.gkl || !this.core.gkl.skillStateManager) {
       this.elSkillsDetail.innerHTML = '';
       return;
@@ -407,13 +424,15 @@ class GklDomClient {
 
     const activeSkills = this.core.gkl.skillStateManager.getActiveSkills();
     if (!activeSkills || activeSkills.length === 0) {
-      this.elSkillsDetail.innerHTML = '<span class="gkl-skill-title">🥋 スキル:</span> <span style="font-size:0.75rem; color:#64748b;">(未熟 / なし)</span>';
+      this.elSkillsDetail.innerHTML = `<span class="gkl-skill-title">🥋 ${isEn ? 'Skills:' : 'スキル:'}</span> <span style="font-size:0.75rem; color:#64748b;">${isEn ? '(None / Unskilled)' : '(未熟 / なし)'}</span>`;
       return;
     }
 
     const badgesHtml = activeSkills.map(skill => {
       const rankKey = skill.rank ? skill.rank.key : 'basic';
-      const rankLabel = skill.rank ? (skill.rank.label || skill.rank.en) : '入門';
+      const rankLabel = isEn
+        ? (skill.rank ? (skill.rank.en || skill.rank.label) : 'Basic')
+        : (skill.rank ? (skill.rank.label || skill.rank.en) : '入門');
       const enhanceClass = skill.canEnhance ? 'skill-badge-enhanceable' : '';
       const star = skill.canEnhance ? '<span class="skill-star">⭐</span>' : '';
       return `
@@ -423,15 +442,16 @@ class GklDomClient {
       `;
     }).join('');
 
-    this.elSkillsDetail.innerHTML = `<span class="gkl-skill-title">🥋 スキル:</span> ${badgesHtml}`;
+    this.elSkillsDetail.innerHTML = `<span class="gkl-skill-title">🥋 ${isEn ? 'Skills:' : 'スキル:'}</span> ${badgesHtml}`;
   }
 
   /**
    * 所持品リストの表示
    */
   renderInventory(items) {
+    const isEn = this.currentLanguage === 'en';
     if (!items || items.length === 0) {
-      this.elInventoryList.innerHTML = '<div class="empty-inv">アイテムがありません</div>';
+      this.elInventoryList.innerHTML = `<div class="empty-inv">${isEn ? 'Inventory empty' : 'アイテムがありません'}</div>`;
       return;
     }
 
@@ -447,7 +467,7 @@ class GklDomClient {
       el.addEventListener('click', () => {
         const name = el.dataset.name;
         if (name && this.core && this.core.gkl && this.core.gkl.structuredKnowledge) {
-          const data = this.core.gkl.structuredKnowledge.getKnowledge(name, { translate: true });
+          const data = this.core.gkl.structuredKnowledge.getKnowledge(name, { translate: true, language: this.currentLanguage });
           this.renderKnowledgeCard(data);
         }
       });

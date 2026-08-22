@@ -4,10 +4,13 @@ import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 export const HeaderPanel: React.FC = () => {
   const engineState = useGameStore((state) => state.engineState);
+  const currentLanguage = useGameStore((state) => state.currentLanguage);
+  const isEn = currentLanguage === 'en';
   const { deleteSaveFile, restartGame } = useNetHackDriver();
 
   const handleRestart = () => {
-    if (window.confirm('現在のゲームを中断して再起動しますか？')) {
+    const msg = isEn ? 'Restart the game now?' : '現在のゲームを中断して再起動しますか？';
+    if (window.confirm(msg)) {
       restartGame();
     }
   };
@@ -27,7 +30,7 @@ export const HeaderPanel: React.FC = () => {
         <button
           onClick={handleRestart}
           className="btn-control btn-restart"
-          title="ゲームを即時再起動"
+          title={isEn ? 'Restart game immediately' : 'ゲームを即時再起動'}
         >
           🔄 Restart
         </button>
@@ -35,7 +38,7 @@ export const HeaderPanel: React.FC = () => {
         <button
           onClick={deleteSaveFile}
           className="btn-control btn-delete-save"
-          title="セーブデータを完全削除"
+          title={isEn ? 'Delete save file completely' : 'セーブデータを完全削除'}
         >
           🗑️ Del Save
         </button>

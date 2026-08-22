@@ -10,6 +10,7 @@ class NetHackDriverController {
   private core: any = null;
   private nethackJsPath: string = '';
   public isInitialized = ref(false);
+  public currentLanguage = ref<'ja' | 'en'>('ja');
 
   public init() {
     if (this.core) return;
@@ -34,12 +35,16 @@ class NetHackDriverController {
     });
 
     this.core = new WebUICore({ driver });
+    this.currentLanguage.value = this.core.language || 'ja';
 
     // GKL (Game Knowledge Layer) プラグインの自動アタッチ
-    const gklPlugin = new GKLPlugin({ keyMode: 'numpad' });
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: this.currentLanguage.value });
     gklPlugin.attach(this.core);
 
     // 2. WebUICore イベントのバインド
+    this.core.on('languageChanged', ({ language }: { language: 'ja' | 'en' }) => {
+      this.currentLanguage.value = language || 'ja';
+    });
     this.core.on('stateChange', ({ state }: { state: string }) => {
       if (state === 'RUNNING' || state === 'WAITING_INPUT') {
         gameStore.setEngineState('RUNNING');
@@ -410,7 +415,7 @@ class NetHackDriverController {
     return nameMap[cleaned] || 'NONE';
   }
 
-  public getZoomAreaTiles(radius: number = 3): Array<{ dx: number; dy: number; glyphId: number; symbol: string; color: number; nameJa: string; knowledge: any; x: number; y: number; isPlayer: boolean }> {
+  public getZoomAreaTiles(radius: number = 3): Array<{ dx: number; dy: number; glyphId: number; symbol: string; color: number; name?: string; nameJa: string; knowledge: any; x: number; y: number; isPlayer: boolean }> {
     const gameStore = useGameStore();
     const px = gameStore.cursorPos ? gameStore.cursorPos.x : -1;
     const py = gameStore.cursorPos ? gameStore.cursorPos.y : -1;
@@ -428,8 +433,9 @@ class NetHackDriverController {
         let glyphId = -1;
         let symbol = ' ';
         let color = 7;
-        let knowledge: any = null;
-        let nameJa = '視界外';
+        let knowledge = null;
+        const isEn = (this.core && this.core.language === 'en');
+        let name = isEn ? 'Out of Sight' : '視界外';
 
         if (px >= 0 && py >= 0 && tx >= 0 && tx < 80 && ty >= 0 && ty < 21) {
           const gridTile = gameStore.mapGrid[ty]?.[tx];
@@ -438,7 +444,7 @@ class NetHackDriverController {
             color = gridTile.color;
             if (gridTile.tileId === 0 && symbol === ' ') {
               glyphId = -1;
-              nameJa = '未探索';
+              name = isEn ? 'Unexplored' : '未探索';
             } else {
               glyphId = gridTile.tileId;
             }
@@ -451,14 +457,14 @@ class NetHackDriverController {
 
           if (glyphId > 0 && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(glyphId);
-            if (knowledge && knowledge.nameJa) {
-              nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) {
+              name = knowledge.name;
             }
           } else if (glyphId === 0 && symbol !== ' ' && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(0);
-            if (knowledge && knowledge.nameJa) nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) name = knowledge.name;
           } else if (symbol === ' ') {
-            nameJa = '未探索';
+            name = isEn ? 'Unexplored' : '未探索';
           }
         }
 
@@ -468,7 +474,8 @@ class NetHackDriverController {
           glyphId,
           symbol,
           color,
-          nameJa,
+          name,
+          nameJa: name,
           knowledge,
           x: tx,
           y: ty,
@@ -569,7 +576,8 @@ class NetHackDriverController {
 
   public getAdaptiveSpecs(knowledge: any) {
     const sm = this.core?.gkl?.skillStateManager || null;
-    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
+    const lang = this.currentLanguage.value || this.core?.language || 'ja';
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm, language: lang });
   }
 }
 
@@ -583,6 +591,7 @@ export function useNetHackDriver() {
 
   return {
     isInitialized: driverController.isInitialized,
+    currentLanguage: driverController.currentLanguage,
     resumeSavedGame: () => driverController.resumeSavedGame(),
     startNewGame: () => driverController.startNewGame(),
     deleteSaveFile: () => driverController.deleteSaveFile(),

@@ -4,12 +4,17 @@ import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 export const SaveSelectorModal: React.FC = () => {
   const pendingSaveInfo = useGameStore((state) => state.pendingSaveInfo);
+  const currentLanguage = useGameStore((state) => state.currentLanguage);
+  const isEn = currentLanguage === 'en';
   const { resumeSavedGame, startNewGame } = useNetHackDriver();
 
   if (!pendingSaveInfo) return null;
 
   const handleStartNew = () => {
-    if (window.confirm('保存されているセーブデータを破棄して最初から開始しますか？')) {
+    const confirmMsg = isEn
+      ? 'Delete saved game and start a new game?'
+      : '保存されているセーブデータを破棄して最初から開始しますか？';
+    if (window.confirm(confirmMsg)) {
       startNewGame();
     }
   };
@@ -18,14 +23,16 @@ export const SaveSelectorModal: React.FC = () => {
     <div className="modal-backdrop">
       <div className="modal-card">
         <div className="modal-header">
-          <h2>💾 セーブデータが見つかりました</h2>
+          <h2>{isEn ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました'}</h2>
         </div>
         <div className="modal-body">
           <p className="save-desc">
-            前回の冒険記録が残っています。再開しますか？それとも新規に開始しますか？
+            {isEn
+              ? 'A previous adventure was found. Do you want to resume or start a new game?'
+              : '前回の冒険記録が残っています。再開しますか？それとも新規に開始しますか？'}
           </p>
           <div className="save-info-box">
-            <span className="label">冒険者名 (Player):</span>
+            <span className="label">{isEn ? 'Player Name:' : '冒険者名 (Player):'}</span>
             <strong className="player-name">
               {pendingSaveInfo.savePlayerName || 'Hero'}
             </strong>
@@ -33,10 +40,10 @@ export const SaveSelectorModal: React.FC = () => {
         </div>
         <div className="modal-footer">
           <button onClick={() => resumeSavedGame()} className="btn btn-primary btn-large">
-            ▶️ セーブデータから再開 (Continue Game)
+            {isEn ? '▶️ Resume Saved Game (Continue)' : '▶️ セーブデータから再開 (Continue Game)'}
           </button>
           <button onClick={handleStartNew} className="btn btn-danger">
-            ⚠️ 新規ゲーム開始 (New Game / セーブ破棄)
+            {isEn ? '⚠️ Start New Game (Delete Save)' : '⚠️ 新規ゲーム開始 (New Game / セーブ破棄)'}
           </button>
         </div>
       </div>

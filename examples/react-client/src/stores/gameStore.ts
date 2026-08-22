@@ -75,6 +75,7 @@ export interface GameStore {
   gameOverResult: any | null;
   gklSituation: any | null;
   hoveredTileKnowledge: any | null;
+  currentLanguage: 'ja' | 'en';
 
   addMessage: (text: string) => void;
   updateStatus: (field: number, value: any, rawPayload?: any) => void;
@@ -90,6 +91,7 @@ export interface GameStore {
   setGameOverResult: (result: any | null) => void;
   setGklSituation: (situation: any) => void;
   setHoveredTileKnowledge: (knowledge: any) => void;
+  setLanguage: (lang: 'ja' | 'en') => void;
   resetAllState: () => void;
 }
 
@@ -121,6 +123,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   engineState: 'IDLE',
   detectedSaveName: null,
   gameOverResult: null,
+  gklSituation: null,
+  hoveredTileKnowledge: null,
+  currentLanguage: 'ja',
+
+  setLanguage: (currentLanguage: 'ja' | 'en') => set({ currentLanguage }),
 
   addMessage: (text: string) => {
     if (!text || text.trim() === '') return;
@@ -267,9 +274,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setPendingSaveInfo: (info: { hasSave: boolean; savePlayerName?: string } | null) => {
     set({ pendingSaveInfo: info });
   },
-
-  gklSituation: null,
-  hoveredTileKnowledge: null,
 
   setGameOverResult: (result: any | null) => {
     set({ gameOverResult: result });

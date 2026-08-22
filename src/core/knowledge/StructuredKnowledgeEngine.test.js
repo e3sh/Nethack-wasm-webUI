@@ -132,6 +132,24 @@ describe('StructuredKnowledgeEngine', () => {
             expect(item.stats.material).toBe('鉱物');
         });
 
+        it('should return English tips and advice when language is en', () => {
+            const unidPotion = engine.getItemKnowledge('ruby potion', { language: 'en' });
+            expect(unidPotion).not.toBeNull();
+            expect(unidPotion.isUnidentified).toBe(true);
+            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
+            expect(unidPotion.unidentifiedTips[0]).toContain('sinks');
+            expect(unidPotion.usageAdvice[0]).toContain('emergency healing');
+        });
+
+        it('should return Japanese tips and advice when language is ja', () => {
+            const unidPotion = engine.getItemKnowledge('ruby potion', { language: 'ja' });
+            expect(unidPotion).not.toBeNull();
+            expect(unidPotion.isUnidentified).toBe(true);
+            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
+            expect(unidPotion.unidentifiedTips[0]).toContain('流し台');
+            expect(unidPotion.usageAdvice[0]).toContain('戦闘中の緊急回復');
+        });
+
         it('should keep English action labels when translate is false', () => {
             const item = engine.getItemKnowledge('wand_of_digging', { translate: false });
             expect(item.name).toBe('wand of digging');

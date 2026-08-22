@@ -1,4 +1,4 @@
-import { get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
 import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
@@ -23,6 +23,8 @@ import {
   cursorPosStore,
   mapGridStore,
 } from '../stores/gameStore';
+
+export const currentLanguageStore = writable<'ja' | 'en'>('ja');
 
 export class NetHackDriverController {
   private core: any = null;
@@ -107,9 +109,16 @@ export class NetHackDriverController {
     });
 
     this.core = new WebUICore({ driver });
+    const initialLang = this.core.language || 'ja';
+    currentLanguageStore.set(initialLang);
 
-    const gklPlugin = new GKLPlugin({ keyMode: 'numpad' });
+    // GKL (Game Knowledge Layer) プラグインの自動アタッチ
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: initialLang });
     gklPlugin.attach(this.core);
+
+    this.core.on('languageChanged', ({ language }: { language: 'ja' | 'en' }) => {
+      currentLanguageStore.set(language || 'ja');
+    });
 
     this.core.on('stateChange', ({ state }: { state: string }) => {
       if (state === 'RUNNING' || state === 'WAITING_INPUT') {
@@ -379,7 +388,8 @@ export class NetHackDriverController {
         let symbol = ' ';
         let color = 7;
         let knowledge: any = null;
-        let nameJa = '視界外';
+        const isEn = (this.core && this.core.language === 'en');
+        let name = isEn ? 'Out of Sight' : '視界外';
 
         if (px >= 0 && py >= 0 && tx >= 0 && tx < 80 && ty >= 0 && ty < 21) {
           const gridTile = mapGrid[ty]?.[tx];
@@ -388,7 +398,7 @@ export class NetHackDriverController {
             color = gridTile.color;
             if (gridTile.tileId === 0 && symbol === ' ') {
               glyphId = -1;
-              nameJa = '未探索';
+              name = isEn ? 'Unexplored' : '未探索';
             } else {
               glyphId = gridTile.tileId;
             }
@@ -401,14 +411,14 @@ export class NetHackDriverController {
 
           if (glyphId > 0 && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(glyphId);
-            if (knowledge && knowledge.nameJa) {
-              nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) {
+              name = knowledge.name;
             }
           } else if (glyphId === 0 && symbol !== ' ' && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(0);
-            if (knowledge && knowledge.nameJa) nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) name = knowledge.name;
           } else if (symbol === ' ') {
-            nameJa = '未探索';
+            name = isEn ? 'Unexplored' : '未探索';
           }
         }
 
@@ -418,7 +428,8 @@ export class NetHackDriverController {
           glyphId,
           symbol,
           color,
-          nameJa,
+          name,
+          nameJa: name,
           knowledge,
           x: tx,
           y: ty,
@@ -510,7 +521,8 @@ export class NetHackDriverController {
 
   public getAdaptiveSpecs(knowledge: any) {
     const sm = this.core?.gkl?.skillStateManager || null;
-    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
+    const lang = get(currentLanguageStore) || this.core?.language || 'ja';
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm, language: lang });
   }
 
   public async restartGame(options: { clearStorage?: boolean; autoStart?: boolean; wasmJsUrl?: string } = { clearStorage: false }) {

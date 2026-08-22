@@ -95,6 +95,7 @@ export const [pendingSaveInfo, setPendingSaveInfo] = createSignal<{ hasSave: boo
 export const [gameOverResult, setGameOverResult] = createSignal<any | null>(null);
 export const [gklSituation, setGklSituation] = createSignal<any | null>(null);
 export const [hoveredTileKnowledge, setHoveredTileKnowledge] = createSignal<any | null>(null);
+export const [currentLanguage, setCurrentLanguage] = createSignal<'ja' | 'en'>('ja');
 
 // Actions / Helpers
 export const addMessage = (text: string) => {

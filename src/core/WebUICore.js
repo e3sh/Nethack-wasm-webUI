@@ -42,6 +42,9 @@ export const CoreState = {
  *
  * Wasm Driver との低レイヤー受動通信、入力正規化、描画、ウィンドウ管理、翻訳等の純粋基盤。
  * GKL (Game Knowledge Layer) 等のドメイン知識は外部プラグイン (GKLPlugin) として use() アタッチされる。
+ *
+ * @property {'ja'|'en'} language
+ * @property {TranslationEngine} translator
  */
 export class WebUICore {
     constructor(options = {}) {
@@ -94,7 +97,9 @@ export class WebUICore {
 
         let isKnowledgeActive = options.enableKnowledge !== false;
 
-        this.translator = new TranslationEngine({ enabled: isTranslateActive });
+        this.language = options.language || (isTranslateActive ? 'ja' : 'en');
+
+        this.translator = new TranslationEngine({ enabled: isTranslateActive, language: this.language });
         this.translator.onTranslate = (logData) => {
             this.emit('translationLog', logData);
             if (!logData.success && !this.translator.isNoiseMessage(logData.raw)) {
@@ -107,7 +112,8 @@ export class WebUICore {
         // GKL プラグインのアタッチ (指定がなければデフォルト GKLPlugin をアタッチして透明互換性を保証)
         const gklPlugin = options.gkl || new GKLPlugin({
             inventoryStateManager: options.inventoryStateManager,
-            keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined)
+            keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined),
+            language: this.language
         });
         this.use(gklPlugin);
 
@@ -146,11 +152,32 @@ export class WebUICore {
         }
         if (plugin instanceof GKLPlugin || plugin.constructor?.name === 'GKLPlugin' || typeof plugin.getSituation === 'function') {
             this.gkl = plugin;
+            if (typeof plugin.setLanguage === 'function') {
+                plugin.setLanguage(this.language);
+            }
             if (this.promptPayloadBuilder) {
                 this.promptPayloadBuilder.setGkl(plugin);
             }
         }
         return this;
+    }
+
+    /**
+     * 表示言語の動的切り替え ('ja' | 'en')
+     * @param {'ja'|'en'} lang
+     */
+    setLanguage(lang = 'ja') {
+        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
+        const resolvedLang = isJa ? 'ja' : 'en';
+        if (this.language === resolvedLang) return;
+        this.language = resolvedLang;
+        if (this.translator) {
+            this.translator.setLanguage(resolvedLang);
+        }
+        if (this.gkl && typeof this.gkl.setLanguage === 'function') {
+            this.gkl.setLanguage(resolvedLang);
+        }
+        this.emit('languageChanged', { language: resolvedLang });
     }
 
 
@@ -444,6 +471,17 @@ export class WebUICore {
             this.listeners.set(event, []);
         }
         this.listeners.get(event).push(fn);
+        return this;
+    }
+
+    off(event, fn) {
+        if (!this.listeners.has(event)) return this;
+        const list = this.listeners.get(event);
+        const idx = list.indexOf(fn);
+        if (idx >= 0) {
+            list.splice(idx, 1);
+        }
+        return this;
     }
 
     emit(event, data) {

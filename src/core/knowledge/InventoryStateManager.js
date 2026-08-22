@@ -18,10 +18,18 @@ export class InventoryStateManager {
         this.isSynced = false; // 一度でもインベントリを同期したかフラグ
         this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
         this.skillStateManager = options.skillStateManager || null;
+        this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+    }
+
+    setLanguage(lang = 'ja') {
+        this.language = (lang === 'ja' || lang === 'jp' || lang === true) ? 'ja' : 'en';
     }
 
     setStructuredKnowledgeEngine(ske) {
         this.structuredKnowledgeEngine = ske;
+        if (ske && ske.language) {
+            this.language = ske.language;
+        }
     }
 
     setSkillStateManager(sm) {
@@ -86,10 +94,11 @@ export class InventoryStateManager {
 
                 // 🎯 ナレッジ自動物理アタッチ (DevTool Inspector & クライアントデータ連携の要)
                 let knowledge = mi.knowledge || null;
+                const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
                 if (!knowledge && this.structuredKnowledgeEngine) {
                     if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
-                        knowledge = this.structuredKnowledgeEngine.getKnowledge(mi) ||
-                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { translate: true });
+                        knowledge = this.structuredKnowledgeEngine.getKnowledge(mi, { language: lang }) ||
+                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang });
                     }
                 }
                 if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
@@ -98,7 +107,7 @@ export class InventoryStateManager {
 
                 let skillBadge = null;
                 if (knowledge && this.skillStateManager && !identification.isUnidentified) {
-                    skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager);
+                    skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
                 }
 
                 parsedItems.push({

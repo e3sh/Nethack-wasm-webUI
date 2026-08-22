@@ -1,11 +1,13 @@
 <script lang="ts">
   import { engineStateStore } from '../stores/gameStore';
-  import { driverController } from '../services/useNetHackDriver';
+  import { driverController, currentLanguageStore } from '../services/useNetHackDriver';
 
   $: engineState = $engineStateStore;
+  $: isEn = $currentLanguageStore === 'en';
 
   function handleRestart() {
-    if (confirm('現在のゲームを中断して再起動しますか？')) {
+    const msg = isEn ? 'Restart the game now?' : '現在のゲームを中断して再起動しますか？';
+    if (confirm(msg)) {
       driverController.restartGame();
     }
   }
@@ -29,7 +31,7 @@
     <button
       on:click={handleRestart}
       class="btn-control btn-restart"
-      title="ゲームを即時再起動"
+      title={isEn ? 'Restart game immediately' : 'ゲームを即時再起動'}
     >
       🔄 Restart
     </button>
@@ -37,7 +39,7 @@
     <button
       on:click={handleDeleteSave}
       class="btn-control btn-delete-save"
-      title="セーブデータを完全削除"
+      title={isEn ? 'Delete save file completely' : 'セーブデータを完全削除'}
     >
       🗑️ Del Save
     </button>

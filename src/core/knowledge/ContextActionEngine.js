@@ -12,11 +12,14 @@ export class ContextActionEngine {
      * @param {Object} areaState - AreaStateManager.getAreaState() の返却値
      * @param {Object} [inventoryState] - InventoryStateManager インスタンス
      * @param {Object} [skillStateManager] - SkillStateManager インスタンス
+     * @param {Object} [options={}] - オプション
+     * @param {'ja'|'en'} [options.language='ja'] - 表示言語
      * @returns {Array<Object>} 推奨アクションの配列 (priority 降順)
      */
-    static generateActions(areaState, inventoryState = null, skillStateManager = null) {
+    static generateActions(areaState, inventoryState = null, skillStateManager = null, options = {}) {
         if (!areaState || !areaState.feet) return [];
 
+        const language = (options && options.language) || 'ja';
         const actions = [];
         const tools = this.extractTools(inventoryState);
 
@@ -35,8 +38,37 @@ export class ContextActionEngine {
         // 5. スキル熟練度に基づくおすすめ装備提案 (Recommended Wield / Equipment)
         this.buildEquipmentRecommendations(inventoryState, skillStateManager, actions);
 
+        // 言語に応じたプロパティ正規化（label, description）およびクリーンアップ
+        const resolved = this.resolveActions(actions, language);
+
         // 優先度 (priority) 降順でソート
-        return actions.sort((a, b) => b.priority - a.priority);
+        return resolved.sort((a, b) => b.priority - a.priority);
+    }
+
+    /**
+     * アクション一覧のテキストプロパティを選択言語に応じて解決・正規化
+     * @param {Array<Object>} actions 
+     * @param {'ja'|'en'} language 
+     * @returns {Array<Object>}
+     */
+    static resolveActions(actions, language = 'ja') {
+        const isEn = (language === 'en');
+        return actions.map(act => {
+            const label = isEn ? (act.label || act.labelEn || act.labelJa) : (act.labelJa || act.label);
+            const description = isEn ? (act.description || act.descriptionEn || act.descriptionJa) : (act.descriptionJa || act.description);
+            const clean = {
+                ...act,
+                label,
+                description: description || undefined
+            };
+            delete clean.labelJa;
+            delete clean.labelEn;
+            delete clean.actionLabelJa;
+            delete clean.defaultActionLabelJa;
+            delete clean.descriptionJa;
+            delete clean.descriptionEn;
+            return clean;
+        });
     }
 
     /**
@@ -1202,12 +1234,13 @@ export class ContextActionEngine {
         if (!currentWielded || (!best.isCurrent && best.totalScore > currentScore)) {
             const wItem = best.weapon;
             const rankLabel = best.skillRank.label || best.skillRank.en || '未熟';
+            const rankLabelEn = best.skillRank.en || best.skillRank.label || 'Unskilled';
             const isBetterSwitch = Boolean(currentWielded);
 
             actions.push({
                 id: `ACTION_WIELD_RECOMMENDED_${wItem.letter}`,
                 category: 'EQUIPMENT',
-                label: isBetterSwitch ? `Switch to skilled weapon [${wItem.name || wItem.rawText}]` : `Wield recommended weapon [${wItem.name || wItem.rawText}]`,
+                label: isBetterSwitch ? `Switch to skilled weapon [${wItem.name || wItem.rawText}] (${rankLabelEn})` : `Wield recommended weapon [${wItem.name || wItem.rawText}] (${rankLabelEn})`,
                 labelJa: isBetterSwitch ? `熟練武器に持ち替え [${wItem.name || wItem.rawText}] (熟練度: ${rankLabel})` : `おすすめ武器を装備 [${wItem.name || wItem.rawText}] (熟練度: ${rankLabel})`,
                 key: `w${wItem.letter}`,
                 keySequence: ['w', wItem.letter],
@@ -1216,7 +1249,7 @@ export class ContextActionEngine {
                 entity: wItem,
                 risk: null,
                 priority: isBetterSwitch ? 68 : 82,
-                description: `Wield ${wItem.rawText || 'weapon'} (${best.skillName} skill: ${rankLabel})`,
+                description: `Wield ${wItem.rawText || 'weapon'} (${best.skillName} skill: ${rankLabelEn})`,
                 descriptionJa: `熟練している ${wItem.rawText || '武器'} (${best.skillName} スキル: ${rankLabel}) を装備します`
             });
         }

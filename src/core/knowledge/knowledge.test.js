@@ -120,8 +120,13 @@ test('ContextActionEngine - 祭壇・泉・樹木・リスク評価・多言語�
 
     const offerAction = actions.find(a => a.id === 'ACTION_OFFER');
     assert.ok(offerAction, '祭壇の上で死体を捧げるアクションが生成されること');
-    assert.strictEqual(offerAction.label, 'Offer corpse on altar');
-    assert.strictEqual(offerAction.labelJa, '死体を捧げる (Offer)');
+    assert.strictEqual(offerAction.label, '死体を捧げる (Offer)');
+    assert.strictEqual(offerAction.labelJa, undefined);
+
+    const actionsEn = ContextActionEngine.generateActions(state, null, null, { language: 'en' });
+    const offerActionEn = actionsEn.find(a => a.id === 'ACTION_OFFER');
+    assert.strictEqual(offerActionEn.label, 'Offer corpse on altar');
+    assert.strictEqual(offerActionEn.labelJa, undefined);
 
     const prayAction = actions.find(a => a.id === 'ACTION_PRAY');
     assert.ok(prayAction, '祭壇の上で祈るアクションが生成されること');
@@ -518,7 +523,7 @@ test('ContextActionEngine - 鍵所持時の扉の解錠 (ACTION_UNLOCK_DOOR) お
     assert.strictEqual(unlockDoor.isDirectional, true, 'isDirectional フラグが true であること');
     assert.strictEqual(unlockDoor.dirNameJa, '北', 'dirNameJa が 北 であること');
     assert.strictEqual(unlockDoor.dirSymbol, '↑', 'dirSymbol が ↑ であること');
-    assert.ok(unlockDoor.labelJa.includes('[北]'), 'labelJa に [北] が含まれること');
+    assert.ok(unlockDoor.label.includes('[北]'), 'label に [北] が含まれること');
 });
 
 test('ContextActionEngine - wand of digging (onum 428) 所持時の壁掘削・破壊アクション生成テスト', () => {
@@ -539,7 +544,7 @@ test('ContextActionEngine - wand of digging (onum 428) 所持時の壁掘削・�
     assert.ok(digWall, 'wand of digging (onum 428) 所持時に東の壁に対して ACTION_DIG_WALL_E が生成されること');
     assert.deepStrictEqual(digWall.keySequence, ['z', 'w', 'DIR_E']);
     assert.strictEqual(digWall.dirNameJa, '東');
-    assert.ok(digWall.labelJa.includes('[東]'), 'labelJa に [東] が含まれること');
+    assert.ok(digWall.label.includes('[東]'), 'label に [東] が含まれること');
 });
 
 

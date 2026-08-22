@@ -13,6 +13,24 @@ let isInitializingPromise: Promise<void> | null = null;
 
 export function useNetHackDriver() {
   const [isInitialized, setIsInitialized] = useState(isCoreInitialized);
+  const [currentLanguage, setCurrentLanguage] = useState<'ja' | 'en'>(globalCore?.language || 'ja');
+
+  useEffect(() => {
+    if (!globalCore) return;
+    const initialLang = (globalCore.language || 'ja') as 'ja' | 'en';
+    setCurrentLanguage(initialLang);
+    useGameStore.getState().setLanguage(initialLang);
+
+    const handleLang = ({ language }: { language: 'ja' | 'en' }) => {
+      const resolved = (language || 'ja') as 'ja' | 'en';
+      setCurrentLanguage(resolved);
+      useGameStore.getState().setLanguage(resolved);
+    };
+    globalCore.on('languageChanged', handleLang);
+    return () => {
+      if (globalCore) globalCore.off('languageChanged', handleLang);
+    };
+  }, []);
 
   const respondPrompt = useCallback((value: any) => {
     if (globalCore) {
@@ -58,8 +76,10 @@ export function useNetHackDriver() {
 
     const core = new WebUICore({ driver });
     globalCore = core;
+    const initialLang: 'ja' | 'en' = (core as any).language || 'ja';
+    setCurrentLanguage(initialLang);
 
-    const gklPlugin = new GKLPlugin({ keyMode: 'numpad' });
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: initialLang });
     gklPlugin.attach(core);
 
     core.on('stateChange', ({ state }: { state: string }) => {
@@ -429,14 +449,14 @@ export function useNetHackDriver() {
 
           if (glyphId > 0 && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(glyphId);
-            if (knowledge && knowledge.nameJa) {
-              nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) {
+              nameJa = knowledge.name;
             }
           } else if (glyphId === 0 && symbol !== ' ' && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(0);
-            if (knowledge && knowledge.nameJa) nameJa = knowledge.nameJa;
+            if (knowledge && knowledge.name) nameJa = knowledge.name;
           } else if (symbol === ' ') {
-            nameJa = '未探索';
+            nameJa = (globalCore && globalCore.language === 'en') ? 'Unexplored' : '未探索';
           }
         }
 
@@ -446,6 +466,7 @@ export function useNetHackDriver() {
           glyphId,
           symbol,
           color,
+          name: nameJa,
           nameJa,
           knowledge,
           x: tx,
@@ -547,11 +568,13 @@ export function useNetHackDriver() {
 
   const getAdaptiveSpecs = useCallback((knowledge: any) => {
     const sm = globalCore?.gkl?.skillStateManager || null;
-    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm });
-  }, []);
+    const lang = currentLanguage || globalCore?.language || 'ja';
+    return getAdaptiveItemSpecs(knowledge, { skillStateManager: sm, language: lang });
+  }, [currentLanguage]);
 
   return {
     isInitialized,
+    currentLanguage,
     resumeSavedGame,
     startNewGame,
     deleteSaveFile,

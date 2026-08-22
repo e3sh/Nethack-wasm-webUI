@@ -25,6 +25,7 @@ export class GKLPlugin {
      * @param {SkillStateManager} [options.skillStateManager]
      * @param {AttributeStateManager} [options.attributeStateManager]
      * @param {'vi'|'numpad'} [options.keyMode]
+     * @param {'ja'|'en'} [options.language]
      */
     constructor(options = {}) {
         this.statusAccessor = new StatusAccessor();
@@ -34,6 +35,8 @@ export class GKLPlugin {
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
         this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
 
+        this.language = options.language || 'ja';
+
         this.situationCache = new SituationCache(
             this.statusAccessor,
             this.inventoryStateManager,
@@ -41,7 +44,8 @@ export class GKLPlugin {
             ContextActionEngine,
             this.spellStateManager,
             this.attributeStateManager,
-            this.skillStateManager
+            this.skillStateManager,
+            { language: this.language }
         );
 
         if (options.keyMode || options.numpad) {
@@ -53,7 +57,8 @@ export class GKLPlugin {
 
         this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
             translationEngine: options.translationEngine || null,
-            discoveryStateManager: this.discoveryStateManager
+            discoveryStateManager: this.discoveryStateManager,
+            language: this.language
         });
 
         if (this.structuredKnowledge && typeof this.structuredKnowledge.setDiscoveryStateManager === 'function') {
@@ -75,12 +80,38 @@ export class GKLPlugin {
     }
 
     /**
+     * 表示言語の動的切り替え ('ja' | 'en')
+     * @param {'ja'|'en'} lang 
+     */
+    setLanguage(lang = 'ja') {
+        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
+        const resolvedLang = isJa ? 'ja' : 'en';
+        this.language = resolvedLang;
+        if (this.situationCache && typeof this.situationCache.setLanguage === 'function') {
+            this.situationCache.setLanguage(resolvedLang);
+        }
+        if (this.structuredKnowledge && typeof this.structuredKnowledge.setLanguage === 'function') {
+            this.structuredKnowledge.setLanguage(resolvedLang);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setLanguage === 'function') {
+            this.inventoryStateManager.setLanguage(resolvedLang);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+            this.inventoryStateManager.invalidate();
+        }
+    }
+
+    /**
      * WebUICore インスタンスへプラグインをアタッチし、イベントリスナーを接続
      * @param {Object} core - WebUICore インスタンス
      */
     attach(core) {
         if (!core) return;
         this.core = core;
+
+        if (core.language) {
+            this.setLanguage(core.language);
+        }
 
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
             this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
@@ -106,6 +137,11 @@ export class GKLPlugin {
      * @private
      */
     _bindCoreEvents(core) {
+        // 言語変更イベントのリスン
+        core.on('languageChanged', ({ language }) => {
+            this.setLanguage(language);
+        });
+
         // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定
         core.on('userActionSent', ({ sequence }) => {
             if (sequence && !this.isNonItemSequence(sequence)) {
@@ -693,7 +729,7 @@ export class GKLPlugin {
         if (!hasMonster) {
             const targetEntity = cell?.middle || cell?.bottom;
             if (!targetEntity) return null;
-            const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, { translate: true });
+            const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, { language: this.language });
             return knowledge ? { ...knowledge, isClickConfirmed: !options.isHover } : null;
         }
 
@@ -709,7 +745,7 @@ export class GKLPlugin {
         const data = this.structuredKnowledge.getMonsterKnowledge(identifier, {
             dynamicState,
             isPet: cell.top.type === 'PET',
-            translate: true
+            language: this.language
         });
 
         return {

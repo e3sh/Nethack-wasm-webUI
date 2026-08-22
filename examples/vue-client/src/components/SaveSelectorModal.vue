@@ -2,21 +2,23 @@
   <div v-if="pendingSaveInfo" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-header">
-        <h2>💾 セーブデータが見つかりました</h2>
+        <h2>{{ isEn ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました' }}</h2>
       </div>
       <div class="modal-body">
-        <p class="save-desc">前回の冒険記録が残っています。再開しますか？それとも新規に開始しますか？</p>
+        <p class="save-desc">
+          {{ isEn ? 'A previous adventure was found. Do you want to resume or start a new game?' : '前回の冒険記録が残っています。再開しますか？それとも新規に開始しますか？' }}
+        </p>
         <div class="save-info-box">
-          <span class="label">冒険者名 (Player):</span>
+          <span class="label">{{ isEn ? 'Player Name:' : '冒険者名 (Player):' }}</span>
           <strong class="player-name">{{ pendingSaveInfo.savePlayerName || 'Hero' }}</strong>
         </div>
       </div>
       <div class="modal-footer">
         <button @click="resumeSavedGame" class="btn btn-primary btn-large">
-          ▶️ セーブデータから再開 (Continue Game)
+          {{ isEn ? '▶️ Resume Saved Game (Continue)' : '▶️ セーブデータから再開 (Continue Game)' }}
         </button>
         <button @click="handleStartNew" class="btn btn-danger">
-          ⚠️ 新規ゲーム開始 (New Game / セーブ破棄)
+          {{ isEn ? '⚠️ Start New Game (Delete Save)' : '⚠️ 新規ゲーム開始 (New Game / セーブ破棄)' }}
         </button>
       </div>
     </div>
@@ -24,16 +26,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 
 const gameStore = useGameStore();
 const { pendingSaveInfo } = storeToRefs(gameStore);
-const { resumeSavedGame, startNewGame } = useNetHackDriver();
+const { resumeSavedGame, startNewGame, currentLanguage } = useNetHackDriver();
+
+const isEn = computed(() => currentLanguage.value === 'en');
 
 function handleStartNew() {
-  if (confirm('保存されているセーブデータを破棄して最初から開始しますか？')) {
+  const confirmMsg = isEn.value
+    ? 'Delete saved game and start a new game?'
+    : '保存されているセーブデータを破棄して最初から開始しますか？';
+  if (confirm(confirmMsg)) {
     startNewGame();
   }
 }

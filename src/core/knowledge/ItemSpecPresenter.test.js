@@ -109,8 +109,14 @@ describe('ItemSpecPresenter Adaptive Formatting', () => {
         const badge = getSkillProficiencyBadge(longSwordFull, skillManager);
         expect(badge).toBeDefined();
         expect(badge.isProficient).toBe(true);
-        expect(badge.label).toBe('+ Skilled');
-        expect(badge.labelJa).toBe('+ 熟練');
+        expect(badge.label).toBe('+ 熟練');
+        expect(badge.labelJa).toBeUndefined();
+
+        const badgeEn = getSkillProficiencyBadge(longSwordFull, skillManager, { language: 'en' });
+        expect(badgeEn).toBeDefined();
+        expect(badgeEn.isProficient).toBe(true);
+        expect(badgeEn.label).toBe('+ Skilled');
+        expect(badgeEn.labelJa).toBeUndefined();
 
         // Two-handed sword (未習得)
         const twoHandedSword = OBJECT_KNOWLEDGE_MAP.get(55);

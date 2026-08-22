@@ -1,10 +1,13 @@
 import { Component } from 'solid-js';
-import { engineState } from '../stores/gameStore';
+import { engineState, currentLanguage } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
 
 export const HeaderPanel: Component = () => {
+  const isEn = () => currentLanguage() === 'en';
+
   const handleRestart = () => {
-    if (confirm('現在のゲームを中断して再起動しますか？')) {
+    const msg = isEn() ? 'Restart the game now?' : '現在のゲームを中断して再起動しますか？';
+    if (confirm(msg)) {
       driverController.restartGame();
     }
   };
@@ -28,7 +31,7 @@ export const HeaderPanel: Component = () => {
         <button
           onClick={handleRestart}
           class="btn-control btn-restart"
-          title="ゲームを即時再起動"
+          title={isEn() ? 'Restart game immediately' : 'ゲームを即時再起動'}
         >
           🔄 Restart
         </button>
@@ -36,7 +39,7 @@ export const HeaderPanel: Component = () => {
         <button
           onClick={handleDeleteSave}
           class="btn-control btn-delete-save"
-          title="セーブデータを完全削除"
+          title={isEn() ? 'Delete save file completely' : 'セーブデータを完全削除'}
         >
           🗑️ Del Save
         </button>

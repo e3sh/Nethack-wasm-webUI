@@ -3,16 +3,16 @@
     <!-- 1. ヘッダー ＆ ステータス同期 -->
     <div class="gkl-header">
       <div class="gkl-title-box">
-        <span class="gkl-badge">🧠 GKL 状況推論 ＆ ナレッジアシスト</span>
+        <span class="gkl-badge">{{ isEn ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト' }}</span>
         <div style="display: flex; gap: 6px;">
           <button @click="handleSyncInventory" class="btn-sync" :disabled="isSyncing">
-            {{ isSyncing ? '...同期中' : '🔄 インベントリ同期' }}
+            {{ isSyncing ? (isEn ? '...Syncing' : '...同期中') : (isEn ? '🔄 Sync Inventory' : '🔄 インベントリ同期') }}
           </button>
-          <button @click="handleSyncSkills" class="btn-sync" title="スキル同期 (#enhance)">
-            🥋 スキル同期
+          <button @click="handleSyncSkills" class="btn-sync" :title="isEn ? 'Sync Skills (#enhance)' : 'スキル同期 (#enhance)'">
+            {{ isEn ? '🥋 Sync Skills' : '🥋 スキル同期' }}
           </button>
-          <button @click="handleSyncSpells" class="btn-sync" title="習得魔法同期 (+)">
-            📖 魔法同期
+          <button @click="handleSyncSpells" class="btn-sync" :title="isEn ? 'Sync Spells (+)' : '習得魔法同期 (+)'">
+            {{ isEn ? '📖 Sync Spells' : '📖 魔法同期' }}
           </button>
         </div>
       </div>
@@ -22,7 +22,7 @@
     <div class="gkl-status-overview-panel">
       <!-- 🛡️ 属性・固有耐性 -->
       <div class="gkl-overview-row">
-        <strong class="overview-label">🛡️ 属性耐性:</strong>
+        <strong class="overview-label">{{ isEn ? '🛡️ Resistances:' : '🛡️ 属性耐性:' }}</strong>
         <div v-if="activeAttributes.length > 0" class="overview-badges-list">
           <span
             v-for="attr in activeAttributes"
@@ -30,15 +30,15 @@
             class="gkl-attr-badge active"
             :title="`${attr.label} / ${attr.en} (有効)`"
           >
-            {{ attr.label }}
+            {{ attr.displayLabel }}
           </span>
         </div>
-        <span v-else class="overview-empty">なし</span>
+        <span v-else class="overview-empty">{{ isEn ? 'None' : 'なし' }}</span>
       </div>
 
       <!-- 🥋 スキル熟練度 -->
       <div class="gkl-overview-row">
-        <strong class="overview-label">🥋 スキル:</strong>
+        <strong class="overview-label">{{ isEn ? '🥋 Skills:' : '🥋 スキル:' }}</strong>
         <div v-if="activeSkills.length > 0" class="overview-badges-list">
           <span
             v-for="skill in activeSkills"
@@ -49,35 +49,35 @@
             @click="handleEnhanceSkill(skill)"
           >
             <span v-if="skill.canEnhance" class="skill-star">⭐</span>
-            <strong>{{ skill.name }}</strong> [{{ skill.rank?.label || skill.rank?.en || '入門' }}]
+            <strong>{{ skill.name }}</strong> [{{ (isEn ? (skill.rank?.en || skill.rank?.label) : (skill.rank?.label || skill.rank?.en)) || (isEn ? 'Basic' : '入門') }}]
           </span>
         </div>
-        <span v-else class="overview-empty">{{ isSkillsSynced ? 'なし (未熟)' : '未同期' }}</span>
+        <span v-else class="overview-empty">{{ isSkillsSynced ? (isEn ? 'None (Unskilled)' : 'なし (未熟)') : (isEn ? 'Not Synced' : '未同期') }}</span>
       </div>
 
       <!-- 📖 習得魔法 -->
       <div class="gkl-overview-row">
-        <strong class="overview-label">📖 習得魔法:</strong>
+        <strong class="overview-label">{{ isEn ? '📖 Spells:' : '📖 習得魔法:' }}</strong>
         <div v-if="activeSpells.length > 0" class="overview-badges-list">
           <button
             v-for="sp in activeSpells"
             :key="sp.letter"
             class="gkl-spell-badge"
-            :title="`キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`"
+            :title="`Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate})`"
             @click="handleCastSpell(sp.letter)"
           >
             ✨ [{{ sp.letter }}] {{ sp.name }} <small>(Lv.{{ sp.level }} {{ sp.failRate }})</small>
           </button>
         </div>
-        <span v-else class="overview-empty">なし</span>
+        <span v-else class="overview-empty">{{ isEn ? 'None' : 'なし' }}</span>
       </div>
     </div>
 
     <!-- 2. 所持品インベントリ（アイコン即時実行 ＋ フローティング解説ポップアップ） -->
     <div v-if="inventoryItems.length > 0" class="gkl-section">
       <div class="section-title">
-        <span>🎒 所持品ナレッジ・ガイド ({{ inventoryItems.length }}個)</span>
-        <span class="sub-hint">※ アイコンタップで即時使用・装備</span>
+        <span>{{ isEn ? `🎒 Inventory Guide (${inventoryItems.length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems.length}個)` }}</span>
+        <span class="sub-hint">{{ isEn ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備' }}</span>
       </div>
 
       <div class="gkl-inventory-grid">
@@ -98,27 +98,27 @@
               class="inv-glyph-icon"
               :style="getGlyphStyle(item.glyphId, { tileImage: './pict/nethack_default_32.png', tileSize: 32, displaySize: 24 })"
             ></div>
-            <span v-if="item.isWielded" class="equip-badge badge-wielded" title="メイン武器">手</span>
-            <span v-else-if="item.isOffhand" class="equip-badge badge-offhand" title="副武器">副</span>
-            <span v-else-if="item.isQuivered" class="equip-badge badge-quivered" title="矢筒">筒</span>
-            <span v-else-if="item.isWorn" class="equip-badge badge-worn" title="着用中">着</span>
+            <span v-if="item.isWielded" class="equip-badge badge-wielded" :title="isEn ? 'Main weapon' : 'メイン武器'">{{ isEn ? 'Main' : '手' }}</span>
+            <span v-else-if="item.isOffhand" class="equip-badge badge-offhand" :title="isEn ? 'Off-hand weapon' : '副武器'">{{ isEn ? 'Off' : '副' }}</span>
+            <span v-else-if="item.isQuivered" class="equip-badge badge-quivered" :title="isEn ? 'Quiver' : '矢筒'">{{ isEn ? 'Quiv' : '筒' }}</span>
+            <span v-else-if="item.isWorn" class="equip-badge badge-worn" :title="isEn ? 'Worn' : '着用中'">{{ isEn ? 'Worn' : '着' }}</span>
 
             <!-- 🥋 得意武器適性バッジ (+) -->
             <span
               v-if="item.skillBadge?.isProficient || item.isRecommendedWeapon"
               class="equip-badge badge-proficient"
-              :title="`得意武器 (${item.skillBadge?.label || '+'})`"
+              :title="`Proficient (${item.skillBadge?.label || '+'})`"
             >+</span>
           </div>
 
           <!-- 💡 フローティング解説ポップアップ -->
           <div v-if="hoveredItem?.letter === item.letter" class="inv-floating-popover">
-            <div class="popover-title">{{ item.knowledge?.nameJa || item.name || item.rawText }}</div>
-            <div v-if="item.defaultActionLabelJa || item.knowledge?.actionLabelJa" class="popover-action">
-              💡 ワンタップ: {{ item.defaultActionLabelJa || item.knowledge?.actionLabelJa }} [{{ item.letter }}]
+            <div class="popover-title">{{ item.knowledge?.name || item.name || item.rawText }}</div>
+            <div v-if="item.knowledge?.actionLabel || item.defaultActionLabel" class="popover-action">
+              💡 {{ isEn ? 'One-Tap:' : 'ワンタップ:' }} {{ item.knowledge?.actionLabel || item.defaultActionLabel }} [{{ item.letter }}]
             </div>
             <div v-if="item.skillBadge?.label" class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
-              🥋 武器適性: {{ item.skillBadge.label }}
+              🥋 {{ isEn ? 'Weapon Skill:' : '武器適性:' }} {{ item.skillBadge.label }}
             </div>
             <div v-if="item.knowledge?.effectSummary || item.knowledge?.description" class="popover-desc">
               {{ item.knowledge?.effectSummary || item.knowledge?.description }}
@@ -131,21 +131,34 @@
     <!-- 3. 🧠 🎯 方向フィルター ＆ 🔍 7x7 高精細ズームビューア -->
     <div class="gkl-section">
       <div class="section-title-row">
-        <span class="section-title">🎯 アクションフィルター ＆ 🔍 7x7 ダンジョンズームカメラ</span>
-        <span class="filter-status-text">表示: {{ currentFilterLabel }}</span>
+        <span class="section-title">{{ isEn ? '🎯 Action Filters & 🔍 7x7 Zoom Camera' : '🎯 アクションフィルター ＆ 🔍 7x7 ダンジョンズームカメラ' }}</span>
+        <span class="filter-status-text">{{ isEn ? 'Filter:' : '表示:' }} {{ currentFilterLabel }}</span>
       </div>
 
       <div class="gkl-controls-row">
         <!-- 左側: 🎯 D-Pad 8方向操作フィルター -->
         <div class="control-box dpad-box">
-          <div class="box-title">🎯 方向フィルター</div>
+          <div class="box-title">{{ isEn ? '🎯 Direction Filter' : '🎯 方向フィルター' }}</div>
           <div class="dpad-grid">
             <button
               v-for="dp in dpadButtons"
               :key="dp.id"
-              @click="selectedDir = dp.id"
               class="btn-dpad"
-              :class="{ active: selectedDir === dp.id, 'has-action': getActionCountForDir(dp.id) > 0 }"
+              :class="{
+                active: selectedDir === dp.id,
+                'has-action': getActionCountForDir(dp.id) > 0,
+                'dir-center': dp.id === 'DIR_SELF',
+                'dir-n': dp.id === 'DIR_N',
+                'dir-s': dp.id === 'DIR_S',
+                'dir-w': dp.id === 'DIR_W',
+                'dir-e': dp.id === 'DIR_E',
+                'dir-nw': dp.id === 'DIR_NW',
+                'dir-ne': dp.id === 'DIR_NE',
+                'dir-sw': dp.id === 'DIR_SW',
+                'dir-se': dp.id === 'DIR_SE'
+              }"
+              @click="selectedDir = dp.id"
+              :title="`${dp.label}`"
             >
               <span class="dpad-icon">{{ dp.icon }}</span>
               <span class="dpad-label">{{ dp.label }}</span>
@@ -159,13 +172,13 @@
             class="btn-dpad-all"
             :class="{ active: selectedDir === 'ALL' }"
           >
-            全表示 (ALL)
+            {{ isEn ? 'Show All (ALL)' : '全表示 (ALL)' }}
           </button>
         </div>
 
         <!-- 右側: 🔍 7x7 洗練ズームミニマップビューア -->
         <div class="control-box zoom-box">
-          <div class="box-title">🔍 7x7 ダンジョンズームカメラ</div>
+          <div class="box-title">{{ isEn ? '🔍 7x7 Dungeon Zoom Camera' : '🔍 7x7 ダンジョンズームカメラ' }}</div>
 
           <div class="zoom-grid">
             <div
@@ -176,7 +189,7 @@
               @click="handleSelectZoomTile(tile)"
               @mouseenter="hoveredAreaTile = tile"
               @mouseleave="hoveredAreaTile = null"
-              :title="`${tile.nameJa} (${tile.x}, ${tile.y})`"
+              :title="`${tile.name || tile.nameJa} (${tile.x}, ${tile.y})`"
             >
               <div
                 v-if="tile.glyphId >= 0"
@@ -206,14 +219,14 @@
           <span v-if="act.key || act.verbKey || act.charStr" class="gkl-key">
             [{{ act.key || act.verbKey || act.charStr }}]
           </span>
-          <span>{{ act.labelJa || act.label || act.actionLabelJa }}</span>
+          <span>{{ act.label }}</span>
           <span v-if="extractDirectionCode(act) !== 'NONE'" class="gkl-dir-badge">
             ({{ extractDirectionCode(act) }})
           </span>
         </button>
       </div>
       <div v-else class="gkl-empty">
-        <span>{{ selectedDir === 'ALL' ? '待機中 (周りに特殊対象なし / 移動可能)' : `${currentFilterLabel} 方向に推奨アクションはありません` }}</span>
+        <span>{{ selectedDir === 'ALL' ? (isEn ? 'Idle (No special targets around / Can move)' : '待機中 (周りに特殊対象なし / 移動可能)') : (isEn ? `No recommended actions in ${currentFilterLabel}` : `${currentFilterLabel} 方向に推奨アクションはありません`) }}</span>
       </div>
     </div>
 
@@ -221,9 +234,9 @@
     <div v-if="activeKnowledge" class="gkl-knowledge-detail">
       <div class="detail-header">
         <span class="detail-name">
-          {{ activeKnowledge.nameJa }}
-          <span v-if="activeKnowledge.nameEn || activeKnowledge.name" class="detail-subname">
-            ({{ activeKnowledge.nameEn || activeKnowledge.name }})
+          {{ activeKnowledge.name }}
+          <span v-if="activeKnowledge.nameEn && activeKnowledge.nameEn !== activeKnowledge.name" class="detail-subname">
+            ({{ activeKnowledge.nameEn }})
           </span>
         </span>
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -252,32 +265,32 @@
             class="spec-badge"
             :class="{ 'spec-highlight': s.highlight }"
           >
-            <span class="spec-label">{{ s.labelJa || s.label }}:</span>
+            <span class="spec-label">{{ s.label }}:</span>
             <strong class="spec-value">{{ s.value }}</strong>
             <span v-if="s.skillBadge" class="spec-skill-badge">{{ s.skillBadge.label }}</span>
           </span>
         </div>
 
         <!-- 💡 おすすめワンタップ操作表示 -->
-        <p v-if="activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa" class="detail-text monster-detail-row" style="color: #a3be8c !important;">
-          💡 <strong>おすすめ操作:</strong> {{ activeKnowledge.actionLabelJa || activeKnowledge.defaultActionLabelJa }}
+        <p v-if="activeKnowledge.actionLabel" class="detail-text monster-detail-row" style="color: #a3be8c !important;">
+          💡 <strong>{{ isEn ? 'Recommended Action:' : 'おすすめ操作:' }}</strong> {{ activeKnowledge.actionLabel }}
         </p>
 
         <!-- 攻撃方法 ＆ 耐性 (モンスター) -->
         <p v-if="formatAttacks(activeKnowledge.attacks)" class="detail-text monster-detail-row">
-          🗡️ <strong>攻撃パターン:</strong> {{ formatAttacks(activeKnowledge.attacks) }}
+          🗡️ <strong>{{ isEn ? 'Attacks:' : '攻撃パターン:' }}</strong> {{ formatAttacks(activeKnowledge.attacks) }}
         </p>
         <p v-if="formatResistances(activeKnowledge.resistances)" class="detail-text monster-detail-row">
-          🛡️ <strong>固有耐性:</strong> {{ formatResistances(activeKnowledge.resistances) }}
+          🛡️ <strong>{{ isEn ? 'Resistances:' : '固有耐性:' }}</strong> {{ formatResistances(activeKnowledge.resistances) }}
         </p>
 
         <!-- ⚖️ BUC効果 (アイテム) -->
         <div v-if="activeKnowledge.bucEffects" class="buc-effects-box">
-          <div class="buc-title">⚖️ BUC効果:</div>
+          <div class="buc-title">⚖️ {{ isEn ? 'BUC Effects:' : 'BUC効果:' }}</div>
           <ul class="buc-list">
-            <li v-if="activeKnowledge.bucEffects.blessed" style="color: #2ecc71;"><strong>祝福:</strong> {{ activeKnowledge.bucEffects.blessed }}</li>
-            <li v-if="activeKnowledge.bucEffects.uncursed" style="color: #cbd5e1;"><strong>通常:</strong> {{ activeKnowledge.bucEffects.uncursed }}</li>
-            <li v-if="activeKnowledge.bucEffects.cursed" style="color: #e74c3c;"><strong>呪い:</strong> {{ activeKnowledge.bucEffects.cursed }}</li>
+            <li v-if="activeKnowledge.bucEffects.blessed" style="color: #2ecc71;"><strong>{{ isEn ? 'Blessed:' : '祝福:' }}</strong> {{ activeKnowledge.bucEffects.blessed }}</li>
+            <li v-if="activeKnowledge.bucEffects.uncursed" style="color: #cbd5e1;"><strong>{{ isEn ? 'Uncursed:' : '通常:' }}</strong> {{ activeKnowledge.bucEffects.uncursed }}</li>
+            <li v-if="activeKnowledge.bucEffects.cursed" style="color: #e74c3c;"><strong>{{ isEn ? 'Cursed:' : '呪い:' }}</strong> {{ activeKnowledge.bucEffects.cursed }}</li>
           </ul>
         </div>
 
@@ -289,7 +302,7 @@
 
         <!-- 🔍 未識別識別Tips -->
         <div v-if="activeKnowledge.unidentifiedTips && activeKnowledge.unidentifiedTips.length > 0" class="unid-tips-box">
-          <div class="unid-title">🔍 識別Tips:</div>
+          <div class="unid-title">🔍 {{ isEn ? 'Identification Tips:' : '識別Tips:' }}</div>
           <ul class="advice-list">
             <li v-for="(tip, idx) in activeKnowledge.unidentifiedTips" :key="idx">{{ tip }}</li>
           </ul>
@@ -297,14 +310,14 @@
 
         <!-- モンスター戦術 ＆ アイテムアドバイス -->
         <div v-if="(activeKnowledge.tacticalAdvice && activeKnowledge.tacticalAdvice.length > 0) || (activeKnowledge.usageAdvice && activeKnowledge.usageAdvice.length > 0)" class="tactical-advice-box">
-          <div class="advice-title">🎯 ガイド ＆ 活用アドバイス:</div>
+          <div class="advice-title">🎯 {{ isEn ? 'Guide & Advice:' : 'ガイド ＆ 活用アドバイス:' }}</div>
           <ul class="advice-list">
             <li v-for="(adv, idx) in (activeKnowledge.tacticalAdvice || activeKnowledge.usageAdvice)" :key="idx">{{ adv }}</li>
           </ul>
         </div>
 
         <p v-if="activeCoord" class="detail-coord">
-          📍 マップセル座標: ({{ activeCoord.x }}, {{ activeCoord.y }})
+          📍 {{ isEn ? 'Cell Coordinates:' : 'マップセル座標:' }} ({{ activeCoord.x }}, {{ activeCoord.y }})
         </p>
       </div>
     </div>
@@ -320,10 +333,10 @@ import { useNetHackDriver, ATTRIBUTE_DEFINITIONS } from '../composables/useNetHa
 const gameStore = useGameStore();
 const { gklSituation, hoveredTileKnowledge } = storeToRefs(gameStore);
 const {
+  extractDirectionCode,
+  getGlyphStyle,
   executeAction,
   executeSequence,
-  getGlyphStyle,
-  extractDirectionCode,
   getZoomAreaTiles,
   syncInventorySilent,
   syncSkillsSilent,
@@ -332,7 +345,10 @@ const {
   castSpell,
   enhanceSkill,
   getAdaptiveSpecs,
+  currentLanguage,
 } = useNetHackDriver();
+
+const isEn = computed(() => currentLanguage.value === 'en');
 
 const selectedDir = ref('ALL');
 const isSyncing = ref(false);
@@ -343,7 +359,10 @@ const hoveredAreaTile = ref<any | null>(null);
 // 🛡️ 属性・耐性一覧
 const activeAttributes = computed(() => {
   const res = gklSituation.value?.attributes?.effectiveResistances || {};
-  return ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
+  return ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key])).map(item => ({
+    ...item,
+    displayLabel: isEn.value ? (item.en || item.label) : item.label
+  }));
 });
 
 // 🥋 スキル一覧
@@ -369,17 +388,17 @@ function handleEnhanceSkill(skill?: any) {
   enhanceSkill(skill);
 }
 
-const dpadButtons = [
-  { id: 'NW', label: '北西', icon: '↖' },
-  { id: 'N', label: '北', icon: '↑' },
-  { id: 'NE', label: '北東', icon: '↗' },
-  { id: 'W', label: '西', icon: '←' },
-  { id: 'SELF', label: '足元', icon: '・' },
-  { id: 'E', label: '東', icon: '→' },
-  { id: 'SW', label: '南西', icon: '↙' },
-  { id: 'S', label: '南', icon: '↓' },
-  { id: 'SE', label: '南東', icon: '↘' },
-];
+const dpadButtons = computed(() => [
+  { id: 'NW', label: isEn.value ? 'NW' : '北西', icon: '↖' },
+  { id: 'N', label: isEn.value ? 'N' : '北', icon: '↑' },
+  { id: 'NE', label: isEn.value ? 'NE' : '北東', icon: '↗' },
+  { id: 'W', label: isEn.value ? 'W' : '西', icon: '←' },
+  { id: 'SELF', label: isEn.value ? 'Self' : '足元', icon: '・' },
+  { id: 'E', label: isEn.value ? 'E' : '東', icon: '→' },
+  { id: 'SW', label: isEn.value ? 'SW' : '南西', icon: '↙' },
+  { id: 'S', label: isEn.value ? 'S' : '南', icon: '↓' },
+  { id: 'SE', label: isEn.value ? 'SE' : '南東', icon: '↘' },
+]);
 
 const zoomTiles = computed(() => getZoomAreaTiles(3)); // 7x7 (radius=3)
 
@@ -431,13 +450,13 @@ const activeCoord = computed(() => {
 
 const activeTileInfo = computed(() => {
   const tile = hoveredAreaTile.value || selectedAreaTile.value;
-  if (!tile || tile.x < 0) return '🔍 マスにホバー/タップで解説';
-  return `📍 (${tile.x}, ${tile.y}): ${tile.nameJa}`;
+  if (!tile || tile.x < 0) return isEn.value ? '🔍 Hover/Tap tile to inspect' : '🔍 マスにホバー/タップで解説';
+  return `📍 (${tile.x}, ${tile.y}): ${tile.name || tile.nameJa}`;
 });
 
 const currentFilterLabel = computed(() => {
-  if (selectedDir.value === 'ALL') return '全方向';
-  const found = dpadButtons.find(b => b.id === selectedDir.value);
+  if (selectedDir.value === 'ALL') return isEn.value ? 'All' : '全方向';
+  const found = dpadButtons.value.find(b => b.id === selectedDir.value);
   return found ? `${found.label} (${found.icon})` : selectedDir.value;
 });
 
@@ -476,13 +495,22 @@ async function handleSyncInventory() {
 }
 
 function getItemCategoryLabel(cat: string | undefined): string {
-  if (!cat) return 'Knowledge';
-  const map: Record<string, string> = {
+  if (!cat) return isEn.value ? 'Knowledge' : '解説';
+  const enMap: Record<string, string> = {
+    WEAPON: '⚔️ Weapon', ARMOR: '🛡️ Armor', RING: '💍 Ring', AMULET: '📿 Amulet',
+    WAND: '🪄 Wand', SCROLL: '📜 Scroll', POTION: '🧪 Potion', SPELLBOOK: '📖 Spellbook',
+    FOOD: '🍖 Food', TOOL: '🧰 Tool', GEM: '💎 Gem', COIN: '🪙 Gold',
+    CONTAINER: '🧰 Container', TERRAIN: '🗺️ Terrain', MONSTER: '👾 Monster', PET: '🐶 Pet',
+    CORPSE: '🍖 Corpse', STATUE: '🗿 Statue'
+  };
+  const jaMap: Record<string, string> = {
     WEAPON: '⚔️ 武器', ARMOR: '🛡️ 防具', RING: '💍 指輪', AMULET: '📿 魔除け',
     WAND: '🪄 杖', SCROLL: '📜 巻物', POTION: '🧪 薬', SPELLBOOK: '📖 呪文書',
     FOOD: '🍖 食料', TOOL: '🧰 道具', GEM: '💎 宝石', COIN: '🪙 金貨',
-    CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット'
+    CONTAINER: '🧰 容器', TERRAIN: '🗺️ 地形', MONSTER: '👾 モンスター', PET: '🐶 ペット',
+    CORPSE: '🍖 死体', STATUE: '🗿 石像'
   };
+  const map = isEn.value ? enMap : jaMap;
   return map[cat.toUpperCase()] || cat;
 }
 
@@ -490,19 +518,20 @@ function getDangerBadgeInfo(level: string | undefined) {
   if (!level) return null;
   const l = String(level).toUpperCase();
   if (l === 'LETHAL' || l === 'EXTREME' || l === 'VERY_HIGH') {
-    return { label: `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
+    return { label: isEn.value ? `☠️ Lethal (${l})` : `☠️ 致命的 (${l})`, color: '#ff0055', bg: 'rgba(255, 0, 85, 0.2)', border: '#ff0055' };
   }
   if (l === 'HIGH') {
-    return { label: `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
+    return { label: isEn.value ? `⚠️ Danger (HIGH)` : `⚠️ 危険 (HIGH)`, color: '#ff9f1c', bg: 'rgba(255, 159, 28, 0.2)', border: '#ff9f1c' };
   }
   if (l === 'MEDIUM') {
-    return { label: `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
+    return { label: isEn.value ? `⚡ Warning (MEDIUM)` : `⚡ 注意 (MEDIUM)`, color: '#ffe600', bg: 'rgba(255, 230, 0, 0.2)', border: '#ffe600' };
   }
-  return { label: `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
+  return { label: isEn.value ? `🟢 Safe (${l})` : `🟢 低脅威 (${l})`, color: '#2ec4b6', bg: 'rgba(46, 196, 182, 0.2)', border: '#2ec4b6' };
 }
 
 function formatResistances(res: any): string {
   if (!res || !Array.isArray(res) || res.length === 0) return '';
+  if (isEn.value) return res.join(', ');
   const map: Record<string, string> = {
     fire: '火炎', cold: '冷気', sleep: '睡眠', poison: '毒', electricity: '電撃',
     acid: '酸', shock: '電撃', petrify: '石化', drain: 'ドレイン', magic: '魔法'
@@ -514,7 +543,7 @@ function formatAttacks(attacks: any): string {
   if (!attacks || !Array.isArray(attacks) || attacks.length === 0) return '';
   return attacks.map((a: any) => {
     if (typeof a === 'string') return a;
-    const type = a.type || a.name || '攻撃';
+    const type = a.type || a.name || (isEn.value ? 'Attack' : '攻撃');
     const dmg = a.damage ? `(${a.damage})` : '';
     const eff = a.effect ? ` [${a.effect}]` : '';
     return `${type}${dmg}${eff}`;
@@ -523,7 +552,7 @@ function formatAttacks(attacks: any): string {
 
 function handleExecuteAction(act: any) {
   if (act.risk === 'danger' || act.isDanger) {
-    const label = act.labelJa || act.label || '操作';
+    const label = act.label || '操作';
     if (!confirm(`【⚠️ 危険な行動】\n"${label}" を実行しますか？`)) return;
   }
   selectedDir.value = 'ALL';

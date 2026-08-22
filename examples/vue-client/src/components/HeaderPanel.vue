@@ -13,7 +13,7 @@
       <button
         @click="handleRestart"
         class="btn-control btn-restart"
-        title="ゲームを即時再起動"
+        :title="isEn ? 'Restart game immediately' : 'ゲームを即時再起動'"
       >
         🔄 Restart
       </button>
@@ -21,7 +21,7 @@
       <button
         @click="deleteSaveFile"
         class="btn-control btn-delete-save"
-        title="セーブデータを完全削除"
+        :title="isEn ? 'Delete save file completely' : 'セーブデータを完全削除'"
       >
         🗑️ Del Save
       </button>
@@ -30,16 +30,20 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 
-const { deleteSaveFile, restartGame } = useNetHackDriver();
+const { deleteSaveFile, restartGame, currentLanguage } = useNetHackDriver();
 const gameStore = useGameStore();
 const { engineState } = storeToRefs(gameStore);
 
+const isEn = computed(() => currentLanguage.value === 'en');
+
 function handleRestart() {
-  if (confirm('現在のゲームを中断して再起動しますか？')) {
+  const msg = isEn.value ? 'Restart the game now?' : '現在のゲームを中断して再起動しますか？';
+  if (confirm(msg)) {
     restartGame();
   }
 }
