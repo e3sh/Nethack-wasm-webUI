@@ -1011,14 +1011,75 @@
                     this.isMenuOpen = false;
                     this.setState(NetHackWasmDriver.DriverState.RUNNING);
 
-                    // normalizeMenuResponse
-                    if (this.options.normalizeMenuResponse) {
-                        if (selectedItems && !Array.isArray(selectedItems) && typeof selectedItems === 'object') {
-                            selectedItems = [selectedItems];
+                    // 選択可能アイテムリストの抽出 (ヘッダーや無効項目を除外)
+                    const selectableItems = items.filter(it => !it.isHeader && it.identifier && it.identifier !== 0);
+
+                    // 1. キャンセル値・空値の判定
+                    if (selectedItems === 0 || selectedItems === -1 || selectedItems === 27 ||
+                        selectedItems === '0' || selectedItems === 'ESC' || selectedItems === '\x1b' ||
+                        selectedItems === null || selectedItems === undefined) {
+                        selectedItems = [];
+                    }
+                    // 2. 文字列トークン (例: 'a', 'B', '1', 'ESC') の自動解決
+                    else if (typeof selectedItems === 'string') {
+                        const strVal = selectedItems.trim();
+                        if (!strVal || strVal === '0' || strVal === 'ESC' || strVal === '\x1b') {
+                            selectedItems = [];
+                        } else {
+                            // (a) アクセラレータ文字の一致判定
+                            let match = selectableItems.find(it => {
+                                const acc = it.accelerator ? (typeof it.accelerator === 'string' ? it.accelerator : String.fromCharCode(it.accelerator)) : '';
+                                return acc.toLowerCase() === strVal.toLowerCase();
+                            });
+
+                            // (b) identifier の文字コード一致判定 (例: any.a_char)
+                            if (!match) {
+                                match = selectableItems.find(it => {
+                                    if (typeof it.identifier === 'number' && it.identifier > 0 && it.identifier < 256) {
+                                        return String.fromCharCode(it.identifier).toLowerCase() === strVal.toLowerCase();
+                                    }
+                                    return false;
+                                });
+                            }
+
+                            // (c) 数値文字列 (例: '1', '2') によるインデックス一致判定
+                            if (!match && /^\d+$/.test(strVal)) {
+                                const num = parseInt(strVal, 10);
+                                if (num > 0 && num <= selectableItems.length) {
+                                    match = selectableItems[num - 1];
+                                }
+                            }
+
+                            selectedItems = match ? [match] : [];
                         }
                     }
+                    // 3. 数値トークン (例: 1-based index, または ASCII コード) の自動解決
+                    else if (typeof selectedItems === 'number') {
+                        let match = null;
+                        const num = selectedItems;
 
-                    if (!selectedItems || selectedItems === 0 || !Array.isArray(selectedItems) || selectedItems.length === 0) {
+                        // (a) 1-based インデックス指定 (1 <= num <= length)
+                        if (num > 0 && num <= selectableItems.length) {
+                            match = selectableItems[num - 1];
+                        }
+
+                        // (b) ASCII コード指定 (例: 97 -> 'a')
+                        if (!match && num >= 32 && num <= 126) {
+                            const ch = String.fromCharCode(num).toLowerCase();
+                            match = selectableItems.find(it => {
+                                const acc = it.accelerator ? (typeof it.accelerator === 'string' ? it.accelerator : String.fromCharCode(it.accelerator)) : '';
+                                return acc.toLowerCase() === ch;
+                            });
+                        }
+
+                        selectedItems = match ? [match] : [];
+                    }
+                    // 4. 単一オブジェクトの配列化 (normalizeMenuResponse)
+                    else if (selectedItems && !Array.isArray(selectedItems) && typeof selectedItems === 'object') {
+                        selectedItems = [selectedItems];
+                    }
+
+                    if (!selectedItems || !Array.isArray(selectedItems) || selectedItems.length === 0) {
                         return 0;
                     }
 

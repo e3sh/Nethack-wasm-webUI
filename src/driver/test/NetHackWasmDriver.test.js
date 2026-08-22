@@ -238,4 +238,114 @@ test('NetHackWasmDriver - queueSequence stepDelayMs and allowMapUpdates options'
     await seqPromise;
 });
 
+test('NetHackWasmDriver - select_menu token resolution (accelerator, index, cancel)', async () => {
+    const driver = new NetHackWasmDriver();
+
+    // 1. メニューのセットアップ
+    driver.eventHook('shim_start_menu', 1, 1);
+    driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a blessed +1 long sword', 0);
+    driver.eventHook('shim_add_menu', 1, 0, 102, 'b'.charCodeAt(0), 0, 0, 0, 'b - 5 uncursed potions of healing', 0);
+    driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+    // (A) 文字列トークン 'a' で応答 -> item 101 が選択される
+    driver.on('inputRequired', (payload) => {
+        if (payload.context === 'select_menu') {
+            payload.resolver.respond('a');
+        }
+    });
+
+    const selectPromiseA = driver.eventHook('shim_select_menu', 1, 1, 0);
+    const countA = await selectPromiseA;
+    assert.equal(countA, 1, 'Should resolve 1 item when responding with accelerator string "a"');
+
+    // (B) 文字列トークン 'B' (大文字) で応答 -> item 102 が選択される
+    driver.listeners.delete('inputRequired');
+    driver.on('inputRequired', (payload) => {
+        if (payload.context === 'select_menu') {
+            payload.resolver.respond('B');
+        }
+    });
+
+    const selectPromiseB = driver.eventHook('shim_select_menu', 1, 1, 0);
+    const countB = await selectPromiseB;
+    assert.equal(countB, 1, 'Should resolve 1 item when responding with accelerator string "B" (case-insensitive)');
+
+    // (C) 数値インデックス 2 で応答 -> 2番目のアイテム (item 102) が選択される
+    driver.listeners.delete('inputRequired');
+    driver.on('inputRequired', (payload) => {
+        if (payload.context === 'select_menu') {
+            payload.resolver.respond(2);
+        }
+    });
+
+    const selectPromiseC = driver.eventHook('shim_select_menu', 1, 1, 0);
+    const countC = await selectPromiseC;
+    assert.equal(countC, 1, 'Should resolve 1 item when responding with 1-based index 2');
+
+    // (D) キャンセル値 (ESC: 27 または '0') で応答 -> 0 が返る
+    driver.listeners.delete('inputRequired');
+    driver.on('inputRequired', (payload) => {
+        if (payload.context === 'select_menu') {
+            payload.resolver.respond(27);
+        }
+    });
+
+    const selectPromiseD = driver.eventHook('shim_select_menu', 1, 1, 0);
+    const countD = await selectPromiseD;
+    assert.equal(countD, 0, 'Should return 0 (cancel) when responding with ESC 27');
+});
+
+test('NetHackWasmDriver - queueSequence automatic 2-stage inventory menu transition', async () => {
+    const driver = new NetHackWasmDriver();
+
+    // 1. queueSequence(['i', 'a']) を開始
+    const seqPromise = driver.queueSequence(['i', 'a']);
+
+    // 2. Cコアが getch で 'i' を消費
+    const getchPromise = driver.eventHook('shim_nhgetch');
+    const key = await getchPromise;
+    assert.equal(key, 'i');
+
+    // 3. Cコアが 1段目インベントリメニューを出力
+    driver.eventHook('shim_start_menu', 1, 1);
+    driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a long sword', 0);
+    driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+    // shim_select_menu が呼ばれると、キュー内の 'a' が自動消費・解決されて Cコアへ返る
+    const select1Promise = driver.eventHook('shim_select_menu', 1, 1, 0);
+    const select1Count = await select1Promise;
+    assert.equal(select1Count, 1, '1st stage menu should automatically select item "a"');
+
+    // 4. Cコアが 2段目アイテムアクションメニューを出力
+    driver.eventHook('shim_start_menu', 2, 1);
+    driver.eventHook('shim_add_menu', 2, 0, 201, 'w'.charCodeAt(0), 0, 0, 0, 'w - Wield this item', 0);
+    driver.eventHook('shim_add_menu', 2, 0, 202, 'd'.charCodeAt(0), 0, 0, 0, 'd - Drop this item', 0);
+    driver.eventHook('shim_end_menu', 2, 'Do what with a long sword?');
+
+    // 2段目メニューの select_menu 発火 (トークンは空になったので inputRequired が通常発火する)
+    let stage2Prompt = null;
+    driver.on('inputRequired', (payload) => {
+        if (payload.context === 'select_menu') {
+            stage2Prompt = payload.prompt;
+            payload.resolver.respond(27); // ESC キャンセル
+        }
+    });
+
+    const select2Promise = driver.eventHook('shim_select_menu', 2, 1, 0);
+    await select2Promise;
+
+    assert.equal(stage2Prompt, 'Do what with a long sword?', '2nd stage item action menu should be emitted to UI');
+
+    // バッファに両方のメニューが記録されていることを確認
+    const buffer = driver.getLastSequenceBuffer();
+    const menuEntries = buffer.filter(b => b.type === 'select_menu');
+    assert.equal(menuEntries.length, 2, 'Both 1st stage and 2nd stage menus should be captured in sequence buffer');
+    assert.equal(menuEntries[0].prompt, 'Inventory');
+    assert.equal(menuEntries[1].prompt, 'Do what with a long sword?');
+
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    await seqPromise;
+});
+
+
 
