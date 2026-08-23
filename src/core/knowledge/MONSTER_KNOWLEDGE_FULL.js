@@ -319,6 +319,17 @@ for (let i = 0; i <= 382; i++) {
     const dangerLevel = specific.dangerLevel || inferDangerLevel(rawName, stats.hd);
     const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
 
+    const attacks = specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }];
+    const resistances = specific.resistances || [];
+    const lowerName = rawName.toLowerCase();
+
+    // 🎯 脅威・耐性フラグの導出展開
+    const petrifiesOnTouch = !!specific.petrifiesOnTouch || attacks.some(a => a.effect === 'petrify' || a.type === 'touch' && a.effect === 'petrify') || lowerName.includes('cockatrice') || lowerName.includes('chickatrice');
+    const paralysisGaze = !!specific.paralysisGaze || attacks.some(a => a.effect === 'paralysis' && a.type === 'gaze') || lowerName.includes('floating eye');
+    const explodesOnMelee = !!specific.explodesOnMelee || attacks.some(a => a.type === 'explode' || a.effect === 'explosion') || lowerName.includes('gas spore');
+    const isUndead = !!specific.isUndead || lowerName.includes('zombie') || lowerName.includes('mummy') || lowerName.includes('vampire') || lowerName.includes('wraith') || lowerName.includes('skeleton') || lowerName.includes('lich') || lowerName.includes('ghost');
+    const isDemon = !!specific.isDemon || lowerName.includes('demon') || lowerName.includes('devil') || lowerName.includes('balrog') || lowerName.includes('succubus') || lowerName.includes('incubus');
+
     const monsterEntry = {
         id: cleanId || `mon_${i}`,
         monOffset: i,
@@ -326,8 +337,13 @@ for (let i = 0; i <= 382; i++) {
         dangerLevel: dangerLevel,
         defaultPeaceful: defaultPeaceful,
         stats: stats,
-        attacks: specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }],
-        resistances: specific.resistances || [],
+        attacks: attacks,
+        resistances: resistances,
+        petrifiesOnTouch: petrifiesOnTouch,
+        paralysisGaze: paralysisGaze,
+        explodesOnMelee: explodesOnMelee,
+        isUndead: isUndead,
+        isDemon: isDemon,
         corpseInfo: specific.corpseInfo || { edible: true, poisonous: false },
         tacticalAdvice: specific.tacticalAdvice || [
             `Standard dungeon encounter (${rawName}).`,

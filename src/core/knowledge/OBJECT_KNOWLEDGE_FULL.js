@@ -552,6 +552,8 @@ export function initFullObjectKnowledge() {
             isStackable: !!base.isStackable,
             isUnique: !!base.isUnique,
             // 🎯 機能フラグの完全データ化 (Single Source of Truth)
+            isMetallic: ['iron', 'metal', 'copper', 'silver', 'mithril', 'platinum'].includes(material) || (category === 'ARMOR' && !['leather', 'cloth', 'dragon scale', 'wood'].includes(material)),
+            isSilver: material === 'silver' || (base.name || tileName || '').toLowerCase().includes('silver') || (base.name || tileName || '').includes('銀'),
             isPickAxe: !!itemInfo.isPickAxe || skill === 'pick-axe',
             isKey: !!itemInfo.isKey,
             isAxe: !!itemInfo.isAxe || skill === 'axe',

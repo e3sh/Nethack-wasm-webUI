@@ -85,6 +85,12 @@ class GklPureJSClient {
     this.selectedDir = 'ALL';
     this.initDirectionPadEvents();
 
+    // 💡 ナレッジ ＆ 🛡️ 戦術アドバイス ボトムタブ状態
+    this.currentBottomTab = 'advices';
+    this.userPreferredTab = 'advices';
+    this.lastKnowledgeTarget = null;
+    this.lastAdvices = [];
+
     // GameOver Modal
     this.elGameOverModal = document.getElementById('gameover-modal');
     this.elGameOverSummary = document.getElementById('gameover-summary');
@@ -347,6 +353,22 @@ class GklPureJSClient {
       };
     }
 
+    const tabBtnAdvices = document.getElementById('tab-btn-advices');
+    if (tabBtnAdvices) {
+      tabBtnAdvices.onclick = () => {
+        this.userPreferredTab = 'advices';
+        this.switchBottomTab('advices');
+      };
+    }
+
+    const tabBtnKnowledge = document.getElementById('tab-btn-knowledge');
+    if (tabBtnKnowledge) {
+      tabBtnKnowledge.onclick = () => {
+        this.userPreferredTab = 'knowledge';
+        this.switchBottomTab('knowledge', this.lastKnowledgeTarget);
+      };
+    }
+
     // ツールチップ追従
     document.addEventListener('mousemove', (e) => {
       if (this.elGklTooltip && !this.elGklTooltip.classList.contains('hidden')) {
@@ -375,7 +397,26 @@ class GklPureJSClient {
       if (this.core?.gkl?.inspectCellOnDemand) {
         const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
         if (cardData) {
-          this.renderKnowledgeCard(cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
+          // 床や壁も含め、直近のナレッジデータとしては常に最新保持
+          this.lastKnowledgeTarget = cardData;
+
+          const basicCategories = ['FLOOR', 'WALL', 'CORRIDOR', 'TERRAIN', 'BARS'];
+          const isBasicTerrain = basicCategories.includes(cardData.category) && !cardData.isTrap && !cardData.isAltar && !cardData.isFountain && !cardData.isThrone && !cardData.isSink;
+
+          if (isBasicTerrain) {
+            // 単なる床・壁の場合:
+            // ユーザーがアドバイス優先モード（デフォルト）ならアドバイス表示を優先維持！
+            // ユーザーが明示的に「💡 ナレッジ」タブを選んでいる時だけ床や壁のナレッジを表示
+            if (this.userPreferredTab === 'advices') {
+              this.switchBottomTab('advices');
+            } else {
+              this.switchBottomTab('knowledge', cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
+            }
+          } else {
+            // モンスター・アイテム・扉・罠・祭壇・泉などの特別オブジェクトの場合:
+            // 注目すべき対象なので自動でナレッジを表示
+            this.switchBottomTab('knowledge', cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
+          }
         }
       }
 
@@ -606,6 +647,9 @@ class GklPureJSClient {
         this.renderGklAttributes(situation.attributes);
         this.renderGklSpells(situation.spells);
         this.renderGklSkills(situation.skills);
+
+        // 5. 🛡️ 戦術アドバイス ＆ 危機警告の描画 (TacticalAdvisor)
+        this.renderGklAdvices(situation.advices || []);
       }
       requestAnimationFrame(loop);
     };
@@ -844,17 +888,52 @@ class GklPureJSClient {
     }
   }
 
+  /**
+   * 💡 構造化ナレッジ ↔ 🛡️ 戦術アドバイス のボトムタブ切り替え
+   * @param {'advices'|'knowledge'} tabName 
+   * @param {Object} [target=null]
+   * @param {Object} [options={}]
+   */
+  switchBottomTab(tabName, target = null, options = {}) {
+    this.currentBottomTab = tabName;
+
+    const tabAdvices = document.getElementById('tab-btn-advices');
+    const tabKnowledge = document.getElementById('tab-btn-knowledge');
+
+    if (tabAdvices) {
+      if (tabName === 'advices') tabAdvices.classList.add('active');
+      else tabAdvices.classList.remove('active');
+    }
+    if (tabKnowledge) {
+      if (tabName === 'knowledge') tabKnowledge.classList.add('active');
+      else tabKnowledge.classList.remove('active');
+    }
+
+    if (tabName === 'advices') {
+      this.renderSideAdvices();
+    } else {
+      this.renderKnowledgeCard(target || this.lastKnowledgeTarget, options);
+    }
+  }
+
   renderKnowledgeCard(target, options = {}) {
     if (!this.elGklKnowledgeContent) return;
     const isEn = this.currentLanguage === 'en';
+    if (target) {
+      this.lastKnowledgeTarget = target;
+    }
 
     if (!target) {
-      this.elGklKnowledgeContent.innerHTML = `
-        <div class="gkl-empty-hint">
-          ${isEn ? 'Hover or tap a dungeon tile<br>to inspect real-time structured knowledge' : 'マップのマスをホバーまたはタップすると<br>リアルタイムで構造化ナレッジが表示されます'}
-        </div>`;
+      this.switchBottomTab('advices');
       return;
     }
+
+    // ナレッジタブのアクティブ化
+    const tabAdvices = document.getElementById('tab-btn-advices');
+    const tabKnowledge = document.getElementById('tab-btn-knowledge');
+    if (tabAdvices) tabAdvices.classList.remove('active');
+    if (tabKnowledge) tabKnowledge.classList.add('active');
+    this.currentBottomTab = 'knowledge';
 
     let data = null;
     let dynamicState = options.dynamicState || target.dynamicState || null;
@@ -1442,6 +1521,107 @@ class GklPureJSClient {
     elSkillsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '🥋 Skills:' : '🥋 スキル:'}</strong> ${listHtml}</div>`;
   }
 
+  /**
+   * 🛡️ 戦術アドバイス ＆ 危機警告の描画 (TacticalAdvisor)
+   * @param {Array<Object>} advices 
+   */
+  renderGklAdvices(advices) {
+    this.lastAdvices = advices || [];
+    const isEn = this.currentLanguage === 'en';
+
+    const hasCritical = this.lastAdvices.some(a => a.severity === 'CRITICAL');
+
+    // 1. ステータスバーの緊急アラートバッジ更新 (CRITICAL 存在時のみ点灯)
+    const elCritBadge = document.getElementById('st-advice-critical-badge');
+    if (elCritBadge) {
+      if (hasCritical) {
+        elCritBadge.classList.remove('hidden');
+        elCritBadge.textContent = isEn ? '🚨 Danger' : '🚨 危険';
+      } else {
+        elCritBadge.classList.add('hidden');
+      }
+    }
+
+    // 2. 右サイドカードのアドバイスタブ・インジケータ更新
+    const tabAdvicesBadge = document.getElementById('tab-advices-badge');
+    const tabBtnAdvices = document.getElementById('tab-btn-advices');
+    if (tabAdvicesBadge) {
+      tabAdvicesBadge.textContent = `${this.lastAdvices.length}`;
+      if (this.lastAdvices.length > 0) tabAdvicesBadge.classList.remove('hidden');
+      else tabAdvicesBadge.classList.add('hidden');
+    }
+    if (tabBtnAdvices) {
+      if (hasCritical) tabBtnAdvices.classList.add('has-critical');
+      else tabBtnAdvices.classList.remove('has-critical');
+    }
+
+    // 3. 現在アドバイスタブが開いている場合、アドバイス一覧を自動反映
+    if (this.currentBottomTab === 'advices') {
+      this.renderSideAdvices();
+    }
+  }
+
+  /**
+   * 🛡️ 右サイド最下部カードへの戦術アドバイス一覧の描画
+   */
+  renderSideAdvices() {
+    if (!this.elGklKnowledgeContent) return;
+    const isEn = this.currentLanguage === 'en';
+    const advices = this.lastAdvices || [];
+
+    // タブのactive同期
+    const tabAdvices = document.getElementById('tab-btn-advices');
+    const tabKnowledge = document.getElementById('tab-btn-knowledge');
+    if (tabAdvices) tabAdvices.classList.add('active');
+    if (tabKnowledge) tabKnowledge.classList.remove('active');
+    this.currentBottomTab = 'advices';
+
+    if (advices.length === 0) {
+      this.elGklKnowledgeContent.innerHTML = `
+        <div class="gkl-empty-hint" style="padding:16px 8px;">
+          <div style="font-size:18px; margin-bottom:4px;">🛡️</div>
+          <div style="color:#94a3b8; font-weight:500;">${isEn ? 'Tactical Status: Normal (Safe)' : '戦術状況: 平常 (安全)'}</div>
+          <div style="color:#64748b; font-size:11px; margin-top:4px;">${isEn ? 'No immediate danger detected.<br>Click a tile or item to inspect knowledge.' : '直近の危険・戦術提案はありません。<br>マップや所持品を選択するとナレッジが表示されます。'}</div>
+        </div>`;
+      return;
+    }
+
+    const cardsHtml = advices.map(adv => {
+      const sev = adv.severity || 'INFO';
+      const msg = adv.message || (isEn ? adv.messageEn : adv.messageJa);
+      const hintKey = adv.hintCommand ? `[${adv.hintCommand}]` : (adv.hintLetters && adv.hintLetters.length > 0 ? `[${adv.hintLetters.join(',')}]` : '');
+      const hintHtml = hintKey ? `<span class="gkl-advice-card-hint">${hintKey}</span>` : '';
+
+      let tagLabel = 'INFO';
+      if (sev === 'CRITICAL') tagLabel = isEn ? 'CRITICAL' : '危険';
+      else if (sev === 'WARNING') tagLabel = isEn ? 'WARNING' : '警告';
+      else if (adv.topic === 'EQUIPMENT') tagLabel = isEn ? 'EQUIP' : '装備';
+      else if (adv.topic === 'MAGIC') tagLabel = isEn ? 'MAGIC' : '魔法';
+      else if (adv.topic === 'SURVIVAL') tagLabel = isEn ? 'SURVIVE' : '生存';
+
+      return `
+        <div class="gkl-side-advice-card severity-${sev}" title="${msg} (ホバーで全文表示)">
+          <div class="gkl-side-advice-header">
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span>${sev === 'CRITICAL' ? '🚨' : (sev === 'WARNING' ? '⚠️' : '💡')}</span>
+              <span class="gkl-side-advice-tag">${tagLabel}</span>
+            </div>
+            ${hintHtml}
+          </div>
+          <div class="gkl-side-advice-body">
+            <div class="gkl-side-advice-text">${msg}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.elGklKnowledgeContent.innerHTML = `
+      <div class="gkl-side-advices-container">
+        ${cardsHtml}
+      </div>
+    `;
+  }
+
   getItemSymbol(item) {
     if (item.isPickAxe) return '⛏️';
     if (item.isDigWand) return '🪄';
@@ -1844,9 +2024,22 @@ class GklPureJSClient {
   resetUiForNewGame() {
     this.isGameExited = false;
     this.currentGameOverResult = null;
+    this.lastAdvices = [];
+    this.lastKnowledgeTarget = null;
+    this.currentBottomTab = 'advices';
+    this.userPreferredTab = 'advices';
     this.clearAllModals();
     this.clearMapGrid();
     this.elMessageLog.innerHTML = '';
+
+    const elCritBadge = document.getElementById('st-advice-critical-badge');
+    if (elCritBadge) elCritBadge.classList.add('hidden');
+
+    this.renderSideAdvices();
+
+    if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
+      this.core.gkl.reset();
+    }
   }
 
   async restartGame() {

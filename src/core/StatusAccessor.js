@@ -36,6 +36,13 @@ export class StatusAccessor {
     }
 
     /**
+     * フィールドバッファを完全にリセット
+     */
+    reset() {
+        this.fields = {};
+    }
+
+    /**
      * 統一ステータスモデルオブジェクトを生成して取得
      * @returns {Object} 構造化ステータスオブジェクト
      */

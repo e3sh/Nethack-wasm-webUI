@@ -17,9 +17,10 @@ export class SituationCache {
      * @param {Object} [spellStateManager=null] - SpellStateManager インスタンス
      * @param {Object} [attributeStateManager=null] - AttributeStateManager インスタンス
      * @param {Object} [skillStateManager=null] - SkillStateManager インスタンス
+     * @param {Object} [tacticalAdvisorClass=null] - TacticalAdvisor クラス
      * @param {Object} [options={}] - オプション
      */
-    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null, options = {}) {
+    constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null, tacticalAdvisorClass = null, options = {}) {
         this.statusAccessor = statusAccessor;
         this.inventoryStateManager = inventoryStateManager;
         this.areaStateManager = areaStateManager;
@@ -27,6 +28,7 @@ export class SituationCache {
         this.spellStateManager = spellStateManager;
         this.attributeStateManager = attributeStateManager;
         this.skillStateManager = skillStateManager;
+        this.tacticalAdvisorClass = tacticalAdvisorClass;
         this.language = (options && options.language) || 'ja';
     }
 
@@ -42,7 +44,7 @@ export class SituationCache {
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, language }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, tacticalAdvisorClass, language }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
@@ -50,12 +52,13 @@ export class SituationCache {
         if (spellStateManager) this.spellStateManager = spellStateManager;
         if (attributeStateManager) this.attributeStateManager = attributeStateManager;
         if (skillStateManager) this.skillStateManager = skillStateManager;
+        if (tacticalAdvisorClass) this.tacticalAdvisorClass = tacticalAdvisorClass;
         if (language) this.setLanguage(language);
     }
 
     /**
      * 現在のゲーム統合状況 (Situation) を一括取得
-     * @returns {Object} { status, inventory, equipment, area, tools, spells, skills, attributes, actions }
+     * @returns {Object} { status, inventory, equipment, area, tools, spells, skills, attributes, actions, advices }
      */
     getSituation() {
         const status = this.statusAccessor && typeof this.statusAccessor.getStatus === 'function' ?
@@ -107,6 +110,19 @@ export class SituationCache {
             actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager, { language: this.language });
         }
 
+        // 戦術アドバイスの自動計算 (TacticalAdvisor が設定されている場合)
+        let advices = [];
+        if (this.tacticalAdvisorClass && typeof this.tacticalAdvisorClass.generateAdvices === 'function') {
+            advices = this.tacticalAdvisorClass.generateAdvices({
+                areaState,
+                inventoryState,
+                skillStateManager: this.skillStateManager,
+                statusAccessor: this.statusAccessor,
+                spellStateManager: this.spellStateManager,
+                attributeStateManager: this.attributeStateManager
+            }, { language: this.language });
+        }
+
         return {
             status,
             inventory: {
@@ -126,7 +142,8 @@ export class SituationCache {
                 isSynced: isSkillSynced
             },
             attributes,
-            actions
+            actions,
+            advices
         };
     }
 }

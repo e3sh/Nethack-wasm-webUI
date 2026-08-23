@@ -18,68 +18,7 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
         expect(ContextActionEngine.matchWeaponToSkill({ name: 'mace', rawText: 'mace' })).toBe('mace');
     });
 
-    it('武器未装備時、スキル熟練度（Expert / Skilled）が最も高い武器がおすすめ装備として提案されること', () => {
-        const invMgr = new InventoryStateManager();
-        invMgr.items = [
-            { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword', isWeapon: true },
-            { letter: 'b', name: 'long sword', rawText: 'b - a +1 long sword', isWeapon: true },
-            { letter: 'c', name: 'dagger', rawText: 'c - an uncursed dagger', isWeapon: true }
-        ];
-
-        const skillMgr = new SkillStateManager();
-        skillMgr.updateFromLines([
-            'short sword [Unskilled]',
-            'long sword [Skilled]', // score: 25 + 5 = 30
-            'dagger [Expert]'       // score: 40
-        ]);
-
-        const areaState = {
-            feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
-            adjacentMonsters: [],
-            adjacentEntities: []
-        };
-
-        const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr);
-
-        // おすすめ装備アクションが生成されていること
-        const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
-        expect(wieldAction).toBeDefined();
-        // 最高スコアである dagger (c) が選ばれていること
-        expect(wieldAction.id).toBe('ACTION_WIELD_RECOMMENDED_c');
-        expect(wieldAction.key).toBe('wc');
-        expect(wieldAction.label).toContain('達人');
-        expect(wieldAction.labelJa).toBeUndefined();
-    });
-
-    it('低スキル武器を装備中、高スキル武器（熟練/達人）を所持している場合に持ち替えが提案されること', () => {
-        const invMgr = new InventoryStateManager();
-        invMgr.items = [
-            { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', isWeapon: true, isWielded: true },
-            { letter: 'b', name: 'long sword', rawText: 'b - a +2 long sword', isWeapon: true, isWielded: false }
-        ];
-
-        const skillMgr = new SkillStateManager();
-        skillMgr.updateFromLines([
-            'short sword [Unskilled]', // 0
-            'long sword [Expert]'      // 40 + 10 = 50
-        ]);
-
-        const areaState = {
-            feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
-            adjacentMonsters: [],
-            adjacentEntities: []
-        };
-
-        const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr);
-
-        const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
-        expect(wieldAction).toBeDefined();
-        expect(wieldAction.id).toBe('ACTION_WIELD_RECOMMENDED_b');
-        expect(wieldAction.label).toContain('持ち替え');
-        expect(wieldAction.label).toContain('達人');
-    });
-
-    it('options.language = "en" の場合、英語の推奨アクションラベルと説明文が返ること', () => {
+    it('ContextActions に装備持ち替えアクション (ACTION_WIELD_RECOMMENDED_*) は含まれず、純粋な即時アクションのみになること', () => {
         const invMgr = new InventoryStateManager();
         invMgr.items = [
             { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', isWeapon: true, isWielded: true },
@@ -98,35 +37,9 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             adjacentEntities: []
         };
 
-        const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr, { language: 'en' });
-
-        const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
-        expect(wieldAction).toBeDefined();
-        expect(wieldAction.label).toContain('Switch to');
-        expect(wieldAction.label).toContain('Expert');
-        expect(wieldAction.labelJa).toBeUndefined();
-    });
-
-    it('すでに最高スコアの武器を装備している場合は持ち替え提案が生成されないこと', () => {
-        const invMgr = new InventoryStateManager();
-        invMgr.items = [
-            { letter: 'a', name: 'long sword', rawText: 'a - a +2 long sword (weapon in hand)', isWeapon: true, isWielded: true },
-            { letter: 'b', name: 'short sword', rawText: 'b - an uncursed short sword', isWeapon: true, isWielded: false }
-        ];
-
-        const skillMgr = new SkillStateManager();
-        skillMgr.updateFromLines([
-            'long sword [Expert]',
-            'short sword [Unskilled]'
-        ]);
-
-        const areaState = {
-            feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
-            adjacentMonsters: [],
-            adjacentEntities: []
-        };
-
         const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr);
+
+        // 推奨アクションには武器持ち替えが含まれないこと（即時アクションのみ）
         const wieldAction = actions.find(a => a.id.startsWith('ACTION_WIELD_RECOMMENDED'));
         expect(wieldAction).toBeUndefined();
     });

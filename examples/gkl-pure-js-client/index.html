@@ -91,6 +91,7 @@
           </div>
           <div id="status-badges" class="status-badges">
             <span id="st-cond" class="badge cond-badge hidden">Normal</span>
+            <span id="st-advice-critical-badge" class="badge cond-badge hidden" style="background:#dc2626;" title="重大な危険が発生中 (右下の戦術アドバイスを確認)">🚨 危険</span>
           </div>
 
           <!-- 展開詳細行 (詳細ステータス領域) -->
@@ -172,12 +173,20 @@
           </div>
         </div>
 
-        <!-- 💡 GKL 構造化ナレッジカード (最下部) -->
+        <!-- 💡 GKL 構造化ナレッジ ＆ 戦術アドバイス カード (最下部 タブ切替) -->
         <div class="gkl-card">
-          <div class="gkl-card-header">
-            <span>💡 構造化ナレッジ (GKL Knowledge)</span>
+          <div class="gkl-card-header gkl-card-header-tabs">
+            <div class="gkl-header-tabs">
+              <button id="tab-btn-advices" class="gkl-tab-btn active" title="戦術アドバイス ＆ 危険警告を表示">
+                🛡️ アドバイス
+                <span id="tab-advices-badge" class="gkl-badge">0</span>
+              </button>
+              <button id="tab-btn-knowledge" class="gkl-tab-btn" title="直前に調査した構造化ナレッジを表示">
+                💡 ナレッジ
+              </button>
+            </div>
           </div>
-          <div id="gkl-knowledge-content" class="gkl-knowledge-content" style="padding:10px; max-height:220px; overflow-y:auto;">
+          <div id="gkl-knowledge-content" class="gkl-knowledge-content" style="padding:10px; max-height:240px; overflow-y:auto;">
             <div class="gkl-empty-hint">ズームカメラホバーまたは所持品選択でナレッジ表示</div>
           </div>
         </div>

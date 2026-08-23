@@ -6,6 +6,7 @@ import { SkillStateManager } from './SkillStateManager.js';
 import { AttributeStateManager } from './AttributeStateManager.js';
 import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
+import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { RequestController } from './RequestController.js';
 import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
@@ -45,6 +46,7 @@ export class GKLPlugin {
             this.spellStateManager,
             this.attributeStateManager,
             this.skillStateManager,
+            TacticalAdvisor,
             { language: this.language }
         );
 
@@ -98,6 +100,44 @@ export class GKLPlugin {
         }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
             this.inventoryStateManager.invalidate();
+        }
+    }
+
+    /**
+     * ゲームリスタート時などに全マネージャーのキャッシュ・状態を初期化
+     */
+    reset() {
+        if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
+            this.areaStateManager.resetGrid();
+        }
+        if (this.inventoryStateManager) {
+            this.inventoryStateManager.items = [];
+            if (typeof this.inventoryStateManager.invalidate === 'function') {
+                this.inventoryStateManager.invalidate();
+            }
+        }
+        if (this.spellStateManager) {
+            this.spellStateManager.spells = [];
+            if (typeof this.spellStateManager.invalidate === 'function') {
+                this.spellStateManager.invalidate();
+            }
+        }
+        if (this.skillStateManager) {
+            this.skillStateManager.skills = [];
+            if (typeof this.skillStateManager.invalidate === 'function') {
+                this.skillStateManager.invalidate();
+            }
+        }
+        if (this.statusAccessor && typeof this.statusAccessor.reset === 'function') {
+            this.statusAccessor.reset();
+        }
+        if (this.attributeStateManager) {
+            if (typeof this.attributeStateManager.reset === 'function') {
+                this.attributeStateManager.reset();
+            } else {
+                this.attributeStateManager.intrinsics = {};
+                this.attributeStateManager.extrinsics = {};
+            }
         }
     }
 
@@ -568,7 +608,24 @@ export class GKLPlugin {
      */
     getRecommendedActions(radius = 1) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState(undefined, undefined, radius) : {};
-        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager);
+        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager, { language: this.language });
+    }
+
+    /**
+     * 現在のゲーム状態における戦術・危険・装備アドバイス一覧を取得
+     * @param {Object} [options={}]
+     * @returns {Array<Object>}
+     */
+    getTacticalAdvices(options = {}) {
+        const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : {};
+        return TacticalAdvisor.generateAdvices({
+            areaState,
+            inventoryState: this.inventoryStateManager,
+            skillStateManager: this.skillStateManager,
+            statusAccessor: this.statusAccessor,
+            spellStateManager: this.spellStateManager,
+            attributeStateManager: this.attributeStateManager
+        }, { language: this.language, ...options });
     }
 
     /**
