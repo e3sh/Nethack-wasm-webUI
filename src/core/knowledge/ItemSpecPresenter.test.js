@@ -169,4 +169,35 @@ describe('ItemSpecPresenter Adaptive Formatting', () => {
         const acSpec = armorSpecs.find(s => s.id === 'ac');
         expect(acSpec.value).toBe('+? (未鑑定)');
     });
+
+    it('should format material correctly in Japanese and English', () => {
+        const ironItem = {
+            name: 'iron chain',
+            category: 'TOOL',
+            material: 'iron'
+        };
+
+        const jaSpecs = getAdaptiveItemSpecs(ironItem, { language: 'ja' });
+        const jaMatSpec = jaSpecs.find(s => s.id === 'material');
+        expect(jaMatSpec).toBeDefined();
+        expect(jaMatSpec.label).toBe('材質');
+        expect(jaMatSpec.value).toBe('鉄 (Iron)');
+
+        const enSpecs = getAdaptiveItemSpecs(ironItem, { language: 'en' });
+        const enMatSpec = enSpecs.find(s => s.id === 'material');
+        expect(enMatSpec).toBeDefined();
+        expect(enMatSpec.label).toBe('Material');
+        expect(enMatSpec.value).toBe('Iron');
+
+        // 翻訳済みの日本語キー（stats.material: '木' 等）が渡された場合でも適切にフォーマットされること
+        const woodItemTranslated = {
+            name: 'quarterstaff',
+            category: 'WEAPON',
+            stats: { material: '木' }
+        };
+        const jaWoodSpecs = getAdaptiveItemSpecs(woodItemTranslated, { language: 'ja' });
+        const jaWoodMatSpec = jaWoodSpecs.find(s => s.id === 'material');
+        expect(jaWoodMatSpec).toBeDefined();
+        expect(jaWoodMatSpec.value).toBe('木 (Wood)');
+    });
 });

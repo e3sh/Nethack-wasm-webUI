@@ -412,6 +412,13 @@
             transform: scale(1.05);
         }
 
+        .item-slot.pressing {
+            border-color: var(--accent-color);
+            background: #1a3a2e;
+            transform: scale(0.92);
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+        }
+
         .slot-letter {
             position: absolute;
             top: 2px;
@@ -1113,8 +1120,67 @@
                     tooltip.style.display = 'none';
                 });
 
-                slot.addEventListener('click', () => {
-                    if (core) core.sendKey(item.letter, false, false, false, item.letter, true);
+                // 2段目アクションメニュー起動関数
+                const triggerActionMenu = () => {
+                    if (!core || !core.driver) return;
+                    tooltip.style.display = 'none';
+                    appendLog(`[Action] アイテム '${item.letter}' (${item.rawText || ''}) のアクションメニューを起動...`);
+                    // 1段目インベントリをサイレント通過して2段目アクションメニューを表示
+                    core.driver.queueSequence(['i', item.letter], { isSilentSync: true });
+                };
+
+                // 通常クリック処理
+                const triggerNormalClick = () => {
+                    if (!core) return;
+                    core.sendKey(item.letter, false, false, false, item.letter, true);
+                };
+
+                // 長押し (Pointer Events) & クリック分離ハンドラ
+                let pressTimer = null;
+                let isLongPress = false;
+                const LONG_PRESS_MS = 400;
+
+                slot.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0) return; // 左クリック / タッチのみ対象
+                    isLongPress = false;
+                    slot.classList.add('pressing');
+
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        slot.classList.remove('pressing');
+                        if (navigator.vibrate) navigator.vibrate(25);
+                        triggerActionMenu();
+                    }, LONG_PRESS_MS);
+                });
+
+                slot.addEventListener('pointerup', (e) => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                    slot.classList.remove('pressing');
+
+                    if (!isLongPress && e.button === 0) {
+                        triggerNormalClick();
+                    }
+                });
+
+                const cancelPress = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                    slot.classList.remove('pressing');
+                };
+
+                slot.addEventListener('pointercancel', cancelPress);
+                slot.addEventListener('pointerleave', cancelPress);
+
+                // PC向け: 右クリックでも即座に2段目アクションメニューを起動
+                slot.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    cancelPress();
+                    triggerActionMenu();
                 });
 
                 inventoryGrid.appendChild(slot);

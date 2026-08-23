@@ -285,4 +285,127 @@ describe('StructuredKnowledgeEngine', () => {
             expect(detectKnowledge.name).toContain('平原のケンタウロス');
         });
     });
+
+    describe('Static Caching & Translation Dedup Tests (Lazy Memoization)', () => {
+        it('should perform zero translations at startup, lazily translate once on first access, and reuse cache thereafter', () => {
+            let trCallCount = 0;
+            const spyTranslationEngine = {
+                translate: (text) => {
+                    if (text === 'wood') {
+                        trCallCount++;
+                        return '木';
+                    }
+                    return text;
+                }
+            };
+
+            // 1. 起動時・初期化時: 事前翻訳は一切行わず 0ms 起動 (trCallCount === 0)
+            const customEngine = new StructuredKnowledgeEngine({
+                translationEngine: spyTranslationEngine
+            });
+            expect(trCallCount).toBe(0);
+
+            // 2. 初回アクセス時: 初めてオンデマンドで 1 回だけ翻訳され、静的キャッシュに固定登録
+            const item1 = customEngine.getItemKnowledge(428, { translate: true });
+            expect(item1.stats.material).toBe('木');
+            expect(item1.material).toBe('木');
+            expect(trCallCount).toBe(1);
+
+            // 3. 2回目以降のアクセス（数値指定）: キャッシュから即時返却され、追加の translate() は 0 回
+            const item2 = customEngine.getItemKnowledge(428, { translate: true });
+            expect(item2.stats.material).toBe('木');
+            expect(trCallCount).toBe(1);
+
+            // 4. 2回目以降のインベントリアイテム取得（オブジェクト指定）: onum からキャッシュ即時返却され、追加の translate() は 0 回
+            const itemObj = { onum: 428, str: 'a - wand of digging' };
+            const item3 = customEngine.getItemKnowledge(itemObj, { translate: true });
+            expect(item3.stats.material).toBe('木');
+            expect(trCallCount).toBe(1);
+
+            // 5. 言語切り替えまたは clearCache() 後: キャッシュがパージされ、次回のアクセスで再度 1 回翻訳
+            customEngine.clearCache();
+            const item4 = customEngine.getItemKnowledge(428, { translate: true });
+            expect(item4.stats.material).toBe('木');
+            expect(trCallCount).toBe(2);
+        });
+
+        it('should lazily memoize monster knowledge once and reuse cache for glyph, object, and string queries', () => {
+            let trCallCount = 0;
+            const spyTranslationEngine = {
+                translate: (text) => {
+                    if (text === 'cockatrice') {
+                        trCallCount++;
+                        return 'コカトリス';
+                    }
+                    return text;
+                }
+            };
+
+            const customEngine = new StructuredKnowledgeEngine({
+                translationEngine: spyTranslationEngine
+            });
+
+            // 1. 初回: monOffset (10) で取得 ➔ 1回翻訳
+            const mon1 = customEngine.getMonsterKnowledge(10, { translate: true });
+            expect(mon1.name).toBe('コカトリス');
+            expect(trCallCount).toBe(1);
+
+            // 2. 2回目: オブジェクト指定 ({ type: 'MONSTER', subType: 10 }) ➔ 追加翻訳0回（キャッシュヒット）
+            const monObj = { type: 'MONSTER', subType: 10 };
+            const mon2 = customEngine.getKnowledge(monObj, { translate: true });
+            expect(mon2.name).toBe('コカトリス');
+            expect(trCallCount).toBe(1);
+
+            // 3. 3回目: 文字列指定 ('cockatrice') ➔ 追加翻訳0回（キャッシュヒット）
+            const mon3 = customEngine.getMonsterKnowledge('cockatrice', { translate: true });
+            expect(mon3.name).toBe('コカトリス');
+            expect(trCallCount).toBe(1);
+
+            // 4. 4回目: ペット指定 (isPet: true) ➔ 静的キャッシュを再利用し動的フラグのみ合成、追加翻訳0回！
+            const petMon = customEngine.getMonsterKnowledge(10, { isPet: true, translate: true });
+            expect(petMon.name).toBe('コカトリス');
+            expect(petMon.dangerLevel).toBe('SAFE');
+            expect(petMon.dispositionStatus).toBe('TAMED');
+            expect(trCallCount).toBe(1);
+
+            // 5. 5回目: 確定Look (dynamicState あり) ➔ 静的キャッシュを再利用し動的フラグのみ合成、追加翻訳0回！
+            const lookMon = customEngine.getMonsterKnowledge(10, {
+                dynamicState: { hasResult: true, isPeaceful: true, stats: { hp: '24/24' } },
+                translate: true
+            });
+            expect(lookMon.name).toBe('コカトリス');
+            expect(lookMon.dangerLevel).toBe('SAFE');
+            expect(lookMon.dispositionStatus).toBe('PEACEFUL');
+            expect(lookMon.stats.hp).toBe('24/24');
+            expect(trCallCount).toBe(1);
+        });
+
+        it('should lazily memoize terrain knowledge once and reuse cache for cmap glyph, object, and string queries', () => {
+            let trCallCount = 0;
+            const spyTranslationEngine = {
+                translate: (text) => {
+                    if (text === 'Stairs Down') {
+                        trCallCount++;
+                        return '下り階段';
+                    }
+                    return text;
+                }
+            };
+
+            const customEngine = new StructuredKnowledgeEngine({
+                translationEngine: spyTranslationEngine
+            });
+
+            // 1. 初回: 文字列 ('stairs_down') で取得 ➔ 1回翻訳
+            const t1 = customEngine.getTerrainKnowledge('stairs_down', { translate: true });
+            expect(t1.name).toBe('下り階段');
+            expect(trCallCount).toBe(1);
+
+            // 2. 2回目: 地形オブジェクト ({ type: 'TERRAIN', id: 'stairs_down' }) ➔ 追加翻訳0回（キャッシュヒット）
+            const tObj = { type: 'TERRAIN', id: 'stairs_down' };
+            const t2 = customEngine.getKnowledge(tObj, { translate: true });
+            expect(t2.name).toBe('下り階段');
+            expect(trCallCount).toBe(1);
+        });
+    });
 });

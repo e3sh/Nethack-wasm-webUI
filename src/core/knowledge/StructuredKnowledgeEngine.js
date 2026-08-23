@@ -679,9 +679,19 @@ export class StructuredKnowledgeEngine {
         this.monOffsetMap = new Map();
         this.onumMap = new Map();
         this.discoveryStateManager = options.discoveryStateManager || null;
+        this.staticCache = new Map();
 
         // マスターデータの初期化インデックス構築
         this._initDatabase();
+    }
+
+    /**
+     * キャッシュのクリア（言語切替時や明示的パージ時）
+     */
+    clearCache() {
+        if (this.staticCache) {
+            this.staticCache.clear();
+        }
     }
 
     /**
@@ -690,7 +700,11 @@ export class StructuredKnowledgeEngine {
      */
     setLanguage(lang = 'ja') {
         const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
-        this.language = isJa ? 'ja' : 'en';
+        const newLang = isJa ? 'ja' : 'en';
+        if (this.language !== newLang) {
+            this.language = newLang;
+            this.clearCache();
+        }
     }
 
     /**
@@ -710,6 +724,7 @@ export class StructuredKnowledgeEngine {
         if (translationEngine && translationEngine.language) {
             this.language = translationEngine.language;
         }
+        this.clearCache();
     }
 
     /**
@@ -863,9 +878,16 @@ export class StructuredKnowledgeEngine {
             cloned.usageAdvice = cloned.usageAdvice.map(adv => tr(adv));
         }
 
-        // 7. 構造化ステータス (stats) の素材・属性の自動ローカライズ
-        if (cloned.stats && cloned.stats.material) {
-            cloned.stats.material = tr(cloned.stats.material);
+        // 7. 構造化ステータス (stats) および直下プロパティの素材・属性の自動ローカライズ (1回翻訳で重複解消)
+        const rawMat = (cloned.stats && cloned.stats.material) || (cloned.material && cloned.material !== 'none' ? cloned.material : null);
+        if (rawMat) {
+            const trMat = tr(rawMat);
+            if (cloned.stats && cloned.stats.material) {
+                cloned.stats.material = trMat;
+            }
+            if (cloned.material && cloned.material !== 'none') {
+                cloned.material = trMat;
+            }
         }
 
         // 8. 推奨アクションラベルのローカライズ
@@ -901,6 +923,16 @@ export class StructuredKnowledgeEngine {
         if (identifier === null || identifier === undefined) return null;
 
         const shouldTranslate = options.translate !== false;
+        const lang = options.language || this.language || 'ja';
+
+        // 1. identifier が直接 monOffset や ID の場合、早期キャッシュチェック
+        if (typeof identifier === 'number' && (options.isMonOffset || (identifier >= 0 && identifier < 383)) && !options.dynamicState && !options.isPet && !options.isPlayer) {
+            const directKey = `${lang}_mon_${identifier}`;
+            if (this.staticCache.has(directKey)) {
+                return this.staticCache.get(directKey);
+            }
+        }
+
         let found = null;
         let monOffset = null;
 
@@ -993,61 +1025,83 @@ export class StructuredKnowledgeEngine {
 
         if (!found) return null;
 
-        // 動的状態 (dynamicState / cell / isPet / isPlayer) による脅威度の補正計算
-        const result = { type: 'MONSTER', category: 'MONSTER', ...found };
+        // 🎯 1. 静的マスターナレッジ（名前・戦術Tips・基本効果等）をキャッシュから取得 (初回のみローカライズ)
+        const normKey = found.id || (typeof found.monOffset === 'number' ? `mon_${found.monOffset}` : null);
+        const cacheKey = (normKey && shouldTranslate) ? `${lang}_mon_${normKey}` : null;
+        let staticMon = null;
+
+        if (cacheKey && this.staticCache.has(cacheKey)) {
+            staticMon = this.staticCache.get(cacheKey);
+        } else {
+            const rawBase = {
+                type: 'MONSTER',
+                category: 'MONSTER',
+                canBeUnidentified: false,
+                ...found,
+                dangerLevel: found.defaultPeaceful ? 'SAFE' : (found.dangerLevel || 'MEDIUM'),
+                dispositionStatus: found.defaultPeaceful ? 'DEFAULT_PEACEFUL' : 'HOSTILE'
+            };
+            staticMon = shouldTranslate ? this.localizeKnowledge(rawBase, options) : rawBase;
+            if (cacheKey && staticMon) {
+                this.staticCache.set(cacheKey, staticMon);
+            }
+        }
+
+        // 🎯 2. 動的ステート（店主名、Look確定HP/状態、ペット、プレイヤー）のチェック
+        const isPet = Boolean(options.isPet || (typeof identifier === 'object' && (identifier?.type === 'PET' || identifier?.isPet)) || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET));
+        const isPlayer = Boolean(options.isPlayer);
+        const dynamicState = options.dynamicState || null;
+        const isShopkeeper = (found.monOffset === 271 || found.id === 'shopkeeper' || found.name === 'shopkeeper');
+        const rawShopText = isShopkeeper ? (options.dynamicState?.rawText || (typeof identifier === 'string' ? identifier : '')) : '';
+
+        // 動的ステートが一切ない標準モンスターの場合は、キャッシュオブジェクトそのものを即座に返却（ゼロアロケーション）
+        if (!isPet && !isPlayer && !dynamicState && !rawShopText) {
+            return staticMon;
+        }
+
+        // 🎯 3. 動的ステートが存在する場合: 静的ナレッジをシャローコピーし、動的フラグのみ上乗せ合成！
+        const dynamicResult = { ...staticMon };
 
         // 🏪 店主 (Shopkeeper: 271) で Look 応答の個人名テキストが存在する場合、表示名を統合解決 ("Lord Carnarvon (Shopkeeper)")
-        if (found.monOffset === 271 || found.id === 'shopkeeper' || found.name === 'shopkeeper') {
-            const rawText = options.dynamicState?.rawText || (typeof identifier === 'string' ? identifier : '');
-            if (rawText) {
-                const personName = rawText
-                    .replace(/\b(floor of a room|dark part of a room|corridor|open door|closed door|staircase|solid rock|wall)\b/gi, '')
-                    .replace(/\b(an?|the|peaceful|tamed|friendly|hostile)\b/gi, '')
-                    .replace(/[\(\)]/g, '')
-                    .trim();
-                if (personName && personName.toLowerCase() !== 'shopkeeper' && personName.toLowerCase() !== '店主') {
-                    result.personalName = personName;
-                    result.name = `${personName} (Shopkeeper)`;
-                }
+        if (isShopkeeper && rawShopText) {
+            const personName = rawShopText
+                .replace(/\b(floor of a room|dark part of a room|corridor|open door|closed door|staircase|solid rock|wall)\b/gi, '')
+                .replace(/\b(an?|the|peaceful|tamed|friendly|hostile)\b/gi, '')
+                .replace(/[\(\)]/g, '')
+                .trim();
+            if (personName && personName.toLowerCase() !== 'shopkeeper' && personName.toLowerCase() !== '店主') {
+                dynamicResult.personalName = personName;
+                dynamicResult.name = `${personName} (Shopkeeper)`;
             }
         }
-        const isPet = options.isPet || (typeof identifier === 'object' && (identifier?.type === 'PET' || identifier?.isPet)) || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET);
-        const isPlayer = options.isPlayer || false;
-        const dynamicState = options.dynamicState || null;
 
         if (isPlayer) {
-            result.dangerLevel = 'NONE';
-            result.dispositionStatus = 'PLAYER';
+            dynamicResult.dangerLevel = 'NONE';
+            dynamicResult.dispositionStatus = 'PLAYER';
         } else if (isPet) {
-            result.dangerLevel = 'SAFE';
-            result.dispositionStatus = 'TAMED';
+            dynamicResult.dangerLevel = 'SAFE';
+            dynamicResult.dispositionStatus = 'TAMED';
         } else if (dynamicState && dynamicState.hasResult !== false && (dynamicState.isPeaceful || dynamicState.isTamed || dynamicState.isHostile)) {
             if (dynamicState.isPeaceful) {
-                result.dangerLevel = 'SAFE';
-                result.dispositionStatus = 'PEACEFUL';
+                dynamicResult.dangerLevel = 'SAFE';
+                dynamicResult.dispositionStatus = 'PEACEFUL';
             } else if (dynamicState.isTamed) {
-                result.dangerLevel = 'SAFE';
-                result.dispositionStatus = 'TAMED';
+                dynamicResult.dangerLevel = 'SAFE';
+                dynamicResult.dispositionStatus = 'TAMED';
             } else if (dynamicState.isHostile) {
-                result.dangerLevel = found.dangerLevel || 'LETHAL';
-                result.dispositionStatus = 'HOSTILE';
-            } else if (found.defaultPeaceful) {
-                result.dangerLevel = 'SAFE';
-                result.dispositionStatus = 'DEFAULT_PEACEFUL';
-            } else {
-                result.dispositionStatus = 'HOSTILE';
+                dynamicResult.dangerLevel = found.dangerLevel || 'LETHAL';
+                dynamicResult.dispositionStatus = 'HOSTILE';
             }
-        } else if (found.defaultPeaceful) {
-            result.dangerLevel = 'SAFE';
-            result.dispositionStatus = 'DEFAULT_PEACEFUL';
-        } else {
-            // 🎯 一般のダンジョンモンスターはデフォルト敵対的 (HOSTILE)
-            result.dispositionStatus = 'HOSTILE';
         }
 
-        result.canBeUnidentified = false;
+        if (dynamicState && dynamicState.stats) {
+            dynamicResult.stats = {
+                ...dynamicResult.stats,
+                ...dynamicState.stats
+            };
+        }
 
-        return shouldTranslate ? this.localizeKnowledge(result, options) : result;
+        return dynamicResult;
     }
 
     /**
@@ -1142,6 +1196,13 @@ export class StructuredKnowledgeEngine {
         if (identifier === null || identifier === undefined) return null;
 
         const shouldTranslate = options.translate !== false;
+        const lang = options.language || this.language || 'ja';
+        const isStaticNumberItem = (typeof identifier === 'number' && !options.identification && !options.isUnidentified && !options.dynamicState);
+        const cacheKey = (isStaticNumberItem && shouldTranslate) ? `${lang}_item_${identifier}` : null;
+        if (cacheKey && this.staticCache.has(cacheKey)) {
+            return this.staticCache.get(cacheKey);
+        }
+
         let found = null;
         let targetOnum = -1;
         let originalDisplayName = '';
@@ -1171,6 +1232,9 @@ export class StructuredKnowledgeEngine {
             } else if (typeof identifier.rawGlyph === 'number' && identifier.rawGlyph >= 0) {
                 targetOnum = getOnumFromGlyph(identifier.rawGlyph);
                 if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
+            }
+            if (targetOnum >= 0 && !identifier.isUnidentified && !options.identification && !options.isUnidentified) {
+                return this.getItemKnowledge(targetOnum, options);
             }
             if (targetOnum < 0) {
                 const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
@@ -1286,7 +1350,11 @@ export class StructuredKnowledgeEngine {
             };
         }
 
-        return shouldTranslate ? this.localizeKnowledge(found, options) : found;
+        const finalResult = shouldTranslate ? this.localizeKnowledge(found, options) : found;
+        if (cacheKey && finalResult) {
+            this.staticCache.set(cacheKey, finalResult);
+        }
+        return finalResult;
     }
 
     /**
@@ -1297,6 +1365,17 @@ export class StructuredKnowledgeEngine {
      */
     getTerrainKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
+
+        const shouldTranslate = options.translate !== false;
+        const lang = options.language || this.language || 'ja';
+
+        // 早期キャッシュチェック（文字列ID直接指定時）
+        if (typeof identifier === 'string' && shouldTranslate) {
+            const directKey = `${lang}_terrain_${identifier.toLowerCase()}`;
+            if (this.staticCache.has(directKey)) {
+                return this.staticCache.get(directKey);
+            }
+        }
 
         let rawObj = null;
 
@@ -1376,8 +1455,17 @@ export class StructuredKnowledgeEngine {
         if (!rawObj) return null;
         rawObj.canBeUnidentified = false;
 
-        const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
+        // 🎯 地形正規化キー（例: ja_terrain_stairs_down, ja_terrain_fountain）
+        const cacheKey = (rawObj.id && shouldTranslate) ? `${lang}_terrain_${rawObj.id}` : null;
+        if (cacheKey && this.staticCache.has(cacheKey)) {
+            return this.staticCache.get(cacheKey);
+        }
+
+        const finalResult = shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
+        if (cacheKey && finalResult) {
+            this.staticCache.set(cacheKey, finalResult);
+        }
+        return finalResult;
     }
 
     /**

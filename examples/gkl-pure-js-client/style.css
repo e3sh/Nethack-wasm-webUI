@@ -679,6 +679,13 @@ body {
   transform: scale(1.05);
 }
 
+.gkl-item-slot.pressing {
+  border-color: var(--primary-color);
+  background: #1a3a2e;
+  transform: scale(0.92);
+  box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+}
+
 .gkl-slot-letter {
   position: absolute;
   top: 2px;

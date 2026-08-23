@@ -356,8 +356,21 @@ class GklPureJSClient {
     });
 
     // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御 + GKL自動移動)
+    let lastHoverTileX = -1;
+    let lastHoverTileY = -1;
+
     const handleCanvasInspect = async (gx, gy, isHover) => {
       if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
+      if (isHover && gx === lastHoverTileX && gy === lastHoverTileY) {
+        return; // 同一タイルホバー時はスキップ
+      }
+      if (isHover) {
+        lastHoverTileX = gx;
+        lastHoverTileY = gy;
+      } else {
+        lastHoverTileX = -1;
+        lastHoverTileY = -1;
+      }
 
       if (this.core?.gkl?.inspectCellOnDemand) {
         const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
@@ -858,6 +871,19 @@ class GklPureJSClient {
         stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
         effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
       };
+    } else if (target && typeof target === 'object' && target.knowledge) {
+      // 🎒 所持品アイテム等: すでにキャッシュされたナレッジと最新動的状態を安全に合成
+      data = {
+        ...target.knowledge,
+        rawText: target.rawText || target.knowledge.rawText,
+        identification: target.identification || target.knowledge.identification,
+        bucStatus: target.bucStatus || target.knowledge.bucStatus,
+        isWielded: target.isWielded,
+        isOffhand: target.isOffhand,
+        isQuivered: target.isQuivered,
+        isWorn: target.isWorn,
+        letter: target.letter
+      };
     } else if (target && (target.dangerLevel || target.category || target.isUnidentified || target.effectSummary)) {
       // すでに完全な構造化カードデータである場合
       data = target;
@@ -1250,7 +1276,19 @@ class GklPureJSClient {
             this.elGklTooltip.classList.add('hidden');
           };
 
-          slot.onclick = async () => {
+          // 2段目アクションメニュー起動関数 (長押し / 右クリック)
+          const triggerActionMenu = async () => {
+            if (!this.core || !this.core.driver) return;
+            this.elGklTooltip.classList.add('hidden');
+            if (typeof this.appendLog === 'function') {
+              this.appendLog(`[Action] アイテム '${item.letter}' (${item.rawText || ''}) のアクションメニューを起動...`);
+            }
+            // 1段目インベントリをサイレント通過して2段目アクションメニューを表示
+            await this.core.driver.queueSequence(['i', item.letter], { isSilentSync: true });
+          };
+
+          // 通常クリック処理 (短タップ)
+          const triggerNormalClick = async () => {
             if (!this.core) return;
             const seq = (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0)
               ? item.defaultSequence
@@ -1263,6 +1301,54 @@ class GklPureJSClient {
             } else {
               seq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
             }
+          };
+
+          // 長押し (Pointer Events) & 通常クリック分離ハンドラ
+          let pressTimer = null;
+          let isLongPress = false;
+          const LONG_PRESS_MS = 400;
+
+          slot.onpointerdown = (e) => {
+            if (e.button !== 0) return; // 左クリック / タッチのみ
+            isLongPress = false;
+            slot.classList.add('pressing');
+
+            pressTimer = setTimeout(() => {
+              isLongPress = true;
+              slot.classList.remove('pressing');
+              if (navigator.vibrate) navigator.vibrate(25);
+              triggerActionMenu();
+            }, LONG_PRESS_MS);
+          };
+
+          slot.onpointerup = (e) => {
+            if (pressTimer) {
+              clearTimeout(pressTimer);
+              pressTimer = null;
+            }
+            slot.classList.remove('pressing');
+
+            if (!isLongPress && e.button === 0) {
+              triggerNormalClick();
+            }
+          };
+
+          const cancelPress = () => {
+            if (pressTimer) {
+              clearTimeout(pressTimer);
+              pressTimer = null;
+            }
+            slot.classList.remove('pressing');
+          };
+
+          slot.onpointercancel = cancelPress;
+          slot.onpointerleave = cancelPress;
+
+          // PC向け: 右クリックでも即座に2段目アクションメニューを起動
+          slot.oncontextmenu = (e) => {
+            e.preventDefault();
+            cancelPress();
+            triggerActionMenu();
           };
         }
       });
