@@ -152,16 +152,55 @@ KEYS.TAB;       // 9
 `GKLPlugin` を接続しない場合でも、キャンバス描画、キー入力、メニュー、プロンプト、ステータス表示は 100% 独立して通常プレイ可能です。
 
 ### 6.2 ナレッジ UI 構築のベストプラクティス
-1. **⚡ アイコン即時一発実行**:
-   所持品一覧のアイテムアイコンをタップした際、`executeSequence(['w', item.letter])` や `executeSequence([item.letter])` を送出することで、確認ダイアログなしで即座に装備・使用が可能です。（Vue 3 では Reactive Proxy を `Array.from()` で解くこと）。
-2. **💡 浮き出しポップオーバー (Popover)**:
+1. **⚡ アイコン即時一発実行（ワンタップ）**:
+   所持品一覧のアイテムアイコンを短くタップした際、`executeSequence(['w', item.letter])` や `executeSequence([item.letter])` を送出することで、確認ダイアログなしで即座に装備・使用が可能です。（Vue 3 では Reactive Proxy を `Array.from()` で解くこと）。
+2. **📱 所持アイテムの長押し / 右クリックによる 2段目アクションメニュー表示**:
+   アイテムアイコンの長押し（約400ms）またはマウス右クリック時に `core.driver.queueSequence(['i', item.letter], { isSilentSync: true })` を送出することで、1段目インベントリの画面遷移をサイレント通過し、**NetHack 公式の 2段目アクションメニュー（`itemactions`: "Do what with <item>?"）をダイレクトに画面中央へモーダル表示**できます。
+   - **日常の基本操作**: 短タップでワンタップ即時実行（装備・食べる・飲むなど）
+   - **詳細・特殊操作**: 長押し／右クリックで公式アクション一覧（置く、投げる、名付け、調べるなど）から安全に選択
+   - **実装パターン例 (Pointer Events)**:
+     ```javascript
+     let pressTimer = null;
+     let isLongPress = false;
+     const LONG_PRESS_MS = 400;
+
+     slot.onpointerdown = (e) => {
+       if (e.button !== 0) return;
+       isLongPress = false;
+       slot.classList.add('pressing');
+       pressTimer = setTimeout(() => {
+         isLongPress = true;
+         slot.classList.remove('pressing');
+         if (navigator.vibrate) navigator.vibrate(25);
+         // 2段目アクションメニューをサイレント起動
+         core.driver.queueSequence(['i', item.letter], { isSilentSync: true });
+       }, LONG_PRESS_MS);
+     };
+
+     slot.onpointerup = (e) => {
+       if (pressTimer) clearTimeout(pressTimer);
+       slot.classList.remove('pressing');
+       if (!isLongPress && e.button === 0) {
+         // 通常クリック (ワンタップ実行)
+         core.executeSequence([item.letter]);
+       }
+     };
+
+     slot.oncontextmenu = (e) => {
+       e.preventDefault();
+       if (pressTimer) clearTimeout(pressTimer);
+       slot.classList.remove('pressing');
+       core.driver.queueSequence(['i', item.letter], { isSilentSync: true });
+     };
+     ```
+3. **💡 浮き出しポップオーバー (Popover)**:
    アイコンのホバー時に「アイテム名」「ワンタップ時の予想動作 (`💡 ワンタップ: 装備する [w]`)」「日本語効果サマリー」を表示する UX パターン。
-3. **🎯 方向フィルター (`extractDirectionCode`)**:
+4. **🎯 方向フィルター (`extractDirectionCode`)**:
    アクション配列から `extractDirectionCode(act)` を通して `'NW'`, `'N'`, `'NE'`, `'W'`, `'SELF'`, `'E'`, `'SW'`, `'S'`, `'SE'` を判定し、キーパッドへ件数バッジを表示。
-4. **🔍 7x7 ダンジョンズームカメラ (`getZoomAreaTiles(radius = 3)`)**:
+5. **🔍 7x7 ダンジョンズームカメラ (`getZoomAreaTiles(radius = 3)`)**:
    `cursorPos` を中心に 7x7 (49マス) の 24px スプライト格子を描画。
    ※ NetHack の Glyph ID `0` は `giant ant` のため、`tileId === 0` かつ `symbol === ' '` のマスは `glyphId = -1` (未探索) として扱うこと。
-5. **フレームワーク別リアクティビティバインド**:
+6. **フレームワーク別リアクティビティバインド**:
    - **Svelte**: `$: zoomTiles = ($cursorPosStore, $mapGridStore, driverController.getZoomAreaTiles(3));`
    - **SolidJS**: `getSolidGlyphStyle` によるハイフン区切り (`background-image`) スタイル展開。
 
@@ -170,3 +209,4 @@ KEYS.TAB;       // 9
 ## 7. まとめ
 
 `WebUICore` は、コアのゲーム駆動ロジックとフロントエンド表示層・ナレッジ層を明確に分離したクリーンアーキテクチャを提供します。開発者はコンポーネントフレームワーク（Vue, React, Svelte, SolidJS）の違いに関わらず、最小限のコードで高品質な NetHack Web アプリケーションを構築できます。
+
