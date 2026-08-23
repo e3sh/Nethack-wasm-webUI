@@ -4,6 +4,7 @@ status: active
 last_updated: 2026-08-21
 related_code:
   - src/core/knowledge/
+  - src/core/knowledge/TacticalAdvisor.js
   - src/core/knowledge/GKLPlugin.js
   - src/core/knowledge/SituationCache.js
   - src/core/knowledge/ContextActionEngine.js
@@ -76,7 +77,7 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
  │                            │                              │
  │                            ▼                              │
  │ ┌───────────────────────────────────────────────────────┐ │
- │ │ ContextActionEngine (先回り推奨アクション・戦術推論)  │ │
+ │ │ ContextActionEngine (即時推奨アクション生成)          │ │
  │ └──────────────────────────┬────────────────────────────┘ │
  │                            │                              │
  │                            ▼                              │
@@ -102,7 +103,8 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
 | **知識整形** | [`ItemSpecPresenter.js`](/src/core/knowledge/ItemSpecPresenter.js) | ナレッジと識別状態を組み合わせ、UI 描画用フォーマット（d値、AC、特効、警告文）へ成形。 |
 | **調査サービス** | [`OnDemandLookService.js`](/src/core/knowledge/OnDemandLookService.js) | 任意のマスに対して `;` (Look) コマンドをサイレント実行し、視界外・未知タイルの詳細情報を取得。 |
 | **静的知識** | [`StructuredKnowledgeEngine.js`](/src/core/knowledge/StructuredKnowledgeEngine.js) | 全 481 アイテムおよび 2,000 体以上のモンスター・地形に関する不変のドメイン知識辞書。 |
-| **推論・戦略** | [`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | 周辺状況・所持品・耐性・スキルから次に取るべき行動（解錠・戦闘・魔法・食事等）を推論・スコアリング。 |
+| **戦術助言** | [`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js) | 危険予知（コカトリス・溶岩・爆発等）・熟練武器適正・金属防具詠唱警告等を多次元評価。詳細: [TacticalAdvisor仕様書](./TacticalAdvisor_Specification_and_Architecture.md) |
+| **アクション生成** | [`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | 周辺状況・所持品・位置関係からワンタップで即時1ターン実行可能なコマンドアクション（扉開閉・拾う・攻撃・射撃等）を生成。 |
 | **制御** | [`RequestController.js`](/src/core/knowledge/RequestController.js) | サイレントクエリ (`querySequenceSilent`) や自動シーケンスの多重実行制御・キュー管理。 |
 
 ---
