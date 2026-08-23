@@ -1160,7 +1160,7 @@ export class StructuredKnowledgeEngine {
     /**
      * NetHack インベントリ表示テキストから純粋なアイテム名を自動抽出
      * 例: "a - 2 uncursed rations of cram" -> "ration of cram"
-     * 例: "b - an uncursed dagger" -> "dagger"
+     * 例: "an uncursed +0 pair of water walking boots (being worn)" -> "water walking boots"
      * @param {string} str 
      * @returns {string} クリーニングされた英語アイテム名
      */
@@ -1168,20 +1168,38 @@ export class StructuredKnowledgeEngine {
         if (!str || typeof str !== 'string') return '';
         let s = str.trim();
 
-        // 1. レター＆記号接頭辞除去 "a - ", "b) ", "c - "
-        s = s.replace(/^[a-zA-Z]\s*[\-\)\.]\s*/, '');
+        // 1. スロット接頭辞除去 "a - ", "b) ", "c. ", "[c] ", "(d) "
+        s = s.replace(/^(\[[a-zA-Z]\]|\([a-zA-Z]\)|[a-zA-Z]\s*[\-\)\.]|\([a-zA-Z]\))\s*/, '');
 
         // 2. 数量除去 "2 ", "10 "
         s = s.replace(/^\d+\s+/, '');
 
         // 3. 祝福/呪い修飾子除去 "blessed ", "uncursed ", "cursed "
-        s = s.replace(/\b(blessed|uncursed|cursed)\s+/g, '');
+        s = s.replace(/\b(blessed|uncursed|cursed)\s+/gi, '');
 
         // 4. 冠詞除去 "a ", "an ", "the "
-        s = s.replace(/\b(a|an|the)\s+/g, '');
+        s = s.replace(/\b(a|an|the)\s+/gi, '');
 
-        // 5. 複数形 's' の除去 (例: daggers -> dagger, rations of cram -> ration of cram)
-        s = s.replace(/(\w{3,})s\b/g, '$1');
+        // 5. 強化値除去 "+0 ", "+1 ", "-2 "
+        s = s.replace(/[+\-]\d+\s+/g, '');
+
+        // 6. 単位・セット接頭辞除去 "pair of ", "pairs of ", "set of "
+        s = s.replace(/\b(pairs?|sets?)\s+of\s+/gi, '');
+
+        // 7. 付加修飾・装備中テキスト除去 "(being worn)", "(weapon in hand)", "(0:4)" 等
+        s = s.replace(/\([^\)]+\)/g, '');
+
+        // 8. プレイヤー仮名除去 "called foo", "named bar"
+        s = s.replace(/\b(called|named)\s+.*$/gi, '');
+
+        s = s.trim();
+
+        // 9. 複数形 's' の慎重な除去（boots, shoes, gloves, glasses, gauntlets などの元々複数形の防具/アイテムは除外）
+        const preservePlurals = ['boots', 'shoes', 'gloves', 'glasses', 'gauntlets', 'lenses', 'clothes', 'scales', 'shards'];
+        const isPreserved = preservePlurals.some(p => s.toLowerCase().endsWith(p));
+        if (!isPreserved) {
+            s = s.replace(/(\w{3,})s\b/gi, '$1');
+        }
 
         return s.trim();
     }
@@ -1677,36 +1695,18 @@ export class StructuredKnowledgeEngine {
                 const corpseData = this.getCorpseKnowledge(identifier, options);
                 if (corpseData) return corpseData;
             }
-
-            // 地形 (Terrain/Cmap) の優先判定
-            if (lowerKey.includes('fountain') || lowerKey.includes('噴水') ||
-                lowerKey.includes('sink') || lowerKey.includes('流し') ||
-                lowerKey.includes('wall') || lowerKey.includes('壁') ||
-                lowerKey.includes('floor') || lowerKey.includes('床') ||
-                lowerKey.includes('stair') || lowerKey.includes('階段') ||
-                lowerKey.includes('door') || lowerKey.includes('扉') || lowerKey.includes('ドア') ||
-                lowerKey.includes('altar') || lowerKey.includes('祭壇') ||
-                lowerKey.includes('grave') || lowerKey.includes('墓') ||
-                lowerKey.includes('tree') || lowerKey.includes('木') ||
-                lowerKey.includes('lava') || lowerKey.includes('溶岩') ||
-                lowerKey.includes('water') || lowerKey.includes('pool') || lowerKey.includes('水') ||
-                lowerKey.includes('bars') || lowerKey.includes('鉄格子') ||
-                lowerKey.includes('trap') || lowerKey.includes('罠')) {
-                const terrainData = this.getTerrainKnowledge(searchKey, options);
-                if (terrainData) return terrainData;
-            }
         }
 
-        // 1. アイテムナレッジを検索
+        // 1. アイテムナレッジを最優先検索 (onum/辞書照合・未識別外見等)
         let data = this.getItemKnowledge(identifier, options);
         if (data) return data;
 
-        // 2. モンスターナレッジを検索
-        data = this.getMonsterKnowledge(identifier, options);
+        // 2. 地形・仕掛けナレッジを検索 (Cmap/キーワード)
+        data = this.getTerrainKnowledge(identifier, options);
         if (data) return data;
 
-        // 3. 地形・仕掛けナレッジを検索
-        data = this.getTerrainKnowledge(identifier, options);
+        // 3. モンスターナレッジを検索
+        data = this.getMonsterKnowledge(identifier, options);
         if (data) return data;
 
         // 4. 未登録エンティティに対するスマートフォールバック (プレイヤー・一般モブ・容器等)

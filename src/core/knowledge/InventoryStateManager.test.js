@@ -452,6 +452,39 @@ describe('InventoryStateManager', () => {
         expect(dagger.identification.idLevel).toBe('FULLY_IDENTIFIED');
         expect(dagger.identification.enchantment).toBe(1);
     });
+
+    it('jungle boots および 識別後の water walking boots が地形 WATER にならずアイテムナレッジとして正しく解決されること', async () => {
+        const { StructuredKnowledgeEngine } = await import('./StructuredKnowledgeEngine.js');
+        const engine = new StructuredKnowledgeEngine();
+        const manager = new InventoryStateManager();
+        manager.setStructuredKnowledgeEngine(engine);
+
+        // 1. 未鑑定状態: a +0 pair of jungle boots
+        manager.updateFromLines([
+            "a - a +0 pair of jungle boots"
+        ]);
+        const jungleBoots = manager.getItemByLetter('a');
+        expect(jungleBoots).toBeDefined();
+        expect(jungleBoots.knowledge).toBeDefined();
+        expect(jungleBoots.knowledge.category).not.toBe('WATER');
+        expect(['ARMOR', 'BOOTS', 'TOOL'].includes(jungleBoots.knowledge.category)).toBe(true);
+
+        // 2. 鑑定後状態: an uncursed +0 pair of water walking boots
+        manager.updateFromLines([
+            "a - an uncursed +0 pair of water walking boots"
+        ]);
+        const wwBoots = manager.getItemByLetter('a');
+        expect(wwBoots).toBeDefined();
+        expect(wwBoots.knowledge).toBeDefined();
+        expect(wwBoots.knowledge.category).not.toBe('WATER');
+        expect(wwBoots.knowledge.name.toLowerCase()).toContain('water walking boots');
+
+        // 3. 識別メッセージ受信による未同期 (dirty) 化
+        manager.isSynced = true;
+        const updated = manager.updateFromMessage("This identifies the water walking boots.");
+        expect(updated).toBe(true);
+        expect(manager.isSynced).toBe(false);
+    });
 });
 
 

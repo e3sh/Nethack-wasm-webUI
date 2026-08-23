@@ -92,13 +92,23 @@ export class InventoryStateManager {
                     glyphId
                 });
 
-                // 🎯 ナレッジ自動物理アタッチ (DevTool Inspector & クライアントデータ連携の要)
+                // 🎯 ナレッジ自動物理アタッチ (アイテム専用 getItemKnowledge を直接呼び出し、コンテキストを完全に維持)
                 let knowledge = mi.knowledge || null;
                 const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
                 if (!knowledge && this.structuredKnowledgeEngine) {
-                    if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
-                        knowledge = this.structuredKnowledgeEngine.getKnowledge(mi, { language: lang }) ||
-                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang });
+                    const itemTarget = {
+                        type: 'ITEM',
+                        rawText,
+                        onum,
+                        glyph: glyphId,
+                        identification
+                    };
+                    if (typeof this.structuredKnowledgeEngine.getItemKnowledge === 'function') {
+                        knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification }) ||
+                                    this.structuredKnowledgeEngine.getItemKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                    } else if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
+                        knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification }) ||
+                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
                     }
                 }
                 if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
@@ -243,7 +253,7 @@ export class InventoryStateManager {
             return prevSynced !== false;
         }
 
-        // ドロップメッセージ・拾得・投げる/射出・消費・使用・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
+        // ドロップメッセージ・拾得・投げる/射出・消費・使用・識別・状態変更メッセージ検知 (小文字化して大文字小文字表記揺れを吸収)
         const msg = message.toLowerCase();
         if (msg.includes('pick up') || msg.includes('picked up') || msg.includes('picking up') ||
             msg.includes('got ') || msg.includes('find') || msg.includes('now have') || msg.includes('obtain') ||
@@ -255,7 +265,9 @@ export class InventoryStateManager {
             msg.includes('wield') || msg.includes('wear') || msg.includes('remove') ||
             msg.includes('drink') || msg.includes('eat') || msg.includes('read') ||
             msg.includes('zap') || msg.includes('quaff') || msg.includes('disappears') ||
-            msg.includes('consume') || msg.includes('swallow')) {
+            msg.includes('consume') || msg.includes('swallow') ||
+            msg.includes('identify') || msg.includes('identifies') || msg.includes('called') ||
+            msg.includes('named') || msg.includes('識別') || msg.includes('鑑定') || msg.includes('名付')) {
             
             // 能動取得が必要であることを示すため未同期 (dirty) フラグに変更
             this.isSynced = false;

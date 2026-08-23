@@ -407,5 +407,31 @@ describe('StructuredKnowledgeEngine', () => {
             expect(t2.name).toBe('下り階段');
             expect(trCallCount).toBe(1);
         });
+
+        it('water walking boots, holy water, potion of water が地形 WATER にならずアイテムナレッジとして解決されること', () => {
+            const engine = new StructuredKnowledgeEngine();
+
+            // 1. cleanItemName
+            expect(engine.cleanItemName('an uncursed +0 pair of water walking boots (being worn)')).toBe('water walking boots');
+            expect(engine.cleanItemName('a blessed potion of water')).toBe('potion of water');
+            expect(engine.cleanItemName('a +0 pair of jungle boots')).toBe('jungle boots');
+
+            // 2. getItemKnowledge
+            const bootsItem = engine.getItemKnowledge('an uncursed +0 pair of water walking boots', { translate: false });
+            expect(bootsItem).not.toBeNull();
+            expect(bootsItem.category).not.toBe('WATER');
+            expect(bootsItem.name.toLowerCase()).toContain('water walking boots');
+
+            // 3. 汎用 getKnowledge
+            const bootsKnowledge = engine.getKnowledge('an uncursed +0 pair of water walking boots', { translate: false });
+            expect(bootsKnowledge).not.toBeNull();
+            expect(bootsKnowledge.category).not.toBe('WATER');
+            expect(bootsKnowledge.name.toLowerCase()).toContain('water walking boots');
+
+            // 4. 地形の pool of water は引き続き WATER として解決されること
+            const waterTerrain = engine.getKnowledge('pool of water', { translate: false });
+            expect(waterTerrain).not.toBeNull();
+            expect(waterTerrain.category).toBe('WATER');
+        });
     });
 });

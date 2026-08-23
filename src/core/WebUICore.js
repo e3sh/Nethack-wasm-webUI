@@ -585,6 +585,10 @@ export class WebUICore {
             } else {
                 this.isPendingPrefix = false;
             }
+        } else if (this.currentPromptCategory === PROMPT_CATEGORY.MENU && finalResponse !== 0) {
+            // メニューでアイテム選択が確定した場合（非キャンセル）、アイテム状態が変化する可能性があるため通知
+            this.emit('userActionSent', { sequence: ['MENU_SELECT'] });
+            this.isPendingPrefix = false;
         }
 
         // ユーザーの手動入力時、実行中のサイレント同期タスクがあれば手動入力を優先して安全にキャンセル
