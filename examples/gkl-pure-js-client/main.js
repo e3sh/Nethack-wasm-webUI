@@ -172,17 +172,35 @@ class GklPureJSClient {
     tryNext();
   }
 
+  updateViewButtonText() {
+    if (!this.btnToggleView) return;
+    const isEn = this.currentLanguage === 'en';
+    const prefix = isEn ? 'Toggle View: ' : 'ビュー切替: ';
+    if (this.isGraphicCanvasMode) {
+      this.btnToggleView.textContent = prefix + '🎨 Graphic Canvas';
+    } else {
+      this.btnToggleView.textContent = prefix + '🔤 Color ASCII Grid';
+    }
+  }
+
+  updateZoomButtonText() {
+    if (!this.btnToggleZoom) return;
+    const isEn = this.currentLanguage === 'en';
+    const prefix = isEn ? '🎯 Zoom Camera: ' : '🎯 ズームカメラ: ';
+    this.btnToggleZoom.textContent = prefix + (this.isZoomMode ? 'ON' : 'OFF');
+  }
+
   switchViewMode(graphicCanvasMode) {
     this.isGraphicCanvasMode = graphicCanvasMode;
     if (this.isGraphicCanvasMode) {
       this.canvas.classList.remove('hidden');
       this.asciiGrid.classList.add('hidden');
-      this.btnToggleView.textContent = 'ビュー切替: 🎨 Graphic Canvas';
+      this.updateViewButtonText();
       this.redrawAllGraphicTiles();
     } else {
       this.canvas.classList.add('hidden');
       this.asciiGrid.classList.remove('hidden');
-      this.btnToggleView.textContent = 'ビュー切替: 🔤 Color ASCII Grid';
+      this.updateViewButtonText();
       this.renderColorAsciiMap();
     }
   }
@@ -321,11 +339,10 @@ class GklPureJSClient {
         this.isZoomMode = !this.isZoomMode;
         if (this.isZoomMode) {
           this.zoomViewportBox.classList.remove('hidden');
-          this.btnToggleZoom.textContent = '🎯 ズームカメラ: ON';
         } else {
           this.zoomViewportBox.classList.add('hidden');
-          this.btnToggleZoom.textContent = '🎯 ズームカメラ: OFF';
         }
+        this.updateZoomButtonText();
       };
     }
 
@@ -857,6 +874,9 @@ class GklPureJSClient {
     const isEn = this.currentLanguage === 'en';
 
     // 静的DOMヘッダー・ボタンの更新
+    this.updateViewButtonText();
+    this.updateZoomButtonText();
+
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
 
@@ -868,6 +888,21 @@ class GklPureJSClient {
 
     const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
     if (elKnHeader) elKnHeader.textContent = isEn ? '💡 Structured Knowledge (GKL Knowledge)' : '💡 構造化ナレッジ (GKL Knowledge)';
+
+    const tabBtnAdvices = document.getElementById('tab-btn-advices');
+    const tabAdvicesBadge = document.getElementById('tab-advices-badge');
+    if (tabBtnAdvices) {
+      tabBtnAdvices.title = isEn ? 'Show Tactical Advices & Danger Alerts' : '戦術アドバイス ＆ 危険警告を表示';
+      const badgeCount = tabAdvicesBadge ? tabAdvicesBadge.textContent : '0';
+      const isBadgeHidden = tabAdvicesBadge ? tabAdvicesBadge.classList.contains('hidden') : false;
+      tabBtnAdvices.innerHTML = `🛡️ ${isEn ? 'Advices' : 'アドバイス'} <span id="tab-advices-badge" class="gkl-badge${isBadgeHidden ? ' hidden' : ''}">${badgeCount}</span>`;
+    }
+
+    const tabBtnKnowledge = document.getElementById('tab-btn-knowledge');
+    if (tabBtnKnowledge) {
+      tabBtnKnowledge.title = isEn ? 'Show Structured Knowledge' : '直前に調査した構造化ナレッジを表示';
+      tabBtnKnowledge.textContent = isEn ? '💡 Knowledge' : '💡 ナレッジ';
+    }
 
     const btnStartResume = document.getElementById('btn-start-resume');
     if (btnStartResume) btnStartResume.textContent = isEn ? '▶️ Continue Game' : '▶️ セーブデータから再開';
@@ -1163,10 +1198,35 @@ class GklPureJSClient {
     };
     const dirNameMap = isEn ? dirNameMapEn : dirNameMapJa;
 
+    const dirTitleMapEn = {
+      'NW': 'Northwest (7 / y / ↖)',
+      'N': 'North (8 / k / ↑)',
+      'NE': 'Northeast (9 / u / ↗)',
+      'W': 'West (4 / h / ←)',
+      'SELF': 'Self / Feet (5 / . / ·)',
+      'E': 'East (6 / l / →)',
+      'SW': 'Southwest (1 / b / ↙)',
+      'S': 'South (2 / j / ↓)',
+      'SE': 'Southeast (3 / n / ↘)'
+    };
+    const dirTitleMapJa = {
+      'NW': '北西 (7 / y / ↖)',
+      'N': '北 (8 / k / ↑)',
+      'NE': '北東 (9 / u / ↗)',
+      'W': '西 (4 / h / ←)',
+      'SELF': '足元 (5 / . / ・)',
+      'E': '東 (6 / l / →)',
+      'SW': '南西 (1 / b / ↙)',
+      'S': '南 (2 / j / ↓)',
+      'SE': '南東 (3 / n / ↘)'
+    };
+    const dirTitleMap = isEn ? dirTitleMapEn : dirTitleMapJa;
+
     // リセットボタンの状態
     if (this.elBtnDirReset) {
       this.elBtnDirReset.classList.toggle('active', this.selectedDir === 'ALL');
       this.elBtnDirReset.textContent = isEn ? 'Show All (ALL)' : '全表示 (ALL)';
+      this.elBtnDirReset.title = isEn ? 'Clear Filter (Show All)' : 'フィルター解除 (すべて表示)';
     }
 
     // ラベル表示
@@ -1183,7 +1243,13 @@ class GklPureJSClient {
       const count = dirCounts.get(dir) || 0;
       const badge = btn.querySelector('.gkl-dir-badge');
 
-      if (badge) {
+      if (dirTitleMap[dir]) {
+        btn.title = dirTitleMap[dir];
+      }
+
+      if (dir === 'SELF') {
+        btn.innerHTML = `${isEn ? 'Self' : '足元'}<span class="gkl-dir-badge">${count > 0 ? count : ''}</span>`;
+      } else if (badge) {
         badge.textContent = count > 0 ? count : '';
       }
 
