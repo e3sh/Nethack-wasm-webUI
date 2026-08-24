@@ -39,7 +39,7 @@ export class TacticalAdvisor {
         const advices = [];
 
         // 1. 致命的・モンスター脅威アドバイスの評価 (Threat & Monster Hazard)
-        this.evaluateThreatAdvices(areaState, inventoryState, advices);
+        this.evaluateThreatAdvices(areaState, inventoryState, attributeStateManager, advices);
 
         // 2. 地形・環境ハザードアドバイスの評価 (Terrain Hazards: Water, Lava, Traps)
         this.evaluateTerrainHazardAdvices(areaState, inventoryState, attributeStateManager, advices);
@@ -72,7 +72,7 @@ export class TacticalAdvisor {
     /**
      * 1. 脅威・危険モンスター・環境ハザード評価
      */
-    static evaluateThreatAdvices(areaState, inventoryState, advices) {
+    static evaluateThreatAdvices(areaState, inventoryState, attributeStateManager, advices) {
         if (!areaState) return;
 
         const playerX = areaState.playerLocation ? areaState.playerLocation.x : (areaState.center ? areaState.center.x : 0);
@@ -102,46 +102,111 @@ export class TacticalAdvisor {
             return raw.includes('silver') || raw.includes('銀');
         }) : [];
 
+        // プレイヤーの有効耐性を取得
+        const effectiveResists = (attributeStateManager && typeof attributeStateManager.getEffectiveResistances === 'function')
+            ? attributeStateManager.getEffectiveResistances()
+            : {};
+
         let hasPetrifyThreat = false;
         let hasEyeThreat = false;
         let hasSporeAdjacent = false;
         let hasUndeadOrDemon = false;
+        let hasDrainThreat = false;
+        let hasRustThreat = false;
+        let hasBrainEatThreat = false;
+        let hasSlimeThreat = false;
+        let hasDrownThreat = false;
+        let hasConfusionGazeThreat = false;
+
         let petrifyMonName = '';
         let petrifyMonNameJa = '';
+        let drainMonName = '';
+        let drainMonNameJa = '';
+        let rustMonName = '';
+        let rustMonNameJa = '';
 
         let maxPetrifyWeight = 0;
         let maxEyeWeight = 0;
         let maxUndeadWeight = 0;
+        let maxDrainWeight = 0;
+        let maxRustWeight = 0;
+        let maxBrainWeight = 0;
+        let maxSlimeWeight = 0;
+        let maxDrownWeight = 0;
+        let maxConfGazeWeight = 0;
 
         const checkMonsterEntity = (mon, dist, weight = 1.0) => {
             if (!mon) return;
             const monOffset = mon.monOffset !== undefined ? mon.monOffset : (mon.subType !== undefined ? mon.subType : (mon.glyphInfo?.monOffset));
             const monKnowledge = (monOffset !== undefined ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
             const monName = (mon.name || mon.id || monKnowledge.name || mon.glyphInfo?.name || '').toLowerCase();
+            const traits = monKnowledge.traits || {};
 
-            // 接触石化モンスター (コカトリス等, monOffset: 10)
-            if (monKnowledge.petrifiesOnTouch || monName.includes('cockatrice') || monName.includes('chickatrice') || monOffset === 10) {
+            // 接触石化モンスター (コカトリス等)
+            if (traits.petrifiesOnTouch || monKnowledge.petrifiesOnTouch || monName.includes('cockatrice') || monName.includes('chickatrice') || monOffset === 10) {
                 hasPetrifyThreat = true;
                 if (weight > maxPetrifyWeight) maxPetrifyWeight = weight;
                 petrifyMonName = mon.name || monKnowledge.name || 'cockatrice';
                 petrifyMonNameJa = mon.nameJa || 'コカトリス';
             }
 
-            // 視線麻痺 (浮遊目玉, monOffset: 28)
-            if (monKnowledge.paralysisGaze || monName.includes('floating eye') || monOffset === 28) {
+            // 視線麻痺 (浮遊目玉等)
+            if (traits.paralysisGaze || monKnowledge.paralysisGaze || monName.includes('floating eye') || monOffset === 28) {
                 if (dist <= 4 || weight < 1.0) {
                     hasEyeThreat = true;
                     if (weight > maxEyeWeight) maxEyeWeight = weight;
                 }
             }
 
-            // 近接自爆 (ガス胞子, monOffset: 27) - 自爆は隣接時のみ
-            if ((monKnowledge.explodesOnMelee || monName.includes('gas spore') || monOffset === 27) && dist === 1 && weight === 1.0) {
+            // 近接自爆 (ガス胞子等) - 自爆は隣接時のみ
+            if ((traits.explodesOnMelee || monKnowledge.explodesOnMelee || monName.includes('gas spore') || monOffset === 27) && dist === 1 && weight === 1.0) {
                 hasSporeAdjacent = true;
             }
 
+            // レベルドレイン (吸血鬼・レイス等)
+            if (traits.drainsLevel || (monKnowledge.attacks && monKnowledge.attacks.some(a => a.effect === 'drain_level'))) {
+                hasDrainThreat = true;
+                if (weight > maxDrainWeight) maxDrainWeight = weight;
+                drainMonName = mon.name || monKnowledge.name || 'undead';
+                drainMonNameJa = mon.nameJa || '吸血鬼/レイス';
+            }
+
+            // 装備錆び・腐食 (ラストモンスター等)
+            if (traits.rustsEquipment || monName.includes('rust monster') || monOffset === 212) {
+                hasRustThreat = true;
+                if (weight > maxRustWeight) maxRustWeight = weight;
+                rustMonName = mon.name || monKnowledge.name || 'rust monster';
+                rustMonNameJa = mon.nameJa || 'ラストモンスター';
+            }
+
+            // 知性吸い (マインドフレア等)
+            if (traits.eatsBrain || monName.includes('mind flayer') || monOffset === 48 || monOffset === 49) {
+                hasBrainEatThreat = true;
+                if (weight > maxBrainWeight) maxBrainWeight = weight;
+            }
+
+            // スライム化 (グリーンスライム)
+            if (traits.causesSlime || monName.includes('green slime') || monOffset === 208) {
+                hasSlimeThreat = true;
+                if (weight > maxSlimeWeight) maxSlimeWeight = weight;
+            }
+
+            // 水中引き込み・溺死 (クラーケン・ウナギ等)
+            if (traits.drownsPlayer || monName.includes('eel') || monName.includes('kraken') || monOffset === 319 || monOffset === 321) {
+                hasDrownThreat = true;
+                if (weight > maxDrownWeight) maxDrownWeight = weight;
+            }
+
+            // 視線混乱 (アンバーハルク等)
+            if (traits.gazeConfusion || monName.includes('umber hulk') || monOffset === 225) {
+                if (dist <= 4 || weight < 1.0) {
+                    hasConfusionGazeThreat = true;
+                    if (weight > maxConfGazeWeight) maxConfGazeWeight = weight;
+                }
+            }
+
             // アンデッド・悪魔
-            if (monKnowledge.isUndead || monKnowledge.isDemon || monName.includes('vampire') || monName.includes('demon') || monName.includes('zombie') || monName.includes('wraith') || (monOffset >= 226 && monOffset <= 228)) {
+            if (traits.isUndead || traits.isDemon || monKnowledge.isUndead || monKnowledge.isDemon || monName.includes('vampire') || monName.includes('demon') || monName.includes('zombie') || monName.includes('wraith') || (monOffset >= 226 && monOffset <= 228)) {
                 hasUndeadOrDemon = true;
                 if (weight > maxUndeadWeight) maxUndeadWeight = weight;
             }
@@ -181,7 +246,7 @@ export class TacticalAdvisor {
             }
         }
 
-        // 石化警告 (手袋未着用時)
+        // 1. 石化警告 (手袋未着用時)
         if (hasPetrifyThreat && !isWearingGloves) {
             const gloveItems = inventoryState ? (inventoryState.items || []).filter(i => {
                 const raw = (i.rawText || i.name || '').toLowerCase();
@@ -225,7 +290,85 @@ export class TacticalAdvisor {
             }
         }
 
-        // 浮遊目玉 麻痺警告
+        // 2. 知性吸い・脳食い警告 (マインドフレア)
+        if (hasBrainEatThreat) {
+            advices.push({
+                id: 'ADVICE_THREAT_MIND_FLAYER',
+                severity: 'CRITICAL',
+                topic: 'THREAT',
+                messageJa: '🧠 脳食い危険: マインドフレア(Mind Flayer)接近！触手攻撃で知力を吸い尽くされると即死します。エルベレスや遠隔即死で処理してください。',
+                messageEn: '🧠 BRAIN EATER DANGER: Mind Flayer nearby! Tentacle attacks permanently eat Int until instant death. Use Elbereth or ranged attacks.',
+                hintLetters: [],
+                hintCommand: 'f',
+                score: 950
+            });
+        }
+
+        // 3. スライム化警告 (グリーンスライム)
+        if (hasSlimeThreat) {
+            advices.push({
+                id: 'ADVICE_THREAT_GREEN_SLIME',
+                severity: 'CRITICAL',
+                topic: 'THREAT',
+                messageJa: '🧪 スライム化警告: グリーンスライム(Green Slime)接近！接触でスライム化即死します。火炎攻撃または遠隔で速やかに撃破してください。',
+                messageEn: '🧪 SLIME THREAT: Green Slime nearby! Contact turns player into slime. Use fire attacks or ranged weapons.',
+                hintLetters: [],
+                hintCommand: 'f',
+                score: 920
+            });
+        }
+
+        // 4. 水没・溺死警告 (クラーケン・ウナギ等)
+        if (hasDrownThreat && !effectiveResists.levitation && !effectiveResists.wwalking) {
+            advices.push({
+                id: 'ADVICE_THREAT_DROWNING',
+                severity: 'CRITICAL',
+                topic: 'THREAT',
+                messageJa: '🌊 溺死警告: 水生魔獣が潜伏！浮遊・水上歩行なしで水辺に近づくと引きずり込まれ即座に溺死します。',
+                messageEn: '🌊 DROWNING HAZARD: Aquatic monster nearby! Approaching water without levitation/water-walking causes instant drowning.',
+                hintLetters: [],
+                score: 960
+            });
+        }
+
+        // 5. レベルドレイン警告 (吸血鬼・レイス等)
+        if (hasDrainThreat && !effectiveResists.drain) {
+            advices.push({
+                id: 'ADVICE_THREAT_LEVEL_DRAIN',
+                severity: 'WARNING',
+                topic: 'THREAT',
+                messageJa: `🩸 ドレイン警戒: ${drainMonNameJa}が接近！ドレイン耐性がないため経験レベルが吸い取られます。遠隔やエルベレスで迎撃してください。`,
+                messageEn: `🩸 LEVEL DRAIN WARNING: ${drainMonName} nearby! Attacks drain experience level without drain resistance. Fight from range.`,
+                hintLetters: [],
+                hintCommand: 'f',
+                score: 820
+            });
+        }
+
+        // 6. 装備錆び・腐食警告 (ラストモンスター等)
+        if (hasRustThreat) {
+            const hasIronGear = inventoryState ? (inventoryState.items || []).some(i => i.isWorn && (
+                (i.name || i.rawText || '').toLowerCase().includes('iron') || 
+                (i.name || i.rawText || '').toLowerCase().includes('mail') || 
+                (i.name || i.rawText || '').toLowerCase().includes('sword') ||
+                (i.name || i.rawText || '').toLowerCase().includes('helmet')
+            )) : false;
+
+            if (hasIronGear) {
+                advices.push({
+                    id: 'ADVICE_THREAT_RUST_MONSTER',
+                    severity: 'WARNING',
+                    topic: 'THREAT',
+                    messageJa: `🛡️ 腐食警告: ${rustMonNameJa}が接近！鉄製装備が錆びて劣化・破壊されます。木製/銀製装備への持ち替えや素手・遠隔攻撃を推奨。`,
+                    messageEn: `🛡️ RUST HAZARD: ${rustMonName} approaching! It rusts and destroys iron gear. Switch to wooden/silver weapons or fight from range.`,
+                    hintLetters: [],
+                    hintCommand: 'w',
+                    score: 750
+                });
+            }
+        }
+
+        // 7. 浮遊目玉 麻痺警告
         if (hasEyeThreat && !isBlindfolded) {
             if (maxEyeWeight >= 1.0) {
                 advices.push({
@@ -252,7 +395,20 @@ export class TacticalAdvisor {
             }
         }
 
-        // ガス胞子 隣接警告
+        // 8. 視線混乱警告 (アンバーハルク等)
+        if (hasConfusionGazeThreat && !isBlindfolded) {
+            advices.push({
+                id: 'ADVICE_THREAT_CONFUSION_GAZE',
+                severity: 'WARNING',
+                topic: 'THREAT',
+                messageJa: '💫 混乱視線警告: アンバーハルク(Umber Hulk)の視線で混乱します。目隠し(Blindfold)やタオルを着用して視界を遮断してください。',
+                messageEn: '💫 CONFUSION GAZE: Umber Hulk gaze causes severe confusion. Wear a blindfold/towel to block sight.',
+                hintLetters: [],
+                score: 680
+            });
+        }
+
+        // 9. ガス胞子 隣接警告
         if (hasSporeAdjacent) {
             advices.push({
                 id: 'ADVICE_THREAT_GAS_SPORE',
@@ -266,7 +422,7 @@ export class TacticalAdvisor {
             });
         }
 
-        // 銀特効サジェスト
+        // 10. 銀特効サジェスト
         if (hasUndeadOrDemon && silverWeapons.length > 0) {
             const unwornSilver = silverWeapons.find(w => !w.isWielded);
             if (unwornSilver) {
@@ -288,6 +444,41 @@ export class TacticalAdvisor {
                 });
             }
         }
+
+        // 11. 足元死体（Corpse）の石化・耐性獲得評価
+        if (areaState.feet && areaState.feet.top) {
+            const feetItem = areaState.feet.top;
+            const raw = (feetItem.name || feetItem.rawText || '').toLowerCase();
+
+            // コカトリス死体が足元にあるが手袋をしていない
+            if ((raw.includes('cockatrice corpse') || raw.includes('chickatrice corpse') || raw.includes('コカトリスの死体')) && !isWearingGloves) {
+                advices.push({
+                    id: 'ADVICE_HAZARD_PETRIFY_CORPSE',
+                    severity: 'CRITICAL',
+                    topic: 'THREAT',
+                    messageJa: '⚠️ 致命的危険: 足元にコカトリスの死体があります！手袋未着用で拾う/触ると即座に石化死します。手袋を着用してください。',
+                    messageEn: '⚠️ LETHAL HAZARD: Cockatrice corpse at feet! Picking up without gloves causes instant petrification. Wear gloves first.',
+                    hintLetters: [],
+                    hintCommand: 'W',
+                    score: 990
+                });
+            }
+
+            // 経験値アップ死体 (レイスの死体)
+            if (raw.includes('wraith corpse') || raw.includes('レイスの死体')) {
+                advices.push({
+                    id: 'ADVICE_TACTICS_EAT_WRAITH_CORPSE',
+                    severity: 'TIP',
+                    topic: 'SURVIVAL',
+                    messageJa: '✨ レベルアップ: 足元のレイスの死体を食べる(\'e\')と経験レベルが1上昇します！腐る前に摂取してください。',
+                    messageEn: '✨ LEVEL UP: Eating wraith corpse (\'e\') grants +1 level! Eat before it rots.',
+                    hintLetters: [],
+                    hintCommand: 'e',
+                    score: 800
+                });
+            }
+        }
+
 
         // 周辺認知モンスター要約サマリー (Perceived Threat Summary)
         const perceived = Array.isArray(areaState.perceivedMonsters) 

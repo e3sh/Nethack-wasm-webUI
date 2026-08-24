@@ -615,13 +615,19 @@
         function renderMonsterCard(mon) {
             const badgeClass = `tag-${mon.dangerLevel || 'LOW'}`;
             const stats = mon.stats || {};
-            const corpse = mon.corpseInfo || {};
+            const corpse = mon.corpse || mon.corpseInfo || {};
+            const traits = mon.traits || {};
 
             let attacksHtml = (mon.attacks || []).map(a => 
                 `<li><strong>${a.type}</strong>${a.damage ? ` (${a.damage})` : ''}${a.effect ? `: <em>${a.effect}</em>` : ''}</li>`
             ).join('');
 
-            let adviceHtml = (mon.tacticalAdvice || []).map(adv => 
+            // 言語に応じた戦術アドバイス配列の取得
+            const adviceList = (currentLang === 'ja' && Array.isArray(mon.tacticalAdviceJa) && mon.tacticalAdviceJa.length > 0)
+                ? mon.tacticalAdviceJa
+                : (mon.tacticalAdviceEn || mon.tacticalAdvice || []);
+
+            let adviceHtml = adviceList.map(adv => 
                 `<li>${adv}</li>`
             ).join('');
 
@@ -635,8 +641,61 @@
                 flags.push({ label: 'dispositionStatus', value: mon.dispositionStatus, badge: 'background:#a855f7; color:#fff;' });
             }
 
+            // 🎯 新スキーマ traits の真偽値フラグ抽出
+            const activeTraits = [];
+            const traitLabels = {
+                petrifiesOnTouch: { ja: '接触石化', en: 'Petrify On Touch', color: '#ef4444' },
+                paralysisGaze: { ja: '視線麻痺', en: 'Paralysis Gaze', color: '#f97316' },
+                gazeConfusion: { ja: '視線混乱', en: 'Confusion Gaze', color: '#eab308' },
+                explodesOnMelee: { ja: '近接爆発', en: 'Explodes On Hit', color: '#ef4444' },
+                drainsLevel: { ja: 'レベルドレイン', en: 'Level Drain', color: '#dc2626' },
+                rustsEquipment: { ja: '装備腐食/錆', en: 'Rusts Gear', color: '#d97706' },
+                disenchantsEquipment: { ja: '装備弱体化', en: 'Disenchant Gear', color: '#9333ea' },
+                eatsBrain: { ja: '知性吸い(即死)', en: 'Eats Brain (Lethal)', color: '#b91c1c' },
+                causesSlime: { ja: 'スライム化(即死)', en: 'Slime Infection', color: '#16a34a' },
+                drownsPlayer: { ja: '水中溺死', en: 'Drowns Player', color: '#0284c7' },
+                swallowsPlayer: { ja: '丸呑み', en: 'Swallows Player', color: '#7c3aed' },
+                stealsItems: { ja: 'アイテム盗み', en: 'Steals Items', color: '#059669' },
+                revives: { ja: '死後復活', en: 'Revives', color: '#4f46e5' },
+                castsSpells: { ja: '魔法・召喚', en: 'Casts Spells', color: '#2563eb' },
+                causesLycanthropy: { ja: '獣化感染', en: 'Lycanthropy', color: '#ca8a04' },
+                isUndead: { ja: 'アンデッド', en: 'Undead', color: '#64748b' },
+                isDemon: { ja: '悪魔', en: 'Demon', color: '#be123c' }
+            };
+
+            Object.entries(traits).forEach(([k, v]) => {
+                if (v === true && traitLabels[k]) {
+                    const meta = traitLabels[k];
+                    const labelText = currentLang === 'ja' ? meta.ja : meta.en;
+                    activeTraits.push({ key: k, label: labelText, color: meta.color });
+                }
+            });
+
             const glyphId = getEntityGlyphId(mon);
             const iconStyle = getEntityGlyphStyleString(glyphId, 48);
+
+            // 死体情報 HTML の構築
+            let corpseDetailsHtml = '';
+            if (corpse && typeof corpse === 'object') {
+                const edibleText = corpse.edible ? (currentLang === 'ja' ? '可食' : 'Edible') : (currentLang === 'ja' ? '不可食' : 'Inedible');
+                const poisonText = corpse.poisonous ? (currentLang === 'ja' ? '⚠️ 有毒' : '⚠️ Poisonous') : (currentLang === 'ja' ? '無毒' : 'Safe');
+                const intrinsics = Array.isArray(corpse.grantsIntrinsics) && corpse.grantsIntrinsics.length > 0 
+                    ? corpse.grantsIntrinsics.join(', ')
+                    : (corpse.grantResist || null);
+
+                corpseDetailsHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px; margin-top:12px;">
+                        <div class="section-title" style="margin-bottom:6px; font-size:0.8rem; color:#10b981;">🍖 ${currentLang === 'ja' ? '死体・摂食情報 (Corpse Details)' : 'Corpse Details'}</div>
+                        <div style="font-size:0.85rem; display:flex; gap:12px; flex-wrap:wrap;">
+                            <div><strong>${currentLang === 'ja' ? '摂食' : 'Edibility'}:</strong> ${edibleText}</div>
+                            <div><strong>${currentLang === 'ja' ? '毒性' : 'Toxicity'}:</strong> ${poisonText}</div>
+                            <div><strong>${currentLang === 'ja' ? '栄養値' : 'Nutrition'}:</strong> ${corpse.nutrition ?? 0}</div>
+                            ${intrinsics ? `<div style="color:var(--accent-color);"><strong>✨ ${currentLang === 'ja' ? '獲得可能耐性' : 'Grant Intrinsics'}:</strong> ${intrinsics}</div>` : ''}
+                            ${corpse.revivesFromCorpse ? `<div style="color:#ef4444;"><strong>⚠️ ${currentLang === 'ja' ? '死体から復活' : 'Revives from Corpse'}</strong></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
 
             knowledgeCard.innerHTML = `
                 <div class="card-header">
@@ -653,10 +712,15 @@
                 </div>
 
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; margin-bottom:12px;">
-                    <div class="section-title" style="margin-bottom:6px; font-size:0.8rem; color:var(--accent-color);">🚩 Structured Knowledge Flags</div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <div class="section-title" style="margin-bottom:6px; font-size:0.8rem; color:var(--accent-color);">🚩 ${currentLang === 'ja' ? '構造化ナレッジフラグ' : 'Structured Knowledge Flags'}</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
                         ${flags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; ${f.badge}">${f.label}: ${f.value}</span>`).join('')}
                     </div>
+                    ${activeTraits.length > 0 ? `
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1);">
+                            ${activeTraits.map(t => `<span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; font-weight:bold; background:${t.color}; color:#fff;">⚡ ${t.label}</span>`).join('')}
+                        </div>
+                    ` : ''}
                 </div>
 
                 <div class="stats-grid">
@@ -668,35 +732,47 @@
 
                 ${mon.attacks && mon.attacks.length > 0 ? `
                     <div>
-                        <div class="section-title">⚔️ Attacks</div>
+                        <div class="section-title">⚔️ ${currentLang === 'ja' ? '攻撃パターン (Attacks)' : 'Attacks'}</div>
                         <ul class="advice-list">${attacksHtml}</ul>
                     </div>
                 ` : ''}
 
                 ${mon.resistances && mon.resistances.length > 0 ? `
                     <div>
-                        <div class="section-title">🛡️ Innate Resistances</div>
+                        <div class="section-title">🛡️ ${currentLang === 'ja' ? '属性耐性 (Innate Resistances)' : 'Innate Resistances'}</div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
                             ${mon.resistances.map(r => `<span class="tag-badge tag-ITEM">${r}</span>`).join('')}
                         </div>
                     </div>
                 ` : ''}
 
+                ${mon.weaknesses && mon.weaknesses.length > 0 ? `
+                    <div>
+                        <div class="section-title">🎯 ${currentLang === 'ja' ? '弱点・特効 (Weaknesses & Slaying)' : 'Weaknesses & Slaying'}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${mon.weaknesses.map(w => `<span class="tag-badge" style="background:#f43f5e; color:#fff;">${w}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${corpseDetailsHtml}
+
                 ${corpse.warningNote ? `
-                    <div class="info-block warning-block">
-                        <div class="section-title" style="color:#ef4444;">⚠️ Corpse Warning</div>
+                    <div class="info-block warning-block" style="margin-top:12px;">
+                        <div class="section-title" style="color:#ef4444;">⚠️ ${currentLang === 'ja' ? '死体取扱警告' : 'Corpse Warning'}</div>
                         <div>${corpse.warningNote}</div>
                     </div>
                 ` : ''}
 
-                ${mon.tacticalAdvice && mon.tacticalAdvice.length > 0 ? `
-                    <div>
-                        <div class="section-title">💡 Tactical Advice</div>
+                ${adviceList && adviceList.length > 0 ? `
+                    <div style="margin-top:12px;">
+                        <div class="section-title">💡 ${currentLang === 'ja' ? '戦術アドバイス (Tactical Advice)' : 'Tactical Advice'}</div>
                         <ul class="advice-list">${adviceHtml}</ul>
                     </div>
                 ` : ''}
             `;
         }
+
 
         function renderItemCard(item) {
             const stats = item.stats || {};

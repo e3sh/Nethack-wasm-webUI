@@ -454,6 +454,94 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(radarAdvice).toBeDefined();
             expect(radarAdvice.messageJa).toContain('ジャッカル (視認中 x2');
         });
+
+        it('マインドフレア接近時、知性吸い即死警告（ADVICE_THREAT_MIND_FLAYER）が生成されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.adjacentMonsters = [{
+                dir: { code: 'N' },
+                entity: { name: 'mind flayer', monOffset: 48 }
+            }];
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState });
+            const advice = advices.find(a => a.id === 'ADVICE_THREAT_MIND_FLAYER');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('CRITICAL');
+            expect(advice.score).toBe(950);
+            expect(advice.messageJa).toContain('マインドフレア');
+        });
+
+        it('グリーンスライム接近時、スライム化即死警告（ADVICE_THREAT_GREEN_SLIME）が生成されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.adjacentMonsters = [{
+                dir: { code: 'E' },
+                entity: { name: 'green slime', monOffset: 208 }
+            }];
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState });
+            const advice = advices.find(a => a.id === 'ADVICE_THREAT_GREEN_SLIME');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('CRITICAL');
+            expect(advice.score).toBe(920);
+        });
+
+        it('ラストモンスター接近時、鉄製装備着用中に腐食警告（ADVICE_THREAT_RUST_MONSTER）が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.adjacentMonsters = [{
+                dir: { code: 'W' },
+                entity: { name: 'rust monster', monOffset: 212 }
+            }];
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'a', name: 'iron chain mail', rawText: 'a - an iron chain mail (being worn)', isWorn: true }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState, inventoryState: invMgr });
+            const advice = advices.find(a => a.id === 'ADVICE_THREAT_RUST_MONSTER');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('WARNING');
+            expect(advice.score).toBe(750);
+        });
+
+        it('足元にコカトリスの死体があり手袋未着用時、死体石化警告（ADVICE_HAZARD_PETRIFY_CORPSE）が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.feet = {
+                top: { name: 'cockatrice corpse' }
+            };
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = []; // 手袋未着用
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState, inventoryState: invMgr });
+            const advice = advices.find(a => a.id === 'ADVICE_HAZARD_PETRIFY_CORPSE');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('CRITICAL');
+            expect(advice.score).toBe(990);
+        });
+
+        it('足元にレイスの死体がある場合、レベルアップ推奨（ADVICE_TACTICS_EAT_WRAITH_CORPSE）が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.feet = {
+                top: { name: 'wraith corpse' }
+            };
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState });
+            const advice = advices.find(a => a.id === 'ADVICE_TACTICS_EAT_WRAITH_CORPSE');
+            expect(advice).toBeDefined();
+            expect(advice.score).toBe(800);
+            expect(advice.hintCommand).toBe('e');
+        });
     });
 });
+
 
