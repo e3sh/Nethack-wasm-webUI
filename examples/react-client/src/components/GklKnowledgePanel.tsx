@@ -442,6 +442,7 @@ export const GklKnowledgePanel: React.FC = () => {
                       borderRadius: '4px', height: '36px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', position: 'relative', padding: '2px', fontWeight: isActive ? 'bold' : 'normal',
                     }}
+                    title={dp.label}
                   >
                     <span style={{ fontSize: '11px', lineHeight: 1 }}>{dp.icon}</span>
                     <span style={{ fontSize: '8px', opacity: 0.8 }}>{dp.label}</span>

@@ -12,7 +12,7 @@ export class AreaStateManager {
         this.height = height;
         this.playerX = 0;
         this.playerY = 0;
-        this.keyMode = 'vi'; // キーモード ('vi' | 'numpad')
+        this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
         this.grid = [];
         this.resetGrid();

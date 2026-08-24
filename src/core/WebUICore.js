@@ -509,6 +509,13 @@ export class WebUICore {
     respond(inputVal) {
         if (!this.activeResolver) return;
 
+        // ユーザーの手動入力時、実行中のサイレント同期タスクがあれば手動入力を優先して安全にキャンセル
+        if (this.driver && typeof this.driver.cancelSequence === 'function') {
+            if (this.driver.currentTask && this.driver.currentTask.options && this.driver.currentTask.options.isSilentSync) {
+                this.driver.cancelSequence();
+            }
+        }
+
         if (this.lastInputTime && (Date.now() - this.lastInputTime < 120) && 
            (this.currentPromptCategory === PROMPT_CATEGORY.YN || this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME)) {
             return;
@@ -519,7 +526,25 @@ export class WebUICore {
 
         let finalResponse = inputVal;
 
-        if (this.currentPromptCategory === PROMPT_CATEGORY.MENU) {
+        // 抽象方向トークン (DIR_*) は最優先で現在の keyMode に応じたキー文字コードに解決
+        if (typeof inputVal === 'string' && inputVal.startsWith('DIR_')) {
+            const isVi = (this.options && this.options.keyMode === 'vi') ||
+                         (this.driver && this.driver.keyMode === 'vi');
+            const numpadMap = {
+                'DIR_NW': 55, 'DIR_N': 56, 'DIR_NE': 57,  // '7', '8', '9'
+                'DIR_W': 52,  'DIR_SELF': 46, 'DIR_E': 54, // '4', '.', '6'
+                'DIR_SW': 49, 'DIR_S': 50, 'DIR_SE': 51,  // '1', '2', '3'
+                'DIR_UP': 60, 'DIR_DOWN': 62, 'DIR_CANCEL': 27 // '<', '>', ESC
+            };
+            const viMap = {
+                'DIR_NW': 121, 'DIR_N': 107, 'DIR_NE': 117, // 'y', 'k', 'u'
+                'DIR_W': 104,  'DIR_SELF': 46, 'DIR_E': 108, // 'h', '.', 'l'
+                'DIR_SW': 98,  'DIR_S': 106, 'DIR_SE': 110, // 'b', 'j', 'n'
+                'DIR_UP': 60,  'DIR_DOWN': 62, 'DIR_CANCEL': 27 // '<', '>', ESC
+            };
+            const map = isVi ? viMap : numpadMap;
+            finalResponse = map[inputVal] !== undefined ? map[inputVal] : 46;
+        } else if (this.currentPromptCategory === PROMPT_CATEGORY.MENU) {
             if (inputVal === 0 || inputVal === null || inputVal === undefined || inputVal === 27 || inputVal === '\x1b') {
                 finalResponse = 0;
             } else if (typeof inputVal === 'number' || typeof inputVal === 'string') {
@@ -757,7 +782,9 @@ export class WebUICore {
      */
     sendActionKey(k) {
         if (!k) return;
-        const isNumpad = (this.gkl && this.gkl.areaStateManager && this.gkl.areaStateManager.keyMode === 'numpad');
+        const isNumpad = (this.options && this.options.keyMode === 'numpad') ||
+                         (this.driver && this.driver.keyMode === 'numpad') ||
+                         (!this.options?.keyMode && !this.driver?.keyMode);
 
         // 【1】Kick (蹴る) のキー表現の自動切替 (NumPad モードでは 'k', Vi-keys モードでは Ctrl+D)
         if (k === 'C-d' || k === 'Ctrl-d' || k === 'C-D' || k === 'ctrl-d') {
@@ -1262,11 +1289,14 @@ export class WebUICore {
                                     lastText.includes('prefix') || 
                                     (lastText.includes('count') && lastText.includes('command'));
 
-            // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（直列・排他制御で安全に実行）
-            if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function' && !isPrefixWaiting) {
-                this.gkl.syncPendingStateSilent();
-            } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced && !isPrefixWaiting) {
-                this.gkl.syncInventorySilent();
+            // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（通常ターン待機時のみ安全に実行）
+            const isTurnInput = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
+            if (isTurnInput && !isPrefixWaiting) {
+                if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function') {
+                    this.gkl.syncPendingStateSilent();
+                } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) {
+                    this.gkl.syncInventorySilent();
+                }
             }
 
             this.lastInputTime = Date.now();
@@ -1359,6 +1389,9 @@ export class WebUICore {
             };
 
             const guiData = this._buildGUIInputPayload(basePayload);
+            if (guiData && (guiData.inputType === 'DIRECTION' || guiData.category === PROMPT_CATEGORY.DIRECTION)) {
+                this.currentPromptCategory = PROMPT_CATEGORY.DIRECTION;
+            }
             const passThroughPayload = {
                 ...basePayload,
                 ...guiData,

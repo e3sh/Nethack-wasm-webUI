@@ -312,12 +312,19 @@ class GklPureJSClient {
     // 7. Input Required Prompts & Modals
     this.core.on('inputRequired', (data) => {
       this.handleInputRequired(data);
+      this.renderGklUi();
     });
 
     // 8. Input Resolved
     this.core.on('inputResolved', () => {
       this.clearAllModals();
+      this.renderGklUi();
     });
+
+    // GKL 状態同期イベント時の UI 再描画
+    this.core.on('inventoryStateUpdated', () => this.renderGklUi());
+    this.core.on('spellsStateUpdated', () => this.renderGklUi());
+    this.core.on('skillsStateUpdated', () => this.renderGklUi());
 
     // 9. Game Over & Exited
     this.core.on('gameOver', (result) => {
@@ -352,6 +359,22 @@ class GklPureJSClient {
 
     if (this.elStatusBar) {
       this.elStatusBar.addEventListener('click', (e) => {
+        const spellBtn = e.target.closest('.gkl-spell-badge');
+        if (spellBtn) {
+          e.stopPropagation();
+          const letter = spellBtn.dataset.letter;
+          if (letter) this.castSpell(letter);
+          return;
+        }
+
+        const skillBtn = e.target.closest('.gkl-skill-badge');
+        if (skillBtn) {
+          e.stopPropagation();
+          const skillKey = skillBtn.dataset.skill;
+          this.enhanceSkill(skillKey);
+          return;
+        }
+
         // ステータスバー（または切り替えボタン）のクリックで固定トグル展開を切替
         this.elStatusBar.classList.toggle('is-expanded');
       });
@@ -367,6 +390,13 @@ class GklPureJSClient {
           btnRefreshInv.disabled = false;
           btnRefreshInv.textContent = '🔄 同期';
         }
+      };
+    }
+
+    const btnCastSpellMenu = document.getElementById('btn-cast-spell-menu');
+    if (btnCastSpellMenu) {
+      btnCastSpellMenu.onclick = () => {
+        this.castSpell();
       };
     }
 
@@ -641,32 +671,34 @@ class GklPureJSClient {
     }
   }
 
+  renderGklUi() {
+    if (!this.core || !this.core.gkl) return;
+    const situation = this.core.gkl.getSituation();
+
+    // プレイヤー移動時の方向フィルター自動リセットチェック
+    this.checkPlayerMovementAndResetFilter(situation);
+
+    // 1. GKL 推奨アクションパネル
+    this.renderGklActions(situation.actions || []);
+
+    // 2. GKL アイコン型所持品インベントリ
+    this.renderGklInventory(situation.inventory);
+
+    // 4. 属性耐性 (全25種) & 修得魔法 & スキル熟練度の描画
+    this.renderGklAttributes(situation.attributes);
+    this.renderGklSpells(situation.spells);
+    this.renderGklSkills(situation.skills);
+
+    // 5. 🛡️ 戦術アドバイス ＆ 危機警告の描画 (TacticalAdvisor)
+    this.renderGklAdvices(situation.advices || []);
+  }
+
   startGklRenderLoop() {
     const loop = () => {
-      if (this.core) {
-        const situation = (this.core && this.core.gkl) ? this.core.gkl.getSituation() : {};
-
-        // プレイヤー移動時の方向フィルター自動リセットチェック
-        this.checkPlayerMovementAndResetFilter(situation);
-
-        // 1. GKL 推奨アクションパネル
-        this.renderGklActions(situation.actions || []);
-
-        // 2. GKL アイコン型所持品インベントリ
-        this.renderGklInventory(situation.inventory);
-
-        // 3. 🎯 自キャラ周辺 拡大ズームカメラ描画
-        if (this.isZoomMode && this.zoomCtx) {
-          this.renderZoomCanvas(situation.area);
-        }
-
-        // 4. 属性耐性 (全25種) & 修得魔法 & スキル熟練度の描画
-        this.renderGklAttributes(situation.attributes);
-        this.renderGklSpells(situation.spells);
-        this.renderGklSkills(situation.skills);
-
-        // 5. 🛡️ 戦術アドバイス ＆ 危機警告の描画 (TacticalAdvisor)
-        this.renderGklAdvices(situation.advices || []);
+      if (this.core && this.isZoomMode && this.zoomCtx && this.core.gkl) {
+        // 🎯 自キャラ周辺 拡大ズームカメラ描画 (Canvas のみ 60fps)
+        const situation = this.core.gkl.getSituation();
+        this.renderZoomCanvas(situation.area);
       }
       requestAnimationFrame(loop);
     };
@@ -1531,7 +1563,38 @@ class GklPureJSClient {
   }
 
   /**
-   * 修得魔法一覧の描画
+   * 習得呪文の詠唱 (#cast / Z) を実行
+   * @param {string} [letter] 
+   */
+  castSpell(letter) {
+    if (letter) {
+      if (this.core && this.core.gkl && typeof this.core.gkl.castSpell === 'function') {
+        return this.core.gkl.castSpell(letter);
+      }
+      if (this.core && this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+        return this.core.driver.queueSequence(['Z', letter]);
+      }
+    }
+    if (this.core && typeof this.core.sendKey === 'function') {
+      return this.core.sendKey('Z', true, false, false, 'Z', true);
+    }
+  }
+
+  /**
+   * スキル向上 (#enhance) を実行
+   * @param {Object|string} [skill] 
+   */
+  enhanceSkill(skill) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.enhanceSkill === 'function') {
+      return this.core.gkl.enhanceSkill(skill);
+    }
+    if (this.core && typeof this.core.sendKey === 'function') {
+      return this.core.sendKey('Hash');
+    }
+  }
+
+  /**
+   * 修得魔法一覧の描画 (StatusBar 内)
    * @param {Object} spellsObj 
    */
   renderGklSpells(spellsObj) {
@@ -1539,6 +1602,7 @@ class GklPureJSClient {
     if (!elSpellsDetail) return;
     const isEn = this.currentLanguage === 'en';
     const spells = spellsObj?.items || [];
+
     if (spells.length === 0) {
       elSpellsDetail.innerHTML = `<span style="color:#64748b; font-size:11px;">${isEn ? '📖 Spells: None' : '📖 修得魔法: なし'}</span>`;
       return;
@@ -1546,12 +1610,20 @@ class GklPureJSClient {
 
     const listHtml = spells.map(sp => {
       const titleStr = isEn
-        ? `Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate})`
-        : `キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate})`;
-      return `<span class="gkl-spell-badge" title="${titleStr}">✨ [${sp.letter}] ${sp.name} <small>(Lv.${sp.level} ${sp.failRate})</small></span>`;
+        ? `Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate}) - Click to cast`
+        : `キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`;
+      return `<button class="gkl-spell-badge" data-letter="${sp.letter}" style="background:rgba(139, 92, 246, 0.15); border:1px solid #a78bfa; color:#ddd6fe; padding:2px 8px; border-radius:4px; font-size:11px; font-family:inherit; cursor:pointer;" title="${titleStr}">✨ [${sp.letter}] ${sp.name} <small style="color:#94a3b8;">(Lv.${sp.level} ${sp.failRate})</small></button>`;
     }).join(' ');
 
     elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '📖 Spells:' : '📖 修得魔法:'}</strong> ${listHtml}</div>`;
+
+    elSpellsDetail.querySelectorAll('.gkl-spell-badge').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const letter = btn.dataset.letter;
+        if (letter) this.castSpell(letter);
+      };
+    });
   }
 
   /**
@@ -1581,10 +1653,18 @@ class GklPureJSClient {
         : (skill.rank ? (skill.rank.label || skill.rank.en) : '入門');
       const enhClass = skill.canEnhance ? 'enhanceable' : '';
       const star = skill.canEnhance ? '⭐ ' : '';
-      return `<span class="gkl-skill-badge gkl-skill-badge-${rankKey} ${enhClass}" title="${skill.rawText || skill.name}">${star}<strong>${skill.name}</strong> [${rankLabel}]</span>`;
+      const hint = skill.canEnhance ? (isEn ? ' (Click to enhance)' : ' (クリックで向上)') : '';
+      return `<span class="gkl-skill-badge gkl-skill-badge-${rankKey} ${enhClass}" data-letter="${skill.letter || ''}" title="${skill.rawText || skill.name}${hint}">${star}<strong>${skill.name}</strong> [${rankLabel}]</span>`;
     }).join(' ');
 
     elSkillsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '🥋 Skills:' : '🥋 スキル:'}</strong> ${listHtml}</div>`;
+
+    elSkillsDetail.querySelectorAll('.gkl-skill-badge.enhanceable').forEach(badge => {
+      badge.onclick = (e) => {
+        e.stopPropagation();
+        this.enhanceSkill(badge.dataset.letter || undefined);
+      };
+    });
   }
 
   /**
@@ -1926,6 +2006,8 @@ class GklPureJSClient {
         this.elStItemScore.classList.add('hidden');
       }
     }
+
+    this.renderGklUi();
   }
 
   handleInputRequired(data) {
@@ -2047,7 +2129,54 @@ class GklPureJSClient {
       return;
     }
 
-    if (data.inputType === 'DIRECTION' || !data.options || data.options.length === 0) {
+    if (data.inputType === 'DIRECTION' || category === 'DIRECTION') {
+      this.isDirectionPromptActive = true;
+      this.elPromptBar.classList.remove('hidden');
+      const isEn = this.currentLanguage === 'en';
+      const promptTitle = data.promptText || data.title || rawPrompt || (isEn ? 'In what direction?' : 'どの方向に？');
+      this.elPromptText.textContent = promptTitle;
+      this.elInputControls.innerHTML = `
+        <div class="prompt-dir-container">
+          <div class="prompt-dir-grid">
+            <button class="prompt-dir-btn" data-dir="DIR_NW" title="7 / y (北西)"><span style="font-size:13px; font-weight:bold;">↖</span><span style="font-size:7px; opacity:0.8;">7 / y</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_N"  title="8 / k (北)"><span style="font-size:13px; font-weight:bold;">↑</span><span style="font-size:7px; opacity:0.8;">8 / k</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_NE" title="9 / u (北東)"><span style="font-size:13px; font-weight:bold;">↗</span><span style="font-size:7px; opacity:0.8;">9 / u</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_W"  title="4 / h (西)"><span style="font-size:13px; font-weight:bold;">←</span><span style="font-size:7px; opacity:0.8;">4 / h</span></button>
+            <button class="prompt-dir-btn self" data-dir="DIR_SELF" title=". (自身)"><span style="font-size:13px; font-weight:bold;">●</span><span style="font-size:7px; opacity:0.8;">. (自身)</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_E"  title="6 / l (東)"><span style="font-size:13px; font-weight:bold;">→</span><span style="font-size:7px; opacity:0.8;">6 / l</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_SW" title="1 / b (南西)"><span style="font-size:13px; font-weight:bold;">↙</span><span style="font-size:7px; opacity:0.8;">1 / b</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_S"  title="2 / j (南)"><span style="font-size:13px; font-weight:bold;">↓</span><span style="font-size:7px; opacity:0.8;">2 / j</span></button>
+            <button class="prompt-dir-btn" data-dir="DIR_SE" title="3 / n (南東)"><span style="font-size:13px; font-weight:bold;">↘</span><span style="font-size:7px; opacity:0.8;">3 / n</span></button>
+          </div>
+          <div class="prompt-dir-side-actions">
+            <button class="prompt-dir-side-btn" data-dir="DIR_UP" title="上階 / 上方向 (<)">▲ ${isEn ? 'Up (<)' : '上方向 (<)'}</button>
+            <button class="prompt-dir-side-btn" data-dir="DIR_DOWN" title="下階 / 下方向 (>)>">▼ ${isEn ? 'Down (>)' : '下方向 (>)'}</button>
+            <button class="prompt-dir-side-btn cancel" id="btn-cancel-dir" title="取消 (ESC)">✖ ${isEn ? 'Cancel (ESC)' : '取消 (ESC)'}</button>
+          </div>
+        </div>
+      `;
+
+      this.elInputControls.querySelectorAll('button[data-dir]').forEach(btn => {
+        btn.onclick = () => {
+          this.core.respond(btn.dataset.dir);
+        };
+      });
+
+      const btnCancel = document.getElementById('btn-cancel-dir');
+      if (btnCancel) {
+        btnCancel.onclick = () => {
+          if (typeof this.core.cancelPrompt === 'function') {
+            this.core.cancelPrompt();
+          } else {
+            this.core.respond('\x1b');
+          }
+        };
+      }
+
+      return;
+    }
+
+    if (!data.options || data.options.length === 0) {
       this.elPromptBar.classList.add('hidden');
       return;
     }

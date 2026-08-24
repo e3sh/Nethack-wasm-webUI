@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { WebUICore } from './WebUICore.js';
+import { PROMPT_CATEGORY } from './types.js';
 
 function createMockDriver() {
     return {
@@ -72,6 +73,30 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(mockInventoryStateManager.invalidate).not.toHaveBeenCalled();
     });
 
+    it('respond: DIRECTION プロンプト時に DIR_* トークンを正しくキー文字に解決して応答すること', () => {
+        const mockDriver = createMockDriver();
+        const core = new WebUICore({ driver: mockDriver, keyMode: 'numpad' });
+        const mockResolver = { respond: vi.fn() };
+        core.activeResolver = mockResolver;
+        core.currentPromptCategory = PROMPT_CATEGORY.DIRECTION;
+
+        // DIR_N ➔ '8' (ASCII 56)
+        core.respond('DIR_N');
+        expect(mockResolver.respond).toHaveBeenCalledWith(56);
+
+        // DIR_SELF ➔ '.' (ASCII 46)
+        core.activeResolver = mockResolver;
+        core.currentPromptCategory = PROMPT_CATEGORY.DIRECTION;
+        core.respond('DIR_SELF');
+        expect(mockResolver.respond).toHaveBeenCalledWith(46);
+
+        // DIR_CANCEL ➔ ESC (ASCII 27)
+        core.activeResolver = mockResolver;
+        core.currentPromptCategory = PROMPT_CATEGORY.DIRECTION;
+        core.respond('DIR_CANCEL');
+        expect(mockResolver.respond).toHaveBeenCalledWith(27);
+    });
+
     it('syncInventorySilent: カウントプレフィックス待機中の場合、クエリ送出をガードして false を返すこと', async () => {
         const mockDriver = createMockDriver();
         const core = new WebUICore({ driver: mockDriver });
@@ -137,7 +162,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         core.gkl.inventoryStateManager.isSynced = true;
 
         if (inputRequiredHandler) {
-            inputRequiredHandler({ context: 'yn', prompt: 'Continue? [yn]' });
+            inputRequiredHandler({ context: 'poskey', type: 'poskey' });
         }
 
         await new Promise(r => setTimeout(r, 10));

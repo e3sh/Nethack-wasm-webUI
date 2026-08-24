@@ -820,6 +820,40 @@ export class GKLPlugin {
     }
 
     /**
+     * 指定された習得魔法スロット文字 (letter) で呪文詠唱 (#cast / Z) を開始する
+     * @param {string} letter - 呪文スロット文字 (例: 'a', 'b')
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>}
+     */
+    async castSpell(letter, options = {}) {
+        if (!letter || !this.core) return false;
+        const spellKey = typeof letter === 'string' ? letter.charAt(0) : String.fromCharCode(letter);
+        if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+            this.core.driver.queueSequence(['Z', spellKey], options);
+            this.core.emit('userActionSent', { sequence: ['Z', spellKey] });
+            return true;
+        }
+        return this.executeSequence(['Z', spellKey], options);
+    }
+
+    /**
+     * スキル向上 (#enhance) を開始する
+     * @param {Object|string} [skill] - スキルオブジェクトまたはスロット文字
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>}
+     */
+    async enhanceSkill(skill, options = {}) {
+        if (!this.core) return false;
+        if (skill) {
+            const letter = typeof skill === 'string' ? skill : (skill.letter || skill.ch || skill.accelerator);
+            if (letter) {
+                return this.executeSequence(['#', 'enhance', '\r', String(letter)], options);
+            }
+        }
+        return this.executeSequence(['#', 'enhance', '\r'], options);
+    }
+
+    /**
      * 指定されたマップセル (x, y) に対し、自キャラ判別、Look不要判定、オンデマンドLook実行、および動的状態キャッシュ適用を
      * 全自動でカプセル処理した統一構造化ナレッジデータを返す
      * @param {{x: number, y: number}} targetPos 

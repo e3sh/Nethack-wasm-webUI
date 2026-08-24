@@ -327,16 +327,16 @@ test('AreaStateManager & ContextActionEngine - setKeyMode (numpad / vi) 動的�
     const area = new AreaStateManager(80, 21);
     area.updatePlayerPosition(5, 5);
 
-    // デフォルト ('vi'): 北 (dx:0, dy:-1) は 'k'
+    // デフォルト ('numpad'): 北 (dx:0, dy:-1) は '8'
     let state = area.getAreaState();
-    const northCellVi = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
-    assert.strictEqual(northCellVi.dir.key, 'k', 'デフォルト vi モードでは北のキーは k');
-
-    // numpad モード切替: 北 (dx:0, dy:-1) は '8'
-    area.setKeyMode('numpad');
-    state = area.getAreaState();
     const northCellNumpad = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
-    assert.strictEqual(northCellNumpad.dir.key, '8', 'numpad モード切替後は北のキーは 8');
+    assert.strictEqual(northCellNumpad.dir.key, '8', 'デフォルト numpad モードでは北のキーは 8');
+
+    // vi モード切替: 北 (dx:0, dy:-1) は 'k'
+    area.setKeyMode('vi');
+    state = area.getAreaState();
+    const northCellVi = state.cells.flat().find(c => c.relX === 0 && c.relY === -1);
+    assert.strictEqual(northCellVi.dir.key, 'k', 'vi モード切替後は北のキーは k');
 });
 
 test('WebUICore - 起動オプション (number_pad / numpad) からの keyMode 自動追従テスト', () => {

@@ -73,20 +73,20 @@ export class PromptPayloadBuilder {
                     isSelectable: item.isSelectable !== false
                 };
             });
-        } else if (category === PROMPT_CATEGORY.YN) {
+        } else if (category === PROMPT_CATEGORY.DIRECTION || category === 'DIRECTION' ||
+                   (category === PROMPT_CATEGORY.YN && (!choices || choices.trim() === '') &&
+                    ((rawPrompt || '').toLowerCase().includes('direction') || (rawPrompt || '').includes('方向') || (rawPrompt || '').toLowerCase().includes('which way')))) {
+            inputType = 'DIRECTION';
+            options = []; // 方向入力時の誤爆を防止するため汎用選択肢ボタンは生成しない
+        } else if (category === PROMPT_CATEGORY.YN && choices && choices.trim() !== '') {
             inputType = 'CHOICE_BUTTONS';
             let keys = [];
-            if (choices) {
-                if (choices.includes(' or ')) {
-                    keys = choices.split(' or ').map(s => s.trim().charAt(0));
-                } else if (choices.includes('/')) {
-                    keys = choices.split('/').map(s => s.trim().charAt(0));
-                } else {
-                    keys = choices.replace(/[^a-zA-Z0-9#]/g, '').split('');
-                }
-            }
-            if (keys.length === 0) {
-                keys = ['y', 'n'];
+            if (choices.includes(' or ')) {
+                keys = choices.split(' or ').map(s => s.trim().charAt(0));
+            } else if (choices.includes('/')) {
+                keys = choices.split('/').map(s => s.trim().charAt(0));
+            } else {
+                keys = choices.replace(/[^a-zA-Z0-9#]/g, '').split('');
             }
 
             const labelMap = {
@@ -113,12 +113,13 @@ export class PromptPayloadBuilder {
             payload.context === 'text' || 
             payload.context === 'extcmd' || 
             payload.context === 'get_ext_cmd' || 
-            payload.context === 'getlin'
+            payload.context === 'getlin' ||
+            (category === PROMPT_CATEGORY.YN && (!choices || choices.trim() === ''))
         ) {
             inputType = 'LINE_TEXT';
-        } else if (category === PROMPT_CATEGORY.DIRECTION || category === PROMPT_CATEGORY.POSKEY || category === 'DIRECTION') {
-            inputType = 'DIRECTION';
-            options = []; // 方向入力時の誤爆を防止するため汎用選択肢ボタンは生成しない
+        } else if (category === PROMPT_CATEGORY.POSKEY) {
+            inputType = 'TURN_INPUT';
+            options = [];
         } else if (category === PROMPT_CATEGORY.KEY || category === PROMPT_CATEGORY.FILE) {
 
             inputType = 'CONFIRM';

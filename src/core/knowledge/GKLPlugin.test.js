@@ -264,6 +264,26 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(emittedEvents).toContain('discoveriesStateUpdated');
     });
 
+    it('castSpell: Z と指定文字のキーシーケンスを実行すること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.driver = { queueSequence: vi.fn() };
+        plugin.attach(mockCore);
+
+        await plugin.castSpell('a');
+        expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['Z', 'a'], expect.anything());
+    });
+
+    it('enhanceSkill: #enhance シーケンスを実行すること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.driver = { queueSequence: vi.fn() };
+        plugin.attach(mockCore);
+
+        await plugin.enhanceSkill('b');
+        expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['#', 'enhance', '\r', 'b'], expect.anything());
+    });
+
     it('setLanguage: 表示言語の切り替えが各サブマネージャーに正しく同期・反映されること', () => {
         const plugin = new GKLPlugin({ language: 'ja' });
         const mockCore = createMockCore();

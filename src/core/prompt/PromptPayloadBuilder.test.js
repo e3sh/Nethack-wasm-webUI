@@ -48,6 +48,17 @@ describe('PromptPayloadBuilder', () => {
         const res = builder.build(payload);
         expect(res.inputType).toBe('DIRECTION');
         expect(res.options.length).toBe(0);
+
+        // yn_function 経由の方向問い合わせ (choices が空で prompt が方向)
+        const payloadYnDir = {
+            category: PROMPT_CATEGORY.YN,
+            promptCategory: PROMPT_CATEGORY.YN,
+            choices: "",
+            prompt: "In what direction?"
+        };
+        const resYnDir = builder.build(payloadYnDir);
+        expect(resYnDir.inputType).toBe('DIRECTION');
+        expect(resYnDir.options.length).toBe(0);
     });
 
 

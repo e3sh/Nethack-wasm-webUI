@@ -1428,6 +1428,118 @@ body {
 .gkl-skill-badge.enhanceable {
   border-color: #f59e0b !important;
   animation: pulse-skill 2s infinite ease-in-out;
+  cursor: pointer;
+}
+
+.gkl-spell-badge {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gkl-spell-badge:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: #c4b5fd;
+  transform: translateY(-1px);
+}
+
+/* DIRECTION プロンプト時の D-Pad 強調表示 */
+.gkl-direction-pad.is-direction-prompt {
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 4px;
+  background: rgba(245, 158, 11, 0.08);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.gkl-direction-pad.is-direction-prompt .gkl-dir-btn {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fcd34d;
+}
+
+.gkl-direction-pad.is-direction-prompt .gkl-dir-btn:hover {
+  background: rgba(245, 158, 11, 0.35);
+  border-color: #fbbf24;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+/* プロンプトバー内の 3x3 方向インジケータ */
+.prompt-dir-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.prompt-dir-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 4px;
+}
+
+.prompt-dir-btn {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  border-radius: 4px;
+  color: #f8fafc;
+  height: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 2px;
+  font-family: inherit;
+  transition: all 0.1s ease;
+}
+
+.prompt-dir-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  transform: scale(1.04);
+}
+
+.prompt-dir-btn.self {
+  background: #334155;
+  border-color: #94a3b8;
+}
+
+.prompt-dir-side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prompt-dir-side-btn {
+  background: #1e293b;
+  border: 1px solid #64748b;
+  color: #e2e8f0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.1s ease;
+}
+
+.prompt-dir-side-btn:hover {
+  background: #334155;
+  border-color: #94a3b8;
+}
+
+.prompt-dir-side-btn.cancel {
+  border-color: #ef4444;
+  color: #fca5a5;
+  margin-top: 2px;
+}
+
+.prompt-dir-side-btn.cancel:hover {
+  background: #ef4444;
+  color: #ffffff;
 }
 
 @keyframes pulse-skill {
