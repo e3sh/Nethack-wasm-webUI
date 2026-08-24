@@ -216,6 +216,8 @@ export class AreaStateManager {
         return {
             center: { x: cx, y: cy },
             radius,
+            playerX: this.playerX,
+            playerY: this.playerY,
             playerLocation: { x: this.playerX, y: this.playerY },
             keyMode: this.keyMode,
             width: this.width,

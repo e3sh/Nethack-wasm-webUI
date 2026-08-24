@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { getTileMapping } from '../utils/tileMapping';
@@ -31,8 +31,17 @@ const { inspectTileKnowledge } = useNetHackDriver();
 
 let tileImage: HTMLImageElement | null = null;
 let isTileLoaded = false;
-let animFrameId: number | null = null;
+let renderRequested = false;
 let tileMapTable: Record<number, number> = {};
+
+function requestRender() {
+  if (renderRequested) return;
+  renderRequested = true;
+  requestAnimationFrame(() => {
+    renderRequested = false;
+    renderFullMap();
+  });
+}
 
 function handleMouseMove(e: MouseEvent) {
   const canvas = canvasRef.value;
@@ -66,24 +75,22 @@ onMounted(() => {
   tileImage.src = './pict/nethack_default_32.png';
   tileImage.onload = () => {
     isTileLoaded = true;
-    renderFullMap();
+    requestRender();
   };
   tileImage.onerror = () => {
     isTileLoaded = false;
-    renderFullMap();
+    requestRender();
   };
 
-  const renderLoop = () => {
-    renderFullMap();
-    animFrameId = requestAnimationFrame(renderLoop);
-  };
-  animFrameId = requestAnimationFrame(renderLoop);
+  requestRender();
 });
 
+watch([mapGrid, cursorPos], () => {
+  requestRender();
+}, { deep: true });
+
 onUnmounted(() => {
-  if (animFrameId !== null) {
-    cancelAnimationFrame(animFrameId);
-  }
+  renderRequested = false;
 });
 
 // ============================================================================

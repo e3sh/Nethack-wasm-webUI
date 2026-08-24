@@ -1,5 +1,5 @@
-import { Component, onMount, onCleanup } from 'solid-js';
-import { mapGrid, cursorPos } from '../stores/gameStore';
+import { Component, onMount, onCleanup, createEffect } from 'solid-js';
+import { mapGrid, mapRevision, cursorPos } from '../stores/gameStore';
 import { getTileMapping } from '../utils/tileMapping';
 import { driverController } from '../services/useNetHackDriver';
 
@@ -13,8 +13,17 @@ export const GameCanvas: Component = () => {
   let canvasRef: HTMLCanvasElement | undefined;
   let tileImage: HTMLImageElement | null = null;
   let isTileLoaded = false;
-  let animFrameId: number | null = null;
+  let renderRequested = false;
   let tileMapTable: Record<number, number> = {};
+
+  const requestRender = () => {
+    if (renderRequested || !canvasRef) return;
+    renderRequested = true;
+    requestAnimationFrame(() => {
+      renderRequested = false;
+      renderFullMap();
+    });
+  };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!canvasRef) return;
@@ -136,6 +145,12 @@ export const GameCanvas: Component = () => {
     }
   };
 
+  createEffect(() => {
+    mapRevision();
+    cursorPos();
+    requestRender();
+  });
+
   onMount(() => {
     tileMapTable = getTileMapping();
 
@@ -143,24 +158,18 @@ export const GameCanvas: Component = () => {
     tileImage.src = './pict/nethack_default_32.png';
     tileImage.onload = () => {
       isTileLoaded = true;
-      renderFullMap();
+      requestRender();
     };
     tileImage.onerror = () => {
       isTileLoaded = false;
-      renderFullMap();
+      requestRender();
     };
 
-    const renderLoop = () => {
-      renderFullMap();
-      animFrameId = requestAnimationFrame(renderLoop);
-    };
-    animFrameId = requestAnimationFrame(renderLoop);
+    requestRender();
   });
 
   onCleanup(() => {
-    if (animFrameId !== null) {
-      cancelAnimationFrame(animFrameId);
-    }
+    renderRequested = false;
   });
 
   return (

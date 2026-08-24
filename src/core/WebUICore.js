@@ -310,10 +310,21 @@ export class WebUICore {
     destroy() {
         this._setState(CoreState.DESTROYED);
 
-        if (this.gamepadLoopId) {
-            cancelAnimationFrame(this.gamepadLoopId);
-            this.gamepadLoopId = null;
+        this._stopGamepadPolling();
+
+        if (Array.isArray(this.plugins)) {
+            for (const plugin of this.plugins) {
+                if (plugin && typeof plugin.detach === 'function') {
+                    plugin.detach();
+                }
+            }
+            this.plugins = [];
         }
+
+        if (this.gkl && typeof this.gkl.detach === 'function') {
+            this.gkl.detach();
+        }
+        this.gkl = null;
 
         if (this.driver && typeof this.driver.destroy === 'function') {
             this.driver.destroy();
@@ -1053,13 +1064,6 @@ export class WebUICore {
         return result;
     }
 
-    destroy() {
-        if (this.gamepadLoopId) {
-            cancelAnimationFrame(this.gamepadLoopId);
-            this.gamepadLoopId = null;
-        }
-        this.listeners.clear();
-    }
 
     _initRenderer() {
         if (this.renderer && typeof this.renderer.init === 'function') {
@@ -1312,11 +1316,13 @@ export class WebUICore {
             if (category === PROMPT_CATEGORY.ASKNAME || rawPrompt.includes('Who are you') || rawPrompt.includes('your name') || payload.context === 'askname') {
                 if (this.isResumingSave || this.resumeSavePlayerName) {
                     const finalName = this.resumeSavePlayerName || payload.detectedName || 'Hero';
-                    if (this.gkl && this.gkl.inventoryStateManager) {
-                        this.gkl.inventoryStateManager.invalidate();
-                    }
-                    if (this.gkl && this.gkl.spellStateManager) {
-                        this.gkl.spellStateManager.invalidate();
+                    if (this.gkl) {
+                        if (typeof this.gkl.invalidateAllCaches === 'function') {
+                            this.gkl.invalidateAllCaches();
+                        } else {
+                            if (this.gkl.inventoryStateManager) this.gkl.inventoryStateManager.invalidate();
+                            if (this.gkl.spellStateManager) this.gkl.spellStateManager.invalidate();
+                        }
                     }
                     this.respond(finalName.trim());
                     return;
@@ -1437,18 +1443,63 @@ export class WebUICore {
     }
 
     _startGamepadPolling() {
-        if (typeof requestAnimationFrame === 'undefined') return;
+        if (typeof window === 'undefined' || typeof requestAnimationFrame === 'undefined') return;
 
         const poll = () => {
-            if (this.activeResolver) {
+            if (this.activeResolver && this.gamepad) {
                 const keys = this.gamepad.pollInput(this.currentPromptCategory, this.currentPromptChoices);
                 if (keys && keys.length > 0) {
                     keys.forEach(k => this.sendKey(k));
                 }
             }
-            this.gamepadLoopId = requestAnimationFrame(poll);
+            if (this._hasGamepadConnected) {
+                this.gamepadLoopId = requestAnimationFrame(poll);
+            } else {
+                this.gamepadLoopId = null;
+            }
         };
 
-        this.gamepadLoopId = requestAnimationFrame(poll);
+        this._onGamepadConnected = () => {
+            this._hasGamepadConnected = true;
+            if (!this.gamepadLoopId) {
+                this.gamepadLoopId = requestAnimationFrame(poll);
+            }
+        };
+
+        this._onGamepadDisconnected = () => {
+            const hasRemaining = this.gamepad && this.gamepad.getGamepadState && this.gamepad.getGamepadState() !== null;
+            this._hasGamepadConnected = hasRemaining;
+            if (!hasRemaining && this.gamepadLoopId) {
+                cancelAnimationFrame(this.gamepadLoopId);
+                this.gamepadLoopId = null;
+            }
+        };
+
+        window.addEventListener('gamepadconnected', this._onGamepadConnected);
+        window.addEventListener('gamepaddisconnected', this._onGamepadDisconnected);
+
+        // 起動時に既にパッドが接続されているか点検
+        if (this.gamepad && typeof this.gamepad.getGamepadState === 'function' && this.gamepad.getGamepadState() !== null) {
+            this._hasGamepadConnected = true;
+            this.gamepadLoopId = requestAnimationFrame(poll);
+        }
+    }
+
+    _stopGamepadPolling() {
+        if (this.gamepadLoopId) {
+            cancelAnimationFrame(this.gamepadLoopId);
+            this.gamepadLoopId = null;
+        }
+        this._hasGamepadConnected = false;
+        if (typeof window !== 'undefined') {
+            if (this._onGamepadConnected) {
+                window.removeEventListener('gamepadconnected', this._onGamepadConnected);
+                this._onGamepadConnected = null;
+            }
+            if (this._onGamepadDisconnected) {
+                window.removeEventListener('gamepaddisconnected', this._onGamepadDisconnected);
+                this._onGamepadDisconnected = null;
+            }
+        }
     }
 }

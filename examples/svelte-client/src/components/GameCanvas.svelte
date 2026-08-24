@@ -113,6 +113,21 @@
     }
   }
 
+  let renderRequested = false;
+
+  function requestRender() {
+    if (renderRequested || !canvasRef) return;
+    renderRequested = true;
+    requestAnimationFrame(() => {
+      renderRequested = false;
+      renderFullMap();
+    });
+  }
+
+  $: if (canvasRef && (mapGrid || cursorPos || isTileLoaded)) {
+    requestRender();
+  }
+
   onMount(() => {
     tileMapTable = getTileMapping();
 
@@ -120,18 +135,18 @@
     tileImage.src = './pict/nethack_default_32.png';
     tileImage.onload = () => {
       isTileLoaded = true;
-      renderFullMap();
+      requestRender();
     };
     tileImage.onerror = () => {
       isTileLoaded = false;
-      renderFullMap();
+      requestRender();
     };
 
-    const renderLoop = () => {
-      renderFullMap();
-      animFrameId = requestAnimationFrame(renderLoop);
-    };
-    animFrameId = requestAnimationFrame(renderLoop);
+    requestRender();
+  });
+
+  onDestroy(() => {
+    renderRequested = false;
   });
 
   function handleMouseMove(e: MouseEvent) {

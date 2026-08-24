@@ -71,17 +71,11 @@ class NetHackDriverController {
 
     this.core.on('cursor', ({ x, y }: { x: number; y: number }) => {
       gameStore.setCursorPos(x, y);
-      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-        this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
-      }
       this.updateGklSituation();
     });
 
     this.core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       gameStore.updateTile(x, y, glyph, ch, color);
-      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-        this.core.gkl.areaStateManager.updateGlyph(x, y, glyph);
-      }
     });
 
     this.core.on('inventoryStateUpdated', () => {

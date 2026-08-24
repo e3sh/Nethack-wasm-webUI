@@ -337,4 +337,32 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         mockCore.emit('status_update', { field: 20, value: 'Dlvl:2' });
         expect(tracker.getTrackedMonsters().length).toBe(0);
     });
+
+    it('invalidateAllCaches: インベントリ・魔法・スキルの全キャッシュを安全に一括破棄できること', () => {
+        const plugin = new GKLPlugin();
+        plugin.inventoryStateManager.items = [{ name: 'dagger' }];
+        plugin.spellStateManager.spells = [{ name: 'force bolt' }];
+        plugin.skillStateManager.skills = [{ name: 'dagger' }];
+
+        plugin.invalidateAllCaches();
+
+        expect(plugin.inventoryStateManager.isSynced).toBe(false);
+        expect(plugin.spellStateManager.isSynced).toBe(false);
+        expect(plugin.skillStateManager.isSynced).toBe(false);
+    });
+
+    it('detach: detach 呼び出し時に登録した全リスナーが解除され core が null になること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.off = vi.fn();
+
+        plugin.attach(mockCore);
+        expect(plugin.core).toBe(mockCore);
+        expect(plugin._coreListeners.length).toBeGreaterThan(0);
+
+        plugin.detach();
+        expect(plugin.core).toBeNull();
+        expect(plugin._coreListeners.length).toBe(0);
+        expect(mockCore.off).toHaveBeenCalled();
+    });
 });

@@ -150,9 +150,6 @@ export class NetHackDriverController {
 
     this.core.on('cursor', ({ x, y }: { x: number; y: number }) => {
       setCursorPos({ x, y });
-      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-        this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
-      }
       if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
         setGklSituation(this.core.gkl.getSituation());
       }
@@ -160,9 +157,6 @@ export class NetHackDriverController {
 
     this.core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       updateTile(x, y, glyph, ch, color);
-      if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-        this.core.gkl.areaStateManager.updateGlyph(x, y, glyph);
-      }
     });
 
     this.core.on('inventoryStateUpdated', () => {

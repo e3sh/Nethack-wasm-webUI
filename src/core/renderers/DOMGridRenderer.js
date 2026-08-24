@@ -120,9 +120,9 @@ export class DOMGridRenderer {
     }
 
     updateStatus(statusFields) {
-        if (!this.statusBar) return;
-        if (statusFields.0) {
-            this.statusBar.textContent = `${statusFields.0} HP:${statusFields.18 || ''} Gold:${statusFields.10 || 0}`;
+        if (!this.statusBar || !statusFields) return;
+        if (statusFields[0]) {
+            this.statusBar.textContent = `${statusFields[0]} HP:${statusFields[18] || ''} Gold:${statusFields[10] || 0}`;
         }
     }
 

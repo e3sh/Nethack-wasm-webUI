@@ -108,9 +108,6 @@ export function useNetHackDriver() {
 
     core.on('cursor', ({ x, y }: { x: number; y: number }) => {
       useGameStore.getState().setCursorPos(x, y);
-      if ((core as any).gkl && (core as any).gkl.areaStateManager) {
-        (core as any).gkl.areaStateManager.updatePlayerPosition(x, y);
-      }
       if ((core as any).gkl && typeof (core as any).gkl.getSituation === 'function') {
         useGameStore.getState().setGklSituation((core as any).gkl.getSituation());
       }
@@ -118,9 +115,6 @@ export function useNetHackDriver() {
 
     core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       useGameStore.getState().updateTile(x, y, glyph, ch, color);
-      if ((core as any).gkl && (core as any).gkl.areaStateManager) {
-        (core as any).gkl.areaStateManager.updateGlyph(x, y, glyph);
-      }
     });
 
     core.on('inventoryStateUpdated', () => {

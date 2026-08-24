@@ -85,6 +85,7 @@ export const [status, setStatus] = createStore<StatusState>({
   condition: [],
 });
 export const [mapGrid, setMapGrid] = createStore<MapTile[][]>(createInitialMapGrid());
+export const [mapRevision, setMapRevision] = createSignal(0);
 export const [cursorPos, setCursorPos] = createSignal<{ x: number; y: number } | null>(null);
 export const [activePrompt, setActivePrompt] = createSignal<ActivePrompt | null>(null);
 export const [activeMenu, setActiveMenu] = createSignal<ActiveMenu | null>(null);
@@ -191,11 +192,13 @@ export const updateStatus = (field: number, value: any, rawPayload?: any) => {
 export const updateTile = (x: number, y: number, tileId: number, symbol: string, color: number) => {
   if (y >= 0 && y < 21 && x >= 0 && x < 80) {
     setMapGrid(y, x, { tileId, symbol, color });
+    setMapRevision((r) => r + 1);
   }
 };
 
 export const clearMapGrid = () => {
   setMapGrid(reconcile(createInitialMapGrid()));
+  setMapRevision((r) => r + 1);
 };
 
 export const resetAllState = () => {

@@ -24,15 +24,19 @@ export class CanvasRenderer {
         this.tileImgObj = null;
         this.glyphCache = new Map();
 
+        this.ctx = this.canvas && typeof this.canvas.getContext === 'function' ? this.canvas.getContext('2d') : null;
         this._initCanvas();
         this._loadTileImage();
     }
 
     _initCanvas() {
+        if (!this.canvas) return;
         this.canvas.width = this.options.cols * this.options.tileSize;
         this.canvas.height = this.options.rows * this.options.tileSize;
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.ctx) {
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
     }
 
     _loadTileImage() {

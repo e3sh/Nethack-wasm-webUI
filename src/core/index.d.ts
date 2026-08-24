@@ -271,13 +271,20 @@ export class StructuredKnowledgeEngine {
 }
 
 export class GKLPlugin {
-    constructor(options?: { inventoryStateManager?: InventoryStateManager; keyMode?: 'vi' | 'numpad'; structuredKnowledgeEngine?: StructuredKnowledgeEngine });
+    constructor(options?: { inventoryStateManager?: InventoryStateManager; keyMode?: 'vi' | 'numpad'; structuredKnowledgeEngine?: StructuredKnowledgeEngine; language?: 'ja' | 'en' });
     attach(core: any): void;
-    statusAccessor: StatusAccessor;
-    areaStateManager: AreaStateManager;
-    inventoryStateManager: InventoryStateManager;
-    situationCache: SituationCache;
+    detach(): void;
+    setLanguage(lang?: 'ja' | 'en'): void;
+    reset(): void;
+    invalidateAllCaches(): void;
+    getSituation(): SituationData;
+    executeAction(action: any, options?: any): Promise<boolean>;
+    executeSequence(sequence: Array<string | number>, options?: any): Promise<boolean>;
+    castSpell(letter: string | number, options?: any): Promise<boolean>;
+    getMonsterTracker(): MonsterTracker;
     structuredKnowledge: StructuredKnowledgeEngine;
+    situationCache: SituationCache;
+    statusAccessor: StatusAccessor;
 }
 
 // --- サウンド ＆ 翻訳 ---

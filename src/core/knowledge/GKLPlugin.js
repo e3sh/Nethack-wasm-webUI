@@ -80,8 +80,22 @@ export class GKLPlugin {
         this.core = null;
         this.requestController = null;
         this.lookService = new OnDemandLookService();
-        this._isSyncing = false;
-        this._isSyncingDiscoveries = false;
+        this._coreListeners = [];
+    }
+
+    /**
+     * 所持品・魔法・スキル・耐性など全マネージャーのキャッシュを一括無効化
+     */
+    invalidateAllCaches() {
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+            this.inventoryStateManager.invalidate();
+        }
+        if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
+            this.spellStateManager.invalidate();
+        }
+        if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
+            this.skillStateManager.invalidate();
+        }
     }
 
     /**
@@ -153,7 +167,16 @@ export class GKLPlugin {
      */
     attach(core) {
         if (!core) return;
+        if (this.core && this.core !== core) {
+            this.detach();
+        }
         this.core = core;
+        if (!core.gkl) {
+            core.gkl = this;
+        }
+        if (Array.isArray(core.plugins) && !core.plugins.includes(this)) {
+            core.plugins.push(this);
+        }
 
         if (core.language) {
             this.setLanguage(core.language);
@@ -179,17 +202,40 @@ export class GKLPlugin {
     }
 
     /**
+     * WebUICore からプラグインをデタッチし、リスナーを安全に解除
+     */
+    detach() {
+        if (!this.core) return;
+        if (Array.isArray(this._coreListeners) && typeof this.core.off === 'function') {
+            for (const { event, handler } of this._coreListeners) {
+                this.core.off(event, handler);
+            }
+        }
+        this._coreListeners = [];
+        if (this.core.gkl === this) {
+            this.core.gkl = null;
+        }
+        this.core = null;
+    }
+
+    /**
      * WebUICore のイベントバインディング
      * @private
      */
     _bindCoreEvents(core) {
+        this._coreListeners = [];
+        const addCoreListener = (event, handler) => {
+            core.on(event, handler);
+            this._coreListeners.push({ event, handler });
+        };
+
         // 言語変更イベントのリスン
-        core.on('languageChanged', ({ language }) => {
+        addCoreListener('languageChanged', ({ language }) => {
             this.setLanguage(language);
         });
 
         // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行
-        core.on('userActionSent', ({ sequence }) => {
+        addCoreListener('userActionSent', ({ sequence }) => {
             if (sequence) {
                 if (!this.isNonItemSequence(sequence)) {
                     if (typeof this.inventoryStateManager.invalidate === 'function') {
@@ -210,7 +256,7 @@ export class GKLPlugin {
         });
 
         // 2. テキストメッセージ受信時の更新 (撃破メッセージ処理含む)
-        core.on('messageText', ({ text }) => {
+        addCoreListener('messageText', ({ text }) => {
             if (text) {
                 if (this.monsterTracker && typeof this.monsterTracker.handleMessage === 'function') {
                     this.monsterTracker.handleMessage(text);
@@ -243,7 +289,7 @@ export class GKLPlugin {
         });
 
         // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算 ＆ 鑑定済みアイテムの DiscoveryCache 学習
-        core.on('inventoryStateUpdated', (invMgr) => {
+        addCoreListener('inventoryStateUpdated', (invMgr) => {
             const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
             if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
                 this.attributeStateManager.updateExtrinsicsFromInventory(items);
@@ -269,10 +315,10 @@ export class GKLPlugin {
         const triggerDiscoverySync = () => {
             this.syncDiscoveriesSilent();
         };
-        core.on('game_ready', triggerDiscoverySync);
-        core.on('game_started', triggerDiscoverySync);
-        core.on('restore', triggerDiscoverySync);
-        core.on('game_restored', triggerDiscoverySync);
+        addCoreListener('game_ready', triggerDiscoverySync);
+        addCoreListener('game_started', triggerDiscoverySync);
+        addCoreListener('restore', triggerDiscoverySync);
+        addCoreListener('game_restored', triggerDiscoverySync);
 
         // 4. カーソル位置・プレイヤー移動の同期
         const handlePlayerPosUpdate = (data) => {
@@ -282,18 +328,18 @@ export class GKLPlugin {
                 }
             }
         };
-        core.on('curs', handlePlayerPosUpdate);
-        core.on('cursor', handlePlayerPosUpdate);
+        addCoreListener('curs', handlePlayerPosUpdate);
+        addCoreListener('cursor', handlePlayerPosUpdate);
 
         // 5. ウィンドウ消去・マップリセットの同期
-        core.on('clear_nhwindow', (data) => {
+        addCoreListener('clear_nhwindow', (data) => {
             if (data && (data.windowId === 2 || data.windowId === 0)) {
                 this.areaStateManager.resetGrid();
             }
         });
 
         // 6. マップグリフ更新の同期
-        core.on('print_glyph', (data) => {
+        addCoreListener('print_glyph', (data) => {
             if (data) {
                 const gi = data.glyphInfo || data;
                 const glyphId = data.glyph !== undefined ? data.glyph : -1;
@@ -302,7 +348,7 @@ export class GKLPlugin {
         });
 
         // 7. ステータスフィールド更新の同期
-        core.on('status_update', (data) => {
+        addCoreListener('status_update', (data) => {
             if (data && data.field !== undefined && this.statusAccessor) {
                 this.statusAccessor.updateField(data.field, data.value);
 
@@ -815,7 +861,9 @@ export class GKLPlugin {
             success = true;
         }
 
-        this.core.emit('userActionSent', { sequence });
+        if (this.core && typeof this.core.emit === 'function') {
+            this.core.emit('userActionSent', { sequence });
+        }
         return success;
     }
 
@@ -830,7 +878,9 @@ export class GKLPlugin {
         const spellKey = typeof letter === 'string' ? letter.charAt(0) : String.fromCharCode(letter);
         if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
             this.core.driver.queueSequence(['Z', spellKey], options);
-            this.core.emit('userActionSent', { sequence: ['Z', spellKey] });
+            if (this.core && typeof this.core.emit === 'function') {
+                this.core.emit('userActionSent', { sequence: ['Z', spellKey] });
+            }
             return true;
         }
         return this.executeSequence(['Z', spellKey], options);

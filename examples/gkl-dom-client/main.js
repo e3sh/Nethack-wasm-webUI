@@ -140,9 +140,7 @@ class GklDomClient {
 
     // 4. Cursor (プレイヤー位置の同期)
     this.core.on('cursor', ({ x, y }) => {
-      if (this.core.gkl && this.core.gkl.areaStateManager) {
-        this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
-      }
+      // GKLPlugin 自律更新
     });
 
     // 5. Print Glyph (NetHack WASM マップ描画指示 ➔ GKL & DOM へ反映)
@@ -160,11 +158,6 @@ class GklDomClient {
         elTile.style.color = color;
         if (gId >= 0) {
           elTile.dataset.rawGlyph = gId;
-        }
-
-        // GKL の 3階層 AreaStateManager にグリフを即座に同期
-        if (this.core.gkl && this.core.gkl.areaStateManager && gId >= 0) {
-          this.core.gkl.areaStateManager.updateGlyph(x, mapY, gId, glyphInfo);
         }
       }
     });

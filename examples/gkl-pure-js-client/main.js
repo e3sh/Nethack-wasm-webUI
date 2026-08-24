@@ -261,12 +261,6 @@ class GklPureJSClient {
       if (prevX >= 0 && prevY >= 0) this.redrawSingleCell(prevX, prevY);
       if (this.targetCursorX >= 0 && this.targetCursorY >= 0) {
         this.redrawSingleCell(this.targetCursorX, this.targetCursorY);
-        // プレイヤーの現在位置を AreaStateManager に同期 (ターゲットカーソル移動中でないメインターン時のみ)
-        if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-          if (!this.core.driver || typeof this.core.driver.canAcceptSequenceInterruption !== 'function' || this.core.driver.isTopLevelTurn) {
-            this.core.gkl.areaStateManager.updatePlayerPosition(x, y);
-          }
-        }
       }
     });
 
@@ -286,11 +280,6 @@ class GklPureJSClient {
         this.asciiGridBuffer[y][x] = { ch, color };
         this.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
         this.redrawSingleCell(x, y);
-      }
-
-      // GKL の 3階層 AreaStateManager にグリフを即座に同期
-      if (this.core && this.core.gkl && this.core.gkl.areaStateManager && gId >= 0) {
-        this.core.gkl.areaStateManager.updateGlyph(x, y, gId, glyphInfo);
       }
     });
 
@@ -498,9 +487,8 @@ class GklPureJSClient {
         const tileX = Math.floor(((e.clientX - rect.left) * (this.zoomCanvas.width / rect.width)) / 32);
         const tileY = Math.floor(((e.clientY - rect.top) * (this.zoomCanvas.height / rect.height)) / 32);
 
-        const asm = this.core?.gkl?.areaStateManager;
-        const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
-        const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
+        const px = this.targetCursorX >= 0 ? this.targetCursorX : 0;
+        const py = this.targetCursorY >= 0 ? this.targetCursorY : 0;
 
         const gx = px + (tileX - 10);
         const gy = py + (tileY - 4);
@@ -517,9 +505,8 @@ class GklPureJSClient {
         const tileX = Math.floor(((e.clientX - rect.left) * (this.zoomCanvas.width / rect.width)) / 32);
         const tileY = Math.floor(((e.clientY - rect.top) * (this.zoomCanvas.height / rect.height)) / 32);
 
-        const asm = this.core?.gkl?.areaStateManager;
-        const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : (this.targetCursorX >= 0 ? this.targetCursorX : 0);
-        const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : (this.targetCursorY >= 0 ? this.targetCursorY : 0);
+        const px = this.targetCursorX >= 0 ? this.targetCursorX : 0;
+        const py = this.targetCursorY >= 0 ? this.targetCursorY : 0;
 
         const gx = px + (tileX - 10);
         const gy = py + (tileY - 4);
@@ -707,14 +694,17 @@ class GklPureJSClient {
 
   // 🎯 自キャラ周辺 拡大ズームカメラ描画 (21x9 マス, 32px タイル)
   renderZoomCanvas(areaState) {
-    const areaMgr = (this.core && this.core.gkl) ? this.core.gkl.areaStateManager : null;
-    if (!this.zoomCtx || !areaMgr) return;
+    if (!this.zoomCtx) return;
 
-    const grid = areaMgr.grid;
-    const px = areaMgr.playerX || 0;
-    const py = areaMgr.playerY || 0;
-    const width = areaMgr.width || 80;
-    const height = areaMgr.height || 21;
+    const grid = areaState?.grid;
+    const px = (areaState && typeof areaState.playerX === 'number')
+      ? areaState.playerX
+      : (areaState?.playerLocation?.x ?? (this.targetCursorX >= 0 ? this.targetCursorX : 0));
+    const py = (areaState && typeof areaState.playerY === 'number')
+      ? areaState.playerY
+      : (areaState?.playerLocation?.y ?? (this.targetCursorY >= 0 ? this.targetCursorY : 0));
+    const width = areaState?.width || 80;
+    const height = areaState?.height || 21;
 
     if (this.zoomPosBadge) {
       this.zoomPosBadge.textContent = `@ (${px},${py})`;
@@ -744,7 +734,7 @@ class GklPureJSClient {
         const screenY = (dy + halfRangeY) * zoomTileSize;
 
         if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
-          const cell = grid[gy][gx];
+          const cell = (grid && grid[gy]) ? grid[gy][gx] : null;
           const gData = (this.glyphGridBuffer[gy] && this.glyphGridBuffer[gy][gx]) ? this.glyphGridBuffer[gy][gx] : null;
 
           // セルに一度でも記憶された地形/アイテム/エンティティ情報があるかチェック
@@ -1814,7 +1804,7 @@ class GklPureJSClient {
     const bounceY = Math.round(Math.sin(Date.now() / 180) * 2);
 
     // GKL AreaStateManager の 3層グリッドがある場合は重ね描き
-    const areaGrid = (this.core && this.core.gkl && this.core.gkl.areaStateManager) ? this.core.gkl.areaStateManager.grid : null;
+    const areaGrid = (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') ? this.core.gkl.getSituation()?.area?.grid : null;
 
     for (let y = 0; y < 24; y++) {
       for (let x = 0; x < 80; x++) {
@@ -1899,9 +1889,6 @@ class GklPureJSClient {
         this.asciiGridBuffer[y][x] = { ch: ' ', color: 7 };
         this.glyphGridBuffer[y][x] = null;
       }
-    }
-    if (this.core && this.core.gkl && this.core.gkl.areaStateManager) {
-      this.core.gkl.areaStateManager.resetGrid();
     }
     if (this.isGraphicCanvasMode) {
       this.ctx.fillStyle = '#000000';
