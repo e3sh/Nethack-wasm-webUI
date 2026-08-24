@@ -19,6 +19,75 @@ describe('PromptPayloadBuilder', () => {
         expect(res.options[1]).toEqual({ key: 'n', label: 'No (n)', btnClass: 'btn-secondary' });
     });
 
+    it('ynaq や特殊選択肢を含む YN プロンプトを正しく CHOICE_BUTTONS にパースできること', () => {
+        const builder = new PromptPayloadBuilder();
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "Do you want to drop items? [ynaq]",
+            choices: "ynaq"
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(4);
+        expect(res.options.map(o => o.key)).toEqual(['y', 'n', 'a', 'q']);
+        expect(res.options[2]).toEqual({ key: 'a', label: 'All (a)', btnClass: 'btn-default' });
+    });
+
+    it('choices が空でも質問文に [y/n/q] 等が含まれていれば CHOICE_BUTTONS にパースできること', () => {
+        const builder = new PromptPayloadBuilder();
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "Really attack peaceful monster? [y/n/q]",
+            choices: ""
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(3);
+        expect(res.options.map(o => o.key)).toEqual(['y', 'n', 'q']);
+    });
+
+    it('[efgh or ?*] のようなアイテムレター群と特殊選択肢を含むプロンプトをすべてのキーに個別展開してボタン化できること', () => {
+        const mockGkl = {
+            inventoryStateManager: {
+                items: [
+                    { letter: 'e', name: 'food ration' },
+                    { letter: 'f', name: 'apple' }
+                ]
+            }
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "何を食べたいですか？ [efgh or ?*]",
+            choices: ""
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(6);
+        expect(res.options.map(o => o.key)).toEqual(['e', 'f', 'g', 'h', '?', '*']);
+        expect(res.options[0]).toEqual({ key: 'e', label: 'food ration (e)', btnClass: 'btn-default' });
+        expect(res.options[1]).toEqual({ key: 'f', label: 'apple (f)', btnClass: 'btn-default' });
+        expect(res.options[2]).toEqual({ key: 'g', label: 'g', btnClass: 'btn-default' });
+        expect(res.options[4]).toEqual({ key: '?', label: 'List (?)', btnClass: 'btn-default' });
+        expect(res.options[5]).toEqual({ key: '*', label: 'All (*)', btnClass: 'btn-default' });
+    });
+
+    it('choices が空でアイテム指定等の質問の場合に LINE_TEXT ではなく SINGLE_KEY にパースされること', () => {
+        const builder = new PromptPayloadBuilder();
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "What do you want to eat?",
+            choices: ""
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('SINGLE_KEY');
+        expect(res.options).toHaveLength(0);
+    });
+
     it('MENU プロンプトを MENU ペイロードにパースできること', () => {
         const builder = new PromptPayloadBuilder();
         const payload = {

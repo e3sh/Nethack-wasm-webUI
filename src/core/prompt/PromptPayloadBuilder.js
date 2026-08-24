@@ -78,31 +78,96 @@ export class PromptPayloadBuilder {
                     ((rawPrompt || '').toLowerCase().includes('direction') || (rawPrompt || '').includes('方向') || (rawPrompt || '').toLowerCase().includes('which way')))) {
             inputType = 'DIRECTION';
             options = []; // 方向入力時の誤爆を防止するため汎用選択肢ボタンは生成しない
-        } else if (category === PROMPT_CATEGORY.YN && choices && choices.trim() !== '') {
-            inputType = 'CHOICE_BUTTONS';
-            let keys = [];
-            if (choices.includes(' or ')) {
-                keys = choices.split(' or ').map(s => s.trim().charAt(0));
-            } else if (choices.includes('/')) {
-                keys = choices.split('/').map(s => s.trim().charAt(0));
-            } else {
-                keys = choices.replace(/[^a-zA-Z0-9#]/g, '').split('');
+        } else if (category === PROMPT_CATEGORY.YN || category === 'YN' || payload.context === 'yn_function' || payload.context === 'yn') {
+            // choices が存在するか、あるいは質問文から選択肢を抽出
+            let effectiveChoices = choices ? choices.trim() : '';
+            if (!effectiveChoices && rawPrompt) {
+                const match = rawPrompt.match(/\[([a-zA-Z0-9\*\?\s\/\-\#]+)\]/);
+                if (match && match[1]) {
+                    effectiveChoices = match[1].trim();
+                }
             }
 
-            const labelMap = {
-                'y': 'Yes (y)',
-                'n': 'No (n)',
-                'q': 'Quit (q)',
-                'a': 'All (a)',
-                'r': 'Right (r)',
-                'l': 'Left (l)'
-            };
+            if (effectiveChoices) {
+                inputType = 'CHOICE_BUTTONS';
+                let keys = [];
 
-            options = keys.map(k => ({
-                key: k,
-                label: labelMap[k.toLowerCase()] || `${k}`,
-                btnClass: k === 'y' ? 'btn-primary' : (k === 'n' ? 'btn-secondary' : 'btn-default')
-            }));
+                // 'or' という単語を空白に置換して区切り文字として扱い、カンマ・スラッシュ・空白で分割
+                const cleaned = effectiveChoices.replace(/\bor\b/gi, ' ');
+                const tokens = cleaned.split(/[\s,\/]+/);
+                for (const token of tokens) {
+                    if (!token) continue;
+                    // 範囲表記 (例: a-d, 1-5) のチェック
+                    const rangeMatch = token.match(/^([a-zA-Z0-9])-([a-zA-Z0-9])$/);
+                    if (rangeMatch) {
+                        const start = rangeMatch[1].charCodeAt(0);
+                        const end = rangeMatch[2].charCodeAt(0);
+                        if (start <= end && (end - start) <= 26) {
+                            for (let c = start; c <= end; c++) {
+                                keys.push(String.fromCharCode(c));
+                            }
+                            continue;
+                        }
+                    }
+                    // 範囲でない場合は1文字ずつ分解
+                    for (const ch of token) {
+                        if (ch !== '-' && ch !== ' ') {
+                            keys.push(ch);
+                        }
+                    }
+                }
+
+                // 重複除去
+                keys = Array.from(new Set(keys));
+
+                const labelMap = {
+                    'y': 'Yes (y)',
+                    'n': 'No (n)',
+                    'q': 'Quit (q)',
+                    'a': 'All (a)',
+                    'r': 'Right (r)',
+                    'l': 'Left (l)',
+                    '*': 'All (*)',
+                    '?': 'List (?)'
+                };
+
+                const invManager = (this.gkl && this.gkl.inventoryStateManager) ? this.gkl.inventoryStateManager : null;
+
+                if (keys.length > 0 && keys.length <= 16) {
+                    options = keys.map(k => {
+                        let label = labelMap[k.toLowerCase()] || labelMap[k] || `${k}`;
+                        if (!labelMap[k.toLowerCase()] && !labelMap[k]) {
+                            if (invManager && invManager.items) {
+                                const matchedInv = invManager.items.find(it => it.letter === k);
+                                if (matchedInv) {
+                                    const rawName = matchedInv.name || matchedInv.text || matchedInv.rawText || '';
+                                    const itemName = (this.translator && typeof this.translator.translate === 'function') 
+                                        ? this.translator.translate(rawName)
+                                        : rawName;
+                                    if (itemName) {
+                                        label = `${itemName} (${k})`;
+                                    } else {
+                                        label = `${k}`;
+                                    }
+                                }
+                            }
+                        }
+
+                        return {
+                            key: k,
+                            label: label,
+                            btnClass: k === 'y' ? 'btn-primary' : (k === 'n' ? 'btn-secondary' : 'btn-default')
+                        };
+                    });
+                } else {
+                    inputType = 'SINGLE_KEY';
+                    options = [];
+                }
+            } else {
+                // choices が完全に空のアイテムレター等の単一キー入力
+                inputType = 'SINGLE_KEY';
+                options = [];
+            }
         } else if (
             category === PROMPT_CATEGORY.TEXT || 
             category === PROMPT_CATEGORY.ASKNAME || 
@@ -113,8 +178,7 @@ export class PromptPayloadBuilder {
             payload.context === 'text' || 
             payload.context === 'extcmd' || 
             payload.context === 'get_ext_cmd' || 
-            payload.context === 'getlin' ||
-            (category === PROMPT_CATEGORY.YN && (!choices || choices.trim() === ''))
+            payload.context === 'getlin'
         ) {
             inputType = 'LINE_TEXT';
         } else if (category === PROMPT_CATEGORY.POSKEY) {

@@ -2163,19 +2163,13 @@ class GklPureJSClient {
       return;
     }
 
-    if (!data.options || data.options.length === 0) {
-      this.elPromptBar.classList.add('hidden');
-      return;
-    }
-
     if (data.options && data.options.length > 0) {
       this.elPromptBar.classList.remove('hidden');
-      this.elPromptText.textContent = rawPrompt || 'Select Option';
+      this.elPromptText.textContent = data.promptText || data.title || rawPrompt || 'Select Option';
       this.elInputControls.innerHTML = '';
 
       data.options.forEach(opt => {
         const btn = document.createElement('button');
-        // opt.label に既に (key) が含まれている場合は二重付加を防ぐ
         btn.textContent = opt.label.includes(`(${opt.key})`) ? opt.label : `${opt.label} (${opt.key})`;
         btn.onclick = () => this.core.respond(opt.key);
         this.elInputControls.appendChild(btn);
@@ -2183,6 +2177,29 @@ class GklPureJSClient {
 
       return;
     }
+
+    if (data.inputType === 'SINGLE_KEY' || category === 'YN' || data.context === 'yn_function') {
+      this.elPromptBar.classList.remove('hidden');
+      const promptTitle = data.promptText || data.title || rawPrompt || 'Press key...';
+      this.elPromptText.textContent = promptTitle;
+      this.elInputControls.innerHTML = `
+        <span style="font-size:12px; color:var(--text-secondary); padding:4px 8px;">(1キー入力待機 / Press key)</span>
+        <button id="btn-cancel-single-key" class="prompt-cancel-btn" style="padding:4px 10px; font-size:11px; margin-left:6px;">✖ 取消 (ESC)</button>
+      `;
+      const btnCancel = document.getElementById('btn-cancel-single-key');
+      if (btnCancel) {
+        btnCancel.onclick = () => {
+          if (typeof this.core.cancelPrompt === 'function') {
+            this.core.cancelPrompt();
+          } else {
+            this.core.respond('\x1b');
+          }
+        };
+      }
+      return;
+    }
+
+    this.elPromptBar.classList.add('hidden');
 
   }
 
