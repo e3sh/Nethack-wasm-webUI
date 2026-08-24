@@ -9,8 +9,32 @@ import { useGameStore } from '../stores/gameStore';
 class NetHackDriverController {
   private core: any = null;
   private nethackJsPath: string = '';
+  private customListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   public isInitialized = ref(false);
   public currentLanguage = ref<'ja' | 'en'>('ja');
+
+  public on(event: string, fn: (...args: any[]) => void) {
+    if (!this.customListeners.has(event)) this.customListeners.set(event, []);
+    this.customListeners.get(event)!.push(fn);
+  }
+
+  public off(event: string, fn: (...args: any[]) => void) {
+    if (!this.customListeners.has(event)) return;
+    const list = this.customListeners.get(event)!;
+    const idx = list.indexOf(fn);
+    if (idx !== -1) list.splice(idx, 1);
+  }
+
+  public emit(event: string, ...args: any[]) {
+    if (!this.customListeners.has(event)) return;
+    for (const fn of this.customListeners.get(event)!) {
+      try {
+        fn(...args);
+      } catch (err) {
+        console.error(`[useNetHackDriver] Event listener error (${event}):`, err);
+      }
+    }
+  }
 
   public init() {
     if (this.core) return;
@@ -72,10 +96,12 @@ class NetHackDriverController {
     this.core.on('cursor', ({ x, y }: { x: number; y: number }) => {
       gameStore.setCursorPos(x, y);
       this.updateGklSituation();
+      this.emit('cursor', { x, y });
     });
 
     this.core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       gameStore.updateTile(x, y, glyph, ch, color);
+      this.emit('print_glyph', { x, y, glyph, ch, color });
     });
 
     this.core.on('inventoryStateUpdated', () => {
@@ -608,6 +634,9 @@ export function useNetHackDriver() {
     moveToCell: (x: number, y: number) => driverController.moveToCell(x, y),
     castSpell: (letter: string) => driverController.castSpell(letter),
     enhanceSkill: (skill?: any) => driverController.enhanceSkill(skill),
+    driverController,
+    on: (event: string, fn: (...args: any[]) => void) => driverController.on(event, fn),
+    off: (event: string, fn: (...args: any[]) => void) => driverController.off(event, fn),
     getAdaptiveSpecs: (knowledge: any) => driverController.getAdaptiveSpecs(knowledge),
   };
 }

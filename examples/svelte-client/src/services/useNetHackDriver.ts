@@ -30,6 +30,30 @@ export class NetHackDriverController {
   private core: any = null;
   private nethackJsPath: string = '';
   private isInitialized = false;
+  private customListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
+
+  public on(event: string, fn: (...args: any[]) => void) {
+    if (!this.customListeners.has(event)) this.customListeners.set(event, []);
+    this.customListeners.get(event)!.push(fn);
+  }
+
+  public off(event: string, fn: (...args: any[]) => void) {
+    if (!this.customListeners.has(event)) return;
+    const list = this.customListeners.get(event)!;
+    const idx = list.indexOf(fn);
+    if (idx !== -1) list.splice(idx, 1);
+  }
+
+  public emit(event: string, ...args: any[]) {
+    if (!this.customListeners.has(event)) return;
+    for (const fn of this.customListeners.get(event)!) {
+      try {
+        fn(...args);
+      } catch (err) {
+        console.error(`[Svelte useNetHackDriver] Event error (${event}):`, err);
+      }
+    }
+  }
 
   public sendAction = (action: any) => {
     if (this.core && typeof this.core.sendAction === 'function') {
@@ -149,10 +173,12 @@ export class NetHackDriverController {
       if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
         gklSituationStore.set(this.core.gkl.getSituation());
       }
+      this.emit('cursor', { x, y });
     });
 
     this.core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       updateTile(x, y, glyph, ch, color);
+      this.emit('print_glyph', { x, y, glyph, ch, color });
     });
 
     this.core.on('inventoryStateUpdated', () => {

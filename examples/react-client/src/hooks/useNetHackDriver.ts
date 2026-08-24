@@ -11,6 +11,18 @@ let globalNethackJsPath = './nethack.js';
 let isCoreInitialized = false;
 let isInitializingPromise: Promise<void> | null = null;
 
+const driverEventTarget = new EventTarget();
+
+export const onDriverEvent = (event: string, fn: (data: any) => void) => {
+  const handler = (e: any) => fn(e.detail);
+  driverEventTarget.addEventListener(event, handler);
+  return () => driverEventTarget.removeEventListener(event, handler);
+};
+
+export const emitDriverEvent = (event: string, data: any) => {
+  driverEventTarget.dispatchEvent(new CustomEvent(event, { detail: data }));
+};
+
 export function useNetHackDriver() {
   const [isInitialized, setIsInitialized] = useState(isCoreInitialized);
   const [currentLanguage, setCurrentLanguage] = useState<'ja' | 'en'>(globalCore?.language || 'ja');
@@ -111,10 +123,12 @@ export function useNetHackDriver() {
       if ((core as any).gkl && typeof (core as any).gkl.getSituation === 'function') {
         useGameStore.getState().setGklSituation((core as any).gkl.getSituation());
       }
+      emitDriverEvent('cursor', { x, y });
     });
 
     core.on('print_glyph', ({ x, y, glyph, ch, color }: any) => {
       useGameStore.getState().updateTile(x, y, glyph, ch, color);
+      emitDriverEvent('print_glyph', { x, y, glyph, ch, color });
     });
 
     core.on('inventoryStateUpdated', () => {

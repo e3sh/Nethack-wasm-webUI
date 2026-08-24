@@ -27,12 +27,13 @@ const canvasHeight = ROWS * TILE_SIZE;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const gameStore = useGameStore();
 const { mapGrid, cursorPos } = storeToRefs(gameStore);
-const { inspectTileKnowledge } = useNetHackDriver();
+const { inspectTileKnowledge, on: onDriverEvent, off: offDriverEvent } = useNetHackDriver();
 
 let tileImage: HTMLImageElement | null = null;
 let isTileLoaded = false;
 let renderRequested = false;
 let tileMapTable: Record<number, number> = {};
+let lastCursorPos: { x: number; y: number } | null = null;
 
 function requestRender() {
   if (renderRequested) return;
@@ -67,6 +68,85 @@ function handleMouseLeave() {
   inspectTileKnowledge(-1, -1);
 }
 
+function drawSingleTile(x: number, y: number, tile: { tileId: number; symbol?: string; color?: number }) {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return;
+
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+
+  // 1. セル領域をブラッククリア
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+  const isBlank = (!tile.symbol || tile.symbol === ' ' || tile.symbol === '') && tile.tileId === 0;
+  if (isBlank) return;
+
+  let renderedSprite = false;
+
+  if (isTileLoaded && tileImage && tile.tileId > 0 && tileMapTable) {
+    const tileIdx = tileMapTable[tile.tileId];
+    if (tileIdx !== undefined && tileIdx >= 0) {
+      const tilesPerRow = 40;
+      const origTileSize = 32;
+      const sx = (tileIdx % tilesPerRow) * origTileSize;
+      const sy = Math.floor(tileIdx / tilesPerRow) * origTileSize;
+
+      if (sy < tileImage.height) {
+        ctx.drawImage(
+          tileImage,
+          sx,
+          sy,
+          origTileSize,
+          origTileSize,
+          px,
+          py,
+          TILE_SIZE,
+          TILE_SIZE
+        );
+        renderedSprite = true;
+      }
+    }
+  }
+
+  if (!renderedSprite) {
+    const charToDraw = tile.symbol && tile.symbol !== '' ? tile.symbol : ' ';
+    if (charToDraw !== ' ') {
+      ctx.fillStyle = getTTYColor(tile.color ?? 7);
+      ctx.font = 'bold 22px "Courier New", Consolas, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(charToDraw, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+    }
+  }
+
+  // カーソル枠線
+  const cur = cursorPos.value;
+  if (cur && cur.x === x && cur.y === y) {
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 3, TILE_SIZE - 3);
+  }
+}
+
+const onPrintGlyph = (data: { x: number; y: number; glyph: number; ch: string; color: number }) => {
+  drawSingleTile(data.x, data.y, { tileId: data.glyph, symbol: data.ch, color: data.color });
+};
+
+const onCursorMove = (cur: { x: number; y: number }) => {
+  if (lastCursorPos && (lastCursorPos.x !== cur.x || lastCursorPos.y !== cur.y)) {
+    const prev = lastCursorPos;
+    const tile = mapGrid.value[prev.y]?.[prev.x];
+    if (tile) drawSingleTile(prev.x, prev.y, tile);
+  }
+  lastCursorPos = { x: cur.x, y: cur.y };
+  const curTile = mapGrid.value[cur.y]?.[cur.x];
+  if (curTile) drawSingleTile(cur.x, cur.y, curTile);
+};
+
 onMounted(() => {
   tileMapTable = getTileMapping();
 
@@ -82,15 +162,16 @@ onMounted(() => {
     requestRender();
   };
 
+  onDriverEvent('print_glyph', onPrintGlyph);
+  onDriverEvent('cursor', onCursorMove);
+
   requestRender();
 });
 
-watch([mapGrid, cursorPos], () => {
-  requestRender();
-}, { deep: true });
-
 onUnmounted(() => {
   renderRequested = false;
+  offDriverEvent('print_glyph', onPrintGlyph);
+  offDriverEvent('cursor', onCursorMove);
 });
 
 // ============================================================================
