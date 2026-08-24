@@ -6,6 +6,7 @@
 
 import { isShopkeeperMonster } from './glyphClassifier.js';
 import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
+import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
 
 export class ContextActionEngine {
     /**
@@ -1234,6 +1235,17 @@ export class ContextActionEngine {
                     if (topType === 'PET') {
                         break; // ペット誤爆防止のためレイ停止
                     } else if (topType === 'MONSTER') {
+                        // 平和的NPC（Oracle、店主、神官等）は敵対していない限り射撃ターゲットから除外
+                        const monOffset = cell.top.monOffset !== undefined ? cell.top.monOffset : (cell.top.subType !== undefined ? cell.top.subType : cell.top.glyphInfo?.monOffset);
+                        const knowledge = (monOffset !== undefined ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
+                        const isSk = isShopkeeperMonster(cell.top) || monOffset === 271;
+                        const isPeaceful = cell.top.isPeaceful || cell.top.attitude === 'PEACEFUL' || isSk || knowledge.defaultPeaceful;
+                        const isHostile = cell.top.isHostile || cell.top.attitude === 'HOSTILE';
+
+                        if (isPeaceful && !isHostile) {
+                            break; // 平和的NPCへの誤射撃を防止してレイ停止
+                        }
+
                         if (dist >= 2) {
                             // dist >= 2 の遠隔敵ターゲットを発見！
                             targets.push({
@@ -1282,12 +1294,16 @@ export class ContextActionEngine {
                 let labelEn = actDef.label;
                 let descJa = actDef.descriptionJa;
                 let descEn = actDef.description;
+                let keyStr = actDef.key;
+                let keySeq = Array.isArray(actDef.keySequence) ? [...actDef.keySequence] : [actDef.key];
 
                 Object.entries(params).forEach(([k, v]) => {
                     labelJa = labelJa.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
                     labelEn = labelEn.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
                     if (descJa) descJa = descJa.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
                     if (descEn) descEn = descEn.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    if (keyStr) keyStr = keyStr.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    keySeq = keySeq.map(item => typeof item === 'string' ? item.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v) : item);
                 });
 
                 actions.push({
@@ -1295,8 +1311,9 @@ export class ContextActionEngine {
                     category: actDef.category || 'INTERACT',
                     label: labelEn,
                     labelJa: labelJa,
-                    key: actDef.key,
-                    charStr: actDef.charStr || actDef.key,
+                    key: keyStr,
+                    keySequence: keySeq,
+                    charStr: actDef.charStr || keyStr,
                     extCmd: actDef.extCmd,
                     target: actDef.target || 'feet',
                     risk: actDef.risk || null,

@@ -759,7 +759,7 @@ export class GKLPlugin {
      */
     getRecommendedActions(radius = 1) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState(undefined, undefined, radius) : {};
-        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager, { language: this.language });
+        return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager, { language: this.language, statusAccessor: this.statusAccessor }, this.statusAccessor);
     }
 
     /**

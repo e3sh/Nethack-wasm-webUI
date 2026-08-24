@@ -510,8 +510,10 @@ for (let i = 0; i <= 382; i++) {
         isDemon
     };
 
-    const dangerLevel = specific.dangerLevel || inferDangerLevel(rawName, stats.hd, traits);
     const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
+    const calculatedDanger = inferDangerLevel(rawName, stats.hd, traits);
+    const dangerLevel = specific.dangerLevel || (defaultPeaceful ? 'SAFE' : calculatedDanger);
+    const hostileDangerLevel = specific.hostileDangerLevel || calculatedDanger || 'LETHAL';
 
     // 🎯 死体情報 (新スキーマ corpse) の合成
     const specCorpse = specific.corpse || specific.corpseInfo || {};
@@ -547,7 +549,7 @@ for (let i = 0; i <= 382; i++) {
         name: rawName,
         nameJa: null, // TranslationEngine 連携時に補完
         dangerLevel: dangerLevel,
-        hostileDangerLevel: specific.hostileDangerLevel || (defaultPeaceful ? 'LETHAL' : dangerLevel),
+        hostileDangerLevel: hostileDangerLevel,
         defaultPeaceful: defaultPeaceful,
         stats: stats,
         attacks: attacks,

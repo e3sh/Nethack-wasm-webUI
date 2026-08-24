@@ -811,13 +811,14 @@ export class StructuredKnowledgeEngine {
 
         const cloned = JSON.parse(JSON.stringify(obj));
         const originalName = obj.name || '';
-        cloned.nameEn = originalName;
+        cloned.nameEn = obj.nameEn || originalName;
+        cloned.nameJa = obj.nameJa || (!isEn ? tr(originalName) : null);
 
         // 1. 名前の設定
         if (isEn) {
-            cloned.name = originalName;
+            cloned.name = cloned.nameEn;
         } else {
-            cloned.name = tr(originalName);
+            cloned.name = cloned.nameJa || tr(originalName);
         }
 
         // 2. モンスター死体・警告の翻訳
@@ -1001,13 +1002,38 @@ export class StructuredKnowledgeEngine {
                     };
                 }
             }
+        }
 
-            // 未知の個人名表記（店主等）の場合、options.isShopkeeper や glyph 判定から shopkeeper (monOffset 271) へフォールバック
-            if (!found) {
-                const isSk = options.isShopkeeper || (typeof options.glyph === 'number' && classifyGlyph(options.glyph)?.isShopkeeper);
-                if (isSk) {
-                    found = this.monOffsetMap.get(271) || null;
-                }
+        // 未知の個人名表記（店主等）の場合、options.isShopkeeper や glyph 判定から shopkeeper (monOffset 271) へフォールバック
+        if (!found) {
+            const isSk = options.isShopkeeper || (typeof options.glyph === 'number' && classifyGlyph(options.glyph)?.isShopkeeper);
+            if (isSk) {
+                found = this.monOffsetMap.get(271) || null;
+            }
+        }
+
+        // 不可視モンスター (1532) や警告グリフ (7220〜7225) のフォールバック
+        if (!found) {
+            const isInv = (typeof identifier === 'number' && identifier === 1532) || options.isInvisible;
+            const isWarn = (typeof identifier === 'number' && identifier >= 7220 && identifier <= 7225) || options.isWarning;
+            const idStr = String(identifier || '').toLowerCase();
+            if (isInv || isWarn || idStr.includes('invisible') || idStr.includes('不可視') || idStr.includes('-1')) {
+                found = {
+                    id: isInv ? 'invisible_monster' : 'unknown_threat',
+                    monOffset: -1,
+                    name: isInv ? 'Invisible Monster' : 'Unknown Threat',
+                    nameJa: isInv ? '不可視モンスター' : '未知の気配',
+                    dangerLevel: 'MEDIUM',
+                    defaultPeaceful: false,
+                    stats: { hd: '?', ac: '?', speed: '?' },
+                    attacks: [],
+                    traits: {},
+                    resistances: [],
+                    weaknesses: [],
+                    corpse: null,
+                    tacticalAdviceEn: ['Unidentified creature or invisible monster. Move with caution.'],
+                    tacticalAdviceJa: ['不可視の敵または未確認の気配です。慎重に対処してください。']
+                };
             }
         }
 

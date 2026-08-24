@@ -107,7 +107,7 @@ export class SituationCache {
         // 推奨アクションの自動計算 (ContextActionEngine が設定されている場合)
         let actions = [];
         if (this.actionEngineClass && typeof this.actionEngineClass.generateActions === 'function') {
-            actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager, { language: this.language });
+            actions = this.actionEngineClass.generateActions(areaState, inventoryState, this.skillStateManager, { language: this.language, statusAccessor: this.statusAccessor }, this.statusAccessor);
         }
 
         // 戦術アドバイスの自動計算 (TacticalAdvisor が設定されている場合)

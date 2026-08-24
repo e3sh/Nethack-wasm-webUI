@@ -57,8 +57,11 @@ export class MonsterTracker {
         const monOffset = info.subType !== undefined ? info.subType : (info.monOffset !== undefined ? info.monOffset : (glyphInfo?.monOffset ?? -1));
         const monKnowledge = (monOffset >= 0 ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
 
-        const name = glyphInfo?.name || monKnowledge.name || info.name || `Monster_${monOffset}`;
-        const nameJa = glyphInfo?.nameJa || monKnowledge.nameJa || name;
+        const fallbackName = info.isInvisible ? 'invisible monster' : (info.isWarning ? `unknown threat (warn:${info.warnLevel || '?'})` : (monOffset < 0 ? 'unknown creature' : (monKnowledge.name || `Monster_${monOffset}`)));
+        const fallbackNameJa = info.isInvisible ? '不可視モンスター' : (info.isWarning ? `未知の気配 (警告${info.warnLevel || ''})` : (monOffset < 0 ? '未知のモンスター' : null));
+
+        const name = glyphInfo?.name || monKnowledge.name || info.name || fallbackName;
+        const nameJa = glyphInfo?.nameJa || monKnowledge.nameJa || info.nameJa || fallbackNameJa || name;
 
         // 1. 完全一致座標 (x, y) の既存エントリーがあれば最優先で更新
         let targetKey = null;

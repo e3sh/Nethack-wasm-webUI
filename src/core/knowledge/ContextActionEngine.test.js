@@ -56,7 +56,7 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
         const areaMgr = new AreaStateManager(80, 21);
         areaMgr.updatePlayerPosition(10, 10);
         // (10, 8) にモンスター (北に2マス離れている)
-        areaMgr.updateGlyph(10, 8, 381); // goblin
+        areaMgr.updateGlyph(10, 8, 70); // goblin (monOffset: 70)
 
         const areaState = areaMgr.getAreaState();
         const actions = ContextActionEngine.generateActions(areaState, invMgr, skillMgr);

@@ -135,7 +135,13 @@ export function classifyGlyph(glyphId) {
         return { type: ENTITY_TYPES.STATUE, subType: monOffset, isPile: false, rawGlyph: glyphId };
     }
 
-    // 4051〜7225: エフェクト・ビーム・警告 (GLYPH_ZAP_OFF = 4051)
+    // 7220〜7225: 警告シンボル (GLYPH_WARNING_OFF = 7220)
+    if (glyphId >= GLYPH_OFFSETS.GLYPH_WARNING_OFF) {
+        const warnLevel = glyphId - GLYPH_OFFSETS.GLYPH_WARNING_OFF;
+        return { type: ENTITY_TYPES.MONSTER, subType: -1, monOffset: -1, isWarning: true, warnLevel, name: `unknown monster (${warnLevel})`, nameJa: `未知の気配 (警告${warnLevel})`, isPile: false, rawGlyph: glyphId };
+    }
+
+    // 4051〜7219: エフェクト・ビーム (GLYPH_ZAP_OFF = 4051)
     if (glyphId >= GLYPH_OFFSETS.GLYPH_ZAP_OFF) {
         return { type: ENTITY_TYPES.EFFECT, isPile: false, rawGlyph: glyphId };
     }
@@ -188,7 +194,7 @@ export function classifyGlyph(glyphId) {
 
     // 1532: 不可視モンスター (GLYPH_INVIS_OFF = 1532)
     if (glyphId === GLYPH_OFFSETS.GLYPH_INVIS_OFF) {
-        return { type: ENTITY_TYPES.MONSTER, isInvisible: true, isPile: false, rawGlyph: glyphId };
+        return { type: ENTITY_TYPES.MONSTER, subType: -1, monOffset: -1, isInvisible: true, name: 'invisible monster', nameJa: '不可視モンスター', isPile: false, rawGlyph: glyphId };
     }
 
     // 766〜1531: ペット (GLYPH_PET_OFF = 766, NUMMONS * 2 = 766)

@@ -36,13 +36,14 @@ export const ITEM_INTERACTION_RULES = [
             category: 'SURVIVAL',
             label: 'Engrave Elbereth',
             labelJa: 'エルベレスを刻む (Elbereth)',
-            key: 'E',
+            key: 'E${writeTool}Elbereth\n',
+            keySequence: ['E', '${writeTool}', 'Elbereth\n'],
             charStr: 'E',
             target: 'feet',
             risk: null,
             priority: 92,
-            description: 'Engrave the protective word Elbereth on the floor to scare off attackers',
-            descriptionJa: '足元の床に魔除けの文字「Elbereth」を刻み、接近するモンスターを撃退・敗走させます'
+            description: 'Instantly engrave the protective word Elbereth on the floor to scare off attackers',
+            descriptionJa: '足元の床に魔除けの文字「Elbereth」を即座に自動刻印し、接近するモンスターを撃退・敗走させます'
         }
     },
 
@@ -425,8 +426,9 @@ export function evaluateInteractionRule(rule, context) {
     // 3. 地形チェック (Floor, Corridor, Altar, Sink, Fountain)
     const feetFlags = (areaState && areaState.feet && areaState.feet.bottom && areaState.feet.bottom.cmapFlags) || {};
     if (trigger.isFloorOrCorridor !== undefined) {
-        const isFloor = !!(feetFlags.isFloor || feetFlags.isCorridor || feetFlags.isEngraving);
-        if (trigger.isFloorOrCorridor !== isFloor) return null;
+        // 壁、水場、溶岩、閉じた扉でない限り彫れる（床、通路、暗い部屋、祭壇、流し台等も可）
+        const isCarvable = !feetFlags.isWall && !feetFlags.isPool && !feetFlags.isLava && !feetFlags.isClosedDoor && !feetFlags.isIronBars;
+        if (trigger.isFloorOrCorridor !== isCarvable) return null;
     }
     if (trigger.isOnAltar !== undefined) {
         const isAltar = !!feetFlags.isAltar;
@@ -543,8 +545,13 @@ function isItemUnidentified(item) {
         if (!dippable) return null;
     }
 
+    // 彫刻ツール（アサメがあれば優先、なければ手/指 -）
+    const athame = items.find(i => (i.rawText || i.name || '').toLowerCase().includes('athame') && i.letter);
+    const writeTool = athame ? athame.letter : '-';
+
     // パラメータ置換マップの生成
     const params = {
+        writeTool,
         wandLetter: matchedUnidentifiedItem?.letter || 'a',
         ringLetter: matchedUnidentifiedItem?.letter || 'a',
         hornLetter: matchedSourceItem?.letter || 'a',
