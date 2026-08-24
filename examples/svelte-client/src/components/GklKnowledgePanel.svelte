@@ -8,6 +8,48 @@
   let selectedAreaTile: any = null;
   let hoveredAreaTile: any = null;
 
+  // 長押しタイマー管理
+  const pressTimers: Record<string, any> = {};
+  const isLongPress: Record<string, boolean> = {};
+
+  function handleItemPointerDown(item: any, e: PointerEvent) {
+    if (e.button !== 0) return;
+    isLongPress[item.letter] = false;
+    pressTimers[item.letter] = setTimeout(() => {
+      isLongPress[item.letter] = true;
+      if (navigator.vibrate) navigator.vibrate(25);
+      driverController.openItemActionMenu(item.letter);
+    }, 400);
+  }
+
+  function handleItemPointerUp(item: any, e: PointerEvent) {
+    if (pressTimers[item.letter]) {
+      clearTimeout(pressTimers[item.letter]);
+      delete pressTimers[item.letter];
+    }
+    if (!isLongPress[item.letter] && e.button === 0) {
+      handleOneTapItem(item);
+    }
+  }
+
+  function handleItemPointerLeave(item: any) {
+    handleItemPointerCancel(item);
+    hoveredItem = null;
+  }
+
+  function handleItemPointerCancel(item: any) {
+    if (pressTimers[item.letter]) {
+      clearTimeout(pressTimers[item.letter]);
+      delete pressTimers[item.letter];
+    }
+  }
+
+  function handleItemContextMenu(item: any, e: MouseEvent) {
+    e.preventDefault();
+    handleItemPointerCancel(item);
+    driverController.openItemActionMenu(item.letter);
+  }
+
   $: isEn = $currentLanguageStore === 'en';
 
   $: activeAttributes = (() => {
@@ -18,6 +60,8 @@
   $: isSkillsSynced = Boolean($gklSituationStore?.skills?.isSynced);
   $: activeSkills = $gklSituationStore?.skills?.activeItems || [];
   $: activeSpells = $gklSituationStore?.spells?.items || [];
+  $: tacticalAdvices = $gklSituationStore?.advices || [];
+  $: hasCriticalAdvice = tacticalAdvices.some((adv: any) => adv.isCritical || adv.severity === 'CRITICAL' || adv.level === 'CRITICAL' || adv.dangerLevel === 'LETHAL');
 
   async function handleSyncSkills() {
     await driverController.syncSkillsSilent();
@@ -231,12 +275,17 @@
 </script>
 
 <div class="gkl-panel">
-  <!-- 1. ヘッダー ＆ ステータス -->
+  <!-- 1. ヘッダー ＆ ステータス ＆ 🚨 危機点滅バッジ -->
   <div class="gkl-header">
-    <div class="gkl-header-left">
+    <div class="gkl-header-left" style="flex-wrap: wrap; gap: 8px;">
       <span class="gkl-badge">
         {isEn ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト'}
       </span>
+      {#if hasCriticalAdvice}
+        <span class="crisis-badge" style="background:#e74c3c; color:#ffffff; font-weight:bold; font-size:11px; padding:3px 8px; border-radius:4px; animation:pulse 1s infinite;">
+          🚨 {isEn ? 'CRITICAL CRISIS' : '危機警告'}
+        </span>
+      {/if}
       <button on:click={handleSyncInventory} disabled={isSyncing} class="btn-sync">
         {isSyncing ? (isEn ? '...Syncing' : '...同期中') : (isEn ? '🔄 Sync Inventory' : '🔄 インベントリ同期')}
       </button>
@@ -248,6 +297,23 @@
       </button>
     </div>
   </div>
+
+  <!-- 🛡️ TacticalAdvisor 戦術アドバイス一覧 -->
+  {#if tacticalAdvices.length > 0}
+    <div style="background:#1c212d; border-left:4px solid #00e676; border-radius:4px; padding:8px 12px; display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:11px; font-weight:bold; color:#00e676; display:flex; align-items:center; gap:6px;">
+        <span>🛡️ {isEn ? 'Tactical Advisor Recommendations' : '戦術アドバイザー推奨'}</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px; font-size:11px; color:#e5e9f0;">
+        {#each tacticalAdvices as adv}
+          {@const isCrit = adv.isCritical || adv.severity === 'CRITICAL'}
+          <div style="color: {isCrit ? '#ff6b6b' : '#e5e9f0'}; font-weight: {isCrit ? 'bold' : 'normal'};">
+            {isCrit ? '⚠️ ' : '💡 '}{typeof adv === 'string' ? adv : (adv.text || adv.message || adv.advice || adv.label || '')}
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー -->
   <div class="gkl-status-overview-panel">
@@ -294,7 +360,7 @@
     <div class="gkl-overview-row">
       <strong class="overview-label">{isEn ? '📖 Spells:' : '📖 習得魔法:'}</strong>
       {#if activeSpells.length > 0}
-        <div class="overview-badges-list">
+        <div class="gkl-badges-list">
           {#each activeSpells as sp}
             <button
               type="button"
@@ -315,9 +381,9 @@
   <!-- 2. 所持品インベントリ -->
   {#if inventoryItems.length > 0}
     <div class="gkl-inventory-section">
-      <div class="gkl-section-title">
+      <div class="gkl-section-title" style="flex-wrap: wrap;">
         <span>{isEn ? `🎒 Inventory Guide (${inventoryItems.length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems.length}個)`}</span>
-        <span class="gkl-subtext">{isEn ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備'}</span>
+        <span class="gkl-subtext">{isEn ? '※ Tap: One-tap use / Long-press or Right-click: Action Menu' : '※ タップ: 即時使用 / 長押し・右クリック: アクションメニュー'}</span>
       </div>
 
       <div class="gkl-inventory-grid">
@@ -326,10 +392,14 @@
             role="button"
             tabindex="0"
             class="inv-item-card {getEquipBorderClass(item)}"
-            on:click|stopPropagation={() => handleOneTapItem(item)}
+            style="user-select: none;"
+            on:pointerdown={(e) => handleItemPointerDown(item, e)}
+            on:pointerup={(e) => handleItemPointerUp(item, e)}
+            on:pointerleave={() => handleItemPointerLeave(item)}
+            on:pointercancel={() => handleItemPointerCancel(item)}
+            on:contextmenu|preventDefault={(e) => handleItemContextMenu(item, e)}
             on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleOneTapItem(item); }}
             on:mouseenter={() => (hoveredItem = item)}
-            on:mouseleave={() => (hoveredItem = null)}
           >
             <div class="inv-item-compact">
               <span class="inv-letter">[{item.letter}]</span>
@@ -364,6 +434,9 @@
                     💡 {isEn ? 'One-Tap:' : 'ワンタップ:'} {safeText(item.knowledge?.actionLabel || item.defaultActionLabel)} [{item.letter}]
                   </div>
                 {/if}
+                <div style="font-size:9px; color:#88c0d0; opacity:0.8;">
+                  🖱️ {isEn ? 'Long-press / Right-click: Menu' : '長押し / 右クリック: メニュー'}
+                </div>
                 {#if item.skillBadge?.label}
                   <div class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
                     🥋 {isEn ? 'Weapon Skill:' : '武器適性:'} {item.skillBadge.label}

@@ -335,6 +335,16 @@ export class GKLPlugin {
         addCoreListener('clear_nhwindow', (data) => {
             if (data && (data.windowId === 2 || data.windowId === 0)) {
                 this.areaStateManager.resetGrid();
+                if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
+                    this.situationCache.invalidate();
+                }
+            }
+        });
+
+        addCoreListener('map_cleared', () => {
+            this.areaStateManager.resetGrid();
+            if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
+                this.situationCache.invalidate();
             }
         });
 

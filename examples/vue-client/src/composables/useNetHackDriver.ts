@@ -110,6 +110,7 @@ class NetHackDriverController {
 
     this.core.on('map_cleared', () => {
       gameStore.clearMapGrid();
+      this.emit('map_cleared', {});
     });
 
     this.core.on('restarted', () => {
@@ -594,6 +595,25 @@ class NetHackDriverController {
     return this.executeSequence(['#enhance']);
   }
 
+  public async travelTo(x: number, y: number) {
+    if (this.core && this.core.gkl && typeof this.core.gkl.travelTo === 'function') {
+      return await this.core.gkl.travelTo({ x, y });
+    }
+    if (this.core && typeof this.core.executeSequence === 'function') {
+      return await this.core.executeSequence(['_', `${x},${y}`, 'Enter']);
+    }
+    return false;
+  }
+
+  public async openItemActionMenu(letter: string) {
+    if (!this.core || !letter) return;
+    if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+      await this.core.driver.queueSequence(['i', letter], { isSilentSync: true });
+    } else if (typeof this.core.executeSequence === 'function') {
+      await this.core.executeSequence(['i', letter]);
+    }
+  }
+
   public getAdaptiveSpecs(knowledge: any) {
     const sm = this.core?.gkl?.skillStateManager || null;
     const lang = this.currentLanguage.value || this.core?.language || 'ja';
@@ -634,6 +654,8 @@ export function useNetHackDriver() {
     moveToCell: (x: number, y: number) => driverController.moveToCell(x, y),
     castSpell: (letter: string) => driverController.castSpell(letter),
     enhanceSkill: (skill?: any) => driverController.enhanceSkill(skill),
+    travelTo: (x: number, y: number) => driverController.travelTo(x, y),
+    openItemActionMenu: (letter: string) => driverController.openItemActionMenu(letter),
     driverController,
     on: (event: string, fn: (...args: any[]) => void) => driverController.on(event, fn),
     off: (event: string, fn: (...args: any[]) => void) => driverController.off(event, fn),

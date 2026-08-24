@@ -44,6 +44,23 @@ export const GameCanvas: Component = () => {
     }
   };
 
+  const handleClick = (e: MouseEvent) => {
+    if (!canvasRef) return;
+    const rect = canvasRef.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      driverController.travelTo(gridX, gridY);
+    }
+  };
+
   const handleMouseLeave = () => {
     driverController.inspectTileKnowledge(-1, -1);
   };
@@ -224,6 +241,11 @@ export const GameCanvas: Component = () => {
     if (curTile) drawSingleTile(cur.x, cur.y, curTile);
   };
 
+  const onMapCleared = () => {
+    lastCursorPos = null;
+    requestRender();
+  };
+
   onMount(() => {
     tileMapTable = getTileMapping();
 
@@ -240,6 +262,7 @@ export const GameCanvas: Component = () => {
 
     driverController.on('print_glyph', onPrintGlyph);
     driverController.on('cursor', onCursorMove);
+    driverController.on('map_cleared', onMapCleared);
 
     renderFullMap();
   });
@@ -248,6 +271,7 @@ export const GameCanvas: Component = () => {
     renderRequested = false;
     driverController.off('print_glyph', onPrintGlyph);
     driverController.off('cursor', onCursorMove);
+    driverController.off('map_cleared', onMapCleared);
   });
 
   return (
@@ -259,6 +283,7 @@ export const GameCanvas: Component = () => {
         class="game-canvas"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
       />
     </div>
   );

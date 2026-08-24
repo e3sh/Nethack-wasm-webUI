@@ -1,10 +1,13 @@
 <template>
   <div class="gkl-panel">
-    <!-- 1. ヘッダー ＆ ステータス同期 -->
+    <!-- 1. ヘッダー ＆ ステータス同期 ＆ 🚨 危機点滅バッジ -->
     <div class="gkl-header">
       <div class="gkl-title-box">
         <span class="gkl-badge">{{ isEn ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト' }}</span>
-        <div style="display: flex; gap: 6px;">
+        <span v-if="hasCriticalAdvice" class="crisis-badge" style="background:#e74c3c; color:#ffffff; font-weight:bold; font-size:11px; padding:3px 8px; border-radius:4px; animation:pulse 1s infinite;">
+          🚨 {{ isEn ? 'CRITICAL CRISIS' : '危機警告' }}
+        </span>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button @click="handleSyncInventory" class="btn-sync" :disabled="isSyncing">
             {{ isSyncing ? (isEn ? '...Syncing' : '...同期中') : (isEn ? '🔄 Sync Inventory' : '🔄 インベントリ同期') }}
           </button>
@@ -14,6 +17,22 @@
           <button @click="handleSyncSpells" class="btn-sync" :title="isEn ? 'Sync Spells (+)' : '習得魔法同期 (+)'">
             {{ isEn ? '📖 Sync Spells' : '📖 魔法同期' }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🛡️ TacticalAdvisor 戦術アドバイス一覧 -->
+    <div v-if="tacticalAdvices.length > 0" class="tactical-advices-box" style="background:#1c212d; border-left:4px solid #00e676; border-radius:4px; padding:8px 12px; display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:11px; font-weight:bold; color:#00e676; display:flex; alignItems:center; gap:6px;">
+        <span>🛡️ {{ isEn ? 'Tactical Advisor Recommendations' : '戦術アドバイザー推奨' }}</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px; font-size:11px; color:#e5e9f0;">
+        <div
+          v-for="(adv, idx) in tacticalAdvices"
+          :key="idx"
+          :style="{ color: (adv.isCritical || adv.severity === 'CRITICAL') ? '#ff6b6b' : '#e5e9f0', fontWeight: (adv.isCritical || adv.severity === 'CRITICAL') ? 'bold' : 'normal' }"
+        >
+          {{ (adv.isCritical || adv.severity === 'CRITICAL') ? '⚠️ ' : '💡 ' }}{{ typeof adv === 'string' ? adv : (adv.text || adv.message || adv.advice || adv.label || '') }}
         </div>
       </div>
     </div>
@@ -77,7 +96,7 @@
     <div v-if="inventoryItems.length > 0" class="gkl-section">
       <div class="section-title">
         <span>{{ isEn ? `🎒 Inventory Guide (${inventoryItems.length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems.length}個)` }}</span>
-        <span class="sub-hint">{{ isEn ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備' }}</span>
+        <span class="sub-hint">{{ isEn ? '※ Tap: One-tap use / Long-press or Right-click: Action Menu' : '※ タップ: 即時使用 / 長押し・右クリック: アクションメニュー' }}</span>
       </div>
 
       <div class="gkl-inventory-grid">
@@ -86,9 +105,13 @@
           :key="item.letter"
           class="inv-item-card"
           :class="getEquipBorderClass(item)"
-          @click.stop="handleOneTapItem(item)"
+          style="user-select: none;"
+          @pointerdown="(e) => handleItemPointerDown(item, e)"
+          @pointerup="(e) => handleItemPointerUp(item, e)"
+          @pointerleave="handleItemPointerLeave(item)"
+          @pointercancel="handleItemPointerCancel(item)"
+          @contextmenu.prevent="(e) => handleItemContextMenu(item, e)"
           @mouseenter="hoveredItem = item"
-          @mouseleave="hoveredItem = null"
         >
           <!-- 普段の表示: レター + スプライト画像 + 装備文字バッジ + 得意武器バッジ -->
           <div class="inv-item-compact">
@@ -116,6 +139,9 @@
             <div class="popover-title">{{ item.knowledge?.name || item.name || item.rawText }}</div>
             <div v-if="item.knowledge?.actionLabel || item.defaultActionLabel" class="popover-action">
               💡 {{ isEn ? 'One-Tap:' : 'ワンタップ:' }} {{ item.knowledge?.actionLabel || item.defaultActionLabel }} [{{ item.letter }}]
+            </div>
+            <div style="font-size:9px; color:#88c0d0; opacity:0.8;">
+              🖱️ {{ isEn ? 'Long-press / Right-click: Menu' : '長押し / 右クリック: メニュー' }}
             </div>
             <div v-if="item.skillBadge?.label" class="popover-skill" style="font-size:10px; color:#22c55e; font-weight:bold;">
               🥋 {{ isEn ? 'Weapon Skill:' : '武器適性:' }} {{ item.skillBadge.label }}
@@ -344,6 +370,8 @@ const {
   moveToCell,
   castSpell,
   enhanceSkill,
+  travelTo,
+  openItemActionMenu,
   getAdaptiveSpecs,
   currentLanguage,
 } = useNetHackDriver();
@@ -355,6 +383,48 @@ const isSyncing = ref(false);
 const hoveredItem = ref<any | null>(null);
 const selectedAreaTile = ref<any | null>(null);
 const hoveredAreaTile = ref<any | null>(null);
+
+// 長押しタイマー管理
+const pressTimers = ref<Record<string, any>>({});
+const isLongPress = ref<Record<string, boolean>>({});
+
+function handleItemPointerDown(item: any, e: PointerEvent) {
+  if (e.button !== 0) return;
+  isLongPress.value[item.letter] = false;
+  pressTimers.value[item.letter] = setTimeout(() => {
+    isLongPress.value[item.letter] = true;
+    if (navigator.vibrate) navigator.vibrate(25);
+    openItemActionMenu(item.letter);
+  }, 400);
+}
+
+function handleItemPointerUp(item: any, e: PointerEvent) {
+  if (pressTimers.value[item.letter]) {
+    clearTimeout(pressTimers.value[item.letter]);
+    delete pressTimers.value[item.letter];
+  }
+  if (!isLongPress.value[item.letter] && e.button === 0) {
+    handleOneTapItem(item);
+  }
+}
+
+function handleItemPointerLeave(item: any) {
+  handleItemPointerCancel(item);
+  hoveredItem.value = null;
+}
+
+function handleItemPointerCancel(item: any) {
+  if (pressTimers.value[item.letter]) {
+    clearTimeout(pressTimers.value[item.letter]);
+    delete pressTimers.value[item.letter];
+  }
+}
+
+function handleItemContextMenu(item: any, e: MouseEvent) {
+  e.preventDefault();
+  handleItemPointerCancel(item);
+  openItemActionMenu(item.letter);
+}
 
 // 🛡️ 属性・耐性一覧
 const activeAttributes = computed(() => {
@@ -371,6 +441,12 @@ const activeSkills = computed(() => gklSituation.value?.skills?.activeItems || [
 
 // 📖 習得魔法一覧
 const activeSpells = computed(() => gklSituation.value?.spells?.items || []);
+
+// 🛡️ 戦術アドバイス
+const tacticalAdvices = computed(() => gklSituation.value?.advices || []);
+const hasCriticalAdvice = computed(() => {
+  return tacticalAdvices.value.some((adv: any) => adv.isCritical || adv.severity === 'CRITICAL' || adv.level === 'CRITICAL' || adv.dangerLevel === 'LETHAL');
+});
 
 async function handleSyncSkills() {
   await syncSkillsSilent();

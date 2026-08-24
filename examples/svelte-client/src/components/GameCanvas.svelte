@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { mapGridStore, cursorPosStore } from '../stores/gameStore';
   import { getTileMapping } from '../utils/tileMapping';
   import { driverController } from '../services/useNetHackDriver';
@@ -15,9 +16,6 @@
   let isTileLoaded = false;
   let animFrameId: number | null = null;
   let tileMapTable: Record<number, number> = {};
-
-  $: mapGrid = $mapGridStore;
-  $: cursorPos = $cursorPosStore;
 
   function getTTYColor(colorIdx: number): string {
     const colors: Record<number, string> = {
@@ -50,10 +48,11 @@
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // 2. マップタイル描画
+    // 2. マップタイル描画 (同期的に最新のストア状態を取得)
+    const grid = get(mapGridStore);
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
-        const tile = mapGrid[y]?.[x];
+        const tile = grid[y]?.[x];
         if (!tile) continue;
 
         const px = x * TILE_SIZE;
@@ -103,9 +102,10 @@
     }
 
     // 3. ターゲットカーソル枠線描画 (ゴールド枠線)
-    if (cursorPos) {
-      const cx = cursorPos.x * TILE_SIZE;
-      const cy = cursorPos.y * TILE_SIZE;
+    const cur = lastCursorPos || get(cursorPosStore);
+    if (cur) {
+      const cx = cur.x * TILE_SIZE;
+      const cy = cur.y * TILE_SIZE;
 
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 2;
@@ -169,7 +169,7 @@
       }
     }
 
-    if (cursorPos && cursorPos.x === x && cursorPos.y === y) {
+    if (lastCursorPos && lastCursorPos.x === x && lastCursorPos.y === y) {
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 2;
       ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 3, TILE_SIZE - 3);
@@ -181,14 +181,20 @@
   };
 
   const onCursorMove = (cur: { x: number; y: number }) => {
-    if (lastCursorPos && (lastCursorPos.x !== cur.x || lastCursorPos.y !== cur.y)) {
-      const prev = lastCursorPos;
-      const prevTile = mapGrid[prev.y]?.[prev.x];
+    const prev = lastCursorPos;
+    lastCursorPos = { x: cur.x, y: cur.y };
+    const grid = get(mapGridStore);
+    if (prev && (prev.x !== cur.x || prev.y !== cur.y)) {
+      const prevTile = grid[prev.y]?.[prev.x];
       if (prevTile) drawSingleTile(prev.x, prev.y, prevTile);
     }
-    lastCursorPos = { x: cur.x, y: cur.y };
-    const curTile = mapGrid[cur.y]?.[cur.x];
+    const curTile = grid[cur.y]?.[cur.x];
     if (curTile) drawSingleTile(cur.x, cur.y, curTile);
+  };
+
+  const onMapCleared = () => {
+    lastCursorPos = null;
+    renderFullMap();
   };
 
   onMount(() => {
@@ -207,6 +213,7 @@
 
     driverController.on('print_glyph', onPrintGlyph);
     driverController.on('cursor', onCursorMove);
+    driverController.on('map_cleared', onMapCleared);
 
     renderFullMap();
   });
@@ -215,6 +222,7 @@
     renderRequested = false;
     driverController.off('print_glyph', onPrintGlyph);
     driverController.off('cursor', onCursorMove);
+    driverController.off('map_cleared', onMapCleared);
   });
 
   function handleMouseMove(e: MouseEvent) {
@@ -233,6 +241,23 @@
       driverController.inspectTileKnowledge(gridX, gridY);
     } else {
       driverController.inspectTileKnowledge(-1, -1);
+    }
+  }
+
+  function handleClick(e: MouseEvent) {
+    if (!canvasRef) return;
+    const rect = canvasRef.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      driverController.travelTo(gridX, gridY);
     }
   }
 
@@ -255,6 +280,7 @@
     class="game-canvas"
     on:mousemove={handleMouseMove}
     on:mouseleave={handleMouseLeave}
+    on:click={handleClick}
   ></canvas>
 </div>
 

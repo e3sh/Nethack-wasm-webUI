@@ -7,6 +7,7 @@
       class="game-canvas"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseLeave"
+      @click="handleClick"
     ></canvas>
   </div>
 </template>
@@ -27,7 +28,7 @@ const canvasHeight = ROWS * TILE_SIZE;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const gameStore = useGameStore();
 const { mapGrid, cursorPos } = storeToRefs(gameStore);
-const { inspectTileKnowledge, on: onDriverEvent, off: offDriverEvent } = useNetHackDriver();
+const { inspectTileKnowledge, travelTo, on: onDriverEvent, off: offDriverEvent } = useNetHackDriver();
 
 let tileImage: HTMLImageElement | null = null;
 let isTileLoaded = false;
@@ -61,6 +62,24 @@ function handleMouseMove(e: MouseEvent) {
     inspectTileKnowledge(gridX, gridY);
   } else {
     inspectTileKnowledge(-1, -1);
+  }
+}
+
+function handleClick(e: MouseEvent) {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvasWidth / rect.width;
+  const scaleY = canvasHeight / rect.height;
+
+  const canvasX = (e.clientX - rect.left) * scaleX;
+  const canvasY = (e.clientY - rect.top) * scaleY;
+
+  const gridX = Math.floor(canvasX / TILE_SIZE);
+  const gridY = Math.floor(canvasY / TILE_SIZE);
+
+  if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+    travelTo(gridX, gridY);
   }
 }
 
@@ -147,6 +166,11 @@ const onCursorMove = (cur: { x: number; y: number }) => {
   if (curTile) drawSingleTile(cur.x, cur.y, curTile);
 };
 
+const onMapCleared = () => {
+  lastCursorPos = null;
+  requestRender();
+};
+
 onMounted(() => {
   tileMapTable = getTileMapping();
 
@@ -164,6 +188,7 @@ onMounted(() => {
 
   onDriverEvent('print_glyph', onPrintGlyph);
   onDriverEvent('cursor', onCursorMove);
+  onDriverEvent('map_cleared', onMapCleared);
 
   requestRender();
 });
@@ -172,6 +197,7 @@ onUnmounted(() => {
   renderRequested = false;
   offDriverEvent('print_glyph', onPrintGlyph);
   offDriverEvent('cursor', onCursorMove);
+  offDriverEvent('map_cleared', onMapCleared);
 });
 
 // ============================================================================

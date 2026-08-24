@@ -1896,6 +1896,10 @@ class GklPureJSClient {
     } else {
       this.renderColorAsciiMap();
     }
+    if (this.zoomCtx && this.zoomCanvas) {
+      this.zoomCtx.fillStyle = '#090916';
+      this.zoomCtx.fillRect(0, 0, this.zoomCanvas.width, this.zoomCanvas.height);
+    }
   }
 
   addMessageLog(msg) {

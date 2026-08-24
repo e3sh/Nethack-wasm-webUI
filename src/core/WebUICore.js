@@ -1100,6 +1100,7 @@ export class WebUICore {
                 if (this.renderer && typeof this.renderer.clearMap === 'function') {
                     this.renderer.clearMap();
                 }
+                this.emit('map_cleared');
             }
             this.emit('clear_nhwindow', data);
         });

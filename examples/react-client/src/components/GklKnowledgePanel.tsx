@@ -19,6 +19,8 @@ export const GklKnowledgePanel: React.FC = () => {
     moveToCell,
     castSpell,
     enhanceSkill,
+    travelTo,
+    openItemActionMenu,
     getAdaptiveSpecs,
   } = useNetHackDriver();
 
@@ -30,6 +32,43 @@ export const GklKnowledgePanel: React.FC = () => {
   const [hoveredItem, setHoveredItem] = useState<any | null>(null);
   const [selectedAreaTile, setSelectedAreaTile] = useState<any | null>(null);
   const [hoveredAreaTile, setHoveredAreaTile] = useState<any | null>(null);
+
+  // 長押しタイマー管理
+  const pressTimerRef = React.useRef<Record<string, any>>({});
+  const isLongPressRef = React.useRef<Record<string, boolean>>({});
+
+  const handleItemPointerDown = (item: any, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    isLongPressRef.current[item.letter] = false;
+    pressTimerRef.current[item.letter] = setTimeout(() => {
+      isLongPressRef.current[item.letter] = true;
+      if (navigator.vibrate) navigator.vibrate(25);
+      openItemActionMenu(item.letter);
+    }, 400);
+  };
+
+  const handleItemPointerUp = (item: any, e: React.PointerEvent) => {
+    if (pressTimerRef.current[item.letter]) {
+      clearTimeout(pressTimerRef.current[item.letter]);
+      delete pressTimerRef.current[item.letter];
+    }
+    if (!isLongPressRef.current[item.letter] && e.button === 0) {
+      handleOneTapItem(item);
+    }
+  };
+
+  const handleItemPointerCancel = (item: any) => {
+    if (pressTimerRef.current[item.letter]) {
+      clearTimeout(pressTimerRef.current[item.letter]);
+      delete pressTimerRef.current[item.letter];
+    }
+  };
+
+  const handleItemContextMenu = (item: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    handleItemPointerCancel(item);
+    openItemActionMenu(item.letter);
+  };
 
   const dpadButtons = useMemo(() => [
     { id: 'NW', label: isEn ? 'NW' : '北西', icon: '↖' },
@@ -66,6 +105,14 @@ export const GklKnowledgePanel: React.FC = () => {
   const inventoryItems = useMemo(() => {
     return gklSituation?.inventory?.items || [];
   }, [gklSituation]);
+
+  const tacticalAdvices = useMemo(() => {
+    return gklSituation?.advices || [];
+  }, [gklSituation]);
+
+  const hasCriticalAdvice = useMemo(() => {
+    return tacticalAdvices.some((adv: any) => adv.isCritical || adv.severity === 'CRITICAL' || adv.level === 'CRITICAL' || adv.dangerLevel === 'LETHAL');
+  }, [tacticalAdvices]);
 
   const activeKnowledge = useMemo(() => {
     if (hoveredItem?.knowledge) return hoveredItem.knowledge;
@@ -233,12 +280,17 @@ export const GklKnowledgePanel: React.FC = () => {
 
   return (
     <div style={{ background: '#181b24', border: '1px solid #3b4252', borderRadius: '6px', padding: '12px 16px', color: '#e5e9f0', fontFamily: 'system-ui, sans-serif', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* 1. ヘッダー ＆ 同期コントロール */}
+      {/* 1. ヘッダー ＆ 同期コントロール ＆ 🚨 危機点滅バッジ */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2e3440', paddingBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', fontWeight: 'bold', fontSize: '11px', padding: '4px 8px', borderRadius: '4px' }}>
             {isEn ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト'}
           </span>
+          {hasCriticalAdvice && (
+            <span style={{ background: '#e74c3c', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', animation: 'pulse 1s infinite' }}>
+              🚨 {isEn ? 'CRITICAL CRISIS' : '危機警告'}
+            </span>
+          )}
           <button onClick={handleSyncInventory} disabled={isSyncing} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
             {isSyncing ? (isEn ? '...Syncing' : '...同期中') : (isEn ? '🔄 Sync Inventory' : '🔄 インベントリ同期')}
           </button>
@@ -250,6 +302,26 @@ export const GklKnowledgePanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* 🛡️ TacticalAdvisor 戦術アドバイス一覧 */}
+      {tacticalAdvices.length > 0 && (
+        <div style={{ background: '#1c212d', borderLeft: '4px solid #00e676', borderRadius: '4px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#00e676', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🛡️ {isEn ? 'Tactical Advisor Recommendations' : '戦術アドバイザー推奨'}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#e5e9f0' }}>
+            {tacticalAdvices.map((adv: any, idx: number) => {
+              const advText = typeof adv === 'string' ? adv : (adv.text || adv.message || adv.advice || adv.label || '');
+              const isCrit = adv.isCritical || adv.severity === 'CRITICAL';
+              return (
+                <div key={idx} style={{ color: isCrit ? '#ff6b6b' : '#e5e9f0', fontWeight: isCrit ? 'bold' : 'normal' }}>
+                  {isCrit ? '⚠️ ' : '💡 '}{advText}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#232834', border: '1px solid #3b4252', borderRadius: '6px', padding: '8px 12px' }}>
@@ -338,9 +410,11 @@ export const GklKnowledgePanel: React.FC = () => {
       {/* 2. 所持品インベントリ */}
       {inventoryItems.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#ebcb8b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#ebcb8b', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span>{isEn ? `🎒 Inventory Guide (${inventoryItems.length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems.length}個)`}</span>
-            <span style={{ fontSize: '10px', color: '#88c0d0', fontWeight: 'normal' }}>{isEn ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備'}</span>
+            <span style={{ fontSize: '10px', color: '#88c0d0', fontWeight: 'normal' }}>
+              {isEn ? '※ Tap: One-tap use / Long-press or Right-click: Action Menu' : '※ タップ: 即時使用 / 長押し・右クリック: アクションメニュー'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -362,11 +436,15 @@ export const GklKnowledgePanel: React.FC = () => {
                     cursor: 'pointer',
                     position: 'relative',
                     transition: 'all 0.15s ease-in-out',
+                    userSelect: 'none',
                     ...equipStyle,
                   }}
-                  onClick={() => handleOneTapItem(item)}
+                  onPointerDown={(e) => handleItemPointerDown(item, e)}
+                  onPointerUp={(e) => handleItemPointerUp(item, e)}
+                  onPointerLeave={() => { handleItemPointerCancel(item); setHoveredItem(null); }}
+                  onPointerCancel={() => handleItemPointerCancel(item)}
+                  onContextMenu={(e) => handleItemContextMenu(item, e)}
                   onMouseEnter={() => setHoveredItem(item)}
-                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontWeight: 'bold', color: '#88c0d0', fontFamily: 'monospace', fontSize: '12px' }}>[{item.letter}]</span>
@@ -398,6 +476,9 @@ export const GklKnowledgePanel: React.FC = () => {
                           💡 {isEn ? 'One-Tap:' : 'ワンタップ:'} {safeText(item.knowledge?.actionLabel || item.defaultActionLabel || item.defaultActionLabelJa)} [{item.letter}]
                         </div>
                       )}
+                      <div style={{ fontSize: '9px', color: '#88c0d0', opacity: 0.8 }}>
+                        🖱️ {isEn ? 'Long-press / Right-click: Menu' : '長押し / 右クリック: メニュー'}
+                      </div>
                       {(item.knowledge?.effectSummary || item.knowledge?.description) && (
                         <div style={{ fontSize: '10px', color: '#e5e9f0', opacity: 0.9 }}>
                           {safeText(item.knowledge?.effectSummary || item.knowledge?.description)}

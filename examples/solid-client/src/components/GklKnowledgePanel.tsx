@@ -10,6 +10,48 @@ export const GklKnowledgePanel: Component = () => {
   const [selectedAreaTile, setSelectedAreaTile] = createSignal<any | null>(null);
   const [hoveredAreaTile, setHoveredAreaTile] = createSignal<any | null>(null);
 
+  // 長押しタイマー管理
+  const pressTimers: Record<string, any> = {};
+  const isLongPress: Record<string, boolean> = {};
+
+  const handleItemPointerDown = (item: any, e: PointerEvent) => {
+    if (e.button !== 0) return;
+    isLongPress[item.letter] = false;
+    pressTimers[item.letter] = setTimeout(() => {
+      isLongPress[item.letter] = true;
+      if (navigator.vibrate) navigator.vibrate(25);
+      driverController.openItemActionMenu(item.letter);
+    }, 400);
+  };
+
+  const handleItemPointerUp = (item: any, e: PointerEvent) => {
+    if (pressTimers[item.letter]) {
+      clearTimeout(pressTimers[item.letter]);
+      delete pressTimers[item.letter];
+    }
+    if (!isLongPress[item.letter] && e.button === 0) {
+      handleOneTapItem(item);
+    }
+  };
+
+  const handleItemPointerLeave = (item: any) => {
+    handleItemPointerCancel(item);
+    setHoveredItem(null);
+  };
+
+  const handleItemPointerCancel = (item: any) => {
+    if (pressTimers[item.letter]) {
+      clearTimeout(pressTimers[item.letter]);
+      delete pressTimers[item.letter];
+    }
+  };
+
+  const handleItemContextMenu = (item: any, e: MouseEvent) => {
+    e.preventDefault();
+    handleItemPointerCancel(item);
+    driverController.openItemActionMenu(item.letter);
+  };
+
   const activeAttributes = () => {
     const res = gklSituation()?.attributes?.effectiveResistances || {};
     return ATTRIBUTE_DEFINITIONS.filter((item: any) => Boolean(res[item.key]));
@@ -18,6 +60,10 @@ export const GklKnowledgePanel: Component = () => {
   const isSkillsSynced = () => Boolean(gklSituation()?.skills?.isSynced);
   const activeSkills = () => gklSituation()?.skills?.activeItems || [];
   const activeSpells = () => gklSituation()?.spells?.items || [];
+  const tacticalAdvices = () => gklSituation()?.advices || [];
+  const hasCriticalAdvice = () => {
+    return tacticalAdvices().some((adv: any) => adv.isCritical || adv.severity === 'CRITICAL' || adv.level === 'CRITICAL' || adv.dangerLevel === 'LETHAL');
+  };
 
   const handleSyncSkills = async () => {
     await driverController.syncSkillsSilent();
@@ -229,12 +275,17 @@ export const GklKnowledgePanel: Component = () => {
 
   return (
     <div class="gkl-panel" style={{ background: '#181b24', border: '1px solid #3b4252', 'border-radius': '6px', padding: '12px 16px', color: '#e5e9f0', 'font-family': 'system-ui, sans-serif', 'margin-top': '8px', display: 'flex', 'flex-direction': 'column', gap: '12px' }}>
-      {/* 1. ヘッダー ＆ ステータス */}
+      {/* 1. ヘッダー ＆ ステータス ＆ 🚨 危機点滅バッジ */}
       <div class="gkl-header" style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', 'border-bottom': '1px solid #2e3440', 'padding-bottom': '8px' }}>
-        <div style={{ display: 'flex', 'align-items': 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '10px', 'flex-wrap': 'wrap' }}>
           <span class="gkl-badge" style={{ background: 'linear-gradient(135deg, #00e676, #00b0ff)', color: '#090d16', 'font-weight': 'bold', 'font-size': '11px', padding: '4px 8px', 'border-radius': '4px' }}>
             {isEn() ? '🧠 GKL Situation Reasoning & Knowledge Assist' : '🧠 GKL 状況推論 ＆ ナレッジアシスト'}
           </span>
+          <Show when={hasCriticalAdvice()}>
+            <span style={{ background: '#e74c3c', color: '#ffffff', 'font-weight': 'bold', 'font-size': '11px', padding: '3px 8px', 'border-radius': '4px', animation: 'pulse 1s infinite' }}>
+              🚨 {isEn() ? 'CRITICAL CRISIS' : '危機警告'}
+            </span>
+          </Show>
           <button onClick={handleSyncInventory} disabled={isSyncing()} style={{ background: '#3b4252', color: '#88c0d0', border: '1px solid #4c566a', padding: '3px 8px', 'border-radius': '4px', 'font-size': '11px', cursor: 'pointer' }}>
             {isSyncing() ? (isEn() ? '...Syncing' : '...同期中') : (isEn() ? '🔄 Sync Inventory' : '🔄 インベントリ同期')}
           </button>
@@ -246,6 +297,28 @@ export const GklKnowledgePanel: Component = () => {
           </button>
         </div>
       </div>
+
+      {/* 🛡️ TacticalAdvisor 戦術アドバイス一覧 */}
+      <Show when={tacticalAdvices().length > 0}>
+        <div style={{ background: '#1c212d', 'border-left': '4px solid #00e676', 'border-radius': '4px', padding: '8px 12px', display: 'flex', 'flex-direction': 'column', gap: '4px' }}>
+          <div style={{ 'font-size': '11px', 'font-weight': 'bold', color: '#00e676', display: 'flex', 'align-items': 'center', gap: '6px' }}>
+            <span>🛡️ {isEn() ? 'Tactical Advisor Recommendations' : '戦術アドバイザー推奨'}</span>
+          </div>
+          <div style={{ display: 'flex', 'flex-direction': 'column', gap: '4px', 'font-size': '11px', color: '#e5e9f0' }}>
+            <For each={tacticalAdvices()}>
+              {(adv: any) => {
+                const advText = typeof adv === 'string' ? adv : (adv.text || adv.message || adv.advice || adv.label || '');
+                const isCrit = adv.isCritical || adv.severity === 'CRITICAL';
+                return (
+                  <div style={{ color: isCrit ? '#ff6b6b' : '#e5e9f0', 'font-weight': isCrit ? 'bold' : 'normal' }}>
+                    {isCrit ? '⚠️ ' : '💡 '}{advText}
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </div>
+      </Show>
 
       {/* 1.5 🥋 スキル・📖 魔法・🛡️ 属性耐性 総合ステータスバー */}
       <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px', background: '#232834', border: '1px solid #3b4252', 'border-radius': '6px', padding: '8px 12px' }}>
@@ -307,24 +380,26 @@ export const GklKnowledgePanel: Component = () => {
           <Show when={activeSpells().length > 0} fallback={<span style={{ 'font-size': '11px', color: '#64748b' }}>{isEn() ? 'None' : 'なし'}</span>}>
             <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
               <For each={activeSpells()}>
-                {(sp: any) => (
-                  <button
-                    type="button"
-                    style={{
-                      background: 'rgba(139, 92, 246, 0.15)',
-                      border: '1px solid #a78bfa',
-                      color: '#ddd6fe',
-                      padding: '2px 8px',
-                      'border-radius': '4px',
-                      'font-size': '11px',
-                      cursor: 'pointer',
-                    }}
-                    title={`Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate})`}
-                    onClick={() => handleCastSpell(sp.letter)}
-                  >
-                    ✨ [{sp.letter}] {sp.name} <small style={{ color: '#94a3b8' }}>(Lv.{sp.level} {sp.failRate})</small>
-                  </button>
-                )}
+                {(sp: any) => {
+                  return (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        border: '1px solid #a78bfa',
+                        color: '#ddd6fe',
+                        padding: '2px 8px',
+                        'border-radius': '4px',
+                        'font-size': '11px',
+                        cursor: 'pointer',
+                      }}
+                      title={`Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate})`}
+                      onClick={() => handleCastSpell(sp.letter)}
+                    >
+                      ✨ [{sp.letter}] {sp.name} <small style={{ color: '#94a3b8' }}>(Lv.{sp.level} {sp.failRate})</small>
+                    </button>
+                  );
+                }}
               </For>
             </div>
           </Show>
@@ -334,9 +409,11 @@ export const GklKnowledgePanel: Component = () => {
       {/* 2. 所持品インベントリ */}
       <Show when={inventoryItems().length > 0}>
         <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
-          <div style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b', display: 'flex', 'align-items': 'center', gap: '6px' }}>
+          <div style={{ 'font-size': '12px', 'font-weight': 'bold', color: '#ebcb8b', display: 'flex', 'align-items': 'center', gap: '6px', 'flex-wrap': 'wrap' }}>
             <span>{isEn() ? `🎒 Inventory Guide (${inventoryItems().length} items)` : `🎒 所持品ナレッジ・ガイド (${inventoryItems().length}個)`}</span>
-            <span style={{ 'font-size': '10px', color: '#88c0d0', 'font-weight': 'normal' }}>{isEn() ? '※ Tap icon for instant use / equip' : '※ アイコンタップで即時使用・装備'}</span>
+            <span style={{ 'font-size': '10px', color: '#88c0d0', 'font-weight': 'normal' }}>
+              {isEn() ? '※ Tap: One-tap use / Long-press or Right-click: Action Menu' : '※ タップ: 即時使用 / 長押し・右クリック: アクションメニュー'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap' }}>
@@ -358,29 +435,25 @@ export const GklKnowledgePanel: Component = () => {
                       cursor: 'pointer',
                       position: 'relative',
                       transition: 'all 0.15s ease-in-out',
+                      'user-select': 'none',
                       ...equipStyle,
                     }}
-                    onClick={() => handleOneTapItem(item)}
+                    onPointerDown={(e) => handleItemPointerDown(item, e)}
+                    onPointerUp={(e) => handleItemPointerUp(item, e)}
+                    onPointerLeave={() => handleItemPointerLeave(item)}
+                    onPointerCancel={() => handleItemPointerCancel(item)}
+                    onContextMenu={(e) => handleItemContextMenu(item, e)}
                     onMouseEnter={() => setHoveredItem(item)}
-                    onMouseLeave={() => setHoveredItem(null)}
                   >
                     <div style={{ display: 'flex', 'align-items': 'center', gap: '6px' }}>
                       <span style={{ 'font-weight': 'bold', color: '#88c0d0', 'font-family': 'monospace', 'font-size': '12px' }}>[{item.letter}]</span>
                       <Show when={item.glyphId !== undefined && item.glyphId >= 0}>
                         <div style={{ width: '24px', height: '24px', 'border-radius': '3px', 'flex-shrink': 0, ...solidStyle }} />
                       </Show>
-                      <Show when={item.isWielded}>
-                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#e9c46a' }} title={isEn() ? 'Main weapon' : 'メイン武器'}>{isEn() ? 'Main' : '手'}</span>
-                      </Show>
-                      <Show when={item.isOffhand}>
-                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#4ea8de' }} title={isEn() ? 'Off-hand weapon' : '副武器'}>{isEn() ? 'Off' : '副'}</span>
-                      </Show>
-                      <Show when={item.isQuivered}>
-                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#2a9d8f' }} title={isEn() ? 'Quiver' : '矢筒'}>{isEn() ? 'Quiv' : '筒'}</span>
-                      </Show>
-                      <Show when={item.isWorn}>
-                        <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#9d4edd' }} title={isEn() ? 'Worn' : '着用中'}>{isEn() ? 'Worn' : '着'}</span>
-                      </Show>
+                      <Show when={item.isWielded}><span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#e9c46a' }} title={isEn() ? 'Main weapon' : 'メイン武器'}>{isEn() ? 'Main' : '手'}</span></Show>
+                      <Show when={item.isOffhand}><span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#1a1a2e', background: '#4ea8de' }} title={isEn() ? 'Off-hand weapon' : '副武器'}>{isEn() ? 'Off' : '副'}</span></Show>
+                      <Show when={item.isQuivered}><span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#2a9d8f' }} title={isEn() ? 'Quiver' : '矢筒'}>{isEn() ? 'Quiv' : '筒'}</span></Show>
+                      <Show when={item.isWorn}><span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#fff', background: '#9d4edd' }} title={isEn() ? 'Worn' : '着用中'}>{isEn() ? 'Worn' : '着'}</span></Show>
                       <Show when={item.skillBadge?.isProficient || item.isRecommendedWeapon}>
                         <span style={{ 'font-size': '9px', 'font-weight': 'bold', padding: '1px 4px', 'border-radius': '3px', color: '#000', background: '#22c55e' }} title={`Proficient (${item.skillBadge?.label || '+'})`}>+</span>
                       </Show>
@@ -402,6 +475,9 @@ export const GklKnowledgePanel: Component = () => {
                             💡 {isEn() ? 'One-Tap:' : 'ワンタップ:'} {safeText(item.knowledge?.actionLabel || item.defaultActionLabel || item.defaultActionLabelJa)} [{item.letter}]
                           </div>
                         </Show>
+                        <div style={{ 'font-size': '9px', color: '#88c0d0', opacity: 0.8 }}>
+                          🖱️ {isEn() ? 'Long-press / Right-click: Menu' : '長押し / 右クリック: メニュー'}
+                        </div>
                         <Show when={item.knowledge?.effectSummary || item.knowledge?.description}>
                           <div style={{ 'font-size': '10px', color: '#e5e9f0', opacity: 0.9 }}>
                             {safeText(item.knowledge?.effectSummary || item.knowledge?.description)}

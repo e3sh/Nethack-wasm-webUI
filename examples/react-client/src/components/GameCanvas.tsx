@@ -13,7 +13,7 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mapGrid = useGameStore((state) => state.mapGrid);
   const cursorPos = useGameStore((state) => state.cursorPos);
-  const { inspectTileKnowledge } = useNetHackDriver();
+  const { inspectTileKnowledge, travelTo } = useNetHackDriver();
 
   const tileImageRef = useRef<HTMLImageElement | null>(null);
   const isTileLoadedRef = useRef(false);
@@ -125,6 +125,24 @@ export const GameCanvas: React.FC = () => {
     }
   }, [inspectTileKnowledge]);
 
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const gridX = Math.floor(canvasX / TILE_SIZE);
+    const gridY = Math.floor(canvasY / TILE_SIZE);
+
+    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+      travelTo(gridX, gridY);
+    }
+  }, [travelTo]);
+
   const handleMouseLeave = useCallback(() => {
     inspectTileKnowledge(-1, -1);
   }, [inspectTileKnowledge]);
@@ -234,11 +252,17 @@ export const GameCanvas: React.FC = () => {
       if (curTile) drawSingleTile(cur.x, cur.y, curTile);
     });
 
+    const unsubMapCleared = onDriverEvent('map_cleared', () => {
+      lastCursorRef.current = null;
+      renderFullMap();
+    });
+
     renderFullMap();
 
     return () => {
       unsubGlyph();
       unsubCursor();
+      unsubMapCleared();
     };
   }, [renderFullMap, drawSingleTile]);
 
@@ -251,6 +275,7 @@ export const GameCanvas: React.FC = () => {
         className="game-canvas"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
       />
     </div>
   );

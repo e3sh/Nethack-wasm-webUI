@@ -139,6 +139,7 @@ export function useNetHackDriver() {
 
     core.on('map_cleared', () => {
       useGameStore.getState().clearMapGrid();
+      emitDriverEvent('map_cleared', {});
     });
 
     core.on('restarted', () => {
@@ -574,6 +575,25 @@ export function useNetHackDriver() {
     return false;
   }, []);
 
+  const travelTo = useCallback(async (x: number, y: number) => {
+    if (globalCore && globalCore.gkl && typeof globalCore.gkl.travelTo === 'function') {
+      return await globalCore.gkl.travelTo({ x, y });
+    }
+    if (globalCore && typeof globalCore.executeSequence === 'function') {
+      return await globalCore.executeSequence(['_', `${x},${y}`, 'Enter']);
+    }
+    return false;
+  }, []);
+
+  const openItemActionMenu = useCallback(async (letter: string) => {
+    if (!globalCore || !letter) return;
+    if (globalCore.driver && typeof globalCore.driver.queueSequence === 'function') {
+      await globalCore.driver.queueSequence(['i', letter], { isSilentSync: true });
+    } else if (typeof globalCore.executeSequence === 'function') {
+      await globalCore.executeSequence(['i', letter]);
+    }
+  }, []);
+
   const getAdaptiveSpecs = useCallback((knowledge: any) => {
     const sm = globalCore?.gkl?.skillStateManager || null;
     const lang = currentLanguage || globalCore?.language || 'ja';
@@ -605,6 +625,8 @@ export function useNetHackDriver() {
     moveToCell,
     castSpell,
     enhanceSkill,
+    travelTo,
+    openItemActionMenu,
     getAdaptiveSpecs,
   };
 }
