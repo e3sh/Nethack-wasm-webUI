@@ -123,6 +123,10 @@ export class SituationCache {
             }, { language: this.language });
         }
 
+        const perceivedMonsters = (areaState && Array.isArray(areaState.perceivedMonsters))
+            ? areaState.perceivedMonsters
+            : [];
+
         return {
             status,
             inventory: {
@@ -143,7 +147,8 @@ export class SituationCache {
             },
             attributes,
             actions,
-            advices
+            advices,
+            perceivedMonsters
         };
     }
 }

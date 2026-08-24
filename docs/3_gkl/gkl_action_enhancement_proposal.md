@@ -116,7 +116,7 @@
 | :--- | :--- | :--- |
 | **Phase 1: 情報取得・同期基盤の構築** | ・`SpellStateManager.js` の新設 (`+` キー同期)<br>・`AttributeStateManager.js` の新設 (`^X` 自律同期 ＋ 装備耐性自動合算)<br>・`DiscoveryStateManager.js` の新設 (`\` 発見台帳同期) | **【✅ 実装完了】**<br>[`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js)<br>[`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js)<br>[`DiscoveryStateManager.js`](/src/core/knowledge/DiscoveryStateManager.js) |
 | **Phase 2: 識別判定・スキル連動・Look調査 ＆ 魔法評価の統合** | ・未識別/価格識別/確定識別の厳密判定<br>・スキル熟練度 (`#enhance`) の自律同期<br>・オンデマンドLook (`;`) 調査サービス<br>・UIスペック提示成形 (`ItemSpecPresenter`)<br>・`ContextActionEngine.js` への戦術スコアリング統合 | **【✅ 実装完了】**<br>[`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js)<br>[`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js)<br>[`OnDemandLookService.js`](/src/core/knowledge/OnDemandLookService.js)<br>[`ItemSpecPresenter.js`](/src/core/knowledge/ItemSpecPresenter.js) |
-| **Phase 3: 高度戦術演出・環境脅威度＆カメラ演出連携** | ・敵耐性と自己耐性を考慮した自爆回避・属性攻撃判定<br>・`dangerLevel` や地形ハザードと連携した UI/カメラパルス演出機能 | **【進行中 / 計画中 (Planned)】**<br>全職業・全状況に対応した演出強化 ＆ UI連動 |
+| **Phase 3: 高度戦術演出・環境脅威度＆認知メンタルマップ連携** | ・モンスター認知メンタルマップ (`MonsterTracker.js`) の新設<br>・確信度減衰 (Weight Decay: 1.0 ➔ 0.8 ➔ 0.4 ➔ 0.0) ＆ 潜伏敵への事前警告<br>・`BL_TIME` 非依存のハイブリッド内部ターン時計<br>・敵耐性と自己耐性を考慮した自爆回避・属性攻撃判定<br>・`dangerLevel` や地形ハザードと連携した UI/カメラパルス演出機能 | **【✅ 認知メンタルマップ基盤実装完了 / 演出連携進行中】**<br>[`MonsterTracker.js`](/src/core/knowledge/MonsterTracker.js)<br>[`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js)<br>[`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) |
 
 ---
 

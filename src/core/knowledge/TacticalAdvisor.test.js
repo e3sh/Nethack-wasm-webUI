@@ -336,5 +336,124 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(explodeAdvice.messageJa).toContain('爆発');
         });
     });
+
+    describe('6. 認知メンタルマップ ＆ 潜伏モンスター戦術アドバイス (Mental Map & Unseen Threats)', () => {
+        it('視界外に消えたコカトリス（Weight 0.8 / NEARBY_UNSEEN）に対し、手袋事前着用の潜伏警戒アドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+
+            // コカトリスを追跡マップに登録 (Weight: 0.8)
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.trackedMonsters = [
+                {
+                    name: 'cockatrice',
+                    nameJa: 'コカトリス',
+                    monOffset: 10,
+                    weight: 0.8,
+                    decayStatus: 'NEARBY_UNSEEN',
+                    inLoS: false,
+                    lastKnownPos: { x: 15, y: 10 }
+                }
+            ];
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'g', name: 'leather gloves', rawText: 'g - a pair of leather gloves', isWorn: false }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState,
+                inventoryState: invMgr
+            });
+
+            const petrifyAdvice = advices.find(a => a.id === 'ADVICE_THREAT_PETRIFICATION_UNSEEN');
+            expect(petrifyAdvice).toBeDefined();
+            expect(petrifyAdvice.severity).toBe('WARNING');
+            expect(petrifyAdvice.score).toBe(800);
+            expect(petrifyAdvice.hintLetters).toEqual(['g']);
+            expect(petrifyAdvice.hintCommand).toBe('W');
+            expect(petrifyAdvice.messageJa).toContain('コカトリスが潜伏中');
+            expect(petrifyAdvice.messageJa).toContain('手袋の事前着用');
+        });
+
+        it('視界外に消えた邪悪な敵（Weight 0.8）に対し、銀製武器への事前持ち替えアドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.trackedMonsters = [
+                {
+                    name: 'vampire',
+                    nameJa: '吸血鬼',
+                    monOffset: 226,
+                    weight: 0.8,
+                    decayStatus: 'NEARBY_UNSEEN',
+                    inLoS: false,
+                    lastKnownPos: { x: 14, y: 10 }
+                }
+            ];
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'a', name: 'silver dagger', rawText: 'a - a silver dagger', isWeapon: true, isWielded: false }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState,
+                inventoryState: invMgr
+            });
+
+            const silverAdvice = advices.find(a => a.id === 'ADVICE_TACTICS_SILVER_SLAYING_UNSEEN');
+            expect(silverAdvice).toBeDefined();
+            expect(silverAdvice.score).toBe(360); // 450 * 0.8 = 360
+            expect(silverAdvice.hintLetters).toEqual(['a']);
+            expect(silverAdvice.hintCommand).toBe('w');
+            expect(silverAdvice.messageJa).toContain('銀製武器 [a] への持ち替えを推奨');
+        });
+
+        it('同種モンスターが複数体いる場合、気配サマリーで種族ごとにグループ化（x3 等）して提示されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.perceivedMonsters = [
+                {
+                    name: 'jackal',
+                    nameJa: 'ジャッカル',
+                    monOffset: 3,
+                    weight: 1.0,
+                    decayStatus: 'VISIBLE',
+                    distance: 3,
+                    direction: { code: 'E', name: '東' }
+                },
+                {
+                    name: 'jackal',
+                    nameJa: 'ジャッカル',
+                    monOffset: 3,
+                    weight: 1.0,
+                    decayStatus: 'VISIBLE',
+                    distance: 4,
+                    direction: { code: 'E', name: '東' }
+                },
+                {
+                    name: 'jackal',
+                    nameJa: 'ジャッカル',
+                    monOffset: 3,
+                    weight: 0.8,
+                    decayStatus: 'NEARBY_UNSEEN',
+                    distance: 5,
+                    direction: { code: 'NE', name: '北東' }
+                }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState
+            });
+
+            const radarAdvice = advices.find(a => a.id === 'ADVICE_THREAT_PERCEIVED_RADAR');
+            expect(radarAdvice).toBeDefined();
+            expect(radarAdvice.messageJa).toContain('ジャッカル (視認中 x2');
+        });
+    });
 });
 

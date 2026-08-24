@@ -190,6 +190,14 @@ export class DebugInspector {
             isSynced: Boolean(dsm.isSynced)
         } : null;
 
+        const trackedMonstersData = (this.core.gkl && typeof this.core.gkl.getPerceivedMonstersSummary === 'function')
+            ? this.core.gkl.getPerceivedMonstersSummary()
+            : ((areaData && areaData.perceivedMonsters) || (areaData && areaData.trackedMonsters) || []);
+
+        const advicesData = (situation && Array.isArray(situation.advices))
+            ? situation.advices
+            : ((this.core.gkl && typeof this.core.gkl.getTacticalAdvices === 'function') ? this.core.gkl.getTacticalAdvices() : []);
+
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
@@ -203,6 +211,8 @@ export class DebugInspector {
             skills: skillsData,
             attributes: attributesData,
             discoveries: discoveriesData,
+            trackedMonsters: trackedMonstersData,
+            advices: advicesData,
             situation: situation,
             contextActions: contextActions
         };

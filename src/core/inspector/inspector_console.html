@@ -413,6 +413,7 @@
     <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 GKL State Tree</button>
         <button class="tab-btn" onclick="switchTab('tabActions')">⚡ Context Actions</button>
+        <button class="tab-btn" onclick="switchTab('tabTactical')">🛡️ Tactical Advisor</button>
         <button class="tab-btn" onclick="switchTab('tabFlags')">📦 Knowledge & Flags</button>
         <button class="tab-btn" onclick="switchTab('tabTranslations')">📝 翻訳管理 (Translations)</button>
         <button class="tab-btn" onclick="switchTab('tabLogs')">📜 Event Stream</button>
@@ -427,6 +428,27 @@
                 Core および Game Knowledge Layer (GKL) の生の内部オブジェクトツリー（展開・折りたたみ可能）：
             </div>
             <div id="treeContainer" class="json-tree"></div>
+        </div>
+
+        <!-- Tab: Tactical Advisor (戦術参謀 & 認知レーダー) -->
+        <div id="tabTactical" class="tab-content">
+            <!-- 上段: 認知メンタルマップ (Perceived Monsters / Radar) -->
+            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold; color: var(--accent-color); font-size: 13px;">🧠 認知メンタルマップ・周辺脅威レーダー (Perceived Monsters):</span>
+                <span id="radarCountBadge" style="background: #313244; padding: 2px 8px; border-radius: 12px; font-size: 11px; color: #89b4fa;">0 体</span>
+            </div>
+            <div id="radarGrid" class="action-grid" style="margin-bottom: 20px;">
+                <div style="color: #6c7086;">現在追跡中のモンスターはありません。</div>
+            </div>
+
+            <!-- 下段: 現在の戦術アドバイス一覧 (Generated Tactical Advices) -->
+            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <span style="font-weight: bold; color: var(--success-color); font-size: 13px;">📜 生成された戦術アドバイス一覧 (Tactical Advices):</span>
+                <span id="adviceCountBadge" style="background: #313244; padding: 2px 8px; border-radius: 12px; font-size: 11px; color: #a6e3a1;">0 件</span>
+            </div>
+            <div id="adviceGrid" class="action-grid">
+                <div style="color: #6c7086;">現在アクティブな戦術アドバイスはありません（安全な状態です）。</div>
+            </div>
         </div>
 
         <!-- Tab 2: Context Actions Monitor -->
@@ -682,6 +704,131 @@
             } else {
                 actionGrid.innerHTML = `<div style="color:#6c7086;">現在提案中のコンテキストアクションはありません</div>`;
             }
+
+            // Tab: Tactical Advisor (Threat Radar & Tactical Advices) の描画
+            renderThreatRadar(s);
+            renderTacticalAdvices(s);
+        }
+
+        function renderThreatRadar(s) {
+            const radarGrid = document.getElementById('radarGrid');
+            const countBadge = document.getElementById('radarCountBadge');
+            if (!radarGrid) return;
+
+            const list = s.trackedMonsters || (s.situation && s.situation.perceivedMonsters) || (s.areaState && (s.areaState.perceivedMonsters || s.areaState.trackedMonsters)) || [];
+
+            if (countBadge) {
+                countBadge.textContent = `${list.length} 体`;
+            }
+
+            if (!list || list.length === 0) {
+                radarGrid.innerHTML = '<div style="color: #6c7086; grid-column: 1 / -1; padding: 16px; text-align: center;">現在追跡中のモンスターはありません（安全な状態です）。</div>';
+                return;
+            }
+
+            radarGrid.innerHTML = list.map(mon => {
+                const name = mon.nameJa ? `${mon.nameJa} (${mon.name})` : mon.name;
+                const statusIcon = mon.statusIcon || (mon.decayStatus === 'VISIBLE' ? '👁️' : (mon.decayStatus === 'NEARBY_UNSEEN' ? '❓' : '🌫️'));
+                const statusLabel = mon.statusLabel || mon.decayStatus;
+                const weight = mon.weight !== undefined ? mon.weight : (mon.confidencePercent ? mon.confidencePercent / 100 : 1.0);
+                const percent = Math.round(weight * 100);
+                const dist = mon.distance !== undefined ? `${mon.distance} マス` : '-';
+                const dir = mon.direction ? (mon.direction.name || mon.direction.code || mon.direction) : '-';
+                const turnsAgo = mon.lastSeenTurnsAgo !== undefined ? `${mon.lastSeenTurnsAgo} ターン前` : '-';
+                const danger = mon.dangerLevel || 'NORMAL';
+
+                let weightColor = '#a6e3a1'; // green (100%)
+                if (percent <= 40) weightColor = '#6c7086'; // gray
+                else if (percent <= 80) weightColor = '#f9e2af'; // yellow
+
+                let dangerBadgeColor = '#89b4fa';
+                if (danger === 'LETHAL') dangerBadgeColor = '#f38ba8';
+                else if (danger === 'HIGH') dangerBadgeColor = '#fab387';
+
+                return `
+                    <div class="action-card" style="border-left: 4px solid ${weightColor};">
+                        <div class="action-card-header">
+                            <span class="action-title" style="color: #cdd6f4;">${statusIcon} ${name}</span>
+                            <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 10px; color: ${dangerBadgeColor}; font-weight: bold;">
+                                ${danger}
+                            </span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; margin-top: 4px; color: #a6adc8;">
+                            <div>状態: <span style="color: ${weightColor}; font-weight: bold;">${statusLabel}</span></div>
+                            <div>確信度: <span style="color: ${weightColor}; font-weight: bold;">${percent}%</span></div>
+                            <div>距離: <span style="color: #89b4fa;">${dist}</span></div>
+                            <div>方角: <span style="color: #89b4fa;">${dir}</span></div>
+                            <div style="grid-column: 1 / -1;">最終視認: <span style="color: #fab387;">${turnsAgo}</span> (座標: x:${mon.lastKnownPos?.x ?? '-'}, y:${mon.lastKnownPos?.y ?? '-'})</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); height: 4px; border-radius: 2px; margin-top: 6px; overflow: hidden;">
+                            <div style="background: ${weightColor}; width: ${percent}%; height: 100%;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTacticalAdvices(s) {
+            const adviceGrid = document.getElementById('adviceGrid');
+            const countBadge = document.getElementById('adviceCountBadge');
+            if (!adviceGrid) return;
+
+            const list = s.advices || (s.situation && s.situation.advices) || [];
+
+            if (countBadge) {
+                countBadge.textContent = `${list.length} 件`;
+            }
+
+            if (!list || list.length === 0) {
+                adviceGrid.innerHTML = '<div style="color: #6c7086; grid-column: 1 / -1; padding: 16px; text-align: center;">現在アクティブな戦術アドバイスはありません（安全な状態です）。</div>';
+                return;
+            }
+
+            adviceGrid.innerHTML = list.map(adv => {
+                const severity = adv.severity || 'INFO';
+                const topic = adv.topic || 'TACTICS';
+                const score = adv.score !== undefined ? adv.score : 0;
+                const cmd = adv.hintCommand ? `Cmd: ${adv.hintCommand}` : '';
+                const letters = (Array.isArray(adv.hintLetters) && adv.hintLetters.length > 0) ? ` [${adv.hintLetters.join(',')}]` : '';
+                const msgJa = adv.messageJa || adv.message || '';
+                const msgEn = adv.messageEn || '';
+
+                let sevColor = '#89b4fa';
+                let sevBg = 'rgba(137, 180, 250, 0.15)';
+                if (severity === 'DANGER') {
+                    sevColor = '#f38ba8';
+                    sevBg = 'rgba(243, 139, 168, 0.15)';
+                } else if (severity === 'WARNING') {
+                    sevColor = '#fab387';
+                    sevBg = 'rgba(250, 179, 135, 0.15)';
+                }
+
+                return `
+                    <div class="action-card" style="border-left: 4px solid ${sevColor};">
+                        <div class="action-card-header">
+                            <span style="display: flex; gap: 6px; align-items: center;">
+                                <span style="background: ${sevBg}; color: ${sevColor}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
+                                    ${severity}
+                                </span>
+                                <span style="background: #313244; color: #a6adc8; padding: 2px 6px; border-radius: 4px; font-size: 10px;">
+                                    ${topic}
+                                </span>
+                            </span>
+                            <span style="font-size: 11px; color: #f9e2af; font-family: var(--font-mono);">
+                                Score: ${score}
+                            </span>
+                        </div>
+                        <div style="font-size: 12px; color: #cdd6f4; font-weight: bold; margin-top: 4px; line-height: 1.4;">
+                            ${msgJa}
+                        </div>
+                        ${msgEn ? `<div style="font-size: 11px; color: #6c7086; font-style: italic; margin-top: 2px;">${msgEn}</div>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px;">
+                            <span style="color: #fab387; font-family: var(--font-mono); font-size: 10px;">ID: ${adv.id || '-'}</span>
+                            ${cmd ? `<span class="action-key" style="background: #45475a; color: #a6e3a1; font-weight: bold;">${cmd}${letters}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderKnowledgeFlags(s) {

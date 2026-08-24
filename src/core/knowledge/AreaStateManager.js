@@ -7,20 +7,32 @@
 import { classifyGlyph, ENTITY_TYPES } from './glyphClassifier.js';
 
 export class AreaStateManager {
-    constructor(width = 80, height = 24) {
+    constructor(width = 80, height = 24, monsterTracker = null) {
         this.width = width;
         this.height = height;
         this.playerX = 0;
         this.playerY = 0;
         this.keyMode = 'vi'; // キーモード ('vi' | 'numpad')
+        this.monsterTracker = monsterTracker;
         this.grid = [];
         this.resetGrid();
+    }
+
+    /**
+     * MonsterTracker インスタンスを設定
+     * @param {Object} tracker 
+     */
+    setMonsterTracker(tracker) {
+        this.monsterTracker = tracker;
     }
 
     /**
      * グリッドキャッシュを初期化
      */
     resetGrid() {
+        if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
+            this.monsterTracker.reset();
+        }
         this.grid = [];
         for (let y = 0; y < this.height; y++) {
             const row = [];
@@ -53,7 +65,10 @@ export class AreaStateManager {
         switch (info.type) {
             case ENTITY_TYPES.TERRAIN:
             case ENTITY_TYPES.UNEXPLORED:
-                // 地形が届いた場合、Bottom に上書き。そのマスが地形単体になったため Middle/Top もリセット
+                // 地形が届いた場合、Bottom に上書き。以前モンスターが存在していた場合は MonsterTracker にロストを通知
+                if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
+                    this.monsterTracker.notifyCellLostMonster(x, y);
+                }
                 cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.middle = null;
                 cell.top = null;
@@ -62,7 +77,10 @@ export class AreaStateManager {
             case ENTITY_TYPES.ITEM:
             case ENTITY_TYPES.BODY:
             case ENTITY_TYPES.STATUE:
-                // アイテム類が届いた場合、Middle に記録。Top はクリア
+                // アイテム類が届いた場合、Middle に記録。以前モンスターが存在していた場合は MonsterTracker にロストを通知
+                if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
+                    this.monsterTracker.notifyCellLostMonster(x, y);
+                }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 break;
@@ -74,6 +92,9 @@ export class AreaStateManager {
                     ? cell.top.dynamicState
                     : null;
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
+                if (this.monsterTracker && typeof this.monsterTracker.updateVisibleMonster === 'function') {
+                    this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo);
+                }
                 break;
 
             case ENTITY_TYPES.EFFECT:
@@ -102,6 +123,9 @@ export class AreaStateManager {
      */
     updatePlayerPosition(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            if (this.monsterTracker && typeof this.monsterTracker.handlePlayerPosition === 'function') {
+                this.monsterTracker.handlePlayerPosition(x, y);
+            }
             if (this.playerX === x && this.playerY === y) return false;
             this.playerX = x;
             this.playerY = y;
@@ -181,6 +205,14 @@ export class AreaStateManager {
             cells.push(row);
         }
 
+        const trackedMonsters = (this.monsterTracker && typeof this.monsterTracker.getTrackedMonsters === 'function')
+            ? this.monsterTracker.getTrackedMonsters()
+            : [];
+
+        const perceivedMonsters = (this.monsterTracker && typeof this.monsterTracker.getPerceivedMonstersSummary === 'function')
+            ? this.monsterTracker.getPerceivedMonstersSummary({ playerX: this.playerX, playerY: this.playerY, grid: this.grid })
+            : [];
+
         return {
             center: { x: cx, y: cy },
             radius,
@@ -192,7 +224,9 @@ export class AreaStateManager {
             feet: feetState,
             cells,
             adjacentMonsters,
-            adjacentEntities
+            adjacentEntities,
+            trackedMonsters,
+            perceivedMonsters
         };
     }
 }

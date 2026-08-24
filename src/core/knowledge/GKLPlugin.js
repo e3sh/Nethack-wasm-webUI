@@ -11,6 +11,7 @@ import { RequestController } from './RequestController.js';
 import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
 import { DiscoveryStateManager } from './DiscoveryStateManager.js';
+import { MonsterTracker } from './MonsterTracker.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -25,12 +26,14 @@ export class GKLPlugin {
      * @param {SpellStateManager} [options.spellStateManager]
      * @param {SkillStateManager} [options.skillStateManager]
      * @param {AttributeStateManager} [options.attributeStateManager]
+     * @param {MonsterTracker} [options.monsterTracker]
      * @param {'vi'|'numpad'} [options.keyMode]
      * @param {'ja'|'en'} [options.language]
      */
     constructor(options = {}) {
         this.statusAccessor = new StatusAccessor();
-        this.areaStateManager = new AreaStateManager();
+        this.monsterTracker = options.monsterTracker || new MonsterTracker();
+        this.areaStateManager = new AreaStateManager(80, 24, this.monsterTracker);
         this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
         this.spellStateManager = options.spellStateManager || new SpellStateManager();
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
@@ -107,6 +110,9 @@ export class GKLPlugin {
      * ゲームリスタート時などに全マネージャーのキャッシュ・状態を初期化
      */
     reset() {
+        if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
+            this.monsterTracker.reset();
+        }
         if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
             this.areaStateManager.resetGrid();
         }
@@ -182,23 +188,33 @@ export class GKLPlugin {
             this.setLanguage(language);
         });
 
-        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定
+        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行
         core.on('userActionSent', ({ sequence }) => {
-            if (sequence && !this.isNonItemSequence(sequence)) {
-                if (typeof this.inventoryStateManager.invalidate === 'function') {
-                    this.inventoryStateManager.invalidate();
-                } else {
-                    this.inventoryStateManager.isSynced = false;
+            if (sequence) {
+                if (!this.isNonItemSequence(sequence)) {
+                    if (typeof this.inventoryStateManager.invalidate === 'function') {
+                        this.inventoryStateManager.invalidate();
+                    } else {
+                        this.inventoryStateManager.isSynced = false;
+                    }
+                    if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
+                        this.spellStateManager.invalidate();
+                    }
                 }
-                if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
-                    this.spellStateManager.invalidate();
+
+                // BL_TIME 非送信時用の自律ターン進行
+                if (this.monsterTracker && this.isTurnConsumingSequence(sequence)) {
+                    this.monsterTracker.advanceTurn();
                 }
             }
         });
 
-        // 2. テキストメッセージ受信時の更新
+        // 2. テキストメッセージ受信時の更新 (撃破メッセージ処理含む)
         core.on('messageText', ({ text }) => {
             if (text) {
+                if (this.monsterTracker && typeof this.monsterTracker.handleMessage === 'function') {
+                    this.monsterTracker.handleMessage(text);
+                }
                 if (typeof this.inventoryStateManager.updateFromMessage === 'function') {
                     const updated = this.inventoryStateManager.updateFromMessage(text);
                     if (updated) {
@@ -289,6 +305,22 @@ export class GKLPlugin {
         core.on('status_update', (data) => {
             if (data && data.field !== undefined && this.statusAccessor) {
                 this.statusAccessor.updateField(data.field, data.value);
+
+                // ターン数 (BL_TIME = 16) の同期
+                if (data.field === 16 || data.field === 'time' || data.field === 'turns') {
+                    const parsedTurn = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
+                    if (!isNaN(parsedTurn) && this.monsterTracker) {
+                        this.monsterTracker.advanceTurn(parsedTurn);
+                    }
+                }
+
+                // 階層 (BL_DLEVEL = 20) の同期
+                if (data.field === 20 || data.field === 'dlevel') {
+                    if (this.monsterTracker) {
+                        this.monsterTracker.handleDlevelChange(data.value);
+                    }
+                }
+
                 // 経験レベル (level / exp) の変動時にも魔法失敗率やスキル向上可能状態が変化するため再同期
                 if (data.field === 'level' || data.field === 'exp_level') {
                     if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
@@ -300,6 +332,48 @@ export class GKLPlugin {
                 }
             }
         });
+    }
+
+    /**
+     * 指定されたキーシーケンスが NetHack 上でゲームターンを消費するアクションか判定
+     * @param {Array<string|number>} sequence 
+     * @returns {boolean}
+     */
+    isTurnConsumingSequence(sequence) {
+        if (!Array.isArray(sequence) || sequence.length === 0) return false;
+
+        // メニュー確定選択
+        if (sequence.includes('MENU_SELECT')) return true;
+
+        // プレフィックスキー単体（走る/回数指定など）はターンを消費しない
+        const prefixKeys = new Set(['5', 'g', 'G', 'm', 'M', 'F', '_', 'n']);
+        if (sequence.length === 1 && prefixKeys.has(String(sequence[0]))) {
+            return false;
+        }
+
+        // 非ターン消費キー（ESC, 調査, ヘルプ, インベントリ一覧表示等）
+        const nonTurnKeys = new Set([
+            '27', '\x1b', 'ESC', 'Escape',
+            ';', ':', '?', '/', '\\', '+', '^x', '^X', 'i', 'I', ')'
+        ]);
+
+        const first = String(sequence[0]).trim();
+        if (nonTurnKeys.has(first)) return false;
+
+        // 移動・待機・アイテム使用・攻撃等
+        const turnKeys = new Set([
+            'h', 'j', 'k', 'l', 'y', 'u', 'b', 'n',
+            'H', 'J', 'K', 'L', 'Y', 'U', 'B', 'N',
+            '1', '2', '3', '4', '6', '7', '8', '9',
+            '.', 's', '<', '>',
+            'a', 'e', 'q', 'r', 'w', 'W', 'T', 'z', 'Z', 'P', 'R', 'd', 'D', ',', 't', 'f', 'C'
+        ]);
+
+        if (turnKeys.has(first) || first.startsWith('DIR_')) {
+            return true;
+        }
+
+        return true;
     }
 
     /**
@@ -595,6 +669,27 @@ export class GKLPlugin {
 
     getAreaStateManager() {
         return this.areaStateManager;
+    }
+
+    getMonsterTracker() {
+        return this.monsterTracker;
+    }
+
+    /**
+     * プレイヤー視点での認知モンスター要約リスト（気配レーダー）を取得
+     * @param {Object} [options={}]
+     * @returns {Array<Object>}
+     */
+    getPerceivedMonstersSummary(options = {}) {
+        if (!this.monsterTracker) return [];
+        const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
+        const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
+        return this.monsterTracker.getPerceivedMonstersSummary({
+            playerX: px,
+            playerY: py,
+            language: this.language,
+            ...options
+        });
     }
 
     getStatusAccessor() {

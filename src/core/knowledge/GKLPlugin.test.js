@@ -286,4 +286,35 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.situationCache.language).toBe('ja');
         expect(plugin.structuredKnowledge.language).toBe('ja');
     });
+
+    it('MonsterTracker 連携: status_update (BL_TIME / BL_DLEVEL) および userActionSent でターン同期・階層変更が機能すること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        const tracker = plugin.getMonsterTracker();
+        expect(tracker).toBeDefined();
+
+        // 1. print_glyph でモンスター視認
+        mockCore.emit('print_glyph', { x: 10, y: 10, glyph: 10, glyphInfo: { name: 'cockatrice', nameJa: 'コカトリス' } });
+        expect(tracker.getTrackedMonsters().length).toBe(1);
+
+        // 2. status_update (field: 16 / BL_TIME) でターン進行
+        mockCore.emit('status_update', { field: 16, value: 50 });
+        expect(tracker.getCurrentTurn()).toBe(50);
+
+        // 3. userActionSent での自律ターン進行 (BL_TIME 非送信時フォールバック)
+        mockCore.emit('userActionSent', { sequence: ['k'] }); // 移動キー
+        expect(tracker.getCurrentTurn()).toBe(51);
+
+        // 4. messageText による撃破消滅
+        mockCore.emit('messageText', { text: 'You kill the cockatrice!' });
+        expect(tracker.getTrackedMonsters().length).toBe(0);
+
+        // 5. status_update (field: 20 / BL_DLEVEL) で階層移動時のクリア
+        tracker.updateVisibleMonster(12, 12, 10, { name: 'cockatrice' });
+        expect(tracker.getTrackedMonsters().length).toBe(1);
+        mockCore.emit('status_update', { field: 20, value: 'Dlvl:2' });
+        expect(tracker.getTrackedMonsters().length).toBe(0);
+    });
 });

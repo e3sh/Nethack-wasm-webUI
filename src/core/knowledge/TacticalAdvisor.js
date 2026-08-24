@@ -109,7 +109,11 @@ export class TacticalAdvisor {
         let petrifyMonName = '';
         let petrifyMonNameJa = '';
 
-        const checkMonsterEntity = (mon, dist) => {
+        let maxPetrifyWeight = 0;
+        let maxEyeWeight = 0;
+        let maxUndeadWeight = 0;
+
+        const checkMonsterEntity = (mon, dist, weight = 1.0) => {
             if (!mon) return;
             const monOffset = mon.monOffset !== undefined ? mon.monOffset : (mon.subType !== undefined ? mon.subType : (mon.glyphInfo?.monOffset));
             const monKnowledge = (monOffset !== undefined ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
@@ -118,25 +122,28 @@ export class TacticalAdvisor {
             // 接触石化モンスター (コカトリス等, monOffset: 10)
             if (monKnowledge.petrifiesOnTouch || monName.includes('cockatrice') || monName.includes('chickatrice') || monOffset === 10) {
                 hasPetrifyThreat = true;
+                if (weight > maxPetrifyWeight) maxPetrifyWeight = weight;
                 petrifyMonName = mon.name || monKnowledge.name || 'cockatrice';
                 petrifyMonNameJa = mon.nameJa || 'コカトリス';
             }
 
             // 視線麻痺 (浮遊目玉, monOffset: 28)
             if (monKnowledge.paralysisGaze || monName.includes('floating eye') || monOffset === 28) {
-                if (dist <= 4) {
+                if (dist <= 4 || weight < 1.0) {
                     hasEyeThreat = true;
+                    if (weight > maxEyeWeight) maxEyeWeight = weight;
                 }
             }
 
-            // 近接自爆 (ガス胞子, monOffset: 27)
-            if ((monKnowledge.explodesOnMelee || monName.includes('gas spore') || monOffset === 27) && dist === 1) {
+            // 近接自爆 (ガス胞子, monOffset: 27) - 自爆は隣接時のみ
+            if ((monKnowledge.explodesOnMelee || monName.includes('gas spore') || monOffset === 27) && dist === 1 && weight === 1.0) {
                 hasSporeAdjacent = true;
             }
 
             // アンデッド・悪魔
             if (monKnowledge.isUndead || monKnowledge.isDemon || monName.includes('vampire') || monName.includes('demon') || monName.includes('zombie') || monName.includes('wraith') || (monOffset >= 226 && monOffset <= 228)) {
                 hasUndeadOrDemon = true;
+                if (weight > maxUndeadWeight) maxUndeadWeight = weight;
             }
         };
 
@@ -151,9 +158,7 @@ export class TacticalAdvisor {
                     if (!mon) continue;
 
                     const dist = Math.max(Math.abs(x - playerX), Math.abs(y - playerY));
-                    if (dist > 8) continue; // 視界内 (8マス以内)
-
-                    checkMonsterEntity(mon, dist);
+                    checkMonsterEntity(mon, dist, 1.0);
                 }
             }
         }
@@ -162,8 +167,17 @@ export class TacticalAdvisor {
         if (Array.isArray(areaState.adjacentMonsters)) {
             for (const adj of areaState.adjacentMonsters) {
                 if (adj && adj.entity) {
-                    checkMonsterEntity(adj.entity, 1);
+                    checkMonsterEntity(adj.entity, 1, 1.0);
                 }
+            }
+        }
+
+        // trackedMonsters (認知メンタルマップ) のチェック
+        if (Array.isArray(areaState.trackedMonsters)) {
+            for (const tracked of areaState.trackedMonsters) {
+                const dist = tracked.lastKnownPos ? Math.max(Math.abs(tracked.lastKnownPos.x - playerX), Math.abs(tracked.lastKnownPos.y - playerY)) : 5;
+                const weight = tracked.weight !== undefined ? tracked.weight : (tracked.inLoS ? 1.0 : 0.8);
+                checkMonsterEntity(tracked, dist, weight);
             }
         }
 
@@ -175,30 +189,67 @@ export class TacticalAdvisor {
             }) : [];
             const hintLetters = gloveItems.map(i => i.letter).filter(Boolean);
 
-            advices.push({
-                id: 'ADVICE_THREAT_PETRIFICATION',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: `⚠️ 危険: ${petrifyMonNameJa}が接近！手袋未着用のため素手・直接接触で即死(石化)します。手袋着用または遠隔攻撃を推奨。`,
-                messageEn: `⚠️ DANGER: ${petrifyMonName} approaching! Touching without gloves causes instant petrification. Wear gloves or use ranged attacks.`,
-                hintLetters: hintLetters,
-                hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                score: 1000
-            });
+            if (maxPetrifyWeight >= 1.0) {
+                advices.push({
+                    id: 'ADVICE_THREAT_PETRIFICATION',
+                    severity: 'CRITICAL',
+                    topic: 'THREAT',
+                    messageJa: `⚠️ 危険: ${petrifyMonNameJa}が接近！手袋未着用のため素手・直接接触で即死(石化)します。手袋着用または遠隔攻撃を推奨。`,
+                    messageEn: `⚠️ DANGER: ${petrifyMonName} approaching! Touching without gloves causes instant petrification. Wear gloves or use ranged attacks.`,
+                    hintLetters: hintLetters,
+                    hintCommand: hintLetters.length > 0 ? 'W' : 'f',
+                    score: 1000
+                });
+            } else if (maxPetrifyWeight >= 0.8) {
+                advices.push({
+                    id: 'ADVICE_THREAT_PETRIFICATION_UNSEEN',
+                    severity: 'WARNING',
+                    topic: 'THREAT',
+                    messageJa: `⚠️ 警戒: 付近に${petrifyMonNameJa}が潜伏中！再接敵に備えて手袋の事前着用を強く推奨。`,
+                    messageEn: `⚠️ CAUTION: ${petrifyMonName} lurking nearby! Wear gloves in advance before engaging.`,
+                    hintLetters: hintLetters,
+                    hintCommand: hintLetters.length > 0 ? 'W' : 'f',
+                    score: 800
+                });
+            } else if (maxPetrifyWeight >= 0.4) {
+                advices.push({
+                    id: 'ADVICE_THREAT_PETRIFICATION_DECAY',
+                    severity: 'INFO',
+                    topic: 'THREAT',
+                    messageJa: `⚠️ 周辺警戒: ${petrifyMonNameJa}の気配あり。手袋未着用の場合は事前着用を推奨。`,
+                    messageEn: `⚠️ NOTICE: Trace of ${petrifyMonName} detected nearby. Consider wearing gloves.`,
+                    hintLetters: hintLetters,
+                    hintCommand: hintLetters.length > 0 ? 'W' : 'f',
+                    score: 400
+                });
+            }
         }
 
         // 浮遊目玉 麻痺警告
         if (hasEyeThreat && !isBlindfolded) {
-            advices.push({
-                id: 'ADVICE_THREAT_FLOATING_EYE',
-                severity: 'WARNING',
-                topic: 'THREAT',
-                messageJa: '⚠️ 警告: 浮遊する目玉(Floating Eye)を直視・近接攻撃すると麻痺します。目隠し着用または飛び道具で攻撃してください。',
-                messageEn: '⚠️ WARNING: Attacking Floating Eye in melee causes severe paralysis. Wear a blindfold or attack from range.',
-                hintLetters: [],
-                hintCommand: 'f',
-                score: 700
-            });
+            if (maxEyeWeight >= 1.0) {
+                advices.push({
+                    id: 'ADVICE_THREAT_FLOATING_EYE',
+                    severity: 'WARNING',
+                    topic: 'THREAT',
+                    messageJa: '⚠️ 警告: 浮遊する目玉(Floating Eye)を直視・近接攻撃すると麻痺します。目隠し着用または飛び道具で攻撃してください。',
+                    messageEn: '⚠️ WARNING: Attacking Floating Eye in melee causes severe paralysis. Wear a blindfold or attack from range.',
+                    hintLetters: [],
+                    hintCommand: 'f',
+                    score: 700
+                });
+            } else if (maxEyeWeight >= 0.8) {
+                advices.push({
+                    id: 'ADVICE_THREAT_FLOATING_EYE_UNSEEN',
+                    severity: 'INFO',
+                    topic: 'THREAT',
+                    messageJa: '⚠️ 警戒: 付近に浮遊する目玉(Floating Eye)が潜伏中。目隠し着用または飛び道具の準備を推奨。',
+                    messageEn: '⚠️ CAUTION: Floating Eye lurking nearby. Prepare blindfold or ranged attacks.',
+                    hintLetters: [],
+                    hintCommand: 'f',
+                    score: 560
+                });
+            }
         }
 
         // ガス胞子 隣接警告
@@ -219,17 +270,88 @@ export class TacticalAdvisor {
         if (hasUndeadOrDemon && silverWeapons.length > 0) {
             const unwornSilver = silverWeapons.find(w => !w.isWielded);
             if (unwornSilver) {
+                const score = Math.round(450 * (maxUndeadWeight || 1.0));
+                const isLurking = maxUndeadWeight < 1.0;
                 advices.push({
-                    id: 'ADVICE_TACTICS_SILVER_SLAYING',
+                    id: isLurking ? 'ADVICE_TACTICS_SILVER_SLAYING_UNSEEN' : 'ADVICE_TACTICS_SILVER_SLAYING',
                     severity: 'INFO',
                     topic: 'TACTICS',
-                    messageJa: `🗡️ 特効武器: 邪悪な敵に対して銀製武器 [${unwornSilver.letter}] が特効ダメージ(+1d20)を与えます。`,
-                    messageEn: `🗡️ Silver Slaying: Silver weapon [${unwornSilver.letter}] deals bonus damage (+1d20) against demons & undead.`,
+                    messageJa: isLurking
+                        ? `🗡️ 特効準備: 近傍に潜伏中の邪悪な敵に備え、銀製武器 [${unwornSilver.letter}] への持ち替えを推奨。`
+                        : `🗡️ 特効武器: 邪悪な敵に対して銀製武器 [${unwornSilver.letter}] が特効ダメージ(+1d20)を与えます。`,
+                    messageEn: isLurking
+                        ? `🗡️ Silver Preparation: Prepare silver weapon [${unwornSilver.letter}] for evil enemies lurking nearby.`
+                        : `🗡️ Silver Slaying: Silver weapon [${unwornSilver.letter}] deals bonus damage (+1d20) against demons & undead.`,
                     hintLetters: [unwornSilver.letter],
                     hintCommand: 'w',
-                    score: 450
+                    score: score
                 });
             }
+        }
+
+        // 周辺認知モンスター要約サマリー (Perceived Threat Summary)
+        const perceived = Array.isArray(areaState.perceivedMonsters) 
+            ? areaState.perceivedMonsters 
+            : (Array.isArray(areaState.trackedMonsters) ? areaState.trackedMonsters : []);
+
+        if (perceived.length > 0) {
+            // 種族別にグループ集計 (直視中のみ個体数をカウント、潜伏中は気配情報として集計)
+            const grouped = new Map();
+            for (const p of perceived) {
+                const key = p.monOffset !== undefined ? `mon_${p.monOffset}` : (p.name || 'unknown');
+                if (!grouped.has(key)) {
+                    grouped.set(key, {
+                        name: p.name,
+                        nameJa: p.nameJa || p.name,
+                        visibleCount: 0,
+                        hasVisible: false,
+                        hasUnseen: false,
+                        minDist: Infinity,
+                        minDistDir: null
+                    });
+                }
+                const g = grouped.get(key);
+                if (p.decayStatus === 'VISIBLE' || p.inLoS) {
+                    g.hasVisible = true;
+                    g.visibleCount += 1;
+                } else {
+                    g.hasUnseen = true;
+                }
+
+                if (p.distance !== undefined && p.distance < g.minDist) {
+                    g.minDist = p.distance;
+                    g.minDistDir = p.direction;
+                }
+            }
+
+            const groupList = Array.from(grouped.values()).sort((a, b) => a.minDist - b.minDist);
+
+            const summaryPartsJa = groupList.slice(0, 3).map(g => {
+                const countStr = g.visibleCount > 1 ? ` x${g.visibleCount}` : '';
+                const stateStr = g.hasVisible ? `視認中${countStr}` : '潜伏';
+                const distStr = g.minDist !== Infinity ? ` ${g.minDist}マス${g.minDistDir?.name || ''}` : '';
+                return `${g.nameJa} (${stateStr}${distStr})`;
+            });
+
+            const summaryPartsEn = groupList.slice(0, 3).map(g => {
+                const countStr = g.visibleCount > 1 ? ` x${g.visibleCount}` : '';
+                const stateStr = g.hasVisible ? `Visible${countStr}` : 'Lurking';
+                const distStr = g.minDist !== Infinity ? ` ${g.minDist}m ${g.minDistDir?.code || ''}` : '';
+                return `${g.name} (${stateStr}${distStr})`;
+            });
+
+            const countTextJa = groupList.length > 3 ? `他 ${groupList.length - 3} 種` : '';
+            const countTextEn = groupList.length > 3 ? `+${groupList.length - 3} more` : '';
+
+            advices.push({
+                id: 'ADVICE_THREAT_PERCEIVED_RADAR',
+                severity: 'INFO',
+                topic: 'THREAT',
+                messageJa: `🧭 周辺の気配: モンスターを認知中 [${summaryPartsJa.join(', ')}${countTextJa ? ' / ' + countTextJa : ''}]`,
+                messageEn: `🧭 Perceived Radar: Monsters detected [${summaryPartsEn.join(', ')}${countTextEn ? ' / ' + countTextEn : ''}]`,
+                hintLetters: [],
+                score: 250
+            });
         }
     }
 
