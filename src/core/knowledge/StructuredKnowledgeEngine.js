@@ -769,35 +769,23 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        // 1. OBJECT_KNOWLEDGE_MAP (全 481 アイテムの完全マスター) を最初に 100% 登録
+        // 1. OBJECT_KNOWLEDGE_MAP (全 481 アイテムの完全マスター) を 100% 登録
         if (OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.size > 0) {
             for (const [onum, entry] of OBJECT_KNOWLEDGE_MAP.entries()) {
                 this.onumMap.set(onum, entry);
                 this.items.set(entry.id, entry);
                 if (entry.name) {
-                    this.items.set(entry.name.toLowerCase(), entry);
+                    const nameLower = entry.name.toLowerCase();
+                    this.items.set(nameLower, entry);
+                    this.items.set(nameLower.replace(/\s+/g, '_'), entry);
                 }
-            }
-        }
-
-        // 2. ITEM_KNOWLEDGE_BASE (手動詳細定義) を上書きマージ統合
-        for (const item of ITEM_KNOWLEDGE_BASE) {
-            this.items.set(item.id, item);
-            this.items.set(item.name.toLowerCase(), item);
-
-            let targetOnum = (typeof item.onum === 'number') ? item.onum : -1;
-            if (targetOnum < 0) {
-                const entry = Object.entries(OBJECT_TILEMAP_NAMES).find(([onumStr, name]) => name && name.toLowerCase() === item.name.toLowerCase());
-                if (entry) targetOnum = parseInt(entry[0], 10);
-            }
-
-            if (targetOnum >= 0) {
-                const existing = this.onumMap.get(targetOnum) || {};
-                // item の effectSummary がダミーの場合は existing の豊かな定義を優先
-                const itemEffect = (item.effectSummary && !item.effectSummary.includes('item (#')) ? item.effectSummary : existing.effectSummary;
-                const merged = { ...existing, ...item, effectSummary: itemEffect || existing.effectSummary };
-                this.onumMap.set(targetOnum, merged);
-                this.items.set(merged.id || item.id, merged);
+                if (entry.baseName && entry.baseName.toLowerCase() !== entry.name.toLowerCase()) {
+                    const baseLower = entry.baseName.toLowerCase();
+                    if (!this.items.has(baseLower)) {
+                        this.items.set(baseLower, entry);
+                        this.items.set(baseLower.replace(/\s+/g, '_'), entry);
+                    }
+                }
             }
         }
     }
@@ -850,10 +838,10 @@ export class StructuredKnowledgeEngine {
         }
 
         // 4. アイテム基本効果の翻訳
-        if (isEn && obj.effectSummaryEn) {
-            cloned.effectSummary = obj.effectSummaryEn;
-        } else if (cloned.effectSummary) {
-            cloned.effectSummary = tr(cloned.effectSummary);
+        if (isEn) {
+            cloned.effectSummary = obj.effectSummaryEn || obj.effectSummary;
+        } else {
+            cloned.effectSummary = obj.effectSummaryJa || tr(cloned.effectSummary);
         }
 
         // 5. BUC効果の翻訳
@@ -1089,9 +1077,12 @@ export class StructuredKnowledgeEngine {
                 dynamicResult.dangerLevel = 'SAFE';
                 dynamicResult.dispositionStatus = 'TAMED';
             } else if (dynamicState.isHostile) {
-                dynamicResult.dangerLevel = found.dangerLevel || 'LETHAL';
+                dynamicResult.dangerLevel = found.hostileDangerLevel || found.dangerLevel || 'LETHAL';
                 dynamicResult.dispositionStatus = 'HOSTILE';
             }
+        } else if (found.defaultPeaceful || isShopkeeper) {
+            dynamicResult.dangerLevel = 'SAFE';
+            dynamicResult.dispositionStatus = 'DEFAULT_PEACEFUL';
         }
 
         if (dynamicState && dynamicState.stats) {
@@ -1252,7 +1243,7 @@ export class StructuredKnowledgeEngine {
                 if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
             }
             if (targetOnum >= 0 && !identifier.isUnidentified && !options.identification && !options.isUnidentified) {
-                return this.getItemKnowledge(targetOnum, options);
+                return this.getItemKnowledge(targetOnum, { ...options, forceFullKnowledge: true });
             }
             if (targetOnum < 0) {
                 const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
@@ -1314,7 +1305,8 @@ export class StructuredKnowledgeEngine {
         // onum が定まっている場合は onumMap からナレッジを取得
         if (!found && targetOnum >= 0) {
             // 🕵️ DiscoveryStateManager による未識別床アイテムのネタバレ防止ガード
-            if (this.discoveryStateManager && options.forceFullKnowledge !== true) {
+            // (床アイテムまたは明示的にネタバレ防止が要求されている場合のみ適用)
+            if (this.discoveryStateManager && options.forceFullKnowledge !== true && (options.isFloorItem === true || typeof identifier === 'number')) {
                 if (!this.discoveryStateManager.isIdentified(targetOnum)) {
                     const catStr = getCategoryFromOnum(targetOnum);
                     const randomizableCats = ['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK'];

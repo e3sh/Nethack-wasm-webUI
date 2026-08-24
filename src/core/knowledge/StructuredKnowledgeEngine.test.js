@@ -63,15 +63,16 @@ describe('StructuredKnowledgeEngine', () => {
         it('should retrieve item knowledge by ID string', () => {
             const item = engine.getItemKnowledge('wand_of_digging', { translate: false });
             expect(item).not.toBeNull();
-            expect(item.id).toBe('wand_of_digging');
             expect(item.onum).toBe(428);
+            expect(item.name).toBe('wand of digging');
             expect(item.category).toBe('WAND');
         });
 
         it('should retrieve item knowledge by onum number', () => {
             const item = engine.getItemKnowledge(428, { translate: false });
             expect(item).not.toBeNull();
-            expect(item.id).toBe('wand_of_digging');
+            expect(item.onum).toBe(428);
+            expect(item.name).toBe('wand of digging');
         });
 
         it('should retrieve item knowledge by glyphId number', () => {
@@ -79,7 +80,8 @@ describe('StructuredKnowledgeEngine', () => {
             const wandGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 428;
             const item = engine.getItemKnowledge(wandGlyph, { translate: false });
             expect(item).not.toBeNull();
-            expect(item.id).toBe('wand_of_digging');
+            expect(item.onum).toBe(428);
+            expect(item.name).toBe('wand of digging');
         });
 
         it('should resolve item knowledge from complex NetHack inventory strings', () => {

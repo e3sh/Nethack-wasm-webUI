@@ -1,0 +1,2683 @@
+{
+  "0": {
+    "hd": 2,
+    "ac": 3,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "1": {
+    "hd": 1,
+    "ac": -1,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 5
+  },
+  "2": {
+    "hd": 3,
+    "ac": 3,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 5
+  },
+  "3": {
+    "hd": 3,
+    "ac": 3,
+    "speed": 18,
+    "mr": 10,
+    "difficulty": 10
+  },
+  "4": {
+    "hd": 5,
+    "ac": 4,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "5": {
+    "hd": 9,
+    "ac": -4,
+    "speed": 24,
+    "mr": 0,
+    "difficulty": 5
+  },
+  "6": {
+    "hd": 1,
+    "ac": 8,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "7": {
+    "hd": 5,
+    "ac": 8,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "8": {
+    "hd": 6,
+    "ac": 8,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "9": {
+    "hd": 4,
+    "ac": 8,
+    "speed": 4,
+    "mr": 30,
+    "difficulty": 10
+  },
+  "10": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 6,
+    "mr": 30,
+    "difficulty": 30
+  },
+  "11": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 6,
+    "mr": 30,
+    "difficulty": 30
+  },
+  "12": {
+    "hd": 0,
+    "ac": 7,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "13": {
+    "hd": 0,
+    "ac": 7,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "14": {
+    "hd": 1,
+    "ac": 7,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "15": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "16": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "17": {
+    "hd": 4,
+    "ac": 5,
+    "speed": 16,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "18": {
+    "hd": 4,
+    "ac": 5,
+    "speed": 16,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "19": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "20": {
+    "hd": 5,
+    "ac": 4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "21": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "22": {
+    "hd": 5,
+    "ac": 4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "23": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "24": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "25": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 200
+  },
+  "26": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 14,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "27": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "28": {
+    "hd": 2,
+    "ac": 9,
+    "speed": 1,
+    "mr": 10,
+    "difficulty": 10
+  },
+  "29": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 13,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "30": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 13,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "31": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 13,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "32": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "33": {
+    "hd": 4,
+    "ac": 5,
+    "speed": 16,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "34": {
+    "hd": 4,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "35": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "36": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "37": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "38": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "39": {
+    "hd": 12,
+    "ac": -10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "40": {
+    "hd": 5,
+    "ac": 2,
+    "speed": 12,
+    "mr": 25,
+    "difficulty": 20
+  },
+  "41": {
+    "hd": 6,
+    "ac": -4,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "42": {
+    "hd": 9,
+    "ac": -2,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "43": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "44": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 6,
+    "mr": 10,
+    "difficulty": 300
+  },
+  "45": {
+    "hd": 3,
+    "ac": 5,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "46": {
+    "hd": 4,
+    "ac": 10,
+    "speed": 6,
+    "mr": 10,
+    "difficulty": 300
+  },
+  "47": {
+    "hd": 6,
+    "ac": 10,
+    "speed": 6,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "48": {
+    "hd": 9,
+    "ac": 5,
+    "speed": 12,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "49": {
+    "hd": 13,
+    "ac": 0,
+    "speed": 12,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "50": {
+    "hd": 1,
+    "ac": 7,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "51": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 100
+  },
+  "52": {
+    "hd": 3,
+    "ac": 2,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 10
+  },
+  "53": {
+    "hd": 3,
+    "ac": 7,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "54": {
+    "hd": 3,
+    "ac": 2,
+    "speed": 15,
+    "mr": 20,
+    "difficulty": 200
+  },
+  "55": {
+    "hd": 6,
+    "ac": 5,
+    "speed": 13,
+    "mr": 30,
+    "difficulty": 200
+  },
+  "56": {
+    "hd": 4,
+    "ac": 8,
+    "speed": 0,
+    "mr": 10,
+    "difficulty": 20
+  },
+  "57": {
+    "hd": 5,
+    "ac": 8,
+    "speed": 0,
+    "mr": 10,
+    "difficulty": 20
+  },
+  "58": {
+    "hd": 6,
+    "ac": 8,
+    "speed": 3,
+    "mr": 20,
+    "difficulty": 20
+  },
+  "59": {
+    "hd": 0,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "60": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "61": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "62": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 6,
+    "mr": 10,
+    "difficulty": 150
+  },
+  "63": {
+    "hd": 5,
+    "ac": 8,
+    "speed": 15,
+    "mr": 20,
+    "difficulty": 30
+  },
+  "64": {
+    "hd": 7,
+    "ac": 7,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "65": {
+    "hd": 8,
+    "ac": 7,
+    "speed": 3,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "66": {
+    "hd": 9,
+    "ac": 7,
+    "speed": 3,
+    "mr": 20,
+    "difficulty": 500
+  },
+  "67": {
+    "hd": 3,
+    "ac": 9,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "68": {
+    "hd": 3,
+    "ac": 9,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "69": {
+    "hd": 3,
+    "ac": 9,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "70": {
+    "hd": 0,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "71": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "72": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "73": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "74": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 5,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "75": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 7,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "76": {
+    "hd": 3,
+    "ac": 5,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 300
+  },
+  "77": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 5,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "78": {
+    "hd": 3,
+    "ac": 3,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "79": {
+    "hd": 5,
+    "ac": 0,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "80": {
+    "hd": 7,
+    "ac": 0,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "81": {
+    "hd": 2,
+    "ac": 7,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "82": {
+    "hd": 5,
+    "ac": 0,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 500
+  },
+  "83": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 18,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "84": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 3,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "85": {
+    "hd": 12,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 650
+  },
+  "86": {
+    "hd": 14,
+    "ac": 5,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 800
+  },
+  "87": {
+    "hd": 20,
+    "ac": 5,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 800
+  },
+  "88": {
+    "hd": 0,
+    "ac": 7,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 12
+  },
+  "89": {
+    "hd": 1,
+    "ac": 7,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "90": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 5
+  },
+  "91": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "92": {
+    "hd": 3,
+    "ac": 0,
+    "speed": 3,
+    "mr": 20,
+    "difficulty": 30
+  },
+  "93": {
+    "hd": 3,
+    "ac": 0,
+    "speed": 3,
+    "mr": 20,
+    "difficulty": 30
+  },
+  "94": {
+    "hd": 1,
+    "ac": 3,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "95": {
+    "hd": 2,
+    "ac": 3,
+    "speed": 4,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "96": {
+    "hd": 5,
+    "ac": 4,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "97": {
+    "hd": 5,
+    "ac": 3,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "98": {
+    "hd": 10,
+    "ac": 3,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "99": {
+    "hd": 12,
+    "ac": 3,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "100": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 16,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "101": {
+    "hd": 4,
+    "ac": 2,
+    "speed": 24,
+    "mr": 70,
+    "difficulty": 300
+  },
+  "102": {
+    "hd": 4,
+    "ac": 2,
+    "speed": 24,
+    "mr": 70,
+    "difficulty": 300
+  },
+  "103": {
+    "hd": 4,
+    "ac": 2,
+    "speed": 24,
+    "mr": 70,
+    "difficulty": 300
+  },
+  "104": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 20,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "105": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 24,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "106": {
+    "hd": 3,
+    "ac": 0,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "107": {
+    "hd": 4,
+    "ac": 2,
+    "speed": 20,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "108": {
+    "hd": 5,
+    "ac": 2,
+    "speed": 20,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "109": {
+    "hd": 6,
+    "ac": 2,
+    "speed": 20,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "110": {
+    "hd": 7,
+    "ac": 2,
+    "speed": 22,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "111": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 22,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "112": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "113": {
+    "hd": 8,
+    "ac": 5,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "114": {
+    "hd": 9,
+    "ac": 5,
+    "speed": 3,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "115": {
+    "hd": 15,
+    "ac": 6,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 700
+  },
+  "116": {
+    "hd": 0,
+    "ac": 9,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 10
+  },
+  "117": {
+    "hd": 7,
+    "ac": -4,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "118": {
+    "hd": 3,
+    "ac": 0,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "119": {
+    "hd": 5,
+    "ac": 0,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "120": {
+    "hd": 9,
+    "ac": 3,
+    "speed": 8,
+    "mr": 0,
+    "difficulty": 600
+  },
+  "121": {
+    "hd": 8,
+    "ac": 5,
+    "speed": 10,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "122": {
+    "hd": 10,
+    "ac": 0,
+    "speed": 8,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "123": {
+    "hd": 14,
+    "ac": -4,
+    "speed": 10,
+    "mr": 55,
+    "difficulty": 400
+  },
+  "124": {
+    "hd": 16,
+    "ac": -5,
+    "speed": 18,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "125": {
+    "hd": 19,
+    "ac": -6,
+    "speed": 16,
+    "mr": 80,
+    "difficulty": 400
+  },
+  "126": {
+    "hd": 0,
+    "ac": 8,
+    "speed": 22,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "127": {
+    "hd": 2,
+    "ac": 7,
+    "speed": 22,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "128": {
+    "hd": 4,
+    "ac": 6,
+    "speed": 20,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "129": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 20,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "130": {
+    "hd": 4,
+    "ac": 4,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 500
+  },
+  "131": {
+    "hd": 5,
+    "ac": 3,
+    "speed": 18,
+    "mr": 10,
+    "difficulty": 600
+  },
+  "132": {
+    "hd": 6,
+    "ac": 2,
+    "speed": 20,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "133": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "134": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "135": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "136": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "137": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "138": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "139": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "140": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "141": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "142": {
+    "hd": 12,
+    "ac": 2,
+    "speed": 9,
+    "mr": 10,
+    "difficulty": 500
+  },
+  "143": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "144": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "145": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "146": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "147": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "148": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "149": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "150": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "151": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "152": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 1500
+  },
+  "153": {
+    "hd": 8,
+    "ac": 3,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "154": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 36,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "155": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "156": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 6,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "157": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 5,
+    "mr": 30,
+    "difficulty": 0
+  },
+  "158": {
+    "hd": 0,
+    "ac": 9,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "159": {
+    "hd": 1,
+    "ac": 9,
+    "speed": 0,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "160": {
+    "hd": 1,
+    "ac": 9,
+    "speed": 0,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "161": {
+    "hd": 1,
+    "ac": 9,
+    "speed": 0,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "162": {
+    "hd": 1,
+    "ac": 9,
+    "speed": 0,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "163": {
+    "hd": 3,
+    "ac": 7,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "164": {
+    "hd": 3,
+    "ac": 7,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "165": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 6,
+    "mr": 4,
+    "difficulty": 100
+  },
+  "166": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 8,
+    "mr": 4,
+    "difficulty": 120
+  },
+  "167": {
+    "hd": 3,
+    "ac": 4,
+    "speed": 10,
+    "mr": 10,
+    "difficulty": 120
+  },
+  "168": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 150
+  },
+  "169": {
+    "hd": 6,
+    "ac": 0,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 750
+  },
+  "170": {
+    "hd": 6,
+    "ac": 0,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 750
+  },
+  "171": {
+    "hd": 8,
+    "ac": 6,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 700
+  },
+  "172": {
+    "hd": 9,
+    "ac": 4,
+    "speed": 12,
+    "mr": 5,
+    "difficulty": 750
+  },
+  "173": {
+    "hd": 10,
+    "ac": 3,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 750
+  },
+  "174": {
+    "hd": 10,
+    "ac": 3,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 500
+  },
+  "175": {
+    "hd": 16,
+    "ac": 3,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 750
+  },
+  "176": {
+    "hd": 16,
+    "ac": -3,
+    "speed": 18,
+    "mr": 70,
+    "difficulty": 900
+  },
+  "177": {
+    "hd": 15,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 700
+  },
+  "178": {
+    "hd": 15,
+    "ac": -2,
+    "speed": 12,
+    "mr": 50,
+    "difficulty": 600
+  },
+  "179": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 6,
+    "mr": 10,
+    "difficulty": 200
+  },
+  "180": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 8,
+    "mr": 10,
+    "difficulty": 200
+  },
+  "181": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 200
+  },
+  "182": {
+    "hd": 4,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 200
+  },
+  "183": {
+    "hd": 11,
+    "ac": 0,
+    "speed": 6,
+    "mr": 30,
+    "difficulty": 100
+  },
+  "184": {
+    "hd": 14,
+    "ac": -2,
+    "speed": 9,
+    "mr": 60,
+    "difficulty": 100
+  },
+  "185": {
+    "hd": 17,
+    "ac": -4,
+    "speed": 9,
+    "mr": 90,
+    "difficulty": 100
+  },
+  "186": {
+    "hd": 25,
+    "ac": -6,
+    "speed": 9,
+    "mr": 90,
+    "difficulty": 100
+  },
+  "187": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 8,
+    "mr": 20,
+    "difficulty": 50
+  },
+  "188": {
+    "hd": 4,
+    "ac": 6,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 50
+  },
+  "189": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 75
+  },
+  "190": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 150
+  },
+  "191": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 175
+  },
+  "192": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 200
+  },
+  "193": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 250
+  },
+  "194": {
+    "hd": 8,
+    "ac": 3,
+    "speed": 14,
+    "mr": 30,
+    "difficulty": 375
+  },
+  "195": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "196": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "197": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "198": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "199": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "200": {
+    "hd": 8,
+    "ac": 2,
+    "speed": 14,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "201": {
+    "hd": 10,
+    "ac": 2,
+    "speed": 14,
+    "mr": 70,
+    "difficulty": 400
+  },
+  "202": {
+    "hd": 12,
+    "ac": 0,
+    "speed": 16,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "203": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 500
+  },
+  "204": {
+    "hd": 7,
+    "ac": 3,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 700
+  },
+  "205": {
+    "hd": 9,
+    "ac": 4,
+    "speed": 14,
+    "mr": 60,
+    "difficulty": 750
+  },
+  "206": {
+    "hd": 3,
+    "ac": 8,
+    "speed": 1,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "207": {
+    "hd": 5,
+    "ac": 8,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "208": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "209": {
+    "hd": 10,
+    "ac": 6,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "210": {
+    "hd": 7,
+    "ac": 3,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 20
+  },
+  "211": {
+    "hd": 12,
+    "ac": 3,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 20
+  },
+  "212": {
+    "hd": 5,
+    "ac": 2,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "213": {
+    "hd": 12,
+    "ac": -10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "214": {
+    "hd": 1,
+    "ac": 8,
+    "speed": 8,
+    "mr": 0,
+    "difficulty": 60
+  },
+  "215": {
+    "hd": 4,
+    "ac": 3,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 80
+  },
+  "216": {
+    "hd": 4,
+    "ac": 3,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 80
+  },
+  "217": {
+    "hd": 6,
+    "ac": 5,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "218": {
+    "hd": 6,
+    "ac": 2,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 60
+  },
+  "219": {
+    "hd": 6,
+    "ac": 2,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 100
+  },
+  "220": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "221": {
+    "hd": 9,
+    "ac": 2,
+    "speed": 10,
+    "mr": 20,
+    "difficulty": 300
+  },
+  "222": {
+    "hd": 9,
+    "ac": 0,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 300
+  },
+  "223": {
+    "hd": 11,
+    "ac": 4,
+    "speed": 14,
+    "mr": 40,
+    "difficulty": 350
+  },
+  "224": {
+    "hd": 13,
+    "ac": -4,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "225": {
+    "hd": 9,
+    "ac": 2,
+    "speed": 6,
+    "mr": 25,
+    "difficulty": 500
+  },
+  "226": {
+    "hd": 10,
+    "ac": 1,
+    "speed": 12,
+    "mr": 25,
+    "difficulty": 400
+  },
+  "227": {
+    "hd": 12,
+    "ac": 0,
+    "speed": 14,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "228": {
+    "hd": 28,
+    "ac": -6,
+    "speed": 26,
+    "mr": 80,
+    "difficulty": 400
+  },
+  "229": {
+    "hd": 3,
+    "ac": 5,
+    "speed": 12,
+    "mr": 5,
+    "difficulty": 0
+  },
+  "230": {
+    "hd": 6,
+    "ac": 4,
+    "speed": 12,
+    "mr": 15,
+    "difficulty": 0
+  },
+  "231": {
+    "hd": 13,
+    "ac": 0,
+    "speed": 12,
+    "mr": 25,
+    "difficulty": 0
+  },
+  "232": {
+    "hd": 8,
+    "ac": -2,
+    "speed": 9,
+    "mr": 20,
+    "difficulty": 700
+  },
+  "233": {
+    "hd": 2,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "234": {
+    "hd": 4,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 500
+  },
+  "235": {
+    "hd": 5,
+    "ac": 5,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 700
+  },
+  "236": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 700
+  },
+  "237": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 550
+  },
+  "238": {
+    "hd": 7,
+    "ac": 6,
+    "speed": 15,
+    "mr": 0,
+    "difficulty": 750
+  },
+  "239": {
+    "hd": 0,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "240": {
+    "hd": 1,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "241": {
+    "hd": 2,
+    "ac": 9,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 75
+  },
+  "242": {
+    "hd": 2,
+    "ac": 9,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 150
+  },
+  "243": {
+    "hd": 3,
+    "ac": 9,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 175
+  },
+  "244": {
+    "hd": 4,
+    "ac": 8,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "245": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 8,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "246": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 50
+  },
+  "247": {
+    "hd": 8,
+    "ac": 6,
+    "speed": 8,
+    "mr": 0,
+    "difficulty": 375
+  },
+  "248": {
+    "hd": 12,
+    "ac": 4,
+    "speed": 8,
+    "mr": 0,
+    "difficulty": 5
+  },
+  "249": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "250": {
+    "hd": 3,
+    "ac": 10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "251": {
+    "hd": 4,
+    "ac": 8,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "252": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "253": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "254": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "255": {
+    "hd": 9,
+    "ac": 9,
+    "speed": 8,
+    "mr": 30,
+    "difficulty": 600
+  },
+  "256": {
+    "hd": 11,
+    "ac": 7,
+    "speed": 7,
+    "mr": 40,
+    "difficulty": 0
+  },
+  "257": {
+    "hd": 14,
+    "ac": 5,
+    "speed": 6,
+    "mr": 50,
+    "difficulty": 0
+  },
+  "258": {
+    "hd": 16,
+    "ac": 1,
+    "speed": 6,
+    "mr": 50,
+    "difficulty": 0
+  },
+  "259": {
+    "hd": 18,
+    "ac": 3,
+    "speed": 6,
+    "mr": 60,
+    "difficulty": 0
+  },
+  "260": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "261": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "262": {
+    "hd": 2,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "263": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "264": {
+    "hd": 16,
+    "ac": 1,
+    "speed": 6,
+    "mr": 50,
+    "difficulty": 0
+  },
+  "265": {
+    "hd": 4,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 350
+  },
+  "266": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 350
+  },
+  "267": {
+    "hd": 6,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 350
+  },
+  "268": {
+    "hd": 8,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 350
+  },
+  "269": {
+    "hd": 9,
+    "ac": 10,
+    "speed": 12,
+    "mr": 25,
+    "difficulty": 350
+  },
+  "270": {
+    "hd": 9,
+    "ac": 5,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "271": {
+    "hd": 12,
+    "ac": 0,
+    "speed": 16,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "272": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 12,
+    "mr": 40,
+    "difficulty": 400
+  },
+  "273": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "274": {
+    "hd": 12,
+    "ac": 0,
+    "speed": 0,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "275": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 12,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "276": {
+    "hd": 25,
+    "ac": 7,
+    "speed": 15,
+    "mr": 70,
+    "difficulty": 400
+  },
+  "277": {
+    "hd": 6,
+    "ac": 10,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "278": {
+    "hd": 8,
+    "ac": 10,
+    "speed": 10,
+    "mr": 5,
+    "difficulty": 400
+  },
+  "279": {
+    "hd": 11,
+    "ac": 0,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "280": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 10,
+    "mr": 15,
+    "difficulty": 400
+  },
+  "281": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 10,
+    "mr": 15,
+    "difficulty": 400
+  },
+  "282": {
+    "hd": 6,
+    "ac": 10,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "283": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 10,
+    "mr": 15,
+    "difficulty": 400
+  },
+  "284": {
+    "hd": 20,
+    "ac": 2,
+    "speed": 12,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "285": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 10,
+    "mr": 15,
+    "difficulty": 400
+  },
+  "286": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 40,
+    "difficulty": 400
+  },
+  "287": {
+    "hd": 10,
+    "ac": -5,
+    "speed": 3,
+    "mr": 50,
+    "difficulty": 0
+  },
+  "288": {
+    "hd": 12,
+    "ac": 10,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "289": {
+    "hd": 8,
+    "ac": -4,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "290": {
+    "hd": 6,
+    "ac": 0,
+    "speed": 12,
+    "mr": 70,
+    "difficulty": 400
+  },
+  "291": {
+    "hd": 6,
+    "ac": -5,
+    "speed": 9,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "292": {
+    "hd": 7,
+    "ac": 2,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "293": {
+    "hd": 8,
+    "ac": 0,
+    "speed": 12,
+    "mr": 35,
+    "difficulty": 400
+  },
+  "294": {
+    "hd": 7,
+    "ac": -6,
+    "speed": 12,
+    "mr": 80,
+    "difficulty": 400
+  },
+  "295": {
+    "hd": 8,
+    "ac": 0,
+    "speed": 12,
+    "mr": 50,
+    "difficulty": 400
+  },
+  "296": {
+    "hd": 9,
+    "ac": -2,
+    "speed": 6,
+    "mr": 55,
+    "difficulty": 400
+  },
+  "297": {
+    "hd": 9,
+    "ac": -1,
+    "speed": 15,
+    "mr": 40,
+    "difficulty": 400
+  },
+  "298": {
+    "hd": 11,
+    "ac": -4,
+    "speed": 6,
+    "mr": 55,
+    "difficulty": 400
+  },
+  "299": {
+    "hd": 11,
+    "ac": -1,
+    "speed": 9,
+    "mr": 65,
+    "difficulty": 400
+  },
+  "300": {
+    "hd": 13,
+    "ac": -3,
+    "speed": 6,
+    "mr": 65,
+    "difficulty": 400
+  },
+  "301": {
+    "hd": 13,
+    "ac": 4,
+    "speed": 12,
+    "mr": 60,
+    "difficulty": 400
+  },
+  "302": {
+    "hd": 16,
+    "ac": -2,
+    "speed": 5,
+    "mr": 75,
+    "difficulty": 400
+  },
+  "303": {
+    "hd": 50,
+    "ac": -7,
+    "speed": 3,
+    "mr": 65,
+    "difficulty": 0
+  },
+  "304": {
+    "hd": 56,
+    "ac": -5,
+    "speed": 18,
+    "mr": 80,
+    "difficulty": 500
+  },
+  "305": {
+    "hd": 66,
+    "ac": -6,
+    "speed": 9,
+    "mr": 85,
+    "difficulty": 500
+  },
+  "306": {
+    "hd": 72,
+    "ac": -3,
+    "speed": 3,
+    "mr": 75,
+    "difficulty": 500
+  },
+  "307": {
+    "hd": 78,
+    "ac": -2,
+    "speed": 15,
+    "mr": 80,
+    "difficulty": 500
+  },
+  "308": {
+    "hd": 89,
+    "ac": -5,
+    "speed": 9,
+    "mr": 85,
+    "difficulty": 500
+  },
+  "309": {
+    "hd": 105,
+    "ac": -7,
+    "speed": 12,
+    "mr": 90,
+    "difficulty": 500
+  },
+  "310": {
+    "hd": 106,
+    "ac": -8,
+    "speed": 15,
+    "mr": 95,
+    "difficulty": 500
+  },
+  "311": {
+    "hd": 30,
+    "ac": -5,
+    "speed": 12,
+    "mr": 100,
+    "difficulty": 1
+  },
+  "312": {
+    "hd": 30,
+    "ac": -5,
+    "speed": 12,
+    "mr": 100,
+    "difficulty": 1
+  },
+  "313": {
+    "hd": 30,
+    "ac": -5,
+    "speed": 12,
+    "mr": 100,
+    "difficulty": 1
+  },
+  "314": {
+    "hd": 56,
+    "ac": 10,
+    "speed": 24,
+    "mr": 127,
+    "difficulty": 300
+  },
+  "315": {
+    "hd": 7,
+    "ac": 4,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "316": {
+    "hd": 3,
+    "ac": 6,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "317": {
+    "hd": 5,
+    "ac": 4,
+    "speed": 18,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "318": {
+    "hd": 7,
+    "ac": 2,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "319": {
+    "hd": 5,
+    "ac": -1,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "320": {
+    "hd": 7,
+    "ac": -3,
+    "speed": 10,
+    "mr": 0,
+    "difficulty": 250
+  },
+  "321": {
+    "hd": 20,
+    "ac": 6,
+    "speed": 3,
+    "mr": 0,
+    "difficulty": 1000
+  },
+  "322": {
+    "hd": 0,
+    "ac": 8,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "323": {
+    "hd": 1,
+    "ac": 8,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 20
+  },
+  "324": {
+    "hd": 2,
+    "ac": 7,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 30
+  },
+  "325": {
+    "hd": 3,
+    "ac": 7,
+    "speed": 6,
+    "mr": 0,
+    "difficulty": 200
+  },
+  "326": {
+    "hd": 5,
+    "ac": 6,
+    "speed": 6,
+    "mr": 10,
+    "difficulty": 40
+  },
+  "327": {
+    "hd": 6,
+    "ac": 6,
+    "speed": 5,
+    "mr": 10,
+    "difficulty": 100
+  },
+  "328": {
+    "hd": 6,
+    "ac": 5,
+    "speed": 9,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "329": {
+    "hd": 8,
+    "ac": -1,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "330": {
+    "hd": 0,
+    "ac": 0,
+    "speed": 0,
+    "mr": 0,
+    "difficulty": 0
+  },
+  "331": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "332": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "333": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 400
+  },
+  "334": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "335": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "336": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 2,
+    "difficulty": 400
+  },
+  "337": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 2,
+    "difficulty": 400
+  },
+  "338": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 2,
+    "difficulty": 400
+  },
+  "339": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "340": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "341": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "342": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 1,
+    "difficulty": 400
+  },
+  "343": {
+    "hd": 10,
+    "ac": 10,
+    "speed": 12,
+    "mr": 3,
+    "difficulty": 400
+  },
+  "344": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "345": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "346": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "347": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "348": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "349": {
+    "hd": 25,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "350": {
+    "hd": 25,
+    "ac": 7,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "351": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 700
+  },
+  "352": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "353": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "354": {
+    "hd": 20,
+    "ac": 10,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "355": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 550
+  },
+  "356": {
+    "hd": 20,
+    "ac": 0,
+    "speed": 15,
+    "mr": 90,
+    "difficulty": 400
+  },
+  "357": {
+    "hd": 16,
+    "ac": -2,
+    "speed": 12,
+    "mr": 75,
+    "difficulty": 400
+  },
+  "358": {
+    "hd": 16,
+    "ac": 0,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "359": {
+    "hd": 16,
+    "ac": 0,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 1700
+  },
+  "360": {
+    "hd": 18,
+    "ac": 0,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 700
+  },
+  "361": {
+    "hd": 15,
+    "ac": -1,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 1600
+  },
+  "362": {
+    "hd": 25,
+    "ac": -10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "363": {
+    "hd": 16,
+    "ac": -2,
+    "speed": 12,
+    "mr": 85,
+    "difficulty": 400
+  },
+  "364": {
+    "hd": 15,
+    "ac": 10,
+    "speed": 12,
+    "mr": 0,
+    "difficulty": 350
+  },
+  "365": {
+    "hd": 15,
+    "ac": 0,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 400
+  },
+  "366": {
+    "hd": 15,
+    "ac": 0,
+    "speed": 12,
+    "mr": 40,
+    "difficulty": 400
+  },
+  "367": {
+    "hd": 15,
+    "ac": 2,
+    "speed": 12,
+    "mr": 50,
+    "difficulty": 850
+  },
+  "368": {
+    "hd": 15,
+    "ac": 0,
+    "speed": 12,
+    "mr": 80,
+    "difficulty": 400
+  },
+  "369": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "370": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "371": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "372": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "373": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "374": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "375": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "376": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "377": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "378": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "379": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "380": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 20,
+    "difficulty": 400
+  },
+  "381": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 10,
+    "difficulty": 400
+  },
+  "382": {
+    "hd": 5,
+    "ac": 10,
+    "speed": 12,
+    "mr": 30,
+    "difficulty": 400
+  }
+}

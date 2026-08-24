@@ -11498,6 +11498,20 @@
         { en: "Your brain is on fire.", jp: "脳みそが燃え上がっている。" },
         { en: "The Oracle is in no mood for consultations.", jp: "オラクルは相談を受ける気分ではない。" },
         { en: "You murderer!", jp: "人殺しめ！" },
+        { en: "Smelly tripe ration favored by carnivorous pets like dogs and cats.", jp: "犬や猫などの肉食ペットが好む強い匂いの干し肉。" },
+        { en: "Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.", jp: "犬や猫などの肉食ペットを手懐け（テイム）・訓練するための栄養食。オーク族以外の人間が食べると失神・嘔吐を起こす。" },
+        { en: "Throw ('t') or drop ('d') to tame wild dogs, cats, and wolves", jp: "投げる('t')または床に置く('d')ことで野生の犬・猫・オオカミを手懐けることができる" },
+        { en: "Do not eat as a human character to avoid vomiting", jp: "人間キャラクターの場合は嘔吐・気絶を防ぐため食べないこと" },
+        { en: "Raw monster corpse left behind after slaying.", jp: "討伐後に残された生のモンスターの死体。" },
+        { en: "Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.", jp: "モンスターの死体を食べると耐性(毒耐性・火炎耐性・テレパシー・レベルアップ等)を獲得できるが、急速に腐敗して食中毒を起こす。" },
+        { en: "Wear gloves before picking up cockatrice corpses", jp: "コカトリスの死体を拾う前には必ず手袋を着用すること" },
+        { en: "Cursed gloves causing clumsy fumbling of held items.", jp: "呪われて装着者の手元を不器用にさせ、所持品や武器を床に落とさせる。" },
+        { en: "Basic low-cut leather walking shoes.", jp: "基本的な足首丈の革製歩行靴。" },
+        { en: "Heavy iron shoes offering solid defense.", jp: "高い物理防御力を提供する頑丈な金属靴。" },
+        { en: "Sturdy high-cut leather boots.", jp: "丈夫なふくらはぎ丈の革製ブーツ。" },
+        { en: "Boots boosting kicking damage against doors and enemies.", jp: "扉の破壊や敵へのキック攻撃ダメージを大幅に増加させる靴。" },
+        { en: "Cursed boots causing awkward stumbling and slipping.", jp: "呪われて歩行中につまずき・転倒・滑り事故を引き起こす危険な靴。" },
+        { en: "Smelly tripe ration favored by carnivorous pets like dogs and cats.", jp: "犬や猫などの肉食ペットが好む強い匂いの干し肉。" },
     ];
 }
 

@@ -6,6 +6,7 @@
  */
 
 import { MONSTER_TILEMAP_NAMES } from './tilemappings_data.js';
+import { MONSTER_BASE_STATS } from './MONSTER_BASE_STATS.js';
 
 export const MONSTER_KNOWLEDGE_MAP = new Map();
 
@@ -77,7 +78,16 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: {},
         resistances: ['acid', 'strikethru'],
         weaknesses: ['ranged'],
-        corpse: { edible: false, poisonous: false, causesAcidDamage: true, nutrition: 10, grantsIntrinsics: [], warningNote: 'Corpse causes severe acid burns if eaten!' },
+        corpse: { 
+            edible: false, 
+            poisonous: false, 
+            causesAcidDamage: true, 
+            nutrition: 10, 
+            grantsIntrinsics: [], 
+            warningNote: 'Corpse causes severe acid burns if eaten!',
+            warningNoteEn: 'Corpse causes severe acid burns if eaten!',
+            warningNoteJa: '食べると激しい酸ダメージを受けて負傷・装備腐食します！' 
+        },
         tacticalAdviceEn: ['Do not attack with bare hands or teeth', 'Corpse is inedible due to acid'],
         tacticalAdviceJa: ['酸性の塊です。素手で攻撃したり食べたりすると酸で大ダメージ・装備腐食を受けます。飛び道具での処理を推奨。']
     },
@@ -108,7 +118,16 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { petrifiesOnTouch: true },
         resistances: ['stoning', 'poison'],
         weaknesses: ['ranged'],
-        corpse: { edible: false, poisonous: true, causesPetrification: true, nutrition: 10, grantsIntrinsics: [], warningNote: 'Petrifies instantly if touched or eaten without gloves!' },
+        corpse: { 
+            edible: false, 
+            poisonous: true, 
+            causesPetrification: true, 
+            nutrition: 10, 
+            grantsIntrinsics: [], 
+            warningNote: 'Petrifies instantly if touched or eaten without gloves!',
+            warningNoteEn: 'Petrifies instantly if touched or eaten without gloves!',
+            warningNoteJa: '素手で触れるか食べると即座に石化死します！手袋を着用してください。' 
+        },
         tacticalAdviceEn: ['Young cockatrice. Gaze and touch cause petrification.', 'Wear leather gloves before handling corpse'],
         tacticalAdviceJa: ['コカトリスの幼鳥。直接接触や死体を素手で触ると即座に石化死します。手袋の着用が必須です。']
     },
@@ -129,7 +148,9 @@ export const SPECIFIC_MONSTER_DETAILS = {
             causesPetrification: true,
             nutrition: 30,
             grantsIntrinsics: [],
-            warningNote: 'Petrifies instantly if touched or eaten without gloves!'
+            warningNote: 'Petrifies instantly if touched or eaten without gloves!',
+            warningNoteEn: 'Petrifies instantly if touched or eaten without gloves!',
+            warningNoteJa: '素手で触れるか食べると即座に石化死します！手袋を着用してください。'
         },
         tacticalAdviceEn: [
             'Engrave Elbereth to keep away',
@@ -307,7 +328,26 @@ export const SPECIFIC_MONSTER_DETAILS = {
     "185": { dangerLevel: 'LETHAL', stats: { hd: 17, ac: -4, speed: 9, mr: 90 }, attacks: [{ type: 'touch', damage: '1d10', effect: 'cold' }, { type: 'spell', effect: 'summon' }], traits: { isUndead: true, castsSpells: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['fire', 'silver'], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Master Lich. Summons demons and curses items. Fire weapons needed.'], tacticalAdviceJa: ['マスターリッチ。悪魔召喚やアイテム呪縛を行います。火炎攻撃や遠隔即死で速やかに撃破してください。'] },
     "186": { dangerLevel: 'LETHAL', stats: { hd: 25, ac: -6, speed: 9, mr: 90 }, attacks: [{ type: 'touch', damage: '1d10', effect: 'cold' }, { type: 'spell', effect: 'summon' }], traits: { isUndead: true, castsSpells: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['fire', 'silver'], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Arch-Lich. Top-tier undead caster. Requires reflection and magic resistance.'], tacticalAdviceJa: ['アーチリッチ。最高位のアンデッド。反射と耐魔を揃え、火炎や虐殺の巻物で対処してください。'] },
     // 208: green slime
-    "208": { dangerLevel: 'LETHAL', stats: { hd: 6, ac: 6, speed: 6, mr: 0 }, attacks: [{ type: 'touch', effect: 'slime' }], traits: { causesSlime: true }, resistances: ['acid', 'poison'], weaknesses: ['fire', 'ranged'], corpse: { edible: false, poisonous: true, causesSlime: true, nutrition: 0, grantsIntrinsics: [], warningNote: 'Turns player into green slime on contact!' }, tacticalAdviceEn: ['Turns player into slime on touch! Fire or cure sickness stops transformation.'], tacticalAdviceJa: ['攻撃を受けるとスライム化感染し、数ターンでスライム化して即死します。火炎攻撃または病気の治癒(Cure Sickness)で治療可能。'] },
+    "208": { 
+        dangerLevel: 'LETHAL', 
+        stats: { hd: 6, ac: 6, speed: 6, mr: 0 }, 
+        attacks: [{ type: 'touch', effect: 'slime' }], 
+        traits: { causesSlime: true }, 
+        resistances: ['acid', 'poison'], 
+        weaknesses: ['fire', 'ranged'], 
+        corpse: { 
+            edible: false, 
+            poisonous: true, 
+            causesSlime: true, 
+            nutrition: 0, 
+            grantsIntrinsics: [], 
+            warningNote: 'Turns player into green slime on contact!',
+            warningNoteEn: 'Turns player into green slime on contact!',
+            warningNoteJa: '接触または摂取するとプレイヤーがグリーンスライムに変身して即死します！'
+        }, 
+        tacticalAdviceEn: ['Turns player into slime on touch! Fire or cure sickness stops transformation.'], 
+        tacticalAdviceJa: ['攻撃を受けるとスライム化感染し、数ターンでスライム化して即死します。火炎攻撃または病気の治癒(Cure Sickness)で治療可能。'] 
+    },
     // 212: rust monster
     "212": { dangerLevel: 'HIGH', stats: { hd: 5, ac: 2, speed: 18, mr: 0 }, attacks: [{ type: 'touch', effect: 'rust' }], traits: { rustsEquipment: true }, resistances: [], weaknesses: ['ranged', 'wooden'], corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, tacticalAdviceEn: ['Rusts and corrodes iron weapons and armor', 'Use leather/wooden/crystal gear or fight unarmed'], tacticalAdviceJa: ['鉄製の武器や防具を錆びさせて性能を低下・消滅させます。木製・銀製・革製装備への変更または素手・魔法で対処してください。'] },
     // 213: disenchanter
@@ -322,7 +362,7 @@ export const SPECIFIC_MONSTER_DETAILS = {
     // 230: wraith
     "230": { dangerLevel: 'HIGH', stats: { hd: 6, ac: 4, speed: 12, mr: 15 }, attacks: [{ type: 'touch', damage: '1d6', effect: 'drain_level' }], traits: { isUndead: true, drainsLevel: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['silver', 'fire'], corpse: { edible: true, poisonous: false, nutrition: 0, grantsIntrinsics: ['gain_level'] }, tacticalAdviceEn: ['Drains experience level on touch. Eating corpse grants 1 free level up!'], tacticalAdviceJa: ['接触でレベルを吸い取ります。死体を食べると確実に経験レベルが1上昇するため、安全を確保して必ず食べてください！'] },
     // 271: shopkeeper
-    "271": { dangerLevel: 'LETHAL', stats: { hd: 12, ac: 0, speed: 16, mr: 50 }, attacks: [{ type: 'weapon', damage: '4d6' }], traits: {}, resistances: [], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 400, grantsIntrinsics: [] }, tacticalAdviceEn: ['Extremely dangerous and fast, equipped with shotgun-like wand charges', 'Never attack or steal unless fully prepared with reflection/Wand of Death'], tacticalAdviceJa: ['ダンジョン最強格のNPC。反射や死の杖がない限り絶対に敵対・泥棒しないでください。'] },
+    "271": { dangerLevel: 'SAFE', hostileDangerLevel: 'LETHAL', defaultPeaceful: true, stats: { hd: 12, ac: 0, speed: 16, mr: 50 }, attacks: [{ type: 'weapon', damage: '4d6' }], traits: {}, resistances: [], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 400, grantsIntrinsics: [] }, tacticalAdviceEn: ['Peaceful merchant NPC. Do not attack or steal from the shop.', 'If angered, becomes extremely lethal with wand zaps and high speed.'], tacticalAdviceJa: ['平和的な店主NPCです。攻撃や泥棒をしないよう注意してください。', '敵対するとショットガンのような杖攻撃と俊敏な速度で即死級の脅威になります。'] },
     // 284: Medusa
     "284": { dangerLevel: 'LETHAL', stats: { hd: 20, ac: 2, speed: 12, mr: 50 }, attacks: [{ type: 'gaze', effect: 'petrify' }], traits: { petrifiesOnTouch: true, paralysisGaze: false }, resistances: ['stoning', 'poison'], weaknesses: ['ranged'], corpse: { edible: false, poisonous: true, causesPetrification: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Gaze petrifies instantly', 'Use a mirror to reflect her gaze, or wear blindfold/towel'], tacticalAdviceJa: ['視線を合わせると即座に石化死します。手鏡を向けて自爆させるか、目隠しをして戦ってください。'] },
     // 285: Wizard of Yendor
@@ -336,24 +376,48 @@ export const SPECIFIC_MONSTER_DETAILS = {
     "321": { dangerLevel: 'LETHAL', stats: { hd: 20, ac: 6, speed: 3, mr: 0 }, attacks: [{ type: 'wrap', damage: '2d6', effect: 'drown' }], traits: { drownsPlayer: true }, resistances: [], weaknesses: ['ranged', 'shock'], corpse: { edible: true, poisonous: false, nutrition: 600, grantsIntrinsics: [] }, tacticalAdviceEn: ['Giant sea beast drowning players. Never enter deep water without levitation/water walking.'], tacticalAdviceJa: ['深海の巨大魔獣。プレイヤーを巻き込んで即座に溺死させます。浮遊や水上歩行なしで水場に入らないでください。'] }
 };
 
+function hasWord(text, word) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+}
+
 /**
- * 名前・オフセットから適切な危険度階級を推定
+ * 名前・HD・特性から適切な危険度階級を推定 (単語境界で厳密判定)
  */
-function inferDangerLevel(name, hd) {
+function inferDangerLevel(name, hd, traits = {}) {
     const lower = name.toLowerCase();
-    if (lower.includes('dragon') || lower.includes('lich') || lower.includes('flayer') || 
-        lower.includes('demon') || lower.includes('devil') || lower.includes('lord') || 
-        lower.includes('king') || lower.includes('titan') || lower.includes('rider') ||
-        lower.includes('wizard') || lower.includes('medusa') || hd >= 12) {
+
+    // 1. 即死・壊滅的特性または超高レベル (LETHAL)
+    if (hd >= 12 || traits.petrifiesOnTouch || traits.eatsBrain || traits.causesSlime || 
+        hasWord(lower, 'dragon') || hasWord(lower, 'lich') || hasWord(lower, 'demilich') || 
+        hasWord(lower, 'arch-lich') || hasWord(lower, 'master-lich') ||
+        lower.includes('mind flayer') || hasWord(lower, 'demon') || hasWord(lower, 'devil') || 
+        hasWord(lower, 'titan') || hasWord(lower, 'wizard') || hasWord(lower, 'medusa') || 
+        hasWord(lower, 'juiblex') || hasWord(lower, 'baalzebub') || hasWord(lower, 'orcus') || 
+        hasWord(lower, 'asmodeus') || hasWord(lower, 'demogorgon') || hasWord(lower, 'yeenoghu') || 
+        hasWord(lower, 'geryon') || hasWord(lower, 'dispater') || hasWord(lower, 'death') || 
+        hasWord(lower, 'pestilence') || hasWord(lower, 'famine') || hasWord(lower, 'kraken')) {
         return 'LETHAL';
     }
-    if (hd >= 6 || lower.includes('ant') || lower.includes('giant') || lower.includes('troll') || 
-        lower.includes('vampire') || lower.includes('naga') || lower.includes('mummy') || lower.includes('golem')) {
+
+    // 2. 高脅威・麻痺・ドレイン・特殊害悪 (HIGH)
+    if (hd >= 6 || traits.paralysisGaze || traits.gazeConfusion || traits.explodesOnMelee || 
+        traits.drainsLevel || traits.rustsEquipment || traits.disenchantsEquipment || traits.drownsPlayer ||
+        hasWord(lower, 'soldier ant') || hasWord(lower, 'fire ant') ||
+        hasWord(lower, 'troll') || hasWord(lower, 'vampire') || hasWord(lower, 'wraith') ||
+        hasWord(lower, 'naga') || hasWord(lower, 'mummy') || hasWord(lower, 'golem') ||
+        (hasWord(lower, 'giant') && !lower.includes('giant rat') && !lower.includes('giant bat') && !lower.includes('giant ant'))) {
         return 'HIGH';
     }
-    if (hd >= 3 || lower.includes('orc') || lower.includes('nymph') || lower.includes('snake')) {
+
+    // 3. 中程度 (MEDIUM)
+    if (hd >= 3 || hasWord(lower, 'orc') || hasWord(lower, 'nymph') || hasWord(lower, 'snake') ||
+        hasWord(lower, 'giant ant') || hasWord(lower, 'killer bee') || hasWord(lower, 'wolf') ||
+        hasWord(lower, 'panther') || hasWord(lower, 'jaguar') || hasWord(lower, 'ape')) {
         return 'MEDIUM';
     }
+
+    // 4. 最弱・無害級 (LOW) (lichen, newt, kobold, grid bug, sewer rat 等)
     return 'LOW';
 }
 
@@ -393,16 +457,13 @@ for (let i = 0; i <= 382; i++) {
         .replace(/^_+|_+$/g, '');
 
     const specific = SPECIFIC_MONSTER_DETAILS[offsetKey] || {};
-    const defaultHd = Math.min(Math.floor(i / 15) + 1, 15);
+    const baseStat = MONSTER_BASE_STATS[offsetKey] || { hd: 1, ac: 8, speed: 12, mr: 0 };
     const stats = specific.stats || {
-        hd: defaultHd,
-        ac: Math.max(10 - Math.floor(i / 20), -5),
-        speed: 12,
-        mr: Math.min(Math.floor(i / 10) * 5, 80)
+        hd: baseStat.hd ?? 1,
+        ac: baseStat.ac ?? 8,
+        speed: baseStat.speed ?? 12,
+        mr: baseStat.mr ?? 0
     };
-
-    const dangerLevel = specific.dangerLevel || inferDangerLevel(rawName, stats.hd);
-    const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
 
     const attacks = specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }];
     const resistances = specific.resistances || [];
@@ -414,20 +475,20 @@ for (let i = 0; i <= 382; i++) {
     const petrifiesOnTouch = !!specTraits.petrifiesOnTouch || attacks.some(a => a.effect === 'petrify' || (a.type === 'touch' && a.effect === 'petrify')) || lowerName.includes('cockatrice') || lowerName.includes('chickatrice') || lowerName.includes('medusa');
     const paralysisGaze = !!specTraits.paralysisGaze || attacks.some(a => a.effect === 'paralysis' && a.type === 'gaze') || lowerName.includes('floating eye');
     const gazeConfusion = !!specTraits.gazeConfusion || attacks.some(a => a.effect === 'confusion' && a.type === 'gaze') || lowerName.includes('umber hulk');
-    const explodesOnMelee = !!specTraits.explodesOnMelee || attacks.some(a => a.type === 'explode' || a.effect === 'explosion') || lowerName.includes('gas spore') || lowerName.includes('sphere');
-    const drainsLevel = !!specTraits.drainsLevel || attacks.some(a => a.effect === 'drain_level') || lowerName.includes('vampire') || lowerName.includes('wraith') || lowerName.includes('wight');
+    const explodesOnMelee = !!specTraits.explodesOnMelee || attacks.some(a => a.type === 'explode' || a.effect === 'explosion') || lowerName.includes('gas spore') || hasWord(lowerName, 'sphere');
+    const drainsLevel = !!specTraits.drainsLevel || attacks.some(a => a.effect === 'drain_level') || hasWord(lowerName, 'vampire') || hasWord(lowerName, 'wraith') || hasWord(lowerName, 'wight');
     const rustsEquipment = !!specTraits.rustsEquipment || attacks.some(a => a.effect === 'rust') || lowerName.includes('rust monster');
     const disenchantsEquipment = !!specTraits.disenchantsEquipment || attacks.some(a => a.effect === 'disenchant') || lowerName.includes('disenchanter');
     const eatsBrain = !!specTraits.eatsBrain || attacks.some(a => a.effect === 'brain_eat') || lowerName.includes('mind flayer');
     const causesSlime = !!specTraits.causesSlime || attacks.some(a => a.effect === 'slime') || lowerName.includes('green slime');
-    const drownsPlayer = !!specTraits.drownsPlayer || attacks.some(a => a.effect === 'drown') || lowerName.includes('eel') || lowerName.includes('kraken');
+    const drownsPlayer = !!specTraits.drownsPlayer || attacks.some(a => a.effect === 'drown') || hasWord(lowerName, 'eel') || hasWord(lowerName, 'kraken');
     const swallowsPlayer = !!specTraits.swallowsPlayer || attacks.some(a => a.effect === 'swallow') || lowerName.includes('purple worm');
-    const stealsItems = !!specTraits.stealsItems || attacks.some(a => a.effect === 'steal_item' || a.effect === 'steal_amulet') || lowerName.includes('nymph') || lowerName.includes('leprechaun');
-    const revives = !!specTraits.revives || lowerName.includes('troll');
-    const castsSpells = !!specTraits.castsSpells || attacks.some(a => a.type === 'spell') || lowerName.includes('lich') || lowerName.includes('shaman') || lowerName.includes('wizard');
-    const causesLycanthropy = !!specTraits.causesLycanthropy || attacks.some(a => a.effect === 'lycanthropy') || lowerName.includes('were');
-    const isUndead = !!specTraits.isUndead || lowerName.includes('zombie') || lowerName.includes('mummy') || lowerName.includes('vampire') || lowerName.includes('wraith') || lowerName.includes('skeleton') || lowerName.includes('lich') || lowerName.includes('ghost') || lowerName.includes('ghoul');
-    const isDemon = !!specTraits.isDemon || lowerName.includes('demon') || lowerName.includes('devil') || lowerName.includes('balrog') || lowerName.includes('succubus') || lowerName.includes('incubus') || lowerName.includes('baalzebub') || lowerName.includes('orcus') || lowerName.includes('juiblex');
+    const stealsItems = !!specTraits.stealsItems || attacks.some(a => a.effect === 'steal_item' || a.effect === 'steal_amulet') || hasWord(lowerName, 'nymph') || hasWord(lowerName, 'leprechaun');
+    const revives = !!specTraits.revives || hasWord(lowerName, 'troll');
+    const castsSpells = !!specTraits.castsSpells || attacks.some(a => a.type === 'spell') || hasWord(lowerName, 'lich') || hasWord(lowerName, 'demilich') || hasWord(lowerName, 'master-lich') || hasWord(lowerName, 'arch-lich') || hasWord(lowerName, 'shaman') || hasWord(lowerName, 'wizard');
+    const causesLycanthropy = !!specTraits.causesLycanthropy || attacks.some(a => a.effect === 'lycanthropy') || lowerName.startsWith('were') || lowerName.includes('were');
+    const isUndead = !!specTraits.isUndead || hasWord(lowerName, 'zombie') || hasWord(lowerName, 'mummy') || hasWord(lowerName, 'vampire') || hasWord(lowerName, 'wraith') || hasWord(lowerName, 'skeleton') || hasWord(lowerName, 'lich') || hasWord(lowerName, 'demilich') || hasWord(lowerName, 'master-lich') || hasWord(lowerName, 'arch-lich') || hasWord(lowerName, 'ghost') || hasWord(lowerName, 'ghoul');
+    const isDemon = !!specTraits.isDemon || hasWord(lowerName, 'demon') || hasWord(lowerName, 'devil') || hasWord(lowerName, 'balrog') || hasWord(lowerName, 'succubus') || hasWord(lowerName, 'incubus') || hasWord(lowerName, 'baalzebub') || hasWord(lowerName, 'orcus') || hasWord(lowerName, 'juiblex');
 
     const traits = {
         petrifiesOnTouch,
@@ -449,18 +510,26 @@ for (let i = 0; i <= 382; i++) {
         isDemon
     };
 
+    const dangerLevel = specific.dangerLevel || inferDangerLevel(rawName, stats.hd, traits);
+    const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
+
     // 🎯 死体情報 (新スキーマ corpse) の合成
     const specCorpse = specific.corpse || specific.corpseInfo || {};
+    const defaultWarningJa = petrifiesOnTouch ? '素手で触れるか食べると即座に石化死します！手袋を着用してください。' : (causesSlime ? '接触または摂取するとプレイヤーがグリーンスライムに変身して即死します！' : null);
+    const defaultWarningEn = petrifiesOnTouch ? 'Petrifies instantly if touched or eaten without gloves!' : (causesSlime ? 'Turns player into green slime on contact!' : null);
+
     const corpse = {
-        edible: specCorpse.edible ?? true,
-        poisonous: specCorpse.poisonous ?? false,
+        edible: specCorpse.edible ?? (petrifiesOnTouch || causesSlime ? false : true),
+        poisonous: specCorpse.poisonous ?? (petrifiesOnTouch || causesSlime ? true : false),
         causesPetrification: specCorpse.causesPetrification ?? petrifiesOnTouch,
         causesSlime: specCorpse.causesSlime ?? causesSlime,
         causesAcidDamage: specCorpse.causesAcidDamage ?? false,
         nutrition: specCorpse.nutrition ?? 100,
         grantsIntrinsics: specCorpse.grantsIntrinsics || (specCorpse.grantResist ? [specCorpse.grantResist] : []),
         revivesFromCorpse: specCorpse.revivesFromCorpse ?? revives,
-        warningNote: specCorpse.warningNote || (petrifiesOnTouch ? 'Petrifies instantly if touched or eaten without gloves!' : null)
+        warningNote: specCorpse.warningNote || defaultWarningEn,
+        warningNoteEn: specCorpse.warningNoteEn || specCorpse.warningNote || defaultWarningEn,
+        warningNoteJa: specCorpse.warningNoteJa || defaultWarningJa
     };
 
     const tacticalAdviceEn = specific.tacticalAdviceEn || specific.tacticalAdvice || [
@@ -478,6 +547,7 @@ for (let i = 0; i <= 382; i++) {
         name: rawName,
         nameJa: null, // TranslationEngine 連携時に補完
         dangerLevel: dangerLevel,
+        hostileDangerLevel: specific.hostileDangerLevel || (defaultPeaceful ? 'LETHAL' : dangerLevel),
         defaultPeaceful: defaultPeaceful,
         stats: stats,
         attacks: attacks,

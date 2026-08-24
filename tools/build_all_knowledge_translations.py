@@ -415,9 +415,39 @@ TRANSLATION_MAP = {
     "Use 'o' to open, or kick with 'ctrl+d' or 'k'.": "開ける('o')、または蹴る('ctrl+d'/'k')。",
     "Walk through or close with 'c'.": "通り抜ける、または閉じる('c')。",
     "Wear with 'W' or take off with 'T'. Grants vital protections such as Reflection or Life Saving.": "着る('W')・脱ぐ('T')。反射や命の救済といった重要な保護効果を与える。",
-    "Wear with 'W' or take off with 'T'. Lower AC (Armor Class) numbers provide better protection.": "着る('W')・脱ぐ('T')。AC(アーマークラス)の数値が低いほど高い防御力を提供する。",
-    "Wield with 'w' or throw with 't'. Skill proficiency and enchantment level directly affect damage and hit rate.": "構える('w')・投げる('t')。技能熟練度と強化値が命中率とダメージに直接影響する。",
-    "Wood obstacle. Kick with 'k' to drop fruit or chop down with Axe.": "木製の障害物。蹴る('k')と果物が落ちることがあり、アックスで伐採可能。",
+    # --- 食料・死体関連 ---
+    "Smelly tripe ration favored by carnivorous pets like dogs and cats.": "犬や猫などの肉食ペットが好む強い匂いの干し肉。",
+    "Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.": "犬や猫などの肉食ペットを手懐け（テイム）・訓練するための栄養食。オーク族以外の人間が食べると失神・嘔吐を起こす。",
+    "Throw ('t') or drop ('d') to tame wild dogs, cats, and wolves": "投げる('t')または床に置く('d')ことで野生の犬・猫・オオカミを手懐けることができる",
+    "Do not eat as a human character to avoid vomiting": "人間キャラクターの場合は嘔吐・気絶を防ぐため食べないこと",
+    "Raw monster corpse left behind after slaying.": "討伐後に残された生のモンスターの死体。",
+    "Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.": "モンスターの死体を食べると耐性(毒耐性・火炎耐性・テレパシー・レベルアップ等)を獲得できるが、急速に腐敗して食中毒を起こす。",
+    "Wear gloves before picking up cockatrice corpses": "コカトリスの死体を拾う前には必ず手袋を着用すること",
+    "Petrifies instantly if touched or eaten without gloves!": "素手で触れるか食べると即座に石化死します！手袋を着用してください。",
+    "Corpse causes severe acid burns if eaten!": "食べると激しい酸ダメージを受けて負傷・装備腐食します！",
+    "Turns player into green slime on contact!": "接触または摂取するとプレイヤーがグリーンスライムに変身して即死します！",
+
+    # --- 小手・靴・防具関連 ---
+    "Cursed gloves causing clumsy fumbling of held items.": "呪われて装着者の手元を不器用にさせ、所持品や武器を床に落とさせる。",
+    "Heavy gauntlets boosting Strength to 18/100 instantly.": "装着者の筋力(Strength)を即座に最高値 18/100 に強化する重量小手。",
+    "Gloves boosting Dexterity and dual-wielding accuracy.": "装着者の器用さ(Dexterity)と二刀流の命中率を大幅に向上させる小手。",
+    "Basic low-cut leather walking shoes.": "基本的な足首丈の革製歩行靴。",
+    "Heavy iron shoes offering solid defense.": "高い物理防御力を提供する頑丈な金属靴。",
+    "Sturdy high-cut leather boots.": "丈夫なふくらはぎ丈の革製ブーツ。",
+    "Boots granting Very Fast movement speed to outrun lethal threats.": "致命的な脅威から容易に離脱できる超高速(Very Fast)の移動速度を付与する。",
+    "Boots allowing wearer to walk across deep water.": "深い水場の上を沈むことなく歩行可能にする靴。",
+    "Boots granting jumping ability.": "障害物や穴を飛び越える跳躍能力を付与する靴。",
+    "Boots granting stealth.": "足音を消し、眠っているモンスターを起こさず行動できる隠密能力を付与する靴。",
+    "Boots boosting kicking damage against doors and enemies.": "扉の破壊や敵へのキック攻撃ダメージを大幅に増加させる靴。",
+    "Cursed boots causing awkward stumbling and slipping.": "呪われて歩行中につまずき・転倒・滑り事故を引き起こす危険な靴。",
+    "Boots enabling continuous levitation over pits and lava.": "落とし穴・トラップ・溶岩・水上を安全に浮遊して通過できる靴。",
+
+    # --- 道具・コイン・消耗品 ---
+    "Universal dungeon currency. Donate to temple priests for permanent AC protection, or buy gear from shopkeepers.": "ダンジョン共通の通貨。寺院の僧侶に寄付して恒久的なAC加護を獲得するか、店主から商品を購入する。",
+    "Apply with 'a' to climb across pits, scale walls, or pull distant items closer.": "使用('a')することで、穴の脱出、崖登り、または離れたアイテムの引き寄せが可能。",
+    "Fires a ray of death that instantly kills non-resistant targets.": "耐性を持たないターゲットを一撃で即死させる死の光線を放つ。",
+    "Carves tunnels through walls or digs holes in floor for quick escapes.": "壁を掘削して通路を開通させるか、床に穴を掘って下の階層へ緊急脱出する。",
+
     "Zap with 'z' in a direction. Engrave test on floor ('E') to check beam type without wasting charges.": "振る('z')。床に文字を刻むテスト('E')を行うと、充填数を消費せずに効果タイプを判別可能。"
 }
 

@@ -8,6 +8,8 @@
 
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
+import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
+import { isShopkeeperMonster } from './glyphClassifier.js';
 
 export class TacticalAdvisor {
 
@@ -56,8 +58,12 @@ export class TacticalAdvisor {
         // 6. サバイバル・ステータス危機アドバイスの評価 (Survival & Status Hazards)
         this.evaluateSurvivalAdvices(statusAccessor, inventoryState, advices);
 
+        // 7. アイテム・相互作用アドバイスの評価 (Item Interaction & Testing Rules)
+        this.evaluateItemInteractionAdvices(areaState, inventoryState, statusAccessor, advices);
+
         // スコア降順にソート
         advices.sort((a, b) => (b.score || 0) - (a.score || 0));
+
 
         // 閾値フィルター
         const filtered = advices.filter(adv => (adv.score || 0) >= threshold);
@@ -137,8 +143,16 @@ export class TacticalAdvisor {
 
         const checkMonsterEntity = (mon, dist, weight = 1.0) => {
             if (!mon) return;
+            const isExplicitHostile = mon.isHostile || mon.attitude === 'HOSTILE';
+            if (mon.type === 'PET' || mon.isPet || mon.isTame || mon.isPeaceful || mon.attitude === 'PEACEFUL' || mon.flags?.isPet || mon.glyphInfo?.isPet) {
+                return; // ペット・友好的NPCは脅威判定から除外
+            }
             const monOffset = mon.monOffset !== undefined ? mon.monOffset : (mon.subType !== undefined ? mon.subType : (mon.glyphInfo?.monOffset));
             const monKnowledge = (monOffset !== undefined ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
+            const isSk = isShopkeeperMonster(mon) || monOffset === 271;
+            if (!isExplicitHostile && (isSk || monKnowledge.defaultPeaceful)) {
+                return; // 通常の店主・神官・平和的NPCは脅威判定から除外
+            }
             const monName = (mon.name || mon.id || monKnowledge.name || mon.glyphInfo?.name || '').toLowerCase();
             const traits = monKnowledge.traits || {};
 
@@ -978,5 +992,58 @@ export class TacticalAdvisor {
         if (text.includes('dagger') || text.includes('axe')) return 2.5; // 1d4 avg
         if (text.includes('knife')) return 2.0; // 1d3 avg
         return 2.0;
+    }
+
+    /**
+     * 7. アイテム・相互作用アドバイスの評価 (Item Interaction & Testing Rules)
+     * ITEM_INTERACTION_RULES 辞書をコンテキストと照合し、ADVISOR チャネルのアドバイスを生成
+     */
+    static evaluateItemInteractionAdvices(areaState, inventoryState, statusAccessor, advices) {
+        if (!ITEM_INTERACTION_RULES || !Array.isArray(ITEM_INTERACTION_RULES)) return;
+
+        const context = {
+            areaState,
+            inventoryState,
+            statusAccessor
+        };
+
+        for (const rule of ITEM_INTERACTION_RULES) {
+            // ADVISOR チャネルが出力対象に含まれていない場合はスキップ
+            if (!rule.outputChannels || !rule.outputChannels.includes('ADVISOR') || !rule.advice) {
+                continue;
+            }
+
+            const evalResult = evaluateInteractionRule(rule, context);
+            if (evalResult && evalResult.rule) {
+                const advDef = evalResult.rule.advice;
+                const params = evalResult.params || {};
+
+                // 動的パラメータの置換
+                let messageJa = advDef.messageJa;
+                let messageEn = advDef.messageEn;
+
+                Object.entries(params).forEach(([k, v]) => {
+                    messageJa = messageJa.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    messageEn = messageEn.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                });
+
+                // ヒントレターの解決
+                const hintLetters = [];
+                if (advDef.hintLetterParam && params[advDef.hintLetterParam]) {
+                    hintLetters.push(params[advDef.hintLetterParam]);
+                }
+
+                advices.push({
+                    id: `ADVICE_${evalResult.rule.id}`,
+                    severity: advDef.severity || 'INFO',
+                    topic: advDef.topic || 'TACTICS',
+                    messageJa: messageJa,
+                    messageEn: messageEn,
+                    hintLetters: hintLetters,
+                    hintCommand: advDef.hintCommand || undefined,
+                    score: advDef.score || 400
+                });
+            }
+        }
     }
 }

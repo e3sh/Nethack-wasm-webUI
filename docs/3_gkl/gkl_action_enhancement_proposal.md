@@ -1,239 +1,159 @@
-# GKL (Game Knowledge Layer) 推奨アクション高度化 施策提案書
+# GKL (Game Knowledge Layer) 推奨アクション高度化 施策提案書 (第2版)
 
-**〜魔法・耐性・鑑定状態・アイテムスマートガイド・環境脅威度演出を取り入れた高度戦術推論エンジンの実現〜**
-
----
-
-## 1. 概要と目的
-
-### 【現状の課題】
-現在の GKL（`ContextActionEngine`）は、周辺マップ・所持アイテム・基本ステータスに基づく「物理攻撃」「アイテム使用」「移動」「開錠」などの基礎的なアクション提案にとどまっています。魔法使い（Wizard）等の魔法職プレイや、敵の属性・自身の耐性を考慮した高度な戦術判断、さらにはアイテムの無駄遣い防止や未識別（鑑定未済）アイテムのリスク管理・適切なガイダンスが不足しています。
-
-### 【目指す姿】
-「自キャラの魔法習得状態」および「`^X` による隠れた耐性・能力」を GKL 内に自動キャッシュ・同期し、**「リソース・成功率・属性耐性・環境脅威度」を総合評価した戦術アクション**を提供するとともに、**「未識別アイテムの危険度管理」**や**「コンテキスト連動型アイテムガイド（無駄遣い防止・ステータス緊急ハイライト）」**を実現する推論エンジンへ進化させます。
+**〜情報過多・ネタバレを抑え、体験先行型学習と段階的開示を実現する次世代ダンジョン参謀システム〜**
 
 ---
 
-## 2. アーキテクチャ設計原則 ＆ 基盤統合イメージ
+## 1. 概要と背景
 
-本施策における高度な戦術推論は、GKL の中核基盤である **`SituationCache`（統合状況メモリ）** と **`StructuredKnowledgeEngine`（構造化ドメイン知識）** の 2 大コンポーネントが相互に連携することで初めて実現されます。
+### 【これまでの成果（Phase 1〜3 の達成）】
+これまで GKL（Game Knowledge Layer）は、分散する NetHack のゲーム状態を統合するデータ駆動基盤として急速に進化を遂げました：
+1. **状態同期・多次元キャッシュ層の確立**:
+   - 習得魔法 (`SpellStateManager`: `+` キー)
+   - 内因性/外因性耐性 (`AttributeStateManager`: `^X` ＋ 装備耐性自動合算)
+   - 発見台帳 (`DiscoveryStateManager`: `\` キー)
+   - スキル熟練度 (`SkillStateManager`: `#enhance` キー)
+   - 認知メンタルマップ (`MonsterTracker`: 視界外モンスター確信度減衰)
+2. **全アイテム・全モンスター構造化マスターデータの完成**:
+   - 全 481 アイテム (`OBJECT_KNOWLEDGE_FULL.js`) の正式名称・動的スペック・BUC効果・推奨操作動詞
+   - 全 384 モンスター (`MONSTER_KNOWLEDGE_FULL.js`) の危険度・耐性・弱点・死体特性・平和NPC判定
+3. **戦術アドバイザー ＆ コンテキストアクションの統合**:
+   - `TacticalAdvisor.js` による石化・麻痺・ドレイン・腐食等の事前警告と銀武器・適正装備サジェスト
+   - `ContextActionEngine.js` による正規化された方向コード (`dirCode`) 付与と即時実行ボタン生成
 
-### 1. `SituationCache`（多次元状態の統合ファサード）の役割
-高度な状況判断を行うためには、単一のステータス（HPのみ、マップのみ等）ではなく、分散する **5 つのキャッシュ層** を「今この瞬間のゲーム統合状況（Situation）」として 1 つの作業メモリに集約・固定化する必要があります。
-* `StatusAccessor` (HP, Pw, 状態異常, 空腹度)
-* `InventoryStateManager` (所持品・装備・未識別ステート)
-* `AreaStateManager` (周辺マップ・敵の距離・地形)
-* **`SpellStateManager`** ★新規 (習得魔法・レベル・成功率・保持ターン)
-* **`AttributeStateManager`** ★新規 (`^X` 耐性・スキルランク・固有能力)
+---
 
-### 2. `StructuredKnowledgeEngine`（ドメイン知識辞書）の役割
-`SituationCache` に集約されたデータ（モンスターID、アイテムID、地形等）に対し、**「この敵（`dangerLevel: LETHAL`）は火炎耐性がある」「このアイテムは未識別でリスクがある」** といった解釈・意味付け（ドメイン知識）を付与するナレッジエンジンです。
+### 【現在の課題：情報過多とネタバレのジレンマ】
+基盤が整い、高度な戦術推論やアドバイスが出せるようになった一方で、実際のプレイ体験において新たな本質的課題が浮き彫りになりました：
+* **「情報量が多すぎて画面を圧迫する」**: 詳細な解説やTipsをそのまま画面に出すと、文字が溢れて読まれなくなる。
+* **「ネタバレと探求の楽しさの衝突」**: 未知の罠やアイテム効果をすべて事前に開示してしまうと、ローグライク特有の「手探りの面白さ」が損なわれる。
+* **「説明書を読まないプレイヤーへのアプローチ」**: 初心者は長い理屈（なぜElberethで敵を避けられるのか、なぜ杖で床に文字を書くのか等）を読まないため、**「直感的な操作体験の中で自然に覚えられる仕組み」** が必要。
 
-### 3. 基盤統合アーキテクチャ図
+---
+
+## 2. 次世代 GKL の設計原則 (Design Principles)
 
 ```
-                       [ 5 つの分散キャッシュ層 ]
-  ┌─────────────────┬──────────────────────┬──────────────────┐
-  │ StatusAccessor  │InventoryStateManager │ AreaStateManager │
-  ├─────────────────┼──────────────────────┴──────────────────┤
-  │★SpellStateManager│★AttributeStateManager (^X 耐性・スキル)  │
-  └────────┬────────┴──────────────────────┬──────────────────┘
-           │                               │
-           ▼ (状態の多次元集約)            │ (ドメイン知識の付与)
- ┌───────────────────┐          ┌──────────▼─────────────────┐
- │  SituationCache   │ ◄──────► │ StructuredKnowledgeEngine  │
- │ (統合状況メモリ)  │          │ (静的知識・耐性・危険度)   │
- └─────────┬─────────┘          └──────────┬─────────────────┘
-           │                               │
-           └───────────────┬───────────────┘
-                           ▼
-  ┌────────────────────────────────────────────────────────┐
-  │         ContextActionEngine (高度推論エンジン)         │
-  │  ・成功率 / Pw / 距離 / 敵耐性 の総合スコアリング      │
-  │  ・未識別判定 / スマートガード / 環境脅威度評価         │
-  └───────────┬────────────────────────────────────┬───────┘
-              ▼                                    ▼
-  [ 最適な推奨アクション＆アイテムガイド ]    [ 危険度・ステータスアラート演出 (UI) ]
+        ┌─────────────────────────────────────────────────────────────┐
+        │                  次世代 GKL の 3 大設計原則                  │
+        └─────────────────────────────────────────────────────────────┘
+                                      │
+         ┌────────────────────────────┼────────────────────────────┐
+         ▼                            ▼                            ▼
+  【段階的開示】                【体験先行型学習】             【ネタバレ度制御】
+(Progressive Disclosure)     (Experience-First Action)      (Assist Level Control)
+・画面上は 1行要約のみ         ・理屈が分からなくても押せば   ・プレイヤーの好みに合わせて
+・詳細は [?] やリンクで展開      助かる即時アクション提示       アシスト量をワンタッチ切替
+・読まない人の視界を邪魔しない ・「助かった後に知る」サイクル ・初心者〜熟練者まで完全対応
 ```
 
-4. **ジョブ固定分岐の排除（能力・コンテキスト駆動）**
-   * 「ジョブ名（Role）」で処理を一律分岐するのではなく、`SituationCache` から抽出した「現在の成功率」「Pw残量」「装備ペナルティ」「耐性」などの能力・状態からスコア（優先度）を算出する汎用評価ロジックを採用します。
-
-5. **サイレントクエリによる非破壊的な情報同期**
-   * WebUI の既存機構である `querySequenceSilent` を活用し、画面を汚さずに C コアから高度な状態データ（魔法リスト `+` や属性耐性 `#attributes`）を裏で自律取得します。
-
----
-
-## 3. 具体的な高度化施策 (6つの柱 + 演出連携)
-
-### 施策 A: 魔法習得状態の同期・管理 (`SpellStateManager`)
-* **機能**: C コアに対して `+`（習得魔法一覧）のサイレントクエリを実行し、習得中の魔法リスト（呪文名、レベル、カテゴリ、詠唱失敗率、残り保持ターン）を GKL 内にキャッシュ保持します。
-* **効果**: 現在使用可能な魔法を正確に把握し、魔法アクションの生成基盤を作ります。
-
-### 施策 B: 属性耐性・隠れ能力の自律同期 (`AttributeStateManager` / `^X` + 装備耐性統合)
-* **機能**: `#attributes`（`^X`）コマンドを裏で自律実行・パースし、内因性耐性 (Intrinsics) を取得します。
-* **★指輪・装備品耐性 (Extrinsics) の自動結合**:
-  NetHack の仕様上、**指輪 (`ring of poison resistance` 等) や装備品による耐性は `^X` に表示されない**ため、`AttributeStateManager` は `^X` の結果に加えて `InventoryStateManager` から装備中の指輪・アミュレット・防具の付加耐性を自動合算（マージ）します：
-  $$\text{TotalResistances} = \text{Intrinsics (from } \text{^X)} \cup \text{Extrinsics (from Equipped Rings/Gear)}$$
-* **同期タイミング**: イベント駆動（レベルアップ時・装備変更時・耐性獲得メッセージ検知時）でサイレント実行し、確実かつ網羅的な耐性状態を保持します。
-
-### 施策 C: 未識別（鑑定未済）アイテムの判定・リスク管理
-* **機能**: `InventoryStateManager` と `StructuredKnowledgeEngine` を拡張し、アイテムの**「鑑定状態レベル（Fully Identified / Unidentified / Price-Identified）」**を判定・管理します。
-  1. **未識別アイテムの使用リスク警告**:
-     * 未識別の薬（`clear potion` 等）や巻物を選択・使用しようとした際、「⚠️ 未識別（麻痺・毒・呪いのリスクあり）」と UI 上で注意喚起・非推奨マークを表示。
-  2. **識別アクションの動的促進**:
-     * 未識別アイテムがインベントリに蓄積している場合、`Scroll of Identify`（識別巻物）や `Spell of Identify`（識別呪文）、`#name`（名付け/価格識別メモ）の実行アクションを優先提示。
-
-### 施策 D: コンテキスト・リスク考慮型アクション生成
-* **機能**: 取得した魔法・耐性データと `StructuredKnowledgeEngine`（敵ナレッジ）を組み合わせ、以下のような高度なスコアリング判定を行います：
-  1. **戦術的魔法攻撃**: 敵の属性耐性を考慮し、必中かつ効果の高い魔法を提案（例: 火炎耐性を持つ敵には `Cold` を優先）。
-  2. **巻き込み事故防止**: 範囲攻撃魔法（`Fireball` 等）を提案する際、自身が火炎耐性を持っているかチェックし、自爆死を防止。
-  3. **緊急回復・ユーティリティ**: HP低下時の `Healing` や、施錠された扉に対する `Knock` などの状況連動提案。
-
-### 施策 E: コンテキスト連動型アイテムガイダンス ＆ スマートガード機能
-* **機能**: アイテムの「無駄遣い防止」と「ステータス緊急対応」を実現するインテリジェントなアイテムガイダンス機能。
-  1. **スマートガード（無効・非推奨ガイド）**:
-     * 状態異常（毒・病気）がない時の「解毒ポーション / 治療薬」の使用を非推奨・グレーアウト。
-     * 満腹・空腹でない時の過剰な食事（吐き気・窒息リスク）の警告・抑止。
-     * 視界内に敵がいない場所での戦闘用巻物・攻撃系杖の無駄撃ち防止。
-  2. **ステータス変化トリガーによる即時ハイライト**:
-     * 毒（Poison）や病気（Ill）にかかった瞬間、インベントリ内の `Potion of Healing` や `Cure Illness` を検知し、UI パネル上に「⚠️ 解毒薬を飲む」と最優先ハイライト表示。
-  3. **状況に応じた動的コマンドシフト**:
-     * 未識別アイテムが溜まり安全な部屋にいる ➔ `Scroll of Identify`（識別巻物）の使用コマンドが浮上。
-     * 鍵のかかった宝箱の前に立つ ➔ `Apply Key`（鍵で解錠）がトップに表示。
-
-### 施策 F: 環境脅威度とビジュアル・UX 演出の連携
-* **機能**: モンスターの `dangerLevel`（`LETHAL` / `HIGH` 等）や地形（水場・溶岩・狭路）と連携し、UI 側での演出を強化します。
-  1. **LETHAL モンスター接近警告**: 画面枠のカラーパルス演出、カメラのズーム引き（広域視界化）。
-  2. **危険度バッジ & リアルタイム戦術アドバイス**: 推奨アクションパネルに `tacticalAdvice` をツールチップや警告バッジとして表示。
-  3. **複合リスク警告**: 「水場 ✕ Kraken 接近」時の水没注意アラートと `Levitation` 呪文のハイライト表示。
+1. **段階的開示 (Progressive Disclosure)**:
+   - メイン画面には **「結論となる1行要約」**（例: `🛡️ ピンチ！足元に Elbereth を刻むと安全に回復できます [?]`）のみをスッキリ表示。
+   - 理由や背景（Why）は、クリック時のアコーディオン展開や、公式 Wiki / 解説ページへの直通リンク（`🔗 Wikiで詳細を見る`）で提供。
+2. **体験先行型アクション (Experience-First Action)**:
+   - 「説明を読んで理解してから行動する」のではなく、**「推奨アクション欄に出た `[足元に刻む (E: Elbereth)]` や `[店主に支払う (#pay)]` を押したら助かった！」** という成功体験を先行させる。
+3. **死因分析によるピンポイント学習 (Post-Mortem Learning)**:
+   - プレイヤーが最も「なぜ！？」と真剣に情報を欲する **ゲームオーバー（死亡）の瞬間** に、その死因に直結する回避策（例: `コカトリスの死体は手袋を着用していれば持てました`）を1点集中で提示する。
 
 ---
 
-## 4. 段階的実装ロードマップ
+## 3. 実装ロードマップ ＆ 新規フェーズ
 
-| フェーズ | 施策内容 | 実装ステータス ＆ 主な成果物 |
-| :--- | :--- | :--- |
-| **Phase 1: 情報取得・同期基盤の構築** | ・`SpellStateManager.js` の新設 (`+` キー同期)<br>・`AttributeStateManager.js` の新設 (`^X` 自律同期 ＋ 装備耐性自動合算)<br>・`DiscoveryStateManager.js` の新設 (`\` 発見台帳同期) | **【✅ 実装完了】**<br>[`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js)<br>[`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js)<br>[`DiscoveryStateManager.js`](/src/core/knowledge/DiscoveryStateManager.js) |
-| **Phase 2: 識別判定・スキル連動・Look調査 ＆ 魔法評価の統合** | ・未識別/価格識別/確定識別の厳密判定<br>・スキル熟練度 (`#enhance`) の自律同期<br>・オンデマンドLook (`;`) 調査サービス<br>・UIスペック提示成形 (`ItemSpecPresenter`)<br>・`ContextActionEngine.js` への戦術スコアリング統合 | **【✅ 実装完了】**<br>[`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js)<br>[`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js)<br>[`OnDemandLookService.js`](/src/core/knowledge/OnDemandLookService.js)<br>[`ItemSpecPresenter.js`](/src/core/knowledge/ItemSpecPresenter.js) |
-| **Phase 3: 高度戦術演出・環境脅威度＆認知メンタルマップ連携** | ・モンスター認知メンタルマップ (`MonsterTracker.js`) の新設<br>・確信度減衰 (Weight Decay: 1.0 ➔ 0.8 ➔ 0.4 ➔ 0.0) ＆ 潜伏敵への事前警告<br>・`BL_TIME` 非依存のハイブリッド内部ターン時計<br>・敵耐性と自己耐性を考慮した自爆回避・属性攻撃判定<br>・`dangerLevel` や地形ハザードと連携した UI/カメラパルス演出機能 | **【✅ 認知メンタルマップ基盤実装完了 / 演出連携進行中】**<br>[`MonsterTracker.js`](/src/core/knowledge/MonsterTracker.js)<br>[`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js)<br>[`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) |
-
----
-
-## 5. 実装進捗と開発ビジョン (2026-08-17 追記)
-
-### 【基盤前段階の達成状況】
-2026-08-17 のリファクタリング（Phase 1 & Phase 2）により、本施策を実現するための強力なデータ駆動基盤が確立されました：
-1. **静的ナレッジ層 (`OBJECT_KNOWLEDGE_FULL.js`) の完成**:
-   * 全 481 オブジェクトに対する推奨操作動詞 (`defaultVerb`)、カテゴリ別フォールバック、および NetHack 公式仕様に準拠した高精度な日本語対訳（100%全件網羅）を構築。
-2. **`InventoryStateManager.js` のデータ駆動化 ＆ 分類フラグ管理**:
-   * アイテム個別およびカテゴリ別の判定ロジックを `defaultVerb` および分類フラグ (`isPickAxe`, `isKey`, `isDigWand`, `isCanOpener`, `isGem` 等) に一本化。
-3. **インスペクターによる多次元視覚可視化**:
-   * `DebugInspector.js` および `inspector_console.html` / `tools/knowledge-inspector.html` にて、静的クエリおよびリアルタイムな所持品ナレッジ・分類フラグの可視化モニターを完成。
-
----
-
-### 【開発ビジョン：『ダンジョンプレイの参謀 (Tactical Staff Officer)』】
-
-今回の開発議論を通じて、本 GKL 推奨アクション高度化施策が目指すべき理想のユーザー体験（UX）コンセプトとして **『プレイの参謀 (Tactical Staff Officer)』** が定義されました。
-
-#### 1. コンセプト定義 ＆ 割り込みレス UX 原則
-* **「操作を奪わない」参謀体験**:
-  画像認識AIや自動BOTのようなキー操作の強奪・割り込み（Intercept）を排除。**操作権の主導権は 100% プレイヤーが保持**したまま、暗闇のダンジョン探索において「今何が起きていて、どの行動が安全か」を親身に助言する参謀・軍師として機能する。
-
-#### 2. アーキテクチャ階層の定義 (DKD ➔ ETA ➔ TA)
-* **`DKD` (Domain Knowledge Dictionary / ドメイン知識辞書)**:
-  「それは何か (What it is)」を定義する不変の辞書・図鑑（アイテム属性、モンスター耐性、地形ルール）。開発とプレイを通じて継続的にアップデートしていく静的資産。
-* **`ETA` (Environmental & Tactical Advice / 環境・戦術アドバイス)**:
-  リアルタイム状況（`SituationCache`）と DKD を掛け合わせ、交戦環境（狭路・水場）、デバフ、足元状況に対応した助言および**アドバイススコア (Advice Score)** を算出する思考エンジン。
-* **`TA` (Tactical Action / 戦術アクション)**:
-  ETA の評価に基づいて、最終的に画面上に提示・生成されるコンテキスト連動キーシーケンス。
-
-#### 3. アドバイスのスコア化モデル (Advice Scoring Model)
-状況の緊急性・危険度・期待される救済効果を統合評価するスコア算術式：
-
-$$\text{AdviceScore} = (\text{緊急度} \times \text{危険度}) + \text{期待効果} - \text{リソースコストペナルティ}$$
-
-* **例A（通常時の鍵開け）**: 緊急度: 低 (1) ✕ 危険度: なし (1) ＋ 期待効果 (300) ＝ **スコア 301**
-* **例B（コカトリス接敵・石化進行時）**: 緊急度: 即死 (100) ✕ 危険度: 最大 (10) ＋ 期待効果 (1000) ＝ **スコア 2000** （最優先警報ポップアップ）
-
-#### 4. 熟練度別アドバイス閾値管理 (Advice Threshold Control)
-算出した AdviceScore に対し、プレイヤーの習熟度・好みに応じた**「閾値フィルター (Threshold Filter)」**を導入する：
-
-```text
-[ 低い閾値 (Threshold: 100) ]  ───►  全アドバイス・全推奨アクションを表示 (初心者向け)
-[ 中間の閾値 (Threshold: 500) ] ───►  標準的な戦術アドバイスと危険警告を表示 (中級者向け)
-[ 高い閾値 (Threshold: 800) ]  ───►  細かい指図は非表示とし、LETHALな「命に関わる警告」のみ表示 (熟練者向け)
+```mermaid
+gantt
+    title GKL 開発ロードマップ (Phase 1 〜 Phase 6)
+    dateFormat  YYYY-MM-DD
+    section 完了済み基盤
+    Phase 1: 状態同期・キャッシュ基盤 (Spells, Attributes, Discoveries) :done, p1, 2026-08-01, 2026-08-15
+    Phase 2: 識別判定・スキル連動・Look調査 ＆ 構造化ナレッジ完成 :done, p2, 2026-08-16, 2026-08-20
+    Phase 3: 認知メンタルマップ ＆ 高度戦術推論・方向コード標準化 :done, p3, 2026-08-21, 2026-08-24
+    section 次期開発フェーズ
+    Phase 4: 段階的開示・Wikiリンク ＆ ネタバレ度制御 (Assist Levels) :active, p4, 2026-08-25, 2026-08-30
+    Phase 5: 死亡分析 (Post-Mortem) ＆ 体験先行型アクションUI洗練 :p5, 2026-08-31, 2026-09-07
+    Phase 6: 空間知能 (Spatial Intelligence) ＆ ショップ価格識別連携 :p6, 2026-09-08, 2026-09-15
 ```
-* **熟練者モードの挙動**: 「部屋の扉を鍵で開ける」等の細かい指図は消し、「⚠️ コカトリス接近（手袋未着用接触即死リスク）」「⚠️ 手品袋を魔法の袋に入れると大爆発」といった致命的リスクのアラートのみをスマート提示する。
 
-#### 6. 画面描画と認知メンタルマップの分離 ＆ 対象の明確化 (Certainty / Weight Decay)
-* **地形評価 (Terrain) の表示マップ完全同調**:
-  壁・扉・水場・溶岩などの地形情報は、掘削や破壊（ツルハシ・掘削の杖）によって変化した際も C コアから即時同調イベントが届くため、**表示マップを 100% そのまま信頼・直接評価**する（地形に関するメンタルマップや推測記憶は不要）。
-* **確信度・重み減衰 (Certainty Weight) の対象限定**:
-  重み減衰 ($\text{Weight} \in [0.0, 1.0]$) や位置記憶を適用する対象は、視界外に消えて移動する **「モンスター（動的脅威）」のみに厳密に限定**する。
-  - **視認中 (LoS)**: $\text{Weight} = 1.0$ （100% 確定）
-  - **視界外 1〜3 ターン**: $\text{Weight} = 0.8$ （高確率で近傍潜伏）
-  - **視界外 4〜7 ターン**: $\text{Weight} = 0.4$ （確信度減衰）
-  - **再視認 / 撃破 / 8ターン経過**: 位置再同期または記憶消去 ($\text{Weight} = 0.0$)
-* **効果**:
-  システムを無駄に複雑化させることなく、シンプルかつ高速に「地形の破壊・変化」と「視界外モンスターの推測」を両立できる。
-
-#### 8. スキル・装備適正に基づく推奨装備 ＆ 着替えガイダンス (Skill & Gear Suitability Guidance)
-
-* **スキル連動の最適武器推奨 (Skill-based Weapon Recommendation)**:
-  所持品内の武器とプレイヤーの Skill ランク (`SkillStateManager`: Unskilled, Basic, Skilled, Expert, Master, Grand Master) を突合し、現在最も高い命中・ダメージ補正が得られる熟練武器（熟練度 Expert の武器や二刀流セット等）への装備切り替え（`w` / `#twoweapon`）を推薦提示。
-
-##### 【具体設計案：構造化ナレッジ (`OBJECT_KNOWLEDGE_FULL.js`) 連携 ＆ 総合評価パイプライン】
-
-単なるアイテム名文字列のあいまい検索ではなく、静的ナレッジ層（`OBJECT_KNOWLEDGE_FULL.js`）の各オブジェクト定義に確定パラメータを持たせ、`SituationCache` の多次元情報と掛け合わせて総合スコアを算出するデータ駆動アーキテクチャを採用する。
-
-1. **静的ナレッジ層へのパラメータ拡充 (`OBJECT_KNOWLEDGE_FULL.js`)**:
-   全481アイテムのマスターデータに、戦闘・装備適正に関する以下の構造化メタデータを定義：
-   ```javascript
-   {
-     onum: 23,
-     name: "long sword",
-     category: "WEAPON",
-     skill: "long sword",       // 🎯 対応する NetHack スキル種別名
-     hands: 1,                  // 1: 片手武器 / 2: 両手武器
-     damageSmall: "1d8",        // 対小型モンスター基礎ダメージ
-     damageLarge: "1d12",       // 対大型モンスター基礎ダメージ
-     material: "iron",          // 材質 (iron, silver, wood, mithril 等)
-     isSilver: false,           // 銀製フラグ (アンデッド・悪魔特効)
-     isLaunchableWith: null     // 弾薬の場合の対応ランチャー (e.g. 'bow')
-   }
-   ```
-
-2. **多次元スコアリング計算モデル (Scoring Pipeline)**:
-   $$\text{TotalScore} = \text{SkillScore} + \text{BasePower} + \text{EnchantBonus} + \text{SlayingBonus} - \text{Penalty}$$
-
-   * **スキル熟練度スコア (`SkillScore`)**:
-     `SkillStateManager` の現在ランクに応じた基本点
-     - `Grand Master` (師範): +80点
-     - `Master` (名人): +60点
-     - `Expert` (達人): +40点
-     - `Skilled` (熟練): +25点
-     - `Basic` (入門): +10点
-     - `Unskilled` (未熟): +0点
-     - `Restricted` (制限/不可): -10点
-   * **武器ベース性能値 (`BasePower`)**:
-     小型・大型モンスターに対する平均期待値ダメージ（例: 1d8 なら 4.5点、両手剣 1d10 なら 5.5点）。
-   * **エンチャント・状態補正 (`EnchantBonus`)**:
-     強化値 $+N \times 5$、祝福 $+5$、呪い $-15$（※文字列判定時の `uncursed` 誤判定を完全防止）。
-   * **状況・特効ボーナス (`SlayingBonus`)**:
-     視界・隣接エリアにアンデッド・悪魔・人狼等の特効対象モンスターが存在する場合の銀製（`isSilver: true`）武器ボーナス (+20点)。
-   * **装備整合性ペナルティ (`Penalty`)**:
-     盾（Shield）を装備中に両手武器（`hands: 2`）を持つ場合の減点・着脱考慮。
-
-3. **遠隔射撃・投擲への最適化連動 (Ranged & Throwing Suitability)**:
-   - 矢筒（Quiver `Q`）への最適弾薬装填提案（弓スキルが高い時は矢、スリングスキルが高い時は小石）。
-   - 射撃（`f`）および投擲（`t`）アクションの優先度にスキル熟練度ボーナスを加算。
-
-4. **魔法阻害ガード ＆ 着替えガイド (Metallic Armor Penalty Warning)**:
-   NetHack の仕様上、鉄・金属製防具（Metallic Armor/Helm/Shield）を着用すると魔法詠唱失敗率が激増するため、`SpellStateManager` と連携し、「⚠️ 鉄製防具により魔法失敗率上昇中 ➔ ローブ / 非金属防具への着替え (`T` / `W`)」をスマートガイダンスとして注意喚起。
+| フェーズ | 施策内容 | 主な成果物・対象コンポーネント | ステータス |
+| :--- | :--- | :--- | :---: |
+| **Phase 1: 情報取得・同期基盤** | ・`SpellStateManager.js` (`+` キー同期)<br>・`AttributeStateManager.js` (`^X` 自律同期 ＋ 装備耐性合算)<br>・`DiscoveryStateManager.js` (`\` 発見台帳同期) | [`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js)<br>[`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js)<br>[`DiscoveryStateManager.js`](/src/core/knowledge/DiscoveryStateManager.js) | **【✅ 完了】** |
+| **Phase 2: 識別・スキル・完全ナレッジ** | ・未識別/価格識別/確定識別の厳密判定<br>・スキル熟練度 (`#enhance`) 同期<br>・全481アイテム ＆ 全384モンスター完全マスターデータ化<br>・適応型スペック提示成形 (`ItemSpecPresenter`) | [`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js)<br>[`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js)<br>[`OBJECT_KNOWLEDGE_FULL.js`](/src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js)<br>[`MONSTER_KNOWLEDGE_FULL.js`](/src/core/knowledge/MONSTER_KNOWLEDGE_FULL.js) | **【✅ 完了】** |
+| **Phase 3: 認知マップ・戦術推論基盤** | ・モンスター追跡 ＆ 確信度減衰 (`MonsterTracker.js`)<br>・戦術アドバイザー (`TacticalAdvisor.js`)<br>・推奨アクション方向コード (`dirCode`) 自動付与 ＆ 全クライアント連携 | [`MonsterTracker.js`](/src/core/knowledge/MonsterTracker.js)<br>[`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js)<br>[`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | **【✅ 完了】** |
+| **Phase 4: 段階的開示 ＆ ネタバレ制御** | ・アドバイスの「1行要約 ＋ アコーディオン展開」成形<br>・公式 NetHack Wiki / スポイラーへの直通リンク埋め込み<br>・アシストレベル切替設定 (🔰ビギナー / ⚔️アドバンス / 💀クラシック) | [`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js)<br>UI 各クライアント (`gkl-pure-js-client`, `vue-client` 等) | **【🚀 開発着手】** |
+| **Phase 5: 死亡分析 ＆ 体験学習UI** | ・ゲームオーバー時の「死因分析 ＆ 回避ヒント」ダイアログ (`PostMortemAdvisor`)<br>・Elbereth床彫りや安全鑑定等の「ワンタップ救済アクション」強化 | [`GameOverResolver.js`](/src/core/lifecycle/GameOverResolver.js)<br>[`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | **【次期予定】** |
+| **Phase 6: 空間知能 ＆ 価格識別連携** | ・階段・祭壇・ショップのピン留め・フロアナビゲーション<br>・店主の売買価格からのアイテム自動推論（Price ID） | [`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js)<br>[`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js) | **【次期予定】** |
 
 ---
-*更新日: 2026-08-21 (Phase 1/Phase 2 実装完了ステータス反映)*  
+
+## 4. 各新規施策の詳細仕様
+
+### 【施策 1: 段階的開示 ＆ Wikiリンク連携 (Phase 4)】
+
+#### 1. 2階層アドバイスモデル
+* **第1階層（サマリー）**:
+  画面のアドバイスリストには、**20〜30文字程度の結論** のみを表示。
+  - 例: `⚠️ [麻痺視線] 浮遊する目玉を直視・近接攻撃すると数ターン麻痺します [?]`
+  - 例: `🛡️ [緊急結界] 足元に Elbereth を刻むと近接敵が逃走します [?]`
+* **第2階層（詳細・Whyの解説 ＆ Wikiリンク）**:
+  サマリー右端の `[?]` やクリックにより、以下のアコーディオンカードが展開：
+  - **効果の理由**: なぜその現象が起きるのか、どういう原理か
+  - **推奨される対策**: 遠距離攻撃、目隠し着用、手袋着用など
+  - **Wikiリンク**: `🔗 NetHackWiki で「Floating Eye」の仕様を見る`
+
+#### 2. アシストレベル（ネタバレ設定）
+プレイヤーの設定で表示粒度をフィルタリング：
+```javascript
+export const ASSIST_LEVELS = {
+    BEGINNER: {
+        id: 'BEGINNER',
+        labelJa: '🔰 ビギナー（フルガイド）',
+        scoreThreshold: 100,
+        showAdvices: true,
+        showWikiLinks: true,
+        allowSpoilers: true
+    },
+    ADVANCED: {
+        id: 'ADVANCED',
+        labelJa: '⚔️ アドバンス（危険アラートのみ）',
+        scoreThreshold: 500,
+        showAdvices: true,
+        showWikiLinks: false,
+        allowSpoilers: false // 未識別アイテムのネタバレ等を抑制
+    },
+    CLASSIC: {
+        id: 'CLASSIC',
+        labelJa: '💀 クラシック（アシストOFF）',
+        scoreThreshold: Infinity,
+        showAdvices: false,
+        showWikiLinks: false,
+        allowSpoilers: false
+    }
+};
+```
+
+---
+
+### 【施策 2: 死因分析システム (Post-Mortem Analyzer / Phase 5)】
+
+プレイヤーが力尽きた際、`GameOverResolver` と連携して「死の振り返りカード」を提示：
+1. **直接の死因特定**:
+   - `Petrification`（石化死）、`Drowning`（溺死）、`Level Drain`（ドレイン死）、`Poison`（毒死）、`Explosion`（自爆死）等の死因カテゴリを自動判定。
+2. **1点集中ヒント**:
+   - 説教くさくならないよう、**「次回生き残るための最も重要な1つのヒント」** のみを表示。
+   - 例: `💡 コカトリスの死体は、革の手袋（leather gloves）を着用していれば安全に持ち運んで武器として使えます。`
+   - 例: `💡 スライムに触られた時は、火の杖（Wand of Fire）を自分に振るか火炎ポーションを飲むことでスライム化を治療できます。`
+
+---
+
+### 【施策 3: 空間知能 ＆ ショップ価格識別 (Phase 6)】
+
+1. **フロア施設マーカー**:
+   - 一度発見した上り階段 (`<`)、下り階段 (`>`)、祭壇 (`_`)、泉 (`{`)、ショップの座標を記憶し、ミニマップやステータス欄にナビゲーションアイコンとして提示。
+2. **価格識別 (Price ID) アシスタント**:
+   - 店主がアイテムを売買する際の価格（例: `300zm` の指輪）を検知した際、`ItemIdentificationResolver` が候補（`ring of teleport control` または `ring of conflict`）を自動算出してナレッジカードに候補一覧を表示。
+
+---
+
+*改定日: 2026-08-24 (Phase 1〜3 完了反映 ＆ Phase 4〜6 次期ロードマップ策定)*  
 *保存先: `docs/3_gkl/gkl_action_enhancement_proposal.md`*
+
 

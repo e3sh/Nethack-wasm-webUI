@@ -5,6 +5,7 @@
  */
 
 import { isShopkeeperMonster } from './glyphClassifier.js';
+import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
 
 export class ContextActionEngine {
     /**
@@ -16,10 +17,11 @@ export class ContextActionEngine {
      * @param {'ja'|'en'} [options.language='ja'] - 表示言語
      * @returns {Array<Object>} 推奨アクションの配列 (priority 降順)
      */
-    static generateActions(areaState, inventoryState = null, skillStateManager = null, options = {}) {
+    static generateActions(areaState, inventoryState = null, skillStateManager = null, options = {}, statusAccessor = null) {
         if (!areaState || !areaState.feet) return [];
 
         const language = (options && options.language) || 'ja';
+        const acc = statusAccessor || (options && options.statusAccessor) || null;
         const actions = [];
         const tools = this.extractTools(inventoryState);
 
@@ -35,6 +37,9 @@ export class ContextActionEngine {
         // 4. 8方向レイキャストによる遠隔攻撃 (Ranged Combat: f / t) のアクション判定
         this.buildRangedActions(areaState, inventoryState, tools, actions, skillStateManager);
 
+        // 5. アイテム・相互作用ルール (Item Interactions: Dip, Engrave, Altar BUC, Tools)
+        this.buildItemInteractionActions(areaState, inventoryState, actions, acc);
+
         // 言語に応じたプロパティ正規化（label, description）およびクリーンアップ
         const resolved = this.resolveActions(actions, language);
 
@@ -42,8 +47,9 @@ export class ContextActionEngine {
         return resolved.sort((a, b) => b.priority - a.priority);
     }
 
+
     /**
-     * アクション一覧のテキストプロパティを選択言語に応じて解決・正規化
+     * アクション一覧のテキストプロパティを選択言語に応じて解決・正規化し、dirCode を標準付与
      * @param {Array<Object>} actions 
      * @param {'ja'|'en'} language 
      * @returns {Array<Object>}
@@ -53,8 +59,45 @@ export class ContextActionEngine {
         return actions.map(act => {
             const label = isEn ? (act.label || act.labelEn || act.labelJa) : (act.labelJa || act.label);
             const description = isEn ? (act.description || act.descriptionEn || act.descriptionJa) : (act.descriptionJa || act.description);
+
+            // 🎯 dirCode の自動解決 (標準方向コード: 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF')
+            let dirCode = act.dirCode;
+            if (!dirCode) {
+                if (act.direction) {
+                    if (typeof act.direction === 'string') {
+                        dirCode = act.direction.replace(/^DIR_/, '');
+                    } else if (typeof act.direction === 'object') {
+                        dirCode = act.direction.code || act.direction.key || act.direction.name;
+                    }
+                } else if (act.directionKey) {
+                    dirCode = String(act.directionKey).replace(/^DIR_/, '');
+                } else if (Array.isArray(act.keySequence)) {
+                    const dirToken = act.keySequence.find(t => typeof t === 'string' && t.startsWith('DIR_'));
+                    if (dirToken) dirCode = dirToken.replace(/^DIR_/, '');
+                }
+            }
+
+            if (!dirCode) {
+                if (act.target === 'feet' || act.isDirectional === false || act.category === 'SURVIVAL') {
+                    dirCode = 'SELF';
+                }
+            }
+
+            // ID からのフォールバック抽出 (e.g. ACTION_ATTACK_N, ACTION_OPEN_DOOR_W)
+            if (!dirCode && act.id) {
+                const match = act.id.match(/_([NESW]|NE|NW|SE|SW|SELF|FEET)$/);
+                if (match) {
+                    dirCode = match[1] === 'FEET' ? 'SELF' : match[1];
+                }
+            }
+
+            const validDirs = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
+            const cleanDir = dirCode ? String(dirCode).toUpperCase().replace(/^DIR_/, '') : 'SELF';
+            const finalDirCode = validDirs.has(cleanDir) ? cleanDir : 'SELF';
+
             const clean = {
                 ...act,
+                dirCode: finalDirCode,
                 label,
                 description: description || undefined
             };
@@ -501,33 +544,6 @@ export class ContextActionEngine {
             // 床 / 廊下全般
             if (flags.isFloor || flags.isCorridor || flags.isEngraving) {
                 actions.push({
-                    id: 'ACTION_ENGRAVE',
-                    category: 'INTERACT',
-                    label: 'Engrave floor',
-                    labelJa: '床に文字を刻む (Engrave)',
-                    key: 'E',
-                    charStr: 'E',
-                    target: 'feet',
-                    risk: null,
-                    priority: 50,
-                    description: 'Engrave word on the floor (e.g. Elbereth for warding)',
-                    descriptionJa: '床に Elbereth 等の魔除けの文字や指輪の識別文字を刻みます'
-                });
-                actions.push({
-                    id: 'ACTION_SIT_FLOOR',
-                    category: 'INTERACT',
-                    label: 'Sit on floor',
-                    labelJa: '床に座る (Sit)',
-                    key: '#sit',
-                    charStr: '#sit',
-                    extCmd: 'sit',
-                    target: 'feet',
-                    risk: null,
-                    priority: 30,
-                    description: 'Sit down on the floor',
-                    descriptionJa: '床に座ります'
-                });
-                actions.push({
                     id: 'ACTION_SEARCH_FEET',
                     category: 'INTERACT',
                     label: 'Search around',
@@ -536,9 +552,9 @@ export class ContextActionEngine {
                     charStr: 's',
                     target: 'feet',
                     risk: null,
-                    priority: 45,
-                    description: 'Search surrounding tiles for hidden doors and traps',
-                    descriptionJa: '周囲の隠し扉や隠し罠を探します'
+                    priority: 25,
+                    description: 'Search adjacent squares for hidden traps or secret doors',
+                    descriptionJa: '足元や周囲8マスの隠し扉や罠を探索します'
                 });
             }
         }
@@ -583,8 +599,11 @@ export class ContextActionEngine {
                 }
             } else {
                 const isShopkeeper = isShopkeeperMonster(m.entity);
-                // モンスター/NPC (近接攻撃)
-                if (!actions.some(a => a.id === `ACTION_ATTACK_${m.dir.code}`)) {
+                const isPeaceful = Boolean(m.entity?.isPeaceful || m.entity?.attitude === 'PEACEFUL' || isShopkeeper || m.entity?.knowledge?.defaultPeaceful);
+                const isHostile = Boolean(m.entity?.isHostile || m.entity?.attitude === 'HOSTILE');
+
+                // モンスター (近接攻撃) - 敵対中または非平和的モンスターのみ攻撃アクションを生成
+                if ((!isPeaceful || isHostile) && !actions.some(a => a.id === `ACTION_ATTACK_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_ATTACK_${m.dir.code}`,
                         category: 'COMBAT',
@@ -1232,6 +1251,61 @@ export class ContextActionEngine {
         }
 
         return targets;
+    }
+
+    /**
+     * 5. アイテム・相互作用ルール (Item Interactions: Dip, Engrave, Altar BUC, Tools)
+     * ITEM_INTERACTION_RULES 辞書をコンテキストと照合し、推奨アクションを生成
+     */
+    static buildItemInteractionActions(areaState, inventoryState, actions, statusAccessor = null) {
+        if (!ITEM_INTERACTION_RULES || !Array.isArray(ITEM_INTERACTION_RULES)) return;
+
+        const context = {
+            areaState,
+            inventoryState,
+            statusAccessor
+        };
+
+        for (const rule of ITEM_INTERACTION_RULES) {
+            // ACTION チャネルが出力対象に含まれていない場合はスキップ
+            if (!rule.outputChannels || !rule.outputChannels.includes('ACTION') || !rule.action) {
+                continue;
+            }
+
+            const evalResult = evaluateInteractionRule(rule, context);
+            if (evalResult && evalResult.rule) {
+                const actDef = evalResult.rule.action;
+                const params = evalResult.params || {};
+
+                // 動的パラメータの置換
+                let labelJa = actDef.labelJa;
+                let labelEn = actDef.label;
+                let descJa = actDef.descriptionJa;
+                let descEn = actDef.description;
+
+                Object.entries(params).forEach(([k, v]) => {
+                    labelJa = labelJa.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    labelEn = labelEn.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    if (descJa) descJa = descJa.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                    if (descEn) descEn = descEn.replace(new RegExp(`\\$\\{${k}\\}`, 'g'), v);
+                });
+
+                actions.push({
+                    id: actDef.id,
+                    category: actDef.category || 'INTERACT',
+                    label: labelEn,
+                    labelJa: labelJa,
+                    key: actDef.key,
+                    charStr: actDef.charStr || actDef.key,
+                    extCmd: actDef.extCmd,
+                    target: actDef.target || 'feet',
+                    risk: actDef.risk || null,
+                    priority: actDef.priority || 50,
+                    description: descEn,
+                    descriptionJa: descJa
+                });
+            }
+        }
     }
 }
 

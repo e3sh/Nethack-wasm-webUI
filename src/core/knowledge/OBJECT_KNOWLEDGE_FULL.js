@@ -86,6 +86,55 @@ export function getDefaultVerbForObject(onum, category, itemInfo = {}, detail = 
     }
 }
 
+/**
+ * カテゴリとベース名から NetHack 標準の正式英語アイテム名（FullName）を解決
+ * @param {number} onum 
+ * @param {string} category 
+ * @param {string} baseName 
+ * @param {string} tileName 
+ * @returns {string} 正式アイテム名
+ */
+export function buildStandardItemName(onum, category, baseName, tileName = '') {
+    let name = baseName || '';
+    if (!name && tileName) {
+        const parts = tileName.split('/').map(p => p.trim());
+        name = parts.length > 1 ? parts[1] : parts[0];
+    }
+    name = name.trim();
+
+    const lower = name.toLowerCase();
+    if (lower.startsWith('ring of ') || lower.startsWith('potion of ') || lower.startsWith('scroll of ') || lower.startsWith('spellbook of ') || lower.startsWith('wand of ') || lower.startsWith('amulet of ') || lower.startsWith('amulet versus ')) {
+        return name;
+    }
+
+    switch (category) {
+        case 'RING':
+            if (lower === 'meat ring' || lower === 'generic ring') return name;
+            return `ring of ${name}`;
+        case 'POTION':
+            if (['water', 'holy water', 'unholy water', 'acid', 'oil', 'booze', 'fruit juice', 'generic potion'].includes(lower)) {
+                return name;
+            }
+            return `potion of ${name}`;
+        case 'SCROLL':
+            if (['mail', 'generic scroll'].includes(lower)) return name;
+            if (lower === 'blank paper') return 'scroll of blank paper';
+            return `scroll of ${name}`;
+        case 'SPELLBOOK':
+            if (['novel', 'book of the dead', 'generic spellbook'].includes(lower)) return name;
+            if (lower === 'blank paper') return 'spellbook of blank paper';
+            return `spellbook of ${name}`;
+        case 'WAND':
+            if (['generic wand'].includes(lower)) return name;
+            return `wand of ${name}`;
+        case 'AMULET':
+            if (lower.includes('amulet') || lower.includes('yendor') || lower.includes('generic')) return name;
+            return `amulet of ${name}`;
+        default:
+            return name;
+    }
+}
+
 const goldDetail = { 
     id: 'gold_piece',
     name: 'gold piece',
@@ -285,18 +334,18 @@ const SPECIFIC_ITEM_DETAILS = {
     "157": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Basic leather gloves.' },
     "158": { stats: { ac: 2, material: 'silver', weight: 50 }, flavorNote: 'Polished silver shield reflecting death zaps and petrifying gazes.' },
     "159": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Essential gloves for handling petrifying cockatrice corpses safely.' },
-    "160": { stats: { ac: 1, material: 'iron', weight: 40 }, flavorNote: 'Heavy iron gauntlets.' },
-    "161": { stats: { ac: 1, material: 'iron', weight: 40 }, flavorNote: 'Heavy gauntlets boosting Strength to 18/100 instantly.' },
+    "160": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Cursed gloves causing clumsy fumbling of held items.' },
+    "161": { stats: { ac: 1, material: 'iron', weight: 30 }, flavorNote: 'Heavy gauntlets boosting Strength to 18/100 instantly.' },
     "162": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Gloves boosting Dexterity and dual-wielding accuracy.' },
-    "163": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Gloves of power.' },
-    "164": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Low boots.' },
-    "165": { stats: { ac: 2, material: 'iron', weight: 50 }, flavorNote: 'Iron shoes.' },
+    "163": { stats: { ac: 1, material: 'leather', weight: 10 }, flavorNote: 'Basic low-cut leather walking shoes.' },
+    "164": { stats: { ac: 2, material: 'iron', weight: 50 }, flavorNote: 'Heavy iron shoes offering solid defense.' },
+    "165": { stats: { ac: 2, material: 'leather', weight: 20 }, flavorNote: 'Sturdy high-cut leather boots.' },
     "166": { stats: { ac: 1, material: 'leather', weight: 20 }, flavorNote: 'Boots granting Very Fast movement speed to outrun lethal threats.' },
     "167": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots allowing wearer to walk across deep water.' },
     "168": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots granting jumping ability.' },
     "169": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots granting stealth.' },
-    "170": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Cursed boots causing slippage.' },
-    "171": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots of kicking damage.' },
+    "170": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots boosting kicking damage against doors and enemies.' },
+    "171": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Cursed boots causing awkward stumbling and slipping.' },
     "172": { stats: { ac: 1, material: 'leather', weight: 15 }, flavorNote: 'Boots enabling continuous levitation over pits and lava.' },
 
     // 💍 指輪 (RING: onum 173〜200)
@@ -365,7 +414,8 @@ const SPECIFIC_ITEM_DETAILS = {
     "263": { flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.', effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)' },
 
     // 🍖 食料 (FOOD: onum 264〜296)
-    "264": { flavorNote: 'Raw monster meat corpse.', effectSummary: 'Eating monster corpses can grant intrinsics (Poison, Fire resistance), but rots quickly causing food poisoning.', usageAdvice: ['Eat fresh corpses immediately to gain intrinsic resistances', 'Do not eat old/tainted corpses unless immune to poison'] },
+    "264": { flavorNote: 'Smelly tripe ration favored by carnivorous pets like dogs and cats.', effectSummary: 'Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Throw (\'t\') or drop (\'d\') to tame wild dogs, cats, and wolves', 'Do not eat as a human character to avoid vomiting'] },
+    "265": { flavorNote: 'Raw monster corpse left behind after slaying.', effectSummary: 'Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Eat fresh corpses immediately to gain intrinsic resistances', 'Do not eat old/tainted corpses unless immune to poison', 'Wear gloves before picking up cockatrice corpses'] },
     "274": { flavorNote: 'Lizard corpse.', effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', usageAdvice: ['CRITICAL: Always keep a lizard corpse in inventory to cure cockatrice stoning'] },
     "286": { flavorNote: 'Standard dungeon rations. High nutrition value.', effectSummary: 'Basic food ration providing 800 nutrition points.' },
     "287": { flavorNote: 'Military grade emergency food ration with high nutrition.', effectSummary: 'Provides 900 nutrition points.' },
@@ -423,7 +473,7 @@ const SPECIFIC_ITEM_DETAILS = {
     "337": { flavorNote: 'Reveals entire layout, secret doors, and corridors of current level.' },
     "342": { flavorNote: 'Recharges magic wands or magical markers.' },
     "414": { flavorNote: 'NetHack\'s ultimate wand. Grants wishes for any item.' },
-    "428": { flavorNote: 'Carves tunnels through walls or digs holes in floor for quick escapes.' },
+    "428": { flavorNote: 'Carves tunnels through walls or digs holes in floor for quick escapes.', effectSummaryJa: '壁や床に穴や通路を掘る。', effectSummary: 'Carves tunnels through walls or digs holes in floor for quick escapes.' },
     "433": { flavorNote: 'Fires a ray of death that instantly kills non-resistant targets.' }
 };
 
@@ -512,10 +562,13 @@ export function initFullObjectKnowledge() {
             }
         }
 
+        const standardName = buildStandardItemName(i, category, base.name, tileName);
+
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
-            name: base.name || tileName,
+            name: standardName,
+            baseName: base.name || tileName,
             descr: base.descr || null,
             tileName: tileName,
             category: category,
@@ -570,6 +623,8 @@ export function initFullObjectKnowledge() {
             isAmmo: !!itemInfo.isAmmo || !!base.isAmmo,
             isLauncher: !!itemInfo.isLauncher || !!base.isLauncher,
             effectSummary: effectSummary,
+            effectSummaryJa: detail.effectSummaryJa || null,
+            effectSummaryEn: detail.effectSummaryEn || null,
             flavorNote: flavorNote,
             defaultVerb: verbInfo.defaultVerb,
             verbKey: verbInfo.verbKey,

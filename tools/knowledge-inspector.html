@@ -757,10 +757,10 @@
 
                 ${corpseDetailsHtml}
 
-                ${corpse.warningNote ? `
+                ${(corpse.warningNote || corpse.warningNoteJa || corpse.warningNoteEn) ? `
                     <div class="info-block warning-block" style="margin-top:12px;">
                         <div class="section-title" style="color:#ef4444;">⚠️ ${currentLang === 'ja' ? '死体取扱警告' : 'Corpse Warning'}</div>
-                        <div>${corpse.warningNote}</div>
+                        <div>${currentLang === 'ja' ? (corpse.warningNoteJa || corpse.warningNote) : (corpse.warningNoteEn || corpse.warningNote)}</div>
                     </div>
                 ` : ''}
 

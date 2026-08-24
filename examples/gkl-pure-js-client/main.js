@@ -611,59 +611,9 @@ class GklPureJSClient {
   // GKL (Game Knowledge Layer) リアルタイム同期 & UI レンダリング
   // =========================================================================
 
-  /**
-   * プレイヤーの移動 (位置座標・階層・ターン変化) を検知して方向フィルターを 'ALL' に自動リセット
-   */
-  checkPlayerMovementAndResetFilter(situation) {
-    if (!situation) return;
-    const area = situation.area;
-    const status = situation.status;
-
-    let posKey = '';
-
-    // 1. area.playerLocation または area.center ({ x, y })
-    if (area && (area.playerLocation || area.center)) {
-      const p = area.playerLocation || area.center;
-      posKey += `pos:${p.x},${p.y}`;
-    }
-
-    // 2. status ({ x, y, dlvl, turn })
-    if (status) {
-      if (status.x !== undefined && status.y !== undefined) {
-        posKey += `_st:${status.x},${status.y}`;
-      }
-      if (status.dlvl !== undefined || status.dlevel !== undefined) {
-        posKey += `_d:${status.dlvl || status.dlevel}`;
-      }
-      if (status.turn !== undefined || status.turns !== undefined) {
-        posKey += `_t:${status.turn || status.turns}`;
-      }
-    }
-
-    // 3. situation 直下の turn
-    if (situation.turn !== undefined) {
-      posKey += `_sit:${situation.turn}`;
-    }
-
-    if (posKey && this._lastPlayerPosKey && this._lastPlayerPosKey !== posKey) {
-      // プレイヤーが移動またはターン進行したため、方向フィルターを 'ALL' に自動リセット
-      if (this.selectedDir !== 'ALL') {
-        this.selectedDir = 'ALL';
-        this._lastActionHtml = null;
-      }
-    }
-
-    if (posKey) {
-      this._lastPlayerPosKey = posKey;
-    }
-  }
-
   renderGklUi() {
     if (!this.core || !this.core.gkl) return;
     const situation = this.core.gkl.getSituation();
-
-    // プレイヤー移動時の方向フィルター自動リセットチェック
-    this.checkPlayerMovementAndResetFilter(situation);
 
     // 1. GKL 推奨アクションパネル
     this.renderGklActions(situation.actions || []);
@@ -813,59 +763,59 @@ class GklPureJSClient {
   extractDirectionCode(action) {
     if (!action) return 'NONE';
 
-    // 1. directionKey プロパティ (例: 'DIR_N', 'DIR_NE', 'DIR_SELF')
-    let rawDir = action.directionKey;
-
-    // 2. direction プロパティ (例: { code: 'N' }, 'DIR_N', 'N')
-    if (!rawDir && action.direction) {
-      if (typeof action.direction === 'string') {
-        rawDir = action.direction;
-      } else if (typeof action.direction === 'object') {
-        rawDir = action.direction.code || action.direction.key || action.direction.name;
-      }
-    }
-
-    // 3. dirCode プロパティ
-    if (!rawDir && action.dirCode) {
-      rawDir = action.dirCode;
-    }
-
-    // 4. keySequence 配列内の DIR_* トークン
-    if (!rawDir && Array.isArray(action.keySequence)) {
-      const dirToken = action.keySequence.find(t => typeof t === 'string' && t.startsWith('DIR_'));
-      if (dirToken) rawDir = dirToken;
-    }
-
-    // 5. target が 'feet' の場合、または非方向性アクションの場合は 'SELF' (足元)
-    if (!rawDir) {
-      if (action.target === 'feet' || action.isDirectional === false) {
-        return 'SELF';
-      }
-      return 'NONE';
-    }
-
-    // 文字列のクリーンアップ ('DIR_N' -> 'N', 'DIR_SELF' -> 'SELF')
-    const cleaned = String(rawDir).toUpperCase().replace(/^DIR_/, '');
     const validDirections = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
 
-    if (validDirections.has(cleaned)) {
-      return cleaned;
+    // 1. dirCode を最優先判定
+    if (action.dirCode) {
+      const c = String(action.dirCode).toUpperCase().replace(/^DIR_/, '');
+      if (validDirections.has(c)) return c;
+      if (c === 'FEET' || c === 'CURRENT' || c === 'HERE') return 'SELF';
     }
 
-    // 名前表現マッピング
-    const nameMap = {
-      'NORTH': 'N', 'UP': 'N',
-      'EAST': 'E', 'RIGHT': 'E',
-      'SOUTH': 'S', 'DOWN': 'S',
-      'WEST': 'W', 'LEFT': 'W',
-      'NORTHEAST': 'NE',
-      'NORTHWEST': 'NW',
-      'SOUTHEAST': 'SE',
-      'SOUTHWEST': 'SW',
-      'FEET': 'SELF', 'HERE': 'SELF'
-    };
+    // 2. direction オブジェクト
+    if (action.direction) {
+      const code = typeof action.direction === 'object' ? (action.direction.code || action.direction.key) : action.direction;
+      if (code) {
+        const c = String(code).toUpperCase().replace(/^DIR_/, '');
+        if (validDirections.has(c)) return c;
+      }
+    }
 
-    return nameMap[cleaned] || 'NONE';
+    // 3. directionKey (e.g. DIR_N, DIR_SELF, k, l, j, h, etc.)
+    if (action.directionKey) {
+      const cleaned = String(action.directionKey).toUpperCase().replace(/^DIR_/, '');
+      if (validDirections.has(cleaned)) return cleaned;
+      const viKeyMap = {
+        'K': 'N', 'L': 'E', 'J': 'S', 'H': 'W',
+        'U': 'NE', 'Y': 'NW', 'N': 'SE', 'B': 'SW', '.': 'SELF', '5': 'SELF',
+        '8': 'N', '6': 'E', '2': 'S', '4': 'W', '9': 'NE', '7': 'NW', '3': 'SE', '1': 'SW'
+      };
+      if (viKeyMap[cleaned]) return viKeyMap[cleaned];
+    }
+
+    // 4. keySequence (e.g. ['DIR_N'], ['a', 'b', 'DIR_SELF'])
+    if (Array.isArray(action.keySequence)) {
+      const dirToken = action.keySequence.find(t => typeof t === 'string' && t.startsWith('DIR_'));
+      if (dirToken) {
+        const c = dirToken.replace(/^DIR_/, '').toUpperCase();
+        if (validDirections.has(c)) return c;
+      }
+    }
+
+    // 5. target === 'feet' or non-directional
+    if (action.target === 'feet' || action.isDirectional === false || action.category === 'SURVIVAL') {
+      return 'SELF';
+    }
+
+    // 6. action.id 末尾からの抽出 (e.g. ACTION_ATTACK_N, ACTION_OPEN_DOOR_W)
+    if (action.id) {
+      const match = action.id.match(/_([NESW]|NE|NW|SE|SW|SELF|FEET)$/);
+      if (match) {
+        return match[1] === 'FEET' ? 'SELF' : match[1];
+      }
+    }
+
+    return 'NONE';
   }
 
   /**
@@ -879,6 +829,7 @@ class GklPureJSClient {
         const dir = btn.dataset.dir;
         this.selectedDir = (this.selectedDir === dir) ? 'ALL' : dir;
         this._lastActionHtml = null; // リセットして再描画を強制
+        this.renderGklUi(); // ⚡ 即座にUIへ反映
       });
     }
 
@@ -886,6 +837,7 @@ class GklPureJSClient {
       this.elBtnDirReset.addEventListener('click', () => {
         this.selectedDir = 'ALL';
         this._lastActionHtml = null;
+        this.renderGklUi(); // ⚡ 即座にUIへ反映
       });
     }
   }
@@ -1270,9 +1222,13 @@ class GklPureJSClient {
       }
 
       if (dir === 'SELF') {
-        btn.innerHTML = `${isEn ? 'Self' : '足元'}<span class="gkl-dir-badge">${count > 0 ? count : ''}</span>`;
-      } else if (badge) {
-        badge.textContent = count > 0 ? count : '';
+        const textNode = btn.firstChild;
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+          textNode.textContent = isEn ? 'Self' : '足元';
+        }
+      }
+      if (badge) {
+        badge.textContent = count > 0 ? String(count) : '';
       }
 
       // アクションの有無によるハイライト
