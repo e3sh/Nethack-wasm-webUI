@@ -11,7 +11,7 @@
 ### 1. 🧠 GKL (Game Knowledge Layer) 仕様・設計書 (`docs/3_gkl/`)
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| [gkl_documentation.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/gkl_documentation.md) | `🟢 active` | `src/gkl/` | GKL 3層レイヤーマップ・総合仕様ガイド |
+| [gkl_documentation.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/gkl_documentation.md) | `🟢 active` | `src/gkl/` | GKL 4層レイヤーマップ・総合仕様ガイド |
 | [ArchitectureDecisionRecord.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/ArchitectureDecisionRecord.md) | `🟢 active` | `src/gkl/` | GKL アーキテクチャ意思決定記録 (ADR) |
 | [📦 archive/ サブフォルダ](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/archive) | `📦 archived` | - | 過去の推論仕様書・シーケンス設計メモ群（6ファイル退避済） |
 

@@ -56,7 +56,7 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
  │                                                          │
  │ ┌─────────────────── [ 動的状態管理層 ] ────────────────┐ │
  │ │ AreaStateManager         InventoryStateManager        │ │
- │ │ (3層マップ/地形/NPC)     (所持品/装備/ツール)         │ │
+ │ │ (4層マップ/地形/物/敵/FX) (所持品/装備/ツール)         │ │
  │ │ SpellStateManager        AttributeStateManager        │ │
  │ │ (習得魔法/詠唱率)        (^X 耐性/固有能力/装備合算)  │ │
  │ │ SkillStateManager        DiscoveryStateManager        │ │
@@ -94,7 +94,7 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
 | **統合** | [`GKLPlugin.js`](/src/core/knowledge/GKLPlugin.js) | GKL のエントリーポイント。`WebUICore` へのイベントバインドと全モジュールのライフサイクル管理。 |
 | **ファサード** | [`SituationCache.js`](/src/core/knowledge/SituationCache.js) | 分散する全マネージャの状態を集約し、最新の統合状況（`Situation`）を一括提供。 |
 | **動的状態** | [`InventoryStateManager.js`](/src/core/knowledge/InventoryStateManager.js) | 所持品（インベントリ）の解析・BUC状態・装備・各アイテムへの `item.knowledge` 物理アタッチ。 |
-| **動的状態** | [`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) | プレイヤー周辺地形・エンティティを 3 層（Top: 敵/NPC, Middle: アイテム, Bottom: 地形）で解析。 |
+| **動的状態** | [`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) | プレイヤー周辺地形・エンティティ・エフェクトを 4 層（Bottom: 地形, Middle: アイテム, Top: 敵/NPC, Effect: 光線/爆発等の過渡エフェクト）で解析・管理。 |
 | **動的状態** | [`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js) | `+` コマンド結果の解析・保持。習得中の魔法一覧、レベル、カテゴリ、詠唱失敗率の管理。 |
 | **動的状態** | [`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js) | `^X` 耐性・特性の解析 ＋ 装備品（指輪・防具）の付加耐性を自動合算（Extrinsics統合）。 |
 | **動的状態** | [`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js) | `#enhance` メニューの解析。武器・魔法スキルの現在ランクおよび向上可能状態の管理。 |

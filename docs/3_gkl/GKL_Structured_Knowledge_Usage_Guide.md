@@ -156,9 +156,9 @@ zoomCanvas.addEventListener('mousemove', (e) => {
   const gx = playerX + (tileX - 3);
   const gy = playerY + (tileY - 3);
 
-  // AreaStateManager の 3 階層セルからターゲットを取得
+  // AreaStateManager の 4 階層セルからターゲットを取得（Top ➔ Middle ➔ Bottom ➔ Effect）
   const cell = core.gkl.areaStateManager.grid[gy]?.[gx];
-  const target = cell?.top || cell?.middle || cell?.bottom;
+  const target = cell?.top || cell?.middle || cell?.bottom || cell?.effect;
 
   renderKnowledgeCard(target ? target.glyph : null);
 });

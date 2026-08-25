@@ -7,7 +7,7 @@
 ## 1. 概要とメリット (Overview & Benefits)
 
 従来の UI 実装では、マップマスのホバーやクリック時に UI 側で以下のような泥臭い処理を個別に書く必要がありました：
-- `AreaStateManager` の `cell.top` / `cell.middle` / `cell.bottom` の手動分岐・型判定
+- `AreaStateManager` の `cell.top` / `cell.middle` / `cell.bottom` / `cell.effect` の手動分岐・型判定
 - サイレント Look コマンド (`;`) の発火条件の手動制御
 - `StatusAccessor` からの自キャラ HP / Pw / AC / 所持金の型パースと手動オブジェクト組み立て
 - `getMonsterKnowledge`, `getItemKnowledge`, `getTerrainKnowledge` への多重フォールバック呼び出し
