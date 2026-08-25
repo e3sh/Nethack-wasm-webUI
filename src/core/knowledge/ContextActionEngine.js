@@ -119,21 +119,6 @@ export class ContextActionEngine {
      */
     static getAbstractDirKey(dir) {
         if (!dir) return 'DIR_SELF';
-        if (typeof dir === 'string') {
-            if (dir.startsWith('DIR_')) return dir;
-            const codeMap = {
-                'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
-                'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
-                'SELF': 'DIR_SELF',
-                '8': 'DIR_N', '6': 'DIR_E', '2': 'DIR_S', '4': 'DIR_W',
-                '9': 'DIR_NE', '7': 'DIR_NW', '3': 'DIR_SE', '1': 'DIR_SW', '5': 'DIR_SELF',
-                'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
-                'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW', '.': 'DIR_SELF'
-            };
-            return codeMap[dir] || `DIR_${dir}`;
-        }
-        const code = dir.code || '';
-        const key = dir.key || '';
         const codeMap = {
             'N': 'DIR_N', 'E': 'DIR_E', 'S': 'DIR_S', 'W': 'DIR_W',
             'NE': 'DIR_NE', 'NW': 'DIR_NW', 'SE': 'DIR_SE', 'SW': 'DIR_SW',
@@ -143,6 +128,12 @@ export class ContextActionEngine {
             'k': 'DIR_N', 'l': 'DIR_E', 'j': 'DIR_S', 'h': 'DIR_W',
             'u': 'DIR_NE', 'y': 'DIR_NW', 'n': 'DIR_SE', 'b': 'DIR_SW', '.': 'DIR_SELF'
         };
+        if (typeof dir === 'string') {
+            if (dir.startsWith('DIR_')) return dir;
+            return codeMap[dir] || `DIR_${dir}`;
+        }
+        const code = dir.code || '';
+        const key = dir.key || '';
         return codeMap[code] || codeMap[key] || (code ? `DIR_${code}` : 'DIR_SELF');
     }
 

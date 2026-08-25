@@ -474,6 +474,36 @@ export class InventoryStateManager {
             isDefault
         });
 
+        // ヘルパー: 指輪 (RING) の左右装着アクション構築
+        const resolveRingAction = () => {
+            const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
+            const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
+            let seq, label, labelJa;
+            if (hasLeftRing && hasRightRing) {
+                seq = ['P'];
+                label = 'Already wearing two rings';
+                labelJa = '両手に装着中 (P)';
+            } else {
+                const isOneRingWorn = (hasLeftRing && !hasRightRing) || (!hasLeftRing && hasRightRing);
+                const targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
+                // 1個装着中の場合は自動的に空いている手に入るため targetFinger を送ってはならない
+                seq = isOneRingWorn ? (letter ? ['P', letter] : ['P']) : (letter ? ['P', letter, targetFinger] : ['P']);
+                label = 'Put on ring';
+                labelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
+            }
+            return {
+                defaultVerb: 'P',
+                defaultSequence: seq,
+                defaultActionLabel: label,
+                defaultActionLabelJa: labelJa,
+                itemCategory: 'RING',
+                alternativeActions: [
+                    makeAlt('P', seq, labelJa, true),
+                    letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
+                ].filter(Boolean)
+            };
+        };
+
         // 1. 既に装備・着用・装填中のアイテムの解除アクション優先 (動的状態判定)
         if (isWielded || isOffhand) {
             defaultVerb = 'w';
@@ -556,31 +586,13 @@ export class InventoryStateManager {
             }
             // 3. 指輪 (RING) の左右装着キー構築
             else if (itemCategory === 'RING' || (knowledge && (knowledge.category === 'RING' || knowledge.defaultVerb === 'put_on' && knowledge.category !== 'AMULET'))) {
-                defaultVerb = 'P';
-                const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
-                const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
-                if (hasLeftRing && hasRightRing) {
-                    defaultSequence = ['P'];
-                    defaultActionLabel = 'Already wearing two rings';
-                    defaultActionLabelJa = '両手に装着中 (P)';
-                    itemCategory = 'RING';
-                    alternativeActions = [
-                        makeAlt('P', ['P'], '両手に装着中 (P)', true),
-                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                    ].filter(Boolean);
-                } else {
-                    const isOneRingWorn = (hasLeftRing && !hasRightRing) || (!hasLeftRing && hasRightRing);
-                    let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
-                    // 1個装着中の場合は自動的に空いている手に入るため targetFinger を送ってはならない
-                    defaultSequence = isOneRingWorn ? (letter ? ['P', letter] : ['P']) : (letter ? ['P', letter, targetFinger] : ['P']);
-                    defaultActionLabel = 'Put on ring';
-                    defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
-                    itemCategory = 'RING';
-                    alternativeActions = [
-                        makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
-                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                    ].filter(Boolean);
-                }
+                const ringRes = resolveRingAction();
+                defaultVerb = ringRes.defaultVerb;
+                defaultSequence = ringRes.defaultSequence;
+                defaultActionLabel = ringRes.defaultActionLabel;
+                defaultActionLabelJa = ringRes.defaultActionLabelJa;
+                itemCategory = ringRes.itemCategory;
+                alternativeActions = ringRes.alternativeActions;
             }
             // 4. ナレッジデータ駆動 (Single Source of Truth 参照)
             else if (knowledge && knowledge.defaultVerb) {
@@ -738,29 +750,13 @@ export class InventoryStateManager {
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
             } else if (onumCategory === 'RING') {
-                defaultVerb = 'P';
-                const hasLeftRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_left');
-                const hasRightRing = Array.isArray(itemList) && itemList.some(i => i.isWorn && i.equipSlot === 'ring_right');
-                if (hasLeftRing && hasRightRing) {
-                    defaultSequence = ['P'];
-                    defaultActionLabel = 'Already wearing two rings';
-                    defaultActionLabelJa = '両手に装着中 (P)';
-                    alternativeActions = [
-                        makeAlt('P', ['P'], '両手に装着中 (P)', true),
-                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                    ].filter(Boolean);
-                } else {
-                    const isOneRingWorn = (hasLeftRing && !hasRightRing) || (!hasLeftRing && hasRightRing);
-                    let targetFinger = (hasLeftRing && !hasRightRing) ? 'r' : 'l';
-                    // 1個装着中の場合は自動的に空いている手に入るため targetFinger を送ってはならない
-                    defaultSequence = isOneRingWorn ? (letter ? ['P', letter] : ['P']) : (letter ? ['P', letter, targetFinger] : ['P']);
-                    defaultActionLabel = 'Put on ring';
-                    defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
-                    alternativeActions = [
-                        makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
-                        letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
-                    ].filter(Boolean);
-                }
+                const ringRes = resolveRingAction();
+                defaultVerb = ringRes.defaultVerb;
+                defaultSequence = ringRes.defaultSequence;
+                defaultActionLabel = ringRes.defaultActionLabel;
+                defaultActionLabelJa = ringRes.defaultActionLabelJa;
+                itemCategory = ringRes.itemCategory;
+                alternativeActions = ringRes.alternativeActions;
             } else if (onumCategory === 'AMULET') {
                 defaultVerb = 'P';
                 defaultSequence = letter ? ['P', letter] : ['P'];
