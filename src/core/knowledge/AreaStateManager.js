@@ -6,6 +6,22 @@
 
 import { classifyGlyph, ENTITY_TYPES } from './glyphClassifier.js';
 
+export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
+
+/**
+ * 足元またはエンティティ出現マス用の仮床オブジェクトを生成
+ * @returns {Object}
+ */
+export function createInferredFloor() {
+    const info = classifyGlyph(DEFAULT_INFERRED_FLOOR_GLYPH);
+    return {
+        ...info,
+        glyph: DEFAULT_INFERRED_FLOOR_GLYPH,
+        rawGlyph: DEFAULT_INFERRED_FLOOR_GLYPH,
+        inferred: true
+    };
+}
+
 export class AreaStateManager {
     constructor(width = 80, height = 24, monsterTracker = null) {
         this.width = width;
@@ -42,7 +58,7 @@ export class AreaStateManager {
                     y,
                     bottom: null, // 地形 / トラップ
                     middle: null, // アイテム / 死体 / 像
-                    top: null,    // モンスター / ペット
+                    top: null,    // モンスター / プレイヤー
                     effect: null  // エフェクト（ビーム・稲妻・爆発等の過渡的表示）
                 });
             }
@@ -83,6 +99,9 @@ export class AreaStateManager {
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
+                if (cell.bottom === null) {
+                    cell.bottom = createInferredFloor();
+                }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 cell.effect = null;
@@ -94,6 +113,9 @@ export class AreaStateManager {
                 const existingDynamic = (cell.top && (cell.top.monOffset === info.monOffset || cell.top.glyph === glyphId))
                     ? cell.top.dynamicState
                     : null;
+                if (cell.bottom === null) {
+                    cell.bottom = createInferredFloor();
+                }
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
                 cell.effect = null;
                 if (this.monsterTracker && typeof this.monsterTracker.updateVisibleMonster === 'function') {
@@ -130,6 +152,10 @@ export class AreaStateManager {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
             if (this.monsterTracker && typeof this.monsterTracker.handlePlayerPosition === 'function') {
                 this.monsterTracker.handlePlayerPosition(x, y);
+            }
+            const cell = this.grid[y][x];
+            if (cell && cell.bottom === null) {
+                cell.bottom = createInferredFloor();
             }
             if (this.playerX === x && this.playerY === y) return false;
             this.playerX = x;

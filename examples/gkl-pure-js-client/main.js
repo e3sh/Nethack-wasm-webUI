@@ -112,9 +112,12 @@ class GklPureJSClient {
     this.asciiGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => ({ ch: ' ', color: 7 })));
     this.glyphGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
 
-    // Multi-path Sprite Tile Image Loader
+    // Multi-path Sprite Tile Image Loader (Main: Opaque, Zoom: Transparent)
     this.tileImg = new Image();
     this.tileLoaded = false;
+    this.zoomTileImg = new Image();
+    this.zoomTileLoaded = false;
+
     this.initTileImageWithFallback([
       '../../pict/nethack_default_32.png',
       '../../assets/nethack_default_32.png',
@@ -122,7 +125,26 @@ class GklPureJSClient {
       'assets/nethack_default_32.png',
       '/pict/nethack_default_32.png',
       '/assets/nethack_default_32.png'
-    ]);
+    ], (p) => {
+      this.tileImg.src = p;
+      this.loadedTileImagePath = p;
+      this.tileLoaded = true;
+      this.redrawAllGraphicTiles();
+    });
+
+    this.initTileImageWithFallback([
+      '../../pict/nethack_default_32_tr.png',
+      '../../assets/nethack_default_32_tr.png',
+      'pict/nethack_default_32_tr.png',
+      'assets/nethack_default_32_tr.png',
+      '/pict/nethack_default_32_tr.png',
+      '/assets/nethack_default_32_tr.png'
+    ], (p) => {
+      this.zoomTileImg.src = p;
+      this.loadedZoomTileImagePath = p;
+      this.zoomTileLoaded = true;
+      this.renderGklZoomView();
+    });
 
     this.init();
   }
@@ -151,20 +173,19 @@ class GklPureJSClient {
     }
   }
 
-  initTileImageWithFallback(paths) {
+  initTileImageWithFallback(paths, onSuccess) {
     let index = 0;
     const tryNext = () => {
       if (index >= paths.length) {
-        console.warn("[GKL PureJS] All tile paths failed. Fallback active.");
+        console.warn("[GKL PureJS] Tile paths failed for:", paths[0]);
         return;
       }
       const p = paths[index++];
       const testImg = new Image();
       testImg.onload = () => {
-        this.tileImg.src = p;
-        this.loadedTileImagePath = p;
-        this.tileLoaded = true;
-        this.redrawAllGraphicTiles();
+        if (typeof onSuccess === 'function') {
+          onSuccess(p);
+        }
       };
       testImg.onerror = tryNext;
       testImg.src = p;
@@ -667,7 +688,10 @@ class GklPureJSClient {
     }
 
     const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
-    const cols = (this.tileImg && this.tileImg.width) ? Math.floor(this.tileImg.width / 32) : 40;
+    const activeZoomImg = (this.zoomTileLoaded && this.zoomTileImg && this.zoomTileImg.naturalWidth > 0)
+      ? this.zoomTileImg
+      : (this.tileLoaded && this.tileImg && this.tileImg.naturalWidth > 0 ? this.tileImg : null);
+    const cols = (activeZoomImg && activeZoomImg.width) ? Math.floor(activeZoomImg.width / 32) : 40;
 
     const canvasW = this.zoomCanvas.width; // 672
     const canvasH = this.zoomCanvas.height; // 288
@@ -750,11 +774,16 @@ class GklPureJSClient {
   }
 
   drawZoomTile(glyphId, cols, tileMap, dx, dy, animY = 0) {
-    if (this.tileLoaded && this.tileImg.naturalWidth > 0) {
+    const activeZoomImg = (this.zoomTileLoaded && this.zoomTileImg && this.zoomTileImg.naturalWidth > 0)
+      ? this.zoomTileImg
+      : (this.tileLoaded && this.tileImg && this.tileImg.naturalWidth > 0 ? this.tileImg : null);
+
+    if (activeZoomImg) {
       const tileIndex = tileMap[glyphId] !== undefined ? tileMap[glyphId] : 0;
-      const sx = (tileIndex % cols) * 32;
-      const sy = Math.floor(tileIndex / cols) * 32;
-      this.zoomCtx.drawImage(this.tileImg, sx, sy, 32, 32, dx, dy + animY, 32, 32);
+      const imgCols = Math.floor(activeZoomImg.width / 32) || cols;
+      const sx = (tileIndex % imgCols) * 32;
+      const sy = Math.floor(tileIndex / imgCols) * 32;
+      this.zoomCtx.drawImage(activeZoomImg, sx, sy, 32, 32, dx, dy + animY, 32, 32);
     } else {
       this.zoomCtx.fillStyle = glyphId === 0 ? '#00e676' : '#ffd740';
       this.zoomCtx.fillRect(dx + 4, dy + 4 + animY, 24, 24);
