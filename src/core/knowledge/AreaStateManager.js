@@ -42,7 +42,8 @@ export class AreaStateManager {
                     y,
                     bottom: null, // 地形 / トラップ
                     middle: null, // アイテム / 死体 / 像
-                    top: null     // モンスター / ペット
+                    top: null,    // モンスター / ペット
+                    effect: null  // エフェクト（ビーム・稲妻・爆発等の過渡的表示）
                 });
             }
             this.grid.push(row);
@@ -50,7 +51,7 @@ export class AreaStateManager {
     }
 
     /**
-     * 描画グリフの更新を受信し、3 階層キャッシュを即座に適用
+     * 描画グリフの更新を受信し、3 階層キャッシュ＋エフェクトを即座に適用
      * @param {number} x 
      * @param {number} y 
      * @param {number} glyphId 
@@ -72,6 +73,7 @@ export class AreaStateManager {
                 cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.middle = null;
                 cell.top = null;
+                cell.effect = null;
                 break;
 
             case ENTITY_TYPES.ITEM:
@@ -83,6 +85,7 @@ export class AreaStateManager {
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
+                cell.effect = null;
                 break;
 
             case ENTITY_TYPES.MONSTER:
@@ -92,13 +95,15 @@ export class AreaStateManager {
                     ? cell.top.dynamicState
                     : null;
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
+                cell.effect = null;
                 if (this.monsterTracker && typeof this.monsterTracker.updateVisibleMonster === 'function') {
                     this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo);
                 }
                 break;
 
             case ENTITY_TYPES.EFFECT:
-                // エフェクト（爆発等）は一時的な表示
+                // エフェクト（ビーム・稲妻・爆発等）を最前面エフェクトレイヤーとして保持
+                cell.effect = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 break;
 
             default:

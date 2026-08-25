@@ -722,9 +722,9 @@ class GklPureJSClient {
                 this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
               }
 
-              // Layer 4: Effect Overlay (稲妻・ビーム・爆発等の過渡的エフェクト)
-              if (gData && this.isEffectGlyph(gData.glyph)) {
-                this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
+              // Layer 4: Effect (稲妻・ビーム・爆発等の過渡的エフェクト)
+              if (cell.effect && cell.effect.rawGlyph >= 0) {
+                this.drawZoomTile(cell.effect.rawGlyph, cols, tileMap, screenX, screenY, 0);
               }
             } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
               this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
@@ -747,10 +747,6 @@ class GklPureJSClient {
         }
       }
     }
-  }
-
-  isEffectGlyph(glyphId) {
-    return glyphId !== undefined && glyphId !== null && glyphId >= 4051 && glyphId < 7220;
   }
 
   drawZoomTile(glyphId, cols, tileMap, dx, dy, animY = 0) {
@@ -1803,10 +1799,9 @@ class GklPureJSClient {
             }
           }
 
-          // Layer 4 (Effect Overlay - 稲妻・ビーム・爆発等)
-          const gData = this.glyphGridBuffer[y][x];
-          if (gData && this.isEffectGlyph(gData.glyph)) {
-            this.drawTileGlyph(gData.glyph, cols, tileMap, dx, dy, 0);
+          // Layer 4 (Effect - 稲妻・ビーム・爆発等)
+          if (cell.effect && cell.effect.rawGlyph >= 0) {
+            this.drawTileGlyph(cell.effect.rawGlyph, cols, tileMap, dx, dy, 0);
           }
         } else {
           const gData = this.glyphGridBuffer[y][x];

@@ -80,6 +80,29 @@ describe('All Glyphs (0 ~ 9622) Full Stress & Verification Test', () => {
         expect(asm.grid[5][10].bottom).not.toBeNull();
         expect(asm.grid[5][10].middle).toBeNull();
         expect(asm.grid[5][10].top).toBeNull();
+        expect(asm.grid[5][10].effect).toBeNull();
+    });
+
+    it('should verify that EFFECT glyphs set cell.effect and are cleared when restored by terrain updates', () => {
+        const asm = new AreaStateManager();
+        const terrainGlyph = 3993; // Floor
+        const zapGlyph = 4055;     // Wand zap effect
+
+        // 1. まず地形をセット
+        asm.updateGlyph(12, 6, terrainGlyph);
+        expect(asm.grid[6][12].bottom).not.toBeNull();
+        expect(asm.grid[6][12].effect).toBeNull();
+
+        // 2. 光線・エフェクトが届く
+        asm.updateGlyph(12, 6, zapGlyph);
+        expect(asm.grid[6][12].bottom).not.toBeNull(); // 地形は保持される
+        expect(asm.grid[6][12].effect).not.toBeNull(); // エフェクトがセットされる
+        expect(asm.grid[6][12].effect.glyph).toBe(zapGlyph);
+
+        // 3. newsym による元の地形の復元パケットが届く
+        asm.updateGlyph(12, 6, terrainGlyph);
+        expect(asm.grid[6][12].bottom).not.toBeNull();
+        expect(asm.grid[6][12].effect).toBeNull();     // エフェクトがクリアされる
     });
 
     it('should test that all pet glyphs (766 to 1531) resolve to valid monster knowledge with TAMED disposition', () => {
