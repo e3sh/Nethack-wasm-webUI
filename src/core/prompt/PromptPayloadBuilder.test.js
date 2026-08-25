@@ -75,6 +75,82 @@ describe('PromptPayloadBuilder', () => {
         expect(res.options[5]).toEqual({ key: '*', label: 'All (*)', btnClass: 'btn-default' });
     });
 
+    it('アイテム選択プロンプトで l や n や a や q などの文字が含まれていても Left/No/All/Quit に誤変換されずインベントリまたは文字単体になること', () => {
+        const mockGkl = {
+            inventoryStateManager: {
+                items: [
+                    { letter: 'c', name: 'wand of light (0:15)' },
+                    { letter: 'm', name: 'spellbook of slow monster' },
+                    { letter: 'n', name: 'scroll of teleportation' },
+                    { letter: 'p', name: 'wand of striking' }
+                ]
+            }
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "何を使用または適用しますか?[clmnp or ?*]",
+            choices: ""
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(7);
+        expect(res.options.map(o => o.key)).toEqual(['c', 'l', 'm', 'n', 'p', '?', '*']);
+        
+        // c: wand of light
+        expect(res.options[0]).toEqual({ key: 'c', label: 'wand of light (0:15) (c)', btnClass: 'btn-default' });
+        // l: インベントリにないがアイテムプロンプトなので Left (l) ではなく 'l'
+        expect(res.options[1]).toEqual({ key: 'l', label: 'l', btnClass: 'btn-default' });
+        // m: spellbook
+        expect(res.options[2]).toEqual({ key: 'm', label: 'spellbook of slow monster (m)', btnClass: 'btn-default' });
+        // n: インベントリにあるので No (n) ではなく scroll of teleportation (n)
+        expect(res.options[3]).toEqual({ key: 'n', label: 'scroll of teleportation (n)', btnClass: 'btn-default' });
+        // p: wand of striking
+        expect(res.options[4]).toEqual({ key: 'p', label: 'wand of striking (p)', btnClass: 'btn-default' });
+        // ? and *
+        expect(res.options[5]).toEqual({ key: '?', label: 'List (?)', btnClass: 'btn-default' });
+        expect(res.options[6]).toEqual({ key: '*', label: 'All (*)', btnClass: 'btn-default' });
+    });
+
+    it('左右選択プロンプト (Which ring? [lr]) では Left (l) と Right (r) に正しくパースされること', () => {
+        const builder = new PromptPayloadBuilder();
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "Which ring? [lr]",
+            choices: "lr"
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(2);
+        expect(res.options[0]).toEqual({ key: 'l', label: 'Left (l)', btnClass: 'btn-default' });
+        expect(res.options[1]).toEqual({ key: 'r', label: 'Right (r)', btnClass: 'btn-default' });
+    });
+
+    it('インベントリに n や y のアイテムを持っていても、YN質問 (本当に保存しますか?) では No(n) / Yes(y) としてパースされること', () => {
+        const mockGkl = {
+            inventoryStateManager: {
+                items: [
+                    { letter: 'n', name: 'magic marker (0:20)' },
+                    { letter: 'y', name: 'yendorian amulet' }
+                ]
+            }
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+        const payload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "本当に保存しますか?",
+            choices: "yn"
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('CHOICE_BUTTONS');
+        expect(res.options).toHaveLength(2);
+        expect(res.options[0]).toEqual({ key: 'y', label: 'Yes (y)', btnClass: 'btn-primary' });
+        expect(res.options[1]).toEqual({ key: 'n', label: 'No (n)', btnClass: 'btn-secondary' });
+    });
+
     it('choices が空でアイテム指定等の質問の場合に LINE_TEXT ではなく SINGLE_KEY にパースされること', () => {
         const builder = new PromptPayloadBuilder();
         const payload = {

@@ -120,43 +120,90 @@ export class PromptPayloadBuilder {
                 // 重複除去
                 keys = Array.from(new Set(keys));
 
-                const labelMap = {
-                    'y': 'Yes (y)',
-                    'n': 'No (n)',
-                    'q': 'Quit (q)',
-                    'a': 'All (a)',
-                    'r': 'Right (r)',
-                    'l': 'Left (l)',
-                    '*': 'All (*)',
-                    '?': 'List (?)'
-                };
+                // コンテキスト判定 (左右選択 vs アイテム選択 vs YN確認)
+                const lowerPrompt = (rawPrompt || '').toLowerCase();
+                const lowerChoices = effectiveChoices.toLowerCase();
 
+                // 1. 左右選択 (Side Selection)
+                const isSideSelection = (lowerChoices === 'lr' || lowerChoices === 'l/r' || lowerChoices === 'rl') ||
+                    ((lowerChoices.includes('l') && lowerChoices.includes('r') && lowerChoices.length <= 4) &&
+                     (lowerPrompt.includes('ring') || lowerPrompt.includes('hand') || lowerPrompt.includes('side') ||
+                      (rawPrompt || '').includes('指輪') || (rawPrompt || '').includes('手') || (rawPrompt || '').includes('側')));
+
+                // 2. Y/N 確認ダイアログ判定用のキー・選択肢チェック
+                const isYnKeysOnly = keys.length > 0 && keys.every(k => ['y', 'n', 'q', 'a', ' '].includes(k.toLowerCase()));
+                const isYnChoices = /^[ynqa\s\/]+$/i.test(effectiveChoices);
+
+                // 3. アイテム選択プロンプト (Item Selection)
+                const isItemPromptPattern = /what do you want to|eat what|read what|drink what|wear what|wield what|zap what|apply what|take off what|drop what|which item|何を使用|適用|何を食べ|何を飲|何を読|どの.*振|何を装備|何を外|何を置|何を投|どのアイテム|何を識別/i.test(rawPrompt || '');
+                const hasItemSpecialKeys = effectiveChoices.includes('?') || effectiveChoices.includes('*') || /\[.*?(\?|\*).*?\]/.test(rawPrompt || '');
+                const hasNonYnKeys = keys.some(k => !['y', 'n', 'q', 'a', ' '].includes(k.toLowerCase()));
+                
                 const invManager = (this.gkl && this.gkl.inventoryStateManager) ? this.gkl.inventoryStateManager : null;
+                const hasMatchingInvLetters = invManager && Array.isArray(invManager.items) &&
+                    keys.some(k => k !== '?' && k !== '*' && invManager.items.some(it => it.letter === k));
+
+                let isItemSelection = false;
+                if (!isSideSelection) {
+                    if (hasItemSpecialKeys || isItemPromptPattern) {
+                        isItemSelection = true;
+                    } else if (!isYnKeysOnly && !isYnChoices && hasNonYnKeys && hasMatchingInvLetters) {
+                        isItemSelection = true;
+                    }
+                }
 
                 if (keys.length > 0 && keys.length <= 16) {
                     options = keys.map(k => {
-                        let label = labelMap[k.toLowerCase()] || labelMap[k] || `${k}`;
-                        if (!labelMap[k.toLowerCase()] && !labelMap[k]) {
-                            if (invManager && invManager.items) {
-                                const matchedInv = invManager.items.find(it => it.letter === k);
-                                if (matchedInv) {
-                                    const rawName = matchedInv.name || matchedInv.text || matchedInv.rawText || '';
-                                    const itemName = (this.translator && typeof this.translator.translate === 'function') 
-                                        ? this.translator.translate(rawName)
-                                        : rawName;
-                                    if (itemName) {
-                                        label = `${itemName} (${k})`;
-                                    } else {
-                                        label = `${k}`;
+                        let label = `${k}`;
+                        let btnClass = 'btn-default';
+
+                        if (isItemSelection) {
+                            if (k === '?') {
+                                label = 'List (?)';
+                            } else if (k === '*') {
+                                label = 'All (*)';
+                            } else {
+                                if (invManager && invManager.items) {
+                                    const matchedInv = invManager.items.find(it => it.letter === k);
+                                    if (matchedInv) {
+                                        const rawName = matchedInv.name || matchedInv.text || matchedInv.rawText || '';
+                                        const itemName = (this.translator && typeof this.translator.translate === 'function')
+                                            ? this.translator.translate(rawName)
+                                            : rawName;
+                                        if (itemName) {
+                                            label = `${itemName} (${k})`;
+                                        }
                                     }
                                 }
+                            }
+                        } else if (isSideSelection) {
+                            if (k.toLowerCase() === 'l') {
+                                label = 'Left (l)';
+                            } else if (k.toLowerCase() === 'r') {
+                                label = 'Right (r)';
+                            }
+                        } else {
+                            // Y/N / 一般確認ダイアログ
+                            const ynLabelMap = {
+                                'y': 'Yes (y)',
+                                'n': 'No (n)',
+                                'q': 'Quit (q)',
+                                'a': 'All (a)',
+                                '*': 'All (*)',
+                                '?': 'List (?)'
+                            };
+                            label = ynLabelMap[k.toLowerCase()] || ynLabelMap[k] || `${k}`;
+                            if (k === 'y' || k === 'Y') {
+                                btnClass = 'btn-primary';
+                            } else if (k === 'n' || k === 'N') {
+                                btnClass = 'btn-secondary';
                             }
                         }
 
                         return {
                             key: k,
                             label: label,
-                            btnClass: k === 'y' ? 'btn-primary' : (k === 'n' ? 'btn-secondary' : 'btn-default')
+                            btnClass: btnClass
                         };
                     });
                 } else {
