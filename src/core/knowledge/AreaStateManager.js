@@ -30,8 +30,50 @@ export class AreaStateManager {
         this.playerY = 0;
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
+        this.currentFloor = 'Dlvl:1'; // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
+        this.stairCache = new Map();  // フロア別階段キャッシュ ("floor:x,y" => terrainEntity)
         this.grid = [];
         this.resetGrid();
+    }
+
+    /**
+     * 指定フロア（省略時は currentFloor）の全階段キャッシュをグリッドに一括反映
+     * @param {string} [floorKey]
+     */
+    applyStairCacheForFloor(floorKey = this.currentFloor) {
+        if (!floorKey || !this.stairCache || this.stairCache.size === 0) return;
+        const prefix = `${floorKey}:`;
+        for (const [key, stairEntity] of this.stairCache.entries()) {
+            if (key.startsWith(prefix)) {
+                const coordStr = key.slice(prefix.length);
+                const [xStr, yStr] = coordStr.split(',');
+                const x = parseInt(xStr, 10);
+                const y = parseInt(yStr, 10);
+                if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                    if (this.grid[y] && this.grid[y][x]) {
+                        this.grid[y][x].bottom = { ...stairEntity };
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 現在のダンジョン階層（フロア識別子）を設定し、該当フロアの階段キャッシュをグリッドに反映
+     * @param {string} floorKey 
+     */
+    setCurrentFloor(floorKey) {
+        if (floorKey) {
+            this.currentFloor = String(floorKey).trim();
+            this.applyStairCacheForFloor(this.currentFloor);
+        }
+    }
+
+    /**
+     * 階段キャッシュを初期化（ゲームリスタート時など）
+     */
+    clearStairCache() {
+        this.stairCache.clear();
     }
 
     /**
@@ -90,6 +132,12 @@ export class AreaStateManager {
                 cell.middle = null;
                 cell.top = null;
                 cell.effect = null;
+
+                // 階段・ハシゴであればフロア別キャッシュに記録
+                if (info.cmapFlags && (info.cmapFlags.isStairUp || info.cmapFlags.isStairDown)) {
+                    const key = `${this.currentFloor}:${x},${y}`;
+                    this.stairCache.set(key, { ...cell.bottom });
+                }
                 break;
 
             case ENTITY_TYPES.ITEM:
@@ -155,7 +203,13 @@ export class AreaStateManager {
             }
             const cell = this.grid[y][x];
             if (cell && cell.bottom === null) {
-                cell.bottom = createInferredFloor();
+                const key = `${this.currentFloor}:${x},${y}`;
+                const cachedStair = this.stairCache.get(key);
+                if (cachedStair) {
+                    cell.bottom = { ...cachedStair };
+                } else {
+                    cell.bottom = createInferredFloor();
+                }
             }
             if (this.playerX === x && this.playerY === y) return false;
             this.playerX = x;

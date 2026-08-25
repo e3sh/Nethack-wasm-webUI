@@ -127,8 +127,13 @@ export class GKLPlugin {
         if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
             this.monsterTracker.reset();
         }
-        if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
-            this.areaStateManager.resetGrid();
+        if (this.areaStateManager) {
+            if (typeof this.areaStateManager.resetGrid === 'function') {
+                this.areaStateManager.resetGrid();
+            }
+            if (typeof this.areaStateManager.clearStairCache === 'function') {
+                this.areaStateManager.clearStairCache();
+            }
         }
         if (this.inventoryStateManager) {
             this.inventoryStateManager.items = [];
@@ -335,6 +340,9 @@ export class GKLPlugin {
         addCoreListener('clear_nhwindow', (data) => {
             if (data && (data.windowId === 2 || data.windowId === 0)) {
                 this.areaStateManager.resetGrid();
+                if (typeof this.areaStateManager.applyStairCacheForFloor === 'function') {
+                    this.areaStateManager.applyStairCacheForFloor();
+                }
                 if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
                     this.situationCache.invalidate();
                 }
@@ -343,6 +351,9 @@ export class GKLPlugin {
 
         addCoreListener('map_cleared', () => {
             this.areaStateManager.resetGrid();
+            if (typeof this.areaStateManager.applyStairCacheForFloor === 'function') {
+                this.areaStateManager.applyStairCacheForFloor();
+            }
             if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
                 this.situationCache.invalidate();
             }
@@ -372,6 +383,9 @@ export class GKLPlugin {
 
                 // 階層 (BL_DLEVEL = 20) の同期
                 if (data.field === 20 || data.field === 'dlevel') {
+                    if (this.areaStateManager && typeof this.areaStateManager.setCurrentFloor === 'function') {
+                        this.areaStateManager.setCurrentFloor(data.value);
+                    }
                     if (this.monsterTracker) {
                         this.monsterTracker.handleDlevelChange(data.value);
                     }

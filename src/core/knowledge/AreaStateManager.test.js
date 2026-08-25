@@ -159,4 +159,85 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(cell.bottom.cmapFlags.isWall).toBe(true);
         });
     });
+
+    describe('Staircase Cache and Floor Transition Recovery', () => {
+        it('should cache staircase when terrain glyph is stair up or down', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999; // 下り階段
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            expect(asm.stairCache.has('Dlvl:1:18,12')).toBe(true);
+            const cached = asm.stairCache.get('Dlvl:1:18,12');
+            expect(cached.cmapFlags.isStairDown).toBe(true);
+        });
+
+        it('should restore staircase at player feet when revisiting floor', () => {
+            // 1. Dlvl:1 で階段(18, 12)を発見・記録
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999;
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            // 2. Dlvl:2 へ移動 (グリッドリセット & フロア切替)
+            asm.setCurrentFloor('Dlvl:2');
+            asm.resetGrid();
+            expect(asm.grid[18][12].bottom).toBeNull();
+
+            // 3. Dlvl:1 に戻ってきて (18, 12) に出現
+            asm.setCurrentFloor('Dlvl:1');
+            asm.resetGrid();
+            expect(asm.grid[18][12].bottom).toBeNull();
+
+            asm.updatePlayerPosition(18, 12);
+
+            const feetCell = asm.grid[12][18]; // y=12, x=18
+            expect(feetCell.bottom).not.toBeNull();
+            expect(feetCell.bottom.cmapFlags.isStairDown).toBe(true);
+            expect(feetCell.bottom.inferred).toBeUndefined(); // 確定情報として復元
+        });
+
+        it('should fallback to inferred floor if player arrives at non-staircase position (e.g. pit / teleport)', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999;
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            // フロア移動後、落とし穴等で (5, 5) に出現
+            asm.resetGrid();
+            asm.updatePlayerPosition(5, 5);
+
+            const feetCell = asm.grid[5][5];
+            expect(feetCell.bottom).not.toBeNull();
+            expect(feetCell.bottom.inferred).toBe(true);
+            expect(feetCell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should preload all cached stairs of the floor into grid on setCurrentFloor', () => {
+            // 1. Dlvl:1 で上り階段 (5, 5) と下り階段 (20, 15) の2つを記録
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(5, 5, 3998);   // 上り階段
+            asm.updateGlyph(20, 15, 3999); // 下り階段
+
+            // 2. Dlvl:2 へ移動 (グリッドリセット)
+            asm.setCurrentFloor('Dlvl:2');
+            asm.resetGrid();
+            expect(asm.grid[5][5].bottom).toBeNull();
+            expect(asm.grid[15][20].bottom).toBeNull();
+
+            // 3. Dlvl:1 に戻ると、グリッドに (5, 5) と (20, 15) の両方が自動復元される
+            asm.setCurrentFloor('Dlvl:1');
+            expect(asm.grid[5][5].bottom).not.toBeNull();
+            expect(asm.grid[5][5].bottom.cmapFlags.isStairUp).toBe(true);
+
+            expect(asm.grid[15][20].bottom).not.toBeNull();
+            expect(asm.grid[15][20].bottom.cmapFlags.isStairDown).toBe(true);
+        });
+
+        it('should clear stair cache when clearStairCache is called', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(10, 10, 3998); // 上り階段
+            expect(asm.stairCache.size).toBe(1);
+
+            asm.clearStairCache();
+            expect(asm.stairCache.size).toBe(0);
+        });
+    });
 });

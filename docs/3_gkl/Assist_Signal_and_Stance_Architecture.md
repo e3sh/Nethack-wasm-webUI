@@ -213,6 +213,136 @@ NetHack において取得魔法の案内は、職業格差（ヒーラー/魔�
 
 ---
 
+### 5.5 フロア案内 ＆ ランドマーク（設備）台帳仕様 (Floor Landmark & POI Registry)
+
+NetHack は数十階層を行き来するゲームであり、「あの階の祭壇はどこだっけ？」「道具屋があったのは何階か？」「指輪識別用の流し台を見失った」という**探索メモの記憶負荷（うろ覚え問題）**がプレイヤーの大きなストレス要因となります。
+`AreaStateManager` のフロア別キャッシュ基盤を活用し、発見済み設備を自動集計・提示する「フロア案内」をアシスト基盤へ統合します。
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ Level 1: Nano Badge (フロア設備バッジ)                                 │
+│ ・ヘッダーやフロア表示部に発見済みランドマークをアイコンバッジ一覧表示 │
+│ ・例: [🗺️ Dlvl:3] [🪜上] [🪜下] [⛪祭壇(中立)] [🚰流し台] [🏪道具屋]   │
+├────────────────────────────────────────────────────────────────────────┤
+│ Level 2: 1-Line Signal (状況連動型ランドマーク示唆)                    │
+│ ・状況や持ち物に応じた気付きシグナル                                   │
+│ ・例: "🚰 未識別指輪所持: このフロアに流し台(Sink)あり"                │
+│ ・例: "⛪ 重い死体所持: このフロアに同属性の祭壇あり (捧げ物可能)"     │
+├────────────────────────────────────────────────────────────────────────┤
+│ Level 3: Action & Landmark Guide (ナビゲーション ＆ 設備詳細)          │
+│ ・対象設備への方向ガイド / 距離表示 / ワンタップ移動                   │
+│ ・フロア設備台帳モーダルでの全フロア一覧確認                           │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.5.1 データ型定義 (TypeScript Data Contract)
+```typescript
+export type LandmarkType = 
+    | 'STAIR_UP'      // 上り階段 / ハシゴ
+    | 'STAIR_DOWN'    // 下り階段 / ハシゴ
+    | 'ALTAR'         // 祭壇 (無属性/秩序/中立/混沌/異教)
+    | 'SINK'          // 流し台
+    | 'FOUNTAIN'      // 噴水
+    | 'THRONE'        // 王座
+    | 'SHOP';         // 商店 (店主)
+
+export type AltarAlignment = 'unaligned' | 'lawful' | 'neutral' | 'chaotic' | 'other';
+
+export interface LandmarkEntity {
+    id: string;              // 一意ID (例: "Dlvl:3:18,12:STAIR_DOWN")
+    type: LandmarkType;      // ランドマーク種別
+    floorKey: string;        // 所属フロア (例: "Dlvl:3", "Minetown:3")
+    x: number;               // マップX座標 (0〜79)
+    y: number;               // マップY座標 (0〜23)
+    glyphId: number;         // グリフID (NetHack CMAP/MON ID)
+    name: string;            // 英語表示名 (例: "altar (neutral)", "sink")
+    nameJa: string;          // 日本語表示名 (例: "祭壇 (中立)", "流し台")
+    icon: string;            // 表示用絵文字/シンボル (例: "⛪", "🚰", "🪜")
+    details?: {
+        alignment?: AltarAlignment; // 祭壇の属性
+        alignmentJa?: string;       // 属性日本語名 ("中立", "秩序", "混沌" 等)
+        shopkeeperType?: string;    // 店主種別
+    };
+}
+
+export interface FloorLandmarksSummary {
+    floorKey: string;
+    stairsUp: LandmarkEntity[];
+    stairsDown: LandmarkEntity[];
+    altars: LandmarkEntity[];
+    sinks: LandmarkEntity[];
+    fountains: LandmarkEntity[];
+    thrones: LandmarkEntity[];
+    shops: LandmarkEntity[];
+    all: LandmarkEntity[];
+}
+```
+
+#### 5.5.2 ランドマーク検出 ＆ セマンティック判定アルゴリズム
+`AreaStateManager.updateGlyph(x, y, glyphId)` 受信時に、以下の判定ロジックで自動抽出・登録します：
+
+| 設備種別 | 判定条件 (Glyph ID / cmapFlags) | 属性・詳細判定 | アイコン | 日本語名 |
+| :--- | :--- | :--- | :---: | :--- |
+| **上り階段** | `cmapFlags.isStairUp` (3998, 4000, 4002, 4004) | - | 🪜 | 上り階段 / ハシゴ |
+| **下り階段** | `cmapFlags.isStairDown` (3999, 4001, 4003, 4005) | - | 🪜 | 下り階段 / ハシゴ |
+| **祭壇 (無属性)** | `glyphId === 4006` | `alignment: 'unaligned'` | ⛪ | 祭壇 (無属性) |
+| **祭壇 (秩序)** | `glyphId === 4007` | `alignment: 'lawful'` | ⛪ | 祭壇 (秩序) |
+| **祭壇 (中立)** | `glyphId === 4008` | `alignment: 'neutral'` | ⛪ | 祭壇 (中立) |
+| **祭壇 (混沌)** | `glyphId === 4009` | `alignment: 'chaotic'` | ⛪ | 祭壇 (混沌) |
+| **祭壇 (異教)** | `glyphId === 4010` | `alignment: 'other'` | ⛪ | 祭壇 (異教) |
+| **流し台** | `cmapFlags.isSink` (4013) | - | 🚰 | 流し台 (Sink) |
+| **噴水** | `cmapFlags.isFountain` (4014) | - | ⛲ | 噴水 (Fountain) |
+| **王座** | `cmapFlags.isThrone` (4012) | - | 👑 | 王座 (Throne) |
+| **ショップ** | `info.type === MONSTER && info.isShopkeeper` | 店主モンスター出現位置 | 🏪 | 道具屋 / 商店 |
+
+```javascript
+// AreaStateManager 内でのランドマーク登録実装例
+extractLandmarkEntity(x, y, glyphId, info) {
+    if (!info) return null;
+    const floorKey = this.currentFloor;
+    const baseId = `${floorKey}:${x},${y}`;
+
+    if (info.cmapFlags) {
+        const cf = info.cmapFlags;
+        if (cf.isStairUp) return { id: `${baseId}:STAIR_UP`, type: 'STAIR_UP', floorKey, x, y, glyphId, icon: '🪜', name: 'stair up', nameJa: '上り階段' };
+        if (cf.isStairDown) return { id: `${baseId}:STAIR_DOWN`, type: 'STAIR_DOWN', floorKey, x, y, glyphId, icon: '🪜', name: 'stair down', nameJa: '下り階段' };
+        if (cf.isAltar) {
+            const alignMap = {
+                4006: { alignment: 'unaligned', nameJa: '祭壇 (無属性)' },
+                4007: { alignment: 'lawful', nameJa: '祭壇 (秩序)' },
+                4008: { alignment: 'neutral', nameJa: '祭壇 (中立)' },
+                4009: { alignment: 'chaotic', nameJa: '祭壇 (混沌)' },
+                4010: { alignment: 'other', nameJa: '祭壇 (異教)' }
+            };
+            const aInfo = alignMap[glyphId] || { alignment: 'neutral', nameJa: '祭壇' };
+            return { id: `${baseId}:ALTAR`, type: 'ALTAR', floorKey, x, y, glyphId, icon: '⛪', name: `altar (${aInfo.alignment})`, nameJa: aInfo.nameJa, details: aInfo };
+        }
+        if (cf.isSink) return { id: `${baseId}:SINK`, type: 'SINK', floorKey, x, y, glyphId, icon: '🚰', name: 'sink', nameJa: '流し台' };
+        if (cf.isFountain) return { id: `${baseId}:FOUNTAIN`, type: 'FOUNTAIN', floorKey, x, y, glyphId, icon: '⛲', name: 'fountain', nameJa: '噴水' };
+        if (cf.isThrone) return { id: `${baseId}:THRONE`, type: 'THRONE', floorKey, x, y, glyphId, icon: '👑', name: 'throne', nameJa: '王座' };
+    }
+    if (info.isShopkeeper) {
+        return { id: `${baseId}:SHOP`, type: 'SHOP', floorKey, x, y, glyphId, icon: '🏪', name: 'shopkeeper', nameJa: '商店 (店主)' };
+    }
+    return null;
+}
+```
+
+#### 5.5.3 AssistSignalSynthesizer 連携示唆ルール (Level 2 シグナル)
+以下の条件が揃った際、HUD 最優先シグナル (`primarySignal`) または提案シグナルとして自動生成します：
+
+1. **未識別指輪 ＋ 流し台 (Sink Identification)**:
+   - 条件: 所持品に `oclass === Ring (8)` かつ未識別 (`!identified`) のアイテムが存在 ＆ `currentFloor` に `SINK` が存在。
+   - シグナル: `🚰 未識別指輪あり: この階の流し台に落とすと識別可能 (#drop ➔ d)` (重要度: `INFO`)
+2. **重い死体 ＋ 自属性祭壇 (Corpse Sacrifice)**:
+   - 条件: 所持品に新鮮な死体 (`corpse`) が存在 ＆ プレイヤー属性（`status.align`）と一致する `ALTAR` が存在。
+   - シグナル: `⛪ 捧げ物可能: この階の祭壇に死体を捧げて神の恩恵を獲得 (#offer)` (重要度: `RECOMMEND`)
+3. **瀕死・危険 ＋ 階段退避 (Stair Escape)**:
+   - 条件: HP < 30% ＆ 周辺に強敵存在 ＆ `STAIR_UP` が存在。
+   - シグナル: `🪜 退避推奨: 上り階段へ移動して体制を立て直す` (重要度: `DANGER`)
+
+---
+
 ## 6. アーキテクチャ構成 ＆ 処理フロー
 
 ```mermaid
@@ -225,17 +355,17 @@ sequenceDiagram
     participant UI as WebUI Presentation Layer
 
     Game->>SM: ターン更新・イベント通知
-    SM->>TA: 状態参照 (脅威・ハザード解析)
+    SM->>TA: 状態参照 (脅威・ハザード・ランドマーク解析)
     SM->>CA: 物理アクション生成
     
     TA-->>SYN: 戦術アドバイスリスト (Advices)
     CA-->>SYN: 物理アクションリスト (Actions)
-    SM-->>SYN: プレイヤー状態 (Status, Inv, Spells)
+    SM-->>SYN: プレイヤー状態 (Status, Inv, Spells, Area/Landmarks)
 
-    Note over SYN: 1. 致命的危機判定 (石化/スライム)<br>2. 特効薬 vs 安全待機(Stance)判定<br>3. 最優先シグナル選定 (PrimarySignal)<br>4. 各スロットへのバッジ配布 (SlotBadges)
+    Note over SYN: 1. 致命的危機判定 (石化/スライム)<br>2. 特効薬 vs 安全待機(Stance)判定<br>3. 設備・状況連動示唆 (ランドマーク案内)<br>4. 最優先シグナル選定 (PrimarySignal)<br>5. 各スロット・フロアヘッダーへのバッジ配布
 
     SYN->>UI: AssistState 提供
-    UI->>UI: HUD 1行シグナル更新<br>インベントリ/魔法枠線ハイライト<br>ワンタップ実行ボタン更新
+    UI->>UI: HUD 1行シグナル更新<br>フロア設備アイコンバッジ表示<br>インベントリ/魔法枠線ハイライト<br>ワンタップ実行ボタン更新
 ```
 
 ---
@@ -246,14 +376,19 @@ sequenceDiagram
    - `src/core/knowledge/AssistSignalSynthesizer.js` の実装。
    - `TacticalAdvisor`、`ContextActionEngine`、`InventoryStateManager`、`StatusAccessor` からの合成ロジック。
    - 単体テスト (`AssistSignalSynthesizer.test.js`) による全 Stance マトリクスの網羅検証。
-2. **Phase 2: `SituationCache` ＆ `GKLPlugin` への統合**:
+2. **Phase 2: フロア設備・ランドマーク台帳との連携**:
+   - `AreaStateManager` のフロア別 POI キャッシュ（階段・祭壇・ショップ・流し台・噴水・王座）の統合。
+   - `SituationCache` 経由での `landmarks` メタデータ出力。
+3. **Phase 3: `SituationCache` ＆ `GKLPlugin` への統合**:
    - ターン同期パイプラインに組み込み、`gkl.getAssistState()` として一括取得可能にする。
-3. **Phase 3: UI クライアント連携 (Examples / WebUI)**:
+4. **Phase 4: UI クライアント連携 (Examples / WebUI)**:
    - HUD 1行シグナルバーの実装。
+   - フロア設備アイコンバッジ群（階段・祭壇・店等）のヘッダー表示。
    - インベントリ・習得魔法モーダルでのスロットバッジ・金枠ハイライトの描画。
    - クリック時のコマンド自動送信シーケンス連携。
 
 ---
 
-*ドキュメント作成日: 2026-08-25*  
+*ドキュメント作成日: 2026-08-25 (最終更新: 2026-08-26 フロア案内・ランドマーク仕様追記)*  
 *保存先: `docs/3_gkl/Assist_Signal_and_Stance_Architecture.md`*
+
