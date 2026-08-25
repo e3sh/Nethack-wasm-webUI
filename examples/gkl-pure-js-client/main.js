@@ -280,6 +280,12 @@ class GklPureJSClient {
         this.asciiGridBuffer[y][x] = { ch, color };
         this.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
         this.redrawSingleCell(x, y);
+
+        // ズームモードでエフェクトや周辺マップ更新がある場合はズームビューも即時反映
+        if (this.isZoomMode && this.zoomCtx && this.core.gkl) {
+          const situation = this.core.gkl.getSituation();
+          this.renderZoomCanvas(situation?.area);
+        }
       }
     });
 
@@ -715,6 +721,11 @@ class GklPureJSClient {
               if (cell.top && cell.top.rawGlyph >= 0) {
                 this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
               }
+
+              // Layer 4: Effect Overlay (稲妻・ビーム・爆発等の過渡的エフェクト)
+              if (gData && this.isEffectGlyph(gData.glyph)) {
+                this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
+              }
             } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
               this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
             } else {
@@ -736,6 +747,10 @@ class GklPureJSClient {
         }
       }
     }
+  }
+
+  isEffectGlyph(glyphId) {
+    return glyphId !== undefined && glyphId !== null && glyphId >= 4051 && glyphId < 7220;
   }
 
   drawZoomTile(glyphId, cols, tileMap, dx, dy, animY = 0) {
@@ -1786,6 +1801,12 @@ class GklPureJSClient {
             if (gData && gData.glyph >= 0) {
               this.drawTileGlyph(gData.glyph, cols, tileMap, dx, dy, 0);
             }
+          }
+
+          // Layer 4 (Effect Overlay - 稲妻・ビーム・爆発等)
+          const gData = this.glyphGridBuffer[y][x];
+          if (gData && this.isEffectGlyph(gData.glyph)) {
+            this.drawTileGlyph(gData.glyph, cols, tileMap, dx, dy, 0);
           }
         } else {
           const gData = this.glyphGridBuffer[y][x];
