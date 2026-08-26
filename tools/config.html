@@ -283,6 +283,7 @@
             lang: true,
             larn: true,
             debug: false,
+            item_naming_mode: "auto_memo",
             sound_mode: "mute",
             sound_volume: 80,
             extra_options: ""
@@ -295,6 +296,11 @@
                 descLang: "日本語メッセージ翻訳を有効にします",
                 descLarn: "未翻訳メッセージを収集します",
                 descDebug: "開発者向けのデバッグ情報を表示します",
+                labelItemNamingMode: "ITEM_NAMING_MODE",
+                descItemNamingMode: "未識別アイテム使用時の名前付け動作",
+                optAutoMemo: "自動メモ (直前効果を自動登録)",
+                optSkip: "自動スキップ (名前付け抑止)",
+                optManual: "手動入力 (従来通りダイアログ表示)",
                 labelSoundMode: "SOUND_MODE",
                 descSoundMode: "音声再生システムと音源モードを選択します",
                 labelSoundVol: "SOUND_VOLUME",
@@ -319,6 +325,11 @@
                 descLang: "Enable Japanese message translation",
                 descLarn: "Collect untranslated messages (learning mode)",
                 descDebug: "Show debug information for developers",
+                labelItemNamingMode: "ITEM_NAMING_MODE",
+                descItemNamingMode: "Naming prompt behavior when using items",
+                optAutoMemo: "Auto-Memo (auto-save effect message)",
+                optSkip: "Auto-Skip (suppress naming)",
+                optManual: "Manual (prompt for name)",
                 labelSoundMode: "SOUND_MODE",
                 descSoundMode: "Select sound playback system and audio engine",
                 labelSoundVol: "SOUND_VOLUME",
@@ -347,6 +358,11 @@
             document.getElementById("desc-lang").textContent = t.descLang;
             document.getElementById("desc-larn").textContent = t.descLarn;
             document.getElementById("desc-debug").textContent = t.descDebug;
+            if (document.getElementById("label-item-naming-mode")) document.getElementById("label-item-naming-mode").textContent = t.labelItemNamingMode;
+            if (document.getElementById("desc-item-naming-mode")) document.getElementById("desc-item-naming-mode").textContent = t.descItemNamingMode;
+            if (document.getElementById("opt-auto-memo")) document.getElementById("opt-auto-memo").textContent = t.optAutoMemo;
+            if (document.getElementById("opt-skip")) document.getElementById("opt-skip").textContent = t.optSkip;
+            if (document.getElementById("opt-manual")) document.getElementById("opt-manual").textContent = t.optManual;
             if (document.getElementById("label-sound-mode")) document.getElementById("label-sound-mode").textContent = t.labelSoundMode;
             if (document.getElementById("desc-sound-mode")) document.getElementById("desc-sound-mode").textContent = t.descSoundMode;
             if (document.getElementById("label-sound-vol")) document.getElementById("label-sound-vol").textContent = t.labelSoundVol;
@@ -399,12 +415,15 @@
             const soundVolEl = document.getElementById("sound_volume");
             const currentSoundMode = soundModeEl ? soundModeEl.value : (localStorage.getItem("nethack_sound_mode") || "mute");
             const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : parseInt(localStorage.getItem("nethack_sound_volume") || "80", 10);
+            const itemNamingModeEl = document.getElementById("item_naming_mode");
+            const currentItemNamingMode = itemNamingModeEl ? itemNamingModeEl.value : "auto_memo";
 
             const config = {
                 gryph: document.getElementById("gryph") ? document.getElementById("gryph").checked : true,
                 lang: document.getElementById("lang") ? document.getElementById("lang").checked : true,
                 larn: document.getElementById("larn") ? document.getElementById("larn").checked : false,
                 debug: document.getElementById("debug") ? document.getElementById("debug").checked : false,
+                item_naming_mode: currentItemNamingMode,
                 sound_mode: currentSoundMode,
                 sound_volume: currentSoundVol,
                 extra_options: document.getElementById("extra_options") ? document.getElementById("extra_options").value : ""
@@ -442,6 +461,13 @@
             if (modeEl && window.SoundManager) {
                 modeEl.addEventListener("change", (e) => {
                     window.SoundManager.setMode(e.target.value);
+                    saveCurrentConfig();
+                });
+            }
+
+            const itemNamingEl = document.getElementById("item_naming_mode");
+            if (itemNamingEl) {
+                itemNamingEl.addEventListener("change", () => {
                     saveCurrentConfig();
                 });
             }
@@ -531,6 +557,18 @@
                         <span class="slider"></span>
                     </div>
                 </label>
+
+                <div class="config-item" style="cursor: default;">
+                    <div class="config-info">
+                        <span class="config-label" id="label-item-naming-mode">ITEM_NAMING_MODE</span>
+                        <span class="config-desc" id="desc-item-naming-mode">未識別アイテム使用時の名前付け動作</span>
+                    </div>
+                    <select id="item_naming_mode" style="background: rgba(0,0,0,0.5); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 10px; font-size: 13px;">
+                        <option value="auto_memo" id="opt-auto-memo">自動メモ (Auto-Memo)</option>
+                        <option value="skip" id="opt-skip">自動スキップ (Skip)</option>
+                        <option value="manual" id="opt-manual">手動入力 (Manual)</option>
+                    </select>
+                </div>
 
                 <!-- Additional Options Area -->
                 <div

@@ -68,6 +68,11 @@ export class WebUICore {
         let isTranslateActive = options.translateEnabled;
         let isInspectorActive = options.enableInspector;
 
+        let itemNamingMode = options.itemNamingMode;
+        if (itemNamingMode === undefined && options.autoCancelItemNaming !== undefined) {
+            itemNamingMode = options.autoCancelItemNaming === false ? 'manual' : 'skip';
+        }
+
         if (typeof localStorage !== 'undefined') {
             try {
                 const savedConfigStr = localStorage.getItem("nh.config");
@@ -84,6 +89,9 @@ export class WebUICore {
                         if (isInspectorActive === undefined && savedConfig.debug !== undefined) {
                             isInspectorActive = !!savedConfig.debug;
                         }
+                        if (itemNamingMode === undefined && savedConfig.item_naming_mode !== undefined) {
+                            itemNamingMode = savedConfig.item_naming_mode;
+                        }
                     }
                 }
             } catch (e) {}
@@ -93,6 +101,9 @@ export class WebUICore {
         }
         if (isInspectorActive === undefined) {
             isInspectorActive = true;
+        }
+        if (itemNamingMode === undefined) {
+            itemNamingMode = 'auto_memo';
         }
 
         let isKnowledgeActive = options.enableKnowledge !== false;
@@ -129,10 +140,13 @@ export class WebUICore {
         
         this.inspector = isInspectorActive ? new DebugInspector(this, options.inspectorOptions) : null;
         
-        this.lastDlevel = undefined;
-        this.gamepadLoopId = null;
         this.lastInputTime = 0;
         this.isPendingPrefix = false;
+        this.itemNamingMode = itemNamingMode;
+        this.autoCancelItemNaming = itemNamingMode !== 'manual';
+        this.isManualNamingActive = false;
+        this.isItemUsingActive = false;
+        this.lastRawMessageText = '';
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -614,6 +628,15 @@ export class WebUICore {
         if (inputStr) {
             this.emit('userActionSent', { sequence: [inputStr] });
 
+            // アイテム使用コマンドおよび手動命名コマンドの追跡
+            const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+            if (itemUseKeys.has(inputStr)) {
+                this.isItemUsingActive = true;
+            }
+            if (inputStr === 'C' || inputStr === '#name' || inputStr === '#call') {
+                this.isManualNamingActive = true;
+            }
+
             // プレフィックスキー（5, g, G, m, M, F, _, n）の追跡
             const prefixKeys = new Set(['5', 'g', 'G', 'm', 'M', 'F', '_', 'n']);
             if (prefixKeys.has(inputStr)) {
@@ -775,6 +798,10 @@ export class WebUICore {
         const cleanCmd = typeof extCmdName === 'string' ? extCmdName.replace(/^#+/, '').trim() : '';
         if (!cleanCmd) return;
 
+        if (cleanCmd.toLowerCase() === 'name' || cleanCmd.toLowerCase() === 'call') {
+            this.isManualNamingActive = true;
+        }
+
         const tokens = ['#', cleanCmd];
         if (directionKey) {
             tokens.push(directionKey);
@@ -793,6 +820,14 @@ export class WebUICore {
      */
     sendActionKey(k) {
         if (!k) return;
+        if (k === 'C' || k === '#name' || k === '#call') {
+            this.isManualNamingActive = true;
+        }
+        const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+        if (typeof k === 'string' && itemUseKeys.has(k)) {
+            this.isItemUsingActive = true;
+        }
+
         const isNumpad = (this.options && this.options.keyMode === 'numpad') ||
                          (this.driver && this.driver.keyMode === 'numpad') ||
                          (!this.options?.keyMode && !this.driver?.keyMode);
@@ -847,6 +882,88 @@ export class WebUICore {
     }
 
     /**
+     * プロンプトがアイテム使用後の種別仮名付け (docall) プロンプトであるかを判定
+     * モンスター命名・武器の個別命名・手動命名コマンド実行時は false を返す。
+     * @param {string} rawPrompt - 生のプロンプト文字列
+     * @param {string} [translatedPrompt=''] - 翻訳後のプロンプト文字列
+     * @param {string} [category=''] - プロンプトカテゴリ
+     * @returns {boolean}
+     */
+    isItemCallPrompt(rawPrompt, translatedPrompt = '', category = '') {
+        if (this.isManualNamingActive) return false;
+        if (!this.isItemUsingActive) return false;
+
+        const checkText = (text) => {
+            if (!text || typeof text !== 'string') return false;
+            const p = text.trim();
+
+            // モンスター命名 (kitten, dog, creature 等) や 個別命名 ("What do you want to name this...") を確実に除外
+            if (/kitten|little dog|dog|large dog|pony|horse|warhorse|pet|creature|monster|someone|something|shopkeeper|guard|priest|ghost/i.test(p) ||
+                /子猫|小猫|猫|小犬|子犬|犬|大型犬|ポニー|馬|軍馬|ペット|モンスター|生き物|誰か|何か|店主|番兵|司祭|ゴースト/i.test(p)) {
+                return false;
+            }
+
+            // 個別アイテム命名 (do_oname) は "name" / "名付けますか" なので除外
+            if (/^What do you want to name\b/i.test(p) || /何と名付けますか/i.test(p)) {
+                return false;
+            }
+
+            // その他一般プロンプト除外
+            if (/what do you want to (write|wish|drop|eat|drink|read|wear|wield|zap|apply|take off)/i.test(p) ||
+                /何を(書|願|置|食|飲|読|装備|外|振|使|適)/i.test(p)) {
+                return false;
+            }
+
+            // 英語パターン:
+            // 1. NetHack 5.0 形式: "Call a scroll labeled FOO:", "Call a red potion:", "Call a glass wand:", "Call this wand:"
+            // 2. NetHack クラシック形式: "What do you want to call this red potion?"
+            if (/^Call (a |an |this |the |a stream of )?.*:/i.test(p) || /^What do you want to call\b/i.test(p)) {
+                return true;
+            }
+
+            // 日本語パターン:
+            // "赤い薬を何と呼びますか?" / "暗い薬を何と呼びますか？"
+            // "「ELAM EBOW」と書かれた巻物を何と呼びますか?"
+            // "ガラスの杖を何と呼びますか?"
+            // "ルビーを何と呼びますか?"
+            // "この種類の巻物を何と呼びますか?"
+            // "この液体を何と呼びますか?"
+            if (/を何と呼びますか/i.test(p) || /と呼びますか/i.test(p)) {
+                return true;
+            }
+
+            return false;
+        };
+
+        return checkText(rawPrompt) || checkText(translatedPrompt);
+    }
+
+    /**
+     * 直前の英語ゲーム内メッセージから、NetHack コア用の安全な仮名（Auto-Memo）を生成
+     * @returns {string} 最大24文字のサニタイズされたASCII文字列
+     */
+    getAutoMemoName() {
+        if (!this.lastRawMessageText || typeof this.lastRawMessageText !== 'string') {
+            return '';
+        }
+        let text = this.lastRawMessageText.trim();
+        // 制御文字・改行を除去
+        text = text.replace(/[\r\n\t\x00-\x1f\x7f]/g, ' ');
+        // 連続する空白を1つに縮約
+        text = text.replace(/\s+/g, ' ').trim();
+        // 先頭・末尾の引用符や不要な記号を調整
+        text = text.replace(/^["'`]/, '').replace(/["'`]$/, '');
+        // 末尾のピリオドや感嘆符を除去
+        text = text.replace(/[.!]+$/, '').trim();
+
+        // NetHack の oc_uname 安全長（最大24文字）に切り詰め
+        if (text.length > 24) {
+            text = text.slice(0, 24).trim();
+        }
+        return text;
+    }
+
+    /**
      * キーシーケンスを安全に実行し、必要に応じて非同期でサイレント・インベントリ同期を起動する
      * @param {Array<string>} sequence 
      * @param {Object} [options={}] 
@@ -854,6 +971,14 @@ export class WebUICore {
      */
     async executeSequence(sequence, options = {}) {
         if (!Array.isArray(sequence) || sequence.length === 0) return false;
+
+        if (sequence.some(k => k === 'C' || k === '#name' || k === '#call' || k === 'name' || k === 'call')) {
+            this.isManualNamingActive = true;
+        }
+        const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+        if (sequence.some(k => itemUseKeys.has(k))) {
+            this.isItemUsingActive = true;
+        }
 
         let success = false;
         if (this.requestController && typeof this.requestController.executeSequence === 'function') {
@@ -876,6 +1001,7 @@ export class WebUICore {
      * @param {Object} [options={}] - オプション
      */
     executeAction(action, options = {}) {
+        this.isItemUsingActive = true;
         if (this.gkl) {
             return this.gkl.executeAction(action, options);
         }
@@ -1123,6 +1249,10 @@ export class WebUICore {
         // putstr メッセージ・テキストログ分離処理
         const handleMessageText = (rawText) => {
             if (!rawText) return;
+            const trimmed = rawText.trim();
+            if (trimmed && !trimmed.startsWith('What do you') && !trimmed.startsWith('Call ') && !trimmed.startsWith('--More--')) {
+                this.lastRawMessageText = trimmed;
+            }
             this.emit('messageText', { windowId: 1, text: rawText });
             const translated = this.translator.translate(rawText);
 
@@ -1297,6 +1427,8 @@ export class WebUICore {
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（通常ターン待機時のみ安全に実行）
             const isTurnInput = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
             if (isTurnInput && !isPrefixWaiting) {
+                this.isManualNamingActive = false;
+                this.isItemUsingActive = false;
                 if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function') {
                     this.gkl.syncPendingStateSilent();
                 } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) {
@@ -1326,6 +1458,21 @@ export class WebUICore {
                         }
                     }
                     this.respond(finalName.trim());
+                    return;
+                }
+            }
+
+            // 未識別アイテム使用後の名前付け (docall) プロンプト検出時:
+            // itemNamingMode に応じて処理（auto_memo: 直前メッセージを自動入力 / skip: 空文字でスキップ / manual: 通常プロンプト表示）
+            if (this.itemNamingMode !== 'manual' && this.isItemCallPrompt(rawPrompt, translatedPrompt, category)) {
+                if (this.itemNamingMode === 'auto_memo') {
+                    const autoName = this.getAutoMemoName();
+                    this.emit('itemNamingAutoMemo', { prompt: rawPrompt, name: autoName, translatedPrompt });
+                    this.respond(autoName);
+                    return;
+                } else {
+                    this.emit('itemNamingSkipped', { prompt: rawPrompt, translatedPrompt });
+                    this.respond('');
                     return;
                 }
             }

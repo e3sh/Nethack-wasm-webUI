@@ -345,4 +345,224 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(restartedHandler).toHaveBeenCalled();
         expect(stateChanges).toContain('INITIALIZING');
     });
+
+    describe('autoCancelItemNaming: アイテム使用時名前付けプロンプトの自動キャンセル', () => {
+        it('isItemCallPrompt: アイテム使用中 (isItemUsingActive: true) のみ種別名付けプロンプトを検知し、手動操作時やペット・個別命名を除外すること', () => {
+            const core = new WebUICore({ driver: createMockDriver() });
+
+            // 手動操作時 (isItemUsingActive === false) は docall プロンプトであっても常に false (抑止しない)
+            core.isItemUsingActive = false;
+            expect(core.isItemCallPrompt('Call a scroll labeled PHOL ENDE WODAN:')).toBe(false);
+            expect(core.isItemCallPrompt('What do you want to call this type of potion?')).toBe(false);
+            expect(core.isItemCallPrompt('赤い薬を何と呼びますか?')).toBe(false);
+
+            // アイテム使用中 (isItemUsingActive === true)
+            core.isItemUsingActive = true;
+
+            // 英語アイテム種別（NetHack 5.0 形式: "Call <item>:"）
+            expect(core.isItemCallPrompt('Call a scroll labeled PHOL ENDE WODAN:')).toBe(true);
+            expect(core.isItemCallPrompt('Call a red potion:')).toBe(true);
+            expect(core.isItemCallPrompt('Call a glass wand:')).toBe(true);
+            expect(core.isItemCallPrompt('Call a wooden ring:')).toBe(true);
+            expect(core.isItemCallPrompt('Call a stream of smoky fluid:')).toBe(true);
+            expect(core.isItemCallPrompt('Call this ruby:')).toBe(true);
+
+            // 英語アイテム種別（NetHack クラシック形式: "What do you want to call ...?"）
+            expect(core.isItemCallPrompt('What do you want to call this scroll?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this type of potion?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this wand?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this ring?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call a scroll labeled ZELGO MER?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this red potion?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this smoky potion?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this glass wand?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this wooden ring?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this ruby?')).toBe(true);
+            expect(core.isItemCallPrompt('What do you want to call this triangular amulet?')).toBe(true);
+
+            // 日本語アイテム種別（NetHackJP 形式: 「...を何と呼びますか?」）
+            expect(core.isItemCallPrompt('この種類の巻物を何と呼びますか？')).toBe(true);
+            expect(core.isItemCallPrompt('この種類の薬を何と呼びますか？')).toBe(true);
+            expect(core.isItemCallPrompt('この種類の杖を何と呼びますか？')).toBe(true);
+            expect(core.isItemCallPrompt('赤い薬を何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('暗い薬を何と呼びますか？')).toBe(true);
+            expect(core.isItemCallPrompt('「ELAM EBOW」と書かれた巻物を何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('木製の杖を何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('ガラスの杖を何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('ルビーを何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('青い石を何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('四角い魔除けを何と呼びますか?')).toBe(true);
+            expect(core.isItemCallPrompt('この液体を何と呼びますか?')).toBe(true);
+
+            // ペット・モンスター命名（除外）
+            expect(core.isItemCallPrompt('What do you want to call this kitten?')).toBe(false);
+            expect(core.isItemCallPrompt('What do you want to call this little dog?')).toBe(false);
+            expect(core.isItemCallPrompt('What do you want to call this horse?')).toBe(false);
+            expect(core.isItemCallPrompt('この子猫を何と呼びますか？')).toBe(false);
+            expect(core.isItemCallPrompt('この小犬を何と呼びますか？')).toBe(false);
+            expect(core.isItemCallPrompt('この馬を何と呼びますか？')).toBe(false);
+            expect(core.isItemCallPrompt('このモンスターを何と呼びますか？')).toBe(false);
+
+            // 個別アイテム命名（除外）
+            expect(core.isItemCallPrompt('What do you want to name this broadsword?')).toBe(false);
+            expect(core.isItemCallPrompt('この剣を何と名付けますか？')).toBe(false);
+            expect(core.isItemCallPrompt('このブロードソードを何と名付けますか?')).toBe(false);
+
+            // その他プロンプト（除外）
+            expect(core.isItemCallPrompt('What do you want to write on the floor with?')).toBe(false);
+            expect(core.isItemCallPrompt('What do you want to wish for?')).toBe(false);
+        });
+
+        it('getAutoMemoName: 直前の英語メッセージを最大24文字の安全なASCII文字列にサニタイズ・整形すること', () => {
+            const core = new WebUICore({ driver: createMockDriver() });
+
+            core.lastRawMessageText = 'You feel much better.';
+            expect(core.getAutoMemoName()).toBe('You feel much better');
+
+            core.lastRawMessageText = 'An unseen monster suddenly appears nearby!';
+            expect(core.getAutoMemoName().length).toBeLessThanOrEqual(24);
+            expect(core.getAutoMemoName()).toBe('An unseen monster sudden');
+
+            core.lastRawMessageText = '"The floor shakes violently!"';
+            expect(core.getAutoMemoName()).toBe('The floor shakes violent');
+
+            core.lastRawMessageText = '';
+            expect(core.getAutoMemoName()).toBe('');
+        });
+
+        it('itemNamingMode: "auto_memo" 時に、直前の英語メッセージが自動で名前として登録されること', () => {
+            let inputRequiredHandler = null;
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.TEXT)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, itemNamingMode: 'auto_memo' });
+            core.isItemUsingActive = true;
+            const mockResolver = { respond: vi.fn() };
+            const autoMemoListener = vi.fn();
+            core.on('itemNamingAutoMemo', autoMemoListener);
+
+            // 効果メッセージの受信
+            putstrHandler({ windowId: 1, text: 'You float in the air!' });
+
+            // docall プロンプトの発行
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'Call a red potion:',
+                rawPrompt: 'Call a red potion:',
+                resolver: mockResolver
+            });
+
+            // 直前メッセージ 'You float in the air' が自動入力されること
+            expect(mockResolver.respond).toHaveBeenCalledWith('You float in the air');
+            expect(autoMemoListener).toHaveBeenCalledTimes(1);
+            expect(autoMemoListener).toHaveBeenCalledWith(expect.objectContaining({
+                name: 'You float in the air',
+                prompt: 'Call a red potion:'
+            }));
+        });
+
+        it('itemNamingMode: "skip" 時に、空文字を自動応答して名前付けをスキップすること', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.TEXT)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, itemNamingMode: 'skip' });
+            core.isItemUsingActive = true;
+            const mockResolver = { respond: vi.fn() };
+            const skippedListener = vi.fn();
+            core.on('itemNamingSkipped', skippedListener);
+
+            // docall プロンプトの発行
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'Call a scroll labeled PHOL ENDE WODAN:',
+                rawPrompt: 'Call a scroll labeled PHOL ENDE WODAN:',
+                resolver: mockResolver
+            });
+
+            // 即座に空文字で respond され、イベントが発行されること
+            expect(mockResolver.respond).toHaveBeenCalledWith('');
+            expect(skippedListener).toHaveBeenCalledTimes(1);
+        });
+
+        it('itemNamingMode: "manual" (または autoCancelItemNaming: false) の場合は自動スキップされず、通常の inputRequired イベントが発行されること', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.TEXT)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, itemNamingMode: 'manual' });
+            core.isItemUsingActive = true;
+            const mockResolver = { respond: vi.fn() };
+            const inputRequiredListener = vi.fn();
+            core.on('inputRequired', inputRequiredListener);
+
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'Call a scroll labeled PHOL ENDE WODAN:',
+                rawPrompt: 'Call a scroll labeled PHOL ENDE WODAN:',
+                resolver: mockResolver
+            });
+
+            // 自動 respond は行われず、UIイベントが発行されること
+            expect(mockResolver.respond).not.toHaveBeenCalled();
+            expect(inputRequiredListener).toHaveBeenCalledTimes(1);
+        });
+
+        it('手動で #call 拡張コマンドを実行した場合は、docall プロンプトであっても自動スキップされないこと', async () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.TEXT)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, autoCancelItemNaming: true });
+            const mockResolver = { respond: vi.fn() };
+            const inputRequiredListener = vi.fn();
+            core.on('inputRequired', inputRequiredListener);
+
+            // 手動で #call を送信
+            await core.sendExtCommand('call');
+            expect(core.isManualNamingActive).toBe(true);
+
+            // その後にプロンプトが来た場合
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'What do you want to call this type of potion?',
+                rawPrompt: 'What do you want to call this type of potion?',
+                resolver: mockResolver
+            });
+
+            // 手動操作のため自動スキップされないこと
+            expect(mockResolver.respond).not.toHaveBeenCalled();
+            expect(inputRequiredListener).toHaveBeenCalledTimes(1);
+        });
+    });
 });
