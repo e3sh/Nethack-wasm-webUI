@@ -187,15 +187,24 @@ export interface GameOverResult {
 }
 
 // --- 演出トリガーイベント (Visual FX) ---
-export type FxTriggerType = 'ATTACK_HIT' | 'DAMAGE_TAKEN' | 'KILL_CONFIRMED' | 'RECOVER_HEAL';
+export type FxTriggerType = 
+    | 'ATTACK_HIT' 
+    | 'DAMAGE_TAKEN' 
+    | 'KILL_CONFIRMED' 
+    | 'RECOVER_HEAL'
+    | 'PLAYER_DIED'
+    | 'PLAYER_RESURRECTED';
 
 export interface FxTriggerPayload {
     type: FxTriggerType;
     targetX?: number;
     targetY?: number;
+    isPlayer?: boolean;
     amount?: number;
     currentHp?: number;
     maxHp?: number;
+    text?: string;
+    reason?: string;
     timestamp: number;
 }
 

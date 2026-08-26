@@ -37,18 +37,26 @@
 
 ---
 
-## 2. 演出トリガーイベント仕様（最小構成 4 種）
+## 2. 演出トリガーイベント仕様
 
 イベント名は `fx_trigger` として統一し、`payload.type` で識別します。
 
 ```typescript
 interface FxTriggerPayload {
-  type: 'ATTACK_HIT' | 'DAMAGE_TAKEN' | 'KILL_CONFIRMED' | 'RECOVER_HEAL';
+  type: 
+    | 'ATTACK_HIT' 
+    | 'DAMAGE_TAKEN' 
+    | 'KILL_CONFIRMED' 
+    | 'RECOVER_HEAL'
+    | 'PLAYER_DIED'
+    | 'PLAYER_RESURRECTED';
   targetX?: number;      // 発生対象のマップ座標 X (0〜79)
   targetY?: number;      // 発生対象のマップ座標 Y (0〜23)
+  isPlayer?: boolean;    // 自キャラ対象フラグ
   amount?: number;       // 変動量（ダメージ量 / 回復量）
   currentHp?: number;    // 現在HP
   maxHp?: number;        // 最大HP
+  text?: string;         // トリガーとなった元テキストメッセージ
   timestamp: number;     // 発火時刻 (Date.now())
 }
 ```
@@ -61,6 +69,8 @@ interface FxTriggerPayload {
 | `DAMAGE_TAKEN` | 自キャラの `currentHP < prevHP` を検知した時 | `targetX, targetY, amount` | 自キャラマスの赤色点滅、画面の微小シェイク（1〜2px振動）、被弾SE |
 | `KILL_CONFIRMED` | 攻撃直後に敵Glyphが消滅、または死体/アイテムが出現した時 | `targetX, targetY` | 対象マスに煙・消滅パーティクル、または撃破SE |
 | `RECOVER_HEAL` | 自キャラの `currentHP > prevHP`（回復）またはレベルアップ時 | `targetX, targetY, amount` | 自キャラ足元からの緑/黄色の光のエフェクト上昇 |
+| `PLAYER_DIED` | メッセージ `You die...` / `あなたは死んだ` 受信時 | `targetX, targetY, isPlayer, text` | **自キャラマスへの墓石タイル (glyph 4011 / tile 1310) 描画**、バウンス停止、死亡エフェクト・画面シェイク |
+| `PLAYER_RESURRECTED` | 命の魔除け等による蘇生メッセージ受信時 | `targetX, targetY, isPlayer, text` | 墓石表示の解除・自キャラタイルの復元、蘇生光輪エフェクト |
 
 ---
 

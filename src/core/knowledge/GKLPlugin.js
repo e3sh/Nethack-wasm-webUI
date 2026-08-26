@@ -83,6 +83,7 @@ export class GKLPlugin {
         this._coreListeners = [];
         this._prevHp = null;
         this._lastAttackTarget = null;
+        this._isPlayerDead = false;
 
         // サイレント同期の統計・直近履歴トラッカー（コマンド衝突管理＆インスペクター可視化用）
         this.silentSyncTracker = {
@@ -198,6 +199,7 @@ export class GKLPlugin {
     reset() {
         this._prevHp = null;
         this._lastAttackTarget = null;
+        this._isPlayerDead = false;
         if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
             this.monsterTracker.reset();
         }
@@ -370,9 +372,36 @@ export class GKLPlugin {
             }
         });
 
-        // 2. テキストメッセージ受信時の更新 (撃破メッセージ処理・KILL_CONFIRMED含む)
+        // 2. テキストメッセージ受信時の更新 (撃破メッセージ・死亡/蘇生メッセージ・KILL_CONFIRMED含む)
         addCoreListener('messageText', ({ text }) => {
             if (text) {
+                const px = this.areaStateManager ? this.areaStateManager.playerX : (this.statusAccessor?.x ?? 0);
+                const py = this.areaStateManager ? this.areaStateManager.playerY : (this.statusAccessor?.y ?? 0);
+
+                // 💀 プレイヤー死亡検知 (PLAYER_DIED)
+                if (/^You die\.\.\.|あなたは死んだ|死亡した/.test(text)) {
+                    this._isPlayerDead = true;
+                    this.emitFxTrigger({
+                        type: 'PLAYER_DIED',
+                        targetX: px,
+                        targetY: py,
+                        isPlayer: true,
+                        text: text
+                    });
+                }
+
+                // ✨ プレイヤー蘇生検知 (PLAYER_RESURRECTED: 命の魔除け等)
+                if (/Your amulet shines|魔除けが.*輝|生き返った/.test(text)) {
+                    this._isPlayerDead = false;
+                    this.emitFxTrigger({
+                        type: 'PLAYER_RESURRECTED',
+                        targetX: px,
+                        targetY: py,
+                        isPlayer: true,
+                        text: text
+                    });
+                }
+
                 let killedInfo = null;
                 if (this.monsterTracker && typeof this.monsterTracker.handleMessage === 'function') {
                     killedInfo = this.monsterTracker.handleMessage(text);

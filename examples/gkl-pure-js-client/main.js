@@ -117,6 +117,8 @@ class GklPureJSClient {
     this.screenShakeTime = 0;
     this.screenShakeDuration = 0;
     this.screenShakeIntensity = 0;
+    this.isPlayerDead = false;
+    this.deathPosition = null;
 
     // Multi-path Sprite Tile Image Loader (Main: Opaque, Zoom: Transparent)
     this.tileImg = new Image();
@@ -406,6 +408,48 @@ class GklPureJSClient {
           durationMs: 250,
           color: '#00e676'
         });
+      } else if (fx.type === 'PLAYER_DIED') {
+        // 🪦 プレイヤー死亡: 墓状態セット & 死亡演出
+        this.isPlayerDead = true;
+        this.deathPosition = { x: fx.targetX, y: fx.targetY };
+        this.triggerScreenShake(5, 300);
+        this.activeFxList.push({
+          type: 'DEATH_BURST',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          startTime: now,
+          durationMs: 1200,
+          color: '#ef4444'
+        });
+        if (fx.targetX !== undefined && fx.targetY !== undefined) {
+          this.redrawSingleCell(fx.targetX, fx.targetY);
+        }
+        if (this.isZoomMode && this.zoomCtx && this.core && this.core.gkl) {
+          const situation = this.core.gkl.getSituation();
+          this.renderZoomCanvas(situation?.area);
+        }
+      } else if (fx.type === 'PLAYER_RESURRECTED') {
+        // ✨ プレイヤー蘇生: 墓状態解除 & 蘇生光輪
+        const prevDeathPos = this.deathPosition;
+        this.isPlayerDead = false;
+        this.deathPosition = null;
+        this.activeFxList.push({
+          type: 'HEAL_RING',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          startTime: now,
+          durationMs: 400,
+          color: '#ffd700'
+        });
+        if (prevDeathPos) {
+          this.redrawSingleCell(prevDeathPos.x, prevDeathPos.y);
+        }
+        if (this.isZoomMode && this.zoomCtx && this.core && this.core.gkl) {
+          const situation = this.core.gkl.getSituation();
+          this.renderZoomCanvas(situation?.area);
+        }
       }
     });
   }
@@ -792,8 +836,8 @@ class GklPureJSClient {
     // 21x9 マスを中心（10,4）に配置
     const halfRangeX = 10;
     const halfRangeY = 4;
-    // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px)
-    const bounceY = -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
+    // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px / 死亡時は静止)
+    const bounceY = this.isPlayerDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
 
     for (let dy = -halfRangeY; dy <= halfRangeY; dy++) {
       for (let dx = -halfRangeX; dx <= halfRangeX; dx++) {
@@ -833,13 +877,21 @@ class GklPureJSClient {
 
               // 自キャラマスのネオン枠ハイライト（自キャラタイルの背面に固定描画）
               if (dx === 0 && dy === 0) {
-                this.zoomCtx.strokeStyle = '#00e676';
-                this.zoomCtx.lineWidth = 2;
-                this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                if (this.isPlayerDead) {
+                  this.zoomCtx.strokeStyle = '#ef4444';
+                  this.zoomCtx.lineWidth = 1;
+                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                } else {
+                  this.zoomCtx.strokeStyle = '#00e676';
+                  this.zoomCtx.lineWidth = 2;
+                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                }
               }
 
-              // Layer 3: Top (キャラクター/モンスター + バウンス)
-              if (cell.top && cell.top.rawGlyph >= 0) {
+              // Layer 3: Top (キャラクター/モンスター + バウンス / 死亡時は墓石)
+              if (this.isPlayerDead && dx === 0 && dy === 0) {
+                this.drawZoomTile(4011, cols, tileMap, screenX, screenY, 0);
+              } else if (cell.top && cell.top.rawGlyph >= 0) {
                 this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
               }
 
@@ -849,11 +901,20 @@ class GklPureJSClient {
               }
             } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
               if (dx === 0 && dy === 0) {
-                this.zoomCtx.strokeStyle = '#00e676';
-                this.zoomCtx.lineWidth = 2;
-                this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                if (this.isPlayerDead) {
+                  this.zoomCtx.strokeStyle = '#ef4444';
+                  this.zoomCtx.lineWidth = 1;
+                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                  this.drawZoomTile(4011, cols, tileMap, screenX, screenY, 0);
+                } else {
+                  this.zoomCtx.strokeStyle = '#00e676';
+                  this.zoomCtx.lineWidth = 2;
+                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+                  this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
+                }
+              } else {
+                this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
               }
-              this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
             } else {
               this.zoomCtx.fillStyle = '#000000';
               this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
@@ -973,6 +1034,33 @@ class GklPureJSClient {
         this.zoomCtx.beginPath();
         this.zoomCtx.arc(cx, cy, r, 0, Math.PI * 2);
         this.zoomCtx.stroke();
+      } else if (fx.type === 'DEATH_BURST') {
+        // 🪦 死亡エフェクト (拡大する赤黒の衝撃波 & 赤いクロス)
+        const alpha = Math.max(0, 1 - progress);
+        const radius = (zoomTileSize * 0.8) * (0.2 + easeOut * 1.2);
+        const cx = screenX + zoomTileSize / 2;
+        const cy = screenY + zoomTileSize / 2;
+
+        this.zoomCtx.strokeStyle = `rgba(239, 68, 68, ${alpha * 0.9})`;
+        this.zoomCtx.lineWidth = 3 * (1 - progress * 0.5);
+        this.zoomCtx.shadowColor = '#dc2626';
+        this.zoomCtx.shadowBlur = 12;
+        this.zoomCtx.beginPath();
+        this.zoomCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        this.zoomCtx.stroke();
+
+        if (progress < 0.7) {
+          const crossProgress = 1 - (progress / 0.7);
+          this.zoomCtx.strokeStyle = `rgba(254, 202, 202, ${crossProgress})`;
+          this.zoomCtx.lineWidth = 2;
+          const crossLen = (zoomTileSize * 0.35);
+          this.zoomCtx.beginPath();
+          this.zoomCtx.moveTo(cx - crossLen, cy - crossLen);
+          this.zoomCtx.lineTo(cx + crossLen, cy + crossLen);
+          this.zoomCtx.moveTo(cx + crossLen, cy - crossLen);
+          this.zoomCtx.lineTo(cx - crossLen, cy + crossLen);
+          this.zoomCtx.stroke();
+        }
       }
 
       this.zoomCtx.restore();
@@ -2063,11 +2151,21 @@ class GklPureJSClient {
     const dx = x * 16;
     const dy = y * 14;
 
+    const isDeathPos = this.isPlayerDead && this.deathPosition && this.deathPosition.x === x && this.deathPosition.y === y;
+
     if (this.isGraphicCanvasMode) {
       this.ctx.fillStyle = '#000000';
       this.ctx.fillRect(dx, dy, 16, 14);
 
-      if (gData && gData.glyph >= 0 && this.tileLoaded && this.tileImg.naturalWidth > 0) {
+      if (isDeathPos && this.tileLoaded && this.tileImg.naturalWidth > 0) {
+        // 🪦 死亡位置には墓石タイル (glyph: 4011 / tile: 1310)
+        const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
+        const tileIndex = tileMap[4011] !== undefined ? tileMap[4011] : 1310;
+        const cols = Math.floor(this.tileImg.width / 32);
+        const sx = (tileIndex % cols) * 32;
+        const sy = Math.floor(tileIndex / cols) * 32;
+        this.ctx.drawImage(this.tileImg, sx, sy, 32, 32, dx, dy, 16, 14);
+      } else if (gData && gData.glyph >= 0 && this.tileLoaded && this.tileImg.naturalWidth > 0) {
         const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
         const tileIndex = tileMap[gData.glyph] !== undefined ? tileMap[gData.glyph] : 0;
         const cols = Math.floor(this.tileImg.width / 32);
@@ -2077,7 +2175,7 @@ class GklPureJSClient {
       }
 
       if (x === this.targetCursorX && y === this.targetCursorY) {
-        this.ctx.strokeStyle = '#ffd700';
+        this.ctx.strokeStyle = isDeathPos ? '#ef4444' : '#ffd700';
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(dx + 0.5, dy + 0.5, 15, 13);
       }
@@ -2085,9 +2183,9 @@ class GklPureJSClient {
       const cellData = this.asciiGridBuffer[y][x];
       const cellSpan = document.getElementById(`ascii-cell-${x}-${y}`);
       if (cellSpan) {
-        cellSpan.textContent = cellData.ch || ' ';
+        cellSpan.textContent = isDeathPos ? '|' : (cellData.ch || ' ');
         const isCursorCell = (x === this.targetCursorX && y === this.targetCursorY);
-        cellSpan.className = `ascii-cell clr-${cellData.color !== undefined ? cellData.color : 7} ${isCursorCell ? 'is-cursor' : ''}`;
+        cellSpan.className = `ascii-cell clr-${isDeathPos ? 15 : (cellData.color !== undefined ? cellData.color : 7)} ${isCursorCell ? 'is-cursor' : ''}`;
       }
     }
   }
@@ -2436,6 +2534,8 @@ class GklPureJSClient {
   resetUiForNewGame() {
     this.isGameExited = false;
     this.currentGameOverResult = null;
+    this.isPlayerDead = false;
+    this.deathPosition = null;
     this.lastAdvices = [];
     this.lastKnowledgeTarget = null;
     this.currentBottomTab = 'advices';

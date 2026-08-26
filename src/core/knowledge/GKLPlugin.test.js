@@ -641,5 +641,61 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(res3).toBe(true);
             expect(invUpdatedListener).toHaveBeenCalledTimes(1);
         });
+
+        it('emitFxTrigger: messageText での死亡メッセージ検知時に PLAYER_DIED を発火すること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー座標設定
+            plugin.areaStateManager.updatePlayerPosition(15, 8);
+
+            // 死亡メッセージ受信 (EN)
+            mockCore.emit('messageText', { text: 'You die...  --More--' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_DIED',
+                targetX: 15,
+                targetY: 8,
+                isPlayer: true,
+                text: 'You die...  --More--'
+            }));
+
+            // 死亡メッセージ受信 (JA)
+            fxListener.mockClear();
+            mockCore.emit('messageText', { text: 'あなたは死んだ。' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_DIED',
+                targetX: 15,
+                targetY: 8,
+                isPlayer: true
+            }));
+        });
+
+        it('emitFxTrigger: 命の魔除けによる蘇生メッセージ検知時に PLAYER_RESURRECTED を発火すること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            plugin.areaStateManager.updatePlayerPosition(20, 10);
+
+            // 死亡 -> 蘇生
+            mockCore.emit('messageText', { text: 'You die...' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_DIED'
+            }));
+
+            fxListener.mockClear();
+            mockCore.emit('messageText', { text: 'But wait! Your amulet shines with a brilliant light!' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 20,
+                targetY: 10,
+                isPlayer: true
+            }));
+        });
     });
 });
