@@ -339,9 +339,10 @@ export class GKLPlugin {
         // 5. ウィンドウ消去・マップリセットの同期
         addCoreListener('clear_nhwindow', (data) => {
             if (data && (data.windowId === 2 || data.windowId === 0)) {
-                this.areaStateManager.resetGrid();
-                if (typeof this.areaStateManager.applyStairCacheForFloor === 'function') {
-                    this.areaStateManager.applyStairCacheForFloor();
+                if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
+                    this.areaStateManager.prepareFloorTransition();
+                } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
+                    this.areaStateManager.resetGrid();
                 }
                 if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
                     this.situationCache.invalidate();
@@ -350,9 +351,10 @@ export class GKLPlugin {
         });
 
         addCoreListener('map_cleared', () => {
-            this.areaStateManager.resetGrid();
-            if (typeof this.areaStateManager.applyStairCacheForFloor === 'function') {
-                this.areaStateManager.applyStairCacheForFloor();
+            if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
+                this.areaStateManager.prepareFloorTransition();
+            } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
+                this.areaStateManager.resetGrid();
             }
             if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
                 this.situationCache.invalidate();
@@ -1037,7 +1039,16 @@ export class GKLPlugin {
         const dy = gy - py;
         const dist = Math.max(Math.abs(dx), Math.abs(dy));
 
-        if (dist === 0) return false; // 自キャラマスは移動しない
+        const travelOptions = {
+            isSilentSync: true,
+            suppressPrompts: true,
+            ...options
+        };
+
+        // 👤 自キャラマスをクリックした場合は 待機（'.'）を実行
+        if (dist === 0) {
+            return this.executeSequence(['.'], travelOptions);
+        }
 
         // 1. セル情報・ナレッジ情報の確認
         const cardData = await this.inspectCellOnDemand({ x: gx, y: gy }, { isHover: true });
@@ -1081,12 +1092,6 @@ export class GKLPlugin {
         };
 
         // 4. 移動実行
-        const travelOptions = {
-            isSilentSync: true,
-            suppressPrompts: true,
-            ...options
-        };
-
         if (dist === 1) {
             // 隣接8マス移動
             const token = dirTokenMap[`${dx},${dy}`];

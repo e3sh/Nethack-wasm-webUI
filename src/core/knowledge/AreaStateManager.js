@@ -9,6 +9,25 @@ import { classifyGlyph, ENTITY_TYPES } from './glyphClassifier.js';
 export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
 
 /**
+ * ダンジョンフロア識別子を正規化 (例: "Dlvl: 1" -> "Dlvl:1", 2 -> "Dlvl:2", "Minetown: 3" -> "Minetown:3")
+ * @param {string|number} floorKey
+ * @returns {string} 正規化されたフロア識別子
+ */
+export function normalizeFloorKey(floorKey) {
+    if (floorKey === null || floorKey === undefined) return 'Dlvl:1';
+    const str = String(floorKey).trim();
+    if (!str) return 'Dlvl:1';
+
+    const match = str.match(/^(.*?):?\s*(\d+)$/i);
+    if (match) {
+        const branch = match[1] ? match[1].trim() : 'Dlvl';
+        const level = parseInt(match[2], 10) || 1;
+        return `${branch || 'Dlvl'}:${level}`;
+    }
+    return str;
+}
+
+/**
  * 足元またはエンティティ出現マス用の仮床オブジェクトを生成
  * @returns {Object}
  */
@@ -30,9 +49,20 @@ export class AreaStateManager {
         this.playerY = 0;
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
-        this.currentFloor = 'Dlvl:1'; // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
+        this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
         this.stairCache = new Map();  // フロア別階段キャッシュ ("floor:x,y" => terrainEntity)
+        this.isFloorPending = false;  // clear_nhwindow 後のフロア確定待ちフラグ
+        this.pendingStairs = [];      // フロア確定待ち中に受信した階段一覧
         this.grid = [];
+        this.resetGrid();
+    }
+
+    /**
+     * clear_nhwindow 受信時などにフロア遷移待機状態へ移行しグリッドを初期化
+     */
+    prepareFloorTransition() {
+        this.isFloorPending = true;
+        this.pendingStairs = [];
         this.resetGrid();
     }
 
@@ -41,8 +71,9 @@ export class AreaStateManager {
      * @param {string} [floorKey]
      */
     applyStairCacheForFloor(floorKey = this.currentFloor) {
-        if (!floorKey || !this.stairCache || this.stairCache.size === 0) return;
-        const prefix = `${floorKey}:`;
+        const normalized = normalizeFloorKey(floorKey);
+        if (!normalized || !this.stairCache || this.stairCache.size === 0) return;
+        const prefix = `${normalized}:`;
         for (const [key, stairEntity] of this.stairCache.entries()) {
             if (key.startsWith(prefix)) {
                 const coordStr = key.slice(prefix.length);
@@ -59,12 +90,32 @@ export class AreaStateManager {
     }
 
     /**
-     * 現在のダンジョン階層（フロア識別子）を設定し、該当フロアの階段キャッシュをグリッドに反映
-     * @param {string} floorKey 
+     * 現在のダンジョン階層（フロア識別子）を設定し、該当フロアの階段キャッシュを反映
+     * @param {string|number} floorKey 
      */
     setCurrentFloor(floorKey) {
-        if (floorKey) {
-            this.currentFloor = String(floorKey).trim();
+        if (floorKey !== undefined && floorKey !== null) {
+            const normalized = normalizeFloorKey(floorKey);
+            const floorChanged = this.currentFloor !== normalized;
+            const wasPending = this.isFloorPending;
+
+            this.currentFloor = normalized;
+            this.isFloorPending = false;
+
+            // フロア遷移待ち中に受信した階段を正式登録
+            if (this.pendingStairs.length > 0) {
+                for (const item of this.pendingStairs) {
+                    const key = `${this.currentFloor}:${item.x},${item.y}`;
+                    this.stairCache.set(key, { ...item.entity });
+                }
+                this.pendingStairs = [];
+            }
+
+            // clear_nhwindow (isFloorPending) を経由せず直接 setCurrentFloor でフロアが変更された場合はグリッドを初期化
+            if (floorChanged && !wasPending) {
+                this.resetGrid();
+            }
+
             this.applyStairCacheForFloor(this.currentFloor);
         }
     }
@@ -74,6 +125,7 @@ export class AreaStateManager {
      */
     clearStairCache() {
         this.stairCache.clear();
+        this.pendingStairs = [];
     }
 
     /**
@@ -135,8 +187,12 @@ export class AreaStateManager {
 
                 // 階段・ハシゴであればフロア別キャッシュに記録
                 if (info.cmapFlags && (info.cmapFlags.isStairUp || info.cmapFlags.isStairDown)) {
-                    const key = `${this.currentFloor}:${x},${y}`;
-                    this.stairCache.set(key, { ...cell.bottom });
+                    if (this.isFloorPending) {
+                        this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
+                    } else {
+                        const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                        this.stairCache.set(key, { ...cell.bottom });
+                    }
                 }
                 break;
 
@@ -203,7 +259,7 @@ export class AreaStateManager {
             }
             const cell = this.grid[y][x];
             if (cell && cell.bottom === null) {
-                const key = `${this.currentFloor}:${x},${y}`;
+                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
                 const cachedStair = this.stairCache.get(key);
                 if (cachedStair) {
                     cell.bottom = { ...cachedStair };

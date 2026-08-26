@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AreaStateManager, DEFAULT_INFERRED_FLOOR_GLYPH, createInferredFloor } from './AreaStateManager.js';
+import { AreaStateManager, DEFAULT_INFERRED_FLOOR_GLYPH, createInferredFloor, normalizeFloorKey } from './AreaStateManager.js';
 import { GLYPH_OFFSETS, ENTITY_TYPES } from './glyphClassifier.js';
 
 describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
@@ -238,6 +238,51 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
 
             asm.clearStairCache();
             expect(asm.stairCache.size).toBe(0);
+        });
+
+        it('should normalize floor keys with various formats', () => {
+            expect(normalizeFloorKey('Dlvl: 1')).toBe('Dlvl:1');
+            expect(normalizeFloorKey('Dlvl:1')).toBe('Dlvl:1');
+            expect(normalizeFloorKey('2')).toBe('Dlvl:2');
+            expect(normalizeFloorKey(3)).toBe('Dlvl:3');
+            expect(normalizeFloorKey('Minetown: 3')).toBe('Minetown:3');
+            expect(normalizeFloorKey('The Dungeons of Doom:1')).toBe('The Dungeons of Doom:1');
+            expect(normalizeFloorKey(null)).toBe('Dlvl:1');
+            expect(normalizeFloorKey('')).toBe('Dlvl:1');
+        });
+
+        it('should reset grid and only apply target floor stairs on setCurrentFloor change', () => {
+            // 1. Dlvl:1 で下り階段を記録
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(10, 10, 3999); // Dlvl:1 の下り階段
+            expect(asm.grid[10][10].bottom).not.toBeNull();
+
+            // 2. Dlvl:2 へフロア変更 (setCurrentFloor 内部で resetGrid が走り、Dlvl:2 のキャッシュのみ反映)
+            asm.setCurrentFloor('Dlvl:2');
+            // Dlvl:2 は新規到達フロアなので、(10, 10) は null のままで前フロアの階段が残留しないこと
+            expect(asm.grid[10][10].bottom).toBeNull();
+
+            // 3. Dlvl:2 で上り階段 (5, 5) を記録
+            asm.updateGlyph(5, 5, 3998);
+            expect(asm.grid[5][5].bottom).not.toBeNull();
+
+            // 4. 再び Dlvl:1 に戻ると、グリッドがリセットされて Dlvl:1 の階段 (10, 10) のみが復元され、Dlvl:2 の階段 (5, 5) は存在しないこと
+            asm.setCurrentFloor('Dlvl:1');
+            expect(asm.grid[10][10].bottom).not.toBeNull();
+            expect(asm.grid[10][10].bottom.cmapFlags.isStairDown).toBe(true);
+            expect(asm.grid[5][5].bottom).toBeNull();
+        });
+
+        it('should handle whitespace variations in floor keys transparently', () => {
+            asm.setCurrentFloor('Dlvl: 1'); // スペースあり
+            asm.updateGlyph(15, 15, 3999);
+
+            asm.setCurrentFloor('Dlvl:2');
+            expect(asm.grid[15][15].bottom).toBeNull();
+
+            asm.setCurrentFloor('Dlvl:1'); // スペースなしで再訪
+            expect(asm.grid[15][15].bottom).not.toBeNull();
+            expect(asm.grid[15][15].bottom.cmapFlags.isStairDown).toBe(true);
         });
     });
 });

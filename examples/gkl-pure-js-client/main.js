@@ -741,6 +741,13 @@ class GklPureJSClient {
                 this.drawZoomTile(cell.middle.rawGlyph, cols, tileMap, screenX, screenY, 0);
               }
 
+              // 自キャラマスのネオン枠ハイライト（自キャラタイルの背面に固定描画）
+              if (dx === 0 && dy === 0) {
+                this.zoomCtx.strokeStyle = '#00e676';
+                this.zoomCtx.lineWidth = 2;
+                this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+              }
+
               // Layer 3: Top (キャラクター/モンスター + バウンス)
               if (cell.top && cell.top.rawGlyph >= 0) {
                 this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
@@ -751,6 +758,11 @@ class GklPureJSClient {
                 this.drawZoomTile(cell.effect.rawGlyph, cols, tileMap, screenX, screenY, 0);
               }
             } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
+              if (dx === 0 && dy === 0) {
+                this.zoomCtx.strokeStyle = '#00e676';
+                this.zoomCtx.lineWidth = 2;
+                this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+              }
               this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
             } else {
               this.zoomCtx.fillStyle = '#000000';
@@ -761,13 +773,6 @@ class GklPureJSClient {
           // 範囲外ブラック
           this.zoomCtx.fillStyle = '#000000';
           this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-        }
-
-        // 自キャラマスのネオン枠ハイライト
-        if (dx === 0 && dy === 0) {
-          this.zoomCtx.strokeStyle = '#00e676';
-          this.zoomCtx.lineWidth = 2;
-          this.zoomCtx.strokeRect(screenX + 1, screenY + 1 + bounceY, zoomTileSize - 2, zoomTileSize - 2);
         }
       }
     }

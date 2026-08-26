@@ -173,7 +173,7 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(mon.name).toBe('TR:cockatrice');
     });
 
-    it('travelTo: 指定座標への隣接移動・遠隔トラベルシーケンスを生成・実行できること', async () => {
+    it('travelTo: 指定座標への隣接移動・遠隔トラベルシーケンスおよび自キャラ位置での待機を実行できること', async () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();
         plugin.attach(mockCore);
@@ -182,7 +182,13 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         plugin.areaStateManager.playerX = 10;
         plugin.areaStateManager.playerY = 10;
 
+        // 0. 自キャラマス (10, 10) のクリック ➔ 待機 '.'
+        const res0 = await plugin.travelTo({ x: 10, y: 10 });
+        expect(res0).toBe(true);
+        expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['.'], expect.anything());
+
         // 1. 隣接マス (11, 10) への移動 ➔ DIR_E
+        mockCore.driver.queueSequence.mockClear();
         const res1 = await plugin.travelTo({ x: 11, y: 10 });
         expect(res1).toBe(true);
         expect(mockCore.driver.queueSequence).toHaveBeenCalledWith(['DIR_E'], expect.anything());
@@ -364,5 +370,42 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.core).toBeNull();
         expect(plugin._coreListeners.length).toBe(0);
         expect(mockCore.off).toHaveBeenCalled();
+    });
+
+    it('フロア移動時 (clear_nhwindow -> print_glyph -> status_update) に前フロアの階段キャッシュが新フロアに漏洩しないこと', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        // 1. Dlvl:1 で (18, 12) に下り階段を発見
+        mockCore.emit('status_update', { field: 20, value: 'Dlvl:1' });
+        mockCore.emit('print_glyph', { x: 18, y: 12, glyph: 3999 }); // 下り階段
+        expect(plugin.areaStateManager.grid[12][18].bottom).not.toBeNull();
+        expect(plugin.areaStateManager.grid[12][18].bottom.cmapFlags.isStairDown).toBe(true);
+
+        // 2. 階段を降りて Dlvl:2 へ移動: NetHack はまず clear_nhwindow を発火
+        mockCore.emit('clear_nhwindow', { windowId: 2 });
+        // この時点でグリッドはリセットされ、旧フロアの階段が展開されていないこと
+        expect(plugin.areaStateManager.grid[12][18].bottom).toBeNull();
+
+        // 3. Dlvl:2 の初期位置 (5, 5) のみ print_glyph が届く (18, 12 は未探索マス)
+        mockCore.emit('print_glyph', { x: 5, y: 5, glyph: 3998 }); // 上り階段
+
+        // 4. 遅れて status_update で Dlvl:2 が届く
+        mockCore.emit('status_update', { field: 20, value: 'Dlvl:2' });
+
+        // Dlvl:2 の (18, 12) は null のままであり、前フロア (Dlvl:1) の階段が残留していないこと
+        expect(plugin.areaStateManager.grid[12][18].bottom).toBeNull();
+        // Dlvl:2 の (5, 5) には上り階段が正しく登録されていること
+        expect(plugin.areaStateManager.grid[5][5].bottom).not.toBeNull();
+        expect(plugin.areaStateManager.grid[5][5].bottom.cmapFlags.isStairUp).toBe(true);
+
+        // 5. 再び Dlvl:1 に戻った場合 (clear_nhwindow -> status_update: Dlvl:1)
+        mockCore.emit('clear_nhwindow', { windowId: 2 });
+        mockCore.emit('status_update', { field: 20, value: 'Dlvl:1' });
+
+        // Dlvl:1 の既知階段 (18, 12) が正しく自動復元されること
+        expect(plugin.areaStateManager.grid[12][18].bottom).not.toBeNull();
+        expect(plugin.areaStateManager.grid[12][18].bottom.cmapFlags.isStairDown).toBe(true);
     });
 });
