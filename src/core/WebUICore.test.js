@@ -171,6 +171,38 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(core.gkl.syncInventorySilent).not.toHaveBeenCalled();
     });
 
+    it('inputRequired: 方向指定プロンプト (In what direction? 等) では syncPendingStateSilent が抑止され、トップレベルターン復帰時に1回実行されること', async () => {
+        let inputRequiredHandler = null;
+        let putstrHandler = null;
+        const mockDriver = createMockDriver();
+        mockDriver.on.mockImplementation((event, handler) => {
+            if (event === 'inputRequired') inputRequiredHandler = handler;
+            if (event === 'putstr') putstrHandler = handler;
+        });
+
+        const core = new WebUICore({ driver: mockDriver });
+        core.gkl.syncInventorySilent = vi.fn().mockResolvedValue(true);
+        core.gkl.inventoryStateManager.isSynced = false;
+
+        // 1. 射撃・投擲などで方向選択プロンプト（"In what direction?"）が発生
+        putstrHandler({ windowId: 1, text: "In what direction?" });
+        inputRequiredHandler({ context: 'poskey', type: 'poskey' });
+
+        await new Promise(r => setTimeout(r, 10));
+
+        // 🎯 方向待機中は syncPendingStateSilent が呼ばれないこと！
+        expect(core.gkl.syncInventorySilent).not.toHaveBeenCalled();
+
+        // 2. 方向が解決されて着弾・ターン完了し、真のトップレベルターン待機（通常poskey）に復帰
+        putstrHandler({ windowId: 1, text: "You shoot an arrow." });
+        inputRequiredHandler({ context: 'poskey', type: 'poskey', prompt: '' });
+
+        await new Promise(r => setTimeout(r, 10));
+
+        // 🎯 トップレベル復帰時に 1 回だけ syncPendingStateSilent が実行されること！
+        expect(core.gkl.syncInventorySilent).toHaveBeenCalledTimes(1);
+    });
+
     it('メッセージ受信時に translationLog および messageUntranslated が正しく発火されること', () => {
         let putstrHandler = null;
         const mockDriver = createMockDriver();

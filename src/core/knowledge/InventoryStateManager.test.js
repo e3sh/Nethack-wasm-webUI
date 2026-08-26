@@ -485,6 +485,34 @@ describe('InventoryStateManager', () => {
         expect(updated).toBe(true);
         expect(manager.isSynced).toBe(false);
     });
+
+    it('updateFromMenuItems: シグネチャ差分検知により同一インベントリ時は false を返し再生成をスキップすること', () => {
+        const manager = new InventoryStateManager();
+        const menuItems = [
+            { letter: 'a', text: 'a dagger', glyph: 3700, onum: 200 },
+            { letter: 'b', text: 'a food ration', glyph: 3800, onum: 300 }
+        ];
+
+        // 初回更新 -> 変更あり (true)
+        const changed1 = manager.updateFromMenuItems(menuItems);
+        expect(changed1).toBe(true);
+        expect(manager.items.length).toBe(2);
+        expect(manager.isSynced).toBe(true);
+
+        // 同一アイテムで2回目更新 -> 変更なし (false)
+        const changed2 = manager.updateFromMenuItems(menuItems);
+        expect(changed2).toBe(false);
+        expect(manager.items.length).toBe(2);
+
+        // アイテム変更 (装備状態変化) -> 変更あり (true)
+        const updatedMenuItems = [
+            { letter: 'a', text: 'a dagger (weapon in hand)', glyph: 3700, onum: 200 },
+            { letter: 'b', text: 'a food ration', glyph: 3800, onum: 300 }
+        ];
+        const changed3 = manager.updateFromMenuItems(updatedMenuItems);
+        expect(changed3).toBe(true);
+        expect(manager.getItemByLetter('a').isWielded).toBe(true);
+    });
 });
 
 

@@ -1424,18 +1424,6 @@ export class WebUICore {
                                     lastText.includes('prefix') || 
                                     (lastText.includes('count') && lastText.includes('command'));
 
-            // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼（通常ターン待機時のみ安全に実行）
-            const isTurnInput = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
-            if (isTurnInput && !isPrefixWaiting) {
-                this.isManualNamingActive = false;
-                this.isItemUsingActive = false;
-                if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function') {
-                    this.gkl.syncPendingStateSilent();
-                } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) {
-                    this.gkl.syncInventorySilent();
-                }
-            }
-
             this.lastInputTime = Date.now();
 
             let rawPrompt = payload.prompt || payload.question || payload.message || '';
@@ -1507,10 +1495,7 @@ export class WebUICore {
                     isSelectable = true;
                     charCode = 97 + index;
                     charStr = String.fromCharCode(charCode);
-                } //else if (item && (item.text || item.str)) {
-                  //何かしらの項目テキストが存在する場合は選択可能アイテムとして補償
-                  //  isSelectable = true;
-                //}
+                }
 
                 return {
                     ...item,
@@ -1525,9 +1510,6 @@ export class WebUICore {
 
             // UIのアクティブメニュー項目としてのみ保持 (GKL インベントリの更新は自発同期 syncInventorySilent のみに一元化)
             this.activeMenuItems = translatedItems;
-
-
-
 
             const basePayload = {
                 ...payload,
@@ -1546,6 +1528,33 @@ export class WebUICore {
             if (guiData && (guiData.inputType === 'DIRECTION' || guiData.category === PROMPT_CATEGORY.DIRECTION)) {
                 this.currentPromptCategory = PROMPT_CATEGORY.DIRECTION;
             }
+
+            // 方向入力待ち（DIRECTION）やサブプロンプトの検出
+            const isDirectionWaiting = (
+                category === PROMPT_CATEGORY.DIRECTION ||
+                category === 'DIRECTION' ||
+                this.currentPromptCategory === PROMPT_CATEGORY.DIRECTION ||
+                (guiData && (guiData.inputType === 'DIRECTION' || guiData.category === PROMPT_CATEGORY.DIRECTION)) ||
+                lastText.includes('in what direction') ||
+                lastText.includes('which way') ||
+                lastText.includes('どの方向') ||
+                (rawPrompt && (rawPrompt.toLowerCase().includes('in what direction') || rawPrompt.toLowerCase().includes('which way') || rawPrompt.includes('どの方向')))
+            );
+
+            // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼
+            // ※方向指定中やサブプロンプト中・プレフィックス待機中を除外した「純粋なトップレベル通常ターン待機」時のみ安全に実行
+            const isPoskeyContext = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
+            const isTopLevelTurn = isPoskeyContext && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices;
+            if (isTopLevelTurn) {
+                this.isManualNamingActive = false;
+                this.isItemUsingActive = false;
+                if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function') {
+                    this.gkl.syncPendingStateSilent();
+                } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) {
+                    this.gkl.syncInventorySilent();
+                }
+            }
+
             const passThroughPayload = {
                 ...basePayload,
                 ...guiData,

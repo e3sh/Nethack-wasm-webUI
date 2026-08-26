@@ -405,6 +405,10 @@
                 <span class="indicator-label">Resolver:</span>
                 <span class="indicator-val" id="valResolver">false</span>
             </span>
+            <span class="indicator-item" id="indicatorSilentSync">
+                <span class="indicator-label">Silent Sync:</span>
+                <span class="indicator-val" id="valSilentSync" title="サイレント同期実行統計 (総回数 / インベントリ / 直近所要時間)">0 (Inv: 0)</span>
+            </span>
             <div class="status-badge" id="connectionStatus">Channel Active</div>
         </div>
     </header>
@@ -666,6 +670,16 @@
             } else {
                 valResolver.textContent = 'false';
                 valResolver.className = 'indicator-val';
+            }
+
+            const valSilentSync = document.getElementById('valSilentSync');
+            if (valSilentSync && s.silentSyncStatus) {
+                const total = s.silentSyncStatus.totalCount || 0;
+                const invCount = (s.silentSyncStatus.syncCounts && s.silentSyncStatus.syncCounts.inventory) || 0;
+                const recent = (s.silentSyncStatus.recentHistory && s.silentSyncStatus.recentHistory[0]) || null;
+                const recentInfo = recent ? ` [${recent.type}${recent.changed ? '★' : ''} ${recent.durationMs}ms]` : '';
+                valSilentSync.textContent = `${total} (Inv:${invCount})${recentInfo}`;
+                valSilentSync.title = `総同期: ${total}回 (所持品:${invCount}, 魔法:${s.silentSyncStatus.syncCounts?.spells || 0}, スキル:${s.silentSyncStatus.syncCounts?.skills || 0}) 直近: ${recent ? `${recent.type} (差分:${recent.changed ? '有' : '無'}, ${recent.durationMs}ms)` : 'なし'}`;
             }
 
             // Tab 1: GKL State Tree の描画

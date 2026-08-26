@@ -331,6 +331,36 @@ describe('StructuredKnowledgeEngine', () => {
             expect(trCallCount).toBe(2);
         });
 
+        it('未識別アイテム（ポーション・巻物等）も初回オンデマンド翻訳後にキャッシュされ、2回目以降再翻訳されないこと', () => {
+            let trCallCount = 0;
+            const spyTranslationEngine = {
+                translate: (text) => {
+                    trCallCount++;
+                    return `訳:${text}`;
+                }
+            };
+
+            const customEngine = new StructuredKnowledgeEngine({
+                translationEngine: spyTranslationEngine
+            });
+
+            // 1. 初回: 未識別ポーション "ruby potion" の取得 -> 翻訳が実行されてキャッシュされる
+            const p1 = customEngine.getItemKnowledge('ruby potion', { translate: true });
+            expect(p1.isUnidentified).toBe(true);
+            const initialCount = trCallCount;
+            expect(initialCount).toBeGreaterThan(0);
+
+            // 2. 2回目: 同一未識別ポーションの取得 -> キャッシュヒットにより翻訳呼び出しが 0 回
+            const p2 = customEngine.getItemKnowledge('ruby potion', { translate: true });
+            expect(p2.isUnidentified).toBe(true);
+            expect(trCallCount).toBe(initialCount);
+
+            // 3. 3回目: オブジェクト形式での取得 -> キャッシュヒットにより翻訳呼び出しが 0 回
+            const p3 = customEngine.getItemKnowledge({ rawText: 'a - a ruby potion', onum: -1, isUnidentified: true }, { translate: true });
+            expect(p3.isUnidentified).toBe(true);
+            expect(trCallCount).toBe(initialCount);
+        });
+
         it('should lazily memoize monster knowledge once and reuse cache for glyph, object, and string queries', () => {
             let trCallCount = 0;
             const spyTranslationEngine = {

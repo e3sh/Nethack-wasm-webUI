@@ -357,6 +357,35 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.skillStateManager.isSynced).toBe(false);
     });
 
+    it('userActionSent: 射撃 (f) や投擲 (t) では spellStateManager は invalidate されず、詠唱 (Z) や読書 (r) でのみ invalidate されること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        plugin.inventoryStateManager.isSynced = true;
+        plugin.spellStateManager.isSynced = true;
+
+        // 1. 射撃 ['f', 'DIR_E'] -> インベントリは invalidate されるが、魔法ステートは同期済みのまま
+        mockCore.emit('userActionSent', { sequence: ['f', 'DIR_E'] });
+        expect(plugin.inventoryStateManager.isSynced).toBe(false);
+        expect(plugin.spellStateManager.isSynced).toBe(true);
+
+        // 2. 投擲 ['t', 'a', 'DIR_W'] -> 魔法ステートは同期済みのまま
+        plugin.inventoryStateManager.isSynced = true;
+        mockCore.emit('userActionSent', { sequence: ['t', 'a', 'DIR_W'] });
+        expect(plugin.inventoryStateManager.isSynced).toBe(false);
+        expect(plugin.spellStateManager.isSynced).toBe(true);
+
+        // 3. 詠唱 ['Z', 'a', 'DIR_S'] -> 魔法ステートが invalidate される
+        mockCore.emit('userActionSent', { sequence: ['Z', 'a', 'DIR_S'] });
+        expect(plugin.spellStateManager.isSynced).toBe(false);
+
+        // 4. 読書 ['r', 'b'] -> 魔法ステートが invalidate される
+        plugin.spellStateManager.isSynced = true;
+        mockCore.emit('userActionSent', { sequence: ['r', 'b'] });
+        expect(plugin.spellStateManager.isSynced).toBe(false);
+    });
+
     it('detach: detach 呼び出し時に登録した全リスナーが解除され core が null になること', () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();
@@ -548,6 +577,69 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(payload.type).toBe('KILL_CONFIRMED');
             expect(payload.targetX).toBe(12);
             expect(payload.targetY).toBe(6);
+        });
+
+        it('isNonItemSequence: 「s」(捜索)、「20s」、「^P」、「v」等の安全な非アイテムコマンドで invalidate() が呼ばれないこと', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.inventoryStateManager = {
+                isSynced: true,
+                invalidate: vi.fn()
+            };
+            plugin.attach(mockCore);
+
+            // 's' (search)
+            mockCore.emit('userActionSent', { sequence: ['s'] });
+            expect(plugin.inventoryStateManager.invalidate).not.toHaveBeenCalled();
+
+            // '20s' (count + search)
+            mockCore.emit('userActionSent', { sequence: ['2', '0', 's'] });
+            expect(plugin.inventoryStateManager.invalidate).not.toHaveBeenCalled();
+
+            // '^P' (\x10 / prev message)
+            mockCore.emit('userActionSent', { sequence: ['\x10'] });
+            expect(plugin.inventoryStateManager.invalidate).not.toHaveBeenCalled();
+
+            // 'v' (version)
+            mockCore.emit('userActionSent', { sequence: ['v'] });
+            expect(plugin.inventoryStateManager.invalidate).not.toHaveBeenCalled();
+
+            // 'd' (drop) -> invalidate されること
+            mockCore.emit('userActionSent', { sequence: ['d'] });
+            expect(plugin.inventoryStateManager.invalidate).toHaveBeenCalledTimes(1);
+        });
+
+        it('syncInventorySilent: 差分がない場合は inventoryStateUpdated を発火せず、force=true時は発火すること', async () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const invUpdatedListener = vi.fn();
+            mockCore.on('inventoryStateUpdated', invUpdatedListener);
+            plugin.attach(mockCore);
+
+            // 1回目の同期 (アイテムあり)
+            mockCore.querySequenceSilent.mockResolvedValue([
+                { menuItems: [{ letter: 'a', text: 'a dagger', glyph: 3700, onum: 200 }] }
+            ]);
+            const res1 = await plugin.syncInventorySilent();
+            expect(res1).toBe(true);
+            expect(invUpdatedListener).toHaveBeenCalledTimes(1);
+            expect(plugin.silentSyncTracker.totalCount).toBe(1);
+            expect(plugin.silentSyncTracker.syncCounts.inventory).toBe(1);
+            expect(plugin.silentSyncTracker.recentHistory[0].changed).toBe(true);
+
+            // 2回目の同期 (同一アイテム -> 差分なし)
+            invUpdatedListener.mockClear();
+            const res2 = await plugin.syncInventorySilent();
+            expect(res2).toBe(true);
+            expect(invUpdatedListener).not.toHaveBeenCalled(); // 差分なしのため emit スキップ
+            expect(plugin.silentSyncTracker.totalCount).toBe(2);
+            expect(plugin.silentSyncTracker.recentHistory[0].changed).toBe(false);
+
+            // 3回目の同期 (force: true -> 差分なしでも emit)
+            invUpdatedListener.mockClear();
+            const res3 = await plugin.syncInventorySilent({ force: true });
+            expect(res3).toBe(true);
+            expect(invUpdatedListener).toHaveBeenCalledTimes(1);
         });
     });
 });

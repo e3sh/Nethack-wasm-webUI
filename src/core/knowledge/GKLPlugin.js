@@ -83,6 +83,43 @@ export class GKLPlugin {
         this._coreListeners = [];
         this._prevHp = null;
         this._lastAttackTarget = null;
+
+        // サイレント同期の統計・直近履歴トラッカー（コマンド衝突管理＆インスペクター可視化用）
+        this.silentSyncTracker = {
+            totalCount: 0,
+            syncCounts: {
+                inventory: 0,
+                spells: 0,
+                skills: 0,
+                attributes: 0,
+                discoveries: 0
+            },
+            recentHistory: []
+        };
+    }
+
+    /**
+     * サイレント同期の実行結果を統計・直近履歴に記録
+     * @param {string} type - 同期種別 ('inventory' | 'spells' | 'skills' | 'attributes' | 'discoveries')
+     * @param {boolean} changed - 状態変更があったかどうか
+     * @param {number} durationMs - 処理時間 (ms)
+     */
+    _recordSilentSync(type, changed = false, durationMs = 0) {
+        if (!this.silentSyncTracker) return;
+        this.silentSyncTracker.totalCount++;
+        if (this.silentSyncTracker.syncCounts[type] !== undefined) {
+            this.silentSyncTracker.syncCounts[type]++;
+        }
+        const entry = {
+            timestamp: Date.now(),
+            type,
+            changed: Boolean(changed),
+            durationMs
+        };
+        this.silentSyncTracker.recentHistory.unshift(entry);
+        if (this.silentSyncTracker.recentHistory.length > 10) {
+            this.silentSyncTracker.recentHistory.pop();
+        }
     }
 
     /**
@@ -201,6 +238,17 @@ export class GKLPlugin {
                 this.attributeStateManager.extrinsics = {};
             }
         }
+        if (this.silentSyncTracker) {
+            this.silentSyncTracker.totalCount = 0;
+            this.silentSyncTracker.syncCounts = {
+                inventory: 0,
+                spells: 0,
+                skills: 0,
+                attributes: 0,
+                discoveries: 0
+            };
+            this.silentSyncTracker.recentHistory = [];
+        }
     }
 
     /**
@@ -285,6 +333,10 @@ export class GKLPlugin {
                     } else {
                         this.inventoryStateManager.isSynced = false;
                     }
+                }
+
+                // 魔法ステートのダーティ化は魔法に影響するアクション（Z:詠唱, r:魔法書読書, +等）の時のみ限定実行
+                if (this.isSpellAffectingSequence(sequence)) {
                     if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
                         this.spellStateManager.invalidate();
                     }
@@ -567,6 +619,7 @@ export class GKLPlugin {
             'K', 'J', 'H', 'L', 'Y', 'U', 'B', 'N',
             '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '_', '<', '>',
             '/', ';', ':', '^', '\\', '?', 'm', 'M',
+            's', '\x10', '\x12', 'v', 'V', 'O', '\x0f',
             'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
             'Up', 'Down', 'Left', 'Right'
         ]);
@@ -580,6 +633,22 @@ export class GKLPlugin {
             if (strToken.startsWith('DIR_')) return true;
             if (/^\d+$/.test(strToken)) return true;
 
+            return false;
+        });
+    }
+
+    /**
+     * 指定されたキーシーケンスが習得魔法状態（詠唱失敗率、忘却ターン、新規習得等）に影響を及ぼしうるか判定
+     * @param {Array<string|number>} sequence 
+     * @returns {boolean}
+     */
+    isSpellAffectingSequence(sequence) {
+        if (!Array.isArray(sequence) || sequence.length === 0) return false;
+        const spellKeys = new Set(['Z', 'r', '+', '#cast', 'cast']);
+        return sequence.some(token => {
+            if (typeof token === 'string') {
+                return spellKeys.has(token) || token.startsWith('Z') || token.startsWith('#cast') || token.startsWith('cast');
+            }
             return false;
         });
     }
@@ -643,10 +712,15 @@ export class GKLPlugin {
             return false;
         }
 
+        const startTime = Date.now();
         const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
-            this.inventoryStateManager.updateFromSequenceBuffer(buffer);
-            this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
+            const changed = this.inventoryStateManager.updateFromSequenceBuffer(buffer);
+            const durationMs = Date.now() - startTime;
+            this._recordSilentSync('inventory', changed, durationMs);
+            if (changed || force) {
+                this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
+            }
             return true;
         }
         return false;
@@ -682,9 +756,12 @@ export class GKLPlugin {
             return false;
         }
 
+        const startTime = Date.now();
         const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], { syncType: 'spells', ...options });
         if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
-            this.spellStateManager.updateFromSequenceBuffer(buffer, true);
+            const changed = this.spellStateManager.updateFromSequenceBuffer(buffer, true);
+            const durationMs = Date.now() - startTime;
+            this._recordSilentSync('spells', changed !== false, durationMs);
             this.core.emit('spellsStateUpdated', this.spellStateManager);
             return true;
         }
@@ -722,6 +799,7 @@ export class GKLPlugin {
         }
 
         // '\x18' is Ctrl+X (^X)
+        const startTime = Date.now();
         const buffer = await this.core.querySequenceSilent(['\x18', ' ', '\x1b'], { syncType: 'attributes', ...options });
         if (this.attributeStateManager) {
             if (typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
@@ -730,6 +808,8 @@ export class GKLPlugin {
             if (this.inventoryStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
                 this.attributeStateManager.updateExtrinsicsFromInventory(this.inventoryStateManager.items);
             }
+            const durationMs = Date.now() - startTime;
+            this._recordSilentSync('attributes', true, durationMs);
             this.core.emit('attributesStateUpdated', this.attributeStateManager);
             return true;
         }
@@ -765,9 +845,12 @@ export class GKLPlugin {
             return false;
         }
 
+        const startTime = Date.now();
         const buffer = await this.core.querySequenceSilent(['#', 'enhance', ' ', '\x1b'], { syncType: 'skills', ...options });
         if (this.skillStateManager && typeof this.skillStateManager.updateFromSequenceBuffer === 'function') {
-            this.skillStateManager.updateFromSequenceBuffer(buffer, true);
+            const changed = this.skillStateManager.updateFromSequenceBuffer(buffer, true);
+            const durationMs = Date.now() - startTime;
+            this._recordSilentSync('skills', changed !== false, durationMs);
             this.core.emit('skillsStateUpdated', this.skillStateManager);
             return true;
         }
@@ -964,11 +1047,13 @@ export class GKLPlugin {
         if (!this.core || this._isSyncingDiscoveries) return false;
         this._isSyncingDiscoveries = true;
 
+        const startTime = Date.now();
         try {
             if (typeof this.core.silentQuery === 'function') {
                 const buffer = await this.core.silentQuery(['\\', ' ']);
                 if (buffer && this.discoveryStateManager) {
                     this.discoveryStateManager.updateFromDiscoveriesText(buffer);
+                    this._recordSilentSync('discoveries', true, Date.now() - startTime);
                     this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
                     return true;
                 }
@@ -977,6 +1062,7 @@ export class GKLPlugin {
                 const buffer = this.core.driver.getLastSequenceBuffer ? this.core.driver.getLastSequenceBuffer() : null;
                 if (buffer && this.discoveryStateManager) {
                     this.discoveryStateManager.updateFromDiscoveriesText(buffer);
+                    this._recordSilentSync('discoveries', true, Date.now() - startTime);
                     this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
                     return true;
                 }

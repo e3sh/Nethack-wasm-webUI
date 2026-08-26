@@ -198,12 +198,19 @@ export class DebugInspector {
             ? situation.advices
             : ((this.core.gkl && typeof this.core.gkl.getTacticalAdvices === 'function') ? this.core.gkl.getTacticalAdvices() : []);
 
+        const silentSyncTracker = (this.core.gkl && this.core.gkl.silentSyncTracker) ? {
+            totalCount: this.core.gkl.silentSyncTracker.totalCount,
+            syncCounts: { ...this.core.gkl.silentSyncTracker.syncCounts },
+            recentHistory: [...this.core.gkl.silentSyncTracker.recentHistory]
+        } : null;
+
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
             promptChoices: this.core.currentPromptChoices,
             hasActiveResolver: !!this.core.activeResolver,
             driverStatus: driverSummary,
+            silentSyncStatus: silentSyncTracker,
             status: statusData,
             areaState: areaData,
             inventoryItems: inventoryItems,

@@ -16,19 +16,25 @@ export class InventoryStateManager {
         // item: { letter: 'f', name: 'pick-axe', rawText: '...', glyphId: 3707, onum: 259, isPickAxe: true, knowledge: {...} }
         this.items = [];
         this.isSynced = false; // 一度でもインベントリを同期したかフラグ
+        this._lastInventorySignature = ''; // 前回のインベントリシグネチャ（差分検知用）
         this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
         this.skillStateManager = options.skillStateManager || null;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
     }
 
     setLanguage(lang = 'ja') {
+        const prevLang = this.language;
         this.language = (lang === 'ja' || lang === 'jp' || lang === true) ? 'ja' : 'en';
+        if (prevLang !== this.language) {
+            this._lastInventorySignature = '';
+        }
     }
 
     setStructuredKnowledgeEngine(ske) {
         this.structuredKnowledgeEngine = ske;
         if (ske && ske.language) {
             this.language = ske.language;
+            this._lastInventorySignature = '';
         }
     }
 
@@ -42,18 +48,42 @@ export class InventoryStateManager {
     reset() {
         this.items = [];
         this.isSynced = false;
+        this._lastInventorySignature = '';
     }
 
     /**
-     * インベントリメニューダイアログ等のデータから全リストを更新・同期
-     * @param {Array<Object>} menuItems - メニュー項目の配列 [{ letter: 'a', text: 'a blessed +1 pick-axe', glyph: 3707, onum: 259 }, ...]
+     * メニュー項目群から軽量なシグネチャ文字列を生成（差分検知用）
+     * @private
      */
+    _buildSignature(menuItems) {
+        const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+        if (!Array.isArray(menuItems) || menuItems.length === 0) {
+            return `lang:${lang};;empty`;
+        }
+        const parts = menuItems.map(mi => {
+            if (!mi) return '';
+            const rawText = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
+            const rawCh = mi.charStr || mi.letter || mi.accelerator || mi.selector || mi.ch || '';
+            const glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
+            const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo && typeof mi.glyphInfo.onum === 'number' ? mi.glyphInfo.onum : -1);
+            return `${rawCh}:${rawText}:${glyphId}:${onum}`;
+        });
+        return `lang:${lang};;` + parts.join('|');
+    }
+
     /**
      * 自発同期(syncInventorySilent)等のメニュー項目からインベントリ全体を更新
      * @param {Array<Object>} menuItems - メニュー項目の配列
+     * @returns {boolean} インベントリ内容に実質的な変更があったかどうか
      */
     updateFromMenuItems(menuItems) {
-        if (!Array.isArray(menuItems)) return;
+        if (!Array.isArray(menuItems)) return false;
+
+        const newSignature = this._buildSignature(menuItems);
+        if (this.isSynced && this._lastInventorySignature === newSignature) {
+            // 前回のインベントリ内容と完全一致：再パース・ナレッジ再生成・再翻訳をスキップ
+            return false;
+        }
 
         const parsedItems = [];
 
@@ -151,59 +181,72 @@ export class InventoryStateManager {
 
             this.items = parsedItems;
             this.isSynced = true;
+            this._lastInventorySignature = newSignature;
+            return true;
         } else {
+            const hadItems = this.items.length > 0;
             this.items = [];
             this.isSynced = true;
+            this._lastInventorySignature = newSignature;
+            return hadItems;
         }
     }
 
     /**
      * driver.getLastSequenceBuffer() のバッファデータからインベントリメニュー・テキスト行を抽出して一括更新
      * @param {Array<Object>} sequenceBuffer - シーケンスバッファの配列
+     * @returns {boolean} インベントリ内容に実質的な変更があったかどうか
      */
     updateFromSequenceBuffer(sequenceBuffer) {
         if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
+            const emptySig = this._buildSignature([]);
+            if (this.isSynced && this._lastInventorySignature === emptySig) {
+                return false;
+            }
+            const hadItems = this.items.length > 0;
             this.items = [];
             this.isSynced = true;
-            return;
+            this._lastInventorySignature = emptySig;
+            return hadItems;
         }
 
-        let menuParsed = false;
         for (const item of sequenceBuffer) {
             if (!item) continue;
 
             if (item.menuItems || item.items) {
                 const menuItems = item.menuItems || item.items;
                 if (Array.isArray(menuItems) && menuItems.length > 0) {
-                    this.updateFromMenuItems(menuItems);
-                    menuParsed = true;
-                    return;
+                    return this.updateFromMenuItems(menuItems);
                 }
             }
 
             if (item.lines || item.text) {
                 const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
                 if (Array.isArray(lines) && lines.length > 0) {
-                    this.updateFromLines(lines);
-                    menuParsed = true;
-                    return;
+                    return this.updateFromLines(lines);
                 }
             }
         }
 
         // メニューアイテムも有効テキスト行も見つからなかった場合 ("Not carrying anything." 等)
-        if (!menuParsed) {
-            this.items = [];
-            this.isSynced = true;
+        const emptySig = this._buildSignature([]);
+        if (this.isSynced && this._lastInventorySignature === emptySig) {
+            return false;
         }
+        const hadItems = this.items.length > 0;
+        this.items = [];
+        this.isSynced = true;
+        this._lastInventorySignature = emptySig;
+        return hadItems;
     }
 
     /**
      * テキスト行の配列（例: ["a - a lock pick", "b - a +0 dagger"]）からインベントリ状態を抽出・同期
      * @param {Array<string>} lines 
+     * @returns {boolean}
      */
     updateFromLines(lines) {
-        if (!Array.isArray(lines) || lines.length === 0) return;
+        if (!Array.isArray(lines) || lines.length === 0) return false;
 
         const menuItems = [];
         lines.forEach(line => {
@@ -218,7 +261,7 @@ export class InventoryStateManager {
             }
         });
 
-        this.updateFromMenuItems(menuItems);
+        return this.updateFromMenuItems(menuItems);
     }
 
     /** エイリアスメソッド (互換性担保) */

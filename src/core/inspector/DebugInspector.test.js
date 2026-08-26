@@ -51,6 +51,7 @@ describe('DebugInspector', () => {
         expect(snapshot.inventoryItems[0].name).toBe('dagger');
         expect(snapshot.contextActions).toHaveLength(1);
         expect(snapshot.contextActions[0].label).toBe('鍵でドアを開ける');
+        expect(snapshot).toHaveProperty('silentSyncStatus');
     });
 
     it('ダイレクト割り込みメッセージ (INJECT_RESPONSE) を処理して core.respond を呼び出すこと', () => {

@@ -500,11 +500,29 @@ export class StructuredKnowledgeEngine {
      * @returns {Object} 未識別アイテムナレッジ
      */
     getUnidentifiedItemKnowledge(rawInput, options = {}) {
+        const shouldTranslate = options.translate !== false;
+        const lang = options.language || this.language || 'ja';
+
         const idRes = (rawInput && typeof rawInput === 'object' && rawInput.idLevel)
             ? rawInput
             : ItemIdentificationResolver.resolve(rawInput, options);
 
         const category = idRes.category || 'OTHER';
+
+        // キャッシュキーの構築 (正規化された未識別外見名・カテゴリ・名付け・言語)
+        let cacheKey = null;
+        if (shouldTranslate && !options.dynamicState) {
+            const appearance = (idRes.appearanceName || idRes.displayName || (typeof rawInput === 'string' ? rawInput : (rawInput.name || rawInput.str || ''))).trim().toLowerCase();
+            const called = idRes.calledName ? `_called_${idRes.calledName.trim().toLowerCase()}` : '';
+            const buc = idRes.bucStatus ? `_buc_${idRes.bucStatus}` : '';
+            if (appearance) {
+                cacheKey = `${lang}_unid_${category.toLowerCase()}_${appearance}${called}${buc}`;
+                if (this.staticCache.has(cacheKey)) {
+                    return this.staticCache.get(cacheKey);
+                }
+            }
+        }
+
         const adviceObj = OBJECT_CATEGORY_ADVICE[category] || OBJECT_CATEGORY_ADVICE.TOOL;
         const tips = (idRes.identificationTips && idRes.identificationTips.length > 0)
             ? idRes.identificationTips
@@ -531,8 +549,11 @@ export class StructuredKnowledgeEngine {
             identification: idRes
         };
 
-        const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
+        const finalResult = shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
+        if (cacheKey && finalResult) {
+            this.staticCache.set(cacheKey, finalResult);
+        }
+        return finalResult;
     }
 
     /**
@@ -593,8 +614,21 @@ export class StructuredKnowledgeEngine {
 
         const shouldTranslate = options.translate !== false;
         const lang = options.language || this.language || 'ja';
-        const isStaticNumberItem = (typeof identifier === 'number' && !options.identification && !options.isUnidentified && !options.dynamicState);
-        const cacheKey = (isStaticNumberItem && shouldTranslate) ? `${lang}_item_${identifier}` : null;
+        let cacheKey = null;
+        if (shouldTranslate && !options.dynamicState) {
+            if (typeof identifier === 'number' && !options.identification && !options.isUnidentified) {
+                cacheKey = `${lang}_item_num_${identifier}`;
+            } else if (typeof identifier === 'string') {
+                cacheKey = `${lang}_item_str_${identifier}`;
+            } else if (typeof identifier === 'object' && identifier !== null && !identifier.dynamicState) {
+                const rawName = identifier.rawText || identifier.str || identifier.label || identifier.name || '';
+                const onum = typeof identifier.onum === 'number' ? identifier.onum : -1;
+                const isUnid = Boolean(identifier.isUnidentified || identifier.identification?.isUnidentified || options.isUnidentified || options.identification?.isUnidentified);
+                if (rawName || onum >= 0) {
+                    cacheKey = `${lang}_item_obj_${onum}_${rawName}_${isUnid ? '1' : '0'}`;
+                }
+            }
+        }
         if (cacheKey && this.staticCache.has(cacheKey)) {
             return this.staticCache.get(cacheKey);
         }
