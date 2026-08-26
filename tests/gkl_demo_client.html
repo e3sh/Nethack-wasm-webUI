@@ -1261,8 +1261,8 @@
             const offsetX = Math.round(containerW / 2 - (px * tileSize + tileSize / 2));
             const offsetY = Math.round(containerH / 2 - (py * tileSize + tileSize / 2));
 
-            // キャラクター/敵の上下バウンス浮遊アニメーションオフセット (サイン波)
-            const bounceY = Math.round(Math.sin(Date.now() / 180) * 3);
+            // キビキビとした上方向バウンス (周期約0.5秒, 0〜-4px)
+            const bounceY = -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 4);
 
             const visMinX = Math.max(0, Math.floor((-offsetX) / tileSize));
             const visMaxX = Math.min(width - 1, Math.ceil((containerW - offsetX) / tileSize));

@@ -703,7 +703,8 @@ class GklPureJSClient {
     // 21x9 マスを中心（10,4）に配置
     const halfRangeX = 10;
     const halfRangeY = 4;
-    const bounceY = Math.round(Math.sin(Date.now() / 180) * 2);
+    // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px)
+    const bounceY = -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
 
     for (let dy = -halfRangeY; dy <= halfRangeY; dy++) {
       for (let dx = -halfRangeX; dx <= halfRangeX; dx++) {
@@ -1802,7 +1803,8 @@ class GklPureJSClient {
     this.ctx.fillStyle = '#000000';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    const bounceY = Math.round(Math.sin(Date.now() / 180) * 2);
+    // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px)
+    const bounceY = -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
 
     // GKL AreaStateManager の 3層グリッドがある場合は重ね描き
     const areaGrid = (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') ? this.core.gkl.getSituation()?.area?.grid : null;
