@@ -112,6 +112,12 @@ class GklPureJSClient {
     this.asciiGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => ({ ch: ' ', color: 7 })));
     this.glyphGridBuffer = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
 
+    // Visual FX & Screen Shake State
+    this.activeFxList = [];
+    this.screenShakeTime = 0;
+    this.screenShakeDuration = 0;
+    this.screenShakeIntensity = 0;
+
     // Multi-path Sprite Tile Image Loader (Main: Opaque, Zoom: Transparent)
     this.tileImg = new Image();
     this.tileLoaded = false;
@@ -143,7 +149,10 @@ class GklPureJSClient {
       this.zoomTileImg.src = p;
       this.loadedZoomTileImagePath = p;
       this.zoomTileLoaded = true;
-      this.renderGklZoomView();
+      if (this.core && this.core.gkl) {
+        const situation = this.core.gkl.getSituation();
+        this.renderZoomCanvas(situation?.area);
+      }
     });
 
     this.init();
@@ -350,6 +359,66 @@ class GklPureJSClient {
     this.core.on('exited', async (data) => {
       this.handleExited(data);
     });
+
+    // 10. 🎨 Visual FX 演出トリガーイベント (fx_trigger) 購読
+    this.core.on('fx_trigger', (fx) => {
+      if (!fx || !fx.type) return;
+      const now = performance.now();
+
+      if (fx.type === 'ATTACK_HIT') {
+        this.activeFxList.push({
+          type: 'SLASH',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          startTime: now,
+          durationMs: 130,
+          color: '#ffffff'
+        });
+      } else if (fx.type === 'DAMAGE_TAKEN') {
+        this.activeFxList.push({
+          type: 'DAMAGE_FLASH',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          amount: fx.amount,
+          startTime: now,
+          durationMs: 160,
+          color: '#ff1744'
+        });
+        this.triggerScreenShake(3, 100);
+      } else if (fx.type === 'KILL_CONFIRMED') {
+        this.activeFxList.push({
+          type: 'KILL_BURST',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          startTime: now,
+          durationMs: 200,
+          color: '#ffd700'
+        });
+      } else if (fx.type === 'RECOVER_HEAL') {
+        this.activeFxList.push({
+          type: 'HEAL_RING',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          amount: fx.amount,
+          startTime: now,
+          durationMs: 250,
+          color: '#00e676'
+        });
+      }
+    });
+  }
+
+  /**
+   * 画面の微小シェイク演出をトリガー
+   * @param {number} [intensity=3] - 振動の強さ (ピクセル)
+   * @param {number} [durationMs=100] - 振動の持続時間 (ミリ秒)
+   */
+  triggerScreenShake(intensity = 3, durationMs = 100) {
+    this.screenShakeIntensity = intensity;
+    this.screenShakeDuration = durationMs;
+    this.screenShakeTime = performance.now();
   }
 
   bindDOMEvents() {
@@ -697,6 +766,26 @@ class GklPureJSClient {
     const canvasH = this.zoomCanvas.height; // 288
     const zoomTileSize = 32; // 拡大 32px タイル
 
+    const now = performance.now();
+
+    // 画面シェイクの計算
+    let shakeX = 0;
+    let shakeY = 0;
+    if (this.screenShakeTime > 0) {
+      const elapsed = now - this.screenShakeTime;
+      if (elapsed < this.screenShakeDuration) {
+        const progress = 1 - (elapsed / this.screenShakeDuration);
+        const mag = this.screenShakeIntensity * progress;
+        shakeX = (Math.random() * 2 - 1) * mag;
+        shakeY = (Math.random() * 2 - 1) * mag;
+      } else {
+        this.screenShakeTime = 0;
+      }
+    }
+
+    this.zoomCtx.save();
+    this.zoomCtx.translate(shakeX, shakeY);
+
     this.zoomCtx.fillStyle = '#090916';
     this.zoomCtx.fillRect(0, 0, canvasW, canvasH);
 
@@ -777,6 +866,118 @@ class GklPureJSClient {
         }
       }
     }
+
+    // 🎨 Layer 5: Visual FX 最前面オーバーレイ描画
+    this.renderVisualFx(px, py, halfRangeX, halfRangeY, zoomTileSize, canvasW, canvasH, now);
+
+    this.zoomCtx.restore();
+  }
+
+  /**
+   * 🎨 FocusCamera 上での Visual FX 最前面オーバーレイ描画＆自動ライフサイクル管理
+   */
+  renderVisualFx(px, py, halfRangeX, halfRangeY, zoomTileSize, canvasW, canvasH, now) {
+    if (!this.activeFxList || this.activeFxList.length === 0) return;
+
+    this.activeFxList = this.activeFxList.filter(fx => {
+      const elapsed = now - fx.startTime;
+      if (elapsed >= fx.durationMs) return false;
+
+      const progress = Math.min(1.0, elapsed / fx.durationMs);
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+
+      const targetGx = fx.followPlayer ? px : fx.gx;
+      const targetGy = fx.followPlayer ? py : fx.gy;
+
+      if (targetGx === undefined || targetGy === undefined) return true;
+
+      const screenX = (targetGx - px + halfRangeX) * zoomTileSize;
+      const screenY = (targetGy - py + halfRangeY) * zoomTileSize;
+
+      if (screenX < -zoomTileSize || screenX > canvasW || screenY < -zoomTileSize || screenY > canvasH) {
+        return true;
+      }
+
+      this.zoomCtx.save();
+
+      if (fx.type === 'SLASH') {
+        // ⚔️ 斬撃エフェクト (斜めラインと光彩)
+        const alpha = 1 - progress;
+        this.zoomCtx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        this.zoomCtx.lineWidth = 3;
+        this.zoomCtx.shadowColor = '#ffd740';
+        this.zoomCtx.shadowBlur = 6;
+        this.zoomCtx.beginPath();
+        const startX = screenX + 4;
+        const startY = screenY + 4;
+        const endX = startX + (zoomTileSize - 8) * Math.min(1.0, progress * 2.5);
+        const endY = startY + (zoomTileSize - 8) * Math.min(1.0, progress * 2.5);
+        this.zoomCtx.moveTo(startX, startY);
+        this.zoomCtx.lineTo(endX, endY);
+        this.zoomCtx.stroke();
+
+        if (progress > 0.2) {
+          this.zoomCtx.strokeStyle = `rgba(255, 215, 64, ${alpha * 0.8})`;
+          this.zoomCtx.lineWidth = 1.5;
+          this.zoomCtx.beginPath();
+          this.zoomCtx.moveTo(screenX + zoomTileSize - 8, screenY + 8);
+          this.zoomCtx.lineTo(screenX + 8, screenY + zoomTileSize - 8);
+          this.zoomCtx.stroke();
+        }
+      } else if (fx.type === 'DAMAGE_FLASH') {
+        // 💥 被弾赤フラッシュ (半透明赤矩形 + 赤枠)
+        const alpha = (1 - progress) * 0.6;
+        this.zoomCtx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
+        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+        this.zoomCtx.strokeStyle = `rgba(255, 23, 68, ${1 - progress})`;
+        this.zoomCtx.lineWidth = 2;
+        this.zoomCtx.strokeRect(screenX, screenY, zoomTileSize, zoomTileSize);
+      } else if (fx.type === 'KILL_BURST') {
+        // 💀 撃破消滅バースト (放射状パーティクル・クロス光)
+        const alpha = 1 - progress;
+        const radius = (zoomTileSize * 0.5) * (0.3 + easeOut * 0.7);
+        const cx = screenX + zoomTileSize / 2;
+        const cy = screenY + zoomTileSize / 2;
+
+        this.zoomCtx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+        this.zoomCtx.lineWidth = 2;
+        this.zoomCtx.shadowColor = '#ff9100';
+        this.zoomCtx.shadowBlur = 8;
+
+        this.zoomCtx.beginPath();
+        this.zoomCtx.moveTo(cx - radius, cy);
+        this.zoomCtx.lineTo(cx + radius, cy);
+        this.zoomCtx.moveTo(cx, cy - radius);
+        this.zoomCtx.lineTo(cx, cy + radius);
+        this.zoomCtx.stroke();
+
+        this.zoomCtx.fillStyle = `rgba(255, 235, 59, ${alpha})`;
+        const d = radius * 0.7;
+        const pSize = Math.max(1, 3 * (1 - progress));
+        this.zoomCtx.fillRect(cx - d, cy - d, pSize, pSize);
+        this.zoomCtx.fillRect(cx + d, cy - d, pSize, pSize);
+        this.zoomCtx.fillRect(cx - d, cy + d, pSize, pSize);
+        this.zoomCtx.fillRect(cx + d, cy + d, pSize, pSize);
+      } else if (fx.type === 'HEAL_RING') {
+        // 💚 回復リング (上昇する緑のリング)
+        const alpha = 1 - progress;
+        const liftY = -easeOut * 12;
+        const cx = screenX + zoomTileSize / 2;
+        const cy = screenY + zoomTileSize / 2 + liftY;
+        const r = 4 + easeOut * 10;
+
+        this.zoomCtx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+        this.zoomCtx.lineWidth = 2;
+        this.zoomCtx.shadowColor = '#69f0ae';
+        this.zoomCtx.shadowBlur = 6;
+        this.zoomCtx.beginPath();
+        this.zoomCtx.arc(cx, cy, r, 0, Math.PI * 2);
+        this.zoomCtx.stroke();
+      }
+
+      this.zoomCtx.restore();
+      return true;
+    });
   }
 
   drawZoomTile(glyphId, cols, tileMap, dx, dy, animY = 0) {

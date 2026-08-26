@@ -81,6 +81,41 @@ export class GKLPlugin {
         this.requestController = null;
         this.lookService = new OnDemandLookService();
         this._coreListeners = [];
+        this._prevHp = null;
+        this._lastAttackTarget = null;
+    }
+
+    /**
+     * 演出トリガーイベント (fx_trigger) を安全に発行
+     * @param {Object} payload 
+     */
+    emitFxTrigger(payload) {
+        if (!this.core || typeof this.core.emit !== 'function') return;
+        const fullPayload = {
+            timestamp: Date.now(),
+            ...payload
+        };
+        this.core.emit('fx_trigger', fullPayload);
+    }
+
+    /**
+     * 方向キー・トークンから相対オフセット {dx, dy} を取得
+     * @private
+     */
+    _getDirOffset(dirKey) {
+        if (!dirKey) return null;
+        const str = String(dirKey).trim();
+        const map = {
+            'k': { dx: 0, dy: -1 }, 'DIR_N': { dx: 0, dy: -1 }, '8': { dx: 0, dy: -1 }, 'N': { dx: 0, dy: -1 },
+            'l': { dx: 1, dy: 0 }, 'DIR_E': { dx: 1, dy: 0 }, '6': { dx: 1, dy: 0 }, 'E': { dx: 1, dy: 0 },
+            'j': { dx: 0, dy: 1 }, 'DIR_S': { dx: 0, dy: 1 }, '2': { dx: 0, dy: 1 }, 'S': { dx: 0, dy: 1 },
+            'h': { dx: -1, dy: 0 }, 'DIR_W': { dx: -1, dy: 0 }, '4': { dx: -1, dy: 0 }, 'W': { dx: -1, dy: 0 },
+            'u': { dx: 1, dy: -1 }, 'DIR_NE': { dx: 1, dy: -1 }, '9': { dx: 1, dy: -1 }, 'NE': { dx: 1, dy: -1 },
+            'y': { dx: -1, dy: -1 }, 'DIR_NW': { dx: -1, dy: -1 }, '7': { dx: -1, dy: -1 }, 'NW': { dx: -1, dy: -1 },
+            'n': { dx: 1, dy: 1 }, 'DIR_SE': { dx: 1, dy: 1 }, '3': { dx: 1, dy: 1 }, 'SE': { dx: 1, dy: 1 },
+            'b': { dx: -1, dy: 1 }, 'DIR_SW': { dx: -1, dy: 1 }, '1': { dx: -1, dy: 1 }, 'SW': { dx: -1, dy: 1 },
+        };
+        return map[str] || null;
     }
 
     /**
@@ -124,6 +159,8 @@ export class GKLPlugin {
      * ゲームリスタート時などに全マネージャーのキャッシュ・状態を初期化
      */
     reset() {
+        this._prevHp = null;
+        this._lastAttackTarget = null;
         if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
             this.monsterTracker.reset();
         }
@@ -239,7 +276,7 @@ export class GKLPlugin {
             this.setLanguage(language);
         });
 
-        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行
+        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行 ＆ 攻撃検知
         addCoreListener('userActionSent', ({ sequence }) => {
             if (sequence) {
                 if (!this.isNonItemSequence(sequence)) {
@@ -257,14 +294,45 @@ export class GKLPlugin {
                 if (this.monsterTracker && this.isTurnConsumingSequence(sequence)) {
                     this.monsterTracker.advanceTurn();
                 }
+
+                // ⚔️ 近接攻撃アクション (ATTACK_HIT) の検知 (※ ペットとの位置入れ替え/displaceは除外)
+                if (sequence.length === 1 && this.areaStateManager) {
+                    const offset = this._getDirOffset(sequence[0]);
+                    if (offset) {
+                        const px = this.areaStateManager.playerX;
+                        const py = this.areaStateManager.playerY;
+                        const tx = px + offset.dx;
+                        const ty = py + offset.dy;
+                        const targetCell = this.areaStateManager.grid?.[ty]?.[tx];
+                        const isPet = targetCell?.top && (targetCell.top.type === 'PET' || targetCell.top.isPet);
+                        if (targetCell?.top && targetCell.top.type === 'MONSTER' && !isPet) {
+                            this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
+                            this.emitFxTrigger({
+                                type: 'ATTACK_HIT',
+                                targetX: tx,
+                                targetY: ty
+                            });
+                        }
+                    }
+                }
             }
         });
 
-        // 2. テキストメッセージ受信時の更新 (撃破メッセージ処理含む)
+        // 2. テキストメッセージ受信時の更新 (撃破メッセージ処理・KILL_CONFIRMED含む)
         addCoreListener('messageText', ({ text }) => {
             if (text) {
+                let killedInfo = null;
                 if (this.monsterTracker && typeof this.monsterTracker.handleMessage === 'function') {
-                    this.monsterTracker.handleMessage(text);
+                    killedInfo = this.monsterTracker.handleMessage(text);
+                }
+                if (killedInfo) {
+                    const tx = killedInfo.lastKnownPos?.x ?? this._lastAttackTarget?.x;
+                    const ty = killedInfo.lastKnownPos?.y ?? this._lastAttackTarget?.y;
+                    this.emitFxTrigger({
+                        type: 'KILL_CONFIRMED',
+                        targetX: tx,
+                        targetY: ty
+                    });
                 }
                 if (typeof this.inventoryStateManager.updateFromMessage === 'function') {
                     const updated = this.inventoryStateManager.updateFromMessage(text);
@@ -338,6 +406,7 @@ export class GKLPlugin {
 
         // 5. ウィンドウ消去・マップリセットの同期
         addCoreListener('clear_nhwindow', (data) => {
+            this._lastAttackTarget = null;
             if (data && (data.windowId === 2 || data.windowId === 0)) {
                 if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
                     this.areaStateManager.prepareFloorTransition();
@@ -351,6 +420,7 @@ export class GKLPlugin {
         });
 
         addCoreListener('map_cleared', () => {
+            this._lastAttackTarget = null;
             if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
                 this.areaStateManager.prepareFloorTransition();
             } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
@@ -370,10 +440,46 @@ export class GKLPlugin {
             }
         });
 
-        // 7. ステータスフィールド更新の同期
+        // 7. ステータスフィールド更新の同期 (HP変動・DAMAGE_TAKEN / RECOVER_HEAL検知含む)
         addCoreListener('status_update', (data) => {
             if (data && data.field !== undefined && this.statusAccessor) {
                 this.statusAccessor.updateField(data.field, data.value);
+
+                // HP 変動検知 (BL_HP = 18, 'hp')
+                if (data.field === 18 || data.field === 'hp') {
+                    const newHp = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
+                    if (!isNaN(newHp)) {
+                        if (this._prevHp !== null && this._prevHp !== undefined) {
+                            const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
+                            const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
+                            const st = this.statusAccessor.getStatus();
+                            const maxHp = st?.hp?.max || newHp;
+
+                            if (newHp < this._prevHp) {
+                                this.emitFxTrigger({
+                                    type: 'DAMAGE_TAKEN',
+                                    targetX: px,
+                                    targetY: py,
+                                    isPlayer: true,
+                                    amount: this._prevHp - newHp,
+                                    currentHp: newHp,
+                                    maxHp
+                                });
+                            } else if (newHp > this._prevHp) {
+                                this.emitFxTrigger({
+                                    type: 'RECOVER_HEAL',
+                                    targetX: px,
+                                    targetY: py,
+                                    isPlayer: true,
+                                    amount: newHp - this._prevHp,
+                                    currentHp: newHp,
+                                    maxHp
+                                });
+                            }
+                        }
+                        this._prevHp = newHp;
+                    }
+                }
 
                 // ターン数 (BL_TIME = 16) の同期
                 if (data.field === 16 || data.field === 'time' || data.field === 'turns') {
@@ -802,6 +908,22 @@ export class GKLPlugin {
      */
     executeAction(action, options = {}) {
         if (!action || !this.core) return false;
+
+        // ⚔️ 攻撃アクション時の演出イベント (ATTACK_HIT) 発火
+        if (action.id?.startsWith('ACTION_ATTACK_') || action.category === 'COMBAT' || action.isAttack) {
+            const dirKey = action.dirCode || action.directionKey || action.direction;
+            const offset = this._getDirOffset(dirKey);
+            const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
+            const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
+            const tx = action.targetPos?.x ?? (offset ? px + offset.dx : px);
+            const ty = action.targetPos?.y ?? (offset ? py + offset.dy : py);
+            this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
+            this.emitFxTrigger({
+                type: 'ATTACK_HIT',
+                targetX: tx,
+                targetY: ty
+            });
+        }
 
         // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
         if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {

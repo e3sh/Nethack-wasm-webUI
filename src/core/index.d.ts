@@ -186,6 +186,19 @@ export interface GameOverResult {
     error?: string;
 }
 
+// --- 演出トリガーイベント (Visual FX) ---
+export type FxTriggerType = 'ATTACK_HIT' | 'DAMAGE_TAKEN' | 'KILL_CONFIRMED' | 'RECOVER_HEAL';
+
+export interface FxTriggerPayload {
+    type: FxTriggerType;
+    targetX?: number;
+    targetY?: number;
+    amount?: number;
+    currentHp?: number;
+    maxHp?: number;
+    timestamp: number;
+}
+
 // --- ステータス ＆ ナレッジ層 (GKL) ---
 export interface StructuredStatus {
     dlevel?: { text: string; num: number; branch?: string };

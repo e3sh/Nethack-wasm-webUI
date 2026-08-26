@@ -151,9 +151,10 @@ export class MonsterTracker {
     /**
      * ログメッセージ（撃破・消滅・死亡）の処理
      * @param {string} text 
+     * @returns {Object|null} 撃破されたモンスターエントリーまたは撃破判定結果
      */
     handleMessage(text) {
-        if (!text || typeof text !== 'string') return;
+        if (!text || typeof text !== 'string') return null;
         const lower = text.toLowerCase();
 
         // 撃破・消滅パターンの判定
@@ -170,18 +171,22 @@ export class MonsterTracker {
             text.includes('死んだ') ||
             text.includes('消滅した');
 
-        if (!isKillMessage) return;
+        if (!isKillMessage) return null;
 
         // 追跡中のモンスター名と照合し、撃破されたモンスターを削除
+        let killedEntry = null;
         for (const [key, entry] of this.trackedMonsters.entries()) {
             const mName = (entry.name || '').toLowerCase();
             const mNameJa = entry.nameJa || '';
 
             if ((mName && lower.includes(mName)) || (mNameJa && text.includes(mNameJa))) {
+                killedEntry = { ...entry };
                 this.trackedMonsters.delete(key);
                 break; // 1件削除
             }
         }
+
+        return killedEntry || { isKillMessage: true };
     }
 
     /**

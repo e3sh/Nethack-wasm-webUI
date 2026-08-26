@@ -408,4 +408,146 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.areaStateManager.grid[12][18].bottom).not.toBeNull();
         expect(plugin.areaStateManager.grid[12][18].bottom.cmapFlags.isStairDown).toBe(true);
     });
+
+    describe('Visual FX 演出トリガーイベント (fx_trigger) 発火機能', () => {
+        it('HP減少時に DAMAGE_TAKEN イベントが正しく発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー位置設定 (10, 5)
+            mockCore.emit('curs', { x: 10, y: 5 });
+
+            // 初期HP: 16 (初回登録はイベント発火しない)
+            mockCore.emit('status_update', { field: 18, value: 16 });
+            mockCore.emit('status_update', { field: 19, value: 16 }); // maxHp: 16
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 被弾して HP: 12 (-4)
+            mockCore.emit('status_update', { field: 18, value: 12 });
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            const payload = fxListener.mock.calls[0][0];
+            expect(payload.type).toBe('DAMAGE_TAKEN');
+            expect(payload.targetX).toBe(10);
+            expect(payload.targetY).toBe(5);
+            expect(payload.amount).toBe(4);
+            expect(payload.currentHp).toBe(12);
+            expect(payload.maxHp).toBe(16);
+            expect(typeof payload.timestamp).toBe('number');
+        });
+
+        it('HP回復時に RECOVER_HEAL イベントが正しく発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            mockCore.emit('curs', { x: 10, y: 5 });
+            mockCore.emit('status_update', { field: 18, value: 8 });
+            mockCore.emit('status_update', { field: 19, value: 20 });
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 回復して HP: 14 (+6)
+            mockCore.emit('status_update', { field: 18, value: 14 });
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            const payload = fxListener.mock.calls[0][0];
+            expect(payload.type).toBe('RECOVER_HEAL');
+            expect(payload.targetX).toBe(10);
+            expect(payload.targetY).toBe(5);
+            expect(payload.amount).toBe(6);
+            expect(payload.currentHp).toBe(14);
+            expect(payload.maxHp).toBe(20);
+        });
+
+        it('隣接モンスターへの移動操作時に ATTACK_HIT イベントが正しく発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー位置 (10, 5)
+            mockCore.emit('curs', { x: 10, y: 5 });
+            // 東マス (11, 5) にモンスター (glyph 100) を配置
+            mockCore.emit('print_glyph', { x: 11, y: 5, glyph: 100 });
+
+            // 東方向 ('l' または 'DIR_E') へのアクション送信
+            mockCore.emit('userActionSent', { sequence: ['l'] });
+
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            const payload = fxListener.mock.calls[0][0];
+            expect(payload.type).toBe('ATTACK_HIT');
+            expect(payload.targetX).toBe(11);
+            expect(payload.targetY).toBe(5);
+            expect(typeof payload.timestamp).toBe('number');
+        });
+
+        it('ペット (PET) がいるマスへの移動操作時は ATTACK_HIT が発火しないこと (位置入れ替え)', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー位置 (10, 5)
+            mockCore.emit('curs', { x: 10, y: 5 });
+            // 東マス (11, 5) にペット (PET) を配置 (GLYPH_PET_OFF = 766)
+            mockCore.emit('print_glyph', { x: 11, y: 5, glyph: 766, glyphInfo: { isPet: true } });
+
+            // 東方向 ('l') への移動操作
+            mockCore.emit('userActionSent', { sequence: ['l'] });
+
+            // ペットとの位置入れ替えなので ATTACK_HIT は発火しないこと
+            expect(fxListener).not.toHaveBeenCalled();
+        });
+
+        it('executeAction による攻撃アクション実行時に ATTACK_HIT が発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            mockCore.emit('curs', { x: 10, y: 5 });
+
+            const attackAction = {
+                id: 'ACTION_ATTACK_N',
+                category: 'COMBAT',
+                key: 'k',
+                directionKey: 'DIR_N',
+                targetPos: { x: 10, y: 4 }
+            };
+
+            plugin.executeAction(attackAction);
+
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            const payload = fxListener.mock.calls[0][0];
+            expect(payload.type).toBe('ATTACK_HIT');
+            expect(payload.targetX).toBe(10);
+            expect(payload.targetY).toBe(4);
+        });
+
+        it('撃破メッセージ受信時に KILL_CONFIRMED イベントが発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // モンスターを (12, 6) に登録
+            mockCore.emit('print_glyph', { x: 12, y: 6, glyph: 100, glyphInfo: { name: 'jackal', nameJa: 'ジャッカル' } });
+
+            // 撃破メッセージ受信
+            mockCore.emit('messageText', { text: 'You kill the jackal!' });
+
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            const payload = fxListener.mock.calls[0][0];
+            expect(payload.type).toBe('KILL_CONFIRMED');
+            expect(payload.targetX).toBe(12);
+            expect(payload.targetY).toBe(6);
+        });
+    });
 });
