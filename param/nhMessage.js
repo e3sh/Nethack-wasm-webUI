@@ -11512,6 +11512,9 @@
         { en: "Boots boosting kicking damage against doors and enemies.", jp: "扉の破壊や敵へのキック攻撃ダメージを大幅に増加させる靴。" },
         { en: "Cursed boots causing awkward stumbling and slipping.", jp: "呪われて歩行中につまずき・転倒・滑り事故を引き起こす危険な靴。" },
         { en: "Smelly tripe ration favored by carnivorous pets like dogs and cats.", jp: "犬や猫などの肉食ペットが好む強い匂いの干し肉。" },
+        { en: "Your rump gets wet.", jp: "お尻が濡れてしまった。" },
+        { en: "You know of no traps there.", jp: "あなたはそこに罠がないことを知っています。" },
+        { en: "You cannot disable that trap.", jp: "あなたはその罠を解除できません。" },
     ];
 }
 
@@ -11950,6 +11953,7 @@ function nhEntities() {
         "ground": "地面",
         "dust": "ほこり",
         "your hands": "素手",
+        "your fingertip": "指先",
         "sink": "流し台",
         "blind": "目が見えない",
         "deaf": "耳が聞こえない",
@@ -13783,6 +13787,7 @@ function nhItems() {
         "on right hand": "右手に装備",
         "bare hands": "素手",
         "eucalyptus leaf": "ユーカリの葉",
+        "eucalyptus leaves ": "ユーカリの葉",
         "paperback book": "ペーパーバック本",
         "Maskerade": "仮面舞踏会",
         "cloak": "マント",
@@ -13918,7 +13923,9 @@ function nhPatterns() {
         { pattern: /^You\s+reveal\s+(.*)\s+secret\s+doors!$/, replace: "あなたは $1つの隠し扉を見つけた！" },
         { pattern: /^Unknown\s+command\s+'(.*)'\.$/, replace: "未知のコマンドです：'$1'" },
         { pattern: /^This\s+(.*)\s+tastes\s+okay\.$/, replace: "この$1はまあまあの味がする。" },
+        { pattern: /^This\s+(.*)\s+tastes\s+terrible!$/, replace: "この$1はひどい味がします！" },
         { pattern: /^You\s+finish\s+eating\s+(.*)\.$/, replace: "あなたは$1を食べ終えた。" },
+        { pattern: /^You\s+begin\s+eating\s+(.*)\.$/, replace: "あなたは$1を食べ始めます。" },
         { pattern: /^This\s+(.*)\s+is\s+delicious!$/, replace: "この$1は美味しい！" },
         { pattern: /^You\s+learn\s+the\s+\"(.*)\"\s+spell\.$/, replace: "あなたは「$1」の呪文を習得した。" },
         { pattern: /^(.*)\s+bites\s+(.*)\.$/, replace: "$1が$2に噛み付いた。" },
@@ -16748,7 +16755,7 @@ function nhPatterns() {
         { pattern: /^Become\s+(.*)\?$/, replace: "$1 になりますか?" },
         { pattern: /^changed\s+form\s+for\s+the\s+first\s+time,\s+becoming\s+(.*)$/, replace: "初めて形を変えて $1 になりました" },
         { pattern: /^riding\s+(.*)$/, replace: "$1 に乗っています" },
-        { pattern: /^Use\s+the\s+command\s+\#(.*)\s+to\s+(.*)\.$/, replace: "コマンド # $1 を $1 に使用します。" },
+        { pattern: /^Use\s+the\s+command\s+\#(.*)\s+to\s+(.*)\.$/, replace: "コマンド # $1 を $2 に使用します。" },
         { pattern: /^reverting\s+to\s+unhealthy\s+(.*)\s+form$/, replace: "不健全な $1 形式に戻る" },
         { pattern: /^Really\s+(.*)\s+(.*)\?$/, replace: "本当に $1  $2 ですか?" },
         { pattern: /^is\s+no\s+(.*)\s+to\s+hide\s+in\s+here\.$/, replace: "ここに隠れる $1 はいません。" },
@@ -17872,6 +17879,17 @@ function nhPatterns() {
         { pattern: /^(.*)\s+grunts\.$/, replace: "$1がうめき声を上げる。" },
         { pattern: /^There\s+is\s+(.*)\s+here,\s+but\s+you\s+cannot\s+lift\s+any\s+more\.$/, replace: "ここには$1がありますが、これ以上持ち上げることはできません。" },
         { pattern: /^(.*)\s+blinds\s+you!$/, replace: "$1があなたの視界を奪う！" },
+        { pattern: /^You\s+are\s+floating\s+high\s+above\s+(.*)\.$/, replace: "あなたは$1の真上を浮遊している。" },
+        { pattern: /^Some\s+(.*)\s+fall\s+from\s+(.*)!$/, replace: "$1が$2から落ちてきた！" },
+        { pattern: /^You\s+burn\s+into\s+(.*)\s+with\s+(.*)\.$/, replace: "あなたは$2で$1を焼き尽くす。" },
+        { pattern: /^Flames\s+fly\s+from\s+(.*)\.$/, replace: "$1から炎が噴き出します。" },
+        { pattern: /^You\s+pour\s+(.*)\s+down\s+the\s+drain\.$/, replace: "あなたは$1を排水口に流します。" },
+        { pattern: /^(.*)\s+transforms\s+into\s+(.*)!$/, replace: "$1が$2に変わります！" },
+        { pattern: /^You\s+sit\s+on\s+(.*)\.$/, replace: "あなたは$1の上に座る。" },
+        { pattern: /^You\s+break\s+\/\s+your\s+(.*)!$/, replace: "あなたは$1を壊します！" },
+        { pattern: /^You\s+continue\s+chewing\s+on\s+(.*)\.$/, replace: "あなたは$1を噛み続けます。" },
+        { pattern: /^You\s+harmlessly\s+attack\s+(.*)\.$/, replace: "あなたは無害な$1を攻撃します。" },
+        { pattern: /^(.*)\s+tries\s+to\s+grab\s+your\s+(.*)\s+but\s+gives\s+up\.$/, replace: "$1が$2を奪おうとしますが、諦めます。" },
     ];
 }
 
