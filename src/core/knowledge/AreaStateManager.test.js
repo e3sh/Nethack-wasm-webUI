@@ -329,6 +329,32 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(allLandmarks.length).toBe(8);
         });
 
+        it('店主が同フロア内を移動した場合でも、SHOP ランドマークが最新座標の1件に維持され重複しないこと', () => {
+            asm.setCurrentFloor('Dlvl:4');
+            const shopkeeperGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 271;
+
+            // 1. 最初は (15, 8) に店主が出現
+            asm.updateGlyph(15, 8, shopkeeperGlyph);
+            let summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].x).toBe(15);
+            expect(summary.shops[0].y).toBe(8);
+
+            // 2. 店主が (15, 9) に1歩移動
+            asm.updateGlyph(15, 9, shopkeeperGlyph);
+            summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1); // 2件にならず1件のまま
+            expect(summary.shops[0].x).toBe(15);
+            expect(summary.shops[0].y).toBe(9); // 最新座標に更新
+
+            // 3. 店主が (16, 9) にさらに移動
+            asm.updateGlyph(16, 9, shopkeeperGlyph);
+            summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].x).toBe(16);
+            expect(summary.shops[0].y).toBe(9);
+        });
+
         it('should handle pending landmarks during floor transition', () => {
             asm.prepareFloorTransition();
             expect(asm.isFloorPending).toBe(true);

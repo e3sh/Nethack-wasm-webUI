@@ -94,7 +94,17 @@ export class MonsterTracker {
             }
         }
 
-        // 3. 潜伏中の同種エントリーもなく、現在同時に視認されている数が増えた場合のみ新個体として追加
+        // 3. 店主 (monOffset: 271) の特別ハンドリング (同一フロアでの重複登録を防止)
+        if (!targetKey && monOffset === 271) {
+            for (const [key, tracked] of this.trackedMonsters.entries()) {
+                if (tracked.monOffset === 271) {
+                    targetKey = key;
+                    break;
+                }
+            }
+        }
+
+        // 4. 潜伏中の同種エントリーもなく、現在同時に視認されている数が増えた場合のみ新個体として追加
         if (!targetKey) {
             targetKey = `mon_${monOffset}_${x}_${y}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         }

@@ -117,8 +117,7 @@ export class AreaStateManager {
             // フロア遷移待ち中に受信したランドマークを正式登録
             if (this.pendingLandmarks.length > 0) {
                 for (const item of this.pendingLandmarks) {
-                    const key = `${this.currentFloor}:${item.x},${item.y}:${item.entity.type}`;
-                    this.landmarkCache.set(key, { ...item.entity, floorKey: this.currentFloor });
+                    this._saveLandmarkToCache(item.entity, item.x, item.y, this.currentFloor);
                 }
                 this.pendingLandmarks = [];
             }
@@ -454,6 +453,32 @@ export class AreaStateManager {
     }
 
     /**
+     * ランドマークを台帳（landmarkCache）に登録・更新
+     * @param {Object} landmark 
+     * @param {number} x 
+     * @param {number} y 
+     * @param {string} [floorKey] 
+     */
+    _saveLandmarkToCache(landmark, x, y, floorKey = null) {
+        if (!landmark || !landmark.type) return;
+        const floor = normalizeFloorKey(floorKey || this.currentFloor);
+
+        if (landmark.type === 'SHOP') {
+            // 店主 (SHOP) はフロア内を歩き回るため、同一フロア内の既存 SHOP ランドマークがあれば古い座標を削除して更新
+            for (const [k, v] of this.landmarkCache.entries()) {
+                if (k.startsWith(`${floor}:`) && (k.endsWith(':SHOP') || v.type === 'SHOP')) {
+                    this.landmarkCache.delete(k);
+                }
+            }
+            const key = `${floor}:${x},${y}:SHOP`;
+            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
+        } else {
+            const key = `${floor}:${x},${y}:${landmark.type}`;
+            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
+        }
+    }
+
+    /**
      * 描画グリフの更新を受信し、3 階層キャッシュ＋エフェクトを即座に適用
      * @param {number} x 
      * @param {number} y 
@@ -472,8 +497,7 @@ export class AreaStateManager {
             if (this.isFloorPending) {
                 this.pendingLandmarks.push({ x, y, entity: landmark });
             } else {
-                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}:${landmark.type}`;
-                this.landmarkCache.set(key, landmark);
+                this._saveLandmarkToCache(landmark, x, y);
             }
         }
 

@@ -155,4 +155,21 @@ describe('MonsterTracker (Cognitive Mental Map & Weight Decay)', () => {
         expect(tracked[0].decayStatus).toBe('VISIBLE');
         expect(tracked[0].weight).toBe(1.0);
     });
+
+    it('同一フロアで店主 (monOffset: 271) が移動した場合、別個体として増殖せず1体のまま座標が更新されること', () => {
+        tracker.advanceTurn(10);
+
+        // 1. (20, 10) に店主を視認
+        tracker.updateVisibleMonster(20, 10, 271, { monOffset: 271, name: 'shopkeeper', nameJa: '店主' });
+        expect(tracker.getTrackedMonsters().length).toBe(1);
+        expect(tracker.getTrackedMonsters()[0].lastKnownPos).toEqual({ x: 20, y: 10 });
+
+        // 2. ロスト通知が来る前に店主が (20, 11) に移動してグリフ受信
+        tracker.updateVisibleMonster(20, 11, 271, { monOffset: 271, name: 'shopkeeper', nameJa: '店主' });
+        
+        // 2体にならず、1体のまま座標が更新される
+        const list = tracker.getTrackedMonsters();
+        expect(list.length).toBe(1);
+        expect(list[0].lastKnownPos).toEqual({ x: 20, y: 11 });
+    });
 });
