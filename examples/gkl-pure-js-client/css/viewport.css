@@ -1,0 +1,133 @@
+/* ============================================================================
+   NetHack Wasm WebUI - GKL Pure JS Client: Viewport & Canvas Styles
+   ============================================================================ */
+
+/* Game Viewport */
+.game-viewport {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 336px;
+}
+
+#game-canvas {
+  width: 1280px;
+  height: 336px;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+/* 80x24 Color ASCII Grid */
+.ascii-grid {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: 0px;
+  background-color: #000;
+  color: #fff;
+  padding: 12px;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 336px;
+  box-sizing: border-box;
+}
+
+.ascii-line {
+  display: flex;
+  height: 14px;
+  line-height: 14px;
+}
+
+.ascii-cell {
+  display: inline-block;
+  width: 16px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.ascii-cell.is-cursor {
+  outline: 1px solid #ffd700;
+  background-color: rgba(255, 215, 0, 0.2);
+}
+
+/* NetHack 16 Colors */
+.clr-0 { color: #000000; }
+.clr-1 { color: #ff5252; }
+.clr-2 { color: #69f0ae; }
+.clr-3 { color: #ffd740; }
+.clr-4 { color: #448aff; }
+.clr-5 { color: #e040fb; }
+.clr-6 { color: #18ffff; }
+.clr-7 { color: #e0e0e0; }
+.clr-8 { color: #757575; }
+.clr-9 { color: #ff1744; }
+.clr-10 { color: #00e676; }
+.clr-11 { color: #ffea00; }
+.clr-12 { color: #29b6f6; }
+.clr-13 { color: #d500f9; }
+.clr-14 { color: #00e5ff; }
+.clr-15 { color: #ffffff; }
+
+/* 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ中央固定) */
+.zoom-viewport-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 15, 26, 0.9);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoom-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--primary-color);
+  letter-spacing: 0.5px;
+}
+
+.zoom-badge {
+  background: #090916;
+  border: 1px solid var(--border-color);
+  color: var(--accent-gold);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+#zoom-canvas {
+  width: 672px;
+  height: 288px;
+  background: #000;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  image-rendering: pixelated;
+  display: block;
+  cursor: crosshair;
+}

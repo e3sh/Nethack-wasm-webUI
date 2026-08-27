@@ -28,8 +28,8 @@
 
 6. **🎨 GKL 3層レイヤー透過描画 ＆ 上下バウンス浮遊アニメーション**
    * **Layer 1 (Bottom)**: 地形 (壁・床・祭壇・扉など)
-   - **Layer 2 (Middle)**: アイテム・箱・死体 (透過重ね合わせ描画)
-   - **Layer 3 (Top)**: モンスター・自キャラ (透過 + サイン波上下バウンス浮遊運動)
+   * **Layer 2 (Middle)**: アイテム・箱・死体 (透過重ね合わせ描画)
+   * **Layer 3 (Top)**: モンスター・自キャラ (透過 + サイン波上下バウンス浮遊運動)
 
 ---
 
@@ -47,5 +47,18 @@ http://localhost:5500/examples/gkl-pure-js-client/index.html
 ## 📁 ディレクトリ構成
 
 * `index.html`: GKL 2カラムレイアウト、ヘッダー、マップビュー、推奨アクションパネル、所持品インベントリ
-* `main.js`: `WebUICore` ＆ `GKL (SituationCache)` 統合コントローラー
-* `style.css`: レスポンシブな GKL スタイルシート
+* `main.js`: `WebUICore` ＆ `GKL` 統合メインコントローラー（各モジュールを協調）
+* `style.css`: 分割されたコンポーネント CSS を集約するメインスタイルシート
+* `css/`: コンポーネント別スタイルシート
+  * `base.css`: 16色パレット、基本レイアウト、ボタン、メッセージログ
+  * `viewport.css`: ゲームビューポート、ASCIIグリッド、ズームカメラ窓
+  * `status.css`: ステータスバー、HP/MPゲージ、属性/呪文/スキルパネル
+  * `knowledge.css`: ナレッジカード、戦術アドバイスカード
+  * `inventory.css`: アイコン型インベントリ、BUCバッジ、ツールチップ
+  * `direction-pad.css`: 8方向D-Pad、方向フィルター
+  * `assist-hud.css`: HUD最優先アシストバー、フロア案内
+  * `modals.css`: プロンプト、メニュー、ダイアログ、ゲームオーバー
+* `modules/`: 責務別に分割された ES Modules
+  * `renderers/`: `MapRenderer.js` (メイン描画), `ZoomRenderer.js` (ズームカメラ & FX)
+  * `components/`: `KnowledgeView.js`, `InventoryView.js`, `AssistHud.js`, `DirectionPad.js`, `StatusView.js`, `ModalManager.js`
+  * `handlers/`: `KeyHandler.js` (キーバインド)
