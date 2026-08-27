@@ -81,6 +81,22 @@ class GklPureJSClient {
     this.elGklTtName = document.getElementById('gkl-tt-name');
     this.elGklTtTags = document.getElementById('gkl-tt-tags');
 
+    // 🚨 HUD 最優先アシストシグナル (Level 2 & Level 3)
+    this.elAssistSignalBar = document.getElementById('assist-signal-bar');
+    this.elAssistSignalIcon = document.getElementById('assist-signal-icon');
+    this.elAssistSignalText = document.getElementById('assist-signal-text');
+    this.elBtnAssistAction = document.getElementById('btn-assist-action');
+    this.elAssistActionLabel = document.getElementById('assist-action-label');
+    this.elBtnAssistWhy = document.getElementById('btn-assist-why');
+    this.elAssistWhyTooltip = document.getElementById('assist-why-tooltip');
+    this.lastAssistAction = null;
+    this.initAssistSignalEvents();
+
+    // 🧭 フロア設備案内フローティング HUD (Landmarks Bar)
+    this.elFloorLandmarksHud = document.getElementById('floor-landmarks-hud');
+    this.elLandmarksFloorTag = document.getElementById('landmarks-floor-tag');
+    this.elLandmarksBadgesContainer = document.getElementById('landmarks-badges-container');
+
     // GKL 方向フィルター状態
     this.selectedDir = 'ALL';
     this.initDirectionPadEvents();
@@ -751,19 +767,144 @@ class GklPureJSClient {
   // GKL (Game Knowledge Layer) リアルタイム同期 & UI レンダリング
   // =========================================================================
 
+  initAssistSignalEvents() {
+    if (this.elBtnAssistAction) {
+      this.elBtnAssistAction.onclick = async (e) => {
+        e.stopPropagation();
+        if (!this.lastAssistAction || !this.lastAssistAction.keySequence || !this.core) return;
+        const seq = this.lastAssistAction.keySequence;
+        if (typeof this.appendLog === 'function') {
+          this.appendLog(`[AssistAction] '${this.lastAssistAction.labelJa || this.lastAssistAction.labelEn}' を実行 (keys: ${JSON.stringify(seq)})`);
+        }
+        if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+          await this.core.driver.queueSequence(seq);
+        } else if (typeof this.core.sendKeySequence === 'function') {
+          await this.core.sendKeySequence(seq);
+        }
+      };
+    }
+
+    if (this.elBtnAssistWhy && this.elAssistWhyTooltip) {
+      this.elBtnAssistWhy.onclick = (e) => {
+        e.stopPropagation();
+        this.elAssistWhyTooltip.classList.toggle('hidden');
+      };
+    }
+  }
+
+  /**
+   * 🚨 HUD 最優先アシストシグナルバー (Level 2 & Level 3) の描画
+   * @param {Object} assistState 
+   */
+  renderAssistSignalBar(assistState) {
+    if (!this.elAssistSignalBar) return;
+    const isEn = this.currentLanguage === 'en';
+    const signal = assistState?.primarySignal;
+
+    if (!signal) {
+      this.elAssistSignalBar.classList.add('hidden');
+      this.lastAssistAction = null;
+      if (this.elAssistWhyTooltip) this.elAssistWhyTooltip.classList.add('hidden');
+      return;
+    }
+
+    this.elAssistSignalBar.classList.remove('hidden');
+
+    // クラス名設定 (重要度別)
+    let barClass = 'assist-signal-bar';
+    if (signal.category === 'SURVIVAL' || (signal.priority && signal.priority >= 80)) {
+      barClass += ' danger';
+    } else if (signal.priority && signal.priority >= 60) {
+      barClass += ' warning';
+    } else if (signal.stance === 'CURE' || signal.category === 'TACTICAL_COMBAT') {
+      barClass += ' success';
+    }
+    this.elAssistSignalBar.className = barClass;
+
+    // アイコン・メッセージ
+    if (this.elAssistSignalIcon) {
+      this.elAssistSignalIcon.textContent = signal.icon || '🛡️';
+    }
+    if (this.elAssistSignalText) {
+      this.elAssistSignalText.textContent = isEn
+        ? (signal.shortMessageEn || signal.shortMessageJa)
+        : (signal.shortMessageJa || signal.shortMessageEn);
+    }
+
+    // ワンタップ実行アクションボタン (Level 3)
+    const action = assistState.primaryAction;
+    if (action && action.keySequence && action.keySequence.length > 0 && this.elBtnAssistAction) {
+      this.elBtnAssistAction.classList.remove('hidden');
+      if (this.elAssistActionLabel) {
+        this.elAssistActionLabel.textContent = isEn
+          ? (action.labelEn || action.labelJa)
+          : (action.labelJa || action.labelEn);
+      }
+      this.lastAssistAction = action;
+    } else if (this.elBtnAssistAction) {
+      this.elBtnAssistAction.classList.add('hidden');
+      this.lastAssistAction = null;
+    }
+
+    // 理由ツールチップ (Why)
+    if (this.elAssistWhyTooltip) {
+      const whyText = isEn
+        ? (signal.detailWhyEn || signal.detailWhyJa || '')
+        : (signal.detailWhyJa || signal.detailWhyEn || '');
+      this.elAssistWhyTooltip.textContent = whyText || (isEn ? 'Recommended tactical move for survival.' : '生存率を高めるための推奨アクションです。');
+    }
+  }
+
+  /**
+   * 🧭 フロア設備案内フローティング HUD の描画 (GKL Core の summary を利用)
+   * @param {Object} landmarks 
+   */
+  renderFloorLandmarks(landmarks) {
+    if (!this.elFloorLandmarksHud || !this.elLandmarksBadgesContainer) return;
+    const isEn = this.currentLanguage === 'en';
+    const summaryItems = landmarks?.summary || [];
+
+    if (summaryItems.length === 0) {
+      this.elFloorLandmarksHud.classList.add('hidden');
+      return;
+    }
+
+    this.elFloorLandmarksHud.classList.remove('hidden');
+
+    if (this.elLandmarksFloorTag) {
+      this.elLandmarksFloorTag.textContent = `🗺️ ${landmarks.floorKey || 'Dlvl:1'}`;
+    }
+
+    const badgeItems = summaryItems.map(item => {
+      const name = isEn ? item.nameEn : item.nameJa;
+      const countSuffix = item.count > 1 ? ` <small style="color:#38bdf8; font-weight:bold;">x${item.count}</small>` : '';
+      const tooltip = isEn ? item.tooltipEn : item.tooltipJa;
+      return `<span class="landmark-badge-item" title="${tooltip}">${item.icon} ${name}${countSuffix}</span>`;
+    }).join('');
+
+    this.elLandmarksBadgesContainer.innerHTML = badgeItems;
+  }
+
   renderGklUi() {
     if (!this.core || !this.core.gkl) return;
     const situation = this.core.gkl.getSituation();
+    const slotBadges = situation.assistState?.slotBadges || {};
+
+    // 0. 🚨 HUD 最優先アシストシグナル (Level 2 & Level 3)
+    this.renderAssistSignalBar(situation.assistState);
+
+    // 0.5 🧭 フロア設備案内フローティング HUD (Landmarks Bar)
+    this.renderFloorLandmarks(situation.landmarks);
 
     // 1. GKL 推奨アクションパネル
     this.renderGklActions(situation.actions || []);
 
-    // 2. GKL アイコン型所持品インベントリ
-    this.renderGklInventory(situation.inventory);
+    // 2. GKL アイコン型所持品インベントリ (Level 1 Nano Badge 付与)
+    this.renderGklInventory(situation.inventory, slotBadges);
 
     // 4. 属性耐性 (全25種) & 修得魔法 & スキル熟練度の描画
     this.renderGklAttributes(situation.attributes);
-    this.renderGklSpells(situation.spells);
+    this.renderGklSpells(situation.spells, slotBadges);
     this.renderGklSkills(situation.skills);
 
     // 5. 🛡️ 戦術アドバイス ＆ 危機警告の描画 (TacticalAdvisor)
@@ -1632,7 +1773,7 @@ class GklPureJSClient {
     }
   }
 
-  renderGklInventory(inventory) {
+  renderGklInventory(inventory, slotBadges = {}) {
     if (!this.elGklInventoryGrid || !inventory) return;
     const isEn = this.currentLanguage === 'en';
     const items = inventory.items || [];
@@ -1646,6 +1787,19 @@ class GklPureJSClient {
           if (item.isOffhand) equipClasses.push('is-offhand');
           if (item.isQuivered) equipClasses.push('is-quivered');
           if (item.isWorn) equipClasses.push('is-worn');
+
+          // Level 1: Nano Badge & 金枠ハイライト判定
+          const slotBadge = slotBadges ? (slotBadges[item.letter] || slotBadges[item.invlet]) : null;
+          let nanoBadgeHtml = '';
+          if (slotBadge) {
+            const badgeType = slotBadge.type || 'info';
+            const badgeLabel = isEn ? (slotBadge.labelEn || slotBadge.labelJa) : (slotBadge.labelJa || slotBadge.labelEn);
+            nanoBadgeHtml = `<span class="slot-nano-badge ${badgeType}">${badgeLabel}</span>`;
+            if (slotBadge.highlightBorder || badgeType === 'danger') {
+              equipClasses.push(badgeType === 'danger' ? 'slot-highlight-danger' : 'slot-highlight-gold');
+            }
+          }
+
           const equipClassStr = equipClasses.join(' ');
 
           let badgeHtml = '';
@@ -1677,6 +1831,7 @@ class GklPureJSClient {
             <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
               <span class="gkl-slot-letter">${item.letter}</span>
               <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
+              ${nanoBadgeHtml}
               ${badgeHtml}
               ${skillBadgeHtml}
               ${bucBadgeHtml}
@@ -1877,8 +2032,9 @@ class GklPureJSClient {
   /**
    * 修得魔法一覧の描画 (StatusBar 内)
    * @param {Object} spellsObj 
+   * @param {Object} [slotBadges={}]
    */
-  renderGklSpells(spellsObj) {
+  renderGklSpells(spellsObj, slotBadges = {}) {
     const elSpellsDetail = document.getElementById('status-spells-detail');
     if (!elSpellsDetail) return;
     const isEn = this.currentLanguage === 'en';
@@ -1890,10 +2046,25 @@ class GklPureJSClient {
     }
 
     const listHtml = spells.map(sp => {
+      const slotBadge = slotBadges ? (slotBadges[sp.letter] || slotBadges[sp.name]) : null;
+      let badgeTag = '';
+      let bgStyle = 'background:rgba(139, 92, 246, 0.15); border:1px solid #a78bfa; color:#ddd6fe;';
+
+      if (slotBadge) {
+        const badgeLabel = isEn ? (slotBadge.labelEn || slotBadge.labelJa) : (slotBadge.labelJa || slotBadge.labelEn);
+        if (slotBadge.type === 'danger') {
+          bgStyle = 'background:rgba(239, 68, 68, 0.2); border:1px solid #ef4444; color:#fca5a5;';
+          badgeTag = ` <span style="background:#dc2626; color:#fff; font-size:9px; padding:1px 4px; border-radius:3px;">${badgeLabel}</span>`;
+        } else if (slotBadge.type === 'success') {
+          bgStyle = 'background:rgba(16, 185, 129, 0.2); border:1px solid #10b981; color:#6ee7b7;';
+          badgeTag = ` <span style="background:#059669; color:#fff; font-size:9px; padding:1px 4px; border-radius:3px;">${badgeLabel}</span>`;
+        }
+      }
+
       const titleStr = isEn
         ? `Key: ${sp.letter}, Lv.${sp.level} ${sp.category} (Fail: ${sp.failRate}) - Click to cast`
         : `キー: ${sp.letter}, Lv.${sp.level} ${sp.category} (失敗率: ${sp.failRate}) - クリックで詠唱`;
-      return `<button class="gkl-spell-badge" data-letter="${sp.letter}" style="background:rgba(139, 92, 246, 0.15); border:1px solid #a78bfa; color:#ddd6fe; padding:2px 8px; border-radius:4px; font-size:11px; font-family:inherit; cursor:pointer;" title="${titleStr}">✨ [${sp.letter}] ${sp.name} <small style="color:#94a3b8;">(Lv.${sp.level} ${sp.failRate})</small></button>`;
+      return `<button class="gkl-spell-badge" data-letter="${sp.letter}" style="${bgStyle} padding:2px 8px; border-radius:4px; font-size:11px; font-family:inherit; cursor:pointer;" title="${titleStr}">✨ [${sp.letter}] ${sp.name} <small style="color:#94a3b8;">(Lv.${sp.level} ${sp.failRate})</small>${badgeTag}</button>`;
     }).join(' ');
 
     elSpellsDetail.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"><strong style="font-size:11px; color:#94a3b8;">${isEn ? '📖 Spells:' : '📖 修得魔法:'}</strong> ${listHtml}</div>`;

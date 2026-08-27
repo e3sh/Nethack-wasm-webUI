@@ -28,6 +28,21 @@
     <main class="game-view gkl-workspace">
       <!-- 左エリア: ログ、マップ、ステータス -->
       <section class="left-workspace">
+        <!-- 🚨 HUD 最優先アシストシグナルバー (Level 2 & Level 3) -->
+        <div id="assist-signal-bar" class="assist-signal-bar hidden">
+          <div class="assist-signal-main">
+            <span id="assist-signal-icon" class="assist-signal-icon">🛡️</span>
+            <span id="assist-signal-text" class="assist-signal-text">--</span>
+          </div>
+          <div class="assist-signal-actions">
+            <button id="btn-assist-action" class="btn btn-assist-action hidden">
+              <span id="assist-action-label">実行</span>
+            </button>
+            <button id="btn-assist-why" class="btn-assist-why" title="推奨理由を表示">❓</button>
+          </div>
+          <div id="assist-why-tooltip" class="assist-why-tooltip hidden"></div>
+        </div>
+
         <!-- メッセージログエリア (MessageLog) -->
         <div id="message-log" class="message-log"></div>
 
@@ -60,6 +75,12 @@
               <span id="zoom-pos-badge" class="zoom-badge">@ (0,0)</span>
             </div>
             <canvas id="zoom-canvas" width="672" height="288"></canvas>
+          </div>
+
+          <!-- 🧭 フロア設備案内フローティング HUD (Landmarks Bar) -->
+          <div id="floor-landmarks-hud" class="floor-landmarks-hud hidden">
+            <span class="landmarks-floor-tag" id="landmarks-floor-tag">🗺️ Dlvl:1</span>
+            <div id="landmarks-badges-container" class="landmarks-badges-container"></div>
           </div>
 
           <!-- 描画用 80x24 Color ASCII Grid -->

@@ -7,6 +7,7 @@ import { AttributeStateManager } from './AttributeStateManager.js';
 import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
 import { TacticalAdvisor } from './TacticalAdvisor.js';
+import { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
 import { RequestController } from './RequestController.js';
 import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
@@ -926,8 +927,49 @@ export class GKLPlugin {
             },
             attributes: this.attributeStateManager ? this.attributeStateManager.getAttributes() : {},
             tools: {},
-            actions: []
+            actions: [],
+            assistState: null,
+            landmarks: null
         };
+    }
+
+    /**
+     * 現在のアシストシグナル・行動指針状態 (AssistState) を取得
+     * @returns {Object|null}
+     */
+    getAssistState() {
+        if (this.situationCache && typeof this.situationCache.getAssistState === 'function') {
+            return this.situationCache.getAssistState();
+        }
+        return AssistSignalSynthesizer.synthesize({
+            statusAccessor: this.statusAccessor,
+            inventoryStateManager: this.inventoryStateManager,
+            spellStateManager: this.spellStateManager,
+            areaStateManager: this.areaStateManager
+        }, { language: this.language });
+    }
+
+    /**
+     * 指定フロアのランドマーク集計概要を取得
+     * @param {string|number} [floorKey]
+     * @returns {Object|null}
+     */
+    getFloorLandmarks(floorKey) {
+        if (this.areaStateManager && typeof this.areaStateManager.getFloorLandmarks === 'function') {
+            return this.areaStateManager.getFloorLandmarks(floorKey);
+        }
+        return null;
+    }
+
+    /**
+     * 全フロアの発見済みランドマーク一覧を取得
+     * @returns {Array<Object>}
+     */
+    getAllLandmarks() {
+        if (this.areaStateManager && typeof this.areaStateManager.getAllLandmarks === 'function') {
+            return this.areaStateManager.getAllLandmarks();
+        }
+        return [];
     }
 
     /**

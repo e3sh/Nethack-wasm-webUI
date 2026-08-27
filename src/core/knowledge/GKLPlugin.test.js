@@ -698,4 +698,45 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             }));
         });
     });
+
+    describe('AssistState and Landmark Integration', () => {
+        it('getAssistState: 瀕死かつ回復薬所持時に CURE Stance の AssistState を取得できること', () => {
+            const plugin = new GKLPlugin();
+            plugin.statusAccessor.updateField(18, 5);  // HP: 5
+            plugin.statusAccessor.updateField(19, 30); // HPMAX: 30
+            plugin.inventoryStateManager.items = [
+                { invlet: 'a', name: 'potion of extra healing', category: 'POTION' }
+            ];
+
+            const assistState = plugin.getAssistState();
+            expect(assistState).toBeDefined();
+            expect(assistState.primarySignal).toBeDefined();
+            expect(assistState.primarySignal.stance).toBe('CURE');
+            expect(assistState.primarySignal.priority).toBe(85);
+            expect(assistState.primaryAction.keySequence).toEqual(['q', 'a']);
+            expect(assistState.slotBadges['a']).toBeDefined();
+
+            // getSituation() にも assistState と landmarks が含まれること
+            const situation = plugin.getSituation();
+            expect(situation.assistState).toBeDefined();
+            expect(situation.assistState.primarySignal.stance).toBe('CURE');
+            expect(situation.landmarks).toBeDefined();
+        });
+
+        it('getFloorLandmarks / getAllLandmarks: フロア設備台帳を取得できること', () => {
+            const plugin = new GKLPlugin();
+            plugin.areaStateManager.setCurrentFloor('Dlvl:2');
+            plugin.areaStateManager.updateGlyph(10, 10, 4013); // 流し台 (4013)
+            plugin.areaStateManager.updateGlyph(15, 10, 4008); // 祭壇中立 (4008)
+
+            const summary = plugin.getFloorLandmarks('Dlvl:2');
+            expect(summary).toBeDefined();
+            expect(summary.sinks.length).toBe(1);
+            expect(summary.altars.length).toBe(1);
+
+            const all = plugin.getAllLandmarks();
+            expect(all.length).toBe(2);
+        });
+    });
 });
+

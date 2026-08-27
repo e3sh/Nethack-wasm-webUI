@@ -4,7 +4,7 @@
  * セル状態キャッシュを自走管理し、自キャラ周辺の構造化 State を提供するクラス
  */
 
-import { classifyGlyph, ENTITY_TYPES } from './glyphClassifier.js';
+import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster } from './glyphClassifier.js';
 
 export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
 
@@ -50,9 +50,11 @@ export class AreaStateManager {
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
         this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
-        this.stairCache = new Map();  // フロア別階段キャッシュ ("floor:x,y" => terrainEntity)
-        this.isFloorPending = false;  // clear_nhwindow 後のフロア確定待ちフラグ
-        this.pendingStairs = [];      // フロア確定待ち中に受信した階段一覧
+        this.stairCache = new Map();     // フロア別階段キャッシュ ("floor:x,y" => terrainEntity) (後方互換性維持)
+        this.landmarkCache = new Map();  // フロア別ランドマーク台帳キャッシュ ("floor:x,y:type" => LandmarkEntity)
+        this.isFloorPending = false;     // clear_nhwindow 後のフロア確定待ちフラグ
+        this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
+        this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
         this.grid = [];
         this.resetGrid();
     }
@@ -63,6 +65,7 @@ export class AreaStateManager {
     prepareFloorTransition() {
         this.isFloorPending = true;
         this.pendingStairs = [];
+        this.pendingLandmarks = [];
         this.resetGrid();
     }
 
@@ -111,6 +114,15 @@ export class AreaStateManager {
                 this.pendingStairs = [];
             }
 
+            // フロア遷移待ち中に受信したランドマークを正式登録
+            if (this.pendingLandmarks.length > 0) {
+                for (const item of this.pendingLandmarks) {
+                    const key = `${this.currentFloor}:${item.x},${item.y}:${item.entity.type}`;
+                    this.landmarkCache.set(key, { ...item.entity, floorKey: this.currentFloor });
+                }
+                this.pendingLandmarks = [];
+            }
+
             // clear_nhwindow (isFloorPending) を経由せず直接 setCurrentFloor でフロアが変更された場合はグリッドを初期化
             if (floorChanged && !wasPending) {
                 this.resetGrid();
@@ -126,6 +138,268 @@ export class AreaStateManager {
     clearStairCache() {
         this.stairCache.clear();
         this.pendingStairs = [];
+    }
+
+    /**
+     * ランドマーク台帳キャッシュを初期化
+     */
+    clearLandmarkCache() {
+        this.landmarkCache.clear();
+        this.pendingLandmarks = [];
+        this.clearStairCache();
+    }
+
+    /**
+     * グリフ情報からランドマーク (LandmarkEntity) を抽出・判定
+     * @param {number} x 
+     * @param {number} y 
+     * @param {number} glyphId 
+     * @param {Object} [info] 
+     * @returns {Object|null} LandmarkEntity
+     */
+    extractLandmarkEntity(x, y, glyphId, info = null) {
+        const itemInfo = info || classifyGlyph(glyphId);
+        if (!itemInfo) return null;
+
+        const floorKey = normalizeFloorKey(this.currentFloor);
+        const baseId = `${floorKey}:${x},${y}`;
+
+        if (itemInfo.cmapFlags) {
+            const cf = itemInfo.cmapFlags;
+            if (cf.isStairUp) {
+                return {
+                    id: `${baseId}:STAIR_UP`,
+                    type: 'STAIR_UP',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '🪜',
+                    name: 'stair up',
+                    nameJa: '上り階段'
+                };
+            }
+            if (cf.isStairDown) {
+                return {
+                    id: `${baseId}:STAIR_DOWN`,
+                    type: 'STAIR_DOWN',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '🪜',
+                    name: 'stair down',
+                    nameJa: '下り階段'
+                };
+            }
+            if (cf.isAltar) {
+                const alignMap = {
+                    4006: { alignment: 'unaligned', alignmentJa: '無属性', nameJa: '祭壇 (無属性)' },
+                    4007: { alignment: 'lawful', alignmentJa: '秩序', nameJa: '祭壇 (秩序)' },
+                    4008: { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇 (中立)' },
+                    4009: { alignment: 'chaotic', alignmentJa: '混沌', nameJa: '祭壇 (混沌)' },
+                    4010: { alignment: 'other', alignmentJa: '異教', nameJa: '祭壇 (異教)' }
+                };
+                const aInfo = alignMap[glyphId] || { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇' };
+                return {
+                    id: `${baseId}:ALTAR`,
+                    type: 'ALTAR',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '⛪',
+                    name: `altar (${aInfo.alignment})`,
+                    nameJa: aInfo.nameJa,
+                    details: {
+                        alignment: aInfo.alignment,
+                        alignmentJa: aInfo.alignmentJa
+                    }
+                };
+            }
+            if (cf.isSink) {
+                return {
+                    id: `${baseId}:SINK`,
+                    type: 'SINK',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '🚰',
+                    name: 'sink',
+                    nameJa: '流し台'
+                };
+            }
+            if (cf.isFountain) {
+                return {
+                    id: `${baseId}:FOUNTAIN`,
+                    type: 'FOUNTAIN',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '⛲',
+                    name: 'fountain',
+                    nameJa: '噴水'
+                };
+            }
+            if (cf.isThrone) {
+                return {
+                    id: `${baseId}:THRONE`,
+                    type: 'THRONE',
+                    floorKey,
+                    x,
+                    y,
+                    glyphId,
+                    icon: '👑',
+                    name: 'throne',
+                    nameJa: '王座'
+                };
+            }
+        }
+
+        if (itemInfo.type === ENTITY_TYPES.MONSTER && (itemInfo.isShopkeeper || isShopkeeperMonster(itemInfo.monOffset))) {
+            return {
+                id: `${baseId}:SHOP`,
+                type: 'SHOP',
+                floorKey,
+                x,
+                y,
+                glyphId,
+                icon: '🏪',
+                name: 'shopkeeper',
+                nameJa: '商店 (店主)',
+                details: {
+                    shopkeeperType: 'shopkeeper'
+                }
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * 発見済みランドマーク配列から、HUD/バッジ用の集約サマリー配列を生成
+     * @param {Array<Object>} allEntities 
+     * @returns {Array<Object>} FloorLandmarkSummaryItem[]
+     */
+    static generateLandmarksSummary(allEntities = []) {
+        if (!Array.isArray(allEntities) || allEntities.length === 0) return [];
+
+        const groupMap = new Map();
+
+        allEntities.forEach(item => {
+            if (!item || !item.type) return;
+            const alignment = item.details?.alignment;
+            const groupKey = item.type === 'ALTAR' ? `ALTAR:${alignment || 'neutral'}` : item.type;
+
+            if (!groupMap.has(groupKey)) {
+                groupMap.set(groupKey, {
+                    id: groupKey,
+                    type: item.type,
+                    icon: item.icon || '📍',
+                    nameJa: item.nameJa || item.name,
+                    nameEn: item.name || item.nameJa,
+                    count: 0,
+                    coords: [],
+                    details: item.details || {}
+                });
+            }
+
+            const g = groupMap.get(groupKey);
+            g.count++;
+            g.coords.push({ x: item.x, y: item.y });
+        });
+
+        return Array.from(groupMap.values()).map(g => {
+            const coordStrs = g.coords.map(c => `(${c.x},${c.y})`).join(', ');
+            const locTextJa = g.count > 1 ? ` (${g.count}箇所)` : '';
+            const locTextEn = g.count > 1 ? ` (${g.count} locations)` : '';
+            return {
+                id: g.id,
+                type: g.type,
+                icon: g.icon,
+                nameJa: g.nameJa,
+                nameEn: g.nameEn,
+                count: g.count,
+                coords: g.coords,
+                tooltipJa: `${g.nameJa}${locTextJa}: ${coordStrs}`,
+                tooltipEn: `${g.nameEn}${locTextEn}: ${coordStrs}`,
+                details: g.details
+            };
+        });
+    }
+
+    /**
+     * 指定フロア（省略時は currentFloor）に存在するランドマーク一覧の集計概要を取得
+     * @param {string|number} [floorKey]
+     * @returns {Object} FloorLandmarksData
+     */
+    getFloorLandmarks(floorKey = this.currentFloor) {
+        const normalized = normalizeFloorKey(floorKey);
+        const prefix = `${normalized}:`;
+
+        const result = {
+            floorKey: normalized,
+            currentFloor: this.currentFloor,
+            totalCount: 0,
+            summary: [],
+            stairsUp: [],
+            stairsDown: [],
+            altars: [],
+            sinks: [],
+            fountains: [],
+            thrones: [],
+            shops: [],
+            all: []
+        };
+
+        if (!this.landmarkCache) return result;
+
+        for (const [key, landmark] of this.landmarkCache.entries()) {
+            if (key.startsWith(prefix) || landmark.floorKey === normalized) {
+                result.all.push(landmark);
+                switch (landmark.type) {
+                    case 'STAIR_UP':
+                        result.stairsUp.push(landmark);
+                        break;
+                    case 'STAIR_DOWN':
+                        result.stairsDown.push(landmark);
+                        break;
+                    case 'ALTAR':
+                        result.altars.push(landmark);
+                        break;
+                    case 'SINK':
+                        result.sinks.push(landmark);
+                        break;
+                    case 'FOUNTAIN':
+                        result.fountains.push(landmark);
+                        break;
+                    case 'THRONE':
+                        result.thrones.push(landmark);
+                        break;
+                    case 'SHOP':
+                        result.shops.push(landmark);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        result.totalCount = result.all.length;
+        result.summary = AreaStateManager.generateLandmarksSummary(result.all);
+
+        return result;
+    }
+
+    /**
+     * 全フロアで発見されたランドマーク一覧を取得
+     * @returns {Array<Object>} LandmarkEntity[]
+     */
+    getAllLandmarks() {
+        if (!this.landmarkCache) return [];
+        return Array.from(this.landmarkCache.values());
     }
 
     /**
@@ -173,6 +447,17 @@ export class AreaStateManager {
         const info = classifyGlyph(glyphId);
         const cell = this.grid[y][x];
 
+        // ランドマークの検出と台帳への記録
+        const landmark = this.extractLandmarkEntity(x, y, glyphId, info);
+        if (landmark) {
+            if (this.isFloorPending) {
+                this.pendingLandmarks.push({ x, y, entity: landmark });
+            } else {
+                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}:${landmark.type}`;
+                this.landmarkCache.set(key, landmark);
+            }
+        }
+
         switch (info.type) {
             case ENTITY_TYPES.TERRAIN:
             case ENTITY_TYPES.UNEXPLORED:
@@ -185,7 +470,7 @@ export class AreaStateManager {
                 cell.top = null;
                 cell.effect = null;
 
-                // 階段・ハシゴであればフロア別キャッシュに記録
+                // 階段・ハシゴであればフロア別キャッシュに記録 (後方互換性)
                 if (info.cmapFlags && (info.cmapFlags.isStairUp || info.cmapFlags.isStairDown)) {
                     if (this.isFloorPending) {
                         this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
@@ -354,6 +639,8 @@ export class AreaStateManager {
             ? this.monsterTracker.getPerceivedMonstersSummary({ playerX: this.playerX, playerY: this.playerY, grid: this.grid })
             : [];
 
+        const landmarks = this.getFloorLandmarks(this.currentFloor);
+
         return {
             center: { x: cx, y: cy },
             radius,
@@ -361,6 +648,8 @@ export class AreaStateManager {
             playerY: this.playerY,
             playerLocation: { x: this.playerX, y: this.playerY },
             keyMode: this.keyMode,
+            currentFloor: this.currentFloor,
+            landmarks,
             width: this.width,
             height: this.height,
             grid: this.grid,

@@ -7,6 +7,7 @@ export { AttributeStateManager, ATTRIBUTE_KEYS, ATTRIBUTE_DEFINITIONS } from './
 export { SituationCache } from './SituationCache.js';
 export { ContextActionEngine } from './ContextActionEngine.js';
 export { TacticalAdvisor } from './TacticalAdvisor.js';
+export { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
 export { RequestController } from './RequestController.js';
 export { GlyphClassifier } from './glyphClassifier.js';
 export { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from './StructuredKnowledgeEngine.js';

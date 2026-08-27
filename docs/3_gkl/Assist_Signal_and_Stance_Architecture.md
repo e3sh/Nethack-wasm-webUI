@@ -1,14 +1,13 @@
 ---
 title: GKL 行動指針 (Action Stance) ＆ アシストシグナル (AssistSignal) 仕様・設計書
-status: active
-last_updated: 2026-08-25
+status: implemented
+last_updated: 2026-08-27
 related_code:
-  - src/core/knowledge/AssistSignalSynthesizer.js (予定)
-  - src/core/knowledge/TacticalAdvisor.js
-  - src/core/knowledge/ContextActionEngine.js
+  - src/core/knowledge/AssistSignalSynthesizer.js
+  - src/core/knowledge/AreaStateManager.js
   - src/core/knowledge/SituationCache.js
-  - src/core/knowledge/InventoryStateManager.js
-  - src/core/knowledge/SpellStateManager.js
+  - src/core/knowledge/GKLPlugin.js
+  - examples/gkl-pure-js-client/main.js
 ---
 
 # GKL 行動指針 (Action Stance) ＆ アシストシグナル (AssistSignal) 仕様・設計書

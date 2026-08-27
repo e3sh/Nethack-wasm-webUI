@@ -285,4 +285,122 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(asm.grid[15][15].bottom.cmapFlags.isStairDown).toBe(true);
         });
     });
+
+    describe('Landmark Registry and POI Extraction', () => {
+        it('should extract and register various landmarks (stairs, altars, sink, fountain, throne, shopkeeper)', () => {
+            asm.setCurrentFloor('Dlvl:3');
+
+            // 1. 上り階段 (3998)
+            asm.updateGlyph(10, 5, 3998);
+            // 2. 下り階段 (3999)
+            asm.updateGlyph(20, 5, 3999);
+            // 3. 祭壇 - 中立 (4008)
+            asm.updateGlyph(30, 5, 4008);
+            // 4. 祭壇 - 秩序 (4007)
+            asm.updateGlyph(35, 5, 4007);
+            // 5. 流し台 (4013)
+            asm.updateGlyph(40, 5, 4013);
+            // 6. 噴水 (4014)
+            asm.updateGlyph(50, 5, 4014);
+            // 7. 王座 (4012)
+            asm.updateGlyph(60, 5, 4012);
+            // 8. 店主 (モンスター monOffset 271)
+            const shopkeeperGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 271;
+            asm.updateGlyph(70, 5, shopkeeperGlyph);
+
+            const summary = asm.getFloorLandmarks('Dlvl:3');
+            expect(summary.floorKey).toBe('Dlvl:3');
+            expect(summary.stairsUp.length).toBe(1);
+            expect(summary.stairsUp[0].type).toBe('STAIR_UP');
+            expect(summary.stairsDown.length).toBe(1);
+            expect(summary.stairsDown[0].type).toBe('STAIR_DOWN');
+            expect(summary.altars.length).toBe(2);
+            expect(summary.altars[0].details.alignment).toBe('neutral');
+            expect(summary.altars[1].details.alignment).toBe('lawful');
+            expect(summary.sinks.length).toBe(1);
+            expect(summary.sinks[0].type).toBe('SINK');
+            expect(summary.fountains.length).toBe(1);
+            expect(summary.thrones.length).toBe(1);
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].type).toBe('SHOP');
+            expect(summary.all.length).toBe(8);
+
+            const allLandmarks = asm.getAllLandmarks();
+            expect(allLandmarks.length).toBe(8);
+        });
+
+        it('should handle pending landmarks during floor transition', () => {
+            asm.prepareFloorTransition();
+            expect(asm.isFloorPending).toBe(true);
+
+            // フロア確定待ち中に流し台と祭壇を受信
+            asm.updateGlyph(12, 8, 4013); // 流し台
+            asm.updateGlyph(14, 8, 4008); // 祭壇
+
+            expect(asm.pendingLandmarks.length).toBe(2);
+
+            // フロア確定
+            asm.setCurrentFloor('Dlvl:5');
+            expect(asm.isFloorPending).toBe(false);
+            expect(asm.pendingLandmarks.length).toBe(0);
+
+            const summary = asm.getFloorLandmarks('Dlvl:5');
+            expect(summary.sinks.length).toBe(1);
+            expect(summary.altars.length).toBe(1);
+        });
+
+        it('should clear landmarks on clearLandmarkCache', () => {
+            asm.setCurrentFloor('Dlvl:2');
+            asm.updateGlyph(10, 10, 4013);
+            expect(asm.getAllLandmarks().length).toBe(1);
+
+            asm.clearLandmarkCache();
+            expect(asm.getAllLandmarks().length).toBe(0);
+            expect(asm.stairCache.size).toBe(0);
+        });
+
+        it('should generate grouped summary with count and multi-coordinate tooltips (e.g. Oracle with 4 fountains)', () => {
+            asm.setCurrentFloor('Dlvl:5');
+
+            // 神託所 (Oracle) のように噴水が4つ並ぶケース
+            asm.updateGlyph(20, 10, 4014);
+            asm.updateGlyph(20, 12, 4014);
+            asm.updateGlyph(35, 10, 4014);
+            asm.updateGlyph(35, 12, 4014);
+
+            // 上り階段1つ、下り階段1つ
+            asm.updateGlyph(10, 5, 3998);
+            asm.updateGlyph(50, 18, 3999);
+
+            // 中立祭壇1つ
+            asm.updateGlyph(28, 11, 4008);
+
+            const floorData = asm.getFloorLandmarks('Dlvl:5');
+            expect(floorData.totalCount).toBe(7);
+            expect(floorData.all.length).toBe(7);
+
+            // summary は 4種類 (FOUNTAIN, STAIR_UP, STAIR_DOWN, ALTAR:neutral) に集約される
+            expect(floorData.summary.length).toBe(4);
+
+            const fountainSummary = floorData.summary.find(s => s.type === 'FOUNTAIN');
+            expect(fountainSummary).toBeDefined();
+            expect(fountainSummary.count).toBe(4);
+            expect(fountainSummary.coords.length).toBe(4);
+            expect(fountainSummary.icon).toBe('⛲');
+            expect(fountainSummary.nameJa).toBe('噴水');
+            expect(fountainSummary.nameEn).toBe('fountain');
+            expect(fountainSummary.tooltipJa).toBe('噴水 (4箇所): (20,10), (20,12), (35,10), (35,12)');
+            expect(fountainSummary.tooltipEn).toBe('fountain (4 locations): (20,10), (20,12), (35,10), (35,12)');
+
+            const stairUpSummary = floorData.summary.find(s => s.type === 'STAIR_UP');
+            expect(stairUpSummary.count).toBe(1);
+            expect(stairUpSummary.tooltipJa).toBe('上り階段: (10,5)');
+
+            const altarSummary = floorData.summary.find(s => s.type === 'ALTAR');
+            expect(altarSummary.count).toBe(1);
+            expect(altarSummary.nameJa).toBe('祭壇 (中立)');
+            expect(altarSummary.tooltipJa).toBe('祭壇 (中立): (28,11)');
+        });
+    });
 });
+

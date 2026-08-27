@@ -8,6 +8,8 @@
  * 「現在のゲーム統合状況 (Situation)」をワンストップで提供する。
  */
 
+import { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
+
 export class SituationCache {
     /**
      * @param {Object} [statusAccessor=null] - StatusAccessor インスタンス
@@ -19,6 +21,7 @@ export class SituationCache {
      * @param {Object} [skillStateManager=null] - SkillStateManager インスタンス
      * @param {Object} [tacticalAdvisorClass=null] - TacticalAdvisor クラス
      * @param {Object} [options={}] - オプション
+     * @param {Object} [options.assistSignalSynthesizerClass] - AssistSignalSynthesizer クラス
      */
     constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null, tacticalAdvisorClass = null, options = {}) {
         this.statusAccessor = statusAccessor;
@@ -29,6 +32,7 @@ export class SituationCache {
         this.attributeStateManager = attributeStateManager;
         this.skillStateManager = skillStateManager;
         this.tacticalAdvisorClass = tacticalAdvisorClass;
+        this.assistSignalSynthesizerClass = (options && options.assistSignalSynthesizerClass) || AssistSignalSynthesizer;
         this.language = (options && options.language) || 'ja';
     }
 
@@ -44,7 +48,7 @@ export class SituationCache {
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, tacticalAdvisorClass, language }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, tacticalAdvisorClass, assistSignalSynthesizerClass, language }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
@@ -53,6 +57,7 @@ export class SituationCache {
         if (attributeStateManager) this.attributeStateManager = attributeStateManager;
         if (skillStateManager) this.skillStateManager = skillStateManager;
         if (tacticalAdvisorClass) this.tacticalAdvisorClass = tacticalAdvisorClass;
+        if (assistSignalSynthesizerClass) this.assistSignalSynthesizerClass = assistSignalSynthesizerClass;
         if (language) this.setLanguage(language);
     }
 
@@ -123,6 +128,22 @@ export class SituationCache {
             }, { language: this.language });
         }
 
+        // 行動指針＆アシストシグナルの自動計算 (AssistSignalSynthesizer が設定されている場合)
+        let assistState = null;
+        if (this.assistSignalSynthesizerClass && typeof this.assistSignalSynthesizerClass.synthesize === 'function') {
+            assistState = this.assistSignalSynthesizerClass.synthesize({
+                statusAccessor: this.statusAccessor,
+                inventoryStateManager: this.inventoryStateManager,
+                spellStateManager: this.spellStateManager,
+                areaStateManager: this.areaStateManager,
+                tacticalAdvices: advices
+            }, { language: this.language, turn: status.turns });
+        }
+
+        const landmarks = (this.areaStateManager && typeof this.areaStateManager.getFloorLandmarks === 'function')
+            ? this.areaStateManager.getFloorLandmarks()
+            : ((areaState && areaState.landmarks) ? areaState.landmarks : null);
+
         const perceivedMonsters = (areaState && Array.isArray(areaState.perceivedMonsters))
             ? areaState.perceivedMonsters
             : [];
@@ -148,8 +169,29 @@ export class SituationCache {
             attributes,
             actions,
             advices,
+            assistState,
+            landmarks,
             perceivedMonsters
         };
+    }
+
+    /**
+     * 現在のアシストシグナル・行動指針状態 (AssistState) を直接取得
+     * @returns {Object|null} AssistState
+     */
+    getAssistState() {
+        if (!this.assistSignalSynthesizerClass || typeof this.assistSignalSynthesizerClass.synthesize !== 'function') {
+            return null;
+        }
+        const status = this.statusAccessor && typeof this.statusAccessor.getStatus === 'function' ?
+            this.statusAccessor.getStatus() : {};
+
+        return this.assistSignalSynthesizerClass.synthesize({
+            statusAccessor: this.statusAccessor,
+            inventoryStateManager: this.inventoryStateManager,
+            spellStateManager: this.spellStateManager,
+            areaStateManager: this.areaStateManager
+        }, { language: this.language, turn: status.turns });
     }
 }
 
