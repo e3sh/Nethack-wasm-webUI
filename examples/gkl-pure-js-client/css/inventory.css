@@ -1,0 +1,294 @@
+/* ============================================================================
+   NetHack Wasm WebUI - GKL Pure JS Client: Inventory & Tooltip Styles
+   ============================================================================ */
+
+/* GKL アイコン型インベントリ */
+.gkl-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.gkl-item-slot {
+  width: 44px;
+  height: 44px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+/* 装備中のハイライト枠とエフェクト */
+.gkl-item-slot.is-wielded {
+  border: 2px solid var(--accent-gold, #e9c46a);
+  background: #342a18;
+  box-shadow: 0 0 8px rgba(233, 196, 106, 0.6);
+}
+
+.gkl-item-slot.is-offhand {
+  border: 2px solid #4ea8de;
+  background: #182b3a;
+  box-shadow: 0 0 8px rgba(78, 168, 222, 0.6);
+}
+
+.gkl-item-slot.is-quivered {
+  border: 2px solid #2a9d8f;
+  background: #15332e;
+  box-shadow: 0 0 8px rgba(42, 157, 143, 0.6);
+}
+
+.gkl-item-slot.is-worn {
+  border: 2px solid #9d4edd;
+  background: #2a1838;
+  box-shadow: 0 0 6px rgba(157, 78, 221, 0.5);
+}
+
+.gkl-item-slot:hover {
+  border-color: var(--accent-blue);
+  background: #233154;
+  transform: scale(1.05);
+}
+
+.gkl-item-slot.pressing {
+  border-color: var(--primary-color);
+  background: #1a3a2e;
+  transform: scale(0.92);
+  box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+}
+
+.gkl-slot-letter {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--accent-gold);
+  font-family: var(--font-mono);
+}
+
+/* 装備スロットバッジ */
+.gkl-slot-equip-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 0 2px;
+  border-radius: 3px;
+  line-height: 1.1;
+  color: #ffffff;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.gkl-slot-equip-badge.badge-wielded {
+  background: var(--accent-gold, #e9c46a);
+  color: #1a1a2e;
+}
+
+.gkl-slot-equip-badge.badge-offhand {
+  background: #4ea8de;
+  color: #0f172a;
+}
+
+.gkl-slot-equip-badge.badge-quivered {
+  background: #2a9d8f;
+  color: #ffffff;
+}
+
+.gkl-slot-equip-badge.badge-worn {
+  background: #9d4edd;
+  color: #ffffff;
+}
+
+/* 右肩 BUC / 鑑定状態バッジ */
+.gkl-slot-buc-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: 900;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  text-align: center;
+  border-radius: 50%;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gkl-slot-buc-badge.badge-buc-unid {
+  background: #eab308;
+  color: #000000;
+}
+
+.gkl-slot-buc-badge.badge-buc-cursed {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.gkl-slot-buc-badge.badge-buc-blessed {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+/* ナレッジカードのBUC & 識別状態バッジ */
+.kn-status-badge.kn-status-unid {
+  background: rgba(234, 179, 8, 0.2);
+  border-color: #eab308;
+  color: #fde047;
+}
+
+.kn-status-badge.kn-status-known {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.kn-status-badge.kn-status-blessed {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #93c5fd;
+  font-weight: bold;
+}
+
+.kn-status-badge.kn-status-cursed {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+  font-weight: bold;
+}
+
+.kn-status-badge.kn-status-uncursed {
+  background: rgba(100, 116, 139, 0.2);
+  border-color: #64748b;
+  color: #cbd5e1;
+}
+
+.kn-status-badge.kn-status-named {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #d8b4fe;
+}
+
+.gkl-slot-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+}
+
+.gkl-empty-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 12px;
+}
+
+/* ツールチップ */
+.gkl-tooltip {
+  position: fixed;
+  background: rgba(22, 33, 62, 0.95);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  pointer-events: none;
+  z-index: 2000;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+.gkl-tooltip .title {
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 2px;
+}
+
+.gkl-tooltip .tag {
+  font-size: 10px;
+  background: #0f0f1a;
+  color: var(--text-muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
+
+/* Level 1: Nano Badge & 金枠・赤枠パルス */
+.gkl-inv-slot {
+  position: relative;
+}
+
+.slot-nano-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.slot-nano-badge.danger {
+  background: #dc2626;
+  border-color: #f87171;
+}
+
+.slot-nano-badge.warning {
+  background: #d97706;
+  border-color: #fbbf24;
+}
+
+.slot-nano-badge.success {
+  background: #059669;
+  border-color: #34d399;
+}
+
+.slot-nano-badge.info {
+  background: #0284c7;
+  border-color: #38bdf8;
+}
+
+.slot-highlight-gold {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8) !important;
+  animation: slot-pulse-gold 1.5s infinite alternate ease-in-out;
+}
+
+.slot-highlight-danger {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8) !important;
+  animation: slot-pulse-danger 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes slot-pulse-gold {
+  0% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.4); }
+  100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.9); }
+}
+
+@keyframes slot-pulse-danger {
+  0% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+  100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.9); }
+}

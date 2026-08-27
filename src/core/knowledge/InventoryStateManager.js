@@ -167,6 +167,14 @@ export class InventoryStateManager {
 
         // 第2パス: 全件コンテキストを踏まえたスマートアクション/推奨・副次的アクション判定
         if (parsedItems.length > 0) {
+            // 武器スロットの正規化 (二刀流時: 2本ある場合は片方を副武器に正規化、単一の場合は左利き/右利き問わずメイン武器に維持)
+            const wieldedWeapons = parsedItems.filter(i => i.isWielded);
+            if (wieldedWeapons.length > 1) {
+                wieldedWeapons[1].isWielded = false;
+                wieldedWeapons[1].isOffhand = true;
+                wieldedWeapons[1].equipSlot = 'offhand';
+            }
+
             parsedItems.forEach(item => {
                 const defaultAction = this.determineDefaultAction(
                     item.rawText,
@@ -998,16 +1006,16 @@ export class InventoryStateManager {
         let isWorn = false;
         let equipSlot = null;
 
-        // メイン武器 (weapon in hand, weapon in hands, weapon in right hand, wielded)
-        if (/\b(weapon in hand|weapon in hands|weapon in right hand|\(wielded\))\b/i.test(rawText) || /手に持っている/i.test(rawText)) {
-            isWielded = true;
-            equipSlot = 'weapon';
-        }
+        // 明示的なサブ武器 / 二刀流の副手 (in off hand, in off-hand, alternate weapon; not wielded, 副武器, 逆の手に持っている)
+        const isExplicitOffhand = /\b(in off hand|in off-hand|off-hand weapon|alternate weapon)\b/i.test(rawText) || /副武器|逆の手に持っている/i.test(rawText);
 
-        // サブ武器 / 二刀流 (weapon in left hand, in off hand, off-hand, alternate weapon)
-        if (/\b(weapon in left hand|in off hand|off-hand|alternate weapon)\b/i.test(rawText) || /左手に持っている|副武器/i.test(rawText)) {
+        if (isExplicitOffhand) {
             isOffhand = true;
             equipSlot = 'offhand';
+        } else if (/\b(weapon in hand|weapon in hands|weapon in right hand|weapon in left hand|\(wielded\))\b/i.test(rawText) || /手に持っている|左手に持っている|右手に持っている/i.test(rawText)) {
+            // メイン武器 (左利き時の weapon in left hand も含む)
+            isWielded = true;
+            equipSlot = 'weapon';
         }
 
         // 矢筒 (in quiver, quivered)

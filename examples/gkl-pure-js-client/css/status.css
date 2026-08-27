@@ -1,0 +1,266 @@
+/* ============================================================================
+   NetHack Wasm WebUI - GKL Pure JS Client: Status & Attributes Styles
+   ============================================================================ */
+
+/* Status Bar + HP/MP Gauge Boxes */
+.status-bar {
+  background: #1a1a2e;
+  border: 1px solid #16213e;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #e0e0e0;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.status-bar:hover {
+  border-color: #34495e;
+}
+
+.status-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 14px;
+  font-weight: bold;
+  align-items: center;
+}
+
+.st-item.title { color: #4ecca3; }
+.st-item.dlvl { color: #f39c12; }
+.st-item.hp { color: #e74c3c; }
+.st-item.pw { color: #3498db; }
+.st-item.ac { color: #9b59b6; }
+.st-item.gold { color: #f1c40f; }
+
+.btn-status-toggle {
+  background: transparent;
+  border: none;
+  color: #7f8c8d;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: transform 0.3s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-status-toggle:hover {
+  color: #4ecca3;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-bar.is-expanded .btn-status-toggle {
+  transform: rotate(180deg);
+  color: #4ecca3;
+}
+
+.gauge-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gauge-bg {
+  width: 70px;
+  height: 8px;
+  background: #090916;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.hp-fill { background: linear-gradient(90deg, #ff5252, #ff1744); }
+.mp-fill { background: linear-gradient(90deg, #00b0ff, #2979ff); }
+
+.status-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.cond-badge {
+  background-color: #c0392b;
+  color: #ffffff;
+}
+
+/* アコーディオン展開詳細領域 */
+.status-details {
+  width: 100%;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.3s ease, padding-top 0.3s ease;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 1px dashed transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* ホバー時またはトグル固定時の展開状態 */
+.status-bar:hover .status-details,
+.status-bar.is-expanded .status-details {
+  max-height: 450px;
+  overflow-y: auto;
+  opacity: 1;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.status-stats-grid,
+.status-extra-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.status-stats-grid {
+  color: #a6adc8;
+}
+
+.status-stats-grid label,
+.status-extra-grid label {
+  color: #7f8c8d;
+  margin-right: 3px;
+  font-size: 12px;
+}
+
+.status-stats-grid span,
+.status-extra-grid span {
+  font-weight: bold;
+  color: #89b4fa;
+}
+
+.status-extra-grid .st-item.align span { color: #a6e3a1; }
+.status-extra-grid .st-item.exp span { color: #f9e2af; }
+.status-extra-grid .st-item.turns span { color: #cba6f7; }
+.status-extra-grid .st-item.score span { color: #fab387; }
+
+/* GKL Attributes & Spells Badges */
+.gkl-attr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.gkl-attr-badge.active {
+  background: rgba(78, 204, 163, 0.2);
+  color: #4ecca3;
+  border: 1px solid #4ecca3;
+  box-shadow: 0 0 6px rgba(78, 204, 163, 0.3);
+}
+
+.gkl-attr-badge.inactive {
+  background: rgba(255, 255, 255, 0.04);
+  color: #475569;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0.6;
+}
+
+.gkl-spell-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gkl-spell-badge:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: #c4b5fd;
+  transform: translateY(-1px);
+}
+
+.gkl-spell-badge small {
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+/* 🥋 スキル熟練度バッジ */
+.gkl-skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: rgba(30, 41, 59, 0.7);
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.gkl-skill-badge-basic {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.gkl-skill-badge-skilled {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  font-weight: bold;
+}
+
+.gkl-skill-badge-expert {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  font-weight: bold;
+}
+
+.gkl-skill-badge-master,
+.gkl-skill-badge-grandmaster {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  font-weight: bold;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+}
+
+.gkl-skill-badge.enhanceable {
+  border-color: #f59e0b !important;
+  animation: pulse-skill 2s infinite ease-in-out;
+  cursor: pointer;
+}
+
+@keyframes pulse-skill {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.8); }
+}

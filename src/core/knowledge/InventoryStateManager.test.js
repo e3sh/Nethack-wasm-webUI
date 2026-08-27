@@ -46,6 +46,23 @@ describe('InventoryStateManager', () => {
         expect(equipMap.wornList[0].letter).toBe('d');
     });
 
+    it('左利きキャラの単一メイン武器 (weapon in left hand / 左手に持っている) がメイン武器として認識されること', () => {
+        const manager = new InventoryStateManager();
+        const lines = [
+            "a - a blessed +1 crysknife (weapon in left hand)",
+            "b - an uncursed +0 leather armor (being worn)"
+        ];
+
+        manager.updateFromLines(lines);
+
+        expect(manager.getWieldedWeapon()).toBeDefined();
+        expect(manager.getWieldedWeapon().letter).toBe('a');
+        expect(manager.getWieldedWeapon().isWielded).toBe(true);
+        expect(manager.getWieldedWeapon().isOffhand).toBe(false);
+        expect(manager.getOffhandWeapon()).toBeNull();
+        expect(manager.isTwoWeaponing()).toBe(false);
+    });
+
     it('アイテムのカテゴリ別デフォルト推奨アクション (defaultVerb, defaultSequence) が自動判定・付与されること', () => {
         const manager = new InventoryStateManager();
         const lines = [

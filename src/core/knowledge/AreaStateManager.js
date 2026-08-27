@@ -435,6 +435,25 @@ export class AreaStateManager {
     }
 
     /**
+     * ランドマーク台帳・階段キャッシュを完全に初期化
+     */
+    clearLandmarks() {
+        if (this.stairCache) this.stairCache.clear();
+        if (this.landmarkCache) this.landmarkCache.clear();
+        this.pendingStairs = [];
+        this.pendingLandmarks = [];
+        this.currentFloor = normalizeFloorKey('Dlvl:1');
+    }
+
+    /**
+     * グリッドおよび全キャッシュを完全リセット
+     */
+    resetAll() {
+        this.resetGrid();
+        this.clearLandmarks();
+    }
+
+    /**
      * 描画グリフの更新を受信し、3 階層キャッシュ＋エフェクトを即座に適用
      * @param {number} x 
      * @param {number} y 

@@ -25,8 +25,9 @@ self.onmessage = async function(e) {
 
             // Module の初期設定
             self.Module = self.Module || {};
-            if (options && options.arguments) {
-                self.Module.arguments = options.arguments;
+            const initialArgs = (options && (options.arguments || options.args)) || [];
+            if (initialArgs && initialArgs.length > 0) {
+                self.Module.arguments = initialArgs;
             }
             
             // locateFile をカスタマイズし、.wasm ファイルが正しい位置からロードされるようにする

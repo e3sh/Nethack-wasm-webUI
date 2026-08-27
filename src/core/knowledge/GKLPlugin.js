@@ -205,11 +205,15 @@ export class GKLPlugin {
             this.monsterTracker.reset();
         }
         if (this.areaStateManager) {
-            if (typeof this.areaStateManager.resetGrid === 'function') {
-                this.areaStateManager.resetGrid();
-            }
-            if (typeof this.areaStateManager.clearStairCache === 'function') {
-                this.areaStateManager.clearStairCache();
+            if (typeof this.areaStateManager.resetAll === 'function') {
+                this.areaStateManager.resetAll();
+            } else {
+                if (typeof this.areaStateManager.resetGrid === 'function') {
+                    this.areaStateManager.resetGrid();
+                }
+                if (typeof this.areaStateManager.clearLandmarks === 'function') {
+                    this.areaStateManager.clearLandmarks();
+                }
             }
         }
         if (this.inventoryStateManager) {

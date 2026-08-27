@@ -39,6 +39,17 @@ export class AssistSignalSynthesizer {
         const landmarks = this._extractLandmarks(context, areaState);
         const turn = typeof options.turn === 'number' ? options.turn : (status.turns || 0);
 
+        // ゲーム本編未開始（キャラクター作成・プロンプト入力中等でHP/ステータス未初期化）のガード
+        const isGameActive = status && (status.turns > 0 || (status.hp && status.hp.max > 0));
+        if (!isGameActive) {
+            return {
+                turn: 0,
+                primarySignal: null,
+                slotBadges: {},
+                primaryAction: null
+            };
+        }
+
         const candidateSignals = [];
         const slotBadges = {};
 
@@ -864,11 +875,11 @@ export class AssistSignalSynthesizer {
         }
 
         // 3. 瀕死・危険 ＋ 階段退避 (Stair Escape)
-        const hp = status && status.hp ? status.hp : { percent: 1.0 };
+        const hp = status && status.hp ? status.hp : { percent: 1.0, current: 10, max: 10 };
         const hasStairUp = (landmarks.stairsUp && landmarks.stairsUp.length > 0) ||
             (landmarks.all && landmarks.all.some(l => l.type === 'STAIR_UP'));
 
-        if (hp.percent < 0.3 && hasStairUp) {
+        if (hp && hp.max > 0 && hp.current > 0 && hp.percent < 0.3 && hasStairUp) {
             candidateSignals.push({
                 id: 'SIGNAL_LANDMARK_STAIR_ESCAPE',
                 priority: 82,

@@ -1588,6 +1588,9 @@ export class WebUICore {
 
             const result = await this.resolveGameOver();
             if (result && result.isGameOver) {
+                if (result.reason !== 'save_and_exit') {
+                    await this.deleteSaveData();
+                }
                 this.renderer.appendMessage(`[GAME EXITED] ${result.deathMessage}`);
                 this._setState(CoreState.GAME_OVER);
             } else {

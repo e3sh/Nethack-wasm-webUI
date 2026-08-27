@@ -451,7 +451,9 @@
                                 if (cleanName.startsWith('.')) return false;
                                 const lower = cleanName.toLowerCase();
                                 if (systemFiles.some(sys => lower === sys || lower.endsWith('/' + sys))) return false;
-                                if (lower.includes('tmp') || lower.includes('lock')) return false;
+                                if (lower.includes('tmp') || lower.includes('lock') || lower.includes('bon')) return false;
+                                // 骨ファイルや階層ファイル (.0, .1, bon01.0 等) を除外
+                                if (/\.\d+$/.test(lower) || /\.[a-z0-9]+$/i.test(cleanName)) return false;
                                 return cleanName.length > 0;
                             });
 

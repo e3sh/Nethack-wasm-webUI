@@ -740,8 +740,8 @@ export class TacticalAdvisor {
 
         if (meleeWeapons.length === 0) return;
 
-        // 現在装備中の武器
-        const currentWielded = meleeWeapons.find(w => w.isWielded || (w.rawText && (w.rawText.includes('weapon in hand') || w.rawText.includes('wielded'))));
+        // 現在装備中の武器 (左利き・右利き両対応)
+        const currentWielded = meleeWeapons.find(w => w.isWielded || (w.rawText && /weapon in (hand|hands|left hand|right hand)|\(wielded\)|手に持っている/i.test(w.rawText)));
 
         // 盾着用判定
         const isWearingShield = (inventoryState.items || []).some(i => i.isWorn && (
