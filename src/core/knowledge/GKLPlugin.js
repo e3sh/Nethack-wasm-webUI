@@ -83,6 +83,7 @@ export class GKLPlugin {
         this.lookService = new OnDemandLookService();
         this._coreListeners = [];
         this._prevHp = null;
+        this._prevAc = null;
         this._lastAttackTarget = null;
         this._isPlayerDead = false;
 
@@ -199,6 +200,7 @@ export class GKLPlugin {
      */
     reset() {
         this._prevHp = null;
+        this._prevAc = null;
         this._lastAttackTarget = null;
         this._isPlayerDead = false;
         if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
@@ -616,6 +618,26 @@ export class GKLPlugin {
                     }
                     if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
                         this.skillStateManager.invalidate();
+                    }
+                }
+
+                // AC (アーマークラス: BL_AC = 14) の変動検知
+                // モンスターによる防具盗難・破壊・腐食・脱衣等の発生時にインベントリを再同期
+                if (data.field === 14 || data.field === 'ac') {
+                    let parsedAc = null;
+                    if (typeof data.value === 'number') {
+                        parsedAc = isNaN(data.value) ? null : data.value;
+                    } else if (typeof data.value === 'string') {
+                        const match = data.value.match(/-?\d+/);
+                        if (match) parsedAc = parseInt(match[0], 10);
+                    }
+                    if (parsedAc !== null) {
+                        if (this._prevAc !== null && this._prevAc !== undefined && this._prevAc !== parsedAc) {
+                            if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+                                this.inventoryStateManager.invalidate();
+                            }
+                        }
+                        this._prevAc = parsedAc;
                     }
                 }
             }

@@ -775,5 +775,41 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(all.length).toBe(2);
         });
     });
+
+    describe('AC Change and Inventory Synchronization Trigger', () => {
+        it('status_update (BL_AC = 14) の初回受信時は invalidate されず、値の変化時に inventoryStateManager.invalidate が呼ばれること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const invalidateSpy = vi.spyOn(plugin.inventoryStateManager, 'invalidate');
+
+            // 1. 初回 AC 受信 (例: AC 10) -> 初回登録のため invalidate は呼ばれない
+            mockCore.emit('status_update', { field: 14, value: 10 });
+            expect(invalidateSpy).not.toHaveBeenCalled();
+
+            // 2. 同一 AC の連続受信 (AC 10) -> 変化なしのため呼ばれない
+            mockCore.emit('status_update', { field: 14, value: 10 });
+            expect(invalidateSpy).not.toHaveBeenCalled();
+
+            // 3. 防具装着/盗難等で AC が 6 に変化 -> invalidate が呼ばれる
+            mockCore.emit('status_update', { field: 14, value: 6 });
+            expect(invalidateSpy).toHaveBeenCalledTimes(1);
+
+            // 4. 文字列形式 "AC:8" や "8" での変化にも対応すること
+            mockCore.emit('status_update', { field: 'ac', value: 'AC:8' });
+            expect(invalidateSpy).toHaveBeenCalledTimes(2);
+
+            // 5. reset() 実行後は _prevAc がリセットされ、次の受信は初回として扱われること
+            plugin.reset();
+            invalidateSpy.mockClear();
+            mockCore.emit('status_update', { field: 14, value: 8 });
+            expect(invalidateSpy).not.toHaveBeenCalled();
+
+            // 再度 AC が変化した場合は invalidate されること
+            mockCore.emit('status_update', { field: 14, value: 5 });
+            expect(invalidateSpy).toHaveBeenCalledTimes(1);
+        });
+    });
 });
 
