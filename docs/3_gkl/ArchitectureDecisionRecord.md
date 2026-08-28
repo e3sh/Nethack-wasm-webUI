@@ -81,6 +81,12 @@ related_code:
   - 「浮遊する目玉への目隠し」「銀弱点への銀武器」「反射敵へのビーム禁止」「錆び・腐食耐性」などの危険特性とカウンター対策を、各モジュール（`TacticalAdvisor`, `AssistSignalSynthesizer`, `ContextActionEngine`）にハードコード・分散させず、**構造化ナレッジ（`MONSTER_KNOWLEDGE_MAP` 等）の `threat` / `counters` メタデータとして単一真実源（SSOT）化**する。
   - 戦術アドバイザーやアシストシグナルはナレッジのメタデータを消費する「データ駆動型エンジン」とし、新モンスターや新対策の追加・仕様変更を図鑑データの更新のみで全モジュールに連動・反映させる。
 
+### 1.13 インベントリ状態同期アーキテクチャ ＆ MonsterTracker 連動型ポストコンバット同期方針
+- **AC変化検知による盗難・破損のゼロオーバーヘッド即時同期 (Phase 1)**:
+  - 敵ターンでの盗難（ニンフ等）や装備破壊・脱衣によるインベントリ乖離に対し、`status_update`（`BL_AC = 14`）の変動をトリガーとして `inventoryStateManager.invalidate()` を1度だけ実行。メッセージパースに一切依存せず、安全かつ確実に同期を実現。
+- **MonsterTracker 減衰モデル連動ポストコンバット遅延同期構想 (Phase 2)**:
+  - 消耗品等の盗難に対し、戦闘中の毎ターン同期によるラグを回避するため、`stealsItems` 特性を持つ敵との近接接触フラグ（`hadCloseContact`）を記録し、その敵がテレポート、逃走（LoS外れ）、撃破、または追跡減衰によって「監視から外れた瞬間」にインベントリを遅延 invalidate する結果的整合性（Eventual Consistency）モデルを採用する（詳細は [GKL_Inventory_Synchronization_Architecture.md](./GKL_Inventory_Synchronization_Architecture.md) を参照）。
+
 ---
 
 ## 2. 実装仕様 (`lastSequenceBuffer` & `querySequenceSilent`)
