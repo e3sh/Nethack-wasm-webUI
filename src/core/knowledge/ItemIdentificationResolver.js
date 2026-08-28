@@ -405,7 +405,7 @@ export class ItemIdentificationResolver {
         }
 
         // 4. 指輪 (Ring)
-        if (lowerCore.includes('ring') || lowerFull.includes('ring')) {
+        if ((lowerCore.includes('ring') || lowerFull.includes('ring')) && !lowerFull.includes('ring mail') && !lowerFull.includes('ringmail')) {
             for (const app of APPEARANCE_PATTERNS.RING) {
                 if (lowerCore.includes(app) || lowerFull.includes(app)) {
                     return { isAppearance: true, category: 'RING', appearanceName: `${app} ring` };
@@ -467,11 +467,11 @@ export class ItemIdentificationResolver {
         if (lower.includes('potion')) return 'POTION';
         if (lower.includes('scroll')) return 'SCROLL';
         if (lower.includes('wand')) return 'WAND';
-        if (lower.includes('ring')) return 'RING';
+        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves')) return 'ARMOR';
+        if (lower.includes('ring') && !lower.includes('ring mail') && !lower.includes('ringmail')) return 'RING';
         if (lower.includes('amulet')) return 'AMULET';
         if (lower.includes('spellbook') || lower.includes('book')) return 'SPELLBOOK';
         if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow')) return 'WEAPON';
-        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves')) return 'ARMOR';
         if (lower.includes('food') || lower.includes('ration') || lower.includes('apple') || lower.includes('corpse')) return 'FOOD';
         if (lower.includes('gem') || lower.includes('stone') || lower.includes('glass')) return 'GEM_STONE';
         return 'TOOL';

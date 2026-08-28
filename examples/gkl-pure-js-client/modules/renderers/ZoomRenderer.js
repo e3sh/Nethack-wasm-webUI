@@ -215,6 +215,9 @@ export class ZoomRenderer {
               // Layer 1: Bottom (現フロアで一度でも確認した壁・床・通路等の地形)
               if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph || isCurrentPlayerFeet)) {
                 this.drawZoomTile(cell.bottom.rawGlyph, cols, tileMap, screenX, screenY, 0);
+              } else if (cell.middle || cell.top) {
+                // Bottom が未確定だがアイテムやモンスターが存在する場合は仮床を描画
+                this.drawZoomTile(3992, cols, tileMap, screenX, screenY, 0);
               } else if (gData && gData.glyph >= 0) {
                 this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
               } else {

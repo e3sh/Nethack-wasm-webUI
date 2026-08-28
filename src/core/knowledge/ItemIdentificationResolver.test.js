@@ -76,4 +76,15 @@ describe('ItemIdentificationResolver', () => {
         expect(res.bucStatus).toBe('UNCURSED');
         expect(res.coreName).toBe('ring of free action');
     });
+
+    it('9. リングメイル (ring mail / crude ring mail / orcish ring mail) が ARMOR カテゴリと判定され RING にならないこと', () => {
+        const res1 = ItemIdentificationResolver.resolve('a - an orcish ring mail');
+        expect(res1.category).toBe('ARMOR');
+
+        const res2 = ItemIdentificationResolver.resolve('b - a crude ring mail');
+        expect(res2.category).toBe('ARMOR');
+
+        const res3 = ItemIdentificationResolver.resolve('c - a +0 ring mail');
+        expect(res3.category).toBe('ARMOR');
+    });
 });

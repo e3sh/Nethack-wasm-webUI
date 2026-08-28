@@ -316,6 +316,22 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primarySignal.priority).toBe(35);
         });
 
+        it('未識別リングメイル(ring mail)所持 ＋ フロアに流し台あり: 流し台識別シグナルは生成されないこと', () => {
+            const context = {
+                status: { hp: { current: 30, max: 30, percent: 1.0 } },
+                inventory: [
+                    { invlet: 'a', name: 'crude ring mail', rawText: 'a - crude ring mail', category: 'ARMOR', identified: false }
+                ],
+                landmarks: {
+                    sinks: [{ type: 'SINK', x: 20, y: 10 }]
+                }
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            // 流し台シグナルは発生しない
+            expect(state.primarySignal).toBeNull();
+        });
+
         it('死体所持 ＋ 自属性祭壇あり: 捧げ物シグナルを生成', () => {
             const context = {
                 status: { align: 'neutral', hp: { current: 30, max: 30, percent: 1.0 } },

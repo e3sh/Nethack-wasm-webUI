@@ -210,13 +210,37 @@ export class MapRenderer {
         const sx = (tileIndex % cols) * 32;
         const sy = Math.floor(tileIndex / cols) * 32;
         this.ctx.drawImage(this.tileImg, sx, sy, 32, 32, dx, dy, 16, 14);
-      } else if (gData && gData.glyph >= 0 && this.tileLoaded && this.tileImg.naturalWidth > 0) {
+      } else if (this.tileLoaded && this.tileImg.naturalWidth > 0) {
         const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
-        const tileIndex = tileMap[gData.glyph] !== undefined ? tileMap[gData.glyph] : 0;
         const cols = Math.floor(this.tileImg.width / 32);
-        const sx = (tileIndex % cols) * 32;
-        const sy = Math.floor(tileIndex / cols) * 32;
-        this.ctx.drawImage(this.tileImg, sx, sy, 32, 32, dx, dy, 16, 14);
+        const areaGrid = this.getAreaGrid();
+        const cell = (areaGrid && areaGrid[y]) ? areaGrid[y][x] : null;
+
+        if (cell) {
+          const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
+          // Layer 1 (Bottom)
+          if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph)) {
+            this.drawTileGlyph(cell.bottom.rawGlyph, cols, tileMap, dx, dy, 0);
+          }
+          // Layer 2 (Middle - 透過重ね描き)
+          if (cell.middle && cell.middle.rawGlyph >= 0) {
+            this.drawTileGlyph(cell.middle.rawGlyph, cols, tileMap, dx, dy, 0);
+          }
+          // Layer 3 (Top - モンスター / プレイヤー)
+          if (cell.top && cell.top.rawGlyph >= 0) {
+            this.drawTileGlyph(cell.top.rawGlyph, cols, tileMap, dx, dy, 0);
+          } else if (!cell.bottom && !cell.middle) {
+            if (gData && gData.glyph >= 0) {
+              this.drawTileGlyph(gData.glyph, cols, tileMap, dx, dy, 0);
+            }
+          }
+          // Layer 4 (Effect - エフェクト)
+          if (cell.effect && cell.effect.rawGlyph >= 0) {
+            this.drawTileGlyph(cell.effect.rawGlyph, cols, tileMap, dx, dy, 0);
+          }
+        } else if (gData && gData.glyph >= 0) {
+          this.drawTileGlyph(gData.glyph, cols, tileMap, dx, dy, 0);
+        }
       }
 
       if (x === this.targetCursorX && y === this.targetCursorY) {

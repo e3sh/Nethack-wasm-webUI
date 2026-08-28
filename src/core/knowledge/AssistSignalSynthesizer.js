@@ -844,10 +844,19 @@ export class AssistSignalSynthesizer {
         if (!landmarks) return;
 
         // 1. 未識別指輪 ＋ 流し台 (Sink ID)
-        const hasUnidentifiedRing = inventoryItems.some(i => {
+        const isRingItem = (i) => {
+            if (!i) return false;
+            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
+            if (cat === 'RING' || i.oclass === 8) return true;
+            if (cat && cat !== 'OTHER' && cat !== 'RING') return false;
             const name = (i.name || i.rawText || '').toLowerCase();
-            const isRing = i.oclass === 8 || i.category === 'RING' || name.includes('ring') || name.includes('指輪');
-            return isRing && (!i.identified && !i.isFullyIdentified);
+            if (name.includes('ring mail') || name.includes('ringmail') || name.includes('鎧') || name.includes('防具')) return false;
+            return name.includes('指輪') || /\bring\b/i.test(name);
+        };
+
+        const hasUnidentifiedRing = inventoryItems.some(i => {
+            const isUnidentified = (!i.identified && !i.isFullyIdentified && !(i.identification && (i.identification.level === 'TYPE_IDENTIFIED' || i.identification.level === 'FULLY_IDENTIFIED')));
+            return isRingItem(i) && isUnidentified;
         });
 
         const hasSinkOnFloor = (landmarks.sinks && landmarks.sinks.length > 0) ||

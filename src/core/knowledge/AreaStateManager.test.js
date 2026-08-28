@@ -125,6 +125,41 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(cell.bottom).not.toBeNull();
             expect(cell.bottom.inferred).toBe(true);
         });
+
+        it('should infer floor when item arrives at a cell previously marked as UNEXPLORED', () => {
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF; // 9622
+            asm.updateGlyph(12, 12, unexploredGlyph);
+
+            expect(asm.grid[12][12].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            // アイテムグリフが届く（投てき等で視界に入った場合）
+            const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 25;
+            asm.updateGlyph(12, 12, itemGlyph);
+
+            const cell = asm.grid[12][12];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should infer floor when monster arrives at a cell previously marked as UNEXPLORED', () => {
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
+            asm.updateGlyph(13, 13, unexploredGlyph);
+
+            expect(asm.grid[13][13].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
+            asm.updateGlyph(13, 13, monsterGlyph);
+
+            const cell = asm.grid[13][13];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
     });
 
     describe('Self-Healing / Overwrite by Genuine Terrain', () => {
@@ -451,5 +486,86 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(altarSummary.tooltipJa).toBe('祭壇 (中立): (28,11)');
         });
     });
+
+    describe('Boulder Push Detection and Feet Clearance', () => {
+        const BOULDER_GLYPH = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 475; // 3923
+        const PILE_BOULDER_GLYPH = GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF + 475; // 8467
+
+        it('should clear boulder from feet when pushing forward (boulder arrives at destination before player pos update)', () => {
+            // (10, 10) に岩が存在
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // プレイヤー初期位置 (9, 10)
+            asm.updatePlayerPosition(9, 10);
+
+            // 押し出し先 (11, 10) に岩が届く (Case A)
+            asm.updateGlyph(11, 10, BOULDER_GLYPH);
+
+            // プレイヤーが (10, 10) に移動
+            asm.updatePlayerPosition(10, 10);
+
+            // 移動先の足元 (10, 10) の岩がクリアされ、押し出し先 (11, 10) に岩が残る
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[10][11].middle).not.toBeNull();
+            expect(asm.grid[10][11].middle.subType).toBe(475);
+        });
+
+        it('should clear boulder from feet when pushing forward (player pos updates before boulder arrives at destination)', () => {
+            // (10, 10) に岩が存在
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // プレイヤー初期位置 (9, 10)
+            asm.updatePlayerPosition(9, 10);
+
+            // プレイヤーが (10, 10) に移動 (Case B)
+            asm.updatePlayerPosition(10, 10);
+
+            // この時点では押し出し先が未確定のため一時的に middle が残る
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // 押し出し先 (11, 10) に岩グリフが届く
+            asm.updateGlyph(11, 10, BOULDER_GLYPH);
+
+            // 足元 (10, 10) の岩が自動クリアされる
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[10][11].middle).not.toBeNull();
+        });
+
+        it('should retain boulder at player feet when not pushed (e.g. Scroll of Earth / Drop)', () => {
+            // プレイヤー位置 (10, 10)
+            asm.updatePlayerPosition(10, 10);
+
+            // 大地の巻物やドロップでプレイヤー足元 (10, 10) に岩が配置される
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+
+            // 押し出し先には岩が出現しない
+            expect(asm.grid[10][10].middle).not.toBeNull();
+            expect(asm.grid[10][10].middle.subType).toBe(475);
+
+            // 状況取得時も足元のアイテムとして岩が正しく認識される
+            const areaState = asm.getAreaState();
+            expect(areaState.feet.middle).not.toBeNull();
+            expect(areaState.feet.middle.subType).toBe(475);
+        });
+
+        it('should handle diagonal boulder pushing correctly', () => {
+            // (10, 10) に山積み岩が存在
+            asm.updateGlyph(10, 10, PILE_BOULDER_GLYPH);
+
+            // プレイヤー初期位置 (9, 9) から南東 (10, 10) へ
+            asm.updatePlayerPosition(9, 9);
+            asm.updatePlayerPosition(10, 10);
+
+            // 押し出し先 (11, 11) に岩グリフが届く
+            asm.updateGlyph(11, 11, BOULDER_GLYPH);
+
+            // 足元 (10, 10) の岩がクリアされる
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[11][11].middle).not.toBeNull();
+        });
+    });
 });
+
 

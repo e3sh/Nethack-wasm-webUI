@@ -46,22 +46,32 @@ related_code:
 ## 2. 統合アーキテクチャ：SSOT (Single Source of Truth) モデル
 
 ### 2.1 コア設計方針
-**「構造化ナレッジ（図鑑データ）を単一真実源（SSOT）とし、戦術アドバイザー・アシストシグナル・推奨アクションはすべてそのメタデータを消費する」** アーキテクチャへ一本化します。
+1. **構造化ナレッジの一元化**: 図鑑マスターデータを単一真実源（SSOT）とし、戦術・アシスト・アクションはすべてそのメタデータを消費する。
+2. **翻訳の一元化（TranslationEngine / dictionary.csv 統合）**:
+   - **ナレッジの元データには訳語（`nameJa`, `messageJa`, `whyJa` 等）を直接保持しない**（英語の原語テキスト・キーのみで定義）。
+   - ナレッジの読み込み・生成・提供時に **`TranslationEngine`（`dictionary.csv`）を通して動的に訳語を解決・アタッチ**する。
+   - ナレッジ追加・作成時に新規のメッセージや単語が発生した場合は、その時点で **`dictionary.csv` に辞書登録**する。
+   - これにより、「ナレッジから引いた用語」と「ゲーム画面・翻訳エンジンで表示される用語」の表記揺れや乖離を原理的に防止する。
 
 ```
                   ┌────────────────────────────────────────────────────────┐
-                  │ 📚 構造化ナレッジ (SSOT: 単一真実源)                   │
-                  │   - MONSTER_KNOWLEDGE_MAP                              │
-                  │   - OBJECT_KNOWLEDGE_MAP                               │
-                  │   - TERRAIN_KNOWLEDGE_MAP                              │
+                  │ 📚 構造化ナレッジ (SSOT: 原語・効果マスター)           │
+                  │   - MONSTER_KNOWLEDGE_MAP (英語定義のみ)               │
+                  │   - OBJECT_KNOWLEDGE_MAP (英語定義のみ)                │
                   │                                                        │
-                  │  【脅威・特性メタデータ】                              │
+                  │  【脅威・効果メタデータ】                              │
                   │    threat: { type: 'GAZE_PARALYSIS', priority: 76 }    │
                   │    counters: [ { type: 'EQUIP', match: 'BLINDFOLD' } ] │
-                  │    vulnerabilities: ['SILVER']                         │
-                  │    properties: { reflectsBeam: true, rusts: true }     │
+                  │    effects: { healHp: true, cureSickness: true }       │
                   └───────────────────────────┬────────────────────────────┘
-                                              │ 参照・消費 (Data-Driven)
+                                              │
+                                              ▼
+                  ┌────────────────────────────────────────────────────────┐
+                  │ 🌐 翻訳エンジン (TranslationEngine / dictionary.csv)   │
+                  │    - すべての単語・メッセージ・解説文の翻訳を一元管理  │
+                  │    - ナレッジ生成・消費時に動的にローカライズ          │
+                  └───────────────────────────┬────────────────────────────┘
+                                              │ 動的解決 (Data-Driven + tr())
            ┌──────────────────────────────────┼──────────────────────────────────┐
            ▼                                  ▼                                  ▼
 ┌──────────────────────┐          ┌──────────────────────┐          ┌──────────────────────┐
@@ -88,10 +98,8 @@ export interface MonsterThreatCounter {
   matchItem?: (item: any) => boolean; // アイテム合致判定（目隠し、銀武器、解呪等）
   matchSpell?: (spell: any) => boolean;
   actionKeySequence?: (item: any) => string[]; // ['W', item.invlet]
-  messageJa: string;               // "浮遊する目玉: 目隠し着用で安全接近"
-  messageEn: string;               // "Floating Eye: Wear blindfold to approach safely"
-  whyJa: string;                   // "盲目状態になることで麻痺凝視を防げます。"
-  whyEn: string;                   // "Wearing a blindfold prevents paralysis gaze."
+  message: string;                 // "Floating Eye: Wear blindfold to approach safely" (辞書キー)
+  why: string;                     // "Wearing a blindfold prevents paralysis gaze." (辞書キー)
   wikiTopic?: string;              // "Floating_eye"
 }
 
@@ -99,15 +107,13 @@ export interface MonsterThreatDefinition {
   type: 'GAZE_PARALYSIS' | 'PETRIFICATION' | 'BRAIN_EAT' | 'LEVEL_DRAIN' | 'POISON' | 'REFLECT';
   severity: 'CRITICAL' | 'WARNING' | 'CAUTION';
   basePriority: number;            // 70〜90
-  descriptionJa: string;
-  descriptionEn: string;
+  description: string;             // 英語解説文 (辞書キー)
   counters: MonsterThreatCounter[];
 }
 
 export interface MonsterKnowledgeEntry {
   id: string;                      // 'floating_eye'
   name: string;                    // 'floating eye'
-  nameJa: string;                  // '浮遊する目玉'
   monOffset: number;               // 57
   vulnerabilities?: Array<'SILVER' | 'FIRE' | 'COLD' | 'POISON' | 'UNDEAD'>;
   properties?: {
@@ -116,6 +122,31 @@ export interface MonsterKnowledgeEntry {
     passiveAttack?: 'PARALYSIS' | 'FREEZE' | 'CORROSIVE' | 'NONE';
   };
   threat?: MonsterThreatDefinition;
+}
+```
+
+### 3.2 アイテム知識メタデータ (`ObjectKnowledgeEntry`)
+```typescript
+export interface ItemEffectDefinition {
+  healHp?: boolean;               // HP回復効果 (potion of healing等)
+  healPower?: 'LOW' | 'MED' | 'HIGH' | 'FULL'; // 回復量グレード
+  cureSickness?: boolean;         // 病気治療 (extra healing, unicorn horn等)
+  cureBlindness?: boolean;        // 盲目治療
+  curePetrification?: boolean;    // 石化治療 (lizard corpse等)
+  removeCurse?: boolean;          // 解呪効果 (scroll of remove curse等)
+  digs?: boolean;                 // 採掘効果 (pick-axe, wand of digging)
+  unlocks?: boolean;              // 解錠効果 (key, lock pick, credit card)
+}
+
+export interface ObjectKnowledgeEntry {
+  id: string;                      // 'potion_of_healing'
+  onum: number;                    // 297
+  name: string;                    // 'potion of healing'
+  category: 'WEAPON' | 'ARMOR' | 'POTION' | 'SCROLL' | 'SPELLBOOK' | 'WAND' | 'RING' | 'AMULET' | 'TOOL' | 'FOOD' | 'GEM' | 'ROCK';
+  actionVerb: string;              // 'q', 'r', 'z', 'a', 'w', 'W', 'e'
+  effects?: ItemEffectDefinition;
+  usageAdvice?: string[];          // 英語アドバイス配列 (辞書キー)
+  unidentifiedTips?: string[];     // 英語ヒント配列 (辞書キー)
 }
 ```
 
@@ -143,53 +174,78 @@ export interface MonsterKnowledgeEntry {
   ```
 
 ### 4.2 `AssistSignalSynthesizer.js` のリファクタリング
-- **変更前**: `evaluateCombatThreatStance` 内で個別に目隠し・銀武器・反射を検索。
-- **変更後**:
+- **変更前**: `healingPotion` や `extraHealingPotion` などの探索を文字列部分一致（`name.includes('healing')`）で行っており、`spellbook of healing` などの他種別アイテムを誤認する脆弱性があった。
+- **変更後**: ナレッジの効果メタデータ（`item.knowledge?.effects?.healHp`）およびカテゴリ（`item.knowledge?.category === 'POTION'`）による完全データ駆動判定へ一本化。
   ```javascript
-  for (const monster of areaState.perceivedMonsters) {
-    const knowledge = monster.knowledge;
-    if (!knowledge?.threat?.counters) continue;
-
-    for (const counter of knowledge.threat.counters) {
-      if (counter.type === 'EQUIP_ITEM') {
-        const item = inventoryItems.find(counter.matchItem);
-        if (item && !item.isWorn) {
-          candidateSignals.push({
-            id: `SIGNAL_${counter.id}`,
-            priority: counter.priority,
-            category: 'TACTICAL_COMBAT',
-            stance: counter.stance,
-            icon: '🙈',
-            shortMessageJa: counter.messageJa,
-            shortMessageEn: counter.messageEn,
-            detailWhyJa: counter.whyJa,
-            detailWhyEn: counter.whyEn,
-            actionKeySequence: counter.actionKeySequence ? counter.actionKeySequence(item) : ['W', item.invlet],
-            actionLabelJa: `${item.nameJa || item.name}を装備`,
-            wikiTopic: counter.wikiTopic
-          });
-        }
-      }
-    }
-  }
+  // 完全データ駆動による生存手段スキャン
+  const healingPotion = inventoryItems.find(i => 
+    i.knowledge?.category === 'POTION' && i.knowledge?.effects?.healHp
+  );
   ```
 
 ---
 
-## 5. 移行ロードマップ (Migration Roadmap)
+## 5. テスト基盤の刷新とテストファクトリの標準化 (Test Fixture & Factory Modernization)
+
+### 5.1 背景：不完全なテストモックが招く実装のテキスト依存
+従来のテストコードでは、`{ invlet: 'a', name: 'potion of extra healing', category: 'POTION' }` のような簡易モックオブジェクトが直書きされていたため、実装側が「不完全なモックでも動くようにテキスト判定（`name.includes(...)`）を残す」という主客転倒な技術的負債を抱えていました。
+
+### 5.2 解決策：ナレッジ連動型テストファクトリの導入
+テスト側で完全なナレッジ（`onum`, `category`, `effects`, `knowledge`）を持つ実オブジェクトを1行で生成できるヘルパーを整備し、テストと実装の双方から不完全な文字列モックを一掃します。
+
+```javascript
+// test/helpers/testItemFactory.js
+import { OBJECT_KNOWLEDGE_BASE } from '../../src/core/knowledge/ITEM_KNOWLEDGE_BASE.js';
+
+export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
+  const knowledge = typeof nameOrOnum === 'number'
+    ? OBJECT_KNOWLEDGE_BASE.find(k => k.onum === nameOrOnum)
+    : OBJECT_KNOWLEDGE_BASE.find(k => k.name === nameOrOnum || k.id === nameOrOnum);
+
+  return {
+    invlet,
+    letter: invlet,
+    onum: knowledge?.onum ?? -1,
+    name: knowledge?.name ?? (typeof nameOrOnum === 'string' ? nameOrOnum : 'unknown'),
+    category: knowledge?.category ?? 'OTHER',
+    knowledge: knowledge ?? null,
+    ...overrides
+  };
+}
+```
+
+```javascript
+// テストコードでの利用例（簡潔かつ実データに即した記述へ刷新）
+inventory: [
+  createTestItem('potion of extra healing', 'a'),
+  createTestItem('spellbook of healing', 'b')
+]
+```
+
+---
+
+## 6. 移行ロードマップ (Migration Roadmap)
 
 ```
-Phase 1: 構造化ナレッジ スキーマ拡張 ＆ マスターデータ定義 (SSOT 構築)
- ├─ MONSTER_KNOWLEDGE_MAP に threat / counters / vulnerabilities を追加
- └─ 主要モンスター（浮遊する目玉、銀竜、人狼、コカトリス、マインドフレア、サキュバス等）の定義
+Phase 0: テストファクトリ基盤の整備 ＆ テストデータ刷新 (Test Modernization)
+ ├─ createTestItem / createTestMonster ファクトリの新設
+ └─ 主要テスト（AssistSignalSynthesizer.test.js, TacticalAdvisor.test.js）のモックをファクトリ呼び出しへ移行
+
+Phase 1: 構造化ナレッジ スキーマ拡張 ＆ マスターデータ定義 (SSOT 構築 ＆ 辞書統合)
+ ├─ MONSTER_KNOWLEDGE_MAP に threat / counters / vulnerabilities を英語で追加
+ ├─ OBJECT_KNOWLEDGE_BASE に effects / actionVerb などの効果フラグを追加
+ ├─ ナレッジマスターデータ内の日本語ハードコード（nameJa等）を廃止
+ ├─ 新規に追加された英語メッセージ・単語を dictionary.csv に一括登録
+ └─ StructuredKnowledgeEngine.localizeKnowledge による動的翻訳アタッチの動作確認
 
 Phase 2: TacticalAdvisor のデータ駆動化リファクタリング
  ├─ ハードコード判定をナレッジ走査型に置き換え
  └─ 既存の単体テスト（全23テスト）の完全互換・パス確認
 
 Phase 3: AssistSignalSynthesizer のデータ駆動化リファクタリング
- ├─ evaluateCombatThreatStance の完全データ駆動化
- └─ 既存の単体テスト（全18テスト）の完全互換・パス確認
+ ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化
+ ├─ 文字列部分一致（name.includes）判定の全廃
+ └─ 既存の単体テスト（全21テスト）の完全互換・パス確認
 
 Phase 4: アイテム・環境ケミストリーの SSOT 統合
  ├─ 指輪＋流し台、死体＋祭壇、ユニコーンの角等のルールを OBJECT_KNOWLEDGE_MAP / TERRAIN_KNOWLEDGE_MAP へ集約
@@ -197,7 +253,9 @@ Phase 4: アイテム・環境ケミストリーの SSOT 統合
 
 ---
 
-## 6. 期待される効果
+## 7. 期待される効果
 - **圧倒的な拡張性**: 新しいモンスター・アイテム対策の追加が「データ定義の追加」だけで 100% 完結。
+- **用語・翻訳の完全統一**: ナレッジ・画面翻訳・ログのすべての日本語表現が `dictionary.csv`（`TranslationEngine`）から単一生成され、表記揺れを根絶。
+- **テストの堅牢化と記述の簡素化**: テストデータが実データと完全に一致し、文字列判定のバグ（魔法書の誤認など）を原理的に排除。
 - **コード削減**: `TacticalAdvisor` および `AssistSignalSynthesizer` のコード量を 30〜40% 削減。
-- **アーキテクチャの統一**: 図鑑、戦術、アシスト、アクションが 1 つのナレッジマスターから美しく連動。
+- **アーキテクチャの統一**: 図鑑、戦術、アシスト、アクション、翻訳、テストが 1 つのナレッジマスターから美しく連動。

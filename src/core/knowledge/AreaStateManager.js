@@ -4,7 +4,7 @@
  * セル状態キャッシュを自走管理し、自キャラ周辺の構造化 State を提供するクラス
  */
 
-import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster } from './glyphClassifier.js';
+import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster, isBoulderGlyph, isBoulderEntity } from './glyphClassifier.js';
 
 export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
 
@@ -55,6 +55,10 @@ export class AreaStateManager {
         this.height = height;
         this.playerX = 0;
         this.playerY = 0;
+        this.prevPlayerX = 0;
+        this.prevPlayerY = 0;
+        this.lastMoveDx = 0;
+        this.lastMoveDy = 0;
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
         this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
@@ -425,6 +429,8 @@ export class AreaStateManager {
         if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
             this.monsterTracker.reset();
         }
+        this.lastMoveDx = 0;
+        this.lastMoveDy = 0;
         this.grid = [];
         for (let y = 0; y < this.height; y++) {
             const row = [];
@@ -540,12 +546,25 @@ export class AreaStateManager {
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
-                if (cell.bottom === null) {
+                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
                     cell.bottom = createInferredFloor();
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 cell.effect = null;
+
+                // 🎯 押し出し先への岩出現検知 (Case B: プレイヤー移動後に押し出し先マスへ岩グリフが届いた場合)
+                if (isBoulderGlyph(glyphId) && (this.lastMoveDx !== 0 || this.lastMoveDy !== 0)) {
+                    const expectedPushedX = this.playerX + this.lastMoveDx;
+                    const expectedPushedY = this.playerY + this.lastMoveDy;
+                    if (x === expectedPushedX && y === expectedPushedY) {
+                        const feetCell = this.grid[this.playerY] && this.grid[this.playerY][this.playerX];
+                        if (feetCell && feetCell.middle && isBoulderEntity(feetCell.middle)) {
+                            // 押し出し先に岩が届いたため、足元の岩をクリア
+                            feetCell.middle = null;
+                        }
+                    }
+                }
                 break;
 
             case ENTITY_TYPES.MONSTER:
@@ -554,7 +573,7 @@ export class AreaStateManager {
                 const existingDynamic = (cell.top && (cell.top.monOffset === info.monOffset || cell.top.glyph === glyphId))
                     ? cell.top.dynamicState
                     : null;
-                if (cell.bottom === null) {
+                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
                     cell.bottom = createInferredFloor();
                 }
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
@@ -596,7 +615,7 @@ export class AreaStateManager {
             }
             const cell = this.grid[y][x];
             if (cell) {
-                if (cell.bottom === null) {
+                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
                     const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
                     const cachedStair = this.stairCache.get(key);
                     if (cachedStair) {
@@ -609,8 +628,34 @@ export class AreaStateManager {
                 }
             }
             if (this.playerX === x && this.playerY === y) return false;
+
+            const prevX = this.playerX;
+            const prevY = this.playerY;
+            const dx = x - prevX;
+            const dy = y - prevY;
+
+            this.prevPlayerX = prevX;
+            this.prevPlayerY = prevY;
+            this.lastMoveDx = dx;
+            this.lastMoveDy = dy;
             this.playerX = x;
             this.playerY = y;
+
+            // 🎯 押し出し先への岩出現検知 (Case A: 押し出し先マスに既に岩が届いている場合)
+            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && (dx !== 0 || dy !== 0)) {
+                if (cell && cell.middle && isBoulderEntity(cell.middle)) {
+                    const pushedX = x + dx;
+                    const pushedY = y + dy;
+                    if (pushedX >= 0 && pushedX < this.width && pushedY >= 0 && pushedY < this.height) {
+                        const pushedCell = this.grid[pushedY] && this.grid[pushedY][pushedX];
+                        if (pushedCell && pushedCell.middle && isBoulderEntity(pushedCell.middle)) {
+                            // 押し出し先に既に岩が存在するため、足元の岩をクリア
+                            cell.middle = null;
+                        }
+                    }
+                }
+            }
+
             return true;
         }
         return false;

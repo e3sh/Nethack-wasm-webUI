@@ -304,6 +304,7 @@ export function getItemInfoFromOnum(onum) {
     const isTin = (onum === 296); // tin (296) [tilemappings.lst line 3820]
     const isGem = (onum >= 439 && onum <= 469); // gems & glasses (439-469)
     const isRock = (onum === 473 || onum === 474); // flint (473), rock (474)
+    const isBoulder = (onum === 475); // boulder (475)
 
     // 弾薬・投擲物 (Ammunition / Missile): arrow (18-22), bolt (23), dart (24), shuriken (25), boomerang (26), javelin (32), flint (473), rock (474)
     const isAmmo = (onum >= 18 && onum <= 26) || onum === 32 || onum === 473 || onum === 474;
@@ -326,6 +327,7 @@ export function getItemInfoFromOnum(onum) {
         isTin,
         isGem,
         isRock,
+        isBoulder,
         isAmmo,
         isLauncher
     };
@@ -352,6 +354,32 @@ export function getCategoryFromOnum(onum) {
     if (onum >= 439 && onum <= 475) return 'GEM';       // 宝石/硝子/石 (439〜475)
     return 'TOOL';
 }
+
+/**
+ * 指定の Glyph ID が岩 (BOULDER: onum 475) かどうかを判定
+ * @param {number} glyphId 
+ * @returns {boolean}
+ */
+export function isBoulderGlyph(glyphId) {
+    if (typeof glyphId !== 'number' || glyphId < 0) return false;
+    const onum = getOnumFromGlyph(glyphId);
+    return onum === 475;
+}
+
+/**
+ * 指定の Entity が岩 (BOULDER) かどうかを判定
+ * @param {Object} entity 
+ * @returns {boolean}
+ */
+export function isBoulderEntity(entity) {
+    if (!entity) return false;
+    if (entity.isBoulder) return true;
+    if (entity.subType === 475) return true;
+    const glyphId = typeof entity.glyph === 'number' ? entity.glyph : (entity.rawGlyph !== undefined ? entity.rawGlyph : -1);
+    if (glyphId >= 0 && isBoulderGlyph(glyphId)) return true;
+    return false;
+}
+
 
 
 
