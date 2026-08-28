@@ -83,6 +83,57 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primaryAction.keySequence).toEqual(['#pray\n', 'y']);
         });
 
+        it('瀕死 (HP < 30%): インベントリに spellbook of healing のみ所持時は回復薬として誤認識されない', () => {
+            const context = {
+                status: { hp: { current: 5, max: 30, percent: 0.16 } },
+                inventory: [
+                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            // 回復薬の服用 (q -> b) にならず、祈り (#pray) になること
+            expect(state.primarySignal.stance).toBe('PRAY');
+            expect(state.primarySignal.id).toBe('SIGNAL_HP_CRITICAL_PRAY');
+            expect(state.slotBadges['b']).toBeUndefined();
+        });
+
+        it('瀕死 (HP < 30%): spellbook of healing を所持していても治癒魔法習得時は SIGNAL_HP_CRITICAL_SPELL (Z -> a -> .) を推奨', () => {
+            const context = {
+                status: { hp: { current: 5, max: 30, percent: 0.16 }, pw: { current: 15, max: 15 } },
+                inventory: [
+                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                ],
+                spells: [
+                    { letter: 'a', name: 'healing', level: 1, failPercent: 0 }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_HP_CRITICAL_SPELL');
+            expect(state.primaryAction.keySequence).toEqual(['Z', 'a', '.']);
+            expect(state.slotBadges['b']).toBeUndefined();
+            expect(state.slotBadges['spell:a']).toBeDefined();
+        });
+
+        it('HP 警戒域 (30〜50%): spellbook of healing 所持時に回復薬として誤認識されない', () => {
+            const context = {
+                status: { hp: { current: 12, max: 30, percent: 0.40 } },
+                inventory: [
+                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            // 回復薬がないため SIGNAL_HP_LOW_HEAL は生成されない
+            if (state.primarySignal) {
+                expect(state.primarySignal.id).not.toBe('SIGNAL_HP_LOW_HEAL');
+            }
+            expect(state.slotBadges['b']).toBeUndefined();
+        });
+
         it('混乱中 (Confused): ユニコーンの角がない場合、WAIT_SAFE Stance で足踏み(.)を推奨', () => {
             const context = {
                 status: { conditions: ['Conf'], hp: { current: 20, max: 20, percent: 1.0 } },

@@ -97,12 +97,38 @@ export class AssistSignalSynthesizer {
         };
 
         // 道具・手段の抽出ヘルパー
-        const healingPotion = inventoryItems.find(i => {
+        const isPotionItem = (i) => {
+            if (!i) return false;
+            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
+            if (cat === 'POTION') return true;
+            if (cat && cat !== 'OTHER' && cat !== 'POTION') return false;
             const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('healing') || name.includes('回復の薬') || name.includes('強壮の薬');
+            const hasPotionWord = name.includes('potion') || name.includes('薬') || name.includes('ポーション');
+            const hasOtherWord = name.includes('spellbook') || name.includes('scroll') || name.includes('wand') ||
+                                 name.includes('魔法書') || name.includes('魔導書') || name.includes('巻物') || name.includes('杖') || name.includes('本');
+            return hasPotionWord && !hasOtherWord;
+        };
+
+        const isScrollItem = (i) => {
+            if (!i) return false;
+            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
+            if (cat === 'SCROLL') return true;
+            if (cat && cat !== 'OTHER' && cat !== 'SCROLL') return false;
+            const name = (i.name || i.rawText || '').toLowerCase();
+            const hasScrollWord = name.includes('scroll') || name.includes('巻物');
+            const hasOtherWord = name.includes('spellbook') || name.includes('potion') || name.includes('wand') ||
+                                 name.includes('魔法書') || name.includes('魔導書') || name.includes('薬') || name.includes('杖');
+            return hasScrollWord && !hasOtherWord;
+        };
+
+        const healingPotion = inventoryItems.find(i => {
+            if (!isPotionItem(i)) return false;
+            const name = (i.name || i.rawText || '').toLowerCase();
+            return name.includes('healing') || name.includes('回復') || name.includes('強壮');
         });
 
         const extraHealingPotion = inventoryItems.find(i => {
+            if (!isPotionItem(i)) return false;
             const name = (i.name || i.rawText || '').toLowerCase();
             return name.includes('extra healing') || name.includes('full healing') || name.includes('超回復') || name.includes('完全回復');
         });
@@ -125,8 +151,9 @@ export class AssistSignalSynthesizer {
         });
 
         const uncurseScroll = inventoryItems.find(i => {
+            if (!isScrollItem(i)) return false;
             const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('remove curse') || name.includes('解呪の巻物');
+            return name.includes('remove curse') || name.includes('解呪');
         });
 
         // 4大安全ガードを満たす治癒魔法の検索
