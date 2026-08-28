@@ -438,6 +438,43 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.areaStateManager.grid[12][18].bottom.cmapFlags.isStairDown).toBe(true);
     });
 
+    it('status_update (BL_DLEVEL) で dlevelData を用いてブランチ名付きフロアキーに正確に同期すること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        // dlevelData を含む status_update
+        mockCore.emit('status_update', {
+            field: 20,
+            value: '3',
+            dlevelData: { branch: 'Minetown', dlevelNum: 3, dlevelStr: 'Minetown:3' }
+        });
+
+        expect(plugin.areaStateManager.currentFloor).toBe('Minetown:3');
+
+        // 階段を記録
+        mockCore.emit('print_glyph', { x: 10, y: 15, glyph: 4002 }); // 分岐上り階段
+        expect(plugin.areaStateManager.stairCache.has('Minetown:3:10,15')).toBe(true);
+    });
+
+    it('restarted イベント受信時に過去セッションの階段・ランドマークキャッシュを完全に初期化すること', () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        plugin.attach(mockCore);
+
+        // 階段をキャッシュ
+        mockCore.emit('status_update', { field: 20, value: 'Dlvl:1' });
+        mockCore.emit('print_glyph', { x: 10, y: 10, glyph: 3998 });
+        expect(plugin.areaStateManager.stairCache.size).toBe(1);
+
+        // restarted イベント送出
+        mockCore.emit('restarted');
+
+        // キャッシュがゼロクリアされていること
+        expect(plugin.areaStateManager.stairCache.size).toBe(0);
+        expect(plugin.areaStateManager.landmarkCache.size).toBe(0);
+    });
+
     describe('Visual FX 演出トリガーイベント (fx_trigger) 発火機能', () => {
         it('HP減少時に DAMAGE_TAKEN イベントが正しく発行されること', () => {
             const plugin = new GKLPlugin();

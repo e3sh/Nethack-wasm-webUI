@@ -470,7 +470,7 @@ export class GKLPlugin {
             }
         });
 
-        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期
+        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期 ＆ キャッシュ管理
         const triggerDiscoverySync = () => {
             this.syncDiscoveriesSilent();
         };
@@ -478,6 +478,20 @@ export class GKLPlugin {
         addCoreListener('game_started', triggerDiscoverySync);
         addCoreListener('restore', triggerDiscoverySync);
         addCoreListener('game_restored', triggerDiscoverySync);
+
+        // 新規ゲーム開始・リスタート時のキャッシュ初期化
+        const handleGameReset = () => {
+            if (this.areaStateManager && typeof this.areaStateManager.clearLandmarkCache === 'function') {
+                this.areaStateManager.clearLandmarkCache();
+            }
+            if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
+                this.areaStateManager.resetGrid();
+            }
+            if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
+                this.situationCache.invalidate();
+            }
+        };
+        addCoreListener('restarted', handleGameReset);
 
         // 4. カーソル位置・プレイヤー移動の同期
         const handlePlayerPosUpdate = (data) => {
@@ -577,11 +591,21 @@ export class GKLPlugin {
 
                 // 階層 (BL_DLEVEL = 20) の同期
                 if (data.field === 20 || data.field === 'dlevel') {
+                    let floorKey = data.value;
+                    if (data.dlevelData && data.dlevelData.branch && data.dlevelData.dlevelNum) {
+                        floorKey = `${data.dlevelData.branch}:${data.dlevelData.dlevelNum}`;
+                    } else if (this.statusAccessor && typeof this.statusAccessor.getStatus === 'function') {
+                        const st = this.statusAccessor.getStatus();
+                        if (st && st.dlevel && st.dlevel.branch && st.dlevel.level) {
+                            floorKey = `${st.dlevel.branch}:${st.dlevel.level}`;
+                        }
+                    }
+
                     if (this.areaStateManager && typeof this.areaStateManager.setCurrentFloor === 'function') {
-                        this.areaStateManager.setCurrentFloor(data.value);
+                        this.areaStateManager.setCurrentFloor(floorKey);
                     }
                     if (this.monsterTracker) {
-                        this.monsterTracker.handleDlevelChange(data.value);
+                        this.monsterTracker.handleDlevelChange(floorKey);
                     }
                 }
 

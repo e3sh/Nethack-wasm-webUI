@@ -246,9 +246,32 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(normalizeFloorKey('2')).toBe('Dlvl:2');
             expect(normalizeFloorKey(3)).toBe('Dlvl:3');
             expect(normalizeFloorKey('Minetown: 3')).toBe('Minetown:3');
+            expect(normalizeFloorKey('Mines:2')).toBe('Mines:2');
             expect(normalizeFloorKey('The Dungeons of Doom:1')).toBe('The Dungeons of Doom:1');
             expect(normalizeFloorKey(null)).toBe('Dlvl:1');
             expect(normalizeFloorKey('')).toBe('Dlvl:1');
+        });
+
+        it('should cache branch staircase (glyph 4002) and mark preloaded stairs with isCachedPreload', () => {
+            asm.setCurrentFloor('Mines:2');
+            const branchStairUpGlyph = 4002; // 分岐上り階段
+            asm.updateGlyph(25, 10, branchStairUpGlyph);
+
+            expect(asm.stairCache.has('Mines:2:25,10')).toBe(true);
+            const cached = asm.stairCache.get('Mines:2:25,10');
+            expect(cached.cmapFlags.isStairUp).toBe(true);
+
+            // フロア切替後、戻った時に isCachedPreload が付与されて復元される
+            asm.setCurrentFloor('Mines:3');
+            expect(asm.grid[10][25].bottom).toBeNull();
+
+            asm.setCurrentFloor('Mines:2');
+            expect(asm.grid[10][25].bottom).not.toBeNull();
+            expect(asm.grid[10][25].bottom.isCachedPreload).toBe(true);
+
+            // プレイヤーがそのマスに到達したときは isCachedPreload が解除される
+            asm.updatePlayerPosition(25, 10);
+            expect(asm.grid[10][25].bottom.isCachedPreload).toBeUndefined();
         });
 
         it('should reset grid and only apply target floor stairs on setCurrentFloor change', () => {

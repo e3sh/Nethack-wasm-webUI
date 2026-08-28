@@ -148,7 +148,9 @@ export class MapRenderer {
           const cell = areaGrid[y][x];
           
           // Layer 1 (Bottom)
-          if (cell.bottom && cell.bottom.rawGlyph >= 0) {
+          const gData = this.glyphGridBuffer[y][x];
+          const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
+          if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph)) {
             this.drawTileGlyph(cell.bottom.rawGlyph, cols, tileMap, dx, dy, 0);
           }
           // Layer 2 (Middle - 透過重ね描き)

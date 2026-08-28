@@ -199,16 +199,21 @@ export class ZoomRenderer {
           const gData = (glyphGridBuffer && glyphGridBuffer[gy] && glyphGridBuffer[gy][gx]) ? glyphGridBuffer[gy][gx] : null;
 
           // セルに一度でも記憶された地形/アイテム/エンティティ情報があるかチェック
-          const hasMemory = cell && (cell.bottom || cell.middle || cell.top);
+          // ※ isCachedPreload (プリロード階段) のみの未探索マスはブラックアウトとして扱う
+          const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
+          const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
+          const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
+          const isCurrentPlayerFeet = (dx === 0 && dy === 0);
+          const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isCurrentPlayerFeet);
 
-          if (!hasMemory && (!gData || gData.glyph < 0 || gData.ch === ' ')) {
+          if (!hasMemory && !hasNetHackGlyph) {
             // 未探索マスはブラックアウト
             this.zoomCtx.fillStyle = '#000000';
             this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
           } else {
             if (cell && (cell.bottom || cell.middle || cell.top)) {
               // Layer 1: Bottom (現フロアで一度でも確認した壁・床・通路等の地形)
-              if (cell.bottom && cell.bottom.rawGlyph >= 0) {
+              if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph || isCurrentPlayerFeet)) {
                 this.drawZoomTile(cell.bottom.rawGlyph, cols, tileMap, screenX, screenY, 0);
               } else if (gData && gData.glyph >= 0) {
                 this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);

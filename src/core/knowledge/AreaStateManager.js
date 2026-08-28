@@ -18,7 +18,15 @@ export function normalizeFloorKey(floorKey) {
     const str = String(floorKey).trim();
     if (!str) return 'Dlvl:1';
 
-    const match = str.match(/^(.*?):?\s*(\d+)$/i);
+    // "Minetown:3", "Mines: 2", "Dlvl: 1", "Sokoban: 1" 等のコロン区切り形式
+    if (str.includes(':')) {
+        const parts = str.split(':');
+        const branch = parts[0].trim() || 'Dlvl';
+        const level = parseInt(parts[1], 10) || 1;
+        return `${branch}:${level}`;
+    }
+
+    const match = str.match(/^([a-zA-Z\s]+)?\s*(\d+)$/i);
     if (match) {
         const branch = match[1] ? match[1].trim() : 'Dlvl';
         const level = parseInt(match[2], 10) || 1;
@@ -71,6 +79,7 @@ export class AreaStateManager {
 
     /**
      * 指定フロア（省略時は currentFloor）の全階段キャッシュをグリッドに一括反映
+     * ※ 未探索マスへの先行描画を防ぐため isCachedPreload: true を付与
      * @param {string} [floorKey]
      */
     applyStairCacheForFloor(floorKey = this.currentFloor) {
@@ -85,7 +94,7 @@ export class AreaStateManager {
                 const y = parseInt(yStr, 10);
                 if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
                     if (this.grid[y] && this.grid[y][x]) {
-                        this.grid[y][x].bottom = { ...stairEntity };
+                        this.grid[y][x].bottom = { ...stairEntity, isCachedPreload: true };
                     }
                 }
             }
@@ -586,13 +595,17 @@ export class AreaStateManager {
                 this.monsterTracker.handlePlayerPosition(x, y);
             }
             const cell = this.grid[y][x];
-            if (cell && cell.bottom === null) {
-                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                const cachedStair = this.stairCache.get(key);
-                if (cachedStair) {
-                    cell.bottom = { ...cachedStair };
-                } else {
-                    cell.bottom = createInferredFloor();
+            if (cell) {
+                if (cell.bottom === null) {
+                    const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                    const cachedStair = this.stairCache.get(key);
+                    if (cachedStair) {
+                        cell.bottom = { ...cachedStair };
+                    } else {
+                        cell.bottom = createInferredFloor();
+                    }
+                } else if (cell.bottom.isCachedPreload) {
+                    delete cell.bottom.isCachedPreload;
                 }
             }
             if (this.playerX === x && this.playerY === y) return false;
