@@ -8311,6 +8311,7 @@
         { en: "%s%s%s", jp: "%s%s%s" },
         { en: "cap constricts briefly, then relaxes again.", jp: "キャップは一時的に収縮し、その後再び緩みます。" },
         { en: "%s%s!", jp: "%s%s!" },
+        { en: "The spikes were poisoned!", jp: "その棘には毒が塗られていた！" },
         { en: "The poison doesn't seem to affect you.", jp: "毒は影響しないようです。" },
         { en: "poison was deadly...", jp: "毒は致命的だった…" },
         { en: "%s!", jp: "%s!" },
@@ -11517,6 +11518,9 @@
         { en: "the last bite of your", jp: "最後の一口" },
         { en: "Lock it?", jp: "施錠する？" },
         { en: "Unlock it?", jp: "解錠する？" },
+        { en: "You hear a sceptre pounded in judgment.", jp: "裁きを下すかのように、笏が打ちつけられる音が聞こえる。" },
+        { en: " There was a full moon in effect when your adventure ended.", jp: "あなたの冒険が終わった時、満月が輝いていた。" },
+        { en: "You feel disoriented.", jp: "あなたは混乱している。" },
     ];
 }
 
@@ -13143,6 +13147,7 @@ function nhEntities() {
         "high priest": "大神官",
         "sergeant": "軍曹",
         "cleric": "聖職者",
+        "iron bars": "鉄の棒",
     };
 }
 
@@ -13988,6 +13993,7 @@ function nhPatterns() {
         { pattern: /^You\s+have\s+much\s+trouble\s+lifting\s+(.*)\.$/, replace: "$1を持ち上げるのに非常に苦労している。" },
         { pattern: /^You\s+have\s+much\s+trouble\s+lifting\s+(.*)\.\s+Continue*$/, replace: "$1を持ち上げるのに非常に苦労している。続けますか？" },
         { pattern: /^You\s+drop\s+(.*)\.$/, replace: "あなたは$1を落とした。" },
+        { pattern: /^(.*)\s+down\s+the\s+drain$/, replace: "排水口に$1" },
         { pattern: /^You\s+decipher\s+the\s+label\s+on\s+your\s+(.*)\.$/, replace: "あなたは$1のラベルを解読した。" },
         { pattern: /^Your\s+(.*)\s+glows\s+blue\s+for\s+a\s+moment\.$/, replace: "あなたの$1が一瞬青く光った。" },
         { pattern: /^A\s+gush\s+of\s+water\s+hits\s+(.*)!$/, replace: "勢いよく噴き出した水が$1に当たった！" },
@@ -16768,7 +16774,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+(.*)\s+completely\s+(.*)\.$/, replace: "$1 $2 完全に $3 。" },
         { pattern: /^(.*)\s+(.*)\s+(.*)\s+completely\s+(.*)\.$/, replace: "$1  $2  $3 完全に $4 。" },
         { pattern: /^(.*)\s+opens\s+up\s+under\s+you!$/, replace: "$1 があなたの下に開きます!" },
-        { pattern: /^(.*)\s+down\s+(.*)!$/, replace: "$1 ダウン $1 !" },
+        { pattern: /^(.*)\s+down\s+(.*)!$/, replace: "$1 ダウン $2 !" },
         { pattern: /^(.*)\s+down\s+a\s+(.*)(.*)!$/, replace: "$1  $2  $3 シャフトを下ってください!" },
         { pattern: /^(.*)\s+suddenly\s+seems\s+more\s+animated\.$/, replace: "$1 が急に生き生きとして見えます。" },
         { pattern: /^Instead\s+of\s+shattering,\s+(.*)\s+suddenly\s+(.*)!$/, replace: "粉々になるのではなく、突然 $1 が $2 !" },
@@ -17174,7 +17180,7 @@ function nhPatterns() {
         { pattern: /^This\s+satiates\s+your\s+(.*)!$/, replace: "これであなたの $1 は満足できます!" },
         { pattern: /^My,\s+this\s+is\s+a\s+(.*)\s+(.*)!$/, replace: "やあ、これは $1  $2 です!" },
         { pattern: /^(.*)\s+\-\-\s+core\s+dumped\.$/, replace: "$1 -- コアがダンプされました。" },
-        { pattern: /^This\s+(.*)\s+is\s+(.*)$/, replace: "この $1 は $1 です" },
+        { pattern: /^This\s+(.*)\s+is\s+(.*)$/, replace: "この $1 は $2 です" },
         { pattern: /^Magic\s+spreads\s+through\s+your\s+body\s+as\s+you\s+digest\s+the\s+(.*)\.$/, replace: "$1 を消化すると、魔法が体中に広がります。" },
         { pattern: /^body\s+takes\s+on\s+a\s+(.*)\s+transparency\.\.\.$/, replace: "ボディは $1 透明になります..." },
         { pattern: /^are\s+suddenly\s+very\s+(.*)!$/, replace: "突然とても $1 になりました!" },
@@ -17291,7 +17297,7 @@ function nhPatterns() {
         { pattern: /^are\s+suddenly\s+moving\s+(.*)\.$/, replace: "$1 が突然移動しています。" },
         { pattern: /^(.*)\s+get\s+new\s+energy\.$/, replace: "$1 新しいエネルギーを得る。" },
         { pattern: /^vision\s+seems\s+to\s+(.*)\s+for\s+a\s+moment\s+but\s+is\s+(.*)\s+now\.$/, replace: "視覚は一瞬 $1 に見えますが、現在は $1 です。" },
-        { pattern: /^(.*)\s+momentarily\s+(.*)\.$/, replace: "$1 瞬間的に $1 。" },
+        { pattern: /^(.*)\s+momentarily\s+(.*)\.$/, replace: "$1 瞬間的に $2 。" },
         { pattern: /^Everything\s+(.*)\s+SO\s+boring\s+now\.$/, replace: "もう何もかもが $1 とても退屈です。" },
         { pattern: /^Oh\s+wow!\s+\s+Everything\s+(.*)\s+so\s+cosmic!$/, replace: "ああ、すごい！  すべてが $1 とても宇宙的です!" },
         { pattern: /^This\s+tastes\s+like\s+10%%\s+real\s+(.*)(.*)\s+all\-natural\s+beverage\.$/, replace: "これは 10%% 本物の $1  $2 の天然飲料のような味わいです。" },
@@ -17299,6 +17305,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+saddle$/, replace: "$1 サドル" },
         { pattern: /^(.*)(.*)\s+into\s+the\s+fountain\?$/, replace: "$1  $2 噴水に入りますか？" },
         { pattern: /^(.*)(.*)\s+into\s+the\s+sink\?$/, replace: "$1  $2 シンクに流し込みますか?" },
+        { pattern: /^What\s+do\s+you\s+want\s+to\s+burn\s+into\s+(.*)\s+here\?$/, replace: "ここの$1に何を焼き付けたいんですか？" },
         { pattern: /^(.*)(.*)\s+into\s+the\s+(.*)\?$/, replace: "$1  $2 を $3 に入れますか?" },
         { pattern: /^dip\s+(.*)\s+into$/, replace: "$1 を浸す" },
         { pattern: /^dip\s+into\s+(.*)(.*)$/, replace: "$1  $2 に浸る" },
@@ -17680,7 +17687,7 @@ function nhPatterns() {
         { pattern: /^are\s+not\s+(.*)\s+an\s+altar\.$/, replace: "$1 祭壇ではありません。" },
         { pattern: /^Such\s+an\s+action\s+is\s+an\s+insult\s+to\s+(.*)!$/, replace: "そのような行為は $1 に対する侮辱です。" },
         { pattern: /^appropriately\s+(.*)\.$/, replace: "適切に $1 。" },
-        { pattern: /^(.*)\s+seems\s+(.*)\.$/, replace: "$1 は $1 のようです。" },
+        { pattern: /^(.*)\s+seems\s+(.*)\.$/, replace: "$1 は $2 のようです。" },
         { pattern: /^think\s+(.*)\s+brushed\s+your\s+(.*)\.$/, replace: "$1 があなたの $1 を磨いたと思います。" },
         { pattern: /^very\s+idea\s+of\s+praying\s+to\s+a\s+(.*)\s+god\s+is\s+repugnant\s+to\s+you\.$/, replace: "あなたにとって、 $1 神に祈るという考え自体が不快です。" },
         { pattern: /^begin\s+praying\s+to\s+(.*)\.$/, replace: "$1 に祈り始めます。" },
@@ -17895,6 +17902,13 @@ function nhPatterns() {
         { pattern: /^Your\s+load\s+is\s+too\s+heavy\s+to\s+climb\s+(.*)\./, replace: "荷物が重すぎて$1を上れません。" },
         { pattern: /^There\s+is\s+(.*)\s+here;\s+lock\s+it\?/, replace: "ここに$1があります。鍵をかけますか？" },
         { pattern: /^There\s+is\s+(.*)\s+here;\s+pick\s+its\s+lock\?/, replace: "ここに$1があります。鍵を開けますか？" },
+        { pattern: /^(.*)\s+rises\s+up,\s+through\s+the\s+ceiling!$/, replace: "$1が天井を突き破って現れた！" },
+        { pattern: /^(.*)\s+is\s+blinded\s+by\s+the\s+flash!$/, replace: "$1は閃光に目をくらまされた！" },
+        { pattern: /^(.*)\s+tries\s+to\s+snatch\s+your\s+(.*)\s+but\s+gives\s+up\.$/, replace: "$1はあなたの$2を奪おうとしたが、諦めた。" },
+        { pattern: /^(.*)\s+unsuccessfully\s+fights\s+your\s+attempt\s+to\s+write!$/, replace: "$1は、あなたが文字を書こうとするのを阻止しようとしたが、失敗した！" },
+        { pattern: /^Lightning\s+arcs\s+from\s+(.*)\.$/, replace: "$1から稲妻が放たれる。" },
+        { pattern: /^(.*)\s+lightning\s+glows,\s+then\s+fades\.$/, replace: "$1から稲妻が光り、やがて消えていく。" },
+        { pattern: /^(.*)\s+was\s+coated\s+with\s+contact\s+poison!$/, replace: "その$1には接触毒が塗られていた！" },
     ];
 }
 

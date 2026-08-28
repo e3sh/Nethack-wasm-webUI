@@ -57,7 +57,7 @@ def extract_js_object(content):
         if v_raw.startswith('{'):
             pos_dict = {}
             for pos in ['noun', 'adj', 'verb']:
-                p_match = re.search(f'{pos}\s*:\s*("(?:[^"\\\\]|\\\\.)*"|\'(?:[^\\\'\\\\]|\\\\.)*\'|`(?:[^`\\\\]|\\.)*`)', v_raw)
+                p_match = re.search(rf'{pos}\s*:\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`(?:[^`\\]|\\.)*`)', v_raw)
                 if p_match:
                     p_val_raw = p_match.group(1)
                     pos_dict[pos] = unescape_js(p_val_raw[1:-1], p_val_raw[0])
