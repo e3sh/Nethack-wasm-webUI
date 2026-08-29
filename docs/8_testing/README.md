@@ -66,3 +66,12 @@ describe('MyModule', () => {
 ```
 
 新規作成したテストファイルは、[`vitest.config.js`](/vitest.config.js) の `include` パターンに沿って自動認識されます。
+
+---
+
+## 4. 統合・シナリオテスト構想 (Scenario Testing Architecture)
+
+単体テスト（各モジュール個別の正確性検証）に加え、実ゲームのイベントストリームをキャプチャし、複数機能（WebUICore ➔ GKL ➔ 助言・シグナル・演出）の連携を一気通貫で検証する **「イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト」** の設計構想および運用方針については、以下を参照してください。
+
+* 📄 **[イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト設計構想書](./Scenario_Testing_and_Event_Capture_Architecture.md)**
+
