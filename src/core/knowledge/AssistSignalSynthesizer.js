@@ -214,7 +214,7 @@ export class AssistSignalSynthesizer {
                     detailWhyJa: '特効薬がないため、神に祈って石化を解除してもらいます。',
                     detailWhyEn: 'Without remedies, pray to deity to cure petrification.',
                     wikiTopic: 'Pray',
-                    actionKeySequence: ['#pray\n', 'y'],
+                    actionKeySequence: ['#', 'pray', 'y'],
                     actionLabelJa: '神に祈る (#pray)',
                     actionLabelEn: 'Pray to god (#pray)'
                 });
@@ -267,7 +267,7 @@ export class AssistSignalSynthesizer {
                     detailWhyJa: '火炎手段がないため、祈願によってスライム化の解除を試みます。',
                     detailWhyEn: 'Without fire, pray to your god to dispel sliming.',
                     wikiTopic: 'Pray',
-                    actionKeySequence: ['#pray\n', 'y'],
+                    actionKeySequence: ['#', 'pray', 'y'],
                     actionLabelJa: '神に祈る (#pray)',
                     actionLabelEn: 'Pray to god (#pray)'
                 });
@@ -339,7 +339,7 @@ export class AssistSignalSynthesizer {
                     detailWhyJa: '治療手段がないため、祈願で病気の治癒を乞います。',
                     detailWhyEn: 'Without remedies, pray to god to cure illness.',
                     wikiTopic: 'Pray',
-                    actionKeySequence: ['#pray\n', 'y'],
+                    actionKeySequence: ['#', 'pray', 'y'],
                     actionLabelJa: '神に祈る (#pray)',
                     actionLabelEn: 'Pray to god (#pray)'
                 });
@@ -418,7 +418,7 @@ export class AssistSignalSynthesizer {
                     detailWhyJa: '回復アイテムがないため、祈願によって神の恩恵（全回復）を乞います。',
                     detailWhyEn: 'Without healing items, pray for divine full recovery.',
                     wikiTopic: 'Pray',
-                    actionKeySequence: ['#pray\n', 'y'],
+                    actionKeySequence: ['#', 'pray', 'y'],
                     actionLabelJa: '神に祈る (#pray)',
                     actionLabelEn: 'Pray to god (#pray)'
                 });
@@ -904,7 +904,7 @@ export class AssistSignalSynthesizer {
                 detailWhyJa: '属性の一致する祭壇で新鮮な死体を捧げると、神の好感度上昇やアーティファクト下賜の恩恵が得られます。',
                 detailWhyEn: 'Sacrificing fresh corpses at an aligned altar grants divine favor and gifts.',
                 wikiTopic: 'Altar',
-                actionKeySequence: ['#offer\n'],
+                actionKeySequence: ['#', 'offer'],
                 actionLabelJa: '捧げ物をする (#offer)',
                 actionLabelEn: 'Offer sacrifice (#offer)'
             });

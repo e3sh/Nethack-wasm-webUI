@@ -35,7 +35,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primarySignal.stance).toBe('PRAY');
             expect(state.primarySignal.priority).toBe(100);
             expect(state.primarySignal.icon).toBe('🙏');
-            expect(state.primaryAction.keySequence).toEqual(['#pray\n', 'y']);
+            expect(state.primaryAction.keySequence).toEqual(['#', 'pray', 'y']);
         });
 
         it('スライム化中: 火の杖がある場合、CURE Stance で自分に振るアクション(z -> b -> .)を推奨', () => {
@@ -80,7 +80,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primarySignal).toBeDefined();
             expect(state.primarySignal.stance).toBe('PRAY');
             expect(state.primarySignal.priority).toBe(85);
-            expect(state.primaryAction.keySequence).toEqual(['#pray\n', 'y']);
+            expect(state.primaryAction.keySequence).toEqual(['#', 'pray', 'y']);
         });
 
         it('瀕死 (HP < 30%): インベントリに spellbook of healing のみ所持時は回復薬として誤認識されない', () => {

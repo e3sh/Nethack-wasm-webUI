@@ -72,8 +72,7 @@ class GklPureJSClient {
       elGklTtTags: document.getElementById('gkl-tt-tags'),
       getCore: () => this.core,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-      onInspectItem: (item) => this.knowledgeView.renderKnowledgeCard(item),
-      appendLog: (msg) => this.addMessageLog(msg)
+      onInspectItem: (item) => this.knowledgeView.renderKnowledgeCard(item)
     });
 
     // 5. Assist HUD & Landmarks

@@ -10,8 +10,7 @@ export class InventoryView {
     elGklTtTags,
     getCore,
     getLoadedTileImagePath,
-    onInspectItem,
-    appendLog
+    onInspectItem
   }) {
     this.elGklInventoryGrid = elGklInventoryGrid;
     this.elGklInvCount = elGklInvCount;
@@ -22,7 +21,6 @@ export class InventoryView {
     this.getCore = getCore || (() => null);
     this.getLoadedTileImagePath = getLoadedTileImagePath || (() => '../../pict/nethack_default_32.png');
     this.onInspectItem = onInspectItem || (() => {});
-    this.appendLog = appendLog || (() => {});
 
     this.currentLanguage = 'ja';
     this._lastInvHtml = null;
@@ -183,7 +181,6 @@ export class InventoryView {
             const currentCore = this.getCore();
             if (!currentCore || !currentCore.driver) return;
             if (this.elGklTooltip) this.elGklTooltip.classList.add('hidden');
-            this.appendLog(`[Action] アイテム '${item.letter}' (${item.rawText || ''}) のアクションメニューを起動...`);
             // 1段目インベントリをサイレント通過して2段目アクションメニューを表示
             await currentCore.driver.queueSequence(['i', item.letter], { isSilentSync: true });
           };
