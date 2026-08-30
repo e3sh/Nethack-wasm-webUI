@@ -88,7 +88,7 @@ class GklPureJSClient {
       elLandmarksFloorTag: document.getElementById('landmarks-floor-tag'),
       elLandmarksBadgesContainer: document.getElementById('landmarks-badges-container'),
       getCore: () => this.core,
-      appendLog: (msg) => this.addMessageLog(msg)
+      //appendLog: (msg) => this.addMessageLog(msg)
     });
 
     // 6. Direction Pad & Recommended Actions

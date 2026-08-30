@@ -29,7 +29,7 @@ export class AssistHud {
     this.elLandmarksBadgesContainer = elLandmarksBadgesContainer;
 
     this.getCore = getCore || (() => null);
-    this.appendLog = appendLog || (() => {});
+    //this.appendLog = appendLog || (() => {});
 
     this.currentLanguage = 'ja';
     this.lastAssistAction = null;
@@ -48,7 +48,7 @@ export class AssistHud {
         const core = this.getCore();
         if (!this.lastAssistAction || !this.lastAssistAction.keySequence || !core) return;
         const seq = this.lastAssistAction.keySequence;
-        this.appendLog(`[AssistAction] '${this.lastAssistAction.labelJa || this.lastAssistAction.labelEn}' を実行 (keys: ${JSON.stringify(seq)})`);
+        //this.appendLog(`[AssistAction] '${this.lastAssistAction.labelJa || this.lastAssistAction.labelEn}' を実行 (keys: ${JSON.stringify(seq)})`);
 
         if (core.driver && typeof core.driver.queueSequence === 'function') {
           await core.driver.queueSequence(seq);
