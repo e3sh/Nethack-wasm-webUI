@@ -69,9 +69,13 @@ describe('MyModule', () => {
 
 ---
 
-## 4. 統合・シナリオテスト構想 (Scenario Testing Architecture)
+## 4. 統合・シナリオテストおよびプロトコル検証構想 (Advanced Testing Architecture)
 
-単体テスト（各モジュール個別の正確性検証）に加え、実ゲームのイベントストリームをキャプチャし、複数機能（WebUICore ➔ GKL ➔ 助言・シグナル・演出）の連携を一気通貫で検証する **「イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト」** の設計構想および運用方針については、以下を参照してください。
+単体テスト（各モジュール個別の正確性検証）に加え、システム全体の一気通貫な信頼性を担保するための双方向テスト構想書が整備されています。
 
-* 📄 **[イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト設計構想書](./Scenario_Testing_and_Event_Capture_Architecture.md)**
+* 📥 **下り方向 (Downlink): [イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト設計構想書](./Scenario_Testing_and_Event_Capture_Architecture.md)**
+  * 実ゲームのイベントストリームをキャプチャし、ScenarioDriver で再生することで GKL の状況解釈・戦術助言を一気通貫で検証するテスト基盤。
+* 📤 **上り方向 (Uplink): [上り方向キーシーケンス・プロトコル検証テスト基盤 構想設計書](./Sequence_Protocol_Validation_Architecture.md)**
+  * UI や GKL が発行するキーストローク列が NetHack C コアおよびドライバーの入力ステートマシン規約に適合し、実機で不発・誤爆なく完走することを静的・動的に保証するテスト基盤。
+
 
