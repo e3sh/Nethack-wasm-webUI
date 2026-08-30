@@ -39,6 +39,14 @@
             ];
         }
 
+        /**
+         * イベントキャプチャの最大蓄積上限数
+         * マッピングの巻物等の大量イベントを許容しつつ、停止忘れ時のメモリ肥大化を防止する
+         */
+        static get MAX_RECORDED_EVENTS() {
+            return 10000;
+        }
+
         constructor(options = {}) {
             this.listeners = new Map();
             this.options = {
@@ -73,6 +81,10 @@
             this.isTextWindowOpen = false;              // display_file / モーダルテキスト表示中
             this.isPromptOpen = false;                  // yn_function, getlin, get_ext_cmd 開閉中
             this.isTopLevelTurn = false;                // 真のメインターン自由行動待機中か
+
+            // シナリオテスト用イベント記録エンジン (Downlink Recording)
+            this.isRecording = false;
+            this.recordedEvents = [];
             this.lastRawPrintText = "";
 
             // Bind global dispatcher safely
@@ -513,7 +525,49 @@
             return this;
         }
 
+        startRecording() {
+            this.isRecording = true;
+            this.recordedEvents = [];
+        }
+
+        stopRecording() {
+            this.isRecording = false;
+            const events = this.recordedEvents ? [...this.recordedEvents] : [];
+            this.recordedEvents = [];
+            return events;
+        }
+
+        _recordEvent(event, payload) {
+            if (this.recordedEvents.length >= NetHackWasmDriver.MAX_RECORDED_EVENTS) {
+                console.warn(`[NetHackWasmDriver] Recording buffer reached maximum limit (${NetHackWasmDriver.MAX_RECORDED_EVENTS} events). Auto-stopping recording to prevent memory leak.`);
+                this.isRecording = false;
+                return;
+            }
+
+            try {
+                // シリアライズ可能な形式で安全にディープコピーして蓄積
+                const clonedData = payload !== undefined ? JSON.parse(JSON.stringify(payload)) : null;
+                this.recordedEvents.push({
+                    type: event,
+                    data: clonedData,
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                // 循環参照等のエラーをフォールバック
+                this.recordedEvents.push({
+                    type: event,
+                    data: payload,
+                    timestamp: Date.now()
+                });
+            }
+        }
+
         emit(event, payload) {
+            // シナリオテスト用イベント記録エンジン (記録フラグ有効時のみミリ秒未満で蓄積)
+            if (this.isRecording) {
+                this._recordEvent(event, payload);
+            }
+
             // 🤫 サイレント同期タスク (isSilentSync: true) 実行中はログ・メッセージ・プロンプト関連イベントの外部通知を抑止
             if (this.currentTask && this.currentTask.options && this.currentTask.options.isSilentSync) {
                 const opts = this.currentTask.options;
@@ -714,6 +768,7 @@
         }
 
         async handleEngineExit(exitCode) {
+            this.stopRecording();
             this.log(`NetHack Engine Exited with code: ${exitCode}`);
             this.setState(NetHackWasmDriver.DriverState.STOPPED);
             if (this.fsManager) {
@@ -781,6 +836,7 @@
                 }
 
                 case "shim_exit_nhwindows":
+                    this.stopRecording();
                     this.setState(NetHackWasmDriver.DriverState.STOPPED);
                     this.emit("exit_nhwindows", { message: args[0] || "" });
                     return 0;
@@ -1472,6 +1528,9 @@
          * Driver の再初期化 / リセット Safe API
          */
         async restart(options = {}) {
+            // ライフサイクル連動: 再起動時に前セッションの記録状態を確実にリセット
+            this.stopRecording();
+
             if (this.workerBridge && typeof this.workerBridge.restart === 'function') {
                 return await this.workerBridge.restart(options);
             }

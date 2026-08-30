@@ -86,6 +86,8 @@ export class GKLPlugin {
         this._prevAc = null;
         this._lastAttackTarget = null;
         this._isPlayerDead = false;
+        this._lastReceivedMessage = '';
+        this._emittedFxList = [];
 
         // サイレント同期の統計・直近履歴トラッカー（コマンド衝突管理＆インスペクター可視化用）
         this.silentSyncTracker = {
@@ -130,11 +132,15 @@ export class GKLPlugin {
      * @param {Object} payload 
      */
     emitFxTrigger(payload) {
-        if (!this.core || typeof this.core.emit !== 'function') return;
         const fullPayload = {
             timestamp: Date.now(),
             ...payload
         };
+        if (this._emittedFxList) {
+            this._emittedFxList.push(fullPayload);
+            if (this._emittedFxList.length > 20) this._emittedFxList.shift();
+        }
+        if (!this.core || typeof this.core.emit !== 'function') return;
         this.core.emit('fx_trigger', fullPayload);
     }
 
@@ -382,6 +388,7 @@ export class GKLPlugin {
         // 2. テキストメッセージ受信時の更新 (撃破メッセージ・死亡/蘇生メッセージ・KILL_CONFIRMED含む)
         addCoreListener('messageText', ({ text }) => {
             if (text) {
+                this._lastReceivedMessage = text;
                 const px = this.areaStateManager ? this.areaStateManager.playerX : (this.statusAccessor?.x ?? 0);
                 const py = this.areaStateManager ? this.areaStateManager.playerY : (this.statusAccessor?.y ?? 0);
 
@@ -980,6 +987,68 @@ export class GKLPlugin {
             actions: [],
             assistState: null,
             landmarks: null
+        };
+    }
+
+    /**
+     * テストおよびインスペクター用の統合診断サマリーを取得
+     * Vitest のスナップショットテスト (toMatchInlineSnapshot) を強力に支援する
+     * @returns {Object}
+     */
+    getDiagnosticSummary() {
+        const situation = this.getSituation();
+        const turn = this.monsterTracker ? this.monsterTracker.getCurrentTurn() : (this.statusAccessor?.turns || 1);
+
+        const playerX = this.areaStateManager ? this.areaStateManager.playerX : 0;
+        const playerY = this.areaStateManager ? this.areaStateManager.playerY : 0;
+
+        const trackedMonsters = (this.monsterTracker?.getTrackedMonsters?.() || []).map(m => {
+            const mx = m.lastKnownPos?.x ?? m.x ?? 0;
+            const my = m.lastKnownPos?.y ?? m.y ?? 0;
+            const isAdjacent = Math.abs(mx - playerX) <= 1 && Math.abs(my - playerY) <= 1;
+            return {
+                name: m.name || m.nameJa || 'unknown',
+                confidence: m.weight !== undefined ? Math.round(m.weight * 100) / 100 : 1.0,
+                isAdjacent
+            };
+        });
+
+        // 警告リスト (警告IDの配列)
+        const warnings = [];
+        if (situation?.tacticalAdvice?.warnings && Array.isArray(situation.tacticalAdvice.warnings)) {
+            situation.tacticalAdvice.warnings.forEach(w => {
+                if (w.id) warnings.push(w.id);
+                else if (w.topic) warnings.push(w.topic);
+            });
+        }
+
+        // 推奨アクション (ID またはキー文字列)
+        let assistAction = null;
+        if (situation?.assistSignal) {
+            const sig = situation.assistSignal;
+            if (sig.recommendedAction?.id) {
+                assistAction = sig.recommendedAction.id;
+            } else if (sig.primaryAction?.id) {
+                assistAction = sig.primaryAction.id;
+            } else if (Array.isArray(sig.primaryAction?.keySequence)) {
+                assistAction = sig.primaryAction.keySequence.join('');
+            } else if (sig.stance) {
+                assistAction = sig.stance;
+            }
+        }
+
+        return {
+            turn,
+            lastMessage: this._lastReceivedMessage || '',
+            syncCounts: this.silentSyncTracker ? {
+                inventory: this.silentSyncTracker.syncCounts?.inventory || 0,
+                skills: this.silentSyncTracker.syncCounts?.skills || 0,
+                spells: this.silentSyncTracker.syncCounts?.spells || 0
+            } : { inventory: 0, skills: 0, spells: 0 },
+            trackedMonsters,
+            warnings,
+            assistAction,
+            emittedFx: this._emittedFxList ? this._emittedFxList.map(fx => fx.type) : []
         };
     }
 

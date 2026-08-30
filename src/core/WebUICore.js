@@ -322,6 +322,7 @@ export class WebUICore {
      * リソース・イベントリスナーの一括安全破棄
      */
     destroy() {
+        this.stopRecording();
         this._setState(CoreState.DESTROYED);
 
         this._stopGamepadPolling();
@@ -1111,6 +1112,7 @@ export class WebUICore {
     async restart(options = {}) {
         this.activeResolver = null;
         this.activeMenuItems = [];
+        this.stopRecording();
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
         this.isPendingPrefix = false;
@@ -1290,6 +1292,12 @@ export class WebUICore {
 
         this.driver.on('putmsghistory', (data) => {
             if (data && data.text && !data.restoring) {
+                handleMessageText(data.text);
+            }
+        });
+
+        this.driver.on('messageText', (data) => {
+            if (data && data.text) {
                 handleMessageText(data.text);
             }
         });
@@ -1661,5 +1669,36 @@ export class WebUICore {
                 this._onGamepadDisconnected = null;
             }
         }
+    }
+
+    /**
+     * イベントキャプチャの記録を開始 (Downlink Capture)
+     */
+    startRecording() {
+        if (this.driver && typeof this.driver.startRecording === 'function') {
+            this.driver.startRecording();
+        }
+    }
+
+    /**
+     * イベントキャプチャの記録を停止し、収集した時系列イベント配列を返却
+     * @returns {Array<Object>}
+     */
+    stopRecording() {
+        if (this.driver && typeof this.driver.stopRecording === 'function') {
+            return this.driver.stopRecording();
+        }
+        return [];
+    }
+
+    /**
+     * テストおよびインスペクター用の統合診断サマリーを取得
+     * @returns {Object|null}
+     */
+    getDiagnosticSummary() {
+        if (this.gkl && typeof this.gkl.getDiagnosticSummary === 'function') {
+            return this.gkl.getDiagnosticSummary();
+        }
+        return null;
     }
 }

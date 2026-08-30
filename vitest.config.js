@@ -12,7 +12,9 @@ export default defineConfig({
       'src/core/translation/*.test.js',
       'src/core/lifecycle/GameOverResolver.test.js',
       'src/core/knowledge/*.test.js',
-      'src/core/inspector/*.test.js'
+      'src/core/inspector/*.test.js',
+      'src/testing/*.test.js',
+      'tests/**/*.test.js'
     ]
   }
 });
