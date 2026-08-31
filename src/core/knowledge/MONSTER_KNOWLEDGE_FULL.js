@@ -553,6 +553,23 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { causesSlime: true }, 
         resistances: ['acid', 'poison'], 
         weaknesses: ['fire', 'ranged'], 
+        threat: {
+            type: 'SLIME',
+            severity: 'CRITICAL',
+            basePriority: 92,
+            description: 'Contact turns player into green slime instantly. Fire attacks or cure sickness required.',
+            counters: [
+                {
+                    id: 'COUNTER_FIRE',
+                    type: 'USE_ITEM',
+                    stance: 'RANGED',
+                    priority: 92,
+                    message: 'Green slime: Use fire attacks or cure sickness',
+                    why: 'Fire destroys slime and prevents transformation.',
+                    wikiTopic: 'Green_slime'
+                }
+            ]
+        },
         corpse: { 
             edible: false, 
             poisonous: true, 
@@ -627,7 +644,36 @@ export const SPECIFIC_MONSTER_DETAILS = {
     // 220: troll, 221: ice troll
     "220": { dangerLevel: 'HIGH', stats: { hd: 7, ac: 4, speed: 12, mr: 0 }, attacks: [{ type: 'claw', damage: '1d8' }, { type: 'bite', damage: '1d8' }], traits: { revives: true }, resistances: [], weaknesses: ['fire'], corpse: { edible: true, poisonous: false, nutrition: 300, grantsIntrinsics: [], revivesFromCorpse: true }, tacticalAdviceEn: ['Regenerates HP and revives after death unless corpse is eaten, burned, or tinning.'], tacticalAdviceJa: ['HP自己再生能力を持ち、倒しても死体を放置すると復活します。死体を食べる・火炎で焼く・缶詰にするなどで対処してください。'] },
     // 225: umber hulk
-    "225": { dangerLevel: 'HIGH', stats: { hd: 9, ac: 2, speed: 6, mr: 25 }, attacks: [{ type: 'gaze', effect: 'confusion' }, { type: 'claw', damage: '3d4' }], traits: { gazeConfusion: true }, resistances: [], weaknesses: ['ranged'], corpse: { edible: true, poisonous: false, nutrition: 500, grantsIntrinsics: [] }, tacticalAdviceEn: ['Gaze causes severe confusion. Blindfold/towel recommended.'], tacticalAdviceJa: ['視線を合わせると深刻な混乱状態に陥ります。目隠しやタオルを着用して視界を遮断して戦うのが定石です。'] },
+    "225": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 9, ac: 2, speed: 6, mr: 25 }, 
+        attacks: [{ type: 'gaze', effect: 'confusion' }, { type: 'claw', damage: '3d4' }], 
+        traits: { gazeConfusion: true }, 
+        resistances: [], 
+        weaknesses: ['ranged'], 
+        threat: {
+            type: 'CONFUSION_GAZE',
+            severity: 'WARNING',
+            basePriority: 68,
+            description: 'Gaze causes severe confusion. Wear blindfold or towel to block eyesight.',
+            counters: [
+                {
+                    id: 'COUNTER_BLINDFOLD',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 68,
+                    matchItemId: 'blindfold',
+                    actionVerb: 'W',
+                    message: 'Umber hulk: Wear blindfold or towel to block confusing gaze',
+                    why: 'Blocking eyesight prevents confusion from gaze attacks.',
+                    wikiTopic: 'Umber_hulk'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 500, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Gaze causes severe confusion. Blindfold/towel recommended.'], 
+        tacticalAdviceJa: ['視線を合わせると深刻な混乱状態に陥ります。目隠しやタオルを着用して視界を遮断して戦うのが定石です。'] 
+    },
     // 226~228: vampires
     "226": { 
         dangerLevel: 'HIGH', 
@@ -739,8 +785,66 @@ export const SPECIFIC_MONSTER_DETAILS = {
     "312": { dangerLevel: 'LETHAL', stats: { hd: 30, ac: -5, speed: 12, mr: 100 }, attacks: [{ type: 'touch', effect: 'sickness' }], traits: { castsSpells: true }, resistances: ['fire', 'cold', 'shock', 'poison', 'sleep'], weaknesses: [], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Rider of Pestilence. Touch causes fatal sickness. Cure Sickness or Eucalyptus leaf required.'], tacticalAdviceJa: ['疫病の騎手。接触で致死的な病気に感染します。病気治療の薬や呪文を用意してください。'] },
     "313": { dangerLevel: 'LETHAL', stats: { hd: 30, ac: -5, speed: 12, mr: 100 }, attacks: [{ type: 'touch', effect: 'starvation' }], traits: { castsSpells: true }, resistances: ['fire', 'cold', 'shock', 'poison', 'sleep'], weaknesses: [], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Rider of Famine. Touch causes severe hunger and fainting. Food or Wand of Digging needed.'], tacticalAdviceJa: ['飢餓の騎手。接触で飢餓・衰弱を引き起こします。食料を常備して戦ってください。'] },
     // 319: giant eel, 321: kraken
-    "319": { dangerLevel: 'HIGH', stats: { hd: 5, ac: -1, speed: 9, mr: 0 }, attacks: [{ type: 'wrap', damage: '3d6', effect: 'drown' }], traits: { drownsPlayer: true }, resistances: [], weaknesses: ['ranged', 'shock'], corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, tacticalAdviceEn: ['Grabs player into water to drown instantly. Teleport or zap with magic wand immediately.'], tacticalAdviceJa: ['水場からプレイヤーを引きずり込み溺死させます。水場に近づかないか電撃の杖で遠隔処理してください。'] },
-    "321": { dangerLevel: 'LETHAL', stats: { hd: 20, ac: 6, speed: 3, mr: 0 }, attacks: [{ type: 'wrap', damage: '2d6', effect: 'drown' }], traits: { drownsPlayer: true }, resistances: [], weaknesses: ['ranged', 'shock'], corpse: { edible: true, poisonous: false, nutrition: 600, grantsIntrinsics: [] }, tacticalAdviceEn: ['Giant sea beast drowning players. Never enter deep water without levitation/water walking.'], tacticalAdviceJa: ['深海の巨大魔獣。プレイヤーを巻き込んで即座に溺死させます。浮遊や水上歩行なしで水場に入らないでください。'] }
+    "319": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 5, ac: -1, speed: 9, mr: 0 }, 
+        attacks: [{ type: 'wrap', damage: '3d6', effect: 'drown' }], 
+        traits: { drownsPlayer: true }, 
+        resistances: [], 
+        weaknesses: ['ranged', 'shock'], 
+        threat: {
+            type: 'DROWNING',
+            severity: 'CRITICAL',
+            basePriority: 96,
+            description: 'Giant eel grabs player into water for instant drowning. Levitation or water walking required.',
+            counters: [
+                {
+                    id: 'COUNTER_LEVITATION',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 96,
+                    matchItemId: 'levitation',
+                    actionVerb: 'P',
+                    message: 'Giant eel: Use levitation or water-walking boots to avoid drowning',
+                    why: 'Levitation and water walking prevent being dragged underwater.',
+                    wikiTopic: 'Giant_eel'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Grabs player into water to drown instantly. Teleport or zap with magic wand immediately.'], 
+        tacticalAdviceJa: ['水場からプレイヤーを引きずり込み溺死させます。水場に近づかないか電撃の杖で遠隔処理してください。'] 
+    },
+    "321": { 
+        dangerLevel: 'LETHAL', 
+        stats: { hd: 20, ac: 6, speed: 3, mr: 0 }, 
+        attacks: [{ type: 'wrap', damage: '2d6', effect: 'drown' }], 
+        traits: { drownsPlayer: true }, 
+        resistances: [], 
+        weaknesses: ['ranged', 'shock'], 
+        threat: {
+            type: 'DROWNING',
+            severity: 'CRITICAL',
+            basePriority: 96,
+            description: 'Kraken grabs player into water for instant drowning. Levitation or water walking required.',
+            counters: [
+                {
+                    id: 'COUNTER_LEVITATION',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 96,
+                    matchItemId: 'levitation',
+                    actionVerb: 'P',
+                    message: 'Kraken: Use levitation or water-walking boots to avoid drowning',
+                    why: 'Levitation and water walking prevent being dragged underwater.',
+                    wikiTopic: 'Kraken'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 600, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Giant sea beast drowning players. Never enter deep water without levitation/water walking.'], 
+        tacticalAdviceJa: ['深海の巨大魔獣。プレイヤーを巻き込んで即座に溺死させます。浮遊や水上歩行なしで水場に入らないでください。'] 
+    }
 };
 
 function hasWord(text, word) {

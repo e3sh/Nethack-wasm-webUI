@@ -143,7 +143,9 @@ export interface ObjectKnowledgeEntry {
   onum: number;                    // 297
   name: string;                    // 'potion of healing'
   category: 'WEAPON' | 'ARMOR' | 'POTION' | 'SCROLL' | 'SPELLBOOK' | 'WAND' | 'RING' | 'AMULET' | 'TOOL' | 'FOOD' | 'GEM' | 'ROCK';
+  material?: 'silver' | 'iron' | 'wood' | 'leather' | 'cloth' | 'glass' | 'none';
   actionVerb: string;              // 'q', 'r', 'z', 'a', 'w', 'W', 'e'
+  protectsAgainst?: Array<'GAZE' | 'TOUCH_STONING' | 'BRAIN_EAT' | 'LAVA' | 'WATER' | 'FALLING_ROCKS' | 'PIT'>; // 脅威・ハザード防護
   effects?: ItemEffectDefinition;
   usageAdvice?: string[];          // 英語アドバイス配列 (辞書キー)
   unidentifiedTips?: string[];     // 英語ヒント配列 (辞書キー)
@@ -271,10 +273,17 @@ Phase 2: AttributeStateManager の刷新（耐性判定の SSOT 化）
  ├─ 種族・職業・レベル ＋ 装備ナレッジによる確定耐性算出ロジックの実装
  └─ 単体テストの追加・更新
 
-Phase 3: TacticalAdvisor のデータ駆動化リファクタリング
+Phase 3: TacticalAdvisor のデータ駆動化リファクタリング (完了)
  ├─ ハードコード判定をナレッジ走査型に置き換え
- ├─ 確定耐性に基づく安全/危険アドバイスの調停
- └─ 既存の単体テスト（全23テスト）の完全互換・パス確認
+ ├─ 確定耐性に基づく安全/危険アドバイスの動的調停（毒・麻痺・ドレイン等）
+ └─ 既存単体テスト（全31テスト）および全体回帰テスト（全398テスト）のパス確認
+
+Phase 3.5: ナレッジデータ構造の根本整理 ＆ スキーマ正規化 (手戻り根絶フェーズ)
+ ├─ 【スコープ分離】動的戦術（検知可能な具体的脅威）と静的知識（兜の落石防御等）の責務明確化
+ ├─ 【統合防護モデル】モンスター脅威（GAZE, TOUCH等）＋ 地形ハザード（LAVA, WATER, TRAP等）の包括
+ ├─ 【アイテム特性】protectsAgainst（'GAZE', 'TOUCH_STONING', 'LAVA'等）、material、effects の正規化
+ ├─ 【個別名判定の完全撤廃】blindfold, gloves, iron, levitation 等の文字列/ID判定の一掃
+ └─ 【静的監査基盤】KnowledgeIntegrityAudit.test.js（全384体/481アイテムの充足率・整合性テスト）の新設
 
 Phase 4: AssistSignalSynthesizer のデータ駆動化リファクタリング
  ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化

@@ -5,6 +5,7 @@ import { InventoryStateManager } from './InventoryStateManager.js';
 import { SpellStateManager } from './SpellStateManager.js';
 import { StatusAccessor } from '../StatusAccessor.js';
 import { AreaStateManager } from './AreaStateManager.js';
+import { AttributeStateManager } from './AttributeStateManager.js';
 import { createTestItem } from '../../../test/helpers/testItemFactory.js';
 
 describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト', () => {
@@ -541,6 +542,182 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(advice).toBeDefined();
             expect(advice.score).toBe(800);
             expect(advice.hintCommand).toBe('e');
+        });
+    });
+
+    describe('8. SSOT ＆ 確定耐性モデル連動テスト (Phase 3 Integration)', () => {
+        it('キラービー遭遇時、毒耐性がない場合は警告(ADVICE_THREAT_POISON)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 1); // killer bee (monOffset: 1)
+
+            const attrMgr = new AttributeStateManager();
+            // 人間・考古学者はLv1で毒耐性なし
+            attrMgr.updateCharacter({ race: 'human', role: 'archeologist', level: 1 });
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgr
+            });
+
+            const poisonAdvice = advices.find(a => a.id === 'ADVICE_THREAT_POISON');
+            expect(poisonAdvice).toBeDefined();
+            expect(poisonAdvice.severity).toBe('WARNING');
+            expect(poisonAdvice.messageJa).toContain('毒警戒');
+        });
+
+        it('キラービー遭遇時、AttributeStateManager で毒耐性を保持している場合は安全アドバイス(ADVICE_THREAT_POISON_SAFE)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 1); // killer bee (monOffset: 1)
+
+            const attrMgr = new AttributeStateManager();
+            // オークは種族生来で毒耐性100%保持
+            attrMgr.updateCharacter({ race: 'orc', role: 'barbarian', level: 1 });
+            expect(attrMgr.getEffectiveResistances().poison).toBe(true);
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgr
+            });
+
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_POISON_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.severity).toBe('INFO');
+            expect(safeAdvice.messageJa).toContain('毒耐性あり');
+
+            // 警告は抑制されていること
+            const poisonAdvice = advices.find(a => a.id === 'ADVICE_THREAT_POISON');
+            expect(poisonAdvice).toBeUndefined();
+        });
+
+        it('ソルジャーアント遭遇時、毒耐性なしならCRITICAL警告、毒耐性ありならSAFEアドバイスになること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 2); // soldier ant (monOffset: 2)
+
+            const attrMgrNoPoison = new AttributeStateManager();
+            attrMgrNoPoison.updateCharacter({ race: 'human', role: 'valkyrie', level: 1 });
+
+            const advicesNoResist = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgrNoPoison
+            });
+            const critAdvice = advicesNoResist.find(a => a.id === 'ADVICE_THREAT_POISON');
+            expect(critAdvice).toBeDefined();
+            expect(critAdvice.severity).toBe('CRITICAL');
+
+            // 毒耐性獲得後
+            const attrMgrWithPoison = new AttributeStateManager();
+            attrMgrWithPoison.updateFromIntrinsicsLines(['You are poison resistant.']);
+            const advicesWithResist = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgrWithPoison
+            });
+            expect(advicesWithResist.find(a => a.id === 'ADVICE_THREAT_POISON')).toBeUndefined();
+            expect(advicesWithResist.find(a => a.id === 'ADVICE_THREAT_POISON_SAFE')).toBeDefined();
+        });
+
+        it('浮遊目玉遭遇時、自由行動(freeAction)耐性がある場合は安全アドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 28); // floating eye (monOffset: 28)
+
+            const attrMgr = new AttributeStateManager();
+            attrMgr.updateFromIntrinsicsLines(['You are free of action.']);
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgr
+            });
+
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_FLOATING_EYE_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('麻痺無効');
+            expect(safeAdvice.messageJa).toContain('自由行動');
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_FLOATING_EYE')).toBeUndefined();
+        });
+
+        it('浮遊目玉遭遇時、目隠し着用中の場合は安全アドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 28); // floating eye (monOffset: 28)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('blindfold', 'b', { isWorn: true })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_FLOATING_EYE_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('目隠し着用');
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_FLOATING_EYE')).toBeUndefined();
+        });
+
+        it('吸血鬼遭遇時、ドレイン耐性(drain)がある場合は安全アドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 226); // vampire (monOffset: 226)
+
+            const attrMgr = new AttributeStateManager();
+            attrMgr.updateFromIntrinsicsLines(['You are level-drain resistant.']);
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                attributeStateManager: attrMgr
+            });
+
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LEVEL_DRAIN_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('ドレイン耐性あり');
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_LEVEL_DRAIN')).toBeUndefined();
+        });
+
+        it('毒モンスター遭遇時、インベントリ内の解毒アイテム（unicorn horn, effects.cureSickness）が hintLetters に提示されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 1); // killer bee (monOffset: 1)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('unicorn horn', 'u')
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            const poisonAdvice = advices.find(a => a.id === 'ADVICE_THREAT_POISON');
+            expect(poisonAdvice).toBeDefined();
+            expect(poisonAdvice.hintLetters).toContain('u');
+            expect(poisonAdvice.hintCommand).toBe('a');
+        });
+
+        it('コカトリス遭遇時、手袋着用中であれば石化即死警告が抑制され安全(ADVICE_THREAT_PETRIFICATION_SAFE)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 10); // cockatrice (monOffset: 10)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('leather gloves', 'g', { isWorn: true, armorSlot: 'gloves' })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_PETRIFICATION')).toBeUndefined();
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_PETRIFICATION_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('防護済み');
         });
     });
 });
