@@ -1,0 +1,5412 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "stair_down_to_sokoban",
+    "description": "",
+    "createdAt": "2026-08-30T23:58:42.047Z",
+    "turn": 56
+  },
+  "initialState": {
+    "status": {
+      "hp": 62,
+      "maxHp": 62,
+      "dlevel": "Dlvl:10 ",
+      "x": 31,
+      "y": 17
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 31,
+          "y": 17
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a +2 spear (weapon in right hand)",
+        "a +0 dagger (alternate weapon; not wielded)",
+        "an arrow",
+        "31 arrows",
+        "an uncursed +3 small shield (being worn)",
+        "a +0 oilskin cloak (being worn)",
+        "a +0 leather armor (being worn)",
+        "a slime mold",
+        "a sprig of wolfsbane",
+        "a food ration",
+        "a scroll of teleportation",
+        "a scroll of blank paper",
+        "a scroll labeled LOREM IPSUM",
+        "a parchment spellbook",
+        "a ruby potion",
+        "a potion of speed",
+        "a brown potion",
+        "a smoky potion",
+        "a wand of lightning",
+        "a tin opener",
+        "a tin opener",
+        "a violet gem",
+        "a red gem"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325385
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325385
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 31,
+        "y": 16,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325385
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 31,
+        "y": 16,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325385
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 30,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325385
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325386
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 32,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325388
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 16,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325389
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 17,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325389
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 30,
+        "y": 18,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325391
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 18,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325391
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 32,
+        "y": 18,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325393
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 16,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325394
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134325394
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134325394
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 66,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134325394
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326719
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326719
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You can't go down here.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326719
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 31,
+        "y": 16,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326720
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 31,
+        "y": 16,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326720
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134326720
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134326720
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 67,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134326720
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329068
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329068
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 36,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329069
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You climb up the stairs.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329069
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 1,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329070
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 3,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329070
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": 20,
+        "field": 20,
+        "value": "Dlvl:9  ",
+        "glyphId": null,
+        "rawVal": "Dlvl:9  ",
+        "parsedVal": "Dlvl:9  ",
+        "goldData": null,
+        "dlevelData": {
+          "raw": "Dlvl:9  ",
+          "dlevelStr": "Dlvl:9  ",
+          "dlevelNum": 9,
+          "branch": "Dlvl"
+        },
+        "chg": -1,
+        "clr": 8,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329070
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": -2,
+        "field": -2,
+        "value": 0,
+        "rawVal": 0,
+        "parsedVal": 0,
+        "chg": 0,
+        "clr": 8,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329071
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3976,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 3,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329071
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329072
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3982,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 9,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329073
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329073
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329074
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329075
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329076
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3977,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 4,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329076
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3976,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 3,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329077
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329078
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329078
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329079
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329079
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 3977,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 4,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329080
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329081
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3998,
+          "symbol": 60,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 25,
+          "ch": "<"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329082
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329083
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329084
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329084
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329085
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329086
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3978,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 5,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329087
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329087
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3979,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 6,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329088
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329089
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329089
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329090
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329091
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329092
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329093
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329094
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3984,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 11,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329095
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3977,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 4,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329095
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329096
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329097
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329098
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329099
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329100
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329101
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329102
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329103
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329103
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329105
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329105
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329107
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329107
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329109
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329109
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329110
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329111
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329112
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329113
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329114
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329115
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329115
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329116
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329117
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329118
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329119
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329119
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329120
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329121
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329122
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329122
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329123
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329124
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329125
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329126
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329129
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329129
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329131
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329138
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329139
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 9,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329139
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329141
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329142
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329142
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3978,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 5,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329143
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329144
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329145
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329145
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3982,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 9,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329146
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3979,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 6,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329147
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329147
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329148
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329149
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329151
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329151
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3983,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 10,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329152
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329152
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329153
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329154
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329155
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329155
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329156
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329157
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329158
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329158
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329159
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 11,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329160
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329161
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 4032,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 55,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329162
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3978,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 5,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329162
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329164
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329164
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329166
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329167
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3979,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 6,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329168
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329169
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329170
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329171
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329172
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329173
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329174
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 12,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329174
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329175
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329176
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329176
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329178
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329179
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4036,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 59,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329180
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 4032,
+          "symbol": 94,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 55,
+          "ch": "^"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329181
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329182
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329182
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329184
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3923,
+          "symbol": 96,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 192,
+          "ch": "`"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329184
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329185
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329186
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329187
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329188
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329188
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329189
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329190
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3976,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 3,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329191
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 37,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329191
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329193
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329193
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3977,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 4,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329194
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329195
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329195
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329197
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329198
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329199
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3993,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 0,
+          "symidx": 20,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329199
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3974,
+          "symbol": 124,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 1,
+          "ch": "|"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329201
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 33,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3978,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 5,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329202
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 34,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329203
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 35,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329203
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3979,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 6,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329204
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 40,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3978,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 5,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329205
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329206
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329207
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 43,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329208
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 44,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329209
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 45,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329210
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 46,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3975,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 2,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329211
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 47,
+        "y": 15,
+        "glyphInfo": {
+          "glyph": 3979,
+          "symbol": 45,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 6,
+          "ch": "-"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329211
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329212
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329213
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329213
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329213
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "There is a branch staircase down to the Dungeons of Doom here.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329213
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You see here a food ration.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329217
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 36,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329217
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 36,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329217
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134329217
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134329217
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 68,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134329217
+    }
+  ]
+}

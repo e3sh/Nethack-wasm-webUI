@@ -17,6 +17,7 @@ import { GKLPlugin } from './knowledge/GKLPlugin.js';
 import { PromptPayloadBuilder } from './prompt/PromptPayloadBuilder.js';
 import { TextWindowManager } from './window/TextWindowManager.js';
 import { DebugInspector } from './inspector/DebugInspector.js';
+import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 
 export const KEYS = {
     ESC: 27,
@@ -343,6 +344,11 @@ export class WebUICore {
 
         if (this.driver && typeof this.driver.destroy === 'function') {
             this.driver.destroy();
+        }
+
+        if (this.scenarioRecorder && typeof this.scenarioRecorder.destroy === 'function') {
+            this.scenarioRecorder.destroy();
+            this.scenarioRecorder = null;
         }
 
         this.listeners.clear();
@@ -1700,5 +1706,17 @@ export class WebUICore {
             return this.gkl.getDiagnosticSummary();
         }
         return null;
+    }
+
+    /**
+     * シナリオレコーダー UI を有効化・マウント
+     * @param {Object} [options={}]
+     * @returns {ScenarioRecorder}
+     */
+    useScenarioRecorder(options = {}) {
+        if (!this.scenarioRecorder) {
+            this.scenarioRecorder = new ScenarioRecorder(this, options);
+        }
+        return this.scenarioRecorder;
     }
 }

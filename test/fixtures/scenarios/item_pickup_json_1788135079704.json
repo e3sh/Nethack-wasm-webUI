@@ -1,0 +1,1968 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "item_pickup.json",
+    "description": "",
+    "createdAt": "2026-08-31T00:11:00.359Z",
+    "turn": 103
+  },
+  "initialState": {
+    "status": {
+      "hp": 53,
+      "maxHp": 62,
+      "dlevel": "Dlvl:10 ",
+      "x": 50,
+      "y": 10
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 50,
+          "y": 10
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a +2 spear (weapon in right hand)",
+        "a +0 dagger (alternate weapon; not wielded)",
+        "an arrow",
+        "31 arrows",
+        "an uncursed +3 small shield (being worn)",
+        "a +0 oilskin cloak (being worn)",
+        "a +0 leather armor (being worn)",
+        "a slime mold",
+        "a sprig of wolfsbane",
+        "a scroll of teleportation",
+        "a scroll of blank paper",
+        "a scroll labeled LOREM IPSUM",
+        "a parchment spellbook",
+        "a ruby potion",
+        "a potion of speed",
+        "a brown potion",
+        "a smoky potion",
+        "a wand of lightning",
+        "a tin opener",
+        "a tin opener",
+        "a pick-axe",
+        "a violet gem",
+        "a red gem"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061720
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061720
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061720
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061720
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 50,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 3995,
+          "symbol": 35,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 22,
+          "ch": "#"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061721
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061723
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061724
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You see here a dwarvish cloak.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061724
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061725
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061725
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135061725
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788135061725
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 126,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788135061725
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064104
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064104
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "u - a dwarvish cloak.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064104
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064107
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064107
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064108
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064108
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788135064108
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 127,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788135064108
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 49,
+        "y": 10,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 128,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788135064109
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788135064108_3s5mc",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Coins",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3886,
+                  "symbol": 36,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 117,
+                  "ch": "$"
+                },
+                "glyph": 3886,
+                "identifier": 36,
+                "accelerator": "$",
+                "ch": "$",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "41 gold pieces",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3475,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3475,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +2 spear (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 dagger (alternate weapon; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3466,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3466,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an arrow",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3466,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3466,
+                "identifier": 108,
+                "accelerator": "l",
+                "ch": "l",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "31 arrows",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3598,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3598,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +3 small shield (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3590,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3590,
+                "identifier": 115,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 oilskin cloak (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 116,
+                "accelerator": "t",
+                "ch": "t",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3589,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3589,
+                "identifier": 117,
+                "accelerator": "u",
+                "ch": "u",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a dwarvish cloak",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3733,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3733,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a slime mold",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3731,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 2,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3731,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a sprig of wolfsbane",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3781,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3781,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll of teleportation",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3813,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3813,
+                "identifier": 113,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll of blank paper",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3784,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3784,
+                "identifier": 118,
+                "accelerator": "v",
+                "ch": "v",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll labeled LOREM IPSUM",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3848,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3848,
+                "identifier": 109,
+                "accelerator": "m",
+                "ch": "m",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a parchment spellbook",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3753,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3753,
+                "identifier": 110,
+                "accelerator": "n",
+                "ch": "n",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a ruby potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3750,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 0,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3750,
+                "identifier": 111,
+                "accelerator": "o",
+                "ch": "o",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a potion of speed",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3747,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3747,
+                "identifier": 112,
+                "accelerator": "p",
+                "ch": "p",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a brown potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3746,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 7,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3746,
+                "identifier": 121,
+                "accelerator": "y",
+                "ch": "y",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a smoky potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3882,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3882,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of lightning",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3687,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3687,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a tin opener",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3687,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3687,
+                "identifier": 119,
+                "accelerator": "w",
+                "ch": "w",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a tin opener",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3707,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3707,
+                "identifier": 120,
+                "accelerator": "x",
+                "ch": "x",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a pick-axe",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Gems/Stones",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3917,
+                  "symbol": 42,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 118,
+                  "ch": "*"
+                },
+                "glyph": 3917,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a violet gem",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3911,
+                  "symbol": 42,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 118,
+                  "ch": "*"
+                },
+                "glyph": 3911,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a red gem",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Coins",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3886,
+                  "symbol": 36,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 117,
+                  "ch": "$"
+                },
+                "glyph": 3886,
+                "identifier": 36,
+                "accelerator": "$",
+                "ch": "$",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "41 gold pieces",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3475,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3475,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +2 spear (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 dagger (alternate weapon; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3466,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3466,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an arrow",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3466,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3466,
+                "identifier": 108,
+                "accelerator": "l",
+                "ch": "l",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "31 arrows",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3598,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3598,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +3 small shield (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3590,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3590,
+                "identifier": 115,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 oilskin cloak (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 116,
+                "accelerator": "t",
+                "ch": "t",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3589,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3589,
+                "identifier": 117,
+                "accelerator": "u",
+                "ch": "u",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a dwarvish cloak",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3733,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3733,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a slime mold",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3731,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 2,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3731,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a sprig of wolfsbane",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3781,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3781,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll of teleportation",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3813,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3813,
+                "identifier": 113,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll of blank paper",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3784,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3784,
+                "identifier": 118,
+                "accelerator": "v",
+                "ch": "v",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a scroll labeled LOREM IPSUM",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3848,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3848,
+                "identifier": 109,
+                "accelerator": "m",
+                "ch": "m",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a parchment spellbook",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3753,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3753,
+                "identifier": 110,
+                "accelerator": "n",
+                "ch": "n",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a ruby potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3750,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 0,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3750,
+                "identifier": 111,
+                "accelerator": "o",
+                "ch": "o",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a potion of speed",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3747,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3747,
+                "identifier": 112,
+                "accelerator": "p",
+                "ch": "p",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a brown potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3746,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 7,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3746,
+                "identifier": 121,
+                "accelerator": "y",
+                "ch": "y",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a smoky potion",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3882,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3882,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of lightning",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3687,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3687,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a tin opener",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3687,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3687,
+                "identifier": 119,
+                "accelerator": "w",
+                "ch": "w",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a tin opener",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3707,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3707,
+                "identifier": 120,
+                "accelerator": "x",
+                "ch": "x",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a pick-axe",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Gems/Stones",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3917,
+                  "symbol": 42,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 118,
+                  "ch": "*"
+                },
+                "glyph": 3917,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a violet gem",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3911,
+                  "symbol": 42,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 118,
+                  "ch": "*"
+                },
+                "glyph": 3911,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a red gem",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1788135064111
+    }
+  ]
+}

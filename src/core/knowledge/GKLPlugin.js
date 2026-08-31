@@ -1039,6 +1039,10 @@ export class GKLPlugin {
 
         return {
             turn,
+            playerPosition: {
+                x: this.areaStateManager ? this.areaStateManager.playerX : 0,
+                y: this.areaStateManager ? this.areaStateManager.playerY : 0
+            },
             lastMessage: this._lastReceivedMessage || '',
             syncCounts: this.silentSyncTracker ? {
                 inventory: this.silentSyncTracker.syncCounts?.inventory || 0,

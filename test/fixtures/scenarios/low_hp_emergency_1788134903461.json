@@ -1,0 +1,534 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "low_hp_emergency",
+    "description": "",
+    "createdAt": "2026-08-31T00:07:44.250Z",
+    "turn": 177
+  },
+  "initialState": {
+    "status": {
+      "hp": 16,
+      "maxHp": 62,
+      "dlevel": "Dlvl:10 ",
+      "x": 64,
+      "y": 7
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 64,
+          "y": 7
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a +2 spear (weapon in right hand)",
+        "a +0 dagger (alternate weapon; not wielded)",
+        "an arrow",
+        "31 arrows",
+        "an uncursed +3 small shield (being worn)",
+        "a +0 oilskin cloak (being worn)",
+        "a +0 leather armor (being worn)",
+        "a slime mold",
+        "a sprig of wolfsbane",
+        "a food ration",
+        "a scroll of teleportation",
+        "a scroll of blank paper",
+        "a scroll labeled LOREM IPSUM",
+        "a parchment spellbook",
+        "a ruby potion",
+        "a potion of speed",
+        "a brown potion",
+        "a smoky potion",
+        "a wand of lightning",
+        "a tin opener",
+        "a tin opener",
+        "a violet gem",
+        "a red gem"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "#",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "Are you sure you want to pray?",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You begin praying to Tyr.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867594
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You are surrounded by a shimmering light.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867595
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867596
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "The lynx starts to attack you, but pulls back.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867596
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867598
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867598
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867598
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867598
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You finish your prayer.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867598
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You feel that Tyr is well-pleased.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867599
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 64,
+        "y": 7,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 206,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134867600
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788134867586_s9xur",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "#",
+            "fromSequence": true
+          },
+          {
+            "type": "putmsg",
+            "text": "Are you sure you want to pray?",
+            "fromSequence": true
+          },
+          {
+            "type": "raw_print",
+            "text": "You begin praying to Tyr."
+          },
+          {
+            "type": "raw_print",
+            "text": "You are surrounded by a shimmering light."
+          },
+          {
+            "type": "raw_print",
+            "text": "The lynx starts to attack you, but pulls back."
+          },
+          {
+            "type": "raw_print",
+            "text": "You finish your prayer."
+          },
+          {
+            "type": "raw_print",
+            "text": "You feel that Tyr is well-pleased."
+          }
+        ]
+      },
+      "timestamp": 1788134867602
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890731
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890731
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 63,
+        "y": 7,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890731
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 63,
+        "y": 7,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890731
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 63,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890731
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 64,
+        "y": 7,
+        "glyphInfo": {
+          "glyph": 35,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 4096,
+          "color": 6,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890740
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 65,
+        "y": 8,
+        "glyphInfo": {
+          "glyph": 3995,
+          "symbol": 35,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 22,
+          "ch": "#"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890744
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 63,
+        "y": 7,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890745
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134890746
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134890746
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 207,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134890746
+    }
+  ]
+}

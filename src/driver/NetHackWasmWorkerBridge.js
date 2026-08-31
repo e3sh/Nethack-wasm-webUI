@@ -16,6 +16,10 @@
             };
         }
 
+        static get MAX_RECORDED_EVENTS() {
+            return 10000;
+        }
+
         constructor(workerUrl, options = {}) {
             this.listeners = new Map();
             this.options = options;
@@ -27,6 +31,8 @@
             this._canAcceptSequenceInterruption = false;
             this._driverDebugStatus = null;
             this._pendingSequences = new Map();
+            this.isRecording = false;
+            this.recordedEvents = [];
 
             if (!workerUrl && typeof window !== 'undefined') {
                 const path = window.location.pathname;
@@ -83,7 +89,46 @@
             return this;
         }
 
+        startRecording() {
+            this.isRecording = true;
+            this.recordedEvents = [];
+        }
+
+        stopRecording() {
+            this.isRecording = false;
+            const events = this.recordedEvents ? [...this.recordedEvents] : [];
+            this.recordedEvents = [];
+            return events;
+        }
+
+        _recordEvent(event, payload) {
+            if (this.recordedEvents.length >= NetHackWasmWorkerBridge.MAX_RECORDED_EVENTS) {
+                console.warn(`[NetHackWasmWorkerBridge] Recording buffer reached maximum limit (${NetHackWasmWorkerBridge.MAX_RECORDED_EVENTS} events). Auto-stopping recording to prevent memory leak.`);
+                this.isRecording = false;
+                return;
+            }
+
+            try {
+                const clonedData = payload !== undefined ? JSON.parse(JSON.stringify(payload)) : null;
+                this.recordedEvents.push({
+                    type: event,
+                    data: clonedData,
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                this.recordedEvents.push({
+                    type: event,
+                    data: payload,
+                    timestamp: Date.now()
+                });
+            }
+        }
+
         emit(event, payload) {
+            if (this.isRecording) {
+                this._recordEvent(event, payload);
+            }
+
             if (!this.listeners.has(event)) return false;
             const list = this.listeners.get(event);
             list.forEach(fn => {
@@ -429,6 +474,7 @@
         }
 
         terminate() {
+            this.stopRecording();
             if (this.worker) {
                 this.worker.terminate();
                 this.state = NetHackWasmWorkerBridge.DriverState.STOPPED;

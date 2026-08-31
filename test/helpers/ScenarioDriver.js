@@ -98,27 +98,75 @@ export class ScenarioDriver {
     /**
      * initialState に記録された初期イベントを emit
      */
-    playInit() {
+    /**
+     * initialState に記録された初期イベントを emit
+     * @param {Object} [core] - WebUICore インスタンス (渡された場合は所持品等も自動同期)
+     */
+    playInit(core = null) {
         if (!this.scenario || !this.scenario.initialState) return;
         if (this.isInitPlayed) return;
         this.isInitPlayed = true;
 
         const init = this.scenario.initialState;
 
-        // 1. 初期ステータスがあれば emit
+        // 1. 初期ステータスがあれば emit (Cコア数値フィールドIDマッピング)
         if (init.status) {
-            const entries = Object.entries(init.status);
-            for (const [key, val] of entries) {
+            const fieldMap = {
+                hp: 18,
+                maxHp: 19,
+                dlevel: 20,
+                turns: 16,
+                turn: 16,
+                gold: 10,
+                pw: 11,
+                maxPw: 12,
+                ac: 14
+            };
+
+            for (const [key, val] of Object.entries(init.status)) {
+                const numericField = fieldMap[key];
+                if (numericField !== undefined) {
+                    this.emit('status_update', { field: numericField, value: val });
+                }
                 this.emit('status_update', { [key]: val, field: key, value: val });
             }
         }
 
-        // 2. 初期イベントストリームがあれば順次 emit
+        // 初期ターン (meta.turn) が指定されていれば BL_TIME (16) として emit
+        const initialTurn = this.scenario.meta?.turn || init.status?.turns || init.status?.turn;
+        if (initialTurn !== undefined) {
+            this.emit('status_update', { field: 16, value: initialTurn });
+            this.emit('status_update', { turns: initialTurn, field: 'turns', value: initialTurn });
+        }
+
+        // 2. 所持品バッファがあれば同期
+        const invManager = core?.gkl?.inventoryStateManager || core?.inventoryStateManager;
+        if (invManager && init.silentBuffers?.i) {
+            const rawLines = init.silentBuffers.i;
+            if (Array.isArray(rawLines) && rawLines.length > 0) {
+                // "a - item" 形式が欠落している場合はインデックス文字を自動補正
+                const normalizedLines = rawLines.map((line, idx) => {
+                    if (/^[a-zA-Z]\s*[-–]/.test(line)) return line;
+                    const letter = String.fromCharCode(97 + (idx % 26));
+                    return `${letter} - ${line}`;
+                });
+                invManager.updateFromLines(normalizedLines);
+            }
+        }
+
+        // 3. 初期イベントストリームがあれば順次 emit
         if (Array.isArray(init.initialEvents)) {
             for (const evt of init.initialEvents) {
                 this.dispatchScenarioEvent(evt);
             }
         }
+    }
+
+    /**
+     * 残りのイベントをすべて再生 (playUntilTurn のエイリアス)
+     */
+    async playRemainingEvents() {
+        return this.playUntilTurn();
     }
 
     /**

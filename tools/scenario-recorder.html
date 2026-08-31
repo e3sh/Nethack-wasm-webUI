@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NetHack WASM - シナリオレコーダー (Scenario Recorder Studio)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --card-bg: #21262d;
+            --border-color: #30363d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-green-hover: #2ea043;
+            --accent-red: #da3633;
+            --accent-red-hover: #f85149;
+            --accent-purple: #bc8cff;
+            --accent-amber: #d29922;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* トップコントロールバー */
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            font-size: 20px;
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            white-space: nowrap;
+        }
+
+        .controls-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .select-client {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .input-title {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            width: 180px;
+        }
+
+        .input-title:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .btn-rec {
+            background-color: var(--accent-red);
+            color: #fff;
+        }
+        .btn-rec:hover:not(:disabled) {
+            background-color: var(--accent-red-hover);
+        }
+
+        .btn-stop {
+            background-color: #30363d;
+            color: #8b949e;
+        }
+        .btn-stop.active {
+            background-color: #f85149;
+            color: #fff;
+        }
+
+        .btn-dl {
+            background-color: var(--accent-green);
+            color: #fff;
+        }
+        .btn-dl:hover:not(:disabled) {
+            background-color: var(--accent-green-hover);
+        }
+
+        .btn-sub {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-sub:hover:not(:disabled) {
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .status-badge.recording {
+            background-color: rgba(248, 81, 73, 0.15);
+            border-color: var(--accent-red);
+            color: #f85149;
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* メインワークスペース (ゲーム画面 + リアルタイムログ) */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ゲーム表示 iframe */
+        .game-frame-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            background-color: #000;
+        }
+
+        iframe#game-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* サイドプレビューパネル */
+        .preview-panel {
+            width: 340px;
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: width 0.2s ease;
+        }
+
+        .preview-panel.collapsed {
+            width: 0;
+            border-left: none;
+            overflow: hidden;
+        }
+
+        .preview-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .preview-logs {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background-color: #0a0d12;
+        }
+
+        .log-entry {
+            padding: 4px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid var(--border-color);
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        .log-entry.messageText { border-left-color: var(--accent-blue); color: #79c0ff; }
+        .log-entry.print_glyph { border-left-color: var(--accent-green); color: #7ee787; }
+        .log-entry.curs { border-left-color: var(--accent-amber); color: #e3b341; }
+        .log-entry.inputRequired { border-left-color: var(--accent-purple); color: #d2a8ff; }
+        .log-entry.status_update { border-left-color: #8b949e; color: #c9d1d9; }
+
+        .preview-footer {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hint-overlay {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(22, 27, 34, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            pointer-events: none;
+            z-index: 50;
+        }
+        .hint-overlay span {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand-section">
+            <span class="brand-icon">🎬</span>
+            <span class="brand-title">Scenario Recorder Studio</span>
+            <div id="status-badge" class="status-badge">
+                <span class="dot">●</span> <span id="status-text">待機中 (IDLE)</span>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <!-- クライアント選択 -->
+            <select id="client-select" class="select-client" title="キャプチャ対象クライアント">
+                <option value="../examples/gkl-pure-js-client/index.html" selected>GKL Pure JS Client (推奨)</option>
+                <option value="../examples/pure-js-client/index.html">Pure JS Client (クラシック)</option>
+                <option value="cltest.html">全クライアントテスト (cltest)</option>
+            </select>
+
+            <button id="btn-reload-game" class="btn btn-sub" title="ゲームクライアントを再読み込み">
+                🔄 リロード
+            </button>
+
+            <!-- シナリオ名入力 -->
+            <input id="scenario-title" class="input-title" type="text" placeholder="シナリオ名 (例: 目玉遭遇_麻痺警告)" />
+
+            <!-- コントロールボタン -->
+            <button id="btn-rec" class="btn btn-rec">
+                ● REC 開始
+            </button>
+            <button id="btn-stop" class="btn btn-stop" disabled>
+                ■ 録画停止
+            </button>
+            <button id="btn-dl" class="btn btn-dl" disabled>
+                💾 JSON 保存
+            </button>
+            <button id="btn-toggle-panel" class="btn btn-sub">
+                📊 ログ表示
+            </button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="hint-overlay">
+            💡 <span>クライアント無改造</span>: ゲーム画面をクリックして操作し、目当ての行動の前後で <strong>REC / 停止</strong> してください
+        </div>
+
+        <div class="game-frame-container">
+            <iframe id="game-iframe" src="../examples/gkl-pure-js-client/index.html" allow="autoplay"></iframe>
+        </div>
+
+        <aside id="preview-panel" class="preview-panel">
+            <div class="preview-header">
+                <span>リアルタイム・シーケンスプレビュー</span>
+                <button id="btn-clear-logs" class="btn btn-sub" style="padding: 2px 6px; font-size: 10px;">クリア</button>
+            </div>
+            <div id="preview-logs" class="preview-logs">
+                <div style="color: var(--text-secondary); text-align: center; margin-top: 40px;">
+                    [● REC 開始] を押すと<br>C コアのイベントストリームが<br>リアルタイムに表示されます
+                </div>
+            </div>
+            <div class="preview-footer">
+                <span id="event-counter">蓄積イベント: 0 件</span>
+                <span id="hook-status" style="color: var(--accent-green);">● ゲーム接続中</span>
+            </div>
+        </aside>
+    </div>
+
+    <!-- ScenarioRecorder Studio メインスクリプト -->
+    <script type="module">
+        import { ScenarioRecorder } from '../src/core/inspector/ScenarioRecorder.js';
+
+        let activeRecorder = null;
+        let activeCore = null;
+        let isRecording = false;
+
+        const iframe = document.getElementById('game-iframe');
+        const clientSelect = document.getElementById('client-select');
+        const btnReload = document.getElementById('btn-reload-game');
+        const btnRec = document.getElementById('btn-rec');
+        const btnStop = document.getElementById('btn-stop');
+        const btnDl = document.getElementById('btn-dl');
+        const btnTogglePanel = document.getElementById('btn-toggle-panel');
+        const btnClearLogs = document.getElementById('btn-clear-logs');
+        const previewPanel = document.getElementById('preview-panel');
+        const previewLogs = document.getElementById('preview-logs');
+        const statusBadge = document.getElementById('status-badge');
+        const statusText = document.getElementById('status-text');
+        const eventCounter = document.getElementById('event-counter');
+        const inputTitle = document.getElementById('scenario-title');
+        const hookStatus = document.getElementById('hook-status');
+
+        // クライアント切り替え
+        clientSelect.addEventListener('change', () => {
+            iframe.src = clientSelect.value;
+        });
+
+        // リロードボタン
+        btnReload.addEventListener('click', () => {
+            iframe.contentWindow.location.reload();
+        });
+
+        // ログパネル開閉トグル
+        btnTogglePanel.addEventListener('click', () => {
+            previewPanel.classList.toggle('collapsed');
+        });
+
+        btnClearLogs.addEventListener('click', () => {
+            previewLogs.innerHTML = '';
+        });
+
+        // iframe 読み込み完了時に自動フック
+        iframe.addEventListener('load', () => {
+            detectAndHookCore();
+        });
+
+        function detectAndHookCore() {
+            hookStatus.textContent = '🔍 コア探索中...';
+            hookStatus.style.color = 'var(--accent-amber)';
+
+            let retryCount = 0;
+            const maxRetries = 20;
+
+            const checkInterval = setInterval(() => {
+                try {
+                    const win = iframe.contentWindow;
+                    if (!win) return;
+
+                    // ゲーム側の WebUICore インスタンスを探索
+                    const core = win.core || win.app?.core || win.nethackCore || win.webuiCore;
+                    if (core && core.driver) {
+                        clearInterval(checkInterval);
+                        onCoreDetected(core);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[ScenarioRecorder Studio] Cross-origin or access error:', e);
+                }
+
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    clearInterval(checkInterval);
+                    hookStatus.textContent = '⚠️ コア未検出 (プレイ開始後に再試行)';
+                    hookStatus.style.color = 'var(--accent-red)';
+                }
+            }, 500);
+        }
+
+        function onCoreDetected(core) {
+            activeCore = core;
+            activeRecorder = new ScenarioRecorder(core, { autoMount: false });
+
+            hookStatus.textContent = '● ゲーム接続完了';
+            hookStatus.style.color = 'var(--accent-green)';
+
+            // リアルタイムログ購読
+            const previewEvents = ['messageText', 'print_glyph', 'curs', 'status_update', 'inputRequired'];
+            for (const evt of previewEvents) {
+                core.on(evt, (data) => {
+                    if (!isRecording) return;
+                    appendPreviewLog(evt, data);
+                    updateCountDisplay();
+                });
+            }
+
+            console.log('[ScenarioRecorder Studio] Successfully attached to WebUICore instance in iframe.');
+        }
+
+        function appendPreviewLog(type, data) {
+            let summaryText = type;
+            if (type === 'messageText' && data?.text) {
+                summaryText = `💬 ${data.text}`;
+            } else if (type === 'print_glyph') {
+                summaryText = `🗺️ glyph(${data.glyph || '?'}) at (${data.x}, ${data.y})`;
+            } else if (type === 'curs') {
+                summaryText = `📍 curs (${data.x}, ${data.y})`;
+            } else if (type === 'inputRequired') {
+                summaryText = `⌨️ input [${data.category || 'POSKEY'}]`;
+            } else if (type === 'status_update') {
+                summaryText = `📊 status (${data.field !== undefined ? data.field : 'update'})`;
+            }
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = summaryText;
+            previewLogs.appendChild(entry);
+
+            if (previewLogs.children.length > 100) {
+                previewLogs.removeChild(previewLogs.firstChild);
+            }
+            previewLogs.scrollTop = previewLogs.scrollHeight;
+        }
+
+        function updateCountDisplay() {
+            // ドライバー側の全イベント数を最優先でリアルタイム参照
+            const count = (activeCore?.driver?.recordedEvents?.length !== undefined)
+                ? activeCore.driver.recordedEvents.length
+                : (activeRecorder?.recordedEvents?.length || 0);
+
+            eventCounter.textContent = `蓄積イベント: ${count} 件`;
+            if (isRecording) {
+                statusText.textContent = `REC ● (${count} 件)`;
+            }
+        }
+
+        // [● REC 開始]
+        btnRec.addEventListener('click', () => {
+            if (!activeRecorder) {
+                alert('ゲームコアがまだ読み込まれていません。ゲーム画面が起動してから再度お試しください。');
+                return;
+            }
+
+            const title = inputTitle.value.trim() || 'キャプチャシナリオ';
+            activeRecorder.start(title);
+            isRecording = true;
+
+            statusBadge.className = 'status-badge recording';
+            statusText.textContent = 'REC ● (0 件)';
+            eventCounter.textContent = '蓄積イベント: 0 件';
+
+            btnRec.disabled = true;
+            btnStop.disabled = false;
+            btnStop.classList.add('active');
+            btnDl.disabled = true;
+
+            previewLogs.innerHTML = '';
+            appendPreviewLog('status_update', { text: `--- 録画開始: ${title} ---` });
+
+            // ゲーム画面にフォーカスを戻す
+            iframe.contentWindow.focus();
+        });
+
+        // [■ 録画停止]
+        btnStop.addEventListener('click', () => {
+            if (!activeRecorder) return;
+
+            const events = activeRecorder.stop();
+            isRecording = false;
+
+            const count = events ? events.length : 0;
+            statusBadge.className = 'status-badge';
+            statusText.textContent = `停止中 (${count} 件蓄積)`;
+            eventCounter.textContent = `蓄積イベント: ${count} 件`;
+
+            btnRec.disabled = false;
+            btnStop.disabled = true;
+            btnStop.classList.remove('active');
+            btnDl.disabled = count === 0;
+
+            appendPreviewLog('status_update', { text: `--- 録画停止: 合計 ${count} イベント ---` });
+        });
+
+        // [💾 JSON 保存]
+        btnDl.addEventListener('click', () => {
+            if (!activeRecorder) return;
+
+            const rawTitle = inputTitle.value.trim() || 'scenario';
+            const safeTitle = rawTitle.replace(/[^a-zA-Z0-9_\u3040-\u30ff\u4e00-\u9fa5]/g, '_');
+            activeRecorder.downloadJson(`${safeTitle}_${Date.now()}.json`);
+        });
+    </script>
+</body>
+</html>
