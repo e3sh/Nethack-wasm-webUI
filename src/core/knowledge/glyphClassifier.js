@@ -64,6 +64,8 @@ export function getCmapInfo(glyphId) {
     const isIce = (glyphId === 4016);
     const isLava = (glyphId === 4017 || glyphId === 4018);
     const isDrawbridge = (glyphId >= 4019 && glyphId <= 4022);
+    const isAir = (glyphId === 4023);
+    const isCloud = (glyphId === 4024);
     const isTrap = (glyphId >= 4026 && glyphId <= 4048);
     const isTrappedDoor = (glyphId === 4049);
     const isTrappedChest = (glyphId === 4050);
@@ -89,6 +91,8 @@ export function getCmapInfo(glyphId) {
         isIce,
         isLava,
         isDrawbridge,
+        isAir,
+        isCloud,
         isTrap,
         isTrappedDoor,
         isTrappedChest

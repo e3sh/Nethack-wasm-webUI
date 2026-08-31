@@ -409,29 +409,63 @@ const SPECIFIC_ITEM_DETAILS = {
     "245": { flavorNote: 'Whistle to attract pets.' },
     "246": { flavorNote: 'Instantly teleports your pets to your side from anywhere on floor.' },
     "260": { flavorNote: 'Iron grappling hook attached to a long rope.', effectSummary: 'Apply with \'a\' to climb across pits, scale walls, or pull distant items closer.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)' },
-    "261": { flavorNote: 'Sacred horn of a unicorn. Ultimate status restore tool.', effectSummary: 'Tool (`#apply`). Cures poison, illness, blindness, confusion, and stat loss.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', usageAdvice: ['Apply (`#apply`) immediately after stat drain or poison hit', 'Blessing increases success rate to 100%'] },
+    "261": { 
+        flavorNote: 'Sacred horn of a unicorn. Ultimate status restore tool.', 
+        effectSummary: 'Tool (`#apply`). Cures poison, illness, blindness, confusion, and stat loss.', 
+        effects: { cureSickness: true, cureBlindness: true },
+        defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', 
+        usageAdvice: ['Apply (`#apply`) immediately after stat drain or poison hit', 'Blessing increases success rate to 100%'] 
+    },
     "262": { flavorNote: 'Seven-pinnacled candelabrum used for the sacred Invocation Ritual.', effectSummary: 'Attach 7 candles and apply with \'a\' to light during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '灯す/使う (a)' },
     "263": { flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.', effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)' },
 
     // 🍖 食料 (FOOD: onum 264〜296)
     "264": { flavorNote: 'Smelly tripe ration favored by carnivorous pets like dogs and cats.', effectSummary: 'Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Throw (\'t\') or drop (\'d\') to tame wild dogs, cats, and wolves', 'Do not eat as a human character to avoid vomiting'] },
     "265": { flavorNote: 'Raw monster corpse left behind after slaying.', effectSummary: 'Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Eat fresh corpses immediately to gain intrinsic resistances', 'Do not eat old/tainted corpses unless immune to poison', 'Wear gloves before picking up cockatrice corpses'] },
-    "274": { flavorNote: 'Lizard corpse.', effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', usageAdvice: ['CRITICAL: Always keep a lizard corpse in inventory to cure cockatrice stoning'] },
+    "274": { 
+        flavorNote: 'Lizard corpse.', 
+        effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', 
+        effects: { curePetrification: true },
+        usageAdvice: ['CRITICAL: Always keep a lizard corpse in inventory to cure cockatrice stoning'] 
+    },
     "286": { flavorNote: 'Standard dungeon rations. High nutrition value.', effectSummary: 'Basic food ration providing 800 nutrition points.' },
     "287": { flavorNote: 'Military grade emergency food ration with high nutrition.', effectSummary: 'Provides 900 nutrition points.' },
     "288": { flavorNote: 'Elven bread ration.', effectSummary: 'Provides 800 nutrition points.' },
     "296": { flavorNote: 'Hard metal tin containing preserved meat.', effectSummary: 'Requires a can opener or axe to open. Tins never rot.' },
 
     // 🧪 ポーション (POTION: onum 297〜322)
+    "307": {
+        flavorNote: 'Restores HP and cures blindness.',
+        effectSummary: 'Restores 10-30 HP and cures blindness.',
+        effects: { healHp: true, healPower: 'LOW', cureBlindness: true },
+        defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)'
+    },
+    "308": {
+        flavorNote: 'Potion of extra healing.',
+        effectSummary: 'Restores large HP, increases maximum HP, cures sickness and blindness.',
+        effects: { healHp: true, healPower: 'MED', cureSickness: true, cureBlindness: true },
+        defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)'
+    },
+    "315": { 
+        flavorNote: 'Potion of full healing.', 
+        effectSummary: 'Fully restores HP, increases maximum HP, cures sickness and blindness.', 
+        effects: { healHp: true, healPower: 'FULL', cureSickness: true, cureBlindness: true },
+        defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' 
+    },
     "322": { flavorNote: 'Clear pure water. Can be converted to Holy Water or Unholy Water on altars.', effectSummary: 'Dip items into Holy Water to bless them, or pray on altars with uncursed water.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Drop on coaligned altar to convert to Holy Water (blessed potion of water)'] },
-    "315": { flavorNote: 'Restores HP and cures blindness.', effectSummary: 'Restores 10-30 HP. Blessed restores more HP.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
     "298": { flavorNote: 'Potion of paralysis.', effectSummary: 'Paralyzes drinker for 20-40 turns. Dangerous when drunk!', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Do not drink! Throw at tough monsters to freeze them'] },
     "297": { flavorNote: 'Potion of confusion.', effectSummary: 'Causes confusion.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
     "309": { flavorNote: 'Potion of speed / gain level.', effectSummary: 'Quaffing blessed advances player level by 1.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
 
     // 📜 巻物 (SCROLL: onum 323〜365)
     "336": { flavorNote: 'Scroll of Identify.', effectSummary: 'Identifies unknown items in inventory. Blessed identifies multiple items.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to identify entire inventory at once'] },
-    "327": { flavorNote: 'Scroll of Remove Curse.', effectSummary: 'Uncurses cursed items in inventory or equipped gear.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Blessed uncurses all carried items; uncursed removes curse from equipped items only'] },
+    "327": { 
+        flavorNote: 'Scroll of Remove Curse.', 
+        effectSummary: 'Uncurses cursed items in inventory or equipped gear.', 
+        effects: { removeCurse: true },
+        defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', 
+        usageAdvice: ['Blessed uncurses all carried items; uncursed removes curse from equipped items only'] 
+    },
     "328": { flavorNote: 'Scroll of Enchant Weapon.', effectSummary: 'Increases weapon attack/damage bonus by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
     "323": { flavorNote: 'Scroll of Enchant Armor.', effectSummary: 'Increases armor defense AC by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
     "342": { flavorNote: 'Scroll of Charging.', effectSummary: 'Recharges magic wands or magic markers.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to recharge wands to maximum charges'] },
@@ -564,6 +598,39 @@ export function initFullObjectKnowledge() {
 
         const standardName = buildStandardItemName(i, category, base.name, tileName);
 
+        // 🎯 効果フラグ (ItemEffectDefinition) の完全統合 (Single Source of Truth)
+        const effects = { ...(detail.effects || {}) };
+        if (base.sn === 'POT_HEALING' || standardName === 'potion of healing') {
+            effects.healHp = true;
+            effects.healPower = effects.healPower || 'LOW';
+            effects.cureBlindness = true;
+        } else if (base.sn === 'POT_EXTRA_HEALING' || standardName === 'potion of extra healing') {
+            effects.healHp = true;
+            effects.healPower = effects.healPower || 'MED';
+            effects.cureSickness = true;
+            effects.cureBlindness = true;
+        } else if (base.sn === 'POT_FULL_HEALING' || standardName === 'potion of full healing') {
+            effects.healHp = true;
+            effects.healPower = effects.healPower || 'FULL';
+            effects.cureSickness = true;
+            effects.cureBlindness = true;
+        } else if (i === 261 || standardName === 'unicorn horn') {
+            effects.cureSickness = true;
+            effects.cureBlindness = true;
+        } else if (i === 274 || standardName === 'lizard corpse') {
+            effects.curePetrification = true;
+        } else if (base.sn === 'SCR_REMOVE_CURSE' || standardName === 'scroll of remove curse') {
+            effects.removeCurse = true;
+        }
+        if (itemInfo.isPickAxe || skill === 'pick-axe' || base.sn === 'WAN_DIGGING' || standardName === 'wand of digging') {
+            effects.digs = true;
+        }
+        if (itemInfo.isKey || itemInfo.isLockPick || itemInfo.isCreditCard) {
+            effects.unlocks = true;
+        }
+
+        const actionVerb = verbInfo.verbKey || 'a';
+
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
@@ -575,6 +642,8 @@ export function initFullObjectKnowledge() {
             canBeUnidentified: !!canBeUnidentified,
             stats: stats,
             // 🎯 確定プロパティのトップレベル展開 (完全型安全・文字列判定脱却用)
+            actionVerb: actionVerb,
+            effects: effects,
             skill: skill,
             skillEnum: skillEnum,
             hands: hands,

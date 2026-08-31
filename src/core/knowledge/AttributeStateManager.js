@@ -8,6 +8,8 @@
 
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 
+import { calculateInnateResistances } from './CHARACTER_KNOWLEDGE_BASE.js';
+
 export const ATTRIBUTE_KEYS = [
     // 1. 基本元素耐性 (5種)
     'fire',
@@ -101,6 +103,9 @@ export const ATTRIBUTE_DEFINITIONS = [
 
 export class AttributeStateManager {
     constructor(options = {}) {
+        this.characterInfo = { race: 'human', role: 'archeologist', level: 1 };
+        this.innate = this._createEmptyMap();
+        this.acquiredIntrinsics = this._createEmptyMap();
         this.intrinsics = this._createEmptyMap();
         this.extrinsics = this._createEmptyMap();
         this.isSynced = false;
@@ -115,12 +120,55 @@ export class AttributeStateManager {
     }
 
     /**
+     * 内在耐性の再集計 (innate + acquiredIntrinsics)
+     * @private
+     */
+    _recalculateIntrinsics() {
+        for (const k of ATTRIBUTE_KEYS) {
+            this.intrinsics[k] = Boolean(this.innate[k] || this.acquiredIntrinsics[k]);
+        }
+    }
+
+    /**
      * キャッシュのリセット
      */
     reset() {
+        this.characterInfo = { race: 'human', role: 'archeologist', level: 1 };
+        this.innate = this._createEmptyMap();
+        this.acquiredIntrinsics = this._createEmptyMap();
         this.intrinsics = this._createEmptyMap();
         this.extrinsics = this._createEmptyMap();
         this.isSynced = false;
+    }
+
+    /**
+     * キャラクター情報（種族・職業・レベル）の確定値から決定論的に内在耐性を即時計算・復元
+     * NetHack Cソース attrib.c に基づく SSOT モデル
+     * @param {Object} charInfo 
+     * @param {string} [charInfo.race] 
+     * @param {string} [charInfo.role] 
+     * @param {number} [charInfo.level] 
+     * @returns {boolean} 
+     */
+    updateCharacter(charInfo = {}) {
+        if (!charInfo || typeof charInfo !== 'object') return false;
+
+        if (charInfo.race !== undefined) this.characterInfo.race = charInfo.race;
+        if (charInfo.role !== undefined) this.characterInfo.role = charInfo.role;
+        if (charInfo.level !== undefined) this.characterInfo.level = charInfo.level;
+
+        const newInnateMap = calculateInnateResistances(this.characterInfo);
+        const newInnate = this._createEmptyMap();
+        for (const [k, v] of Object.entries(newInnateMap)) {
+            if (newInnate[k] !== undefined) {
+                newInnate[k] = Boolean(v);
+            }
+        }
+
+        this.innate = newInnate;
+        this._recalculateIntrinsics();
+        this.isSynced = true;
+        return true;
     }
 
     /**
@@ -143,7 +191,10 @@ export class AttributeStateManager {
         return {
             effectiveResistances: this.getEffectiveResistances(),
             intrinsics: { ...this.intrinsics },
+            innate: { ...this.innate },
+            acquiredIntrinsics: { ...this.acquiredIntrinsics },
             extrinsics: { ...this.extrinsics },
+            characterInfo: { ...this.characterInfo },
             isSynced: this.isSynced
         };
     }
@@ -247,7 +298,13 @@ export class AttributeStateManager {
             }
         }
 
-        this.intrinsics = newIntrinsics;
+        for (const k of ATTRIBUTE_KEYS) {
+            if (newIntrinsics[k]) {
+                this.acquiredIntrinsics[k] = true;
+            }
+        }
+
+        this._recalculateIntrinsics();
         this.isSynced = true;
     }
 
@@ -532,44 +589,48 @@ export class AttributeStateManager {
 
         // 耐性獲得メッセージ
         if (lower.includes('feel a hot sensation') || lower.includes('feel very hot') || lower.includes('火に対する耐性')) {
-            this.intrinsics.fire = true;
+            this.acquiredIntrinsics.fire = true;
             changed = true;
         }
         if (lower.includes('feel a cold chill') || lower.includes('冷気に対する耐性')) {
-            this.intrinsics.cold = true;
+            this.acquiredIntrinsics.cold = true;
             changed = true;
         }
         if (lower.includes('feel a mild shock') || lower.includes('電撃に対する耐性')) {
-            this.intrinsics.shock = true;
+            this.acquiredIntrinsics.shock = true;
             changed = true;
         }
         if (lower.includes('feel wide awake') || lower.includes('眠気')) {
-            this.intrinsics.sleep = true;
+            this.acquiredIntrinsics.sleep = true;
             changed = true;
         }
         if (lower.includes('feel healthy') || lower.includes('毒に対する耐性')) {
-            this.intrinsics.poison = true;
+            this.acquiredIntrinsics.poison = true;
             changed = true;
         }
         if (lower.includes('feel very sneaky') || lower.includes('忍び')) {
-            this.intrinsics.stealth = true;
+            this.acquiredIntrinsics.stealth = true;
             changed = true;
         }
         if (lower.includes('feel perceptive') || lower.includes('探知')) {
-            this.intrinsics.searching = true;
+            this.acquiredIntrinsics.searching = true;
             changed = true;
         }
         if (lower.includes('feel quick') || lower.includes('すばや')) {
-            this.intrinsics.fast = true;
+            this.acquiredIntrinsics.fast = true;
             changed = true;
         }
         if (lower.includes('feel in control of yourself') || lower.includes('制御')) {
-            this.intrinsics.teleportControl = true;
+            this.acquiredIntrinsics.teleportControl = true;
             changed = true;
         }
         if (lower.includes('feel sensitive') || lower.includes('敏感')) {
-            this.intrinsics.warning = true;
+            this.acquiredIntrinsics.warning = true;
             changed = true;
+        }
+
+        if (changed) {
+            this._recalculateIntrinsics();
         }
 
         return changed;

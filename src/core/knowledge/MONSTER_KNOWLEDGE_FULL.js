@@ -35,6 +35,23 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: {},
         resistances: ['poison'],
         weaknesses: ['poison'],
+        threat: {
+            type: 'POISON',
+            severity: 'WARNING',
+            basePriority: 70,
+            description: 'Very fast flying bee dealing lethal poison attacks.',
+            counters: [
+                {
+                    id: 'COUNTER_POISON_RES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 75,
+                    message: 'Killer bee: Equip poison resistance gear or retreat',
+                    why: 'Poison resistance negates lethal sting damage.',
+                    wikiTopic: 'Killer_bee'
+                }
+            ]
+        },
         corpse: { edible: true, poisonous: true, nutrition: 15, grantsIntrinsics: ['poison'] },
         tacticalAdviceEn: ['Very fast and attacks in swarms', 'Poison resistance required early on', 'Corpse can grant Poison Resistance'],
         tacticalAdviceJa: ['群れで出現し超高速で毒針攻撃を仕掛けてきます。毒耐性がないと序盤の即死原因になります。死体を食べると毒耐性を獲得できます。']
@@ -47,6 +64,23 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: {},
         resistances: ['poison'],
         weaknesses: [],
+        threat: {
+            type: 'POISON',
+            severity: 'CRITICAL',
+            basePriority: 80,
+            description: 'Extremely fast and deals lethal poison bite in early dungeon.',
+            counters: [
+                {
+                    id: 'COUNTER_ELBERETH',
+                    type: 'WAIT',
+                    stance: 'WAIT_SAFE',
+                    priority: 80,
+                    message: 'Soldier ant: Engrave Elbereth or retreat to narrow doorway',
+                    why: 'Engraving Elbereth frightens soldier ant and prevents lethal strikes.',
+                    wikiTopic: 'Soldier_ant'
+                }
+            ]
+        },
         corpse: { edible: true, poisonous: true, nutrition: 20, grantsIntrinsics: ['poison'] },
         tacticalAdviceEn: [
             'Extremely fast and deals lethal poison damage early game',
@@ -118,6 +152,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { petrifiesOnTouch: true },
         resistances: ['stoning', 'poison'],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'PETRIFICATION',
+            severity: 'CRITICAL',
+            basePriority: 90,
+            description: 'Young cockatrice. Melee contact petrifies player into stone instantly.',
+            counters: [
+                {
+                    id: 'COUNTER_GLOVES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 90,
+                    matchItemId: 'gloves',
+                    actionVerb: 'W',
+                    message: 'Chickatrice: Wear gloves and avoid barehand attacks',
+                    why: 'Touching chickatrice without gloves causes immediate petrification death.',
+                    wikiTopic: 'Chickatrice'
+                },
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 88,
+                    message: 'Chickatrice: Attack from distance with ranged weapons',
+                    why: 'Keep distance to avoid melee contact.',
+                    wikiTopic: 'Chickatrice'
+                }
+            ]
+        },
         corpse: { 
             edible: false, 
             poisonous: true, 
@@ -142,6 +204,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { petrifiesOnTouch: true },
         resistances: ['stoning', 'poison'],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'PETRIFICATION',
+            severity: 'CRITICAL',
+            basePriority: 90,
+            description: 'Melee touch or bare contact petrifies player into stone instantly.',
+            counters: [
+                {
+                    id: 'COUNTER_GLOVES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 90,
+                    matchItemId: 'gloves',
+                    actionVerb: 'W',
+                    message: 'Cockatrice: Wear gloves and avoid barehand attacks',
+                    why: 'Touching cockatrice without gloves causes immediate petrification death.',
+                    wikiTopic: 'Cockatrice'
+                },
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 88,
+                    message: 'Cockatrice: Attack from distance with ranged weapons',
+                    why: 'Keep distance to avoid melee contact.',
+                    wikiTopic: 'Cockatrice'
+                }
+            ]
+        },
         corpse: {
             edible: false,
             poisonous: true,
@@ -216,6 +306,23 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { explodesOnMelee: true },
         resistances: [],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'EXPLOSION',
+            severity: 'CRITICAL',
+            basePriority: 85,
+            description: 'Explodes violently upon melee attack, dealing fatal area damage.',
+            counters: [
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 85,
+                    message: 'Gas spore: Attack with ranged weapons from distance',
+                    why: 'Attacking from distance avoids fatal explosion blast.',
+                    wikiTopic: 'Gas_spore'
+                }
+            ]
+        },
         corpse: { edible: false, poisonous: false, nutrition: 0, grantsIntrinsics: [] },
         tacticalAdviceEn: [
             'Explodes violently when hit in melee, dealing massive radius damage',
@@ -234,6 +341,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { paralysisGaze: true },
         resistances: [],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'GAZE_PARALYSIS',
+            severity: 'CRITICAL',
+            basePriority: 85,
+            description: 'Paralysis gaze immobilizes player for dozens of turns on melee contact.',
+            counters: [
+                {
+                    id: 'COUNTER_BLINDFOLD',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 85,
+                    matchItemId: 'blindfold',
+                    actionVerb: 'W',
+                    message: 'Floating eye: Wear blindfold or towel to approach safely',
+                    why: 'Wearing a blindfold prevents paralysis gaze.',
+                    wikiTopic: 'Floating_eye'
+                },
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 80,
+                    message: 'Floating eye: Attack with ranged weapons from distance',
+                    why: 'Attacking from distance avoids paralysis gaze.',
+                    wikiTopic: 'Floating_eye'
+                }
+            ]
+        },
         corpse: { edible: true, poisonous: false, nutrition: 10, grantsIntrinsics: ['telepathy'] },
         tacticalAdviceEn: [
             'Do not attack in melee without blindfold/towel',
@@ -253,6 +388,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { eatsBrain: true, stealsItems: false },
         resistances: [],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'BRAIN_EAT',
+            severity: 'CRITICAL',
+            basePriority: 88,
+            description: 'Tentacles permanently drain player intelligence on melee hit.',
+            counters: [
+                {
+                    id: 'COUNTER_HELMET',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 85,
+                    matchItemId: 'helmet',
+                    actionVerb: 'W',
+                    message: 'Mind flayer: Wear grease-coated helmet to block tentacle attack',
+                    why: 'Helmets and grease protect brain from tentacle extraction.',
+                    wikiTopic: 'Mind_flayer'
+                },
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 85,
+                    message: 'Mind flayer: Eliminate from distance with wand or missiles',
+                    why: 'Keep distance to avoid lethal tentacle attacks.',
+                    wikiTopic: 'Mind_flayer'
+                }
+            ]
+        },
         corpse: { edible: true, poisonous: false, nutrition: 400, grantsIntrinsics: ['telepathy'] },
         tacticalAdviceEn: [
             'Eats intelligence permanently upon tentacle hit',
@@ -271,6 +434,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
         traits: { eatsBrain: true, castsSpells: true },
         resistances: [],
         weaknesses: ['ranged'],
+        threat: {
+            type: 'BRAIN_EAT',
+            severity: 'CRITICAL',
+            basePriority: 90,
+            description: 'Master mind flayer. Fast brain-eating attacks and dangerous psychic blasts.',
+            counters: [
+                {
+                    id: 'COUNTER_HELMET',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 88,
+                    matchItemId: 'helmet',
+                    actionVerb: 'W',
+                    message: 'Mind flayer: Wear grease-coated helmet to block tentacle attack',
+                    why: 'Helmets and grease protect brain from tentacle extraction.',
+                    wikiTopic: 'Mind_flayer'
+                },
+                {
+                    id: 'COUNTER_RANGED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'RANGED',
+                    priority: 88,
+                    message: 'Mind flayer: Eliminate from distance with wand or missiles',
+                    why: 'Keep distance to avoid lethal tentacle attacks.',
+                    wikiTopic: 'Mind_flayer'
+                }
+            ]
+        },
         corpse: { edible: true, poisonous: false, nutrition: 500, grantsIntrinsics: ['telepathy'] },
         tacticalAdviceEn: ['Extremely dangerous brain eater', 'Has psychic blast attacks', 'Use genocide or instant death wands'],
         tacticalAdviceJa: ['最凶クラスの脳食いモンスター。遠距離からの念動ブラストと触手攻撃を放ちます。虐殺の巻物(Genocide)や死の杖推奨。']
@@ -313,7 +504,34 @@ export const SPECIFIC_MONSTER_DETAILS = {
     },
     // 143~152: dragons
     "143": { dangerLevel: 'LETHAL', stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, attacks: [{ type: 'breath', effect: 'magic_missile' }], traits: {}, resistances: ['magic'], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['antimagic'] }, tacticalAdviceEn: ['Gray dragon breath magic missiles. Corpse grants Magic Resistance!'], tacticalAdviceJa: ['灰色ドラゴン。魔法の矢のブレスを吐きます。死体を食べると最高峰の能力「耐魔(Magic Resistance)」を獲得できます！'] },
-    "145": { dangerLevel: 'LETHAL', stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, attacks: [{ type: 'breath', effect: 'cold' }], traits: {}, resistances: ['cold'], weaknesses: ['fire'], corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['reflect'] }, tacticalAdviceEn: ['Silver dragon cold breath. Corpse grants Reflection!'], tacticalAdviceJa: ['銀色ドラゴン。冷気ブレスを吐きます。死体を食べると「反射(Reflection)」能力を獲得できます！'] },
+    "145": { 
+        dangerLevel: 'LETHAL', 
+        stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, 
+        attacks: [{ type: 'breath', effect: 'cold' }], 
+        traits: {}, 
+        resistances: ['cold'], 
+        weaknesses: ['fire'], 
+        threat: {
+            type: 'REFLECT',
+            severity: 'WARNING',
+            basePriority: 75,
+            description: 'Reflects magical beams and rays back at the attacker.',
+            counters: [
+                {
+                    id: 'COUNTER_NO_BEAM',
+                    type: 'WAIT',
+                    stance: 'CAUTION',
+                    priority: 75,
+                    message: 'Silver dragon: Do not zap direct ray or beam wands to avoid self-harm',
+                    why: 'Ray attacks bounce off silver scales and hit the player.',
+                    wikiTopic: 'Silver_dragon'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['reflect'] }, 
+        tacticalAdviceEn: ['Silver dragon cold breath. Corpse grants Reflection!'], 
+        tacticalAdviceJa: ['銀色ドラゴン。冷気ブレスを吐きます。死体を食べると「反射(Reflection)」能力を獲得できます！'] 
+    },
     "146": { dangerLevel: 'LETHAL', stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, attacks: [{ type: 'breath', damage: '6d6', effect: 'fire' }], traits: {}, resistances: ['fire'], weaknesses: ['cold'], corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['fire'] }, tacticalAdviceEn: ['Devastating fire breath. Fire resistance or reflection required.'], tacticalAdviceJa: ['赤色ドラゴン。壊滅的な火炎ブレスを放ちます。火炎耐性または反射が必須です。死体から火炎耐性を獲得可能。'] },
     "147": { dangerLevel: 'LETHAL', stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, attacks: [{ type: 'breath', damage: '6d6', effect: 'cold' }], traits: {}, resistances: ['cold'], weaknesses: ['fire'], corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['cold'] }, tacticalAdviceEn: ['Cold breath freezes potions. Cold resistance required.'], tacticalAdviceJa: ['白色ドラゴン。冷気ブレスは所持品のポーションを破壊します。冷気耐性か反射が必須です。'] },
     "148": { dangerLevel: 'LETHAL', stats: { hd: 15, ac: -1, speed: 9, mr: 20 }, attacks: [{ type: 'breath', effect: 'sleep' }], traits: {}, resistances: ['sleep'], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 1500, grantsIntrinsics: ['sleep'] }, tacticalAdviceEn: ['Orange dragon sleep breath. Sleep resistance required.'], tacticalAdviceJa: ['橙色ドラゴン。睡眠ブレスを放ちます。睡眠耐性がないと眠らされて危険です。'] },
@@ -349,25 +567,171 @@ export const SPECIFIC_MONSTER_DETAILS = {
         tacticalAdviceJa: ['攻撃を受けるとスライム化感染し、数ターンでスライム化して即死します。火炎攻撃または病気の治癒(Cure Sickness)で治療可能。'] 
     },
     // 212: rust monster
-    "212": { dangerLevel: 'HIGH', stats: { hd: 5, ac: 2, speed: 18, mr: 0 }, attacks: [{ type: 'touch', effect: 'rust' }], traits: { rustsEquipment: true }, resistances: [], weaknesses: ['ranged', 'wooden'], corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, tacticalAdviceEn: ['Rusts and corrodes iron weapons and armor', 'Use leather/wooden/crystal gear or fight unarmed'], tacticalAdviceJa: ['鉄製の武器や防具を錆びさせて性能を低下・消滅させます。木製・銀製・革製装備への変更または素手・魔法で対処してください。'] },
+    "212": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 5, ac: 2, speed: 18, mr: 0 }, 
+        attacks: [{ type: 'touch', effect: 'rust' }], 
+        traits: { rustsEquipment: true }, 
+        resistances: [], 
+        weaknesses: ['ranged', 'wooden'], 
+        threat: {
+            type: 'EQUIPMENT_DAMAGE',
+            severity: 'WARNING',
+            basePriority: 70,
+            description: 'Rusts and corrodes iron/metallic weapons and armor on contact.',
+            counters: [
+                {
+                    id: 'COUNTER_NON_IRON',
+                    type: 'EQUIP_ITEM',
+                    stance: 'CAUTION',
+                    priority: 70,
+                    message: 'Rust monster: Switch to wooden or leather gear, or fight unarmed',
+                    why: 'Non-metallic gear is immune to rust damage.',
+                    wikiTopic: 'Rust_monster'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Rusts and corrodes iron weapons and armor', 'Use leather/wooden/crystal gear or fight unarmed'], 
+        tacticalAdviceJa: ['鉄製の武器や防具を錆びさせて性能を低下・消滅させます。木製・銀製・革製装備への変更または素手・魔法で対処してください。'] 
+    },
     // 213: disenchanter
-    "213": { dangerLevel: 'HIGH', stats: { hd: 12, ac: -10, speed: 12, mr: 60 }, attacks: [{ type: 'touch', effect: 'disenchant' }], traits: { disenchantsEquipment: true }, resistances: [], weaknesses: ['ranged'], corpse: { edible: true, poisonous: false, nutrition: 200, grantsIntrinsics: [] }, tacticalAdviceEn: ['Disenchants wielded weapons and worn armor upon attack', 'Fight unarmed or use ranged weapons'], tacticalAdviceJa: ['攻撃を受けるたびに装備の強化値(+N)が減少します。未強化武器、素手、または遠隔攻撃で戦ってください。'] },
+    "213": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 12, ac: -10, speed: 12, mr: 60 }, 
+        attacks: [{ type: 'touch', effect: 'disenchant' }], 
+        traits: { disenchantsEquipment: true }, 
+        resistances: [], 
+        weaknesses: ['ranged'], 
+        threat: {
+            type: 'EQUIPMENT_DAMAGE',
+            severity: 'WARNING',
+            basePriority: 75,
+            description: 'Drains enchantment (+N) from wielded weapons and armor on touch.',
+            counters: [
+                {
+                    id: 'COUNTER_UNARMED',
+                    type: 'RANGED_ATTACK',
+                    stance: 'CAUTION',
+                    priority: 75,
+                    message: 'Disenchanter: Use ranged attacks or fight with unenchanted gear',
+                    why: 'Melee contact reduces equipment enchantment bonus.',
+                    wikiTopic: 'Disenchanter'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 200, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Disenchants wielded weapons and worn armor upon attack', 'Fight unarmed or use ranged weapons'], 
+        tacticalAdviceJa: ['攻撃を受けるたびに装備の強化値(+N)が減少します。未強化武器、素手、または遠隔攻撃で戦ってください。'] 
+    },
     // 220: troll, 221: ice troll
     "220": { dangerLevel: 'HIGH', stats: { hd: 7, ac: 4, speed: 12, mr: 0 }, attacks: [{ type: 'claw', damage: '1d8' }, { type: 'bite', damage: '1d8' }], traits: { revives: true }, resistances: [], weaknesses: ['fire'], corpse: { edible: true, poisonous: false, nutrition: 300, grantsIntrinsics: [], revivesFromCorpse: true }, tacticalAdviceEn: ['Regenerates HP and revives after death unless corpse is eaten, burned, or tinning.'], tacticalAdviceJa: ['HP自己再生能力を持ち、倒しても死体を放置すると復活します。死体を食べる・火炎で焼く・缶詰にするなどで対処してください。'] },
     // 225: umber hulk
     "225": { dangerLevel: 'HIGH', stats: { hd: 9, ac: 2, speed: 6, mr: 25 }, attacks: [{ type: 'gaze', effect: 'confusion' }, { type: 'claw', damage: '3d4' }], traits: { gazeConfusion: true }, resistances: [], weaknesses: ['ranged'], corpse: { edible: true, poisonous: false, nutrition: 500, grantsIntrinsics: [] }, tacticalAdviceEn: ['Gaze causes severe confusion. Blindfold/towel recommended.'], tacticalAdviceJa: ['視線を合わせると深刻な混乱状態に陥ります。目隠しやタオルを着用して視界を遮断して戦うのが定石です。'] },
     // 226~228: vampires
-    "226": { dangerLevel: 'HIGH', stats: { hd: 10, ac: 1, speed: 12, mr: 25 }, attacks: [{ type: 'bite', damage: '1d6', effect: 'drain_level' }], traits: { isUndead: true, drainsLevel: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['silver', 'fire'], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Drains experience level', 'Use silver weapons, garlic, or Elbereth'], tacticalAdviceJa: ['攻撃を受けると経験レベルをドレインされます。銀製武器、ニンニク、エルベレスが有効です。'] },
+    "226": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 10, ac: 1, speed: 12, mr: 25 }, 
+        attacks: [{ type: 'bite', damage: '1d6', effect: 'drain_level' }], 
+        traits: { isUndead: true, drainsLevel: true }, 
+        resistances: ['cold', 'poison', 'sleep'], 
+        weaknesses: ['silver', 'fire'], 
+        threat: {
+            type: 'LEVEL_DRAIN',
+            severity: 'WARNING',
+            basePriority: 78,
+            description: 'Drains player experience level on melee attack.',
+            counters: [
+                {
+                    id: 'COUNTER_SILVER',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 78,
+                    message: 'Undead drainer: Use silver weapons or Elbereth',
+                    why: 'Silver weapons deal double damage to undead, reducing drain chances.',
+                    wikiTopic: 'Level_drain'
+                }
+            ]
+        },
+        corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Drains experience level', 'Use silver weapons, garlic, or Elbereth'], 
+        tacticalAdviceJa: ['攻撃を受けると経験レベルをドレインされます。銀製武器、ニンニク、エルベレスが有効です。'] 
+    },
     "228": { dangerLevel: 'LETHAL', stats: { hd: 28, ac: -6, speed: 26, mr: 80 }, attacks: [{ type: 'bite', damage: '1d10', effect: 'drain_level' }], traits: { isUndead: true, drainsLevel: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['silver', 'fire'], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Vlad the Impaler. Unique vampire lord carrying Candelabrum of Invocation.'], tacticalAdviceJa: ['串刺し公ヴラド。ゲヘナの吸血鬼の王。銀製武器で素早く倒してください。'] },
     // 230: wraith
-    "230": { dangerLevel: 'HIGH', stats: { hd: 6, ac: 4, speed: 12, mr: 15 }, attacks: [{ type: 'touch', damage: '1d6', effect: 'drain_level' }], traits: { isUndead: true, drainsLevel: true }, resistances: ['cold', 'poison', 'sleep'], weaknesses: ['silver', 'fire'], corpse: { edible: true, poisonous: false, nutrition: 0, grantsIntrinsics: ['gain_level'] }, tacticalAdviceEn: ['Drains experience level on touch. Eating corpse grants 1 free level up!'], tacticalAdviceJa: ['接触でレベルを吸い取ります。死体を食べると確実に経験レベルが1上昇するため、安全を確保して必ず食べてください！'] },
+    "230": { 
+        dangerLevel: 'HIGH', 
+        stats: { hd: 6, ac: 4, speed: 12, mr: 15 }, 
+        attacks: [{ type: 'touch', damage: '1d6', effect: 'drain_level' }], 
+        traits: { isUndead: true, drainsLevel: true }, 
+        resistances: ['cold', 'poison', 'sleep'], 
+        weaknesses: ['silver', 'fire'], 
+        threat: {
+            type: 'LEVEL_DRAIN',
+            severity: 'WARNING',
+            basePriority: 78,
+            description: 'Drains player experience level on touch.',
+            counters: [
+                {
+                    id: 'COUNTER_SILVER',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 78,
+                    message: 'Undead drainer: Use silver weapons or Elbereth',
+                    why: 'Silver weapons deal double damage to undead, reducing drain chances.',
+                    wikiTopic: 'Level_drain'
+                }
+            ]
+        },
+        corpse: { edible: true, poisonous: false, nutrition: 0, grantsIntrinsics: ['gain_level'] }, 
+        tacticalAdviceEn: ['Drains experience level on touch. Eating corpse grants 1 free level up!'], 
+        tacticalAdviceJa: ['接触でレベルを吸い取ります。死体を食べると確実に経験レベルが1上昇するため、安全を確保して必ず食べてください！'] 
+    },
     // 233: monkey, 234: ape
     "233": { dangerLevel: 'MEDIUM', stats: { hd: 2, ac: 6, speed: 12, mr: 0 }, attacks: [{ type: 'claw', damage: '1d3' }, { type: 'bite', damage: '1d3' }], traits: { stealsItems: true }, resistances: [], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 50, grantsIntrinsics: [] }, tacticalAdviceEn: ['Steals and carries away light items (cameras, tools, food). Heavy/cursed items are safe.'], tacticalAdviceJa: ['カメラや道具・食料など軽量な所持品を盗んで逃走します。重量物や呪われた装備は盗まれません。'] },
     "234": { dangerLevel: 'MEDIUM', stats: { hd: 4, ac: 6, speed: 12, mr: 0 }, attacks: [{ type: 'claw', damage: '1d3' }, { type: 'claw', damage: '1d3' }, { type: 'bite', damage: '1d6' }], traits: { stealsItems: true }, resistances: [], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 250, grantsIntrinsics: [] }, tacticalAdviceEn: ['Can steal items and packs a punch in melee.'], tacticalAdviceJa: ['近接攻撃力が高く、所持品を盗んで持ち去る習性があります。'] },
     // 271: shopkeeper
     "271": { dangerLevel: 'SAFE', hostileDangerLevel: 'LETHAL', defaultPeaceful: true, stats: { hd: 12, ac: 0, speed: 16, mr: 50 }, attacks: [{ type: 'weapon', damage: '4d6' }], traits: {}, resistances: [], weaknesses: [], corpse: { edible: true, poisonous: false, nutrition: 400, grantsIntrinsics: [] }, tacticalAdviceEn: ['Peaceful merchant NPC. Do not attack or steal from the shop.', 'If angered, becomes extremely lethal with wand zaps and high speed.'], tacticalAdviceJa: ['平和的な店主NPCです。攻撃や泥棒をしないよう注意してください。', '敵対するとショットガンのような杖攻撃と俊敏な速度で即死級の脅威になります。'] },
     // 284: Medusa
-    "284": { dangerLevel: 'LETHAL', stats: { hd: 20, ac: 2, speed: 12, mr: 50 }, attacks: [{ type: 'gaze', effect: 'petrify' }], traits: { petrifiesOnTouch: true, paralysisGaze: false }, resistances: ['stoning', 'poison'], weaknesses: ['ranged'], corpse: { edible: false, poisonous: true, causesPetrification: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Gaze petrifies instantly', 'Use a mirror to reflect her gaze, or wear blindfold/towel'], tacticalAdviceJa: ['視線を合わせると即座に石化死します。手鏡を向けて自爆させるか、目隠しをして戦ってください。'] },
+    "284": { 
+        dangerLevel: 'LETHAL', 
+        stats: { hd: 20, ac: 2, speed: 12, mr: 50 }, 
+        attacks: [{ type: 'gaze', effect: 'petrify' }], 
+        traits: { petrifiesOnTouch: true, paralysisGaze: false }, 
+        resistances: ['stoning', 'poison'], 
+        weaknesses: ['ranged'], 
+        threat: {
+            type: 'PETRIFICATION',
+            severity: 'CRITICAL',
+            basePriority: 90,
+            description: 'Gaze petrifies player into stone immediately.',
+            counters: [
+                {
+                    id: 'COUNTER_MIRROR',
+                    type: 'USE_ITEM',
+                    stance: 'CAUTION',
+                    priority: 90,
+                    message: 'Medusa: Apply mirror to reflect gaze or wear blindfold',
+                    why: 'Looking at her own reflection petrifies Medusa.',
+                    wikiTopic: 'Medusa'
+                },
+                {
+                    id: 'COUNTER_BLINDFOLD',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 88,
+                    matchItemId: 'blindfold',
+                    actionVerb: 'W',
+                    message: 'Medusa: Wear blindfold or towel to avoid petrifying gaze',
+                    why: 'Blindness prevents seeing Medusa, avoiding petrification.',
+                    wikiTopic: 'Medusa'
+                }
+            ]
+        },
+        corpse: { edible: false, poisonous: true, causesPetrification: true, nutrition: 0, grantsIntrinsics: [] }, 
+        tacticalAdviceEn: ['Gaze petrifies instantly', 'Use a mirror to reflect her gaze, or wear blindfold/towel'], 
+        tacticalAdviceJa: ['視線を合わせると即座に石化死します。手鏡を向けて自爆させるか、目隠しをして戦ってください。'] 
+    },
     // 285: Wizard of Yendor
     "285": { dangerLevel: 'LETHAL', stats: { hd: 30, ac: -8, speed: 12, mr: 100 }, attacks: [{ type: 'spell', effect: 'curse_items' }, { type: 'touch', effect: 'steal_amulet' }], traits: { castsSpells: true, revives: true }, resistances: ['fire', 'cold', 'shock', 'poison', 'sleep'], weaknesses: [], corpse: { edible: false, poisonous: true, nutrition: 0, grantsIntrinsics: [] }, tacticalAdviceEn: ['Main antagonist. Steals Amulet, curses inventory, and resuscitates after death.'], tacticalAdviceJa: ['本作のラスボス。魔除けの盗み、アイテム呪縛、死後復活を行います。'] },
     // 311: Death, 312: Pestilence, 313: Famine
@@ -560,6 +924,7 @@ for (let i = 0; i <= 382; i++) {
         resistances: resistances,
         weaknesses: weaknesses,
         corpse: corpse,
+        threat: specific.threat || null,
         tacticalAdviceEn: tacticalAdviceEn,
         tacticalAdviceJa: tacticalAdviceJa,
 

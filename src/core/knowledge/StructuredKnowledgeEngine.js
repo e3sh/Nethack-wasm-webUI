@@ -15,8 +15,9 @@ import { ALL_MONSTER_KNOWLEDGE_BASE } from './MONSTER_KNOWLEDGE_FULL.js';
 import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentificationResolver.js';
 import { OBJECT_CATEGORY_ADVICE, inferObjectCategory } from './OBJECT_CATEGORY_ADVICE.js';
 import { ITEM_KNOWLEDGE_BASE } from './ITEM_KNOWLEDGE_BASE.js';
+import { TERRAIN_KNOWLEDGE_MAP, getTerrainEntryByCmap, getTerrainEntryByKey } from './TERRAIN_KNOWLEDGE_BASE.js';
 
-export { OBJECT_CATEGORY_ADVICE, inferObjectCategory, ITEM_KNOWLEDGE_BASE };
+export { OBJECT_CATEGORY_ADVICE, inferObjectCategory, ITEM_KNOWLEDGE_BASE, TERRAIN_KNOWLEDGE_MAP };
 
 // ============================================================================
 // 全 384 モンスター構造化マスターデータ (MONSTER_KNOWLEDGE_FULL.js よりインポート)
@@ -228,6 +229,30 @@ export class StructuredKnowledgeEngine {
             cloned.usageAdvice = cloned.usageAdvice.map(adv => tr(adv));
         }
 
+        // 6.5. モンスター脅威メタデータ (threat & counters) の動的ローカライズ
+        if (cloned.threat) {
+            if (cloned.threat.description) {
+                cloned.threat.descriptionJa = !isEn ? tr(cloned.threat.description) : null;
+                if (!isEn && cloned.threat.descriptionJa) {
+                    cloned.threat.description = cloned.threat.descriptionJa;
+                }
+            }
+            if (Array.isArray(cloned.threat.counters)) {
+                cloned.threat.counters = cloned.threat.counters.map(counter => {
+                    const c = { ...counter };
+                    if (c.message) {
+                        c.messageJa = !isEn ? tr(c.message) : null;
+                        if (!isEn && c.messageJa) c.message = c.messageJa;
+                    }
+                    if (c.why) {
+                        c.whyJa = !isEn ? tr(c.why) : null;
+                        if (!isEn && c.whyJa) c.why = c.whyJa;
+                    }
+                    return c;
+                });
+            }
+        }
+
         // 7. 構造化ステータス (stats) および直下プロパティの素材・属性の自動ローカライズ (1回翻訳で重複解消)
         const rawMat = (cloned.stats && cloned.stats.material) || (cloned.material && cloned.material !== 'none' ? cloned.material : null);
         if (rawMat) {
@@ -242,9 +267,9 @@ export class StructuredKnowledgeEngine {
 
         // 8. 推奨アクションラベルのローカライズ
         if (isEn) {
-            cloned.actionLabel = obj.actionLabelEn || obj.defaultActionLabel || 'Apply';
+            cloned.actionLabel = obj.actionLabelEn || obj.actionLabel || obj.defaultActionLabel || '';
         } else {
-            cloned.actionLabel = obj.actionLabelJa || (obj.defaultActionLabel ? tr(obj.defaultActionLabel) : (obj.actionLabel ? tr(obj.actionLabel) : ''));
+            cloned.actionLabel = obj.actionLabelJa || (obj.actionLabel ? tr(obj.actionLabel) : (obj.defaultActionLabel ? tr(obj.defaultActionLabel) : ''));
         }
 
         // 9. 不要な重複プロパティの削除（スキーマ一本化）
@@ -256,6 +281,7 @@ export class StructuredKnowledgeEngine {
         delete cloned.unidentifiedTipsEn;
         delete cloned.usageAdviceEn;
         delete cloned.tacticalAdviceEn;
+        delete cloned.effectSummaryJa;
         delete cloned.effectSummaryEn;
         delete cloned.bucEffectsEn;
 
@@ -817,70 +843,11 @@ export class StructuredKnowledgeEngine {
 
         if (typeof identifier === 'number') {
             const cmapInfo = getCmapInfo(identifier);
-            if (cmapInfo.isStairDown) {
-                rawObj = { id: 'stairs_down', name: 'Stairs Down', category: 'STAIRS', effectSummary: 'Use \'>\' or \'>\' key to descend to deeper dungeon floor.' };
-            } else if (cmapInfo.isStairUp) {
-                rawObj = { id: 'stairs_up', name: 'Stairs Up', category: 'STAIRS', effectSummary: 'Use \'<\' key to ascend.' };
-            } else if (cmapInfo.isClosedDoor) {
-                rawObj = { id: 'closed_door', name: 'Closed Door', category: 'DOOR', effectSummary: 'Use \'o\' to open, or kick with \'ctrl+d\' or \'k\'.' };
-            } else if (cmapInfo.isOpenDoor) {
-                rawObj = { id: 'open_door', name: 'Open Door', category: 'DOOR', effectSummary: 'Walk through or close with \'c\'.' };
-            } else if (cmapInfo.isFountain) {
-                rawObj = { id: 'fountain', name: 'Fountain', category: 'FOUNTAIN', effectSummary: 'Quaff with \'q\' or dip items with \'#dip\'. May grant luck, spawn a djinn, or cause poison.' };
-            } else if (cmapInfo.isSink) {
-                rawObj = { id: 'sink', name: 'Sink', category: 'SINK', effectSummary: 'Kick with \'ctrl+d\' or \'k\'. May drop ring, spawn pudding or water demon.' };
-            } else if (cmapInfo.isAltar) {
-                rawObj = { id: 'altar', name: 'Altar', category: 'ALTAR', effectSummary: 'Offer corpses with \'altar\' / offer action. Beware of non-aligned god wrath.' };
-            } else if (cmapInfo.isGrave) {
-                rawObj = { id: 'grave', name: 'Grave', category: 'GRAVE', effectSummary: 'Gravesite. Dig with Pick-axe for loot, but beware of Ghoul/Zombie spawn and alignment penalty.' };
-            } else if (cmapInfo.isTree) {
-                rawObj = { id: 'tree', name: 'Tree', category: 'TREE', effectSummary: 'Wood obstacle. Kick with \'k\' to drop fruit or chop down with Axe.' };
-            } else if (cmapInfo.isLava) {
-                rawObj = { id: 'lava', name: 'Lava', category: 'LAVA', effectSummary: 'Lethal fire terrain. Instantly burns player and items unless levitating.' };
-            } else if (cmapInfo.isWater) {
-                rawObj = { id: 'pool_of_water', name: 'Pool of Water', category: 'WATER', effectSummary: 'Water obstacle. Items get wet when walking through without levitation/water walking.' };
-            } else if (cmapInfo.isIronBars) {
-                rawObj = { id: 'iron_bars', name: 'Iron Bars', category: 'BARS', effectSummary: 'Impassable bars. Can pass through when polymorphed into small creature or using Wand of Opening.' };
-            } else if (cmapInfo.isTrap) {
-                rawObj = { id: 'trap', name: 'Trap', category: 'TRAP', effectSummary: 'Disarm or avoid. Can be covered with Elbereth or boulders.' };
-            } else if (cmapInfo.isWall) {
-                rawObj = { id: 'dungeon_wall', name: 'Dungeon Wall', category: 'WALL', effectSummary: 'Solid rock wall. Dig with Wand of Digging or Pick-axe.' };
-            } else if (cmapInfo.isFloor) {
-                rawObj = { id: 'dungeon_floor', name: 'Dungeon Floor', category: 'FLOOR', effectSummary: 'Normal floor. Can engrave Elbereth with \'E\' or \'e\'.' };
-            }
+            rawObj = getTerrainEntryByCmap(cmapInfo);
         }
 
         if (!rawObj && typeof identifier === 'string') {
-            const lower = identifier.toLowerCase();
-            if (lower.includes('fountain') || lower.includes('噴水')) {
-                rawObj = { id: 'fountain', name: 'Fountain', category: 'FOUNTAIN', effectSummary: 'Quaff with \'q\' or dip items with \'#dip\'. May grant luck, spawn a djinn, or cause poison.' };
-            } else if (lower.includes('sink') || lower.includes('流し')) {
-                rawObj = { id: 'sink', name: 'Sink', category: 'SINK', effectSummary: 'Kick with \'ctrl+d\' or \'k\'. May drop ring, spawn pudding or water demon.' };
-            } else if ((lower.includes('stair') || lower.includes('階段')) && (lower.includes('down') || lower.includes('下'))) {
-                rawObj = { id: 'stairs_down', name: 'Stairs Down', category: 'STAIRS', effectSummary: 'Use \'>\' key to descend to deeper dungeon floor.' };
-            } else if ((lower.includes('stair') || lower.includes('階段')) && (lower.includes('up') || lower.includes('上'))) {
-                rawObj = { id: 'stairs_up', name: 'Stairs Up', category: 'STAIRS', effectSummary: 'Use \'<\' key to ascend.' };
-            } else if (lower.includes('door') || lower.includes('扉') || lower.includes('ドア')) {
-                rawObj = { id: 'closed_door', name: 'Closed Door', category: 'DOOR', effectSummary: 'Use \'o\' to open, or kick with \'ctrl+d\' or \'k\'.' };
-            } else if (lower.includes('altar') || lower.includes('祭壇')) {
-                rawObj = { id: 'altar', name: 'Altar', category: 'ALTAR', effectSummary: 'Offer corpses with \'altar\' / offer action. Beware of non-aligned god wrath.' };
-            } else if (lower.includes('grave') || lower.includes('墓')) {
-                rawObj = { id: 'grave', name: 'Grave', category: 'GRAVE', effectSummary: 'Gravesite. Dig with Pick-axe for loot, but beware of Ghoul/Zombie spawn and alignment penalty.' };
-            } else if (lower.includes('tree') || lower.includes('木')) {
-                rawObj = { id: 'tree', name: 'Tree', category: 'TREE', effectSummary: 'Wood obstacle. Kick with \'k\' to drop fruit or chop down with Axe.' };
-            } else if (lower.includes('lava') || lower.includes('溶岩')) {
-                rawObj = { id: 'lava', name: 'Lava', category: 'LAVA', effectSummary: 'Lethal fire terrain. Instantly burns player and items unless levitating.' };
-            } else if (lower.includes('water') || lower.includes('pool') || lower.includes('水')) {
-                rawObj = { id: 'pool_of_water', name: 'Pool of Water', category: 'WATER', effectSummary: 'Water obstacle. Items get wet when walking through without levitation/water walking.' };
-            } else if (lower.includes('bars') || lower.includes('鉄格子')) {
-                rawObj = { id: 'iron_bars', name: 'Iron Bars', category: 'BARS', effectSummary: 'Impassable bars. Can pass through when polymorphed into small creature or using Wand of Opening.' };
-            } else if (lower.includes('trap') || lower.includes('罠')) {
-                rawObj = { id: 'trap', name: 'Trap', category: 'TRAP', effectSummary: 'Disarm or avoid. Can be covered with Elbereth or boulders.' };
-            } else if (lower.includes('wall') || lower.includes('壁')) {
-                rawObj = { id: 'dungeon_wall', name: 'Dungeon Wall', category: 'WALL', effectSummary: 'Solid rock wall. Dig with Wand of Digging or Pick-axe.' };
-            } else if (lower.includes('floor') || lower.includes('床') || lower.includes('room') || lower.includes('corridor') || lower.includes('dark part')) {
-                rawObj = { id: 'dungeon_floor', name: 'Dungeon Floor', category: 'FLOOR', effectSummary: 'Normal floor. Can engrave Elbereth with \'E\' or \'e\'.' };
-            }
+            rawObj = getTerrainEntryByKey(identifier);
         }
 
         if (!rawObj) return null;

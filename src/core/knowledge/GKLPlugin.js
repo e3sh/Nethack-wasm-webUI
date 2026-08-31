@@ -618,8 +618,15 @@ export class GKLPlugin {
                     }
                 }
 
-                // 経験レベル (level / exp) の変動時にも魔法失敗率やスキル向上可能状態が変化するため再同期
-                if (data.field === 'level' || data.field === 'exp_level') {
+                // 経験レベル (level / exp: BL_XP = 13) の変動時にも魔法失敗率やスキル向上可能状態、確定内在耐性が変化するため再同期
+                if (data.field === 13 || data.field === 'level' || data.field === 'exp_level') {
+                    const parsedLvl = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
+                    if (!isNaN(parsedLvl) && this.attributeStateManager && typeof this.attributeStateManager.updateCharacter === 'function') {
+                        this.attributeStateManager.updateCharacter({ level: parsedLvl });
+                        if (this.core && typeof this.core.emit === 'function') {
+                            this.core.emit('attributesStateUpdated', this.attributeStateManager);
+                        }
+                    }
                     if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
                         this.spellStateManager.invalidate();
                     }
@@ -1120,6 +1127,22 @@ export class GKLPlugin {
 
     getAttributeStateManager() {
         return this.attributeStateManager;
+    }
+
+    /**
+     * キャラクター情報（種族・職業・レベル）の確定SSOT設定
+     * @param {Object} charInfo 
+     * @param {string} [charInfo.race] 
+     * @param {string} [charInfo.role] 
+     * @param {number} [charInfo.level] 
+     */
+    updateCharacterInfo(charInfo = {}) {
+        if (this.attributeStateManager && typeof this.attributeStateManager.updateCharacter === 'function') {
+            this.attributeStateManager.updateCharacter(charInfo);
+            if (this.core && typeof this.core.emit === 'function') {
+                this.core.emit('attributesStateUpdated', this.attributeStateManager);
+            }
+        }
     }
 
     getAreaStateManager() {
