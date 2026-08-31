@@ -107,4 +107,62 @@ describe('実機キャプチャシナリオ再生テスト (Phase 3 Downlink Int
         const summary = core.getDiagnosticSummary();
         expect(summary).toBeDefined();
     });
+
+    it('⑥ 金型派生: コカトリス遭遇シナリオ (monster_cockatrice_adjacent) の再生と石化即死警告・エルベレス推奨', async () => {
+        const scenario = loadFixture('monster_cockatrice_adjacent.json');
+        const driver = new ScenarioDriver(scenario);
+        const core = new WebUICore({ driver });
+
+        driver.playInit(core);
+        driver.playRemainingEvents();
+
+        const summary = core.getDiagnosticSummary();
+        expect(summary).toBeDefined();
+        expect(summary.playerPosition.x).toBe(54);
+        expect(summary.playerPosition.y).toBe(6);
+
+        // 周辺モンスターとしてコカトリスが認知され、隣接していること
+        expect(summary.trackedMonsters.length).toBeGreaterThan(0);
+        const cockatrice = summary.trackedMonsters.find(m => m.name.includes('cockatrice') || m.name.includes('コカトリス'));
+        expect(cockatrice).toBeDefined();
+        expect(cockatrice.isAdjacent).toBe(true);
+
+        // TacticalAdvisor による石化危険警告とエルベレス推奨が発出されること
+        const advices = core.gkl.getTacticalAdvices();
+        const petrifyAdvice = advices.find(a => a.id === 'ADVICE_THREAT_PETRIFICATION');
+        expect(petrifyAdvice).toBeDefined();
+        expect(petrifyAdvice.severity).toBe('CRITICAL');
+        expect(petrifyAdvice.messageJa).toContain('石化');
+
+        const elberethAdvice = advices.find(a => a.id === 'ADVICE_INTERACTION_EMERGENCY_ELBERETH');
+        expect(elberethAdvice).toBeDefined();
+        expect(elberethAdvice.severity).toBe('CRITICAL');
+    });
+
+    it('⑦ 金型派生: 浮遊する目玉遭遇シナリオ (monster_floating_eye_adjacent) の再生と麻痺危険警告', async () => {
+        const scenario = loadFixture('monster_floating_eye_adjacent.json');
+        const driver = new ScenarioDriver(scenario);
+        const core = new WebUICore({ driver });
+
+        driver.playInit(core);
+        driver.playRemainingEvents();
+
+        const summary = core.getDiagnosticSummary();
+        expect(summary).toBeDefined();
+        expect(summary.playerPosition.x).toBe(54);
+        expect(summary.playerPosition.y).toBe(6);
+
+        // 周辺モンスターとして浮遊する目玉が認知され、隣接していること
+        expect(summary.trackedMonsters.length).toBeGreaterThan(0);
+        const eye = summary.trackedMonsters.find(m => m.name.includes('floating eye') || m.name.includes('浮遊する目玉'));
+        expect(eye).toBeDefined();
+        expect(eye.isAdjacent).toBe(true);
+
+        // TacticalAdvisor による麻痺危険警告が発出されること
+        const advices = core.gkl.getTacticalAdvices();
+        const eyeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_FLOATING_EYE');
+        expect(eyeAdvice).toBeDefined();
+        expect(eyeAdvice.severity).toBe('WARNING');
+        expect(eyeAdvice.messageJa).toContain('麻痺');
+    });
 });

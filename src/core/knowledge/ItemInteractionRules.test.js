@@ -3,6 +3,7 @@ import { ContextActionEngine } from './ContextActionEngine.js';
 import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
 import { AreaStateManager } from './AreaStateManager.js';
+import { createTestItem } from '../../../test/helpers/testItemFactory.js';
 
 describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テスト', () => {
 
@@ -124,7 +125,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'glass wand', rawText: 'a - a glass wand', isWand: true, isUnidentified: true }
+                createTestItem('glass wand', 'a', { isUnidentified: true })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -150,7 +151,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'b', name: 'helmet', rawText: 'b - a helmet', buc: 'unknown' }
+                createTestItem('helmet', 'b', { buc: 'unknown' })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -175,7 +176,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'c', name: 'wooden ring', rawText: 'c - a wooden ring', isRing: true, isUnidentified: true }
+                createTestItem('wooden ring', 'c', { isUnidentified: true })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -192,7 +193,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'w', name: 'wand of striking', rawText: 'w - a wand of striking (0:4)', isWand: true, isUnidentified: false }
+                createTestItem('wand of striking', 'w', { rawText: 'w - a wand of striking (0:4)', isUnidentified: false })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -212,7 +213,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'z', name: 'glass wand', rawText: 'z - a glass wand', isWand: true, isUnidentified: true }
+                createTestItem('glass wand', 'z', { isUnidentified: true })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -233,8 +234,8 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'h', name: 'unicorn horn', rawText: 'h - an uncursed unicorn horn' },
-                { letter: 'p', name: 'purple potion', rawText: 'p - a purple potion', isPotion: true, isUnidentified: true }
+                createTestItem('unicorn horn', 'h'),
+                createTestItem('purple potion', 'p', { isUnidentified: true })
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
@@ -252,7 +253,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
         it('恐怖の巻物所持時、手持ち読書を阻止する誤用防止警告が出ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 's', name: 'scroll of scare monster', rawText: 's - a scroll of scare monster' }
+                createTestItem('scroll of scare monster', 's')
             ];
 
             const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });
@@ -265,8 +266,8 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
         it('手品袋と打ち消しの杖を同時に所持している場合、爆発防止即死警告が出ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'b', name: 'bag of holding', rawText: 'b - a bag of holding' },
-                { letter: 'w', name: 'wand of cancellation', rawText: 'w - a wand of cancellation' }
+                createTestItem('bag of holding', 'b'),
+                createTestItem('wand of cancellation', 'w')
             ];
 
             const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });

@@ -41,5 +41,28 @@ describe('testItemFactory - createTestItem', () => {
         expect(item.isBLESSED).toBe(true);
         expect(item.rawText).toBe('c - 3 blessed potions of extra healing');
         expect(item.category).toBe('POTION');
+        expect(item.isPotion).toBe(true);
+    });
+
+    it('corpse (死体) アイテムが自動的に FOOD カテゴリおよび corpse ナレッジに紐付くこと', () => {
+        const item = createTestItem('lizard corpse', 'f');
+
+        expect(item.invlet).toBe('f');
+        expect(item.name).toBe('lizard corpse');
+        expect(item.category).toBe('FOOD');
+        expect(item.isFood).toBe(true);
+        expect(item.knowledge).toBeDefined();
+        expect(item.onum).toBe(269);
+    });
+
+    it('カテゴリ連動ヘルパーフラグ (isWand, isWeapon, isArmor 等) が自動付与されること', () => {
+        const wand = createTestItem('wand of fire', 'w');
+        expect(wand.isWand).toBe(true);
+
+        const weapon = createTestItem('dagger', 'd');
+        expect(weapon.isWeapon).toBe(true);
+
+        const armor = createTestItem('helmet', 'h');
+        expect(armor.isArmor).toBe(true);
     });
 });

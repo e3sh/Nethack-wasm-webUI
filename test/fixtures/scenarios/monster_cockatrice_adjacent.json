@@ -1,0 +1,294 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "monster_cockatrice_adjacent",
+    "description": "monster_adjacent 金型派生: コカトリス (Glyph 10)",
+    "createdAt": "2026-08-31T01:00:00.000Z",
+    "turn": 137
+  },
+  "initialState": {
+    "status": {
+      "hp": 46,
+      "maxHp": 62,
+      "dlevel": "Dlvl:10 ",
+      "x": 53,
+      "y": 6
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 53,
+          "y": 6
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a +2 spear (weapon in right hand)",
+        "a +0 dagger (alternate weapon; not wielded)",
+        "an arrow",
+        "31 arrows",
+        "an uncursed +3 small shield (being worn)",
+        "a +0 oilskin cloak (being worn)",
+        "a +0 leather armor (being worn)",
+        "a slime mold",
+        "a sprig of wolfsbane",
+        "a food ration",
+        "a scroll of teleportation",
+        "a scroll of blank paper",
+        "a scroll labeled LOREM IPSUM",
+        "a parchment spellbook",
+        "a ruby potion",
+        "a potion of speed",
+        "a brown potion",
+        "a smoky potion",
+        "a wand of lightning",
+        "a tin opener",
+        "a tin opener",
+        "a violet gem",
+        "a red gem"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772547
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772547
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 54,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772547
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 54,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772547
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": 18,
+        "field": 18,
+        "value": "47",
+        "glyphId": null,
+        "rawVal": "47",
+        "parsedVal": "47",
+        "goldData": null,
+        "dlevelData": null,
+        "chg": 1,
+        "clr": 8,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772547
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": -1,
+        "field": -1,
+        "value": 0,
+        "rawVal": 0,
+        "parsedVal": 0,
+        "chg": 0,
+        "clr": 8,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772549
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 53,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 3995,
+          "symbol": 35,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 22,
+          "ch": "#"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772550
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 54,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 725,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 8193,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772550
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 54,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772553
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772554
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 54,
+        "y": 6,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772554
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772554
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 55,
+        "y": 6,
+        "glyphInfo": {
+          "glyph": 10,
+          "symbol": 99,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 3,
+          "symidx": 10,
+          "ch": "c"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788134772551
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788134772554
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 153,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788134772554
+    }
+  ]
+}

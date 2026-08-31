@@ -50,9 +50,30 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
                 name = kbEntry.name;
             }
         }
+
+        // 3. corpse (死体) 特殊判定: "xxx corpse" は corpse (onum: 269) のナレッジを参照
+        if (!knowledge && query.endsWith('corpse')) {
+            const corpseEntry = OBJECT_KNOWLEDGE_MAP.get(269);
+            if (corpseEntry) {
+                onum = 269;
+                knowledge = { ...corpseEntry, name: nameOrOnum };
+                name = nameOrOnum;
+            }
+        }
     }
 
-    const category = knowledge?.category || overrides.category || 'OTHER';
+    const category = knowledge?.category || overrides.category || (name.toLowerCase().endsWith('corpse') ? 'FOOD' : 'OTHER');
+
+    // カテゴリ連動ヘルパーフラグの導出
+    const categoryFlags = {};
+    if (category === 'WAND' || name.includes('wand')) categoryFlags.isWand = true;
+    if (category === 'WEAPON') categoryFlags.isWeapon = true;
+    if (category === 'ARMOR') categoryFlags.isArmor = true;
+    if (category === 'RING' || name.includes('ring')) categoryFlags.isRing = true;
+    if (category === 'POTION' || name.includes('potion')) categoryFlags.isPotion = true;
+    if (category === 'SCROLL' || name.includes('scroll')) categoryFlags.isScroll = true;
+    if (category === 'FOOD' || name.endsWith('corpse')) categoryFlags.isFood = true;
+    if (category === 'TOOL') categoryFlags.isTool = true;
 
     return {
         invlet,
@@ -64,6 +85,7 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
         rawText: `${invlet} - an uncursed ${name}`,
         isIdentified: true,
         count: 1,
+        ...categoryFlags,
         ...overrides
     };
 }

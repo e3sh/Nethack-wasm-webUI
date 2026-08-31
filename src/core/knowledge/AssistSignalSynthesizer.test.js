@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
+import { createTestItem } from '../../../test/helpers/testItemFactory.js';
 
 describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => {
 
@@ -9,7 +10,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { conditions: ['Stone'], hp: { current: 20, max: 20, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'f', name: 'lizard corpse', category: 'FOOD' }
+                    createTestItem('lizard corpse', 'f')
                 ]
             };
 
@@ -42,7 +43,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { conditions: ['Slimed'], hp: { current: 30, max: 30, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'b', name: 'wand of fire', category: 'WAND' }
+                    createTestItem('wand of fire', 'b')
                 ]
             };
 
@@ -58,7 +59,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 5, max: 30, percent: 0.16 } },
                 inventory: [
-                    { invlet: 'a', name: 'potion of extra healing', category: 'POTION' }
+                    createTestItem('potion of extra healing', 'a')
                 ]
             };
 
@@ -87,7 +88,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 5, max: 30, percent: 0.16 } },
                 inventory: [
-                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                    createTestItem('spellbook of healing', 'b')
                 ]
             };
 
@@ -103,7 +104,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 5, max: 30, percent: 0.16 }, pw: { current: 15, max: 15 } },
                 inventory: [
-                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                    createTestItem('spellbook of healing', 'b')
                 ],
                 spells: [
                     { letter: 'a', name: 'healing', level: 1, failPercent: 0 }
@@ -122,7 +123,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 12, max: 30, percent: 0.40 } },
                 inventory: [
-                    { invlet: 'b', name: 'spellbook of healing', category: 'SPELLBOOK' }
+                    createTestItem('spellbook of healing', 'b')
                 ]
             };
 
@@ -152,7 +153,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { conditions: ['Conf'], hp: { current: 20, max: 20, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'u', name: 'unicorn horn', category: 'TOOL' }
+                    createTestItem('unicorn horn', 'u')
                 ]
             };
 
@@ -187,7 +188,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                     perceivedMonsters: [{ name: 'floating eye', monOffset: 57 }]
                 },
                 inventory: [
-                    { invlet: 'b', name: 'blindfold', category: 'TOOL', isWorn: false }
+                    createTestItem('blindfold', 'b', { isWorn: false })
                 ]
             };
 
@@ -222,7 +223,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                     perceivedMonsters: [{ name: 'werewolf' }]
                 },
                 inventory: [
-                    { invlet: 's', name: 'silver saber', category: 'WEAPON', isWeapon: true, isWorn: false }
+                    createTestItem('silver saber', 's', { isWorn: false })
                 ]
             };
 
@@ -241,8 +242,8 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 20, max: 20, percent: 1.0 }, pw: { current: 10, max: 10 } },
                 inventory: [
-                    { invlet: 'A', name: 'iron plate mail', category: 'ARMOR', isWorn: true },
-                    { invlet: 'w', name: 'wand of striking', category: 'WAND' }
+                    createTestItem('iron plate mail', 'A', { isWorn: true }),
+                    createTestItem('wand of striking', 'w')
                 ],
                 spells: [
                     { letter: 'a', name: 'force bolt', level: 1, failRate: '80%', failPercent: 80 }
@@ -263,9 +264,9 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 20, max: 20, percent: 1.0 }, pw: { current: 10, max: 10 } },
                 inventory: [
-                    { invlet: 'a', name: 'katana', category: 'WEAPON', isWeapon: true, isWorn: true },
-                    { invlet: 'A', name: 'iron plate mail', category: 'ARMOR', isWorn: true },
-                    { invlet: 'w', name: 'wand of striking', category: 'WAND' }
+                    createTestItem('katana', 'a', { isWorn: true }),
+                    createTestItem('iron plate mail', 'A', { isWorn: true }),
+                    createTestItem('wand of striking', 'w')
                 ],
                 spells: [
                     { letter: 'a', name: 'force bolt', level: 1, failRate: '80%', failPercent: 80 }
@@ -303,7 +304,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 30, max: 30, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'r', name: 'ruby ring', oclass: 8, identified: false }
+                    createTestItem('ruby ring', 'r', { oclass: 8, identified: false })
                 ],
                 landmarks: {
                     sinks: [{ type: 'SINK', x: 20, y: 10 }]
@@ -320,7 +321,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { hp: { current: 30, max: 30, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'a', name: 'crude ring mail', rawText: 'a - crude ring mail', category: 'ARMOR', identified: false }
+                    createTestItem('crude ring mail', 'a', { identified: false })
                 ],
                 landmarks: {
                     sinks: [{ type: 'SINK', x: 20, y: 10 }]
@@ -336,7 +337,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             const context = {
                 status: { align: 'neutral', hp: { current: 30, max: 30, percent: 1.0 } },
                 inventory: [
-                    { invlet: 'c', name: 'jackal corpse', category: 'FOOD' }
+                    createTestItem('jackal corpse', 'c')
                 ],
                 landmarks: {
                     altars: [{ type: 'ALTAR', details: { alignment: 'neutral' } }]
@@ -375,9 +376,9 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                     hp: { current: 5, max: 30, percent: 0.16 }
                 },
                 inventory: [
-                    { invlet: 'f', name: 'lizard corpse', category: 'FOOD' },
-                    { invlet: 'a', name: 'potion of extra healing', category: 'POTION' },
-                    { invlet: 'u', name: 'unicorn horn', category: 'TOOL' }
+                    createTestItem('lizard corpse', 'f'),
+                    createTestItem('potion of extra healing', 'a'),
+                    createTestItem('unicorn horn', 'u')
                 ]
             };
 

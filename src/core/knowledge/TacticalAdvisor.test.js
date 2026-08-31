@@ -5,6 +5,7 @@ import { InventoryStateManager } from './InventoryStateManager.js';
 import { SpellStateManager } from './SpellStateManager.js';
 import { StatusAccessor } from '../StatusAccessor.js';
 import { AreaStateManager } from './AreaStateManager.js';
+import { createTestItem } from '../../../test/helpers/testItemFactory.js';
 
 describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト', () => {
 
@@ -12,9 +13,9 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('武器未装備時、スキル熟練度（Expert / Skilled）が高い武器がヒントとして提案されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword', isWeapon: true },
-                { letter: 'b', name: 'long sword', rawText: 'b - a +1 long sword', isWeapon: true },
-                { letter: 'c', name: 'dagger', rawText: 'c - an uncursed dagger', isWeapon: true }
+                createTestItem('short sword', 'a'),
+                createTestItem('long sword', 'b', { rawText: 'b - a +1 long sword' }),
+                createTestItem('dagger', 'c')
             ];
 
             const skillMgr = new SkillStateManager();
@@ -42,8 +43,8 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('低スキル武器装備中、高スキル武器（達人）を所持している場合に持ち替えアドバイスが出ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', isWeapon: true, isWielded: true },
-                { letter: 'b', name: 'long sword', rawText: 'b - a +2 long sword', isWeapon: true, isWielded: false }
+                createTestItem('short sword', 'a', { rawText: 'a - an uncursed short sword (weapon in hand)', isWielded: true }),
+                createTestItem('long sword', 'b', { rawText: 'b - a +2 long sword', isWielded: false })
             ];
 
             const skillMgr = new SkillStateManager();
@@ -67,8 +68,8 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('ランチャー（弓・クロスボウ）は近接武器の比較対象から除外されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'dagger', rawText: 'a - an uncursed dagger (weapon in hand)', isWeapon: true, isWielded: true },
-                { letter: 'b', name: 'crossbow', rawText: 'b - an uncursed crossbow', isWeapon: true, isLauncher: true }
+                createTestItem('dagger', 'a', { rawText: 'a - an uncursed dagger (weapon in hand)', isWielded: true }),
+                createTestItem('crossbow', 'b', { isLauncher: true })
             ];
 
             const skillMgr = new SkillStateManager();
@@ -90,7 +91,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('options.language = "en" の場合、英語メッセージが返ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'dagger', rawText: 'a - an uncursed dagger', isWeapon: true }
+                createTestItem('dagger', 'a')
             ];
             const skillMgr = new SkillStateManager();
             skillMgr.updateFromLines(['dagger [Expert]']);
@@ -111,8 +112,8 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('魔法習得時、金属製防具を装備していると魔法失敗率上昇の警告が出ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'iron helmet', rawText: 'a - an uncursed iron helmet (being worn)', isWorn: true, armorSlot: 'helmet' },
-                { letter: 'b', name: 'leather armor', rawText: 'b - a +1 leather armor (being worn)', isWorn: true, armorSlot: 'suit' }
+                createTestItem('iron helmet', 'a', { rawText: 'a - an uncursed iron helmet (being worn)', isWorn: true, armorSlot: 'helmet' }),
+                createTestItem('leather armor', 'b', { rawText: 'b - a +1 leather armor (being worn)', isWorn: true, armorSlot: 'suit' })
             ];
 
             const spellMgr = new SpellStateManager();
@@ -137,7 +138,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('魔法を習得していない場合は金属防具の警告が出ないこと', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'iron helmet', rawText: 'a - an uncursed iron helmet (being worn)', isWorn: true }
+                createTestItem('iron helmet', 'a', { rawText: 'a - an uncursed iron helmet (being worn)', isWorn: true })
             ];
 
             const spellMgr = new SpellStateManager(); // 魔法なし
@@ -160,7 +161,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'g', name: 'leather gloves', rawText: 'g - a pair of leather gloves', isWorn: false }
+                createTestItem('leather gloves', 'g', { isWorn: false })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -183,7 +184,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'g', name: 'leather gloves', rawText: 'g - a pair of leather gloves (being worn)', isWorn: true, armorSlot: 'gloves' }
+                createTestItem('leather gloves', 'g', { rawText: 'g - a pair of leather gloves (being worn)', isWorn: true, armorSlot: 'gloves' })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -217,8 +218,8 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'dagger', rawText: 'a - a dagger (weapon in hand)', isWielded: true },
-                { letter: 's', name: 'silver saber', rawText: 's - a silver saber', isWielded: false }
+                createTestItem('dagger', 'a', { rawText: 'a - a dagger (weapon in hand)', isWielded: true }),
+                createTestItem('silver saber', 's', { isWielded: false })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -240,7 +241,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'p', name: 'potion of extra healing', rawText: 'p - a potion of extra healing' }
+                createTestItem('potion of extra healing', 'p')
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -262,7 +263,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'f', name: 'food ration', rawText: 'f - a food ration', category: 'FOOD' }
+                createTestItem('food ration', 'f')
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -302,7 +303,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'w', name: 'water walking boots', rawText: 'w - a pair of water walking boots', isWorn: false }
+                createTestItem('water walking boots', 'w', { isWorn: false })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -320,8 +321,8 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
         it('手品袋と魔法の袋(Bag of Tricks)を同時に所持している場合、爆発危険警告が出ること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'b', name: 'bag of holding', onum: 216, rawText: 'b - a bag of holding' },
-                { letter: 't', name: 'bag of tricks', onum: 290, rawText: 't - a bag of tricks' }
+                createTestItem('bag of holding', 'b'),
+                createTestItem('bag of tricks', 't')
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -358,7 +359,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'g', name: 'leather gloves', rawText: 'g - a pair of leather gloves', isWorn: false }
+                createTestItem('leather gloves', 'g', { isWorn: false })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -395,7 +396,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'silver dagger', rawText: 'a - a silver dagger', isWeapon: true, isWielded: false }
+                createTestItem('silver dagger', 'a', { isWielded: false })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({
@@ -499,7 +500,7 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
 
             const invMgr = new InventoryStateManager();
             invMgr.items = [
-                { letter: 'a', name: 'iron chain mail', rawText: 'a - an iron chain mail (being worn)', isWorn: true }
+                createTestItem('iron chain mail', 'a', { rawText: 'a - an iron chain mail (being worn)', isWorn: true })
             ];
 
             const advices = TacticalAdvisor.generateAdvices({ areaState, inventoryState: invMgr });
