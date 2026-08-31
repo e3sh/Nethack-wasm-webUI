@@ -11600,6 +11600,9 @@
         { en: "Vaporous cloud or mist. Floating obstacle on air planes.", jp: "蒸気の雲や霧。風の精霊界などに出現する浮遊障害物です。" },
         { en: "Air", jp: "大気" },
         { en: "Open sky or void on the Plane of Air.", jp: "何もない上空空間。風の精霊界などの広大な大気です。" },
+        { en: "Essential tool for opening tins.", jp: "缶詰を開けるための必需品。" },
+        { en: "Applies (#apply) to open tins safely and instantly in 1 turn.", jp: "道具(#apply)で使用すると、1ターンで安全かつ即座に缶詰を開けられます。" },
+        { en: "Apply (#apply) to write desired scrolls or spellbooks onto blank paper.", jp: "道具(#apply)で使用して白紙の巻物や魔導書に好きな魔法を書き込めます。" },
     ];
 }
 

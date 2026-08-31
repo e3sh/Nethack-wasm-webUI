@@ -216,7 +216,8 @@ describe('GKL SSOT Phase 1 - Knowledge Infrastructure Tests', () => {
             expect(localizedEye.threat).toBeDefined();
             // threat.description should be translated to Japanese
             expect(localizedEye.threat.description).toContain('麻痺');
-            expect(localizedEye.threat.counters[0].message).toContain('浮遊する目玉');
+            expect(localizedEye.threat.counters[0].id).toBe('COUNTER_BLINDFOLD');
+            expect(localizedEye.threat.counters[0].message).toContain('目隠し');
         });
     });
 

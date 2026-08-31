@@ -10,7 +10,8 @@ describe('ItemIdentificationResolver', () => {
         expect(res.appearanceName).toBe('ruby potion');
         expect(res.bucStatus).toBe('UNKNOWN');
         expect(res.calledName).toBeNull();
-        expect(res.identificationTips.length).toBeGreaterThan(0);
+        expect(Array.isArray(res.identificationTips)).toBe(true);
+        expect(res.identificationTips.length).toBe(0);
     });
 
     it('2. BUC判明済み未識別アイテム (Lv.1: BUC_KNOWN) を正しく解決する', () => {

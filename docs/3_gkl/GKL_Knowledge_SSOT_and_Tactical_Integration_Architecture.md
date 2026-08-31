@@ -278,12 +278,12 @@ Phase 3: TacticalAdvisor のデータ駆動化リファクタリング (完了)
  ├─ 確定耐性に基づく安全/危険アドバイスの動的調停（毒・麻痺・ドレイン等）
  └─ 既存単体テスト（全31テスト）および全体回帰テスト（全398テスト）のパス確認
 
-Phase 3.5: ナレッジデータ構造の根本整理 ＆ スキーマ正規化 (手戻り根絶フェーズ)
+Phase 3.5: ナレッジデータ構造の根本整理 ＆ スキーマ正規化 (手戻り根絶フェーズ) (完了)
  ├─ 【スコープ分離】動的戦術（検知可能な具体的脅威）と静的知識（兜の落石防御等）の責務明確化
  ├─ 【統合防護モデル】モンスター脅威（GAZE, TOUCH等）＋ 地形ハザード（LAVA, WATER, TRAP等）の包括
  ├─ 【アイテム特性】protectsAgainst（'GAZE', 'TOUCH_STONING', 'LAVA'等）、material、effects の正規化
  ├─ 【個別名判定の完全撤廃】blindfold, gloves, iron, levitation 等の文字列/ID判定の一掃
- └─ 【静的監査基盤】KnowledgeIntegrityAudit.test.js（全384体/481アイテムの充足率・整合性テスト）の新設
+ └─ 【静的監査基盤】KnowledgeIntegrityAudit.test.js（全384体/481アイテムの充足率・整合性テスト）の新設・全テスト通過 (406 passed)
 
 Phase 4: AssistSignalSynthesizer のデータ駆動化リファクタリング
  ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化

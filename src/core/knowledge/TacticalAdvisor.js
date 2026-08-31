@@ -10,6 +10,7 @@ import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
 import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
 import { isShopkeeperMonster } from './glyphClassifier.js';
+import { createAdvice } from './ADVICE_DEFINITIONS.js';
 
 export class TacticalAdvisor {
 
@@ -88,23 +89,22 @@ export class TacticalAdvisor {
         const playerY = areaState.playerLocation ? areaState.playerLocation.y : (areaState.center ? areaState.center.y : 0);
         const grid = areaState.grid;
 
-        // 手袋を着用しているか判定 (SSOT: armorSlot === 'gloves' or category)
+        // 手袋を着用しているか判定 (SSOT: protectsAgainst.includes('TOUCH_STONING') or armorSlot === 'gloves')
         const isWearingGloves = inventoryState ? (
-            typeof inventoryState.isWearingCategory === 'function' 
-                ? inventoryState.isWearingCategory('ARMOR_GLOVES') 
+            typeof inventoryState.isWearingCategory === 'function' && inventoryState.isWearingCategory('ARMOR_GLOVES')
+                ? true
                 : (inventoryState.items || []).some(i => i.isWorn && (
-                    i.armorSlot === 'gloves' || i.knowledge?.armorSlot === 'gloves' || 
-                    (i.name || i.rawText || '').toLowerCase().includes('gloves') || 
-                    (i.name || i.rawText || '').toLowerCase().includes('gauntlets')
+                    (Array.isArray(i.protectsAgainst) && i.protectsAgainst.includes('TOUCH_STONING')) ||
+                    (Array.isArray(i.knowledge?.protectsAgainst) && i.knowledge.protectsAgainst.includes('TOUCH_STONING')) ||
+                    i.armorSlot === 'gloves' || i.knowledge?.armorSlot === 'gloves'
                 ))
         ) : false;
 
-        // 目隠し/タオルを着用しているか判定 (SSOT: onum 259: blindfold, 260: towel)
+        // 目隠し/タオルを着用しているか判定 (SSOT: protectsAgainst.includes('GAZE'))
         const isBlindfolded = inventoryState ? (
             (inventoryState.items || []).some(i => i.isWorn && (
-                i.onum === 259 || i.onum === 260 || i.knowledge?.onum === 259 || i.knowledge?.onum === 260 ||
-                (i.name || i.rawText || '').toLowerCase().includes('blindfold') || 
-                (i.name || i.rawText || '').toLowerCase().includes('towel')
+                (Array.isArray(i.protectsAgainst) && i.protectsAgainst.includes('GAZE')) ||
+                (Array.isArray(i.knowledge?.protectsAgainst) && i.knowledge.protectsAgainst.includes('GAZE'))
             ))
         ) : false;
 
@@ -116,22 +116,19 @@ export class TacticalAdvisor {
         // インベントリから対策アイテム（手袋、目隠し、銀製武器、解毒、遠距離武器等）を抽出 (SSOT連動)
         const gloveItems = inventoryState ? (inventoryState.items || []).filter(i => {
             if (i.isWorn) return false;
-            const isGloveSlot = i.armorSlot === 'gloves' || i.knowledge?.armorSlot === 'gloves';
-            const raw = (i.rawText || i.name || '').toLowerCase();
-            return isGloveSlot || raw.includes('gloves') || raw.includes('gauntlets') || raw.includes('手袋') || raw.includes('小手');
+            return (Array.isArray(i.protectsAgainst) && i.protectsAgainst.includes('TOUCH_STONING')) ||
+                   (Array.isArray(i.knowledge?.protectsAgainst) && i.knowledge.protectsAgainst.includes('TOUCH_STONING')) ||
+                   i.armorSlot === 'gloves' || i.knowledge?.armorSlot === 'gloves';
         }) : [];
 
         const blindfoldItems = inventoryState ? (inventoryState.items || []).filter(i => {
             if (i.isWorn) return false;
-            const isOnum = i.onum === 259 || i.onum === 260 || i.knowledge?.onum === 259 || i.knowledge?.onum === 260;
-            const raw = (i.rawText || i.name || '').toLowerCase();
-            return isOnum || raw.includes('blindfold') || raw.includes('towel');
+            return (Array.isArray(i.protectsAgainst) && i.protectsAgainst.includes('GAZE')) ||
+                   (Array.isArray(i.knowledge?.protectsAgainst) && i.knowledge.protectsAgainst.includes('GAZE'));
         }) : [];
 
         const silverWeapons = inventoryState ? (inventoryState.items || []).filter(i => {
-            const isSilverMat = i.material === 'silver' || i.knowledge?.material === 'silver';
-            const raw = (i.rawText || i.name || '').toLowerCase();
-            return isSilverMat || raw.includes('silver') || raw.includes('銀');
+            return i.isSilver || i.knowledge?.isSilver || i.material === 'silver' || i.knowledge?.material === 'silver';
         }) : [];
 
         const cureSicknessItems = inventoryState ? (inventoryState.items || []).filter(i => {
@@ -178,7 +175,7 @@ export class TacticalAdvisor {
             const attacks = Array.isArray(monKnowledge.attacks) ? monKnowledge.attacks : [];
 
             // 1. 石化 (PETRIFICATION)
-            if (threatType === 'PETRIFICATION' || traits.petrifiesOnTouch || monKnowledge.petrifiesOnTouch) {
+            if (threat?.effect === 'STONING' || threatType === 'PETRIFICATION' || traits.petrifiesOnTouch || monKnowledge.petrifiesOnTouch) {
                 threats.petrify.detected = true;
                 if (weight > threats.petrify.maxWeight) {
                     threats.petrify.maxWeight = weight;
@@ -189,7 +186,7 @@ export class TacticalAdvisor {
             }
 
             // 2. 視線麻痺 (GAZE_PARALYSIS)
-            if (threatType === 'GAZE_PARALYSIS' || traits.paralysisGaze || monKnowledge.paralysisGaze) {
+            if ((threat?.delivery === 'GAZE' && threat?.effect === 'PARALYSIS') || threatType === 'GAZE_PARALYSIS' || traits.paralysisGaze || monKnowledge.paralysisGaze) {
                 if (dist <= 4 || weight < 1.0) {
                     threats.paralysis.detected = true;
                     if (weight > threats.paralysis.maxWeight) {
@@ -202,7 +199,7 @@ export class TacticalAdvisor {
             }
 
             // 3. 毒 (POISON)
-            if (threatType === 'POISON' || attacks.some(a => a.effect === 'poison')) {
+            if (threat?.effect === 'POISON' || threatType === 'POISON' || attacks.some(a => a.effect === 'poison')) {
                 threats.poison.detected = true;
                 if (weight > threats.poison.maxWeight) {
                     threats.poison.maxWeight = weight;
@@ -213,7 +210,7 @@ export class TacticalAdvisor {
             }
 
             // 4. 近接自爆 (EXPLOSION)
-            if (threatType === 'EXPLOSION' || traits.explodesOnMelee || monKnowledge.explodesOnMelee) {
+            if (threat?.effect === 'PHYSICAL_BURST' || threat?.effect === 'EXPLOSION' || threatType === 'EXPLOSION' || traits.explodesOnMelee || monKnowledge.explodesOnMelee) {
                 if (dist === 1 && weight === 1.0) {
                     threats.spore.detected = true;
                     if (weight > threats.spore.maxWeight) {
@@ -226,7 +223,7 @@ export class TacticalAdvisor {
             }
 
             // 5. レベルドレイン (LEVEL_DRAIN)
-            if (threatType === 'LEVEL_DRAIN' || traits.drainsLevel || attacks.some(a => a.effect === 'drain_level')) {
+            if (threat?.effect === 'LEVEL_DRAIN' || threatType === 'LEVEL_DRAIN' || traits.drainsLevel || attacks.some(a => a.effect === 'drain_level')) {
                 threats.drain.detected = true;
                 if (weight > threats.drain.maxWeight) {
                     threats.drain.maxWeight = weight;
@@ -236,8 +233,8 @@ export class TacticalAdvisor {
                 }
             }
 
-            // 6. 装備腐食・錆び (EQUIPMENT_DAMAGE)
-            if ((threatType === 'EQUIPMENT_DAMAGE' && (threat.description?.includes('Rust') || traits.rustsEquipment)) || traits.rustsEquipment) {
+            // 6. 装備腐食・錆び (EQUIPMENT_DAMAGE / RUST)
+            if (threat?.effect === 'RUST' || threat?.targetMaterial === 'iron' || traits.rustsEquipment) {
                 threats.rust.detected = true;
                 if (weight > threats.rust.maxWeight) {
                     threats.rust.maxWeight = weight;
@@ -248,7 +245,7 @@ export class TacticalAdvisor {
             }
 
             // 7. 知性吸い (BRAIN_EAT)
-            if (threatType === 'BRAIN_EAT' || traits.eatsBrain) {
+            if (threat?.effect === 'BRAIN_EAT' || threatType === 'BRAIN_EAT' || traits.eatsBrain) {
                 threats.brain.detected = true;
                 if (weight > threats.brain.maxWeight) {
                     threats.brain.maxWeight = weight;
@@ -259,7 +256,7 @@ export class TacticalAdvisor {
             }
 
             // 8. スライム化 (SLIME)
-            if (threatType === 'SLIME' || traits.causesSlime) {
+            if (threat?.effect === 'SLIME' || threatType === 'SLIME' || traits.causesSlime) {
                 threats.slime.detected = true;
                 if (weight > threats.slime.maxWeight) {
                     threats.slime.maxWeight = weight;
@@ -270,7 +267,7 @@ export class TacticalAdvisor {
             }
 
             // 9. 水中引き込み・溺死 (DROWNING)
-            if (threatType === 'DROWNING' || traits.drownsPlayer) {
+            if (threat?.effect === 'DROWNING' || threatType === 'DROWNING' || traits.drownsPlayer) {
                 threats.drown.detected = true;
                 if (weight > threats.drown.maxWeight) {
                     threats.drown.maxWeight = weight;
@@ -281,7 +278,7 @@ export class TacticalAdvisor {
             }
 
             // 10. 視線混乱 (CONFUSION_GAZE)
-            if (threatType === 'CONFUSION_GAZE' || traits.gazeConfusion) {
+            if ((threat?.delivery === 'GAZE' && threat?.effect === 'CONFUSION') || threatType === 'CONFUSION_GAZE' || traits.gazeConfusion) {
                 if (dist <= 4 || weight < 1.0) {
                     threats.confusionGaze.detected = true;
                     if (weight > threats.confusionGaze.maxWeight) {
@@ -346,49 +343,29 @@ export class TacticalAdvisor {
 
             if (!isWearingGloves && !effectiveResists.stoning) {
                 if (threats.petrify.maxWeight >= 1.0) {
-                    advices.push({
-                        id: 'ADVICE_THREAT_PETRIFICATION',
-                        severity: 'CRITICAL',
-                        topic: 'THREAT',
-                        messageJa: `⚠️ 危険: ${petrifyMonNameJa}が接近！手袋未着用のため素手・直接接触で即死(石化)します。手袋着用または遠隔攻撃を推奨。`,
-                        messageEn: `⚠️ DANGER: ${petrifyMonName} approaching! Touching without gloves causes instant petrification. Wear gloves or use ranged attacks.`,
-                        hintLetters: hintLetters,
-                        hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                        score: 1000
-                    });
+                    advices.push(createAdvice('ADVICE_THREAT_PETRIFICATION', {
+                        monsterJa: petrifyMonNameJa,
+                        monsterEn: petrifyMonName,
+                        hintLetters
+                    }));
                 } else if (threats.petrify.maxWeight >= 0.8) {
-                    advices.push({
-                        id: 'ADVICE_THREAT_PETRIFICATION_UNSEEN',
-                        severity: 'WARNING',
-                        topic: 'THREAT',
-                        messageJa: `⚠️ 警戒: 付近に${petrifyMonNameJa}が潜伏中！再接敵に備えて手袋の事前着用を強く推奨。`,
-                        messageEn: `⚠️ CAUTION: ${petrifyMonName} lurking nearby! Wear gloves in advance before engaging.`,
-                        hintLetters: hintLetters,
-                        hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                        score: 800
-                    });
+                    advices.push(createAdvice('ADVICE_THREAT_PETRIFICATION_UNSEEN', {
+                        monsterJa: petrifyMonNameJa,
+                        monsterEn: petrifyMonName,
+                        hintLetters
+                    }));
                 } else if (threats.petrify.maxWeight >= 0.4) {
-                    advices.push({
-                        id: 'ADVICE_THREAT_PETRIFICATION_DECAY',
-                        severity: 'INFO',
-                        topic: 'THREAT',
-                        messageJa: `⚠️ 周辺警戒: ${petrifyMonNameJa}の気配あり。手袋未着用の場合は事前着用を推奨。`,
-                        messageEn: `⚠️ NOTICE: Trace of ${petrifyMonName} detected nearby. Consider wearing gloves.`,
-                        hintLetters: hintLetters,
-                        hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                        score: 400
-                    });
+                    advices.push(createAdvice('ADVICE_THREAT_PETRIFICATION_DECAY', {
+                        monsterJa: petrifyMonNameJa,
+                        monsterEn: petrifyMonName,
+                        hintLetters
+                    }));
                 }
             } else {
-                advices.push({
-                    id: 'ADVICE_THREAT_PETRIFICATION_SAFE',
-                    severity: 'INFO',
-                    topic: 'THREAT',
-                    messageJa: `🛡️ 防護済み: ${petrifyMonNameJa}が接近中ですが、手袋着用/石化耐性により直接接触時の即死は防止されています。`,
-                    messageEn: `🛡️ PROTECTED: ${petrifyMonName} nearby, but gloves/stoning resistance protect against instant petrification.`,
-                    hintLetters: [],
-                    score: 300
-                });
+                advices.push(createAdvice('ADVICE_THREAT_PETRIFICATION_SAFE', {
+                    monsterJa: petrifyMonNameJa,
+                    monsterEn: petrifyMonName
+                }));
             }
         }
 
@@ -399,41 +376,27 @@ export class TacticalAdvisor {
             const hintLetters = blindfoldItems.map(i => i.letter).filter(Boolean);
 
             if (!isBlindfolded && !effectiveResists.freeAction) {
+                const targetLetters = hintLetters.length > 0 ? hintLetters : rangedItems.map(i => i.letter).filter(Boolean);
                 if (threats.paralysis.maxWeight >= 1.0) {
-                    advices.push({
-                        id: 'ADVICE_THREAT_FLOATING_EYE',
-                        severity: 'WARNING',
-                        topic: 'THREAT',
-                        messageJa: '⚠️ 警告: 浮遊する目玉(Floating Eye)を直視・近接攻撃すると麻痺します。目隠し着用または飛び道具で攻撃してください。',
-                        messageEn: '⚠️ WARNING: Attacking Floating Eye in melee causes severe paralysis. Wear a blindfold or attack from range.',
-                        hintLetters: hintLetters.length > 0 ? hintLetters : rangedItems.map(i => i.letter).filter(Boolean),
-                        hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                        score: 700
-                    });
+                    advices.push(createAdvice('ADVICE_THREAT_FLOATING_EYE', {}, {
+                        hintLetters: targetLetters,
+                        hintCommand: hintLetters.length > 0 ? 'W' : 'f'
+                    }));
                 } else if (threats.paralysis.maxWeight >= 0.8) {
-                    advices.push({
-                        id: 'ADVICE_THREAT_FLOATING_EYE_UNSEEN',
-                        severity: 'INFO',
-                        topic: 'THREAT',
-                        messageJa: '⚠️ 警戒: 付近に浮遊する目玉(Floating Eye)が潜伏中。目隠し着用または飛び道具の準備を推奨。',
-                        messageEn: '⚠️ CAUTION: Floating Eye lurking nearby. Prepare blindfold or ranged attacks.',
-                        hintLetters: hintLetters.length > 0 ? hintLetters : rangedItems.map(i => i.letter).filter(Boolean),
-                        hintCommand: hintLetters.length > 0 ? 'W' : 'f',
-                        score: 560
-                    });
+                    advices.push(createAdvice('ADVICE_THREAT_FLOATING_EYE_UNSEEN', {}, {
+                        hintLetters: targetLetters,
+                        hintCommand: hintLetters.length > 0 ? 'W' : 'f'
+                    }));
                 }
             } else {
                 const reasonJa = effectiveResists.freeAction ? '自由行動(Free Action)耐性' : '目隠し着用';
                 const reasonEn = effectiveResists.freeAction ? 'Free Action' : 'Blindfold';
-                advices.push({
-                    id: 'ADVICE_THREAT_FLOATING_EYE_SAFE',
-                    severity: 'INFO',
-                    topic: 'THREAT',
-                    messageJa: `🛡️ 麻痺無効: ${eyeMonNameJa}の麻痺視線は${reasonJa}により無効化されています。`,
-                    messageEn: `🛡️ PARALYSIS IMMUNE: ${eyeMonName} gaze is negated by ${reasonEn}.`,
-                    hintLetters: [],
-                    score: 300
-                });
+                advices.push(createAdvice('ADVICE_THREAT_FLOATING_EYE_SAFE', {
+                    monsterJa: eyeMonNameJa,
+                    monsterEn: eyeMonName,
+                    reasonJa,
+                    reasonEn
+                }));
             }
         }
 
@@ -451,41 +414,28 @@ export class TacticalAdvisor {
                     ...rangedItems.map(i => i.letter)
                 ].filter(Boolean);
 
-                advices.push({
-                    id: 'ADVICE_THREAT_POISON',
-                    severity: severity,
-                    topic: 'THREAT',
-                    messageJa: `⚠️ 毒警戒: ${poisonMonNameJa}が接近！毒耐性がないため致命的な毒ダメージを受けます。遠距離武器やエルベレスで迎撃してください。`,
-                    messageEn: `⚠️ POISON HAZARD: ${poisonMonName} approaching! Lethal poison damage without poison resistance. Fight from range or use Elbereth.`,
-                    hintLetters: letters.slice(0, 3),
-                    hintCommand: cureSicknessItems.length > 0 ? (cureSicknessItems[0].knowledge?.actionVerb || 'a') : 'f',
-                    score: basePriority * 10
-                });
+                advices.push(createAdvice('ADVICE_THREAT_POISON', {
+                    monsterJa: poisonMonNameJa,
+                    monsterEn: poisonMonName,
+                    hintLetters: letters.slice(0, 3)
+                }, {
+                    severity,
+                    score: basePriority * 10,
+                    hintCommand: cureSicknessItems.length > 0 ? (cureSicknessItems[0].knowledge?.actionVerb || 'a') : 'f'
+                }));
             } else {
-                advices.push({
-                    id: 'ADVICE_THREAT_POISON_SAFE',
-                    severity: 'INFO',
-                    topic: 'THREAT',
-                    messageJa: `🛡️ 毒耐性あり: ${poisonMonNameJa}が接近中ですが、毒耐性があるため毒による即死・追加ダメージは無効化されます。`,
-                    messageEn: `🛡️ POISON IMMUNE: ${poisonMonName} approaching, but poison resistance protects from lethal damage.`,
-                    hintLetters: [],
-                    score: 300
-                });
+                advices.push(createAdvice('ADVICE_THREAT_POISON_SAFE', {
+                    monsterJa: poisonMonNameJa,
+                    monsterEn: poisonMonName
+                }));
             }
         }
 
         // 4. 近接自爆警告 (ガス胞子等)
         if (threats.spore.detected) {
-            advices.push({
-                id: 'ADVICE_THREAT_GAS_SPORE',
-                severity: 'WARNING',
-                topic: 'THREAT',
-                messageJa: '⚠️ 警告: ガス胞子(Gas Spore)が隣接しています！近接攻撃すると大爆発します。後退するか飛び道具で撃破してください。',
-                messageEn: '⚠️ WARNING: Gas Spore adjacent! Melee attack triggers massive explosion. Step back or shoot from range.',
-                hintLetters: rangedItems.map(i => i.letter).filter(Boolean),
-                hintCommand: 'f',
-                score: 850
-            });
+            advices.push(createAdvice('ADVICE_THREAT_GAS_SPORE', {}, {
+                hintLetters: rangedItems.map(i => i.letter).filter(Boolean)
+            }));
         }
 
         // 5. レベルドレイン警告 (吸血鬼・レイス等)
@@ -494,26 +444,15 @@ export class TacticalAdvisor {
             const drainMonNameJa = threats.drain.monNameJa || '吸血鬼/レイス';
 
             if (!effectiveResists.drain) {
-                advices.push({
-                    id: 'ADVICE_THREAT_LEVEL_DRAIN',
-                    severity: 'WARNING',
-                    topic: 'THREAT',
-                    messageJa: `🩸 ドレイン警戒: ${drainMonNameJa}が接近！ドレイン耐性がないため経験レベルが吸い取られます。遠隔やエルベレスで迎撃してください。`,
-                    messageEn: `🩸 LEVEL DRAIN WARNING: ${drainMonName} nearby! Attacks drain experience level without drain resistance. Fight from range.`,
-                    hintLetters: [],
-                    hintCommand: 'f',
-                    score: 820
-                });
+                advices.push(createAdvice('ADVICE_THREAT_LEVEL_DRAIN', {
+                    monsterJa: drainMonNameJa,
+                    monsterEn: drainMonName
+                }));
             } else {
-                advices.push({
-                    id: 'ADVICE_THREAT_LEVEL_DRAIN_SAFE',
-                    severity: 'INFO',
-                    topic: 'THREAT',
-                    messageJa: `🛡️ ドレイン耐性あり: ${drainMonNameJa}が接近中ですが、ドレイン耐性により経験レベルの低下は防止されています。`,
-                    messageEn: `🛡️ DRAIN RESISTANT: ${drainMonName} nearby, but drain resistance prevents level loss.`,
-                    hintLetters: [],
-                    score: 300
-                });
+                advices.push(createAdvice('ADVICE_THREAT_LEVEL_DRAIN_SAFE', {
+                    monsterJa: drainMonNameJa,
+                    monsterEn: drainMonName
+                }));
             }
         }
 
@@ -522,80 +461,45 @@ export class TacticalAdvisor {
             const hasIronGear = inventoryState ? (inventoryState.items || []).some(i => {
                 if (!i.isWorn) return false;
                 const k = i.knowledge || (i.onum !== undefined ? OBJECT_KNOWLEDGE_MAP.get(i.onum) : null);
-                if (k && (k.material === 'iron' || k.material === 'copper' || k.material === 'metal')) return true;
-                const raw = (i.name || i.rawText || '').toLowerCase();
-                return raw.includes('iron') || raw.includes('mail') || raw.includes('sword') || raw.includes('helmet');
+                if (k && (k.material === 'iron' || k.material === 'copper' || k.material === 'metal' || k.isMetallic)) return true;
+                if (i.material === 'iron' || i.material === 'copper' || i.material === 'metal' || i.isMetallic) return true;
+                return false;
             }) : false;
 
             if (hasIronGear) {
                 const rustMonName = threats.rust.monName || 'rust monster';
                 const rustMonNameJa = threats.rust.monNameJa || 'ラストモンスター';
-                advices.push({
-                    id: 'ADVICE_THREAT_RUST_MONSTER',
-                    severity: 'WARNING',
-                    topic: 'THREAT',
-                    messageJa: `🛡️ 腐食警告: ${rustMonNameJa}が接近！鉄製装備が錆びて劣化・破壊されます。木製/銀製装備への持ち替えや素手・遠隔攻撃を推奨。`,
-                    messageEn: `🛡️ RUST HAZARD: ${rustMonName} approaching! It rusts and destroys iron gear. Switch to wooden/silver weapons or fight from range.`,
-                    hintLetters: [],
-                    hintCommand: 'w',
-                    score: 750
-                });
+                advices.push(createAdvice('ADVICE_THREAT_RUST_MONSTER', {
+                    monsterJa: rustMonNameJa,
+                    monsterEn: rustMonName
+                }));
             }
         }
 
         // 7. 知性吸い・脳食い警告 (マインドフレア等)
         if (threats.brain.detected) {
-            advices.push({
-                id: 'ADVICE_THREAT_MIND_FLAYER',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: '🧠 脳食い危険: マインドフレア(Mind Flayer)接近！触手攻撃で知力を吸い尽くされると即死します。エルベレスや遠隔即死で処理してください。',
-                messageEn: '🧠 BRAIN EATER DANGER: Mind Flayer nearby! Tentacle attacks permanently eat Int until instant death. Use Elbereth or ranged attacks.',
-                hintLetters: rangedItems.map(i => i.letter).filter(Boolean),
-                hintCommand: 'f',
-                score: 950
-            });
+            advices.push(createAdvice('ADVICE_THREAT_MIND_FLAYER', {}, {
+                hintLetters: rangedItems.map(i => i.letter).filter(Boolean)
+            }));
         }
 
         // 8. スライム化警告 (グリーンスライム)
         if (threats.slime.detected) {
-            advices.push({
-                id: 'ADVICE_THREAT_GREEN_SLIME',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: '🧪 スライム化警告: グリーンスライム(Green Slime)接近！接触でスライム化即死します。火炎攻撃または遠隔で速やかに撃破してください。',
-                messageEn: '🧪 SLIME THREAT: Green Slime nearby! Contact turns player into slime. Use fire attacks or ranged weapons.',
-                hintLetters: rangedItems.map(i => i.letter).filter(Boolean),
-                hintCommand: 'f',
-                score: 920
-            });
+            advices.push(createAdvice('ADVICE_THREAT_GREEN_SLIME', {}, {
+                hintLetters: rangedItems.map(i => i.letter).filter(Boolean)
+            }));
         }
 
         // 9. 水没・溺死警告 (クラーケン・ウナギ等)
         if (threats.drown.detected && !effectiveResists.levitation && !effectiveResists.wwalking) {
-            advices.push({
-                id: 'ADVICE_THREAT_DROWNING',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: '🌊 溺死警告: 水生魔獣が潜伏！浮遊・水上歩行なしで水辺に近づくと引きずり込まれ即座に溺死します。',
-                messageEn: '🌊 DROWNING HAZARD: Aquatic monster nearby! Approaching water without levitation/water-walking causes instant drowning.',
-                hintLetters: [],
-                score: 960
-            });
+            advices.push(createAdvice('ADVICE_THREAT_DROWNING'));
         }
 
         // 10. 視線混乱警告 (アンバーハルク等)
         if (threats.confusionGaze.detected && !isBlindfolded && !effectiveResists.conf) {
-            advices.push({
-                id: 'ADVICE_THREAT_CONFUSION_GAZE',
-                severity: 'WARNING',
-                topic: 'THREAT',
-                messageJa: '💫 混乱視線警告: アンバーハルク(Umber Hulk)の視線で混乱します。目隠し(Blindfold)やタオルを着用して視界を遮断してください。',
-                messageEn: '💫 CONFUSION GAZE: Umber Hulk gaze causes severe confusion. Wear a blindfold/towel to block sight.',
-                hintLetters: blindfoldItems.map(i => i.letter).filter(Boolean),
-                hintCommand: 'W',
-                score: 680
-            });
+            advices.push(createAdvice('ADVICE_THREAT_CONFUSION_GAZE', {}, {
+                hintLetters: blindfoldItems.map(i => i.letter).filter(Boolean)
+            }));
         }
 
         // 11. 銀特効サジェスト
@@ -628,30 +532,12 @@ export class TacticalAdvisor {
 
             // コカトリス死体が足元にあるが手袋をしていない
             if ((raw.includes('cockatrice corpse') || raw.includes('chickatrice corpse') || raw.includes('コカトリスの死体')) && !isWearingGloves) {
-                advices.push({
-                    id: 'ADVICE_HAZARD_PETRIFY_CORPSE',
-                    severity: 'CRITICAL',
-                    topic: 'THREAT',
-                    messageJa: '⚠️ 致命的危険: 足元にコカトリスの死体があります！手袋未着用で拾う/触ると即座に石化死します。手袋を着用してください。',
-                    messageEn: '⚠️ LETHAL HAZARD: Cockatrice corpse at feet! Picking up without gloves causes instant petrification. Wear gloves first.',
-                    hintLetters: [],
-                    hintCommand: 'W',
-                    score: 990
-                });
+                advices.push(createAdvice('ADVICE_HAZARD_PETRIFY_CORPSE'));
             }
 
             // 経験値アップ死体 (レイスの死体)
             if (raw.includes('wraith corpse') || raw.includes('レイスの死体')) {
-                advices.push({
-                    id: 'ADVICE_TACTICS_EAT_WRAITH_CORPSE',
-                    severity: 'TIP',
-                    topic: 'SURVIVAL',
-                    messageJa: '✨ レベルアップ: 足元のレイスの死体を食べる(\'e\')と経験レベルが1上昇します！腐る前に摂取してください。',
-                    messageEn: '✨ LEVEL UP: Eating wraith corpse (\'e\') grants +1 level! Eat before it rots.',
-                    hintLetters: [],
-                    hintCommand: 'e',
-                    score: 800
-                });
+                advices.push(createAdvice('ADVICE_TACTICS_EAT_WRAITH_CORPSE'));
             }
         }
 
@@ -710,15 +596,10 @@ export class TacticalAdvisor {
             const countTextJa = groupList.length > 3 ? `他 ${groupList.length - 3} 種` : '';
             const countTextEn = groupList.length > 3 ? `+${groupList.length - 3} more` : '';
 
-            advices.push({
-                id: 'ADVICE_THREAT_PERCEIVED_RADAR',
-                severity: 'INFO',
-                topic: 'THREAT',
-                messageJa: `🧭 周辺の気配: モンスターを認知中 [${summaryPartsJa.join(', ')}${countTextJa ? ' / ' + countTextJa : ''}]`,
-                messageEn: `🧭 Perceived Radar: Monsters detected [${summaryPartsEn.join(', ')}${countTextEn ? ' / ' + countTextEn : ''}]`,
-                hintLetters: [],
-                score: 250
-            });
+            advices.push(createAdvice('ADVICE_THREAT_PERCEIVED_RADAR', {
+                summaryJa: `${summaryPartsJa.join(', ')}${countTextJa ? ' / ' + countTextJa : ''}`,
+                summaryEn: `${summaryPartsEn.join(', ')}${countTextEn ? ' / ' + countTextEn : ''}`
+            }));
         }
     }
 
@@ -748,9 +629,14 @@ export class TacticalAdvisor {
         if (inventoryState && Array.isArray(inventoryState.items)) {
             for (const item of inventoryState.items) {
                 if (!item.isWorn) continue;
-                const raw = (item.rawText || item.name || '').toLowerCase();
-                if (raw.includes('levitation') || raw.includes('浮遊')) isLevitating = true;
-                if (raw.includes('water walking') || raw.includes('水上歩行')) isWaterWalking = true;
+                const conveys = item.propConveyed || item.knowledge?.propConveyed;
+                const protects = item.protectsAgainst || item.knowledge?.protectsAgainst || [];
+                if (conveys === 'levitation' || conveys === 'flying' || protects.includes('LAVA')) {
+                    isLevitating = true;
+                }
+                if (conveys === 'water walking' || protects.includes('WATER')) {
+                    isWaterWalking = true;
+                }
             }
         }
 
@@ -789,49 +675,30 @@ export class TacticalAdvisor {
 
         // 溶岩警告 (浮遊なし)
         if (hasLavaAdjacent && !isLevitating) {
-            advices.push({
-                id: 'ADVICE_HAZARD_LAVA',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: '🌋 溶岩警告: 周辺に溶岩(Lava)があります！浮遊手段なしで侵入すると即死・全アイテムが焼失します。',
-                messageEn: '🌋 LAVA HAZARD: Lava nearby! Stepping without levitation causes instant death & destroys all items.',
-                hintLetters: [],
-                score: 980
-            });
+            advices.push(createAdvice('ADVICE_HAZARD_LAVA'));
         }
 
         // 水場警告 (浮遊・水上歩行なし)
         if (hasWaterAdjacent && !isLevitating && !isWaterWalking) {
-            // 浮遊・水上歩行アイテムのサジェスト
+            // 浮遊・水上歩行アイテムのサジェスト (SSOT: protectsAgainst or propConveyed)
             const waterGear = inventoryState ? (inventoryState.items || []).filter(i => {
-                const raw = (i.rawText || i.name || '').toLowerCase();
-                return (raw.includes('levitation') || raw.includes('water walking') || raw.includes('浮遊') || raw.includes('水上歩行')) && !i.isWorn;
+                if (i.isWorn) return false;
+                const conveys = i.propConveyed || i.knowledge?.propConveyed;
+                const protects = i.protectsAgainst || i.knowledge?.protectsAgainst || [];
+                return conveys === 'levitation' || conveys === 'flying' || conveys === 'water walking' ||
+                       protects.includes('WATER') || protects.includes('LAVA');
             }) : [];
             const hintLetters = waterGear.map(i => i.letter).filter(Boolean);
 
-            advices.push({
-                id: 'ADVICE_HAZARD_WATER',
-                severity: 'WARNING',
-                topic: 'THREAT',
-                messageJa: '🌊 水場警告: 周辺に水場(Pool/Water)があります。浮遊・水上歩行なしで侵入すると装備の錆びや巻物・薬の水没劣化・溺死リスクがあります。',
-                messageEn: '🌊 WATER HAZARD: Water nearby! Entering without levitation/water-walking rusts armor, drowns or ruins potions/scrolls.',
+            advices.push(createAdvice('ADVICE_HAZARD_WATER', {}, {
                 hintLetters: hintLetters,
-                hintCommand: hintLetters.length > 0 ? 'P' : undefined,
-                score: 650
-            });
+                hintCommand: hintLetters.length > 0 ? 'P' : undefined
+            }));
         }
 
         // 危険な罠警告
         if (hasLethalTrap) {
-            advices.push({
-                id: 'ADVICE_HAZARD_TRAP',
-                severity: 'WARNING',
-                topic: 'THREAT',
-                messageJa: '⚠️ 罠検知: 周辺に露出した罠(Trap)があります。踏まないよう迂回するか慎重に解除してください。',
-                messageEn: '⚠️ TRAP HAZARD: Revealed trap nearby. Avoid stepping on it or disarm carefully.',
-                hintLetters: [],
-                score: 550
-            });
+            advices.push(createAdvice('ADVICE_HAZARD_TRAP'));
         }
     }
 
@@ -862,15 +729,12 @@ export class TacticalAdvisor {
 
         if (hazardousItems.length > 0) {
             const letters = hazardousItems.map(i => i.letter).filter(Boolean);
-            advices.push({
-                id: 'ADVICE_HAZARD_BAG_OF_HOLDING_EXPLOSION',
-                severity: 'CRITICAL',
-                topic: 'THREAT',
-                messageJa: `💥 爆発危険: 手品袋 [${bagOfHolding.letter}] に魔法の袋 [${letters.join(',')}] や打ち消しの杖を入れると大爆発し全アイテムが消滅・即死します！`,
-                messageEn: `💥 EXPLOSION HAZARD: Putting magical bag [${letters.join(',')}] into Bag of Holding [${bagOfHolding.letter}] causes catastrophic explosion & destroys all items!`,
-                hintLetters: [bagOfHolding.letter, ...letters],
-                score: 1050
-            });
+            advices.push(createAdvice('ADVICE_HAZARD_BAG_OF_HOLDING_EXPLOSION', {
+                bagLetter: bagOfHolding.letter,
+                hazardLetters: letters.join(',')
+            }, {
+                hintLetters: [bagOfHolding.letter, ...letters]
+            }));
         }
     }
 
@@ -967,16 +831,13 @@ export class TacticalAdvisor {
             const rankLabelEn = best.skillRank.en || best.skillRank.label || 'Unskilled';
             const itemName = wItem.name || wItem.rawText || 'weapon';
 
-            advices.push({
-                id: 'ADVICE_EQUIP_SKILLED_WEAPON',
-                severity: 'TIP',
-                topic: 'EQUIPMENT',
-                messageJa: `💡 熟練武器: [${wItem.letter}] ${itemName} (熟練度: ${rankLabel}) の方が高い戦闘効果を発揮します。`,
-                messageEn: `💡 Skilled Weapon: [${wItem.letter}] ${itemName} (Skill: ${rankLabelEn}) is more effective.`,
-                hintLetters: [wItem.letter],
-                hintCommand: 'w',
-                score: 300
-            });
+            advices.push(createAdvice('ADVICE_EQUIP_SKILLED_WEAPON', {
+                letter: wItem.letter,
+                itemName,
+                rankJa: rankLabel,
+                rankEn: rankLabelEn,
+                hintLetters: [wItem.letter]
+            }));
         }
     }
 
@@ -1000,39 +861,25 @@ export class TacticalAdvisor {
 
         if (!hasSpells) return;
 
-        // 着用中の防具から金属製のものを抽出
+        // 着用中の防具から金属製のものを抽出 (SSOT: isMetallic or metallic material)
         const wornArmors = (inventoryState.items || []).filter(item => {
             if (!item.isWorn) return false;
-            const raw = (item.rawText || item.name || '').toLowerCase();
-            const knowledge = OBJECT_KNOWLEDGE_MAP.get(item.onum) || {};
-            
+            const knowledge = item.knowledge || OBJECT_KNOWLEDGE_MAP.get(item.onum) || {};
+            if (item.isMetallic !== undefined) return item.isMetallic;
             if (knowledge.isMetallic !== undefined) return knowledge.isMetallic;
-
-            // 非金属防具の除外
-            if (raw.includes('robe') || raw.includes('leather') || raw.includes('cloth') || 
-                raw.includes('dragon scale') || raw.includes('cloak') || raw.includes('ローブ') || 
-                raw.includes('革') || raw.includes('布') || raw.includes('マント')) {
-                return false;
-            }
-
-            // 一般的な金属防具キーワード
-            return raw.includes('iron') || raw.includes('metal') || raw.includes('plate') || 
-                   raw.includes('chain mail') || raw.includes('scale mail') || raw.includes('ring mail') || 
-                   raw.includes('helmet') || raw.includes('shield') || raw.includes('鎧') || raw.includes('兜');
+            const mat = item.material || knowledge.material;
+            if (mat && ['iron', 'metal', 'copper', 'silver', 'mithril', 'platinum'].includes(mat)) return true;
+            if (mat && ['leather', 'cloth', 'dragon scale', 'wood'].includes(mat)) return false;
+            return false;
         });
 
         if (wornArmors.length > 0) {
             const letters = wornArmors.map(a => a.letter).filter(Boolean);
-            advices.push({
-                id: 'ADVICE_MAGIC_METALLIC_ARMOR',
-                severity: 'WARNING',
-                topic: 'MAGIC',
-                messageJa: `⚠️ 魔法阻害: 金属製防具 [${letters.join(',')}] により魔法詠唱失敗率が上昇しています。ローブ等の非金属防具への着替えを推奨。`,
-                messageEn: `⚠️ Spellcasting Penalty: Metallic armor [${letters.join(',')}] increases spell failure rate. Switch to non-metallic armor.`,
-                hintLetters: letters,
-                hintCommand: 'T',
-                score: 500
-            });
+            advices.push(createAdvice('ADVICE_MAGIC_METALLIC_ARMOR', {
+                letters: letters.join(',')
+            }, {
+                hintLetters: letters
+            }));
         }
     }
 
@@ -1072,16 +919,14 @@ export class TacticalAdvisor {
                 }) : [];
                 const hintLetters = healPotions.map(i => i.letter).filter(Boolean);
 
-                advices.push({
-                    id: 'ADVICE_SURVIVAL_LOW_HP',
-                    severity: 'CRITICAL',
-                    topic: 'SURVIVAL',
-                    messageJa: `🚨 瀕死警告: HPが残り${hp}/${maxHp} (${Math.round(hpRatio * 100)}%) です！回復薬や脱出手段を検討してください。`,
-                    messageEn: `🚨 CRITICAL HP: Health is at ${hp}/${maxHp} (${Math.round(hpRatio * 100)}%)! Quaff healing potions or escape immediately.`,
-                    hintLetters: hintLetters,
-                    hintCommand: hintLetters.length > 0 ? 'q' : undefined,
-                    score: 950
-                });
+                advices.push(createAdvice('ADVICE_SURVIVAL_LOW_HP', {
+                    hp,
+                    maxHp,
+                    percent: Math.round(hpRatio * 100),
+                    hintLetters: hintLetters
+                }, {
+                    hintCommand: hintLetters.length > 0 ? 'q' : undefined
+                }));
             }
         }
 
@@ -1095,16 +940,10 @@ export class TacticalAdvisor {
             }) : [];
             const hintLetters = foodItems.map(i => i.letter).filter(Boolean);
 
-            advices.push({
-                id: 'ADVICE_SURVIVAL_STARVATION',
-                severity: 'CRITICAL',
-                topic: 'SURVIVAL',
-                messageJa: `🍖 飢餓警告: 空腹度が「${hunger}」です！餓死する前に直ちに食料を摂取してください。`,
-                messageEn: `🍖 STARVATION WARNING: Hunger state is "${hunger}"! Eat food immediately before fainting/starving.`,
-                hintLetters: hintLetters,
-                hintCommand: 'e',
-                score: 900
-            });
+            advices.push(createAdvice('ADVICE_SURVIVAL_STARVATION', {
+                hunger,
+                hintLetters: hintLetters
+            }));
         }
     }
 

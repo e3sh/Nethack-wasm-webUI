@@ -96,15 +96,18 @@ describe('StructuredKnowledgeEngine', () => {
         it('should return raw English data when translate is false', () => {
             const mon = engine.getMonsterKnowledge('cockatrice', { translate: false });
             expect(mon.name).toBe('cockatrice');
-            expect(mon.corpseInfo.warningNote).toBe('Petrifies instantly if touched or eaten without gloves!');
-            expect(mon.tacticalAdvice[0]).toBe('Engrave Elbereth to keep away');
+            expect(mon.corpseInfo.causesPetrification).toBe(true);
+            expect(mon.traits.petrifiesOnTouch).toBe(true);
+            expect(mon.tacticalAdvice).toBeDefined();
         });
 
         it('should return localized Japanese data when translate is true', () => {
             const mon = engine.getMonsterKnowledge('cockatrice', { translate: true });
             expect(mon.name).toBe('コカトリス');
-            expect(mon.corpseInfo.warningNote).toBe('手袋なしで触ると石化します！');
-            expect(mon.tacticalAdvice[0]).toBe('Elbereth(Eの字)を刻んで遠ざける');
+            expect(mon.corpseInfo.causesPetrification).toBe(true);
+            expect(mon.traits.petrifiesOnTouch).toBe(true);
+            expect(mon.corpseInfo.warningNote).toBe('接触石化 (手袋必須)');
+            expect(mon.tacticalAdvice[0]).toContain('接触石化');
         });
 
         it('should automatically detect unidentified item appearances and return unidentified tips', () => {
@@ -112,7 +115,8 @@ describe('StructuredKnowledgeEngine', () => {
             expect(unidPotion).not.toBeNull();
             expect(unidPotion.isUnidentified).toBe(true);
             expect(unidPotion.category).toBe('POTION');
-            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
+            expect(Array.isArray(unidPotion.unidentifiedTips)).toBe(true);
+            expect(unidPotion.unidentifiedTips.length).toBe(0);
 
             const unidScroll = engine.getItemKnowledge('scroll labelled FOO', { translate: false });
             expect(unidScroll).not.toBeNull();
@@ -134,22 +138,22 @@ describe('StructuredKnowledgeEngine', () => {
             expect(item.stats.material).toBe('鉱物');
         });
 
-        it('should return English tips and advice when language is en', () => {
+        it('should return empty tips and clean specs when language is en', () => {
             const unidPotion = engine.getItemKnowledge('ruby potion', { language: 'en' });
             expect(unidPotion).not.toBeNull();
             expect(unidPotion.isUnidentified).toBe(true);
-            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
-            expect(unidPotion.unidentifiedTips[0]).toContain('sinks');
-            expect(unidPotion.usageAdvice[0]).toContain('emergency healing');
+            expect(unidPotion.unidentifiedTips.length).toBe(0);
+            expect(unidPotion.usageAdvice.length).toBe(0);
+            expect(unidPotion.appearanceName).toBe('ruby potion');
         });
 
-        it('should return Japanese tips and advice when language is ja', () => {
+        it('should return empty tips and clean specs when language is ja', () => {
             const unidPotion = engine.getItemKnowledge('ruby potion', { language: 'ja' });
             expect(unidPotion).not.toBeNull();
             expect(unidPotion.isUnidentified).toBe(true);
-            expect(unidPotion.unidentifiedTips.length).toBeGreaterThan(0);
-            expect(unidPotion.unidentifiedTips[0]).toContain('流し台');
-            expect(unidPotion.usageAdvice[0]).toContain('戦闘中の緊急回復');
+            expect(unidPotion.unidentifiedTips.length).toBe(0);
+            expect(unidPotion.usageAdvice.length).toBe(0);
+            expect(unidPotion.appearanceName).toBe('ruby potion');
         });
 
         it('should keep English action labels when translate is false', () => {

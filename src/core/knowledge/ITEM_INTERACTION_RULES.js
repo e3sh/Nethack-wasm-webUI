@@ -288,7 +288,7 @@ export const ITEM_INTERACTION_RULES = [
     {
         id: 'INTERACTION_TIN_OPENER',
         category: 'SPECIAL_TOOL',
-        outputChannels: ['ACTION', 'ADVISOR'],
+        outputChannels: ['ACTION'],
         trigger: {
             hasItemNamed: ['tin opener', '缶切り'],
             hasTinsInInventory: true
@@ -320,7 +320,7 @@ export const ITEM_INTERACTION_RULES = [
     {
         id: 'INTERACTION_MAGIC_MARKER_WRITE',
         category: 'SPECIAL_TOOL',
-        outputChannels: ['ACTION', 'ADVISOR'],
+        outputChannels: ['ACTION'],
         trigger: {
             hasItemNamed: ['magic marker', '魔法のマーカー'],
             hasBlankScrollOrSpellbook: true

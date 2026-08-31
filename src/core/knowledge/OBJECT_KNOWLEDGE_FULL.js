@@ -142,11 +142,6 @@ const goldDetail = {
     flavorNote: 'Gold coins used for dungeon commerce, donating at temples for divine protection (+AC), and purchasing items from shopkeepers.',
     effectSummary: 'Universal dungeon currency. Donate to temple priests for permanent AC protection, or buy gear from shopkeepers.',
     defaultVerb: 'drop', verbKey: 'd', actionLabelJa: '置く/落とす (d)',
-    usageAdvice: [
-        '店主からの装備品・消耗品の購入に使用します',
-        '寺院の僧侶(Priest)に十分な金貨を寄付すると、永久的なACボーナス(加護/Protection)を獲得できます',
-        '重量が増加するため、大金を持ち歩く際は袋(Bag)に入れるかダンジョン内に一時保管推奨'
-    ]
 };
 
 // 特徴的・重要アイテムの特定定義辞書 (onum 主軸による100%完全網羅)
@@ -180,7 +175,6 @@ const SPECIFIC_ITEM_DETAILS = {
         flavorNote: 'The ultimate prize of the dungeon. Carrying it grants immense power but attracts severe divine wrath.',
         effectSummary: 'NetHack\'s ultimate goal item. Carry to the Astral Plane to offer to your deity and ascend.',
         defaultVerb: 'inventory', verbKey: 'i', actionLabelJa: '一覧から選択 (i)',
-        usageAdvice: ['Do not drop or lose track of the Amulet', 'Increases monster difficulty and magic energy drain while carried']
     },
     "409": { 
         flavorNote: 'The ancient papyrus spellbook required to perform the Invocation Ritual.',
@@ -210,12 +204,12 @@ const SPECIFIC_ITEM_DETAILS = {
     "35": { stats: { sdam: '1d5', ldam: '1d3', hands: 1, material: 'wood', weight: 10 }, flavorNote: 'Light elven dagger.' },
     "36": { stats: { sdam: '1d3', ldam: '1d5', hands: 1, material: 'iron', weight: 10 }, flavorNote: 'Orcish dagger.' },
     "37": { stats: { sdam: '1d4 (+1d20)', ldam: '1d3 (+1d20)', hands: 1, material: 'silver', weight: 10 }, flavorNote: 'Lightweight silver weapon indispensable in Gehennom.' },
-    "38": { stats: { sdam: '1d4', ldam: '1d3', hands: 1, material: 'iron', weight: 10 }, flavorNote: 'Ritual dagger that engraves Elbereth on the floor instantly with 100% safety.', usageAdvice: ['Always keep for emergency Elbereth engraving'] },
+    "38": { stats: { sdam: '1d4', ldam: '1d3', hands: 1, material: 'iron', weight: 10 }, flavorNote: 'Ritual dagger that engraves Elbereth on the floor instantly with 100% safety.', },
     "39": { stats: { sdam: '1d3', ldam: '1d3', hands: 1, material: 'metal', weight: 5 }, flavorNote: 'Precision surgical knife.' },
     "40": { stats: { sdam: '1d3', ldam: '1d2', hands: 1, material: 'iron', weight: 10 }, flavorNote: 'Utility knife.' },
     "41": { stats: { sdam: '1d3', ldam: '1d2', hands: 1, material: 'iron', weight: 10 }, flavorNote: 'Slender stabbing blade designed to penetrate armor joints.' },
     "42": { stats: { sdam: '1d2', ldam: '1d2', hands: 1, material: 'organ', weight: 5 }, flavorNote: 'Raw worm tooth. Can be transformed into crysknife with scroll of enchant weapon.' },
-    "43": { stats: { sdam: '1d10', ldam: '1d10', hands: 1, material: 'crystal', weight: 10 }, flavorNote: 'Razor-sharp crystal blade created from worm tooth.', usageAdvice: ['Do not drop on floor as it shatters'] },
+    "43": { stats: { sdam: '1d10', ldam: '1d10', hands: 1, material: 'crystal', weight: 10 }, flavorNote: 'Razor-sharp crystal blade created from worm tooth.', },
     "44": { stats: { sdam: '1d6', ldam: '1d4', hands: 1, material: 'iron', weight: 60 }, flavorNote: 'Woodcutting tool that doubles as a deadly hand axe.' },
     "45": { stats: { sdam: '1d8+1d4', ldam: '1d6+2d4', hands: 2, material: 'iron', weight: 120 }, flavorNote: 'Devastating 2-handed battle axe.' },
     "46": { stats: { sdam: '1d6', ldam: '1d8', hands: 1, material: 'iron', weight: 30 }, flavorNote: 'Standard one-handed short sword.' },
@@ -223,7 +217,7 @@ const SPECIFIC_ITEM_DETAILS = {
     "48": { stats: { sdam: '1d5', ldam: '1d8', hands: 1, material: 'iron', weight: 30 }, flavorNote: 'Orcish short sword.' },
     "49": { stats: { sdam: '1d7', ldam: '1d8', hands: 1, material: 'iron', weight: 35 }, flavorNote: 'Dwarvish short sword.' },
     "50": { stats: { sdam: '1d8', ldam: '1d8', hands: 1, material: 'iron', weight: 40 }, flavorNote: 'Curved sword favored by desert warriors.' },
-    "51": { stats: { sdam: '1d8 (+1d20)', ldam: '1d8 (+1d20)', hands: 1, material: 'silver', weight: 40 }, flavorNote: 'Silver burns evil entities on touch, making it one of the deadliest weapons in Gehennom.', usageAdvice: ['Dual-wield silver sabers to obliterate demon lords'] },
+    "51": { stats: { sdam: '1d8 (+1d20)', ldam: '1d8 (+1d20)', hands: 1, material: 'silver', weight: 40 }, flavorNote: 'Silver burns evil entities on touch, making it one of the deadliest weapons in Gehennom.', },
     "52": { stats: { sdam: '2d4', ldam: '1d6+1', hands: 1, material: 'iron', weight: 70 }, flavorNote: 'Heavy broad-bladed sword.' },
     "53": { stats: { sdam: '1d6+1', ldam: '2d4', hands: 1, material: 'wood', weight: 50 }, flavorNote: 'Elven broadsword.' },
     "54": { stats: { sdam: '1d8', ldam: '1d12', hands: 1, material: 'iron', weight: 30 }, flavorNote: 'The classic adventurer sidearm. Reliable and versatile in single-handed combat.' },
@@ -405,7 +399,21 @@ const SPECIFIC_ITEM_DETAILS = {
     "233": { flavorNote: 'Blocks vision to protect against gaze attacks and paralyzing eyes.' },
     "234": { flavorNote: 'Multipurpose towel for wiping face or wrapping around eyes as blindfold.' },
     "237": { flavorNote: 'Stethoscope for measuring monster HP and detecting behind walls.' },
-    "242": { flavorNote: 'Magical marker used to write scrolls and spellbooks.' },
+    "239": { 
+        flavorNote: 'Essential tool for opening tins.', 
+        effectSummary: 'Applies (#apply) to open tins safely and instantly in 1 turn.', 
+        effects: { openTin: true },
+        defaultVerb: 'apply', 
+        verbKey: 'a', 
+        actionLabelJa: '使う (a)' 
+    },
+    "242": { 
+        flavorNote: 'Magical marker used to write scrolls and spellbooks.', 
+        effectSummary: 'Apply (#apply) to write desired scrolls or spellbooks onto blank paper.',
+        defaultVerb: 'apply', 
+        verbKey: 'a', 
+        actionLabelJa: '使う (a)' 
+    },
     "245": { flavorNote: 'Whistle to attract pets.' },
     "246": { flavorNote: 'Instantly teleports your pets to your side from anywhere on floor.' },
     "260": { flavorNote: 'Iron grappling hook attached to a long rope.', effectSummary: 'Apply with \'a\' to climb across pits, scale walls, or pull distant items closer.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)' },
@@ -414,19 +422,17 @@ const SPECIFIC_ITEM_DETAILS = {
         effectSummary: 'Tool (`#apply`). Cures poison, illness, blindness, confusion, and stat loss.', 
         effects: { cureSickness: true, cureBlindness: true },
         defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '使う (a)', 
-        usageAdvice: ['Apply (`#apply`) immediately after stat drain or poison hit', 'Blessing increases success rate to 100%'] 
     },
     "262": { flavorNote: 'Seven-pinnacled candelabrum used for the sacred Invocation Ritual.', effectSummary: 'Attach 7 candles and apply with \'a\' to light during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '灯す/使う (a)' },
     "263": { flavorNote: 'Essential ritual bell for opening the way to Vlad\'s Tower and the Invocation Ritual.', effectSummary: 'Apply with \'a\' to ring during the Invocation Ritual.', defaultVerb: 'apply', verbKey: 'a', actionLabelJa: '鳴らす/使う (a)' },
 
     // 🍖 食料 (FOOD: onum 264〜296)
-    "264": { flavorNote: 'Smelly tripe ration favored by carnivorous pets like dogs and cats.', effectSummary: 'Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Throw (\'t\') or drop (\'d\') to tame wild dogs, cats, and wolves', 'Do not eat as a human character to avoid vomiting'] },
-    "265": { flavorNote: 'Raw monster corpse left behind after slaying.', effectSummary: 'Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', usageAdvice: ['Eat fresh corpses immediately to gain intrinsic resistances', 'Do not eat old/tainted corpses unless immune to poison', 'Wear gloves before picking up cockatrice corpses'] },
+    "264": { flavorNote: 'Smelly tripe ration favored by carnivorous pets like dogs and cats.', effectSummary: 'Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', },
+    "265": { flavorNote: 'Raw monster corpse left behind after slaying.', effectSummary: 'Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', },
     "274": { 
         flavorNote: 'Lizard corpse.', 
         effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', 
-        effects: { curePetrification: true },
-        usageAdvice: ['CRITICAL: Always keep a lizard corpse in inventory to cure cockatrice stoning'] 
+        effects: { curePetrification: true }, 
     },
     "286": { flavorNote: 'Standard dungeon rations. High nutrition value.', effectSummary: 'Basic food ration providing 800 nutrition points.' },
     "287": { flavorNote: 'Military grade emergency food ration with high nutrition.', effectSummary: 'Provides 900 nutrition points.' },
@@ -452,24 +458,23 @@ const SPECIFIC_ITEM_DETAILS = {
         effects: { healHp: true, healPower: 'FULL', cureSickness: true, cureBlindness: true },
         defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' 
     },
-    "322": { flavorNote: 'Clear pure water. Can be converted to Holy Water or Unholy Water on altars.', effectSummary: 'Dip items into Holy Water to bless them, or pray on altars with uncursed water.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Drop on coaligned altar to convert to Holy Water (blessed potion of water)'] },
-    "298": { flavorNote: 'Potion of paralysis.', effectSummary: 'Paralyzes drinker for 20-40 turns. Dangerous when drunk!', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', usageAdvice: ['Do not drink! Throw at tough monsters to freeze them'] },
+    "322": { flavorNote: 'Clear pure water. Can be converted to Holy Water or Unholy Water on altars.', effectSummary: 'Dip items into Holy Water to bless them, or pray on altars with uncursed water.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', },
+    "298": { flavorNote: 'Potion of paralysis.', effectSummary: 'Paralyzes drinker for 20-40 turns. Dangerous when drunk!', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)', },
     "297": { flavorNote: 'Potion of confusion.', effectSummary: 'Causes confusion.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
     "309": { flavorNote: 'Potion of speed / gain level.', effectSummary: 'Quaffing blessed advances player level by 1.', defaultVerb: 'quaff', verbKey: 'q', actionLabelJa: '飲む (q)' },
 
     // 📜 巻物 (SCROLL: onum 323〜365)
-    "336": { flavorNote: 'Scroll of Identify.', effectSummary: 'Identifies unknown items in inventory. Blessed identifies multiple items.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to identify entire inventory at once'] },
+    "336": { flavorNote: 'Scroll of Identify.', effectSummary: 'Identifies unknown items in inventory. Blessed identifies multiple items.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', },
     "327": { 
         flavorNote: 'Scroll of Remove Curse.', 
         effectSummary: 'Uncurses cursed items in inventory or equipped gear.', 
         effects: { removeCurse: true },
         defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', 
-        usageAdvice: ['Blessed uncurses all carried items; uncursed removes curse from equipped items only'] 
     },
     "328": { flavorNote: 'Scroll of Enchant Weapon.', effectSummary: 'Increases weapon attack/damage bonus by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
     "323": { flavorNote: 'Scroll of Enchant Armor.', effectSummary: 'Increases armor defense AC by +1 (+2 to +3 if blessed).', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
-    "342": { flavorNote: 'Scroll of Charging.', effectSummary: 'Recharges magic wands or magic markers.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Bless before reading to recharge wands to maximum charges'] },
-    "331": { flavorNote: 'Scroll of Genocide.', effectSummary: 'Wipes out an entire species of monsters from the dungeon!', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', usageAdvice: ['Genocide lethal species like cockatrices, mind flayers, or liches'] },
+    "342": { flavorNote: 'Scroll of Charging.', effectSummary: 'Recharges magic wands or magic markers.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', },
+    "331": { flavorNote: 'Scroll of Genocide.', effectSummary: 'Wipes out an entire species of monsters from the dungeon!', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)', },
     "337": { flavorNote: 'Scroll of Magic Mapping.', effectSummary: 'Reveals the entire floor layout including secret corridors.', defaultVerb: 'read', verbKey: 'r', actionLabelJa: '読む (r)' },
 
     // 📖 魔導書 (SPELLBOOK: onum 357〜398)
@@ -629,6 +634,36 @@ export function initFullObjectKnowledge() {
             effects.unlocks = true;
         }
 
+        // 🎯 統合防護モデル (protectsAgainst) の正規化 (Single Source of Truth)
+        const protectsAgainst = [];
+        if (Array.isArray(detail.protectsAgainst)) {
+            protectsAgainst.push(...detail.protectsAgainst);
+        }
+        // 1. 視線防護 (GAZE): 目隠し・タオル (BLINDFOLD, TOWEL)
+        if (base.sn === 'BLINDFOLD' || base.sn === 'TOWEL' || i === 233 || i === 234 || i === 259 || i === 260 || standardName === 'blindfold' || standardName === 'towel') {
+            if (!protectsAgainst.includes('GAZE')) protectsAgainst.push('GAZE');
+        }
+        // 2. 接触石化防護 (TOUCH_STONING): 手袋 (armorSlot === 'gloves')
+        if (armorSlot === 'gloves' || (category === 'ARMOR' && (standardName.endsWith('gloves') || standardName.endsWith('gauntlets')))) {
+            if (!protectsAgainst.includes('TOUCH_STONING')) protectsAgainst.push('TOUCH_STONING');
+        }
+        // 3. 脳吸い・落石防護 (BRAIN_EAT, FALLING_ROCKS): 硬質兜 (helmet / helm) ※布製(cornuthaum/dunce cap)・革製は除く
+        if ((armorSlot === 'helm' || armorSlot === 'helmet') && !['cloth', 'leather'].includes(material) && !standardName.includes('cornuthaum') && !standardName.includes('dunce cap')) {
+            if (!protectsAgainst.includes('BRAIN_EAT')) protectsAgainst.push('BRAIN_EAT');
+            if (!protectsAgainst.includes('FALLING_ROCKS')) protectsAgainst.push('FALLING_ROCKS');
+        }
+        // 4. 浮遊防護 (LAVA, WATER, PIT): 浮遊靴・浮遊指輪等
+        if (base.sn === 'LEVITATION_BOOTS' || base.sn === 'RIN_LEVITATION' || propConveyed === 'levitation' || base.propConveyed === 'levitation' || standardName === 'boots of levitation' || standardName === 'levitation boots' || standardName === 'ring of levitation') {
+            ['LAVA', 'WATER', 'PIT'].forEach(h => {
+                if (!protectsAgainst.includes(h)) protectsAgainst.push(h);
+            });
+        }
+        // 5. 水上歩行防護 (WATER): 水上歩行の靴
+        if (base.sn === 'WATER_WALKING_BOOTS' || propConveyed === 'water walking' || base.propConveyed === 'water walking' || standardName === 'water walking boots') {
+            if (!protectsAgainst.includes('WATER')) protectsAgainst.push('WATER');
+        }
+        stats.protectsAgainst = protectsAgainst;
+
         const actionVerb = verbInfo.verbKey || 'a';
 
         const entry = {
@@ -641,6 +676,7 @@ export function initFullObjectKnowledge() {
             category: category,
             canBeUnidentified: !!canBeUnidentified,
             stats: stats,
+            protectsAgainst: protectsAgainst,
             // 🎯 確定プロパティのトップレベル展開 (完全型安全・文字列判定脱却用)
             actionVerb: actionVerb,
             effects: effects,

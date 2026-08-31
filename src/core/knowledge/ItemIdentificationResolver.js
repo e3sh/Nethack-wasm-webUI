@@ -92,85 +92,9 @@ export const APPEARANCE_PATTERNS = {
     ]
 };
 
-// カテゴリ別鑑定ヒント (Identification Tips - 日本語)
-export const IDENTIFICATION_TIPS = {
-    POTION: [
-        '流し台(#apply sink)や神壇でテストして安全に鑑定可能',
-        'ユニコーンの角を浸す(#dip)と毒薬を中和しつつ安全判別可能',
-        '識別の巻物を読むと確実に効果が判明'
-    ],
-    SCROLL: [
-        '床にElberethなどの文字を刻んでから安全な部屋で試読(\'r\')',
-        '道具屋の店主の提示価格から価格識別(Price ID)が可能'
-    ],
-    WAND: [
-        '床に文字を刻むテスト(\'E\')を行うと充填数を消費せず効果を特定可能',
-        '識別の巻物で残チャージ数と真名を完全解明可能'
-    ],
-    RING: [
-        '流し台(#apply sink)に指輪を落とすといった固有の演出で真名が確定',
-        '呪われた指輪は外せなくなるため神壇(Altar)で呪いチェック推奨'
-    ],
-    AMULET: [
-        '絞殺のアミュレット等の危険があるため識別の巻物での鑑定を強く推奨',
-        '神壇(Altar)で祝福/呪い状態を確認'
-    ],
-    ARMOR: [
-        '装備着脱(\'W\'/\'T\')で AC の変化を確認すると強化値を推定可能',
-        '神壇(Altar)の上に置くと祝福/通常/呪いが色で判別可能'
-    ],
-    WEAPON: [
-        '神壇(Altar)に置いて呪いを確認してから装備推奨',
-        '敵への攻撃命中率やダメージから強化値を推定可能'
-    ],
-    GEM_STONE: [
-        '灰色の石はタッチストーン(Touchstone)でこすると幸運/試金石/負荷が判明',
-        '本物の宝石と硝子玉はタッチストーンまたは硬度で判別可能'
-    ],
-    OTHER: [
-        '識別の巻物または店主の価格判定で解明可能'
-    ]
-};
-
-// カテゴリ別鑑定ヒント (Identification Tips - 英語)
-export const IDENTIFICATION_TIPS_EN = {
-    POTION: [
-        'Safely identify by testing on sinks (#apply sink) or altars.',
-        'Dip a unicorn horn (#dip) to neutralize poisons and test potion types safely.',
-        'Reading a Scroll of Identify definitely reveals its true identity.'
-    ],
-    SCROLL: [
-        'Engrave Elbereth on the floor and read-test (\'r\') in a secure room.',
-        'Use shopkeeper buy/sell prices for Price Identification (Price ID).'
-    ],
-    WAND: [
-        'Engrave-test on the floor (\'E\') to determine the wand type without spending charges.',
-        'Scroll of Identify reveals full identity and remaining charges.'
-    ],
-    RING: [
-        'Drop into a sink (#apply sink) to observe unique identification messages.',
-        'Cursed rings weld to your fingers; altar-test BUC status before wearing.'
-    ],
-    AMULET: [
-        'Beware of fatal hazards like Amulets of Strangulation; identify with scrolls before wearing.',
-        'Check blessed/cursed status on an altar.'
-    ],
-    ARMOR: [
-        'Wear/remove (\'W\'/\'T\') to monitor AC changes and calculate enchantment bonuses.',
-        'Drop onto an altar to detect blessed/uncursed/cursed status.'
-    ],
-    WEAPON: [
-        'Check for curses on an altar before wielding.',
-        'Estimate enchantment from combat hit rate and damage.'
-    ],
-    GEM_STONE: [
-        'Rub gray stones with a Touchstone to identify Luckstones, Touchstones, or Loadstones.',
-        'Distinguish valuable gemstones from worthless glass pieces using a Touchstone.'
-    ],
-    OTHER: [
-        'Identify via Scrolls of Identify or shop price testing.'
-    ]
-};
+// カテゴリ別鑑定ヒント (非推奨・廃止: ItemSpecPresenter および ITEM_INTERACTION_RULES へ移行完了)
+export const IDENTIFICATION_TIPS = {};
+export const IDENTIFICATION_TIPS_EN = {};
 
 export class ItemIdentificationResolver {
     /**
@@ -226,12 +150,6 @@ export class ItemIdentificationResolver {
             appearanceName: appearanceMatch.appearanceName
         });
 
-        const lang = options.language || 'ja';
-        const isEn = lang === 'en';
-        const tipsJa = IDENTIFICATION_TIPS[category] || IDENTIFICATION_TIPS.OTHER;
-        const tipsEn = IDENTIFICATION_TIPS_EN[category] || IDENTIFICATION_TIPS_EN.OTHER;
-        const tips = isEn ? tipsEn : tipsJa;
-
         return {
             idLevel,
             isUnidentified,
@@ -245,9 +163,9 @@ export class ItemIdentificationResolver {
             coreName,
             displayName,
             rawText: cleanText,
-            identificationTips: tips,
-            identificationTipsEn: tipsEn,
-            identificationTipsJa: tipsJa,
+            identificationTips: [],
+            identificationTipsEn: [],
+            identificationTipsJa: [],
             hasKnownEnchantment: enchantment !== null,
             hasKnownCharges: charges !== null,
             isMasked: isUnidentified

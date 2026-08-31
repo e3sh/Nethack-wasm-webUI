@@ -16,6 +16,7 @@ import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentif
 import { OBJECT_CATEGORY_ADVICE, inferObjectCategory } from './OBJECT_CATEGORY_ADVICE.js';
 import { ITEM_KNOWLEDGE_BASE } from './ITEM_KNOWLEDGE_BASE.js';
 import { TERRAIN_KNOWLEDGE_MAP, getTerrainEntryByCmap, getTerrainEntryByKey } from './TERRAIN_KNOWLEDGE_BASE.js';
+import { getAdaptiveMonsterSpecs, getMonsterSpecSummaryStrings } from './MonsterSpecPresenter.js';
 
 export { OBJECT_CATEGORY_ADVICE, inferObjectCategory, ITEM_KNOWLEDGE_BASE, TERRAIN_KNOWLEDGE_MAP };
 
@@ -183,9 +184,15 @@ export class StructuredKnowledgeEngine {
             cloned.name = cloned.nameJa || tr(originalName);
         }
 
-        // 2. モンスター死体・警告の翻訳
+        // 2. モンスター死体・警告の動的解決 (フラグから動的補完)
         if (cloned.corpseInfo) {
-            if (cloned.corpseInfo.warningNote) {
+            if (!cloned.corpseInfo.warningNote) {
+                if (cloned.corpseInfo.causesPetrification) {
+                    cloned.corpseInfo.warningNote = isEn ? 'Touch petrifies (Wear gloves)' : '接触石化 (手袋必須)';
+                } else if (cloned.corpseInfo.causesSlime) {
+                    cloned.corpseInfo.warningNote = isEn ? 'Slime hazard (Inedible)' : 'スライム化 (摂取不可)';
+                }
+            } else if (!isEn) {
                 cloned.corpseInfo.warningNote = tr(cloned.corpseInfo.warningNote);
             }
             if (cloned.corpseInfo.grantResist) {
@@ -193,8 +200,11 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        // 3. 戦術アドバイスの配列翻訳
-        if (isEn && Array.isArray(obj.tacticalAdviceEn) && obj.tacticalAdviceEn.length > 0) {
+        // 3. モンスター特徴・スペックのフラグ動的合成 (手書き tacticalAdvice を動的生成に置換)
+        if (obj.type === 'MONSTER' || obj.dangerLevel !== undefined || obj.traits !== undefined) {
+            cloned.specs = getAdaptiveMonsterSpecs(obj, { language: isEn ? 'en' : 'ja' });
+            cloned.tacticalAdvice = getMonsterSpecSummaryStrings(obj, { language: isEn ? 'en' : 'ja' });
+        } else if (isEn && Array.isArray(obj.tacticalAdviceEn) && obj.tacticalAdviceEn.length > 0) {
             cloned.tacticalAdvice = obj.tacticalAdviceEn;
         } else if (Array.isArray(cloned.tacticalAdvice)) {
             cloned.tacticalAdvice = cloned.tacticalAdvice.map(adv => tr(adv));
@@ -240,13 +250,25 @@ export class StructuredKnowledgeEngine {
             if (Array.isArray(cloned.threat.counters)) {
                 cloned.threat.counters = cloned.threat.counters.map(counter => {
                     const c = { ...counter };
-                    if (c.message) {
+                    if (!c.message) {
+                        if (c.id === 'COUNTER_BLINDFOLD') {
+                            c.message = isEn ? 'Wear blindfold or towel' : '目隠しやタオルを着用';
+                        } else if (c.id === 'COUNTER_GLOVES') {
+                            c.message = isEn ? 'Wear gloves before melee' : '手袋を着用して接触';
+                        } else if (c.id === 'COUNTER_RANGED') {
+                            c.message = isEn ? 'Attack with ranged weapons' : '遠隔武器で攻撃';
+                        } else if (c.id === 'COUNTER_SILVER') {
+                            c.message = isEn ? 'Use silver weapons' : '銀製武器を使用';
+                        } else {
+                            c.message = isEn ? `Counter: ${c.type}` : `対策: ${c.type}`;
+                        }
+                    } else {
                         c.messageJa = !isEn ? tr(c.message) : null;
                         if (!isEn && c.messageJa) c.message = c.messageJa;
-                    }
-                    if (c.why) {
-                        c.whyJa = !isEn ? tr(c.why) : null;
-                        if (!isEn && c.whyJa) c.why = c.whyJa;
+                        if (c.why) {
+                            c.whyJa = !isEn ? tr(c.why) : null;
+                            if (!isEn && c.whyJa) c.why = c.whyJa;
+                        }
                     }
                     return c;
                 });
@@ -549,14 +571,6 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        const adviceObj = OBJECT_CATEGORY_ADVICE[category] || OBJECT_CATEGORY_ADVICE.TOOL;
-        const tips = (idRes.identificationTips && idRes.identificationTips.length > 0)
-            ? idRes.identificationTips
-            : (adviceObj.unidentifiedTips || []);
-        const tipsEn = (idRes.identificationTipsEn && idRes.identificationTipsEn.length > 0)
-            ? idRes.identificationTipsEn
-            : (adviceObj.unidentifiedTipsEn || []);
-
         const rawObj = {
             id: `unidentified_${category.toLowerCase()}`,
             name: idRes.displayName || idRes.appearanceName || (typeof rawInput === 'string' ? rawInput : (rawInput.name || rawInput.str || 'Unidentified item')),
@@ -565,12 +579,12 @@ export class StructuredKnowledgeEngine {
             appearanceName: idRes.appearanceName,
             calledName: idRes.calledName,
             bucStatus: idRes.bucStatus,
-            effectSummary: adviceObj.effectSummary || 'Unidentified item. Price ID or Scroll of Identify recommended.',
-            effectSummaryEn: adviceObj.effectSummary,
-            unidentifiedTips: tips,
-            unidentifiedTipsEn: tipsEn,
-            usageAdvice: adviceObj.usageAdvice || [],
-            usageAdviceEn: adviceObj.usageAdviceEn || [],
+            effectSummary: 'Unidentified item.',
+            effectSummaryEn: 'Unidentified item.',
+            unidentifiedTips: [],
+            unidentifiedTipsEn: [],
+            usageAdvice: [],
+            usageAdviceEn: [],
             canBeUnidentified: true,
             identification: idRes
         };
@@ -769,36 +783,22 @@ export class StructuredKnowledgeEngine {
             if (!found && OBJECT_TILEMAP_NAMES[targetOnum]) {
                 const itemName = OBJECT_TILEMAP_NAMES[targetOnum];
                 const catStr = getCategoryFromOnum(targetOnum);
-                const adviceObj = OBJECT_CATEGORY_ADVICE[catStr] || OBJECT_CATEGORY_ADVICE.TOOL;
                 found = {
                     id: `item_onum_${targetOnum}`,
                     onum: targetOnum,
                     name: itemName,
                     category: catStr,
-                    effectSummary: adviceObj.effectSummary,
-                    effectSummaryEn: adviceObj.effectSummary,
-                    unidentifiedTips: adviceObj.unidentifiedTips,
-                    unidentifiedTipsEn: adviceObj.unidentifiedTipsEn || [],
-                    usageAdvice: adviceObj.usageAdvice || [],
-                    usageAdviceEn: adviceObj.usageAdviceEn || []
+                    effectSummary: 'Standard dungeon item.',
+                    effectSummaryEn: 'Standard dungeon item.',
+                    unidentifiedTips: [],
+                    unidentifiedTipsEn: [],
+                    usageAdvice: [],
+                    usageAdviceEn: []
                 };
             }
         }
 
         if (!found) return null;
-
-        // カテゴリの未識別Tips/アドバイスを補完
-        const cat = found.category || 'TOOL';
-        const defaultAdvice = OBJECT_CATEGORY_ADVICE[cat] || OBJECT_CATEGORY_ADVICE.TOOL;
-        if (!found.unidentifiedTips && defaultAdvice.unidentifiedTips) {
-            found = {
-                ...found,
-                unidentifiedTips: defaultAdvice.unidentifiedTips,
-                unidentifiedTipsEn: defaultAdvice.unidentifiedTipsEn || [],
-                usageAdvice: found.usageAdvice || defaultAdvice.usageAdvice || [],
-                usageAdviceEn: found.usageAdviceEn || defaultAdvice.usageAdviceEn || []
-            };
-        }
 
         if (originalDisplayName && originalDisplayName.trim().length > 0) {
             found = {

@@ -1,4 +1,4 @@
-Group,Source,Translation,Adj,Verb
+﻿Group,Source,Translation,Adj,Verb
 Message,"Shall I pick character's race, role, gender and alignment for you? [ynaq]",キャラクターの種族、役割、性別、属性を選んであげましょうか？ [ynaq],,
 Message,"    After the Creation, the cruel god Moloch rebelled",    天地創造の後、残酷な神モロクは,,
 Message,    against the authority of Marduk the Creator.,    創造主マルドゥクの権威に反逆した。,,
@@ -18023,5 +18023,6 @@ Message,"Cloud","雲",,
 Message,"Vaporous cloud or mist. Floating obstacle on air planes.","蒸気の雲や霧。風の精霊界などに出現する浮遊障害物です。",,
 Message,"Air","大気",,
 Message,"Open sky or void on the Plane of Air.","何もない上空空間。風の精霊界などの広大な大気です。",,
-
-
+Message,"Essential tool for opening tins.","缶詰を開けるための必需品。",,
+Message,"Applies (#apply) to open tins safely and instantly in 1 turn.","道具(#apply)で使用すると、1ターンで安全かつ即座に缶詰を開けられます。",,
+Message,"Apply (#apply) to write desired scrolls or spellbooks onto blank paper.","道具(#apply)で使用して白紙の巻物や魔導書に好きな魔法を書き込めます。",,

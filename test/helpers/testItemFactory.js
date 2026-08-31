@@ -51,7 +51,29 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
             }
         }
 
-        // 3. corpse (死体) 特殊判定: "xxx corpse" は corpse (onum: 269) のナレッジを参照
+        // 3. マテリアルプレフィックス（iron, silver, wooden, leather等）を除去して再検索
+        if (!knowledge) {
+            const prefixes = ['iron ', 'silver ', 'wooden ', 'leather ', 'crystal '];
+            for (const p of prefixes) {
+                if (query.startsWith(p)) {
+                    const stripped = query.substring(p.length);
+                    for (const [o, entry] of OBJECT_KNOWLEDGE_MAP.entries()) {
+                        if (entry && entry.name?.toLowerCase() === stripped) {
+                            onum = o;
+                            const mat = p.trim();
+                            knowledge = { ...entry, material: mat };
+                            if (mat === 'iron') knowledge.isMetallic = true;
+                            if (mat === 'silver') { knowledge.isSilver = true; knowledge.isMetallic = true; }
+                            name = entry.name;
+                            break;
+                        }
+                    }
+                    if (knowledge) break;
+                }
+            }
+        }
+
+        // 4. corpse (死体) 特殊判定: "xxx corpse" は corpse (onum: 269) のナレッジを参照
         if (!knowledge && query.endsWith('corpse')) {
             const corpseEntry = OBJECT_KNOWLEDGE_MAP.get(269);
             if (corpseEntry) {
@@ -81,6 +103,13 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
         onum,
         name,
         category,
+        armorSlot: overrides.armorSlot || knowledge?.armorSlot || null,
+        propConveyed: overrides.propConveyed || knowledge?.propConveyed || null,
+        material: overrides.material || knowledge?.material || 'none',
+        protectsAgainst: overrides.protectsAgainst || knowledge?.protectsAgainst || [],
+        effects: overrides.effects || (knowledge?.effects ? { ...knowledge.effects } : {}),
+        isSilver: overrides.isSilver !== undefined ? overrides.isSilver : (knowledge?.isSilver || knowledge?.material === 'silver' || false),
+        isMetallic: overrides.isMetallic !== undefined ? overrides.isMetallic : (knowledge?.isMetallic || false),
         knowledge: knowledge ? { ...knowledge } : null,
         rawText: `${invlet} - an uncursed ${name}`,
         isIdentified: true,

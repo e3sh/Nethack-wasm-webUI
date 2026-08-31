@@ -13,10 +13,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { sdam: '1d8', ldam: '1d12', skill: 'Long Sword', hands: 1, material: 'iron', weight: 30 },
         effectSummary: '1-handed sword. Damage: 1d8 (Small/Med) / 1d12 (Large).',
         flavorNote: 'The classic adventurer sidearm. Reliable and versatile in single-handed combat.',
-        usageAdvice: [
-            'Can be dual-wielded (Two-Weapon Combat) with short sword or dagger',
-            'Can be dipped in holy water to bless for bonus damage against undead'
-        ]
     },
     {
         id: 'katana',
@@ -26,9 +22,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { sdam: '1d10', ldam: '1d12', skill: 'Long Sword', hands: 1, material: 'iron', weight: 40 },
         effectSummary: '1-handed Samurai blade. Damage: 1d10 (Small/Med) / 1d12 (Large).',
         flavorNote: 'A masterwork folded steel blade. Deals highest single-handed sword base damage.',
-        usageAdvice: [
-            'Best non-artifact single-handed longsword in the game'
-        ]
     },
     {
         id: 'silver_saber',
@@ -38,9 +31,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { sdam: '1d8 (+1d20 vs Silver-hate)', ldam: '1d8 (+1d20 vs Silver-hate)', skill: 'Saber', hands: 1, material: 'silver', weight: 40 },
         effectSummary: '1-handed silver sword. Deals massive +1d20 extra damage to Undead, Demons, and Were-creatures.',
         flavorNote: 'Silver burns evil entities on touch, making it one of the deadliest weapons in Gehennom.',
-        usageAdvice: [
-            'Dual-wielding silver sabers obliterates late-game demonic & undead boss packs'
-        ]
     },
     {
         id: 'quarterstaff',
@@ -50,7 +40,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { sdam: '1d6', ldam: '1d6', skill: 'Quarterstaff', hands: 2, material: 'wood', weight: 40 },
         effectSummary: '2-handed wooden staff. Damage: 1d6 / 1d6.',
         flavorNote: 'Simple wooden pole loved by spellcasters and monks.',
-        usageAdvice: ['Safe against rust monsters and disenchanters']
     },
     // 🛡️ 防具 (ARMOR)
     {
@@ -61,7 +50,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { ac: 9, mc: 0, material: 'dragon scale', weight: 40, magicResistance: true },
         effectSummary: 'Lightweight body armor. Base AC: 9. Grants Magic Resistance.',
         flavorNote: 'Forged from gray dragon scales. Essential endgame protection against lethal magic spells.',
-        usageAdvice: ['Combines top defense with magic resistance without spellcasting penalty']
     },
     {
         id: 'silver_dragon_scale_mail',
@@ -71,7 +59,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { ac: 9, mc: 0, material: 'dragon scale', weight: 40, reflection: true },
         effectSummary: 'Lightweight body armor. Base AC: 9. Grants Reflection.',
         flavorNote: 'Reflects death rays, zaps, and petrifying gazes back at attackers.',
-        usageAdvice: ['Frees up shield or amulet slot by providing built-in Reflection']
     },
     {
         id: 'plate_mail',
@@ -81,7 +68,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { ac: 7, mc: 1, material: 'iron', weight: 450, spellPenalty: true },
         effectSummary: 'Heavy iron armor. Base AC: 7. High weight, hinders spellcasting.',
         flavorNote: 'Maximum early physical protection for heavy melee knights.',
-        usageAdvice: ['Rusts in water; protect with oilskin cloak or grease']
     },
     {
         id: 'leather_gloves',
@@ -91,7 +77,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { ac: 1, material: 'leather', weight: 10 },
         effectSummary: 'Hand protection. Base AC: 1. Allows safe handling of cockatrice corpses.',
         flavorNote: 'Essential gear for handling petrifying corpses without turning to stone.',
-        usageAdvice: ['Always wear before picking up or wielding a cockatrice corpse']
     },
     {
         id: 'speed_boots',
@@ -101,7 +86,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { ac: 1, material: 'leather', weight: 20, speedBoost: true },
         effectSummary: 'Footwear. Base AC: 1. Grants Very Fast movement speed.',
         flavorNote: 'Enables swift movement to outrun almost any monster in the dungeon.',
-        usageAdvice: ['Essential for tactical kiting and escaping lethal enemies']
     },
     // 💍 指輪 (RING)
     {
@@ -112,10 +96,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { hungerRate: 2 },
         effectSummary: 'Causes nearby monsters to attack each other instead of you.',
         flavorNote: 'Sows chaos in monster packs, turning enemy numbers against themselves.',
-        usageAdvice: [
-            'Increases hunger rate (2x)',
-            'Pets will also become hostile while conflict is active; wear only in battle'
-        ]
     },
     {
         id: 'ring_of_teleport_control',
@@ -125,7 +105,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         stats: { hungerRate: 1 },
         effectSummary: 'Allows precise destination choice when teleporting.',
         flavorNote: 'Grants full mastery over space when combined with teleportation.',
-        usageAdvice: ['Essential for fast navigation and quick dungeon escapes']
     },
     // 📿 アミュレット (AMULET)
     {
@@ -135,7 +114,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         category: 'AMULET',
         effectSummary: 'Prevents fatal death once by restoring health and destroying itself.',
         flavorNote: 'A divine safety net against sudden mistakes or lethal traps.',
-        usageAdvice: ['Always wear when entering high-risk areas or fighting Medusa']
     },
     // 🎒 容器・道具 (CONTAINER / TOOL)
     {
@@ -150,13 +128,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             cursed: 'Increases weight of contents to 200%'
         },
         flavorNote: 'Essential container for hoarders and heavy loot transportation.',
-        unidentifiedTips: [
-            'Apply bag to insert or remove items'
-        ],
-        usageAdvice: [
-            'CRITICAL: Never put Wand of Cancellation, Bag of Holding, or Bag of Tricks inside (causes magical explosion and destroys inventory!)',
-            'Protect from fire and sharp objects'
-        ]
     },
     {
         id: 'unicorn_horn',
@@ -165,10 +136,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         category: 'TOOL',
         effectSummary: 'Tool (#apply). Cures poison, illness, blindness, confusion, and stat loss.',
         flavorNote: 'The Swiss Army knife of NetHack survival. Apply regularly to restore depleted stats.',
-        usageAdvice: [
-            'Apply (#apply) immediately after stat drain or poison hit',
-            'Blessing increases success rate to 100%'
-        ]
     },
     // 🪄 杖 & 📜 巻物 & 🧪 ポーション
     {
@@ -182,14 +149,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             uncursed: 'Digs standard tunnel through wall or hole in floor',
             cursed: 'May misfire or break'
         },
-        unidentifiedTips: [
-            'Engrave test: Digs a trench / hole in floor and identifies the wand'
-        ],
-        usageAdvice: [
-            'Escape from dangerous enemies into floor below',
-            'Carve Elbereth quickly on floor',
-            'Escape pit traps or rock traps'
-        ]
     },
     {
         id: 'wand_of_death',
@@ -202,13 +161,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             uncursed: 'Fires standard death ray',
             cursed: 'May explode or misfire'
         },
-        unidentifiedTips: [
-            'Engrave test: Displays a fatal ray warning message'
-        ],
-        usageAdvice: [
-            'Save charges for lethal threats (Arch-Lich, Medusa, Rodney)',
-            'Avoid shooting enemies with Reflection'
-        ]
     },
     {
         id: 'scroll_of_remove_curse',
@@ -221,12 +173,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             uncursed: 'Uncurses worn armor, wielded weapons, and selected items',
             cursed: 'Curses items in inventory instead!'
         },
-        unidentifiedTips: [
-            'Read when holding or wearing cursed equipment'
-        ],
-        usageAdvice: [
-            'Bless this scroll before reading for maximum benefit'
-        ]
     },
     {
         id: 'scroll_of_identify',
@@ -238,12 +184,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             blessed: 'Identifies all items in your entire inventory',
             uncursed: 'Identifies 1 item (20% chance to identify multiple items)'
         },
-        unidentifiedTips: [
-            'Most common scroll in dungeon (Price ID: 20zm)'
-        ],
-        usageAdvice: [
-            'Always bless scroll of identify before reading'
-        ]
     },
     {
         id: 'potion_of_healing',
@@ -256,10 +196,6 @@ export const ITEM_KNOWLEDGE_BASE = [
             uncursed: 'Restores 2d8 HP',
             cursed: 'Restores 1d8 HP'
         },
-        unidentifiedTips: [
-            'Quaffing when injured restores health',
-            'Dip in potion to cure poison on weapons'
-        ]
     },
     {
         id: 'potion_of_extra_healing',
@@ -300,9 +236,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         name: 'elven dagger',
         category: 'WEAPON',
         stats: { damageSmall: '1d5', damageLarge: '1d3' },
-        usageAdvice: [
-            'Best weapon for engraving Elbereth in dust/floor without dulling fast'
-        ]
     },
     {
         id: 'pick_axe',
@@ -310,9 +243,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         name: 'pick-axe',
         category: 'TOOL',
         effectSummary: 'Digs through walls and rock.',
-        usageAdvice: [
-            'Essential mining tool when low on Wand of Digging charges'
-        ]
     },
     {
         id: 'skeleton_key',
@@ -327,9 +257,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         name: 'blindfold',
         category: 'TOOL',
         effectSummary: 'Blinds player when worn to activate Telepathy (ESP) or avoid gaze attacks.',
-        usageAdvice: [
-            'Wear to safely fight Floating Eye or Medusa'
-        ]
     },
     {
         id: 'towel',
@@ -344,9 +271,6 @@ export const ITEM_KNOWLEDGE_BASE = [
         name: 'ring of conflict',
         category: 'RING',
         effectSummary: 'Causes nearby monsters to attack each other instead of player.',
-        usageAdvice: [
-            'Very useful when swarmed by groups of monsters'
-        ]
     },
     {
         id: 'ring_of_teleport_control',
