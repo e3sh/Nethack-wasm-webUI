@@ -394,4 +394,125 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.slotBadges['u']).toBeDefined(); // 角
         });
     });
+
+    describe('5.6 SSOT Data-Driven Robustness (完全データ駆動化検証)', () => {
+
+        it('匿名ポーション (milky potion): effects.healHp があれば瀕死時に緊急回復薬として推奨される', () => {
+            const context = {
+                status: { hp: { current: 3, max: 30, percent: 0.10 } },
+                inventory: [
+                    {
+                        invlet: 'x',
+                        name: 'milky potion',
+                        category: 'POTION',
+                        effects: { healHp: true, healPower: 'FULL' }
+                    }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_HP_CRITICAL_HEAL');
+            expect(state.primaryAction.keySequence).toEqual(['q', 'x']);
+        });
+
+        it('匿名火炎の杖 (white wand): createsFire があればスライム化時に治療アクション推奨', () => {
+            const context = {
+                status: { conditions: ['Slimed'], hp: { current: 30, max: 30, percent: 1.0 } },
+                inventory: [
+                    {
+                        invlet: 'z',
+                        name: 'white wand',
+                        category: 'WAND',
+                        effects: { createsFire: true }
+                    }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_SLIMING_FIRE');
+            expect(state.primaryAction.keySequence).toEqual(['z', 'z', '.']);
+        });
+
+        it('匿名モンスター: threat.type が GAZE_PARALYSIS の場合、浮遊する目玉と同様に目隠しを推奨', () => {
+            const context = {
+                status: { hp: { current: 30, max: 30, percent: 1.0 } },
+                areaState: {
+                    perceivedMonsters: [
+                        {
+                            name: 'strange floating sphere',
+                            knowledge: {
+                                threat: { type: 'GAZE_PARALYSIS', effect: 'PARALYSIS' }
+                            }
+                        }
+                    ]
+                },
+                inventory: [
+                    {
+                        invlet: 'b',
+                        name: 'cloth strip',
+                        isWorn: false,
+                        protectsAgainst: ['GAZE']
+                    }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_FLOATING_EYE_BLINDFOLD');
+            expect(state.primaryAction.keySequence).toEqual(['P', 'b']);
+        });
+
+        it('匿名モンスター: threat.type が REFLECT の場合、反射警戒シグナルを生成', () => {
+            const context = {
+                status: { hp: { current: 30, max: 30, percent: 1.0 } },
+                areaState: {
+                    perceivedMonsters: [
+                        {
+                            name: 'gleaming beast',
+                            knowledge: {
+                                threat: { type: 'REFLECT', effect: 'REFLECT' }
+                            }
+                        }
+                    ]
+                },
+                inventory: []
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_MONSTER_REFLECTING');
+        });
+
+        it('匿名モンスター: vulnerabilities に SILVER がある場合、銀製武器を推奨', () => {
+            const context = {
+                status: { hp: { current: 30, max: 30, percent: 1.0 } },
+                areaState: {
+                    perceivedMonsters: [
+                        {
+                            name: 'dark creature',
+                            knowledge: {
+                                vulnerabilities: ['SILVER']
+                            }
+                        }
+                    ]
+                },
+                inventory: [
+                    {
+                        invlet: 's',
+                        name: 'shining blade',
+                        category: 'WEAPON',
+                        isSilver: true,
+                        isWorn: false
+                    }
+                ]
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_SILVER_WEAPON_EQUIP');
+            expect(state.primaryAction.keySequence).toEqual(['w', 's']);
+        });
+    });
 });

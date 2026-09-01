@@ -13,6 +13,7 @@ import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
 import { ADVICE_DEFINITIONS, createAdvice } from './ADVICE_DEFINITIONS.js';
+import { ASSIST_SIGNAL_DEFINITIONS, createAssistSignal } from './ASSIST_SIGNAL_DEFINITIONS.js';
 import { OBJECT_CATEGORY_ADVICE } from './OBJECT_CATEGORY_ADVICE.js';
 import { IDENTIFICATION_TIPS } from './ItemIdentificationResolver.js';
 
@@ -362,6 +363,49 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
 
         it('ItemIdentificationResolver の IDENTIFICATION_TIPS が完全に空オブジェクトであること', () => {
             expect(Object.keys(IDENTIFICATION_TIPS).length).toBe(0);
+        });
+    });
+
+    describe('7. ASSIST_SIGNAL_DEFINITIONS アシストシグナルマスター完全性監査 (Signal SSOT Audit)', () => {
+        it('全 26 種類のシグナルが ASSIST_SIGNAL_DEFINITIONS に定義され、必須フィールドを完全保持していること', () => {
+            const keys = Object.keys(ASSIST_SIGNAL_DEFINITIONS);
+            expect(keys.length).toBe(26);
+
+            for (const [id, def] of Object.entries(ASSIST_SIGNAL_DEFINITIONS)) {
+                expect(def.id).toBe(id);
+                expect(typeof def.priority).toBe('number');
+                expect(def.priority).toBeGreaterThanOrEqual(1);
+                expect(def.priority).toBeLessThanOrEqual(100);
+
+                expect(['SURVIVAL', 'STATUS_REMEDY', 'TACTICAL_COMBAT', 'EQUIPMENT_MAGIC', 'UTILITY']).toContain(def.category);
+                expect(['CURE', 'PRAY', 'WAIT_SAFE', 'CAUTION', 'EQUIP', 'RANGED']).toContain(def.stance);
+
+                expect(typeof def.icon).toBe('string');
+                expect(typeof def.shortMessageJa).toBe('string');
+                expect(typeof def.shortMessageEn).toBe('string');
+                expect(typeof def.detailWhyJa).toBe('string');
+                expect(typeof def.detailWhyEn).toBe('string');
+                expect(typeof def.wikiTopic).toBe('string');
+
+                expect(Array.isArray(def.defaultKeySequence)).toBe(true);
+                expect(typeof def.actionLabelJa).toBe('string');
+                expect(typeof def.actionLabelEn).toBe('string');
+            }
+        });
+
+        it('createAssistSignal がパラメータ置換を行い、正常なシグナルオブジェクトを生成すること', () => {
+            const signal = createAssistSignal('SIGNAL_PETRIFY_CURE', { invlet: 'f' });
+            expect(signal).toBeDefined();
+            expect(signal.id).toBe('SIGNAL_PETRIFY_CURE');
+            expect(signal.priority).toBe(100);
+            expect(signal.actionKeySequence).toEqual(['e', 'f']);
+            expect(signal.actionLabelJa).toContain('f');
+            expect(signal.actionLabelEn).toContain('f');
+        });
+
+        it('未知のシグナルIDが指定された場合は警告を出力し null を返却してクラッシュしないこと', () => {
+            const signal = createAssistSignal('SIGNAL_UNKNOWN_XYZ');
+            expect(signal).toBeNull();
         });
     });
 });

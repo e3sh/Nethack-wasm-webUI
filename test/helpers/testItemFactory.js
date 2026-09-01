@@ -75,26 +75,45 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
 
         // 4. corpse (死体) 特殊判定: "xxx corpse" は corpse (onum: 269) のナレッジを参照
         if (!knowledge && query.endsWith('corpse')) {
-            const corpseEntry = OBJECT_KNOWLEDGE_MAP.get(269);
+            const isLizard = query.includes('lizard');
+            const targetOnum = 269;
+            const corpseEntry = OBJECT_KNOWLEDGE_MAP.get(targetOnum);
             if (corpseEntry) {
-                onum = 269;
-                knowledge = { ...corpseEntry, name: nameOrOnum };
+                onum = targetOnum;
+                knowledge = {
+                    ...corpseEntry,
+                    name: nameOrOnum,
+                    isCorpse: true,
+                    effects: {
+                        ...(corpseEntry.effects || {}),
+                        ...(isLizard ? { curePetrification: true } : {})
+                    }
+                };
                 name = nameOrOnum;
             }
         }
     }
 
-    const category = knowledge?.category || overrides.category || (name.toLowerCase().endsWith('corpse') ? 'FOOD' : 'OTHER');
+    let category = knowledge?.category || overrides.category;
+    if (!category) {
+        const lowerName = name.toLowerCase();
+        if (lowerName.endsWith('corpse')) category = 'FOOD';
+        else if (overrides.oclass === 8 || (lowerName.endsWith('ring') && !lowerName.includes('mail'))) category = 'RING';
+        else category = 'OTHER';
+    }
 
     // カテゴリ連動ヘルパーフラグの導出
     const categoryFlags = {};
     if (category === 'WAND' || name.includes('wand')) categoryFlags.isWand = true;
     if (category === 'WEAPON') categoryFlags.isWeapon = true;
     if (category === 'ARMOR') categoryFlags.isArmor = true;
-    if (category === 'RING' || name.includes('ring')) categoryFlags.isRing = true;
+    if (category === 'RING') categoryFlags.isRing = true;
     if (category === 'POTION' || name.includes('potion')) categoryFlags.isPotion = true;
     if (category === 'SCROLL' || name.includes('scroll')) categoryFlags.isScroll = true;
-    if (category === 'FOOD' || name.endsWith('corpse')) categoryFlags.isFood = true;
+    if (category === 'FOOD' || name.endsWith('corpse')) {
+        categoryFlags.isFood = true;
+        if (name.endsWith('corpse')) categoryFlags.isCorpse = true;
+    }
     if (category === 'TOOL') categoryFlags.isTool = true;
 
     return {

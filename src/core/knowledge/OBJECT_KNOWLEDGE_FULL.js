@@ -622,10 +622,17 @@ export function initFullObjectKnowledge() {
         } else if (i === 261 || standardName === 'unicorn horn') {
             effects.cureSickness = true;
             effects.cureBlindness = true;
+            effects.cureConfusion = true;
         } else if (i === 274 || standardName === 'lizard corpse') {
             effects.curePetrification = true;
         } else if (base.sn === 'SCR_REMOVE_CURSE' || standardName === 'scroll of remove curse') {
             effects.removeCurse = true;
+        }
+        if (base.sn === 'WAN_FIRE' || standardName === 'wand of fire' || base.sn === 'SCR_FIRE' || standardName === 'scroll of fire' || i === 430) {
+            effects.createsFire = true;
+        }
+        if (['wand of striking', 'wand of magic missile', 'wand of fire', 'wand of cold', 'wand of lightning', 'wand of death'].includes(standardName) || [417, 429, 430, 431, 433, 434].includes(i)) {
+            effects.isOffensive = true;
         }
         if (itemInfo.isPickAxe || skill === 'pick-axe' || base.sn === 'WAN_DIGGING' || standardName === 'wand of digging') {
             effects.digs = true;
@@ -725,6 +732,7 @@ export function initFullObjectKnowledge() {
             isTin: !!itemInfo.isTin,
             isGem: !!itemInfo.isGem || category === 'GEM',
             isRock: !!itemInfo.isRock || category === 'ROCK',
+            isCorpse: category === 'FOOD' && (standardName.includes('corpse') || (base.name || '').includes('corpse') || standardName === 'corpse'),
             isAmmo: !!itemInfo.isAmmo || !!base.isAmmo,
             isLauncher: !!itemInfo.isLauncher || !!base.isLauncher,
             effectSummary: effectSummary,

@@ -12,6 +12,11 @@
  * - Level 3: Action & Why (ワンタップ実行キーストローク ＆ 理由・Wiki解説)
  */
 
+import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
+import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
+import { CHEMISTRY_INTERACTIONS } from './CHEMISTRY_KNOWLEDGE_BASE.js';
+import { createAssistSignal, ASSIST_SIGNAL_DEFINITIONS } from './ASSIST_SIGNAL_DEFINITIONS.js';
+
 export class AssistSignalSynthesizer {
 
     /**
@@ -96,70 +101,68 @@ export class AssistSignalSynthesizer {
             return condLower.some(c => c.includes(lower)) || Boolean(status[lower]);
         };
 
-        // 道具・手段の抽出ヘルパー
+        // 道具・手段の抽出ヘルパー (SSOT カテゴリ判定: 文字列判定を全廃)
         const isPotionItem = (i) => {
             if (!i) return false;
-            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
-            if (cat === 'POTION') return true;
-            if (cat && cat !== 'OTHER' && cat !== 'POTION') return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            const hasPotionWord = name.includes('potion') || name.includes('薬') || name.includes('ポーション');
-            const hasOtherWord = name.includes('spellbook') || name.includes('scroll') || name.includes('wand') ||
-                                 name.includes('魔法書') || name.includes('魔導書') || name.includes('巻物') || name.includes('杖') || name.includes('本');
-            return hasPotionWord && !hasOtherWord;
+            const k = this._resolveObjectKnowledge(i);
+            const cat = i.category || k?.category;
+            return cat === 'POTION' || i.isPotion === true;
         };
 
         const isScrollItem = (i) => {
             if (!i) return false;
-            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
-            if (cat === 'SCROLL') return true;
-            if (cat && cat !== 'OTHER' && cat !== 'SCROLL') return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            const hasScrollWord = name.includes('scroll') || name.includes('巻物');
-            const hasOtherWord = name.includes('spellbook') || name.includes('potion') || name.includes('wand') ||
-                                 name.includes('魔法書') || name.includes('魔導書') || name.includes('薬') || name.includes('杖');
-            return hasScrollWord && !hasOtherWord;
+            const k = this._resolveObjectKnowledge(i);
+            const cat = i.category || k?.category;
+            return cat === 'SCROLL' || i.isScroll === true;
         };
 
         const healingPotion = inventoryItems.find(i => {
             if (!isPotionItem(i)) return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('healing') || name.includes('回復') || name.includes('強壮');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            const power = eff.healPower || '';
+            return eff.healHp && power !== 'MED' && power !== 'FULL' && !eff.cureSickness;
         });
 
         const extraHealingPotion = inventoryItems.find(i => {
             if (!isPotionItem(i)) return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('extra healing') || name.includes('full healing') || name.includes('超回復') || name.includes('完全回復');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            const power = eff.healPower || '';
+            return eff.healHp && (power === 'MED' || power === 'FULL' || eff.cureSickness);
         });
 
         const unicornHorn = inventoryItems.find(i => {
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('unicorn horn') || name.includes('ユニコーンの角');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            const cat = i.category || k?.category;
+            return eff.cureSickness && cat === 'TOOL';
         });
 
         const fireSource = inventoryItems.find(i => {
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return (name.includes('fire') && (name.includes('wand') || name.includes('scroll') || name.includes('potion'))) ||
-                   name.includes('火の杖') || name.includes('火炎の巻物');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            return Boolean(eff.createsFire);
         });
 
         const lizardCorpse = inventoryItems.find(i => {
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return (name.includes('lizard') && (name.includes('corpse') || name.includes('dead'))) ||
-                   name.includes('トカゲの死体') || name.includes('トカゲの死骸');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            return Boolean(eff.curePetrification);
         });
 
         const uncurseScroll = inventoryItems.find(i => {
             if (!isScrollItem(i)) return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('remove curse') || name.includes('解呪');
+            const k = this._resolveObjectKnowledge(i);
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            return Boolean(eff.removeCurse);
         });
 
-        // 4大安全ガードを満たす治癒魔法の検索
+        // 4大安全ガードを満たす治癒魔法の検索 (SSOT: skill, category, effects, または名前)
         const safeHealingSpell = spells.find(s => {
-            const name = (s.name || '').toLowerCase();
-            if (name.includes('healing') || name.includes('cure')) {
+            const isHealing = s.skill === 'healing' || s.category === 'HEALING' || s.effects?.healHp ||
+                (s.name || '').toLowerCase().includes('healing') || (s.name || '').toLowerCase().includes('cure');
+            if (isHealing) {
                 return this.evaluateSpellSafeGuards(s, status, inventoryItems).isSafe;
             }
             return false;
@@ -180,21 +183,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'eat'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_PETRIFY_CURE',
-                    priority: 100,
-                    category: 'SURVIVAL',
-                    stance: 'CURE',
-                    icon: '🦎',
-                    shortMessageJa: '石化中: 直ちにトカゲの死体を摂取！',
-                    shortMessageEn: 'Petrifying: Eat lizard corpse immediately!',
-                    detailWhyJa: '石化が完了すると即死します。トカゲの死体を食べることで進行を解除できます。',
-                    detailWhyEn: 'Petrification is fatal upon completion. Eating a lizard corpse cures it.',
-                    wikiTopic: 'Petrification',
-                    actionKeySequence: ['e', invlet],
-                    actionLabelJa: `トカゲの死体を食べる (e -> ${invlet})`,
-                    actionLabelEn: `Eat lizard corpse (e -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_PETRIFY_CURE', { invlet }));
             } else if (canPray) {
                 slotBadges['Petrifying'] = {
                     type: 'danger',
@@ -203,21 +192,7 @@ export class AssistSignalSynthesizer {
                     labelEn: 'Pray',
                     highlightBorder: true
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_PETRIFY_PRAY',
-                    priority: 100,
-                    category: 'SURVIVAL',
-                    stance: 'PRAY',
-                    icon: '🙏',
-                    shortMessageJa: '石化中: 直ちに神に祈る！',
-                    shortMessageEn: 'Petrifying: Pray to your deity immediately!',
-                    detailWhyJa: '特効薬がないため、神に祈って石化を解除してもらいます。',
-                    detailWhyEn: 'Without remedies, pray to deity to cure petrification.',
-                    wikiTopic: 'Pray',
-                    actionKeySequence: ['#', 'pray', 'y'],
-                    actionLabelJa: '神に祈る (#pray)',
-                    actionLabelEn: 'Pray to god (#pray)'
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_PETRIFY_PRAY'));
             }
         }
 
@@ -233,21 +208,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'zap'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_SLIMING_FIRE',
-                    priority: 98,
-                    category: 'SURVIVAL',
-                    stance: 'CURE',
-                    icon: '🔥',
-                    shortMessageJa: 'スライム化: 自分に火を放ち治療！',
-                    shortMessageEn: 'Sliming: Apply fire to self to cure!',
-                    detailWhyJa: '緑色スライムに変身する前に、火の杖や巻物で自分を焼いて治療します。',
-                    detailWhyEn: 'Burn yourself with fire to stop turning into a green slime.',
-                    wikiTopic: 'Sliming',
-                    actionKeySequence: ['z', invlet, '.'],
-                    actionLabelJa: `火の杖を自分に振る (z -> ${invlet} -> .)`,
-                    actionLabelEn: `Zap fire wand at self (z -> ${invlet} -> .)`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SLIMING_FIRE', { invlet }));
             } else if (canPray) {
                 slotBadges['Slimed'] = {
                     type: 'danger',
@@ -256,21 +217,7 @@ export class AssistSignalSynthesizer {
                     labelEn: 'Pray',
                     highlightBorder: true
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_SLIMING_PRAY',
-                    priority: 98,
-                    category: 'SURVIVAL',
-                    stance: 'PRAY',
-                    icon: '🙏',
-                    shortMessageJa: 'スライム化: 神に祈って救済を乞う',
-                    shortMessageEn: 'Sliming: Pray to your deity for salvation',
-                    detailWhyJa: '火炎手段がないため、祈願によってスライム化の解除を試みます。',
-                    detailWhyEn: 'Without fire, pray to your god to dispel sliming.',
-                    wikiTopic: 'Pray',
-                    actionKeySequence: ['#', 'pray', 'y'],
-                    actionLabelJa: '神に祈る (#pray)',
-                    actionLabelEn: 'Pray to god (#pray)'
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SLIMING_PRAY'));
             }
         }
 
@@ -286,21 +233,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'apply'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_SICK_HORN',
-                    priority: 88,
-                    category: 'STATUS_REMEDY',
-                    stance: 'CURE',
-                    icon: '🤢',
-                    shortMessageJa: '病気中: ユニコーンの角で治癒',
-                    shortMessageEn: 'Sick: Apply unicorn horn to cure',
-                    detailWhyJa: '病気・食中毒は放置すると死に至ります。角を使って治療してください。',
-                    detailWhyEn: 'Sickness is fatal if untreated. Apply unicorn horn.',
-                    wikiTopic: 'Sickness',
-                    actionKeySequence: ['a', invlet],
-                    actionLabelJa: `ユニコーンの角を使う (a -> ${invlet})`,
-                    actionLabelEn: `Apply unicorn horn (a -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SICK_HORN', { invlet }));
             } else if (extraHealingPotion || healingPotion) {
                 const pot = extraHealingPotion || healingPotion;
                 const invlet = pot.invlet || pot.letter || 'a';
@@ -312,37 +245,9 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'quaff'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_SICK_POTION',
-                    priority: 88,
-                    category: 'STATUS_REMEDY',
-                    stance: 'CURE',
-                    icon: '🤢',
-                    shortMessageJa: '病気中: 強力回復薬で治癒',
-                    shortMessageEn: 'Sick: Quaff extra healing to cure',
-                    detailWhyJa: '病気は放置すると死に至ります。強力な回復薬を服用して治療します。',
-                    detailWhyEn: 'Sickness is fatal. Drink extra healing potion to cure.',
-                    wikiTopic: 'Sickness',
-                    actionKeySequence: ['q', invlet],
-                    actionLabelJa: `回復薬を飲む (q -> ${invlet})`,
-                    actionLabelEn: `Quaff potion (q -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SICK_POTION', { invlet }));
             } else if (canPray) {
-                candidateSignals.push({
-                    id: 'SIGNAL_SICK_PRAY',
-                    priority: 88,
-                    category: 'STATUS_REMEDY',
-                    stance: 'PRAY',
-                    icon: '🙏',
-                    shortMessageJa: '病気中: 神に祈って治療を乞う',
-                    shortMessageEn: 'Sick: Pray to deity for healing',
-                    detailWhyJa: '治療手段がないため、祈願で病気の治癒を乞います。',
-                    detailWhyEn: 'Without remedies, pray to god to cure illness.',
-                    wikiTopic: 'Pray',
-                    actionKeySequence: ['#', 'pray', 'y'],
-                    actionLabelJa: '神に祈る (#pray)',
-                    actionLabelEn: 'Pray to god (#pray)'
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SICK_PRAY'));
             }
         }
 
@@ -359,21 +264,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'quaff'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_HP_CRITICAL_HEAL',
-                    priority: 85,
-                    category: 'SURVIVAL',
-                    stance: 'CURE',
-                    icon: '🚨',
-                    shortMessageJa: '瀕死(HP低): 直ちに回復薬で治癒',
-                    shortMessageEn: 'Critical HP: Quaff healing potion immediately',
-                    detailWhyJa: 'HPが30%未満の致命的状況です。即座に回復を行ってください。',
-                    detailWhyEn: 'HP is critically below 30%. Heal immediately.',
-                    wikiTopic: 'Hit_points',
-                    actionKeySequence: ['q', invlet],
-                    actionLabelJa: `回復薬を飲む (q -> ${invlet})`,
-                    actionLabelEn: `Quaff healing potion (q -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_HP_CRITICAL_HEAL', { invlet }));
             } else if (safeHealingSpell) {
                 const key = safeHealingSpell.letter || safeHealingSpell.spellKey || 'a';
                 slotBadges[`spell:${key}`] = {
@@ -384,21 +275,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'cast'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_HP_CRITICAL_SPELL',
-                    priority: 85,
-                    category: 'SURVIVAL',
-                    stance: 'CURE',
-                    icon: '🚨',
-                    shortMessageJa: '瀕死(HP低): 治癒魔法で回復',
-                    shortMessageEn: 'Critical HP: Cast healing spell',
-                    detailWhyJa: '安全に詠唱可能な治癒魔法でHPを回復します。',
-                    detailWhyEn: 'Cast safe healing spell to restore HP.',
-                    wikiTopic: 'Spellbook_of_healing',
-                    actionKeySequence: ['Z', key, '.'],
-                    actionLabelJa: `治癒魔法を唱える (Z -> ${key} -> .)`,
-                    actionLabelEn: `Cast healing spell (Z -> ${key} -> .)`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_HP_CRITICAL_SPELL', { spellKey: key }));
             } else if (canPray) {
                 slotBadges['hp'] = {
                     type: 'danger',
@@ -407,21 +284,7 @@ export class AssistSignalSynthesizer {
                     labelEn: 'Pray',
                     highlightBorder: true
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_HP_CRITICAL_PRAY',
-                    priority: 85,
-                    category: 'SURVIVAL',
-                    stance: 'PRAY',
-                    icon: '🙏',
-                    shortMessageJa: '瀕死(HP低): 神に祈って全快を乞う',
-                    shortMessageEn: 'Critical HP: Pray to deity for full heal',
-                    detailWhyJa: '回復アイテムがないため、祈願によって神の恩恵（全回復）を乞います。',
-                    detailWhyEn: 'Without healing items, pray for divine full recovery.',
-                    wikiTopic: 'Pray',
-                    actionKeySequence: ['#', 'pray', 'y'],
-                    actionLabelJa: '神に祈る (#pray)',
-                    actionLabelEn: 'Pray to god (#pray)'
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_HP_CRITICAL_PRAY'));
             }
         } else if (hp.percent >= 0.3 && hp.percent <= 0.5) {
             // HP 警戒域 (30〜50%)
@@ -436,21 +299,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: false,
                     suggestedVerb: 'quaff'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_HP_LOW_HEAL',
-                    priority: 65,
-                    category: 'SURVIVAL',
-                    stance: 'CURE',
-                    icon: '💖',
-                    shortMessageJa: 'HP低下: 回復薬(q)の服用または退避',
-                    shortMessageEn: 'Low HP: Quaff healing potion (q) or retreat',
-                    detailWhyJa: 'HPが半分を切っています。安全を確保して回復してください。',
-                    detailWhyEn: 'HP is below 50%. Quaff potion or retreat to safety.',
-                    wikiTopic: 'Hit_points',
-                    actionKeySequence: ['q', invlet],
-                    actionLabelJa: `回復薬を飲む (q -> ${invlet})`,
-                    actionLabelEn: `Quaff potion (q -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_HP_LOW_HEAL', { invlet }));
             }
         }
 
@@ -466,21 +315,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'apply'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_CONF_HORN',
-                    priority: 75,
-                    category: 'STATUS_REMEDY',
-                    stance: 'CURE',
-                    icon: '✨',
-                    shortMessageJa: '混乱中: ユニコーンの角で治療',
-                    shortMessageEn: 'Confused: Apply unicorn horn to cure',
-                    detailWhyJa: 'ユニコーンの角を使って即時に混乱を解除します。',
-                    detailWhyEn: 'Apply unicorn horn to immediately cure confusion.',
-                    wikiTopic: 'Confusion',
-                    actionKeySequence: ['a', invlet],
-                    actionLabelJa: `角を使う (a -> ${invlet})`,
-                    actionLabelEn: `Apply horn (a -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_CONF_HORN', { invlet }));
             } else {
                 slotBadges['Conf'] = {
                     type: 'warning',
@@ -488,22 +323,7 @@ export class AssistSignalSynthesizer {
                     labelJa: '待機',
                     labelEn: 'Wait'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_CONF_WAIT',
-                    priority: 75,
-                    category: 'STATUS_REMEDY',
-                    stance: 'WAIT_SAFE',
-                    icon: '🛡️',
-                    shortMessageJa: '混乱中: 移動せず足踏み(.)推奨',
-                    shortMessageEn: 'Confused: Wait in place (.) recommended',
-                    detailWhyJa: '混乱中に移動するとランダムな方向へ進み、罠や溶岩に突っ込む危険があります。治まるまで足踏み待機してください。',
-                    detailWhyEn: 'Moving while confused causes random steps into traps/lava. Wait in place until it passes.',
-                    wikiTopic: 'Confusion',
-                    actionKeySequence: ['.'],
-                    actionLabelJa: '足踏み待機 (.)',
-                    actionLabelEn: 'Wait in place (.)',
-                    isSafe: true
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_CONF_WAIT'));
             }
         }
 
@@ -519,21 +339,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'apply'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_BLIND_HORN',
-                    priority: 70,
-                    category: 'STATUS_REMEDY',
-                    stance: 'CURE',
-                    icon: '✨',
-                    shortMessageJa: '盲目中: 角で治療',
-                    shortMessageEn: 'Blind: Apply horn to cure',
-                    detailWhyJa: 'ユニコーンの角を使って盲目を治療します。',
-                    detailWhyEn: 'Apply unicorn horn to restore eyesight.',
-                    wikiTopic: 'Blindness',
-                    actionKeySequence: ['a', invlet],
-                    actionLabelJa: `角を使う (a -> ${invlet})`,
-                    actionLabelEn: `Apply horn (a -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_BLIND_HORN', { invlet }));
             } else {
                 slotBadges['Blind'] = {
                     type: 'warning',
@@ -541,67 +347,22 @@ export class AssistSignalSynthesizer {
                     labelJa: '待機',
                     labelEn: 'Wait'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_BLIND_WAIT',
-                    priority: 70,
-                    category: 'STATUS_REMEDY',
-                    stance: 'WAIT_SAFE',
-                    icon: '🛡️',
-                    shortMessageJa: '盲目中: 壁際で安全確保・待機',
-                    shortMessageEn: 'Blind: Stay near wall and search/wait',
-                    detailWhyJa: '視界が失われています。不用意に歩き回らず、捜索待機(s)で自然回復を待ちます。',
-                    detailWhyEn: 'Eyesight lost. Wait/search (s) safely rather than wandering blindly.',
-                    wikiTopic: 'Blindness',
-                    actionKeySequence: ['s'],
-                    actionLabelJa: '捜索待機 (s)',
-                    actionLabelEn: 'Search & Wait (s)',
-                    isSafe: true
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_BLIND_WAIT'));
             }
         }
 
         // --- G. スタン (Stunned / Stun) ---
         if (hasCondition('stun') || hasCondition('stunned')) {
-            candidateSignals.push({
-                id: 'SIGNAL_STUN_WAIT',
-                priority: 60,
-                category: 'STATUS_REMEDY',
-                stance: 'WAIT_SAFE',
-                icon: '⏳',
-                shortMessageJa: 'スタン中: 攻撃を控えその場で待機',
-                shortMessageEn: 'Stunned: Hold attacks and wait in place',
-                detailWhyJa: 'スタン中は命中率が激減し行動が乱れます。足踏み待機で回復を待ちます。',
-                detailWhyEn: 'Stun reduces hit accuracy drastically. Wait in place until recovered.',
-                wikiTopic: 'Stunned',
-                actionKeySequence: ['.'],
-                actionLabelJa: '足踏み待機 (.)',
-                actionLabelEn: 'Wait in place (.)',
-                isSafe: true
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_STUN_WAIT'));
         }
 
         // --- H. 幻覚 (Hallu / Hallucination) ---
         if (hasCondition('hallu') || hasCondition('hallucinating')) {
-            candidateSignals.push({
-                id: 'SIGNAL_HALLU_CAUTION',
-                priority: 55,
-                category: 'STATUS_REMEDY',
-                stance: 'CAUTION',
-                icon: '🔍',
-                shortMessageJa: '幻覚中: 見た目に惑わされず待機',
-                shortMessageEn: 'Hallucinating: Do not trust appearances',
-                detailWhyJa: 'モンスターやアイテムの表示が偽装されています。危険な敵の誤認に注意してください。',
-                detailWhyEn: 'Monsters and items are disguised randomly. Be cautious of true identities.',
-                wikiTopic: 'Hallucination',
-                actionKeySequence: ['.'],
-                actionLabelJa: '足踏み待機 (.)',
-                actionLabelEn: 'Wait in place (.)',
-                isSafe: true
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_HALLU_CAUTION'));
         }
 
-        // --- I. 呪縛 (Cursed items) ---
-        if (hasCondition('cursed') || (inventoryItems.some(i => i.isWorn && (i.bflag === 2 || (i.name || '').includes('cursed'))))) {
+        // --- I. 呪縛 (Cursed items - SSOT: bflag, isCursed, buc) ---
+        if (hasCondition('cursed') || (inventoryItems.some(i => i.isWorn && (i.bflag === 2 || i.isCursed || i.buc === 'CURSED')))) {
             if (uncurseScroll) {
                 const invlet = uncurseScroll.invlet || uncurseScroll.letter || 'a';
                 slotBadges[invlet] = {
@@ -612,21 +373,7 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'read'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_CURSED_SCROLL',
-                    priority: 50,
-                    category: 'STATUS_REMEDY',
-                    stance: 'CURE',
-                    icon: '📜',
-                    shortMessageJa: '呪縛: 解呪の巻物(r)で装備解除可能',
-                    shortMessageEn: 'Cursed: Read remove curse (r) to unequip',
-                    detailWhyJa: '呪われた装備を外すには解呪の巻物(r)または解呪魔法が必要です。',
-                    detailWhyEn: 'Read remove curse scroll (r) to unequip cursed items.',
-                    wikiTopic: 'Curse',
-                    actionKeySequence: ['r', invlet],
-                    actionLabelJa: `解呪の巻物を読む (r -> ${invlet})`,
-                    actionLabelEn: `Read remove curse scroll (r -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_CURSED_SCROLL', { invlet }));
             }
         }
     }
@@ -639,21 +386,21 @@ export class AssistSignalSynthesizer {
 
         const perceivedMonsters = Array.isArray(areaState.perceivedMonsters) ? areaState.perceivedMonsters : [];
         const adjacentMonsters = Array.isArray(areaState.adjacentMonsters) ? areaState.adjacentMonsters : [];
+        const allMonsters = [...perceivedMonsters, ...adjacentMonsters.map(m => m.entity || m)];
 
-        // 浮遊する目玉 (floating eye / monOffset 57)
-        const hasFloatingEye = perceivedMonsters.some(m => {
-            const name = (m.name || m.nameJa || '').toLowerCase();
-            return name.includes('floating eye') || name.includes('浮遊する目玉') || m.monOffset === 57;
-        }) || adjacentMonsters.some(m => {
-            const name = (m.entity && (m.entity.name || m.entity.nameJa || '')) || '';
-            return name.toLowerCase().includes('floating eye') || name.includes('浮遊する目玉') || (m.entity && m.entity.monOffset === 57);
+        // 浮遊する目玉・視線麻痺敵 (SSOT: threat.type === 'GAZE_PARALYSIS' or paralysisGaze)
+        const hasFloatingEye = allMonsters.some(m => {
+            const k = this._resolveMonsterKnowledge(m);
+            return (k?.threat?.type === 'GAZE_PARALYSIS' || k?.threat?.effect === 'PARALYSIS' || k?.traits?.paralysisGaze);
         });
 
         if (hasFloatingEye) {
-            // 目隠し/タオル所持判定
+            // 目隠し/タオル所持判定 (SSOT: protectsAgainst.includes('GAZE'))
             const blindfold = inventoryItems.find(i => {
-                const name = (i.name || i.rawText || '').toLowerCase();
-                return (name.includes('blindfold') || name.includes('towel') || name.includes('目隠し') || name.includes('タオル')) && !i.isWorn;
+                if (i.isWorn) return false;
+                const k = this._resolveObjectKnowledge(i);
+                const protects = i.protectsAgainst || k?.protectsAgainst || [];
+                return protects.includes('GAZE');
             });
 
             if (blindfold) {
@@ -666,50 +413,26 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'wear'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_FLOATING_EYE_BLINDFOLD',
-                    priority: 76,
-                    category: 'TACTICAL_COMBAT',
-                    stance: 'EQUIP',
-                    icon: '🙈',
-                    shortMessageJa: '浮遊する目玉: 目隠し着用で安全接近',
-                    shortMessageEn: 'Floating Eye: Wear blindfold to approach safely',
-                    detailWhyJa: '目隠しやタオルを着用して盲目状態になると、目玉の麻痺凝視を受けずに近接攻撃できます。',
-                    detailWhyEn: 'Wearing a blindfold prevents paralysis gaze, allowing safe melee attacks.',
-                    wikiTopic: 'Floating_eye',
-                    actionKeySequence: ['P', invlet],
-                    actionLabelJa: `目隠しを着用する (P -> ${invlet})`,
-                    actionLabelEn: `Wear blindfold (P -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_FLOATING_EYE_BLINDFOLD', { invlet }));
             } else {
-                candidateSignals.push({
-                    id: 'SIGNAL_FLOATING_EYE_RANGED',
-                    priority: 78,
-                    category: 'TACTICAL_COMBAT',
-                    stance: 'RANGED',
-                    icon: '⚠️',
-                    shortMessageJa: '浮遊する目玉: 近接禁止！遠隔攻撃推奨',
-                    shortMessageEn: 'Floating Eye: Do NOT melee! Use ranged attacks',
-                    detailWhyJa: '素手や通常武器で直接攻撃すると、麻痺して一方的にタコ殴りにされ死に至ります。投擲や魔法で倒してください。',
-                    detailWhyEn: 'Melee attack causes long paralysis and death. Use ranged projectiles or spells.',
-                    wikiTopic: 'Floating_eye',
-                    actionKeySequence: ['f'],
-                    actionLabelJa: '矢筒から発射 (f)',
-                    actionLabelEn: 'Fire from quiver (f)'
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_FLOATING_EYE_RANGED'));
             }
         }
 
-        // 銀弱点モンスター (悪魔・人狼等) ＆ 手持ち銀製武器
-        const hasSilverVulnerableMon = perceivedMonsters.some(m => {
-            const name = (m.name || '').toLowerCase();
-            return name.includes('were') || name.includes('vampire') || name.includes('demon') || name.includes('devil') || name.includes('shade');
+        // 銀弱点モンスター (SSOT: vulnerabilities.includes('SILVER') or weaknesses.includes('silver'))
+        const hasSilverVulnerableMon = allMonsters.some(m => {
+            const k = this._resolveMonsterKnowledge(m);
+            return (k?.vulnerabilities?.includes('SILVER') || k?.weaknesses?.includes('silver'));
         });
 
         if (hasSilverVulnerableMon) {
+            // 銀製武器所持判定 (SSOT: isSilver or material === 'silver', WEAPON)
             const silverWeapon = inventoryItems.find(i => {
-                const name = (i.name || i.rawText || '').toLowerCase();
-                return (name.includes('silver') || name.includes('銀')) && !i.isWorn && (i.isWeapon || i.category === 'WEAPON');
+                if (i.isWorn) return false;
+                const k = this._resolveObjectKnowledge(i);
+                const isSilver = i.isSilver || k?.isSilver || i.material === 'silver' || k?.material === 'silver';
+                const isWeapon = i.isWeapon || i.category === 'WEAPON' || k?.category === 'WEAPON';
+                return isSilver && isWeapon;
             });
 
             if (silverWeapon) {
@@ -722,46 +445,18 @@ export class AssistSignalSynthesizer {
                     highlightBorder: true,
                     suggestedVerb: 'wield'
                 };
-                candidateSignals.push({
-                    id: 'SIGNAL_SILVER_WEAPON_EQUIP',
-                    priority: 68,
-                    category: 'TACTICAL_COMBAT',
-                    stance: 'EQUIP',
-                    icon: '⚔️',
-                    shortMessageJa: '銀弱点敵: 銀の武器への持替推奨',
-                    shortMessageEn: 'Silver Vulnerable: Wield silver weapon',
-                    detailWhyJa: '悪魔や人狼系モンスターには銀製武器による特効追加ダメージ(1d20)が有効です。',
-                    detailWhyEn: 'Silver weapons deal massive bonus damage (1d20) against demons and lycanthropes.',
-                    wikiTopic: 'Silver',
-                    actionKeySequence: ['w', invlet],
-                    actionLabelJa: `銀の武器を装備 (w -> ${invlet})`,
-                    actionLabelEn: `Wield silver weapon (w -> ${invlet})`
-                });
+                candidateSignals.push(createAssistSignal('SIGNAL_SILVER_WEAPON_EQUIP', { invlet }));
             }
         }
 
-        // 反射持ちモンスター (銀竜等)
-        const hasReflectingMon = perceivedMonsters.some(m => {
-            const name = (m.name || '').toLowerCase();
-            return name.includes('silver dragon') || name.includes('銀竜');
+        // 反射持ちモンスター (SSOT: threat.type === 'REFLECT' or threat.effect === 'REFLECT')
+        const hasReflectingMon = allMonsters.some(m => {
+            const k = this._resolveMonsterKnowledge(m);
+            return (k?.threat?.type === 'REFLECT' || k?.threat?.effect === 'REFLECT' || k?.corpse?.grantsIntrinsics?.includes('reflect'));
         });
 
         if (hasReflectingMon) {
-            candidateSignals.push({
-                id: 'SIGNAL_MONSTER_REFLECTING',
-                priority: 72,
-                category: 'TACTICAL_COMBAT',
-                stance: 'CAUTION',
-                icon: '🛡️',
-                shortMessageJa: '反射敵: ビーム跳ね返り自爆に注意',
-                shortMessageEn: 'Reflecting Monster: Beware beam rebound!',
-                detailWhyJa: '銀竜などの反射持ち敵に直線光線（火・冷気・死の杖等）を撃つと、跳ね返って自分が直撃を受けます。',
-                detailWhyEn: 'Beams bounce off silver dragons and can kill you. Use physical attacks instead.',
-                wikiTopic: 'Reflection',
-                actionKeySequence: ['f'],
-                actionLabelJa: '物理投擲攻撃 (f)',
-                actionLabelEn: 'Ranged physical attack (f)'
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_MONSTER_REFLECTING'));
         }
     }
 
@@ -771,20 +466,22 @@ export class AssistSignalSynthesizer {
     static evaluateMagicAndResourceStance(status, inventoryItems, spells, candidateSignals, slotBadges) {
         if (!spells || spells.length === 0) return;
 
-        // 金属鎧の着用判定
+        // 金属鎧の着用判定 (SSOT: isMetallic or material in ['iron', 'metal', 'copper', 'silver'])
         const hasMetallicArmor = inventoryItems.some(i => {
             if (!i.isWorn) return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('iron') || name.includes('metal') || name.includes('plate mail') ||
-                   name.includes('chain mail') || name.includes('banded mail') || name.includes('splint mail') ||
-                   name.includes('helmet') || name.includes('gauntlets of power') || name.includes('iron shoes');
+            const k = this._resolveObjectKnowledge(i);
+            const isMetallic = i.isMetallic || k?.isMetallic;
+            const mat = (i.material || k?.material || '').toLowerCase();
+            return isMetallic || ['iron', 'metal', 'copper', 'silver'].includes(mat);
         });
 
-        // 攻撃の杖所持判定
+        // 攻撃の杖所持判定 (SSOT: isWand, isOffensive)
         const attackWand = inventoryItems.find(i => {
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return (name.includes('wand of') || name.includes('杖')) &&
-                   (name.includes('striking') || name.includes('magic missile') || name.includes('fire') || name.includes('cold') || name.includes('lightning') || name.includes('打撃') || name.includes('電撃'));
+            const k = this._resolveObjectKnowledge(i);
+            const isWand = i.isWand || i.category === 'WAND' || k?.category === 'WAND';
+            if (!isWand) return false;
+            const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
+            return Boolean(eff.isOffensive);
         });
 
         // 全魔法スロットの4大安全ガード検証
@@ -819,21 +516,11 @@ export class AssistSignalSynthesizer {
                     suggestedVerb: 'zap'
                 };
             }
-            candidateSignals.push({
-                id: 'SIGNAL_ARMOR_MAGIC_PENALTY',
-                priority: 45,
-                category: 'EQUIPMENT_MAGIC',
-                stance: 'CAUTION',
-                icon: '🪄',
-                shortMessageJa: '防具干渉: 魔法失敗率高（杖を推奨）',
-                shortMessageEn: 'Armor Penalty: High spell failure (use wands)',
-                detailWhyJa: '金属製の鎧や兜を装備していると魔法失敗率が跳ね上がります。金属防具を脱ぐか、同じ効果の杖を使用してください。',
-                detailWhyEn: 'Metallic armor causes massive spellcasting penalty. Remove metal gear or use wands.',
-                wikiTopic: 'Spell_casting_penalty',
+            candidateSignals.push(createAssistSignal('SIGNAL_ARMOR_MAGIC_PENALTY', {
                 actionKeySequence: attackWand ? ['z', attackWand.invlet || 'a'] : ['z'],
                 actionLabelJa: attackWand ? `攻撃の杖を振る (z -> ${attackWand.invlet || 'a'})` : '杖を振る (z)',
                 actionLabelEn: attackWand ? `Zap wand (z -> ${attackWand.invlet || 'a'})` : 'Zap wand (z)'
-            });
+            }));
         }
     }
 
@@ -844,14 +531,13 @@ export class AssistSignalSynthesizer {
         if (!landmarks) return;
 
         // 1. 未識別指輪 ＋ 流し台 (Sink ID)
+        const sinkInteraction = CHEMISTRY_INTERACTIONS.find(c => c.id === 'CHEMISTRY_SINK_DROP_RING');
+
         const isRingItem = (i) => {
             if (!i) return false;
-            const cat = i.category || i.itemCategory || i.onumCategory || (i.knowledge && i.knowledge.category);
-            if (cat === 'RING' || i.oclass === 8) return true;
-            if (cat && cat !== 'OTHER' && cat !== 'RING') return false;
-            const name = (i.name || i.rawText || '').toLowerCase();
-            if (name.includes('ring mail') || name.includes('ringmail') || name.includes('鎧') || name.includes('防具')) return false;
-            return name.includes('指輪') || /\bring\b/i.test(name);
+            const k = this._resolveObjectKnowledge(i);
+            const cat = i.category || i.itemCategory || i.onumCategory || k?.category;
+            return cat === 'RING' || i.isRing === true;
         };
 
         const hasUnidentifiedRing = inventoryItems.some(i => {
@@ -863,28 +549,22 @@ export class AssistSignalSynthesizer {
             (landmarks.all && landmarks.all.some(l => l.type === 'SINK'));
 
         if (hasUnidentifiedRing && hasSinkOnFloor) {
-            candidateSignals.push({
-                id: 'SIGNAL_LANDMARK_SINK_RING',
-                priority: 35,
-                category: 'UTILITY',
-                stance: 'CAUTION',
-                icon: '🚰',
-                shortMessageJa: '未識別指輪: 流し台に落として識別(d) ※現物は消滅',
-                shortMessageEn: 'Unidentified ring: Drop in sink (d) *Ring is lost*',
-                detailWhyJa: '流し台(Sink)の上で指輪を落とすと固有の効果音から種類を識別できます。※落とした指輪は排水口に流れて消滅するため不要な指輪を推奨します。',
-                detailWhyEn: 'Dropping a ring down a sink identifies its type. WARNING: The dropped ring is lost forever down the drain!',
-                wikiTopic: 'Sink',
-                actionKeySequence: ['d'],
-                actionLabelJa: 'アイテムを落とす (d)',
-                actionLabelEn: 'Drop item (d)'
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_LANDMARK_SINK_RING', {
+                detailWhyJa: sinkInteraction?.effect?.noteJa,
+                detailWhyEn: sinkInteraction?.effect?.noteEn,
+                actionLabelJa: sinkInteraction?.action?.labelJa,
+                actionLabelEn: sinkInteraction?.action?.labelEn
+            }));
         }
 
         // 2. 重い死体 ＋ 自属性祭壇 (Corpse Sacrifice)
+        const altarInteraction = CHEMISTRY_INTERACTIONS.find(c => c.id === 'CHEMISTRY_ALTAR_OFFER_CORPSE');
+
         const playerAlign = (status && status.align ? String(status.align).toLowerCase() : 'neutral');
         const hasCorpse = inventoryItems.some(i => {
-            const name = (i.name || i.rawText || '').toLowerCase();
-            return name.includes('corpse') || name.includes('死体') || name.includes('死骸');
+            const k = this._resolveObjectKnowledge(i);
+            const cat = i.category || k?.category;
+            return (cat === 'FOOD' || i.isFood) && (k?.isCorpse || i.isCorpse || i.corpseOf || k?.corpseOf);
         });
 
         const matchingAltar = (landmarks.altars || []).find(a => {
@@ -893,21 +573,13 @@ export class AssistSignalSynthesizer {
         });
 
         if (hasCorpse && matchingAltar) {
-            candidateSignals.push({
-                id: 'SIGNAL_LANDMARK_ALTAR_SACRIFICE',
-                priority: 32,
-                category: 'UTILITY',
-                stance: 'CAUTION',
-                icon: '⛪',
-                shortMessageJa: '捧げ物可能: この階の祭壇に死体を捧げて神の恩恵を獲得 (#offer)',
-                shortMessageEn: 'Sacrifice available: Offer corpse at altar (#offer)',
-                detailWhyJa: '属性の一致する祭壇で新鮮な死体を捧げると、神の好感度上昇やアーティファクト下賜の恩恵が得られます。',
-                detailWhyEn: 'Sacrificing fresh corpses at an aligned altar grants divine favor and gifts.',
-                wikiTopic: 'Altar',
-                actionKeySequence: ['#', 'offer'],
-                actionLabelJa: '捧げ物をする (#offer)',
-                actionLabelEn: 'Offer sacrifice (#offer)'
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_LANDMARK_ALTAR_SACRIFICE', {
+                detailWhyJa: altarInteraction?.effect?.noteJa,
+                detailWhyEn: altarInteraction?.effect?.noteEn,
+                actionKeySequence: altarInteraction?.action?.keySequence,
+                actionLabelJa: altarInteraction?.action?.labelJa,
+                actionLabelEn: altarInteraction?.action?.labelEn
+            }));
         }
 
         // 3. 瀕死・危険 ＋ 階段退避 (Stair Escape)
@@ -916,21 +588,7 @@ export class AssistSignalSynthesizer {
             (landmarks.all && landmarks.all.some(l => l.type === 'STAIR_UP'));
 
         if (hp && hp.max > 0 && hp.current > 0 && hp.percent < 0.3 && hasStairUp) {
-            candidateSignals.push({
-                id: 'SIGNAL_LANDMARK_STAIR_ESCAPE',
-                priority: 82,
-                category: 'SURVIVAL',
-                stance: 'WAIT_SAFE',
-                icon: '🪜',
-                shortMessageJa: '退避推奨: 上り階段へ移動して体制を立て直す',
-                shortMessageEn: 'Retreat recommended: Move to stairs up to recover',
-                detailWhyJa: '瀕死かつ回復手段がない場合、上の階層へ退避して安全な場所で足踏み回復を図るのが有効です。',
-                detailWhyEn: 'Retreating upstairs allows safe resting in previously cleared rooms.',
-                wikiTopic: 'Stairs',
-                actionKeySequence: ['<'],
-                actionLabelJa: '階段を上る (<)',
-                actionLabelEn: 'Go up stairs (<)'
-            });
+            candidateSignals.push(createAssistSignal('SIGNAL_LANDMARK_STAIR_ESCAPE'));
         }
     }
 
@@ -1038,5 +696,52 @@ export class AssistSignalSynthesizer {
             return areaState.landmarks;
         }
         return context.landmarks || null;
+    }
+
+    static _resolveMonsterKnowledge(mon) {
+        if (!mon) return null;
+        const m = mon.entity || mon;
+        if (m.knowledge) return m.knowledge;
+        const name = (m.name || m.rawName || '').toLowerCase();
+        if (name && MONSTER_KNOWLEDGE_MAP.has(name)) {
+            return MONSTER_KNOWLEDGE_MAP.get(name);
+        }
+        const offset = m.monOffset !== undefined ? m.monOffset : (m.subType !== undefined ? m.subType : m.glyphInfo?.monOffset);
+        if (offset !== undefined && MONSTER_KNOWLEDGE_MAP.has(offset)) {
+            return MONSTER_KNOWLEDGE_MAP.get(offset);
+        }
+        return null;
+    }
+
+    static _resolveObjectKnowledge(item) {
+        if (!item) return null;
+        if (item.knowledge) return item.knowledge;
+        if (typeof item.onum === 'number' && item.onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(item.onum)) {
+            return OBJECT_KNOWLEDGE_MAP.get(item.onum);
+        }
+        const name = (item.name || item.rawText || '').toLowerCase();
+        if (name) {
+            for (const entry of OBJECT_KNOWLEDGE_MAP.values()) {
+                if (entry && (entry.name?.toLowerCase() === name || entry.id?.toLowerCase() === name)) {
+                    return entry;
+                }
+            }
+            if (name.endsWith('corpse')) {
+                const isLizard = name.includes('lizard');
+                const genericCorpse = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(e => e.standardName === 'corpse' || e.name === 'corpse') || {};
+                const lizardEntry = isLizard ? Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(e => e.standardName === 'lizard corpse' || e.name === 'lizard corpse') : null;
+                const baseEntry = lizardEntry || genericCorpse;
+                return {
+                    ...baseEntry,
+                    category: 'FOOD',
+                    isCorpse: true,
+                    effects: {
+                        ...(baseEntry.effects || {}),
+                        ...(isLizard ? { curePetrification: true } : {})
+                    }
+                };
+            }
+        }
+        return null;
     }
 }

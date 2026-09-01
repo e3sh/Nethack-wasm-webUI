@@ -834,8 +834,9 @@ for (let i = 0; i <= 382; i++) {
     };
 
     const attacks = specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }];
-    const resistances = specific.resistances || [];
-    const weaknesses = specific.weaknesses || [];
+    const resistances = specific.resistances ? [...specific.resistances] : [];
+    const weaknesses = specific.weaknesses ? [...specific.weaknesses] : [];
+    const vulnerabilities = specific.vulnerabilities ? [...specific.vulnerabilities] : [];
     const lowerName = rawName.toLowerCase();
 
     // 🎯 脅威フラグ群 (新スキーマ traits) の合成
@@ -877,6 +878,15 @@ for (let i = 0; i <= 382; i++) {
         isUndead,
         isDemon
     };
+
+    // 🎯 銀弱点・悪魔・人狼・アンデッド (Silver Vulnerability / Weakness) の自動導出
+    if (isUndead || isDemon || causesLycanthropy || lowerName.includes('were') || lowerName.includes('vampire') || lowerName.includes('demon') || lowerName.includes('devil') || lowerName.includes('shade')) {
+        if (!vulnerabilities.includes('SILVER')) vulnerabilities.push('SILVER');
+        if (!weaknesses.includes('silver')) weaknesses.push('silver');
+    }
+    if (weaknesses.includes('silver') && !vulnerabilities.includes('SILVER')) {
+        vulnerabilities.push('SILVER');
+    }
 
     const defaultPeaceful = specific.defaultPeaceful ?? isDefaultPeaceful(rawName, i);
     const calculatedDanger = inferDangerLevel(rawName, stats.hd, traits);
@@ -938,6 +948,7 @@ for (let i = 0; i <= 382; i++) {
         traits: traits,
         resistances: resistances,
         weaknesses: weaknesses,
+        vulnerabilities: vulnerabilities,
         corpse: corpse,
         threat: threat,
 
