@@ -18,9 +18,14 @@ const RESIST_LABELS_JA = {
     petrification: '石化耐性',
     stoning: '石化耐性',
     disintegration: '分解耐性',
+    disint: '分解耐性',
     magic: '耐魔 (Magic Resistance)',
+    antimagic: '耐魔 (Magic Resistance)',
     drain: 'ドレイン耐性',
-    death: '即死無効'
+    death: '即死無効',
+    telepathy: 'テレパシー (ESP)',
+    reflect: '光線反射',
+    gain_level: 'レベルアップ (+1)'
 };
 
 const RESIST_LABELS_EN = {
@@ -33,9 +38,14 @@ const RESIST_LABELS_EN = {
     petrification: 'Stoning Resist',
     stoning: 'Stoning Resist',
     disintegration: 'Disintegration Resist',
+    disint: 'Disintegration Resist',
     magic: 'Magic Resist',
+    antimagic: 'Magic Resist',
     drain: 'Drain Resist',
-    death: 'Death Immunity'
+    death: 'Death Immunity',
+    telepathy: 'Telepathy (ESP)',
+    reflect: 'Reflection',
+    gain_level: 'Level Gain (+1)'
 };
 
 const WEAKNESS_LABELS_JA = {

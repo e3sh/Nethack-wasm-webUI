@@ -656,20 +656,129 @@
             return translator.translate(name);
         }
 
-        // Glyph スタイルヘルパー
+        // 耐性・内在能力・特性の完全多言語対応マスター (SSOT)
+        const INTRINSIC_TRANSLATIONS = {
+            // 基本エレメンタル耐性
+            fire: { ja: '火炎耐性', en: 'Fire Resistance' },
+            fire_res: { ja: '火炎耐性', en: 'Fire Resistance' },
+            cold: { ja: '冷気耐性', en: 'Cold Resistance' },
+            cold_res: { ja: '冷気耐性', en: 'Cold Resistance' },
+            shock: { ja: '電撃耐性', en: 'Shock Resistance' },
+            shock_res: { ja: '電撃耐性', en: 'Shock Resistance' },
+            elec: { ja: '電撃耐性', en: 'Shock Resistance' },
+            sleep: { ja: '睡眠耐性', en: 'Sleep Resistance' },
+            sleep_res: { ja: '睡眠耐性', en: 'Sleep Resistance' },
+            poison: { ja: '毒耐性', en: 'Poison Resistance' },
+            poison_res: { ja: '毒耐性', en: 'Poison Resistance' },
+            acid: { ja: '酸耐性', en: 'Acid Resistance' },
+            acid_res: { ja: '酸耐性', en: 'Acid Resistance' },
+            disint: { ja: '分解耐性', en: 'Disintegration Resistance' },
+            disint_res: { ja: '分解耐性', en: 'Disintegration Resistance' },
+            stone: { ja: '石化耐性', en: 'Petrification Resistance' },
+            stoning: { ja: '石化耐性', en: 'Petrification Resistance' },
+            stone_res: { ja: '石化耐性', en: 'Petrification Resistance' },
+            drain: { ja: 'ドレイン耐性', en: 'Drain Resistance' },
+            drain_res: { ja: 'ドレイン耐性', en: 'Drain Resistance' },
+            magic: { ja: '魔法耐性', en: 'Magic Resistance' },
+            antimagic: { ja: '魔法防御/反魔法', en: 'Magic Resistance' },
+
+            // 精神・知覚系能力
+            telepathy: { ja: 'テレパシー (ESP)', en: 'Telepathy (ESP)' },
+            telepat: { ja: 'テレパシー (ESP)', en: 'Telepathy (ESP)' },
+            infravision: { ja: '赤外線視覚 (暗視)', en: 'Infravision' },
+            seeinvis: { ja: '不可視視認', en: 'See Invisible' },
+            see_invis: { ja: '不可視視認', en: 'See Invisible' },
+            invis: { ja: '不可視', en: 'Invisibility' },
+            searching: { ja: '自動探索', en: 'Searching' },
+            warning: { ja: '危険察知', en: 'Warning' },
+            clairvoyant: { ja: '千里眼', en: 'Clairvoyance' },
+
+            // 移動・身体系能力
+            stealth: { ja: '忍び足', en: 'Stealth' },
+            fast: { ja: '俊足', en: 'Speed' },
+            jumping: { ja: '跳躍', en: 'Jumping' },
+            levitation: { ja: '浮遊', en: 'Levitation' },
+            flying: { ja: '飛行', en: 'Flying' },
+            wwalking: { ja: '水上歩行', en: 'Water Walking' },
+            teleport: { ja: 'テレポート能力', en: 'Teleportation' },
+            teleportcontrol: { ja: 'テレポート制御', en: 'Teleport Control' },
+            teleport_control: { ja: 'テレポート制御', en: 'Teleport Control' },
+            free_action: { ja: '麻痺防止 (自由行動)', en: 'Free Action' },
+            slow_digestion: { ja: '消化遅延', en: 'Slow Digestion' },
+            regeneration: { ja: '自動HP回復', en: 'Regeneration' },
+            magical_breathing: { ja: '水中呼吸 (窒息防止)', en: 'Magical Breathing' },
+            unchanging: { ja: '不変 (スライム化防止)', en: 'Unchanging' },
+            reflect: { ja: '光線反射', en: 'Reflection' },
+            reflecting: { ja: '光線反射', en: 'Reflection' },
+            lifesaved: { ja: '救命 (身代わり復活)', en: 'Life Saving' },
+            polymorph: { ja: '変身', en: 'Polymorph' },
+            polymorph_control: { ja: '変身制御', en: 'Polymorph Control' },
+            conflict: { ja: '争いの種', en: 'Conflict' },
+            gain_level: { ja: 'レベルアップ (+1)', en: 'Level Gain (+1)' },
+
+            // 弱点・特効系
+            ranged: { ja: '遠隔攻撃弱点', en: 'Ranged Attacks' },
+            silver: { ja: '銀特効弱点', en: 'Silver Weapons' },
+            wooden: { ja: '木製武器特効', en: 'Wooden Weapons' }
+        };
+
+        function formatIntrinsic(key, lang = 'ja') {
+            if (!key) return '';
+            const cleanKey = String(key).toLowerCase().replace(/[\s-]/g, '_');
+            const found = INTRINSIC_TRANSLATIONS[cleanKey];
+            if (found) {
+                return lang === 'ja' ? found.ja : found.en;
+            }
+            return key;
+        }
+
+        // Glyph スタイルヘルパー (全タブのエンティティに対して 100% 確実に Glyph ID を解決)
         function getEntityGlyphId(entity) {
             if (!entity) return -1;
-            if (entity.entityType === 'MONSTER') {
+
+            const idLower = (entity.id || '').toLowerCase();
+
+            // 1. 地形・設備 (TERRAIN) を最優先判定 (アイテムとの誤判定を完全防止)
+            const TERRAIN_CMAP_GLYPHS = {
+                stairs_down: 3999, stairs_up: 3998, closed_door: 3988, open_door: 3986,
+                fountain: 4014, sink: 4013, altar: 4006, grave: 4011, tree: 3991,
+                bars: 3990, lava: 4017, water: 4015, ice: 4016, drawbridge: 4019,
+                cloud: 4024, air: 4023, trap: 4026, throne: 4012, wall: 3929, floor: 3992
+            };
+            if (entity.entityType === 'TERRAIN' || TERRAIN_CMAP_GLYPHS[idLower] !== undefined) {
+                return TERRAIN_CMAP_GLYPHS[idLower] ?? -1;
+            }
+
+            // 2. 種族・職業 (CHARACTER)
+            const CHARACTER_MON_OFFSETS = {
+                human: 260, dwarf: 44, elf: 265, gnome: 165, orc: 72,
+                archeologist: 331, barbarian: 332, caveman: 333, healer: 334,
+                knight: 335, monk: 336, priest: 337, ranger: 338, rogue: 339,
+                samurai: 340, tourist: 341, valkyrie: 342, wizard: 343
+            };
+            if (entity.entityType === 'CHARACTER' || CHARACTER_MON_OFFSETS[idLower] !== undefined) {
+                const monOff = CHARACTER_MON_OFFSETS[idLower] ?? -1;
+                return monOff >= 0 ? (GLYPH_OFFSETS.GLYPH_MON_OFF + monOff) : -1;
+            }
+
+            // 3. モンスター (MONSTER)
+            if (entity.entityType === 'MONSTER' || entity.dangerLevel !== undefined || entity.threat !== undefined || (entity.monOffset !== undefined && entity.monOffset !== null)) {
                 const monOffset = (entity.monOffset !== undefined && entity.monOffset !== null)
                     ? entity.monOffset
                     : (entity.monNum !== undefined ? entity.monNum : 0);
                 return GLYPH_OFFSETS.GLYPH_MON_OFF + monOffset;
-            } else if (entity.entityType === 'ITEM') {
+            }
+
+            // 4. アイテム (ITEM)
+            if (entity.entityType === 'ITEM' || entity.onum !== undefined || entity.cost !== undefined || entity.stats !== undefined || entity.sdam !== undefined) {
                 const onum = (entity.onum !== undefined && entity.onum !== null)
                     ? entity.onum
-                    : (typeof entity.id === 'string' && entity.id.startsWith('item_onum_') ? parseInt(entity.id.replace('item_onum_', ''), 10) : 0);
-                return GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum;
+                    : (typeof entity.id === 'string' && entity.id.startsWith('item_onum_') ? parseInt(entity.id.replace('item_onum_', ''), 10) : -1);
+                if (onum >= 0) {
+                    return GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum;
+                }
             }
+
             return -1;
         }
 
@@ -771,13 +880,17 @@
                     subtitle = e.subType;
                     badgeClass = e.subType === 'RACE' ? 'tag-PURPLE' : 'tag-INFO';
                     badgeText = e.subType;
-                    iconHtml = e.icon || '🧙';
+                    const glyphId = getEntityGlyphId(e);
+                    const iconStyle = getEntityGlyphStyleString(glyphId, 24);
+                    iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : (e.icon || '🧙');
                 } else if (currentTab === 'TERRAIN') {
                     title = currentLang === 'ja' ? (e.nameJa || translateNameWithSlash(e.name)) : (e.nameEn || e.name);
                     subtitle = e.category;
                     badgeClass = (e.category === 'LAVA' || e.category === 'WATER') ? 'tag-HIGH' : 'tag-ITEM';
                     badgeText = e.category;
-                    iconHtml = e.icon || '🏔️';
+                    const glyphId = getEntityGlyphId(e);
+                    const iconStyle = getEntityGlyphStyleString(glyphId, 24);
+                    iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : (e.icon || '🏔️');
                 } else if (currentTab === 'CHEMISTRY') {
                     title = currentLang === 'ja' ? (e.nameJa || e.action?.labelJa || e.messages?.descriptionJa || e.id) : (e.nameEn || e.action?.labelEn || e.messages?.descriptionEn || e.id);
                     subtitle = e.id;
@@ -916,19 +1029,57 @@
                 `<li><strong>${a.type}</strong>${a.damage ? ` (${a.damage})` : ''}${a.effect ? `: <em>${a.effect}</em>` : ''}</li>`
             ).join('');
 
-            // アドバイス
-            const adviceList = (currentLang === 'ja' && Array.isArray(mon.tacticalAdviceJa) && mon.tacticalAdviceJa.length > 0)
+            // アドバイス (重複する死体・スペックコメントを除外し、具体的な戦術・対処カウンターを表示)
+            const rawAdvice = (currentLang === 'ja' && Array.isArray(mon.tacticalAdviceJa) && mon.tacticalAdviceJa.length > 0)
                 ? mon.tacticalAdviceJa
                 : (mon.tacticalAdviceEn || mon.tacticalAdvice || []);
 
-            let adviceHtml = adviceList.map(adv => `<li>${adv}</li>`).join('');
+            const filteredAdvice = rawAdvice.filter(adv => {
+                if (typeof adv !== 'string') return true;
+                const lower = adv.toLowerCase();
+                if (lower.includes('死体摂取特典') || lower.includes('corpse grants')) return false;
+                if (lower.includes('死体: ') || lower.includes('corpse: ')) return false;
+                if (lower.startsWith('耐性:') || lower.startsWith('resist:')) return false;
+                if (lower.startsWith('有効な攻撃:') || lower.startsWith('weakness:')) return false;
+                return true;
+            });
+
+            const finalAdviceList = [...filteredAdvice];
+            if (mon.threat && Array.isArray(mon.threat.counters) && mon.threat.counters.length > 0) {
+                mon.threat.counters.forEach(c => {
+                    let counterText = '';
+                    if (c.id === 'COUNTER_BLINDFOLD') {
+                        counterText = currentLang === 'ja' 
+                            ? '🛡️ 対処法: 目隠し(blindfold)やタオルを着用して接近・攻撃してください（直視麻痺を完全回避）。'
+                            : '🛡️ Counter: Wear a blindfold or towel to approach safely without getting paralyzed.';
+                    } else if (c.id === 'COUNTER_RANGED') {
+                        counterText = currentLang === 'ja'
+                            ? '🏹 対処法: 弓・投石(スリング)などの飛び道具で遠距離から安全に倒してください。'
+                            : '🏹 Counter: Use ranged attacks or thrown projectiles to defeat safely from distance.';
+                    } else if (c.id === 'COUNTER_GLOVES') {
+                        counterText = currentLang === 'ja'
+                            ? '🧤 対処法: 手袋(gloves)を着用していれば、死体を安全に拾って武器として利用可能です。'
+                            : '🧤 Counter: Wear gloves to safely pick up and wield the corpse as a petrifying weapon.';
+                    } else if (c.id === 'COUNTER_HELMET') {
+                        counterText = currentLang === 'ja'
+                            ? '⛑️ 対処法: 硬い兜(helmet)を装備して触手による脳食い即死を防御してください。'
+                            : '⛑️ Counter: Wear a hard helmet to protect against lethal brain-eating attacks.';
+                    }
+                    if (counterText && !finalAdviceList.includes(counterText)) {
+                        finalAdviceList.unshift(counterText);
+                    }
+                });
+            }
+
+            let adviceHtml = finalAdviceList.map(adv => `<li>${adv}</li>`).join('');
 
             // 死体
             let corpseHtml = '';
             if (corpse && typeof corpse === 'object') {
                 const edibleText = corpse.edible ? (currentLang === 'ja' ? '可食' : 'Edible') : (currentLang === 'ja' ? '不可食' : 'Inedible');
                 const poisonText = corpse.poisonous ? (currentLang === 'ja' ? '⚠️ 有毒' : '⚠️ Poisonous') : (currentLang === 'ja' ? '無毒' : 'Safe');
-                const intrinsics = Array.isArray(corpse.grantsIntrinsics) ? corpse.grantsIntrinsics.join(', ') : (corpse.grantResist || null);
+                const rawIntrinsics = Array.isArray(corpse.grantsIntrinsics) ? corpse.grantsIntrinsics : (corpse.grantResist ? [corpse.grantResist] : []);
+                const intrinsics = rawIntrinsics.map(i => formatIntrinsic(i, currentLang)).join(', ');
 
                 corpseHtml = `
                     <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
@@ -967,6 +1118,26 @@
                         </div>
                     ` : ''}
                 </div>
+
+                ${(mon.resistances && mon.resistances.length > 0) || (mon.weaknesses && mon.weaknesses.length > 0) ? `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                        <div class="section-title">🛡️ ${currentLang === 'ja' ? '耐性 ＆ 弱点' : 'Resistances & Weaknesses'}</div>
+                        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+                            ${mon.resistances && mon.resistances.length > 0 ? `
+                                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                    <span style="font-size:0.75rem; color:#10b981; font-weight:bold;">${currentLang === 'ja' ? '耐性' : 'Resist'}:</span>
+                                    ${mon.resistances.map(r => `<span class="tag-badge tag-LOW" style="font-size:0.75rem; padding:3px 8px;">🛡️ ${formatIntrinsic(r, currentLang)}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                            ${mon.weaknesses && mon.weaknesses.length > 0 ? `
+                                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                    <span style="font-size:0.75rem; color:#f43f5e; font-weight:bold;">${currentLang === 'ja' ? '弱点' : 'Weakness'}:</span>
+                                    ${mon.weaknesses.map(w => `<span class="tag-badge" style="font-size:0.75rem; padding:3px 8px; background:rgba(244,63,94,0.2); border:1px solid #f43f5e; color:#f8fafc;">🎯 ${formatIntrinsic(w, currentLang)}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                ` : ''}
 
                 ${hasSilverVuln ? `
                     <div class="info-block" style="border-color:#e2e8f0; background:rgba(226,232,240,0.1); display:flex; align-items:center; gap:10px;">
@@ -1008,27 +1179,42 @@
         // -------------------------------------------------------------
         function renderItemCard(itemRaw) {
             const isTranslate = (currentLang === 'ja');
-            const item = knowledgeEngine.getItemKnowledge(itemRaw.id, { translate: isTranslate }) || itemRaw;
+            const targetId = (itemRaw.onum !== undefined && itemRaw.onum >= 0) ? itemRaw.onum : itemRaw.id;
+            const item = knowledgeEngine.getItemKnowledge(targetId, { translate: isTranslate, forceFullKnowledge: true }) || itemRaw;
 
             const glyphId = getEntityGlyphId(item);
             const iconStyle = getEntityGlyphStyleString(glyphId, 48);
             const displayTitle = currentLang === 'ja' ? translateNameWithSlash(item.name) : item.name;
 
-            // 特殊機能フラグ
+            // 特殊機能フラグ (is* の自動抽出 ＋ 基本メタデータ)
             const itemFlags = [];
             itemFlags.push({ label: 'category', value: item.category || 'OTHER' });
             itemFlags.push({ label: 'onum', value: item.onum ?? 'N/A' });
             if (item.material) itemFlags.push({ label: 'material', value: item.material });
-            if (item.isSilver) itemFlags.push({ label: 'isSilver', value: 'true', highlight: true });
-            if (item.isMetallic) itemFlags.push({ label: 'isMetallic', value: 'true' });
-            if (item.isCorpse) itemFlags.push({ label: 'isCorpse', value: 'true' });
+
+            // item オブジェクト内の真偽値フラグ (is*) を生データから網羅抽出
+            Object.keys(item).forEach(key => {
+                if (key.startsWith('is') && typeof item[key] === 'boolean' && item[key] === true) {
+                    itemFlags.push({ 
+                        label: key, 
+                        value: 'true', 
+                        highlight: (key === 'isSilver' || key === 'isUnique' || key === 'isMagical')
+                    });
+                }
+            });
 
             // 🎯 SSOT: 防護モデル (protectsAgainst)
-            const protects = item.protectsAgainst || [];
+            const protects = item.protectsAgainst || item.stats?.protectsAgainst || [];
 
             // 🎯 SSOT: 効果フラグ (effects)
             const effects = item.effects || {};
             const effectEntries = Object.entries(effects).filter(([_, v]) => Boolean(v));
+
+            // 🎯 SSOT: 獲得耐性・付与特性 (propConveyed)
+            const propConveyed = item.propConveyed || item.stats?.propConveyed || null;
+
+            // 🎯 スペックグリッド (ItemSpecPresenter: 攻撃力, AC, MC, 重量等)
+            const adaptiveSpecs = getAdaptiveItemSpecs(item);
 
             knowledgeCard.innerHTML = `
                 <div class="card-header">
@@ -1048,6 +1234,31 @@
                         ${itemFlags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; ${f.highlight ? 'background:rgba(226,232,240,0.3); border:1px solid #fff; color:#fff;' : 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'}">${f.label}: ${f.value}</span>`).join('')}
                     </div>
                 </div>
+
+                ${adaptiveSpecs.length > 0 ? `
+                    <div class="stats-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+                        ${adaptiveSpecs.map(s => {
+                            const borderStyle = s.highlight ? 'background:rgba(56,189,248,0.15); border:1px solid #38bdf8;' : 'background:rgba(255,255,255,0.05); border:1px solid #334155;';
+                            const labelColor = s.highlight ? '#38bdf8' : '#94a3b8';
+                            const valColor = s.highlight ? '#f8fafc' : '#cbd5e1';
+                            return `
+                                <div class="stat-box" style="${borderStyle} padding:6px 12px; border-radius:6px;">
+                                    <div class="stat-label" style="font-size:10px; color:${labelColor}; font-weight:bold;">${s.labelJa || s.label}</div>
+                                    <div class="stat-value" style="font-size:13px; color:${valColor}; font-weight:bold;">${s.value}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : ''}
+
+                ${propConveyed ? `
+                    <div class="info-block benefit-block">
+                        <div class="section-title" style="color:#22c55e;">✨ ${currentLang === 'ja' ? '付与耐性・獲得特性 (Conveyed Intrinsic)' : 'Conveyed Intrinsic'}</div>
+                        <div style="display:flex; gap:8px; margin-top:4px;">
+                            <span class="tag-badge tag-LOW" style="font-size:0.85rem; padding:4px 10px; font-weight:bold; background:#10b981; color:#fff;">🛡️ ${formatIntrinsic(propConveyed, currentLang)}</span>
+                        </div>
+                    </div>
+                ` : ''}
 
                 ${protects.length > 0 ? `
                     <div class="info-block benefit-block">
@@ -1092,11 +1303,13 @@
             const displayTitle = currentLang === 'ja' ? (char.nameJa || char.name) : char.name;
 
             const abilities = Array.isArray(char.abilities) ? char.abilities : [];
+            const glyphId = getEntityGlyphId(char);
+            const iconStyle = getEntityGlyphStyleString(glyphId, 48);
 
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
-                        <div class="card-icon-slot">${char.icon || (isRace ? '🧝' : '🧙')}</div>
+                        <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : (char.icon || (isRace ? '🧝' : '🧙'))}</div>
                         <div class="card-title-group">
                             <h2>${displayTitle}</h2>
                             <div class="raw-name">${isRace ? 'Race' : 'Role / Class'} ID: ${char.id}</div>
@@ -1124,7 +1337,7 @@
                                 ${abilities.map(a => `
                                     <tr>
                                         <td><strong>Lv ${a.level}</strong></td>
-                                        <td style="color:var(--accent-color); font-weight:bold;">✨ ${a.ability}</td>
+                                        <td style="color:var(--accent-color); font-weight:bold;">✨ ${formatIntrinsic(a.ability, currentLang)}</td>
                                         <td><span class="tag-badge ${a.level === 1 ? 'tag-LOW' : 'tag-INFO'}">${a.level === 1 ? (currentLang === 'ja' ? '初期所持' : 'Innate') : (currentLang === 'ja' ? '成長獲得' : 'Level Up')}</span></td>
                                     </tr>
                                 `).join('')}
@@ -1153,10 +1366,13 @@
             const isHazard = terrain.category === 'LAVA' || terrain.category === 'WATER';
             const interactions = terrain.interactions || [];
 
+            const glyphId = getEntityGlyphId(terrain);
+            const iconStyle = getEntityGlyphStyleString(glyphId, 48);
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
-                        <div class="card-icon-slot">${terrain.icon || '🏔️'}</div>
+                        <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : (terrain.icon || '🏔️')}</div>
                         <div class="card-title-group">
                             <h2>${displayTitle}</h2>
                             <div class="raw-name">Terrain ID: ${terrain.id} | NameEn: ${terrain.nameEn || terrain.name}</div>

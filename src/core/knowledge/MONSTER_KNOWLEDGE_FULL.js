@@ -97,7 +97,7 @@ export const SPECIFIC_MONSTER_DETAILS = {
         stats: { hd: 1, ac: 8, speed: 3, mr: 0 },
         attacks: [{ type: 'passive', effect: 'acid' }],
         traits: {},
-        resistances: ['acid', 'strikethru'],
+        resistances: ['acid', 'sleep', 'poison', 'stoning'],
         weaknesses: ['ranged'],
         corpse: { 
             edible: false, 
