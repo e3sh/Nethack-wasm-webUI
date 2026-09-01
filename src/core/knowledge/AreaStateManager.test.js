@@ -23,16 +23,16 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
     });
 
     describe('Player Position Terrain Inference', () => {
-        it('should infer floor at player position when bottom is null on game start / movement', () => {
+        it('should safely infer floor in getAreaState feet while preserving grid cell bottom null', () => {
             expect(asm.grid[10][10].bottom).toBeNull();
 
             asm.updatePlayerPosition(10, 10);
 
+            // 未探索マスを勝手に床で汚染しないこと
             const cell = asm.grid[10][10];
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(cell.bottom).toBeNull();
 
+            // 状況取得時には安全に床として取得できること
             const areaState = asm.getAreaState();
             expect(areaState.feet.bottom).not.toBeNull();
             expect(areaState.feet.bottom.inferred).toBe(true);
@@ -181,8 +181,9 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
         });
 
         it('should replace inferred floor with wall or door when genuine terrain arrives', () => {
-            // プレイヤーが位置更新で仮床セット
-            asm.updatePlayerPosition(3, 3);
+            // モンスター出現で仮床セット
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
+            asm.updateGlyph(3, 3, monsterGlyph);
             expect(asm.grid[3][3].bottom.inferred).toBe(true);
 
             // 壁グリフを受信
@@ -239,10 +240,15 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             asm.resetGrid();
             asm.updatePlayerPosition(5, 5);
 
+            // グリッドセル自体は汚染されず未探索(null)を維持
             const feetCell = asm.grid[5][5];
-            expect(feetCell.bottom).not.toBeNull();
-            expect(feetCell.bottom.inferred).toBe(true);
-            expect(feetCell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(feetCell.bottom).toBeNull();
+
+            // 状況取得時には安全に床として取得できること
+            const areaState = asm.getAreaState();
+            expect(areaState.feet.bottom).not.toBeNull();
+            expect(areaState.feet.bottom.inferred).toBe(true);
+            expect(areaState.feet.bottom.cmapFlags.isFloor).toBe(true);
         });
 
         it('should preload all cached stairs of the floor into grid on setCurrentFloor', () => {
@@ -564,6 +570,22 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             // 足元 (10, 10) の岩がクリアされる
             expect(asm.grid[10][10].middle).toBeNull();
             expect(asm.grid[11][11].middle).not.toBeNull();
+        });
+
+        it('未探索マス（UNEXPLORED）の上で updatePlayerPosition が呼ばれても床に化けず UNEXPLORED が維持されること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+
+            // 隣接マス (11, 10) を未探索マスに設定
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
+            asm.updateGlyph(11, 10, unexploredGlyph);
+            expect(asm.grid[10][11].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            // (11, 10) で updatePlayerPosition が呼ばれても床には化けない
+            asm.updatePlayerPosition(11, 10);
+
+            expect(asm.grid[10][11].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+            expect(asm.grid[10][11].bottom.inferred).toBeUndefined();
         });
     });
 });

@@ -615,15 +615,11 @@ export class AreaStateManager {
             }
             const cell = this.grid[y][x];
             if (cell) {
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
-                    const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                    const cachedStair = this.stairCache.get(key);
-                    if (cachedStair) {
-                        cell.bottom = { ...cachedStair };
-                    } else {
-                        cell.bottom = createInferredFloor();
-                    }
-                } else if (cell.bottom.isCachedPreload) {
+                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                const cachedStair = this.stairCache ? this.stairCache.get(key) : null;
+                if (cachedStair) {
+                    cell.bottom = { ...cachedStair };
+                } else if (cell.bottom && cell.bottom.isCachedPreload) {
                     delete cell.bottom.isCachedPreload;
                 }
             }
@@ -713,7 +709,11 @@ export class AreaStateManager {
                 row.push(enrichedCell);
 
                 if (dx === 0 && dy === 0) {
-                    feetState = enrichedCell;
+                    if (enrichedCell.bottom === null) {
+                        feetState = { ...enrichedCell, bottom: createInferredFloor() };
+                    } else {
+                        feetState = enrichedCell;
+                    }
                 } else {
                     // 隣接するモンスター検出
                     if (enrichedCell.top && (enrichedCell.top.type === ENTITY_TYPES.MONSTER || enrichedCell.top.type === ENTITY_TYPES.PET)) {

@@ -133,12 +133,16 @@ export class ZoomRenderer {
     if (!this.zoomCtx || !this.zoomCanvas) return;
 
     const grid = areaState?.grid;
-    const px = (areaState && typeof areaState.playerX === 'number')
-      ? areaState.playerX
-      : (areaState?.playerLocation?.x ?? (this.targetCursorX >= 0 ? this.targetCursorX : 0));
-    const py = (areaState && typeof areaState.playerY === 'number')
-      ? areaState.playerY
-      : (areaState?.playerLocation?.y ?? (this.targetCursorY >= 0 ? this.targetCursorY : 0));
+    const px = (this.targetCursorX >= 0)
+      ? this.targetCursorX
+      : ((areaState && typeof areaState.playerX === 'number')
+          ? areaState.playerX
+          : (areaState?.playerLocation?.x ?? 0));
+    const py = (this.targetCursorY >= 0)
+      ? this.targetCursorY
+      : ((areaState && typeof areaState.playerY === 'number')
+          ? areaState.playerY
+          : (areaState?.playerLocation?.y ?? 0));
     const width = areaState?.width || 80;
     const height = areaState?.height || 21;
 
@@ -273,6 +277,26 @@ export class ZoomRenderer {
             } else {
               this.zoomCtx.fillStyle = '#000000';
               this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+            }
+          }
+
+          // 🎯 ターゲットカーソル枠 または 自キャラ枠の描画（未探索ブラックアウトマス上でも常に最前面に視認可能）
+          const isTargetCursor = (this.targetCursorX >= 0 && gx === this.targetCursorX && gy === this.targetCursorY);
+          const isCenter = (dx === 0 && dy === 0);
+
+          if (isTargetCursor) {
+            this.zoomCtx.strokeStyle = '#ffd700'; // ターゲットカーソル枠（金色）
+            this.zoomCtx.lineWidth = 2;
+            this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+          } else if (isCenter && this.targetCursorX < 0) {
+            if (this.isPlayerDead) {
+              this.zoomCtx.strokeStyle = '#ef4444';
+              this.zoomCtx.lineWidth = 1;
+              this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+            } else {
+              this.zoomCtx.strokeStyle = '#00e676';
+              this.zoomCtx.lineWidth = 2;
+              this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
             }
           }
         } else {
