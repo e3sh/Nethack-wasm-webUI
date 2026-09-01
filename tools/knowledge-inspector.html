@@ -564,11 +564,30 @@
             SIGNAL: signalEntities
         };
 
-        // タブ件数バッジの初期反映
-        Object.entries(ENTITIES_BY_TAB).forEach(([tab, list]) => {
-            const countEl = document.getElementById(`count-${tab}`);
-            if (countEl) countEl.textContent = list.length;
-        });
+        // タブ表示定義 (SSOT)
+        const TAB_LABELS = {
+            MONSTER: { ja: '👾 モンスター', en: '👾 Monsters' },
+            ITEM: { ja: '🗡️ アイテム', en: '🗡️ Items' },
+            CHARACTER: { ja: '🧙 種族・職業', en: '🧙 Races & Roles' },
+            TERRAIN: { ja: '🏔️ 地形・設備', en: '🏔️ Terrains & Features' },
+            CHEMISTRY: { ja: '🧪 ケミストリー', en: '🧪 Chemistry' },
+            ADVICE: { ja: '💡 戦術アドバイス', en: '💡 Tactical Advice' },
+            SIGNAL: { ja: '🚨 アシストシグナル', en: '🚨 Assist Signals' }
+        };
+
+        function updateTabLabels() {
+            document.querySelectorAll('.nav-tab').forEach(tabBtn => {
+                const tabKey = tabBtn.dataset.tab;
+                const labelObj = TAB_LABELS[tabKey];
+                if (!labelObj) return;
+                const text = currentLang === 'ja' ? labelObj.ja : labelObj.en;
+                const count = (ENTITIES_BY_TAB[tabKey] || []).length;
+                tabBtn.innerHTML = `${text} <span class="tab-count" id="count-${tabKey}">${count}</span>`;
+            });
+        }
+
+        // タブラベル・件数バッジの初期反映
+        updateTabLabels();
 
         // DOM 要素の取得
         const searchInput = document.getElementById('searchInput');
@@ -732,6 +751,148 @@
             return key;
         }
 
+        // ケミストリーと実行時システム (ACTION / ADVISOR / SIGNAL) のクロスリファレンス定義 (SSOT)
+        const CHEMISTRY_ROUTING_MAP = {
+            CHEMISTRY_SINK_DROP_RING: {
+                action: { status: 'ACTIVE', id: 'ACTION_SINK_TEST_RING', key: 'd', priority: 78, labelJa: '指輪を流し台に落として識別 (d)', labelEn: 'Drop ring in sink (d)' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_SINK_RING_TEST', severity: 'CRITICAL', score: 500, labelJa: '指輪消滅警告・タイプ識別助言', labelEn: 'Ring loss warning & type-ID advice' },
+                signal: { status: 'ACTIVE', id: 'SIGNAL_LANDMARK_SINK_RING', stance: 'CAUTION', priority: 72, icon: '💍', labelJa: '流し台での未識別指輪鑑定誘導', labelEn: 'Sink ring identification guide' }
+            },
+            CHEMISTRY_ALTAR_BUC_DROP: {
+                action: { status: 'ACTIVE', id: 'ACTION_DROP_ON_ALTAR', key: 'd', priority: 88, labelJa: '神壇に置いて呪い判定 (d)', labelEn: 'Drop item on altar (BUC test)' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_ALTAR_BUC_DROP', severity: 'TIP', score: 550, labelJa: '光の演出によるBUC判別助言', labelEn: 'Altar flash BUC identification tip' },
+                signal: { status: 'NONE', reasonJa: '足元到達時のアクション/アドバイス主導（フロア誘導なし）', reasonEn: 'Handled at feet via Action/Advisor (no floor signal)' }
+            },
+            CHEMISTRY_ALTAR_OFFER_CORPSE: {
+                action: { status: 'ACTIVE', id: 'ACTION_OFFER', key: '#offer', priority: 85, labelJa: '神壇に死体を捧げる (#offer)', labelEn: 'Offer corpse on altar' },
+                advisor: { status: 'NONE', reasonJa: 'アクションおよび最優先シグナルによる誘導', reasonEn: 'Guided primarily via Action and Signal' },
+                signal: { status: 'ACTIVE', id: 'SIGNAL_LANDMARK_ALTAR_SACRIFICE', stance: 'PRAY', priority: 82, icon: '⛪', labelJa: '神壇への死体生贄・神宝獲得誘導', labelEn: 'Altar corpse sacrifice & favor guide' }
+            },
+            CHEMISTRY_FOUNTAIN_DIP_POTION: {
+                action: { status: 'ACTIVE', id: 'ACTION_DIP_FOUNTAIN_SPECIAL', key: '#dip', priority: 72, labelJa: '泉に浸して水化 (#dip)', labelEn: 'Dip in fountain to create water' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_FOUNTAIN_DIP', severity: 'INFO', score: 400, labelJa: '薬の水化（聖水作成用）助言', labelEn: 'Blank water creation tip' },
+                signal: { status: 'NONE', reasonJa: 'フロア誘導未配線（足元アクションのみ）', reasonEn: 'No floor signal (Feet action only)' }
+            },
+            CHEMISTRY_FOUNTAIN_DIP_LONG_SWORD: {
+                action: { status: 'ACTIVE', id: 'ACTION_DIP_FOUNTAIN_SPECIAL', key: '#dip', priority: 72, labelJa: '長剣を泉に浸して聖剣化 (#dip)', labelEn: 'Dip long sword for Excalibur' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_FOUNTAIN_DIP', severity: 'INFO', score: 400, labelJa: '秩序属性時の聖剣エクスカリバー鍛造助言', labelEn: 'Lawful Excalibur creation tip' },
+                signal: { status: 'NONE', reasonJa: 'フロア誘導未配線（足元アクションのみ）', reasonEn: 'No floor signal (Feet action only)' }
+            },
+            CHEMISTRY_UNICORN_HORN_DIP_POTION: {
+                action: { status: 'ACTIVE', id: 'ACTION_DIP_UNICORN_HORN', key: '#dip', priority: 76, labelJa: 'ユニコーンの角を薬に浸す (#dip)', labelEn: 'Dip unicorn horn in potion' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_UNICORN_HORN_DIP', severity: 'TIP', score: 520, labelJa: '毒・幻覚薬の中和および鑑定助言', labelEn: 'Poison neutralization & ID tip' },
+                signal: { status: 'NONE', reasonJa: 'インベントリ内操作（所持品アクション/アドバイスのみ）', reasonEn: 'Inventory interaction (Action/Advisor only)' }
+            },
+            CHEMISTRY_SCARE_MONSTER_FLOOR_WARD: {
+                action: { status: 'SUPPRESSED', reasonJa: '⚠️ 手持ち読書（即消滅）の誤爆を防ぐため、手持ちアクションは抑止。床置き(d)を推奨', reasonEn: '⚠️ Reading in hand destroys the scroll! Hand action suppressed to prevent mistake' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_SCARE_MONSTER_MISUSE', severity: 'CRITICAL', score: 900, labelJa: '誤読消滅防止・床置き結界の緊急警告', labelEn: 'Misuse prevention & floor ward warning' },
+                signal: { status: 'NONE', reasonJa: '危機的状況下の戦術アドバイス主導', reasonEn: 'Driven by tactical advisor in emergency' }
+            },
+            CHEMISTRY_BAG_OF_HOLDING_EXPLOSION: {
+                action: { status: 'SUPPRESSED', reasonJa: '🚫 投入厳禁！魔法の袋や打ち消しの杖を入れると大爆発するためアクション禁止', reasonEn: '🚫 PROHIBITED! Inserting magic containers causes lethal explosion' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_BAG_OF_HOLDING_EXPLOSION', severity: 'CRITICAL', score: 990, labelJa: '手品袋大爆発・全アイテム消滅の最高危険度警告', labelEn: 'Bag of Holding catastrophic explosion warning' },
+                signal: { status: 'NONE', reasonJa: '誤投入の事故防止警告（アドバイザー専任）', reasonEn: 'Accident prevention warning (Advisor only)' }
+            },
+            CHEMISTRY_TOUCHSTONE_GEM_TEST: {
+                action: { status: 'ACTIVE', id: 'ACTION_RUB_TOUCHSTONE', key: 'a', priority: 74, labelJa: '宝石を試金石に擦る (a)', labelEn: 'Rub gem on touchstone (a)' },
+                advisor: { status: 'ACTIVE', id: 'ADVICE_INTERACTION_TOUCHSTONE_RUB', severity: 'TIP', score: 480, labelJa: '硬度条痕による本物宝石/ガラス判別助言', labelEn: 'Gem vs glass test advice' },
+                signal: { status: 'NONE', reasonJa: 'インベントリ内操作（所持品アクション/アドバイスのみ）', reasonEn: 'Inventory interaction (Action/Advisor only)' }
+            }
+        };
+
+        function getTriggerBadges(trigger, lang = 'ja') {
+            if (!trigger) return [];
+            const isJa = (lang === 'ja');
+            const badges = [];
+
+            if (trigger.terrainType) {
+                badges.push({
+                    icon: '🏔️',
+                    label: isJa ? `地形: ${trigger.terrainType}` : `Terrain: ${trigger.terrainType}`,
+                    color: 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'
+                });
+            }
+            if (trigger.itemCategory) {
+                badges.push({
+                    icon: '🗡️',
+                    label: isJa ? `対象種別: ${trigger.itemCategory}` : `Item Type: ${trigger.itemCategory}`,
+                    color: 'background:rgba(168,85,247,0.2); border:1px solid #a855f7; color:#f8fafc;'
+                });
+            }
+            if (trigger.sourceItemName) {
+                badges.push({
+                    icon: '🧰',
+                    label: isJa ? `所持ツール: ${trigger.sourceItemName}` : `Tool: ${trigger.sourceItemName}`,
+                    color: 'background:rgba(234,179,8,0.2); border:1px solid #eab308; color:#f8fafc;'
+                });
+            }
+            if (trigger.requiresUnidentified) {
+                badges.push({
+                    icon: '🔍',
+                    label: isJa ? '未識別アイテム限定' : 'Unidentified item only',
+                    color: 'background:rgba(249,115,22,0.2); border:1px solid #f97316; color:#f8fafc;'
+                });
+            }
+            if (trigger.requiresUncheckedBuc) {
+                badges.push({
+                    icon: '✨',
+                    label: isJa ? 'BUC未確認アイテム限定' : 'Unchecked BUC only',
+                    color: 'background:rgba(6,182,212,0.2); border:1px solid #06b6d4; color:#f8fafc;'
+                });
+            }
+            if (trigger.hasCorpse) {
+                badges.push({
+                    icon: '🍖',
+                    label: isJa ? '死体所持' : 'Has corpse in inventory',
+                    color: 'background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#f8fafc;'
+                });
+            }
+            if (trigger.hasPotion) {
+                badges.push({
+                    icon: '🧪',
+                    label: isJa ? 'ポーション所持' : 'Has potion in inventory',
+                    color: 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'
+                });
+            }
+            if (trigger.hasLongSword) {
+                badges.push({
+                    icon: '⚔️',
+                    label: isJa ? '長剣(Long Sword)所持' : 'Has Long Sword',
+                    color: 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'
+                });
+            }
+            if (trigger.isLawfulPlayer) {
+                badges.push({
+                    icon: '⚖️',
+                    label: isJa ? '秩序(Lawful)属性限定' : 'Lawful character only',
+                    color: 'background:rgba(168,85,247,0.2); border:1px solid #a855f7; color:#f8fafc;'
+                });
+            }
+            if (trigger.hasUnidentifiedOrPoisonPotion) {
+                badges.push({
+                    icon: '🧪',
+                    label: isJa ? '毒薬または未識別薬所持' : 'Has poisonous/unidentified potion',
+                    color: 'background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#f8fafc;'
+                });
+            }
+            if (trigger.hasHazardousContainerOrWand) {
+                badges.push({
+                    icon: '💥',
+                    label: isJa ? '魔法の袋または打消の杖所持' : 'Has magic bag or Wand of Cancellation',
+                    color: 'background:rgba(239,68,68,0.3); border:1px solid #ef4444; color:#fff;'
+                });
+            }
+            if (trigger.hasUnidentifiedGemsOrStones) {
+                badges.push({
+                    icon: '💎',
+                    label: isJa ? '未識別の石/宝石所持' : 'Has unidentified gems/stones',
+                    color: 'background:rgba(6,182,212,0.2); border:1px solid #06b6d4; color:#f8fafc;'
+                });
+            }
+
+            return badges;
+        }
+
         // Glyph スタイルヘルパー (全タブのエンティティに対して 100% 確実に Glyph ID を解決)
         function getEntityGlyphId(entity) {
             if (!entity) return -1;
@@ -799,6 +960,7 @@
             translator.setEnabled(true);
             btnJp.classList.add('active');
             btnEn.classList.remove('active');
+            updateTabLabels();
             renderList();
             renderCard();
         });
@@ -808,6 +970,7 @@
             translator.setEnabled(false);
             btnEn.classList.add('active');
             btnJp.classList.remove('active');
+            updateTabLabels();
             renderList();
             renderCard();
         });
@@ -893,7 +1056,15 @@
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : (e.icon || '🏔️');
                 } else if (currentTab === 'CHEMISTRY') {
                     title = currentLang === 'ja' ? (e.nameJa || e.action?.labelJa || e.messages?.descriptionJa || e.id) : (e.nameEn || e.action?.labelEn || e.messages?.descriptionEn || e.id);
-                    subtitle = e.id;
+                    const routing = CHEMISTRY_ROUTING_MAP[e.id];
+                    let routingBadges = '';
+                    if (routing) {
+                        if (routing.action.status === 'ACTIVE') routingBadges += '<span style="font-size:0.65rem; background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8; padding:0 3px; border-radius:3px;">ACT</span>';
+                        else if (routing.action.status === 'SUPPRESSED') routingBadges += '<span style="font-size:0.65rem; background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid #ef4444; padding:0 3px; border-radius:3px;">🚫ACT</span>';
+                        if (routing.advisor.status === 'ACTIVE') routingBadges += '<span style="font-size:0.65rem; background:rgba(234,179,8,0.2); color:#eab308; border:1px solid #eab308; padding:0 3px; border-radius:3px;">ADV</span>';
+                        if (routing.signal.status === 'ACTIVE') routingBadges += '<span style="font-size:0.65rem; background:rgba(168,85,247,0.2); color:#a855f7; border:1px solid #a855f7; padding:0 3px; border-radius:3px;">SIG</span>';
+                    }
+                    subtitle = routingBadges ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px;">${routingBadges} <span style="font-size:0.7rem; color:var(--text-secondary);">${e.id}</span></div>` : e.id;
                     const risk = e.action?.risk || e.effect?.risk || 'INFO';
                     badgeClass = `tag-${risk}`;
                     badgeText = risk;
@@ -1425,6 +1596,102 @@
 
             const keys = action.keySequence || (action.verb ? [action.verb] : []);
 
+            // クロスリファレンス情報の取得
+            const routing = CHEMISTRY_ROUTING_MAP[chem.id] || {
+                action: { status: 'NONE', reasonJa: '未配線', reasonEn: 'Not routed' },
+                advisor: { status: 'NONE', reasonJa: '未配線', reasonEn: 'Not routed' },
+                signal: { status: 'NONE', reasonJa: '未配線', reasonEn: 'Not routed' }
+            };
+
+            // トリガー条件バッジの取得
+            const triggerBadges = getTriggerBadges(chem.trigger, currentLang);
+
+            // Routing 各ブロックの HTML 構築
+            // 1. ACTION
+            let actionHtml = '';
+            if (routing.action.status === 'ACTIVE') {
+                actionHtml = `
+                    <div style="background:rgba(56,189,248,0.08); border:1px solid #38bdf8; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#38bdf8;">⚡ ワンタップアクション</span>
+                            <span class="tag-badge tag-LOW" style="font-size:0.65rem;">ACTIVE (P:${routing.action.priority})</span>
+                        </div>
+                        <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${currentLang === 'ja' ? routing.action.labelJa : routing.action.labelEn}</div>
+                        <div style="font-size:0.7rem; color:#94a3b8; font-family:monospace;">ID: ${routing.action.id} | Key: '${routing.action.key}'</div>
+                    </div>
+                `;
+            } else if (routing.action.status === 'SUPPRESSED') {
+                actionHtml = `
+                    <div style="background:rgba(239,68,68,0.08); border:1px solid #ef4444; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#ef4444;">⚡ ワンタップアクション</span>
+                            <span class="tag-badge tag-HIGH" style="font-size:0.65rem;">SUPPRESSED</span>
+                        </div>
+                        <div style="font-size:0.78rem; color:#fca5a5; line-height:1.4;">${currentLang === 'ja' ? routing.action.reasonJa : routing.action.reasonEn}</div>
+                    </div>
+                `;
+            } else {
+                actionHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">⚡ ワンタップアクション</span>
+                            <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.action.reasonJa : routing.action.reasonEn}</div>
+                    </div>
+                `;
+            }
+
+            // 2. ADVISOR
+            let advisorHtml = '';
+            if (routing.advisor.status === 'ACTIVE') {
+                advisorHtml = `
+                    <div style="background:rgba(234,179,8,0.08); border:1px solid #eab308; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#eab308;">💡 戦術アドバイス</span>
+                            <span class="tag-badge tag-${routing.advisor.severity}" style="font-size:0.65rem;">${routing.advisor.severity} (S:${routing.advisor.score})</span>
+                        </div>
+                        <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${currentLang === 'ja' ? routing.advisor.labelJa : routing.advisor.labelEn}</div>
+                        <div style="font-size:0.7rem; color:#94a3b8; font-family:monospace;">ID: ${routing.advisor.id}</div>
+                    </div>
+                `;
+            } else {
+                advisorHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">💡 戦術アドバイス</span>
+                            <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.advisor.reasonJa : routing.advisor.reasonEn}</div>
+                    </div>
+                `;
+            }
+
+            // 3. SIGNAL
+            let signalHtml = '';
+            if (routing.signal.status === 'ACTIVE') {
+                signalHtml = `
+                    <div style="background:rgba(168,85,247,0.08); border:1px solid #a855f7; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#a855f7;">🚨 アシストシグナル</span>
+                            <span class="tag-badge tag-PURPLE" style="font-size:0.65rem;">${routing.signal.stance} (P:${routing.signal.priority})</span>
+                        </div>
+                        <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${routing.signal.icon} ${currentLang === 'ja' ? routing.signal.labelJa : routing.signal.labelEn}</div>
+                        <div style="font-size:0.7rem; color:#94a3b8; font-family:monospace;">ID: ${routing.signal.id}</div>
+                    </div>
+                `;
+            } else {
+                signalHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">🚨 アシストシグナル</span>
+                            <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.signal.reasonJa : routing.signal.reasonEn}</div>
+                    </div>
+                `;
+            }
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
@@ -1437,8 +1704,31 @@
                     <span class="tag-badge ${isCritical ? 'tag-HIGH' : 'tag-ITEM'}">${risk} RISK</span>
                 </div>
 
+                <!-- 📢 システム出力連携 (Cross-Reference Routing) -->
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:12px; border-radius:6px;">
+                    <div class="section-title">📢 ${currentLang === 'ja' ? 'システム出力連携 (Cross-Reference Routing)' : 'System Output Routing'}</div>
+                    <div style="color:var(--text-secondary); font-size:0.75rem; margin-bottom:8px;">
+                        ${currentLang === 'ja' ? 'このケミストリーが WebUI の各実行時エンジン（ワンタップボタン・戦術助言・最上部シグナル）にどう配線されているかを示します。' : 'Shows how this chemistry rule is routed into runtime engines (Action / Tactical Advisor / Assist Signal).'}
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+                        ${actionHtml}
+                        ${advisorHtml}
+                        ${signalHtml}
+                    </div>
+                </div>
+
+                <!-- 🎯 発動トリガー条件 (Trigger Requirements) -->
+                ${triggerBadges.length > 0 ? `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
+                        <div class="section-title">🎯 ${currentLang === 'ja' ? '発動トリガー条件 (Trigger Requirements)' : 'Trigger Requirements'}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+                            ${triggerBadges.map(b => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:500; ${b.color}">${b.icon} ${b.label}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
                 ${descText ? `
-                    <div style="font-size:0.95rem; color:#e2e8f0; line-height:1.5; padding:4px 0 8px 0;">
+                    <div style="font-size:0.95rem; color:#e2e8f0; line-height:1.5; padding:2px 0;">
                         ${descText}
                     </div>
                 ` : ''}
