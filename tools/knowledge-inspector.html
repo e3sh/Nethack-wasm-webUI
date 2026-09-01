@@ -522,6 +522,7 @@
         import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/StructuredKnowledgeEngine.js';
         import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
         import { getAdaptiveItemSpecs } from '../src/core/knowledge/ItemSpecPresenter.js';
+        import { getAdaptiveMonsterSpecs } from '../src/core/knowledge/MonsterSpecPresenter.js';
         import { getItemInfoFromOnum, GLYPH_OFFSETS } from '../src/core/knowledge/glyphClassifier.js';
         import { GlyphHelper } from '../src/core/renderers/GlyphHelper.js';
         import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
@@ -1168,6 +1169,9 @@
                 petrifiesOnTouch: { ja: '接触石化', en: 'Petrify On Touch', color: '#ef4444' },
                 paralysisGaze: { ja: '視線麻痺', en: 'Paralysis Gaze', color: '#f97316' },
                 gazeConfusion: { ja: '視線混乱', en: 'Confusion Gaze', color: '#eab308' },
+                fieryGaze: { ja: '火炎視線', en: 'Fiery Gaze', color: '#f97316' },
+                destroysInventory: { ja: '持ち物焼失危険', en: 'Burns Inventory', color: '#ea580c' },
+                explosiveEggs: { ja: '爆発卵', en: 'Explosive Eggs', color: '#e11d48' },
                 explodesOnMelee: { ja: '近接爆発', en: 'Explodes On Hit', color: '#ef4444' },
                 drainsLevel: { ja: 'レベルドレイン', en: 'Level Drain', color: '#dc2626' },
                 rustsEquipment: { ja: '装備腐食/錆', en: 'Rusts Gear', color: '#d97706' },
@@ -1191,14 +1195,73 @@
                 }
             });
 
+            // 💨 ブレス特性のバッジ抽出
+            if (traits.breath) {
+                const breathColors = {
+                    cold: '#0284c7',
+                    fire: '#ef4444',
+                    elec: '#eab308',
+                    lightning: '#eab308',
+                    poison: '#16a34a',
+                    acid: '#84cc16',
+                    sleep: '#a855f7',
+                    disintegration: '#dc2626'
+                };
+                const breathNameJa = {
+                    cold: '吹雪ブレス',
+                    fire: '火炎ブレス',
+                    elec: '電撃ブレス',
+                    lightning: '電撃ブレス',
+                    poison: '毒ガスブレス',
+                    acid: '酸ブレス',
+                    sleep: '睡眠ブレス',
+                    disintegration: '分解ブレス'
+                };
+                const bEffect = String(traits.breath).toLowerCase();
+                const bColor = breathColors[bEffect] || '#0284c7';
+                const bLabel = currentLang === 'ja' ? (breathNameJa[bEffect] || `${traits.breath}ブレス`) : `${traits.breath} Breath`;
+                activeTraits.push({ key: 'breath', label: `💨 ${bLabel} (反射可)`, color: bColor });
+            }
+
             // 🎯 SSOT: 脆弱性・特効 (vulnerabilities: SILVER 等)
             const vulns = mon.vulnerabilities || mon.weaknesses || [];
             const hasSilverVuln = vulns.some(v => String(v).toUpperCase().includes('SILVER'));
 
-            // 攻撃
-            let attacksHtml = (mon.attacks || []).map(a => 
-                `<li><strong>${a.type}</strong>${a.damage ? ` (${a.damage})` : ''}${a.effect ? `: <em>${a.effect}</em>` : ''}</li>`
-            ).join('');
+            // 攻撃パターンの装飾生成 (特殊攻撃・属性バッジ付与)
+            let attacksHtml = (mon.attacks || []).map(a => {
+                const type = a.type || 'hit';
+                const effect = a.effect || '';
+                let icon = '⚔️';
+                let tagHtml = '';
+
+                if (type === 'breath' || type === 'brea') {
+                    icon = '💨';
+                    tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#0284c7; color:#fff; font-weight:bold; margin-left:6px;">🛡️ ${currentLang === 'ja' ? '直線射線 / 反射有効' : 'Ray / Reflectable'}</span>`;
+                } else if (type === 'gaze') {
+                    icon = '👁️';
+                    if (effect === 'fire') {
+                        tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#ea580c; color:#fff; font-weight:bold; margin-left:6px;">🕶️ ${currentLang === 'ja' ? '盲目で無効 / 可燃物注意' : 'Blind to nullify / Burns items'}</span>`;
+                    } else if (effect === 'paralysis') {
+                        tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#dc2626; color:#fff; font-weight:bold; margin-left:6px;">⚠️ ${currentLang === 'ja' ? '直視・近接麻痺' : 'Melee Paralysis'}</span>`;
+                    } else if (effect === 'confusion') {
+                        tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#eab308; color:#000; font-weight:bold; margin-left:6px;">🌀 ${currentLang === 'ja' ? '視線混乱' : 'Confusion'}</span>`;
+                    }
+                } else if (type === 'explode') {
+                    icon = '💥';
+                    tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#dc2626; color:#fff; font-weight:bold; margin-left:6px;">💣 ${currentLang === 'ja' ? '近接自爆' : 'Explosion'}</span>`;
+                } else if (type === 'touch' && effect === 'petrify') {
+                    icon = '🪨';
+                    tagHtml = `<span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:#b91c1c; color:#fff; font-weight:bold; margin-left:6px;">🧤 ${currentLang === 'ja' ? '素手接触即死' : 'Fatal Touch'}</span>`;
+                }
+
+                return `<li style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                    <span style="font-size:1rem;">${icon}</span>
+                    <strong style="color:#f8fafc;">${type}</strong>
+                    ${a.damage ? `<span style="color:#94a3b8; font-size:0.85rem;">(${a.damage})</span>` : ''}
+                    ${effect ? `<span style="color:var(--accent-color); font-style:italic;">${effect}</span>` : ''}
+                    ${tagHtml}
+                </li>`;
+            }).join('');
 
             // アドバイス (重複する死体・スペックコメントを除外し、具体的な戦術・対処カウンターを表示)
             const rawAdvice = (currentLang === 'ja' && Array.isArray(mon.tacticalAdviceJa) && mon.tacticalAdviceJa.length > 0)
@@ -1266,6 +1329,27 @@
                 `;
             }
 
+            // 🎯 本編 Look (MonsterSpecPresenter) の動的スペックバッジをプレビュー表示
+            const lookSpecs = getAdaptiveMonsterSpecs(mon, { language: currentLang });
+            const lookBadgesHtml = lookSpecs.length > 0 ? `
+                <div style="background:rgba(2,132,199,0.06); border:1px solid rgba(56,189,248,0.3); padding:10px 14px; border-radius:6px;">
+                    <div class="section-title" style="color:var(--accent-color);">👀 ${currentLang === 'ja' ? 'ゲーム内 Look / インスペクター表示バッジ (In-Game Specs)' : 'In-Game Look / Spec Badges'}</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        ${lookSpecs.map(s => {
+                            const colorMap = {
+                                danger: 'background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;',
+                                warning: 'background:rgba(249,115,22,0.25); border:1px solid #f97316; color:#fdba74;',
+                                info: 'background:rgba(6,182,212,0.25); border:1px solid #06b6d4; color:#67e8f9;',
+                                success: 'background:rgba(34,197,94,0.25); border:1px solid #22c55e; color:#86efac;'
+                            };
+                            const badgeStyle = colorMap[s.type] || colorMap.info;
+                            const highlightStyle = s.highlight ? 'font-weight:bold; box-shadow:0 0 8px rgba(239,68,68,0.4);' : '';
+                            return `<span style="font-size:0.8rem; padding:3px 8px; border-radius:4px; ${badgeStyle} ${highlightStyle}">${s.label}</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : '';
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
@@ -1277,6 +1361,8 @@
                     </div>
                     <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
                 </div>
+
+                ${lookBadgesHtml}
 
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
                     <div class="section-title">🚩 ${currentLang === 'ja' ? 'ナレッジフラグ ＆ 特性' : 'Flags & Traits'}</div>

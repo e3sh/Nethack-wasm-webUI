@@ -197,6 +197,25 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(petrifyAdvice).toBeUndefined();
         });
 
+        it('パイロリスク (monOffset: 11) 接近時、素手（手袋未着用）であっても石化警告（ノイズ）は出ないこと', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(10, 9, 11); // pyrolisk (monOffset: 11)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('leather gloves', 'g', { isWorn: false })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 10),
+                inventoryState: invMgr
+            });
+
+            const petrifyAdvice = advices.find(a => a.id === 'ADVICE_THREAT_PETRIFICATION');
+            expect(petrifyAdvice).toBeUndefined();
+        });
+
         it('浮遊する目玉(Floating Eye)が視界内にいる場合、麻痺警告が出ること', () => {
             const areaMgr = new AreaStateManager(80, 21);
             areaMgr.updatePlayerPosition(10, 10);

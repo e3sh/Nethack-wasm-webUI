@@ -84,6 +84,7 @@ export function getAdaptiveMonsterSpecs(knowledge, options = {}) {
     const corpse = knowledge.corpse || {};
     const resistances = Array.isArray(knowledge.resistances) ? knowledge.resistances : [];
     const weaknesses = Array.isArray(knowledge.weaknesses) ? knowledge.weaknesses : [];
+    const attacks = Array.isArray(knowledge.attacks) ? knowledge.attacks : [];
     const threat = knowledge.threat || null;
 
     // 1. 致命的・最優先の特殊攻撃能力 (Danger Traits)
@@ -110,6 +111,75 @@ export function getAdaptiveMonsterSpecs(knowledge, options = {}) {
             id: 'trait_confuse_gaze',
             label: isEn ? 'Confusing Gaze' : '混乱視線 (要目隠し)',
             type: 'warning'
+        });
+    }
+
+    // 🔥 火炎視線 (パイロリスク等)
+    if (traits.fieryGaze || (threat && (threat.type === 'FIRE_GAZE' || (threat.delivery === 'GAZE' && threat.effect === 'FIRE'))) || attacks.some(a => a.type === 'gaze' && a.effect === 'fire')) {
+        specs.push({
+            id: 'trait_fiery_gaze',
+            label: isEn ? 'Fiery Gaze (Burns items/Nullified by blind)' : '火炎視線 (可燃物焼失/盲目で無効)',
+            type: 'warning'
+        });
+    }
+
+    // 💨 ブレス攻撃 (各種ドラゴン、冬狼、ヘルハウンド等)
+    const breathAttack = attacks.find(a => a.type === 'breath' || a.type === 'brea') || (traits.breath ? { type: 'breath', effect: traits.breath } : null);
+    if (breathAttack) {
+        const effect = (breathAttack.effect || 'generic').toLowerCase();
+        let labelJa = 'ブレス攻撃 (直線射線/反射有効)';
+        let labelEn = 'Breath Attack (Ray/Reflectable)';
+        let type = 'danger';
+        let highlight = false;
+
+        switch (effect) {
+            case 'cold':
+            case 'ice':
+            case 'frost':
+                labelJa = '吹雪ブレス (直線射線/反射有効)';
+                labelEn = 'Cold Breath (Ray/Reflectable)';
+                break;
+            case 'fire':
+            case 'flame':
+                labelJa = '火炎ブレス (直線射線/反射有効)';
+                labelEn = 'Fire Breath (Ray/Reflectable)';
+                break;
+            case 'elec':
+            case 'electric':
+            case 'lightning':
+            case 'shock':
+                labelJa = '電撃ブレス (直線射線/反射有効)';
+                labelEn = 'Lightning Breath (Ray/Reflectable)';
+                break;
+            case 'disintegration':
+            case 'disint':
+                labelJa = '分解ブレス (即死級/反射必須)';
+                labelEn = 'Disintegration Breath (Fatal/Reflect required)';
+                highlight = true;
+                break;
+            case 'poison':
+            case 'toxic':
+                labelJa = '毒ガスブレス (直線射線/反射有効)';
+                labelEn = 'Poison Breath (Ray/Reflectable)';
+                break;
+            case 'acid':
+                labelJa = '酸ブレス (直線射線/反射有効)';
+                labelEn = 'Acid Breath (Ray/Reflectable)';
+                break;
+            case 'sleep':
+                labelJa = '睡眠ブレス (直線射線/反射有効)';
+                labelEn = 'Sleep Breath (Ray/Reflectable)';
+                type = 'warning';
+                break;
+            default:
+                break;
+        }
+
+        specs.push({
+            id: 'trait_breath',
+            label: isEn ? labelEn : labelJa,
+            type,
+            ...(highlight ? { highlight: true } : {})
         });
     }
 

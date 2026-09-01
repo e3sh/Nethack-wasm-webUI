@@ -206,6 +206,57 @@ export const SPECIFIC_MONSTER_DETAILS = {
             grantsIntrinsics: [],
         },
     },
+    // 11: pyrolisk
+    "11": {
+        dangerLevel: 'HIGH',
+        stats: { hd: 6, ac: 6, speed: 6, mr: 30 },
+        attacks: [
+            { type: 'gaze', damage: '2d6', effect: 'fire' },
+            { type: 'bite', damage: '1d6' }
+        ],
+        traits: {
+            petrifiesOnTouch: false,
+            fieryGaze: true,
+            destroysInventory: true,
+            explosiveEggs: true
+        },
+        resistances: ['fire', 'poison'],
+        weaknesses: ['blindness', 'ranged'],
+        threat: {
+            delivery: 'GAZE',
+            effect: 'FIRE',
+            severity: 'WARNING',
+            basePriority: 70,
+            targetMaterial: 'scrolls_potions',
+            type: 'FIRE_GAZE',
+            description: 'Fiery gaze (2d6 fire) damages foes and burns potions, scrolls, and spellbooks. Harmless if player is blind or fire resistant.',
+            counters: [
+                {
+                    id: 'COUNTER_FIRE_RES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 75,
+                    wikiTopic: 'Fire_resistance'
+                },
+                {
+                    id: 'COUNTER_BLIND_SELF',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 80,
+                    matchItemId: 'blindfold',
+                    actionVerb: 'R',
+                    wikiTopic: 'Pyrolisk'
+                }
+            ]
+        },
+        corpse: {
+            edible: true,
+            poisonous: false,
+            causesPetrification: false,
+            nutrition: 30,
+            grantsIntrinsics: ['fire', 'poison'],
+        },
+    },
     // 12: jackal
     "12": {
         dangerLevel: 'LOW',
@@ -234,6 +285,100 @@ export const SPECIFIC_MONSTER_DETAILS = {
         resistances: [],
         weaknesses: ['silver'],
         corpse: { edible: true, poisonous: false, nutrition: 120, grantsIntrinsics: [] },
+    },
+    // 22: winter wolf cub
+    "22": {
+        dangerLevel: 'MEDIUM',
+        stats: { hd: 5, ac: 4, speed: 12, mr: 0 },
+        attacks: [
+            { type: 'bite', damage: '1d8' },
+            { type: 'breath', effect: 'cold', damage: '1d6' }
+        ],
+        traits: {
+            breath: 'cold'
+        },
+        resistances: ['cold'],
+        weaknesses: ['fire'],
+        threat: {
+            delivery: 'BREATH',
+            effect: 'COLD',
+            severity: 'WARNING',
+            basePriority: 75,
+            targetMaterial: 'potions',
+            type: 'COLD_BREATH',
+            description: 'Cold breath beam (1d6 cold) hits in straight lines and freezes potions. Blockable with Reflection.',
+            counters: [
+                {
+                    id: 'COUNTER_REFLECTION',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 85,
+                    matchItemId: 'shield_of_reflection',
+                    actionVerb: 'W',
+                    wikiTopic: 'Reflection'
+                },
+                {
+                    id: 'COUNTER_COLD_RES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 80,
+                    wikiTopic: 'Cold_resistance'
+                }
+            ]
+        },
+        corpse: {
+            edible: true,
+            poisonous: false,
+            nutrition: 200,
+            grantsIntrinsics: ['cold']
+        }
+    },
+    // 24: winter wolf
+    "24": {
+        dangerLevel: 'HIGH',
+        stats: { hd: 7, ac: 4, speed: 12, mr: 20 },
+        attacks: [
+            { type: 'bite', damage: '2d6' },
+            { type: 'breath', effect: 'cold', damage: '2d6' }
+        ],
+        traits: {
+            breath: 'cold'
+        },
+        resistances: ['cold'],
+        weaknesses: ['fire'],
+        threat: {
+            delivery: 'BREATH',
+            effect: 'COLD',
+            severity: 'CRITICAL',
+            basePriority: 85,
+            targetMaterial: 'potions',
+            type: 'COLD_BREATH',
+            description: 'Powerful cold breath beam (2d6 cold) hits in straight lines and shatters potions. Blockable with Reflection.',
+            counters: [
+                {
+                    id: 'COUNTER_REFLECTION',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 90,
+                    matchItemId: 'shield_of_reflection',
+                    actionVerb: 'W',
+                    wikiTopic: 'Reflection'
+                },
+                {
+                    id: 'COUNTER_COLD_RES',
+                    type: 'EQUIP_ITEM',
+                    stance: 'EQUIP',
+                    priority: 85,
+                    wikiTopic: 'Cold_resistance'
+                }
+            ]
+        },
+        corpse: {
+            edible: true,
+            poisonous: false,
+            nutrition: 300,
+            grantsIntrinsics: ['cold']
+        }
     },
     "91": {
         dangerLevel: 'MEDIUM',
@@ -858,11 +1003,16 @@ for (let i = 0; i <= 382; i++) {
     const causesLycanthropy = !!specTraits.causesLycanthropy || attacks.some(a => a.effect === 'lycanthropy') || lowerName.startsWith('were') || lowerName.includes('were');
     const isUndead = !!specTraits.isUndead || hasWord(lowerName, 'zombie') || hasWord(lowerName, 'mummy') || hasWord(lowerName, 'vampire') || hasWord(lowerName, 'wraith') || hasWord(lowerName, 'skeleton') || hasWord(lowerName, 'lich') || hasWord(lowerName, 'demilich') || hasWord(lowerName, 'master-lich') || hasWord(lowerName, 'arch-lich') || hasWord(lowerName, 'ghost') || hasWord(lowerName, 'ghoul');
     const isDemon = !!specTraits.isDemon || hasWord(lowerName, 'demon') || hasWord(lowerName, 'devil') || hasWord(lowerName, 'balrog') || hasWord(lowerName, 'succubus') || hasWord(lowerName, 'incubus') || hasWord(lowerName, 'baalzebub') || hasWord(lowerName, 'orcus') || hasWord(lowerName, 'juiblex');
+    const fieryGaze = !!specTraits.fieryGaze || attacks.some(a => a.type === 'gaze' && a.effect === 'fire');
+    const breath = specTraits.breath || attacks.find(a => a.type === 'breath' || a.type === 'brea')?.effect || null;
 
     const traits = {
+        ...specTraits,
         petrifiesOnTouch,
         paralysisGaze,
         gazeConfusion,
+        fieryGaze,
+        breath,
         explodesOnMelee,
         drainsLevel,
         rustsEquipment,
