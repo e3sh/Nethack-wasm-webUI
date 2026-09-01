@@ -429,10 +429,33 @@ const SPECIFIC_ITEM_DETAILS = {
     // 🍖 食料 (FOOD: onum 264〜296)
     "264": { flavorNote: 'Smelly tripe ration favored by carnivorous pets like dogs and cats.', effectSummary: 'Nutritious food for carnivorous pets (dogs/cats) to tame and train them. Human players will faint/vomit unless Orcish.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', },
     "265": { flavorNote: 'Raw monster corpse left behind after slaying.', effectSummary: 'Eating monster corpses can grant intrinsic resistances (Poison, Fire, Telepathy, Level Up), but rots quickly causing food poisoning.', defaultVerb: 'eat', verbKey: 'e', actionLabelJa: '食べる (e)', },
+    "271": { 
+        flavorNote: 'Glob of gray ooze left behind after defeating a gray ooze.', 
+        effectSummary: 'Acidic organic blob. Ingestion causes acid damage and burns, but may grant acid resistance.', 
+        defaultVerb: 'eat',
+        verbKey: 'e',
+        actionLabelJa: '食べる (e)'
+    },
+    "272": { 
+        flavorNote: 'Glob of brown pudding left behind after defeating a brown pudding.', 
+        effectSummary: 'Acidic organic blob. Ingestion causes acid damage, but may grant acid resistance.', 
+        defaultVerb: 'eat',
+        verbKey: 'e',
+        actionLabelJa: '食べる (e)'
+    },
+    "273": { 
+        flavorNote: 'Lethal green slime glob. Extremely dangerous biological hazard!', 
+        effectSummary: 'WARNING: Ingesting this causes rapid transmigration into a green slime (fatal sliming) unless fire or cure is applied!', 
+        defaultVerb: 'eat',
+        verbKey: 'e',
+        actionLabelJa: '食べる (e)'
+    },
     "274": { 
-        flavorNote: 'Lizard corpse.', 
-        effectSummary: 'Cures petrification (stoning) and confusion when eaten! Never rots.', 
-        effects: { curePetrification: true }, 
+        flavorNote: 'Glob of black pudding. Organic flesh blob left by pudding monsters.', 
+        effectSummary: 'Organic flesh blob left by black puddings. Highly acidic food, but may grant cold/shock/poison/acid resistance.', 
+        defaultVerb: 'eat',
+        verbKey: 'e',
+        actionLabelJa: '食べる (e)'
     },
     "286": { flavorNote: 'Standard dungeon rations. High nutrition value.', effectSummary: 'Basic food ration providing 800 nutrition points.' },
     "287": { flavorNote: 'Military grade emergency food ration with high nutrition.', effectSummary: 'Provides 900 nutrition points.' },
@@ -513,7 +536,55 @@ const SPECIFIC_ITEM_DETAILS = {
     "342": { flavorNote: 'Recharges magic wands or magical markers.' },
     "414": { flavorNote: 'NetHack\'s ultimate wand. Grants wishes for any item.' },
     "428": { flavorNote: 'Carves tunnels through walls or digs holes in floor for quick escapes.', effectSummaryJa: '壁や床に穴や通路を掘る。', effectSummary: 'Carves tunnels through walls or digs holes in floor for quick escapes.' },
-    "433": { flavorNote: 'Fires a ray of death that instantly kills non-resistant targets.' }
+    "433": { flavorNote: 'Fires a ray of death that instantly kills non-resistant targets.' },
+
+    // 🪨 巨岩・彫像 (ROCK: onum 475〜476)
+    "475": { 
+        flavorNote: 'Massive stone boulder.', 
+        effectSummary: 'Extremely heavy stone obstacle (weight 6000). Cannot be carried normally. Push to move, or use to fill pits, holes, and water/lava channels.', 
+        defaultVerb: 'push',
+        verbKey: 'm',
+        actionLabelJa: '押して動かす'
+    },
+    "476": { 
+        flavorNote: 'Lifelike stone statue of a creature.', 
+        effectSummary: 'Solid petrified monster statue (weight 2500). May contain hidden items. Cast Stone to Flesh to revive into flesh or meat.', 
+        defaultVerb: 'apply',
+        verbKey: 'a',
+        actionLabelJa: '調べる/使う (a)'
+    },
+
+    // ⛓️ 鉄球・鎖 (BALL / CHAIN: onum 477〜478)
+    "477": { 
+        flavorNote: 'Heavy iron ball shackled during punishment.', 
+        effectSummary: 'Punishment burden (weight 480). Greatly impedes movement unless picked up or dragged. Read Scroll of Remove Curse to unchain.', 
+        defaultVerb: 'apply',
+        verbKey: 'a',
+        actionLabelJa: '持ち上げる/使う (a)'
+    },
+    "478": { 
+        flavorNote: 'Heavy iron chain shackled to the ankle.', 
+        effectSummary: 'Iron chain connecting a heavy iron ball to your leg. Disappears when curse is removed.', 
+        defaultVerb: 'apply',
+        verbKey: 'a',
+        actionLabelJa: '調べる (a)'
+    },
+
+    // 🧪 毒液・酸の飛沫 (VENOM: onum 479〜480)
+    "479": { 
+        flavorNote: 'Blinding venom spat by venomous cobras.', 
+        effectSummary: 'Blinding venom projectile. Causes blindness on contact. Wear glasses or helmet to protect eyes.', 
+        defaultVerb: 'throw',
+        verbKey: 't',
+        actionLabelJa: '投げる (t)'
+    },
+    "480": { 
+        flavorNote: 'Corrosive acid venom spat by acid monsters.', 
+        effectSummary: 'Corrosive acid projectile. Deals 2d6 acid damage and corrodes vulnerable armor.', 
+        defaultVerb: 'throw',
+        verbKey: 't',
+        actionLabelJa: '投げる (t)'
+    }
 };
 
 // 全 481 アイテムのデータ初期構築
@@ -583,6 +654,10 @@ export function initFullObjectKnowledge() {
                 case 'AMULET': flavorNote = 'Sacred amulet worn around the neck granting divine protections.'; break;
                 case 'WAND': flavorNote = 'Magical rod emitting magical rays when zapped.'; break;
                 case 'TOOL': flavorNote = 'Dungeon utility tool essential for survival.'; break;
+                case 'ROCK': flavorNote = 'Massive stone boulder or sculpted statue. Can block paths or fill pits.'; break;
+                case 'BALL': flavorNote = 'Heavy iron ball typically attached to a prisoner chain as punishment.'; break;
+                case 'CHAIN': flavorNote = 'Sturdy iron chain used to shackle heavy iron balls to the ankle.'; break;
+                case 'VENOM': flavorNote = 'Lethal liquid venom or acid projectile spat by dangerous monsters.'; break;
                 default: flavorNote = `${category} item useful for dungeon exploration.`; break;
             }
         }
@@ -623,7 +698,7 @@ export function initFullObjectKnowledge() {
             effects.cureSickness = true;
             effects.cureBlindness = true;
             effects.cureConfusion = true;
-        } else if (i === 274 || standardName === 'lizard corpse') {
+        } else if (standardName === 'lizard corpse' || base.sn === 'LIZARD_CORPSE') {
             effects.curePetrification = true;
         } else if (base.sn === 'SCR_REMOVE_CURSE' || standardName === 'scroll of remove curse') {
             effects.removeCurse = true;

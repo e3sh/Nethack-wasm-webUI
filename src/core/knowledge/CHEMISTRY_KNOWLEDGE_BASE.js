@@ -15,6 +15,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 1-1. 流し台での指輪落とし識別 (Sink Ring Drop Test)
     {
         id: 'CHEMISTRY_SINK_DROP_RING',
+        nameEn: 'Sink Ring Drop Test',
+        nameJa: '流し台での指輪落とし識別',
         category: 'TERRAIN_ITEM',
         terrain: 'sink',
         trigger: {
@@ -51,6 +53,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 1-2. 神壇での呪い・祝福判定 (Altar BUC Drop Test)
     {
         id: 'CHEMISTRY_ALTAR_BUC_DROP',
+        nameEn: 'Altar BUC Drop Test',
+        nameJa: '神壇での呪い判定',
         category: 'TERRAIN_ITEM',
         terrain: 'altar',
         trigger: {
@@ -86,6 +90,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 1-3. 神壇への死体捧げ物 (Altar Corpse Sacrifice)
     {
         id: 'CHEMISTRY_ALTAR_OFFER_CORPSE',
+        nameEn: 'Altar Corpse Sacrifice',
+        nameJa: '神壇への死体捧げ物',
         category: 'TERRAIN_ITEM',
         terrain: 'altar',
         trigger: {
@@ -121,6 +127,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 1-4. 泉でのポーション水化 (Fountain Dip Potion)
     {
         id: 'CHEMISTRY_FOUNTAIN_DIP_POTION',
+        nameEn: 'Fountain Dip Potion',
+        nameJa: '泉でのポーション水化',
         category: 'TERRAIN_ITEM',
         terrain: 'fountain',
         trigger: {
@@ -156,6 +164,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 1-5. 泉での長剣浸し・聖剣化 (Fountain Dip Long Sword / Excalibur)
     {
         id: 'CHEMISTRY_FOUNTAIN_DIP_LONG_SWORD',
+        nameEn: 'Fountain Dip Long Sword / Excalibur',
+        nameJa: '泉での長剣浸し・聖剣化',
         category: 'TERRAIN_ITEM',
         terrain: 'fountain',
         trigger: {
@@ -196,6 +206,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 2-1. ユニコーンの角での薬中和・鑑定 (Unicorn Horn Dip Potion)
     {
         id: 'CHEMISTRY_UNICORN_HORN_DIP_POTION',
+        nameEn: 'Unicorn Horn Dip Potion',
+        nameJa: 'ユニコーンの角での薬中和・鑑定',
         category: 'ITEM_ITEM',
         sourceItem: 'unicorn horn',
         trigger: {
@@ -231,6 +243,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 2-2. 恐怖の巻物の誤読防止・床置き結界 (Scare Monster Floor Ward)
     {
         id: 'CHEMISTRY_SCARE_MONSTER_FLOOR_WARD',
+        nameEn: 'Scare Monster Floor Ward',
+        nameJa: '恐怖の巻物の床置き結界',
         category: 'ITEM_ITEM',
         sourceItem: 'scroll of scare monster',
         trigger: {
@@ -265,13 +279,23 @@ export const CHEMISTRY_INTERACTIONS = [
     // 2-3. 手品袋の爆発防止ガード (Bag of Holding Explosion Hazard)
     {
         id: 'CHEMISTRY_BAG_OF_HOLDING_EXPLOSION',
+        nameEn: 'Bag of Holding Explosion Hazard',
+        nameJa: '手品袋の爆発即死ハザード',
         category: 'HAZARD',
         sourceItem: 'bag of holding',
         trigger: {
             sourceItemName: 'bag of holding',
             hasHazardousContainerOrWand: true
         },
-        action: null,
+        action: {
+            verb: 'DO_NOT_INSERT',
+            keySequence: ['⚠️ 投入厳禁 (DO NOT INSERT)'],
+            charStr: 'N/A',
+            labelEn: 'Bag of Holding Explosion Hazard (Do Not Insert)',
+            labelJa: '手品袋の爆発即死ハザード (投入厳禁)',
+            risk: 'CRITICAL',
+            consumesItem: true
+        },
         effect: {
             type: 'MAGICAL_EXPLOSION',
             topic: 'SURVIVAL',
@@ -291,6 +315,8 @@ export const CHEMISTRY_INTERACTIONS = [
     // 2-4. 試金石での宝石鑑定 (Touchstone Gem Test)
     {
         id: 'CHEMISTRY_TOUCHSTONE_GEM_TEST',
+        nameEn: 'Touchstone Gem Test',
+        nameJa: '試金石での宝石鑑定',
         category: 'ITEM_ITEM',
         sourceItem: 'touchstone',
         trigger: {

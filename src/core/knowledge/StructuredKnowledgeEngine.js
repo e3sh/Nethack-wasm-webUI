@@ -210,11 +210,13 @@ export class StructuredKnowledgeEngine {
             cloned.tacticalAdvice = cloned.tacticalAdvice.map(adv => tr(adv));
         }
 
-        // 4. アイテム基本効果の翻訳
+        // 4. アイテム・地形基本効果およびアクションラベルの翻訳
         if (isEn) {
             cloned.effectSummary = obj.effectSummaryEn || obj.effectSummary;
+            cloned.actionLabel = obj.actionLabelEn || obj.actionLabel;
         } else {
             cloned.effectSummary = obj.effectSummaryJa || tr(cloned.effectSummary);
+            cloned.actionLabel = obj.actionLabelJa || tr(cloned.actionLabel);
         }
 
         // 5. BUC効果の翻訳

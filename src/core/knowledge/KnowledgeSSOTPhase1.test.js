@@ -254,11 +254,12 @@ describe('GKL SSOT Phase 1 - Knowledge Infrastructure Tests', () => {
             expect(uniHorn.effects.cureSickness).toBe(true);
             expect(uniHorn.effects.cureBlindness).toBe(true);
 
-            // Lizard corpse (onum: 274)
-            const lizard = OBJECT_KNOWLEDGE_MAP.get(274);
-            expect(lizard).toBeDefined();
-            expect(lizard.actionVerb).toBe('e');
-            expect(lizard.effects.curePetrification).toBe(true);
+            // Glob of black pudding (onum: 274)
+            const blackPudding = OBJECT_KNOWLEDGE_MAP.get(274);
+            expect(blackPudding).toBeDefined();
+            expect(blackPudding.name).toBe('glob of black pudding');
+            expect(blackPudding.actionVerb).toBe('e');
+            expect(blackPudding.effects.curePetrification).toBeUndefined();
 
             // Scroll of remove curse (onum: 327)
             const uncurse = OBJECT_KNOWLEDGE_MAP.get(327);
