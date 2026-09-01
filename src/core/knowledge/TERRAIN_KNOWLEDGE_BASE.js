@@ -49,16 +49,18 @@ export const TERRAIN_KNOWLEDGE_MAP = {
         icon: '⛲',
         defaultVerb: 'q',
         actionLabel: 'Drink from fountain (q)',
-        effectSummary: 'Quaff with \'q\' or dip items with \'#dip\'. May grant luck, spawn a djinn, or cause poison.'
+        effectSummary: 'Quaff with \'q\' or dip items with \'#dip\'. May grant luck, spawn a djinn, or cause poison.',
+        interactions: ['CHEMISTRY_FOUNTAIN_DIP_POTION', 'CHEMISTRY_FOUNTAIN_DIP_LONG_SWORD']
     },
     sink: {
         id: 'sink',
         name: 'Sink',
         category: 'SINK',
         icon: '🚰',
-        defaultVerb: '#sit',
-        actionLabel: 'Sit on sink (Identify ring)',
-        effectSummary: 'Kick with \'ctrl+d\' or \'k\'. Sit (#sit) or drop ring to identify. May spawn puddings or water demon.'
+        defaultVerb: 'q',
+        actionLabel: 'Drink from sink (q)',
+        effectSummary: 'Quaff with \'q\', kick with \'C-d\'/\'k\', or dip with \'#dip\'. Drop unidentified ring (\'d\') to identify type (WARNING: ring is lost down drain). May spawn puddings or water demon.',
+        interactions: ['CHEMISTRY_SINK_DROP_RING']
     },
     altar: {
         id: 'altar',
@@ -67,7 +69,8 @@ export const TERRAIN_KNOWLEDGE_MAP = {
         icon: '⛪',
         defaultVerb: '#offer',
         actionLabel: 'Offer sacrifice (#offer)',
-        effectSummary: 'Offer corpses with \'#offer\'. Check B/U/C status of items dropped on altar. Beware of non-aligned god wrath.'
+        effectSummary: 'Offer corpses with \'#offer\'. Check B/U/C status of items dropped on altar. Beware of non-aligned god wrath.',
+        interactions: ['CHEMISTRY_ALTAR_BUC_DROP', 'CHEMISTRY_ALTAR_OFFER_CORPSE']
     },
     grave: {
         id: 'grave',

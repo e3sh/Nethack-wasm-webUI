@@ -427,20 +427,6 @@ export class ContextActionEngine {
             // シンク
             if (flags.isSink) {
                 actions.push({
-                    id: 'ACTION_SIT_SINK',
-                    category: 'INTERACT',
-                    label: 'Sit on sink (Identify ring)',
-                    labelJa: '座る・指輪識別 (Sit)',
-                    key: '#sit',
-                    charStr: '#sit',
-                    extCmd: 'sit',
-                    target: 'feet',
-                    risk: null,
-                    priority: 75,
-                    description: 'Sit on the sink (Drop a ring down the drain to identify it)',
-                    descriptionJa: 'シンクの上に座り、指輪を排水口に落として識別を試みます'
-                });
-                actions.push({
                     id: 'ACTION_QUAFF_SINK',
                     category: 'INTERACT',
                     label: 'Drink from sink',
@@ -1308,6 +1294,7 @@ export class ContextActionEngine {
                     extCmd: actDef.extCmd,
                     target: actDef.target || 'feet',
                     risk: actDef.risk || null,
+                    consumesItem: actDef.consumesItem || false,
                     priority: actDef.priority || 50,
                     description: descEn,
                     descriptionJa: descJa

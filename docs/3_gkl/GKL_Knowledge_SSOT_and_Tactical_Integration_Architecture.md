@@ -1,8 +1,9 @@
 ---
 title: GKL 構造化ナレッジ単一真実源 (SSOT) ＆ 戦術・アシスト統合アーキテクチャ仕様書
-status: planned
-last_updated: 2026-08-27
+status: active
+last_updated: 2026-09-01
 related_code:
+  - src/core/knowledge/CHEMISTRY_KNOWLEDGE_BASE.js
   - src/core/knowledge/StructuredKnowledgeEngine.js
   - src/core/knowledge/TacticalAdvisor.js
   - src/core/knowledge/AssistSignalSynthesizer.js
@@ -256,11 +257,12 @@ inventory: [
 ## 7. 移行ロードマップ (Migration Roadmap)
 
 ```
-Phase 0: テストファクトリ基盤の整備 ＆ テストデータ刷新 (Test Modernization)
- ├─ createTestItem / createTestMonster ファクトリの新設
- └─ 主要テスト（AssistSignalSynthesizer.test.js, TacticalAdvisor.test.js）のモックをファクトリ呼び出しへ移行
+Phase 0: テストファクトリ基盤の整備 ＆ テストデータ刷新 (Test Modernization) (完了)
+ ├─ createTestItem ファクトリの新設・稼働
+ ├─ ※ createTestMonster は、モンスターデータが静的マスター連動かつ実機シナリオテスト（ScenarioDriver）主導へ移行したため不要と判断（YAGNI原則により廃止）
+ └─ 主要テスト（TacticalAdvisor.test.js 等）のモックをファクトリ呼び出しへ移行
 
-Phase 1: 構造化ナレッジ スキーマ拡張 ＆ マスターデータ定義 (SSOT 構築 ＆ 辞書統合)
+Phase 1: 構造化ナレッジ スキーマ拡張 ＆ マスターデータ定義 (SSOT 構築 ＆ 辞書統合) (完了)
  ├─ MONSTER_KNOWLEDGE_MAP に threat / counters / vulnerabilities を英語で追加
  ├─ OBJECT_KNOWLEDGE_BASE に effects / actionVerb などの効果フラグを追加
  ├─ RACE_KNOWLEDGE_MAP / ROLE_KNOWLEDGE_MAP（種族・職業・レベル別耐性テーブル）の新設
@@ -268,15 +270,15 @@ Phase 1: 構造化ナレッジ スキーマ拡張 ＆ マスターデータ定�
  ├─ 新規に追加された英語メッセージ・単語を dictionary.csv に一括登録
  └─ StructuredKnowledgeEngine.localizeKnowledge による動的翻訳アタッチの動作確認
 
-Phase 2: AttributeStateManager の刷新（耐性判定の SSOT 化）
- ├─ ^X パース依存ロジック（updateFromIntrinsicsLines 等）の整理・廃止
- ├─ 種族・職業・レベル ＋ 装備ナレッジによる確定耐性算出ロジックの実装
- └─ 単体テストの追加・更新
+Phase 2: AttributeStateManager の刷新（耐性判定の SSOT 化） (完了)
+ ├─ ^X パース依存ロジック（updateFromIntrinsicsLines 等）の整理・廃止（確定耐性への一本化）
+ ├─ 種族・職業・レベル ＋ 装備ナレッジによる決定論的確定耐性算出ロジックの実装
+ └─ 単体テスト（AttributeStateManager.test.js）の追加・全件通過
 
 Phase 3: TacticalAdvisor のデータ駆動化リファクタリング (完了)
  ├─ ハードコード判定をナレッジ走査型に置き換え
  ├─ 確定耐性に基づく安全/危険アドバイスの動的調停（毒・麻痺・ドレイン等）
- └─ 既存単体テスト（全31テスト）および全体回帰テスト（全398テスト）のパス確認
+ └─ ADVICE_DEFINITIONS によるアドバイス定義の一元化・全テストパス
 
 Phase 3.5: ナレッジデータ構造の根本整理 ＆ スキーマ正規化 (手戻り根絶フェーズ) (完了)
  ├─ 【スコープ分離】動的戦術（検知可能な具体的脅威）と静的知識（兜の落石防御等）の責務明確化
@@ -285,13 +287,17 @@ Phase 3.5: ナレッジデータ構造の根本整理 ＆ スキーマ正規化 
  ├─ 【個別名判定の完全撤廃】blindfold, gloves, iron, levitation 等の文字列/ID判定の一掃
  └─ 【静的監査基盤】KnowledgeIntegrityAudit.test.js（全384体/481アイテムの充足率・整合性テスト）の新設・全テスト通過 (406 passed)
 
-Phase 4: AssistSignalSynthesizer のデータ駆動化リファクタリング
- ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化
- ├─ 文字列部分一致（name.includes）判定の全廃
- └─ 既存の単体テスト（全21テスト）の完全互換・パス確認
+Phase 4 (旧Phase 5先行): アイテム・環境ケミストリーの SSOT 統合 ＆ ルール是正 (完了)
+ ├─ 【SSOTマスター新設】CHEMISTRY_KNOWLEDGE_BASE.js（流し台・神壇・泉・ユニコーンの角・手品袋等の一元定義）
+ ├─ 【流し台ルールの是正】誤った #sit を完全撤廃、d（ドロップ）・CRITICALリスク・現物消滅警告の明記
+ ├─ 【各エンジン連携】TERRAIN_KNOWLEDGE_BASE / ITEM_INTERACTION_RULES / ContextActionEngine の是正
+ └─ 【単体テスト配備】ChemistryKnowledge.test.js 配備・全体回帰テスト通過 (428 passed)
 
-Phase 5: アイテム・環境ケミストリーの SSOT 統合
- ├─ 指輪＋流し台、死体＋祭壇、ユニコーンの角等のルールを OBJECT_KNOWLEDGE_MAP / TERRAIN_KNOWLEDGE_MAP へ集約
+Phase 5 (旧Phase 4): AssistSignalSynthesizer の完全データ駆動化リファクタリング (Next)
+ ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化
+ ├─ ケミストリー SSOT マスターと連携したランドマーク・サバイバル判定の一本化
+ ├─ 残存する文字列部分一致（name.includes）判定の全廃
+ └─ 既存単体テスト・シナリオテストの完全互換・パス確認
 ```
 
 ---

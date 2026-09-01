@@ -166,7 +166,7 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
             expect(altarAdvice.messageJa).toContain('神壇検知');
         });
 
-        it('シンクの上に立ち未識別の指輪がある場合、指輪識別アクション (ACTION_SINK_TEST_RING) が生成されること', () => {
+        it('シンクの上に立ち未識別の指輪がある場合、指輪識別アクション (ACTION_SINK_TEST_RING) がdドロップ・CRITICALリスクで生成されること', () => {
             const areaMgr = new AreaStateManager(80, 21);
             areaMgr.updatePlayerPosition(10, 10);
             const areaState = areaMgr.getAreaState(10, 10, 1);
@@ -182,7 +182,10 @@ describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テ
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
             const sinkAction = actions.find(a => a.id === 'ACTION_SINK_TEST_RING');
             expect(sinkAction).toBeDefined();
-            expect(sinkAction.label).toContain('シンクで指輪を識別');
+            expect(sinkAction.label).toContain('指輪を流し台に落として識別');
+            expect(sinkAction.keySequence).toEqual(['d', 'c']);
+            expect(sinkAction.risk).toBe('CRITICAL');
+            expect(sinkAction.consumesItem).toBe(true);
         });
 
         it('鑑定済みの杖 (wand of striking 等) のみ所持している場合、杖の安全鑑定テストが出ないこと', () => {

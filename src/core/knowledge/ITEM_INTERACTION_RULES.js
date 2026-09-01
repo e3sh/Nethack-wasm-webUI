@@ -125,23 +125,25 @@ export const ITEM_INTERACTION_RULES = [
             score: 500,
             severity: 'TIP',
             topic: 'IDENTIFICATION',
-            messageJa: '💍 シンク鑑定: シンクの上に座る(\'#sit\')か指輪を落とすと、排水口の効果音・反応から指輪の種類を判別できます。',
-            messageEn: '💍 Sink Ring Test: Sit on sink (\'#sit\') or drop a ring into the drain to observe ring effects.',
-            hintCommand: '#sit'
+            messageJa: '💍 流し台鑑定: 未識別の指輪 [${ringLetter}] を流し台に落とすと(\'d\')種類を識別できます。※落とした現物は消滅するため不要な指輪で試してください。',
+            messageEn: '💍 Sink Ring Test: Drop unidentified ring [${ringLetter}] down the sink (\'d\') to identify it. WARNING: The dropped ring will be lost down the drain!',
+            hintCommand: 'd'
         },
         action: {
             id: 'ACTION_SINK_TEST_RING',
             category: 'INTERACT',
-            label: 'Sit on sink (Identify ring)',
-            labelJa: 'シンクで指輪を識別 (#sit)',
-            key: '#sit',
-            charStr: '#sit',
-            extCmd: 'sit',
+            label: 'Drop ring in sink (d)',
+            labelJa: '指輪を流し台に落として識別 (d)',
+            key: 'd${ringLetter}',
+            keySequence: ['d', '${ringLetter}'],
+            charStr: 'd',
+            extCmd: 'drop',
             target: 'feet',
-            risk: null,
+            risk: 'CRITICAL',
+            consumesItem: true,
             priority: 78,
-            description: 'Sit on the sink to test rings in drain for identification',
-            descriptionJa: 'シンクの上に座り、指輪を排水口に落として固有の反応から種類を識別します'
+            description: 'Drop an unidentified ring down the sink drain to type-identify it. WARNING: The dropped ring is lost forever down the pipe!',
+            descriptionJa: '未識別の指輪を流し台の排水口に落とし、効果音から種類を判別します。※落とした指輪は消滅します（重複所持時推奨）'
         }
     },
 
@@ -449,7 +451,11 @@ export function evaluateInteractionRule(rule, context) {
         const names = Array.isArray(trigger.hasItemNamed) ? trigger.hasItemNamed : [trigger.hasItemNamed];
         matchedSourceItem = items.find(i => {
             const raw = (i.rawText || i.name || '').toLowerCase();
-            return names.some(n => raw.includes(n.toLowerCase()));
+            const id = (i.id || i.knowledge?.id || i.knowledge?.name || '').toLowerCase();
+            return names.some(n => {
+                const nl = n.toLowerCase();
+                return raw.includes(nl) || id.includes(nl);
+            });
         });
         if (!matchedSourceItem) return null;
     }
