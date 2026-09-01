@@ -6,7 +6,9 @@ related_code:
   - src/core/knowledge/CHEMISTRY_KNOWLEDGE_BASE.js
   - src/core/knowledge/StructuredKnowledgeEngine.js
   - src/core/knowledge/TacticalAdvisor.js
+  - src/core/knowledge/ADVICE_DEFINITIONS.js
   - src/core/knowledge/AssistSignalSynthesizer.js
+  - src/core/knowledge/ASSIST_SIGNAL_DEFINITIONS.js
   - src/core/knowledge/ContextActionEngine.js
   - src/core/knowledge/ItemInteractionRules.js
 ---
@@ -293,11 +295,13 @@ Phase 4 (旧Phase 5先行): アイテム・環境ケミストリーの SSOT 統�
  ├─ 【各エンジン連携】TERRAIN_KNOWLEDGE_BASE / ITEM_INTERACTION_RULES / ContextActionEngine の是正
  └─ 【単体テスト配備】ChemistryKnowledge.test.js 配備・全体回帰テスト通過 (428 passed)
 
-Phase 5 (旧Phase 4): AssistSignalSynthesizer の完全データ駆動化リファクタリング (Next)
+Phase 5 (旧Phase 4): AssistSignalSynthesizer の完全データ駆動化リファクタリング (完了)
+ ├─ 【SSOTマスター新設】ASSIST_SIGNAL_DEFINITIONS.js（全26種のアシストシグナル・優先度・文言・Wiki連携の一元定義）
  ├─ evaluateCombatThreatStance および生存アイテム探索（回復・解呪等）の完全データ駆動化
  ├─ ケミストリー SSOT マスターと連携したランドマーク・サバイバル判定の一本化
- ├─ 残存する文字列部分一致（name.includes）判定の全廃
- └─ 既存単体テスト・シナリオテストの完全互換・パス確認
+ ├─ 残存する文字列部分一致（name.includes）判定の全廃、コード量の大幅削減（-633行 / +161行）
+ ├─ 【静的監査連動】KnowledgeIntegrityAudit.test.js にシグナル完全性監査を追加
+ └─ 既存単体テスト・シナリオテストの完全互換・全テスト通過 (436 passed)
 ```
 
 ---

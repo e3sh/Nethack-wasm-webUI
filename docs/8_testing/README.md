@@ -1,8 +1,8 @@
 # WebUICore ユニットテストガイド (Testing Guide)
 
-NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) ユニットテスト** の構成、実行方法、およびテスト追加ガイドライン。
+NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) ユニットテスト・統合テスト基盤** の構成、実行方法、およびテスト追加ガイドライン。
 
-本プロジェクトではテストランナーとして **Vitest** を採用しており、Wasm Cコアやブラウザ画面に依存しない純粋な計算・パースロジックをミリ秒単位（全件0.5秒以内）で全自動検証します。
+本プロジェクトではテストランナーとして **Vitest** を採用しており、Wasm Cコアやブラウザ画面に依存しない純粋な計算・パースロジック、ナレッジ整合性監査、およびキー入力プロトコル検証（全45テストスイート・459テスト）をミリ秒単位（全件約5秒以内）で全自動検証します。
 
 ---
 
@@ -14,38 +14,40 @@ NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) ユニット
 ```bash
 npm test
 ```
-* 9 つのコアモジュールの全テストスイートが一瞬で実行され、ターミナル上に合否結果を出力します。
+* 全 45 テストスイート（459 件のテスト）が一括実行され、ターミナル上に合否結果を出力します。
 
-### ② ビジュアル UI 実行 (ブラウザ GUI)
+### ② プロトコル検証テストのみ実行 (高速規約検査)
+```bash
+npx vitest run tests/protocol/
+```
+* 静的リンター、FakeDriver 契約検査、Headless シミュレーションの 3 防壁（27 テスト）をわずか 20ms 台でピンポイント実行します。
+
+### ③ シナリオテストのみ実行 (Downlink 実機イベント再生)
+```bash
+npx vitest run tests/scenarios/
+```
+* 実機からキャプチャしたイベントログを ScenarioDriver で再生し、複数マネージャーの時系列連動を検証します。
+
+### ④ ビジュアル UI 実行 (ブラウザ GUI)
 ```bash
 npm run test:ui
 ```
 * ブラウザ上に Vitest UI が立ち上がり、テストスイートのビジュアル選択、クリック実行、エラー行の比較表示が可能です。
 
-### ③ 特定のモジュール・テストファイル指定実行
-```bash
-npx vitest TranslationEngine
-```
-* 指定したキーワードにマッチするテストファイルのみをピンポイントで実行します。
-
 ---
 
 ## 2. 対象モジュールとテスト一覧 (Test Suites Overview)
 
-現在構築されている 9 大コアモジュールのテストスイート一覧です。
+現在構築されている主要テストスイート一覧です（全 45 ファイル・459 テスト）。
 
-| ディレクトリ | テストファイル | 主な検証内容 |
+| レイヤー / 分類 | 主なテストファイル | 主な検証内容 |
 | :--- | :--- | :--- |
-| `src/core/prompt/` | [`PromptPayloadBuilder.test.js`](/src/core/prompt/PromptPayloadBuilder.test.js) | YN / MENU / DIRECTION プロンプトから GUI モーダル構造化データへのパース |
-| `src/core/window/` | [`TextWindowManager.test.js`](/src/core/window/TextWindowManager.test.js) | テキスト行の蓄積、`clearWindow` 消去、タイトルの抽出、`flushBuffer` 消化 |
-| `src/core/input/` | [`TouchCalculator.test.js`](/src/core/input/TouchCalculator.test.js) | 960x600 / 12x9 アスペクト比補正計算、タップ位置からの `Numpad8` 等の移動キー変換 |
-| `src/core/input/` | [`KeyMapper.test.js`](/src/core/input/KeyMapper.test.js) | KeyboardEvent / Shift/Ctrl/Alt 修飾キー・制御コード (`Ctrl+D` ➔ `\x04`) マッピング |
-| `src/core/input/` | [`GamepadManager.test.js`](/src/core/input/GamepadManager.test.js) | Gamepad 初期アサイン、`applyContextOverlay` による YN/MENU コンテキストオーバーレイ |
-| `src/core/translation/` | [`TranslationEngine.test.js`](/src/core/translation/TranslationEngine.test.js) | メッセージ完全一致辞書引き、品詞別 `lookupWord`、日本語判定、無効化時の動作 |
-| `src/core/lifecycle/` | [`GameOverResolver.test.js`](/src/core/lifecycle/GameOverResolver.test.js) | NetHack `record` ログ行からの ScoreboardEntry パース、勝敗・スコア判定 |
-| `src/core/` | [`StatusAccessor.test.js`](/src/core/StatusAccessor.test.js) | Cコアステータスフィールド (HP/Gold/Dlevel等) の更新と統一構造体生成 |
-| `src/core/knowledge/` | [`InventoryStateManager.test.js`](/src/core/knowledge/InventoryStateManager.test.js) | インベントリテキスト行 (`"a - a blessed +1 dagger"`) からの所持品データ抽出 |
-| `src/core/inspector/` | [`DebugInspector.test.js`](/src/core/inspector/DebugInspector.test.js) | イベントログ蓄積・フィルタリング、BroadcastChannel 通信、レスポンス注入 |
+| **【Layer 1: 純粋単体】入力・パース** | `PromptPayloadBuilder.test.js`, `TouchCalculator.test.js`, `KeyMapper.test.js`, `GamepadManager.test.js`, `TextWindowManager.test.js`, `StatusAccessor.test.js` | プロンプト解析、画面アスペクト補正計算、キーマッピング、ウィンドウバッファ管理 |
+| **【Layer 1: 純粋単体】GKL ナレッジ** | `TacticalAdvisor.test.js`, `AssistSignalSynthesizer.test.js`, `AreaStateManager.test.js`, `InventoryStateManager.test.js`, `ChemistryKnowledge.test.js` | エリア・所持品・耐性状態の追跡、戦術助言、アシストシグナル、ケミストリー判定 |
+| **【Layer 1: 静的監査】SSOT 完全性** | `KnowledgeIntegrityAudit.test.js`, `AllGlyphsVerification.test.js` | 全 384 モンスター / 481 アイテム / 24 助言 / 26 シグナルのスキーマ正規化・防護整合性の静的全数監査 |
+| **【Layer 2: 上り第1/第2防壁】プロトコル** | `sequenceProtocol.test.js`, `actionExecutionProtocol.test.js` | 静的リンターによる改行・無効コマンド排除、FakeDriver による動的プレースホルダー（`${invlet}` 等）解決後の完走検査 |
+| **【Layer 2: 上り第3防壁】ヘッドレス** | `headlessDriverSimulation.test.js` | 本物の `NetHackWasmDriver` を用いた非同期 Promise 解決、FIFO キュー順次実行、方向コード自動変換の完走検証 |
+| **【Layer 3: 下り統合】シナリオ再生** | `realScenarios.test.js`, `ScenarioDriver.test.js`, `driverRecording.test.js` | 実機キャプチャ JSON（浮遊する目玉、コカトリス、瀕死祈り等）の時系列再生・スナップショット検証 |
 
 ---
 

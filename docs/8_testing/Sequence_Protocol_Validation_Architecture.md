@@ -1,12 +1,18 @@
 ---
 title: Sequence_Protocol_Validation_Architecture
 status: active
-last_updated: 2026-08-30
+last_updated: 2026-09-01
 related_code:
+  - test/helpers/ProtocolValidatorFakeDriver.js
+  - tests/protocol/actionExecutionProtocol.test.js
+  - tests/protocol/headlessDriverSimulation.test.js
+  - src/testing/SequenceProtocolValidator.js
+  - tests/protocol/sequenceProtocol.test.js
   - src/driver/NetHackWasmDriver.js
-  - src/core/knowledge/AssistSignalSynthesizer.js
-  - src/core/knowledge/ITEM_INTERACTION_RULES.js
   - src/core/knowledge/ContextActionEngine.js
+  - src/core/knowledge/AssistSignalSynthesizer.js
+  - src/core/knowledge/ASSIST_SIGNAL_DEFINITIONS.js
+  - src/core/knowledge/ITEM_INTERACTION_RULES.js
 ---
 
 # 上り方向キーシーケンス・プロトコル検証テスト基盤 構想設計書
@@ -387,19 +393,23 @@ describe('Sequence Protocol Validation Suite', () => {
 ```mermaid
 timeline
     title 上り方向プロトコル検証テスト基盤 導入ロードマップ
-    Phase 1 : SequenceProtocolValidator 実装 : Static Protocol Linter テスト導入 : 既存 338 件テストスイートと同時実行
-    Phase 2 : ProtocolValidatorFakeDriver 実装 : ContextActionEngine 実行テストの FakeDriver 化
-    Phase 3 : CI ゲートウェイ統合 : PR 自動チェックと規約違反のマージブロック確立
+    Phase 1 : 静的リンター (第1防壁) (完了) : SequenceProtocolValidator 実装 : 全アクション定義の静的一括リント
+    Phase 2 : 契約検査 FakeDriver (第2防壁) (完了) : ProtocolValidatorFakeDriver 実装 : 動的解決後の完走保証
+    Phase 3 : ヘッドレス実機等価検証 (第3防壁) (完了) : headlessDriverSimulation 実装 : 本物ドライバーの Promise 解決検証
+    Phase 4 : CI ゲートウェイ統合 (Next) : PR 自動チェックと規約違反のマージブロック確立
 ```
 
 ### 6.1 各フェーズの作業項目
-1. **Phase 1: 静的プロトコルリンターの配備 (即時導入)**
+1. **Phase 1: 静的プロトコルリンターの配備 (完了)**
    * `src/testing/SequenceProtocolValidator.js` を作成。
-   * `tests/protocol/sequenceProtocol.test.js` を追加し、全アクション定義の一括リントを実施。
-   * `npm test`（Vitest）に組み込み、テスト件数を 338 件から増強。
-2. **Phase 2: FakeDriver によるアクション実行契約テストの配備**
-   * アクションの動的パラメータ解決（`${writeTool}` ➔ `'b'` 等）後のシーケンスが規約に違反しないかをテストするヘルパーを整備。
-3. **Phase 3: CI ゲートウェイ化と新規開発ガイドライン策定**
+   * `tests/protocol/sequenceProtocol.test.js` を追加し、全アクション定義の一括リントを実施（4 tests pass）。
+2. **Phase 2: FakeDriver によるアクション実行契約テストの配備 (完了)**
+   * `test/helpers/ProtocolValidatorFakeDriver.js` を作成。
+   * `tests/protocol/actionExecutionProtocol.test.js` を追加し、アクションの動的パラメータ解決（`${writeTool}` ➔ `'-'`、`${ringLetter}` ➔ `'a'` 等）後のシーケンスが規約に適合し完走することを検証（16 tests pass）。
+3. **Phase 3: Headless Driver シミュレーションテストの配備 (完了)**
+   * `tests/protocol/headlessDriverSimulation.test.js` を追加。
+   * WASM の重い初期化を回避しつつ、本物の `NetHackWasmDriver` インスタンスを用いて非同期 Promise 解決、FIFO タスク順次実行、方向コード変換を検証（7 tests pass）。
+4. **Phase 4: CI ゲートウェイ化と新規開発ガイドライン策定 (Next)**
    * GitHub Actions などの CI パイプラインにおいて、テスト失敗時に PR マージをブロック。
    * `docs/3_gkl/` や `docs/8_testing/` に「キーシーケンス追加時のプロトコル規約チェックリスト」を明記。
 
