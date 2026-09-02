@@ -13,7 +13,7 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 
 | GKL Pure JS クライアント (プレイ画面) | ナレッジインスペクター (GKL 内部知識ベース) |
 | :---: | :---: |
-| ![NetHack WebUI プレイ画面](assets/images/SS_nhwebui.png) | ![GKL ナレッジインスペクター](assets/images/ss_Inspecter.png) |
+| ![NetHack WebUI プレイ画面](assets/images/ss_g.png) | ![GKL ナレッジインスペクター](assets/images/ss_i.png) |
 | 周辺ズーム、アイコンインベントリ、文脈に応じた推奨アクション | 構造化されたモンスター・アイテム・ハザード・耐性の内部知識ベース |
 
 ---
