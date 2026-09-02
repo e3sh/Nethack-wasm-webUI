@@ -35,16 +35,7 @@
 
 ---
 
-### 4. 🌐 翻訳エンジン & 辞書 (`docs/3_translation/`)
-| ドキュメント | ステータス | 関連ソースコード | 概要 |
-| :--- | :---: | :--- | :--- |
-| [README.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_translation/README.md) | `🟢 active` | `src/translation/` | 翻訳システム全般の構成と概要 |
-| [DICTIONARY_OPERATION.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_translation/DICTIONARY_OPERATION.md) | `🟢 active` | `dictionary.csv` | 辞書運用・メンテナンスマニュアル |
-| [📦 archive/ サブフォルダ](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_translation/archive) | `📦 archived` | - | プラグイン詳細構成・補助ツールリファレンス等（5ファイル退避済） |
-
----
-
-### 5. 🔊 音響システム (`docs/4_sound/`)
+### 4. 🔊 音響システム (`docs/4_sound/`)
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
 | [sound_system_spec.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/4_sound/sound_system_spec.md) | `🟢 active` | `src/sound/` | 音響・Web Audio システム仕様書 |
@@ -52,12 +43,29 @@
 
 ---
 
-### 6. 📂 ゲームデータ・プロジェクト報告書
+### 5. 📂 ゲームデータ・プロジェクト報告書・将来構想
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
 | [docs/5_gamedata/](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/5_gamedata/) | `🟢 active` | 地形・アイテム・モンスター等のゲームリファレンスデータ群 |
 | [docs/6_project_reports/](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/6_project_reports/) | `📦 archived` | 開発初期の引き継ぎ資料・進捗報告書群（凍結保存） |
 | [docs/7_futures/](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/7_futures/) | `🔵 reference` | 将来のWebUICore完全独立構想メモ |
+
+---
+
+### 6. 🧪 テスト・品質保証 (`docs/8_testing/`)
+| ドキュメント | ステータス | 関連ソースコード | 概要 |
+| :--- | :---: | :--- | :--- |
+| [README.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/8_testing/README.md) | `🟢 active` | `test/` | テストアーキテクチャ・モダナイゼーション概要 |
+| [Testing_Modernization_Implementation_Roadmap.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/8_testing/Testing_Modernization_Implementation_Roadmap.md) | `🟢 active` | `test/` | テスト自動化・現代化ロードマップ |
+
+---
+
+### 7. 🌐 翻訳エンジン & 辞書 (`docs/9_translation/`)
+| ドキュメント | ステータス | 関連ソースコード | 概要 |
+| :--- | :---: | :--- | :--- |
+| [README.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/9_translation/README.md) | `🟢 active` | `src/translation/` | 翻訳システム全般の構成と概要 |
+| [DICTIONARY_OPERATION.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/9_translation/DICTIONARY_OPERATION.md) | `🟢 active` | `dictionary.csv` | 辞書運用・メンテナンスマニュアル |
+| [📦 archive/ サブフォルダ](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/9_translation/archive) | `📦 archived` | - | プラグイン詳細構成・補助ツールリファレンス等（5ファイル退避済） |
 
 ---
 
@@ -68,10 +76,11 @@ docs/
 ├── 1_driver/             # WASM Driver 仕様書 (直下2本 + archive/)
 ├── 2_client_ui/          # UI / WebUICore 仕様書 (直下2本 + archive/)
 ├── 3_gkl/                # GKL 総合仕様書 & ADR (直下2本 + archive/)
-├── 3_translation/        # 翻訳概要 & 辞書運用 (直下2本 + archive/)
 ├── 4_sound/              # 音響システム仕様書 (直下1本 + archive/)
 ├── 5_gamedata/           # ゲームリファレンスデータ群
 ├── 6_project_reports/    # プロジェクト引き継ぎ・報告書 (archived)
-└── 7_futures/            # 将来アーキテクチャ構想 (reference)
+├── 7_futures/            # 将来アーキテクチャ構想 (reference)
+├── 8_testing/            # テストアーキテクチャ & ロードマップ
+└── 9_translation/        # 翻訳概要 & 辞書運用 (直下2本 + archive/)
 ```
 

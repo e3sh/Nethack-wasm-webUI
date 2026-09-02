@@ -140,8 +140,8 @@ python tools/dict_converter.py import
 - [GKL 仕様書](docs/3_gkl/gkl_documentation.md)
 - [WASM Driver 仕様書](docs/1_driver/driver_core_spec.md)
 - [WebUICore 利用ガイド](docs/2_client_ui/WebUICore_Usage_Guide.md)
-- [翻訳・DevTools Inspector 統合仕様書](docs/3_translation/translation_inspector_integration_plan.md)
-- [翻訳辞書運用マニュアル](docs/3_translation/DICTIONARY_OPERATION.md)
+- [翻訳・DevTools Inspector 統合仕様書](docs/9_translation/translation_inspector_integration_plan.md)
+- [翻訳辞書運用マニュアル](docs/9_translation/DICTIONARY_OPERATION.md)
 
 ---
 
