@@ -46,11 +46,8 @@ describe('DebugInspector', () => {
         expect(snapshot.state).toBe('RUNNING');
         expect(snapshot.promptCategory).toBe('YN');
         expect(snapshot.hasActiveResolver).toBe(true);
-        expect(snapshot.status.hp.current).toBe(15);
-        expect(snapshot.inventoryItems).toHaveLength(1);
-        expect(snapshot.inventoryItems[0].name).toBe('dagger');
-        expect(snapshot.contextActions).toHaveLength(1);
-        expect(snapshot.contextActions[0].label).toBe('鍵でドアを開ける');
+        expect(snapshot.situation).toBeDefined();
+        expect(snapshot.situation.env).toBe('room');
         expect(snapshot).toHaveProperty('silentSyncStatus');
     });
 
@@ -162,9 +159,38 @@ describe('DebugInspector', () => {
 
         // 5. broadcastState スナップショットの検証
         const snapshot = inspector.broadcastState();
-        expect(snapshot.skills).toHaveLength(1);
-        expect(snapshot.spells).toHaveLength(1);
-        expect(snapshot.attributes.effectiveResistances.fire).toBe(true);
         expect(snapshot.discoveries.discoveredCount).toBe(1);
+        expect(snapshot.situation).toBeDefined();
+    });
+
+    it('連続するイベント発火時にスロットリング（間引き）が機能し、スナップショット送信が過剰に発生しないこと', () => {
+        vi.useFakeTimers();
+        try {
+            const core = createMockCore();
+            const inspector = new DebugInspector(core, { autoStart: false, stateThrottleDelay: 100 });
+            const postedMsgs = [];
+            inspector.channel = { postMessage: (msg) => { postedMsgs.push(msg); } };
+            inspector.isBroadcasting = true;
+            inspector._bindCoreEvents();
+
+            // 短時間に連続してイベントを発火
+            core.emit('statusUpdate', { field: 'hp', value: 10 });
+            core.emit('statusUpdate', { field: 'gold', value: 120 });
+            core.emit('inventoryStateUpdated');
+            core.emit('stateChange', { state: 'WAITING_INPUT' });
+
+            // 発火直後はログは送信されるが、スナップショットはスロットル待機中（まだ0件）
+            const snapshotsBefore = postedMsgs.filter(m => m.type === 'INSPECTOR_STATE_SNAPSHOT');
+            expect(snapshotsBefore).toHaveLength(0);
+
+            // 100ms 経過
+            vi.advanceTimersByTime(100);
+
+            // 1回だけスナップショットが送信されていること
+            const snapshotsAfter = postedMsgs.filter(m => m.type === 'INSPECTOR_STATE_SNAPSHOT');
+            expect(snapshotsAfter).toHaveLength(1);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -20,6 +20,8 @@ export class DebugInspector {
         this.consoleWindow = null;
         this.logs = [];
         this.maxLogCount = options.maxLogCount || 500;
+        this.stateThrottleDelay = options.stateThrottleDelay !== undefined ? options.stateThrottleDelay : 100;
+        this._stateThrottleTimer = null;
 
         if (options.autoStart !== false) {
             this.startBroadcast();
@@ -41,6 +43,26 @@ export class DebugInspector {
 
         this.isBroadcasting = true;
         this._bindCoreEvents();
+    }
+
+    /**
+     * GKL 内部構造を含む現在の全体状態のスナップショット送信をスロットリング（間引き）予約
+     */
+    scheduleBroadcastState() {
+        if (!this.isBroadcasting) return;
+        if (this._stateThrottleTimer !== null) return;
+
+        if (this.stateThrottleDelay <= 0) {
+            this.broadcastState();
+            return;
+        }
+
+        this._stateThrottleTimer = setTimeout(() => {
+            this._stateThrottleTimer = null;
+            if (this.isBroadcasting) {
+                this.broadcastState();
+            }
+        }, this.stateThrottleDelay);
     }
 
     /**
@@ -123,42 +145,6 @@ export class DebugInspector {
                 ? this.core.situationCache.getSituation()
                 : null);
 
-        let contextActions = [];
-        if (situation) {
-            if (Array.isArray(situation.actions)) {
-                contextActions = situation.actions;
-            } else if (Array.isArray(situation.action)) {
-                contextActions = situation.action;
-            } else if (situation.actions && typeof situation.actions === 'object') {
-                contextActions = Object.values(situation.actions);
-            }
-        }
-
-        if ((!contextActions || contextActions.length === 0) && this.core.situationCache && typeof this.core.situationCache.queryAction === 'function') {
-            try {
-                const res = this.core.situationCache.queryAction();
-                if (Array.isArray(res)) contextActions = res;
-            } catch (e) {}
-        }
-
-        const inventoryItems = (situation && situation.inventory)
-            ? (Array.isArray(situation.inventory) ? situation.inventory : (situation.inventory.items || []))
-            : ((this.core.gkl && this.core.gkl.inventoryStateManager && Array.isArray(this.core.gkl.inventoryStateManager.items))
-                ? this.core.gkl.inventoryStateManager.items
-                : ((this.core.inventoryStateManager && Array.isArray(this.core.inventoryStateManager.items)) ? this.core.inventoryStateManager.items : []));
-
-        const statusData = (situation && situation.status)
-            ? situation.status
-            : (typeof this.core.getStatus === 'function'
-                ? this.core.getStatus()
-                : (this.core.gkl && typeof this.core.gkl.getStatus === 'function' ? this.core.gkl.getStatus() : {}));
-
-        const areaData = (situation && situation.area)
-            ? situation.area
-            : (this.core.gkl && this.core.gkl.areaStateManager
-                ? this.core.gkl.areaStateManager.getAreaState()
-                : (typeof this.core.getAreaState === 'function' ? this.core.getAreaState() : null));
-
         const rawDriverStatus = (typeof this.core.getDriverDebugStatus === 'function') 
             ? this.core.getDriverDebugStatus() 
             : (this.core.driver && typeof this.core.driver.getDebugStatus === 'function' ? this.core.driver.getDebugStatus() : null);
@@ -171,32 +157,12 @@ export class DebugInspector {
             queueLen: rawDriverStatus.sequenceQueueLength || 0
         } : null;
 
-        const spellsData = (situation && situation.spells)
-            ? (Array.isArray(situation.spells) ? situation.spells : (situation.spells.items || []))
-            : ((this.core.gkl && this.core.gkl.spellStateManager) ? this.core.gkl.spellStateManager.getSpells() : []);
-
-        const skillsData = (situation && situation.skills)
-            ? (Array.isArray(situation.skills) ? situation.skills : (situation.skills.items || []))
-            : ((this.core.gkl && this.core.gkl.skillStateManager) ? this.core.gkl.skillStateManager.getSkills() : []);
-
-        const attributesData = (situation && situation.attributes)
-            ? situation.attributes
-            : ((this.core.gkl && this.core.gkl.attributeStateManager) ? this.core.gkl.attributeStateManager.getAttributes() : {});
-
         const dsm = (this.core.gkl && this.core.gkl.discoveryStateManager) || this.core.discoveryStateManager || null;
         const discoveriesData = dsm ? {
             discoveredCount: dsm.discoveredOnums ? dsm.discoveredOnums.size : 0,
             appearancesCount: dsm.appearanceMap ? dsm.appearanceMap.size : 0,
             isSynced: Boolean(dsm.isSynced)
         } : null;
-
-        const trackedMonstersData = (this.core.gkl && typeof this.core.gkl.getPerceivedMonstersSummary === 'function')
-            ? this.core.gkl.getPerceivedMonstersSummary()
-            : ((areaData && areaData.perceivedMonsters) || (areaData && areaData.trackedMonsters) || []);
-
-        const advicesData = (situation && Array.isArray(situation.advices))
-            ? situation.advices
-            : ((this.core.gkl && typeof this.core.gkl.getTacticalAdvices === 'function') ? this.core.gkl.getTacticalAdvices() : []);
 
         const silentSyncTracker = (this.core.gkl && this.core.gkl.silentSyncTracker) ? {
             totalCount: this.core.gkl.silentSyncTracker.totalCount,
@@ -211,17 +177,8 @@ export class DebugInspector {
             hasActiveResolver: !!this.core.activeResolver,
             driverStatus: driverSummary,
             silentSyncStatus: silentSyncTracker,
-            status: statusData,
-            areaState: areaData,
-            inventoryItems: inventoryItems,
-            spells: spellsData,
-            skills: skillsData,
-            attributes: attributesData,
             discoveries: discoveriesData,
-            trackedMonsters: trackedMonstersData,
-            advices: advicesData,
-            situation: situation,
-            contextActions: contextActions
+            situation: situation || {}
         };
 
         if (this.channel && this.isBroadcasting) {
@@ -298,14 +255,14 @@ export class DebugInspector {
                 state: payload ? payload.state : this.core.state,
                 oldState: payload ? payload.oldState : undefined
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('restarted', () => {
             this.broadcastLog('EVENT:restarted', {
                 timestamp: Date.now()
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('map_cleared', () => {
@@ -325,7 +282,7 @@ export class DebugInspector {
                 choicesHint: payload ? payload.choicesHint : undefined,
                 optionsCount: payload && payload.options ? payload.options.length : 0
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('textWindowModal', (payload) => {
@@ -345,14 +302,14 @@ export class DebugInspector {
                 field: statusData ? statusData.field : undefined,
                 value: statusData ? statusData.value : undefined
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('inventoryStateUpdated', () => {
             this.broadcastLog('EVENT:inventoryStateUpdated', {
                 itemCount: (this.core.gkl && this.core.gkl.inventoryStateManager) ? this.core.gkl.inventoryStateManager.items.length : 0
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('skillsStateUpdated', () => {
@@ -365,7 +322,7 @@ export class DebugInspector {
                 enhanceableCount: enhanceable.length,
                 enhanceableList: enhanceable.map(s => s.name)
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('spellsStateUpdated', () => {
@@ -374,7 +331,7 @@ export class DebugInspector {
                 spellCount: spells.length,
                 spells: spells.map(s => `${s.letter || '-'} - ${s.name} (Lv.${s.level ?? '?'}, 失敗率:${s.failRate ?? '?'})`)
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         const handleDiscoveriesUpdated = () => {
@@ -383,7 +340,7 @@ export class DebugInspector {
                 discoveredCount: dsm && dsm.discoveredOnums ? dsm.discoveredOnums.size : 0,
                 appearancesCount: dsm && dsm.appearanceMap ? dsm.appearanceMap.size : 0
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         };
         this.core.on('discoveriesStateUpdated', handleDiscoveriesUpdated);
 
@@ -392,7 +349,7 @@ export class DebugInspector {
             this.broadcastLog('EVENT:attributesStateUpdated', {
                 resistances: attr ? attr.effectiveResistances : {}
             });
-            this.broadcastState();
+            this.scheduleBroadcastState();
         });
 
         this.core.on('clear_nhwindow', (data) => {
@@ -448,6 +405,10 @@ export class DebugInspector {
 
     stopBroadcast() {
         this.isBroadcasting = false;
+        if (this._stateThrottleTimer !== null) {
+            clearTimeout(this._stateThrottleTimer);
+            this._stateThrottleTimer = null;
+        }
         if (this.channel) {
             try {
                 this.channel.close();

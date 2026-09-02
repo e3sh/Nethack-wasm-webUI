@@ -415,7 +415,7 @@
 
     <!-- タブバー -->
     <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 GKL State Tree</button>
+        <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 Situation State Tree</button>
         <button class="tab-btn" onclick="switchTab('tabActions')">⚡ Context Actions</button>
         <button class="tab-btn" onclick="switchTab('tabTactical')">🛡️ Tactical Advisor</button>
         <button class="tab-btn" onclick="switchTab('tabFlags')">📦 Knowledge & Flags</button>
@@ -426,10 +426,10 @@
 
     <div class="view-container">
 
-        <!-- Tab 1: GKL State Tree (JSON インスペクター) -->
+        <!-- Tab 1: Situation State Tree (JSON インスペクター) -->
         <div id="tabTree" class="tab-content active">
             <div style="margin-bottom: 8px; color: #a6adc8;">
-                Core および Game Knowledge Layer (GKL) の生の内部オブジェクトツリー（展開・折りたたみ可能）：
+                SituationCache (GKL 統合状況オブジェクト) の構造化ツリー（展開・折りたたみ可能）：
             </div>
             <div id="treeContainer" class="json-tree"></div>
         </div>
@@ -584,6 +584,7 @@
         const channelName = 'webuicore_inspector_channel';
         const channel = new BroadcastChannel(channelName);
         let lastSnapshot = null;
+        let currentTabId = 'tabTree';
 
         // 翻訳管理ステート
         const untranslatedSet = new Set();
@@ -591,14 +592,19 @@
         const MAX_TR_LOGS = 1000;
 
         function switchTab(tabId) {
+            currentTabId = tabId;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
             if (btn) btn.classList.add('active');
 
             const content = document.getElementById(tabId);
             if (content) content.classList.add('active');
+
+            if (lastSnapshot) {
+                renderTabContent(tabId, lastSnapshot);
+            }
         }
 
         channel.onmessage = (event) => {
@@ -624,7 +630,6 @@
             } else if (type === 'INSPECTOR_STATE_SNAPSHOT' && snapshot) {
                 lastSnapshot = snapshot;
                 renderStateSnapshot(snapshot);
-                renderKnowledgeFlags(snapshot);
             } else if (type === 'KNOWLEDGE_QUERY_RESULT') {
                 renderQueryResult(event.data);
             }
@@ -682,18 +687,41 @@
                 valSilentSync.title = `総同期: ${total}回 (所持品:${invCount}, 魔法:${s.silentSyncStatus.syncCounts?.spells || 0}, スキル:${s.silentSyncStatus.syncCounts?.skills || 0}) 直近: ${recent ? `${recent.type} (差分:${recent.changed ? '有' : '無'}, ${recent.durationMs}ms)` : 'なし'}`;
             }
 
-            // Tab 1: GKL State Tree の描画
-            const treeContainer = document.getElementById('treeContainer');
-            treeContainer.innerHTML = createJsonTreeHTML(s);
+            // 現在アクティブなタブのみを選択的に描画（バックグラウンドタブの無駄なDOM再構築を完全抑止）
+            renderTabContent(currentTabId, s);
+        }
 
-            // Tab 2: Context Actions の描画
+        function renderTabContent(tabId, s) {
+            if (!s) return;
+            if (tabId === 'tabTree') {
+                const treeContainer = document.getElementById('treeContainer');
+                if (treeContainer) {
+                    const treeData = s.situation || s;
+                    treeContainer.innerHTML = createJsonTreeHTML(treeData, 'Situation');
+                }
+            } else if (tabId === 'tabActions') {
+                renderContextActions(s);
+            } else if (tabId === 'tabTactical') {
+                renderThreatRadar(s);
+                renderTacticalAdvices(s);
+            } else if (tabId === 'tabFlags') {
+                renderKnowledgeFlags(s);
+            }
+        }
+
+        function renderContextActions(s) {
             const actionGrid = document.getElementById('actionGrid');
+            if (!actionGrid) return;
+            const sit = s.situation || s;
             let actionsList = [];
-            if (Array.isArray(s.contextActions) && s.contextActions.length > 0) {
+            if (Array.isArray(sit.actions)) {
+                actionsList = sit.actions;
+            } else if (Array.isArray(sit.action)) {
+                actionsList = sit.action;
+            } else if (sit.actions && typeof sit.actions === 'object') {
+                actionsList = Object.values(sit.actions);
+            } else if (Array.isArray(s.contextActions)) {
                 actionsList = s.contextActions;
-            } else if (s.situation && (s.situation.actions || s.situation.action)) {
-                const actData = s.situation.actions || s.situation.action;
-                actionsList = Array.isArray(actData) ? actData : (typeof actData === 'object' ? Object.values(actData) : [actData]);
             }
 
             if (actionsList.length > 0) {
@@ -718,10 +746,6 @@
             } else {
                 actionGrid.innerHTML = `<div style="color:#6c7086;">現在提案中のコンテキストアクションはありません</div>`;
             }
-
-            // Tab: Tactical Advisor (Threat Radar & Tactical Advices) の描画
-            renderThreatRadar(s);
-            renderTacticalAdvices(s);
         }
 
         function renderThreatRadar(s) {
@@ -729,7 +753,11 @@
             const countBadge = document.getElementById('radarCountBadge');
             if (!radarGrid) return;
 
-            const list = s.trackedMonsters || (s.situation && s.situation.perceivedMonsters) || (s.areaState && (s.areaState.perceivedMonsters || s.areaState.trackedMonsters)) || [];
+            const sit = s.situation || s;
+            const list = (sit.area && (sit.area.perceivedMonsters || sit.area.trackedMonsters)) || 
+                         (sit.trackedMonsters) || 
+                         (s.trackedMonsters) || 
+                         (s.areaState && (s.areaState.perceivedMonsters || s.areaState.trackedMonsters)) || [];
 
             if (countBadge) {
                 countBadge.textContent = `${list.length} 体`;
@@ -787,7 +815,8 @@
             const countBadge = document.getElementById('adviceCountBadge');
             if (!adviceGrid) return;
 
-            const list = s.advices || (s.situation && s.situation.advices) || [];
+            const sit = s.situation || s;
+            const list = (sit.advices && Array.isArray(sit.advices)) ? sit.advices : (Array.isArray(s.advices) ? s.advices : []);
 
             if (countBadge) {
                 countBadge.textContent = `${list.length} 件`;
@@ -822,7 +851,7 @@
                         <div class="action-card-header">
                             <span style="display: flex; gap: 6px; align-items: center;">
                                 <span style="background: ${sevBg}; color: ${sevColor}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
-                                    ${severity}
+                                     ${severity}
                                 </span>
                                 <span style="background: #313244; color: #a6adc8; padding: 2px 6px; border-radius: 4px; font-size: 10px;">
                                     ${topic}
@@ -849,11 +878,12 @@
             const flagsGrid = document.getElementById('flagsGrid');
             if (!flagsGrid) return;
 
+            const sit = s.situation || s;
             let items = [];
-            if (Array.isArray(s.inventoryItems) && s.inventoryItems.length > 0) {
+            if (sit.inventory) {
+                items = Array.isArray(sit.inventory) ? sit.inventory : (Array.isArray(sit.inventory.items) ? sit.inventory.items : []);
+            } else if (Array.isArray(s.inventoryItems)) {
                 items = s.inventoryItems;
-            } else if (s.situation && s.situation.inventory && Array.isArray(s.situation.inventory.items)) {
-                items = s.situation.inventory.items;
             }
 
             if (items.length === 0) {
@@ -1102,8 +1132,8 @@
             }
         }
 
-        // 折りたたみ式 JSON Tree 生成関数
-        function createJsonTreeHTML(obj, name = 'Root') {
+        // 折りたたみ式 JSON Tree 生成関数 (ルート depth === 0 のみ展開、各項目は折りたたみ)
+        function createJsonTreeHTML(obj, name = 'Root', depth = 0) {
             if (obj === null || obj === undefined) {
                 return `<div><span class="json-key">${name}:</span> <span class="json-boolean">null</span></div>`;
             }
@@ -1116,9 +1146,10 @@
             }
 
             const keys = Object.keys(obj);
-            let html = `<details open><summary><span class="json-key">${name}</span> <span style="color:#6c7086; font-size:11px;">(${Array.isArray(obj) ? 'Array[' + obj.length + ']' : 'Object'})</span></summary>`;
+            const isOpen = depth === 0 ? ' open' : '';
+            let html = `<details${isOpen}><summary><span class="json-key">${name}</span> <span style="color:#6c7086; font-size:11px;">(${Array.isArray(obj) ? 'Array[' + obj.length + ']' : 'Object'})</span></summary>`;
             keys.forEach(k => {
-                html += createJsonTreeHTML(obj[k], k);
+                html += createJsonTreeHTML(obj[k], k, depth + 1);
             });
             html += `</details>`;
             return html;
