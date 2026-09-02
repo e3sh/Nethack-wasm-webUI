@@ -172,4 +172,118 @@ describe('MonsterTracker (Cognitive Mental Map & Weight Decay)', () => {
         expect(list.length).toBe(1);
         expect(list[0].lastKnownPos).toEqual({ x: 20, y: 11 });
     });
+
+    describe('ポストコンバット遅延同期 (Post-Combat Inventory Delay Synchronization - Phase 2)', () => {
+        it('窃盗敵 (stealsItems: true) がプレイヤーと隣接（距離1マス以内）すると hadCloseContact が true になること', () => {
+            // プレイヤー位置: (10, 10)
+            tracker.handlePlayerPosition(10, 10);
+
+            // 1. 窃盗敵（ニンフ: monOffset 67）が隣接マス (10, 11) に出現
+            const nymph = tracker.updateVisibleMonster(10, 11, 67, { monOffset: 67, name: 'wood nymph' });
+            expect(nymph.knowledge.traits?.stealsItems).toBe(true);
+            expect(nymph.hadCloseContact).toBe(true);
+
+            // 2. 非窃盗敵（コカトリス: monOffset 10）が隣接マス (11, 10) に出現
+            const cockatrice = tracker.updateVisibleMonster(11, 10, 10, { monOffset: 10, name: 'cockatrice' });
+            expect(cockatrice.knowledge.traits?.stealsItems).toBeFalsy();
+            expect(cockatrice.hadCloseContact).toBe(false);
+
+            // 3. 2マス以上離れた窃盗敵（猿: monOffset 233）が (15, 15) に出現
+            const monkey = tracker.updateVisibleMonster(15, 15, 233, { monOffset: 233, name: 'monkey' });
+            expect(monkey.hadCloseContact).toBe(false);
+        });
+
+        it('プレイヤーが窃盗敵に歩いて接近した場合も hadCloseContact が true になること', () => {
+            // (12, 10) に猿 (233) が出現（まだ遠い）
+            tracker.handlePlayerPosition(5, 5);
+            const monkey = tracker.updateVisibleMonster(12, 10, 233, { monOffset: 233, name: 'monkey' });
+            expect(monkey.hadCloseContact).toBe(false);
+
+            // プレイヤーが (11, 10) に移動（猿の隣接マスへ）
+            tracker.handlePlayerPosition(11, 10);
+            const list = tracker.getTrackedMonsters();
+            expect(list[0].hadCloseContact).toBe(true);
+        });
+
+        it('接触済みの窃盗敵がテレポート等で視界外に消えた時 (lost_los)、1回だけコールバックが発火すること', () => {
+            let invalidateCount = 0;
+            let lastReason = null;
+            tracker.onInventoryInvalidateRequired = (reason, entry) => {
+                invalidateCount++;
+                lastReason = reason;
+            };
+
+            tracker.handlePlayerPosition(10, 10);
+            tracker.updateVisibleMonster(10, 11, 67, { monOffset: 67, name: 'wood nymph' });
+
+            // ニンフがアイテムを盗んでテレポート（セルが床情報等で上書き）
+            tracker.notifyCellLostMonster(10, 11);
+
+            expect(invalidateCount).toBe(1);
+            expect(lastReason).toBe('lost_los');
+
+            // 続けて再度 lost_los やターン経過が起きても二重発火しないこと
+            tracker.notifyCellLostMonster(10, 11);
+            tracker.advanceTurn(2);
+            expect(invalidateCount).toBe(1);
+        });
+
+        it('接触済みの窃盗敵が逃走して確信度減衰した時、コールバックが発火すること', () => {
+            let invalidateCount = 0;
+            let lastReason = null;
+            tracker.onInventoryInvalidateRequired = (reason) => {
+                invalidateCount++;
+                lastReason = reason;
+            };
+
+            tracker.advanceTurn(10);
+            tracker.handlePlayerPosition(10, 10);
+            // 猿と接触
+            tracker.updateVisibleMonster(10, 9, 233, { monOffset: 233, name: 'monkey' });
+
+            // 視界外へ逃走後、ターン進行で減衰
+            tracker.notifyCellLostMonster(10, 9);
+            // 上記で lost_los により1回発火
+            expect(invalidateCount).toBe(1);
+            expect(lastReason).toBe('lost_los');
+
+            // 確信度減衰が発生しても重複発火しないこと
+            tracker.advanceTurn(11);
+            expect(invalidateCount).toBe(1);
+        });
+
+        it('接触済みの窃盗敵をその場で撃破した時 (killed)、コールバックが発火すること', () => {
+            let invalidateCount = 0;
+            let lastReason = null;
+            tracker.onInventoryInvalidateRequired = (reason) => {
+                invalidateCount++;
+                lastReason = reason;
+            };
+
+            tracker.handlePlayerPosition(10, 10);
+            tracker.updateVisibleMonster(10, 11, 67, { monOffset: 67, name: 'wood nymph', nameJa: '木のニンフ' });
+
+            // 討伐メッセージを受信
+            tracker.handleMessage('You kill the wood nymph!');
+
+            expect(invalidateCount).toBe(1);
+            expect(lastReason).toBe('killed');
+            expect(tracker.getTrackedMonsters().length).toBe(0);
+        });
+
+        it('隣接・接触していない（遠距離の）窃盗敵を倒した場合はコールバックが発火しないこと', () => {
+            let invalidateCount = 0;
+            tracker.onInventoryInvalidateRequired = () => {
+                invalidateCount++;
+            };
+
+            tracker.handlePlayerPosition(10, 10);
+            // 遠距離 (15, 10) のニンフ
+            tracker.updateVisibleMonster(15, 10, 67, { monOffset: 67, name: 'wood nymph' });
+
+            tracker.handleMessage('You kill the wood nymph!');
+            expect(invalidateCount).toBe(0);
+        });
+    });
 });
+

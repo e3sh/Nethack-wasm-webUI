@@ -810,6 +810,30 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             mockCore.emit('status_update', { field: 14, value: 5 });
             expect(invalidateSpy).toHaveBeenCalledTimes(1);
         });
+
+        it('Phase 2: MonsterTracker と連動して窃盗敵の監視外れ（テレポート・逃走等）時に inventoryStateManager.invalidate が呼ばれること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const invalidateSpy = vi.spyOn(plugin.inventoryStateManager, 'invalidate');
+
+            // プレイヤー位置を (10, 10) に設定
+            plugin.areaStateManager.playerX = 10;
+            plugin.areaStateManager.playerY = 10;
+            plugin.monsterTracker.handlePlayerPosition(10, 10);
+
+            // ニンフ (monOffset: 67, stealsItems: true) が隣接マス (10, 11) に出現
+            plugin.monsterTracker.updateVisibleMonster(10, 11, 67, { monOffset: 67, name: 'wood nymph' });
+            expect(invalidateSpy).not.toHaveBeenCalled(); // 交戦中は即座に invalidate しない
+
+            // ニンフがアイテムを盗んでテレポート（視界外れ）
+            plugin.monsterTracker.notifyCellLostMonster(10, 11);
+
+            // 監視外れを検知して自動的に invalidate() が呼ばれること
+            expect(invalidateSpy).toHaveBeenCalledTimes(1);
+            expect(plugin.inventoryStateManager.isSynced).toBe(false);
+        });
     });
 });
 

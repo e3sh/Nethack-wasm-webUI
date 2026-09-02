@@ -15,6 +15,9 @@ export class MonsterTracker {
         this.trackedMonsters = new Map();
         this.currentTurn = 1;
         this.currentDlevel = 1;
+        this.lastPlayerPos = null;
+        /** @type {((reason: string, entry: Object) => void)|null} */
+        this.onInventoryInvalidateRequired = null;
     }
 
     /**
@@ -39,14 +42,33 @@ export class MonsterTracker {
     }
 
     /**
+     * 窃盗特性敵との交戦・隣接解消（監視外れ）を検知し、インベントリ無効化（再同期要求）を発行
+     * @private
+     * @param {Object} entry 
+     * @param {string} reason 
+     */
+    _checkDisengage(entry, reason) {
+        if (!entry || !entry.hadCloseContact || entry.didInvalidate) return;
+        entry.didInvalidate = true;
+        if (typeof this.onInventoryInvalidateRequired === 'function') {
+            try {
+                this.onInventoryInvalidateRequired(reason, entry);
+            } catch (e) {
+                // コールバックのエラーを吸収して処理継続
+            }
+        }
+    }
+
+    /**
      * 視認されたモンスターを登録または更新
      * @param {number} x 
      * @param {number} y 
      * @param {number} glyphId 
      * @param {Object} [glyphInfo] 
+     * @param {Object} [playerPos] - プレイヤーの現在座標 { x, y } または { playerX, playerY }
      * @returns {Object|null} 登録・更新された追跡オブジェクト
      */
-    updateVisibleMonster(x, y, glyphId, glyphInfo = null) {
+    updateVisibleMonster(x, y, glyphId, glyphInfo = null, playerPos = null) {
         if (x < 0 || y < 0) return null;
 
         const info = classifyGlyph(glyphId);
@@ -104,6 +126,8 @@ export class MonsterTracker {
             }
         }
 
+        const existingEntry = targetKey ? this.trackedMonsters.get(targetKey) : null;
+
         // 4. 潜伏中の同種エントリーもなく、現在同時に視認されている数が増えた場合のみ新個体として追加
         if (!targetKey) {
             targetKey = `mon_${monOffset}_${x}_${y}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -122,8 +146,19 @@ export class MonsterTracker {
             lastSeenTurn: this.currentTurn,
             inLoS: true,
             weight: 1.0,
-            decayStatus: 'VISIBLE'
+            decayStatus: 'VISIBLE',
+            hadCloseContact: existingEntry ? Boolean(existingEntry.hadCloseContact) : false,
+            didInvalidate: existingEntry ? Boolean(existingEntry.didInvalidate) : false
         };
+
+        const px = playerPos?.x ?? playerPos?.playerX ?? this.lastPlayerPos?.x;
+        const py = playerPos?.y ?? playerPos?.playerY ?? this.lastPlayerPos?.y;
+        if (typeof px === 'number' && typeof py === 'number') {
+            const dist = Math.max(Math.abs(x - px), Math.abs(y - py));
+            if (dist <= 1 && monKnowledge?.traits?.stealsItems) {
+                entry.hadCloseContact = true;
+            }
+        }
 
         this.trackedMonsters.set(targetKey, entry);
         return entry;
@@ -140,6 +175,7 @@ export class MonsterTracker {
                 entry.inLoS = false;
                 // 視認中から視界外へ移行。ターン経過に応じた重み付けを再評価
                 this._updateEntryDecay(entry);
+                this._checkDisengage(entry, 'lost_los');
             }
         }
     }
@@ -151,9 +187,16 @@ export class MonsterTracker {
      * @param {number} py 
      */
     handlePlayerPosition(px, py) {
+        this.lastPlayerPos = { x: px, y: py };
         for (const [key, entry] of this.trackedMonsters.entries()) {
             if (entry.lastKnownPos.x === px && entry.lastKnownPos.y === py) {
+                this._checkDisengage(entry, 'player_stepped_on_monster');
                 this.trackedMonsters.delete(key);
+            } else if (entry.knowledge?.traits?.stealsItems) {
+                const dist = Math.max(Math.abs(entry.lastKnownPos.x - px), Math.abs(entry.lastKnownPos.y - py));
+                if (dist <= 1) {
+                    entry.hadCloseContact = true;
+                }
             }
         }
     }
@@ -191,6 +234,7 @@ export class MonsterTracker {
 
             if ((mName && lower.includes(mName)) || (mNameJa && text.includes(mNameJa))) {
                 killedEntry = { ...entry };
+                this._checkDisengage(entry, 'killed');
                 this.trackedMonsters.delete(key);
                 break; // 1件削除
             }
@@ -206,14 +250,18 @@ export class MonsterTracker {
     handleDlevelChange(newDlevel) {
         if (newDlevel !== this.currentDlevel) {
             this.currentDlevel = newDlevel;
-            this.reset();
+            this.reset('dlevel_change');
         }
     }
 
     /**
      * 全追跡データのクリア
+     * @param {string} [reason='reset']
      */
-    reset() {
+    reset(reason = 'reset') {
+        for (const entry of this.trackedMonsters.values()) {
+            this._checkDisengage(entry, reason);
+        }
         this.trackedMonsters.clear();
     }
 
@@ -344,8 +392,15 @@ export class MonsterTracker {
         const expiredKeys = [];
 
         for (const [key, entry] of this.trackedMonsters.entries()) {
+            const prevStatus = entry.decayStatus;
             this._updateEntryDecay(entry);
+
+            if (prevStatus === 'VISIBLE' && entry.decayStatus !== 'VISIBLE') {
+                this._checkDisengage(entry, `decay_${entry.decayStatus.toLowerCase()}`);
+            }
+
             if (entry.weight <= 0.0 || entry.decayStatus === 'EXPIRED') {
+                this._checkDisengage(entry, 'expired');
                 expiredKeys.push(key);
             }
         }

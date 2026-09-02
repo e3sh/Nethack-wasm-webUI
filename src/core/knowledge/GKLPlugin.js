@@ -78,6 +78,8 @@ export class GKLPlugin {
             this.inventoryStateManager.setSkillStateManager(this.skillStateManager);
         }
 
+        this._setupMonsterTrackerHooks();
+
         this.core = null;
         this.requestController = null;
         this.lookService = new OnDemandLookService();
@@ -142,6 +144,31 @@ export class GKLPlugin {
         }
         if (!this.core || typeof this.core.emit !== 'function') return;
         this.core.emit('fx_trigger', fullPayload);
+    }
+
+    /**
+     * MonsterTracker と各コンポーネント（所持品同期等）の連動フックを設定
+     * @private
+     */
+    _setupMonsterTrackerHooks() {
+        if (!this.monsterTracker) return;
+        this.monsterTracker.onInventoryInvalidateRequired = (reason, entry) => {
+            if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
+                this.inventoryStateManager.invalidate();
+            }
+        };
+    }
+
+    /**
+     * MonsterTracker インスタンスを設定・更新
+     * @param {MonsterTracker} tracker 
+     */
+    setMonsterTracker(tracker) {
+        this.monsterTracker = tracker;
+        if (this.areaStateManager && typeof this.areaStateManager.setMonsterTracker === 'function') {
+            this.areaStateManager.setMonsterTracker(tracker);
+        }
+        this._setupMonsterTrackerHooks();
     }
 
     /**

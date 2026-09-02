@@ -579,7 +579,7 @@ export class AreaStateManager {
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
                 cell.effect = null;
                 if (this.monsterTracker && typeof this.monsterTracker.updateVisibleMonster === 'function') {
-                    this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo);
+                    this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo, { x: this.playerX, y: this.playerY });
                 }
                 break;
 

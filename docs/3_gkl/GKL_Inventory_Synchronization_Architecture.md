@@ -1,10 +1,11 @@
 ---
 title: GKL_Inventory_Synchronization_Architecture
 status: active
-last_updated: 2026-08-28
+last_updated: 2026-09-02
 related_code:
   - src/core/knowledge/GKLPlugin.js
   - src/core/knowledge/MonsterTracker.js
+  - src/core/knowledge/AreaStateManager.js
   - src/core/knowledge/InventoryStateManager.js
   - src/core/knowledge/MONSTER_KNOWLEDGE_FULL.js
 ---
@@ -56,9 +57,9 @@ NetHack 内部コード（`steal.c` 内の `monkey_business` ロジック）に�
 
 ---
 
-## 3. 将来設計構想: MonsterTracker 連動型ポストコンバット同期 (Phase 2)
+## 3. 採用された同期アーキテクチャ (Phase 2: MonsterTracker 連動型ポストコンバット同期)
 
-消耗品やツールなど、ACが変化しないアイテムの盗難に対しても、メッセージに依存せず空間・時間認知モデルから遅延同期を行う洗練されたアーキテクチャ構想。
+消耗品やツールなど、ACが変化しないアイテムの盗難に対しても、メッセージに依存せず空間・時間認知モデル（`MonsterTracker`）から遅延同期を行うアーキテクチャを実装・採用。
 
 ### 3.1 状態遷移モデル
 
@@ -77,16 +78,23 @@ stateDiagram-v2
     サイレント自動同期 --> [*]
 ```
 
-### 3.2 詳細ライフサイクルとトリガー条件
+### 3.2 詳細ライフサイクルと確定仕様
 
-1. **隣接・接触経験の記録**:
-   - `MonsterTracker.updateVisibleMonster()` において、`monKnowledge.traits.stealsItems === true` を持つモンスターがプレイヤーと距離1マス以内（隣接）に位置した場合、その追跡エントリーに `entry.hadCloseContact = true` をセット。
+1. **隣接・接触経験の記録 (`hadCloseContact`)**:
+   - `MonsterTracker.updateVisibleMonster()` および `handlePlayerPosition()` において、`monKnowledge.traits.stealsItems === true` を持つモンスターがプレイヤーと距離1マス以内（Chebyshev距離: `Math.max(|dx|, |dy|) <= 1`）に位置した場合、その追跡エントリーに `entry.hadCloseContact = true` をセット。
+   - プレイヤーが敵へ歩み寄った場合、敵がプレイヤーへ接近した場合の双方で確実にフラグが ON になる。
 2. **交戦中（戦闘中）の同期待機**:
    - 戦闘中に毎ターンクエリを投げることはせず、キー入力の即時性を維持。
 3. **監視外れ（事態解消）時のディレイ同期トリガー**:
-   - 以下のいずれかのイベントによってモンスターが「監視対象から外れた」瞬間に、1回だけインベントリを invalidate する：
-     - **テレポート・視界外れ**: ニンフやレプラコーンが盗難直後にテレポートし、`entry.inLoS` が `false` になった時。
-     - **逃走・確信度減衰**: 猿が盗難後に逃走し、数ターン経過して確信度が減衰（`NEARBY_UNSEEN` / `DECAYING`）した時。
-     - **撃破・消滅**: プレイヤーがモンスターを撃破してエントリーが削除された時。
-4. **結果的整合性（Eventual Consistency）の達成**:
+   - `entry.hadCloseContact === true` かつ `!entry.didInvalidate` のエントリーに対し、以下のいずれかのイベントによってモンスターが「監視対象から外れた」瞬間に、1回だけインベントリ無効化コールバック（`onInventoryInvalidateRequired`）を発火：
+     - **テレポート・視界外れ (`lost_los`)**: ニンフやレプラコーンが盗難直後にテレポートし、`notifyCellLostMonster(x, y)` により `entry.inLoS` が `false` になった時。
+     - **逃走・確信度減衰 (`decay_*`)**: 猿が盗難後に逃走し、ターン経過によって確信度が減衰（`NEARBY_UNSEEN` / `DECAYING` / `EXPIRED`）した時。
+     - **撃破・消滅 (`killed` / `player_stepped_on_monster`)**: プレイヤーがモンスターを撃破してエントリーが削除された時、またはモンスター位置へ踏み込んだ時。
+     - **フロア移動・リセット (`dlevel_change` / `reset`)**: 階段昇降やフロアリセット時。
+4. **二重・多重発火の防止 (Idempotency)**:
+   - コールバック発火時に `entry.didInvalidate = true` をセットし、同一モンスターからの連続発火を確実に抑止。
+5. **クラス間連携と疎結合設計**:
+   - `MonsterTracker` は独立した認知モデルを保ち、`onInventoryInvalidateRequired` コールバックを提供。
+   - `GKLPlugin` が初期化時にリスナーを登録し、`inventoryStateManager.invalidate()` を呼び出すことで直列サイレント同期基盤とシームレスに結合。
+6. **結果的整合性（Eventual Consistency）の達成**:
    - 戦闘のテンポを一切犠牲にすることなく、盗難が発生した一連の事象が収束したタイミングで自動的に最新の所持品状態へと収束する。
