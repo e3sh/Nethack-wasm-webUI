@@ -131,11 +131,16 @@ export function useNetHackDriver() {
       emitDriverEvent('print_glyph', { x, y, glyph, ch, color });
     });
 
-    core.on('inventoryStateUpdated', () => {
+    const updateGklSituation = () => {
       if ((core as any).gkl && typeof (core as any).gkl.getSituation === 'function') {
         useGameStore.getState().setGklSituation((core as any).gkl.getSituation());
       }
-    });
+    };
+
+    core.on('inventoryStateUpdated', updateGklSituation);
+    core.on('attributesStateUpdated', updateGklSituation);
+    core.on('spellsStateUpdated', updateGklSituation);
+    core.on('skillsStateUpdated', updateGklSituation);
 
     core.on('map_cleared', () => {
       useGameStore.getState().clearMapGrid();

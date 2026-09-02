@@ -64,6 +64,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Arc',
         name: 'Archeologist',
         nameJa: '考古学者',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'searching' }, // 探索
             { level: 5, ability: 'stealth' },   // 隠密
@@ -75,6 +76,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Bar',
         name: 'Barbarian',
         nameJa: '野蛮人',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'poison' },   // 毒耐性
             { level: 7, ability: 'fast' },     // 倍速
@@ -85,7 +87,10 @@ export const ROLE_KNOWLEDGE_MAP = {
         id: 'caveman',
         code: 'Cav',
         name: 'Caveman',
+        nameFemale: 'Cavewoman',
         nameJa: '洞窟人',
+        nameFemaleJa: '洞窟の女',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 7, ability: 'fast' },     // 倍速
             { level: 15, ability: 'warning' }  // 警戒
@@ -96,6 +101,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Hea',
         name: 'Healer',
         nameJa: '治療師',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'poison' },   // 毒耐性
             { level: 15, ability: 'warning' }  // 警戒
@@ -106,6 +112,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Kni',
         name: 'Knight',
         nameJa: '騎士',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'jumping' }, // 跳躍 (天性)
             { level: 7, ability: 'fast' }     // 倍速
@@ -116,6 +123,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Mon',
         name: 'Monk',
         nameJa: '修道士',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'fast' },            // 倍速
             { level: 1, ability: 'sleep' },           // 睡眠耐性
@@ -134,7 +142,10 @@ export const ROLE_KNOWLEDGE_MAP = {
         id: 'priest',
         code: 'Pri',
         name: 'Priest',
+        nameFemale: 'Priestess',
         nameJa: '僧侶',
+        nameFemaleJa: '女司祭',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 15, ability: 'warning' }, // 警戒
             { level: 20, ability: 'fire' }     // 火炎耐性
@@ -145,6 +156,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Ran',
         name: 'Ranger',
         nameJa: 'レンジャー',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'searching' }, // 探索
             { level: 7, ability: 'stealth' },   // 隠密
@@ -156,6 +168,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Rog',
         name: 'Rogue',
         nameJa: '盗賊',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'stealth' },   // 隠密
             { level: 10, ability: 'searching' } // 探索
@@ -166,6 +179,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Sam',
         name: 'Samurai',
         nameJa: '侍',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 1, ability: 'fast' },    // 倍速
             { level: 15, ability: 'stealth' } // 隠密
@@ -176,6 +190,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Tou',
         name: 'Tourist',
         nameJa: '観光客',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 10, ability: 'searching' }, // 探索
             { level: 20, ability: 'poison' }     // 毒耐性
@@ -186,6 +201,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Val',
         name: 'Valkyrie',
         nameJa: 'ワルキューレ',
+        allowedGenders: ['female'], // 女性限定
         abilities: [
             { level: 1, ability: 'cold' },    // 冷気耐性
             { level: 3, ability: 'stealth' }, // 隠密
@@ -197,6 +213,7 @@ export const ROLE_KNOWLEDGE_MAP = {
         code: 'Wiz',
         name: 'Wizard',
         nameJa: '魔法使い',
+        allowedGenders: ['male', 'female'],
         abilities: [
             { level: 15, ability: 'warning' },        // 警戒
             { level: 17, ability: 'teleportControl' } // テレポート制御
@@ -214,11 +231,11 @@ export function resolveRaceKey(raceStr, defaultVal = 'human') {
     if (!raceStr || typeof raceStr !== 'string') return defaultVal;
     const lower = raceStr.toLowerCase().trim();
 
-    if (lower.includes('elf') || lower.includes('エルフ')) return 'elf';
-    if (lower.includes('dwarf') || lower.includes('ドワーフ')) return 'dwarf';
-    if (lower.includes('gnome') || lower.includes('ノーム') || lower.includes('ノーグ')) return 'gnome';
-    if (lower.includes('orc') || lower.includes('オーク')) return 'orc';
-    if (lower.includes('hum') || lower.includes('人間')) return 'human';
+    if (lower.includes('elf') || lower.includes('elv') || lower.includes('elven') || lower.includes('エルフ')) return 'elf';
+    if (lower.includes('dwarf') || lower.includes('dwarv') || lower.includes('dwarven') || lower.includes('ドワーフ')) return 'dwarf';
+    if (lower.includes('gnome') || lower.includes('gnom') || lower.includes('gnomish') || lower.includes('ノーム') || lower.includes('ノーグ')) return 'gnome';
+    if (lower.includes('orc') || lower.includes('orcish') || lower.includes('オーク')) return 'orc';
+    if (lower.includes('hum') || lower.includes('human') || lower.includes('人間')) return 'human';
 
     return defaultVal;
 }
@@ -235,11 +252,11 @@ export function resolveRoleKey(roleStr, defaultVal = 'archeologist') {
 
     if (lower.startsWith('arc') || lower.includes('archeologist') || lower.includes('archaeologist') || lower.includes('考古学')) return 'archeologist';
     if (lower.startsWith('bar') || lower.includes('barbarian') || lower.includes('野蛮人')) return 'barbarian';
-    if (lower.startsWith('cav') || lower.includes('caveman') || lower.includes('cavewoman') || lower.includes('洞窟人')) return 'caveman';
+    if (lower.startsWith('cav') || lower.includes('caveman') || lower.includes('cavewoman') || lower.includes('洞窟人') || lower.includes('洞窟の女')) return 'caveman';
     if (lower.startsWith('hea') || lower.includes('healer') || lower.includes('治療師') || lower.includes('治癒師')) return 'healer';
     if (lower.startsWith('kni') || lower.includes('knight') || lower.includes('騎士')) return 'knight';
     if (lower.startsWith('mon') || lower.includes('monk') || lower.includes('修道士')) return 'monk';
-    if (lower.startsWith('pri') || lower.includes('priest') || lower.includes('priestess') || lower.includes('僧侶')) return 'priest';
+    if (lower.startsWith('pri') || lower.includes('priest') || lower.includes('priestess') || lower.includes('僧侶') || lower.includes('女司祭') || lower.includes('司祭') || lower.includes('尼僧')) return 'priest';
     if (lower.startsWith('ran') || lower.includes('ranger') || lower.includes('レンジャー')) return 'ranger';
     if (lower.startsWith('rog') || lower.includes('rogue') || lower.includes('盗賊')) return 'rogue';
     if (lower.startsWith('sam') || lower.includes('samurai') || lower.includes('侍')) return 'samurai';
@@ -248,6 +265,71 @@ export function resolveRoleKey(roleStr, defaultVal = 'archeologist') {
     if (lower.startsWith('wiz') || lower.includes('wizard') || lower.includes('魔法使い')) return 'wizard';
 
     return defaultVal;
+}
+
+/**
+ * NetHackの ^X (#attributes) 出力行からキャラクター情報（種族・職業・性別・レベル）を抽出
+ * Cコアから出力される英語原文（Raw English）から直接決定論的に判定
+ * @param {string} line 
+ * @returns {{ race?: string, role?: string, gender?: string, level?: number }|null}
+ */
+export function parseAttributesLine(line) {
+    if (!line || typeof line !== 'string') return null;
+    const trimmed = line.trim();
+
+    // 1. タイトル行: "<Name> the <Role>'s attributes:"
+    const titleMatch = trimmed.match(/^(?:.*?\s+the\s+)?([a-zA-Z]+)'s\s+attributes:?$/i);
+    if (titleMatch) {
+        const role = resolveRoleKey(titleMatch[1], null);
+        if (role) return { role };
+    }
+
+    // 2. 経歴行（単語4つ: 性別あり / 男女共通名職）
+    // 例: "You are a Digger, a level 1 female human archeologist."
+    // 例: "You are a Candidate, a level 1 male elven monk."
+    const m4 = trimmed.match(/^You\s+(?:are|were)\s+(?:a|an)\s+(.+?),\s+a\s+level\s+(\d+)\s+([a-zA-Z]+)\s+([a-zA-Z]+)\s+([a-zA-Z]+)\.?/i);
+    if (m4) {
+        const level = parseInt(m4[2], 10);
+        const genderWord = m4[3].toLowerCase();
+        const raceWord = m4[4];
+        const roleWord = m4[5];
+
+        const race = resolveRaceKey(raceWord, null);
+        const role = resolveRoleKey(roleWord, null);
+        const gender = genderWord === 'female' ? 'female' : (genderWord === 'male' ? 'male' : undefined);
+
+        if (race || role) {
+            return {
+                ...(race ? { race } : {}),
+                ...(role ? { role } : {}),
+                ...(gender ? { gender } : {}),
+                ...(level ? { level } : {})
+            };
+        }
+    }
+
+    // 3. 経歴行（単語3つ: 性別なし / 男女別名職・性別限定職）
+    // 例: "You are a Stripling, a level 1 human valkyrie."
+    // 例: "You are an Aspirant, a level 1 elven priestess."
+    const m3 = trimmed.match(/^You\s+(?:are|were)\s+(?:a|an)\s+(.+?),\s+a\s+level\s+(\d+)\s+([a-zA-Z]+)\s+([a-zA-Z]+)\.?/i);
+    if (m3) {
+        const level = parseInt(m3[2], 10);
+        const raceWord = m3[3];
+        const roleWord = m3[4];
+
+        const race = resolveRaceKey(raceWord, null);
+        const role = resolveRoleKey(roleWord, null);
+
+        if (race || role) {
+            return {
+                ...(race ? { race } : {}),
+                ...(role ? { role } : {}),
+                ...(level ? { level } : {})
+            };
+        }
+    }
+
+    return null;
 }
 
 /**

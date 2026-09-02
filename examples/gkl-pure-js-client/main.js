@@ -288,6 +288,7 @@ class GklPureJSClient {
 
     // GKL 状態同期イベント時の UI 再描画
     this.core.on('inventoryStateUpdated', () => this.renderGklUi());
+    this.core.on('attributesStateUpdated', () => this.renderGklUi());
     this.core.on('spellsStateUpdated', () => this.renderGklUi());
     this.core.on('skillsStateUpdated', () => this.renderGklUi());
 

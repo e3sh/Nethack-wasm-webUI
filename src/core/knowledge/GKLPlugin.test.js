@@ -124,32 +124,36 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         plugin.attach(mockCore);
 
         plugin.inventoryStateManager.isSynced = false;
+        plugin.attributeStateManager.isSynced = false;
         plugin.spellStateManager.isSynced = false;
         plugin.skillStateManager.isSynced = false;
 
         const res = await plugin.syncPendingStateSilent();
         expect(res).toBe(true);
-        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(3);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(4);
         expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(1, ['i', ' ', '\x1b'], { syncType: 'inventory' });
-        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['+', ' ', '\x1b'], { syncType: 'spells' });
-        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['\x18', ' ', '\x1b'], { syncType: 'attributes', force: true });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['+', ' ', '\x1b'], { syncType: 'spells' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(4, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
     });
 
-    it('syncAllSilent: インベントリ、魔法、スキルの一括直列同期が実行されること', async () => {
+    it('syncAllSilent: インベントリ、属性、魔法、スキルの一括直列同期が実行されること', async () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();
         mockCore.querySequenceSilent.mockResolvedValue([]);
         plugin.attach(mockCore);
 
         plugin.inventoryStateManager.isSynced = false;
+        plugin.attributeStateManager.isSynced = false;
         plugin.spellStateManager.isSynced = false;
         plugin.skillStateManager.isSynced = false;
 
         await plugin.syncAllSilent();
-        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(3);
+        expect(mockCore.querySequenceSilent).toHaveBeenCalledTimes(4);
         expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(1, ['i', ' ', '\x1b'], { syncType: 'inventory' });
-        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['+', ' ', '\x1b'], { syncType: 'spells' });
-        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(2, ['\x18', ' ', '\x1b'], { syncType: 'attributes', force: true });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(3, ['+', ' ', '\x1b'], { syncType: 'spells' });
+        expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(4, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
     });
 
     it('getRecommendedActions: 推奨アクション配列を返却すること', () => {

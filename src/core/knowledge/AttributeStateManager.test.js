@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AttributeStateManager, ATTRIBUTE_KEYS } from './AttributeStateManager.js';
+import { parseAttributesLine } from './CHARACTER_KNOWLEDGE_BASE.js';
 
 describe('AttributeStateManager Tests', () => {
     let attrManager;
@@ -168,5 +169,119 @@ describe('AttributeStateManager Tests', () => {
         expect(eff.poison).toBe(true);
         expect(eff.fire).toBe(true);
         expect(eff.shock).toBe(false); // shock は Level 15 で獲得のためまだ false
+    });
+
+    it('parseAttributesLine: 性別有無（単語4つ/3つ）や男女別名職・性別限定職・日本語行・形容詞種族から正確にキャラ情報を抽出できること', () => {
+        // 1. 男女共通名（単語4つ: 性別あり）
+        const p1 = parseAttributesLine('You are a Digger, a level 1 female human archeologist.');
+        expect(p1).toEqual({ race: 'human', role: 'archeologist', gender: 'female', level: 1 });
+
+        // NetHack本体が出力する形容詞形 (elven, dwarven, gnomish, orcish)
+        const p1Elv = parseAttributesLine('You are a Candidate, a level 1 male elven monk.');
+        expect(p1Elv).toEqual({ race: 'elf', role: 'monk', gender: 'male', level: 1 });
+
+        const p1Dwa = parseAttributesLine('You are a Plunderer, a level 1 female dwarven barbarian.');
+        expect(p1Dwa).toEqual({ race: 'dwarf', role: 'barbarian', gender: 'female', level: 1 });
+
+        // 2. 男女別名職（単語3つ: Cavewoman / Priestess）
+        const p2 = parseAttributesLine('You are an Aspirant, a level 1 elven priestess.');
+        expect(p2).toEqual({ race: 'elf', role: 'priest', level: 1 });
+
+        const p3 = parseAttributesLine('You are a Troglodyte, a level 1 dwarven cavewoman.');
+        expect(p3).toEqual({ race: 'dwarf', role: 'caveman', level: 1 });
+
+        // 3. 性別限定職（単語3つ: Valkyrie）
+        const p4 = parseAttributesLine('You are a Stripling, a level 1 human valkyrie.');
+        expect(p4).toEqual({ race: 'human', role: 'valkyrie', level: 1 });
+
+        // 4. タイトル行
+        const p5 = parseAttributesLine("Web_user the Monk's attributes:");
+        expect(p5).toEqual({ role: 'monk' });
+    });
+
+    it('isAttributeBuffer: select_menu形式（menuItems）のバッファを正しく属性バッファと認識できること', () => {
+        const menuBuffer = [
+            {
+                type: 'select_menu',
+                windowId: 3,
+                prompt: '',
+                menuItems: [
+                    { str: "Web_user the Monk's attributes:" },
+                    { str: "You are a Candidate, a level 1 male elven monk." }
+                ]
+            }
+        ];
+        expect(attrManager.isAttributeBuffer(menuBuffer)).toBe(true);
+    });
+
+    it('^X 出力バッファ（select_menu形式）から種族と職業が自動特定され、初期耐性（Elven Monk, Barbarian, Valkyrie等）が即座に反映されること', () => {
+        // Elven Monk: 初期は sleep, fast, seeInvis, 暗視 (infravision) が点灯するべき
+        const monkManager = new AttributeStateManager();
+        monkManager.updateFromSequenceBuffer([
+            {
+                type: 'select_menu',
+                windowId: 3,
+                prompt: '',
+                menuItems: [
+                    { rawStr: "Web_user the Monk's attributes:", str: "Monkの属性：Web_user" },
+                    { rawStr: " You are a Candidate, a level 1 male elven monk.", str: "あなたはCandidate、レベル1のelven maleでmonkです。" }
+                ]
+            }
+        ]); // force = false で正しく isAttributeBuffer を通過することを検証
+
+        const monkAttrs = monkManager.getEffectiveResistances();
+        expect(monkAttrs.sleep).toBe(true);
+        expect(monkAttrs.fast).toBe(true);
+        expect(monkAttrs.seeInvis).toBe(true);
+        expect(monkAttrs.infravision).toBe(true); // Elf の先天性暗視！
+        expect(monkAttrs.searching).toBe(false); // Archeologist ではない
+
+        // Elf Priest: 初期は 暗視 (infravision) が点灯するべき
+        const elfPriestManager = new AttributeStateManager();
+        elfPriestManager.updateFromSequenceBuffer([
+            {
+                type: 'select_menu',
+                windowId: 3,
+                menuItems: [
+                    { str: "You are an Aspirant, a level 1 elven priestess." }
+                ]
+            }
+        ]);
+
+        const elfAttrs = elfPriestManager.getEffectiveResistances();
+        expect(elfAttrs.infravision).toBe(true); // Elf 暗視
+        expect(elfAttrs.sleep).toBe(false); // ElfのsleepはLv.4で獲得
+
+        // Human Barbarian: 初期は 毒耐性 (poison) が点灯するべき
+        const barManager = new AttributeStateManager();
+        barManager.updateFromSequenceBuffer([
+            {
+                type: 'select_menu',
+                windowId: 3,
+                menuItems: [
+                    { str: "You are a Plunderer, a level 1 male human barbarian." }
+                ]
+            }
+        ]);
+
+        const barAttrs = barManager.getEffectiveResistances();
+        expect(barAttrs.poison).toBe(true);
+        expect(barAttrs.searching).toBe(false);
+
+        // Human Valkyrie: 初期は 冷気耐性 (cold) が点灯するべき
+        const valkManager = new AttributeStateManager();
+        valkManager.updateFromSequenceBuffer([
+            {
+                type: 'select_menu',
+                windowId: 3,
+                menuItems: [
+                    { str: "You are a Stripling, a level 1 human valkyrie." }
+                ]
+            }
+        ]);
+
+        const valkAttrs = valkManager.getEffectiveResistances();
+        expect(valkAttrs.cold).toBe(true);
+        expect(valkAttrs.searching).toBe(false);
     });
 });

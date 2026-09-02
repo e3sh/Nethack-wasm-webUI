@@ -181,11 +181,16 @@ export class NetHackDriverController {
       this.emit('print_glyph', { x, y, glyph, ch, color });
     });
 
-    this.core.on('inventoryStateUpdated', () => {
+    const updateGklSituation = () => {
       if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
         gklSituationStore.set(this.core.gkl.getSituation());
       }
-    });
+    };
+
+    this.core.on('inventoryStateUpdated', updateGklSituation);
+    this.core.on('attributesStateUpdated', updateGklSituation);
+    this.core.on('spellsStateUpdated', updateGklSituation);
+    this.core.on('skillsStateUpdated', updateGklSituation);
 
     this.core.on('map_cleared', () => {
       clearMapGrid();

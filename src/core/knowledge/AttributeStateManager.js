@@ -8,7 +8,7 @@
 
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 
-import { calculateInnateResistances } from './CHARACTER_KNOWLEDGE_BASE.js';
+import { calculateInnateResistances, parseAttributesLine } from './CHARACTER_KNOWLEDGE_BASE.js';
 
 export const ATTRIBUTE_KEYS = [
     // 1. 基本元素耐性 (5種)
@@ -167,7 +167,9 @@ export class AttributeStateManager {
 
         this.innate = newInnate;
         this._recalculateIntrinsics();
-        this.isSynced = true;
+        if (charInfo.race !== undefined || charInfo.role !== undefined) {
+            this.isSynced = true;
+        }
         return true;
     }
 
@@ -205,6 +207,22 @@ export class AttributeStateManager {
      */
     updateFromIntrinsicsLines(lines) {
         if (!Array.isArray(lines) || lines.length === 0) return;
+
+        // 0. ^X 出力行からキャラクター情報（種族・職業・レベル等）を自動抽出して確定耐性を再計算
+        let detectedChar = null;
+        for (const line of lines) {
+            if (typeof line !== 'string') continue;
+            const parsed = parseAttributesLine(line);
+            if (parsed) {
+                detectedChar = { ...detectedChar, ...parsed };
+                if (detectedChar.race && detectedChar.role) {
+                    break;
+                }
+            }
+        }
+        if (detectedChar && (detectedChar.race || detectedChar.role || detectedChar.level)) {
+            this.updateCharacter(detectedChar);
+        }
 
         const newIntrinsics = this._createEmptyMap();
 
@@ -319,13 +337,20 @@ export class AttributeStateManager {
         for (const item of sequenceBuffer) {
             if (!item) continue;
             const title = (item.title || item.prompt || '').toLowerCase();
-            if (title.includes('attribute') || title.includes('耐性') || title.includes('属性') || title.includes('能力')) return true;
+            if (title.includes('attribute')) return true;
 
-            const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
+            const lines = item.lines ? [...item.lines] : (typeof item.text === 'string' ? item.text.split('\n') : []);
+            if (item.menuItems || item.items) {
+                const items = item.menuItems || item.items;
+                items.forEach(mi => {
+                    const str = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
+                    if (str) lines.push(str);
+                });
+            }
+
             if (lines.length > 0) {
                 const combined = lines.join(' ').toLowerCase();
-                if (combined.includes('you are ') || combined.includes('you have ') || combined.includes('you can ') ||
-                    combined.includes('耐性がある') || combined.includes('能力がある') || combined.includes('attributes')) {
+                if (combined.includes('you are ') || combined.includes('you were ') || combined.includes('you have ') || combined.includes('you can ') || combined.includes('attributes')) {
                     return true;
                 }
             }
@@ -352,8 +377,8 @@ export class AttributeStateManager {
             } else if (item.menuItems || item.items) {
                 const items = item.menuItems || item.items;
                 items.forEach(mi => {
-                    const str = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
-                    if (str) allLines.push(str);
+                    const raw = mi.rawStr || mi.str || mi.text || (typeof mi === 'string' ? mi : '');
+                    if (raw) allLines.push(raw);
                 });
             }
         }

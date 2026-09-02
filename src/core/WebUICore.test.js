@@ -316,8 +316,12 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         const core = new WebUICore({ driver: mockDriver });
         core.gkl.syncSpellsSilent = vi.fn().mockResolvedValue(true);
         core.gkl.syncInventorySilent = vi.fn().mockResolvedValue(true);
+        core.gkl.syncAttributesSilent = vi.fn().mockResolvedValue(true);
         core.gkl.spellStateManager.isSynced = true;
         core.gkl.inventoryStateManager.isSynced = true;
+        if (core.gkl.attributeStateManager) {
+            core.gkl.attributeStateManager.isSynced = true;
+        }
 
         const mockResolver1 = { respond: vi.fn(), cancel: vi.fn() };
         const mockResolver2 = { respond: vi.fn(), cancel: vi.fn() };

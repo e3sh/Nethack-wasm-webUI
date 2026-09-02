@@ -787,6 +787,9 @@ export class GKLPlugin {
             if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
                 await this.syncInventorySilent(options);
             }
+            if (this.attributeStateManager && !this.attributeStateManager.isSynced) {
+                await this.syncAttributesSilent({ force: true, ...options });
+            }
             if (this.spellStateManager && !this.spellStateManager.isSynced) {
                 await this.syncSpellsSilent(options);
             }
@@ -987,12 +990,17 @@ export class GKLPlugin {
         // 1. インベントリ取得 (完了するまで await)
         await this.syncInventorySilent(options);
         
-        // 2. 続けて魔法一覧取得 (直列実行)
+        // 2. 属性・耐性・キャラクター情報取得 (直列実行)
+        if (this.attributeStateManager && !this.attributeStateManager.isSynced) {
+            await this.syncAttributesSilent({ force: true, ...options });
+        }
+
+        // 3. 続けて魔法一覧取得 (直列実行)
         if (this.spellStateManager && !this.spellStateManager.isSynced) {
             await this.syncSpellsSilent(options);
         }
 
-        // 3. 続けてスキル一覧取得 (直列実行)
+        // 4. 続けてスキル一覧取得 (直列実行)
         if (this.skillStateManager && !this.skillStateManager.isSynced) {
             await this.syncSkillsSilent(options);
         }

@@ -104,9 +104,10 @@ class NetHackDriverController {
       this.emit('print_glyph', { x, y, glyph, ch, color });
     });
 
-    this.core.on('inventoryStateUpdated', () => {
-      this.updateGklSituation();
-    });
+    this.core.on('inventoryStateUpdated', () => this.updateGklSituation());
+    this.core.on('attributesStateUpdated', () => this.updateGklSituation());
+    this.core.on('spellsStateUpdated', () => this.updateGklSituation());
+    this.core.on('skillsStateUpdated', () => this.updateGklSituation());
 
     this.core.on('map_cleared', () => {
       gameStore.clearMapGrid();
