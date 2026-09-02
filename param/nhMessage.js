@@ -11642,6 +11642,9 @@
         { en: "You hear a sound reminiscent of an elephant stepping on a peanut.", jp: "象がピーナッツを踏みつけるような音が聞こえる。" },
         { en: "The bugs on the floor slow down!", jp: "床の上の虫の動きが遅くなる！" },
         { en: "Unidentified item.", jp: "正体不明の品。" },
+        { en: "Gravel flies up from the floor.", jp: "床から砂利が飛び散る。" },
+        { en: "You have a very bad case of stomach acid.", jp: "あなたは胃酸過多がかなりひどいです。" },
+        { en: "\"Thou shalt pay, infidel!\"", jp: "「代償を払え、異教徒め！」" },
     ];
 }
 
@@ -13276,6 +13279,9 @@ function nhEntities() {
         "elves": "エルフたち",
         "abstract": "抽象的",
         "quick": "素早い",
+        "amber flash": "琥珀色の閃光",
+        "black flash": "黒い閃光",
+        "altar": "祭壇",
     };
 }
 
@@ -14032,6 +14038,8 @@ function nhItems() {
         "wax": "蝋",
         "plastic": "プラスチック",
         "meal": "食事",
+        "flesh": "肉",
+        "paper": "紙",
     };
 }
 
@@ -14092,6 +14100,7 @@ function nhPatterns() {
         { pattern: /^The\s+broad\s+(.*)\s+welds\s+itself\s+to\s+the\s+(.*)'s\s+hand!$/, replace: "大きな$1が$2の手に張り付いた！" },
         { pattern: /^(.*)\s+welds\s+itself\s+to\s+your\s+dominant\s+(.*)!$/, replace: "$1が、利き手の$2に溶接された！" },
         { pattern: /^(.*)\s+is\s+welded\s+to\s+your\s+hand!$/, replace: "$1が手に溶接されている！" },
+        { pattern: /^There\s+is\s+(.*)\s+as\s+(.*)\s+hits\s+(.*)\.$/, replace: "$2が$3に落ちると、$1が走った。" },
         { pattern: /^(.*)\s+hits!$/, replace: "$1が命中した！" },
         { pattern: /^(.*)\s+swings\s+(?:her|him|his|its)\s*(.*)\.$/, replace: "$1は$2を振り回した。" },
         { pattern: /^(.*)\s+throws\s+(.*)!$/, replace: "$1は$2を投げた！" },
@@ -18063,8 +18072,16 @@ function nhPatterns() {
         { pattern: /^(.*)\s+demands\s+that\s+you\s+pay\s+him,\s+but\s+you\s+refuse\.\.\.$/, replace: "$1はお金を請求するが、あなたはそれを拒む..." },
         { pattern: /^a\s+branch\s+(.*)\s+to\s+(.*)$/, replace: "$2へと続く$1" },
         { pattern: /^(.*)\s+engulfs\s+you!$/, replace: "$1があなたを飲み込む！" },
-        { pattern: /^Your\s+(.*)\s+corrodes\s+further!/, replace: "あなたの$1はさらに腐食する！" },
-        { pattern: /^You\s+sense\s+a\s+conflict\s+between\s+(.*)\s+and\s+(.*)\./, replace: "$1と$2の間に何らかの対立を感じ取る。" },
+        { pattern: /^Your\s+(.*)\s+corrodes\s+further!$/, replace: "あなたの$1はさらに腐食する！" },
+        { pattern: /^You\s+sense\s+a\s+conflict\s+between\s+(.*)\s+and\s+(.*)\.$/, replace: "$1と$2の間に何らかの対立を感じ取る。" },
+        { pattern: /^Engrave\s+on\s+(.*)\s+with\s+this\s+item$/, replace: "このアイテムで$1に刻む" },
+        { pattern: /^Write\s+on\s+(.*)\s+with\s+one\s+of\s+these\s+items$/, replace: "これらのアイテムのいずれかで$1に書き込む" },
+        { pattern: /^(.*)\s+land\s+on\s+(.*)\.$/, replace: "$1が$2に着地した。" },
+        { pattern: /^a\s+small\s+glob\s+of\s+(.*)$/, replace: "$1の小さな塊" },
+        { pattern: /^Write\s+on\s+(.*)\s+with\s+this\s+item$/, replace: "このアイテムで$1に書き込む" },
+        { pattern: /^Restores\s+(.*)\s+HP\s+and\s+cures\s+(.*)\.$/, replace: "HPを$1回復し、$2状態を解除する。" },
+        { pattern: /^A\s+voice\s+(could\s+it\s+be\s+(.*)\?)\s+whispers:$/, replace: "ある声（もしかすると$1か？）がささやいた。" },
+        { pattern: /^You\s+make\s+a\s+motion\s+towards\s+(.*)\s+with\s+(.*)\.$/, replace: "あなたは$2で$1の方へ合図を送る。" },
     ];
 }
 

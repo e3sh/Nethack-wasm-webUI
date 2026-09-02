@@ -96,15 +96,15 @@ export const ADVICE_DEFINITIONS = {
         templateEn: '🛡️ POISON IMMUNE: {monster} approaching, but poison resistance protects from lethal damage.'
     },
 
-    // 4. 近接自爆警告 (ガス胞子等)
+    // 4. 近接自爆警告 (ガス胞子・フレイミングスフィア等)
     'ADVICE_THREAT_GAS_SPORE': {
         id: 'ADVICE_THREAT_GAS_SPORE',
         severity: 'WARNING',
         topic: 'THREAT',
         baseScore: 850,
         defaultCommand: 'f',
-        templateJa: '⚠️ 警告: ガス胞子(Gas Spore)が隣接しています！近接攻撃すると大爆発します。後退するか飛び道具で撃破してください。',
-        templateEn: '⚠️ WARNING: Gas Spore adjacent! Melee attack triggers massive explosion. Step back or shoot from range.'
+        templateJa: '⚠️ 警告: {monster}が隣接しています！近接攻撃すると大爆発します。後退するか飛び道具で撃破してください。',
+        templateEn: '⚠️ WARNING: {monster} adjacent! Melee attack triggers massive explosion. Step back or shoot from range.'
     },
 
     // 5. レベルドレイン警告 (吸血鬼・レイス等)

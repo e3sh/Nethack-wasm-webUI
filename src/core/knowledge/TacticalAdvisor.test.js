@@ -530,6 +530,47 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(advice.score).toBe(750);
         });
 
+        it('ガス胞子（gas spore）接近時、爆発警告（ADVICE_THREAT_GAS_SPORE）にガス胞子の名前が含まれること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.adjacentMonsters = [{
+                dir: { code: 'E' },
+                entity: { name: 'gas spore', nameJa: 'ガス胞子', monOffset: 27 }
+            }];
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState });
+            const advice = advices.find(a => a.id === 'ADVICE_THREAT_GAS_SPORE');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('WARNING');
+            expect(advice.score).toBe(850);
+            expect(advice.messageJa).toContain('ガス胞子');
+        });
+
+        it('フレイミング・スフィア（flaming sphere）接近時、自爆警告にフレイミング・スフィアの名前が反映されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState(10, 10, 1);
+            areaState.adjacentMonsters = [{
+                dir: { code: 'N' },
+                entity: { name: 'flaming sphere', nameJa: 'フレイミング・スフィア', monOffset: 30 }
+            }];
+
+            const advices = TacticalAdvisor.generateAdvices({ areaState });
+            const advice = advices.find(a => a.id === 'ADVICE_THREAT_GAS_SPORE');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('WARNING');
+            expect(advice.messageJa).toContain('フレイミング・スフィア');
+            expect(advice.messageJa).not.toContain('ガス胞子');
+
+            // 英語環境でのメッセージ確認
+            const advicesEn = TacticalAdvisor.generateAdvices({ areaState }, { language: 'en' });
+            const adviceEn = advicesEn.find(a => a.id === 'ADVICE_THREAT_GAS_SPORE');
+            expect(adviceEn).toBeDefined();
+            expect(adviceEn.message).toContain('flaming sphere');
+            expect(adviceEn.message).not.toContain('Gas Spore');
+        });
+
         it('足元にコカトリスの死体があり手袋未着用時、死体石化警告（ADVICE_HAZARD_PETRIFY_CORPSE）が出ること', () => {
             const areaMgr = new AreaStateManager(80, 21);
             areaMgr.updatePlayerPosition(10, 10);

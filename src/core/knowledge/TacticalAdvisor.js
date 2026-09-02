@@ -431,9 +431,14 @@ export class TacticalAdvisor {
             }
         }
 
-        // 4. 近接自爆警告 (ガス胞子等)
+        // 4. 近接自爆警告 (ガス胞子・フレイミングスフィア等)
         if (threats.spore.detected) {
-            advices.push(createAdvice('ADVICE_THREAT_GAS_SPORE', {}, {
+            const sporeMonName = threats.spore.monName || 'gas spore';
+            const sporeMonNameJa = threats.spore.monNameJa || 'ガス胞子';
+            advices.push(createAdvice('ADVICE_THREAT_GAS_SPORE', {
+                monsterJa: sporeMonNameJa,
+                monsterEn: sporeMonName
+            }, {
                 hintLetters: rangedItems.map(i => i.letter).filter(Boolean)
             }));
         }
