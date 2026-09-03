@@ -147,6 +147,7 @@ class GklPureJSClient {
       elSpinnerBox: document.getElementById('loading-spinner-box'),
       elSelectorCard: document.getElementById('start-selector-card'),
       elSaveName: document.getElementById('start-save-name'),
+      elWishModal: document.getElementById('wish-modal'),
       getCore: () => this.core,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
       onRestartGame: () => this.restartGame()

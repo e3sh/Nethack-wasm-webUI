@@ -198,3 +198,210 @@
   border-radius: 4px;
   background-color: #000;
 }
+
+/* ============================================================================
+   Wish Builder Modal Styles
+   ============================================================================ */
+.wish-builder-card {
+  max-width: 760px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.wish-modal-body {
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wish-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.wish-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+}
+
+.wish-preset-btn {
+  background-color: #1f293d;
+  border: 1px solid #374151;
+  color: #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+
+.wish-preset-btn:hover {
+  background-color: #2b3a58;
+  border-color: var(--primary-color, #38bdf8);
+  color: #fff;
+}
+
+.wish-search-container {
+  position: relative;
+}
+
+.wish-search-input {
+  width: 100%;
+  background-color: #000;
+  border: 1px solid var(--border-color, #374151);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  box-sizing: border-box;
+  outline: none;
+  font-family: var(--font-mono, monospace);
+}
+
+.wish-search-input:focus {
+  border-color: var(--primary-color, #38bdf8);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.wish-suggest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #111827;
+  border: 1px solid #374151;
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1100;
+  display: none;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+}
+
+.wish-suggest-dropdown.active {
+  display: block;
+}
+
+.wish-suggest-item {
+  padding: 7px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid #1f2937;
+  font-size: 0.82rem;
+}
+
+.wish-suggest-item:hover, .wish-suggest-item.selected {
+  background-color: #1e293b;
+}
+
+.wish-suggest-name-main {
+  color: #fff;
+  font-weight: 600;
+}
+
+.wish-suggest-name-sub {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  margin-left: 6px;
+}
+
+.wish-suggest-cat {
+  background-color: #374151;
+  color: #d1d5db;
+  font-size: 0.7rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+
+.wish-flex-row {
+  display: flex;
+  gap: 10px;
+}
+
+.wish-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wish-form-group.flex-1 { flex: 1; }
+.wish-form-group.flex-2 { flex: 2; }
+.wish-form-group.wish-span-2 { grid-column: span 2; }
+.wish-form-group.wish-flex-gap { display: flex; flex-direction: row; gap: 20px; }
+
+.wish-form-group label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.wish-form-control {
+  background-color: #000;
+  border: 1px solid #374151;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.wish-form-control:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.wish-builder-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background-color: #0d1117;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+}
+
+.wish-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: #e5e7eb;
+}
+
+.wish-preview-box {
+  background-color: #000;
+  border: 1px dashed #374151;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.wish-preview-label {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-bottom: 2px;
+}
+
+.wish-preview-command {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  color: var(--accent-gold, #f59e0b);
+  font-weight: 700;
+  word-break: break-all;
+}
+

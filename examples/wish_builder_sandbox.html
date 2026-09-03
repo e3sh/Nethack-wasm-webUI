@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 願いビルダー (Wish Builder Sandbox)</title>
+    <!-- SSOT 辞書データ -->
+    <script src="../param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --panel-bg: #1e1e24;
+            --border-color: #33333d;
+            --text-color: #e0e0e0;
+            --text-muted: #888899;
+            --primary: #4f8cff;
+            --primary-hover: #6ea0ff;
+            --accent: #ffd700;
+            --danger: #ff5555;
+            --success: #50fa7b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sandbox-header {
+            max-width: 720px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-titles h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            color: var(--accent);
+        }
+
+        .header-titles p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* 言語切替スイッチャー */
+        .lang-switcher {
+            display: flex;
+            background-color: #1a1a22;
+            border: 1px solid #3c3c4e;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: #888899;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .lang-btn.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        .lang-btn:hover:not(.active) {
+            background-color: #282835;
+            color: #ccc;
+        }
+
+        /* モーダル風コンテナ */
+        .wish-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-width: 720px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 14px 0 8px 0;
+        }
+
+        /* プリセットボタングループ */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            background-color: #282832;
+            border: 1px solid #3c3c4a;
+            color: #dcdcdc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preset-btn:hover {
+            background-color: #353545;
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        /* 検索・サジェスト入力 */
+        .search-container {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: #141418;
+            border: 1px solid #444455;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.2);
+        }
+
+        .suggest-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #1f1f28;
+            border: 1px solid #44445a;
+            border-radius: 0 0 6px 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+        }
+
+        .suggest-dropdown.active {
+            display: block;
+        }
+
+        .suggest-item {
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid #2a2a38;
+            font-size: 13px;
+        }
+
+        .suggest-item:hover, .suggest-item.selected {
+            background-color: #2d2d3d;
+        }
+
+        .suggest-name-main {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .suggest-name-sub {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-family: monospace;
+            margin-left: 8px;
+        }
+
+        .suggest-cat {
+            background-color: #383848;
+            color: #aaa;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        /* 属性ビルダーフォーム */
+        .builder-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            background-color: #181820;
+            padding: 14px;
+            border-radius: 6px;
+            border: 1px solid #2e2e3a;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            background-color: #242430;
+            border: 1px solid #3e3e50;
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-control:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* プレビュー＆送信 */
+        .preview-box {
+            background-color: #14141a;
+            border: 1px dashed #444458;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .preview-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .preview-command {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 16px;
+            color: var(--success);
+            font-weight: bold;
+            word-break: break-all;
+        }
+
+        .button-bar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #2e2e3a;
+            color: #bbb;
+        }
+
+        .btn-secondary:hover {
+            background-color: #3e3e4e;
+            color: #fff;
+        }
+
+        /* ログ出力エリア */
+        .log-box {
+            margin-top: 16px;
+            max-width: 720px;
+            width: 100%;
+            background-color: #181820;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #a0a0b0;
+            box-sizing: border-box;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sandbox-header">
+        <div class="header-titles">
+            <h1 id="ui-main-title">✨ NetHack Wish Builder Sandbox</h1>
+            <p id="ui-sub-title">GKL WishService 単体動作確認＆ビルダーUI プロトタイプ</p>
+        </div>
+        <!-- 言語スイッチャー -->
+        <div class="lang-switcher">
+            <button id="lang-ja-btn" class="lang-btn active">日本語 (JA)</button>
+            <button id="lang-en-btn" class="lang-btn">English (EN)</button>
+        </div>
+    </div>
+
+    <div class="wish-modal">
+        <div class="modal-header">
+            <h2 id="modal-title">✨ 何をお望みですか？ (For what do you wish?)</h2>
+        </div>
+
+        <!-- 1. 定番プリセット -->
+        <div class="section-title" id="sec-presets">定番プリセット (Quick Presets)</div>
+        <div class="preset-grid" id="preset-container"></div>
+
+        <!-- 2. アイテム検索 / カテゴリ選択 -->
+        <div class="section-title" id="sec-search">アイテム選択 / 検索</div>
+        <div class="search-container">
+            <input type="text" id="wish-search" class="search-input" placeholder="アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）" autocomplete="off" />
+            <div id="suggest-dropdown" class="suggest-dropdown"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+            <div class="form-group" style="flex: 1;">
+                <label id="lbl-cat-filter">カテゴリ絞り込み:</label>
+                <select id="cat-filter" class="form-control">
+                    <option value="" id="opt-all-cats">(全カテゴリ)</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label id="lbl-item-select">選択中アイテム:</label>
+                <select id="item-select" class="form-control"></select>
+            </div>
+        </div>
+
+        <!-- 3. 詳細オプションビルダー -->
+        <div class="section-title" id="sec-options">オプション設定 (Options)</div>
+        <div class="builder-grid">
+            <div class="form-group">
+                <label id="lbl-blessing">祝福・呪い (Blessing):</label>
+                <select id="opt-blessing" class="form-control">
+                    <option value="blessed" id="opt-b-blessed">祝福された (blessed)</option>
+                    <option value="uncursed" id="opt-b-uncursed">呪われていない (uncursed)</option>
+                    <option value="cursed" id="opt-b-cursed">呪われた (cursed)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="lbl-enchantment">強化値 (Enchantment):</label>
+                <select id="opt-enchantment" class="form-control">
+                    <option value="0" id="opt-e-0">+0 (指定なし)</option>
+                    <option value="1">+1</option>
+                    <option value="2" id="opt-e-2" selected>+2 (標準おすすめ)</option>
+                    <option value="3">+3</option>
+                    <option value="4">+4</option>
+                    <option value="5">+5</option>
+                    <option value="6">+6</option>
+                    <option value="7">+7</option>
+                    <option value="-1">-1</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="lbl-erosion">耐性・防錆 (Proof):</label>
+                <select id="opt-erosion" class="form-control">
+                    <option value="" id="opt-p-none">なし (標準)</option>
+                    <option value="fixed" id="opt-p-fixed" selected>防錆・耐熱 (fixed)</option>
+                    <option value="rustproof" id="opt-p-rust">錆びない (rustproof)</option>
+                    <option value="fireproof" id="opt-p-fire">耐火 (fireproof)</option>
+                    <option value="corrodeproof" id="opt-p-corrode">腐食しない (corrodeproof)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="lbl-count">個数 (Count):</label>
+                <input type="number" id="opt-count" class="form-control" value="1" min="1" max="50" />
+            </div>
+
+            <div class="form-group" style="grid-column: span 2; display: flex; gap: 20px;">
+                <label class="checkbox-group">
+                    <input type="checkbox" id="opt-greased" />
+                    <span id="lbl-greased">油を塗る (greased)</span>
+                </label>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="opt-poisoned" />
+                    <span id="lbl-poisoned">毒を塗る (poisoned)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 4. リアルタイム生成プレビュー -->
+        <div class="preview-box">
+            <div class="preview-label" id="lbl-preview">送信されるNetHackコマンド文字列:</div>
+            <div id="preview-cmd" class="preview-command">blessed fixed +2 silver dragon scale mail</div>
+        </div>
+
+        <!-- 5. 決定 / キャンセルボタン -->
+        <div class="button-bar">
+            <button id="btn-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
+            <button id="btn-submit" class="btn btn-primary">決定して願う (Enter)</button>
+        </div>
+    </div>
+
+    <!-- ログ表示エリア -->
+    <div class="log-box" id="log-output">
+        [Ready] WishService 初期化完了。UIイベント待機中...
+    </div>
+
+    <!-- モジュール読み込み -->
+    <script type="module">
+        import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '../src/core/knowledge/WishService.js';
+        import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
+
+        let currentLang = 'ja';
+        const translator = new TranslationEngine({ enabled: true, language: currentLang });
+        const wishService = new WishService({ language: currentLang, translator: translator });
+        let catalog = wishService.getCatalog();
+        let byCategory = wishService.getCatalogByCategory();
+
+        // 多言語リソース辞書
+        const I18N = {
+            ja: {
+                mainTitle: '✨ NetHack Wish Builder Sandbox',
+                subTitle: 'GKL WishService 単体動作確認＆ビルダーUI プロトタイプ',
+                modalTitle: '✨ 何をお望みですか？ (For what do you wish?)',
+                secPresets: '定番プリセット (Quick Presets)',
+                secSearch: 'アイテム選択 / 検索',
+                searchPlaceholder: 'アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）',
+                catFilter: 'カテゴリ絞り込み:',
+                allCats: '(全カテゴリ)',
+                itemSelect: '選択中アイテム:',
+                secOptions: 'オプション設定 (Options)',
+                blessing: '祝福・呪い (Blessing):',
+                bBlessed: '祝福された (blessed)',
+                bUncursed: '呪われていない (uncursed)',
+                bCursed: '呪われた (cursed)',
+                enchantment: '強化値 (Enchantment):',
+                e0: '+0 (指定なし)',
+                e2: '+2 (標準おすすめ)',
+                erosion: '耐性・防錆 (Proof):',
+                pNone: 'なし (標準)',
+                pFixed: '防錆・耐熱 (fixed)',
+                pRust: '錆びない (rustproof)',
+                pFire: '耐火 (fireproof)',
+                pCorrode: '腐食しない (corrodeproof)',
+                count: '個数 (Count):',
+                greased: '油を塗る (greased)',
+                poisoned: '毒を塗る (poisoned)',
+                preview: '送信されるNetHackコマンド文字列:',
+                noItem: '(アイテムを選択してください)',
+                btnCancel: 'キャンセル (Esc)',
+                btnSubmit: '決定して願う (Enter)',
+                noSuggest: '該当アイテムなし',
+                logReady: '[Ready] WishService 初期化完了。UIイベント待機中...',
+                logLang: (l) => `言語を ${l === 'ja' ? '日本語' : 'English'} に切り替えました`,
+                logPreset: (p) => `プリセット適用: ${p}`,
+                logSuggest: (s) => `サジェスト選択: ${s}`,
+                logSubmit: (c) => `🚀 [SUBMIT] Wasmコアへ送信: "${c}"`,
+                logCancel: '🛑 [CANCEL] 願いをキャンセルしました'
+            },
+            en: {
+                mainTitle: '✨ NetHack Wish Builder Sandbox',
+                subTitle: 'GKL WishService Standalone Test & Builder UI Prototype',
+                modalTitle: '✨ For what do you wish?',
+                secPresets: 'Quick Presets',
+                secSearch: 'Item Selection & Search',
+                searchPlaceholder: 'Search item (e.g. SDSM, silver dragon, genocide, death)',
+                catFilter: 'Filter by Category:',
+                allCats: '(All Categories)',
+                itemSelect: 'Selected Item:',
+                secOptions: 'Options Configuration',
+                blessing: 'Blessing Status:',
+                bBlessed: 'blessed',
+                bUncursed: 'uncursed',
+                bCursed: 'cursed',
+                enchantment: 'Enchantment (+N):',
+                e0: '+0 (None)',
+                e2: '+2 (Recommended)',
+                erosion: 'Erosion Proof:',
+                pNone: 'None',
+                pFixed: 'fixed (rust & fireproof)',
+                pRust: 'rustproof',
+                pFire: 'fireproof',
+                pCorrode: 'corrodeproof',
+                count: 'Quantity (Count):',
+                greased: 'greased',
+                poisoned: 'poisoned',
+                preview: 'Generated NetHack Command:',
+                noItem: '(Please select an item)',
+                btnCancel: 'Cancel (Esc)',
+                btnSubmit: 'Confirm & Wish (Enter)',
+                noSuggest: 'No matching items',
+                logReady: '[Ready] WishService initialized. Ready for UI events.',
+                logLang: (l) => `Switched language to ${l === 'ja' ? 'Japanese' : 'English'}`,
+                logPreset: (p) => `Applied preset: ${p}`,
+                logSuggest: (s) => `Suggested item selected: ${s}`,
+                logSubmit: (c) => `🚀 [SUBMIT] Sent to Wasm Core: "${c}"`,
+                logCancel: '🛑 [CANCEL] Wish cancelled'
+            }
+        };
+
+        // 状態管理
+        let currentSpec = {
+            itemName: 'silver dragon scale mail',
+            category: 'ARMOR',
+            blessing: 'blessed',
+            enchantment: 2,
+            erosion: 'fixed',
+            count: 1,
+            isGreased: false,
+            isPoisoned: false
+        };
+
+        const logEl = document.getElementById('log-output');
+        function addLog(msg) {
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML = `[${time}] ${msg}<br/>` + logEl.innerHTML;
+        }
+
+        // 言語更新関数
+        function updateLanguage(lang) {
+            currentLang = lang;
+            translator.setLanguage(lang);
+            wishService.setLanguage(lang);
+            catalog = wishService.getCatalog();
+            byCategory = wishService.getCatalogByCategory();
+            const t = I18N[lang];
+
+            document.getElementById('ui-main-title').textContent = t.mainTitle;
+            document.getElementById('ui-sub-title').textContent = t.subTitle;
+            document.getElementById('modal-title').textContent = t.modalTitle;
+            document.getElementById('sec-presets').textContent = t.secPresets;
+            document.getElementById('sec-search').textContent = t.secSearch;
+            document.getElementById('wish-search').placeholder = t.searchPlaceholder;
+            document.getElementById('lbl-cat-filter').textContent = t.catFilter;
+            document.getElementById('opt-all-cats').textContent = t.allCats;
+            document.getElementById('lbl-item-select').textContent = t.itemSelect;
+            document.getElementById('sec-options').textContent = t.secOptions;
+            document.getElementById('lbl-blessing').textContent = t.blessing;
+            document.getElementById('opt-b-blessed').textContent = t.bBlessed;
+            document.getElementById('opt-b-uncursed').textContent = t.bUncursed;
+            document.getElementById('opt-b-cursed').textContent = t.bCursed;
+            document.getElementById('lbl-enchantment').textContent = t.enchantment;
+            document.getElementById('opt-e-0').textContent = t.e0;
+            document.getElementById('opt-e-2').textContent = t.e2;
+            document.getElementById('lbl-erosion').textContent = t.erosion;
+            document.getElementById('opt-p-none').textContent = t.pNone;
+            document.getElementById('opt-p-fixed').textContent = t.pFixed;
+            document.getElementById('opt-p-rust').textContent = t.pRust;
+            document.getElementById('opt-p-fire').textContent = t.pFire;
+            document.getElementById('opt-p-corrode').textContent = t.pCorrode;
+            document.getElementById('lbl-count').textContent = t.count;
+            document.getElementById('lbl-greased').textContent = t.greased;
+            document.getElementById('lbl-poisoned').textContent = t.poisoned;
+            document.getElementById('lbl-preview').textContent = t.preview;
+            document.getElementById('btn-cancel').textContent = t.btnCancel;
+            document.getElementById('btn-submit').textContent = t.btnSubmit;
+
+            document.getElementById('lang-ja-btn').classList.toggle('active', lang === 'ja');
+            document.getElementById('lang-en-btn').classList.toggle('active', lang === 'en');
+
+            renderPresets();
+            populateCategorySelect();
+            populateItemSelect(document.getElementById('cat-filter').value);
+            updatePreview();
+            addLog(t.logLang(lang));
+        }
+
+        document.getElementById('lang-ja-btn').onclick = () => updateLanguage('ja');
+        document.getElementById('lang-en-btn').onclick = () => updateLanguage('en');
+
+        // 1. プリセットボタンの初期化 / 再描画
+        const presetContainer = document.getElementById('preset-container');
+        function renderPresets() {
+            presetContainer.innerHTML = '';
+            WISH_PRESETS.forEach(preset => {
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn';
+                const label = currentLang === 'ja' ? preset.labelJa : preset.labelEn;
+                btn.innerHTML = label;
+                btn.title = preset.labelEn;
+                btn.onclick = () => {
+                    applySpec(preset.spec);
+                    addLog(I18N[currentLang].logPreset(label));
+                };
+                presetContainer.appendChild(btn);
+            });
+        }
+
+        // 2. カテゴリ選択ドロップダウンの初期化 / 言語更新
+        const catFilterEl = document.getElementById('cat-filter');
+        function populateCategorySelect() {
+            const currentCat = catFilterEl.value;
+            catFilterEl.innerHTML = `<option value="" id="opt-all-cats">${I18N[currentLang].allCats}</option>`;
+            Object.keys(byCategory).sort().forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                const catLabel = CATEGORY_LABELS[cat] ? (currentLang === 'ja' ? CATEGORY_LABELS[cat].ja : CATEGORY_LABELS[cat].en) : cat;
+                opt.textContent = `${catLabel} (${byCategory[cat].length})`;
+                catFilterEl.appendChild(opt);
+            });
+            catFilterEl.value = currentCat;
+        }
+
+        const itemSelectEl = document.getElementById('item-select');
+        function populateItemSelect(selectedCategory = '') {
+            itemSelectEl.innerHTML = '';
+            const items = selectedCategory ? (byCategory[selectedCategory] || []) : catalog;
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.name;
+                if (currentLang === 'ja') {
+                    opt.textContent = `${item.nameJa || item.name} [${item.name}]`;
+                } else {
+                    opt.textContent = item.name;
+                }
+                itemSelectEl.appendChild(opt);
+            });
+            if (items.length > 0) {
+                itemSelectEl.value = currentSpec.itemName || items[0].name;
+            }
+        }
+
+        catFilterEl.onchange = () => {
+            populateItemSelect(catFilterEl.value);
+            onItemChange(itemSelectEl.value);
+        };
+
+        itemSelectEl.onchange = () => {
+            onItemChange(itemSelectEl.value);
+        };
+
+        function onItemChange(itemName) {
+            const item = catalog.find(it => it.name === itemName);
+            if (!item) return;
+
+            currentSpec.itemName = item.name;
+            currentSpec.category = item.category;
+
+            // 属性入力フォームの有効/無効制御
+            const optEnch = document.getElementById('opt-enchantment');
+            const optErosion = document.getElementById('opt-erosion');
+            const optCount = document.getElementById('opt-count');
+
+            optEnch.disabled = !item.options.allowEnchantment;
+            optErosion.disabled = !item.options.allowErosionProof;
+            optCount.disabled = !item.options.allowCount;
+
+            if (!item.options.allowEnchantment) currentSpec.enchantment = 0;
+            if (!item.options.allowErosionProof) currentSpec.erosion = null;
+            if (!item.options.allowCount) currentSpec.count = 1;
+
+            updateFormInputs();
+            updatePreview();
+        }
+
+        // 3. インクリメンタルサジェスト
+        const searchInput = document.getElementById('wish-search');
+        const suggestDropdown = document.getElementById('suggest-dropdown');
+
+        searchInput.oninput = () => {
+            const q = searchInput.value.trim();
+            if (!q) {
+                suggestDropdown.classList.remove('active');
+                return;
+            }
+
+            const results = wishService.suggest(q, { limit: 12, lang: currentLang });
+            if (results.length === 0) {
+                suggestDropdown.innerHTML = `<div style="padding: 10px; color: #888;">${I18N[currentLang].noSuggest}</div>`;
+                suggestDropdown.classList.add('active');
+                return;
+            }
+
+            suggestDropdown.innerHTML = '';
+            results.forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'suggest-item';
+                const mainName = currentLang === 'ja' ? (it.nameJa || it.name) : it.name;
+                const subName = currentLang === 'ja' ? it.name : (it.nameJa !== it.name ? it.nameJa : '');
+                div.innerHTML = `
+                    <div>
+                        <span class="suggest-name-main">${mainName}</span>
+                        ${subName ? `<span class="suggest-name-sub">${subName}</span>` : ''}
+                    </div>
+                    <span class="suggest-cat">${it.category}</span>
+                `;
+                div.onclick = () => {
+                    searchInput.value = mainName;
+                    suggestDropdown.classList.remove('active');
+                    catFilterEl.value = it.category;
+                    populateItemSelect(it.category);
+                    itemSelectEl.value = it.name;
+                    onItemChange(it.name);
+                    addLog(I18N[currentLang].logSuggest(it.name));
+                };
+                suggestDropdown.appendChild(div);
+            });
+            suggestDropdown.classList.add('active');
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestDropdown.contains(e.target)) {
+                suggestDropdown.classList.remove('active');
+            }
+        });
+
+        // 4. フォーム入力変更のバインド
+        document.getElementById('opt-blessing').onchange = (e) => {
+            currentSpec.blessing = e.target.value;
+            updatePreview();
+        };
+        document.getElementById('opt-enchantment').onchange = (e) => {
+            currentSpec.enchantment = parseInt(e.target.value, 10);
+            updatePreview();
+        };
+        document.getElementById('opt-erosion').onchange = (e) => {
+            currentSpec.erosion = e.target.value || null;
+            updatePreview();
+        };
+        document.getElementById('opt-count').oninput = (e) => {
+            currentSpec.count = parseInt(e.target.value, 10) || 1;
+            updatePreview();
+        };
+        document.getElementById('opt-greased').onchange = (e) => {
+            currentSpec.isGreased = e.target.checked;
+            updatePreview();
+        };
+        document.getElementById('opt-poisoned').onchange = (e) => {
+            currentSpec.isPoisoned = e.target.checked;
+            updatePreview();
+        };
+
+        function applySpec(spec) {
+            currentSpec = { ...spec };
+            catFilterEl.value = spec.category || '';
+            populateItemSelect(spec.category || '');
+            itemSelectEl.value = spec.itemName;
+            onItemChange(spec.itemName);
+            updateFormInputs();
+            updatePreview();
+        }
+
+        function updateFormInputs() {
+            document.getElementById('opt-blessing').value = currentSpec.blessing || 'blessed';
+            document.getElementById('opt-enchantment').value = currentSpec.enchantment !== undefined ? currentSpec.enchantment : 0;
+            document.getElementById('opt-erosion').value = currentSpec.erosion || '';
+            document.getElementById('opt-count').value = currentSpec.count || 1;
+            document.getElementById('opt-greased').checked = !!currentSpec.isGreased;
+            document.getElementById('opt-poisoned').checked = !!currentSpec.isPoisoned;
+        }
+
+        function updatePreview() {
+            const cmd = wishService.serializeWish(currentSpec);
+            document.getElementById('preview-cmd').textContent = cmd || I18N[currentLang].noItem;
+        }
+
+        // 5. 決定・送信
+        document.getElementById('btn-submit').onclick = () => {
+            const finalCmd = wishService.serializeWish(currentSpec);
+            addLog(I18N[currentLang].logSubmit(finalCmd));
+            alert(`[Wasm Core Command Output]\n\n${finalCmd}`);
+        };
+
+        document.getElementById('btn-cancel').onclick = () => {
+            addLog(I18N[currentLang].logCancel);
+        };
+
+        // 初期化実行
+        renderPresets();
+        populateCategorySelect();
+        populateItemSelect();
+        applySpec(currentSpec);
+    </script>
+</body>
+</html>

@@ -303,18 +303,21 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.language).toBe('ja');
         expect(plugin.situationCache.language).toBe('ja');
         expect(plugin.structuredKnowledge.language).toBe('ja');
+        expect(plugin.wishService.language).toBe('ja');
 
         // core の languageChanged イベントで自動追従
         mockCore.emit('languageChanged', { language: 'en', enabled: false });
         expect(plugin.language).toBe('en');
         expect(plugin.situationCache.language).toBe('en');
         expect(plugin.structuredKnowledge.language).toBe('en');
+        expect(plugin.wishService.language).toBe('en');
 
         // plugin.setLanguage で手動切り替え
         plugin.setLanguage('ja');
         expect(plugin.language).toBe('ja');
         expect(plugin.situationCache.language).toBe('ja');
         expect(plugin.structuredKnowledge.language).toBe('ja');
+        expect(plugin.wishService.language).toBe('ja');
     });
 
     it('MonsterTracker 連携: status_update (BL_TIME / BL_DLEVEL) および userActionSent でターン同期・階層変更が機能すること', () => {

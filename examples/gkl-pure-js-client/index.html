@@ -225,6 +225,107 @@
       </div>
     </div>
 
+    <!-- ✨ 願い選択ビルダーモーダル (WishModal) -->
+    <div id="wish-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large wish-builder-card">
+        <div class="modal-header">
+          <h2 id="wish-modal-title">✨ 何をお望みですか？ (For what do you wish?)</h2>
+        </div>
+
+        <div class="wish-modal-body">
+          <!-- 1. 定番プリセット -->
+          <div class="wish-section-title" id="wish-sec-presets">定番プリセット (Quick Presets)</div>
+          <div class="wish-preset-grid" id="wish-preset-container"></div>
+
+          <!-- 2. アイテム検索 / カテゴリ選択 -->
+          <div class="wish-section-title" id="wish-sec-search">アイテム選択 / 検索</div>
+          <div class="wish-search-container">
+            <input type="text" id="wish-search-input" class="wish-search-input" placeholder="アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）" autocomplete="off" />
+            <div id="wish-suggest-dropdown" class="wish-suggest-dropdown"></div>
+          </div>
+
+          <div class="wish-flex-row">
+            <div class="wish-form-group flex-1">
+              <label id="wish-lbl-cat-filter">カテゴリ絞り込み:</label>
+              <select id="wish-cat-filter" class="wish-form-control">
+                <option value="" id="wish-opt-all-cats">(全カテゴリ)</option>
+              </select>
+            </div>
+            <div class="wish-form-group flex-2">
+              <label id="wish-lbl-item-select">選択中アイテム:</label>
+              <select id="wish-item-select" class="wish-form-control"></select>
+            </div>
+          </div>
+
+          <!-- 3. 詳細オプションビルダー -->
+          <div class="wish-section-title" id="wish-sec-options">オプション設定 (Options)</div>
+          <div class="wish-builder-grid">
+            <div class="wish-form-group">
+              <label id="wish-lbl-blessing">祝福・呪い (Blessing):</label>
+              <select id="wish-opt-blessing" class="wish-form-control">
+                <option value="blessed" id="wish-opt-b-blessed">祝福された (blessed)</option>
+                <option value="uncursed" id="wish-opt-b-uncursed">呪われていない (uncursed)</option>
+                <option value="cursed" id="wish-opt-b-cursed">呪われた (cursed)</option>
+              </select>
+            </div>
+
+            <div class="wish-form-group">
+              <label id="wish-lbl-enchantment">強化値 (Enchantment):</label>
+              <select id="wish-opt-enchantment" class="wish-form-control">
+                <option value="0" id="wish-opt-e-0">+0 (指定なし)</option>
+                <option value="1">+1</option>
+                <option value="2" id="wish-opt-e-2" selected>+2 (標準おすすめ)</option>
+                <option value="3">+3</option>
+                <option value="4">+4</option>
+                <option value="5">+5</option>
+                <option value="6">+6</option>
+                <option value="7">+7</option>
+                <option value="-1">-1</option>
+              </select>
+            </div>
+
+            <div class="wish-form-group">
+              <label id="wish-lbl-erosion">耐性・防錆 (Proof):</label>
+              <select id="wish-opt-erosion" class="wish-form-control">
+                <option value="" id="wish-opt-p-none">なし (標準)</option>
+                <option value="fixed" id="wish-opt-p-fixed" selected>防錆・耐熱 (fixed)</option>
+                <option value="rustproof" id="wish-opt-p-rust">錆びない (rustproof)</option>
+                <option value="fireproof" id="wish-opt-p-fire">耐火 (fireproof)</option>
+                <option value="corrodeproof" id="wish-opt-p-corrode">腐食しない (corrodeproof)</option>
+              </select>
+            </div>
+
+            <div class="wish-form-group">
+              <label id="wish-lbl-count">個数 (Count):</label>
+              <input type="number" id="wish-opt-count" class="wish-form-control" value="1" min="1" max="50" />
+            </div>
+
+            <div class="wish-form-group wish-span-2 wish-flex-gap">
+              <label class="wish-checkbox-group">
+                <input type="checkbox" id="wish-opt-greased" />
+                <span id="wish-lbl-greased">油を塗る (greased)</span>
+              </label>
+              <label class="wish-checkbox-group">
+                <input type="checkbox" id="wish-opt-poisoned" />
+                <span id="wish-lbl-poisoned">毒を塗る (poisoned)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. リアルタイム生成プレビュー -->
+          <div class="wish-preview-box">
+            <div class="wish-preview-label" id="wish-lbl-preview">送信されるNetHackコマンド文字列:</div>
+            <div id="wish-preview-cmd" class="wish-preview-command">blessed fixed +2 silver dragon scale mail</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-wish-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
+          <button id="btn-wish-submit" class="btn btn-primary btn-large">決定して願う (Enter)</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Game Over / Record Modal (GameOverModal) -->
     <div id="gameover-modal" class="modal-backdrop hidden">
       <div class="modal-card modal-large">

@@ -269,4 +269,30 @@ describe('PromptPayloadBuilder', () => {
         expect(resYn.rawTitle).toBe('Choice');
         expect(mockTranslator.translate).not.toHaveBeenCalled();
     });
+
+    it('For what do you wish? の願いプロンプトで subCategory: WISH と assistant が付与されること', () => {
+        const mockWishService = {
+            getPresets: () => [{ id: 'sdsm', labelJa: '銀色ドラゴンの鱗鎧' }],
+            getCatalogByCategory: () => ({ ARMOR: [], WEAPON: [] })
+        };
+        const mockGkl = {
+            getWishService: () => mockWishService
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        const payload = {
+            category: PROMPT_CATEGORY.TEXT,
+            prompt: "For what do you wish?",
+            rawPrompt: "For what do you wish?"
+        };
+
+        const res = builder.build(payload);
+        expect(res.inputType).toBe('LINE_TEXT');
+        expect(res.subCategory).toBe('WISH');
+        expect(res.assistant).toBeDefined();
+        expect(res.assistant.type).toBe('WISH');
+        expect(res.assistant.presets).toHaveLength(1);
+        expect(res.assistant.categories).toEqual(['ARMOR', 'WEAPON']);
+        expect(res.assistant.wishService).toBe(mockWishService);
+    });
 });

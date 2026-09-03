@@ -276,15 +276,37 @@ const DEFAULT_TITLES = {
                 : rawTitle;
         }
 
+        // 願い（Wishing）プロンプトの自動コンテキスト検知
+        const isWishPrompt = /for what do you wish|何をお望みですか|何をご所望|wish/i.test(rawPrompt || '') || payload.subCategory === 'WISH';
+        let subCategory = payload.subCategory || (isWishPrompt ? 'WISH' : null);
+        let assistant = payload.assistant || null;
+
+        if (isWishPrompt && !assistant) {
+            const wishService = (this.gkl && typeof this.gkl.getWishService === 'function')
+                ? this.gkl.getWishService()
+                : (this.gkl && this.gkl.wishService ? this.gkl.wishService : null);
+
+            if (wishService) {
+                assistant = {
+                    type: 'WISH',
+                    presets: typeof wishService.getPresets === 'function' ? wishService.getPresets() : [],
+                    categories: typeof wishService.getCatalogByCategory === 'function' ? Object.keys(wishService.getCatalogByCategory()) : [],
+                    wishService: wishService
+                };
+            }
+        }
+
         return {
             inputType: inputType,
+            subCategory: subCategory,
             title: translatedTitle,
             rawTitle: rawTitle,
             promptText: payload.prompt || rawPrompt,
             rawPromptText: rawPrompt,
             choicesHint: choicesHint,
             options: options,
-            items: options
+            items: options,
+            assistant: assistant
         };
     }
 }

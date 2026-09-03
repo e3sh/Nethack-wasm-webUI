@@ -13,6 +13,7 @@ import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
 import { DiscoveryStateManager } from './DiscoveryStateManager.js';
 import { MonsterTracker } from './MonsterTracker.js';
+import { WishService } from './WishService.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -77,6 +78,10 @@ export class GKLPlugin {
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setSkillStateManager === 'function') {
             this.inventoryStateManager.setSkillStateManager(this.skillStateManager);
         }
+
+        this.wishService = options.wishService || new WishService({
+            translator: options.translationEngine || null
+        });
 
         this._setupMonsterTrackerHooks();
 
@@ -220,12 +225,23 @@ export class GKLPlugin {
         if (this.structuredKnowledge && typeof this.structuredKnowledge.setLanguage === 'function') {
             this.structuredKnowledge.setLanguage(resolvedLang);
         }
+        if (this.wishService && typeof this.wishService.setLanguage === 'function') {
+            this.wishService.setLanguage(resolvedLang);
+        }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setLanguage === 'function') {
             this.inventoryStateManager.setLanguage(resolvedLang);
         }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
             this.inventoryStateManager.invalidate();
         }
+    }
+
+    /**
+     * 願い支援サービス (WishService) インスタンスを取得
+     * @returns {WishService}
+     */
+    getWishService() {
+        return this.wishService;
     }
 
     /**

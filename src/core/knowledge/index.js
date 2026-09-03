@@ -15,6 +15,4 @@ export { OnDemandLookService } from './OnDemandLookService.js';
 export { ItemIdentificationResolver, IDENTIFICATION_LEVELS, APPEARANCE_PATTERNS, IDENTIFICATION_TIPS } from './ItemIdentificationResolver.js';
 export { DiscoveryStateManager } from './DiscoveryStateManager.js';
 export { getAdaptiveItemSpecs, getSkillProficiencyBadge } from './ItemSpecPresenter.js';
-
-
-
+export { WishService, WISH_PRESETS, BLESSING_STATES, PROOF_TYPES, FAMOUS_ARTIFACTS, CATEGORY_LABELS, ITEM_JA_MAP } from './WishService.js';

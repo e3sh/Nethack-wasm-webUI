@@ -1,6 +1,8 @@
 /**
- * ModalManager - プロンプトバー、メニュー/テキストモーダル、ローディング、ゲームオーバー、スコアボードマネージャー
+ * ModalManager - プロンプトバー、メニュー/テキストモーダル、ローディング、ゲームオーバー、スコアボード、願いビルダーマネージャー
  */
+import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '../../../../src/core/knowledge/WishService.js';
+
 export class ModalManager {
   constructor({
     elPromptBar,
@@ -17,6 +19,7 @@ export class ModalManager {
     elSpinnerBox,
     elSelectorCard,
     elSaveName,
+    elWishModal,
     getCore,
     getLoadedTileImagePath,
     onRestartGame
@@ -39,6 +42,10 @@ export class ModalManager {
     this.elSelectorCard = elSelectorCard;
     this.elSaveName = elSaveName;
 
+    this.elWishModal = elWishModal || document.getElementById('wish-modal');
+    this.currentWishSpec = null;
+    this.activeWishService = null;
+
     this.getCore = getCore || (() => null);
     this.getLoadedTileImagePath = getLoadedTileImagePath || (() => '../../pict/nethack_default_32.png');
     this.onRestartGame = onRestartGame || (() => {});
@@ -53,6 +60,9 @@ export class ModalManager {
 
   setLanguage(lang) {
     this.currentLanguage = lang;
+    if (this.elWishModal && !this.elWishModal.classList.contains('hidden') && this.activeWishService) {
+      this.showWishModal({ assistant: { wishService: this.activeWishService } });
+    }
   }
 
   reset() {
@@ -75,6 +85,12 @@ export class ModalManager {
     const items = data.menuItems || data.items || [];
     const textLines = data.lines || [];
     const core = this.getCore();
+
+    // 🎯 GKL 願い（Wishing）コンテキスト判定
+    if (data.subCategory === 'WISH' || (data.assistant && data.assistant.type === 'WISH')) {
+      this.showWishModal(data);
+      return;
+    }
 
     if (textLines && textLines.length > 0) {
       this.isTextWindowMode = true;
@@ -307,7 +323,364 @@ export class ModalManager {
   clearAllModals() {
     if (this.elPromptBar) this.elPromptBar.classList.add('hidden');
     if (this.elMenuModal) this.elMenuModal.classList.add('hidden');
+    if (this.elWishModal) this.elWishModal.classList.add('hidden');
+    const suggestDropdown = document.getElementById('wish-suggest-dropdown');
+    if (suggestDropdown) suggestDropdown.classList.remove('active');
     this.isTextWindowMode = false;
+  }
+
+  showWishModal(data) {
+    if (!this.elWishModal) return;
+    const core = this.getCore();
+    const wishService = data.assistant?.wishService || 
+      (core && core.gkl && typeof core.gkl.getWishService === 'function' ? core.gkl.getWishService() : null) || 
+      new WishService({ language: this.currentLanguage });
+
+    this.activeWishService = wishService;
+    wishService.setLanguage(this.currentLanguage);
+
+    const catalog = wishService.getCatalog();
+    const byCategory = wishService.getCatalogByCategory();
+
+    const I18N = {
+      ja: {
+        modalTitle: '✨ 何をお望みですか？ (For what do you wish?)',
+        secPresets: '定番プリセット (Quick Presets)',
+        secSearch: 'アイテム選択 / 検索',
+        searchPlaceholder: 'アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）',
+        catFilter: 'カテゴリ絞り込み:',
+        allCats: '(全カテゴリ)',
+        itemSelect: '選択中アイテム:',
+        secOptions: 'オプション設定 (Options)',
+        blessing: '祝福・呪い (Blessing):',
+        bBlessed: '祝福された (blessed)',
+        bUncursed: '呪われていない (uncursed)',
+        bCursed: '呪われた (cursed)',
+        enchantment: '強化値 (Enchantment):',
+        e0: '+0 (指定なし)',
+        e2: '+2 (標準おすすめ)',
+        erosion: '耐性・防錆 (Proof):',
+        pNone: 'なし (標準)',
+        pFixed: '防錆・耐熱 (fixed)',
+        pRust: '錆びない (rustproof)',
+        pFire: '耐火 (fireproof)',
+        pCorrode: '腐食しない (corrodeproof)',
+        count: '個数 (Count):',
+        greased: '油を塗る (greased)',
+        poisoned: '毒を塗る (poisoned)',
+        preview: '送信されるNetHackコマンド文字列:',
+        noItem: '(アイテムを選択してください)',
+        btnCancel: 'キャンセル (Esc)',
+        btnSubmit: '決定して願う (Enter)',
+        noSuggest: '該当アイテムなし'
+      },
+      en: {
+        modalTitle: '✨ For what do you wish?',
+        secPresets: 'Quick Presets',
+        secSearch: 'Item Selection & Search',
+        searchPlaceholder: 'Search item (e.g. SDSM, silver dragon, genocide, death)',
+        catFilter: 'Filter by Category:',
+        allCats: '(All Categories)',
+        itemSelect: 'Selected Item:',
+        secOptions: 'Options Configuration',
+        blessing: 'Blessing Status:',
+        bBlessed: 'blessed',
+        bUncursed: 'uncursed',
+        bCursed: 'cursed',
+        enchantment: 'Enchantment (+N):',
+        e0: '+0 (None)',
+        e2: '+2 (Recommended)',
+        erosion: 'Erosion Proof:',
+        pNone: 'None',
+        pFixed: 'fixed (rust & fireproof)',
+        pRust: 'rustproof',
+        pFire: 'fireproof',
+        pCorrode: 'corrodeproof',
+        count: 'Quantity (Count):',
+        greased: 'greased',
+        poisoned: 'poisoned',
+        preview: 'Generated NetHack Command:',
+        noItem: '(Please select an item)',
+        btnCancel: 'Cancel (Esc)',
+        btnSubmit: 'Confirm & Wish (Enter)',
+        noSuggest: 'No matching items'
+      }
+    };
+
+    const lang = this.currentLanguage === 'en' ? 'en' : 'ja';
+    const t = I18N[lang];
+
+    let currentSpec = {
+      itemName: 'silver dragon scale mail',
+      category: 'ARMOR',
+      blessing: 'blessed',
+      enchantment: 2,
+      erosion: 'fixed',
+      count: 1,
+      isGreased: false,
+      isPoisoned: false
+    };
+
+    // UIテキスト更新
+    const elTitle = document.getElementById('wish-modal-title');
+    if (elTitle) elTitle.textContent = t.modalTitle;
+    const elSecPresets = document.getElementById('wish-sec-presets');
+    if (elSecPresets) elSecPresets.textContent = t.secPresets;
+    const elSecSearch = document.getElementById('wish-sec-search');
+    if (elSecSearch) elSecSearch.textContent = t.secSearch;
+    const elSearchInput = document.getElementById('wish-search-input');
+    if (elSearchInput) elSearchInput.placeholder = t.searchPlaceholder;
+    const elLblCat = document.getElementById('wish-lbl-cat-filter');
+    if (elLblCat) elLblCat.textContent = t.catFilter;
+    const elLblItem = document.getElementById('wish-lbl-item-select');
+    if (elLblItem) elLblItem.textContent = t.itemSelect;
+    const elSecOptions = document.getElementById('wish-sec-options');
+    if (elSecOptions) elSecOptions.textContent = t.secOptions;
+    const elLblBless = document.getElementById('wish-lbl-blessing');
+    if (elLblBless) elLblBless.textContent = t.blessing;
+    const elOptBBlessed = document.getElementById('wish-opt-b-blessed');
+    if (elOptBBlessed) elOptBBlessed.textContent = t.bBlessed;
+    const elOptBUncursed = document.getElementById('wish-opt-b-uncursed');
+    if (elOptBUncursed) elOptBUncursed.textContent = t.bUncursed;
+    const elOptBCursed = document.getElementById('wish-opt-b-cursed');
+    if (elOptBCursed) elOptBCursed.textContent = t.bCursed;
+    const elLblEnch = document.getElementById('wish-lbl-enchantment');
+    if (elLblEnch) elLblEnch.textContent = t.enchantment;
+    const elOptE0 = document.getElementById('wish-opt-e-0');
+    if (elOptE0) elOptE0.textContent = t.e0;
+    const elOptE2 = document.getElementById('wish-opt-e-2');
+    if (elOptE2) elOptE2.textContent = t.e2;
+    const elLblErosion = document.getElementById('wish-lbl-erosion');
+    if (elLblErosion) elLblErosion.textContent = t.erosion;
+    const elOptPNone = document.getElementById('wish-opt-p-none');
+    if (elOptPNone) elOptPNone.textContent = t.pNone;
+    const elOptPFixed = document.getElementById('wish-opt-p-fixed');
+    if (elOptPFixed) elOptPFixed.textContent = t.pFixed;
+    const elOptPRust = document.getElementById('wish-opt-p-rust');
+    if (elOptPRust) elOptPRust.textContent = t.pRust;
+    const elOptPFire = document.getElementById('wish-opt-p-fire');
+    if (elOptPFire) elOptPFire.textContent = t.pFire;
+    const elOptPCorrode = document.getElementById('wish-opt-p-corrode');
+    if (elOptPCorrode) elOptPCorrode.textContent = t.pCorrode;
+    const elLblCount = document.getElementById('wish-lbl-count');
+    if (elLblCount) elLblCount.textContent = t.count;
+    const elLblGreased = document.getElementById('wish-lbl-greased');
+    if (elLblGreased) elLblGreased.textContent = t.greased;
+    const elLblPoisoned = document.getElementById('wish-lbl-poisoned');
+    if (elLblPoisoned) elLblPoisoned.textContent = t.poisoned;
+    const elLblPreview = document.getElementById('wish-lbl-preview');
+    if (elLblPreview) elLblPreview.textContent = t.preview;
+    const elBtnCancel = document.getElementById('btn-wish-cancel');
+    if (elBtnCancel) elBtnCancel.textContent = t.btnCancel;
+    const elBtnSubmit = document.getElementById('btn-wish-submit');
+    if (elBtnSubmit) elBtnSubmit.textContent = t.btnSubmit;
+
+    // 1. プリセットボタン描画
+    const presetContainer = document.getElementById('wish-preset-container');
+    if (presetContainer) {
+      presetContainer.innerHTML = '';
+      const presets = (data.assistant && data.assistant.presets) || wishService.getPresets();
+      presets.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.className = 'wish-preset-btn';
+        const label = lang === 'ja' ? preset.labelJa : preset.labelEn;
+        btn.innerHTML = label;
+        btn.title = preset.labelEn;
+        btn.onclick = () => {
+          applySpec(preset.spec);
+        };
+        presetContainer.appendChild(btn);
+      });
+    }
+
+    // 2. カテゴリ選択ドロップダウン
+    const catFilterEl = document.getElementById('wish-cat-filter');
+    const itemSelectEl = document.getElementById('wish-item-select');
+
+    const populateCategorySelect = () => {
+      if (!catFilterEl) return;
+      const currentCat = catFilterEl.value;
+      catFilterEl.innerHTML = `<option value="">${t.allCats}</option>`;
+      Object.keys(byCategory).sort().forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        const catLabel = CATEGORY_LABELS[cat] ? (lang === 'ja' ? CATEGORY_LABELS[cat].ja : CATEGORY_LABELS[cat].en) : cat;
+        opt.textContent = `${catLabel} (${byCategory[cat].length})`;
+        catFilterEl.appendChild(opt);
+      });
+      catFilterEl.value = currentCat;
+    };
+
+    const populateItemSelect = (selectedCategory = '') => {
+      if (!itemSelectEl) return;
+      itemSelectEl.innerHTML = '';
+      const items = selectedCategory ? (byCategory[selectedCategory] || []) : catalog;
+      items.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.name;
+        if (lang === 'ja') {
+          opt.textContent = `${item.nameJa || item.name} [${item.name}]`;
+        } else {
+          opt.textContent = item.name;
+        }
+        itemSelectEl.appendChild(opt);
+      });
+      if (items.length > 0) {
+        itemSelectEl.value = currentSpec.itemName || items[0].name;
+      }
+    };
+
+    const onItemChange = (itemName) => {
+      const item = catalog.find(it => it.name === itemName);
+      if (!item) return;
+
+      currentSpec.itemName = item.name;
+      currentSpec.category = item.category;
+
+      const optEnch = document.getElementById('wish-opt-enchantment');
+      const optErosion = document.getElementById('wish-opt-erosion');
+      const optCount = document.getElementById('wish-opt-count');
+
+      if (optEnch) optEnch.disabled = !item.options.allowEnchantment;
+      if (optErosion) optErosion.disabled = !item.options.allowErosionProof;
+      if (optCount) optCount.disabled = !item.options.allowCount;
+
+      if (!item.options.allowEnchantment) currentSpec.enchantment = 0;
+      if (!item.options.allowErosionProof) currentSpec.erosion = null;
+      if (!item.options.allowCount) currentSpec.count = 1;
+
+      updateFormInputs();
+      updatePreview();
+    };
+
+    if (catFilterEl) {
+      catFilterEl.onchange = () => {
+        populateItemSelect(catFilterEl.value);
+        if (itemSelectEl) onItemChange(itemSelectEl.value);
+      };
+    }
+
+    if (itemSelectEl) {
+      itemSelectEl.onchange = () => {
+        onItemChange(itemSelectEl.value);
+      };
+    }
+
+    // 3. インクリメンタルサジェスト
+    const suggestDropdown = document.getElementById('wish-suggest-dropdown');
+    if (elSearchInput && suggestDropdown) {
+      elSearchInput.value = '';
+      elSearchInput.oninput = () => {
+        const q = elSearchInput.value.trim();
+        if (!q) {
+          suggestDropdown.classList.remove('active');
+          return;
+        }
+
+        const results = wishService.suggest(q, { limit: 12, lang });
+        if (results.length === 0) {
+          suggestDropdown.innerHTML = `<div style="padding: 8px 12px; color: #888;">${t.noSuggest}</div>`;
+          suggestDropdown.classList.add('active');
+          return;
+        }
+
+        suggestDropdown.innerHTML = '';
+        results.forEach(it => {
+          const div = document.createElement('div');
+          div.className = 'wish-suggest-item';
+          const mainName = lang === 'ja' ? (it.nameJa || it.name) : it.name;
+          const subName = lang === 'ja' ? it.name : (it.nameJa !== it.name ? it.nameJa : '');
+          div.innerHTML = `
+            <div>
+              <span class="wish-suggest-name-main">${mainName}</span>
+              ${subName ? `<span class="wish-suggest-name-sub">${subName}</span>` : ''}
+            </div>
+            <span class="wish-suggest-cat">${it.category}</span>
+          `;
+          div.onclick = () => {
+            elSearchInput.value = mainName;
+            suggestDropdown.classList.remove('active');
+            if (catFilterEl) catFilterEl.value = it.category;
+            populateItemSelect(it.category);
+            if (itemSelectEl) itemSelectEl.value = it.name;
+            onItemChange(it.name);
+          };
+          suggestDropdown.appendChild(div);
+        });
+        suggestDropdown.classList.add('active');
+      };
+
+      const closeSuggestHandler = (e) => {
+        if (!elSearchInput.contains(e.target) && !suggestDropdown.contains(e.target)) {
+          suggestDropdown.classList.remove('active');
+        }
+      };
+      document.addEventListener('click', closeSuggestHandler);
+    }
+
+    // 4. 属性フォームバインド
+    const optBless = document.getElementById('wish-opt-blessing');
+    if (optBless) optBless.onchange = (e) => { currentSpec.blessing = e.target.value; updatePreview(); };
+    const optEnch = document.getElementById('wish-opt-enchantment');
+    if (optEnch) optEnch.onchange = (e) => { currentSpec.enchantment = parseInt(e.target.value, 10); updatePreview(); };
+    const optErosion = document.getElementById('wish-opt-erosion');
+    if (optErosion) optErosion.onchange = (e) => { currentSpec.erosion = e.target.value || null; updatePreview(); };
+    const optCount = document.getElementById('wish-opt-count');
+    if (optCount) optCount.oninput = (e) => { currentSpec.count = parseInt(e.target.value, 10) || 1; updatePreview(); };
+    const optGreased = document.getElementById('wish-opt-greased');
+    if (optGreased) optGreased.onchange = (e) => { currentSpec.isGreased = e.target.checked; updatePreview(); };
+    const optPoisoned = document.getElementById('wish-opt-poisoned');
+    if (optPoisoned) optPoisoned.onchange = (e) => { currentSpec.isPoisoned = e.target.checked; updatePreview(); };
+
+    const applySpec = (spec) => {
+      currentSpec = { ...spec };
+      if (catFilterEl) catFilterEl.value = spec.category || '';
+      populateItemSelect(spec.category || '');
+      if (itemSelectEl) itemSelectEl.value = spec.itemName;
+      onItemChange(spec.itemName);
+      updateFormInputs();
+      updatePreview();
+    };
+
+    const updateFormInputs = () => {
+      if (optBless) optBless.value = currentSpec.blessing || 'blessed';
+      if (optEnch) optEnch.value = currentSpec.enchantment !== undefined ? currentSpec.enchantment : 0;
+      if (optErosion) optErosion.value = currentSpec.erosion || '';
+      if (optCount) optCount.value = currentSpec.count || 1;
+      if (optGreased) optGreased.checked = !!currentSpec.isGreased;
+      if (optPoisoned) optPoisoned.checked = !!currentSpec.isPoisoned;
+    };
+
+    const previewCmdEl = document.getElementById('wish-preview-cmd');
+    const updatePreview = () => {
+      const cmd = wishService.serializeWish(currentSpec);
+      if (previewCmdEl) previewCmdEl.textContent = cmd || t.noItem;
+    };
+
+    // 5. 決定 / キャンセルボタン
+    if (elBtnSubmit) {
+      elBtnSubmit.onclick = () => {
+        const finalCmd = wishService.serializeWish(currentSpec);
+        this.clearAllModals();
+        if (core) core.respond(finalCmd);
+      };
+    }
+
+    if (elBtnCancel) {
+      elBtnCancel.onclick = () => {
+        this.clearAllModals();
+        if (core) core.respond('');
+      };
+    }
+
+    // 初期化実行
+    populateCategorySelect();
+    populateItemSelect();
+    applySpec(currentSpec);
+
+    // モーダル表示
+    this.elWishModal.classList.remove('hidden');
+    if (elSearchInput) elSearchInput.focus();
   }
 
   async handleExited(result) {
