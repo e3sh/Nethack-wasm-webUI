@@ -136,6 +136,7 @@ python tools/dict_converter.py import
 
 詳しい設計や仕様については `docs/` ディレクトリを参照してください。
 
+- [逆引き設定・セーブデータ管理 FAQ / 開発者ガイド](docs/FAQ_and_Configuration_Guide.md)
 - [GKL 構造化知識ベース & 戦術統合アーキテクチャ](docs/3_gkl/GKL_Knowledge_SSOT_and_Tactical_Integration_Architecture.md)
 - [GKL 仕様書](docs/3_gkl/gkl_documentation.md)
 - [WASM Driver 仕様書](docs/1_driver/driver_core_spec.md)
