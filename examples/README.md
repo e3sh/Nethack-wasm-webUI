@@ -1,60 +1,82 @@
-# NetHack Wasm Driver サンプルクライアント拡充計画 & 開発ガイドライン (`examples/`)
+# NetHack Wasm Driver サンプルクライアント (`examples/`)
 
-本ディレクトリ (`examples/`) は、**`WebUICore` / NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要なモダン Web フロントエンドフレームワーク（Vue 3, React 18, Svelte, SolidJS 等）と結合した、高品質なフル機能サンプルクライアント群を提供する領域です。
+本ディレクトリ (`examples/`) は、**`WebUICore` / NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要なモダン Web フロントエンドフレームワーク（Vue 3, React 18, Svelte, SolidJS 等）と結合したサンプルクライアント群を提供する領域です。
 
-すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、**GitHub Pages 上で 1 クリックでブラウザからそのまま直接プレイ可能**です。
+特に **Vue 3 版 (`examples/vue-client`)** および **React 18 版 (`examples/react-client`)** は、2カラム＋オーバーレイUI構造と GKL（Game Knowledge Layer）の全機能を備えたリファレンス実装として整備されています。
+
+すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、GitHub Pages 上でブラウザからそのまま直接動作確認が可能です。
 
 ---
 
 ## 🎮 ライブデモ (Live Demo)
 
 - **Vue 3 サンプルクライアント**: 
-  - 🔗 **[Vue 3 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)**
+  - 🔗 **[Vue 3 Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)**
 - **React 18 サンプルクライアント**: 
-  - 🔗 **[React 18 Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
+  - 🔗 **[React 18 Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
 - **Svelte サンプルクライアント**: 
-  - 🔗 **[Svelte Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
+  - 🔗 **[Svelte Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
 - **SolidJS サンプルクライアント**: 
-  - 🔗 **[SolidJS Client をブラウザで今すぐ試す](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)**
+  - 🔗 **[SolidJS Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)**
 
 ---
 
 ## 🗺️ サンプルクライアント一覧 (Examples Overview)
 
-| ディレクトリ | フレームワーク / 技術スタック | 状態 | ライブデモ | 概要 |
+| ディレクトリ | 技術スタック | 状態 | ライブデモ | 特徴・搭載機能 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | **【標準リファレンス】** | - | フレームワーク非依存の `WebUICore` 直用軽量クライアント |
-| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
-| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
-| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
-| **`examples/solid-client`** | SolidJS + Vite + TypeScript | **【第2サイクル統一完了】** | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
+| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | 【フル機能実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Visual FX、HUDシグナル、フロア設備自動移動、32pxスプライトインベントリ、ナレッジ＆アドバイスタブ、`#wish` ビルダー、耐性・魔法・スキル熟練度 |
+| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | 【フル機能実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | Vue 3版と同等の2カラムUI構造、全GKL機能、Zustand状態管理、カスタムフック `useNetHackDriver` |
+| **`examples/gkl-pure-js-client`** | Vanilla ES Modules + CSS | 【Vanilla GKL】 | - | フレームワーク非依存の純粋な JS / CSS による GKL クライアント |
+| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | 【基礎実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
+| **`examples/solid-client`** | SolidJS + Vite + TypeScript | 【基礎実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
+| **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | 【最小構成】 | - | フレームワーク非依存の最小構成 `WebUICore` 直用クライアント |
+| **`examples/legacy-client`** | Canvas 2D / Touch | 【旧仕様参考】 | - | 従来のクラシックタイル描画とモバイル用バーチャルパッド実装 |
+
+---
+
+## 🏛️ 最新フラッグシップ（Vue 3 / React 18）の共通UIアーキテクチャ
+
+Vue 3 版および React 18 版では、以下のモダンな 2 カラム＋オーバーレイ UI 設計が採用されています：
+
+```text
++------------------------------------------------------------------------------------------------------+
+|  HeaderPanel: ビューポート切替 (Canvas / ASCII), ズームトグル, 言語切替 (日英), セーブ/リセット           |
++-------------------------------------------------------------------+----------------------------------+
+|  [左カラム: メインゲーム画面]                                      |  [右カラム: GKL 知能パネル]      |
+|                                                                   |                                  |
+|  +-------------------------------------------------------------+  |  1. 🛡️ AssistSignalBar (HUD)     |
+|  | GameViewport: メイン Canvas / ASCII テキスト描画             |  |     Level 3 緊急ワンタップ対応   |
+|  |                                                             |  |                                  |
+|  | +---------------------------------------------------------+ |  |  2. 🧭 DirectionPad & Actions    |
+|  | | FocusCamera: 21x9 中央フォーカス・ズームビュー          | |  |     3x3方向連動推奨アクション    |
+|  | |   自キャラバウンス / Visual FX / 死亡時墓石 / 移動連携   | |  |                                  |
+|  | +---------------------------------------------------------+ |  |  3. 🎒 InventoryGrid (32px)      |
+|  |                                                             |  |     Nano Badge / BUC / 熟練(+)   |
+|  | FloorLandmarksHud: 階段・祭壇・泉・店舗バッジ ＆ 自動移動    |  |                                  |
+|  +-------------------------------------------------------------+  |  4. 💡 GklKnowledgeTabs          |
+|                                                                   |     戦術アドバイス ＆ ナレッジ   |
+|  StatusBar: HP/MP ゲージ, 属性耐性, 修得魔法, スキル熟練度        |                                  |
+|  InputPrompt: コマンド待機中ガイド, 方向・文字入力, 多言語対応     |                                  |
++-------------------------------------------------------------------+----------------------------------+
+|  [オーバーレイ モーダル群]                                                                           |
+|  WishModal (#wish ビルダー), MenuModal, TextWindowModal, GameOverModal, SaveSelectorModal             |
++------------------------------------------------------------------------------------------------------+
+```
 
 ---
 
 ## 📖 公式開発ガイドライン & 参照ルール
 
-各サンプルクライアントの更新・構築作業時は、必ず以下の公式ルールドキュメントを参照してください。
+各サンプルクライアントの更新・構築作業時は、以下の公式ルールドキュメントを参照してください。
 
 - 🔗 **[モダンWebコンポーネント版 サンプル更新作業ルール & 開発ガイドライン (`docs/Modern_Web_Components_Update_Rules.md`)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/Modern_Web_Components_Update_Rules.md)**
 
-### 🛡️ 開発サイクルの運用原則
-1. **第 1 サイクル (課題収集)**: 各クライアントを泥臭く実装し、コアの改善点・不都合を `PATCH_LOG.md` に集約・記帳。
-2. **第 2 サイクル (本実装 ＆ 超削減)**: `WebUICore` の統一 API を通じてコンポーネント側の泥臭手動コードを全排斥し、数行の構造化データダイレクトバインドへ極限スリム化。
-
----
-
-## 🏛️ 全 Example 共通の最新アーキテクチャ & 設計基準 (v2.0)
-
-新バージョン (`WebUICore` 構造化データ導入後) の設計標準：
-
-### 1. 構造化データダイレクトバインド (`guiData`)
-- `WebUICore` から届く構造化 `payload` のプロパティ (`inputType`, `options`, `promptText`, `choicesHint`) をそのままテンプレートにマッピング。
-- `InputPrompt` コンポーネント内の手動文字分解や条件文パースを完全排斥（コード量 70〜80% 削減）。
-
-### 2. 統一キーイベント委譲 (`sendKeyEvent`)
-- `handleGlobalKeyDown` 内で自前の `if (e.ctrlKey || e.altKey)` や ASCII 判定を行わず、`core.sendKeyEvent(e)` へ直接丸投げ。
-- 修飾キー (Ctrl/Alt) や Arrow キー・テンキー変換は `WebUICore` 内部の `KeyMapper` が一貫して自動処理。
-
-### 3. マップ描画 & 階層消去ルール
-- **ハイブリッド 2D Canvas**: `getTileMapping()` を使用してスプライト描画 (`nethack_default_32.png`)。
-- **マップ自動消去**: `status_update` の `DLEVEL` 変更をトリガーとして `clearMapGrid()` を自動実行。
+### 🛡️ 設計原則
+1. **SSOT (Single Source of Truth) の遵守**:
+   - メッセージテキストから内部状態（所持品や習得魔法）を直接推測・変更するアンチパターンを排除。
+   - メッセージは `invalidate()` によるダーティフラグ立てのみを行い、実データは NetHack 本体のクエリ（`+`, `i`, `^X`, `#enhance` 等）から得られる構造化データから確定同期する。
+2. **完全な疎結合設計 (GKL オプショナル設計)**:
+   - `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも通常プレイに一切影響を与えません。
+3. **統一キーイベント委譲 (`sendKeyEvent`)**:
+   - 各コンポーネントで自前のキーマッピングを行わず、`core.sendKeyEvent(e)` へ委譲することで一貫した操作性を担保。

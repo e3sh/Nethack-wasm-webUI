@@ -44,9 +44,9 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 
 | ディレクトリ | 構成 | 説明 |
 | :--- | :--- | :--- |
-| `examples/gkl-pure-js-client` | Vanilla JS / CSS | 推奨アクション提示・ズームカメラ・アイコンインベントリを含む実装 |
-| `examples/vue-client` | Vue 3 + TypeScript | Vue 3 と Pinia による実装 |
-| `examples/react-client` | React 18 + TypeScript | React 18 と Zustand による実装 |
+| `examples/vue-client` | Vue 3 + TypeScript | 2カラムUI、フォーカスカメラ、GKL全機能（アシスト、インベントリ、ナレッジ、耐性・魔法等）を含む実装 |
+| `examples/react-client` | React 18 + TypeScript | React 18 と Zustand による実装（Vue 3 版と同等のUIおよびGKL全機能に対応） |
+| `examples/gkl-pure-js-client` | Vanilla JS / CSS | 推奨アクション提示・ズームカメラ・アイコンインベントリを含むフレームワーク非依存実装 |
 | `examples/svelte-client` | Svelte + TypeScript | Svelte による実装 |
 | `examples/solid-client` | SolidJS + TypeScript | SolidJS による実装 |
 | `examples/pure-js-client` | Vanilla JS | 最小限の Pure JS 実装 |

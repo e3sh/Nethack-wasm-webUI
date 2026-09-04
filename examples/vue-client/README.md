@@ -1,8 +1,8 @@
 # NetHack WebUICore - Vue 3 + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/vue-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、Vue 3 + TypeScript による公式サンプルアプリケーションです。
+本サンプルクライアント (`examples/vue-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、Vue 3 + TypeScript によるサンプルアプリケーションです。
 
-Pinia による状態管理、TypeScript による型安全なイベント受容、Vue 3 Composition API と `WebUICore` / `GKLPlugin` の構造化データ・ダイレクトバインド設計パターンを提示しています。
+Pinia による状態管理、TypeScript による型安全なイベント受容、Vue 3 Composition API と `WebUICore` / `GKLPlugin` を統合した2カラム＋オーバーレイUI構造を提供します。
 
 ---
 
@@ -15,19 +15,29 @@ Pinia による状態管理、TypeScript による型安全なイベント受容
 ## ✨ 主な機能 ＆ コンポーネント構成
 
 - **`useNetHackDriver.ts` (`NetHackDriverController`)**:
-  - `WebUICore` を管理する Vue 3 用コントローラー。キーイベント一括委譲 (`sendKeyEvent`)、非同期セーブ削除、安全なリスタートおよび状況推論データ (`gklSituation`) / 周辺ズームセル (`getZoomAreaTiles`) 取得を担当。
-- **`GklKnowledgePanel.vue` (🧠 GKL 状況推論 ＆ ナレッジアシスト)**:
-  - **⚡ アイコン即時自動実行**: 所持品アイコンタップで `executeSequence` による装備・使用の一発即時実行。
-  - **💡 浮き出し解説ポップアップ**: ホバー時にアイテム名・ワンタップアクション予告・日本語効果解説を浮き出し表示。
-  - **🎽 装備バッジ ＆ 枠線カラー**: メイン武器 (`[手]`, `#e9c46a`)、副武器 (`[副]`, `#4ea8de`)、矢筒 (`[筒]`, `#2a9d8f`)、着用防具 (`[着]`, `#9d4edd`)。
-  - **🎯 8方向アクションフィルター (`extractDirectionCode`)**: 8方向 ＋ 足元 (`SELF`) の正規化コードによる一貫したアクション絞り込みと件数バッジ。
-  - **🔍 7x7 高精細ダンジョンズームカメラ**: プレイヤーを中心とした半径3マス（7x7=全49マス）の 24px スプライトタイル高密度ミニマップビューア。マス選択で日本語ナレッジカードを表示。
-- **`GameCanvas.vue`**:
-  - 2D Canvas マップ描画コンポーネント。正統スプライトマッピング (`nethack_default_32.png`) と 16 色 TTY フォント描画に対応。
-- **`StatusBar.vue`**:
-  - HP, Pw, AC, Gold, Exp, Dungeon Level (`DLEVEL` 構造化データ) 等のリアルタイムステータス表示。
-- **`PromptModal.vue` / `MenuModal.vue` / `TextWindowModal.vue` / `GameOverModal.vue`**:
-  - 各種モーダルUIコンポーネント。
+  - `WebUICore` と GKL を一括管理するコントローラー。Visual FX 発火、サイレント同期（`syncPendingStateSilent`）、オンデマンドLook、自動移動（Travel）連携を提供。
+- **`FocusCamera.vue` (🔍 21x9 中央フォーカス・ズームビュー)**:
+  - プレイヤーを中心とした 21x9 の中央配置ズームカメラ。自キャラ移動時のバウンス演出、Visual FX（攻撃・被ダメージ・回復・死亡・蘇生エフェクト）、死亡時墓石、Look / クリック自動移動に対応。
+- **`FloorLandmarksHud.vue` (🚩 階層・フロア設備HUD)**:
+  - 現在階層、発見済みランドマーク（上り階段・下り階段・祭壇・泉・店舗など）をアイコンバッジ一覧化し、ワンクリックでその設備へ自動移動。
+- **`AssistSignalBar.vue` (🛡️ 最優先HUDシグナル)**:
+  - 危険度点滅、スタンス（戦闘・警戒・通常）、Level 3 緊急ワンタップ実行アクションボタン、Why 理由ツールチップ。
+- **`DirectionPad.vue` & `ContextActions.vue` (🧭 方向パッド ＆ 推奨アクション)**:
+  - 3x3 方向パッドフィルター、方向連動推奨アクションカード、キーバッジ、戦闘/危険ハイライト。
+- **`InventoryGrid.vue` (🎒 32px スプライトインベントリ)**:
+  - 32px スプライト、Nano Badge（危険・注意・情報）、BUC（祝福・呪い・未識別）、得意武器 (`+`) バッジ、ワンタップ装備/使用メニュー。
+- **`GklKnowledgeTabs.vue` (💡 戦術アドバイス ＆ ナレッジタブ)**:
+  - 🛡️ アドバイスタブ（戦術・危機アドバイス一覧） ＆ 💡 調査ナレッジタブ（詳細スペック、耐性・弱点・特性タグ、ステータス）。
+- **`StatusBar.vue` (📊 ゲージ ＆ 詳細ステータスバー)**:
+  - HP/MP ゲージ、6大能力値、確定属性耐性、修得魔法、スキル熟練度。
+- **`WishModal.vue` (✨ `#wish` ビルダー)**:
+  - プリセット（アーティファクト・定番装備・道具）、インクリメンタル検索、生成プレビュー。
+- **`InputPrompt.vue` (💬 プロンプトバー)**:
+  - 待機時コマンド案内ガイド、方向/テキスト/YesNoプロンプト、多言語（日英）動的切替。
+- **`GameViewport.vue` / `GameCanvas.vue`**:
+  - 32px Canvas スプライト描画 と 16色 ASCII Grid のリアルタイム切替表示。
+- **各種オーバーレイモーダル (`MenuModal`, `TextWindowModal`, `GameOverModal`, `SaveSelectorModal`)**:
+  - NetHack 本体のメニュー、テキストウィンドウ、セーブデータ選択、ゲームオーバー結果表示。
 
 ---
 
@@ -52,9 +62,9 @@ npm run build
 
 ## 🏛️ アーキテクチャと構築ガイドライン
 
-1. **完全な疎結合設計 (GKL オプショナル設計)**:
-   `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも下部パネルが静かに待機するのみで、通常プレイに影響を与えません。
-2. **Vue 3 Proxy 解除と Sequence 送信**:
-   Vue 3 の Reactive Proxy 配列を `Array.from()` や `toRaw()` で解き、純粋な文字列配列にして `executeSequence` や `sendKey` フォールバックへ渡すことで一発実行の信頼性を保証します。
+1. **SSOT (Single Source of Truth) の遵守**:
+   - メッセージテキストから内部状態を直接推測・変更せず、NetHack 本体のクエリ（`+`, `i`, `^X`, `#enhance` 等）から得られたデータから確定同期します。
+2. **完全な疎結合設計 (GKL オプショナル設計)**:
+   - `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも通常プレイに一切影響を与えません。
 3. **未探索セル (`glyphId = 0`) の誤検出防止**:
-   NetHack の Glyph ID 0 は `giant ant` に該当するため、`tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い誤判定を防ぎます。
+   - NetHack の Glyph ID 0 は `giant ant` に該当するため、`tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い誤判定を防ぎます。

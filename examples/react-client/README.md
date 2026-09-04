@@ -1,8 +1,8 @@
 # NetHack WebUICore - React 18 + Vite + TypeScript サンプルクライアント
 
-本サンプルクライアント (`examples/react-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、React 18 + TypeScript による公式サンプルアプリケーションです。
+本サンプルクライアント (`examples/react-client`) は、**`WebUICore` / `@nethack/wasm-driver`** を使用して構築された、React 18 + TypeScript によるサンプルアプリケーションです。
 
-Zustand による軽量状態管理、TypeScript による型安全なイベント受容、React Hook (`useNetHackDriver`) と `WebUICore` / `GKLPlugin` の構造化データ・ダイレクトバインド設計パターンを提示しています。
+Zustand による軽量状態管理、TypeScript による型安全なイベント受容、React Custom Hook (`useNetHackDriver`) と `WebUICore` / `GKLPlugin` を統合した2カラム＋オーバーレイUI構造を提供します。
 
 ---
 
@@ -14,34 +14,57 @@ Zustand による軽量状態管理、TypeScript による型安全なイベン�
 
 ## ✨ 主な機能 ＆ コンポーネント構成
 
-- **`useNetHackDriver.ts` (React カスタムフック)**:
-  - `WebUICore` と状態ストアを仲介するフック。`getZoomAreaTiles` や `executeSequence` などの安全なバインドを提供。
-- **`GklKnowledgePanel.tsx` (🧠 GKL 状況推論 ＆ ナレッジアシスト)**:
-  - **⚡ アイコン即時自動実行**: 所持品アイコンタップで `executeSequence` による装備・使用の一発即時実行。
-  - **💡 浮き出し解説ポップアップ**: ホバー時にアイテム名・ワンタップアクション予告・日本語効果解説を浮き出し表示。
-  - **🎽 装備バッジ ＆ 枠線カラー**: メイン武器 (`[手]`, `#e9c46a`)、副武器 (`[副]`, `#4ea8de`)、矢筒 (`[筒]`, `#2a9d8f`)、着用防具 (`[着]`, `#9d4edd`)。
-  - **🎯 8方向アクションフィルター (`extractDirectionCode`)**: 8方向 ＋ 足元 (`SELF`) の正規化コードによる一貫したアクション絞り込み。
-  - **🔍 7x7 高精細ダンジョンズームカメラ**: プレイヤーを中心とした半径3マス（7x7=全49マス）の 24px スプライトタイル高密度ミニマップビューア。
-- **`GameCanvas.tsx` / `StatusBar.tsx` / `PromptModal.tsx`**:
-  - React コンポーネントによるゲーム画面・ステータス・モーダルダイアログ。
+- **`useNetHackDriver.ts` (`NetHackDriverController`)**:
+  - `WebUICore` と GKL を一括管理するカスタムフック。Visual FX 発火、サイレント同期（`syncPendingStateSilent`）、オンデマンドLook、自動移動（Travel）連携を提供。
+- **`FocusCamera.tsx` (🔍 21x9 中央フォーカス・ズームビュー)**:
+  - プレイヤーを中心とした 21x9 の中央配置ズームカメラ。自キャラ移動時のバウンス演出、Visual FX（攻撃・被ダメージ・回復・死亡・蘇生エフェクト）、死亡時墓石、Look / クリック自動移動に対応。
+- **`FloorLandmarksHud.tsx` (🚩 階層・フロア設備HUD)**:
+  - 現在階層、発見済みランドマーク（上り階段・下り階段・祭壇・泉・店舗など）をアイコンバッジ一覧化し、ワンクリックでその設備へ自動移動。
+- **`AssistSignalBar.tsx` (🛡️ 最優先HUDシグナル)**:
+  - 危険度点滅、スタンス（戦闘・警戒・通常）、Level 3 緊急ワンタップ実行アクションボタン、Why 理由ツールチップ。
+- **`DirectionPad.tsx` & `ContextActions.tsx` (🧭 方向パッド ＆ 推奨アクション)**:
+  - 3x3 方向パッドフィルター、方向連動推奨アクションカード、キーバッジ、戦闘/危険ハイライト。
+- **`InventoryGrid.tsx` (🎒 32px スプライトインベントリ)**:
+  - 32px スプライト、Nano Badge（危険・注意・情報）、BUC（祝福・呪い・未識別）、得意武器 (`+`) バッジ、ワンタップ装備/使用メニュー。
+- **`GklKnowledgeTabs.tsx` (💡 戦術アドバイス ＆ ナレッジタブ)**:
+  - 🛡️ アドバイスタブ（戦術・危機アドバイス一覧） ＆ 💡 調査ナレッジタブ（詳細スペック、耐性・弱点・特性タグ、ステータス）。
+- **`StatusBar.tsx` (📊 ゲージ ＆ 詳細ステータスバー)**:
+  - HP/MP ゲージ、6大能力値、確定属性耐性、修得魔法、スキル熟練度。
+- **`WishModal.tsx` (✨ `#wish` ビルダー)**:
+  - プリセット（アーティファクト・定番装備・道具）、インクリメンタル検索、生成プレビュー。
+- **`InputPrompt.tsx` (💬 プロンプトバー)**:
+  - 待機時コマンド案内ガイド、方向/テキスト/YesNoプロンプト、多言語（日英）動的切替。
+- **`GameViewport.tsx` / `GameCanvas.tsx`**:
+  - 32px Canvas スプライト描画 と 16色 ASCII Grid のリアルタイム切替表示。
+- **各種オーバーレイモーダル (`MenuModal`, `TextWindowModal`, `GameOverModal`, `SaveSelectorModal`)**:
+  - NetHack 本体のメニュー、テキストウィンドウ、セーブデータ選択、ゲームオーバー結果表示。
 
 ---
 
 ## 🚀 起動 & ビルド方法
 
-```bash
-# 開発起動 (ルートより)
-npm run dev:react
+### 開発用ローカルサーバーの起動 (Vite)
+プロジェクトルートディレクトリにて：
 
-# スタンドアロンビルド (examples/react-client にて)
+```bash
+npm run dev:react
+```
+自動的に `http://localhost:3001/` が立ち上がり、ホットリロード対応の開発環境が開きます。
+
+### スタンドアロンビルド
+```bash
+# examples/react-client ディレクトリにて
 npm run build
 ```
+ビルド完了後、`examples/react-client/dist/` ディレクトリ内に完全に自己完結した静的パッケージが生成されます。
 
 ---
 
 ## 🏛️ アーキテクチャと構築ガイドライン
 
-1. **完全な疎結合設計 (GKL オプショナル設計)**:
-   `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも通常プレイに一切影響を与えません。
-2. **未探索セル (`glyphId = 0`) の誤検出防止**:
-   NetHack の Glyph ID 0 は `giant ant` に該当するため、`tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い誤判定を防ぎます。
+1. **SSOT (Single Source of Truth) の遵守**:
+   - メッセージテキストから内部状態を直接推測・変更せず、NetHack 本体のクエリ（`+`, `i`, `^X`, `#enhance` 等）から得られたデータから確定同期します。
+2. **完全な疎結合設計 (GKL オプショナル設計)**:
+   - `WebUICore` 単体でも完全に独立して動作し、`GKLPlugin` を接続しない場合でも通常プレイに一切影響を与えません。
+3. **未探索セル (`glyphId = 0`) の誤検出防止**:
+   - NetHack の Glyph ID 0 は `giant ant` に該当するため、`tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い誤判定を防ぎます。
