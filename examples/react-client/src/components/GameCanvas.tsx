@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { getTileMapping } from '../utils/tileMapping';
-import { useNetHackDriver, onDriverEvent } from '../hooks/useNetHackDriver';
+import { useNetHackDriver } from '../hooks/useNetHackDriver';
 
 const TILE_SIZE = 32;
 const COLS = 80;
@@ -11,9 +11,7 @@ const canvasHeight = ROWS * TILE_SIZE;
 
 export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mapGrid = useGameStore((state) => state.mapGrid);
-  const cursorPos = useGameStore((state) => state.cursorPos);
-  const { inspectTileKnowledge, travelTo } = useNetHackDriver();
+  const { inspectTileKnowledge, travelTo, on, off } = useNetHackDriver();
 
   const tileImageRef = useRef<HTMLImageElement | null>(null);
   const isTileLoadedRef = useRef(false);
@@ -237,11 +235,11 @@ export const GameCanvas: React.FC = () => {
     };
     tileImageRef.current = img;
 
-    const unsubGlyph = onDriverEvent('print_glyph', (data: { x: number; y: number; glyph: number; ch: string; color: number }) => {
+    const handleGlyph = (data: { x: number; y: number; glyph: number; ch: string; color: number }) => {
       drawSingleTile(data.x, data.y, { tileId: data.glyph, symbol: data.ch, color: data.color });
-    });
+    };
 
-    const unsubCursor = onDriverEvent('cursor', (cur: { x: number; y: number }) => {
+    const handleCursor = (cur: { x: number; y: number }) => {
       if (lastCursorRef.current && (lastCursorRef.current.x !== cur.x || lastCursorRef.current.y !== cur.y)) {
         const prev = lastCursorRef.current;
         const prevTile = useGameStore.getState().mapGrid[prev.y]?.[prev.x];
@@ -250,21 +248,25 @@ export const GameCanvas: React.FC = () => {
       lastCursorRef.current = { x: cur.x, y: cur.y };
       const curTile = useGameStore.getState().mapGrid[cur.y]?.[cur.x];
       if (curTile) drawSingleTile(cur.x, cur.y, curTile);
-    });
+    };
 
-    const unsubMapCleared = onDriverEvent('map_cleared', () => {
+    const handleMapCleared = () => {
       lastCursorRef.current = null;
       renderFullMap();
-    });
+    };
+
+    on('print_glyph', handleGlyph);
+    on('cursor', handleCursor);
+    on('map_cleared', handleMapCleared);
 
     renderFullMap();
 
     return () => {
-      unsubGlyph();
-      unsubCursor();
-      unsubMapCleared();
+      off('print_glyph', handleGlyph);
+      off('cursor', handleCursor);
+      off('map_cleared', handleMapCleared);
     };
-  }, [renderFullMap, drawSingleTile]);
+  }, [on, off, renderFullMap, drawSingleTile]);
 
   return (
     <div className="game-canvas-container">

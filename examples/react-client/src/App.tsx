@@ -1,10 +1,14 @@
 import React from 'react';
 import { HeaderPanel } from './components/HeaderPanel';
+import { AssistSignalBar } from './components/AssistSignalBar';
 import { MessageLog } from './components/MessageLog';
-import { GameCanvas } from './components/GameCanvas';
+import { GameViewport } from './components/GameViewport';
 import { StatusBar } from './components/StatusBar';
 import { PromptModal } from './components/PromptModal';
-import { GklKnowledgePanel } from './components/GklKnowledgePanel';
+import { InventoryGrid } from './components/InventoryGrid';
+import { ContextActions } from './components/ContextActions';
+import { GklKnowledgeTabs } from './components/GklKnowledgeTabs';
+import { WishModal } from './components/WishModal';
 import { MenuModal } from './components/MenuModal';
 import { TextWindowModal } from './components/TextWindowModal';
 import { GameOverModal } from './components/GameOverModal';
@@ -17,40 +21,52 @@ export const App: React.FC = () => {
       {/* 1. ヘッダーエリア (HeaderPanel) */}
       <HeaderPanel />
 
-      {/* メインゲームビュー (2カラム ワークスペース) */}
-      <main className="game-workspace">
-        {/* 左エリア: ゲーム画面・ログ・ステータス */}
-        <section className="game-main-area">
-          {/* 2. メッセージログ (MessageLog) */}
+      {/* 2. メインゲームビュー (GKL 2カラム ワークスペース) */}
+      <main className="game-view gkl-workspace">
+        {/* 左エリア: アシストシグナルバー、ログ、ダンジョンマップ親コンテナ、ステータス、プロンプト */}
+        <section className="left-workspace">
+          {/* 🚨 HUD 最優先アシストシグナルバー (Level 2 & Level 3) */}
+          <AssistSignalBar />
+
+          {/* メッセージログエリア (MessageLog) */}
           <MessageLog />
 
-          {/* 3. ダンジョンマップ (GameCanvas) */}
-          <GameCanvas />
+          {/* ダンジョンマップエリア (GameViewport: メインCanvas + FocusCamera + FloorLandmarksHud) */}
+          <GameViewport />
 
-          {/* 4. ステータスバー (StatusBar) */}
+          {/* 横型ステータスバー (StatusBar + HP/MP ゲージバー + 詳細展開) */}
           <StatusBar />
 
-          {/* 5. 入力プロンプト (PromptModal) */}
+          {/* プロンプト入力バー (PromptModal) */}
           <PromptModal />
         </section>
 
-        {/* 右エリア: GKL ナレッジ ＆ 推奨アクション */}
-        <aside className="game-side-area">
-          {/* 6. GKL 状況推論 ＆ ナレッジアシストパネル (GklKnowledgePanel) */}
-          <GklKnowledgePanel />
+        {/* 右エリア: GKL 所持品 ＆ 推奨アクション ＆ 構造化ナレッジ (3段カード構造) */}
+        <aside className="gkl-side-panel">
+          {/* 🎒 上段: アイコン型常時表示インベントリ */}
+          <InventoryGrid />
+
+          {/* 🧠 中段: 推奨アクションパネル ＋ 「囲」型 3x3 方向パッドフィルター */}
+          <ContextActions />
+
+          {/* 💡 下段: 構造化ナレッジ ＆ 戦術アドバイス (タブ切替カード) */}
+          <GklKnowledgeTabs />
         </aside>
       </main>
 
-      {/* 7. インベントリ / メニューモーダル (MenuModal) */}
+      {/* ✨ 願い（#wish）ビルダーモーダル (WishModal) */}
+      <WishModal />
+
+      {/* メニュー / アイテム選択モーダル (MenuModal) */}
       <MenuModal />
 
-      {/* 8. テキスト・ヘルプ閲覧モーダル (TextWindowModal) */}
+      {/* テキスト・ヘルプ閲覧モーダル (TextWindowModal) */}
       <TextWindowModal />
 
-      {/* 9. ゲームオーバー & スコアボード (GameOverModal) */}
+      {/* ゲームオーバー & スコアボード (GameOverModal) */}
       <GameOverModal />
 
-      {/* 10. セーブデータ検出・選択ダイアログ (SaveSelectorModal) */}
+      {/* セーブデータ検出・選択ダイアログ (SaveSelectorModal) */}
       <SaveSelectorModal />
     </div>
   );
