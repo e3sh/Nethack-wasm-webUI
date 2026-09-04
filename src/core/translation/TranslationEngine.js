@@ -359,88 +359,234 @@ export class TranslationEngine {
     }
 
     /**
-     * NetHack アイテム名分解 ＆ 日本語合成構文解析
+     * NetHack 5.0 アイテム名分解 ＆ 日本語合成構文解析
      */
     decomposeItemName(msg) {
-        let itemResult = msg;
+        if (!msg || typeof msg !== 'string') return msg;
+
+        let cur = msg.trim();
         let suffix = "";
-        let suffixMatch = itemResult.match(/(.*?)(\s*\(.*?\))$/);
-        if (suffixMatch) {
-            itemResult = suffixMatch[1];
-            suffix = suffixMatch[2];
+        let contents = "";
+
+        // 1. Suffix (接尾辞) の抽出
+        // 1a. 括弧付き接尾辞: 例: (being worn), (0:5), (weapon in right hand), (for sale, 50 zorkmids)
+        const parenMatch = cur.match(/^(.*?)(\s*\([^(]*?\))$/);
+        if (parenMatch) {
+            cur = parenMatch[1].trim();
+            suffix = parenMatch[2];
         }
 
+        // 1b. 括弧なし内容物: 例: containing 3 items
+        const contMatch = cur.match(/^(.*?)\s+(containing\s+\d+\s+items?)$/i);
+        if (contMatch) {
+            cur = contMatch[1].trim();
+            const trCont = this.translate(contMatch[2]);
+            if (trCont && trCont !== contMatch[2]) {
+                contents = /^[（【『「]/.test(trCont) ? trCont : ` (${trCont})`;
+            } else {
+                contents = ` (${contMatch[2]})`;
+            }
+        }
+
+        // 2. Prefix 多段抽出パイプライン
+        // 2a. 数量/冠詞 (Quantity / Article / Pronoun)
         let quantity = "";
-        let qtyMatch = itemResult.match(/^(Your|your|The|A|An|the|a|an|\d+)\s+(.*)$/i);
+        let isYour = false;
+        let isSome = false;
+        const qtyMatch = cur.match(/^(Your|your|The|the|A|An|a|an|some|\d+)\s+(.*)$/i);
         if (qtyMatch) {
-            quantity = qtyMatch[1];
-            itemResult = qtyMatch[2];
+            const qStr = qtyMatch[1];
+            cur = qtyMatch[2].trim();
+            if (/^your$/i.test(qStr)) {
+                isYour = true;
+            } else if (/^some$/i.test(qStr)) {
+                isSome = true;
+            } else if (/^\d+$/.test(qStr)) {
+                quantity = qStr;
+            }
         }
 
+        // 2b. 空状態 (Empty)
         let empty = "";
-        let emptyMatch = itemResult.match(/^(empty)\s+(.*)$/i);
+        const emptyMatch = cur.match(/^(empty)\s+(.*)$/i);
         if (emptyMatch) {
             empty = emptyMatch[1];
-            itemResult = emptyMatch[2];
+            cur = emptyMatch[2].trim();
         }
 
+        // 2c. BUC 状態 (Blessed / Cursed / Uncursed)
         let buc = "";
-        let bucMatch = itemResult.match(/^(blessed|cursed|uncursed|locked|unlocked|trapped|broken)\s+(.*)$/i);
+        const bucMatch = cur.match(/^(blessed|cursed|uncursed)\s+(.*)$/i);
         if (bucMatch) {
             buc = bucMatch[1];
-            itemResult = bucMatch[2];
+            cur = bucMatch[2].trim();
         }
 
-        let erosion = "";
-        let erosionMatch = itemResult.match(
-            /^(greased|burnt|very burnt|thoroughly burnt|rustproof|rusty|very rusty|thoroughly rusty|rusted|very rusted|thoroughly rusted|corroded|very corroded|thoroughly corroded|rotted|very rotted|thoroughly rotted|poisoned)\s+(.*)$/i
-        );
-        if (erosionMatch) {
-            erosion = erosionMatch[1];
-            itemResult = erosionMatch[2];
+        // 2d. 罠状態 (Trapped)
+        let trapped = "";
+        const trapMatch = cur.match(/^(trapped)\s+(.*)$/i);
+        if (trapMatch) {
+            trapped = trapMatch[1];
+            cur = trapMatch[2].trim();
         }
 
+        // 2e. 施錠状態 (Locked / Unlocked / Broken)
+        let locked = "";
+        const lockMatch = cur.match(/^(locked|unlocked|broken)\s+(.*)$/i);
+        if (lockMatch) {
+            locked = lockMatch[1];
+            cur = lockMatch[2].trim();
+        }
+
+        // 2f. 油 / 使用状態 / 食用状態 (Greased / Partly used / Partly eaten)
+        let greaseUse = "";
+        const greaseUseMatch = cur.match(/^(greased|partly used|partly eaten)\s+(.*)$/i);
+        if (greaseUseMatch) {
+            greaseUse = greaseUseMatch[1];
+            cur = greaseUseMatch[2].trim();
+        }
+
+        // 2g. 毒 (Poisoned)
+        let poisoned = "";
+        const poisonMatch = cur.match(/^(poisoned)\s+(.*)$/i);
+        if (poisonMatch) {
+            poisoned = poisonMatch[1];
+            cur = poisonMatch[2].trim();
+        }
+
+        // 2h. 侵食状態 (Erosion 1 & 2): (very |thoroughly )?(rusty|cracked|burnt|corroded|rotted)
+        let erosion1 = "";
+        const ero1Match = cur.match(/^((?:very |thoroughly )?(?:rusty|cracked|burnt))\s+(.*)$/i);
+        if (ero1Match) {
+            erosion1 = ero1Match[1];
+            cur = ero1Match[2].trim();
+        }
+
+        let erosion2 = "";
+        const ero2Match = cur.match(/^((?:very |thoroughly )?(?:corroded|rotted))\s+(.*)$/i);
+        if (ero2Match) {
+            erosion2 = ero2Match[1];
+            cur = ero2Match[2].trim();
+        }
+
+        // 2i. 耐性 (Proof)
+        let proof = "";
+        const proofMatch = cur.match(/^(fixed|rustproof|corrodeproof|fireproof|tempered|rotproof)\s+(.*)$/i);
+        if (proofMatch) {
+            proof = proofMatch[1];
+            cur = proofMatch[2].trim();
+        }
+
+        // 2j. 修正値 (Enchantment) & 数量単位 (Pair of) - 順不同対応
         let enchant = "";
-        let enchantMatch = itemResult.match(/^([+-]\d+)\s+(.*)$/);
-        if (enchantMatch) {
-            enchant = enchantMatch[1];
-            itemResult = enchantMatch[2];
-        }
-
         let pairof = "";
-        let pairofMatch = itemResult.match(/^(pair of)\s+(.*)$/i);
-        if (pairofMatch) {
-            pairof = pairofMatch[1];
-            itemResult = pairofMatch[2];
+        for (let k = 0; k < 2; k++) {
+            if (!pairof) {
+                const pairofMatch = cur.match(/^(pair of)\s+(.*)$/i);
+                if (pairofMatch) {
+                    pairof = pairofMatch[1];
+                    cur = pairofMatch[2].trim();
+                }
+            }
+            if (!enchant) {
+                const enchantMatch = cur.match(/^([+-]\d+)\s+(.*)$/);
+                if (enchantMatch) {
+                    enchant = enchantMatch[1];
+                    cur = enchantMatch[2].trim();
+                }
+            }
         }
 
-        let bodyTranslated = this.lookupWord(itemResult, 'noun');
+        // 3. アイテム本体名 (xname) の分解
+        // 3a. 希釈 (Diluted)
+        let diluted = "";
+        const diluteMatch = cur.match(/^(diluted)\s+(.*)$/i);
+        if (diluteMatch) {
+            diluted = diluteMatch[1];
+            cur = diluteMatch[2].trim();
+        }
 
+        // 3b. ユーザー命名 (called <name>) または 固有名 (named <name>)
+        let called = "";
+        let named = "";
+        const calledMatch = cur.match(/^(.*?)\s+called\s+(.*)$/i);
+        if (calledMatch) {
+            cur = calledMatch[1].trim();
+            called = calledMatch[2].trim();
+        } else {
+            const namedMatch = cur.match(/^(.*?)\s+named\s+(.*)$/i);
+            if (namedMatch) {
+                cur = namedMatch[1].trim();
+                named = namedMatch[2].trim();
+            }
+        }
+
+        // 3c. 本体名の辞書引き (単数形・複数形・パターン照合)
+        let bodyTranslated = this.lookupWord(cur, 'noun');
         let singularBody = "";
         if (!bodyTranslated) {
-            singularBody = itemResult.replace(/s(\s+of\s+)/i, "$1").replace(/s$/i, "");
+            // 不規則複数形・通常複数形変換
+            singularBody = cur
+                .replace(/\bknives\b/gi, "knife")
+                .replace(/\bboots\b/gi, "boot")
+                .replace(/\bgloves\b/gi, "glove")
+                .replace(/\bshoes\b/gi, "shoe")
+                .replace(/\bteeth\b/gi, "tooth")
+                .replace(/s(\s+of\s+)/i, "$1")
+                .replace(/s$/i, "");
             bodyTranslated = this.lookupWord(singularBody, 'noun');
         }
 
         if (!bodyTranslated) {
-            bodyTranslated = this.applyPatterns(singularBody || itemResult);
+            bodyTranslated = this.applyPatterns(singularBody || cur);
         }
 
+        // 4. 日本語構文合成
         if (bodyTranslated) {
             let finalMsg = "";
+            if (isYour) finalMsg += (this.lookupWord('your', 'adj') || this.translate('Your') || 'あなたの') + " ";
             if (empty) finalMsg += (this.lookupWord(empty, 'adj') || this.translate(empty)) + " ";
             if (buc) finalMsg += (this.lookupWord(buc, 'adj') || this.translate(buc)) + " ";
-            if (erosion) finalMsg += (this.lookupWord(erosion, 'adj') || this.translate(erosion)) + " ";
-            if (enchant) finalMsg += enchant + " ";
+            if (trapped) finalMsg += (this.lookupWord(trapped, 'adj') || this.translate(trapped)) + " ";
+            if (locked) finalMsg += (this.lookupWord(locked, 'adj') || this.translate(locked)) + " ";
+            if (greaseUse) finalMsg += (this.lookupWord(greaseUse, 'adj') || this.translate(greaseUse)) + " ";
+            if (poisoned) finalMsg += (this.lookupWord(poisoned, 'adj') || this.translate(poisoned)) + " ";
+            if (erosion1) finalMsg += (this.lookupWord(erosion1, 'adj') || this.translate(erosion1)) + " ";
+            if (erosion2) finalMsg += (this.lookupWord(erosion2, 'adj') || this.translate(erosion2)) + " ";
+            if (proof) finalMsg += (this.lookupWord(proof, 'adj') || this.translate(proof)) + " ";
             if (pairof) finalMsg += (this.lookupWord(pairof, 'adj') || this.translate(pairof)) + " ";
+            if (enchant) finalMsg += enchant + " ";
+            if (diluted) finalMsg += (this.lookupWord(diluted, 'adj') || this.translate(diluted)) + " ";
 
             finalMsg += bodyTranslated;
 
-            if (quantity && !(/^(The|A|An|the|a|an)$/i.test(quantity))) {
-                finalMsg += " (" + quantity + "個)";
+            if (called) finalMsg += `（呼称: ${called}）`;
+            if (named) finalMsg += `「${named}」`;
+
+            if (quantity) {
+                finalMsg += ` (${quantity}個)`;
+            } else if (isSome) {
+                finalMsg += ` (複数)`;
             }
+
+            if (contents) {
+                finalMsg += contents;
+            }
+
             if (suffix) {
-                finalMsg += this.translate(suffix);
+                const trimmedSuffix = suffix.trim();
+                const trSuffix = this.translate(trimmedSuffix);
+
+                if (trSuffix && trSuffix !== trimmedSuffix) {
+                    // 全角括弧で始まっていればスペースなし、半角ならスペース付与
+                    if (/^[（【『「]/.test(trSuffix)) {
+                        finalMsg += trSuffix;
+                    } else {
+                        finalMsg += " " + trSuffix;
+                    }
+                } else {
+                    finalMsg += suffix;
+                }
             }
             return finalMsg.trim();
         }

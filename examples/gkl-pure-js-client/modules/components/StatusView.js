@@ -104,7 +104,18 @@ export class StatusView {
       this.elStGold.innerHTML = '💰 0';
     }
 
-    const conds = (status.conditions || []).concat(status.hunger ? [status.hunger] : []);
+    const isJa = this.currentLanguage === 'ja' || this.currentLanguage === 'jp';
+    const core = this.getCore();
+    const translateText = (t) => {
+      if (!isJa || !t) return t;
+      if (core && typeof core.translate === 'function') {
+        return core.translate(t);
+      }
+      return t;
+    };
+
+    const rawConds = (status.conditions || []).concat(status.hunger ? [status.hunger] : []);
+    const conds = rawConds.map(c => translateText(c));
     if (this.elStCond) {
       if (conds.length > 0) {
         this.elStCond.classList.remove('hidden');
@@ -123,7 +134,7 @@ export class StatusView {
       if (this.elStWis) this.elStWis.textContent = status.stats.wis !== undefined ? status.stats.wis : '--';
       if (this.elStCha) this.elStCha.textContent = status.stats.cha !== undefined ? status.stats.cha : '--';
     }
-    if (this.elStAlign) this.elStAlign.textContent = status.align || 'Neutral';
+    if (this.elStAlign) this.elStAlign.textContent = translateText(status.align) || (isJa ? '中立' : 'Neutral');
 
     // 累積経験値
     if (this.elStExp) {
