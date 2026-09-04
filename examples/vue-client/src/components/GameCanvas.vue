@@ -65,7 +65,7 @@ function handleMouseMove(e: MouseEvent) {
   }
 }
 
-function handleClick(e: MouseEvent) {
+async function handleClick(e: MouseEvent) {
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
@@ -79,7 +79,11 @@ function handleClick(e: MouseEvent) {
   const gridY = Math.floor(canvasY / TILE_SIZE);
 
   if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
-    travelTo(gridX, gridY);
+    // 1. オンデマンド Look 確定実行 (isHover: false)
+    await inspectTileKnowledge(gridX, gridY, false);
+
+    // 2. 移動実行 (モンスターマスの場合は travelTo が自動安全抑止)
+    await travelTo(gridX, gridY);
   }
 }
 
@@ -309,17 +313,18 @@ function getTTYColor(colorIdx: number): string {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #050505;
-  border: 2px solid #00adb5;
-  border-radius: 6px;
-  overflow: auto;
-  padding: 6px;
-  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  overflow: hidden;
 }
 
 .game-canvas {
-  max-width: 100%;
+  width: 100%;
+  max-width: 1280px;
   height: auto;
+  aspect-ratio: 80 / 21;
   image-rendering: pixelated;
+  display: block;
 }
 </style>

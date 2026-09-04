@@ -296,6 +296,9 @@ export class GKLPlugin {
                 this.attributeStateManager.extrinsics = {};
             }
         }
+        if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
+            this.situationCache.invalidate();
+        }
         if (this.silentSyncTracker) {
             this.silentSyncTracker.totalCount = 0;
             this.silentSyncTracker.syncCounts = {
@@ -533,15 +536,7 @@ export class GKLPlugin {
 
         // 新規ゲーム開始・リスタート時のキャッシュ初期化
         const handleGameReset = () => {
-            if (this.areaStateManager && typeof this.areaStateManager.clearLandmarkCache === 'function') {
-                this.areaStateManager.clearLandmarkCache();
-            }
-            if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
-                this.areaStateManager.resetGrid();
-            }
-            if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
-                this.situationCache.invalidate();
-            }
+            this.reset();
         };
         addCoreListener('restarted', handleGameReset);
 

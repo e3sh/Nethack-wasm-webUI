@@ -75,7 +75,7 @@ watch(activeMenu, (newVal) => {
   if (newVal) {
     selectedIndices.value = [];
     isSubmitting.value = false;
-    const firstSelectable = newVal.items.findIndex(it => !it.isHeader && (it.identifier !== undefined && it.identifier !== 0));
+    const firstSelectable = newVal.items.findIndex((it: any) => !it.isHeader && (it.identifier !== undefined && it.identifier !== 0));
     focusedIndex.value = firstSelectable >= 0 ? firstSelectable : -1;
   }
 });

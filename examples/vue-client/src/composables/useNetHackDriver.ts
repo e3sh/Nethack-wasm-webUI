@@ -91,6 +91,7 @@ class NetHackDriverController {
       const field = data.field;
       const value = data.value;
       gameStore.updateStatus(field, value, data);
+      this.updateGklSituation();
     });
 
     this.core.on('cursor', ({ x, y }: { x: number; y: number }) => {
@@ -109,12 +110,90 @@ class NetHackDriverController {
     this.core.on('spellsStateUpdated', () => this.updateGklSituation());
     this.core.on('skillsStateUpdated', () => this.updateGklSituation());
 
+    // 🎨 Visual FX 演出トリガーイベント (fx_trigger) 購読＆完全マッピング
+    this.core.on('fx_trigger', (fx: any) => {
+      if (!fx || !fx.type) return;
+      const now = performance.now();
+
+      if (fx.type === 'ATTACK_HIT') {
+        gameStore.triggerFx({
+          type: 'SLASH',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          startTime: now,
+          durationMs: 130
+        });
+      } else if (fx.type === 'DAMAGE_TAKEN') {
+        gameStore.triggerFx({
+          type: 'DAMAGE_FLASH',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          amount: fx.amount,
+          startTime: now,
+          durationMs: 160
+        });
+        gameStore.triggerScreenShake(3, 100);
+      } else if (fx.type === 'KILL_CONFIRMED') {
+        gameStore.triggerFx({
+          type: 'KILL_BURST',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          startTime: now,
+          durationMs: 200
+        });
+      } else if (fx.type === 'RECOVER_HEAL') {
+        gameStore.triggerFx({
+          type: 'HEAL_RING',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          amount: fx.amount,
+          startTime: now,
+          durationMs: 250
+        });
+      } else if (fx.type === 'PLAYER_DIED') {
+        gameStore.setIsPlayerDead(true);
+        gameStore.triggerScreenShake(5, 300);
+        gameStore.triggerFx({
+          type: 'DEATH_BURST',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          startTime: now,
+          durationMs: 1200
+        });
+      } else if (fx.type === 'PLAYER_RESURRECTED') {
+        gameStore.setIsPlayerDead(false);
+        gameStore.triggerFx({
+          type: 'HEAL_RING',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: true,
+          startTime: now,
+          durationMs: 400
+        });
+      } else {
+        // 直接渡された FX
+        gameStore.triggerFx({
+          ...fx,
+          startTime: now,
+          durationMs: fx.durationMs || 250
+        });
+      }
+
+      this.emit('fx_trigger', fx);
+    });
+
     this.core.on('map_cleared', () => {
       gameStore.clearMapGrid();
       this.emit('map_cleared', {});
     });
 
     this.core.on('restarted', () => {
+      if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
+        this.core.gkl.reset();
+      }
       gameStore.resetAllState();
     });
 
@@ -129,6 +208,12 @@ class NetHackDriverController {
 
     this.core.on('inputRequired', (payload: any) => {
       const { category, context, prompt, items, choices, resolver } = payload;
+
+      // 🎯 GKL 願い（#wish）コンテキスト判定
+      if (payload.subCategory === 'WISH' || (payload.assistant && payload.assistant.type === 'WISH')) {
+        gameStore.setWishData(payload);
+        return;
+      }
 
       // 1. メニューモーダル
       if (category === 'MENU' || payload.inputType === 'MENU' || context === 'select_menu') {
@@ -152,8 +237,18 @@ class NetHackDriverController {
         return;
       }
 
-      // GKL (Game Knowledge Layer) 状況の同期更新 (core.gkl.getSituation())
-      if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
+      // 🎯 キャラクター作成・名前入力・ゲーム未開始プロンプト時の GKL 強制クリア
+      const isCharacterCreation = category === 'ASKNAME' ||
+        (typeof prompt === 'string' && (prompt.includes('Who are you?') || prompt.includes('What is your name?'))) ||
+        gameStore.status.hpMax === 0;
+
+      if (isCharacterCreation) {
+        if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
+          this.core.gkl.reset();
+        }
+        gameStore.setGklSituation(null);
+      } else if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
+        // GKL (Game Knowledge Layer) 状況の同期更新
         const situation = this.core.gkl.getSituation();
         gameStore.setGklSituation(situation);
       }
@@ -166,12 +261,14 @@ class NetHackDriverController {
       gameStore.setPrompt(null);
       gameStore.setMenu(null);
       gameStore.setTextModal(null);
+      gameStore.setWishData(null);
     });
 
     this.core.on('gameOver', (result: any) => {
       gameStore.setPrompt(null);
       gameStore.setMenu(null);
       gameStore.setTextModal(null);
+      gameStore.setWishData(null);
       gameStore.setGameOverResult(result);
 
       if (result && result.reason === 'save_and_exit') {
@@ -190,6 +287,14 @@ class NetHackDriverController {
         }
       } else {
         gameStore.setEngineState('GAMEOVER');
+        gameStore.setIsPlayerDead(true);
+        // 死亡エフェクトを即座に自キャラ位置に発火
+        gameStore.triggerFx({
+          type: 'DEATH_BURST',
+          followPlayer: true,
+          startTime: performance.now(),
+          durationMs: 900
+        });
         if (result && result.deathMessage) {
           gameStore.addMessage(`☠️ ${result.deathMessage}`);
         } else {
@@ -281,6 +386,10 @@ class NetHackDriverController {
     const gameStore = useGameStore();
     gameStore.resetAllState();
 
+    if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
+      this.core.gkl.reset();
+    }
+
     const shouldClear = options.clearStorage ?? false;
 
     if (this.core && typeof this.core.restart === 'function') {
@@ -345,19 +454,27 @@ class NetHackDriverController {
     }
   }
   private updateGklSituation() {
+    const gameStore = useGameStore();
+    if (gameStore.isPlayerDead || gameStore.engineState === 'GAMEOVER' || gameStore.status.hpMax <= 0) {
+      return;
+    }
     if (this.core && this.core.gkl && typeof this.core.gkl.getSituation === 'function') {
-      const gameStore = useGameStore();
       gameStore.setGklSituation(this.core.gkl.getSituation());
     }
   }
 
   public executeAction(action: any) {
-    if (this.core) {
-      if (typeof this.core.executeAction === 'function') {
-        return this.core.executeAction(action);
-      } else if (this.core.gkl && typeof this.core.gkl.executeAction === 'function') {
-        return this.core.gkl.executeAction(action);
-      }
+    if (!action || !this.core) return false;
+    const rawAction = typeof action === 'object' ? JSON.parse(JSON.stringify(action)) : action;
+
+    if (rawAction.keySequence && Array.isArray(rawAction.keySequence) && rawAction.keySequence.length > 0) {
+      return this.queueSequence(rawAction.keySequence);
+    }
+
+    if (typeof this.core.executeAction === 'function') {
+      return this.core.executeAction(rawAction);
+    } else if (this.core.gkl && typeof this.core.gkl.executeAction === 'function') {
+      return this.core.gkl.executeAction(rawAction);
     }
     return false;
   }
@@ -365,12 +482,20 @@ class NetHackDriverController {
   public executeSequence(sequence: any[]) {
     if (!this.core) return false;
 
-    // Vue 3 Proxy の解除と純粋な文字列配列化
+    // Vue 3 Proxy の解除と純粋な配列化
     const rawSeq = Array.isArray(sequence)
-      ? sequence.map(item => typeof item === 'object' ? (item.key || item.letter || String(item)) : String(item))
-      : [String(sequence)];
+      ? sequence.map(item => {
+          if (item === null || item === undefined) return '';
+          if (typeof item === 'object') return item.key || item.letter || item.code || String(item);
+          return item;
+        })
+      : [sequence];
 
-    if (typeof this.core.executeSequence === 'function') {
+    if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+      return this.core.driver.queueSequence(rawSeq);
+    } else if (typeof this.core.sendKeySequence === 'function') {
+      return this.core.sendKeySequence(rawSeq);
+    } else if (typeof this.core.executeSequence === 'function') {
       return this.core.executeSequence(rawSeq);
     } else if (this.core.requestController && typeof this.core.requestController.executeSequence === 'function') {
       return this.core.requestController.executeSequence(rawSeq);
@@ -473,7 +598,7 @@ class NetHackDriverController {
           if (gridTile) {
             symbol = gridTile.symbol || ' ';
             color = gridTile.color;
-            if (gridTile.tileId === 0 && symbol === ' ') {
+            if (symbol === ' ' || (gridTile.tileId === 0 && !isPlayer)) {
               glyphId = -1;
               name = isEn ? 'Unexplored' : '未探索';
             } else {
@@ -481,7 +606,7 @@ class NetHackDriverController {
             }
           }
 
-          if (asm && typeof asm.getGlyph === 'function') {
+          if (asm && typeof asm.getGlyph === 'function' && symbol !== ' ') {
             const asmGlyph = asm.getGlyph(tx, ty);
             if (asmGlyph > 0) glyphId = asmGlyph;
           }
@@ -491,11 +616,12 @@ class NetHackDriverController {
             if (knowledge && knowledge.name) {
               name = knowledge.name;
             }
-          } else if (glyphId === 0 && symbol !== ' ' && sk && typeof sk.getKnowledge === 'function') {
+          } else if (glyphId === 0 && symbol !== ' ' && isPlayer && sk && typeof sk.getKnowledge === 'function') {
             knowledge = sk.getKnowledge(0);
             if (knowledge && knowledge.name) name = knowledge.name;
           } else if (symbol === ' ') {
             name = isEn ? 'Unexplored' : '未探索';
+            knowledge = null;
           }
         }
 
@@ -518,11 +644,11 @@ class NetHackDriverController {
     return tiles;
   }
 
-  public inspectTileKnowledge(x: number, y: number) {
+  public async inspectTileKnowledge(x: number, y: number, isHover: boolean = true) {
     const gameStore = useGameStore();
     if (!this.core || !this.core.gkl) {
       gameStore.setHoveredTileKnowledge(null);
-      return;
+      return null;
     }
 
     const ix = Math.floor(x);
@@ -530,27 +656,48 @@ class NetHackDriverController {
 
     if (ix < 0 || ix >= 80 || iy < 0 || iy >= 21) {
       gameStore.setHoveredTileKnowledge(null);
-      return;
+      return null;
+    }
+
+    const gridTile = gameStore.mapGrid[iy]?.[ix];
+    // 空白マス（未探索）の場合はナレッジカードなし
+    if (!gridTile || gridTile.symbol === ' ') {
+      gameStore.setHoveredTileKnowledge(null);
+      return null;
     }
 
     const gkl = this.core.gkl;
+    if (typeof gkl.inspectCellOnDemand === 'function') {
+      try {
+        const cardData = await gkl.inspectCellOnDemand({ x: ix, y: iy }, { isHover });
+        if (cardData) {
+          gameStore.setHoveredTileKnowledge({ x: ix, y: iy, knowledge: cardData, isClickConfirmed: !isHover });
+          return cardData;
+        }
+      } catch (err) {
+        console.warn("[inspectTileKnowledge] onDemand inspect error:", err);
+      }
+    }
+
     const asm = gkl ? gkl.areaStateManager : null;
     let glyphId = -1;
 
     if (asm && typeof asm.getGlyph === 'function') {
-      glyphId = asm.getGlyph(ix, iy);
+      const g = asm.getGlyph(ix, iy);
+      if (g > 0) glyphId = g;
     }
 
-    if (glyphId < 0) {
-      const gridTile = gameStore.mapGrid[iy]?.[ix];
-      if (gridTile) glyphId = gridTile.tileId;
+    if (glyphId <= 0 && gridTile && gridTile.tileId > 0) {
+      glyphId = gridTile.tileId;
     }
 
-    if (glyphId >= 0 && gkl && gkl.structuredKnowledge && typeof gkl.structuredKnowledge.getKnowledge === 'function') {
+    if (glyphId > 0 && gkl && gkl.structuredKnowledge && typeof gkl.structuredKnowledge.getKnowledge === 'function') {
       const knowledge = gkl.structuredKnowledge.getKnowledge(glyphId);
-      gameStore.setHoveredTileKnowledge({ x: ix, y: iy, glyphId, knowledge });
+      gameStore.setHoveredTileKnowledge({ x: ix, y: iy, glyphId, knowledge, isClickConfirmed: !isHover });
+      return knowledge;
     } else {
       gameStore.setHoveredTileKnowledge(null);
+      return null;
     }
   }
 
@@ -624,6 +771,33 @@ class NetHackDriverController {
     }
   }
 
+  public getCore() {
+    return this.core;
+  }
+
+  public async queueSequence(sequence: any[], options: any = {}) {
+    if (!this.core) return false;
+
+    const rawSeq = Array.isArray(sequence)
+      ? sequence.map(item => {
+          if (item === null || item === undefined) return '';
+          if (typeof item === 'object') return item.key || item.letter || item.code || String(item);
+          return item;
+        })
+      : [sequence];
+
+    const rawOptions = options ? JSON.parse(JSON.stringify(options)) : {};
+
+    if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+      return await this.core.driver.queueSequence(rawSeq, rawOptions);
+    } else if (typeof this.core.sendKeySequence === 'function') {
+      return await this.core.sendKeySequence(rawSeq);
+    } else if (typeof this.core.executeSequence === 'function') {
+      return await this.core.executeSequence(rawSeq);
+    }
+    return false;
+  }
+
   public getAdaptiveSpecs(knowledge: any) {
     const sm = this.core?.gkl?.skillStateManager || null;
     const lang = this.currentLanguage.value || this.core?.language || 'ja';
@@ -642,6 +816,7 @@ export function useNetHackDriver() {
   return {
     isInitialized: driverController.isInitialized,
     currentLanguage: driverController.currentLanguage,
+    getCore: () => driverController.getCore(),
     resumeSavedGame: () => driverController.resumeSavedGame(),
     startNewGame: () => driverController.startNewGame(),
     deleteSaveFile: () => driverController.deleteSaveFile(),
@@ -653,11 +828,12 @@ export function useNetHackDriver() {
     sendAction: (act: any) => driverController.sendAction(act),
     executeAction: (act: any) => driverController.executeAction(act),
     executeSequence: (seq: any[]) => driverController.executeSequence(seq),
+    queueSequence: (seq: any[], options?: any) => driverController.queueSequence(seq, options),
     getGlyphStyle: (glyphId: number, options?: any) => driverController.getGlyphStyle(glyphId, options),
     extractDirectionCode: (act: any) => driverController.extractDirectionCode(act),
     getZoomAreaTiles: (radius?: number) => driverController.getZoomAreaTiles(radius),
     getAdjacentAreaTiles: () => driverController.getZoomAreaTiles(1),
-    inspectTileKnowledge: (x: number, y: number) => driverController.inspectTileKnowledge(x, y),
+    inspectTileKnowledge: (x: number, y: number, isHover?: boolean) => driverController.inspectTileKnowledge(x, y, isHover),
     syncInventorySilent: () => driverController.syncInventorySilent(),
     syncSkillsSilent: () => driverController.syncSkillsSilent(),
     syncSpellsSilent: () => driverController.syncSpellsSilent(),

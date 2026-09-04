@@ -1,18 +1,34 @@
 <template>
   <header class="header-panel">
-    <div class="header-title">
-      <h1>NetHack WebUICore</h1>
-      <span class="subtitle">Vue 3 Sample Client</span>
+    <div class="brand">
+      <span class="logo-icon">🐉</span>
+      <span class="title">NetHack Wasm <small>GKL Vue 3 Client</small></span>
     </div>
 
-    <div class="header-controls">
+    <div class="quick-actions">
+      <button
+        class="btn btn-secondary"
+        @click="toggleViewMode"
+      >
+        {{ viewMode === 'GRAPHIC' ? (isEn ? 'View: 🎨 Graphic Canvas' : 'ビュー切替: 🎨 Graphic Canvas') : (isEn ? 'View: 🔤 ASCII Grid' : 'ビュー切替: 🔤 ASCII Grid') }}
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        @click="toggleZoom"
+      >
+        {{ isZoomEnabled ? (isEn ? '🎯 Focus Camera: ON' : '🎯 ズームカメラ: ON') : (isEn ? '🎯 Focus Camera: OFF' : '🎯 ズームカメラ: OFF') }}
+      </button>
+    </div>
+
+    <div class="controls">
       <span class="engine-badge" :class="engineState.toLowerCase()">
-        State: {{ engineState }}
+        {{ engineState }}
       </span>
 
       <button
         @click="handleRestart"
-        class="btn-control btn-restart"
+        class="btn btn-secondary"
         :title="isEn ? 'Restart game immediately' : 'ゲームを即時再起動'"
       >
         🔄 Restart
@@ -20,10 +36,10 @@
 
       <button
         @click="deleteSaveFile"
-        class="btn-control btn-delete-save"
+        class="btn btn-danger"
         :title="isEn ? 'Delete save file completely' : 'セーブデータを完全削除'"
       >
-        🗑️ Del Save
+        🗑️ Delete Save
       </button>
     </div>
   </header>
@@ -37,7 +53,8 @@ import { storeToRefs } from 'pinia';
 
 const { deleteSaveFile, restartGame, currentLanguage } = useNetHackDriver();
 const gameStore = useGameStore();
-const { engineState } = storeToRefs(gameStore);
+const { engineState, viewMode, isZoomEnabled } = storeToRefs(gameStore);
+const { toggleViewMode, toggleZoom } = gameStore;
 
 const isEn = computed(() => currentLanguage.value === 'en');
 
@@ -54,64 +71,88 @@ function handleRestart() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #16213e;
-  padding-bottom: 12px;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  gap: 12px;
 }
 
-.header-title h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #4ecca3;
-  display: inline-block;
-}
-
-.subtitle {
-  margin-left: 10px;
-  font-size: 13px;
-  color: #7f8c8d;
-}
-
-.header-controls {
+.brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 22px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.title small {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+.quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .engine-badge {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
   font-family: monospace;
 }
 
-.engine-badge.running { background: #2ecc71; color: #111; }
-.engine-badge.idle { background: #7f8c8d; color: #fff; }
-.engine-badge.saved { background: #f39c12; color: #111; }
-.engine-badge.gameover { background: #e74c3c; color: #fff; }
+.engine-badge.running { background: #10b981; color: #022c22; }
+.engine-badge.idle { background: #64748b; color: #f8fafc; }
+.engine-badge.saved { background: #f59e0b; color: #451a03; }
+.engine-badge.gameover { background: #ef4444; color: #ffffff; }
 
-.btn-control {
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
+.btn {
+  padding: 5px 12px;
+  border-radius: 6px;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
 }
 
-.btn-restart {
-  background: #2980b9;
-}
-.btn-restart:hover {
-  background: #3498db;
+.btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
 }
 
-.btn-delete-save {
-  background: #c0392b;
+.btn-secondary:hover {
+  background: #475569;
+  color: #ffffff;
 }
-.btn-delete-save:hover {
-  background: #e74c3c;
+
+.btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
 }
 </style>

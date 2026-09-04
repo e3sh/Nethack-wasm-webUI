@@ -379,7 +379,7 @@ export class SpellStateManager {
             'detect treasure': { level: 4, category: 'divination' },
             '財宝探知': { level: 4, category: 'divination' },
             'jumping': { level: 1, category: 'escape' },
-            '跳躍': { level: 1, category: 'escape' },
+                    '跳躍': { level: 1, category: 'escape' },
             'teleport away': { level: 6, category: 'escape' },
             'テレポート': { level: 6, category: 'escape' },
             'invisibility': { level: 4, category: 'escape' },
@@ -417,9 +417,9 @@ export class SpellStateManager {
     }
 
     /**
-     * メッセージテキストからの学習・忘却・変化検知
-     * メッセージから勝手にリストを捏造せず、検知時にキャッシュを無効化 (invalidate) して
-     * 正式なサイレント同期 (+ キー) を促す。
+     * メッセージテキストからの学習・復習・忘却検知
+     * メッセージから習得魔法を即時抽出し、this.spells に即座に反映・登録した上で
+     * キャッシュ無効化 (invalidate) を行い、正式なサイレント同期 (+ キー) で確定更新する。
      * @param {string} text 
      * @returns {boolean} 無効化・変化があったかどうか
      */
@@ -437,8 +437,20 @@ export class SpellStateManager {
             return true;
         }
 
-        // 1. 日本語版の学習・復習・忘却メッセージ:
-        // 例: 「力のボルト」の呪文を習得した. / 「治癒」の呪文を呪文一覧に'b'として加えた.
+        // 1. 忘却メッセージ
+        if (lower.includes('forget the spell') || lower.includes('forgot the spell') ||
+            lower.includes('knowledge of the spell') || lower.includes('呪文を忘れた')) {
+            this.invalidate();
+            return true;
+        }
+
+        let detectedSpellName = '';
+        let detectedLetter = '';
+
+        // 2. 日本語版の学習・復習メッセージ:
+        // 例: あなたは「力のボルト」の呪文を習得した。-b-
+        // 例: 「力のボルト」の呪文を呪文一覧に'b'として加えた.
+        // 例: 「力のボルト」の呪文を習得した.
         // 例: 「力のボルト」の呪文に関する知識はより鋭くなった.
         const isJpLearn = /[「"]([^「"」]+)[」"](?:の呪文)?を(?:呪文一覧に'([a-zA-Z])'として加えた|習得した|覚えた)/.test(text) ||
                           /[「"]([^「"」]+)[」"](?:の呪文)?に関する知識は(?:より鋭くなった|元に戻った)/.test(text);
@@ -448,22 +460,15 @@ export class SpellStateManager {
             return true;
         }
 
-        // 2. 英語版の学習・復習メッセージ:
+        // 3. 英語版の学習・復習メッセージ:
         // 例: You add "force bolt" to your repertoire.
         // 例: You learn the spell force bolt!
         // 例: Your knowledge of "force bolt" is sharper.
-        const isEnLearn = /You add "[^"]+" to your repertoire/i.test(text) ||
-                          /You learn the spell\s+/i.test(text) ||
+        const isEnLearn = /You add (?:the\s+)?"[^"]+"(?:\s+spell)? to your repertoire/i.test(text) ||
+                          /You learn (?:the\s+spell\s+|the\s+"[^"]+"\s+spell)/i.test(text) ||
                           /Your knowledge of "[^"]+" is (?:sharper|restored)/i.test(text);
 
         if (isEnLearn) {
-            this.invalidate();
-            return true;
-        }
-
-        // 3. 忘却メッセージ
-        if (lower.includes('forget the spell') || lower.includes('forgot the spell') ||
-            lower.includes('knowledge of the spell') || lower.includes('呪文を忘れた')) {
             this.invalidate();
             return true;
         }
