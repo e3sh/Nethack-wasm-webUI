@@ -312,6 +312,6 @@ npm run test:ui
 - **対処**: 必ず IndexedDB の削除（または `driver.deleteSaveFile()`）を行う必要があります。
 
 #### ⚠️ 3. 「C言語コード（NetHack オリジナル）を変更したのに WASM に反映されない」
-- **注意**: 本システムでは 現状 **本家オリジナルWASM版（win/shim Port `Unix NetHack Version 5.0.0-0 post-release`）** で動作を確認しています。
 - **対処**: `NetHack-NetHack-5.0/build_wasm_50.ps1` を実行して `nethack.wasm` / `nethack.js` を再ビルドしてください。
+- **注意**: 本システムは 現状では**本家オリジナルWASM版（win/shim Port `Unix NetHack Version 5.0.0-0 post-release`）** での動作は確認出来ています。
 
