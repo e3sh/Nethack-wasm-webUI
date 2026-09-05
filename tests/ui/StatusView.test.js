@@ -25,8 +25,8 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
   it('未同期（isSynced: false）時は「検出中...」タグが表示されること', () => {
     statusView.renderGklAttributes({
       isSynced: false,
-      characterInfo: { race: 'human', role: 'archeologist', level: 1 },
-      effectiveResistances: {}
+      characterSummary: null,
+      activeResistances: []
     });
 
     const html = elementsMap['status-attr-detail'].innerHTML;
@@ -37,8 +37,13 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
   it('同期完了時（Human Barbarian Lv.1）に「人間 / 野蛮人 Lv.1」と毒耐性バッジが表示されること', () => {
     statusView.renderGklAttributes({
       isSynced: true,
-      characterInfo: { race: 'human', role: 'barbarian', gender: 'male', level: 1 },
-      effectiveResistances: { poison: true }
+      characterSummary: {
+        race: 'human',
+        role: 'barbarian',
+        displayTagJa: '👤 [人間 / 野蛮人 Lv.1]',
+        displayTagEn: '👤 [Human / Barbarian Lv.1]'
+      },
+      activeResistances: [{ key: 'poison', label: '🧪毒', en: 'Poison' }]
     });
 
     const elContainer = elementsMap['status-attr-detail'];
@@ -49,8 +54,13 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
   it('女性別名職（Cavewoman / 洞窟の女）が正しく日本語表示されること', () => {
     statusView.renderGklAttributes({
       isSynced: true,
-      characterInfo: { race: 'dwarf', role: 'caveman', gender: 'female', level: 1 },
-      effectiveResistances: { infravision: true }
+      characterSummary: {
+        race: 'dwarf',
+        role: 'caveman',
+        displayTagJa: '👤 [ドワーフ / 洞窟の女 Lv.1]',
+        displayTagEn: '👤 [Dwarf / Cavewoman Lv.1]'
+      },
+      activeResistances: [{ key: 'infravision', label: '🌙暗視', en: 'Infravision' }]
     });
 
     const html = elementsMap['status-attr-detail'].innerHTML;
@@ -62,8 +72,16 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
     statusView.setLanguage('en');
     statusView.renderGklAttributes({
       isSynced: true,
-      characterInfo: { race: 'elf', role: 'monk', gender: 'male', level: 3 },
-      effectiveResistances: { sleep: true, fast: true }
+      characterSummary: {
+        race: 'elf',
+        role: 'monk',
+        displayTagJa: '👤 [エルフ / 修道士 Lv.3]',
+        displayTagEn: '👤 [Elf / Monk Lv.3]'
+      },
+      activeResistances: [
+        { key: 'sleep', label: '💤睡眠', en: 'Sleep' },
+        { key: 'fast', label: '⚡俊足', en: 'Fast' }
+      ]
     });
 
     const html = elementsMap['status-attr-detail'].innerHTML;
@@ -75,8 +93,13 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
   it('初期耐性なし（観光客 Tourist Lv.1）でも種族・ロールタグと「属性耐性: なし」が表示されること', () => {
     statusView.renderGklAttributes({
       isSynced: true,
-      characterInfo: { race: 'human', role: 'tourist', gender: 'male', level: 1 },
-      effectiveResistances: {}
+      characterSummary: {
+        race: 'human',
+        role: 'tourist',
+        displayTagJa: '👤 [人間 / 観光客 Lv.1]',
+        displayTagEn: '👤 [Human / Tourist Lv.1]'
+      },
+      activeResistances: []
     });
 
     const html = elementsMap['status-attr-detail'].innerHTML;

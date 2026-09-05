@@ -9,6 +9,7 @@ export class ZoomRenderer {
     btnToggleZoom,
     getSituation,
     getGlyphBuffer,
+    getCore,
     tileImg,
     tileLoaded
   }) {
@@ -20,6 +21,7 @@ export class ZoomRenderer {
 
     this.getSituation = getSituation || (() => null);
     this.getGlyphBuffer = getGlyphBuffer || (() => null);
+    this.getCore = getCore || (() => null);
     this.mainTileImg = tileImg;
     this.mainTileLoaded = tileLoaded;
 
@@ -132,7 +134,6 @@ export class ZoomRenderer {
   renderZoomCanvas(areaState) {
     if (!this.zoomCtx || !this.zoomCanvas) return;
 
-    const grid = areaState?.grid;
     const px = (this.targetCursorX >= 0)
       ? this.targetCursorX
       : ((areaState && typeof areaState.playerX === 'number')
@@ -143,8 +144,6 @@ export class ZoomRenderer {
       : ((areaState && typeof areaState.playerY === 'number')
           ? areaState.playerY
           : (areaState?.playerLocation?.y ?? 0));
-    const width = areaState?.width || 80;
-    const height = areaState?.height || 21;
 
     if (this.zoomPosBadge) {
       this.zoomPosBadge.textContent = `@ (${px},${py})`;
@@ -188,122 +187,78 @@ export class ZoomRenderer {
     const halfRangeY = 4;
     // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px / 死亡時は静止)
     const bounceY = this.isPlayerDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
-    const glyphGridBuffer = this.getGlyphBuffer();
 
-    for (let dy = -halfRangeY; dy <= halfRangeY; dy++) {
-      for (let dx = -halfRangeX; dx <= halfRangeX; dx++) {
-        const gx = px + dx;
-        const gy = py + dy;
+    const core = this.getCore();
+    const tiles = (core && core.gkl && typeof core.gkl.getFocusCameraTiles === 'function')
+      ? core.gkl.getFocusCameraTiles(halfRangeX, halfRangeY, {
+          targetCursorX: this.targetCursorX,
+          targetCursorY: this.targetCursorY,
+          isPlayerDead: this.isPlayerDead
+        })
+      : [];
 
-        const screenX = (dx + halfRangeX) * zoomTileSize;
-        const screenY = (dy + halfRangeY) * zoomTileSize;
+    for (const t of tiles) {
+      const screenX = (t.dx + halfRangeX) * zoomTileSize;
+      const screenY = (t.dy + halfRangeY) * zoomTileSize;
 
-        if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
-          const cell = (grid && grid[gy]) ? grid[gy][gx] : null;
-          const gData = (glyphGridBuffer && glyphGridBuffer[gy] && glyphGridBuffer[gy][gx]) ? glyphGridBuffer[gy][gx] : null;
+      if (t.isUnexplored) {
+        this.zoomCtx.fillStyle = '#000000';
+        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+        continue;
+      }
 
-          // セルに一度でも記憶された地形/アイテム/エンティティ情報があるかチェック
-          // ※ isCachedPreload (プリロード階段) のみの未探索マスはブラックアウトとして扱う
-          const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
-          const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
-          const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
-          const isCurrentPlayerFeet = (dx === 0 && dy === 0);
-          const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isCurrentPlayerFeet);
-
-          if (!hasMemory && !hasNetHackGlyph) {
-            // 未探索マスはブラックアウト
-            this.zoomCtx.fillStyle = '#000000';
-            this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-          } else {
-            if (cell && (cell.bottom || cell.middle || cell.top)) {
-              // Layer 1: Bottom (現フロアで一度でも確認した壁・床・通路等の地形)
-              if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph || isCurrentPlayerFeet)) {
-                this.drawZoomTile(cell.bottom.rawGlyph, cols, tileMap, screenX, screenY, 0);
-              } else if (cell.middle || cell.top) {
-                // Bottom が未確定だがアイテムやモンスターが存在する場合は仮床を描画
-                this.drawZoomTile(3992, cols, tileMap, screenX, screenY, 0);
-              } else if (gData && gData.glyph >= 0) {
-                this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
-              } else {
-                this.zoomCtx.fillStyle = '#121224';
-                this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-              }
-
-              // Layer 2: Middle (アイテム)
-              if (cell.middle && cell.middle.rawGlyph >= 0) {
-                this.drawZoomTile(cell.middle.rawGlyph, cols, tileMap, screenX, screenY, 0);
-              }
-
-              // 自キャラマスのネオン枠ハイライト（自キャラタイルの背面に固定描画）
-              if (dx === 0 && dy === 0) {
-                if (this.isPlayerDead) {
-                  this.zoomCtx.strokeStyle = '#ef4444';
-                  this.zoomCtx.lineWidth = 1;
-                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                } else {
-                  this.zoomCtx.strokeStyle = '#00e676';
-                  this.zoomCtx.lineWidth = 2;
-                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                }
-              }
-
-              // Layer 3: Top (キャラクター/モンスター + バウンス / 死亡時は墓石)
-              if (this.isPlayerDead && dx === 0 && dy === 0) {
-                this.drawZoomTile(4011, cols, tileMap, screenX, screenY, 0);
-              } else if (cell.top && cell.top.rawGlyph >= 0) {
-                this.drawZoomTile(cell.top.rawGlyph, cols, tileMap, screenX, screenY, bounceY);
-              }
-
-              // Layer 4: Effect (稲妻・ビーム・爆発等の過渡的エフェクト)
-              if (cell.effect && cell.effect.rawGlyph >= 0) {
-                this.drawZoomTile(cell.effect.rawGlyph, cols, tileMap, screenX, screenY, 0);
-              }
-            } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
-              if (dx === 0 && dy === 0) {
-                if (this.isPlayerDead) {
-                  this.zoomCtx.strokeStyle = '#ef4444';
-                  this.zoomCtx.lineWidth = 1;
-                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                  this.drawZoomTile(4011, cols, tileMap, screenX, screenY, 0);
-                } else {
-                  this.zoomCtx.strokeStyle = '#00e676';
-                  this.zoomCtx.lineWidth = 2;
-                  this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                  this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
-                }
-              } else {
-                this.drawZoomTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
-              }
-            } else {
-              this.zoomCtx.fillStyle = '#000000';
-              this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-            }
-          }
-
-          // 🎯 ターゲットカーソル枠 または 自キャラ枠の描画（未探索ブラックアウトマス上でも常に最前面に視認可能）
-          const isTargetCursor = (this.targetCursorX >= 0 && gx === this.targetCursorX && gy === this.targetCursorY);
-          const isCenter = (dx === 0 && dy === 0);
-
-          if (isTargetCursor) {
-            this.zoomCtx.strokeStyle = '#ffd700'; // ターゲットカーソル枠（金色）
-            this.zoomCtx.lineWidth = 2;
-            this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-          } else if (isCenter && this.targetCursorX < 0) {
-            if (this.isPlayerDead) {
-              this.zoomCtx.strokeStyle = '#ef4444';
-              this.zoomCtx.lineWidth = 1;
-              this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-            } else {
-              this.zoomCtx.strokeStyle = '#00e676';
-              this.zoomCtx.lineWidth = 2;
-              this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-            }
-          }
-        } else {
-          // 範囲外ブラック
-          this.zoomCtx.fillStyle = '#000000';
-          this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+      if (t.renderGlyphs && t.renderGlyphs.length > 0) {
+        // Layer 1: Bottom (地形)
+        if (t.bottomGlyph !== undefined && t.bottomGlyph >= 0) {
+          this.drawZoomTile(t.bottomGlyph, cols, tileMap, screenX, screenY, 0);
         }
+
+        // Layer 2: Middle (アイテム)
+        if (t.middleGlyph !== undefined && t.middleGlyph >= 0) {
+          this.drawZoomTile(t.middleGlyph, cols, tileMap, screenX, screenY, 0);
+        }
+
+        // 自キャラマスのネオン枠ハイライト
+        if (t.isPlayer) {
+          this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+          this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
+          this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+        }
+
+        // Layer 3: Top (キャラクター/モンスター / 死亡時墓石)
+        if (t.topGlyph !== undefined && t.topGlyph >= 0) {
+          const isBouncingMonster = Boolean(t.cell && t.cell.top && !this.isPlayerDead);
+          this.drawZoomTile(t.topGlyph, cols, tileMap, screenX, screenY, isBouncingMonster ? bounceY : 0);
+        }
+
+        // Layer 4: Effect (過渡的エフェクト)
+        if (t.effectGlyph !== undefined && t.effectGlyph >= 0) {
+          this.drawZoomTile(t.effectGlyph, cols, tileMap, screenX, screenY, 0);
+        }
+      } else if (t.glyphId >= 0) {
+        if (t.isPlayer) {
+          this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+          this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
+          this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+        }
+        this.drawZoomTile(t.glyphId, cols, tileMap, screenX, screenY, 0);
+      } else {
+        this.zoomCtx.fillStyle = '#000000';
+        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+      }
+
+      // 🎯 ターゲットカーソル枠 または 自キャラ枠
+      const isTargetCursor = (this.targetCursorX >= 0 && t.gx === this.targetCursorX && t.gy === this.targetCursorY);
+      const isCenter = (t.dx === 0 && t.dy === 0);
+
+      if (isTargetCursor) {
+        this.zoomCtx.strokeStyle = '#ffd700'; // 金色
+        this.zoomCtx.lineWidth = 2;
+        this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+      } else if (isCenter && this.targetCursorX < 0) {
+        this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+        this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
+        this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
       }
     }
 

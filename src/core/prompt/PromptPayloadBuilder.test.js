@@ -295,4 +295,43 @@ describe('PromptPayloadBuilder', () => {
         expect(res.assistant.categories).toEqual(['ARMOR', 'WEAPON']);
         expect(res.assistant.wishService).toBe(mockWishService);
     });
+
+    it('wand of wishing を含むアイテム選択やメニュープロンプトで誤って WISH と判定されないこと', () => {
+        const mockWishService = {
+            getPresets: () => [],
+            getCatalogByCategory: () => ({})
+        };
+        const mockGkl = {
+            getWishService: () => mockWishService,
+            inventoryStateManager: {
+                items: [{ letter: 'x', text: 'a wand of wishing (0:3)' }]
+            }
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        // 1. zap what? プロンプト
+        const zapPayload = {
+            category: PROMPT_CATEGORY.YN,
+            prompt: "What do you want to zap? [x or ?*]",
+            rawPrompt: "What do you want to zap? [x or ?*]",
+            choices: "x?*"
+        };
+        const zapRes = builder.build(zapPayload);
+        expect(zapRes.subCategory).toBeNull();
+        expect(zapRes.assistant).toBeNull();
+
+        // 2. メニュープロンプト（wand of wishing がメニュー項目に含まれる場合）
+        const menuPayload = {
+            category: PROMPT_CATEGORY.MENU,
+            prompt: "Select item to use:",
+            rawPrompt: "Select item to use:",
+            items: [
+                { str: "x - a wand of wishing (0:3)", ch: 120 }
+            ]
+        };
+        const menuRes = builder.build(menuPayload);
+        expect(menuRes.inputType).toBe('MENU');
+        expect(menuRes.subCategory).toBeNull();
+        expect(menuRes.assistant).toBeNull();
+    });
 });

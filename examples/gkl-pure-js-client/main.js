@@ -50,6 +50,7 @@ class GklPureJSClient {
       btnToggleZoom: this.btnToggleZoom,
       getSituation: () => this.core?.gkl?.getSituation(),
       getGlyphBuffer: () => this.mapRenderer.glyphGridBuffer,
+      getCore: () => this.core,
       tileImg: this.mapRenderer.tileImg,
       tileLoaded: this.mapRenderer.tileLoaded
     });

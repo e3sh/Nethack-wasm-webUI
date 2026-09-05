@@ -1,6 +1,3 @@
-import { ATTRIBUTE_DEFINITIONS } from '../../../../src/core/knowledge/AttributeStateManager.js';
-import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from '../../../../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
-
 /**
  * StatusView - ステータスバー & HP/MPゲージ & 属性耐性 & 呪文/スキルパネルマネージャー
  */
@@ -172,8 +169,6 @@ export class StatusView {
     const elBadges = document.getElementById('status-attr-badges');
     const elDetail = document.getElementById('status-attr-detail');
     const elContainer = document.getElementById('gkl-attributes-list') || elDetail;
-    const res = attrObj?.effectiveResistances || {};
-    const charInfo = attrObj?.characterInfo;
     const isSynced = Boolean(attrObj?.isSynced);
     const isEn = this.currentLanguage === 'en';
 
@@ -185,31 +180,27 @@ export class StatusView {
 
     // 1. 種族・職業（ロール）タグの生成
     let charTagHtml = '';
-    if (isSynced && charInfo && (charInfo.race || charInfo.role)) {
-      const raceData = charInfo.race ? RACE_KNOWLEDGE_MAP[charInfo.race] : null;
-      const roleData = charInfo.role ? ROLE_KNOWLEDGE_MAP[charInfo.role] : null;
-      const raceName = isEn ? (raceData?.name || charInfo.race) : (raceData?.nameJa || charInfo.race);
-      const isFemale = charInfo.gender === 'female';
-      const roleName = isEn
-        ? ((isFemale && roleData?.nameFemale) || roleData?.name || charInfo.role)
-        : ((isFemale && roleData?.nameFemaleJa) || roleData?.nameJa || charInfo.role);
-      const lvlStr = charInfo.level ? ` Lv.${charInfo.level}` : '';
-      const tagText = `👤 [${raceName || '??'} / ${roleName || '??'}${lvlStr}]`;
-      charTagHtml = `<span class="gkl-char-tag" title="${isEn ? 'Detected Race & Role' : '認識された種族・職業'}">${tagText}</span>`;
+    const summary = attrObj?.characterSummary;
+    if (isSynced && summary && (summary.race || summary.role || summary.displayTag)) {
+      const tagText = isEn
+        ? (summary.displayTagEn || summary.displayTag || `👤 [${summary.raceNameEn || summary.race || '??'} / ${summary.roleNameEn || summary.role || '??'}]`)
+        : (summary.displayTagJa || summary.displayTag || `👤 [${summary.raceNameJa || summary.race || '??'} / ${summary.roleNameJa || summary.role || '??'}]`);
+      charTagHtml = `<span class="gkl-char-tag" title="${isEn ? 'Detected Race & Role' : '認識された種族・職業'}">${tagText.startsWith('👤 [') ? tagText : `👤 [${tagText.replace(/^👤\s*/, '')}]`}</span>`;
     } else {
       const tagText = isEn ? '👤 [Role/Race: Detecting...]' : '👤 [種族・職業: 検出中...]';
       charTagHtml = `<span class="gkl-char-tag detecting" title="${isEn ? 'Synchronizing with NetHack core...' : 'NetHackコアと属性同期中...'}">${tagText}</span>`;
     }
 
     // 2. 耐性バッジの生成
-    const activeRes = ATTRIBUTE_DEFINITIONS.filter(item => Boolean(res[item.key]));
+    const activeRes = Array.isArray(attrObj?.activeResistances) ? attrObj.activeResistances : [];
+
     let resHtml = '';
     if (activeRes.length === 0) {
       resHtml = `<span style="color:#64748b; font-size:11px;">${isEn ? '🛡️ Resistances: None' : '🛡️ 属性耐性: なし'}</span>`;
     } else {
       const activeHtml = activeRes.map(item => {
-        const displayLabel = isEn ? (item.en || item.label) : item.label;
-        return `<span class="gkl-attr-badge active" title="${item.label} / ${item.en} (有効)">${displayLabel}</span>`;
+        const displayLabel = isEn ? (item.en || item.name || item.label) : (item.label || item.name);
+        return `<span class="gkl-attr-badge active" title="${item.label || ''} / ${item.en || ''} (有効)">${displayLabel}</span>`;
       }).join(' ');
       resHtml = `<strong style="font-size:11px; color:#94a3b8;">${isEn ? '🛡️ Resistances:' : '🛡️ 属性・能力:'}</strong> ${activeHtml}`;
     }

@@ -517,127 +517,20 @@ class NetHackDriverController {
 
   public extractDirectionCode(action: any): string {
     if (!action) return 'NONE';
-
-    const validDirections = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
-
+    if (action.directionCode) return action.directionCode;
     if (action.dirCode) {
       const c = String(action.dirCode).toUpperCase().replace(/^DIR_/, '');
-      if (validDirections.has(c)) return c;
       if (c === 'FEET' || c === 'CURRENT' || c === 'HERE') return 'SELF';
+      return c;
     }
-
-    if (action.direction) {
-      const code = typeof action.direction === 'object' ? (action.direction.code || action.direction.key) : action.direction;
-      if (code) {
-        const c = String(code).toUpperCase().replace(/^DIR_/, '');
-        if (validDirections.has(c)) return c;
-      }
-    }
-
-    if (action.directionKey) {
-      const cleaned = String(action.directionKey).toUpperCase().replace(/^DIR_/, '');
-      if (validDirections.has(cleaned)) return cleaned;
-      const viKeyMap: Record<string, string> = {
-        'K': 'N', 'L': 'E', 'J': 'S', 'H': 'W',
-        'U': 'NE', 'Y': 'NW', 'N': 'SE', 'B': 'SW', '.': 'SELF', '5': 'SELF',
-        '8': 'N', '6': 'E', '2': 'S', '4': 'W', '9': 'NE', '7': 'NW', '3': 'SE', '1': 'SW'
-      };
-      if (viKeyMap[cleaned]) return viKeyMap[cleaned];
-    }
-
-    if (Array.isArray(action.keySequence)) {
-      const dirToken = action.keySequence.find((t: any) => typeof t === 'string' && t.startsWith('DIR_'));
-      if (dirToken) {
-        const c = dirToken.replace(/^DIR_/, '').toUpperCase();
-        if (validDirections.has(c)) return c;
-      }
-    }
-
-    if (action.target === 'feet' || action.isDirectional === false || action.category === 'SURVIVAL') {
-      return 'SELF';
-    }
-
-    if (action.id) {
-      const match = action.id.match(/_([NESW]|NE|NW|SE|SW|SELF|FEET)$/);
-      if (match) {
-        return match[1] === 'FEET' ? 'SELF' : match[1];
-      }
-    }
-
-    return 'NONE';
+    return 'SELF';
   }
 
-  public getZoomAreaTiles(radius: number = 3): Array<{ dx: number; dy: number; glyphId: number; symbol: string; color: number; name?: string; nameJa: string; knowledge: any; x: number; y: number; isPlayer: boolean }> {
-    const s = useGameStore.getState();
-    const px = s.cursorPos ? s.cursorPos.x : -1;
-    const py = s.cursorPos ? s.cursorPos.y : -1;
-
-    const tiles: Array<any> = [];
-    const gkl = this.core ? this.core.gkl : null;
-    const sk = gkl ? gkl.structuredKnowledge : null;
-    const asm = gkl ? gkl.areaStateManager : null;
-
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const tx = px + dx;
-        const ty = py + dy;
-        const isPlayer = (dx === 0 && dy === 0);
-        let glyphId = -1;
-        let symbol = ' ';
-        let color = 7;
-        let knowledge = null;
-        const isEn = (this.core && this.core.language === 'en');
-        let name = isEn ? 'Out of Sight' : '視界外';
-
-        if (px >= 0 && py >= 0 && tx >= 0 && tx < 80 && ty >= 0 && ty < 21) {
-          const gridTile = s.mapGrid[ty]?.[tx];
-          if (gridTile) {
-            symbol = gridTile.symbol || ' ';
-            color = gridTile.color;
-            if (symbol === ' ' || (gridTile.tileId === 0 && !isPlayer)) {
-              glyphId = -1;
-              name = isEn ? 'Unexplored' : '未探索';
-            } else {
-              glyphId = gridTile.tileId;
-            }
-          }
-
-          if (asm && typeof asm.getGlyph === 'function' && symbol !== ' ') {
-            const asmGlyph = asm.getGlyph(tx, ty);
-            if (asmGlyph > 0) glyphId = asmGlyph;
-          }
-
-          if (glyphId > 0 && sk && typeof sk.getKnowledge === 'function') {
-            knowledge = sk.getKnowledge(glyphId);
-            if (knowledge && knowledge.name) {
-              name = knowledge.name;
-            }
-          } else if (glyphId === 0 && symbol !== ' ' && isPlayer && sk && typeof sk.getKnowledge === 'function') {
-            knowledge = sk.getKnowledge(0);
-            if (knowledge && knowledge.name) name = knowledge.name;
-          } else if (symbol === ' ') {
-            name = isEn ? 'Unexplored' : '未探索';
-            knowledge = null;
-          }
-        }
-
-        tiles.push({
-          dx,
-          dy,
-          glyphId,
-          symbol,
-          color,
-          name,
-          nameJa: name,
-          knowledge,
-          x: tx,
-          y: ty,
-          isPlayer,
-        });
-      }
+  public getZoomAreaTiles(radius: number = 3): Array<any> {
+    if (this.core && this.core.gkl && typeof this.core.gkl.getFocusCameraTiles === 'function') {
+      return this.core.gkl.getFocusCameraTiles(radius, radius);
     }
-
-    return tiles;
+    return [];
   }
 
   public async inspectTileKnowledge(x: number, y: number, isHover: boolean = true) {

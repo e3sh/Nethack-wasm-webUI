@@ -587,7 +587,57 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(asm.grid[10][11].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
             expect(asm.grid[10][11].bottom.inferred).toBeUndefined();
         });
+
+        it('getFocusCameraTiles がプレイヤー中心の整形済みタイルグリッドを正しく返却すること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+
+            // (10, 10) に床
+            asm.updateGlyph(10, 10, 3992);
+            // (11, 10) にモンスター (jackal: glyph 1)
+            asm.updateGlyph(11, 10, 1);
+
+            const tiles = asm.getFocusCameraTiles(2, 2, { language: 'ja' });
+            // 5x5 = 25 tiles
+            expect(tiles.length).toBe(25);
+
+            const playerTile = tiles.find(t => t.dx === 0 && t.dy === 0);
+            expect(playerTile).toBeDefined();
+            expect(playerTile.isPlayer).toBe(true);
+            expect(playerTile.isUnexplored).toBe(false);
+            expect(playerTile.bottomGlyph).toBe(3992);
+            expect(playerTile.renderGlyphs).toContain(3992);
+
+            const monsterTile = tiles.find(t => t.dx === 1 && t.dy === 0);
+            expect(monsterTile).toBeDefined();
+            expect(monsterTile.isPlayer).toBe(false);
+            expect(monsterTile.glyphId).toBe(1);
+            expect(monsterTile.isUnexplored).toBe(false);
+            // モンスターの下には仮床 (3992) が自動配置され、renderGlyphs に含まれること
+            expect(monsterTile.bottomGlyph).toBe(3992);
+            expect(monsterTile.topGlyph).toBe(1);
+            expect(monsterTile.renderGlyphs).toEqual([3992, 1]);
+
+            const farTile = tiles.find(t => t.dx === -2 && t.dy === -2);
+            expect(farTile).toBeDefined();
+            expect(farTile.isUnexplored).toBe(true);
+            expect(farTile.renderGlyphs).toEqual([]);
+        });
+
+        it('getFocusCameraTiles が死亡時にプレイヤー位置へ墓石グリフ(4011)を自動配置すること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+            asm.updateGlyph(10, 10, 3992);
+
+            const tiles = asm.getFocusCameraTiles(1, 1, { isDead: true });
+            const playerTile = tiles.find(t => t.isPlayer);
+            expect(playerTile).toBeDefined();
+            expect(playerTile.topGlyph).toBe(4011);
+            expect(playerTile.renderGlyphs).toEqual([3992, 4011]);
+            expect(playerTile.nameJa).toBe('墓石');
+        });
     });
 });
+
 
 

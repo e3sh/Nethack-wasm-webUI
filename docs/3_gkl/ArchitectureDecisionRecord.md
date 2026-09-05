@@ -87,6 +87,13 @@ related_code:
 - **MonsterTracker 減衰モデル連動ポストコンバット遅延同期構想 (Phase 2)**:
   - 消耗品等の盗難に対し、戦闘中の毎ターン同期によるラグを回避するため、`stealsItems` 特性を持つ敵との近接接触フラグ（`hadCloseContact`）を記録し、その敵がテレポート、逃走（LoS外れ）、撃破、または追跡減衰によって「監視から外れた瞬間」にインベントリを遅延 invalidate する結果的整合性（Eventual Consistency）モデルを採用する（詳細は [GKL_Inventory_Synchronization_Architecture.md](./GKL_Inventory_Synchronization_Architecture.md) を参照）。
 
+### 1.14 UI層ドメイン知識排除とプレゼンテーション層の自由度分離 (UI Decoupling & Presentation Freedom)
+- **GKLの責務（ゲームルール・ドメイン解決の完全隠蔽）**:
+  - FocusCamera / マップ描画における「死亡時の墓石（4011）」や「アイテム/モンスター下の仮床（3992）」などの NetHack 内部グリフ番号やゲームルールを UI 側にハードコードさせず、GKL（`AreaStateManager.getFocusCameraTiles`）が完全解決済みの描画順配列 `renderGlyphs: number[]` および階層メタデータ（`bottomGlyph`, `middleGlyph`, `topGlyph`, `effectGlyph`）として提供する。
+  - マップ座標からの意味情報問い合わせは `inspectCellOnDemand({ x, y })` を単一窓口とし、UI 側での生グリフ直引きや未探索マスの誤判定（巨大アリ誤検出等）を完全に防止する。
+- **UI側の裁量（デザイン・表現の自由）**:
+  - アイテムのアイコン表現（`item.category` から `🧪` を出すか独自 SVG / 文字にするか）、BUC状態（`item.identification.bucStatus` から `+`/`-` バッジにするか枠色にするか）、ステータスバーの配置レイアウト等は **UI 実装者の自由度** として委ね、GKL から特定の CSS クラス名や固定 HTML 文字列を押し付けない綺麗な境界を維持する。
+
 ---
 
 ## 2. 実装仕様 (`lastSequenceBuffer` & `querySequenceSilent`)

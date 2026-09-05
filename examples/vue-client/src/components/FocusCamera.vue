@@ -212,97 +212,58 @@ function drawZoomCanvas() {
   const bounceY = isDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
 
   const core = getCore();
-  const glyphGridBuffer = (core && core.driver && core.driver.getGlyphBuffer) ? core.driver.getGlyphBuffer() : null;
+  const tiles = (core && core.gkl && typeof core.gkl.getFocusCameraTiles === 'function')
+    ? core.gkl.getFocusCameraTiles(halfRangeX, halfRangeY)
+    : [];
 
-  for (let dy = -halfRangeY; dy <= halfRangeY; dy++) {
-    for (let dx = -halfRangeX; dx <= halfRangeX; dx++) {
-      const gx = px + dx;
-      const gy = py + dy;
+  for (const t of tiles) {
+    const screenX = (t.dx + halfRangeX) * zoomTileSize;
+    const screenY = (t.dy + halfRangeY) * zoomTileSize;
 
-      const screenX = (dx + halfRangeX) * zoomTileSize;
-      const screenY = (dy + halfRangeY) * zoomTileSize;
+    if (t.isUnexplored) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+      continue;
+    }
 
-      if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
-        const cell = (grid && grid[gy]) ? grid[gy][gx] : null;
-        const gData = (glyphGridBuffer && glyphGridBuffer[gy] && glyphGridBuffer[gy][gx]) ? glyphGridBuffer[gy][gx] : null;
-
-        const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
-        const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
-        const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
-        const isCurrentPlayerFeet = (dx === 0 && dy === 0);
-        const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isCurrentPlayerFeet);
-
-        if (!hasMemory && !hasNetHackGlyph) {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-        } else {
-          if (cell && (cell.bottom || cell.middle || cell.top)) {
-            // Layer 1: Bottom (地形)
-            if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph || isCurrentPlayerFeet)) {
-              drawTile(ctx, cell.bottom.rawGlyph, cols, screenX, screenY, 0);
-            } else if (cell.middle || cell.top) {
-              drawTile(ctx, 3992, cols, screenX, screenY, 0); // 仮床
-            } else if (gData && gData.glyph >= 0) {
-              drawTile(ctx, gData.glyph, cols, screenX, screenY, 0);
-            } else {
-              ctx.fillStyle = '#121224';
-              ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-            }
-
-            // Layer 2: Middle (アイテム)
-            if (cell.middle && cell.middle.rawGlyph >= 0) {
-              drawTile(ctx, cell.middle.rawGlyph, cols, screenX, screenY, 0);
-            }
-
-            // 自キャラマスのネオン枠ハイライト
-            if (dx === 0 && dy === 0) {
-              if (isDead) {
-                ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-              } else {
-                ctx.strokeStyle = '#00e676';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-              }
-            }
-
-            // Layer 3: Top (キャラクター/モンスター / 死亡時は墓石 glyph 4011)
-            if (isDead && dx === 0 && dy === 0) {
-              drawTile(ctx, 4011, cols, screenX, screenY, 0);
-            } else if (cell.top && cell.top.rawGlyph >= 0) {
-              drawTile(ctx, cell.top.rawGlyph, cols, screenX, screenY, bounceY);
-            }
-
-            // Layer 4: Effect (過渡的エフェクト)
-            if (cell.effect && cell.effect.rawGlyph >= 0) {
-              drawTile(ctx, cell.effect.rawGlyph, cols, screenX, screenY, 0);
-            }
-          } else if (gData && gData.glyph >= 0 && gData.ch !== ' ') {
-            if (dx === 0 && dy === 0) {
-              if (isDead) {
-                ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                drawTile(ctx, 4011, cols, screenX, screenY, 0);
-              } else {
-                ctx.strokeStyle = '#00e676';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-                drawTile(ctx, gData.glyph, cols, screenX, screenY, 0);
-              }
-            } else {
-              drawTile(ctx, gData.glyph, cols, screenX, screenY, 0);
-            }
-          } else {
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-          }
-        }
-      } else {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+    if (t.renderGlyphs && t.renderGlyphs.length > 0) {
+      // Layer 1: Bottom (地形)
+      if (t.bottomGlyph !== undefined && t.bottomGlyph >= 0) {
+        drawTile(ctx, t.bottomGlyph, cols, screenX, screenY, 0);
       }
+
+      // Layer 2: Middle (アイテム)
+      if (t.middleGlyph !== undefined && t.middleGlyph >= 0) {
+        drawTile(ctx, t.middleGlyph, cols, screenX, screenY, 0);
+      }
+
+      // 自キャラマスのネオン枠ハイライト
+      if (t.isPlayer) {
+        ctx.strokeStyle = isDead ? '#ef4444' : '#00e676';
+        ctx.lineWidth = isDead ? 1 : 2;
+        ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+      }
+
+      // Layer 3: Top (キャラクター/モンスター / 死亡時墓石)
+      if (t.topGlyph !== undefined && t.topGlyph >= 0) {
+        const isBouncingMonster = Boolean(t.cell && t.cell.top && !isDead);
+        drawTile(ctx, t.topGlyph, cols, screenX, screenY, isBouncingMonster ? bounceY : 0);
+      }
+
+      // Layer 4: Effect (過渡的エフェクト)
+      if (t.effectGlyph !== undefined && t.effectGlyph >= 0) {
+        drawTile(ctx, t.effectGlyph, cols, screenX, screenY, 0);
+      }
+    } else if (t.glyphId >= 0) {
+      if (t.isPlayer) {
+        ctx.strokeStyle = isDead ? '#ef4444' : '#00e676';
+        ctx.lineWidth = isDead ? 1 : 2;
+        ctx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+      }
+      drawTile(ctx, t.glyphId, cols, screenX, screenY, 0);
+    } else {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
     }
   }
 

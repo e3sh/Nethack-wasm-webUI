@@ -14,14 +14,24 @@ SolidJS Signals & Stores による超高速・ファイングレイン・リア�
 
 ## ✨ 主な機能 ＆ コンポーネント構成
 
-- **`useNetHackDriver.ts` (`NetHackDriverController`)**:
-  - `WebUICore` と SolidJS Store / Signal を接続するコントローラー。
-- **`GklKnowledgePanel.tsx` (🧠 GKL 状況推論 ＆ ナレッジアシスト)**:
-  - **⚡ アイコン即時自動実行**: 所持品アイコンタップで `executeSequence` による装備・使用の一発即時実行。
-  - **💡 浮き出し解説ポップアップ**: ホバー時にアイテム名・ワンタップアクション予告・日本語効果解説を浮き出し表示。
-  - **🖼️ SolidJS スタイル安全マッピング (`getSolidGlyphStyle`)**: JSX インライン style 属性用のハイフン区切りプロパティ展開による正確なスプライト画像描画。
-  - **🎯 8方向アクションフィルター (`extractDirectionCode`)**: 方向別アクションフィルタリング。
-  - **🔍 7x7 高精細ダンジョンズームカメラ**: プレイヤーを中心とした 7x7 ミニマップズームビューア。
+本クライアントは React / Vue 版と同等のフル機能 2 カラム UI 構造を備えています：
+
+- **`services/useNetHackDriver.ts` (`NetHackDriverController`)**:
+  - `WebUICore` と SolidJS Store / Signals を接続するメインコントローラー。
+- **`FocusCamera.tsx` (🔍 21x9 中央フォーカス・ズームビュー)**:
+  - 自キャラ周辺 21x9 の高精細ズーム Canvas ビューポート。GKL 解決済みの `renderGlyphs` レイヤー描画、自キャラバウンス、Visual FX、死亡時墓石表示に対応。
+- **`InventoryGrid.tsx` (🎒 32px スプライトインベントリ)**:
+  - 所持アイテムを 32px スプライトアイコンでグリッド表示。BUC状態バッジ（`+`, `-`）、装備状態、長押し・右クリックサブメニューに対応。
+- **`AssistSignalBar.tsx` (🛡️ HUD アシストバー)**:
+  - 危険状況・即死トラップ警告・推奨アクションのワンタップ実行。
+- **`DirectionPad.tsx` & `ContextActions.tsx` (🧭 8方向連動アクション)**:
+  - 周囲の状況や手持ちの道具に応じた文脈アクション（掘る、開ける、解錠、攻撃等）。
+- **`GklKnowledgeTabs.tsx` (💡 戦術アドバイス ＆ ナレッジインスペクター)**:
+  - リアルタイム戦術アドバイスと、マップ/アイテムホバー時の詳細構造化データ表示。
+- **`WishModal.tsx` (🪄 #wish ビルダー ＆ プリセット)**:
+  - 望みの杖・魔法によるアイテム生成ビルダー。カテゴリ別プリセット、祝福・強化値・数量の指定。
+- **`StatusBar.tsx` (📊 ゲージ ＆ 詳細ステータス)**:
+  - HP/Pw ゲージ、属性耐性、習得魔法、スキル熟練度一覧。
 
 ---
 
@@ -39,7 +49,7 @@ npm run build
 
 ## 🏛️ アーキテクチャと構築ガイドライン
 
-1. **SolidJS インライン Style マッピング**:
-   SolidJS の JSX インライン style 属性に CSS オブジェクトを渡す際は、`background-image`, `background-position` などのハイフン区切りプロパティ名で整形して適用します。
-2. **未探索セル (`glyphId = 0`) の誤検出防止**:
-   `tileId === 0` かつ `symbol === ' '` のセルは `glyphId = -1` (未探索) として扱い、`giant ant` の誤判定を防ぎます。
+1. **SolidJS スタイルマッピング (`getGlyphStyleString`)**:
+   SolidJS のインラインスタイル適用時は、`getGlyphStyleString` で生成した CSS 文字列を `style={getGlyphStyleString(glyphId)}` としてバインドすることで、高パフォーマンスなスプライト描画を実現しています。
+2. **オンデマンド座標問い合わせ (`inspectCellOnDemand`)**:
+   マップ上のホバーやクリックは `gkl.inspectCellOnDemand({ x, y })` に一任し、未探索セルでの誤判定を防ぎます。

@@ -8,7 +8,7 @@
 
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 
-import { calculateInnateResistances, parseAttributesLine } from './CHARACTER_KNOWLEDGE_BASE.js';
+import { calculateInnateResistances, parseAttributesLine, RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from './CHARACTER_KNOWLEDGE_BASE.js';
 
 export const ATTRIBUTE_KEYS = [
     // 1. 基本元素耐性 (5種)
@@ -133,7 +133,7 @@ export class AttributeStateManager {
      * キャッシュのリセット
      */
     reset() {
-        this.characterInfo = { race: 'human', role: 'archeologist', level: 1 };
+        this.characterInfo = { race: 'human', role: 'archeologist', level: 1, gender: 'male' };
         this.innate = this._createEmptyMap();
         this.acquiredIntrinsics = this._createEmptyMap();
         this.intrinsics = this._createEmptyMap();
@@ -142,12 +142,13 @@ export class AttributeStateManager {
     }
 
     /**
-     * キャラクター情報（種族・職業・レベル）の確定値から決定論的に内在耐性を即時計算・復元
+     * キャラクター情報（種族・職業・レベル・性別）の確定値から決定論的に内在耐性を即時計算・復元
      * NetHack Cソース attrib.c に基づく SSOT モデル
      * @param {Object} charInfo 
      * @param {string} [charInfo.race] 
      * @param {string} [charInfo.role] 
      * @param {number} [charInfo.level] 
+     * @param {string} [charInfo.gender]
      * @returns {boolean} 
      */
     updateCharacter(charInfo = {}) {
@@ -156,6 +157,7 @@ export class AttributeStateManager {
         if (charInfo.race !== undefined) this.characterInfo.race = charInfo.race;
         if (charInfo.role !== undefined) this.characterInfo.role = charInfo.role;
         if (charInfo.level !== undefined) this.characterInfo.level = charInfo.level;
+        if (charInfo.gender !== undefined) this.characterInfo.gender = charInfo.gender;
 
         const newInnateMap = calculateInnateResistances(this.characterInfo);
         const newInnate = this._createEmptyMap();
@@ -186,12 +188,98 @@ export class AttributeStateManager {
     }
 
     /**
+     * 現在有効な耐性・能力の一覧をUI描画用オブジェクト配列として取得
+     * @param {'ja'|'en'} [language='ja']
+     * @returns {Array<{ key: string, id: string, label: string, en: string, name: string, isIntrinsic: boolean, isExtrinsic: boolean, source: string }>}
+     */
+    getActiveResistances(language = 'ja') {
+        const isEn = (language === 'en');
+        const effective = this.getEffectiveResistances();
+        const defMap = new Map(ATTRIBUTE_DEFINITIONS.map(d => [d.key, d]));
+        const list = [];
+
+        for (const [k, val] of Object.entries(effective)) {
+            if (val) {
+                const def = defMap.get(k) || { key: k, label: k, en: k };
+                const isIntrinsic = Boolean(this.intrinsics[k]);
+                const isExtrinsic = Boolean(this.extrinsics[k]);
+                let source = 'intrinsic';
+                if (isIntrinsic && isExtrinsic) source = 'both';
+                else if (isExtrinsic) source = 'extrinsic';
+
+                list.push({
+                    key: k,
+                    id: k,
+                    label: def.label,
+                    en: def.en,
+                    name: isEn ? def.en : def.label,
+                    isIntrinsic,
+                    isExtrinsic,
+                    source
+                });
+            }
+        }
+        return list;
+    }
+
+    /**
+     * キャラクター情報（種族・職業・レベル・性別）のローカライズ済みサマリーを取得
+     * @param {'ja'|'en'} [language='ja']
+     * @returns {Object} { race, role, gender, level, raceName, roleName, raceNameJa, raceNameEn, roleNameJa, roleNameEn, displayTag, displayTagJa, displayTagEn }
+     */
+    getCharacterSummary(language = 'ja') {
+        const isEn = (language === 'en');
+        const charInfo = this.characterInfo || {};
+        const race = charInfo.race || '';
+        const role = charInfo.role || '';
+        const gender = charInfo.gender || 'male';
+        const isFemale = (gender === 'female');
+        const level = typeof charInfo.level === 'number' ? charInfo.level : 1;
+
+        const raceData = race ? RACE_KNOWLEDGE_MAP[race.toLowerCase()] : null;
+        const roleData = role ? ROLE_KNOWLEDGE_MAP[role.toLowerCase()] : null;
+
+        const raceNameJa = raceData?.nameJa || race || '不明';
+        const raceNameEn = raceData?.name || race || 'Unknown';
+
+        const roleNameJa = (isFemale && roleData?.nameFemaleJa) || roleData?.nameJa || role || '不明';
+        const roleNameEn = (isFemale && roleData?.nameFemale) || roleData?.name || role || 'Unknown';
+
+        const raceName = isEn ? raceNameEn : raceNameJa;
+        const roleName = isEn ? roleNameEn : roleNameJa;
+        const lvlStr = level ? ` Lv.${level}` : '';
+
+        const displayTagJa = `👤 ${raceNameJa} / ${roleNameJa}${lvlStr}`;
+        const displayTagEn = `👤 ${raceNameEn} / ${roleNameEn}${lvlStr}`;
+        const displayTag = isEn ? displayTagEn : displayTagJa;
+
+        return {
+            race,
+            role,
+            gender,
+            level,
+            raceName,
+            roleName,
+            raceNameJa,
+            raceNameEn,
+            roleNameJa,
+            roleNameEn,
+            displayTag,
+            displayTagJa,
+            displayTagEn
+        };
+    }
+
+    /**
      * 属性・耐性の統合オブジェクトを取得
+     * @param {'ja'|'en'} [language='ja']
      * @returns {Object}
      */
-    getAttributes() {
+    getAttributes(language = 'ja') {
         return {
             effectiveResistances: this.getEffectiveResistances(),
+            activeResistances: this.getActiveResistances(language),
+            characterSummary: this.getCharacterSummary(language),
             intrinsics: { ...this.intrinsics },
             innate: { ...this.innate },
             acquiredIntrinsics: { ...this.acquiredIntrinsics },

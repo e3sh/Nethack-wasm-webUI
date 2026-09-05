@@ -102,8 +102,10 @@ export class SituationCache {
         // 属性・耐性抽出
         const attrState = this.attributeStateManager;
         const attributes = attrState && typeof attrState.getAttributes === 'function' ?
-            attrState.getAttributes() : {
+            attrState.getAttributes(this.language) : {
                 effectiveResistances: {},
+                activeResistances: [],
+                characterSummary: null,
                 intrinsics: {},
                 extrinsics: {},
                 isSynced: false

@@ -44,11 +44,11 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 
 | ディレクトリ | 構成 | 説明 |
 | :--- | :--- | :--- |
-| `examples/vue-client` | Vue 3 + TypeScript | 2カラムUI、フォーカスカメラ、GKL全機能（アシスト、インベントリ、ナレッジ、耐性・魔法等）を含む実装 |
-| `examples/react-client` | React 18 + TypeScript | React 18 と Zustand による実装（Vue 3 版と同等のUIおよびGKL全機能に対応） |
-| `examples/gkl-pure-js-client` | Vanilla JS / CSS | 推奨アクション提示・ズームカメラ・アイコンインベントリを含むフレームワーク非依存実装 |
-| `examples/svelte-client` | Svelte + TypeScript | Svelte による実装 |
-| `examples/solid-client` | SolidJS + TypeScript | SolidJS による実装 |
+| `examples/vue-client` | Vue 3 + TypeScript | 2カラムUI、フォーカスカメラ、GKL連携（アシスト、インベントリ、ナレッジ等）を含む実装例 |
+| `examples/react-client` | React 18 + TypeScript | React 18 と Zustand による 2カラムUI ＆ GKL連携の実装例 |
+| `examples/solid-client` | SolidJS + TypeScript | SolidJS Signals/Store による 2カラムUI ＆ GKL連携の実装例 |
+| `examples/svelte-client` | Svelte + TypeScript | Svelte ストアによる 2カラムUI ＆ GKL連携の実装例 |
+| `examples/gkl-pure-js-client` | Vanilla JS / CSS | フレームワーク非依存の純粋な JS / CSS による GKL 連携サンプル |
 | `examples/pure-js-client` | Vanilla JS | 最小限の Pure JS 実装 |
 | `examples/legacy-client` | Canvas 2D / Touch | Canvas タイル描画とモバイル用バーチャルパッド実装 |
 

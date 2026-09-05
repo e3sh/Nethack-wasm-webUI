@@ -1,9 +1,23 @@
 <script lang="ts">
-  import { engineStateStore } from '../stores/gameStore';
+  import {
+    engineStateStore,
+    viewModeStore,
+    isZoomEnabledStore,
+  } from '../stores/gameStore';
   import { driverController, currentLanguageStore } from '../services/useNetHackDriver';
 
   $: engineState = $engineStateStore;
+  $: viewMode = $viewModeStore;
+  $: isZoomEnabled = $isZoomEnabledStore;
   $: isEn = $currentLanguageStore === 'en';
+
+  function toggleViewMode() {
+    viewModeStore.update((prev) => (prev === 'GRAPHIC' ? 'ASCII' : 'GRAPHIC'));
+  }
+
+  function toggleZoom() {
+    isZoomEnabledStore.update((prev) => !prev);
+  }
 
   function handleRestart() {
     const msg = isEn ? 'Restart the game now?' : '現在のゲームを中断して再起動しますか？';
@@ -18,19 +32,39 @@
 </script>
 
 <header class="header-panel">
-  <div class="header-title">
-    <h1>NetHack WebUICore</h1>
-    <span class="subtitle">Svelte Sample Client</span>
+  <div class="brand">
+    <span class="logo-icon">🐉</span>
+    <span class="title">NetHack Wasm <small>GKL Svelte Client</small></span>
   </div>
 
-  <div class="header-controls">
+  <div class="quick-actions">
+    <button
+      class="btn btn-secondary"
+      on:click={toggleViewMode}
+    >
+      {viewMode === 'GRAPHIC'
+        ? (isEn ? 'View: 🎨 Graphic Canvas' : 'ビュー切替: 🎨 Graphic Canvas')
+        : (isEn ? 'View: 🔤 ASCII Grid' : 'ビュー切替: 🔤 ASCII Grid')}
+    </button>
+
+    <button
+      class="btn btn-secondary"
+      on:click={toggleZoom}
+    >
+      {isZoomEnabled
+        ? (isEn ? '🎯 Focus Camera: ON' : '🎯 ズームカメラ: ON')
+        : (isEn ? '🎯 Focus Camera: OFF' : '🎯 ズームカメラ: OFF')}
+    </button>
+  </div>
+
+  <div class="controls">
     <span class="engine-badge {engineState.toLowerCase()}">
-      State: {engineState}
+      {engineState}
     </span>
 
     <button
       on:click={handleRestart}
-      class="btn-control btn-restart"
+      class="btn btn-secondary"
       title={isEn ? 'Restart game immediately' : 'ゲームを即時再起動'}
     >
       🔄 Restart
@@ -38,77 +72,10 @@
 
     <button
       on:click={handleDeleteSave}
-      class="btn-control btn-delete-save"
+      class="btn btn-danger"
       title={isEn ? 'Delete save file completely' : 'セーブデータを完全削除'}
     >
-      🗑️ Del Save
+      🗑️ Delete Save
     </button>
   </div>
 </header>
-
-<style>
-.header-panel {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid #16213e;
-  padding-bottom: 12px;
-}
-
-.header-title h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #4ecca3;
-  display: inline-block;
-}
-
-.subtitle {
-  margin-left: 10px;
-  font-size: 13px;
-  color: #7f8c8d;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.engine-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  font-family: monospace;
-}
-
-.engine-badge.running { background: #2ecc71; color: #111; }
-.engine-badge.idle { background: #7f8c8d; color: #fff; }
-.engine-badge.saved { background: #f39c12; color: #111; }
-.engine-badge.gameover { background: #e74c3c; color: #fff; }
-
-.btn-control {
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-restart {
-  background: #2980b9;
-}
-.btn-restart:hover {
-  background: #3498db;
-}
-
-.btn-delete-save {
-  background: #c0392b;
-}
-.btn-delete-save:hover {
-  background: #e74c3c;
-}
-</style>

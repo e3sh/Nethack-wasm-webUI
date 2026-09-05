@@ -1,8 +1,8 @@
 # NetHack Wasm Driver サンプルクライアント (`examples/`)
 
-本ディレクトリ (`examples/`) は、**`WebUICore` / NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要なモダン Web フロントエンドフレームワーク（Vue 3, React 18, Svelte, SolidJS 等）と結合したサンプルクライアント群を提供する領域です。
+本ディレクトリ (`examples/`) は、**`WebUICore` / NetHack Wasm Driver (`@nethack/wasm-driver`)** を主要なモダン Web フロントエンドフレームワーク（Vue 3, React 18, SolidJS, Svelte, Pure JS 等）と結合したサンプルクライアント群を提供する領域です。
 
-特に **Vue 3 版 (`examples/vue-client`)** および **React 18 版 (`examples/react-client`)** は、2カラム＋オーバーレイUI構造と GKL（Game Knowledge Layer）の全機能を備えたリファレンス実装として整備されています。
+各サンプルは 2カラム構成や GKL（Game Knowledge Layer）との連携（フォーカスカメラ、インベントリ、ナレッジ表示等）の参照実装として活用できます。
 
 すべてのサンプルはスタンドアロン静的ビルド (`dist/`) に対応しており、GitHub Pages 上でブラウザからそのまま直接動作確認が可能です。
 
@@ -14,22 +14,22 @@
   - 🔗 **[Vue 3 Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html)**
 - **React 18 サンプルクライアント**: 
   - 🔗 **[React 18 Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html)**
-- **Svelte サンプルクライアント**: 
-  - 🔗 **[Svelte Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
 - **SolidJS サンプルクライアント**: 
   - 🔗 **[SolidJS Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html)**
+- **Svelte サンプルクライアント**: 
+  - 🔗 **[Svelte Client を開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html)**
 
 ---
 
 ## 🗺️ サンプルクライアント一覧 (Examples Overview)
 
-| ディレクトリ | 技術スタック | 状態 | ライブデモ | 特徴・搭載機能 |
+| ディレクトリ | 技術スタック | 状態 | ライブデモ | 特徴・構成例 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | 【フル機能実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Visual FX、HUDシグナル、フロア設備自動移動、32pxスプライトインベントリ、ナレッジ＆アドバイスタブ、`#wish` ビルダー、耐性・魔法・スキル熟練度 |
-| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | 【フル機能実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | Vue 3版と同等の2カラムUI構造、全GKL機能、Zustand状態管理、カスタムフック `useNetHackDriver` |
-| **`examples/gkl-pure-js-client`** | Vanilla ES Modules + CSS | 【Vanilla GKL】 | - | フレームワーク非依存の純粋な JS / CSS による GKL クライアント |
-| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | 【基礎実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
-| **`examples/solid-client`** | SolidJS + Vite + TypeScript | 【基礎実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | `WebUICore` 構造化データ、2D Canvas、`sendKeyEvent` 統一キーマッパー |
+| **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Visual FX、HUDシグナル、スプライトインベントリ、GKLナレッジ・アドバイス連携 |
+| **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Zustand状態管理、GKLナレッジ・アドバイス連携 |
+| **`examples/solid-client`** | SolidJS + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2カラムUI、SolidJS Signals/Store によるリアクティブ連携、フォーカスカメラ |
+| **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2カラムUI、Svelte Writable Store による軽量リアクティブ連携、フォーカスカメラ |
+| **`examples/gkl-pure-js-client`** | Vanilla ES Modules + CSS | 【サンプル実装】 | - | フレームワーク非依存の純粋な JS / CSS による GKL 連携サンプル |
 | **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | 【最小構成】 | - | フレームワーク非依存の最小構成 `WebUICore` 直用クライアント |
 | **`examples/legacy-client`** | Canvas 2D / Touch | 【旧仕様参考】 | - | 従来のクラシックタイル描画とモバイル用バーチャルパッド実装 |
 

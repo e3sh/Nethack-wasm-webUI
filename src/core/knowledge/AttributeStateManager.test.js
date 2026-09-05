@@ -284,4 +284,39 @@ describe('AttributeStateManager Tests', () => {
         expect(valkAttrs.cold).toBe(true);
         expect(valkAttrs.searching).toBe(false);
     });
+
+    it('getActiveResistances と getCharacterSummary がUI描画用の整形済みデータを正しく生成すること', () => {
+        const mgr = new AttributeStateManager();
+        mgr.updateCharacter({ race: 'elf', role: 'priest', level: 1, gender: 'female' });
+        mgr.updateExtrinsicsFromInventory([
+            { rawText: 'a ring of fire resistance (on right hand)', isWornRight: true }
+        ]);
+
+        const attrs = mgr.getAttributes('ja');
+        expect(attrs.characterSummary).toBeDefined();
+        expect(attrs.characterSummary.raceName).toBe('エルフ');
+        expect(attrs.characterSummary.roleName).toBe('女司祭');
+        expect(attrs.characterSummary.displayTag).toBe('👤 エルフ / 女司祭 Lv.1');
+
+        const attrsEn = mgr.getAttributes('en');
+        expect(attrsEn.characterSummary.raceName).toBe('Elf');
+        expect(attrsEn.characterSummary.roleName).toBe('Priestess');
+        expect(attrsEn.characterSummary.displayTag).toBe('👤 Elf / Priestess Lv.1');
+
+        // activeResistances の検証
+        const activeJa = mgr.getActiveResistances('ja');
+        expect(activeJa.length).toBeGreaterThan(0);
+        const fireRes = activeJa.find(r => r.key === 'fire');
+        expect(fireRes).toBeDefined();
+        expect(fireRes.isExtrinsic).toBe(true);
+        expect(fireRes.isIntrinsic).toBe(false);
+        expect(fireRes.source).toBe('extrinsic');
+        expect(fireRes.label).toBe('🔥火炎');
+
+        const infra = activeJa.find(r => r.key === 'infravision');
+        expect(infra).toBeDefined();
+        expect(infra.isIntrinsic).toBe(true);
+        expect(infra.source).toBe('intrinsic');
+    });
 });
+

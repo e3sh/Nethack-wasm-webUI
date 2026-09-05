@@ -277,7 +277,22 @@ const DEFAULT_TITLES = {
         }
 
         // 願い（Wishing）プロンプトの自動コンテキスト検知
-        const isWishPrompt = /for what do you wish|何をお望みですか|何をご所望|wish/i.test(rawPrompt || '') || payload.subCategory === 'WISH';
+        const isTextType = (
+            inputType === 'LINE_TEXT' ||
+            category === PROMPT_CATEGORY.TEXT ||
+            category === PROMPT_CATEGORY.ASKNAME ||
+            category === PROMPT_CATEGORY.EXTCMD ||
+            category === 'LINE' ||
+            payload.inputType === 'LINE_TEXT' ||
+            payload.context === 'text' ||
+            payload.context === 'getlin'
+        );
+
+        const isWishPromptPattern = /for what do you wish|what do you want to wish for|何を願う|何をお望み|何をご所望|何を望む/i;
+        const isWishPrompt = (
+            (isTextType && isWishPromptPattern.test(rawPrompt || '')) ||
+            payload.subCategory === 'WISH'
+        );
         let subCategory = payload.subCategory || (isWishPrompt ? 'WISH' : null);
         let assistant = payload.assistant || null;
 

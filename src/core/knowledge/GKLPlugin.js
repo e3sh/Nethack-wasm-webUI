@@ -1595,4 +1595,28 @@ export class GKLPlugin {
 
         return false;
     }
+
+    /**
+     * フォーカスカメラ・ズームビュー用の整形済みタイル一覧を取得
+     * @param {number} [radiusX=10] - 横方向半径 (例: 10 => 21マス)
+     * @param {number} [radiusY=4] - 縦方向半径 (例: 4 => 9マス)
+     * @param {Object} [options={}] - オプション
+     * @returns {Array<Object>} 整形済みタイル配列
+     */
+    getFocusCameraTiles(radiusX = 10, radiusY = 4, options = {}) {
+        if (!this.areaStateManager || typeof this.areaStateManager.getFocusCameraTiles !== 'function') {
+            return [];
+        }
+        const glyphGridBuffer = (this.core && this.core.driver && typeof this.core.driver.getGlyphBuffer === 'function')
+            ? this.core.driver.getGlyphBuffer()
+            : null;
+
+        return this.areaStateManager.getFocusCameraTiles(radiusX, radiusY, {
+            glyphGridBuffer,
+            structuredKnowledge: this.structuredKnowledge,
+            language: this.language,
+            isDead: this._isPlayerDead,
+            ...options
+        });
+    }
 }

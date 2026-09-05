@@ -7,6 +7,7 @@
 import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster, isBoulderGlyph, isBoulderEntity } from './glyphClassifier.js';
 
 export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
+export const DEFAULT_TOMBSTONE_GLYPH = 4011;
 
 /**
  * ダンジョンフロア識別子を正規化 (例: "Dlvl: 1" -> "Dlvl:1", 2 -> "Dlvl:2", "Minetown: 3" -> "Minetown:3")
@@ -761,6 +762,171 @@ export class AreaStateManager {
             trackedMonsters,
             perceivedMonsters
         };
+    }
+
+    /**
+     * フォーカスカメラ・ズームビュー用の整形済みタイル一覧を取得
+     * @param {number} [radiusX=10] - 横方向半径 (デフォルト: 10 => 21列)
+     * @param {number} [radiusY=4] - 縦方向半径 (デフォルト: 4 => 9行)
+     * @param {Object} [options={}] - オプション
+     * @param {number} [options.centerX] - 中心X座標 (省略時はプレイヤーX)
+     * @param {number} [options.centerY] - 中心Y座標 (省略時はプレイヤーY)
+     * @param {Array<Array<Object>>} [options.glyphGridBuffer] - ドライバーの GlyphBuffer
+     * @param {Object} [options.structuredKnowledge] - StructuredKnowledgeEngine
+     * @param {'ja'|'en'} [options.language='ja'] - 表示言語
+     * @returns {Array<Object>} 整形済みタイル配列
+     */
+    getFocusCameraTiles(radiusX = 10, radiusY = 4, options = {}) {
+        const cx = (typeof options.centerX === 'number') ? options.centerX : this.playerX;
+        const cy = (typeof options.centerY === 'number') ? options.centerY : this.playerY;
+        const glyphGridBuffer = options.glyphGridBuffer || null;
+        const sk = options.structuredKnowledge || null;
+        const language = options.language || 'ja';
+        const isEn = (language === 'en');
+
+        const isDead = Boolean(options.isDead);
+        const tiles = [];
+
+        for (let dy = -radiusY; dy <= radiusY; dy++) {
+            for (let dx = -radiusX; dx <= radiusX; dx++) {
+                const tx = cx + dx;
+                const ty = cy + dy;
+                const isPlayer = (dx === 0 && dy === 0);
+                const inBounds = (tx >= 0 && tx < this.width && ty >= 0 && ty < this.height);
+
+                let cell = inBounds && this.grid[ty] ? this.grid[ty][tx] : null;
+                let gData = inBounds && glyphGridBuffer && glyphGridBuffer[ty] ? glyphGridBuffer[ty][tx] : null;
+
+                const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
+                const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
+                const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
+                const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isPlayer);
+                const isUnexplored = !inBounds || (!hasMemory && !hasNetHackGlyph);
+
+                let glyphId = -1;
+                let symbol = ' ';
+                let color = 7;
+                let knowledge = null;
+                let name = isEn ? 'Out of Sight' : '視界外';
+                let nameJa = '視界外';
+
+                // レイヤー別グリフの完全解決
+                let bottomGlyph = -1;
+                let middleGlyph = -1;
+                let topGlyph = -1;
+                let effectGlyph = -1;
+                const renderGlyphs = [];
+
+                if (!isUnexplored) {
+                    if (cell && (cell.bottom || cell.middle || cell.top || cell.effect)) {
+                        // Bottom (地形)
+                        if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || isPlayer)) {
+                            bottomGlyph = cell.bottom.rawGlyph;
+                        } else if (cell.middle || cell.top) {
+                            bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
+                        } else if (gData && gData.glyph >= 0) {
+                            bottomGlyph = gData.glyph;
+                        }
+
+                        // Middle (アイテム)
+                        if (cell.middle && cell.middle.rawGlyph >= 0) {
+                            middleGlyph = cell.middle.rawGlyph;
+                        }
+
+                        // Top (モンスター/プレイヤー または 死亡時の墓石)
+                        if (isDead && isPlayer) {
+                            topGlyph = DEFAULT_TOMBSTONE_GLYPH; // 4011
+                        } else if (cell.top && cell.top.rawGlyph >= 0) {
+                            topGlyph = cell.top.rawGlyph;
+                        }
+
+                        // Effect (エフェクト)
+                        if (cell.effect && cell.effect.rawGlyph >= 0) {
+                            effectGlyph = cell.effect.rawGlyph;
+                        }
+                    } else if (gData && gData.glyph >= 0) {
+                        if (isDead && isPlayer) {
+                            topGlyph = DEFAULT_TOMBSTONE_GLYPH;
+                        } else {
+                            bottomGlyph = gData.glyph;
+                        }
+                    }
+
+                    if (bottomGlyph >= 0) renderGlyphs.push(bottomGlyph);
+                    if (middleGlyph >= 0) renderGlyphs.push(middleGlyph);
+                    if (topGlyph >= 0) renderGlyphs.push(topGlyph);
+                    if (effectGlyph >= 0) renderGlyphs.push(effectGlyph);
+
+                    // 代表グリフの特定 (top > middle > bottom > gData)
+                    if (topGlyph >= 0) {
+                        glyphId = topGlyph;
+                        if (cell && cell.top && !isDead) {
+                            symbol = cell.top.symbol || cell.top.ch || '@';
+                            color = cell.top.color ?? 7;
+                            nameJa = cell.top.nameJa || cell.top.name || 'モンスター';
+                        } else if (isDead && isPlayer) {
+                            symbol = '|';
+                            color = 15;
+                            nameJa = '墓石';
+                        }
+                    } else if (middleGlyph >= 0) {
+                        glyphId = middleGlyph;
+                        if (cell && cell.middle) {
+                            symbol = cell.middle.symbol || cell.middle.ch || ')';
+                            color = cell.middle.color ?? 7;
+                            nameJa = cell.middle.nameJa || cell.middle.name || 'アイテム';
+                        }
+                    } else if (bottomGlyph >= 0) {
+                        glyphId = bottomGlyph;
+                        if (cell && cell.bottom) {
+                            symbol = cell.bottom.symbol || cell.bottom.ch || '.';
+                            color = cell.bottom.color ?? 7;
+                            nameJa = cell.bottom.nameJa || cell.bottom.name || '地形';
+                        } else if (gData) {
+                            symbol = gData.ch || '.';
+                            color = gData.color ?? 7;
+                        }
+                    }
+
+                    if (glyphId >= 0 && sk && typeof sk.getKnowledgeByGlyph === 'function') {
+                        knowledge = sk.getKnowledgeByGlyph(glyphId);
+                        if (knowledge) {
+                            nameJa = knowledge.nameJa || knowledge.name || nameJa;
+                            name = isEn ? (knowledge.name || knowledge.nameJa) : (knowledge.nameJa || knowledge.name);
+                        }
+                    } else {
+                        name = isEn ? (nameJa || 'Unknown') : nameJa;
+                    }
+                }
+
+                tiles.push({
+                    x: tx,
+                    y: ty,
+                    dx,
+                    dy,
+                    relX: dx,
+                    relY: dy,
+                    isPlayer,
+                    inBounds,
+                    isUnexplored,
+                    hasMemory,
+                    cell,
+                    glyphId,
+                    symbol,
+                    color,
+                    name,
+                    nameJa,
+                    knowledge,
+                    bottomGlyph,
+                    middleGlyph,
+                    topGlyph,
+                    effectGlyph,
+                    renderGlyphs
+                });
+            }
+        }
+
+        return tiles;
     }
 }
 

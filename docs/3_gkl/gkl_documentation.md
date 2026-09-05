@@ -137,7 +137,35 @@ console.log("属性耐性 (内在+装備合算):", situation.attributes.resistan
 console.log("スキル熟練度:", situation.skills);
 ```
 
-### 3.3 単体ナレッジのオンデマンド取得
+### 3.3 単体ナレッジおよびマップタイルのオンデマンド取得
+#### ① マップマスの高レベルオンデマンド調査 (`inspectCellOnDemand`)
+UI 側で複雑なレイヤー判定や Look コマンド (`;`) 発火条件を書く必要なく、マス座標 `(x, y)` を指定するだけで、プレイヤー・モンスター・アイテム・死体・地形の統一カードデータ（`cardData`）を取得できます。
+
+```javascript
+// マップ座標 (x: 12, y: 8) を調査
+const cardData = await gkl.inspectCellOnDemand({ x: 12, y: 8 }, { isHover: false });
+if (cardData) {
+  console.log(cardData.name);              // "ジャッカル (jackal)"
+  console.log(cardData.category);          // "MONSTER"
+  console.log(cardData.dispositionStatus); // "HOSTILE" | "PEACEFUL" | "TAMED"
+  console.log(cardData.tacticalAdvice);    // ["一対一で対峙してください。"]
+}
+```
+
+#### ② フォーカスカメラ・ズームビュー用タイルの取得 (`getFocusCameraTiles`)
+プレイヤー中心の指定半径（例: 21x9）のタイル配列を取得します。GKL が**未探索判定・アイテム/敵下の仮床補完（3992）・プレイヤー死亡時の墓石配置（4011）・4層レイヤー解決**をすべて自動で行い、描画順配列 `renderGlyphs: number[]` を提供します。
+
+```javascript
+const tiles = gkl.getFocusCameraTiles(10, 4); // 21x9 タイル
+for (const tile of tiles) {
+  // UI 側は渡された renderGlyphs を順に Canvas に描画するだけで完了
+  for (const glyphId of tile.renderGlyphs) {
+    drawTile(ctx, glyphId, screenX, screenY);
+  }
+}
+```
+
+#### ③ Glyph ID / アイテムスペックの直接取得
 ```javascript
 // Glyph ID または Onum からナレッジを取得 (日本語自動翻訳オプション)
 const knowledge = gkl.getKnowledge(glyphId, { translate: true });
@@ -201,6 +229,6 @@ interface ContextAction {
 ## 5. 自動テストと品質保証
 
 GKL の全コンポーネントは Vitest による自動回帰テストで 100% カバーされています：
-- **テストスイート**: 26 テストファイル / 170 テストケース
+- **テストスイート**: 47 テストファイル / 507 テストケース
 - **全 Glyph ストレストライアル**: 0 〜 9622 の全 9,623 Glyph ID に対する無停止検証済み
 - **実行コマンド**: `npm test`

@@ -99,6 +99,7 @@ export class ContextActionEngine {
             const clean = {
                 ...act,
                 dirCode: finalDirCode,
+                directionCode: finalDirCode,
                 label,
                 description: description || undefined
             };

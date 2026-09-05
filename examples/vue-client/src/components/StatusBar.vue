@@ -147,8 +147,6 @@ import { ref, computed } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 import { storeToRefs } from 'pinia';
-import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from '@core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
-
 const gameStore = useGameStore();
 const { status, gklSituation } = storeToRefs(gameStore);
 const { currentLanguage, castSpell, enhanceSkill } = useNetHackDriver();
@@ -185,71 +183,21 @@ const hasCriticalAdvice = computed(() => {
 
 const characterTag = computed(() => {
   const sit = gklSituation.value;
+  const summary = sit?.attributes?.characterSummary || sit?.playerState?.attributes?.characterSummary;
+  if (summary?.displayTag) {
+    return isEn.value ? (summary.displayTagEn || summary.displayTag) : (summary.displayTagJa || summary.displayTag);
+  }
   const charInfo = sit?.attributes?.characterInfo || sit?.playerState?.attributes?.characterInfo;
-  if (!charInfo || (!charInfo.race && !charInfo.role)) return '';
-
-  const raceData = charInfo.race ? (RACE_KNOWLEDGE_MAP as any)[charInfo.race] : null;
-  const roleData = charInfo.role ? (ROLE_KNOWLEDGE_MAP as any)[charInfo.role] : null;
-  const raceName = isEn.value ? (raceData?.name || charInfo.race) : (raceData?.nameJa || charInfo.race);
-  const isFemale = charInfo.gender === 'female';
-  const roleName = isEn.value
-    ? ((isFemale && roleData?.nameFemale) || roleData?.name || charInfo.role)
-    : ((isFemale && roleData?.nameFemaleJa) || roleData?.nameJa || charInfo.role);
-  const lvlStr = charInfo.level ? ` Lv.${charInfo.level}` : '';
-  return `👤 ${raceName || '??'} / ${roleName || '??'}${lvlStr}`;
+  if (charInfo && (charInfo.race || charInfo.role)) {
+    return `👤 ${charInfo.race || '??'} / ${charInfo.role || '??'}${charInfo.level ? ` Lv.${charInfo.level}` : ''}`;
+  }
+  return '';
 });
 
 const activeResistances = computed(() => {
   const sit = gklSituation.value;
   const attrState = sit?.attributes || sit?.playerState?.attributes || {};
-  const res = attrState.effectiveResistances || {};
-  const activeKeys = attrState.activeAttributes || [];
-
-  const definitions: Record<string, { label: string; en: string }> = {
-    FIRE_RES: { label: '耐火', en: 'Fire Res' },
-    COLD_RES: { label: '耐冷', en: 'Cold Res' },
-    SLEEP_RES: { label: '耐睡眠', en: 'Sleep Res' },
-    DISINT_RES: { label: '耐分解', en: 'Disint Res' },
-    SHOCK_RES: { label: '耐電', en: 'Shock Res' },
-    POISON_RES: { label: '耐毒', en: 'Poison Res' },
-    ACID_RES: { label: '耐酸', en: 'Acid Res' },
-    STONE_RES: { label: '耐石化', en: 'Stone Res' },
-    TELEPORT_CONTROL: { label: 'テレポート制御', en: 'Tele Control' },
-    TELEPATHY: { label: 'テレパシー', en: 'Telepathy' },
-    SEE_INVISIBLE: { label: '不可視視認', en: 'See Invisible' },
-    INVISIBILITY: { label: '透明', en: 'Invisibility' },
-    STEALTH: { label: '忍び', en: 'Stealth' },
-    SEARCHING: { label: '自動探索', en: 'Searching' },
-    FAST: { label: '俊足', en: 'Speed' },
-    VERY_FAST: { label: '超俊足', en: 'Very Fast' },
-    LEVITATION: { label: '浮遊', en: 'Levitation' },
-  };
-
-  const list: Array<{ key: string; label: string; en: string }> = [];
-
-  // effectiveResistances からの抽出
-  for (const [k, val] of Object.entries(res)) {
-    if (val) {
-      list.push({
-        key: k,
-        label: definitions[k]?.label || k,
-        en: definitions[k]?.en || k,
-      });
-    }
-  }
-
-  // activeKeys からの抽出
-  for (const k of activeKeys) {
-    if (!list.some(item => item.key === k)) {
-      list.push({
-        key: k,
-        label: definitions[k]?.label || k,
-        en: definitions[k]?.en || k,
-      });
-    }
-  }
-
-  return list;
+  return attrState.activeResistances || [];
 });
 
 const spellsList = computed(() => {

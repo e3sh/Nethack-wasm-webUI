@@ -48,6 +48,15 @@ export interface ActiveTextModal {
   resolver: any;
 }
 
+export interface StatusStats {
+  str: string;
+  dex: number;
+  con: number;
+  int: number;
+  wis: number;
+  cha: number;
+}
+
 export interface StatusState {
   title: string;
   gold: number;
@@ -60,6 +69,28 @@ export interface StatusState {
   hpMax: number;
   dlvl: string;
   condition: string[];
+  stats: StatusStats;
+  align: string;
+  score: number;
+  turns: number;
+  exp: number;
+  level: number;
+}
+
+export interface VisualFxItem {
+  type: 'SLASH' | 'DAMAGE_FLASH' | 'KILL_BURST' | 'HEAL_RING' | 'DEATH_BURST' | string;
+  followPlayer?: boolean;
+  gx?: number;
+  gy?: number;
+  amount?: number;
+  startTime?: number;
+  triggerTime?: number;
+  durationMs?: number;
+}
+
+export interface ScreenShakeEvent {
+  intensity: number;
+  durationMs: number;
 }
 
 export type EngineState = 'IDLE' | 'RUNNING' | 'SAVED' | 'GAMEOVER';
@@ -69,9 +100,7 @@ const createInitialMapGrid = (): MapTile[][] =>
     Array.from({ length: 80 }, () => ({ tileId: 0, symbol: ' ', color: 7 }))
   );
 
-// SolidJS Signals & Stores
-export const [messages, setMessages] = createSignal<string[]>([]);
-export const [status, setStatus] = createStore<StatusState>({
+const initialStatus: StatusState = {
   title: '',
   gold: 0,
   pw: 0,
@@ -83,7 +112,24 @@ export const [status, setStatus] = createStore<StatusState>({
   hpMax: 0,
   dlvl: 'Dlvl:1',
   condition: [],
-});
+  stats: {
+    str: '--',
+    dex: 0,
+    con: 0,
+    int: 0,
+    wis: 0,
+    cha: 0,
+  },
+  align: 'Neutral',
+  score: 0,
+  turns: 0,
+  exp: 0,
+  level: 1,
+};
+
+// SolidJS Signals & Stores
+export const [messages, setMessages] = createSignal<string[]>([]);
+export const [status, setStatus] = createStore<StatusState>(initialStatus);
 export const [mapGrid, setMapGrid] = createStore<MapTile[][]>(createInitialMapGrid());
 export const [mapRevision, setMapRevision] = createSignal(0);
 export const [cursorPos, setCursorPos] = createSignal<{ x: number; y: number } | null>(null);
@@ -93,9 +139,16 @@ export const [activeTextModal, setActiveTextModal] = createSignal<ActiveTextModa
 export const [engineState, setEngineState] = createSignal<EngineState>('IDLE');
 export const [detectedSaveName, setDetectedSaveName] = createSignal<string | null>(null);
 export const [pendingSaveInfo, setPendingSaveInfo] = createSignal<{ hasSave: boolean; savePlayerName?: string } | null>(null);
+export const [isPlayerDead, setIsPlayerDead] = createSignal<boolean>(false);
 export const [gameOverResult, setGameOverResult] = createSignal<any | null>(null);
 export const [gklSituation, setGklSituation] = createSignal<any | null>(null);
 export const [hoveredTileKnowledge, setHoveredTileKnowledge] = createSignal<any | null>(null);
+export const [viewMode, setViewMode] = createSignal<'GRAPHIC' | 'ASCII'>('GRAPHIC');
+export const [isZoomEnabled, setIsZoomEnabled] = createSignal<boolean>(true);
+export const [floorLandmarks, setFloorLandmarks] = createSignal<any | null>(null);
+export const [activeWishData, setActiveWishData] = createSignal<any | null>(null);
+export const [activeFxEvent, setActiveFxEvent] = createSignal<VisualFxItem | null>(null);
+export const [screenShakeEvent, setScreenShakeEvent] = createSignal<ScreenShakeEvent | null>(null);
 export const [currentLanguage, setCurrentLanguage] = createSignal<'ja' | 'en'>('ja');
 
 // Actions / Helpers
@@ -132,6 +185,30 @@ export const updateStatus = (field: number, value: any, rawPayload?: any) => {
   switch (field) {
     case 0:
       setStatus('title', String(value || ''));
+      break;
+    case 1:
+      setStatus('stats', 'str', String(value || '--'));
+      break;
+    case 2:
+      setStatus('stats', 'dex', Number(value) || 0);
+      break;
+    case 3:
+      setStatus('stats', 'con', Number(value) || 0);
+      break;
+    case 4:
+      setStatus('stats', 'int', Number(value) || 0);
+      break;
+    case 5:
+      setStatus('stats', 'wis', Number(value) || 0);
+      break;
+    case 6:
+      setStatus('stats', 'cha', Number(value) || 0);
+      break;
+    case 7:
+      setStatus('align', String(value || 'Neutral'));
+      break;
+    case 8:
+      setStatus('score', Number(value) || 0);
       break;
     case 10: { // Gold
       let g = 0;
@@ -175,12 +252,21 @@ export const updateStatus = (field: number, value: any, rawPayload?: any) => {
       }
       break;
     }
+    case 21:
+      setStatus('turns', Number(value) || 0);
+      break;
     case 22:
       if (Array.isArray(value)) {
         setStatus('condition', value);
       } else if (typeof value === 'string') {
         setStatus('condition', value ? [value] : []);
       }
+      break;
+    case 23:
+      setStatus('exp', Number(value) || 0);
+      break;
+    case 24:
+      setStatus('level', Number(value) || 1);
       break;
   }
 
@@ -201,29 +287,30 @@ export const clearMapGrid = () => {
   setMapRevision((r) => r + 1);
 };
 
+export const triggerFx = (fx: VisualFxItem) => {
+  setActiveFxEvent(fx);
+};
+
+export const triggerScreenShake = (intensity: number = 3, durationMs: number = 100) => {
+  setScreenShakeEvent({ intensity, durationMs });
+};
+
 export const resetAllState = () => {
   setMessages([]);
-  setStatus({
-    title: '',
-    gold: 0,
-    pw: 0,
-    pwMax: 0,
-    xp: 1,
-    ac: 10,
-    hunger: '',
-    hp: 0,
-    hpMax: 0,
-    dlvl: 'Dlvl:1',
-    condition: [],
-  });
+  setStatus(reconcile(initialStatus));
   setCursorPos(null);
   setActivePrompt(null);
   setActiveMenu(null);
   setActiveTextModal(null);
   setEngineState('RUNNING');
   setPendingSaveInfo(null);
+  setIsPlayerDead(false);
   setGameOverResult(null);
   setGklSituation(null);
   setHoveredTileKnowledge(null);
+  setFloorLandmarks(null);
+  setActiveWishData(null);
+  setActiveFxEvent(null);
+  setScreenShakeEvent(null);
   clearMapGrid();
 };

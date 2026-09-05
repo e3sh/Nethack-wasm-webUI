@@ -11661,6 +11661,7 @@
         { en: "Overtaxed", jp: "超過" },
         { en: "Your", jp: "あなたの" },
         { en: "You are in non-scoring explore/discovery mode.", jp: "現在は、スコアが記録されない探索・発見モードです。" },
+        { en: "You continue your efforts to memorize the spell.", jp: "あなたは呪文を覚えるために努力を続けている。" },
     ];
 }
 

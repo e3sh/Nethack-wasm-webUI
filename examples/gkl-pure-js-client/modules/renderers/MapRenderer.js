@@ -1,3 +1,5 @@
+import { DEFAULT_TOMBSTONE_GLYPH } from '../../../../src/core/knowledge/AreaStateManager.js';
+
 /**
  * MapRenderer - メインCanvas (Graphic Canvas) & ASCII Grid の描画マネージャー
  */
@@ -203,9 +205,9 @@ export class MapRenderer {
       this.ctx.fillRect(dx, dy, 16, 14);
 
       if (isDeathPos && this.tileLoaded && this.tileImg.naturalWidth > 0) {
-        // 🪦 死亡位置には墓石タイル (glyph: 4011 / tile: 1310)
+        // 🪦 死亡位置には墓石タイル
         const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
-        const tileIndex = tileMap[4011] !== undefined ? tileMap[4011] : 1310;
+        const tileIndex = tileMap[DEFAULT_TOMBSTONE_GLYPH] !== undefined ? tileMap[DEFAULT_TOMBSTONE_GLYPH] : 1310;
         const cols = Math.floor(this.tileImg.width / 32);
         const sx = (tileIndex % cols) * 32;
         const sy = Math.floor(tileIndex / cols) * 32;

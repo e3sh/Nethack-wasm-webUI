@@ -1,76 +1,63 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
-import { useGameStore, VisualFxItem } from '../stores/gameStore';
-import { useNetHackDriver } from '../hooks/useNetHackDriver';
-import { getTileMapping } from '../utils/tileMapping';
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import {
+    isZoomEnabledStore,
+    cursorPosStore,
+    gklSituationStore,
+    isPlayerDeadStore,
+    activeFxEventStore,
+    screenShakeEventStore,
+    type VisualFxItem,
+  } from '../stores/gameStore';
+  import { driverController } from '../services/useNetHackDriver';
+  import { getTileMapping } from '../utils/tileMapping';
 
-const canvasWidth = 672; // 21 cols * 32px
-const canvasHeight = 288; // 9 rows * 32px
-const zoomTileSize = 32;
-const halfRangeX = 10;
-const halfRangeY = 4;
+  const canvasWidth = 672; // 21 cols * 32px
+  const canvasHeight = 288; // 9 rows * 32px
+  const zoomTileSize = 32;
+  const halfRangeX = 10;
+  const halfRangeY = 4;
 
-export const FocusCamera: React.FC = () => {
-  const zoomCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  let zoomCanvasRef: HTMLCanvasElement;
+  let tileImg: HTMLImageElement | null = null;
+  let tileLoaded = false;
+  let tileMapTable: Record<number, number> = {};
+  let animFrameId: number | null = null;
 
-  const isZoomEnabled = useGameStore((state) => state.isZoomEnabled);
-  const cursorPos = useGameStore((state) => state.cursorPos);
-  const gklSituation = useGameStore((state) => state.gklSituation);
-  const isPlayerDead = useGameStore((state) => state.isPlayerDead);
-  const activeFxEvent = useGameStore((state) => state.activeFxEvent);
-  const screenShakeEvent = useGameStore((state) => state.screenShakeEvent);
+  const activeFxList: VisualFxItem[] = [];
+  const shakeState = { time: 0, duration: 0, intensity: 0 };
 
-  const { getCore, inspectTileKnowledge, travelTo } = useNetHackDriver();
+  $: playerX = ($gklSituationStore?.area && typeof $gklSituationStore.area.playerX === 'number')
+    ? $gklSituationStore.area.playerX
+    : ($gklSituationStore?.area?.playerLocation?.x ?? ($cursorPosStore ? $cursorPosStore.x : 0));
+  $: playerY = ($gklSituationStore?.area && typeof $gklSituationStore.area.playerY === 'number')
+    ? $gklSituationStore.area.playerY
+    : ($gklSituationStore?.area?.playerLocation?.y ?? ($cursorPosStore ? $cursorPosStore.y : 0));
 
-  const tileImgRef = useRef<HTMLImageElement | null>(null);
-  const tileLoadedRef = useRef(false);
-  const tileMapTableRef = useRef<Record<number, number>>({});
-  const animFrameIdRef = useRef<number | null>(null);
-
-  const activeFxListRef = useRef<VisualFxItem[]>([]);
-  const shakeStateRef = useRef({ time: 0, duration: 0, intensity: 0 });
-
-  const playerPos = useMemo(() => {
-    const sit = gklSituation;
-    const cur = cursorPos;
-    const px = (sit?.area && typeof sit.area.playerX === 'number')
-      ? sit.area.playerX
-      : (sit?.area?.playerLocation?.x ?? (cur ? cur.x : 0));
-    const py = (sit?.area && typeof sit.area.playerY === 'number')
-      ? sit.area.playerY
-      : (sit?.area?.playerLocation?.y ?? (cur ? cur.y : 0));
-    return { x: px, y: py };
-  }, [gklSituation, cursorPos]);
-
-  // Visual FX 監視
-  useEffect(() => {
-    if (activeFxEvent) {
-      activeFxListRef.current.push({
-        type: activeFxEvent.type,
-        followPlayer: activeFxEvent.followPlayer ?? (activeFxEvent.gx === undefined),
-        gx: activeFxEvent.gx,
-        gy: activeFxEvent.gy,
-        startTime: activeFxEvent.triggerTime || performance.now(),
-        durationMs: activeFxEvent.durationMs || (activeFxEvent.type === 'DEATH_BURST' ? 900 : 300),
+  $: {
+    const fx = $activeFxEventStore;
+    if (fx) {
+      activeFxList.push({
+        type: fx.type,
+        followPlayer: fx.followPlayer ?? (fx.gx === undefined),
+        gx: fx.gx,
+        gy: fx.gy,
+        startTime: fx.triggerTime || performance.now(),
+        durationMs: fx.durationMs || (fx.type === 'DEATH_BURST' ? 900 : 300),
       });
     }
-  }, [activeFxEvent]);
+  }
 
-  // Screen shake 監視
-  useEffect(() => {
-    if (screenShakeEvent) {
-      shakeStateRef.current = {
-        time: performance.now(),
-        duration: screenShakeEvent.durationMs || 120,
-        intensity: screenShakeEvent.intensity || 3,
-      };
+  $: {
+    const shake = $screenShakeEventStore;
+    if (shake) {
+      shakeState.time = performance.now();
+      shakeState.duration = shake.durationMs || 120;
+      shakeState.intensity = shake.intensity || 3;
     }
-  }, [screenShakeEvent]);
+  }
 
-  const drawTile = useCallback((ctx: CanvasRenderingContext2D, glyphId: number, cols: number, dx: number, dy: number, animY = 0) => {
-    const tileLoaded = tileLoadedRef.current;
-    const tileImg = tileImgRef.current;
-    const tileMapTable = tileMapTableRef.current;
-
+  const drawTile = (ctx: CanvasRenderingContext2D, glyphId: number, cols: number, dx: number, dy: number, animY = 0) => {
     if (tileLoaded && tileImg) {
       const tileIndex = tileMapTable[glyphId] !== undefined ? tileMapTable[glyphId] : 0;
       const imgCols = Math.floor(tileImg.width / 32) || cols;
@@ -81,15 +68,19 @@ export const FocusCamera: React.FC = () => {
       ctx.fillStyle = glyphId === 0 ? '#00e676' : '#ffd740';
       ctx.fillRect(dx + 4, dy + 4 + animY, 24, 24);
     }
-  }, []);
+  };
 
-  const renderVisualFx = useCallback((ctx: CanvasRenderingContext2D, px: number, py: number, now: number) => {
-    if (activeFxListRef.current.length === 0) return;
+  const renderVisualFx = (ctx: CanvasRenderingContext2D, px: number, py: number, now: number) => {
+    if (activeFxList.length === 0) return;
 
-    activeFxListRef.current = activeFxListRef.current.filter((fx) => {
+    for (let i = activeFxList.length - 1; i >= 0; i--) {
+      const fx = activeFxList[i];
       const elapsed = now - (fx.startTime || 0);
       const duration = fx.durationMs || 300;
-      if (elapsed >= duration) return false;
+      if (elapsed >= duration) {
+        activeFxList.splice(i, 1);
+        continue;
+      }
 
       const progress = Math.min(1.0, elapsed / duration);
       const easeOut = 1 - Math.pow(1 - progress, 2);
@@ -97,19 +88,18 @@ export const FocusCamera: React.FC = () => {
       const targetGx = fx.followPlayer ? px : fx.gx;
       const targetGy = fx.followPlayer ? py : fx.gy;
 
-      if (targetGx === undefined || targetGy === undefined) return true;
+      if (targetGx === undefined || targetGy === undefined) continue;
 
       const screenX = (targetGx - px + halfRangeX) * zoomTileSize;
       const screenY = (targetGy - py + halfRangeY) * zoomTileSize;
 
       if (screenX < -zoomTileSize || screenX > canvasWidth || screenY < -zoomTileSize || screenY > canvasHeight) {
-        return true;
+        continue;
       }
 
       ctx.save();
 
       if (fx.type === 'SLASH') {
-        // ⚔️ 斬撃エフェクト
         const alpha = 1 - progress;
         ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.lineWidth = 3;
@@ -133,7 +123,6 @@ export const FocusCamera: React.FC = () => {
           ctx.stroke();
         }
       } else if (fx.type === 'DAMAGE_FLASH') {
-        // 💥 被弾赤フラッシュ
         const alpha = (1 - progress) * 0.6;
         ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
         ctx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
@@ -141,7 +130,6 @@ export const FocusCamera: React.FC = () => {
         ctx.lineWidth = 2;
         ctx.strokeRect(screenX, screenY, zoomTileSize, zoomTileSize);
       } else if (fx.type === 'KILL_BURST') {
-        // 💀 撃破消滅バースト
         const alpha = 1 - progress;
         const radius = (zoomTileSize * 0.5) * (0.3 + easeOut * 0.7);
         const cx = screenX + zoomTileSize / 2;
@@ -156,33 +144,22 @@ export const FocusCamera: React.FC = () => {
         ctx.moveTo(cx - radius, cy);
         ctx.lineTo(cx + radius, cy);
         ctx.moveTo(cx, cy - radius);
-        ctx.lineTo(cx + radius, cy);
+        ctx.lineTo(cx, cy + radius);
         ctx.stroke();
-
-        ctx.fillStyle = `rgba(255, 235, 59, ${alpha})`;
-        const d = radius * 0.7;
-        const pSize = Math.max(1, 3 * (1 - progress));
-        ctx.fillRect(cx - d, cy - d, pSize, pSize);
-        ctx.fillRect(cx + d, cy - d, pSize, pSize);
-        ctx.fillRect(cx - d, cy + d, pSize, pSize);
-        ctx.fillRect(cx + d, cy + d, pSize, pSize);
       } else if (fx.type === 'HEAL_RING') {
-        // 💚 回復リング
         const alpha = 1 - progress;
-        const liftY = -easeOut * 12;
+        const r = (zoomTileSize * 0.4) * (0.5 + progress * 0.8);
         const cx = screenX + zoomTileSize / 2;
-        const cy = screenY + zoomTileSize / 2 + liftY;
-        const r = 4 + easeOut * 10;
+        const cy = screenY + zoomTileSize / 2;
 
-        ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+        ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
         ctx.lineWidth = 2;
-        ctx.shadowColor = '#69f0ae';
+        ctx.shadowColor = '#38bdf8';
         ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
       } else if (fx.type === 'DEATH_BURST') {
-        // 🪦 死亡エフェクト
         const alpha = Math.max(0, 1 - progress);
         const radius = (zoomTileSize * 0.8) * (0.2 + easeOut * 1.2);
         const cx = screenX + zoomTileSize / 2;
@@ -211,46 +188,32 @@ export const FocusCamera: React.FC = () => {
       }
 
       ctx.restore();
-      return true;
-    });
-  }, []);
+    }
+  };
 
-  const drawZoomCanvas = useCallback(() => {
-    const canvas = zoomCanvasRef.current;
+  const drawZoomCanvas = () => {
+    const canvas = zoomCanvasRef;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const store = useGameStore.getState();
-    const sit = store.gklSituation;
-    const area = sit?.area;
-    const grid = area?.grid;
-    const cur = store.cursorPos;
-    const px = (sit?.area && typeof sit.area.playerX === 'number')
-      ? sit.area.playerX
-      : (sit?.area?.playerLocation?.x ?? (cur ? cur.x : 0));
-    const py = (sit?.area && typeof sit.area.playerY === 'number')
-      ? sit.area.playerY
-      : (sit?.area?.playerLocation?.y ?? (cur ? cur.y : 0));
-    const width = area?.width || 80;
-    const height = area?.height || 21;
-
+    const px = playerX;
+    const py = playerY;
     const cols = 40;
     const now = performance.now();
 
     // 画面シェイクの計算
     let shakeX = 0;
     let shakeY = 0;
-    const shake = shakeStateRef.current;
-    if (shake.time > 0) {
-      const elapsed = now - shake.time;
-      if (elapsed < shake.duration) {
-        const progress = 1 - (elapsed / shake.duration);
-        const mag = shake.intensity * progress;
+    if (shakeState.time > 0) {
+      const elapsed = now - shakeState.time;
+      if (elapsed < shakeState.duration) {
+        const progress = 1 - (elapsed / shakeState.duration);
+        const mag = shakeState.intensity * progress;
         shakeX = (Math.random() * 2 - 1) * mag;
         shakeY = (Math.random() * 2 - 1) * mag;
       } else {
-        shake.time = 0;
+        shakeState.time = 0;
       }
     }
 
@@ -260,11 +223,10 @@ export const FocusCamera: React.FC = () => {
     ctx.fillStyle = '#090916';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // 自キャラのキビキビとした上方向バウンス (周期約0.5秒, 0〜-3px / 死亡時は静止)
-    const isDead = store.isPlayerDead;
+    const isDead = $isPlayerDeadStore;
     const bounceY = isDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
 
-    const core = getCore();
+    const core = driverController.getCore();
     const tiles = (core && core.gkl && typeof core.gkl.getFocusCameraTiles === 'function')
       ? core.gkl.getFocusCameraTiles(halfRangeX, halfRangeY)
       : [];
@@ -324,41 +286,41 @@ export const FocusCamera: React.FC = () => {
     renderVisualFx(ctx, px, py, now);
 
     ctx.restore();
-  }, [drawTile, renderVisualFx, getCore]);
+  };
 
-  // レンダリングループ初期化
-  useEffect(() => {
-    tileMapTableRef.current = getTileMapping();
-    const img = new Image();
-    img.src = './pict/nethack_default_32_tr.png';
-    img.onload = () => {
-      tileLoadedRef.current = true;
+  onMount(() => {
+    tileMapTable = getTileMapping();
+    tileImg = new Image();
+    tileImg.src = './pict/nethack_default_32_tr.png';
+    tileImg.onload = () => {
+      tileLoaded = true;
     };
-    img.onerror = () => {
-      img.src = './pict/nethack_default_32.png';
-      img.onload = () => {
-        tileLoadedRef.current = true;
-      };
+    tileImg.onerror = () => {
+      if (tileImg) {
+        tileImg.src = './pict/nethack_default_32.png';
+        tileImg.onload = () => {
+          tileLoaded = true;
+        };
+      }
     };
-    tileImgRef.current = img;
 
     const render = () => {
-      if (useGameStore.getState().isZoomEnabled && zoomCanvasRef.current) {
+      if ($isZoomEnabledStore && zoomCanvasRef) {
         drawZoomCanvas();
       }
-      animFrameIdRef.current = requestAnimationFrame(render);
+      animFrameId = requestAnimationFrame(render);
     };
-    animFrameIdRef.current = requestAnimationFrame(render);
+    animFrameId = requestAnimationFrame(render);
+  });
 
-    return () => {
-      if (animFrameIdRef.current) {
-        cancelAnimationFrame(animFrameIdRef.current);
-      }
-    };
-  }, [drawZoomCanvas]);
+  onDestroy(() => {
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+    }
+  });
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = zoomCanvasRef.current;
+  const handleMouseMove = (e: MouseEvent) => {
+    const canvas = zoomCanvasRef;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvasWidth / rect.width;
@@ -370,22 +332,22 @@ export const FocusCamera: React.FC = () => {
     const dx = Math.floor(canvasX / zoomTileSize) - halfRangeX;
     const dy = Math.floor(canvasY / zoomTileSize) - halfRangeY;
 
-    const targetGx = playerPos.x + dx;
-    const targetGy = playerPos.y + dy;
+    const targetGx = playerX + dx;
+    const targetGy = playerY + dy;
 
     if (targetGx >= 0 && targetGx < 80 && targetGy >= 0 && targetGy < 21) {
-      inspectTileKnowledge(targetGx, targetGy);
+      driverController.inspectTileKnowledge(targetGx, targetGy);
     } else {
-      inspectTileKnowledge(-1, -1);
+      driverController.inspectTileKnowledge(-1, -1);
     }
-  }, [playerPos, inspectTileKnowledge]);
+  };
 
-  const handleMouseLeave = useCallback(() => {
-    inspectTileKnowledge(-1, -1);
-  }, [inspectTileKnowledge]);
+  const handleMouseLeave = () => {
+    driverController.inspectTileKnowledge(-1, -1);
+  };
 
-  const handleClick = useCallback(async (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = zoomCanvasRef.current;
+  const handleClick = async (e: MouseEvent) => {
+    const canvas = zoomCanvasRef;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvasWidth / rect.width;
@@ -397,35 +359,29 @@ export const FocusCamera: React.FC = () => {
     const dx = Math.floor(canvasX / zoomTileSize) - halfRangeX;
     const dy = Math.floor(canvasY / zoomTileSize) - halfRangeY;
 
-    const targetGx = playerPos.x + dx;
-    const targetGy = playerPos.y + dy;
+    const targetGx = playerX + dx;
+    const targetGy = playerY + dy;
 
     if (targetGx >= 0 && targetGx < 80 && targetGy >= 0 && targetGy < 21) {
-      // 1. オンデマンド Look 確定実行 (isHover: false)
-      await inspectTileKnowledge(targetGx, targetGy, false);
-
-      // 2. 移動実行
-      await travelTo(targetGx, targetGy);
+      await driverController.travelTo(targetGx, targetGy);
     }
-  }, [playerPos, inspectTileKnowledge, travelTo]);
+  };
+</script>
 
-  if (!isZoomEnabled) return null;
-
-  return (
-    <div className="zoom-viewport-box">
-      <div className="zoom-header">
-        <span>🎯 FOCUS CAMERA</span>
-        <span className="zoom-badge">@ ({playerPos.x},{playerPos.y})</span>
-      </div>
-      <canvas
-        ref={zoomCanvasRef}
-        width={canvasWidth}
-        height={canvasHeight}
-        className="zoom-canvas"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-      />
+{#if $isZoomEnabledStore}
+  <div class="zoom-viewport-box">
+    <div class="zoom-header">
+      <span>🎯 FOCUS CAMERA</span>
+      <span class="zoom-badge">@ ({playerX},{playerY})</span>
     </div>
-  );
-};
+    <canvas
+      bind:this={zoomCanvasRef}
+      width={canvasWidth}
+      height={canvasHeight}
+      class="zoom-canvas"
+      on:mousemove={handleMouseMove}
+      on:mouseleave={handleMouseLeave}
+      on:click={handleClick}
+    />
+  </div>
+{/if}

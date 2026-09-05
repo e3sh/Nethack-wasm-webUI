@@ -39,60 +39,9 @@ export class DirectionPad {
    */
   extractDirectionCode(action) {
     if (!action) return 'NONE';
-
-    const validDirections = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
-
-    // 1. dirCode を最優先判定
-    if (action.dirCode) {
-      const c = String(action.dirCode).toUpperCase().replace(/^DIR_/, '');
-      if (validDirections.has(c)) return c;
-      if (c === 'FEET' || c === 'CURRENT' || c === 'HERE') return 'SELF';
-    }
-
-    // 2. direction オブジェクト
-    if (action.direction) {
-      const code = typeof action.direction === 'object' ? (action.direction.code || action.direction.key) : action.direction;
-      if (code) {
-        const c = String(code).toUpperCase().replace(/^DIR_/, '');
-        if (validDirections.has(c)) return c;
-      }
-    }
-
-    // 3. directionKey (e.g. DIR_N, DIR_SELF, k, l, j, h, etc.)
-    if (action.directionKey) {
-      const cleaned = String(action.directionKey).toUpperCase().replace(/^DIR_/, '');
-      if (validDirections.has(cleaned)) return cleaned;
-      const viKeyMap = {
-        'K': 'N', 'L': 'E', 'J': 'S', 'H': 'W',
-        'U': 'NE', 'Y': 'NW', 'N': 'SE', 'B': 'SW', '.': 'SELF', '5': 'SELF',
-        '8': 'N', '6': 'E', '2': 'S', '4': 'W', '9': 'NE', '7': 'NW', '3': 'SE', '1': 'SW'
-      };
-      if (viKeyMap[cleaned]) return viKeyMap[cleaned];
-    }
-
-    // 4. keySequence (e.g. ['DIR_N'], ['a', 'b', 'DIR_SELF'])
-    if (Array.isArray(action.keySequence)) {
-      const dirToken = action.keySequence.find(t => typeof t === 'string' && t.startsWith('DIR_'));
-      if (dirToken) {
-        const c = dirToken.replace(/^DIR_/, '').toUpperCase();
-        if (validDirections.has(c)) return c;
-      }
-    }
-
-    // 5. target === 'feet' or non-directional
-    if (action.target === 'feet' || action.isDirectional === false || action.category === 'SURVIVAL') {
-      return 'SELF';
-    }
-
-    // 6. action.id 末尾からの抽出 (e.g. ACTION_ATTACK_N, ACTION_OPEN_DOOR_W)
-    if (action.id) {
-      const match = action.id.match(/_([NESW]|NE|NW|SE|SW|SELF|FEET)$/);
-      if (match) {
-        return match[1] === 'FEET' ? 'SELF' : match[1];
-      }
-    }
-
-    return 'NONE';
+    if (action.directionCode) return action.directionCode;
+    if (action.dirCode) return String(action.dirCode).toUpperCase().replace(/^DIR_/, '');
+    return action.isDirectional === false ? 'SELF' : 'NONE';
   }
 
   /**

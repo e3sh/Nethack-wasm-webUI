@@ -32,6 +32,7 @@ export class InventoryView {
   }
 
   getItemSymbol(item) {
+    if (!item) return '📦';
     if (item.isPickAxe) return '⛏️';
     if (item.isDigWand) return '🪄';
     if (item.isKey) return '🗝️';
@@ -42,15 +43,19 @@ export class InventoryView {
     if (item.isQuivered) return '🏹';
     if (item.isWorn) return '🛡️';
 
-    const text = (item.rawText || '').toLowerCase();
-    if (text.includes('potion') || text.includes('薬')) return '🧪';
-    if (text.includes('scroll') || text.includes('巻物')) return '📜';
-    if (text.includes('wand') || text.includes('杖')) return '🪄';
-    if (text.includes('ring') || text.includes('指輪')) return '💍';
-    if (text.includes('amulet') || text.includes('魔除け')) return '🧿';
-    if (text.includes('spellbook') || text.includes('魔法書')) return '📖';
-    if (text.includes('food') || text.includes('ration') || text.includes('corpse') || text.includes('食料') || text.includes('死体')) return '🍖';
-    if (text.includes('gold') || text.includes('金貨')) return '💰';
+    const cat = String(item.category || '').toUpperCase();
+    if (cat === 'POTION') return '🧪';
+    if (cat === 'SCROLL') return '📜';
+    if (cat === 'WAND') return '🪄';
+    if (cat === 'RING') return '💍';
+    if (cat === 'AMULET') return '🧿';
+    if (cat === 'SPELLBOOK') return '📖';
+    if (cat === 'FOOD') return '🍖';
+    if (cat === 'GOLD') return '💰';
+    if (cat === 'WEAPON') return '⚔️';
+    if (cat === 'ARMOR') return '🛡️';
+    if (cat === 'TOOL') return '🔧';
+
     return '📦';
   }
 
@@ -98,8 +103,7 @@ export class InventoryView {
 
           const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
           const isUnidentified = !!id.isUnidentified;
-          const rawLower = (item.rawText || '').toLowerCase();
-          const bucStatus = id.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
+          const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
 
           let bucBadgeHtml = '';
           if (isUnidentified) {

@@ -76,6 +76,8 @@ core.destroy();
 | `getLastSequenceBuffer()` | `Array<Object>` | 直近のシーケンス実行結果バッファのクリーンコピーを取得 |
 | `getSituation()` | `Object` | GKL が管理する統合ゲーム状況 (`{ status, inventory, area, tools, actions }`) を一括取得 |
 | `syncInventorySilent(options)` | `Promise<boolean>` | `querySequenceSilent(['i', ' '])` を実行し、`InventoryStateManager` を 100% 正確に最新化 |
+| `gkl.inspectCellOnDemand(targetPos, options)` | `Promise<Object>` | 指定座標 `(x, y)` のプレイヤー/敵/アイテム/死体/地形を調査し統一カードデータを返却 |
+| `gkl.getFocusCameraTiles(radiusX, radiusY, options)` | `Array<Object>` | プレイヤー中心の 4層レイヤー解決済みタイル配列（`renderGlyphs`、仮床・墓石自動補完）を取得 |
 | `respond(inputVal)` | `void` | メニュー選択・YN回答・テキストプロンプト応答を安全送信 |
 | `translate(text)` | `string` | 指定したテキストを内蔵 `TranslationEngine` で動的翻訳 |
 | `lookupWord(word, pos)` | `string` | 品詞 (`noun` 等) を指定して名詞/単語辞書引きを実行 |
