@@ -220,6 +220,52 @@
             color: #ffffff;
         }
 
+        /* 開発初期・低レイヤー検証クライアント アコーディオン */
+        .legacy-details {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 1rem;
+            margin-bottom: 3rem;
+            transition: all 0.25s ease;
+        }
+
+        .legacy-details[open] {
+            background: rgba(15, 23, 42, 0.6);
+            border-style: solid;
+            border-color: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .legacy-summary {
+            padding: 1.2rem 1.5rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: color 0.15s ease, background 0.15s ease;
+            border-radius: 1rem;
+        }
+
+        .legacy-summary:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .legacy-details[open] .legacy-summary {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            color: #ffffff;
+        }
+
+        .legacy-content {
+            padding: 1.5rem;
+        }
+
         .dev-notes {
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -273,14 +319,14 @@
         </header>
 
         <main class="grid">
-            <!-- 0. GKL Pure JS Reference Client (最新・最高機能) -->
+            <!-- GKL Pure JS Client (最新・最高機能) -->
             <div class="card" style="--card-accent: #00e676; border: 2px solid #00e676;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">🐉</div>
                         <span class="card-badge" style="background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676;">🧠 状況推論＆アシスト搭載</span>
                     </div>
-                    <h2 class="card-title">0. GKL Pure JS Client</h2>
+                    <h2 class="card-title">GKL Pure JS Client</h2>
                     <p class="card-desc">【最新・最高機能】ゲーム状況自動推論 (GKL) 搭載。周囲の状況から「今最適な行動」を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズームカメラ（3層透過＆浮遊アニメーション）をフル搭載した最新クライアント。</p>
                 </div>
                 <div class="card-actions">
@@ -288,120 +334,15 @@
                 </div>
             </div>
 
-            <!-- 0.5 Pure JS Reference Client -->
-            <div class="card" style="--card-accent: #10b981;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">🚀</div>
-                        <span class="card-badge badge-core">WebUIcore 標準</span>
-                    </div>
-                    <h2 class="card-title">0.5 Pure JS Reference Client</h2>
-                    <p class="card-desc">WebUIcore 直呼び出しによるフレームワークフリーの標準リファレンスクライアント。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../examples/pure-js-client/index.html" class="btn btn-primary" target="_blank">直接開く (pure-js-client)</a>
-                </div>
-            </div>
-
-            <!-- 1. WebUI Desktop Canvas Client -->
-            <div class="card" style="--card-accent: #3b82f6;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">⚔️</div>
-                        <span class="card-badge badge-core">WebUICore Canvas</span>
-                    </div>
-                    <h2 class="card-title">1. WebUI (Desktop Canvas Client)</h2>
-                    <p class="card-desc">独自グラフィックタイル＆日本語フォントの協調制御。WebUICore 統合済みの極めて高速な Canvas クライアント。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../examples/legacy-client/game.html" class="btn btn-primary" target="_blank">直接開く (game.html)</a>
-                </div>
-            </div>
-
-            <!-- 2. WebUI Mobile Touch Client -->
-            <div class="card" style="--card-accent: #06b6d4;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">📱</div>
-                        <span class="card-badge badge-core">WebUICore Mobile</span>
-                    </div>
-                    <h2 class="card-title">2. WebUI (Mobile Touch Client)</h2>
-                    <p class="card-desc">スマホ・タブレット最適化。下部レスポンシブステータス表示とバーチャルタッチパッドを搭載した WebUICore 統合モバイルクライアント。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../examples/legacy-client/mobile.html" class="btn btn-primary" target="_blank">直接開く (mobile.html)</a>
-                </div>
-            </div>
-
-            <!-- 2.5 WebUICore PoC -->
-            <div class="card" style="--card-accent: #8b5cf6;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">⚙️</div>
-                        <span class="card-badge badge-test">Test & PoC</span>
-                    </div>
-                    <h2 class="card-title">WebUICore 独立統合実証 (PoC)</h2>
-                    <p class="card-desc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の検証ポータル。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../tests/webuicore_poc.html" class="btn btn-primary" target="_blank">直接開く (webuicore_poc.html)</a>
-                </div>
-            </div>
-
-            <!-- 2.6 Mobile Touch Client PoC -->
-            <div class="card" style="--card-accent: #10b981;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">📱</div>
-                        <span class="card-badge badge-test">Test & PoC</span>
-                    </div>
-                    <h2 class="card-title">Mobile Touch Client PoC</h2>
-                    <p class="card-desc">11x11 ズーム拡大ビュー、80x21 レーダーミニマップ、動的コンテキストアクション、テンキー安全移動、常時コマンドバーを搭載した最新スマホ・タッチ向け実証クライアント。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../tests/mobile_client_poc.html" class="btn btn-primary" target="_blank">直接開く (mobile_client_poc.html)</a>
-                </div>
-            </div>
-
-            <!-- 3. DriverTest -->
-            <div class="card" style="--card-accent: #f59e0b;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">🧪</div>
-                        <span class="card-badge badge-test">Driver Test</span>
-                    </div>
-                    <h2 class="card-title">3. Driver Test Client</h2>
-                    <p class="card-desc">NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../tests/driver_test.html" class="btn btn-primary" target="_blank">直接開く (driver_test.html)</a>
-                </div>
-            </div>
-
-            <!-- 4. DriverDomTest -->
-            <div class="card" style="--card-accent: #f97316;">
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon">🖥️</div>
-                        <span class="card-badge badge-test">Driver Test</span>
-                    </div>
-                    <h2 class="card-title">4. Driver DOM Test Client</h2>
-                    <p class="card-desc">NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。</p>
-                </div>
-                <div class="card-actions">
-                    <a href="../tests/driver_dom_test.html" class="btn btn-primary" target="_blank">直接開く (driver_dom_test.html)</a>
-                </div>
-            </div>
-
-            <!-- 5. Vue 3 Client -->
+            <!-- Vue 3 Client -->
             <div class="card" style="--card-accent: #10b981;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">🟢</div>
                         <span class="card-badge badge-framework">Vue 3</span>
                     </div>
-                    <h2 class="card-title">5. Vue 3 Client</h2>
-                    <p class="card-desc">Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。</p>
+                    <h2 class="card-title">Vue 3 Client</h2>
+                    <p class="card-desc">Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
                     <a href="../examples/vue-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
@@ -409,15 +350,15 @@
                 </div>
             </div>
 
-            <!-- 6. React 18 Client -->
+            <!-- React 18 Client -->
             <div class="card" style="--card-accent: #61dafb;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">⚛️</div>
                         <span class="card-badge badge-framework">React 18</span>
                     </div>
-                    <h2 class="card-title">6. React 18 Client</h2>
-                    <p class="card-desc">React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。</p>
+                    <h2 class="card-title">React 18 Client</h2>
+                    <p class="card-desc">React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
                     <a href="../examples/react-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
@@ -425,15 +366,15 @@
                 </div>
             </div>
 
-            <!-- 7. Svelte Client -->
+            <!-- Svelte Client -->
             <div class="card" style="--card-accent: #ff3e00;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">🔥</div>
                         <span class="card-badge badge-framework">Svelte</span>
                     </div>
-                    <h2 class="card-title">7. Svelte Client</h2>
-                    <p class="card-desc">Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。</p>
+                    <h2 class="card-title">Svelte Client</h2>
+                    <p class="card-desc">Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
                     <a href="../examples/svelte-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
@@ -441,15 +382,15 @@
                 </div>
             </div>
 
-            <!-- 8. SolidJS Client -->
+            <!-- SolidJS Client -->
             <div class="card" style="--card-accent: #4f46e5;">
                 <div>
                     <div class="card-header">
                         <div class="card-icon">⚡</div>
                         <span class="card-badge badge-framework">SolidJS</span>
                     </div>
-                    <h2 class="card-title">8. SolidJS Client</h2>
-                    <p class="card-desc">SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。</p>
+                    <h2 class="card-title">SolidJS Client</h2>
+                    <p class="card-desc">SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
                     <a href="../examples/solid-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
@@ -458,8 +399,109 @@
             </div>
         </main>
 
+        <!-- 開発初期・低レイヤー検証クライアント (普段は折りたたみ非表示) -->
+        <details class="legacy-details">
+            <summary class="legacy-summary">
+                <span>📦 開発初期クライアント &amp; ドライバ検証環境 (Legacy &amp; Driver Tests)</span>
+                <span style="font-size: 0.85rem; font-weight: normal; opacity: 0.8;">クリックして展開 / 折りたたむ ▼</span>
+            </summary>
+            <div class="legacy-content">
+                <div class="grid" style="margin-bottom: 0;">
+                    <!-- Pure JS Minimal Client -->
+                    <div class="card" style="--card-accent: #10b981;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">🚀</div>
+                                <span class="card-badge badge-core">WebUICore 最小構成</span>
+                            </div>
+                            <h2 class="card-title">Pure JS Minimal Client</h2>
+                            <p class="card-desc">WebUICore 直呼び出しによるフレームワークフリーの最小構成リファレンスクライアント。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../examples/pure-js-client/index.html" class="btn btn-primary" target="_blank">直接開く (pure-js-client)</a>
+                        </div>
+                    </div>
+
+                    <!-- Desktop Canvas Client (Legacy) -->
+                    <div class="card" style="--card-accent: #3b82f6;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">⚔️</div>
+                                <span class="card-badge badge-legacy">Legacy Canvas</span>
+                            </div>
+                            <h2 class="card-title">Desktop Canvas Client</h2>
+                            <p class="card-desc">独自グラフィックタイル＆日本語フォントの協調制御。初期デスクトップ向け Canvas クライアント。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../examples/legacy-client/game.html" class="btn btn-primary" target="_blank">直接開く (game.html)</a>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Touch Client (Legacy) -->
+                    <div class="card" style="--card-accent: #06b6d4;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">📱</div>
+                                <span class="card-badge badge-legacy">Legacy Mobile</span>
+                            </div>
+                            <h2 class="card-title">Mobile Touch Client</h2>
+                            <p class="card-desc">初期スマホ・タブレット向け実装。下部レスポンシブステータス表示とバーチャルタッチパッドを搭載。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../examples/legacy-client/mobile.html" class="btn btn-primary" target="_blank">直接開く (mobile.html)</a>
+                        </div>
+                    </div>
+
+                    <!-- WebUICore PoC -->
+                    <div class="card" style="--card-accent: #8b5cf6;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">⚙️</div>
+                                <span class="card-badge badge-test">PoC</span>
+                            </div>
+                            <h2 class="card-title">WebUICore 独立統合実証 (PoC)</h2>
+                            <p class="card-desc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の初期検証ポータル。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../tests/webuicore_poc.html" class="btn btn-primary" target="_blank">直接開く (webuicore_poc.html)</a>
+                        </div>
+                    </div>
+
+                    <!-- Driver Test Client -->
+                    <div class="card" style="--card-accent: #f59e0b;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">🧪</div>
+                                <span class="card-badge badge-test">Driver Test</span>
+                            </div>
+                            <h2 class="card-title">Driver Test Client</h2>
+                            <p class="card-desc">NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../tests/driver_test.html" class="btn btn-primary" target="_blank">直接開く (driver_test.html)</a>
+                        </div>
+                    </div>
+
+                    <!-- Driver DOM Test Client -->
+                    <div class="card" style="--card-accent: #f97316;">
+                        <div>
+                            <div class="card-header">
+                                <div class="card-icon">🖥️</div>
+                                <span class="card-badge badge-test">Driver Test</span>
+                            </div>
+                            <h2 class="card-title">Driver DOM Test Client</h2>
+                            <p class="card-desc">NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。</p>
+                        </div>
+                        <div class="card-actions">
+                            <a href="../tests/driver_dom_test.html" class="btn btn-primary" target="_blank">直接開く (driver_dom_test.html)</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
         <section class="dev-notes">
-            <h3>💡 開運用ヒント</h3>
+            <h3>💡 開発・運用ヒント</h3>
             <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
                 静的ローカルサーバー（例: <code>python -m http.server 8000</code> や Live Server）を起動した状態で <code>http://localhost:8000/tools/cltest.html</code> へアクセスすることで全クライアントを一元テスト・管理できます。<br>
                 各フレームワークの開発サーバーを起動する場合は <code>npm run dev:vue</code> などをプロジェクトルートで実行してください。

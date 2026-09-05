@@ -28,7 +28,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 active` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全47スイート・507テスト 100% PASS） |
+| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 active` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全45スイート・491テスト 100% PASS） |
 | **[Testing_Modernization_Implementation_Roadmap.md](./8_testing/Testing_Modernization_Implementation_Roadmap.md)** | `🟢 active` | `tests/`, `src/testing/` | テスト基盤刷新ロードマップ（全5フェーズ） |
 | **[Scenario_Testing_and_Event_Capture_Architecture.md](./8_testing/Scenario_Testing_and_Event_Capture_Architecture.md)** | `🟢 active` | `tools/scenario-recorder.html` | 下り方向：実機イベントキャプチャ＆統合シナリオ再生設計 |
 | **[Sequence_Protocol_Validation_Architecture.md](./8_testing/Sequence_Protocol_Validation_Architecture.md)** | `🟢 active` | `tests/protocol/` | 上り方向：キーシーケンス・プロトコル3重防壁検証設計 |
