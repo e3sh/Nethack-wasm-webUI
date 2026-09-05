@@ -334,4 +334,122 @@ describe('PromptPayloadBuilder', () => {
         expect(menuRes.subCategory).toBeNull();
         expect(menuRes.assistant).toBeNull();
     });
+
+    it('虐殺（Genocide）プロンプト（クラス虐殺 / 単体虐殺、日英）を正しく検出し GENOCIDE アシスタントを生成できること', () => {
+        const mockGenocideService = {
+            getPresets: (mode) => [{ id: 'p1', target: 'L', mode }],
+            getMonsterClasses: () => [{ symbol: 'L', nameEn: 'lich' }]
+        };
+        const mockGkl = {
+            getGenocideService: () => mockGenocideService,
+            getCharacterInfo: () => ({ race: 'dwarf', role: 'valkyrie' })
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        // 1. 英語 クラス虐殺
+        const resEnClass = builder.build({
+            category: PROMPT_CATEGORY.TEXT,
+            prompt: "What class of monsters do you wish to genocide?",
+            rawPrompt: "What class of monsters do you wish to genocide?"
+        });
+        expect(resEnClass.inputType).toBe('LINE_TEXT');
+        expect(resEnClass.subCategory).toBe('GENOCIDE');
+        expect(resEnClass.assistant).toBeDefined();
+        expect(resEnClass.assistant.type).toBe('GENOCIDE');
+        expect(resEnClass.assistant.mode).toBe('CLASS');
+        expect(resEnClass.assistant.playerRace).toBe('dwarf');
+        expect(resEnClass.assistant.playerRole).toBe('valkyrie');
+
+        // 2. 日本語 クラス虐殺
+        const resJaClass = builder.build({
+            context: 'getlin',
+            prompt: "どのクラスのモンスターを虐殺しますか？",
+            rawPrompt: "どのクラスのモンスターを虐殺しますか？"
+        });
+        expect(resJaClass.subCategory).toBe('GENOCIDE');
+        expect(resJaClass.assistant.mode).toBe('CLASS');
+
+        // 3. 英語 単体虐殺 (旧構文: "What monster do you want to genocide?")
+        const resEnSingle = builder.build({
+            category: PROMPT_CATEGORY.TEXT,
+            prompt: "What monster do you want to genocide?",
+            rawPrompt: "What monster do you want to genocide?"
+        });
+        expect(resEnSingle.subCategory).toBe('GENOCIDE');
+        expect(resEnSingle.assistant.mode).toBe('SINGLE');
+
+        // 4. 日本語 単体虐殺
+        const resJaSingle = builder.build({
+            context: 'getlin',
+            prompt: "どの種類のモンスターを虐殺しますか？",
+            rawPrompt: "どの種類のモンスターを虐殺しますか？"
+        });
+        expect(resJaSingle.subCategory).toBe('GENOCIDE');
+        expect(resJaSingle.assistant.mode).toBe('SINGLE');
+
+        // 5. NetHack 3.7 / 5.0 最新英語 クラス虐殺 ("What class of monsters do you want to genocide?")
+        const resEnClassLatest = builder.build({
+            context: 'getlin',
+            prompt: "どのクラスのモンスターを虐殺しますか？",
+            rawPrompt: "What class of monsters do you want to genocide?"
+        });
+        expect(resEnClassLatest.subCategory).toBe('GENOCIDE');
+        expect(resEnClassLatest.assistant.mode).toBe('CLASS');
+
+        // 6. NetHack 3.7 / 5.0 最新英語 単体虐殺 ("What type of monster do you want to genocide?")
+        const resEnSingleLatest = builder.build({
+            context: 'getlin',
+            prompt: "どの種類のモンスターを虐殺しますか？",
+            rawPrompt: "What type of monster do you want to genocide?"
+        });
+        expect(resEnSingleLatest.subCategory).toBe('GENOCIDE');
+        expect(resEnSingleLatest.assistant.mode).toBe('SINGLE');
+
+        // 7. ヒント付きプロンプト（再試行時）
+        const resClassWithHint = builder.build({
+            context: 'getlin',
+            prompt: "どのクラスのモンスターを虐殺しますか？ [記号かクラスを表す名前、または'?'を入力してください]",
+            rawPrompt: "どのクラスのモンスターを虐殺しますか？ [記号かクラスを表す名前、または'?'を入力してください]"
+        });
+        expect(resClassWithHint.subCategory).toBe('GENOCIDE');
+        expect(resClassWithHint.assistant.mode).toBe('CLASS');
+
+        const resSingleWithHint = builder.build({
+            context: 'getlin',
+            prompt: "What type of monster do you want to genocide? [enter the name of a type of monster, or '?']",
+            rawPrompt: "What type of monster do you want to genocide? [enter the name of a type of monster, or '?']"
+        });
+        expect(resSingleWithHint.subCategory).toBe('GENOCIDE');
+        expect(resSingleWithHint.assistant.mode).toBe('SINGLE');
+    });
+
+    it('変化制御（Polymorph Control）プロンプトを自動検知して POLYMORPH アシスタントペイロードを生成できること', () => {
+        const mockGkl = {
+            getPolymorphService: vi.fn(() => ({
+                getPresets: vi.fn(() => [{ categoryKey: 'combat', label: 'Combat' }])
+            }))
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        // 1. 英語プロンプト: "Become what kind of monster? [type the name]"
+        const resEn = builder.build({
+            context: 'getlin',
+            prompt: "Become what kind of monster? [type the name]",
+            rawPrompt: "Become what kind of monster? [type the name]"
+        });
+        expect(resEn.subCategory).toBe('POLYMORPH');
+        expect(resEn.assistant).toBeDefined();
+        expect(resEn.assistant.type).toBe('POLYMORPH');
+        expect(resEn.assistant.presets.length).toBe(1);
+
+        // 2. 日本語プロンプト: "どの種類のモンスターになりますか? [名前を入力してください]"
+        const resJa = builder.build({
+            context: 'getlin',
+            prompt: "どの種類のモンスターになりますか? [名前を入力してください]",
+            rawPrompt: "どの種類のモンスターになりますか? [名前を入力してください]"
+        });
+        expect(resJa.subCategory).toBe('POLYMORPH');
+        expect(resJa.assistant).toBeDefined();
+        expect(resJa.assistant.type).toBe('POLYMORPH');
+    });
 });

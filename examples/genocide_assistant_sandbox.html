@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 虐殺アシスタント (Genocide Assistant Sandbox)</title>
+    <!-- SSOT 辞書データ -->
+    <script src="../param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --panel-bg: #1e1e24;
+            --border-color: #33333d;
+            --text-color: #e0e0e0;
+            --text-muted: #888899;
+            --primary: #4f8cff;
+            --primary-hover: #6ea0ff;
+            --accent: #ffd700;
+            --danger: #ff5555;
+            --danger-hover: #ff6e6e;
+            --success: #50fa7b;
+            --warning: #ffb86c;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sandbox-header {
+            max-width: 720px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-titles h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-titles p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* シミュレーション設定コントロールバー */
+        .sim-control-bar {
+            max-width: 720px;
+            width: 100%;
+            background-color: #181820;
+            border: 1px solid #2d2d3a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .sim-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sim-select {
+            background-color: #242430;
+            border: 1px solid #3c3c4e;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        /* 言語切替スイッチャー */
+        .lang-switcher {
+            display: flex;
+            background-color: #1a1a22;
+            border: 1px solid #3c3c4e;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-left: auto;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: #888899;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .lang-btn.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        /* モーダル本体 */
+        .genocide-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-width: 720px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .mode-badge.class-mode {
+            background-color: rgba(255, 85, 85, 0.2);
+            color: #ff7777;
+            border: 1px solid rgba(255, 85, 85, 0.4);
+        }
+
+        .mode-badge.single-mode {
+            background-color: rgba(79, 140, 255, 0.2);
+            color: #77a8ff;
+            border: 1px solid rgba(79, 140, 255, 0.4);
+        }
+
+        /* コンダクト維持 (none) クイックアクションバー */
+        .conduct-bar {
+            background: linear-gradient(90deg, rgba(80, 250, 123, 0.1) 0%, rgba(30, 30, 36, 0.5) 100%);
+            border: 1px solid rgba(80, 250, 123, 0.3);
+            border-radius: 6px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .conduct-info {
+            font-size: 13px;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .conduct-btn {
+            background-color: #27ae60;
+            border: none;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .conduct-btn:hover {
+            background-color: #2ecc71;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 14px 0 8px 0;
+        }
+
+        /* プリセットボタングリッド */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            background-color: #282832;
+            border: 1px solid #3c3c4a;
+            color: #dcdcdc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .preset-btn:hover {
+            background-color: #353545;
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        .preset-btn.active {
+            background-color: #4a2828;
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        .preset-btn-title {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .preset-btn-desc {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* 検索・サジェスト入力 */
+        .search-container {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: #141418;
+            border: 1px solid #444455;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.2);
+        }
+
+        .suggest-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #1f1f28;
+            border: 1px solid #44445a;
+            border-radius: 0 0 6px 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+        }
+
+        .suggest-dropdown.active {
+            display: block;
+        }
+
+        .suggest-item {
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid #2a2a35;
+            transition: background-color 0.1s;
+        }
+
+        .suggest-item:hover, .suggest-item.selected {
+            background-color: #2b2b3a;
+            border-left: 3px solid var(--primary);
+        }
+
+        .suggest-main {
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .suggest-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 6px;
+        }
+
+        .suggest-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: #333344;
+            color: #aaa;
+        }
+
+        .suggest-badge.critical {
+            background-color: #552222;
+            color: #ff9999;
+        }
+
+        /* ⚠️ 自己虐殺セーフティ警告パネル */
+        .self-genocide-alert {
+            display: none;
+            background-color: #3d1414;
+            border: 2px solid var(--danger);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            animation: pulse-border 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: #ff5555; box-shadow: 0 0 4px rgba(255, 85, 85, 0.4); }
+            100% { border-color: #ff2222; box-shadow: 0 0 14px rgba(255, 34, 34, 0.8); }
+        }
+
+        .self-genocide-alert.active {
+            display: block;
+        }
+
+        .alert-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ff7777;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .alert-desc {
+            font-size: 12px;
+            color: #ffbbbb;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .override-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #ff9999;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        /* 送信プレビュー */
+        .preview-box {
+            background-color: #15151a;
+            border: 1px dashed #3a3a4c;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .preview-command {
+            font-family: monospace;
+            font-size: 16px;
+            color: var(--accent);
+            font-weight: bold;
+            background-color: #22222c;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #3d3d4f;
+        }
+
+        /* フッターボタン */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 9px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s ease;
+        }
+
+        .btn-cancel {
+            background-color: #282832;
+            color: #bbb;
+            border: 1px solid #3c3c4e;
+        }
+
+        .btn-cancel:hover {
+            background-color: #353545;
+            color: #fff;
+        }
+
+        .btn-submit {
+            background-color: var(--danger);
+            color: #fff;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background-color: var(--danger-hover);
+        }
+
+        .btn-submit:disabled {
+            background-color: #4a2222;
+            color: #775555;
+            cursor: not-allowed;
+            border: 1px solid #5a2a2a;
+        }
+
+        /* 送信ログ表示 */
+        .log-box {
+            max-width: 720px;
+            width: 100%;
+            margin-top: 20px;
+            background-color: #141418;
+            border: 1px solid #2a2a35;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 12px;
+            color: #aaa;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+        .log-entry.sent { color: var(--success); }
+        .log-entry.warn { color: var(--warning); }
+    </style>
+</head>
+<body>
+
+    <div class="sandbox-header">
+        <div class="header-titles">
+            <h1>💀 虐殺アシスタント (Genocide Assistant Sandbox)</h1>
+            <p>GKL駆動型インテリジェントUI・自己虐殺セーフティガード動作検証用スタンドアロン環境</p>
+        </div>
+        <div class="lang-switcher">
+            <button class="lang-btn active" id="btn-lang-ja">日本語</button>
+            <button class="lang-btn" id="btn-lang-en">English</button>
+        </div>
+    </div>
+
+    <!-- シミュレーション設定コントロールバー -->
+    <div class="sim-control-bar">
+        <div class="sim-group">
+            <span class="sim-label">虐殺モード:</span>
+            <select id="sim-mode" class="sim-select">
+                <option value="CLASS">クラス虐殺 (Class Genocide: 祝福)</option>
+                <option value="SINGLE">単体虐殺 (Single Monster: 未呪)</option>
+            </select>
+        </div>
+        <div class="sim-group">
+            <span class="sim-label">プレイヤー種族:</span>
+            <select id="sim-race" class="sim-select">
+                <option value="human">人間 (Human)</option>
+                <option value="dwarf">ドワーフ (Dwarf)</option>
+                <option value="elf">エルフ (Elf)</option>
+                <option value="gnome">ノーム (Gnome)</option>
+                <option value="orc">オーク (Orc)</option>
+            </select>
+        </div>
+        <div class="sim-group">
+            <span class="sim-label">ロール:</span>
+            <select id="sim-role" class="sim-select">
+                <option value="valkyrie">ワルキューレ (Valkyrie)</option>
+                <option value="wizard">魔法使い (Wizard)</option>
+                <option value="barbarian">野蛮人 (Barbarian)</option>
+                <option value="samurai">侍 (Samurai)</option>
+                <option value="tourist">観光客 (Tourist)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 虐殺モーダルUI本体 -->
+    <div class="genocide-modal">
+        <div class="modal-header">
+            <h2>
+                <span>💀</span>
+                <span id="modal-title-text">モンスター虐殺 (Genocide)</span>
+            </h2>
+            <span class="mode-badge class-mode" id="mode-badge">CLASS GENOCIDE</span>
+        </div>
+
+        <!-- 🕊️ 無虐殺コンダクト維持クイックバー -->
+        <div class="conduct-bar">
+            <div class="conduct-info">
+                <span>🕊️</span>
+                <span id="conduct-desc-text">無虐殺コンダクト（Genocideless）を維持しますか？</span>
+            </div>
+            <button class="conduct-btn" id="btn-conduct-none">虐殺を行わない (none)</button>
+        </div>
+
+        <!-- おすすめ危険プリセット -->
+        <div class="section-title" id="title-presets">おすすめ危険モンスター / クラス</div>
+        <div class="preset-grid" id="preset-grid"></div>
+
+        <!-- 検索入力＆サジェスト -->
+        <div class="section-title" id="title-search">検索・個別指定</div>
+        <div class="search-container">
+            <input type="text" class="search-input" id="search-input" placeholder="クラス記号 (L, c, & 等) またはモンスター名 (lich, flayer 等) を入力...">
+            <div class="suggest-dropdown" id="suggest-dropdown"></div>
+        </div>
+
+        <!-- ⚠️ 自己虐殺セーフティ警告パネル -->
+        <div class="self-genocide-alert" id="self-genocide-alert">
+            <div class="alert-title">
+                <span>⚠️</span>
+                <span id="alert-title-text">自己虐殺警告: 自身が即死します！</span>
+            </div>
+            <div class="alert-desc" id="alert-desc-text">
+                選択された対象はプレイヤーの種族またはロールに合致しています。このまま実行すると即死ゲームオーバー（Self-Genocide）となります。
+            </div>
+            <label class="override-checkbox-container">
+                <input type="checkbox" id="chk-override-danger">
+                <span id="override-label-text">危険を承知の上で確定を許可する（自殺プロテクト解除）</span>
+            </label>
+        </div>
+
+        <!-- 送信プレビュー -->
+        <div class="preview-box">
+            <span class="preview-label" id="preview-label-text">NetHack Cコア送信文字列:</span>
+            <span class="preview-command" id="preview-command-text">L</span>
+        </div>
+
+        <!-- フッターボタン -->
+        <div class="modal-footer">
+            <button class="btn btn-cancel" id="btn-cancel">キャンセル (Esc)</button>
+            <button class="btn btn-submit" id="btn-submit">虐殺を実行する (Enter)</button>
+        </div>
+    </div>
+
+    <!-- ログボックス -->
+    <div class="log-box" id="log-box">
+        <div class="log-entry">[System] 虐殺アシスタント サンドボックス初期化完了。</div>
+    </div>
+
+    <script type="module">
+        import { GenocideService } from '../src/core/knowledge/GenocideService.js';
+        import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
+
+        let currentLang = 'ja';
+        const translator = new TranslationEngine({ enabled: true, language: currentLang });
+        const service = new GenocideService({ language: currentLang, translator: translator });
+
+        let currentMode = 'CLASS'; // 'CLASS' | 'SINGLE'
+        let currentRace = 'human';
+        let currentRole = 'valkyrie';
+        let currentTarget = 'L';
+        let isDangerOverride = false;
+
+        // UI要素
+        const elSimMode = document.getElementById('sim-mode');
+        const elSimRace = document.getElementById('sim-race');
+        const elSimRole = document.getElementById('sim-role');
+        const elBtnLangJa = document.getElementById('btn-lang-ja');
+        const elBtnLangEn = document.getElementById('btn-lang-en');
+
+        const elModeBadge = document.getElementById('mode-badge');
+        const elPresetGrid = document.getElementById('preset-grid');
+        const elSearchInput = document.getElementById('search-input');
+        const elSuggestDropdown = document.getElementById('suggest-dropdown');
+        const elAlertBox = document.getElementById('self-genocide-alert');
+        const elAlertDesc = document.getElementById('alert-desc-text');
+        const elChkOverride = document.getElementById('chk-override-danger');
+        const elPreviewCommand = document.getElementById('preview-command-text');
+        const elBtnSubmit = document.getElementById('btn-submit');
+        const elBtnCancel = document.getElementById('btn-cancel');
+        const elBtnNone = document.getElementById('btn-conduct-none');
+        const elLogBox = document.getElementById('log-box');
+
+        function addLog(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            elLogBox.appendChild(div);
+            elLogBox.scrollTop = elLogBox.scrollHeight;
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            translator.setLanguage(lang);
+            service.setLanguage(lang);
+            elBtnLangJa.classList.toggle('active', lang === 'ja');
+            elBtnLangEn.classList.toggle('active', lang === 'en');
+
+            document.getElementById('modal-title-text').textContent = lang === 'ja' ? 'モンスター虐殺 (Genocide)' : 'Genocide Assistant';
+            document.getElementById('conduct-desc-text').textContent = lang === 'ja' ? '無虐殺コンダクト（Genocideless）を維持しますか？' : 'Preserve Genocideless conduct?';
+            elBtnNone.textContent = lang === 'ja' ? '虐殺を行わない (none)' : 'Do not genocide (none)';
+            document.getElementById('title-presets').textContent = lang === 'ja' ? 'おすすめ危険モンスター / クラス' : 'Recommended Targets / Classes';
+            document.getElementById('title-search').textContent = lang === 'ja' ? '検索・個別指定' : 'Search / Specify Target';
+            updatePlaceholder();
+            document.getElementById('alert-title-text').textContent = lang === 'ja' ? '自己虐殺警告: 自身が即死します！' : '⚠️ Self-Genocide Warning: Immediate Death!';
+            document.getElementById('override-label-text').textContent = lang === 'ja' ? '危険を承知の上で確定を許可する（自殺プロテクト解除）' : 'I understand the danger (Release suicide safeguard)';
+            document.getElementById('preview-label-text').textContent = lang === 'ja' ? 'NetHack Cコア送信文字列:' : 'Serialized NetHack Command:';
+            elBtnCancel.textContent = lang === 'ja' ? 'キャンセル (Esc)' : 'Cancel (Esc)';
+            elBtnSubmit.textContent = lang === 'ja' ? '虐殺を実行する (Enter)' : 'Execute Genocide (Enter)';
+
+            renderPresets();
+            updateValidation();
+        }
+
+        function renderPresets() {
+            elPresetGrid.innerHTML = '';
+            const presets = service.getPresets(currentMode);
+
+            presets.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = `preset-btn ${currentTarget === p.target ? 'active' : ''}`;
+
+                const title = currentLang === 'ja' ? p.labelJa : p.labelEn;
+                const desc = currentLang === 'ja' ? p.descriptionJa : (p.descriptionEn || '');
+
+                btn.innerHTML = `
+                    <span class="preset-btn-title">${title}</span>
+                    <span class="preset-btn-desc">${desc}</span>
+                `;
+
+                btn.onclick = () => {
+                    selectTarget(p.target);
+                };
+                elPresetGrid.appendChild(btn);
+            });
+        }
+
+        function selectTarget(target) {
+            currentTarget = target;
+            elSearchInput.value = target;
+            elSuggestDropdown.classList.remove('active');
+            isDangerOverride = false;
+            elChkOverride.checked = false;
+
+            renderPresets();
+            updateValidation();
+        }
+
+        function updateValidation() {
+            const serialized = service.serializeCommand(currentTarget);
+            elPreviewCommand.textContent = serialized;
+
+            // 自己虐殺チェック
+            const check = service.checkSelfGenocide(currentTarget, currentRace, currentRole);
+
+            if (check.isSelf) {
+                elAlertBox.classList.add('active');
+                elAlertDesc.textContent = currentLang === 'ja' ? check.reasonJa : check.reasonEn;
+                elBtnSubmit.disabled = !isDangerOverride;
+                elBtnSubmit.style.backgroundColor = isDangerOverride ? '#d63031' : '#4a2222';
+            } else {
+                elAlertBox.classList.remove('active');
+                elBtnSubmit.disabled = false;
+                elBtnSubmit.style.backgroundColor = 'var(--danger)';
+            }
+        }
+
+        function updatePlaceholder() {
+            if (currentMode === 'CLASS') {
+                elSearchInput.placeholder = currentLang === 'ja'
+                    ? 'クラス記号 (L, c, & 等) またはモンスター名 (lich, flayer 等) でクラス検索...'
+                    : 'Type class symbol (L, c, &) or monster name to find class...';
+            } else {
+                elSearchInput.placeholder = currentLang === 'ja'
+                    ? 'モンスター名を入力 (例: mind flayer, lich, マインド, リッチ 等)...'
+                    : 'Type monster name (e.g. mind flayer, lich, arch-lich)...';
+            }
+        }
+
+        elBtnLangJa.onclick = () => setLanguage('ja');
+        elBtnLangEn.onclick = () => setLanguage('en');
+
+        elSimMode.onchange = () => {
+            currentMode = elSimMode.value;
+            elModeBadge.textContent = currentMode === 'CLASS' ? 'CLASS GENOCIDE' : 'SINGLE GENOCIDE';
+            elModeBadge.className = `mode-badge ${currentMode === 'CLASS' ? 'class-mode' : 'single-mode'}`;
+            currentTarget = currentMode === 'CLASS' ? 'L' : 'master mind flayer';
+            elSearchInput.value = '';
+            elSuggestDropdown.classList.remove('active');
+            currentSuggestResults = [];
+            selectedSuggestIndex = -1;
+            updatePlaceholder();
+            renderPresets();
+            updateValidation();
+            addLog(`虐殺モードを ${currentMode} に変更しました。`);
+        };
+
+        elSimRace.onchange = () => {
+            currentRace = elSimRace.value;
+            updateValidation();
+            addLog(`プレイヤー種族を ${currentRace} に変更しました。`, 'warn');
+        };
+
+        elSimRole.onchange = () => {
+            currentRole = elSimRole.value;
+            updateValidation();
+            addLog(`プレイヤーロールを ${currentRole} に変更しました。`);
+        };
+
+        elBtnNone.onclick = () => {
+            selectTarget('none');
+            addLog('無虐殺（none - コンダクト維持）が選択されました。', 'sent');
+        };
+
+        elChkOverride.onchange = () => {
+            isDangerOverride = elChkOverride.checked;
+            updateValidation();
+            if (isDangerOverride) {
+                addLog('⚠️ 自殺セーフティガードが手動で解除されました！', 'warn');
+            }
+        };
+
+        let selectedSuggestIndex = -1;
+        let currentSuggestResults = [];
+
+        const updateSuggestSelection = () => {
+            const items = elSuggestDropdown.querySelectorAll('.suggest-item');
+            items.forEach((item, idx) => {
+                if (idx === selectedSuggestIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        };
+
+        elSearchInput.oninput = () => {
+            const q = elSearchInput.value.trim();
+            currentTarget = q;
+            updateValidation();
+
+            if (!q) {
+                elSuggestDropdown.classList.remove('active');
+                currentSuggestResults = [];
+                selectedSuggestIndex = -1;
+                return;
+            }
+
+            const results = service.suggest(q, { limit: 8, mode: currentMode, lang: currentLang });
+            currentSuggestResults = results;
+            selectedSuggestIndex = -1;
+
+            if (results.length === 0) {
+                elSuggestDropdown.innerHTML = `<div style="padding: 8px 12px; color: #888;">${currentLang === 'ja' ? '一致するモンスター・クラスがありません' : 'No matching targets'}</div>`;
+                elSuggestDropdown.classList.add('active');
+                return;
+            }
+
+            elSuggestDropdown.innerHTML = '';
+            results.forEach((r, idx) => {
+                const div = document.createElement('div');
+                div.className = 'suggest-item';
+                const mainName = currentLang === 'ja' ? r.nameJa : r.nameEn;
+                const subName = currentLang === 'ja' ? r.nameEn : (r.nameJa !== r.nameEn ? r.nameJa : '');
+                const isCrit = r.danger === 'CRITICAL';
+                const desc = currentLang === 'ja' ? (r.descJa || '') : (r.descEn || '');
+
+                div.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <div>
+                            <span class="suggest-main" style="color: ${r.type === 'CLASS' ? '#ffd700' : '#fff'}; font-weight: bold;">
+                                ${r.symbol ? `[${r.symbol}] ` : ''}${mainName}
+                            </span>
+                            ${subName ? `<span class="suggest-sub">(${subName})</span>` : ''}
+                        </div>
+                        ${desc ? `<span style="font-size: 11px; color: #8888aa;">${desc}</span>` : ''}
+                    </div>
+                    <span class="suggest-badge ${isCrit ? 'critical' : ''}">${r.type}</span>
+                `;
+
+                div.onclick = () => {
+                    selectTarget(r.target);
+                    elSuggestDropdown.classList.remove('active');
+                    selectedSuggestIndex = -1;
+                };
+                elSuggestDropdown.appendChild(div);
+            });
+            elSuggestDropdown.classList.add('active');
+        };
+
+        // 検索入力欄でのキー操作（矢印キー、Enter、Escape）
+        elSearchInput.onkeydown = (e) => {
+            const isDropdownActive = elSuggestDropdown.classList.contains('active');
+
+            if (e.key === 'ArrowDown') {
+                if (isDropdownActive && currentSuggestResults.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestIndex = (selectedSuggestIndex + 1) % currentSuggestResults.length;
+                    updateSuggestSelection();
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (isDropdownActive && currentSuggestResults.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestIndex = (selectedSuggestIndex - 1 + currentSuggestResults.length) % currentSuggestResults.length;
+                    updateSuggestSelection();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isDropdownActive && currentSuggestResults.length > 0) {
+                    // ドロップダウンで選択中の項目、あるいは先頭候補を確定
+                    const chosenIdx = selectedSuggestIndex >= 0 ? selectedSuggestIndex : 0;
+                    const chosen = currentSuggestResults[chosenIdx];
+                    if (chosen) {
+                        selectTarget(chosen.target);
+                        elSuggestDropdown.classList.remove('active');
+                        selectedSuggestIndex = -1;
+                        return;
+                    }
+                }
+
+                // サジェストが出ていない場合、または確定後は送信実行
+                if (!elBtnSubmit.disabled) {
+                    elBtnSubmit.click();
+                } else {
+                    alert('⚠️ 自殺セーフティガードが有効です！ 実行するには「危険を承知の上で確定を許可する」にチェックを入れてください。');
+                }
+            } else if (e.key === 'Escape') {
+                if (isDropdownActive) {
+                    e.preventDefault();
+                    elSuggestDropdown.classList.remove('active');
+                    selectedSuggestIndex = -1;
+                } else {
+                    elBtnCancel.click();
+                }
+            }
+        };
+
+        // 外部クリックでドロップダウン閉じる
+        document.addEventListener('click', (e) => {
+            if (!elSearchInput.contains(e.target) && !elSuggestDropdown.contains(e.target)) {
+                elSuggestDropdown.classList.remove('active');
+                selectedSuggestIndex = -1;
+            }
+        });
+
+        // グローバルキー操作 (モーダル外フォーカス時でも Enter / Esc を処理)
+        window.addEventListener('keydown', (e) => {
+            if (e.target === elSearchInput) return; // 入力欄内は上で処理済み
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!elBtnSubmit.disabled) {
+                    elBtnSubmit.click();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                elBtnCancel.click();
+            }
+        });
+
+        // 確定送信
+        elBtnSubmit.onclick = () => {
+            if (elBtnSubmit.disabled) return;
+            const serialized = service.serializeCommand(currentTarget);
+            addLog(`🚀 NetHack Cコアへ送信: "${serialized}"`, 'sent');
+            alert(`NetHack Cコアへ送信: "${serialized}"\n\n正常にコマンドが生成されました。`);
+        };
+
+        elBtnCancel.onclick = () => {
+            addLog('❌ プロンプトがキャンセル（Esc）されました。');
+            alert('キャンセル（Esc）されました。');
+        };
+
+        // 初期化
+        renderPresets();
+        updateValidation();
+    </script>
+</body>
+</html>

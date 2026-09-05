@@ -175,13 +175,15 @@ export class StructuredKnowledgeEngine {
         const cloned = JSON.parse(JSON.stringify(obj));
         const originalName = obj.name || '';
         cloned.nameEn = obj.nameEn || originalName;
-        cloned.nameJa = obj.nameJa || (!isEn ? tr(originalName) : null);
+        // translationEngine がある場合は動的翻訳を優先し、フォールバックとして obj.nameJa を採用
+        const translatedName = !isEn ? tr(originalName) : null;
+        cloned.nameJa = (translatedName && translatedName !== originalName) ? translatedName : (obj.nameJa || translatedName);
 
         // 1. 名前の設定
         if (isEn) {
             cloned.name = cloned.nameEn;
         } else {
-            cloned.name = cloned.nameJa || tr(originalName);
+            cloned.name = cloned.nameJa || originalName;
         }
 
         // 2. モンスター死体・警告の動的解決 (フラグから動的補完)

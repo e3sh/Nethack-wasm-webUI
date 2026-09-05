@@ -311,6 +311,76 @@ const DEFAULT_TITLES = {
             }
         }
 
+        // 💀 虐殺（Genocide）プロンプトの自動コンテキスト検知
+        // 日英混在や最新NetHack構文 (want / wish, type / kind / class) を網羅
+        const textToInspect = `${payload.rawPrompt || ''} ${payload.prompt || ''} ${rawPrompt || ''}`;
+        const isClassGenocidePattern = /(?:which|what)\s+class\s+of\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|class\s+of\s+monsters?.*genocide|genocide.*class\s+of\s+monsters?|どのクラスのモンスターを虐殺|モンスターのクラス.*虐殺/i;
+        const isSingleGenocidePattern = /(?:what|which)\s+(?:type|kind)?\s*of\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|(?:what|which)\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|(?:type|kind)\s+of\s+monsters?.*genocide|どの種類のモンスターを虐殺|モンスターの種類.*虐殺/i;
+        const isGenericGenocidePattern = /genocide|虐殺/i;
+
+        const isClassGenocide = isTextType && isClassGenocidePattern.test(textToInspect);
+        const isSingleGenocide = isTextType && isSingleGenocidePattern.test(textToInspect);
+        const isGenocidePrompt = (
+            (isTextType && (isClassGenocide || isSingleGenocide || isGenericGenocidePattern.test(textToInspect))) ||
+            payload.subCategory === 'GENOCIDE'
+        );
+
+        if (!subCategory && isGenocidePrompt) {
+            subCategory = 'GENOCIDE';
+        }
+
+        if (isGenocidePrompt && !assistant) {
+            const genocideService = (this.gkl && typeof this.gkl.getGenocideService === 'function')
+                ? this.gkl.getGenocideService()
+                : (this.gkl && this.gkl.genocideService ? this.gkl.genocideService : null);
+
+            let charInfo = { race: 'human', role: 'valkyrie' };
+            if (this.gkl) {
+                if (typeof this.gkl.getCharacterInfo === 'function') {
+                    charInfo = this.gkl.getCharacterInfo() || charInfo;
+                } else if (this.gkl.attributeStateManager?.characterInfo) {
+                    charInfo = this.gkl.attributeStateManager.characterInfo;
+                }
+            }
+            const playerRace = payload.playerRace || charInfo.race || 'human';
+            const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
+            // クラス虐殺なら確実に CLASS、単体虐殺なら確実に SINGLE
+            const genocideMode = isClassGenocide ? 'CLASS' : (isSingleGenocide ? 'SINGLE' : (payload.genocideMode || 'ALL'));
+
+            assistant = {
+                type: 'GENOCIDE',
+                mode: genocideMode,
+                playerRace: playerRace,
+                playerRole: playerRole,
+                presets: genocideService && typeof genocideService.getPresets === 'function' ? genocideService.getPresets(genocideMode) : [],
+                classes: genocideService && typeof genocideService.getMonsterClasses === 'function' ? genocideService.getMonsterClasses() : [],
+                genocideService: genocideService
+            };
+        }
+
+        // 🦎 変化制御（Polymorph Control）プロンプトの自動コンテキスト検知
+        const isPolymorphPattern = /become what kind of monster|どの種類のモンスターになりますか/i;
+        const isPolymorphPrompt = (
+            (isTextType && isPolymorphPattern.test(rawPrompt || '')) ||
+            payload.subCategory === 'POLYMORPH'
+        );
+
+        if (!subCategory && isPolymorphPrompt) {
+            subCategory = 'POLYMORPH';
+        }
+
+        if (isPolymorphPrompt && !assistant) {
+            const polymorphService = (this.gkl && typeof this.gkl.getPolymorphService === 'function')
+                ? this.gkl.getPolymorphService()
+                : (this.gkl && this.gkl.polymorphService ? this.gkl.polymorphService : null);
+
+            assistant = {
+                type: 'POLYMORPH',
+                presets: polymorphService && typeof polymorphService.getPresets === 'function' ? polymorphService.getPresets() : [],
+                polymorphService: polymorphService
+            };
+        }
+
         return {
             inputType: inputType,
             subCategory: subCategory,

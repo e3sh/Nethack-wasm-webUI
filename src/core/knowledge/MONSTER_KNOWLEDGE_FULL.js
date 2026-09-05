@@ -7,6 +7,8 @@
 
 import { MONSTER_TILEMAP_NAMES } from './tilemappings_data.js';
 import { MONSTER_BASE_STATS } from './MONSTER_BASE_STATS.js';
+import { MONSTER_OFFICIAL_FLAGS } from './MONSTER_OFFICIAL_FLAGS.js';
+import { MONSTER_JP_MAP } from './MONSTER_JP_MAP.js';
 
 export const MONSTER_KNOWLEDGE_MAP = new Map();
 
@@ -1085,17 +1087,43 @@ for (let i = 0; i <= 382; i++) {
         }
     }
 
+    const official = MONSTER_OFFICIAL_FLAGS[String(i)] || {};
+    const mergedTraits = {
+        ...traits,
+        canFly: official.canFly ?? false,
+        canSwim: official.canSwim ?? false,
+        passesWalls: official.passesWalls ?? false,
+        hasHands: official.hasHands ?? true,
+        canWearArmor: official.canWearArmor ?? false,
+        size: official.size || 'MEDIUM'
+    };
+
+    const officialJpName = MONSTER_JP_MAP.monsters[rawName] || MONSTER_JP_MAP.monsters[cleanId] || null;
+    const monsterAliases = MONSTER_JP_MAP.aliases[cleanId] || [];
+
     const monsterEntry = {
         id: cleanId || `mon_${i}`,
         monOffset: i,
         name: rawName,
-        nameJa: null, // TranslationEngine 連携時に補完
+        nameJa: officialJpName, // NetHackJP 公式和名 (mon_jp.c)
+        aliases: monsterAliases, // 代表的な表記揺れ・別名
+        symbol: official.symbol || '?',
+        className: official.className || '',
+        canGenocide: official.canGenocide ?? true,
+        isUnique: official.isUnique ?? false,
+        canPolymorph: official.canPolymorph ?? true,
+        canFly: official.canFly ?? false,
+        canSwim: official.canSwim ?? false,
+        passesWalls: official.passesWalls ?? false,
+        hasHands: official.hasHands ?? true,
+        canWearArmor: official.canWearArmor ?? false,
+        size: official.size || 'MEDIUM',
         dangerLevel: dangerLevel,
         hostileDangerLevel: hostileDangerLevel,
         defaultPeaceful: defaultPeaceful,
         stats: stats,
         attacks: attacks,
-        traits: traits,
+        traits: mergedTraits,
         resistances: resistances,
         weaknesses: weaknesses,
         vulnerabilities: vulnerabilities,

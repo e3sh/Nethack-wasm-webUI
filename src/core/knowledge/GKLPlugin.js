@@ -14,6 +14,8 @@ import { OnDemandLookService } from './OnDemandLookService.js';
 import { DiscoveryStateManager } from './DiscoveryStateManager.js';
 import { MonsterTracker } from './MonsterTracker.js';
 import { WishService } from './WishService.js';
+import { GenocideService } from './GenocideService.js';
+import { PolymorphService } from './PolymorphService.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -81,6 +83,15 @@ export class GKLPlugin {
 
         this.wishService = options.wishService || new WishService({
             translator: options.translationEngine || null
+        });
+
+        this.genocideService = options.genocideService || new GenocideService({
+            translator: options.translationEngine || null
+        });
+
+        this.polymorphService = options.polymorphService || new PolymorphService({
+            translationEngine: options.translationEngine || null,
+            language: this.language
         });
 
         this._setupMonsterTrackerHooks();
@@ -228,6 +239,12 @@ export class GKLPlugin {
         if (this.wishService && typeof this.wishService.setLanguage === 'function') {
             this.wishService.setLanguage(resolvedLang);
         }
+        if (this.genocideService && typeof this.genocideService.setLanguage === 'function') {
+            this.genocideService.setLanguage(resolvedLang);
+        }
+        if (this.polymorphService && typeof this.polymorphService.setLanguage === 'function') {
+            this.polymorphService.setLanguage(resolvedLang);
+        }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setLanguage === 'function') {
             this.inventoryStateManager.setLanguage(resolvedLang);
         }
@@ -242,6 +259,32 @@ export class GKLPlugin {
      */
     getWishService() {
         return this.wishService;
+    }
+
+    /**
+     * 虐殺支援サービス (GenocideService) インスタンスを取得
+     * @returns {GenocideService}
+     */
+    getGenocideService() {
+        return this.genocideService;
+    }
+
+    /**
+     * 変化制御支援サービス (PolymorphService) インスタンスを取得
+     * @returns {PolymorphService}
+     */
+    getPolymorphService() {
+        return this.polymorphService;
+    }
+
+    /**
+     * キャラクター情報（種族・ロール等）を取得
+     */
+    getCharacterInfo() {
+        if (this.attributeStateManager && this.attributeStateManager.characterInfo) {
+            return this.attributeStateManager.characterInfo;
+        }
+        return { race: 'human', role: 'valkyrie', level: 1 };
     }
 
     /**

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 変化制御アシスタント (Polymorph Control Assistant Sandbox)</title>
+    <!-- SSOT 辞書データ -->
+    <script src="../param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --panel-bg: #1e1e24;
+            --border-color: #33333d;
+            --text-color: #e0e0e0;
+            --text-muted: #888899;
+            --primary: #4f8cff;
+            --primary-hover: #6ea0ff;
+            --accent: #00d2ff;
+            --danger: #ff5555;
+            --danger-hover: #ff6e6e;
+            --success: #50fa7b;
+            --warning: #ffb86c;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sandbox-header {
+            max-width: 760px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-titles h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-titles p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* シミュレーション設定コントロールバー */
+        .sim-control-bar {
+            max-width: 760px;
+            width: 100%;
+            background-color: #181820;
+            border: 1px solid #2d2d3a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .sim-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sim-select {
+            background-color: #242430;
+            border: 1px solid #3c3c4e;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        /* 言語切替スイッチャー */
+        .lang-switcher {
+            display: flex;
+            background: #242430;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #3c3c4e;
+        }
+
+        .lang-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        /* モーダルシミュレーターコンテナ */
+        .modal-container {
+            max-width: 760px;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #22222b;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prompt-preview {
+            background-color: #16161c;
+            border: 1px solid #2a2a35;
+            padding: 10px 16px;
+            margin: 16px 20px 0 20px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .prompt-preview-tag {
+            background: #282a36;
+            color: #bd93f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: sans-serif;
+        }
+
+        .modal-body {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* 目的別プリセットセクション */
+        .preset-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preset-category-title {
+            font-size: 12px;
+            color: #bd93f9;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .preset-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .preset-card {
+            background-color: #242432;
+            border: 1px solid #36364a;
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-align: left;
+        }
+
+        .preset-card:hover {
+            border-color: var(--accent);
+            background-color: #2c2c3e;
+        }
+
+        .preset-card.active {
+            border-color: var(--accent);
+            background-color: #1a3048;
+            box-shadow: 0 0 6px rgba(0, 210, 255, 0.4);
+        }
+
+        .preset-card-title {
+            font-weight: 600;
+            font-size: 12px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .preset-card-category-badge {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #37374a;
+            color: #bd93f9;
+            font-weight: normal;
+        }
+
+        /* ユーティリティボタングループ (ランダム・自己復帰) */
+        .util-btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .util-btn {
+            background-color: #262633;
+            border: 1px solid #3c3c50;
+            color: #d0d0e0;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .util-btn:hover {
+            border-color: var(--primary);
+            color: #fff;
+            background-color: #2f2f42;
+        }
+
+        /* 検索バーとフィルター */
+        .search-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: #141418;
+            border: 1px solid #3c3c4e;
+            border-radius: 6px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+        }
+
+        .filter-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            background: #242430;
+            border: 1px solid #383848;
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .filter-tag.active {
+            background: #1e3a5f;
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        /* 検索候補ドロップダウン / リスト */
+        .candidates-list {
+            max-height: 180px;
+            overflow-y: auto;
+            background-color: #181820;
+            border: 1px solid #2d2d3a;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .candidate-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #242430;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+
+        .candidate-item:last-child {
+            border-bottom: none;
+        }
+
+        .candidate-item:hover, .candidate-item.selected {
+            background-color: #272736;
+        }
+
+        .candidate-name {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .candidate-symbol {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+            font-family: monospace;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .candidate-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* 詳細プレビューパネル & 防具破壊警告 */
+        .spec-preview-card {
+            background-color: #1a1a24;
+            border: 1px solid #2d2d3d;
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .spec-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #292938;
+            padding-bottom: 8px;
+        }
+
+        .spec-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spec-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .badge-danger {
+            background-color: rgba(255, 85, 85, 0.2);
+            border: 1px solid var(--danger);
+            color: #ff8888;
+        }
+
+        .badge-warning {
+            background-color: rgba(255, 184, 108, 0.2);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .badge-success {
+            background-color: rgba(80, 250, 123, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .badge-info {
+            background-color: rgba(0, 210, 255, 0.15);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .badge-gray {
+            background-color: #2b2b3b;
+            color: #b0b0c0;
+        }
+
+        /* 防具破壊警告ボックス */
+        .armor-alert-box {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .armor-alert-box.danger {
+            background-color: #3b181a;
+            border: 1px solid var(--danger);
+            color: #ff9999;
+            animation: pulse-border 2s infinite;
+        }
+
+        .armor-alert-box.warning {
+            background-color: #332617;
+            border: 1px solid var(--warning);
+            color: #ffe099;
+        }
+
+        .armor-alert-box.safe {
+            background-color: #17281e;
+            border: 1px solid var(--success);
+            color: #a8ffb2;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(255, 85, 85, 0.5); }
+            50% { border-color: rgba(255, 85, 85, 1); }
+            100% { border-color: rgba(255, 85, 85, 0.5); }
+        }
+
+        .spec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .spec-grid-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .spec-grid-label {
+            color: var(--text-muted);
+        }
+
+        .spec-grid-val {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* フッター・アクションボタン */
+        .modal-footer {
+            padding: 14px 20px;
+            background-color: #1a1a22;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .selected-output {
+            font-family: monospace;
+            font-size: 14px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-secondary {
+            background-color: #2b2b38;
+            color: #c0c0d0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #38384a;
+            color: #fff;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* ログエリア */
+        .log-section {
+            max-width: 760px;
+            width: 100%;
+            margin-top: 20px;
+            background-color: #181820;
+            border: 1px solid #2d2d3a;
+            border-radius: 8px;
+            padding: 14px 16px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 12px;
+            color: #98c379;
+        }
+
+        .log-title {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-family: sans-serif;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <div class="sandbox-header">
+        <div class="header-titles">
+            <h1>🦎 変化制御アシスタント (Polymorph Control Assistant Sandbox)</h1>
+            <p>NetHack 5.0 / 3.7: 変身モンスター選択時の耐性・能力プレビューと防具破壊警告</p>
+        </div>
+        <!-- 言語切替 -->
+        <div class="lang-switcher">
+            <button class="lang-btn active" id="btn-lang-ja" onclick="setLanguage('ja')">日本語</button>
+            <button class="lang-btn" id="btn-lang-en" onclick="setLanguage('en')">English</button>
+        </div>
+    </div>
+
+    <!-- シミュレーション環境バー -->
+    <div class="sim-control-bar">
+        <div class="sim-group">
+            <span class="sim-label">自キャラ種族:</span>
+            <select class="sim-select" id="sim-player-race" onchange="onPlayerRaceChange()">
+                <option value="human">human (人間)</option>
+                <option value="elf">elf (エルフ)</option>
+                <option value="dwarf">dwarf (ドワーフ)</option>
+                <option value="gnome">gnome (ノーム)</option>
+                <option value="orc">orc (オーク)</option>
+            </select>
+        </div>
+        <div class="sim-group">
+            <span class="sim-label">着用防具:</span>
+            <span class="badge badge-warning" id="sim-worn-armor">胴体鎧着用中 (Worn Body Armor)</span>
+        </div>
+    </div>
+
+    <!-- モーダル UI -->
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2>
+                <span>🦎</span>
+                <span id="modal-title-text">変化モンスター選択</span>
+            </h2>
+            <button class="btn btn-secondary" style="padding: 4px 8px;" onclick="cancelSelection()">✕ [Esc]</button>
+        </div>
+
+        <div class="prompt-preview">
+            <span id="prompt-preview-text">どの種類のモンスターになりますか? [名前を入力してください]</span>
+            <span class="prompt-preview-tag">Polymorph Control</span>
+        </div>
+
+        <div class="modal-body">
+            <!-- 定番・目的別プリセット -->
+            <div class="preset-section">
+                <div class="section-label">
+                    <span id="lbl-presets">目的別定番モンスター (Recommended Presets)</span>
+                    <span style="font-weight: normal; font-size: 11px;" id="lbl-preset-hint">ワンクリックで入力欄に反映</span>
+                </div>
+                <div id="presets-container">
+                    <!-- JS で動的描画 -->
+                </div>
+            </div>
+
+            <!-- ショートカット (ランダム・自己種族復帰) -->
+            <div class="util-btn-group">
+                <button class="util-btn" onclick="selectUtility('*')">
+                    <span>🎲</span>
+                    <span id="lbl-util-random">ランダム変身 (*)</span>
+                </button>
+                <button class="util-btn" onclick="selectPlayerRace()">
+                    <span>👤</span>
+                    <span id="lbl-util-rehuman">自種族復帰 (人型に戻る)</span>
+                </button>
+            </div>
+
+            <!-- 検索 & フィルタ -->
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <input type="text" id="monster-search-input" class="search-input" 
+                           placeholder="モンスター名またはシンボルで検索 (例: dragon, lich, D, タイタン)..." 
+                           autocomplete="off" oninput="onSearchInput()">
+                </div>
+                <div class="filter-tags">
+                    <div class="filter-tag" id="filter-hands" onclick="toggleFilter('hasHands')">✋ 手あり (装備可能)</div>
+                    <div class="filter-tag" id="filter-fly" onclick="toggleFilter('canFly')">🦅 飛行可能</div>
+                    <div class="filter-tag" id="filter-walls" onclick="toggleFilter('passesWalls')">🧱 壁抜け可能</div>
+                    <div class="filter-tag" id="filter-armor" onclick="toggleFilter('safeArmor')">🛡️ 防具破壊なし (中型以下)</div>
+                </div>
+                <!-- 候補リスト -->
+                <div class="candidates-list" id="candidates-container">
+                    <!-- JS で動的描画 -->
+                </div>
+            </div>
+
+            <!-- 詳細スペックプレビュー & 防具破壊警告 -->
+            <div class="spec-preview-card" id="spec-card">
+                <div class="spec-header">
+                    <div class="spec-title">
+                        <span class="candidate-symbol" id="spec-symbol">D</span>
+                        <span id="spec-name">silver dragon (銀のドラゴン)</span>
+                    </div>
+                    <div class="spec-badges" id="spec-badges">
+                        <!-- バッジ群 -->
+                    </div>
+                </div>
+
+                <!-- 防具破壊警告メッセージ -->
+                <div class="armor-alert-box danger" id="armor-alert">
+                    <span>⚠️</span>
+                    <span id="armor-alert-text">大型モンスターに変身すると、着用中の胴体防具が破壊されます！</span>
+                </div>
+
+                <div class="spec-grid" id="spec-details-grid">
+                    <div class="spec-grid-item">
+                        <span class="spec-grid-label">サイズ:</span>
+                        <span class="spec-grid-val" id="val-size">HUGE</span>
+                    </div>
+                    <div class="spec-grid-item">
+                        <span class="spec-grid-label">手・装備:</span>
+                        <span class="spec-grid-val" id="val-hands">なし (武器・防具不可)</span>
+                    </div>
+                    <div class="spec-grid-item">
+                        <span class="spec-grid-label">基礎能力 (HD/AC/SPD):</span>
+                        <span class="spec-grid-val" id="val-stats">HD 12 / AC -1 / SPD 9</span>
+                    </div>
+                    <div class="spec-grid-item">
+                        <span class="spec-grid-label">保有耐性:</span>
+                        <span class="spec-grid-val" id="val-resistances">cold, shock, poison</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フッター -->
+        <div class="modal-footer">
+            <div class="selected-output">
+                <span style="color: var(--text-muted); font-size: 12px;">NetHack 送信値:</span>
+                <code id="output-val" style="color: #50fa7b; font-size: 15px; font-weight: bold;">silver dragon</code>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" onclick="cancelSelection()">キャンセル [Esc]</button>
+                <button class="btn btn-primary" id="btn-submit" onclick="submitSelection()">決定して変身 [Enter] ↵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 実行ログ -->
+    <div class="log-section">
+        <div class="log-title">SIMULATION TRANSMISSION LOG</div>
+        <div id="sim-log">Ready. Select or search a monster to see polymorph specs.</div>
+    </div>
+
+    <!-- モジュールスクリプト -->
+    <script type="module">
+        import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
+        import { PolymorphService } from '../src/core/knowledge/PolymorphService.js';
+
+        // グローバル公開
+        window.currentLang = 'ja';
+        window.translationEngine = new TranslationEngine({ language: 'ja' });
+        window.polymorphService = new PolymorphService({
+            translationEngine: window.translationEngine,
+            language: 'ja'
+        });
+
+        window.activeFilters = {
+            hasHands: false,
+            canFly: false,
+            passesWalls: false,
+            safeArmor: false
+        };
+
+        window.selectedMonster = null;
+        window.submittedValue = 'silver dragon';
+
+        window.setLanguage = function(lang) {
+            window.currentLang = lang;
+            document.getElementById('btn-lang-ja').classList.toggle('active', lang === 'ja');
+            document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+            window.translationEngine.setLanguage(lang);
+            window.polymorphService.setLanguage(lang);
+
+            // ラベル更新
+            document.getElementById('modal-title-text').innerText = lang === 'ja' ? '変化モンスター選択' : 'Select Monster for Polymorph';
+            document.getElementById('prompt-preview-text').innerText = lang === 'ja' 
+                ? 'どの種類のモンスターになりますか? [名前を入力してください]' 
+                : 'Become what kind of monster? [type the name]';
+            document.getElementById('lbl-presets').innerText = lang === 'ja' 
+                ? '目的別定番モンスター (Recommended Presets)' 
+                : 'Recommended Presets';
+            document.getElementById('lbl-preset-hint').innerText = lang === 'ja' 
+                ? 'ワンクリックで入力欄に反映' 
+                : 'Click to select';
+            document.getElementById('lbl-util-random').innerText = lang === 'ja' 
+                ? 'ランダム変身 (*)' 
+                : 'Random Polymorph (*)';
+            document.getElementById('lbl-util-rehuman').innerText = lang === 'ja' 
+                ? '自種族復帰 (人型に戻る)' 
+                : 'Rehumanize (Return to Form)';
+
+            renderPresets();
+            renderCandidates();
+            if (window.selectedMonster) {
+                renderMonsterSpec(window.selectedMonster);
+            }
+        };
+
+        window.renderPresets = function() {
+            const container = document.getElementById('presets-container');
+            container.innerHTML = '';
+
+            const grid = document.createElement('div');
+            grid.className = 'preset-grid';
+
+            const categories = window.polymorphService.getPresets();
+            categories.forEach(cat => {
+                cat.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'preset-card';
+                    card.title = item.note; // ホバー時に解説をツールチップ表示
+                    const itemCleanName = item.monster ? (item.monster.cleanName || PolymorphService.cleanMonsterName(item.monster.name)) : item.nameEn;
+                    if (window.submittedValue === item.nameEn || window.submittedValue === itemCleanName) {
+                        card.classList.add('active');
+                    }
+
+                    const armorRisk = window.polymorphService.checkArmorRisk(item.monster ? item.monster.size : 'MEDIUM');
+                    const warningIcon = armorRisk.willBreakArmor ? ' ⚠️' : '';
+
+                    card.innerHTML = `
+                        <span class="preset-card-category-badge">${cat.label}</span>
+                        <div class="preset-card-title">
+                            <span style="font-family: monospace; font-size: 11px; color: #ffd700;">${item.monster ? item.monster.symbol : ''}</span>
+                            <span>${item.displayName}${warningIcon}</span>
+                        </div>
+                    `;
+
+                    card.onclick = () => {
+                        selectMonsterByName(item.nameEn);
+                    };
+
+                    grid.appendChild(card);
+                });
+            });
+
+            container.appendChild(grid);
+        };
+
+        window.renderCandidates = function() {
+            const q = document.getElementById('monster-search-input').value;
+            const candidates = window.polymorphService.searchCandidates(q, window.activeFilters);
+            window.currentCandidateList = candidates.slice(0, 50);
+            window.selectedCandidateIndex = -1;
+
+            const container = document.getElementById('candidates-container');
+            container.innerHTML = '';
+
+            if (candidates.length === 0) {
+                container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); text-align: center; font-size: 13px;">該当するモンスターがいません</div>`;
+                return;
+            }
+
+            window.currentCandidateList.forEach(mon => {
+                const item = document.createElement('div');
+                item.className = 'candidate-item';
+                if (window.selectedMonster && window.selectedMonster.name === mon.name) {
+                    item.classList.add('selected');
+                }
+
+                const armorRisk = mon.armorRisk || window.polymorphService.checkArmorRisk(mon.size);
+                const armorBadge = armorRisk.willBreakArmor 
+                    ? `<span class="badge badge-danger">鎧破壊</span>` 
+                    : (armorRisk.willDropArmor ? `<span class="badge badge-warning">防具脱落</span>` : '');
+
+                item.innerHTML = `
+                    <div class="candidate-name">
+                        <span class="candidate-symbol">${mon.symbol}</span>
+                        <span>${mon.displayName} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${mon.name})</span></span>
+                    </div>
+                    <div class="candidate-meta">
+                        ${armorBadge}
+                        ${mon.canFly ? '<span class="badge badge-info">飛行</span>' : ''}
+                        ${mon.passesWalls ? '<span class="badge badge-success">壁抜け</span>' : ''}
+                        <span>Size: ${mon.size}</span>
+                    </div>
+                `;
+
+                item.onclick = () => {
+                    selectMonsterByName(mon.name);
+                };
+
+                container.appendChild(item);
+            });
+        };
+
+        window.selectMonsterByName = function(nameEn) {
+            const mon = window.polymorphService.findMonsterByName(nameEn);
+            if (!mon) return;
+
+            const sendName = mon.cleanName || PolymorphService.cleanMonsterName(mon.name);
+            window.selectedMonster = mon;
+            window.submittedValue = sendName;
+            document.getElementById('monster-search-input').value = mon.displayName;
+            document.getElementById('output-val').innerText = sendName;
+
+            renderMonsterSpec(mon);
+            renderPresets();
+
+            // 候補リストの選択ハイライト更新
+            const items = document.querySelectorAll('.candidate-item');
+            items.forEach(el => el.classList.remove('selected'));
+        };
+
+        window.renderMonsterSpec = function(mon) {
+            const isJa = window.currentLang === 'ja';
+            document.getElementById('spec-symbol').innerText = mon.symbol || '?';
+            document.getElementById('spec-name').innerText = `${mon.displayName} (${mon.name})`;
+
+            // バッジの構築
+            const badgesContainer = document.getElementById('spec-badges');
+            badgesContainer.innerHTML = '';
+
+            if (mon.canFly) badgesContainer.innerHTML += `<span class="badge badge-info">${isJa ? '🦅 飛行' : '🦅 Flying'}</span>`;
+            if (mon.passesWalls) badgesContainer.innerHTML += `<span class="badge badge-success">${isJa ? '🧱 壁抜け' : '🧱 Phasing'}</span>`;
+            if (mon.canSwim) badgesContainer.innerHTML += `<span class="badge badge-info">${isJa ? '🏊 水泳' : '🏊 Swimming'}</span>`;
+            if (mon.hasHands) badgesContainer.innerHTML += `<span class="badge badge-success">${isJa ? '✋ 装備使用可能' : '✋ Has Hands'}</span>`;
+            else badgesContainer.innerHTML += `<span class="badge badge-gray">${isJa ? '手なし' : 'No Hands'}</span>`;
+
+            // 防具破壊警告
+            const armorAlert = document.getElementById('armor-alert');
+            const alertText = document.getElementById('armor-alert-text');
+            const risk = mon.armorRisk || window.polymorphService.checkArmorRisk(mon.size);
+
+            if (risk.willBreakArmor) {
+                armorAlert.className = 'armor-alert-box danger';
+                alertText.innerText = isJa ? risk.messageJa : risk.messageEn;
+                armorAlert.style.display = 'flex';
+            } else if (risk.willDropArmor) {
+                armorAlert.className = 'armor-alert-box warning';
+                alertText.innerText = isJa ? risk.messageJa : risk.messageEn;
+                armorAlert.style.display = 'flex';
+            } else {
+                armorAlert.className = 'armor-alert-box safe';
+                alertText.innerText = isJa ? '🛡️ 防具を破壊することなく安全に変身可能です。' : '🛡️ Safe to polymorph without breaking armor.';
+                armorAlert.style.display = 'flex';
+            }
+
+            // グリッドスペック
+            document.getElementById('val-size').innerText = mon.size || 'MEDIUM';
+            document.getElementById('val-hands').innerText = mon.hasHands 
+                ? (isJa ? 'あり (武器・防具の装備可能)' : 'Yes (Can wield/wear)') 
+                : (isJa ? 'なし (武器・防具不可)' : 'No hands');
+
+            const stats = mon.stats || {};
+            document.getElementById('val-stats').innerText = `HD ${stats.hd ?? '?'} / AC ${stats.ac ?? '?'} / SPD ${stats.speed ?? '?'}`;
+
+            const resList = mon.resistances && mon.resistances.length > 0 ? mon.resistances.join(', ') : (isJa ? 'なし' : 'None');
+            document.getElementById('val-resistances').innerText = resList;
+        };
+
+        window.toggleFilter = function(key) {
+            window.activeFilters[key] = !window.activeFilters[key];
+            const filterIdMap = {
+                hasHands: 'filter-hands',
+                canFly: 'filter-fly',
+                passesWalls: 'filter-walls',
+                safeArmor: 'filter-armor'
+            };
+            document.getElementById(filterIdMap[key]).classList.toggle('active', window.activeFilters[key]);
+            renderCandidates();
+        };
+
+        window.onSearchInput = function() {
+            renderCandidates();
+        };
+
+        window.selectUtility = function(val) {
+            window.submittedValue = val;
+            document.getElementById('monster-search-input').value = val;
+            document.getElementById('output-val').innerText = val;
+
+            const isJa = window.currentLang === 'ja';
+            document.getElementById('spec-symbol').innerText = '*';
+            document.getElementById('spec-name').innerText = isJa ? 'ランダム変身 (*)' : 'Random Monster (*)';
+            document.getElementById('spec-badges').innerHTML = `<span class="badge badge-info">Random</span>`;
+            document.getElementById('armor-alert').style.display = 'none';
+            document.getElementById('val-size').innerText = 'RANDOM';
+            document.getElementById('val-hands').innerText = '???';
+            document.getElementById('val-stats').innerText = '???';
+            document.getElementById('val-resistances').innerText = '???';
+
+            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+        };
+
+        window.selectPlayerRace = function() {
+            const race = document.getElementById('sim-player-race').value;
+            const mon = window.polymorphService.findMonsterByName(race);
+            if (mon) {
+                selectMonsterByName(mon.name);
+            } else {
+                // human 等、モンスター図鑑単体としては canPolymorph: false だが自種族復帰として有効な場合
+                window.selectedMonster = null;
+                window.submittedValue = race;
+                const isJa = window.currentLang === 'ja';
+                document.getElementById('monster-search-input').value = race;
+                document.getElementById('output-val').innerText = race;
+
+                document.getElementById('spec-symbol').innerText = '@';
+                document.getElementById('spec-name').innerText = isJa ? `自種族復帰 (${race})` : `Rehumanize (${race})`;
+                document.getElementById('spec-badges').innerHTML = `<span class="badge badge-success">${isJa ? '人型復帰' : 'Original Form'}</span><span class="badge badge-info">✋ ${isJa ? '手あり' : 'Has Hands'}</span>`;
+                
+                const armorAlert = document.getElementById('armor-alert');
+                const alertText = document.getElementById('armor-alert-text');
+                armorAlert.className = 'armor-alert-box safe';
+                alertText.innerText = isJa ? '🛡️ 自キャラ本来の種族に戻るため、防具破壊はありません。' : '🛡️ Returning to original form will not break armor.';
+                armorAlert.style.display = 'flex';
+
+                document.getElementById('val-size').innerText = 'MEDIUM';
+                document.getElementById('val-hands').innerText = isJa ? 'あり (自種族装備)' : 'Yes';
+                document.getElementById('val-stats').innerText = 'Base stats';
+                document.getElementById('val-resistances').innerText = isJa ? '自キャラ本来の耐性' : 'Inherent';
+
+                document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+            }
+        };
+
+        window.onPlayerRaceChange = function() {
+            const race = document.getElementById('sim-player-race').value;
+            if (window.submittedValue === 'human' || window.submittedValue === 'elf' || window.submittedValue === 'dwarf' || window.submittedValue === 'gnome' || window.submittedValue === 'orc') {
+                selectPlayerRace();
+            }
+        };
+
+        window.submitSelection = function() {
+            const logEl = document.getElementById('sim-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<br>[${timestamp}] TRANSMITTED TO NETHACH: "${window.submittedValue}\\n" (Polymorph confirmed)`;
+            alert(`[NetHack 送信シミュレーション]\n\n送信文字列: "${window.submittedValue}"\n\n変身が完了しました。`);
+        };
+
+        window.cancelSelection = function() {
+            const logEl = document.getElementById('sim-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<br>[${timestamp}] USER CANCELLED: Sent "\\033" (ESC)`;
+            alert('[NetHack 送信シミュレーション]\n\nキャンセルキー (ESC) を送信しました。');
+        };
+
+        window.selectedCandidateIndex = -1;
+        window.currentCandidateList = [];
+
+        window.updateCandidateSelection = function() {
+            const items = document.querySelectorAll('.candidate-item');
+            items.forEach((el, idx) => {
+                if (idx === window.selectedCandidateIndex) {
+                    el.classList.add('selected');
+                    el.scrollIntoView({ block: 'nearest' });
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        };
+
+        const searchInputEl = document.getElementById('monster-search-input');
+        if (searchInputEl) {
+            searchInputEl.onkeydown = (e) => {
+                const candidates = window.currentCandidateList;
+
+                if (e.key === 'ArrowDown') {
+                    if (candidates.length > 0) {
+                        e.preventDefault();
+                        window.selectedCandidateIndex = (window.selectedCandidateIndex + 1) % candidates.length;
+                        window.updateCandidateSelection();
+                        const chosen = candidates[window.selectedCandidateIndex];
+                        if (chosen) {
+                            renderMonsterSpec(chosen);
+                            const sendName = chosen.cleanName || PolymorphService.cleanMonsterName(chosen.name);
+                            window.submittedValue = sendName;
+                            document.getElementById('output-val').innerText = sendName;
+                        }
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    if (candidates.length > 0) {
+                        e.preventDefault();
+                        window.selectedCandidateIndex = (window.selectedCandidateIndex - 1 + candidates.length) % candidates.length;
+                        window.updateCandidateSelection();
+                        const chosen = candidates[window.selectedCandidateIndex];
+                        if (chosen) {
+                            renderMonsterSpec(chosen);
+                            const sendName = chosen.cleanName || PolymorphService.cleanMonsterName(chosen.name);
+                            window.submittedValue = sendName;
+                            document.getElementById('output-val').innerText = sendName;
+                        }
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (window.selectedCandidateIndex >= 0 && candidates[window.selectedCandidateIndex]) {
+                        selectMonsterByName(candidates[window.selectedCandidateIndex].name);
+                    } else if (candidates.length > 0) {
+                        selectMonsterByName(candidates[0].name);
+                    } else {
+                        submitSelection();
+                    }
+                }
+            };
+        }
+
+        // Global Enter / Escape キーバインド
+        window.addEventListener('keydown', (e) => {
+            if (e.target === searchInputEl) return; // 入力欄内は個別に処理
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitSelection();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelSelection();
+            }
+        });
+
+        // 初期ロード実行（全関数定義後）
+        window.renderPresets();
+        window.renderCandidates();
+        window.selectMonsterByName('silver dragon');
+    </script>
+</body>
+</html>

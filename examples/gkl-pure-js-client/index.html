@@ -326,6 +326,146 @@
       </div>
     </div>
 
+    <!-- 💀 虐殺アシスタントモーダル (GenocideModal) -->
+    <div id="genocide-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large genocide-modal-card">
+        <div class="modal-header">
+          <h2 id="genocide-modal-title">💀 モンスター虐殺 (Genocide)</h2>
+          <span id="genocide-mode-badge" class="mode-badge class-mode">CLASS GENOCIDE</span>
+        </div>
+
+        <div class="genocide-modal-body">
+          <!-- 🕊️ 無虐殺コンダクト維持 (none) クイックバー -->
+          <div class="conduct-bar">
+            <div class="conduct-info">
+              <span>🕊️</span>
+              <span id="genocide-conduct-desc">無虐殺コンダクト（Genocideless）を維持しますか？</span>
+            </div>
+            <button id="btn-genocide-conduct-none" class="conduct-btn">虐殺を行わない (none)</button>
+          </div>
+
+          <!-- 1. おすすめ危険プリセット -->
+          <div class="section-title" id="genocide-sec-presets">おすすめ危険モンスター / クラス</div>
+          <div id="genocide-preset-container" class="genocide-preset-grid"></div>
+
+          <!-- 2. 検索・個別指定 -->
+          <div class="section-title" id="genocide-sec-search">検索・個別指定</div>
+          <div class="genocide-search-container">
+            <input type="text" id="genocide-search-input" class="genocide-search-input" placeholder="クラス記号 (L, c, & 等) またはモンスター名 (lich, flayer 等) を入力..." autocomplete="off" />
+            <div id="genocide-suggest-dropdown" class="genocide-suggest-dropdown"></div>
+          </div>
+
+          <!-- 3. ⚠️ 自己虐殺セーフティ警告パネル -->
+          <div id="genocide-self-alert" class="self-genocide-alert">
+            <div class="alert-title">
+              <span>⚠️</span>
+              <span id="genocide-alert-title">自己虐殺警告: 自身が即死します！</span>
+            </div>
+            <div id="genocide-alert-desc" class="alert-desc">
+              選択された対象はプレイヤーの種族またはロールに合致しています。このまま実行すると即死ゲームオーバー（Self-Genocide）となります。
+            </div>
+            <label class="override-checkbox-container">
+              <input type="checkbox" id="chk-genocide-override">
+              <span id="genocide-override-label">危険を承知の上で確定を許可する（自殺プロテクト解除）</span>
+            </label>
+          </div>
+
+          <!-- 4. 送信プレビュー -->
+          <div class="genocide-preview-box">
+            <div class="preview-label" id="genocide-preview-label">NetHack Cコア送信文字列:</div>
+            <div id="genocide-preview-cmd" class="preview-command">L</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-genocide-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
+          <button id="btn-genocide-submit" class="btn btn-danger btn-large">虐殺を実行する (Enter)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🦎 変化制御アシスタントモーダル (PolymorphModal) -->
+    <div id="polymorph-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large polymorph-modal-card">
+        <div class="modal-header">
+          <h2 id="polymorph-modal-title">🦎 変化制御 (Polymorph Control)</h2>
+          <span class="mode-badge poly-mode">POLYMORPH CONTROL</span>
+        </div>
+
+        <div class="polymorph-modal-body">
+          <!-- 1. 定番おすすめプリセット -->
+          <div class="section-title" id="poly-sec-presets">おすすめ定番モンスター</div>
+          <div id="poly-preset-container" class="poly-preset-grid"></div>
+
+          <!-- 2. ショートカットバー (ランダム変身 / 自種族復帰) -->
+          <div class="poly-shortcut-bar">
+            <button id="btn-poly-random" class="poly-shortcut-btn">🎲 ランダム変身 (*)</button>
+            <button id="btn-poly-rehuman" class="poly-shortcut-btn">👤 自種族復帰 (人型に戻る)</button>
+          </div>
+
+          <!-- 3. 検索・モンスター指定 -->
+          <div class="section-title" id="poly-sec-search">モンスター検索・指定</div>
+          <div class="poly-search-container">
+            <input type="text" id="poly-search-input" class="poly-search-input" placeholder="モンスター名またはシンボルを入力 (dragon, lich, D 等)..." autocomplete="off" />
+            <div class="poly-filter-tags">
+              <div class="poly-filter-tag" id="poly-filter-hands">✋ 手あり (装備可能)</div>
+              <div class="poly-filter-tag" id="poly-filter-fly">🦅 飛行可能</div>
+              <div class="poly-filter-tag" id="poly-filter-walls">🧱 壁抜け可能</div>
+              <div class="poly-filter-tag" id="poly-filter-armor">🛡️ 防具破壊なし (中型以下)</div>
+            </div>
+            <div id="poly-suggest-dropdown" class="poly-suggest-dropdown"></div>
+          </div>
+
+          <!-- 4. 詳細スペックプレビュー & 防具破壊警告 -->
+          <div id="poly-spec-card" class="poly-spec-card">
+            <div class="poly-spec-header">
+              <div class="poly-spec-title">
+                <span id="poly-spec-symbol" class="poly-symbol">D</span>
+                <span id="poly-spec-name">silver dragon (銀のドラゴン)</span>
+              </div>
+              <div id="poly-spec-badges" class="poly-badges"></div>
+            </div>
+
+            <!-- 防具破壊警告 -->
+            <div id="poly-armor-alert" class="poly-armor-alert danger">
+              <span>⚠️</span>
+              <span id="poly-armor-alert-text">大型モンスターに変身すると、着用中の胴体防具が破壊されます！</span>
+            </div>
+
+            <div class="poly-spec-grid">
+              <div class="poly-grid-item">
+                <span class="poly-grid-label">サイズ:</span>
+                <span id="poly-val-size" class="poly-grid-val">HUGE</span>
+              </div>
+              <div class="poly-grid-item">
+                <span class="poly-grid-label">手・装備:</span>
+                <span id="poly-val-hands" class="poly-grid-val">なし</span>
+              </div>
+              <div class="poly-grid-item">
+                <span class="poly-grid-label">基本能力:</span>
+                <span id="poly-val-stats" class="poly-grid-val">HD 12 / AC -1 / SPD 9</span>
+              </div>
+              <div class="poly-grid-item">
+                <span class="poly-grid-label">保有耐性:</span>
+                <span id="poly-val-res" class="poly-grid-val">cold, shock, poison</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 送信プレビュー -->
+          <div class="poly-preview-box">
+            <div class="preview-label" id="poly-preview-label">NetHack Cコア送信文字列:</div>
+            <div id="poly-preview-cmd" class="preview-command">silver dragon</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-poly-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
+          <button id="btn-poly-submit" class="btn btn-primary btn-large">決定して変身 (Enter)</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Game Over / Record Modal (GameOverModal) -->
     <div id="gameover-modal" class="modal-backdrop hidden">
       <div class="modal-card modal-large">
