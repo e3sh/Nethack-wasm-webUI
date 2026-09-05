@@ -137,11 +137,11 @@ python tools/dict_converter.py import
 詳しい設計や仕様については `docs/` ディレクトリを参照してください。
 
 - [逆引き設定・セーブデータ管理 FAQ / 開発者ガイド](docs/FAQ_and_Configuration_Guide.md)
-- [GKL 構造化知識ベース & 戦術統合アーキテクチャ](docs/3_gkl/GKL_Knowledge_SSOT_and_Tactical_Integration_Architecture.md)
+- [GKL 構造化知識ベース & 戦術統合アーキテクチャ (SSOT)](docs/3_gkl/archive/GKL_Knowledge_SSOT_and_Tactical_Integration_Architecture.md)
 - [GKL 仕様書](docs/3_gkl/gkl_documentation.md)
 - [WASM Driver 仕様書](docs/1_driver/driver_core_spec.md)
 - [WebUICore 利用ガイド](docs/2_client_ui/WebUICore_Usage_Guide.md)
-- [翻訳・DevTools Inspector 統合仕様書](docs/9_translation/translation_inspector_integration_plan.md)
+- [翻訳・DevTools Inspector 統合仕様書](docs/9_translation/archive/translation_inspector_integration_plan.md)
 - [翻訳辞書運用マニュアル](docs/9_translation/DICTIONARY_OPERATION.md)
 
 ---
