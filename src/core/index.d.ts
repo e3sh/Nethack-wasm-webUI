@@ -404,3 +404,7 @@ export class WebUICore {
     deleteSaveFile(targetFilename?: string): Promise<boolean>;
     clearAllStorage(): Promise<boolean>;
 }
+
+export function trapFocus(container: HTMLElement | null | undefined, event: KeyboardEvent): boolean;
+export function getFocusableElements(container: HTMLElement | null | undefined): HTMLElement[];
+

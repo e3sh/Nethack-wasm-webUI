@@ -1,7 +1,8 @@
-import { Component, createSignal, createMemo, createEffect, Show, For } from 'solid-js';
+import { Component, createSignal, createMemo, createEffect, onMount, onCleanup, Show, For } from 'solid-js';
 import { activeWishData, currentLanguage } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
 import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const presets = WISH_PRESETS as any[];
 const categoryLabels = CATEGORY_LABELS as Record<string, { ja: string; en: string }>;
@@ -10,8 +11,11 @@ const wishService = new WishService();
 export const WishModal: Component = () => {
   const isEn = () => currentLanguage() === 'en';
 
+  let modalCardRef: HTMLDivElement | undefined;
+  let searchInputRef: HTMLInputElement | undefined;
   const [searchQuery, setSearchQuery] = createSignal('');
   const [suggestions, setSuggestions] = createSignal<any[]>([]);
+  const [selectedSuggestIndex, setSelectedSuggestIndex] = createSignal<number>(-1);
   const [selectedCategory, setSelectedCategory] = createSignal('');
   const [selectedItemName, setSelectedItemName] = createSignal('silver dragon scale mail');
 
@@ -22,20 +26,31 @@ export const WishModal: Component = () => {
   const [optGreased, setOptGreased] = createSignal(false);
   const [optPoisoned, setOptPoisoned] = createSignal(false);
 
-  const catalogByCategory = (wishService as any).getCatalogByCategory() || {};
+  const activeWishService = createMemo(() => {
+    const data = activeWishData();
+    const svc = (data?.assistant?.wishService || wishService) as any;
+    svc.setLanguage(currentLanguage());
+    return svc;
+  });
+
+  const catalogByCategory = createMemo<Record<string, any[]>>(() => {
+    return activeWishService().getCatalogByCategory() || {};
+  });
 
   const availableItems = createMemo(() => {
     const cat = selectedCategory();
-    if (cat && catalogByCategory[cat]) {
-      return catalogByCategory[cat];
+    const byCat = catalogByCategory();
+    if (cat && byCat[cat]) {
+      return byCat[cat];
     }
-    return (wishService as any).getCatalog() || [];
+    return activeWishService().getCatalog() || [];
   });
 
   createEffect(() => {
     if (activeWishData()) {
       setSearchQuery('');
       setSuggestions([]);
+      setSelectedSuggestIndex(-1);
       setSelectedCategory('');
       setSelectedItemName('silver dragon scale mail');
       setOptBlessing('blessed');
@@ -44,11 +59,14 @@ export const WishModal: Component = () => {
       setOptCount(1);
       setOptGreased(false);
       setOptPoisoned(false);
+      setTimeout(() => {
+        searchInputRef?.focus();
+      }, 50);
     }
   });
 
   const generatedWishString = createMemo(() => {
-    return (wishService as any).serializeWish({
+    return activeWishService().serializeWish({
       itemName: selectedItemName(),
       blessing: optBlessing(),
       enchantment: parseInt(optEnchantment(), 10) || 0,
@@ -64,9 +82,11 @@ export const WishModal: Component = () => {
     const q = val.trim();
     if (q.length === 0) {
       setSuggestions([]);
+      setSelectedSuggestIndex(-1);
       return;
     }
-    setSuggestions((wishService as any).suggest(q, { limit: 8 }));
+    setSuggestions(activeWishService().suggest(q, { limit: 8 }));
+    setSelectedSuggestIndex(-1);
   };
 
   const selectSuggestion = (item: any) => {
@@ -74,6 +94,7 @@ export const WishModal: Component = () => {
     setSelectedCategory(item.category || '');
     setSearchQuery(isEn() ? item.name : item.nameJa);
     setSuggestions([]);
+    setSelectedSuggestIndex(-1);
   };
 
   const applyPreset = (p: any) => {
@@ -99,10 +120,63 @@ export const WishModal: Component = () => {
     driverController.cancelWish();
   };
 
+  const handleSearchKeyDown = (e: KeyboardEvent) => {
+    const list = suggestions();
+    if (list.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestIndex((prev) => (prev + 1) % list.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestIndex((prev) => (prev - 1 + list.length) % list.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      const chosen = list[selectedSuggestIndex() >= 0 ? selectedSuggestIndex() : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const chosen = list[selectedSuggestIndex() >= 0 ? selectedSuggestIndex() : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setSuggestions([]);
+      setSelectedSuggestIndex(-1);
+    }
+  };
+
+  onMount(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!activeWishData()) return;
+      e.stopPropagation();
+      if (suggestions().length === 0 && modalCardRef && trapFocus(modalCardRef, e)) {
+        return;
+      }
+      if (suggestions().length > 0) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleConfirm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleKeyDown);
+    });
+  });
+
   return (
     <Show when={activeWishData()}>
       <div class="modal-backdrop">
-        <div class="wish-builder-card">
+        <div ref={modalCardRef} class="wish-builder-card">
           <div class="modal-header">
             <h2>✨ {isEn() ? 'Wish Builder (#wish)' : '願いの祭壇 (#wish ビルダー)'}</h2>
           </div>
@@ -136,19 +210,22 @@ export const WishModal: Component = () => {
             </div>
             <div class="wish-search-container">
               <input
+                ref={searchInputRef}
                 type="text"
                 class="wish-search-input"
                 placeholder={isEn() ? 'Search items (e.g. dragon mail, speed, gauntlets)...' : 'アイテム名・英名・キーワードで検索 (例: ドラゴン, speed, 手袋)...'}
                 value={searchQuery()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}
+                onKeyDown={handleSearchKeyDown}
               />
               <Show when={suggestions().length > 0}>
                 <div class="wish-suggest-dropdown">
                   <For each={suggestions()}>
-                    {(item: any) => (
+                    {(item: any, idx) => (
                       <div
-                        class="wish-suggest-item"
+                        class={`wish-suggest-item ${idx() === selectedSuggestIndex() ? 'selected' : ''}`}
                         onClick={() => selectSuggestion(item)}
+                        onMouseEnter={() => setSelectedSuggestIndex(idx())}
                       >
                         <span>{isEn() ? item.name : `${item.nameJa} (${item.name})`}</span>
                         <small>{item.category}</small>
@@ -169,7 +246,8 @@ export const WishModal: Component = () => {
                   onChange={(e) => {
                     const cat = e.currentTarget.value;
                     setSelectedCategory(cat);
-                    const items = cat && catalogByCategory[cat] ? catalogByCategory[cat] : (wishService as any).getCatalog() || [];
+                    const byCat = catalogByCategory();
+                    const items = cat && byCat[cat] ? byCat[cat] : (wishService as any).getCatalog() || [];
                     if (items.length > 0) {
                       setSelectedItemName(items[0].name);
                     }

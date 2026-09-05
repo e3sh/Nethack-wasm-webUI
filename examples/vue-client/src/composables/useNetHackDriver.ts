@@ -36,6 +36,8 @@ class NetHackDriverController {
     }
   }
 
+  private boundHandleKeyDown = (e: KeyboardEvent) => this.handleGlobalKeyDown(e);
+
   public init() {
     if (this.core) return;
     this.startCore();
@@ -303,8 +305,8 @@ class NetHackDriverController {
       }
     });
 
-    window.removeEventListener('keydown', this.handleGlobalKeyDown.bind(this));
-    window.addEventListener('keydown', this.handleGlobalKeyDown.bind(this));
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
+    window.addEventListener('keydown', this.boundHandleKeyDown);
 
     this.core.detectSavedGameInfo().then((saveInfo: any) => {
       if (saveInfo && saveInfo.hasSave) {
@@ -336,7 +338,14 @@ class NetHackDriverController {
     }
 
     const gameStore = useGameStore();
-    if (gameStore.activeTextModal || gameStore.activeMenu) {
+    if (
+      gameStore.activeTextModal ||
+      gameStore.activeMenu ||
+      gameStore.activeWishData ||
+      gameStore.pendingSaveInfo ||
+      gameStore.engineState === 'GAMEOVER' ||
+      gameStore.gameOverResult
+    ) {
       return;
     }
 
@@ -346,7 +355,7 @@ class NetHackDriverController {
   }
 
   public destroy() {
-    window.removeEventListener('keydown', this.handleGlobalKeyDown.bind(this));
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
     if (this.core) {
       this.core.destroy();
       this.core = null;
@@ -453,6 +462,27 @@ class NetHackDriverController {
       }
     }
   }
+
+  public sendWish(wishText: string) {
+    if (!wishText) {
+      this.cancelWish();
+      return;
+    }
+    const gameStore = useGameStore();
+    gameStore.setWishData(null);
+    if (this.core && typeof this.core.respond === 'function') {
+      this.core.respond(wishText);
+    }
+  }
+
+  public cancelWish() {
+    const gameStore = useGameStore();
+    gameStore.setWishData(null);
+    if (this.core && typeof this.core.cancelPrompt === 'function') {
+      this.core.cancelPrompt();
+    }
+  }
+
   private updateGklSituation() {
     const gameStore = useGameStore();
     if (gameStore.isPlayerDead || gameStore.engineState === 'GAMEOVER' || gameStore.status.hpMax <= 0) {
@@ -712,6 +742,8 @@ export function useNetHackDriver() {
     respondPrompt: (val: any) => driverController.respondPrompt(val),
     respondMenu: (val: any) => driverController.respondMenu(val),
     respondTextModal: (val?: any) => driverController.respondTextModal(val),
+    sendWish: (val: string) => driverController.sendWish(val),
+    cancelWish: () => driverController.cancelWish(),
     sendAction: (act: any) => driverController.sendAction(act),
     executeAction: (act: any) => driverController.executeAction(act),
     executeSequence: (seq: any[]) => driverController.executeSequence(seq),

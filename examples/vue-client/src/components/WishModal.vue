@@ -1,6 +1,6 @@
 <template>
   <div v-if="activeWishData" class="modal-backdrop" @click="handleCancel">
-    <div class="modal-card modal-large wish-builder-card" @click.stop>
+    <div ref="modalCardRef" class="modal-card modal-large wish-builder-card" @click.stop>
       <div class="modal-header">
         <h2>✨ {{ isEn ? 'For what do you wish?' : '何をお望みですか？ (Wish Builder)' }}</h2>
       </div>
@@ -33,14 +33,17 @@
             class="wish-search-input"
             :placeholder="isEn ? 'Search item (e.g. SDSM, silver dragon, genocide, marker)' : 'アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）'"
             @input="handleSearchInput"
+            @keydown="handleSearchKeyDown"
           />
           <!-- サジェストドロップダウン -->
           <div v-if="suggestions.length > 0" class="wish-suggest-dropdown">
             <div
-              v-for="s in suggestions"
+              v-for="(s, idx) in suggestions"
               :key="s.name"
               class="wish-suggest-item"
+              :class="{ selected: idx === selectedSuggestIndex }"
               @click="selectSuggestion(s)"
+              @mouseenter="selectedSuggestIndex = idx"
             >
               <strong>{{ isEn ? s.name : s.nameJa }}</strong>
               <small>{{ isEn ? s.nameJa : s.name }} ({{ s.category }})</small>
@@ -145,10 +148,11 @@ import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 import { storeToRefs } from 'pinia';
 import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();
 const { activeWishData } = storeToRefs(gameStore);
-const { currentLanguage, respondPrompt, cancelPrompt } = useNetHackDriver();
+const { currentLanguage, sendWish, cancelWish } = useNetHackDriver();
 
 const isEn = computed(() => currentLanguage.value === 'en');
 const presets = WISH_PRESETS as any[];
@@ -156,9 +160,16 @@ const categoryLabels = CATEGORY_LABELS as Record<string, { ja: string; en: strin
 
 const wishService = new WishService();
 
+const activeWishService = computed(() => {
+  const svc = (activeWishData.value?.assistant?.wishService || wishService) as any;
+  svc.setLanguage(currentLanguage.value);
+  return svc;
+});
+
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const searchQuery = ref('');
 const suggestions = ref<any[]>([]);
+const selectedSuggestIndex = ref<number>(-1);
 const selectedCategory = ref('');
 const selectedItemName = ref('silver dragon scale mail');
 
@@ -170,7 +181,7 @@ const optGreased = ref(false);
 const optPoisoned = ref(false);
 
 const catalogByCategory = computed<Record<string, any[]>>(() => {
-  return (wishService as any).getCatalogByCategory() || {};
+  return activeWishService.value.getCatalogByCategory() || {};
 });
 
 const availableItems = computed(() => {
@@ -178,13 +189,14 @@ const availableItems = computed(() => {
   if (cat && catalogByCategory.value[cat]) {
     return catalogByCategory.value[cat];
   }
-  return (wishService as any).getCatalog() || [];
+  return activeWishService.value.getCatalog() || [];
 });
 
 watch(activeWishData, (val) => {
   if (val) {
     searchQuery.value = '';
     suggestions.value = [];
+    selectedSuggestIndex.value = -1;
     selectedCategory.value = '';
     selectedItemName.value = 'silver dragon scale mail';
     optBlessing.value = 'blessed';
@@ -193,11 +205,14 @@ watch(activeWishData, (val) => {
     optCount.value = 1;
     optGreased.value = false;
     optPoisoned.value = false;
+    setTimeout(() => {
+      searchInputRef.value?.focus();
+    }, 50);
   }
 });
 
 const generatedWishString = computed(() => {
-  return (wishService as any).serializeWish({
+  return activeWishService.value.serializeWish({
     itemName: selectedItemName.value,
     blessing: optBlessing.value,
     enchantment: parseInt(optEnchantment.value, 10) || 0,
@@ -212,9 +227,11 @@ function handleSearchInput() {
   const q = searchQuery.value.trim();
   if (q.length === 0) {
     suggestions.value = [];
+    selectedSuggestIndex.value = -1;
     return;
   }
-  suggestions.value = (wishService as any).suggest(q, { limit: 8 });
+  suggestions.value = activeWishService.value.suggest(q, { limit: 8 });
+  selectedSuggestIndex.value = -1;
 }
 
 function selectSuggestion(item: any) {
@@ -222,6 +239,7 @@ function selectSuggestion(item: any) {
   selectedCategory.value = item.category || '';
   searchQuery.value = isEn.value ? item.name : item.nameJa;
   suggestions.value = [];
+  selectedSuggestIndex.value = -1;
 }
 
 function handleCategoryChange() {
@@ -253,22 +271,63 @@ function applyPreset(p: any) {
 
 function handleSubmit() {
   const cmd = generatedWishString.value;
-  gameStore.setWishData(null);
-  respondPrompt(cmd);
+  sendWish(cmd);
 }
 
 function handleCancel() {
-  gameStore.setWishData(null);
-  cancelPrompt();
+  cancelWish();
 }
+
+function handleSearchKeyDown(e: KeyboardEvent) {
+  if (suggestions.value.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedSuggestIndex.value = (selectedSuggestIndex.value + 1) % suggestions.value.length;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedSuggestIndex.value = (selectedSuggestIndex.value - 1 + suggestions.value.length) % suggestions.value.length;
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    e.stopPropagation();
+    const chosen = suggestions.value[selectedSuggestIndex.value >= 0 ? selectedSuggestIndex.value : 0];
+    if (chosen) {
+      selectSuggestion(chosen);
+    }
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const chosen = suggestions.value[selectedSuggestIndex.value >= 0 ? selectedSuggestIndex.value : 0];
+    if (chosen) {
+      selectSuggestion(chosen);
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    suggestions.value = [];
+    selectedSuggestIndex.value = -1;
+  }
+}
+
+const modalCardRef = ref<HTMLDivElement | null>(null);
 
 function handleKeyDown(e: KeyboardEvent) {
   if (!activeWishData.value) return;
+
+  if (e.key === 'Tab') {
+    if (suggestions.value.length === 0 && modalCardRef.value) {
+      trapFocus(modalCardRef.value, e);
+      return;
+    }
+  }
+
+  if (suggestions.value.length > 0) return;
   if (e.key === 'Escape') {
     e.preventDefault();
+    e.stopPropagation();
     handleCancel();
   } else if (e.key === 'Enter') {
     e.preventDefault();
+    e.stopPropagation();
     handleSubmit();
   }
 }
@@ -431,7 +490,8 @@ onUnmounted(() => {
   color: #f1f5f9;
 }
 
-.wish-suggest-item:hover {
+.wish-suggest-item:hover,
+.wish-suggest-item.selected {
   background: #334155;
 }
 

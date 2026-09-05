@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const SaveSelectorModal: React.FC = () => {
   const pendingSaveInfo = useGameStore((state) => state.pendingSaveInfo);
   const currentLanguage = useGameStore((state) => state.currentLanguage);
   const isEn = currentLanguage === 'en';
   const { resumeSavedGame, startNewGame } = useNetHackDriver();
+  const modalCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!pendingSaveInfo) return;
+      if (e.key === 'Tab' && modalCardRef.current) {
+        trapFocus(modalCardRef.current, e);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pendingSaveInfo]);
 
   if (!pendingSaveInfo) return null;
 
@@ -21,7 +34,7 @@ export const SaveSelectorModal: React.FC = () => {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-card">
+      <div ref={modalCardRef} className="modal-card">
         <div className="modal-header">
           <h2>{isEn ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました'}</h2>
         </div>

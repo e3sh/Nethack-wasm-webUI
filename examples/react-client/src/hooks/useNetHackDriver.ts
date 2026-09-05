@@ -36,6 +36,8 @@ class NetHackDriverController {
     }
   }
 
+  private boundHandleKeyDown = (e: KeyboardEvent) => this.handleGlobalKeyDown(e);
+
   public init() {
     if (this.core) return;
     this.startCore();
@@ -308,8 +310,8 @@ class NetHackDriverController {
       }
     });
 
-    window.removeEventListener('keydown', this.handleGlobalKeyDown.bind(this));
-    window.addEventListener('keydown', this.handleGlobalKeyDown.bind(this));
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
+    window.addEventListener('keydown', this.boundHandleKeyDown);
 
     this.core.detectSavedGameInfo().then((saveInfo: any) => {
       if (saveInfo && saveInfo.hasSave) {
@@ -344,7 +346,14 @@ class NetHackDriverController {
     }
 
     const s = useGameStore.getState();
-    if (s.activeTextModal || s.activeMenu) {
+    if (
+      s.activeTextModal ||
+      s.activeMenu ||
+      s.activeWishData ||
+      s.pendingSaveInfo ||
+      s.engineState === 'GAMEOVER' ||
+      s.gameOverResult
+    ) {
       return;
     }
 
@@ -354,7 +363,7 @@ class NetHackDriverController {
   }
 
   public destroy() {
-    window.removeEventListener('keydown', this.handleGlobalKeyDown.bind(this));
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
     if (this.core) {
       this.core.destroy();
       this.core = null;
@@ -362,14 +371,16 @@ class NetHackDriverController {
   }
 
   public async resumeSavedGame() {
-    useGameStore.getState().setPendingSaveInfo(null);
+    const s = useGameStore.getState();
+    s.setPendingSaveInfo(null);
     if (this.core) {
       await this.core.start(this.nethackJsPath);
     }
   }
 
   public async startNewGame() {
-    useGameStore.getState().setPendingSaveInfo(null);
+    const s = useGameStore.getState();
+    s.setPendingSaveInfo(null);
     if (this.core) {
       await this.core.start(this.nethackJsPath, { forceNewGame: true });
     }
@@ -377,45 +388,25 @@ class NetHackDriverController {
 
   public async deleteSaveFile() {
     const s = useGameStore.getState();
+    s.setPendingSaveInfo(null);
     if (this.core) {
-      if (typeof this.core.deleteSaveFile === 'function') {
-        await this.core.deleteSaveFile();
-      } else if (this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
+      if (this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
         await this.core.driver.deleteSaveFile();
       }
+      await this.core.start(this.nethackJsPath, { forceNewGame: true });
     }
-    s.setDetectedSaveName(null);
-    s.addMessage('🗑️ セーブデータを完全物理削除しました。');
   }
 
-  public async restartGame(options: { clearStorage?: boolean; autoStart?: boolean; wasmJsUrl?: string } = { clearStorage: false }) {
+  public async restartGame(options: any = {}) {
     const s = useGameStore.getState();
+    s.setPendingSaveInfo(null);
+    s.setGameOverResult(null);
     s.resetAllState();
 
-    if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
-      this.core.gkl.reset();
-    }
-
-    const shouldClear = options.clearStorage ?? false;
-
-    if (this.core && typeof this.core.restart === 'function') {
-      await this.core.restart({
-        wasmJsUrl: this.nethackJsPath,
-        clearStorage: shouldClear,
-        autoStart: false,
-        ...options,
-      });
-
-      if (!shouldClear) {
-        try {
-          const saveInfo = await this.core.detectSavedGameInfo();
-          if (saveInfo && saveInfo.hasSave) {
-            s.setPendingSaveInfo(saveInfo);
-            return;
-          }
-        } catch (e) {
-          console.warn("Failed to detect save on restart:", e);
-        }
+    if (this.core) {
+      const shouldClear = options && options.clearStorage !== undefined ? options.clearStorage : true;
+      if (shouldClear && this.core.driver && typeof this.core.driver.deleteSaveFile === 'function') {
+        await this.core.driver.deleteSaveFile();
       }
 
       await this.core.start(this.nethackJsPath, { forceNewGame: shouldClear });
@@ -453,6 +444,24 @@ class NetHackDriverController {
       } else {
         this.core.respond(val);
       }
+    }
+  }
+
+  public sendWish(itemText: string) {
+    if (!itemText) {
+      this.cancelWish();
+      return;
+    }
+    useGameStore.getState().setWishData(null);
+    if (this.core && typeof this.core.respond === 'function') {
+      this.core.respond(itemText);
+    }
+  }
+
+  public cancelWish() {
+    useGameStore.getState().setWishData(null);
+    if (this.core && typeof this.core.cancelPrompt === 'function') {
+      this.core.cancelPrompt();
     }
   }
 
@@ -724,6 +733,8 @@ export function useNetHackDriver() {
     respondPrompt: useCallback((val: any) => driverController.respondPrompt(val), []),
     respondMenu: useCallback((val: any) => driverController.respondMenu(val), []),
     respondTextModal: useCallback((val?: any) => driverController.respondTextModal(val), []),
+    sendWish: useCallback((val: string) => driverController.sendWish(val), []),
+    cancelWish: useCallback(() => driverController.cancelWish(), []),
     sendAction: useCallback((act: any) => driverController.sendAction(act), []),
     executeAction: useCallback((act: any) => driverController.executeAction(act), []),
     executeSequence: useCallback((seq: any[]) => driverController.executeSequence(seq), []),

@@ -1,8 +1,16 @@
 <script lang="ts">
   import { pendingSaveInfoStore } from '../stores/gameStore';
   import { driverController, currentLanguageStore } from '../services/useNetHackDriver';
+  import { trapFocus } from '@core/input/focusTrap.js';
+
+  let modalCardRef: HTMLDivElement | null = null;
+  let resumeBtnRef: HTMLButtonElement | null = null;
 
   $: isEn = $currentLanguageStore === 'en';
+
+  $: if ($pendingSaveInfoStore) {
+    setTimeout(() => resumeBtnRef?.focus(), 50);
+  }
 
   function handleStartNew() {
     const confirmMsg = isEn
@@ -12,11 +20,20 @@
       driverController.startNewGame();
     }
   }
+
+  function handleGlobalKeyDown(e: KeyboardEvent) {
+    if (!$pendingSaveInfoStore) return;
+    if (modalCardRef && trapFocus(modalCardRef, e)) {
+      return;
+    }
+  }
 </script>
+
+<svelte:window on:keydown={handleGlobalKeyDown} />
 
 {#if $pendingSaveInfoStore}
   <div class="modal-backdrop">
-    <div class="modal-card">
+    <div class="modal-card" bind:this={modalCardRef}>
       <div class="modal-header">
         <h2>{isEn ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました'}</h2>
       </div>
@@ -35,6 +52,7 @@
       </div>
       <div class="modal-footer">
         <button
+          bind:this={resumeBtnRef}
           on:click={() => driverController.resumeSavedGame()}
           class="btn btn-primary btn-large"
         >

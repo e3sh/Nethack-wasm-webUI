@@ -1,9 +1,19 @@
 <script lang="ts">
   import { engineStateStore, gameOverResultStore } from '../stores/gameStore';
   import { driverController } from '../services/useNetHackDriver';
+  import { trapFocus } from '@core/input/focusTrap.js';
+
+  let modalCardRef: HTMLDivElement | null = null;
+  let restartBtnRef: HTMLButtonElement | null = null;
 
   $: engineState = $engineStateStore;
   $: gameOverResult = $gameOverResultStore;
+
+  $: isGameOverOpen = engineState === 'GAMEOVER' || !!gameOverResult;
+
+  $: if (isGameOverOpen) {
+    setTimeout(() => restartBtnRef?.focus(), 50);
+  }
 
   $: topScores =
     gameOverResult?.scoreboard ||
@@ -19,11 +29,20 @@
   function handleRestart() {
     driverController.restartGame({ clearStorage: true });
   }
+
+  function handleGlobalKeyDown(e: KeyboardEvent) {
+    if (!isGameOverOpen) return;
+    if (modalCardRef && trapFocus(modalCardRef, e)) {
+      return;
+    }
+  }
 </script>
 
-{#if engineState === 'GAMEOVER' || gameOverResult}
+<svelte:window on:keydown={handleGlobalKeyDown} />
+
+{#if isGameOverOpen}
   <div class="modal-backdrop">
-    <div class="modal-content">
+    <div class="modal-content" bind:this={modalCardRef}>
       <div class="gameover-header">
         <h2>☠️ GAME OVER ☠️</h2>
       </div>
@@ -59,7 +78,7 @@
       {/if}
 
       <div class="modal-footer">
-        <button on:click={handleRestart} class="btn btn-restart">
+        <button bind:this={restartBtnRef} on:click={handleRestart} class="btn btn-restart">
           🔄 Restart Game
         </button>
       </div>

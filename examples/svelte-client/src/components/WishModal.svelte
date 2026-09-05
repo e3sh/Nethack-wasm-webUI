@@ -2,13 +2,17 @@
   import { activeWishDataStore } from '../stores/gameStore';
   import { currentLanguageStore, driverController } from '../services/useNetHackDriver';
   import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+  import { trapFocus } from '@core/input/focusTrap.js';
 
   const presets = WISH_PRESETS as any[];
   const categoryLabels = CATEGORY_LABELS as Record<string, { ja: string; en: string }>;
   const wishService = new WishService();
 
+  let modalCardRef: HTMLDivElement | null = null;
+  let searchInputElement: HTMLInputElement | null = null;
   let searchQuery = '';
   let suggestions: any[] = [];
+  let selectedSuggestIndex = -1;
   let selectedCategory = '';
   let selectedItemName = 'silver dragon scale mail';
 
@@ -21,18 +25,25 @@
 
   $: isEn = $currentLanguageStore === 'en';
 
-  const catalogByCategory = (wishService as any).getCatalogByCategory() || {};
+  $: activeWishService = (() => {
+    const svc = ($activeWishDataStore?.assistant?.wishService || wishService) as any;
+    svc.setLanguage($currentLanguageStore);
+    return svc;
+  })();
+
+  $: catalogByCategory = activeWishService.getCatalogByCategory() || {};
 
   $: availableItems = (() => {
     if (selectedCategory && catalogByCategory[selectedCategory]) {
       return catalogByCategory[selectedCategory];
     }
-    return (wishService as any).getCatalog() || [];
+    return activeWishService.getCatalog() || [];
   })();
 
   $: if ($activeWishDataStore) {
     searchQuery = '';
     suggestions = [];
+    selectedSuggestIndex = -1;
     selectedCategory = '';
     selectedItemName = 'silver dragon scale mail';
     optBlessing = 'blessed';
@@ -41,9 +52,12 @@
     optCount = 1;
     optGreased = false;
     optPoisoned = false;
+    setTimeout(() => {
+      searchInputElement?.focus();
+    }, 50);
   }
 
-  $: generatedWishString = (wishService as any).serializeWish({
+  $: generatedWishString = activeWishService.serializeWish({
     itemName: selectedItemName,
     blessing: optBlessing,
     enchantment: parseInt(optEnchantment, 10) || 0,
@@ -58,9 +72,11 @@
     const q = val.trim();
     if (q.length === 0) {
       suggestions = [];
+      selectedSuggestIndex = -1;
       return;
     }
-    suggestions = (wishService as any).suggest(q, { limit: 8 });
+    suggestions = activeWishService.suggest(q, { limit: 8 });
+    selectedSuggestIndex = -1;
   };
 
   const selectSuggestion = (item: any) => {
@@ -68,6 +84,7 @@
     selectedCategory = item.category || '';
     searchQuery = isEn ? item.name : item.nameJa;
     suggestions = [];
+    selectedSuggestIndex = -1;
   };
 
   const applyPreset = (p: any) => {
@@ -91,6 +108,53 @@
   const handleCancel = () => {
     driverController.cancelWish();
   };
+
+  const handleSearchKeyDown = (e: KeyboardEvent) => {
+    if (suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedSuggestIndex = (selectedSuggestIndex + 1) % suggestions.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedSuggestIndex = (selectedSuggestIndex - 1 + suggestions.length) % suggestions.length;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      const chosen = suggestions[selectedSuggestIndex >= 0 ? selectedSuggestIndex : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const chosen = suggestions[selectedSuggestIndex >= 0 ? selectedSuggestIndex : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      suggestions = [];
+      selectedSuggestIndex = -1;
+    }
+  };
+
+  const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    if (!$activeWishDataStore) return;
+    e.stopPropagation();
+    if (suggestions.length === 0 && modalCardRef && trapFocus(modalCardRef, e)) {
+      return;
+    }
+    if (suggestions.length > 0) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleConfirm();
+    }
+  };
+
   const handleCategoryChange = (cat: string) => {
     selectedCategory = cat;
     const items = cat && catalogByCategory[cat] ? catalogByCategory[cat] : (wishService as any).getCatalog() || [];
@@ -100,9 +164,11 @@
   };
 </script>
 
+<svelte:window on:keydown={handleGlobalKeyDown} />
+
 {#if $activeWishDataStore}
   <div class="modal-backdrop">
-    <div class="wish-builder-card">
+    <div class="wish-builder-card" bind:this={modalCardRef}>
       <div class="modal-header">
         <h2>✨ {isEn ? 'Wish Builder (#wish)' : '願いの祭壇 (#wish ビルダー)'}</h2>
       </div>
@@ -134,18 +200,22 @@
         </div>
         <div class="wish-search-container">
           <input
+            bind:this={searchInputElement}
             type="text"
             class="wish-search-input"
             placeholder={isEn ? 'Search items (e.g. dragon mail, speed, gauntlets)...' : 'アイテム名・英名・キーワードで検索 (例: ドラゴン, speed, 手袋)...'}
             value={searchQuery}
             on:input={(e) => handleSearchInput(e.currentTarget.value)}
+            on:keydown={handleSearchKeyDown}
           />
           {#if suggestions.length > 0}
             <div class="wish-suggest-dropdown">
-              {#each suggestions as item}
+              {#each suggestions as item, idx}
                 <div
                   class="wish-suggest-item"
+                  class:selected={idx === selectedSuggestIndex}
                   on:click={() => selectSuggestion(item)}
+                  on:mouseenter={() => (selectedSuggestIndex = idx)}
                 >
                   <span>{isEn ? item.name : `${item.nameJa} (${item.name})`}</span>
                   <small>{item.category}</small>

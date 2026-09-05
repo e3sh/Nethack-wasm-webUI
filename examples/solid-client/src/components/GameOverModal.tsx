@@ -1,8 +1,33 @@
-import { Component, Show, For } from 'solid-js';
+import { Component, Show, For, createEffect, onMount, onCleanup } from 'solid-js';
 import { engineState, gameOverResult } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const GameOverModal: Component = () => {
+  let modalCardRef: HTMLDivElement | undefined;
+  let restartBtnRef: HTMLButtonElement | undefined;
+
+  const isGameOver = () => engineState() === 'GAMEOVER' || !!gameOverResult();
+
+  createEffect(() => {
+    if (isGameOver()) {
+      setTimeout(() => restartBtnRef?.focus(), 50);
+    }
+  });
+
+  onMount(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isGameOver()) return;
+      if (modalCardRef && trapFocus(modalCardRef, e)) {
+        return;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleKeyDown);
+    });
+  });
+
   const handleRestart = () => {
     driverController.restartGame({ clearStorage: true });
   };
@@ -19,9 +44,9 @@ export const GameOverModal: Component = () => {
     'You have perished in the Dungeons of Doom...';
 
   return (
-    <Show when={engineState() === 'GAMEOVER' || gameOverResult()}>
+    <Show when={isGameOver()}>
       <div class="modal-backdrop">
-        <div class="modal-content">
+        <div ref={modalCardRef} class="modal-content">
           <div class="gameover-header">
             <h2>☠️ GAME OVER ☠️</h2>
           </div>
@@ -59,7 +84,7 @@ export const GameOverModal: Component = () => {
           </Show>
 
           <div class="modal-footer">
-            <button onClick={handleRestart} class="btn btn-restart">
+            <button ref={restartBtnRef} onClick={handleRestart} class="btn btn-restart">
               🔄 Restart Game
             </button>
           </div>

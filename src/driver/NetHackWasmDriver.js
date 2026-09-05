@@ -1377,8 +1377,14 @@
                     const M = this.getModule();
                     const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
 
-                    if (input && typeof input === 'string' && strToUTF8) {
-                        strToUTF8(input, bufp, 256);
+                    if (strToUTF8) {
+                        if (typeof input === 'string') {
+                            strToUTF8(input, bufp, 256);
+                        } else if (input === 27) {
+                            strToUTF8("\x1b", bufp, 256);
+                        } else {
+                            strToUTF8("", bufp, 256);
+                        }
                     }
                     return 0;
                 }

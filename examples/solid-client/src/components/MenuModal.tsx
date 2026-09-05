@@ -2,8 +2,10 @@ import { Component, createSignal, createEffect, onMount, onCleanup, Show, For } 
 import { activeMenu, MenuItem } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
 import { getTileMapping } from '../utils/tileMapping';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const MenuModal: Component = () => {
+  let modalCardRef: HTMLDivElement | undefined;
   const [selectedIndices, setSelectedIndices] = createSignal<number[]>([]);
   const [focusedIndex, setFocusedIndex] = createSignal<number>(-1);
   let isSubmitting = false;
@@ -134,6 +136,10 @@ export const MenuModal: Component = () => {
       const menu = activeMenu();
       if (!menu || isSubmitting) return;
 
+      if (modalCardRef && trapFocus(modalCardRef, e)) {
+        return;
+      }
+
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         e.stopPropagation();
@@ -199,7 +205,7 @@ export const MenuModal: Component = () => {
     <Show when={activeMenu()}>
       {(menu) => (
         <div class="modal-backdrop" onClick={cancelMenu}>
-          <div class="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div ref={modalCardRef} class="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 class="modal-title">{menu().prompt || 'Select Item'}</h3>
 
             <div class="menu-list" ref={menuListRef}>

@@ -85,6 +85,39 @@ export class ModalManager {
     }
   }
 
+  isAnyModalOpen() {
+    if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) return true;
+    if (this.elWishModal && !this.elWishModal.classList.contains('hidden')) return true;
+    if (this.elGenocideModal && !this.elGenocideModal.classList.contains('hidden')) return true;
+    if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden')) return true;
+    if (this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden')) return true;
+    if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) return true;
+    if (this.isGameExited) return true;
+    return false;
+  }
+
+  getActiveModalCard() {
+    if (this.elWishModal && !this.elWishModal.classList.contains('hidden')) {
+      return this.elWishModal.querySelector('.wish-builder-card') || this.elWishModal;
+    }
+    if (this.elGenocideModal && !this.elGenocideModal.classList.contains('hidden')) {
+      return this.elGenocideModal.querySelector('.modal-card') || this.elGenocideModal;
+    }
+    if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden')) {
+      return this.elPolymorphModal.querySelector('.modal-card') || this.elPolymorphModal;
+    }
+    if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) {
+      return this.elMenuModal.querySelector('.modal-content') || this.elMenuModal;
+    }
+    if (this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden')) {
+      return this.elGameOverModal.querySelector('.modal-content') || this.elGameOverModal;
+    }
+    if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) {
+      return this.elSelectorCard;
+    }
+    return null;
+  }
+
   reset() {
     this.isGameExited = false;
     this.isTextWindowMode = false;
@@ -606,16 +639,44 @@ export class ModalManager {
 
     // 3. インクリメンタルサジェスト
     const suggestDropdown = document.getElementById('wish-suggest-dropdown');
+    let wishSuggestIndex = -1;
+    let currentWishResults = [];
+
+    const updateWishSelection = () => {
+      const items = suggestDropdown.querySelectorAll('.wish-suggest-item');
+      items.forEach((item, idx) => {
+        item.classList.toggle('selected', idx === wishSuggestIndex);
+        if (idx === wishSuggestIndex) {
+          item.scrollIntoView({ block: 'nearest' });
+        }
+      });
+    };
+
+    const selectWishItem = (it) => {
+      const mainName = lang === 'ja' ? (it.nameJa || it.name) : it.name;
+      elSearchInput.value = mainName;
+      suggestDropdown.classList.remove('active');
+      wishSuggestIndex = -1;
+      currentWishResults = [];
+      if (catFilterEl) catFilterEl.value = it.category;
+      populateItemSelect(it.category);
+      if (itemSelectEl) itemSelectEl.value = it.name;
+      onItemChange(it.name);
+    };
+
     if (elSearchInput && suggestDropdown) {
       elSearchInput.value = '';
       elSearchInput.oninput = () => {
         const q = elSearchInput.value.trim();
+        wishSuggestIndex = -1;
         if (!q) {
+          currentWishResults = [];
           suggestDropdown.classList.remove('active');
           return;
         }
 
         const results = wishService.suggest(q, { limit: 12, lang });
+        currentWishResults = results;
         if (results.length === 0) {
           suggestDropdown.innerHTML = `<div style="padding: 8px 12px; color: #888;">${t.noSuggest}</div>`;
           suggestDropdown.classList.add('active');
@@ -623,7 +684,7 @@ export class ModalManager {
         }
 
         suggestDropdown.innerHTML = '';
-        results.forEach(it => {
+        results.forEach((it, idx) => {
           const div = document.createElement('div');
           div.className = 'wish-suggest-item';
           const mainName = lang === 'ja' ? (it.nameJa || it.name) : it.name;
@@ -636,21 +697,67 @@ export class ModalManager {
             <span class="wish-suggest-cat">${it.category}</span>
           `;
           div.onclick = () => {
-            elSearchInput.value = mainName;
-            suggestDropdown.classList.remove('active');
-            if (catFilterEl) catFilterEl.value = it.category;
-            populateItemSelect(it.category);
-            if (itemSelectEl) itemSelectEl.value = it.name;
-            onItemChange(it.name);
+            selectWishItem(it);
           };
           suggestDropdown.appendChild(div);
         });
         suggestDropdown.classList.add('active');
       };
 
+      elSearchInput.onkeydown = (e) => {
+        const isDropdownActive = suggestDropdown.classList.contains('active');
+
+        if (e.key === 'ArrowDown') {
+          if (isDropdownActive && currentWishResults.length > 0) {
+            e.preventDefault();
+            wishSuggestIndex = (wishSuggestIndex + 1) % currentWishResults.length;
+            updateWishSelection();
+          }
+        } else if (e.key === 'ArrowUp') {
+          if (isDropdownActive && currentWishResults.length > 0) {
+            e.preventDefault();
+            wishSuggestIndex = (wishSuggestIndex - 1 + currentWishResults.length) % currentWishResults.length;
+            updateWishSelection();
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (isDropdownActive && currentWishResults.length > 0) {
+            const chosenIdx = wishSuggestIndex >= 0 ? wishSuggestIndex : 0;
+            const chosen = currentWishResults[chosenIdx];
+            if (chosen) {
+              selectWishItem(chosen);
+              return;
+            }
+          }
+          const btnSubmit = document.getElementById('btn-wish-submit');
+          if (btnSubmit && !btnSubmit.disabled) {
+            btnSubmit.click();
+          }
+        } else if (e.key === 'Tab') {
+          if (isDropdownActive && currentWishResults.length > 0) {
+            e.preventDefault();
+            const chosenIdx = wishSuggestIndex >= 0 ? wishSuggestIndex : 0;
+            const chosen = currentWishResults[chosenIdx];
+            if (chosen) {
+              selectWishItem(chosen);
+            }
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (isDropdownActive) {
+            suggestDropdown.classList.remove('active');
+            wishSuggestIndex = -1;
+          } else {
+            const btnCancel = document.getElementById('btn-wish-cancel');
+            if (btnCancel) btnCancel.click();
+          }
+        }
+      };
+
       const closeSuggestHandler = (e) => {
         if (!elSearchInput.contains(e.target) && !suggestDropdown.contains(e.target)) {
           suggestDropdown.classList.remove('active');
+          wishSuggestIndex = -1;
         }
       };
       document.addEventListener('click', closeSuggestHandler);

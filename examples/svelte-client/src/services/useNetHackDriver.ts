@@ -103,6 +103,10 @@ export class NetHackDriverController {
   private handleGlobalKeyDown = (e: KeyboardEvent) => {
     const activeMenu = get(activeMenuStore);
     const activeTextModal = get(activeTextModalStore);
+    const activeWish = get(activeWishDataStore);
+    const pendingSave = get(pendingSaveInfoStore);
+    const engineState = get(engineStateStore);
+    const gameOverResult = get(gameOverResultStore);
 
     if (
       document.activeElement &&
@@ -110,7 +114,14 @@ export class NetHackDriverController {
     ) {
       return;
     }
-    if (activeMenu || activeTextModal) {
+    if (
+      activeMenu ||
+      activeTextModal ||
+      activeWish ||
+      pendingSave ||
+      engineState === 'GAMEOVER' ||
+      gameOverResult
+    ) {
       return;
     }
 
@@ -309,6 +320,7 @@ export class NetHackDriverController {
       activePromptStore.set(null);
       activeMenuStore.set(null);
       activeTextModalStore.set(null);
+      activeWishDataStore.set(null);
       gameOverResultStore.set(result);
 
       if (result && result.reason === 'save_and_exit') {
@@ -440,7 +452,10 @@ export class NetHackDriverController {
   }
 
   public sendWish(wishText: string) {
-    if (!wishText) return;
+    if (!wishText) {
+      this.cancelWish();
+      return;
+    }
     activeWishDataStore.set(null);
     if (this.core && typeof this.core.respond === 'function') {
       this.core.respond(wishText);

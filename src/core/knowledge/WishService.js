@@ -10,6 +10,7 @@
 
 import { OBJECT_KNOWLEDGE_MAP, buildStandardItemName } from './OBJECT_KNOWLEDGE_FULL.js';
 import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
+import { OBJECT_JP_MAP } from './OBJECT_JP_MAP.js';
 
 export const BLESSING_STATES = {
     BLESSED: 'blessed',
@@ -203,6 +204,11 @@ export class WishService {
         const addAlias = (alias, target) => {
             this._aliases.set(alias.toLowerCase(), target.toLowerCase());
         };
+        if (OBJECT_JP_MAP && OBJECT_JP_MAP.aliases) {
+            for (const [alias, target] of Object.entries(OBJECT_JP_MAP.aliases)) {
+                addAlias(alias, target);
+            }
+        }
         addAlias('sdsm', 'silver dragon scale mail');
         addAlias('gdsm', 'gray dragon scale mail');
         addAlias('rdsm', 'red dragon scale mail');
@@ -244,14 +250,18 @@ export class WishService {
             if (seenNames.has(lowerName)) continue;
             seenNames.add(lowerName);
 
-            // 日本語名の解決 (TranslationEngine による SSOT 解決)
-            let jaName = item.ja || item.nameJa || '';
+            // 日本語名の解決 (OBJECT_KNOWLEDGE_FULL の SSOT を最優先とし、動的 Translator をフォールバック/上書きとして利用)
+            let jaName = item.nameJa || item.ja || '';
             if (this.translator && typeof this.translator.translate === 'function') {
                 const tr = this.translator.translate(fullName, 'ja') || this.translator.translate(item.name, 'ja');
                 if (tr && tr !== fullName && tr !== item.name) {
                     jaName = tr;
                 }
             }
+            if (typeof jaName === 'object' && jaName !== null) {
+                jaName = jaName.noun || jaName.adj || String(jaName);
+            }
+            jaName = String(jaName || fullName);
 
             // カテゴリごとの許容属性フラグ判定
             const isArmor = category === 'ARMOR';
@@ -359,8 +369,8 @@ export class WishService {
         for (const item of catalog) {
             if (category && item.category !== category) continue;
 
-            const nameEn = item.name.toLowerCase();
-            const nameJa = (item.nameJa || '').toLowerCase();
+            const nameEn = String(item.name || '').toLowerCase();
+            const nameJa = String(item.nameJa || '').toLowerCase();
 
             let score = 0;
             if (aliasTarget && nameEn.includes(aliasTarget)) {

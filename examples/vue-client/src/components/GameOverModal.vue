@@ -1,6 +1,6 @@
 <template>
   <div v-if="engineState === 'GAMEOVER' || gameOverResult" class="modal-backdrop">
-    <div class="modal-content">
+    <div ref="modalContentRef" class="modal-content">
       <div class="gameover-header">
         <h2>☠️ GAME OVER ☠️</h2>
       </div>
@@ -39,14 +39,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();
 const { engineState, gameOverResult } = storeToRefs(gameStore);
 const { restartGame } = useNetHackDriver();
+const modalContentRef = ref<HTMLElement | null>(null);
+
+function handleKeyDown(e: KeyboardEvent) {
+  const isGameOver = engineState.value === 'GAMEOVER' || !!gameOverResult.value;
+  if (!isGameOver) return;
+  if (e.key === 'Tab' && modalContentRef.value) {
+    trapFocus(modalContentRef.value, e);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 const topScores = computed(() => {
   if (!gameOverResult.value) return [];

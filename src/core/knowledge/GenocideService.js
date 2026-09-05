@@ -437,6 +437,49 @@ export class GenocideService {
     }
 
     /**
+     * 指定されたターゲットが危険（自己虐殺リスクまたは単体虐殺でのクラス記号指定無効）かを検証
+     * @param {string} targetStr 虐殺対象（記号またはモンスター名）
+     * @param {Object|string} [options={}] オプションまたは種族文字列
+     * @param {string} [options.playerRace=''] プレイヤー種族
+     * @param {string} [options.playerRole=''] プレイヤー職業
+     * @param {'CLASS'|'SINGLE'|'ALL'} [options.mode='CLASS'] 虐殺モード
+     * @returns {{ isDangerous: boolean, isSelf: boolean, dangerLevel: string, reasonJa: string, reasonEn: string } | null}
+     */
+    isDangerousGenocide(targetStr, options = {}) {
+        if (!targetStr) return null;
+        const race = typeof options === 'string' ? options : (options.playerRace || '');
+        const role = typeof options === 'object' ? (options.playerRole || '') : '';
+        const mode = typeof options === 'object' ? (options.mode || this.mode || 'CLASS') : (this.mode || 'CLASS');
+
+        const clean = targetStr.trim();
+
+        // 1. 単体虐殺モードで1文字のクラス記号が入力されている場合の警告
+        if (mode === 'SINGLE' && clean.length === 1 && clean !== '?') {
+            return {
+                isDangerous: true,
+                isSelf: false,
+                dangerLevel: 'WARNING',
+                reasonJa: '単体虐殺ではクラス記号（L, c 等）は無効です。具体的なモンスター名（例: master mind flayer）を入力または選択してください。',
+                reasonEn: 'Class symbols cannot be genocided in Single mode. Specify an individual monster name (e.g. master mind flayer).'
+            };
+        }
+
+        // 2. 自己虐殺（Self-Genocide）リスク判定
+        const check = this.checkSelfGenocide(targetStr, race, role);
+        if (check && check.isSelf) {
+            return {
+                isDangerous: true,
+                isSelf: true,
+                dangerLevel: check.dangerLevel,
+                reasonJa: check.reasonJa,
+                reasonEn: check.reasonEn
+            };
+        }
+
+        return null;
+    }
+
+    /**
      * インテリジェント・サジェスト検索
      * クラス虐殺時は記号完全一致およびモンスター名からの逆引きを強力サポート
      *

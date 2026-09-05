@@ -8,6 +8,7 @@
 import { getCategoryFromOnum, getItemInfoFromOnum } from './glyphClassifier.js';
 import { OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
 import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
+import { OBJECT_JP_MAP } from './OBJECT_JP_MAP.js';
 
 export const OBJECT_KNOWLEDGE_MAP = new Map();
 
@@ -748,10 +749,22 @@ export function initFullObjectKnowledge() {
 
         const actionVerb = verbInfo.verbKey || 'a';
 
+        const rawJpName = OBJECT_JP_MAP.objects[standardName] || 
+                          OBJECT_JP_MAP.objects[base.name] || 
+                          OBJECT_JP_MAP.objects[tileName] || 
+                          detail.nameJa || 
+                          standardName;
+        const officialJpName = typeof rawJpName === 'object' && rawJpName !== null
+            ? (rawJpName.noun || rawJpName.adj || String(rawJpName))
+            : String(rawJpName || standardName);
+        const itemAliases = OBJECT_JP_MAP.aliases[standardName.toLowerCase()] || [];
+
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
             name: standardName,
+            nameJa: officialJpName,
+            aliases: itemAliases,
             baseName: base.name || tileName,
             descr: base.descr || null,
             tileName: tileName,

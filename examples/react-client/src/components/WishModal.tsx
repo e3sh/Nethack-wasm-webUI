@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
 import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const presets = WISH_PRESETS as any[];
 const categoryLabels = CATEGORY_LABELS as Record<string, { ja: string; en: string }>;
@@ -18,6 +19,8 @@ export const WishModal: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [selectedSuggestIndex, setSelectedSuggestIndex] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedItemName, setSelectedItemName] = useState('silver dragon scale mail');
 
@@ -28,23 +31,28 @@ export const WishModal: React.FC = () => {
   const [optGreased, setOptGreased] = useState(false);
   const [optPoisoned, setOptPoisoned] = useState(false);
 
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const activeWishService = activeWishData?.assistant?.wishService || wishService;
+
+  useEffect(() => {
+    activeWishService.setLanguage(currentLanguage);
+  }, [currentLanguage, activeWishService]);
 
   const catalogByCategory = useMemo<Record<string, any[]>>(() => {
-    return (wishService as any).getCatalogByCategory() || {};
-  }, []);
+    return (activeWishService as any).getCatalogByCategory() || {};
+  }, [activeWishService, currentLanguage]);
 
   const availableItems = useMemo(() => {
     if (selectedCategory && catalogByCategory[selectedCategory]) {
       return catalogByCategory[selectedCategory];
     }
-    return (wishService as any).getCatalog() || [];
-  }, [selectedCategory, catalogByCategory]);
+    return (activeWishService as any).getCatalog() || [];
+  }, [selectedCategory, catalogByCategory, activeWishService, currentLanguage]);
 
   useEffect(() => {
     if (activeWishData) {
       setSearchQuery('');
       setSuggestions([]);
+      setSelectedSuggestIndex(-1);
       setSelectedCategory('');
       setSelectedItemName('silver dragon scale mail');
       setOptBlessing('blessed');
@@ -53,11 +61,14 @@ export const WishModal: React.FC = () => {
       setOptCount(1);
       setOptGreased(false);
       setOptPoisoned(false);
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
     }
   }, [activeWishData]);
 
   const generatedWishString = useMemo(() => {
-    return (wishService as any).serializeWish({
+    return (activeWishService as any).serializeWish({
       itemName: selectedItemName,
       blessing: optBlessing,
       enchantment: parseInt(optEnchantment, 10) || 0,
@@ -66,7 +77,7 @@ export const WishModal: React.FC = () => {
       isGreased: optGreased,
       isPoisoned: optPoisoned,
     });
-  }, [selectedItemName, optBlessing, optEnchantment, optErosion, optCount, optGreased, optPoisoned]);
+  }, [activeWishService, selectedItemName, optBlessing, optEnchantment, optErosion, optCount, optGreased, optPoisoned]);
 
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -74,9 +85,11 @@ export const WishModal: React.FC = () => {
     const q = val.trim();
     if (q.length === 0) {
       setSuggestions([]);
+      setSelectedSuggestIndex(-1);
       return;
     }
-    setSuggestions((wishService as any).suggest(q, { limit: 8 }));
+    setSuggestions((activeWishService as any).suggest(q, { limit: 8 }));
+    setSelectedSuggestIndex(-1);
   };
 
   const selectSuggestion = (item: any) => {
@@ -84,12 +97,13 @@ export const WishModal: React.FC = () => {
     setSelectedCategory(item.category || '');
     setSearchQuery(isEn ? item.name : item.nameJa);
     setSuggestions([]);
+    setSelectedSuggestIndex(-1);
   };
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const cat = e.target.value;
     setSelectedCategory(cat);
-    const items = cat && catalogByCategory[cat] ? catalogByCategory[cat] : (wishService as any).getCatalog() || [];
+    const items = cat && catalogByCategory[cat] ? catalogByCategory[cat] : (activeWishService as any).getCatalog() || [];
     if (items.length > 0) {
       setSelectedItemName(items[0].name);
     }
@@ -128,9 +142,51 @@ export const WishModal: React.FC = () => {
     cancelPrompt();
   }, [setWishData, cancelPrompt]);
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      const chosen = suggestions[selectedSuggestIndex >= 0 ? selectedSuggestIndex : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const chosen = suggestions[selectedSuggestIndex >= 0 ? selectedSuggestIndex : 0];
+      if (chosen) {
+        selectSuggestion(chosen);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setSuggestions([]);
+      setSelectedSuggestIndex(-1);
+    }
+  };
+
+  const modalCardRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeWishData) return;
+      e.stopPropagation();
+
+      if (e.key === 'Tab') {
+        if (suggestions.length === 0 && modalCardRef.current) {
+          trapFocus(modalCardRef.current, e);
+          return;
+        }
+      }
+
+      if (suggestions.length > 0) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         handleCancel();
@@ -143,13 +199,17 @@ export const WishModal: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeWishData, handleCancel, handleSubmit]);
+  }, [activeWishData, handleCancel, handleSubmit, suggestions.length]);
 
   if (!activeWishData) return null;
 
   return (
     <div className="modal-backdrop" onClick={handleCancel}>
-      <div className="modal-card modal-large wish-builder-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalCardRef}
+        className="modal-card modal-large wish-builder-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>✨ {isEn ? 'For what do you wish?' : '何をお望みですか？ (Wish Builder)'}</h2>
         </div>
@@ -183,15 +243,17 @@ export const WishModal: React.FC = () => {
               className="wish-search-input"
               placeholder={isEn ? 'Search item (e.g. SDSM, silver dragon, genocide, marker)' : 'アイテム名を入力（日本語 / 英語 / 略称: SDSM, 虐殺 など）'}
               onChange={handleSearchInput}
+              onKeyDown={handleSearchKeyDown}
             />
             {/* サジェストドロップダウン */}
             {suggestions.length > 0 && (
               <div className="wish-suggest-dropdown">
-                {suggestions.map((s) => (
+                {suggestions.map((s, idx) => (
                   <div
                     key={s.name}
-                    className="wish-suggest-item"
+                    className={`wish-suggest-item ${idx === selectedSuggestIndex ? 'selected' : ''}`}
                     onClick={() => selectSuggestion(s)}
+                    onMouseEnter={() => setSelectedSuggestIndex(idx)}
                   >
                     <strong>{isEn ? s.name : s.nameJa}</strong>
                     <small>{isEn ? s.nameJa : s.name} ({s.category})</small>

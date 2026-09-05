@@ -130,4 +130,26 @@ describe('GenocideService', () => {
             expect(service.serializeCommand('  master mind flayer  ')).toBe('master mind flayer');
         });
     });
+
+    describe('isDangerousGenocide', () => {
+        it('should return null for safe choices', () => {
+            expect(service.isDangerousGenocide('silver dragon', { playerRace: 'human' })).toBeNull();
+            expect(service.isDangerousGenocide('L', { mode: 'CLASS', playerRace: 'human' })).toBeNull();
+        });
+
+        it('should detect danger when single mode has 1-char symbol', () => {
+            const danger = service.isDangerousGenocide('L', { mode: 'SINGLE' });
+            expect(danger).not.toBeNull();
+            expect(danger?.isDangerous).toBe(true);
+            expect(danger?.dangerLevel).toBe('WARNING');
+        });
+
+        it('should detect lethal self-genocide', () => {
+            const danger = service.isDangerousGenocide('human', { playerRace: 'human' });
+            expect(danger).not.toBeNull();
+            expect(danger?.isDangerous).toBe(true);
+            expect(danger?.isSelf).toBe(true);
+            expect(danger?.dangerLevel).toBe('LETHAL');
+        });
+    });
 });

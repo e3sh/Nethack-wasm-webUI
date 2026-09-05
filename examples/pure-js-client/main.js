@@ -1,5 +1,6 @@
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
+import { trapFocus } from '../../src/core/input/focusTrap.js';
 
 class PureJSClient {
   constructor() {
@@ -240,7 +241,27 @@ class PureJSClient {
     window.addEventListener('keydown', (e) => this.handleGlobalKeyDown(e));
   }
 
+  getActiveModalCard() {
+    if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) {
+      return this.elMenuModal.querySelector('.modal-content') || this.elMenuModal;
+    }
+    if (this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden')) {
+      return this.elGameOverModal.querySelector('.modal-content') || this.elGameOverModal;
+    }
+    if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) {
+      return this.elSelectorCard;
+    }
+    return null;
+  }
+
   handleGlobalKeyDown(e) {
+    const activeCard = this.getActiveModalCard();
+    if (activeCard) {
+      if (trapFocus(activeCard, e)) {
+        return;
+      }
+    }
+
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
     if (!this.elMenuModal.classList.contains('hidden') && this.isTextWindowMode) {
@@ -289,6 +310,12 @@ class PureJSClient {
         this.core.respond(e.key);
         return;
       }
+    }
+
+    const isGameOverOpen = this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden');
+    const isSelectorOpen = this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden');
+    if (this.isGameExited || isGameOverOpen || isSelectorOpen) {
+      return;
     }
 
     if (e.code) {

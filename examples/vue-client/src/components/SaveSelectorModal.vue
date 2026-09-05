@@ -1,6 +1,6 @@
 <template>
   <div v-if="pendingSaveInfo" class="modal-backdrop">
-    <div class="modal-card">
+    <div ref="modalCardRef" class="modal-card">
       <div class="modal-header">
         <h2>{{ isEn ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました' }}</h2>
       </div>
@@ -26,16 +26,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();
 const { pendingSaveInfo } = storeToRefs(gameStore);
 const { resumeSavedGame, startNewGame, currentLanguage } = useNetHackDriver();
+const modalCardRef = ref<HTMLElement | null>(null);
 
 const isEn = computed(() => currentLanguage.value === 'en');
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (!pendingSaveInfo.value) return;
+  if (e.key === 'Tab' && modalCardRef.value) {
+    trapFocus(modalCardRef.value, e);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 function handleStartNew() {
   const confirmMsg = isEn.value

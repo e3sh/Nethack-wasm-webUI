@@ -1,6 +1,6 @@
 <template>
   <div v-if="activeTextModal" class="modal-backdrop">
-    <div class="modal-content">
+    <div ref="modalContentRef" class="modal-content">
       <h3 class="modal-title">{{ activeTextModal.title || 'Information / Help' }}</h3>
 
       <div class="text-body">
@@ -17,14 +17,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();
 const { activeTextModal } = storeToRefs(gameStore);
 const { respondTextModal } = useNetHackDriver();
+const modalContentRef = ref<HTMLElement | null>(null);
 let isClosing = false;
 
 function closeTextModal() {
@@ -38,6 +40,13 @@ function closeTextModal() {
 
 function handleKeyDown(e: KeyboardEvent) {
   if (!activeTextModal.value || isClosing) return;
+
+  if (e.key === 'Tab') {
+    if (modalContentRef.value) {
+      trapFocus(modalContentRef.value, e);
+      return;
+    }
+  }
 
   const k = e.key.toLowerCase();
   if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || k === 'q' || e.key === 'Backspace') {

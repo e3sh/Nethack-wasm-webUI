@@ -1,9 +1,32 @@
-import { Component, Show } from 'solid-js';
+import { Component, Show, createEffect, onMount, onCleanup } from 'solid-js';
 import { pendingSaveInfo, currentLanguage } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const SaveSelectorModal: Component = () => {
   const isEn = () => currentLanguage() === 'en';
+
+  let modalCardRef: HTMLDivElement | undefined;
+  let resumeBtnRef: HTMLButtonElement | undefined;
+
+  createEffect(() => {
+    if (pendingSaveInfo()) {
+      setTimeout(() => resumeBtnRef?.focus(), 50);
+    }
+  });
+
+  onMount(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!pendingSaveInfo()) return;
+      if (modalCardRef && trapFocus(modalCardRef, e)) {
+        return;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleKeyDown);
+    });
+  });
 
   const handleStartNew = () => {
     const confirmMsg = isEn()
@@ -18,7 +41,7 @@ export const SaveSelectorModal: Component = () => {
     <Show when={pendingSaveInfo()}>
       {(info) => (
         <div class="modal-backdrop">
-          <div class="modal-card">
+          <div ref={modalCardRef} class="modal-card">
             <div class="modal-header">
               <h2>{isEn() ? '💾 Saved Game Detected' : '💾 セーブデータが見つかりました'}</h2>
             </div>
@@ -37,6 +60,7 @@ export const SaveSelectorModal: Component = () => {
             </div>
             <div class="modal-footer">
               <button
+                ref={resumeBtnRef}
                 onClick={() => driverController.resumeSavedGame()}
                 class="btn btn-primary btn-large"
               >

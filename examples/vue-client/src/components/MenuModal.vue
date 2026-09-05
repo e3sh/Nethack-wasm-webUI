@@ -1,6 +1,6 @@
 <template>
   <div v-if="activeMenu" class="modal-backdrop">
-    <div class="modal-content">
+    <div ref="modalContentRef" class="modal-content">
       <h3 class="modal-title">{{ activeMenu.prompt || 'Select Item' }}</h3>
 
       <div class="menu-list" ref="menuListRef">
@@ -51,10 +51,12 @@ import { useGameStore } from '../stores/gameStore';
 import { storeToRefs } from 'pinia';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 import { getTileMapping } from '../utils/tileMapping';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();
 const { activeMenu } = storeToRefs(gameStore);
 const { respondMenu } = useNetHackDriver();
+const modalContentRef = ref<HTMLElement | null>(null);
 
 const selectedIndices = ref<number[]>([]);
 const focusedIndex = ref<number>(-1);
@@ -192,6 +194,13 @@ function scrollToFocused() {
 
 function handleKeyDown(e: KeyboardEvent) {
   if (!activeMenu.value || isSubmitting.value) return;
+
+  if (e.key === 'Tab') {
+    if (modalContentRef.value) {
+      trapFocus(modalContentRef.value, e);
+      return;
+    }
+  }
 
   if (e.key === 'ArrowUp') {
     e.preventDefault();

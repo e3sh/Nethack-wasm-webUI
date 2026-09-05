@@ -1,6 +1,8 @@
 /**
  * KeyHandler - グローバルキー入力 & モーダル・テキストウィンドウ・ゲームプレイ中のキーディスパッチャー
  */
+import { trapFocus } from '../../../../src/core/input/focusTrap.js';
+
 export class KeyHandler {
   constructor({ getCore, getModalManager }) {
     this.getCore = getCore || (() => null);
@@ -8,10 +10,27 @@ export class KeyHandler {
   }
 
   handleGlobalKeyDown(e) {
+    const modal = this.getModalManager();
+    if (modal) {
+      const activeCard = modal.getActiveModalCard ? modal.getActiveModalCard() : null;
+      if (activeCard) {
+        const wishSuggest = document.getElementById('wish-suggest-dropdown');
+        const genocideSuggest = document.getElementById('genocide-suggest-dropdown');
+        const polySuggest = document.getElementById('poly-suggest-dropdown');
+        const isSuggestActive = (wishSuggest && wishSuggest.classList.contains('active')) ||
+                                (genocideSuggest && genocideSuggest.classList.contains('active')) ||
+                                (polySuggest && polySuggest.style.display !== 'none' && polySuggest.children.length > 0);
+        if (!isSuggestActive) {
+          if (trapFocus(activeCard, e)) {
+            return;
+          }
+        }
+      }
+    }
+
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
     const core = this.getCore();
-    const modal = this.getModalManager();
     if (!core || !modal) return;
 
     const elMenuModal = modal.elMenuModal;
@@ -63,6 +82,10 @@ export class KeyHandler {
         core.respond(e.key);
         return;
       }
+    }
+
+    if (modal.isAnyModalOpen && modal.isAnyModalOpen()) {
+      return;
     }
 
     if (e.code) {

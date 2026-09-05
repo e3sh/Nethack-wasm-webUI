@@ -136,5 +136,28 @@ describe('WishService', () => {
             expect(sdsm).toBeDefined();
             expect(sdsm.nameJa).toBe('銀色ドラゴンの鱗鎧');
         });
+
+        it('should resolve nameJa directly from OBJECT_JP_MAP even without any translator', () => {
+            const standaloneSvc = new WishService(); // 引数なし
+            const cat = standaloneSvc.getCatalog();
+            const sdsm = cat.find(it => it.name === 'silver dragon scale mail');
+            expect(sdsm).toBeDefined();
+            expect(sdsm.nameJa).toBe('銀色ドラゴンの鱗鎧');
+
+            const geno = cat.find(it => it.name === 'scroll of genocide');
+            expect(geno).toBeDefined();
+            expect(geno.nameJa).toBe('虐殺の巻物');
+        });
+
+        it('should suggest items using Japanese name directly without translator', () => {
+            const standaloneSvc = new WishService();
+            const results = standaloneSvc.suggest('銀色');
+            expect(results.length).toBeGreaterThan(0);
+            expect(results.some(r => r.name === 'silver dragon scale mail')).toBe(true);
+
+            const deathResults = standaloneSvc.suggest('死の杖');
+            expect(deathResults.length).toBeGreaterThan(0);
+            expect(deathResults[0].name).toBe('wand of death');
+        });
     });
 });

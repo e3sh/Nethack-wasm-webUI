@@ -717,15 +717,43 @@
         // 3. インクリメンタルサジェスト
         const searchInput = document.getElementById('wish-search');
         const suggestDropdown = document.getElementById('suggest-dropdown');
+        let suggestIndex = -1;
+        let currentResults = [];
+
+        function updateSelection() {
+            const items = suggestDropdown.querySelectorAll('.suggest-item');
+            items.forEach((item, idx) => {
+                item.classList.toggle('selected', idx === suggestIndex);
+                if (idx === suggestIndex) {
+                    item.scrollIntoView({ block: 'nearest' });
+                }
+            });
+        }
+
+        function selectItem(it) {
+            const mainName = currentLang === 'ja' ? (it.nameJa || it.name) : it.name;
+            searchInput.value = mainName;
+            suggestDropdown.classList.remove('active');
+            suggestIndex = -1;
+            currentResults = [];
+            catFilterEl.value = it.category;
+            populateItemSelect(it.category);
+            itemSelectEl.value = it.name;
+            onItemChange(it.name);
+            addLog(I18N[currentLang].logSuggest(it.name));
+        }
 
         searchInput.oninput = () => {
             const q = searchInput.value.trim();
+            suggestIndex = -1;
             if (!q) {
+                currentResults = [];
                 suggestDropdown.classList.remove('active');
                 return;
             }
 
             const results = wishService.suggest(q, { limit: 12, lang: currentLang });
+            currentResults = results;
             if (results.length === 0) {
                 suggestDropdown.innerHTML = `<div style="padding: 10px; color: #888;">${I18N[currentLang].noSuggest}</div>`;
                 suggestDropdown.classList.add('active');
@@ -733,7 +761,7 @@
             }
 
             suggestDropdown.innerHTML = '';
-            results.forEach(it => {
+            results.forEach((it, idx) => {
                 const div = document.createElement('div');
                 div.className = 'suggest-item';
                 const mainName = currentLang === 'ja' ? (it.nameJa || it.name) : it.name;
@@ -746,22 +774,63 @@
                     <span class="suggest-cat">${it.category}</span>
                 `;
                 div.onclick = () => {
-                    searchInput.value = mainName;
-                    suggestDropdown.classList.remove('active');
-                    catFilterEl.value = it.category;
-                    populateItemSelect(it.category);
-                    itemSelectEl.value = it.name;
-                    onItemChange(it.name);
-                    addLog(I18N[currentLang].logSuggest(it.name));
+                    selectItem(it);
                 };
                 suggestDropdown.appendChild(div);
             });
             suggestDropdown.classList.add('active');
         };
 
+        searchInput.onkeydown = (e) => {
+            const isDropdownActive = suggestDropdown.classList.contains('active');
+
+            if (e.key === 'ArrowDown') {
+                if (isDropdownActive && currentResults.length > 0) {
+                    e.preventDefault();
+                    suggestIndex = (suggestIndex + 1) % currentResults.length;
+                    updateSelection();
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (isDropdownActive && currentResults.length > 0) {
+                    e.preventDefault();
+                    suggestIndex = (suggestIndex - 1 + currentResults.length) % currentResults.length;
+                    updateSelection();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isDropdownActive && currentResults.length > 0) {
+                    const chosenIdx = suggestIndex >= 0 ? suggestIndex : 0;
+                    const chosen = currentResults[chosenIdx];
+                    if (chosen) {
+                        selectItem(chosen);
+                        return;
+                    }
+                }
+                document.getElementById('btn-submit').click();
+            } else if (e.key === 'Tab') {
+                if (isDropdownActive && currentResults.length > 0) {
+                    e.preventDefault();
+                    const chosenIdx = suggestIndex >= 0 ? suggestIndex : 0;
+                    const chosen = currentResults[chosenIdx];
+                    if (chosen) {
+                        selectItem(chosen);
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                if (isDropdownActive) {
+                    suggestDropdown.classList.remove('active');
+                    suggestIndex = -1;
+                } else {
+                    document.getElementById('btn-cancel').click();
+                }
+            }
+        };
+
         document.addEventListener('click', (e) => {
             if (!searchInput.contains(e.target) && !suggestDropdown.contains(e.target)) {
                 suggestDropdown.classList.remove('active');
+                suggestIndex = -1;
             }
         });
 

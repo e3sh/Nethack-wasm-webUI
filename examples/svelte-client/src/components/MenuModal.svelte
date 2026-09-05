@@ -3,7 +3,9 @@
   import { activeMenuStore, type MenuItem } from '../stores/gameStore';
   import { driverController } from '../services/useNetHackDriver';
   import { getTileMapping } from '../utils/tileMapping';
+  import { trapFocus } from '@core/input/focusTrap.js';
 
+  let modalCardRef: HTMLDivElement | null = null;
   let selectedIndices: number[] = [];
   let focusedIndex: number = -1;
   let isSubmitting = false;
@@ -118,6 +120,10 @@
   function handleKeyDown(e: KeyboardEvent) {
     if (!menu || isSubmitting) return;
 
+    if (modalCardRef && trapFocus(modalCardRef, e)) {
+      return;
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopPropagation();
@@ -186,7 +192,7 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-backdrop" on:click|self={cancelMenu}>
-    <div class="modal-content">
+    <div class="modal-content" bind:this={modalCardRef}>
       <h3 class="modal-title">{menu.prompt || 'Select Item'}</h3>
 
       <div class="menu-list">

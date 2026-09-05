@@ -1589,7 +1589,8 @@ body {
   color: #f1f5f9;
 }
 
-.wish-suggest-item:hover {
+.wish-suggest-item:hover,
+.wish-suggest-item.selected {
   background: #334155;
 }
 
@@ -1881,5 +1882,498 @@ body {
   border: none;
   cursor: pointer;
   transition: all 0.15s;
+}
+
+/* ============================================================================
+   💀 モンスター虐殺 (Genocide Assistant) スタイル
+   ============================================================================ */
+.genocide-modal-card {
+  max-width: 720px;
+}
+
+.mode-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.mode-badge.class-mode {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.mode-badge.single-mode {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.mode-badge.poly-mode {
+  background-color: rgba(0, 210, 255, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(0, 210, 255, 0.4);
+}
+
+.conduct-bar {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(26, 26, 46, 0.5) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.conduct-info {
+  font-size: 0.8rem;
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conduct-btn {
+  background-color: #059669;
+  border: none;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.conduct-btn:hover {
+  background-color: #10b981;
+}
+
+.genocide-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.genocide-preset-btn {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.genocide-preset-btn:hover {
+  background-color: #21262d;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.genocide-preset-btn.active {
+  background-color: #3b1818;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.genocide-preset-btn-title {
+  font-weight: 700;
+  color: #fff;
+}
+
+.genocide-preset-btn-desc {
+  font-size: 0.65rem;
+  color: #8b949e;
+}
+
+.genocide-search-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.genocide-search-input {
+  width: 100%;
+  background-color: #000;
+  border: 1px solid #374151;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.genocide-search-input:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.genocide-suggest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.genocide-suggest-item {
+  padding: 6px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid #21262d;
+  font-size: 0.8rem;
+  transition: background-color 0.1s;
+  color: #fff;
+}
+
+.genocide-suggest-item:hover,
+.genocide-suggest-item.selected {
+  background-color: #21262d;
+}
+
+.self-genocide-alert {
+  background-color: #3b1111;
+  border: 2px solid #ef4444;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  animation: pulse-danger 1.5s infinite alternate;
+}
+
+.self-genocide-alert .alert-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.self-genocide-alert .alert-desc {
+  font-size: 0.75rem;
+  color: #fca5a5;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.override-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #f87171;
+  user-select: none;
+  cursor: pointer;
+}
+
+.genocide-preview-box {
+  background-color: #000;
+  border: 1px dashed #374151;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.genocide-preview-box .preview-command {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  color: var(--accent-gold, #f59e0b);
+  font-weight: 700;
+}
+
+/* ============================================================================
+   🦎 変化制御 (Polymorph Control) スタイル
+   ============================================================================ */
+.polymorph-modal-card {
+  max-width: 760px;
+}
+
+.poly-preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.poly-preset-card {
+  background-color: rgba(31, 41, 55, 0.7);
+  border: 1px solid #374151;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+  color: #c9d1d9;
+}
+
+.poly-filter-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+.poly-filter-tag {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+}
+
+.poly-filter-tag:hover {
+  border-color: #38bdf8;
+  color: #e5e7eb;
+}
+
+.poly-filter-tag.active {
+  background-color: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.poly-preset-card:hover {
+  background-color: rgba(55, 65, 81, 0.8);
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.poly-preset-card.active {
+  background-color: rgba(14, 116, 144, 0.3);
+  border-color: #06b6d4;
+  box-shadow: 0 0 6px rgba(6, 182, 212, 0.4);
+}
+
+.poly-card-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.poly-card-symbol {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-gold, #f59e0b);
+}
+
+.poly-card-note {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+.poly-shortcut-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.poly-shortcut-btn {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  color: #e5e7eb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poly-shortcut-btn:hover {
+  border-color: #38bdf8;
+  color: #fff;
+  background-color: #374151;
+}
+
+.poly-search-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.poly-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.poly-search-input:focus {
+  border-color: #38bdf8;
+}
+
+.poly-suggest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0 0 6px 6px;
+  z-index: 50;
+}
+
+.poly-suggest-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid #374151;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+}
+
+.poly-suggest-item:hover,
+.poly-suggest-item.selected {
+  background-color: #374151;
+}
+
+.poly-spec-card {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.poly-spec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.poly-spec-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poly-symbol {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.1rem;
+  color: var(--accent-gold, #f59e0b);
+}
+
+.poly-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.poly-badges .badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.poly-armor-alert {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poly-armor-alert.danger {
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  animation: pulse-danger 2s infinite;
+}
+
+.poly-armor-alert.warning {
+  background-color: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fde68a;
+}
+
+.poly-armor-alert.safe {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+}
+
+.poly-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.poly-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.poly-grid-label {
+  color: #9ca3af;
+}
+
+.poly-grid-val {
+  color: #fff;
+  font-weight: 600;
+}
+
+.poly-preview-box {
+  background-color: #000;
+  border: 1px dashed #374151;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.poly-preview-box .preview-command {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  color: #38bdf8;
+  font-weight: 700;
 }
 

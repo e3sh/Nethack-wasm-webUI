@@ -27,6 +27,8 @@ describe('OBJECT_KNOWLEDGE_FULL Integrity & Property Coverage', () => {
             expect(typeof item.hands).toBe('number');
             expect(typeof item.skill).toBe('string');
             expect(item.stats).toBeDefined();
+            expect(typeof item.nameJa).toBe('string');
+            expect(item.nameJa.length).toBeGreaterThan(0);
         }
     });
 

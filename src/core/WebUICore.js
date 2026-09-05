@@ -125,7 +125,8 @@ export class WebUICore {
         const gklPlugin = options.gkl || new GKLPlugin({
             inventoryStateManager: options.inventoryStateManager,
             keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined),
-            language: this.language
+            language: this.language,
+            translationEngine: this.translator
         });
         this.use(gklPlugin);
 
@@ -620,6 +621,10 @@ export class WebUICore {
                  this.currentPromptCategory === PROMPT_CATEGORY.EXTCMD) {
             if (typeof inputVal === 'string') {
                 finalResponse = inputVal;
+            } else if (inputVal === 27 || inputVal === KEYS.ESC) {
+                finalResponse = '\x1b';
+            } else {
+                finalResponse = '';
             }
         } else if (this.currentPromptCategory === PROMPT_CATEGORY.DIRECTION ||
                  this.currentPromptCategory === PROMPT_CATEGORY.POSKEY ||

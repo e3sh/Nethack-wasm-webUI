@@ -1,9 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const TextWindowModal: React.FC = () => {
   const activeTextModal = useGameStore((state) => state.activeTextModal);
   const setTextModal = useGameStore((state) => state.setTextModal);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   const closeTextModal = useCallback(() => {
     if (activeTextModal && activeTextModal.resolver) {
@@ -16,6 +18,13 @@ export const TextWindowModal: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeTextModal) return;
+
+      if (e.key === 'Tab') {
+        if (modalContentRef.current) {
+          trapFocus(modalContentRef.current, e);
+          return;
+        }
+      }
 
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -34,7 +43,7 @@ export const TextWindowModal: React.FC = () => {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content">
+      <div ref={modalContentRef} className="modal-content">
         <h3 className="modal-title">{activeTextModal.title || 'Information / Help'}</h3>
 
         <div className="text-body">

@@ -1,7 +1,10 @@
 import { Component, onMount, onCleanup, Show, For } from 'solid-js';
 import { activeTextModal, setActiveTextModal } from '../stores/gameStore';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const TextWindowModal: Component = () => {
+  let modalCardRef: HTMLDivElement | undefined;
+
   const handleClose = () => {
     const modal = activeTextModal();
     if (modal && modal.resolver) {
@@ -16,6 +19,10 @@ export const TextWindowModal: Component = () => {
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeTextModal()) return;
+
+      if (modalCardRef && trapFocus(modalCardRef, e)) {
+        return;
+      }
 
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -34,7 +41,7 @@ export const TextWindowModal: Component = () => {
     <Show when={activeTextModal()}>
       {(modal) => (
         <div class="modal-backdrop" onClick={handleClose}>
-          <div class="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div ref={modalCardRef} class="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 class="modal-title">{modal().title || 'Information'}</h3>
 
             <div class="text-body">

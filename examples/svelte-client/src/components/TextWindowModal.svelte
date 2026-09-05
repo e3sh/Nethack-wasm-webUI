@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { activeTextModalStore } from '../stores/gameStore';
+  import { trapFocus } from '@core/input/focusTrap.js';
+
+  let modalCardRef: HTMLDivElement | null = null;
 
   $: modal = $activeTextModalStore;
 
@@ -16,6 +19,10 @@
 
   function handleKeyDown(e: KeyboardEvent) {
     if (!modal) return;
+
+    if (modalCardRef && trapFocus(modalCardRef, e)) {
+      return;
+    }
 
     if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -37,7 +44,7 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-backdrop" on:click|self={handleClose}>
-    <div class="modal-content">
+    <div class="modal-content" bind:this={modalCardRef}>
       <h3 class="modal-title">{modal.title || 'Information'}</h3>
 
       <div class="text-body">

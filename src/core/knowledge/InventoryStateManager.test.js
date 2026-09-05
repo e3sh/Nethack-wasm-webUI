@@ -494,7 +494,8 @@ describe('InventoryStateManager', () => {
         expect(wwBoots).toBeDefined();
         expect(wwBoots.knowledge).toBeDefined();
         expect(wwBoots.knowledge.category).not.toBe('WATER');
-        expect(wwBoots.knowledge.name.toLowerCase()).toContain('water walking boots');
+        expect(wwBoots.knowledge.nameEn.toLowerCase()).toContain('water walking boots');
+        expect(wwBoots.knowledge.name).toBe('水上歩行の靴');
 
         // 3. 識別メッセージ受信による未同期 (dirty) 化
         manager.isSynced = true;

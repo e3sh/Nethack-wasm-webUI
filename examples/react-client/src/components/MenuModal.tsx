@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore, MenuItem } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
 import { getTileMapping } from '../utils/tileMapping';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const MenuModal: React.FC = () => {
   const activeMenu = useGameStore((state) => state.activeMenu);
@@ -171,6 +172,13 @@ export const MenuModal: React.FC = () => {
         return;
       }
 
+      if (e.key === 'Tab') {
+        if (modalContentRef.current) {
+          trapFocus(modalContentRef.current, e);
+          return;
+        }
+      }
+
       if (e.key === 'Escape' || (activeMenu.how === 0 && (e.key === ' ' || e.key === 'Enter'))) {
         e.preventDefault();
         e.stopPropagation();
@@ -218,11 +226,13 @@ export const MenuModal: React.FC = () => {
     };
   }, [activeMenu, cancelMenu, confirmSelection, moveFocus, safeRespondMenu]);
 
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
   if (!activeMenu) return null;
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content">
+      <div ref={modalContentRef} className="modal-content">
         <h3 className="modal-title">{activeMenu.prompt || 'Select Item'}</h3>
 
         <div className="menu-list" ref={menuListRef}>

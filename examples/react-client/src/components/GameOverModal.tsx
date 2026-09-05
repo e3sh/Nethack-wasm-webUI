@@ -1,13 +1,28 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
+import { trapFocus } from '@core/input/focusTrap.js';
 
 export const GameOverModal: React.FC = () => {
   const engineState = useGameStore((state) => state.engineState);
   const gameOverResult = useGameStore((state) => state.gameOverResult);
   const { restartGame } = useNetHackDriver();
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
-  if (engineState !== 'GAMEOVER' && !gameOverResult) {
+  const isGameOver = engineState === 'GAMEOVER' || !!gameOverResult;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isGameOver) return;
+      if (e.key === 'Tab' && modalContentRef.current) {
+        trapFocus(modalContentRef.current, e);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isGameOver]);
+
+  if (!isGameOver) {
     return null;
   }
 
@@ -23,7 +38,7 @@ export const GameOverModal: React.FC = () => {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content">
+      <div ref={modalContentRef} className="modal-content">
         <div className="gameover-header">
           <h2>☠️ GAME OVER ☠️</h2>
         </div>

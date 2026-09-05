@@ -356,6 +356,32 @@ export class GKLPlugin {
     }
 
     /**
+     * 言語設定を更新し、各ナレッジサービスへ伝搬
+     * @param {'ja'|'en'} [lang='ja']
+     */
+    setLanguage(lang = 'ja') {
+        this.language = (lang === 'en' || lang === 'english') ? 'en' : 'ja';
+        if (this.situationCache) {
+            this.situationCache.language = this.language;
+            if (typeof this.situationCache.setLanguage === 'function') {
+                this.situationCache.setLanguage(this.language);
+            }
+        }
+        if (this.structuredKnowledge && typeof this.structuredKnowledge.setLanguage === 'function') {
+            this.structuredKnowledge.setLanguage(this.language);
+        }
+        if (this.wishService && typeof this.wishService.setLanguage === 'function') {
+            this.wishService.setLanguage(this.language);
+        }
+        if (this.genocideService && typeof this.genocideService.setLanguage === 'function') {
+            this.genocideService.setLanguage(this.language);
+        }
+        if (this.polymorphService && typeof this.polymorphService.setLanguage === 'function') {
+            this.polymorphService.setLanguage(this.language);
+        }
+    }
+
+    /**
      * WebUICore インスタンスへプラグインをアタッチし、イベントリスナーを接続
      * @param {Object} core - WebUICore インスタンス
      */
@@ -380,8 +406,19 @@ export class GKLPlugin {
             this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
         }
 
-        if (core.translator && typeof this.structuredKnowledge.setTranslationEngine === 'function') {
-            this.structuredKnowledge.setTranslationEngine(core.translator);
+        if (core.translator) {
+            if (this.structuredKnowledge && typeof this.structuredKnowledge.setTranslationEngine === 'function') {
+                this.structuredKnowledge.setTranslationEngine(core.translator);
+            }
+            if (this.wishService && typeof this.wishService.setTranslator === 'function') {
+                this.wishService.setTranslator(core.translator);
+            }
+            if (this.genocideService && typeof this.genocideService.setTranslator === 'function') {
+                this.genocideService.setTranslator(core.translator);
+            }
+            if (this.polymorphService && typeof this.polymorphService.setTranslationEngine === 'function') {
+                this.polymorphService.setTranslationEngine(core.translator);
+            }
         }
 
         if (core.driver) {
