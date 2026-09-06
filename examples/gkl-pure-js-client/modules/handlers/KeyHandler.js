@@ -4,12 +4,25 @@
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
 
 export class KeyHandler {
-  constructor({ getCore, getModalManager }) {
+  constructor({ getCore, getModalManager, getContainerModal }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
+    this.getContainerModal = getContainerModal || (() => null);
   }
 
   handleGlobalKeyDown(e) {
+    // コンテナモーダルが開いている場合の処理
+    const containerModal = this.getContainerModal();
+    if (containerModal && containerModal.isVisible) {
+      if (e.key === 'Escape' || e.key === 'q' || e.code === 'Escape' || e.code === 'KeyQ') {
+        e.preventDefault();
+        containerModal.close();
+        return;
+      }
+      // コンテナモーダル表示中は通常のゲームキー入力をブロック
+      return;
+    }
+
     const modal = this.getModalManager();
     if (modal) {
       const activeCard = modal.getActiveModalCard ? modal.getActiveModalCard() : null;

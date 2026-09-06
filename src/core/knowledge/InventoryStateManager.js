@@ -52,6 +52,14 @@ export class InventoryStateManager {
     }
 
     /**
+     * 所持品アイテム一覧の取得
+     * @returns {Array<Object>}
+     */
+    getItems() {
+        return this.items || [];
+    }
+
+    /**
      * メニュー項目群から軽量なシグネチャ文字列を生成（差分検知用）
      * @private
      */

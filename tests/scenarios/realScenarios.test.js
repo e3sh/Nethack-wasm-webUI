@@ -165,4 +165,45 @@ describe('実機キャプチャシナリオ再生テスト (Phase 3 Downlink Int
         expect(eyeAdvice.severity).toBe('WARNING');
         expect(eyeAdvice.messageJa).toContain('麻痺');
     });
+
+    it('⑧ 実機コンテナ操作シナリオ (sack_food_in_out) の再生とコンテナFSM・中身追跡の動作検証', async () => {
+        const scenario = loadFixture('sack_food_in_out_1788646234719.json');
+        const driver = new ScenarioDriver(scenario);
+        const core = new WebUICore({ driver });
+
+        expect(core.containerFSM).toBeDefined();
+
+        const transactionEvents = [];
+        core.on('containerTransaction', (data) => {
+            transactionEvents.push(data);
+        });
+
+        // 1. 初期状態の再生
+        driver.playInit(core);
+
+        expect(core.getStatus().hp.current).toBe(12);
+        expect(core.getStatus().hp.max).toBe(12);
+        expect(core.gkl.inventoryStateManager.items.length).toBeGreaterThanOrEqual(8);
+
+        // インベントリに袋(sack)と食料(food ration)が存在すること
+        const sackItem = core.gkl.inventoryStateManager.items.find(i => i.rawText.includes('sack') || i.rawText.includes('袋'));
+        expect(sackItem).toBeDefined();
+        const foodItem = core.gkl.inventoryStateManager.items.find(i => i.rawText.includes('food ration') || i.rawText.includes('食料'));
+        expect(foodItem).toBeDefined();
+
+        // 2. 残り全イベントの再生 (apply sack -> 食料投入 -> 再度apply -> 食料取り出し)
+        driver.playRemainingEvents();
+
+        // コンテナトランザクションイベントが発火していること
+        expect(transactionEvents.length).toBeGreaterThanOrEqual(1);
+
+        // コンテナとして袋が認知されていること
+        const detectedContainers = transactionEvents.map(e => e.containerName).filter(Boolean);
+        expect(detectedContainers.some(name => name.includes('sack') || name.includes('袋'))).toBe(true);
+
+        // メッセージが正常に処理され、最終ターン待機 (POSKEY) に復帰していること
+        const summary = core.getDiagnosticSummary();
+        expect(summary).toBeDefined();
+        expect(summary.turn).toBeGreaterThanOrEqual(23);
+    });
 });

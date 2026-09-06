@@ -11,6 +11,7 @@ import { AssistHud } from './modules/components/AssistHud.js';
 import { DirectionPad } from './modules/components/DirectionPad.js';
 import { StatusView } from './modules/components/StatusView.js';
 import { ModalManager } from './modules/components/ModalManager.js';
+import { ContainerModal } from './modules/components/ContainerModal.js';
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 
 /**
@@ -154,10 +155,18 @@ class GklPureJSClient {
       onRestartGame: () => this.restartGame()
     });
 
+    // 8.5 Container Modal (Two-Pane GUI)
+    this.containerModal = new ContainerModal({
+      elContainerModal: document.getElementById('container-modal'),
+      getCore: () => this.core,
+      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
+    });
+
     // 9. Key Handler
     this.keyHandler = new KeyHandler({
       getCore: () => this.core,
-      getModalManager: () => this.modalManager
+      getModalManager: () => this.modalManager,
+      getContainerModal: () => this.containerModal,
     });
 
     this.init();
@@ -278,6 +287,11 @@ class GklPureJSClient {
 
     // 7. Input Required Prompts & Modals
     this.core.on('inputRequired', (data) => {
+      // コンテナFSMがアクティブな場合、通常のメニュー表示は抑制（二面パネルUIが担当）
+      if (this.core.containerFSM && this.core.containerFSM.isActive()) {
+        this.renderGklUi();
+        return;
+      }
       this.modalManager.handleInputRequired(data);
       this.renderGklUi();
     });
@@ -392,6 +406,26 @@ class GklPureJSClient {
         if (this.zoomRenderer.isZoomMode && this.zoomRenderer.zoomCtx && this.core && this.core.gkl) {
           const situation = this.core.gkl.getSituation();
           this.zoomRenderer.renderZoomCanvas(situation?.area);
+        }
+      }
+    });
+
+    // 10. Visual Container UI Transaction
+    this.core.on('containerTransaction', (event) => {
+      const { state, containerName, containerType, contents, isBagOfHolding } = event;
+      if (state === 'ACTION_PROMPT') {
+        this.containerModal.show({
+          containerName,
+          containerType,
+          contents,
+          isBagOfHolding,
+        });
+      } else if (state === 'IDLE' || state === 'EXPLODED') {
+        this.containerModal.hide();
+        if (state === 'EXPLODED') {
+          alert(this.currentLanguage === 'en'
+            ? '⚠️ A magical explosion blasts through the air! The container was destroyed!'
+            : '⚠️ 鞄が魔法の爆発を起こして粉微塵になりました！');
         }
       }
     });
@@ -619,6 +653,7 @@ class GklPureJSClient {
     this.directionPad.setLanguage(this.currentLanguage);
     this.statusView.setLanguage(this.currentLanguage);
     this.modalManager.setLanguage(this.currentLanguage);
+    this.containerModal.setLanguage(this.currentLanguage);
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';

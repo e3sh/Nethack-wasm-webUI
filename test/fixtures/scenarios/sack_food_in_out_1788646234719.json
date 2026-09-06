@@ -1,0 +1,4716 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "キャプチャシナリオ",
+    "description": "",
+    "createdAt": "2026-09-05T22:08:33.923Z",
+    "turn": 23
+  },
+  "initialState": {
+    "status": {
+      "hp": 12,
+      "maxHp": 12,
+      "dlevel": "Dlvl:1  ",
+      "x": 38,
+      "y": 13
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 38,
+          "y": 13
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a - a +0 short sword (weapon in right hand)",
+        "b - 6 +0 daggers (alternate weapons; not wielded)",
+        "c - an uncursed +1 leather armor (being worn)",
+        "i - a food ration",
+        "d - an uncursed potion of sickness",
+        "g - a wand of wishing (0:3)",
+        "e - an uncursed lock pick",
+        "f - an empty uncursed sack",
+        "h - a towel"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "What do you want to use or apply? [efgh or ?*]",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 1,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "prompt": "Your sack is empty.  Do what with it?",
+        "resolverId": 31,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646116762
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788646116746_rg6q6",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "What do you want to use or apply? [efgh or ?*]",
+            "fromSequence": true
+          },
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 1,
+                "accelerator": ":",
+                "ch": ":",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "Look inside the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 3,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put something in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 5,
+                "accelerator": "r",
+                "ch": "r",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put in, then take out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 6,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "stash one item into the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 8,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "do nothing",
+                "itemflags": 1
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 1,
+                "accelerator": ":",
+                "ch": ":",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "Look inside the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 3,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put something in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 5,
+                "accelerator": "r",
+                "ch": "r",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put in, then take out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 6,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "stash one item into the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 8,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "do nothing",
+                "itemflags": 1
+              }
+            ],
+            "prompt": "Your sack is empty.  Do what with it?"
+          }
+        ]
+      },
+      "timestamp": 1788646116772
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116772
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116772
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "The sack is empty.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116772
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 1,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116775
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116775
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646116775
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 1,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "prompt": "Your sack is empty.  Do what with it?",
+        "resolverId": 32,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646116775
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646129018
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646129019
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646129019
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646129019
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 2,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 65,
+            "accelerator": "A",
+            "ch": "A",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Auto-select every relevant item",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "    (ignored unless some other choices are also picked)",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": -2,
+            "accelerator": "a",
+            "ch": "a",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "All types",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 2,
+            "accelerator": "b",
+            "ch": "b",
+            "gch": ")",
+            "attr": 0,
+            "clr": 8,
+            "str": "Weapons",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "c",
+            "ch": "c",
+            "gch": "[",
+            "attr": 0,
+            "clr": 8,
+            "str": "Armor",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 7,
+            "accelerator": "d",
+            "ch": "d",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "e",
+            "ch": "e",
+            "gch": "!",
+            "attr": 0,
+            "clr": 8,
+            "str": "Potions",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 11,
+            "accelerator": "f",
+            "ch": "f",
+            "gch": "/",
+            "attr": 0,
+            "clr": 8,
+            "str": "Wands",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "g",
+            "ch": "g",
+            "gch": "(",
+            "attr": 0,
+            "clr": 8,
+            "str": "Tools",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 85,
+            "accelerator": "U",
+            "ch": "U",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Items known to be Uncursed",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 88,
+            "accelerator": "X",
+            "ch": "X",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Items of unknown Bless/Curse status",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 80,
+            "accelerator": "P",
+            "ch": "P",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Just picked up: a food ration",
+            "itemflags": 2
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 65,
+            "accelerator": "A",
+            "ch": "A",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Auto-select every relevant item",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "    (ignored unless some other choices are also picked)",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": -2,
+            "accelerator": "a",
+            "ch": "a",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "All types",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 2,
+            "accelerator": "b",
+            "ch": "b",
+            "gch": ")",
+            "attr": 0,
+            "clr": 8,
+            "str": "Weapons",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "c",
+            "ch": "c",
+            "gch": "[",
+            "attr": 0,
+            "clr": 8,
+            "str": "Armor",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 7,
+            "accelerator": "d",
+            "ch": "d",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "e",
+            "ch": "e",
+            "gch": "!",
+            "attr": 0,
+            "clr": 8,
+            "str": "Potions",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 11,
+            "accelerator": "f",
+            "ch": "f",
+            "gch": "/",
+            "attr": 0,
+            "clr": 8,
+            "str": "Wands",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "g",
+            "ch": "g",
+            "gch": "(",
+            "attr": 0,
+            "clr": 8,
+            "str": "Tools",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 85,
+            "accelerator": "U",
+            "ch": "U",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Items known to be Uncursed",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 88,
+            "accelerator": "X",
+            "ch": "X",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Items of unknown Bless/Curse status",
+            "itemflags": 2
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 80,
+            "accelerator": "P",
+            "ch": "P",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Just picked up: a food ration",
+            "itemflags": 2
+          }
+        ],
+        "prompt": "Put in what type of objects?",
+        "resolverId": 33,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646129019
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646131769
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646131769
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646131769
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646131769
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 2,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 7,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 3741,
+              "symbol": 37,
+              "framecolor": 8,
+              "flags": 0,
+              "color": 3,
+              "symidx": 112,
+              "ch": "%"
+            },
+            "glyph": 3741,
+            "identifier": 3201216,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "a food ration",
+            "itemflags": 0
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 7,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 3741,
+              "symbol": 37,
+              "framecolor": 8,
+              "flags": 0,
+              "color": 3,
+              "symidx": 112,
+              "ch": "%"
+            },
+            "glyph": 3741,
+            "identifier": 3201216,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "a food ration",
+            "itemflags": 0
+          }
+        ],
+        "prompt": "Put in what?",
+        "resolverId": 34,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646131769
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135303
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135303
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "You put a food ration into the sack.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135303
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135305
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 1181,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 8208,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135305
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135306
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135307
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 35,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135310
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 36,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788646135310_str79",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3494,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3494,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 short sword (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "6 +0 daggers (alternate weapons; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3766,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3766,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed potion of sickness",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3670,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3670,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed lock pick",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3665,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3665,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed sack containing 1 item",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3682,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3682,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a towel",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3494,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3494,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 short sword (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "6 +0 daggers (alternate weapons; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3766,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3766,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed potion of sickness",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3670,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3670,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed lock pick",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3665,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3665,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed sack containing 1 item",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3682,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3682,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a towel",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1788646135311
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "What do you want to use or apply? [efgh or ?*]",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 1,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 2,
+            "accelerator": "o",
+            "ch": "o",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "take something out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 4,
+            "accelerator": "b",
+            "ch": "b",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "both; take out, then put in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "both reversed; put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 1,
+            "accelerator": ":",
+            "ch": ":",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "Look inside the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 2,
+            "accelerator": "o",
+            "ch": "o",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "take something out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 3,
+            "accelerator": "i",
+            "ch": "i",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "put something in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 4,
+            "accelerator": "b",
+            "ch": "b",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "both; take out, then put in",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 5,
+            "accelerator": "r",
+            "ch": "r",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "both reversed; put in, then take out",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 6,
+            "accelerator": "s",
+            "ch": "s",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "stash one item into the sack",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 8,
+            "accelerator": "q",
+            "ch": "q",
+            "gch": "\u0000",
+            "attr": 0,
+            "clr": 8,
+            "str": "do nothing",
+            "itemflags": 1
+          }
+        ],
+        "prompt": "Do what with your sack?",
+        "resolverId": 37,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646161957
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788646161947_thjdn",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "What do you want to use or apply? [efgh or ?*]",
+            "fromSequence": true
+          },
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 1,
+                "accelerator": ":",
+                "ch": ":",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "Look inside the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 2,
+                "accelerator": "o",
+                "ch": "o",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "take something out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 3,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put something in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 4,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "both; take out, then put in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 5,
+                "accelerator": "r",
+                "ch": "r",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "both reversed; put in, then take out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 6,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "stash one item into the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 8,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "do nothing",
+                "itemflags": 1
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 1,
+                "accelerator": ":",
+                "ch": ":",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "Look inside the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 2,
+                "accelerator": "o",
+                "ch": "o",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "take something out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 3,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "put something in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 4,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "both; take out, then put in",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 5,
+                "accelerator": "r",
+                "ch": "r",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "both reversed; put in, then take out",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 6,
+                "accelerator": "s",
+                "ch": "s",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "stash one item into the sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 8,
+                "accelerator": "q",
+                "ch": "q",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "do nothing",
+                "itemflags": 1
+              }
+            ],
+            "prompt": "Do what with your sack?"
+          }
+        ]
+      },
+      "timestamp": 1788646161965
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646181910
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646181910
+    },
+    {
+      "type": "create_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646181910
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646181910
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "select_menu",
+        "type": "menu",
+        "promptCategory": "MENU",
+        "windowId": 4,
+        "how": 2,
+        "menuItems": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 7,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 3741,
+              "symbol": 37,
+              "framecolor": 8,
+              "flags": 0,
+              "color": 3,
+              "symidx": 112,
+              "ch": "%"
+            },
+            "glyph": 3741,
+            "identifier": 3201216,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "a food ration",
+            "itemflags": 0
+          }
+        ],
+        "items": [
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 9624,
+              "symbol": 32,
+              "framecolor": 8,
+              "flags": 2048,
+              "color": 8,
+              "symidx": 191,
+              "ch": " "
+            },
+            "glyph": 9624,
+            "identifier": 0,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "\u0000",
+            "attr": 7,
+            "clr": 8,
+            "str": "Comestibles",
+            "itemflags": 0
+          },
+          {
+            "windowId": 4,
+            "glyphInfo": {
+              "glyph": 3741,
+              "symbol": 37,
+              "framecolor": 8,
+              "flags": 0,
+              "color": 3,
+              "symidx": 112,
+              "ch": "%"
+            },
+            "glyph": 3741,
+            "identifier": 3201216,
+            "accelerator": "\u0000",
+            "ch": "\u0000",
+            "gch": "%",
+            "attr": 0,
+            "clr": 8,
+            "str": "a food ration",
+            "itemflags": 0
+          }
+        ],
+        "prompt": "Take out what?",
+        "resolverId": 38,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false,
+        "resolver": {}
+      },
+      "timestamp": 1788646181910
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193584
+    },
+    {
+      "type": "destroy_nhwindow",
+      "data": {
+        "windowId": 4,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193584
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "i - a food ration.",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193584
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193587
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193587
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 1181,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 8208,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193597
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 39,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788646193600
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 40,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788646193603
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1788646193600_8b4qx",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3494,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3494,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 short sword (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "6 +0 daggers (alternate weapons; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a food ration",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3766,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3766,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed potion of sickness",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3670,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3670,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed lock pick",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3665,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3665,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an empty uncursed sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3682,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3682,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a towel",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Weapons",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3494,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3494,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a +0 short sword (weapon in right hand)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3482,
+                  "symbol": 41,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 107,
+                  "ch": ")"
+                },
+                "glyph": 3482,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "6 +0 daggers (alternate weapons; not wielded)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3582,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3582,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 leather armor (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a food ration",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3766,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3766,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed potion of sickness",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Tools",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3670,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3670,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed lock pick",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3665,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3665,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an empty uncursed sack",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3682,
+                  "symbol": 40,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 5,
+                  "symidx": 111,
+                  "ch": "("
+                },
+                "glyph": 3682,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a towel",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1788646193604
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226422
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226422
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 39,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226422
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 39,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226422
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 38,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226422
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 13,
+        "glyphInfo": {
+          "glyph": 339,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 4097,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226423
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 41,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226425
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 42,
+        "y": 14,
+        "glyphInfo": {
+          "glyph": 1181,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 8208,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226425
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 39,
+        "y": 13,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226427
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1788646226427
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1788646226427
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 41,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1788646226427
+    }
+  ]
+}

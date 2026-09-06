@@ -170,6 +170,42 @@ export class DebugInspector {
             recentHistory: [...this.core.gkl.silentSyncTracker.recentHistory]
         } : null;
 
+        const fsm = this.core.containerFSM;
+        const containerInfo = (fsm && typeof fsm.getContainerInfo === 'function')
+            ? fsm.getContainerInfo()
+            : null;
+        const playerInventory = (this.core.gkl && this.core.gkl.inventoryStateManager)
+            ? this.core.gkl.inventoryStateManager.getItems()
+            : [];
+        const isSessionActive = Boolean(fsm && (fsm.isActive() || fsm._sessionActive));
+        const contentsSnapshot = (fsm && fsm.contentsManager)
+            ? fsm.contentsManager.getSnapshot()
+            : null;
+
+        if (containerInfo && containerInfo.name) {
+            this._lastContainerInfo = containerInfo;
+        }
+        if (contentsSnapshot && (contentsSnapshot.containerName || (contentsSnapshot.items && contentsSnapshot.items.length > 0))) {
+            this._lastContentsSnapshot = contentsSnapshot;
+        }
+
+        const effectiveContainerInfo = (containerInfo && containerInfo.name) ? containerInfo : (this._lastContainerInfo || null);
+        const effectiveContents = contentsSnapshot || this._lastContentsSnapshot || null;
+
+        const containerSnapshot = {
+            state: fsm ? fsm.state : 'IDLE',
+            isActive: isSessionActive,
+            containerInfo: effectiveContainerInfo,
+            contents: effectiveContents,
+            debug: (fsm && fsm.lastTransactionDebug) ? fsm.lastTransactionDebug : null,
+            playerInventory: playerInventory.map(it => ({
+                letter: it.letter || it.invlet || '',
+                name: it.name || it.rawText || '',
+                count: it.count || 1,
+                identifier: it.identifier,
+            }))
+        };
+
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
@@ -178,7 +214,8 @@ export class DebugInspector {
             driverStatus: driverSummary,
             silentSyncStatus: silentSyncTracker,
             discoveries: discoveriesData,
-            situation: situation || {}
+            situation: situation || {},
+            container: containerSnapshot
         };
 
         if (this.channel && this.isBroadcasting) {
@@ -243,11 +280,27 @@ export class DebugInspector {
                     });
                 } catch (e) {}
             }
+        } else if (msg.type === 'CONTAINER_SELECT_ACTION') {
+            if (this.core.containerFSM && typeof this.core.containerFSM.selectAction === 'function') {
+                this.core.containerFSM.selectAction(msg.action);
+            }
+            this.broadcastLog('INJECT:container', `Container action selected: ${msg.action}`);
+        } else if (msg.type === 'CONTAINER_TRANSFER') {
+            if (this.core.containerFSM && typeof this.core.containerFSM.transferItems === 'function') {
+                this.core.containerFSM.transferItems(msg.options);
+            }
+            this.broadcastLog('INJECT:container', `Container transferItems: ${JSON.stringify(msg.options)}`);
         }
     }
 
     _bindCoreEvents() {
         if (!this.core || typeof this.core.on !== 'function') return;
+
+        // --- コンテナトランザクションイベント ---
+        this.core.on('containerTransaction', (payload) => {
+            this.broadcastLog('EVENT:containerTransaction', payload);
+            this.broadcastState();
+        });
 
         // --- ライフサイクル / 状態遷移イベント ---
         this.core.on('stateChange', (payload) => {
@@ -295,6 +348,16 @@ export class DebugInspector {
 
         this.core.on('message', (msg) => {
             this.broadcastLog('EVENT:message', msg);
+        });
+
+        this.core.on('containerTransaction', (data) => {
+            this.broadcastLog('EVENT:containerTransaction', {
+                state: data ? data.state : undefined,
+                container: data && data.contents ? data.contents.containerName : undefined,
+                itemCount: data && data.contents && data.contents.items ? data.contents.items.length : 0,
+                debug: data ? data.debug : undefined,
+            });
+            this.scheduleBroadcastState();
         });
 
         this.core.on('statusUpdate', (statusData) => {

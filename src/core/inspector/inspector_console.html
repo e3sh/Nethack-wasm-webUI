@@ -409,6 +409,10 @@
                 <span class="indicator-label">Silent Sync:</span>
                 <span class="indicator-val" id="valSilentSync" title="サイレント同期実行統計 (総回数 / インベントリ / 直近所要時間)">0 (Inv: 0)</span>
             </span>
+            <span class="indicator-item">
+                <span class="indicator-label">Container:</span>
+                <span class="indicator-val" id="valContainer">IDLE</span>
+            </span>
             <div class="status-badge" id="connectionStatus">Channel Active</div>
         </div>
     </header>
@@ -417,6 +421,7 @@
     <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('tabTree')">🌳 Situation State Tree</button>
         <button class="tab-btn" onclick="switchTab('tabActions')">⚡ Context Actions</button>
+        <button class="tab-btn" onclick="switchTab('tabContainer')">🎒 Container & Sequence</button>
         <button class="tab-btn" onclick="switchTab('tabTactical')">🛡️ Tactical Advisor</button>
         <button class="tab-btn" onclick="switchTab('tabFlags')">📦 Knowledge & Flags</button>
         <button class="tab-btn" onclick="switchTab('tabTranslations')">📝 翻訳管理 (Translations)</button>
@@ -570,7 +575,6 @@
                     <button class="btn" onclick="injectAction('WAIT')">Wait (.)</button>
                     <button class="btn" onclick="injectAction('SEARCH')">Search (s)</button>
                     <button class="btn" onclick="injectAction('INVENTORY')">Inventory (i)</button>
-                </div>
                 <div style="display:flex; gap:8px; margin-top:8px;">
                     <input type="text" id="injectCustomInput" placeholder="Type custom string or key..." style="flex:1; padding:6px; background:#181825; border:1px solid var(--border-color); color:white; border-radius:4px;">
                     <button class="btn btn-primary" onclick="injectCustom()">Inject Custom</button>
@@ -578,6 +582,72 @@
             </div>
         </div>
 
+        <!-- Tab: Container & Sequence (コンテナ＆シーケンス解析) -->
+        <div id="tabContainer" class="tab-content">
+            <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; background: #181825; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <span style="font-size: 14px; font-weight: bold; color: var(--accent-color);">🎒 Container Status:</span>
+                    <span style="font-family: var(--font-mono); font-size: 13px;" id="cntName">No Active Container</span>
+                    <span class="status-badge" id="cntFsmState">FSM: IDLE</span>
+                    <span class="status-badge" id="cntType" style="background:#252538;">Type: UNKNOWN</span>
+                    <span class="status-badge" id="cntBohBadge" style="display:none; background:#f38ba8; color:#11111b; font-weight:bold;">⚠️ Bag of Holding</span>
+                </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="requestContainerSync()">🔄 Sync Now</button>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; min-height: 0;">
+                <!-- 左ペイン: コンテナ中身一覧 -->
+                <div style="background: #181825; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column;">
+                    <div style="font-weight: bold; color: var(--warn-color); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>📦 Container Contents (中身一覧)</span>
+                        <span id="cntItemCount" style="font-size: 11px; color:#a6adc8;">0 items</span>
+                    </div>
+                    <div id="cntContentsList" style="flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: 12px;">
+                        <div style="color: #6c7086; padding: 8px;">コンテナが開かれていないか、空です。</div>
+                    </div>
+                </div>
+
+                <!-- 右ペイン: シーケンス操作 ＆ テストインジェクター -->
+                <div style="background: #181825; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column;">
+                    <div style="font-weight: bold; color: var(--accent-color); margin-bottom: 8px;">
+                        ⚡ Container Actions & Sequence Test
+                    </div>
+                    <p style="font-size: 12px; color: #a6adc8; margin-bottom: 10px;">
+                        C コアのコンテナ待機状態に対して安全な確定シーケンスを注入・テストします：
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <button class="btn btn-primary" onclick="sendContainerAction(':')">[:] Look Inside (中身確認)</button>
+                        <button class="btn btn-primary" onclick="sendContainerAction('q')">[q] Close / Quit (終了)</button>
+                        <button class="btn" onclick="sendContainerAction('i')">[i] Put In (投入モード)</button>
+                        <button class="btn" onclick="sendContainerAction('o')">[o] Take Out (取出モード)</button>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: auto;">
+                        <div style="font-weight: bold; font-size: 12px; color: var(--text-color); margin-bottom: 6px;">
+                            🚀 アイテム移動テスト (transferItems)
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px;">
+                            <select id="transferDirection" style="background:#252538; border:1px solid var(--border-color); color:white; padding:4px 8px; border-radius:4px;">
+                                <option value="in">Put in (投入)</option>
+                                <option value="out">Take out (取り出し)</option>
+                            </select>
+                            <input type="text" id="transferLetter" placeholder="Item letter (e.g. f)" style="width:120px; background:#252538; border:1px solid var(--border-color); color:white; padding:4px 8px; border-radius:4px; font-family:var(--font-mono);">
+                            <button class="btn btn-primary" onclick="triggerTransferTest()">Execute Transfer</button>
+                        </div>
+                        <div id="cntPlayerInvList" style="margin-top: 8px; font-size: 11px; color:#a6adc8; max-height: 120px; overflow-y: auto;"></div>
+                        <p style="font-size: 11px; color:#6c7086; margin-top: 6px;">
+                            ※ FSM の transferItems() を直接呼び出し、C コアと安全に 1 トランザクションを消化します。
+                        </p>
+                        <div style="margin-top: 8px;">
+                            <div style="font-weight: bold; font-size: 11px; color: var(--accent-color); margin-bottom: 4px;">🛠️ 直近トランザクション結果:</div>
+                            <div id="cntDebugBox"><div style="color:#6c7086; font-size:11px;">直近のトランザクションはありません。</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -601,6 +671,9 @@
 
             const content = document.getElementById(tabId);
             if (content) content.classList.add('active');
+
+            // タブ切り替え時に最新スナップショットを即時要求
+            channel.postMessage({ type: 'REQUEST_SNAPSHOT' });
 
             if (lastSnapshot) {
                 renderTabContent(tabId, lastSnapshot);
@@ -687,6 +760,17 @@
                 valSilentSync.title = `総同期: ${total}回 (所持品:${invCount}, 魔法:${s.silentSyncStatus.syncCounts?.spells || 0}, スキル:${s.silentSyncStatus.syncCounts?.skills || 0}) 直近: ${recent ? `${recent.type} (差分:${recent.changed ? '有' : '無'}, ${recent.durationMs}ms)` : 'なし'}`;
             }
 
+            const valContainer = document.getElementById('valContainer');
+            if (valContainer && s.container) {
+                const cState = s.container.state || 'IDLE';
+                valContainer.textContent = cState;
+                if (cState !== 'IDLE') {
+                    valContainer.className = 'indicator-val active';
+                } else {
+                    valContainer.className = 'indicator-val';
+                }
+            }
+
             // 現在アクティブなタブのみを選択的に描画（バックグラウンドタブの無駄なDOM再構築を完全抑止）
             renderTabContent(currentTabId, s);
         }
@@ -701,12 +785,131 @@
                 }
             } else if (tabId === 'tabActions') {
                 renderContextActions(s);
+            } else if (tabId === 'tabContainer') {
+                renderContainerTab(s);
             } else if (tabId === 'tabTactical') {
                 renderThreatRadar(s);
                 renderTacticalAdvices(s);
             } else if (tabId === 'tabFlags') {
                 renderKnowledgeFlags(s);
             }
+        }
+
+        function renderContainerTab(s) {
+            const cnt = s.container;
+            const cntName = document.getElementById('cntName');
+            const cntFsmState = document.getElementById('cntFsmState');
+            const cntType = document.getElementById('cntType');
+            const cntBohBadge = document.getElementById('cntBohBadge');
+            const cntItemCount = document.getElementById('cntItemCount');
+            const cntContentsList = document.getElementById('cntContentsList');
+            const cntPlayerInvList = document.getElementById('cntPlayerInvList');
+
+            const info = cnt ? (cnt.containerInfo || {}) : {};
+            const contents = cnt ? (cnt.contents || {}) : {};
+            const items = contents.items || [];
+            const playerInv = (cnt && cnt.playerInventory) || [];
+            const debugInfo = cnt ? cnt.debug : null;
+            const hasContainerData = Boolean(info.name || contents.containerName || (items && items.length > 0) || debugInfo);
+
+            if (cntName) cntName.textContent = info.name || contents.containerName || (cnt && cnt.isActive ? 'Active Container' : 'No Active Container');
+            if (cntFsmState) {
+                const isAct = Boolean(cnt && cnt.isActive);
+                const stateText = isAct ? `FSM: ${cnt.state || 'ACTIVE'}` : `FSM: ${cnt ? (cnt.state || 'IDLE') : 'IDLE'} (STANDBY)`;
+                cntFsmState.textContent = stateText;
+                cntFsmState.style.background = isAct ? '#a6e3a1' : '#313244';
+                cntFsmState.style.color = isAct ? '#11111b' : '#cdd6f4';
+            }
+            if (cntType) cntType.textContent = `Type: ${info.type || contents.containerType || (info.isFloorContainer ? 'Floor' : 'Inventory')}`;
+            if (cntBohBadge) cntBohBadge.style.display = (info.isBagOfHolding || contents.isBagOfHolding) ? 'inline-block' : 'none';
+            if (cntItemCount) cntItemCount.textContent = `${items.length} items`;
+
+            if (cntContentsList) {
+                if (!hasContainerData && items.length === 0) {
+                    cntContentsList.innerHTML = '<div style="color: #6c7086; padding: 8px;">コンテナが開かれていないか、空です。</div>';
+                } else if (items.length === 0) {
+                    cntContentsList.innerHTML = '<div style="color: #89b4fa; padding: 8px;">📦 中身は空です (0 items)</div>';
+                } else {
+                    let html = '<table style="width: 100%; border-collapse: collapse;">';
+                    html += '<tr style="border-bottom: 1px solid var(--border-color); color:#a6adc8; font-size:11px;"><th style="padding:4px; text-align:left;">Let</th><th style="padding:4px; text-align:left;">Name</th><th style="padding:4px; text-align:right;">Count</th></tr>';
+                    items.forEach(it => {
+                        const letStr = it.letter || it.accelerator || '-';
+                        const nameStr = it.name || it.rawText || it.str || 'Item';
+                        const countStr = it.count > 0 ? it.count : 1;
+                        html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05); cursor:pointer;" onclick="setTransferLetter('${escapeHtml(letStr)}', 'out')"><td style="padding:4px; color:var(--accent-color); font-weight:bold;">${escapeHtml(letStr)}</td><td style="padding:4px;">${escapeHtml(nameStr)}</td><td style="padding:4px; text-align:right; color:var(--warn-color);">${countStr}</td></tr>`;
+                    });
+                    html += '</table>';
+                    cntContentsList.innerHTML = html;
+                }
+            }
+
+            if (cntPlayerInvList) {
+                if (playerInv.length === 0) {
+                    cntPlayerInvList.innerHTML = '<div style="color:#6c7086;">所持品: (未取得または空)</div>';
+                } else {
+                    let invHtml = '<div style="margin-bottom:4px; font-weight:bold; color:var(--text-color);">🎒 プレイヤー所持品 (クリックで投入選択):</div><div style="display:flex; flex-wrap:wrap; gap:4px;">';
+                    playerInv.forEach(it => {
+                        const letStr = it.letter || '-';
+                        invHtml += `<button class="btn" style="padding:2px 6px; font-size:11px;" onclick="setTransferLetter('${escapeHtml(letStr)}', 'in')">${escapeHtml(letStr)}: ${escapeHtml(it.name)}</button>`;
+                    });
+                    invHtml += '</div>';
+                    cntPlayerInvList.innerHTML = invHtml;
+                }
+            }
+
+            // 直近トランザクションのデバッグ表示
+            const debugBox = document.getElementById('cntDebugBox');
+            if (debugBox) {
+                if (debugInfo) {
+                    debugBox.innerHTML = `
+                        <div style="font-family:var(--font-mono); font-size:11px; background:#11111b; padding:8px; border-radius:4px; border:1px solid var(--border-color);">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                <span style="font-weight:bold; color:var(--accent-color);">Last Action: ${escapeHtml(debugInfo.direction || '')}</span>
+                                <span style="color:#a6adc8;">${escapeHtml(debugInfo.timestamp || '')} [${escapeHtml(debugInfo.status || '')}]</span>
+                            </div>
+                            <div style="color:#a6e3a1; margin-bottom:2px;">Sequence: <code>${escapeHtml(JSON.stringify(debugInfo.sequence || []))}</code></div>
+                            <div style="color:#cdd6f4;">Items: ${escapeHtml(JSON.stringify(debugInfo.items || []))}</div>
+                            ${debugInfo.message ? `<div style="color:#f9e2af; margin-top:2px;">${escapeHtml(debugInfo.message)}</div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    debugBox.innerHTML = '<div style="color:#6c7086; font-size:11px;">直近のトランザクションはありません。</div>';
+                }
+            }
+        }
+
+        function setTransferLetter(letter, dir = 'in') {
+            const input = document.getElementById('transferLetter');
+            if (input && letter && letter !== '-') input.value = letter;
+            const dirSelect = document.getElementById('transferDirection');
+            if (dirSelect && dir) dirSelect.value = dir;
+        }
+
+        function sendContainerAction(action) {
+            channel.postMessage({
+                type: 'CONTAINER_SELECT_ACTION',
+                action: action
+            });
+        }
+
+        function triggerTransferTest() {
+            const dir = document.getElementById('transferDirection')?.value || 'in';
+            const letter = document.getElementById('transferLetter')?.value?.trim();
+            if (!letter) {
+                alert('アイテムのレター（例: f）を入力してください');
+                return;
+            }
+            channel.postMessage({
+                type: 'CONTAINER_TRANSFER',
+                options: {
+                    direction: dir,
+                    items: [{ letter: letter, count: -1 }]
+                }
+            });
+        }
+
+        function requestContainerSync() {
+            channel.postMessage({ type: 'REQUEST_SNAPSHOT' });
         }
 
         function renderContextActions(s) {

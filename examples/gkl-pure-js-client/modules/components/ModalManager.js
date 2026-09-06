@@ -92,6 +92,8 @@ export class ModalManager {
     if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden')) return true;
     if (this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden')) return true;
     if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) return true;
+    const elContainerModal = document.getElementById('container-modal');
+    if (elContainerModal && !elContainerModal.classList.contains('hidden')) return true;
     if (this.isGameExited) return true;
     return false;
   }
