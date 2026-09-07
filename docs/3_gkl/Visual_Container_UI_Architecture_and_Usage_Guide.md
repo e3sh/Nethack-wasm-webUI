@@ -241,4 +241,12 @@ sequenceDiagram
 - **コンテナ再開時の接続**:
   基盤コントローラが完成した段階で、コンテナ操作を「汎用コントローラに渡す小さな宣言的対話レシピ」として接続・再開する。
 
+#### 3. コンテナアーキテクチャの根本刷新指針（入口の正常化とセッションガード）
+これまでの「外側からキー入力を盗み聞きして無理やり割り込む方式」を全面廃止し、以下の新パイプラインに刷新する：
+1. **正規の入口検知**: `PromptPayloadBuilder` が C コアの `ACTION_MENU` を受けて `inputType: 'CONTAINER'` を発行。複数箱がある場合（"Loot which containers?"）は一般メニューに選ばせ、箱が確定した瞬間に二面パネルを開く。
+2. **`containerContext`（同定知識）の引き渡し**: セッション開始時に対象コンテナの完全な情報（手持ちレター、ポインタ、床座標、箱番号等）をセッションへ渡し、セッション内での確実な開け直し（Re-open）を可能にする。
+3. **セッション境界ガード**: コンテナセッション中は `PromptPayloadBuilder` の通常プロンプト構築をサプレス（弾く）し、裏表での多重起動やプロンプト混信を 100% 遮断する。
+（詳細設計は [`docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) 第6章を参照）
+
+
 
