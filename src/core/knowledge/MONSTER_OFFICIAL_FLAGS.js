@@ -3243,7 +3243,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "MEDIUM"
     },
     "249": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3256,7 +3256,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "250": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3269,7 +3269,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "251": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3282,7 +3282,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "252": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3295,7 +3295,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "253": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3308,7 +3308,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "254": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3321,7 +3321,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "255": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3334,7 +3334,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "256": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3347,7 +3347,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "257": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3360,7 +3360,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "258": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
@@ -3373,7 +3373,7 @@ export const MONSTER_OFFICIAL_FLAGS = {
         "size": "LARGE"
     },
     "259": {
-        "symbol": "?",
+        "symbol": "'",
         "className": "golem",
         "canGenocide": false,
         "isUnique": false,
