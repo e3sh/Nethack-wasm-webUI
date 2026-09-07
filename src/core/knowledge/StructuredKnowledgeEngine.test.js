@@ -469,5 +469,33 @@ describe('StructuredKnowledgeEngine', () => {
             expect(waterTerrain).not.toBeNull();
             expect(waterTerrain.category).toBe('WATER');
         });
+
+        it('モンスタークラス定義および変身時防具破壊リスクがSSOTとしてモンスターナレッジに結合されること', () => {
+            const engine = new StructuredKnowledgeEngine();
+
+            // 1. getMonsterClassKnowledge
+            const lichClass = engine.getMonsterClassKnowledge('L');
+            expect(lichClass).not.toBeNull();
+            expect(lichClass.danger).toBe('CRITICAL');
+            expect(lichClass.symbol).toBe('L');
+
+            // 2. getAllMonsterClasses
+            const allClasses = engine.getAllMonsterClasses();
+            expect(allClasses.length).toBeGreaterThanOrEqual(45);
+
+            // 3. getMonsterKnowledge で monsterClass と armorRisk が自動付与されること
+            const mon = engine.getMonsterKnowledge('cockatrice');
+            expect(mon).not.toBeNull();
+            expect(mon.monsterClass).toBeDefined();
+            expect(mon.monsterClass.symbol).toBe('c');
+            expect(mon.monsterClass.danger).toBe('CRITICAL');
+            expect(mon.armorRisk).toBeDefined();
+            expect(typeof mon.armorRisk.willBreakArmor).toBe('boolean');
+
+            // 4. checkMonsterArmorRisk 単体テスト
+            const dragonRisk = engine.checkMonsterArmorRisk('silver dragon');
+            expect(dragonRisk.willBreakArmor).toBe(true);
+            expect(dragonRisk.severity).toBe('DANGER');
+        });
     });
 });

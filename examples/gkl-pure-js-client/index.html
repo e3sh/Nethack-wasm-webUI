@@ -233,6 +233,13 @@
         </div>
 
         <div class="wish-modal-body">
+          <!-- 0. プレイヤー情報ステータスバー -->
+          <div id="wish-player-status-bar" class="wish-player-status-bar">
+            <span class="wish-player-status-title" id="wish-lbl-player-status">🛡️ プレイヤー状態:</span>
+            <span id="wish-player-role-badge" class="wish-status-badge">Samurai</span>
+            <span id="wish-player-align-badge" class="wish-status-badge">Lawful</span>
+          </div>
+
           <!-- 1. 定番プリセット -->
           <div class="wish-section-title" id="wish-sec-presets">定番プリセット (Quick Presets)</div>
           <div class="wish-preset-grid" id="wish-preset-container"></div>
@@ -312,7 +319,10 @@
             </div>
           </div>
 
-          <!-- 4. リアルタイム生成プレビュー -->
+          <!-- 4. 願いセーフティガード警告バナー -->
+          <div id="wish-safety-banner" class="wish-safety-banner hidden"></div>
+
+          <!-- 5. リアルタイム生成プレビュー -->
           <div class="wish-preview-box">
             <div class="wish-preview-label" id="wish-lbl-preview">送信されるNetHackコマンド文字列:</div>
             <div id="wish-preview-cmd" class="wish-preview-command">blessed fixed +2 silver dragon scale mail</div>

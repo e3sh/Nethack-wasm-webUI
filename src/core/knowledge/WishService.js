@@ -11,6 +11,8 @@
 import { OBJECT_KNOWLEDGE_MAP, buildStandardItemName } from './OBJECT_KNOWLEDGE_FULL.js';
 import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
 import { OBJECT_JP_MAP } from './OBJECT_JP_MAP.js';
+import { OBJECT_CATEGORY_DEFINITIONS } from './OBJECT_CATEGORY_ADVICE.js';
+import { ARTIFACT_KNOWLEDGE_BASE, getArtifactDefinition } from './ARTIFACT_KNOWLEDGE_BASE.js';
 
 export const BLESSING_STATES = {
     BLESSED: 'blessed',
@@ -25,22 +27,18 @@ export const PROOF_TYPES = {
     FIXED: 'fixed'
 };
 
-export const CATEGORY_LABELS = {
-    WEAPON: { ja: '武器 (Weapon)', en: 'Weapon' },
-    ARMOR: { ja: '防具・鎧 (Armor)', en: 'Armor' },
-    RING: { ja: '指輪 (Ring)', en: 'Ring' },
-    AMULET: { ja: '魔除け (Amulet)', en: 'Amulet' },
-    TOOL: { ja: '道具 (Tool)', en: 'Tool' },
-    FOOD: { ja: '食料 (Food)', en: 'Food' },
-    POTION: { ja: '薬・ポーション (Potion)', en: 'Potion' },
-    SCROLL: { ja: '巻物 (Scroll)', en: 'Scroll' },
-    SPELLBOOK: { ja: '魔法書 (Spellbook)', en: 'Spellbook' },
-    WAND: { ja: '杖 (Wand)', en: 'Wand' },
-    GEM: { ja: '宝石 (Gem)', en: 'Gem' },
-    GOLD: { ja: '金貨 (Gold)', en: 'Gold' },
-    ARTIFACT: { ja: 'アーティファクト (Artifact)', en: 'Artifact' },
-    OTHER: { ja: 'その他 (Other)', en: 'Other' }
-};
+export const CATEGORY_LABELS = Object.fromEntries(
+    Object.entries(OBJECT_CATEGORY_DEFINITIONS).map(([k, v]) => [k, { ja: v.labelJa, en: v.labelEn }])
+);
+
+// 後方互換性のための FAMOUS_ARTIFACTS（SSOT: ARTIFACT_KNOWLEDGE_BASE から動的導出）
+export const FAMOUS_ARTIFACTS = ARTIFACT_KNOWLEDGE_BASE.map(art => ({
+    name: art.name,
+    ja: art.nameJa,
+    category: art.category,
+    base: art.baseName,
+    baseOnum: art.baseOnum
+}));
 
 export const WISH_PRESETS = [
     {
@@ -161,24 +159,6 @@ export const WISH_PRESETS = [
     }
 ];
 
-export const FAMOUS_ARTIFACTS = [
-    { name: 'Excalibur', ja: 'エクスカリバー', category: 'WEAPON', base: 'long sword' },
-    { name: 'Stormbringer', ja: 'ストームブリンガー', category: 'WEAPON', base: 'runesword' },
-    { name: 'Mjollnir', ja: 'ミョルニル', category: 'WEAPON', base: 'war hammer' },
-    { name: 'Grayswandir', ja: 'グレイスワンダー', category: 'WEAPON', base: 'silver saber' },
-    { name: 'Magicbane', ja: 'マジックベイン', category: 'WEAPON', base: 'athame' },
-    { name: 'Vorpal Blade', ja: '首切りの剣 (ボーパルブレード)', category: 'WEAPON', base: 'long sword' },
-    { name: 'Sunsword', ja: 'サンソード', category: 'WEAPON', base: 'long sword' },
-    { name: 'Snickersnee', ja: 'スニッカースニー', category: 'WEAPON', base: 'knife' },
-    { name: 'Frost Brand', ja: 'フロストブランド', category: 'WEAPON', base: 'long sword' },
-    { name: 'Fire Brand', ja: 'ファイアブランド', category: 'WEAPON', base: 'long sword' },
-    { name: 'The Eye of the Aethiopica', ja: 'アエシオーピカの目', category: 'AMULET', base: 'amulet of ESP' },
-    { name: 'The Platinum Yendorian Express Card', ja: '白金のエンドール急行カード', category: 'TOOL', base: 'credit card' },
-    { name: 'The Orb of Fate', ja: '運命の宝珠', category: 'TOOL', base: 'crystal ball' },
-    { name: 'The Master Key of Thievery', ja: '盗賊の合鍵', category: 'TOOL', base: 'skeleton key' },
-    { name: 'The Staff of Aesculapius', ja: 'アスクレピオスの杖', category: 'WEAPON', base: 'quarterstaff' }
-];
-
 export class WishService {
     constructor(options = {}) {
         this.translator = options.translator || null;
@@ -289,23 +269,27 @@ export class WishService {
             });
         }
 
-        // アーティファクトもカタログにマージ
-        for (const art of FAMOUS_ARTIFACTS) {
+        // アーティファクトもカタログにマージ (SSOT: ARTIFACT_KNOWLEDGE_BASE 全33種)
+        for (const art of ARTIFACT_KNOWLEDGE_BASE) {
             catalog.push({
                 onum: -1,
-                id: `art_${art.name.toLowerCase().replace(/\s+/g, '_')}`,
+                baseOnum: art.baseOnum,
+                id: art.id,
                 name: art.name,
-                baseName: art.base,
-                nameJa: art.ja,
+                baseName: art.baseName,
+                nameJa: art.nameJa,
                 category: 'ARTIFACT',
                 isArtifact: true,
+                artifactCategory: art.category,
+                alignment: art.alignment,
+                role: art.role,
                 options: {
-                    allowEnchantment: true,
+                    allowEnchantment: art.category === 'WEAPON' || art.category === 'ARMOR',
                     allowBlessing: true,
                     allowErosionProof: true,
                     allowCharges: false,
                     allowCount: false,
-                    maxEnchantment: 7,
+                    maxEnchantment: art.category === 'ARMOR' ? 5 : 7,
                     defaultCount: 1
                 }
             });
@@ -553,5 +537,131 @@ export class WishService {
 
         spec.itemName = name;
         return spec;
+    }
+
+    /**
+     * 願いの安全性・妥当性セーフティガード判定
+     * @param {Object|string} specOrName - ウィッシュ指定オブジェクトまたはアイテム/アーティファクト名
+     * @param {Object} [playerState={}] - プレイヤー情報 ({ alignment, role, race })
+     * @returns {Object} セーフティ判定結果
+     */
+    checkWishSafety(specOrName, playerState = {}) {
+        let rawName = '';
+        if (typeof specOrName === 'string') {
+            rawName = specOrName.trim();
+        } else if (specOrName && typeof specOrName === 'object') {
+            rawName = specOrName.itemName || specOrName.name || specOrName.id || '';
+        }
+
+        const cleanName = rawName.replace(/^(\+?\d+|-?\d+)\s+/, '')
+                                 .replace(/^(blessed|uncursed|cursed)\s+/i, '')
+                                 .replace(/^(rustproof|fireproof|corrodeproof|fixed)\s+/i, '')
+                                 .replace(/^greased\s+/i, '')
+                                 .replace(/^poisoned\s+/i, '')
+                                 .trim();
+
+        // アーティファクト定義の検索
+        const art = getArtifactDefinition(cleanName) || getArtifactDefinition(rawName);
+
+        // アーティファクトでない通常アイテムの場合は安全
+        if (!art) {
+            return {
+                isSafe: true,
+                safetyLevel: 'SAFE',
+                level: 'SAFE',
+                isArtifact: false,
+                warningsJa: [],
+                warningsEn: [],
+                advicesJa: [],
+                advicesEn: [],
+                messageJa: '',
+                messageEn: ''
+            };
+        }
+
+        const warningsJa = [];
+        const warningsEn = [];
+        const advicesJa = [];
+        const advicesEn = [];
+        let safetyLevel = 'SAFE';
+
+        // プレイヤー属性の正規化
+        const normAlign = (align) => {
+            if (!align) return null;
+            const a = String(align).toLowerCase();
+            if (a.startsWith('law') || a === '秩序') return 'LAWFUL';
+            if (a.startsWith('neu') || a === '中立') return 'NEUTRAL';
+            if (a.startsWith('cha') || a === '混沌') return 'CHAOTIC';
+            return null;
+        };
+
+        // プレイヤー職業の正規化
+        const normRole = (role) => {
+            if (!role) return null;
+            const r = String(role).toLowerCase();
+            if (r.startsWith('sam')) return 'samurai';
+            if (r.startsWith('val')) return 'valkyrie';
+            if (r.startsWith('wiz')) return 'wizard';
+            if (r.startsWith('tou')) return 'tourist';
+            if (r.startsWith('rog')) return 'rogue';
+            if (r.startsWith('pri') || r.startsWith('cle')) return 'priest';
+            if (r.startsWith('kni')) return 'knight';
+            if (r.startsWith('ran')) return 'ranger';
+            if (r.startsWith('mon')) return 'monk';
+            if (r.startsWith('hea')) return 'healer';
+            if (r.startsWith('bar')) return 'barbarian';
+            if (r.startsWith('arc')) return 'archeologist';
+            if (r.startsWith('cav')) return 'caveman';
+            return r;
+        };
+
+        const playerAlign = normAlign(playerState.alignment);
+        const playerRole = normRole(playerState.role);
+
+        // 1. 他職業クエストアーティファクトのチェック (最危険: 願いの完全な無駄消費)
+        if (art.isQuestArtifact) {
+            if (playerRole && art.role) {
+                const targetRole = normRole(art.role);
+                if (playerRole !== targetRole) {
+                    safetyLevel = 'FATAL';
+                    warningsJa.push(`🚫 無効な願い: 他職業 [${art.role.toUpperCase()}] のクエストアーティファクトは願いで絶対に入手できません！貴重な願いが無駄になります。`);
+                    warningsEn.push(`🚫 Wasted Wish: Quest artifact of another role [${art.role.toUpperCase()}] can NEVER be obtained by wishing! Your wish will be completely wasted.`);
+                }
+            } else {
+                advicesJa.push(`⚠️ クエストアーティファクト注意: 自職業以外のクエストアーティファクトを願っても無駄になります。`);
+                advicesEn.push(`⚠️ Quest Artifact Warning: Wishing for another role's quest artifact will result in failure.`);
+            }
+        }
+
+        // 2. アライメント不一致チェック (神罰爆破ダメージ)
+        if (art.alignment && art.alignment !== 'UNALIGNED') {
+            if (playerAlign && playerAlign !== art.alignment) {
+                if (safetyLevel !== 'FATAL') safetyLevel = 'WARNING';
+                warningsJa.push(`💥 属性不一致爆破警告: [${art.alignment}]属性のアーティファクトです。現在の属性(${playerAlign})のまま触れると神罰爆破ダメージを受けます！`);
+                warningsEn.push(`💥 Alignment Blast Warning: This artifact is [${art.alignment}]. Characters of ${playerAlign} alignment will suffer divine blast damage upon touching/wielding!`);
+            }
+        }
+
+        // 3. アーティファクト一般の成功確率注意
+        advicesJa.push(`ℹ️ 生成確率注意: 既にゲーム内にアーティファクトが存在する場合、願いの成功率は 1/(N+1) に減少します（失敗時は通常の${art.baseName}が出現）。`);
+        advicesEn.push(`ℹ️ Success Rate Note: If artifacts already exist in the game, success rate drops to 1/(N+1) (fallback produces a standard ${art.baseName}).`);
+
+        if (safetyLevel === 'SAFE' && (warningsJa.length > 0)) {
+            safetyLevel = 'WARNING';
+        }
+
+        return {
+            isSafe: safetyLevel === 'SAFE',
+            safetyLevel,
+            level: safetyLevel,
+            isArtifact: true,
+            artifact: art,
+            warningsJa,
+            warningsEn,
+            advicesJa,
+            advicesEn,
+            messageJa: warningsJa.concat(advicesJa).join(' / '),
+            messageEn: warningsEn.concat(advicesEn).join(' / ')
+        };
     }
 }

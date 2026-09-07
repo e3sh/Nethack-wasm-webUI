@@ -302,11 +302,27 @@ const DEFAULT_TITLES = {
                 : (this.gkl && this.gkl.wishService ? this.gkl.wishService : null);
 
             if (wishService) {
+                let charInfo = { race: 'human', role: 'valkyrie', alignment: 'neutral' };
+                if (this.gkl) {
+                    if (typeof this.gkl.getCharacterInfo === 'function') {
+                        charInfo = this.gkl.getCharacterInfo() || charInfo;
+                    } else if (this.gkl.attributeStateManager?.characterInfo) {
+                        charInfo = this.gkl.attributeStateManager.characterInfo;
+                    }
+                }
+                const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
+                const playerAlignment = payload.playerAlignment || charInfo.alignment || 'neutral';
+                const playerRace = payload.playerRace || charInfo.race || 'human';
+
                 assistant = {
                     type: 'WISH',
                     presets: typeof wishService.getPresets === 'function' ? wishService.getPresets() : [],
                     categories: typeof wishService.getCatalogByCategory === 'function' ? Object.keys(wishService.getCatalogByCategory()) : [],
-                    wishService: wishService
+                    wishService: wishService,
+                    playerRole: playerRole,
+                    playerAlignment: playerAlignment,
+                    playerRace: playerRace,
+                    existingArtifactCount: payload.existingArtifactCount || 0
                 };
             }
         }

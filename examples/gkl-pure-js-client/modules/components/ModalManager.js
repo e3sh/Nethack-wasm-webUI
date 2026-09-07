@@ -412,6 +412,17 @@ export class ModalManager {
     this.activeWishService = wishService;
     wishService.setLanguage(this.currentLanguage);
 
+    const playerRole = data?.assistant?.playerRole || 'valkyrie';
+    const playerAlignment = data?.assistant?.playerAlignment || 'neutral';
+    const playerRace = data?.assistant?.playerRace || 'human';
+    const existingArtifactCount = data?.assistant?.existingArtifactCount || 0;
+    const playerState = {
+      role: playerRole,
+      alignment: playerAlignment,
+      race: playerRace,
+      existingArtifactCount: existingArtifactCount
+    };
+
     const catalog = wishService.getCatalog();
     const byCategory = wishService.getCatalogByCategory();
 
@@ -497,6 +508,49 @@ export class ModalManager {
     // UIテキスト更新
     const elTitle = document.getElementById('wish-modal-title');
     if (elTitle) elTitle.textContent = t.modalTitle;
+
+    // プレイヤー状態ステータスバー更新
+    const elLblPlayerStatus = document.getElementById('wish-lbl-player-status');
+    if (elLblPlayerStatus) {
+      elLblPlayerStatus.textContent = lang === 'ja' ? '🛡️ プレイヤー状態:' : '🛡️ Player Status:';
+    }
+    const elPlayerRole = document.getElementById('wish-player-role-badge');
+    const elPlayerAlign = document.getElementById('wish-player-align-badge');
+
+    const roleLabels = {
+      samurai: { ja: '侍 (Samurai)', en: 'Samurai' },
+      valkyrie: { ja: 'ワルキューレ (Valkyrie)', en: 'Valkyrie' },
+      wizard: { ja: '魔法使い (Wizard)', en: 'Wizard' },
+      tourist: { ja: '観光客 (Tourist)', en: 'Tourist' },
+      rogue: { ja: '盗賊 (Rogue)', en: 'Rogue' },
+      priest: { ja: '僧侶 (Priest)', en: 'Priest' },
+      knight: { ja: '騎士 (Knight)', en: 'Knight' },
+      ranger: { ja: 'レンジャー (Ranger)', en: 'Ranger' },
+      monk: { ja: '修道士 (Monk)', en: 'Monk' },
+      healer: { ja: '治癒師 (Healer)', en: 'Healer' },
+      barbarian: { ja: '野蛮人 (Barbarian)', en: 'Barbarian' },
+      archeologist: { ja: '考古学者 (Archeologist)', en: 'Archeologist' },
+      caveman: { ja: '洞窟人 (Caveman)', en: 'Caveman' }
+    };
+    const alignLabels = {
+      lawful: { ja: '秩序 (Lawful)', en: 'Lawful', cls: 'align-lawful' },
+      neutral: { ja: '中立 (Neutral)', en: 'Neutral', cls: 'align-neutral' },
+      chaotic: { ja: '混沌 (Chaotic)', en: 'Chaotic', cls: 'align-chaotic' }
+    };
+
+    const normR = String(playerRole).toLowerCase();
+    const rInfo = roleLabels[normR] || { ja: playerRole, en: playerRole };
+    if (elPlayerRole) {
+      elPlayerRole.textContent = lang === 'ja' ? rInfo.ja : rInfo.en;
+    }
+
+    const normA = String(playerAlignment).toLowerCase();
+    const aInfo = alignLabels[normA] || { ja: playerAlignment, en: playerAlignment, cls: 'align-neutral' };
+    if (elPlayerAlign) {
+      elPlayerAlign.textContent = lang === 'ja' ? aInfo.ja : aInfo.en;
+      elPlayerAlign.className = `wish-status-badge ${aInfo.cls}`;
+    }
+
     const elSecPresets = document.getElementById('wish-sec-presets');
     if (elSecPresets) elSecPresets.textContent = t.secPresets;
     const elSecSearch = document.getElementById('wish-sec-search');
@@ -798,10 +852,130 @@ export class ModalManager {
       if (optPoisoned) optPoisoned.checked = !!currentSpec.isPoisoned;
     };
 
+    const bannerEl = document.getElementById('wish-safety-banner');
+
+    const updateSafetyBanner = (spec) => {
+      if (!bannerEl) return;
+      if (!wishService || typeof wishService.checkWishSafety !== 'function') {
+        bannerEl.className = 'wish-safety-banner hidden';
+        bannerEl.innerHTML = '';
+        if (elBtnSubmit) {
+          elBtnSubmit.disabled = false;
+          elBtnSubmit.textContent = t.btnSubmit;
+        }
+        return;
+      }
+
+      const safety = wishService.checkWishSafety(spec, playerState);
+      const level = safety.level || safety.safetyLevel || 'SAFE';
+      if (!safety.isArtifact || level === 'SAFE') {
+        bannerEl.className = 'wish-safety-banner hidden';
+        bannerEl.innerHTML = '';
+        if (elBtnSubmit) {
+          elBtnSubmit.disabled = false;
+          elBtnSubmit.textContent = t.btnSubmit;
+        }
+        return;
+      }
+
+      // アーティファクト詳細メタ情報タグ生成
+      let artMetaHtml = '';
+      if (safety.artifact) {
+        const art = safety.artifact;
+        const tags = [];
+        if (art.alignment) {
+          const alignName = lang === 'ja'
+            ? (art.alignment === 'LAWFUL' ? '秩序' : (art.alignment === 'NEUTRAL' ? '中立' : '混沌'))
+            : art.alignment;
+          tags.push(`<span class="wish-art-tag tag-align">${lang === 'ja' ? `属性: ${alignName}` : `Align: ${alignName}`}</span>`);
+        }
+        if (art.isQuestArtifact && art.role) {
+          tags.push(`<span class="wish-art-tag" style="background:rgba(234,179,8,0.15); border-color:#eab308; color:#fef08a;">🏆 ${lang === 'ja' ? `${art.role.toUpperCase()}専用` : `Role: ${art.role.toUpperCase()}`}</span>`);
+        }
+        if (Array.isArray(art.intrinsics) && art.intrinsics.length > 0) {
+          art.intrinsics.forEach(i => {
+            tags.push(`<span class="wish-art-tag tag-intrinsic">✨ ${i}</span>`);
+          });
+        }
+        if (art.attackEffect) {
+          tags.push(`<span class="wish-art-tag tag-effect">⚔️ ${art.attackEffect}</span>`);
+        }
+        if (art.defenseEffect) {
+          tags.push(`<span class="wish-art-tag tag-effect">🛡️ ${art.defenseEffect}</span>`);
+        }
+        if (art.invoke) {
+          tags.push(`<span class="wish-art-tag" style="background:rgba(56,189,248,0.15); color:#7dd3fc;">⚡ #invoke: ${art.invoke}</span>`);
+        }
+
+        if (tags.length > 0) {
+          artMetaHtml = `
+            <div class="wish-art-meta-grid">
+              <div style="font-size:0.75rem; color:#94a3b8; font-weight:600;">📖 ${lang === 'ja' ? 'アーティファクト特性プレビュー:' : 'Artifact Attributes:'}</div>
+              <div class="wish-art-tags">${tags.join('')}</div>
+            </div>
+          `;
+        }
+      }
+
+      if (level === 'FATAL') {
+        bannerEl.className = 'wish-safety-banner safety-fatal';
+        const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+        const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+        bannerEl.innerHTML = `
+          <div class="safety-header">
+            <span>🛑</span>
+            <span>${lang === 'ja' ? '【警告】他職業専用クエストアーティファクト（入手不可）' : '【FATAL】Quest Artifact for another role'}</span>
+          </div>
+          <div class="safety-detail">${msg}</div>
+          ${note ? `<div class="safety-detail" style="font-weight:600; margin-top:2px;">💡 ${note}</div>` : ''}
+          ${artMetaHtml}
+        `;
+        if (elBtnSubmit) {
+          elBtnSubmit.disabled = true;
+          elBtnSubmit.textContent = lang === 'ja' ? '入手不可（願い消費防止）' : 'Unavailable (Cannot Wish)';
+        }
+      } else if (level === 'WARNING') {
+        bannerEl.className = 'wish-safety-banner safety-warning';
+        const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+        const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+        bannerEl.innerHTML = `
+          <div class="safety-header">
+            <span>⚠️</span>
+            <span>${lang === 'ja' ? '【注意】アライメント不一致（神罰爆破ダメージ）' : '【WARNING】Alignment Mismatch (Blasting Damage)'}</span>
+          </div>
+          <div class="safety-detail">${msg}</div>
+          ${note ? `<div class="safety-detail" style="margin-top:2px;">💡 ${note}</div>` : ''}
+          ${artMetaHtml}
+        `;
+        if (elBtnSubmit) {
+          elBtnSubmit.disabled = false;
+          elBtnSubmit.textContent = t.btnSubmit;
+        }
+      } else if (level === 'INFO') {
+        bannerEl.className = 'wish-safety-banner safety-info';
+        const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+        const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+        bannerEl.innerHTML = `
+          <div class="safety-header">
+            <span>ℹ️</span>
+            <span>${lang === 'ja' ? 'アーティファクト願いアドバイス' : 'Artifact Wish Advice'}</span>
+          </div>
+          <div class="safety-detail">${msg}</div>
+          ${note ? `<div class="safety-detail" style="margin-top:2px;">${note}</div>` : ''}
+          ${artMetaHtml}
+        `;
+        if (elBtnSubmit) {
+          elBtnSubmit.disabled = false;
+          elBtnSubmit.textContent = t.btnSubmit;
+        }
+      }
+    };
+
     const previewCmdEl = document.getElementById('wish-preview-cmd');
     const updatePreview = () => {
       const cmd = wishService.serializeWish(currentSpec);
       if (previewCmdEl) previewCmdEl.textContent = cmd || t.noItem;
+      updateSafetyBanner(currentSpec);
     };
 
     // 5. 決定 / キャンセルボタン

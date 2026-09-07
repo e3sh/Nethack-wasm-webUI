@@ -332,6 +332,116 @@
             color: #fff;
         }
 
+        /* プレイヤー状態シミュレータバー */
+        .player-sim-bar {
+            max-width: 720px;
+            width: 100%;
+            background-color: #1a1a24;
+            border: 1px solid #36364a;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .player-sim-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .player-sim-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .player-sim-group select, .player-sim-group input {
+            background-color: #101016;
+            border: 1px solid #444458;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        /* 願いセーフティガード (Wish Safety Guard) バナー */
+        .wish-safety-banner {
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            line-height: 1.45;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .wish-safety-banner.safety-fatal {
+            background-color: rgba(255, 85, 85, 0.15);
+            border: 1px solid #ff5555;
+            color: #ffb8b8;
+            box-shadow: 0 0 12px rgba(255, 85, 85, 0.25);
+        }
+
+        .wish-safety-banner.safety-fatal .safety-header {
+            color: #ff5555;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .wish-safety-banner.safety-warning {
+            background-color: rgba(255, 215, 0, 0.15);
+            border: 1px solid #ffd700;
+            color: #ffeaa7;
+        }
+
+        .wish-safety-banner.safety-warning .safety-header {
+            color: #ffd700;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .wish-safety-banner.safety-info {
+            background-color: rgba(79, 140, 255, 0.15);
+            border: 1px solid #4f8cff;
+            color: #cfe0ff;
+        }
+
+        .wish-safety-banner.safety-info .safety-header {
+            color: #4f8cff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .wish-safety-banner .safety-detail {
+            font-size: 12px;
+            opacity: 0.95;
+        }
+
+        .wish-safety-banner.hidden {
+            display: none;
+        }
+
         /* ログ出力エリア */
         .log-box {
             margin-top: 16px;
@@ -361,6 +471,41 @@
         <div class="lang-switcher">
             <button id="lang-ja-btn" class="lang-btn active">日本語 (JA)</button>
             <button id="lang-en-btn" class="lang-btn">English (EN)</button>
+        </div>
+    </div>
+
+    <!-- プレイヤー属性シミュレータバー -->
+    <div class="player-sim-bar">
+        <span class="player-sim-title">🛡️ プレイヤー状態:</span>
+        <div class="player-sim-group">
+            <label for="sim-player-role">職業:</label>
+            <select id="sim-player-role">
+                <option value="samurai">侍 (Samurai)</option>
+                <option value="valkyrie" selected>ワルキューレ (Valkyrie)</option>
+                <option value="wizard">魔法使い (Wizard)</option>
+                <option value="tourist">観光客 (Tourist)</option>
+                <option value="rogue">盗賊 (Rogue)</option>
+                <option value="priest">僧侶 (Priest)</option>
+                <option value="knight">騎士 (Knight)</option>
+                <option value="ranger">レンジャー (Ranger)</option>
+                <option value="monk">修道士 (Monk)</option>
+                <option value="healer">治癒師 (Healer)</option>
+                <option value="barbarian">野蛮人 (Barbarian)</option>
+                <option value="archeologist">考古学者 (Archeologist)</option>
+                <option value="caveman">洞窟人 (Caveman)</option>
+            </select>
+        </div>
+        <div class="player-sim-group">
+            <label for="sim-player-align">属性:</label>
+            <select id="sim-player-align">
+                <option value="lawful">秩序 (Lawful)</option>
+                <option value="neutral" selected>中立 (Neutral)</option>
+                <option value="chaotic">混沌 (Chaotic)</option>
+            </select>
+        </div>
+        <div class="player-sim-group">
+            <label for="sim-art-count">既存AF数:</label>
+            <input type="number" id="sim-art-count" value="0" min="0" max="20" style="width: 50px;" />
         </div>
     </div>
 
@@ -448,13 +593,16 @@
             </div>
         </div>
 
-        <!-- 4. リアルタイム生成プレビュー -->
+        <!-- 4. 願いセーフティガード警告バナー -->
+        <div id="wish-safety-banner" class="wish-safety-banner hidden"></div>
+
+        <!-- 5. リアルタイム生成プレビュー -->
         <div class="preview-box">
             <div class="preview-label" id="lbl-preview">送信されるNetHackコマンド文字列:</div>
             <div id="preview-cmd" class="preview-command">blessed fixed +2 silver dragon scale mail</div>
         </div>
 
-        <!-- 5. 決定 / キャンセルボタン -->
+        <!-- 6. 決定 / キャンセルボタン -->
         <div class="button-bar">
             <button id="btn-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
             <button id="btn-submit" class="btn btn-primary">決定して願う (Enter)</button>
@@ -879,9 +1027,120 @@
             document.getElementById('opt-poisoned').checked = !!currentSpec.isPoisoned;
         }
 
+        // プレイヤー状態シミュレーター管理
+        let playerSimState = {
+            role: 'valkyrie',
+            alignment: 'neutral',
+            race: 'human',
+            existingArtifactCount: 0
+        };
+
+        const simRoleEl = document.getElementById('sim-player-role');
+        const simAlignEl = document.getElementById('sim-player-align');
+        const simArtCountEl = document.getElementById('sim-art-count');
+
+        if (simRoleEl) {
+            simRoleEl.onchange = (e) => {
+                playerSimState.role = e.target.value;
+                updatePreview();
+            };
+        }
+        if (simAlignEl) {
+            simAlignEl.onchange = (e) => {
+                playerSimState.alignment = e.target.value;
+                updatePreview();
+            };
+        }
+        if (simArtCountEl) {
+            simArtCountEl.oninput = (e) => {
+                playerSimState.existingArtifactCount = parseInt(e.target.value, 10) || 0;
+                updatePreview();
+            };
+        }
+
+        const bannerEl = document.getElementById('wish-safety-banner');
+        const btnSubmitEl = document.getElementById('btn-submit');
+
+        function updateSafetyBanner(spec) {
+            if (!bannerEl) return;
+            if (!wishService || typeof wishService.checkWishSafety !== 'function') {
+                bannerEl.className = 'wish-safety-banner hidden';
+                bannerEl.innerHTML = '';
+                if (btnSubmitEl) {
+                    btnSubmitEl.disabled = false;
+                    btnSubmitEl.textContent = I18N[currentLang].btnSubmit;
+                }
+                return;
+            }
+
+            const safety = wishService.checkWishSafety(spec, playerSimState);
+            const level = safety.level || safety.safetyLevel || 'SAFE';
+            if (!safety.isArtifact || level === 'SAFE') {
+                bannerEl.className = 'wish-safety-banner hidden';
+                bannerEl.innerHTML = '';
+                if (btnSubmitEl) {
+                    btnSubmitEl.disabled = false;
+                    btnSubmitEl.textContent = I18N[currentLang].btnSubmit;
+                }
+                return;
+            }
+
+            const lang = currentLang;
+            if (level === 'FATAL') {
+                bannerEl.className = 'wish-safety-banner safety-fatal';
+                const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+                const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+                bannerEl.innerHTML = `
+                    <div class="safety-header">
+                        <span>🛑</span>
+                        <span>${lang === 'ja' ? '【警告】他職業専用クエストアーティファクト（入手不可）' : '【FATAL】Quest Artifact for another role'}</span>
+                    </div>
+                    <div class="safety-detail">${msg}</div>
+                    ${note ? `<div class="safety-detail" style="font-weight:600; margin-top:2px;">💡 ${note}</div>` : ''}
+                `;
+                if (btnSubmitEl) {
+                    btnSubmitEl.disabled = true;
+                    btnSubmitEl.textContent = lang === 'ja' ? '入手不可（願い消費防止）' : 'Unavailable (Cannot Wish)';
+                }
+            } else if (level === 'WARNING') {
+                bannerEl.className = 'wish-safety-banner safety-warning';
+                const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+                const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+                bannerEl.innerHTML = `
+                    <div class="safety-header">
+                        <span>⚠️</span>
+                        <span>${lang === 'ja' ? '【注意】アライメント不一致（神罰爆破ダメージ）' : '【WARNING】Alignment Mismatch (Blasting Damage)'}</span>
+                    </div>
+                    <div class="safety-detail">${msg}</div>
+                    ${note ? `<div class="safety-detail" style="margin-top:2px;">💡 ${note}</div>` : ''}
+                `;
+                if (btnSubmitEl) {
+                    btnSubmitEl.disabled = false;
+                    btnSubmitEl.textContent = I18N[currentLang].btnSubmit;
+                }
+            } else if (level === 'INFO') {
+                bannerEl.className = 'wish-safety-banner safety-info';
+                const msg = lang === 'ja' ? safety.messageJa : safety.messageEn;
+                const note = lang === 'ja' ? safety.suggestionJa : safety.suggestionEn;
+                bannerEl.innerHTML = `
+                    <div class="safety-header">
+                        <span>ℹ️</span>
+                        <span>${lang === 'ja' ? 'アーティファクト願いアドバイス' : 'Artifact Wish Advice'}</span>
+                    </div>
+                    <div class="safety-detail">${msg}</div>
+                    ${note ? `<div class="safety-detail" style="margin-top:2px;">${note}</div>` : ''}
+                `;
+                if (btnSubmitEl) {
+                    btnSubmitEl.disabled = false;
+                    btnSubmitEl.textContent = I18N[currentLang].btnSubmit;
+                }
+            }
+        }
+
         function updatePreview() {
             const cmd = wishService.serializeWish(currentSpec);
             document.getElementById('preview-cmd').textContent = cmd || I18N[currentLang].noItem;
+            updateSafetyBanner(currentSpec);
         }
 
         // 5. 決定・送信

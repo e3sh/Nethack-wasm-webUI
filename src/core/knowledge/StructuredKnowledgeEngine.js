@@ -13,12 +13,28 @@ import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from './tilemappings_data
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { ALL_MONSTER_KNOWLEDGE_BASE } from './MONSTER_KNOWLEDGE_FULL.js';
 import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentificationResolver.js';
-import { OBJECT_CATEGORY_ADVICE, inferObjectCategory } from './OBJECT_CATEGORY_ADVICE.js';
+import { OBJECT_CATEGORY_ADVICE, inferObjectCategory, OBJECT_CATEGORY_DEFINITIONS } from './OBJECT_CATEGORY_ADVICE.js';
 import { ITEM_KNOWLEDGE_BASE } from './ITEM_KNOWLEDGE_BASE.js';
 import { TERRAIN_KNOWLEDGE_MAP, getTerrainEntryByCmap, getTerrainEntryByKey } from './TERRAIN_KNOWLEDGE_BASE.js';
 import { getAdaptiveMonsterSpecs, getMonsterSpecSummaryStrings } from './MonsterSpecPresenter.js';
+import { MONSTER_CLASS_DEFINITIONS, getMonsterClassDefinition, getAllMonsterClassDefinitions } from './MONSTER_CLASS_KNOWLEDGE.js';
+import { MonsterArmorRiskResolver } from './MonsterArmorRiskResolver.js';
+import { ARTIFACT_KNOWLEDGE_BASE, getArtifactDefinition, getAllArtifactDefinitions } from './ARTIFACT_KNOWLEDGE_BASE.js';
 
-export { OBJECT_CATEGORY_ADVICE, inferObjectCategory, ITEM_KNOWLEDGE_BASE, TERRAIN_KNOWLEDGE_MAP };
+export { 
+    OBJECT_CATEGORY_ADVICE, 
+    inferObjectCategory, 
+    OBJECT_CATEGORY_DEFINITIONS,
+    ITEM_KNOWLEDGE_BASE, 
+    TERRAIN_KNOWLEDGE_MAP,
+    MONSTER_CLASS_DEFINITIONS,
+    getMonsterClassDefinition,
+    getAllMonsterClassDefinitions,
+    MonsterArmorRiskResolver,
+    ARTIFACT_KNOWLEDGE_BASE,
+    getArtifactDefinition,
+    getAllArtifactDefinitions
+};
 
 // ============================================================================
 // 全 384 モンスター構造化マスターデータ (MONSTER_KNOWLEDGE_FULL.js よりインポート)
@@ -206,6 +222,23 @@ export class StructuredKnowledgeEngine {
         if (obj.type === 'MONSTER' || obj.dangerLevel !== undefined || obj.traits !== undefined) {
             cloned.specs = getAdaptiveMonsterSpecs(obj, { language: isEn ? 'en' : 'ja' });
             cloned.tacticalAdvice = getMonsterSpecSummaryStrings(obj, { language: isEn ? 'en' : 'ja' });
+
+            // 3.5 モンスタークラス情報 & 変身防具破壊リスクのSSOT結合
+            if (obj.symbol) {
+                const classDef = getMonsterClassDefinition(obj.symbol);
+                if (classDef) {
+                    cloned.monsterClass = {
+                        symbol: classDef.symbol,
+                        name: isEn ? classDef.nameEn : classDef.nameJa,
+                        nameEn: classDef.nameEn,
+                        nameJa: classDef.nameJa,
+                        danger: classDef.danger,
+                        raceTrap: classDef.raceTrap || null,
+                        desc: isEn ? (classDef.descEn || classDef.descJa) : (classDef.descJa || classDef.descEn)
+                    };
+                }
+            }
+            cloned.armorRisk = MonsterArmorRiskResolver.checkArmorRisk(obj);
         } else if (isEn && Array.isArray(obj.tacticalAdviceEn) && obj.tacticalAdviceEn.length > 0) {
             cloned.tacticalAdvice = obj.tacticalAdviceEn;
         } else if (Array.isArray(cloned.tacticalAdvice)) {
@@ -868,6 +901,79 @@ export class StructuredKnowledgeEngine {
             this.staticCache.set(cacheKey, finalResult);
         }
         return finalResult;
+    }
+
+    /**
+     * モンスタークラスの構造化ナレッジ取得
+     * @param {string} symbol - クラス記号 ('a'〜'~', '@' など)
+     * @param {Object} [options]
+     * @returns {Object|null} クラスナレッジ
+     */
+    getMonsterClassKnowledge(symbol, options = {}) {
+        const classDef = getMonsterClassDefinition(symbol);
+        if (!classDef) return null;
+        const isEn = (options.language === 'en' || this.language === 'en' || !this.translationEngine || !this.translationEngine.enabled);
+        return {
+            symbol: classDef.symbol,
+            name: isEn ? classDef.nameEn : classDef.nameJa,
+            nameEn: classDef.nameEn,
+            nameJa: classDef.nameJa,
+            danger: classDef.danger,
+            raceTrap: classDef.raceTrap || null,
+            desc: isEn ? (classDef.descEn || classDef.descJa) : (classDef.descJa || classDef.descEn),
+            descJa: classDef.descJa,
+            descEn: classDef.descEn
+        };
+    }
+
+    /**
+     * 全モンスタークラス一覧の取得
+     * @param {Object} [options]
+     * @returns {Array<Object>} 全クラスナレッジ一覧
+     */
+    getAllMonsterClasses(options = {}) {
+        return getAllMonsterClassDefinitions().map(c => this.getMonsterClassKnowledge(c.symbol, options));
+    }
+
+    /**
+     * 変身時の防具破壊・脱落リスク判定
+     * @param {Object|string} monsterOrName - モンスターオブジェクトまたは名前/サイズ
+     * @returns {Object} 防具リスク判定結果
+     */
+    checkMonsterArmorRisk(monsterOrName) {
+        return MonsterArmorRiskResolver.checkArmorRisk(monsterOrName, name => this.getMonsterKnowledge(name, { translate: false }));
+    }
+
+    /**
+     * アーティファクトの構造化ナレッジ取得
+     * @param {string} idOrName - アーティファクトIDまたは英語/日本語名称
+     * @param {Object} [options]
+     * @returns {Object|null}
+     */
+    getArtifactKnowledge(idOrName, options = {}) {
+        const art = getArtifactDefinition(idOrName);
+        if (!art) return null;
+
+        const isEn = (options.language === 'en' || (this.language === 'en' && !options.language));
+        const baseItem = (art.baseOnum !== undefined && art.baseOnum >= 0) 
+            ? this.getItemKnowledge(art.baseOnum, { translate: !isEn, language: isEn ? 'en' : 'ja' }) 
+            : null;
+
+        return {
+            ...art,
+            displayName: isEn ? art.name : art.nameJa,
+            desc: isEn ? art.descEn : art.descJa,
+            baseItem
+        };
+    }
+
+    /**
+     * 全アーティファクト一覧の取得
+     * @param {Object} [options]
+     * @returns {Array<Object>}
+     */
+    getAllArtifacts(options = {}) {
+        return getAllArtifactDefinitions().map(a => this.getArtifactKnowledge(a.id, options));
     }
 
     /**

@@ -160,4 +160,41 @@ describe('WishService', () => {
             expect(deathResults[0].name).toBe('wand of death');
         });
     });
+
+    describe('checkWishSafety (願いセーフティガード判定)', () => {
+        const wishService = new WishService();
+
+        it('通常アイテムは安全（isSafe: true, safetyLevel: SAFE）と判定されること', () => {
+            const safety = wishService.checkWishSafety('silver dragon scale mail', { alignment: 'chaotic', role: 'wizard' });
+            expect(safety.isSafe).toBe(true);
+            expect(safety.safetyLevel).toBe('SAFE');
+            expect(safety.isArtifact).toBe(false);
+            expect(safety.warningsJa.length).toBe(0);
+        });
+
+        it('他職業のクエストアーティファクトを願おうとした場合、FATAL（願い無駄消費）警告が出ること', () => {
+            // ワルキューレが侍の「村正のツルギ」を願う
+            const safety = wishService.checkWishSafety('The Tsurugi of Muramasa', { alignment: 'lawful', role: 'valkyrie' });
+            expect(safety.isSafe).toBe(false);
+            expect(safety.safetyLevel).toBe('FATAL');
+            expect(safety.warningsJa.some(w => w.includes('他職業') && w.includes('SAMURAI'))).toBe(true);
+        });
+
+        it('属性不一致のアーティファクトを願おうとした場合、WARNING（爆破ダメージ）警告が出ること', () => {
+            // 混沌のプレイヤーが秩序の「Excalibur」を願う
+            const safety = wishService.checkWishSafety('Excalibur', { alignment: 'chaotic', role: 'wizard' });
+            expect(safety.isSafe).toBe(false);
+            expect(safety.safetyLevel).toBe('WARNING');
+            expect(safety.warningsJa.some(w => w.includes('爆破'))).toBe(true);
+        });
+
+        it('自属性かつ自職業のアーティファクトは警告なしで受け入れられること', () => {
+            // 秩序の騎士が「Excalibur」を願う
+            const safety = wishService.checkWishSafety('Excalibur', { alignment: 'lawful', role: 'knight' });
+            expect(safety.isSafe).toBe(true);
+            expect(safety.safetyLevel).toBe('SAFE');
+            expect(safety.warningsJa.length).toBe(0);
+            expect(safety.advicesJa.length).toBeGreaterThan(0); // 確率注意等の情報アドバイスは付与
+        });
+    });
 });

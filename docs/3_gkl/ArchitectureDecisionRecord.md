@@ -94,6 +94,26 @@ related_code:
 - **UI側の裁量（デザイン・表現の自由）**:
   - アイテムのアイコン表現（`item.category` から `🧪` を出すか独自 SVG / 文字にするか）、BUC状態（`item.identification.bucStatus` から `+`/`-` バッジにするか枠色にするか）、ステータスバーの配置レイアウト等は **UI 実装者の自由度** として委ね、GKL から特定の CSS クラス名や固定 HTML 文字列を押し付けない綺麗な境界を維持する。
 
+### 1.15 プレイヤー支援・警告・セーフティ制御の統合調停モデル (Notification, Advice & Safety Arbiter ADR)
+- **背景と課題（情報多重度とアラート疲労の回避）**:
+  - GKLの発展に伴い、「戦術指南 (`TacticalAdvisor`)」「行動指針・最短行動示唆 (`AssistSignalSynthesizer` / Action Stance)」「事故防止・操作抑止 (`ContainerSafetyGuard`, `GenocideService`, `WishService.checkWishSafety`)」の3系統が別個に成長し、UI上で警告や助言が入り乱れてプレイヤーのアラート疲労（警告慣れ・見落とし）や演出の競合が発生するリスクが高まった。
+  - 単なる「共通文字列メッセージ」に集約すると、決定ボタンの無効化や特定スロットの点滅といった**能動的な操作抑止・UI制御**ができず、逆にUIが独自に判定ロジックを抱え込むとルールのSSOTが崩壊する。
+- **決定された設計原則（Headless 制御メタデータと UI Decoupling）**:
+  1. **4段階の介入度階層 (Severity Hierarchy)**:
+     - **`BLOCK` (強制遮断 / セーフティガード)**: 取り返しのつかない即死・全ロスト（BoH爆発、自己虐殺、他職クエストAF願い）を防止。決定操作の物理的無効化（`DISABLE_SUBMIT`）。
+     - **`ALERT` (緊急警告 / アシストシグナル)**: 次の1ターンで死亡・大損害（HP危機、麻痺、神罰爆破）。赤色・最優先HUD・パルスアニメーション。
+     - **`GUIDE` (戦術指南 / タクティカルアドバイス)**: 損をしないための中長期育成・探索（耐性獲得、未識別鑑定、祈り）。黄色/青色・折りたたみ可能。
+     - **`INFO` (静的解説 / ナレッジ)**: カタログ・図鑑（`KnowledgeInspector`）。通常テキスト表示。
+  2. **Headless 制御メタデータ（指示書）の発行**:
+     - GKL（コア層）は固定HTMLや特定CSSを押し付けず、「意味」「危険度階層 (`level`)」「推奨UI制御指示 (`uiDirective`: `DISABLE_SUBMIT` / `REQUIRE_CONFIRM` / `HIGHLIGHT_SLOT`)」「日英メッセージ (`messageJa`, `messageEn`)」「根拠データ (`metadata`)」を含む**構造化制御メタデータ**を発行することに専念する。
+  3. **UI層の完全な表現自由度（プレゼンテーション層の裁量）**:
+     - メタデータを受け取った各UIクライアント（PureJS, React, Vue, Mobile, CUI）は、そのUI形態や実装の好みに応じて自由に演出・抑止を実装する：
+       - *デスクトップWebUI*: 決定ボタンを赤く `disabled` 化し、プレビュー直上に警告バナーと属性タグを表示。
+       - *モバイルタッチUI*: ボタン無効化に加え、ハプティクス（振動）や画面下部ハーフモーダルで注意喚起。
+       - *クラシックCUI*: 赤文字 `[FATAL]` 表示に加え、`[y/N]` のハード確認プロンプトを差し込む。
+  4. **調停エンジン（Arbiter）によるサプレス方針**:
+     - 高優先度の `BLOCK` や `ALERT` がアクティブな場合、低優先度の `GUIDE` や `INFO` を自動的に一時非表示（サプレス）または集約し、本当に命に関わる警告が埋もれない情報トリアージを保証する。
+
 ---
 
 ## 2. 実装仕様 (`lastSequenceBuffer` & `querySequenceSilent`)

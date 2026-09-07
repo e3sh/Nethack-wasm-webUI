@@ -218,6 +218,53 @@
   gap: 12px;
 }
 
+/* プレイヤー情報ステータスバー */
+.wish-player-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.wish-player-status-title {
+  color: var(--accent-gold, #f59e0b);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+}
+
+.wish-status-badge {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border: 1px solid #374151;
+}
+
+.wish-status-badge.align-lawful {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  background-color: rgba(56, 189, 248, 0.1);
+}
+
+.wish-status-badge.align-neutral {
+  color: #a3e635;
+  border-color: rgba(163, 230, 53, 0.4);
+  background-color: rgba(163, 230, 53, 0.1);
+}
+
+.wish-status-badge.align-chaotic {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
 .wish-section-title {
   font-size: 0.75rem;
   font-weight: 700;
@@ -382,6 +429,116 @@
   font-size: 0.82rem;
   cursor: pointer;
   color: #e5e7eb;
+}
+
+/* 願いセーフティガード (Wish Safety Guard) バナー */
+.wish-safety-banner {
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.wish-safety-banner.safety-fatal {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.wish-safety-banner.safety-fatal .safety-header {
+  color: #ef4444;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.wish-safety-banner.safety-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid #f59e0b;
+  color: #fcd34d;
+}
+
+.wish-safety-banner.safety-warning .safety-header {
+  color: #f59e0b;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.wish-safety-banner.safety-info {
+  background-color: rgba(56, 189, 248, 0.12);
+  border: 1px solid #38bdf8;
+  color: #bae6fd;
+}
+
+.wish-safety-banner.safety-info .safety-header {
+  color: #38bdf8;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+.wish-safety-banner .safety-detail {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+/* アーティファクト詳細メタ情報 */
+.wish-art-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.wish-art-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wish-art-tag {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+}
+
+.wish-art-tag.tag-intrinsic {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+.wish-art-tag.tag-effect {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #d8b4fe;
+}
+
+.wish-art-tag.tag-align {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+}
+
+.wish-safety-banner.hidden {
+  display: none;
 }
 
 .wish-preview-box {

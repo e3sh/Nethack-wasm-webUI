@@ -287,6 +287,71 @@
         .tag-ITEM { background: rgba(148, 163, 184, 0.2); color: var(--text-secondary); border: 1px solid var(--text-secondary); }
         .tag-PURPLE { background: rgba(168, 85, 247, 0.2); color: var(--badge-purple); border: 1px solid var(--badge-purple); }
 
+        /* 翻訳ステータスバッジ */
+        .trans-badge-MATCH { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+        .trans-badge-MISMATCH { background: rgba(249, 115, 22, 0.25); color: #fdba74; border: 1px solid #f97316; }
+        .trans-badge-UNTRANSLATED { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+
+        /* 翻訳対比＆検証ボックス */
+        .trans-compare-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .trans-compare-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+            margin-bottom: 4px;
+        }
+
+        .trans-compare-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .trans-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .trans-label {
+            width: 145px;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .trans-value {
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        .trans-mismatch-val {
+            color: #fb923c;
+            font-weight: bold;
+        }
+
+        .trans-untranslated-val {
+            color: #f87171;
+            font-style: italic;
+        }
+
         /* 右カラム: ナレッジプレビューカード */
         .content-area {
             flex: 1;
@@ -485,7 +550,9 @@
     <!-- ナレッジ種別 タブナビゲーション -->
     <nav class="nav-tabs" id="navTabs">
         <button class="nav-tab active" data-tab="MONSTER">👾 モンスター <span class="tab-count" id="count-MONSTER">0</span></button>
+        <button class="nav-tab" data-tab="CLASS">🏷️ クラス <span class="tab-count" id="count-CLASS">0</span></button>
         <button class="nav-tab" data-tab="ITEM">🗡️ アイテム <span class="tab-count" id="count-ITEM">0</span></button>
+        <button class="nav-tab" data-tab="ARTIFACT">✨ アーティファクト <span class="tab-count" id="count-ARTIFACT">0</span></button>
         <button class="nav-tab" data-tab="CHARACTER">🧙 種族・職業 <span class="tab-count" id="count-CHARACTER">0</span></button>
         <button class="nav-tab" data-tab="TERRAIN">🏔️ 地形・設備 <span class="tab-count" id="count-TERRAIN">0</span></button>
         <button class="nav-tab" data-tab="CHEMISTRY">🧪 ケミストリー <span class="tab-count" id="count-CHEMISTRY">0</span></button>
@@ -499,9 +566,16 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Search name, ID, or effects...">
                 <div class="filters-row" id="filterContainer">
-                    <!-- 動的フィルター選択 -->
-                    <select id="subFilter">
+                    <!-- 動的カテゴリーフィルター -->
+                    <select id="subFilter" style="flex: 1; min-width: 0;">
                         <option value="ALL">All Categories</option>
+                    </select>
+                    <!-- 翻訳検証フィルター (MONSTER / ITEM タブ用) -->
+                    <select id="transFilter" style="flex: 1; min-width: 0;">
+                        <option value="ALL">🌐 全翻訳状態</option>
+                        <option value="MISMATCH">⚠️ 訳揺れ検知</option>
+                        <option value="UNTRANSLATED">❓ 辞書未訳</option>
+                        <option value="MATCH">✅ 完全一致</option>
                     </select>
                 </div>
             </div>
@@ -528,11 +602,19 @@
         import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
 
         // SSOT ナレッジマスター群のインポート
+        import { ALL_MONSTER_KNOWLEDGE_BASE } from '../src/core/knowledge/MONSTER_KNOWLEDGE_FULL.js';
+        import { MONSTER_JP_MAP } from '../src/core/knowledge/MONSTER_JP_MAP.js';
+        import { OBJECT_KNOWLEDGE_BASE } from '../src/core/knowledge/OBJECT_KNOWLEDGE_BASE.js';
+        import { OBJECT_JP_MAP } from '../src/core/knowledge/OBJECT_JP_MAP.js';
+        import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from '../src/core/knowledge/tilemappings_data.js';
         import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from '../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
         import { TERRAIN_KNOWLEDGE_MAP } from '../src/core/knowledge/TERRAIN_KNOWLEDGE_BASE.js';
         import { CHEMISTRY_INTERACTIONS } from '../src/core/knowledge/CHEMISTRY_KNOWLEDGE_BASE.js';
         import { ADVICE_DEFINITIONS } from '../src/core/knowledge/ADVICE_DEFINITIONS.js';
         import { ASSIST_SIGNAL_DEFINITIONS } from '../src/core/knowledge/ASSIST_SIGNAL_DEFINITIONS.js';
+        import { MONSTER_CLASS_DEFINITIONS, MONSTER_CLASS_MAP } from '../src/core/knowledge/MONSTER_CLASS_KNOWLEDGE.js';
+        import { MonsterArmorRiskResolver } from '../src/core/knowledge/MonsterArmorRiskResolver.js';
+        import { ARTIFACT_KNOWLEDGE_BASE, ARTIFACT_KNOWLEDGE_MAP } from '../src/core/knowledge/ARTIFACT_KNOWLEDGE_BASE.js';
 
         const translator = new TranslationEngine({ enabled: true });
         const knowledgeEngine = new StructuredKnowledgeEngine({ translationEngine: translator });
@@ -544,6 +626,16 @@
         // --- 1. エンティティリストの生成 ---
         const itemEntities = Array.from(knowledgeEngine.onumMap.values()).map(i => ({ ...i, entityType: 'ITEM' }));
         const monsterEntities = Array.from(knowledgeEngine.monOffsetMap.values()).map(m => ({ ...m, entityType: 'MONSTER' }));
+        const classEntities = MONSTER_CLASS_DEFINITIONS.map(c => ({
+            ...c,
+            id: `class_${c.symbol === ' ' ? 'space' : c.symbol}`,
+            name: c.nameEn,
+            entityType: 'CLASS'
+        }));
+        const artifactEntities = ARTIFACT_KNOWLEDGE_BASE.map(a => ({
+            ...a,
+            entityType: 'ARTIFACT'
+        }));
 
         const characterEntities = [
             ...Object.values(RACE_KNOWLEDGE_MAP).map(r => ({ ...r, entityType: 'CHARACTER', subType: 'RACE', icon: '🧝' })),
@@ -558,6 +650,8 @@
         const ENTITIES_BY_TAB = {
             MONSTER: monsterEntities,
             ITEM: itemEntities,
+            CLASS: classEntities,
+            ARTIFACT: artifactEntities,
             CHARACTER: characterEntities,
             TERRAIN: terrainEntities,
             CHEMISTRY: chemistryEntities,
@@ -569,6 +663,8 @@
         const TAB_LABELS = {
             MONSTER: { ja: '👾 モンスター', en: '👾 Monsters' },
             ITEM: { ja: '🗡️ アイテム', en: '🗡️ Items' },
+            CLASS: { ja: '🏷️ クラス', en: '🏷️ Classes' },
+            ARTIFACT: { ja: '✨ アーティファクト', en: '✨ Artifacts' },
             CHARACTER: { ja: '🧙 種族・職業', en: '🧙 Races & Roles' },
             TERRAIN: { ja: '🏔️ 地形・設備', en: '🏔️ Terrains & Features' },
             CHEMISTRY: { ja: '🧪 ケミストリー', en: '🧪 Chemistry' },
@@ -593,6 +689,7 @@
         // DOM 要素の取得
         const searchInput = document.getElementById('searchInput');
         const subFilter = document.getElementById('subFilter');
+        const transFilter = document.getElementById('transFilter');
         const entityList = document.getElementById('entityList');
         const knowledgeCard = document.getElementById('knowledgeCard');
         const emptyPlaceholder = document.getElementById('emptyPlaceholder');
@@ -625,14 +722,26 @@
         });
 
         function setupSubFilterOptions() {
-            subFilter.innerHTML = '<option value="ALL">All Categories</option>';
+            subFilter.innerHTML = `<option value="ALL">${currentLang === 'ja' ? '全カテゴリ' : 'All Categories'}</option>`;
             const list = ENTITIES_BY_TAB[currentTab] || [];
+
+            // MONSTER または ITEM かつ日本語モードの場合のみ翻訳検証フィルターを表示
+            if ((currentTab === 'MONSTER' || currentTab === 'ITEM') && currentLang === 'ja') {
+                transFilter.style.display = 'block';
+            } else {
+                transFilter.style.display = 'none';
+                transFilter.value = 'ALL';
+            }
 
             let categories = new Set();
             if (currentTab === 'MONSTER') {
                 categories = new Set(['LETHAL', 'HIGH', 'MEDIUM', 'LOW']);
             } else if (currentTab === 'ITEM') {
                 list.forEach(i => { if (i.category) categories.add(i.category); });
+            } else if (currentTab === 'CLASS') {
+                categories = new Set(['EXTREME_TRAP', 'CRITICAL', 'HIGH', 'MEDIUM', 'NORMAL']);
+            } else if (currentTab === 'ARTIFACT') {
+                categories = new Set(['WEAPON', 'TOOL', 'ARMOR', 'AMULET', 'GEM', 'QUEST', 'LAWFUL', 'NEUTRAL', 'CHAOTIC']);
             } else if (currentTab === 'CHARACTER') {
                 categories = new Set(['RACE', 'ROLE']);
             } else if (currentTab === 'TERRAIN') {
@@ -674,6 +783,135 @@
             }
 
             return translator.translate(name);
+        }
+
+        /**
+         * エンティティの翻訳対比＆検証オブジェクトを生成 (SSOT ナレッジ和名 vs TranslationEngine 辞書訳)
+         * entity が翻訳済み（name が日本語化）であっても、monOffset / onum / id から
+         * 100% 確実に英語原名を特定し、辞書訳およびナレッジ公式和名と厳密に対比する。
+         * @param {Object} entity
+         * @returns {Object|null}
+         */
+        function getTranslationComparison(entity) {
+            if (!entity) return null;
+            const isMonster = entity.entityType === 'MONSTER' || entity.monOffset !== undefined;
+            const isItem = entity.entityType === 'ITEM' || entity.onum !== undefined;
+            if (!isMonster && !isItem) return null;
+
+            let rawEnglishName = '';
+            let knowledgeNameJa = '';
+            let aliases = [];
+            const cleanId = entity.id || '';
+
+            if (isMonster) {
+                const monOffset = (entity.monOffset !== undefined && entity.monOffset !== null) ? entity.monOffset : -1;
+                // 1. ALL_MONSTER_KNOWLEDGE_BASE から英語マスターエントリを検索
+                const masterMon = ALL_MONSTER_KNOWLEDGE_BASE.find(m => (monOffset >= 0 && m.monOffset === monOffset) || (cleanId && m.id === cleanId));
+                
+                // 英語原名の確定
+                if (masterMon && masterMon.name) {
+                    rawEnglishName = masterMon.name;
+                } else if (monOffset >= 0 && MONSTER_TILEMAP_NAMES[monOffset]) {
+                    rawEnglishName = MONSTER_TILEMAP_NAMES[monOffset].split('/')[0].trim();
+                } else {
+                    rawEnglishName = entity.nameEn || entity.name || '';
+                }
+
+                // ナレッジ公式和名 (MONSTER_JP_MAP / MONSTER_KNOWLEDGE_FULL 由来)
+                knowledgeNameJa = masterMon?.nameJa || (rawEnglishName ? MONSTER_JP_MAP.monsters[rawEnglishName] : '') || '';
+                if (typeof knowledgeNameJa === 'object' && knowledgeNameJa !== null) {
+                    knowledgeNameJa = knowledgeNameJa.noun || knowledgeNameJa.adj || String(knowledgeNameJa);
+                }
+
+                // 別名・エイリアス
+                aliases = masterMon?.aliases || (cleanId ? MONSTER_JP_MAP.aliases[cleanId] : []) || [];
+                if (Array.isArray(entity.aliases) && entity.aliases.length > 0) {
+                    aliases = Array.from(new Set([...aliases, ...entity.aliases]));
+                }
+            } else if (isItem) {
+                const onum = (entity.onum !== undefined && entity.onum !== null)
+                    ? entity.onum
+                    : (typeof entity.id === 'string' && entity.id.startsWith('item_onum_') ? parseInt(entity.id.replace('item_onum_', ''), 10) : -1);
+
+                const masterItem = (onum >= 0 && onum < OBJECT_KNOWLEDGE_BASE.length) ? OBJECT_KNOWLEDGE_BASE[onum] : null;
+                const fullItem = onum >= 0 ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+
+                // 英語原名の確定
+                if (fullItem && fullItem.name) {
+                    rawEnglishName = fullItem.name;
+                } else if (masterItem && masterItem.name) {
+                    rawEnglishName = masterItem.name;
+                } else if (onum >= 0 && OBJECT_TILEMAP_NAMES[onum]) {
+                    rawEnglishName = OBJECT_TILEMAP_NAMES[onum].split('/')[0].trim();
+                } else {
+                    rawEnglishName = entity.nameEn || entity.name || '';
+                }
+
+                // ナレッジ公式和名 (OBJECT_JP_MAP 由来)
+                const rawJp = OBJECT_JP_MAP.objects[rawEnglishName] || fullItem?.nameJa || '';
+                knowledgeNameJa = (typeof rawJp === 'object' && rawJp !== null) ? (rawJp.noun || rawJp.adj || String(rawJp)) : String(rawJp || '');
+
+                // 別名・エイリアス
+                const aliasKey = rawEnglishName.toLowerCase();
+                const defaultAliases = OBJECT_JP_MAP.aliases[aliasKey] ? [OBJECT_JP_MAP.aliases[aliasKey]] : [];
+                aliases = fullItem?.aliases || defaultAliases;
+                if (Array.isArray(entity.aliases) && entity.aliases.length > 0) {
+                    aliases = Array.from(new Set([...aliases, ...entity.aliases]));
+                }
+            }
+
+            // TranslationEngine (nhMessage.js 実行辞書) で英語原名を翻訳
+            const trName = translateNameWithSlash(rawEnglishName);
+
+            // 翻訳成否の判定 (英語原名と異なれば翻訳成功)
+            const hasTr = Boolean(trName && trName.trim().toLowerCase() !== rawEnglishName.trim().toLowerCase());
+            const hasKnowledge = Boolean(knowledgeNameJa && knowledgeNameJa.trim().toLowerCase() !== rawEnglishName.trim().toLowerCase());
+
+            let status = 'MATCH';
+            let statusBadgeText = '✅ 完全一致';
+            let statusBadgeClass = 'trans-badge-MATCH';
+            let detailMessage = 'ナレッジ公式和名と辞書訳が完全一致しています。';
+
+            if (!hasTr && !hasKnowledge) {
+                status = 'UNTRANSLATED';
+                statusBadgeText = '❓ 未翻訳';
+                statusBadgeClass = 'trans-badge-UNTRANSLATED';
+                detailMessage = 'ナレッジ側・辞書側の双方が未翻訳（英語のまま）です。';
+            } else if (!hasTr) {
+                status = 'UNTRANSLATED';
+                statusBadgeText = '❓ 辞書未訳';
+                statusBadgeClass = 'trans-badge-UNTRANSLATED';
+                detailMessage = 'ナレッジ公式和名は存在しますが、nhMessage.js 実行辞書に未登録です。';
+            } else if (!hasKnowledge) {
+                status = 'UNTRANSLATED';
+                statusBadgeText = '❓ ナレッジ未訳';
+                statusBadgeClass = 'trans-badge-UNTRANSLATED';
+                detailMessage = '辞書訳は存在しますが、ナレッジマスター(nameJa)に未登録です。';
+            } else if (knowledgeNameJa.trim() === trName.trim()) {
+                status = 'MATCH';
+                statusBadgeText = '✅ 完全一致';
+                statusBadgeClass = 'trans-badge-MATCH';
+                detailMessage = 'ナレッジ公式和名と辞書訳が完全一致しています。';
+            } else {
+                status = 'MISMATCH';
+                statusBadgeText = '⚠️ 訳揺れ';
+                statusBadgeClass = 'trans-badge-MISMATCH';
+                detailMessage = `表記揺れ検知: ナレッジ「${knowledgeNameJa}」 ≠ 辞書「${trName}」`;
+            }
+
+            return {
+                rawName: rawEnglishName,
+                cleanId,
+                knowledgeNameJa: knowledgeNameJa || rawEnglishName,
+                trName: trName || rawEnglishName,
+                aliases,
+                status,
+                statusBadgeText,
+                statusBadgeClass,
+                detailMessage,
+                hasTr,
+                hasKnowledge
+            };
         }
 
         // 耐性・内在能力・特性の完全多言語対応マスター (SSOT)
@@ -959,8 +1197,12 @@
         btnJp.addEventListener('click', () => {
             currentLang = 'ja';
             translator.setEnabled(true);
+            knowledgeEngine.setLanguage('ja');
+            knowledgeEngine.clearCache();
             btnJp.classList.add('active');
             btnEn.classList.remove('active');
+            searchInput.placeholder = '名前、ID、効果などを検索...';
+            setupSubFilterOptions();
             updateTabLabels();
             renderList();
             renderCard();
@@ -969,8 +1211,12 @@
         btnEn.addEventListener('click', () => {
             currentLang = 'en';
             translator.setEnabled(false);
+            knowledgeEngine.setLanguage('en');
+            knowledgeEngine.clearCache();
             btnEn.classList.add('active');
             btnJp.classList.remove('active');
+            searchInput.placeholder = 'Search name, ID, or effects...';
+            setupSubFilterOptions();
             updateTabLabels();
             renderList();
             renderCard();
@@ -978,11 +1224,13 @@
 
         searchInput.addEventListener('input', renderList);
         subFilter.addEventListener('change', renderList);
+        transFilter.addEventListener('change', renderList);
 
         // --- 2. リスト描画 ---
         function renderList() {
             const query = searchInput.value.toLowerCase().trim();
             const filterVal = subFilter.value;
+            const transFilterVal = transFilter.value;
             const currentList = ENTITIES_BY_TAB[currentTab] || [];
 
             const filtered = currentList.filter(e => {
@@ -990,11 +1238,22 @@
                 if (filterVal !== 'ALL') {
                     if (currentTab === 'MONSTER' && e.dangerLevel !== filterVal) return false;
                     if (currentTab === 'ITEM' && e.category !== filterVal) return false;
+                    if (currentTab === 'CLASS' && e.danger !== filterVal) return false;
+                    if (currentTab === 'ARTIFACT') {
+                        if (filterVal === 'QUEST' && !e.isQuestArtifact) return false;
+                        else if (filterVal !== 'QUEST' && e.category !== filterVal && e.alignment !== filterVal) return false;
+                    }
                     if (currentTab === 'CHARACTER' && e.subType !== filterVal) return false;
                     if (currentTab === 'TERRAIN' && e.category !== filterVal) return false;
                     if (currentTab === 'CHEMISTRY' && (e.action?.risk !== filterVal && (e.action?.risk || 'INFO') !== filterVal)) return false;
                     if (currentTab === 'ADVICE' && e.severity !== filterVal) return false;
                     if (currentTab === 'SIGNAL' && e.stance !== filterVal) return false;
+                }
+
+                // 翻訳検証フィルター (MONSTER / ITEM)
+                if ((currentTab === 'MONSTER' || currentTab === 'ITEM') && transFilterVal !== 'ALL') {
+                    const comp = getTranslationComparison(e);
+                    if (comp && comp.status !== transFilterVal) return false;
                 }
 
                 // 検索クエリ
@@ -1004,7 +1263,32 @@
                     const trStr = translateNameWithSlash(e.name || '').toLowerCase();
                     const topicStr = (e.topic || e.wikiTopic || '').toLowerCase();
                     const msgStr = (e.shortMessageJa || e.shortMessageEn || e.templateJa || e.templateEn || '').toLowerCase();
-                    return idStr.includes(query) || nameStr.includes(query) || trStr.includes(query) || topicStr.includes(query) || msgStr.includes(query);
+                    const aliasesStr = Array.isArray(e.aliases) ? e.aliases.join(' ').toLowerCase() : '';
+                    
+                    let compMatch = false;
+                    if (currentTab === 'MONSTER' || currentTab === 'ITEM') {
+                        const comp = getTranslationComparison(e);
+                        if (comp) {
+                            if (comp.rawName.toLowerCase().includes(query)) compMatch = true;
+                            if (comp.knowledgeNameJa.toLowerCase().includes(query)) compMatch = true;
+                            if (comp.trName.toLowerCase().includes(query)) compMatch = true;
+                            if (comp.aliases.some(a => a.toLowerCase().includes(query))) compMatch = true;
+                        }
+                    } else if (currentTab === 'CLASS') {
+                        const sym = (e.symbol || '').toLowerCase();
+                        const descJa = (e.descJa || '').toLowerCase();
+                        const descEn = (e.descEn || '').toLowerCase();
+                        if (sym === query || sym.includes(query) || descJa.includes(query) || descEn.includes(query)) compMatch = true;
+                    } else if (currentTab === 'ARTIFACT') {
+                        const base = (e.baseName || '').toLowerCase();
+                        const role = (e.role || '').toLowerCase();
+                        const descJa = (e.descJa || '').toLowerCase();
+                        const descEn = (e.descEn || '').toLowerCase();
+                        const invoke = (e.invoke || '').toLowerCase();
+                        if (base.includes(query) || role.includes(query) || descJa.includes(query) || descEn.includes(query) || invoke.includes(query)) compMatch = true;
+                    }
+
+                    return idStr.includes(query) || nameStr.includes(query) || trStr.includes(query) || topicStr.includes(query) || msgStr.includes(query) || aliasesStr.includes(query) || compMatch;
                 }
                 return true;
             });
@@ -1015,30 +1299,90 @@
             filtered.forEach(e => {
                 const li = document.createElement('li');
                 const eid = e.id || e.name;
-                li.className = `entity-item ${eid === selectedEntityId ? 'active' : ''}`;
+                const isActive = (eid === selectedEntityId) ||
+                    (currentTab === 'ITEM' && (e.onum === selectedEntityId || `item_onum_${e.onum}` === selectedEntityId || `obj_${e.onum}` === selectedEntityId)) ||
+                    (currentTab === 'CLASS' && (e.symbol === selectedEntityId || `class_${e.symbol}` === selectedEntityId));
+                if (isActive) selectedEntityId = eid;
+                li.className = `entity-item ${isActive ? 'active' : ''}`;
 
                 let title = e.name;
                 let subtitle = e.id;
                 let badgeClass = 'tag-ITEM';
                 let badgeText = e.category || '';
                 let iconHtml = '';
+                let transBadgeHtml = '';
 
                 if (currentTab === 'MONSTER') {
-                    title = currentLang === 'ja' ? translateNameWithSlash(e.name) : e.name;
-                    subtitle = e.name;
+                    const comp = getTranslationComparison(e);
+                    if (currentLang === 'ja') {
+                        title = comp?.knowledgeNameJa || translateNameWithSlash(e.name);
+                        if (comp && comp.status === 'MISMATCH') {
+                            subtitle = `⚠️ 辞書: ${comp.trName} | 原名: ${comp.rawName}`;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-MISMATCH" style="font-size:0.6rem; padding:1px 4px;">揺れ</span>`;
+                        } else if (comp && comp.status === 'UNTRANSLATED' && !comp.hasTr) {
+                            subtitle = `❓ 辞書未訳 | 原名: ${comp.rawName}`;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-UNTRANSLATED" style="font-size:0.6rem; padding:1px 4px;">未訳</span>`;
+                        } else if (comp && comp.status === 'MATCH') {
+                            subtitle = comp.rawName;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-MATCH" style="font-size:0.6rem; padding:1px 4px;">一致</span>`;
+                        } else {
+                            subtitle = comp ? comp.rawName : e.name;
+                        }
+                    } else {
+                        title = comp?.rawName || e.name;
+                        subtitle = `ID: ${e.id}${e.symbol ? ` ('${e.symbol}')` : ''}`;
+                        transBadgeHtml = '';
+                    }
                     badgeClass = `tag-${e.dangerLevel || 'LOW'}`;
                     badgeText = e.dangerLevel;
                     const glyphId = getEntityGlyphId(e);
                     const iconStyle = getEntityGlyphStyleString(glyphId, 24);
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '👾';
                 } else if (currentTab === 'ITEM') {
-                    title = currentLang === 'ja' ? translateNameWithSlash(e.name) : e.name;
-                    subtitle = `onum: ${e.onum ?? 'N/A'}`;
+                    const comp = getTranslationComparison(e);
+                    if (currentLang === 'ja') {
+                        title = comp?.knowledgeNameJa || translateNameWithSlash(e.name);
+                        if (comp && comp.status === 'MISMATCH') {
+                            subtitle = `⚠️ 辞書: ${comp.trName} | 原名: ${comp.rawName}`;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-MISMATCH" style="font-size:0.6rem; padding:1px 4px;">揺れ</span>`;
+                        } else if (comp && comp.status === 'UNTRANSLATED' && !comp.hasTr) {
+                            subtitle = `❓ 辞書未訳 | 原名: ${comp.rawName}`;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-UNTRANSLATED" style="font-size:0.6rem; padding:1px 4px;">未訳</span>`;
+                        } else if (comp && comp.status === 'MATCH') {
+                            subtitle = `${comp.rawName} (onum: ${e.onum ?? 'N/A'})`;
+                            transBadgeHtml = `<span class="tag-badge trans-badge-MATCH" style="font-size:0.6rem; padding:1px 4px;">一致</span>`;
+                        } else {
+                            subtitle = comp ? `${comp.rawName} (onum: ${e.onum ?? 'N/A'})` : `onum: ${e.onum ?? 'N/A'}`;
+                        }
+                    } else {
+                        title = comp?.rawName || e.name;
+                        subtitle = `${comp?.rawName || e.name} (onum: ${e.onum ?? 'N/A'})`;
+                        transBadgeHtml = '';
+                    }
                     badgeClass = 'tag-ITEM';
                     badgeText = e.category;
                     const glyphId = getEntityGlyphId(e);
                     const iconStyle = getEntityGlyphStyleString(glyphId, 24);
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '🗡️';
+                } else if (currentTab === 'CLASS') {
+                    title = currentLang === 'ja' ? e.nameJa : e.nameEn;
+                    const symDisplay = e.symbol === ' ' ? '<space>' : e.symbol;
+                    const trapText = e.raceTrap ? (currentLang === 'ja' ? ' ☠️自己虐殺注意' : ' ☠️Race Trap') : '';
+                    subtitle = `シンボル: '${symDisplay}'${trapText}`;
+                    badgeClass = `tag-${e.danger || 'NORMAL'}`;
+                    badgeText = e.danger;
+                    const charDisplay = e.symbol === ' ' ? '␣' : e.symbol;
+                    iconHtml = `<div style="font-family:monospace; font-size:1.3rem; font-weight:bold; color:var(--accent-color); text-align:center; width:26px; height:26px; line-height:24px; background:rgba(0,0,0,0.3); border-radius:4px; border:1px solid rgba(56,189,248,0.3);">${charDisplay}</div>`;
+                } else if (currentTab === 'ARTIFACT') {
+                    title = currentLang === 'ja' ? e.nameJa : e.name;
+                    const qBadge = e.isQuestArtifact ? (currentLang === 'ja' ? ' [クエスト]' : ' [Quest]') : '';
+                    subtitle = `Base: ${e.baseName} | ${e.alignment}${e.role ? ` (${e.role})` : ''}${qBadge}`;
+                    badgeClass = e.alignment === 'LAWFUL' ? 'tag-INFO' : (e.alignment === 'CHAOTIC' ? 'tag-LETHAL' : 'tag-LOW');
+                    badgeText = e.alignment;
+                    const baseOnum = e.baseOnum !== undefined ? e.baseOnum : 54;
+                    const glyphId = GLYPH_OFFSETS.OBJECTS + baseOnum;
+                    const iconStyle = getEntityGlyphStyleString(glyphId, 24);
+                    iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '✨';
                 } else if (currentTab === 'CHARACTER') {
                     title = currentLang === 'ja' ? (e.nameJa || e.name) : e.name;
                     subtitle = e.subType;
@@ -1092,7 +1436,10 @@
                             <div class="entity-subtitle">${subtitle}</div>
                         </div>
                     </div>
-                    <span class="tag-badge ${badgeClass}">${badgeText}</span>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        ${transBadgeHtml}
+                        <span class="tag-badge ${badgeClass}">${badgeText}</span>
+                    </div>
                 `;
 
                 li.addEventListener('click', () => {
@@ -1114,7 +1461,12 @@
             }
 
             const currentList = ENTITIES_BY_TAB[currentTab] || [];
-            const data = currentList.find(e => (e.id === selectedEntityId || e.name === selectedEntityId));
+            const data = currentList.find(e => (
+                e.id === selectedEntityId || 
+                e.name === selectedEntityId ||
+                (currentTab === 'ITEM' && (e.onum === selectedEntityId || `item_onum_${e.onum}` === selectedEntityId || `obj_${e.onum}` === selectedEntityId)) ||
+                (currentTab === 'CLASS' && (e.symbol === selectedEntityId || `class_${e.symbol}` === selectedEntityId))
+            ));
 
             if (!data) {
                 knowledgeCard.style.display = 'none';
@@ -1129,6 +1481,10 @@
                 renderMonsterCard(data);
             } else if (currentTab === 'ITEM') {
                 renderItemCard(data);
+            } else if (currentTab === 'CLASS') {
+                renderClassCard(data);
+            } else if (currentTab === 'ARTIFACT') {
+                renderArtifactCard(data);
             } else if (currentTab === 'CHARACTER') {
                 renderCharacterCard(data);
             } else if (currentTab === 'TERRAIN') {
@@ -1147,7 +1503,7 @@
         // -------------------------------------------------------------
         function renderMonsterCard(monRaw) {
             const isTranslate = (currentLang === 'ja');
-            const mon = knowledgeEngine.getMonsterKnowledge(monRaw.id, { translate: isTranslate }) || monRaw;
+            const mon = knowledgeEngine.getMonsterKnowledge(monRaw.id, { translate: isTranslate, language: currentLang }) || monRaw;
 
             const badgeClass = `tag-${mon.dangerLevel || 'LOW'}`;
             const stats = mon.stats || {};
@@ -1156,12 +1512,63 @@
             const glyphId = getEntityGlyphId(mon);
             const iconStyle = getEntityGlyphStyleString(glyphId, 48);
 
-            const displayTitle = currentLang === 'ja' ? translateNameWithSlash(mon.name) : mon.name;
+            const comp = getTranslationComparison(mon);
+            const displayTitle = currentLang === 'ja' ? (comp?.knowledgeNameJa || mon.name) : (comp?.rawName || mon.name);
 
-            // フラグ算出
+            // 🌐 翻訳対比＆検証ボックスの HTML 構築 (日本語モード時のみ表示)
+            const transComparisonHtml = (currentLang === 'ja' && comp) ? `
+                <div class="trans-compare-box">
+                    <div class="trans-compare-header">
+                        <div class="trans-compare-title">
+                            <span>🌐 翻訳対比 ＆ 表記ゆらぎ検証</span>
+                            <span class="tag-badge ${comp.statusBadgeClass}">${comp.statusBadgeText}</span>
+                        </div>
+                        <span style="font-size:0.7rem; color:var(--text-secondary);">${comp.detailMessage}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px 16px;">
+                        <div class="trans-row">
+                            <span class="trans-label">🇺🇸 英語原名:</span>
+                            <span class="trans-value" style="font-family:monospace; font-weight:600;">${comp.rawName}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">📘 ナレッジ公式和名:</span>
+                            <span class="trans-value ${comp.status === 'MISMATCH' ? 'trans-mismatch-val' : ''}">${comp.knowledgeNameJa}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">🌐 TranslationEngine訳:</span>
+                            <span class="trans-value ${comp.status === 'MISMATCH' ? 'trans-mismatch-val' : (!comp.hasTr ? 'trans-untranslated-val' : '')}">${comp.trName}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">🏷️ 登録エイリアス(別名):</span>
+                            <span class="trans-value" style="font-size:0.75rem; color:var(--text-secondary);">${comp.aliases.length > 0 ? comp.aliases.join(', ') : 'なし'}</span>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
+
+            // 公式メタデータフラグ算出
             const flags = [];
+            if (mon.symbol) flags.push({ label: 'symbol', value: `'${mon.symbol}'`, badge: 'background:rgba(56,189,248,0.25); border:1px solid #38bdf8; color:#38bdf8;' });
+            if (mon.className) flags.push({ label: 'class', value: mon.className, badge: 'background:rgba(168,85,247,0.25); border:1px solid #a855f7; color:#f8fafc;' });
+            flags.push({ label: 'size', value: mon.size || 'MEDIUM', badge: 'background:rgba(255,255,255,0.08); border:1px solid #64748b; color:#cbd5e1;' });
+            flags.push({ label: 'dangerLevel', value: mon.dangerLevel || 'LOW', badge: 'background:var(--accent-color); color:#000;' });
+            if (mon.hostileDangerLevel && mon.hostileDangerLevel !== mon.dangerLevel) {
+                flags.push({ label: 'hostileDanger', value: mon.hostileDangerLevel, badge: 'background:#ef4444; color:#fff;' });
+            }
             flags.push({ label: 'defaultPeaceful', value: !!mon.defaultPeaceful, badge: mon.defaultPeaceful ? 'background:#22c55e; color:#000;' : 'background:#475569; color:#fff;' });
-            flags.push({ label: 'dangerLevel', value: mon.dangerLevel || 'LOW', badge: `background:var(--accent-color); color:#000;` });
+            flags.push({ label: 'canGenocide', value: mon.canGenocide ?? true, badge: (mon.canGenocide ?? true) ? 'background:#0284c7; color:#fff;' : 'background:#dc2626; color:#fff;' });
+            flags.push({ label: 'canPolymorph', value: mon.canPolymorph ?? true, badge: (mon.canPolymorph ?? true) ? 'background:#10b981; color:#fff;' : 'background:#64748b; color:#fff;' });
+            if (mon.isUnique) {
+                flags.push({ label: 'isUnique', value: true, badge: 'background:#eab308; color:#000; font-weight:bold;' });
+            }
+
+            // 🎯 公式行動能力フラグ
+            const abilityFlags = [];
+            if (mon.canFly) abilityFlags.push({ label: currentLang === 'ja' ? '飛行 (Fly)' : 'Can Fly', color: '#0284c7' });
+            if (mon.canSwim) abilityFlags.push({ label: currentLang === 'ja' ? '水泳 (Swim)' : 'Can Swim', color: '#0ea5e9' });
+            if (mon.passesWalls) abilityFlags.push({ label: currentLang === 'ja' ? '壁抜け (Pass Walls)' : 'Passes Walls', color: '#8b5cf6' });
+            if (mon.hasHands) abilityFlags.push({ label: currentLang === 'ja' ? '手あり (Hands)' : 'Has Hands', color: '#10b981' });
+            if (mon.canWearArmor) abilityFlags.push({ label: currentLang === 'ja' ? '防具着用可 (Wear Armor)' : 'Can Wear Armor', color: '#f59e0b' });
 
             // 🎯 新スキーマ traits の真偽値フラグ抽出
             const activeTraits = [];
@@ -1220,7 +1627,7 @@
                 const bEffect = String(traits.breath).toLowerCase();
                 const bColor = breathColors[bEffect] || '#0284c7';
                 const bLabel = currentLang === 'ja' ? (breathNameJa[bEffect] || `${traits.breath}ブレス`) : `${traits.breath} Breath`;
-                activeTraits.push({ key: 'breath', label: `💨 ${bLabel} (反射可)`, color: bColor });
+                activeTraits.push({ key: 'breath', label: `💨 ${bLabel} ${currentLang === 'ja' ? '(反射可)' : '(Reflectable)'}`, color: bColor });
             }
 
             // 🎯 SSOT: 脆弱性・特効 (vulnerabilities: SILVER 等)
@@ -1350,25 +1757,113 @@
                 </div>
             ` : '';
 
+            // 🏷️ 所属モンスタークラス (SSOT)
+            const clsDef = mon.monsterClass || (mon.symbol ? MONSTER_CLASS_MAP.get(mon.symbol) : null);
+            let classInfoHtml = '';
+            if (clsDef) {
+                const trapWarning = clsDef.raceTrap ? `
+                    <div style="margin-top:6px; font-size:0.78rem; color:#fca5a5; background:rgba(239,68,68,0.15); border:1px solid #ef4444; border-radius:4px; padding:4px 8px;">
+                        ⚠️ <strong>${currentLang === 'ja' ? '自己虐殺即死危険:' : 'Self-Genocide Lethal:'}</strong> 
+                        ${currentLang === 'ja' ? `種族 [${Array.isArray(clsDef.raceTrap) ? clsDef.raceTrap.join('/') : clsDef.raceTrap}] のプレイヤーはこのクラスを虐殺すると即死します！` : `Lethal for race [${Array.isArray(clsDef.raceTrap) ? clsDef.raceTrap.join('/') : clsDef.raceTrap}]!`}
+                    </div>
+                ` : '';
+
+                classInfoHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                        <div class="section-title" style="color:#38bdf8;">🏷️ ${currentLang === 'ja' ? '所属モンスタークラス (SSOT)' : 'Monster Class Definition'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="font-family:monospace; font-size:1.2rem; font-weight:bold; color:var(--accent-color); width:28px; height:28px; line-height:26px; text-align:center; background:rgba(0,0,0,0.3); border-radius:4px; border:1px solid rgba(56,189,248,0.3);">${clsDef.symbol === ' ' ? '␣' : clsDef.symbol}</div>
+                                <div>
+                                    <strong style="color:#f8fafc;">${currentLang === 'ja' ? clsDef.nameJa : clsDef.nameEn}</strong>
+                                    <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:6px;">(Symbol: '${clsDef.symbol}')</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span class="tag-badge tag-${clsDef.danger}">${clsDef.danger} DANGER</span>
+                                <button class="btn btn-secondary" style="padding:2px 8px; font-size:0.75rem;" id="jumpToClassBtn">
+                                    ${currentLang === 'ja' ? 'クラス詳細を見る →' : 'View Class →'}
+                                </button>
+                            </div>
+                        </div>
+                        ${clsDef.descJa || clsDef.descEn ? `<div style="font-size:0.8rem; color:#94a3b8; margin-top:6px;">${currentLang === 'ja' ? (clsDef.descJa || clsDef.descEn) : (clsDef.descEn || clsDef.descJa)}</div>` : ''}
+                        ${trapWarning}
+                    </div>
+                `;
+            }
+
+            // 🦺 変身時防具破壊リスク判定 (MonsterArmorRiskResolver)
+            const armorRisk = mon.armorRisk || MonsterArmorRiskResolver.checkArmorRisk(mon);
+            let armorRiskHtml = '';
+            if (armorRisk) {
+                const hasRisk = armorRisk.willBreakArmor || armorRisk.willDropArmor;
+                const warnMsg = currentLang === 'ja' ? armorRisk.messageJa : armorRisk.messageEn;
+                const details = currentLang === 'ja' ? (armorRisk.detailsJa || []) : (armorRisk.detailsEn || []);
+                if (hasRisk) {
+                    const blockBorder = armorRisk.willBreakArmor ? 'border-color:rgba(239,68,68,0.5); background:rgba(239,68,68,0.07);' : 'border-color:rgba(234,179,8,0.5); background:rgba(234,179,8,0.07);';
+                    const titleColor = armorRisk.willBreakArmor ? '#ef4444' : '#eab308';
+                    const badgeText = armorRisk.willBreakArmor ? (currentLang === 'ja' ? '防具破壊' : 'BREAKS ARMOR') : (currentLang === 'ja' ? '防具脱落' : 'DROPS ARMOR');
+                    const badgeClass = armorRisk.willBreakArmor ? 'tag-LETHAL' : 'tag-HIGH';
+
+                    armorRiskHtml = `
+                        <div class="info-block" style="${blockBorder}">
+                            <div class="section-title" style="color:${titleColor}; display:flex; justify-content:space-between; align-items:center;">
+                                <span>🦺 ${currentLang === 'ja' ? '変身時防具破壊・脱落リスク (Polymorph Risk)' : 'Polymorph Armor Risk'}</span>
+                                <span class="tag-badge ${badgeClass}" style="font-size:0.65rem;">${badgeText}</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#f8fafc; font-weight:600; margin-bottom:4px;">
+                                ${warnMsg}
+                            </div>
+                            ${details.length > 0 ? `
+                                <ul style="margin:4px 0 0 16px; padding:0; font-size:0.78rem; color:#cbd5e1; line-height:1.4;">
+                                    ${details.map(d => `<li>${d}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    armorRiskHtml = `
+                        <div class="info-block" style="border-color:rgba(34,197,94,0.3); background:rgba(34,197,94,0.04); padding:6px 12px;">
+                            <div style="font-size:0.8rem; color:#86efac; display:flex; align-items:center; gap:6px;">
+                                <span>🛡️</span>
+                                <span>${currentLang === 'ja' ? '変身時の防具破壊・脱落リスクはありません（安全に変身可能）。' : 'Safe for Polymorph: No armor destruction risk.'}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
                         <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : '👾'}</div>
                         <div class="card-title-group">
                             <h2>${displayTitle}</h2>
-                            <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}</div>
+                            <div class="raw-name">ID: ${mon.id} | MonOffset: ${mon.monOffset ?? 'N/A'}${mon.symbol ? ` | Symbol: '${mon.symbol}'` : ''}${mon.className ? ` (${mon.className})` : ''}</div>
                         </div>
                     </div>
                     <span class="tag-badge ${badgeClass}">${mon.dangerLevel} DANGER</span>
                 </div>
 
+                ${transComparisonHtml}
+
                 ${lookBadgesHtml}
 
+                ${classInfoHtml}
+
+                ${armorRiskHtml}
+
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
-                    <div class="section-title">🚩 ${currentLang === 'ja' ? 'ナレッジフラグ ＆ 特性' : 'Flags & Traits'}</div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                    <div class="section-title">🚩 ${currentLang === 'ja' ? '公式メタデータフラグ ＆ 特性' : 'Official Flags & Traits'}</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
                         ${flags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; ${f.badge}">${f.label}: ${f.value}</span>`).join('')}
                     </div>
+                    ${abilityFlags.length > 0 ? `
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1);">
+                            <span style="font-size:0.75rem; color:var(--text-secondary); align-self:center; margin-right:4px;">${currentLang === 'ja' ? '行動能力:' : 'Abilities:'}</span>
+                            ${abilityFlags.map(a => `<span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; font-weight:bold; background:${a.color}; color:#fff;">🏃 ${a.label}</span>`).join('')}
+                        </div>
+                    ` : ''}
                     ${activeTraits.length > 0 ? `
                         <div style="display:flex; gap:6px; flex-wrap:wrap; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1);">
                             ${activeTraits.map(t => `<span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; font-weight:bold; background:${t.color}; color:#fff;">⚡ ${t.label}</span>`).join('')}
@@ -1429,6 +1924,300 @@
                     </div>
                 ` : ''}
             `;
+
+            // クラス詳細へのジャンプイベント
+            const jumpBtn = document.getElementById('jumpToClassBtn');
+            if (jumpBtn && clsDef) {
+                jumpBtn.addEventListener('click', () => {
+                    const targetClassId = `class_${clsDef.symbol === ' ' ? 'space' : clsDef.symbol}`;
+                    currentTab = 'CLASS';
+                    selectedEntityId = targetClassId;
+                    document.querySelectorAll('.nav-tab').forEach(b => {
+                        b.classList.toggle('active', b.dataset.tab === 'CLASS');
+                    });
+                    searchInput.value = '';
+                    setupSubFilterOptions();
+                    renderList();
+                    renderCard();
+                });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 3.1.5 モンスタークラスカード描画 (SSOT: MONSTER_CLASS_KNOWLEDGE)
+        // -------------------------------------------------------------
+        function renderClassCard(cls) {
+            const isJa = (currentLang === 'ja');
+            const symDisplay = cls.symbol === ' ' ? '<space>' : cls.symbol;
+            const symChar = cls.symbol === ' ' ? '␣' : cls.symbol;
+            const title = isJa ? cls.nameJa : cls.nameEn;
+            const badgeClass = `tag-${cls.danger || 'NORMAL'}`;
+
+            // 所属モンスター一覧の逆引き
+            const memberMonsters = ALL_MONSTER_KNOWLEDGE_BASE.filter(m => m.symbol === cls.symbol);
+
+            // 自己虐殺危険種族警告
+            let raceTrapHtml = '';
+            if (cls.raceTrap) {
+                const trapRaces = Array.isArray(cls.raceTrap) ? cls.raceTrap.join(', ') : cls.raceTrap;
+                raceTrapHtml = `
+                    <div class="info-block warning-block" style="border-color:rgba(239,68,68,0.5); background:rgba(239,68,68,0.08);">
+                        <div class="section-title" style="color:#ef4444;">☠️ ${isJa ? '自己虐殺即死危険クラス (Self-Genocide Lethal Trap)' : 'Self-Genocide Lethal Class'}</div>
+                        <div style="font-size:0.85rem; color:#fca5a5; font-weight:600; margin-bottom:4px;">
+                            ⚠️ ${isJa ? `対象種族: [ ${trapRaces} ]` : `Lethal for race(s): [ ${trapRaces} ]`}
+                        </div>
+                        <div style="font-size:0.8rem; color:#cbd5e1;">
+                            ${isJa 
+                                ? '虐殺の巻物（Scroll of Genocide）等でこのクラス全体を虐殺指定すると、該当種族のプレイヤー自身も即死（ゲームオーバー）になります！' 
+                                : 'Reading a scroll of genocide to eradicate this entire class will instantly kill your character if playing as one of these races!'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 代表・解説
+            const desc = isJa ? (cls.descJa || cls.descEn) : (cls.descEn || cls.descJa);
+            const descHtml = desc ? `
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                    <div class="section-title" style="color:var(--accent-color);">📖 ${isJa ? 'クラス解説・代表モンスター' : 'Class Description & Representatives'}</div>
+                    <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.5;">${desc}</div>
+                </div>
+            ` : '';
+
+            // 所属モンスター一覧グリッド
+            let membersHtml = '';
+            if (memberMonsters.length > 0) {
+                const memberCards = memberMonsters.map(mon => {
+                    const comp = getTranslationComparison(mon);
+                    const monName = isJa ? (comp?.knowledgeNameJa || mon.name) : (comp?.rawName || mon.name);
+                    const glyphId = getEntityGlyphId(mon);
+                    const iconStyle = getEntityGlyphStyleString(glyphId, 24);
+                    return `
+                        <div class="class-member-item" data-monid="${mon.id}" style="display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,0.25); border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; cursor:pointer; transition:all 0.15s ease;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="${iconStyle ? iconStyle : 'font-size:1.1rem;'}">${iconStyle ? '' : '👾'}</div>
+                                <div>
+                                    <div style="font-size:0.82rem; font-weight:600; color:#f8fafc;">${monName}</div>
+                                    <div style="font-size:0.7rem; color:var(--text-secondary);">${mon.id}</div>
+                                </div>
+                            </div>
+                            <span class="tag-badge tag-${mon.dangerLevel || 'LOW'}" style="font-size:0.65rem; padding:1px 5px;">${mon.dangerLevel || 'LOW'}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                membersHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                        <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>👾 ${isJa ? '所属モンスター一覧' : 'Member Monsters'} (${memberMonsters.length})</span>
+                            <span style="font-size:0.72rem; color:var(--text-secondary); text-transform:none;">${isJa ? 'クリックで詳細を表示' : 'Click to inspect'}</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:6px; margin-top:8px; max-height:420px; overflow-y:auto; padding-right:4px;">
+                            ${memberCards}
+                        </div>
+                    </div>
+                `;
+            } else {
+                membersHtml = `
+                    <div class="info-block">
+                        <span style="color:var(--text-secondary);">${isJa ? 'このシンボルに直接割り当てられたモンスターは現在登録されていません。' : 'No direct member monsters found for this symbol.'}</span>
+                    </div>
+                `;
+            }
+
+            knowledgeCard.innerHTML = `
+                <div class="card-header">
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div style="font-family:monospace; font-size:2rem; font-weight:bold; color:var(--accent-color); width:54px; height:54px; line-height:50px; text-align:center; background:rgba(0,0,0,0.35); border-radius:8px; border:2px solid rgba(56,189,248,0.4);">${symChar}</div>
+                        <div class="card-title-group">
+                            <h2>${title}</h2>
+                            <div class="raw-name">Symbol: '${symDisplay}' (ASCII: ${cls.symbol.charCodeAt(0)}) | Danger: ${cls.danger}</div>
+                        </div>
+                    </div>
+                    <span class="tag-badge ${badgeClass}">${cls.danger} CLASS</span>
+                </div>
+
+                ${raceTrapHtml}
+
+                ${descHtml}
+
+                ${membersHtml}
+            `;
+
+            // 所属モンスターカードのクリックイベント
+            knowledgeCard.querySelectorAll('.class-member-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const monId = el.dataset.monid;
+                    if (!monId) return;
+                    currentTab = 'MONSTER';
+                    selectedEntityId = monId;
+                    document.querySelectorAll('.nav-tab').forEach(b => {
+                        b.classList.toggle('active', b.dataset.tab === 'MONSTER');
+                    });
+                    searchInput.value = '';
+                    setupSubFilterOptions();
+                    renderList();
+                    renderCard();
+                });
+            });
+        }
+
+        // -------------------------------------------------------------
+        // 3.1.6 アーティファクトカード描画 (SSOT: ARTIFACT_KNOWLEDGE_BASE)
+        // -------------------------------------------------------------
+        function renderArtifactCard(art) {
+            const isJa = (currentLang === 'ja');
+            const displayTitle = isJa ? art.nameJa : art.name;
+            const alignBadgeClass = art.alignment === 'LAWFUL' ? 'tag-INFO' : (art.alignment === 'CHAOTIC' ? 'tag-LETHAL' : 'tag-LOW');
+            const questBadgeHtml = art.isQuestArtifact 
+                ? `<span class="tag-badge tag-PURPLE" style="font-size:0.75rem;">🏆 ${isJa ? 'クエスト専用' : 'QUEST ARTIFACT'}</span>`
+                : '';
+
+            // ベースアイテムのタイル画像
+            const baseOnum = (art.baseOnum !== undefined && art.baseOnum >= 0) ? art.baseOnum : 54;
+            const glyphId = GLYPH_OFFSETS.OBJECTS + baseOnum;
+            const iconStyle = getEntityGlyphStyleString(glyphId, 48);
+
+            // アライメント・所持適性セクション
+            let alignText = art.alignment;
+            if (isJa) {
+                if (art.alignment === 'LAWFUL') alignText = '秩序 (Lawful)';
+                else if (art.alignment === 'NEUTRAL') alignText = '中立 (Neutral)';
+                else if (art.alignment === 'CHAOTIC') alignText = '混沌 (Chaotic)';
+            }
+            const roleText = art.role ? (isJa ? `専用職業: [ ${art.role.toUpperCase()} ]` : `Role: [ ${art.role.toUpperCase()} ]`) : '';
+            const raceText = art.race ? (isJa ? `専用種族: [ ${art.race.toUpperCase()} ]` : `Race: [ ${art.race.toUpperCase()} ]`) : '';
+
+            // 他アライメント爆破警告
+            const blastWarningHtml = `
+                <div class="info-block warning-block" style="border-color:rgba(239,68,68,0.4); background:rgba(239,68,68,0.06); padding:8px 12px;">
+                    <div style="font-size:0.8rem; color:#fca5a5; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.1rem;">💥</span>
+                        <div>
+                            <strong>${isJa ? '他アライメント爆破ダメージ警告 (Cross-Alignment Blast):' : 'Cross-Alignment Blast Warning:'}</strong>
+                            <div style="font-size:0.75rem; color:#cbd5e1; margin-top:2px;">
+                                ${isJa 
+                                    ? `このアーティファクトと属性が異なる（${alignText} 以外の）キャラクターが手袋なしで触れたり、装備しようとすると爆破ダメージを受けます！` 
+                                    : `Characters with different alignment from ${art.alignment} will take blast damage if touched or wielded without gloves!`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // ベースアイテム情報リンク
+            const baseItemHtml = `
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div style="font-size:0.85rem; color:#cbd5e1;">
+                        🗡️ <strong>${isJa ? 'ベースアイテム' : 'Base Item'}:</strong> 
+                        <span style="color:#f8fafc; font-weight:600;">${art.baseName}</span> 
+                        <span style="font-size:0.75rem; color:var(--text-secondary);">(onum: ${art.baseOnum})</span>
+                    </div>
+                    <button class="btn btn-secondary" style="padding:2px 8px; font-size:0.75rem;" id="jumpToBaseItemBtn">
+                        ${isJa ? 'ベースアイテム詳細を見る →' : 'View Base Item →'}
+                    </button>
+                </div>
+            `;
+
+            // 付与耐性・特性バッジ一覧
+            let intrinsicsHtml = '';
+            if (Array.isArray(art.intrinsics) && art.intrinsics.length > 0) {
+                intrinsicsHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                        <div class="section-title" style="color:#10b981;">🛡️ ${isJa ? '所持・装備付与耐性＆特性 (Granted Intrinsics)' : 'Granted Intrinsics'}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${art.intrinsics.map(i => `<span class="tag-badge tag-LOW" style="font-size:0.75rem; padding:3px 8px;">✨ ${formatIntrinsic(i, currentLang)}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 特殊攻撃・防御効果
+            let combatHtml = '';
+            if (art.attackEffect || art.defenseEffect) {
+                combatHtml = `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                        <div class="section-title" style="color:var(--accent-color);">⚔️ ${isJa ? '戦闘・防御特殊効果 (Combat Effects)' : 'Combat Effects'}</div>
+                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.85rem;">
+                            ${art.attackEffect ? `<div><strong style="color:#fca5a5;">💥 ${isJa ? '攻撃特殊効果' : 'Attack Effect'}:</strong> ${art.attackEffect}</div>` : ''}
+                            ${art.defenseEffect ? `<div><strong style="color:#93c5fd;">🛡️ ${isJa ? '防御特殊効果' : 'Defense Effect'}:</strong> ${art.defenseEffect}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 呼び出し効果 (#invoke)
+            let invokeHtml = '';
+            if (art.invoke) {
+                invokeHtml = `
+                    <div class="info-block" style="border-color:rgba(168,85,247,0.5); background:rgba(168,85,247,0.08); padding:10px 14px;">
+                        <div class="section-title" style="color:#c084fc;">🔮 ${isJa ? '呼び出し効果 (#invoke Effect)' : 'Invoke Effect'}</div>
+                        <div style="font-size:0.9rem; color:#f8fafc; font-weight:600;">
+                            ✨ ${art.invoke}
+                        </div>
+                        <div style="font-size:0.75rem; color:#cbd5e1; margin-top:2px;">
+                            ${isJa ? 'ゲーム内で #invoke コマンドを使用してこのアーティファクトを選択することで発動します。' : 'Use the #invoke command in-game and select this artifact to activate.'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 由来・戦術解説
+            const desc = isJa ? art.descJa : art.descEn;
+            const descHtml = desc ? `
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:10px 14px;">
+                    <div class="section-title" style="color:var(--text-secondary);">📖 ${isJa ? '由来・ゲーム内獲得＆戦術解説' : 'Lore & Acquisition'}</div>
+                    <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.5;">${desc}</div>
+                </div>
+            ` : '';
+
+            knowledgeCard.innerHTML = `
+                <div class="card-header">
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : '✨'}</div>
+                        <div class="card-title-group">
+                            <h2>${displayTitle}</h2>
+                            <div class="raw-name">${art.name} | Category: ${art.category} | ${alignText}${roleText ? ` | ${roleText}` : ''}${raceText ? ` | ${raceText}` : ''}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        ${questBadgeHtml}
+                        <span class="tag-badge ${alignBadgeClass}">${art.alignment}</span>
+                    </div>
+                </div>
+
+                ${baseItemHtml}
+
+                ${blastWarningHtml}
+
+                ${intrinsicsHtml}
+
+                ${combatHtml}
+
+                ${invokeHtml}
+
+                ${descHtml}
+            `;
+
+            // ベースアイテムへのジャンプイベント
+            const jumpBtn = document.getElementById('jumpToBaseItemBtn');
+            if (jumpBtn && art.baseOnum !== undefined) {
+                jumpBtn.addEventListener('click', () => {
+                    currentTab = 'ITEM';
+                    selectedEntityId = `item_onum_${art.baseOnum}`;
+                    document.querySelectorAll('.nav-tab').forEach(b => {
+                        b.classList.toggle('active', b.dataset.tab === 'ITEM');
+                    });
+                    searchInput.value = '';
+                    setupSubFilterOptions();
+                    renderList();
+                    renderCard();
+                    const activeEl = entityList.querySelector('.entity-item.active');
+                    if (activeEl) {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+            }
         }
 
         // -------------------------------------------------------------
@@ -1437,17 +2226,61 @@
         function renderItemCard(itemRaw) {
             const isTranslate = (currentLang === 'ja');
             const targetId = (itemRaw.onum !== undefined && itemRaw.onum >= 0) ? itemRaw.onum : itemRaw.id;
-            const item = knowledgeEngine.getItemKnowledge(targetId, { translate: isTranslate, forceFullKnowledge: true }) || itemRaw;
+            const item = knowledgeEngine.getItemKnowledge(targetId, { translate: isTranslate, language: currentLang, forceFullKnowledge: true }) || itemRaw;
 
             const glyphId = getEntityGlyphId(item);
             const iconStyle = getEntityGlyphStyleString(glyphId, 48);
-            const displayTitle = currentLang === 'ja' ? translateNameWithSlash(item.name) : item.name;
+            const comp = getTranslationComparison(item);
+            const displayTitle = currentLang === 'ja' ? (comp?.knowledgeNameJa || item.name) : (comp?.rawName || item.name);
+
+            // 🌐 翻訳対比＆検証ボックスの HTML 構築 (日本語モード時のみ表示)
+            const transComparisonHtml = (currentLang === 'ja' && comp) ? `
+                <div class="trans-compare-box">
+                    <div class="trans-compare-header">
+                        <div class="trans-compare-title">
+                            <span>🌐 翻訳対比 ＆ 表記ゆらぎ検証</span>
+                            <span class="tag-badge ${comp.statusBadgeClass}">${comp.statusBadgeText}</span>
+                        </div>
+                        <span style="font-size:0.7rem; color:var(--text-secondary);">${comp.detailMessage}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px 16px;">
+                        <div class="trans-row">
+                            <span class="trans-label">🇺🇸 英語原名:</span>
+                            <span class="trans-value" style="font-family:monospace; font-weight:600;">${comp.rawName}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">📘 ナレッジ公式和名:</span>
+                            <span class="trans-value ${comp.status === 'MISMATCH' ? 'trans-mismatch-val' : ''}">${comp.knowledgeNameJa}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">🌐 TranslationEngine訳:</span>
+                            <span class="trans-value ${comp.status === 'MISMATCH' ? 'trans-mismatch-val' : (!comp.hasTr ? 'trans-untranslated-val' : '')}">${comp.trName}</span>
+                        </div>
+                        <div class="trans-row">
+                            <span class="trans-label">🏷️ 登録エイリアス(別名):</span>
+                            <span class="trans-value" style="font-size:0.75rem; color:var(--text-secondary);">${comp.aliases.length > 0 ? comp.aliases.join(', ') : 'なし'}</span>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
 
             // 特殊機能フラグ (is* の自動抽出 ＋ 基本メタデータ)
             const itemFlags = [];
             itemFlags.push({ label: 'category', value: item.category || 'OTHER' });
             itemFlags.push({ label: 'onum', value: item.onum ?? 'N/A' });
+            if (item.sn) itemFlags.push({ label: 'sn', value: item.sn, highlight: true });
             if (item.material) itemFlags.push({ label: 'material', value: item.material });
+            if (item.prob !== undefined && item.prob !== null) itemFlags.push({ label: 'prob', value: item.prob });
+            if (item.delay) itemFlags.push({ label: 'delay', value: `${item.delay}t` });
+            if (item.color) itemFlags.push({ label: 'color', value: item.color.replace('CLR_', '') });
+            if (item.hands) itemFlags.push({ label: 'hands', value: item.hands === 2 ? '2-Handed' : '1-Handed' });
+            if (item.skill && item.skill !== 'none') itemFlags.push({ label: 'skill', value: item.skill });
+            if (item.strikeType && Array.isArray(item.strikeType) && !item.strikeType.includes('none')) {
+                itemFlags.push({ label: 'strikeType', value: item.strikeType.join('/') });
+            }
+            if (item.spellLevel) itemFlags.push({ label: 'spellLv', value: item.spellLevel });
+            if (item.spellSkill) itemFlags.push({ label: 'spellSkill', value: item.spellSkill });
+            if (item.zapType) itemFlags.push({ label: 'zapType', value: item.zapType });
 
             // item オブジェクト内の真偽値フラグ (is*) を生データから網羅抽出
             Object.keys(item).forEach(key => {
@@ -1471,7 +2304,42 @@
             const propConveyed = item.propConveyed || item.stats?.propConveyed || null;
 
             // 🎯 スペックグリッド (ItemSpecPresenter: 攻撃力, AC, MC, 重量等)
-            const adaptiveSpecs = getAdaptiveItemSpecs(item);
+            const adaptiveSpecs = getAdaptiveItemSpecs(item, { language: currentLang });
+
+            // 未識別外見情報の抽出
+            const unIdAppearanceHtml = (item.descr || item.canBeUnidentified) ? `
+                <div style="background:rgba(234, 179, 8, 0.07); border:1px solid rgba(234, 179, 8, 0.3); padding:10px 14px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <span style="font-size:0.75rem; color:#eab308; font-weight:bold;">🔍 ${currentLang === 'ja' ? '未識別時の外見 (Appearance):' : 'Unidentified Appearance:'}</span>
+                        <strong style="margin-left:8px; font-size:0.95rem; color:#fef08a;">${item.descr ? `"${item.descr}"` : (currentLang === 'ja' ? '(外見名なし/固定)' : '(Fixed Appearance)')}</strong>
+                    </div>
+                    <span class="tag-badge ${item.canBeUnidentified ? 'tag-WARNING' : 'tag-LOW'}" style="font-size:0.7rem;">
+                        ${item.canBeUnidentified ? (currentLang === 'ja' ? '未識別対象' : 'Can Be Unidentified') : (currentLang === 'ja' ? '外見判明済み' : 'Always Identified')}
+                    </span>
+                </div>
+            ` : '';
+
+            // 未識別時の鑑定Tips
+            const unIdTips = Array.isArray(item.unidentifiedTips) && item.unidentifiedTips.length > 0 ? item.unidentifiedTips : [];
+            const unIdTipsHtml = unIdTips.length > 0 ? `
+                <div class="info-block" style="border-color:rgba(234, 179, 8, 0.4); background:rgba(234, 179, 8, 0.05);">
+                    <div class="section-title" style="color:#eab308;">🔍 ${currentLang === 'ja' ? '未識別時の鑑定Tips (Identification Tips)' : 'Identification Tips'}</div>
+                    <ul class="advice-list" style="margin-top:6px;">
+                        ${unIdTips.map(t => `<li style="border-left-color:#eab308;">${t}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : '';
+
+            // 運用アドバイス
+            const usageAdvice = Array.isArray(item.usageAdvice) && item.usageAdvice.length > 0 ? item.usageAdvice : [];
+            const usageAdviceHtml = usageAdvice.length > 0 ? `
+                <div class="info-block">
+                    <div class="section-title">💡 ${currentLang === 'ja' ? '運用・戦術アドバイス (Usage Advice)' : 'Usage Advice'}</div>
+                    <ul class="advice-list" style="margin-top:6px;">
+                        ${usageAdvice.map(a => `<li>${a}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : '';
 
             knowledgeCard.innerHTML = `
                 <div class="card-header">
@@ -1479,14 +2347,18 @@
                         <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : '🗡️'}</div>
                         <div class="card-title-group">
                             <h2>${displayTitle}</h2>
-                            <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}</div>
+                            <div class="raw-name">ID: ${item.id} | ONum: ${item.onum ?? 'N/A'}${item.sn ? ` | SN: ${item.sn}` : ''}</div>
                         </div>
                     </div>
                     <span class="tag-badge tag-ITEM">${item.category}</span>
                 </div>
 
+                ${transComparisonHtml}
+
+                ${unIdAppearanceHtml}
+
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
-                    <div class="section-title">🚩 ${currentLang === 'ja' ? 'アイテム属性 ＆ フラグ' : 'Item Attributes & Flags'}</div>
+                    <div class="section-title">🚩 ${currentLang === 'ja' ? '公式アイテム属性 ＆ フラグ' : 'Item Attributes & Flags'}</div>
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">
                         ${itemFlags.map(f => `<span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; ${f.highlight ? 'background:rgba(226,232,240,0.3); border:1px solid #fff; color:#fff;' : 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'}">${f.label}: ${f.value}</span>`).join('')}
                     </div>
@@ -1500,7 +2372,7 @@
                             const valColor = s.highlight ? '#f8fafc' : '#cbd5e1';
                             return `
                                 <div class="stat-box" style="${borderStyle} padding:6px 12px; border-radius:6px;">
-                                    <div class="stat-label" style="font-size:10px; color:${labelColor}; font-weight:bold;">${s.labelJa || s.label}</div>
+                                    <div class="stat-label" style="font-size:10px; color:${labelColor}; font-weight:bold;">${currentLang === 'ja' ? (s.labelJa || s.label) : (s.label || s.labelEn || s.id)}</div>
                                     <div class="stat-value" style="font-size:13px; color:${valColor}; font-weight:bold;">${s.value}</div>
                                 </div>
                             `;
@@ -1521,7 +2393,7 @@
                     <div class="info-block benefit-block">
                         <div class="section-title" style="color:#22c55e;">🛡️ ${currentLang === 'ja' ? '装備防護モデル (Protects Against)' : 'Protects Against'}</div>
                         <div style="display:flex; gap:8px; margin-top:4px;">
-                            ${protects.map(p => `<span class="tag-badge tag-LOW" style="font-size:0.8rem; padding:4px 8px;">🛡️ ${p} 防護</span>`).join('')}
+                            ${protects.map(p => `<span class="tag-badge tag-LOW" style="font-size:0.8rem; padding:4px 8px;">🛡️ ${currentLang === 'ja' ? `${p} 防護` : `Protects: ${p}`}</span>`).join('')}
                         </div>
                     </div>
                 ` : ''}
@@ -1539,7 +2411,7 @@
                     <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); padding:8px 12px; border-radius:6px; display:flex; gap:12px; align-items:center;">
                         <span style="font-weight:bold; color:var(--accent-color); font-size:0.85rem;">⚡ Default Action:</span>
                         <span class="key-badge">${item.defaultVerb}</span>
-                        <span style="color:#cbd5e1; font-size:0.85rem;">${item.actionLabelJa || item.actionLabel || '-'}</span>
+                        <span style="color:#cbd5e1; font-size:0.85rem;">${currentLang === 'ja' ? (item.actionLabelJa || item.actionLabel || '-') : (item.actionLabelEn || item.actionLabel || '-')}</span>
                     </div>
                 ` : ''}
 
@@ -1549,6 +2421,10 @@
                         <div>${item.effectSummary}</div>
                     </div>
                 ` : ''}
+
+                ${unIdTipsHtml}
+
+                ${usageAdviceHtml}
             `;
         }
 
@@ -1585,9 +2461,9 @@
                         <table class="knowledge-table">
                             <thead>
                                 <tr>
-                                    <th>獲得レベル (Level)</th>
-                                    <th>獲得能力 (Ability / Resistance)</th>
-                                    <th>状態 (Timing)</th>
+                                    <th>${currentLang === 'ja' ? '獲得レベル (Level)' : 'Level'}</th>
+                                    <th>${currentLang === 'ja' ? '獲得能力 (Ability / Resistance)' : 'Ability / Resistance'}</th>
+                                    <th>${currentLang === 'ja' ? '状態 (Timing)' : 'Timing'}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1699,7 +2575,7 @@
                 actionHtml = `
                     <div style="background:rgba(56,189,248,0.08); border:1px solid #38bdf8; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:#38bdf8;">⚡ ワンタップアクション</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:#38bdf8;">⚡ ${currentLang === 'ja' ? 'ワンタップアクション' : 'One-Tap Action'}</span>
                             <span class="tag-badge tag-LOW" style="font-size:0.65rem;">ACTIVE (P:${routing.action.priority})</span>
                         </div>
                         <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${currentLang === 'ja' ? routing.action.labelJa : routing.action.labelEn}</div>
@@ -1710,7 +2586,7 @@
                 actionHtml = `
                     <div style="background:rgba(239,68,68,0.08); border:1px solid #ef4444; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:#ef4444;">⚡ ワンタップアクション</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:#ef4444;">⚡ ${currentLang === 'ja' ? 'ワンタップアクション' : 'One-Tap Action'}</span>
                             <span class="tag-badge tag-HIGH" style="font-size:0.65rem;">SUPPRESSED</span>
                         </div>
                         <div style="font-size:0.78rem; color:#fca5a5; line-height:1.4;">${currentLang === 'ja' ? routing.action.reasonJa : routing.action.reasonEn}</div>
@@ -1720,7 +2596,7 @@
                 actionHtml = `
                     <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">⚡ ワンタップアクション</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">⚡ ${currentLang === 'ja' ? 'ワンタップアクション' : 'One-Tap Action'}</span>
                             <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.action.reasonJa : routing.action.reasonEn}</div>
@@ -1734,7 +2610,7 @@
                 advisorHtml = `
                     <div style="background:rgba(234,179,8,0.08); border:1px solid #eab308; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:#eab308;">💡 戦術アドバイス</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:#eab308;">💡 ${currentLang === 'ja' ? '戦術アドバイス' : 'Tactical Advice'}</span>
                             <span class="tag-badge tag-${routing.advisor.severity}" style="font-size:0.65rem;">${routing.advisor.severity} (S:${routing.advisor.score})</span>
                         </div>
                         <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${currentLang === 'ja' ? routing.advisor.labelJa : routing.advisor.labelEn}</div>
@@ -1745,7 +2621,7 @@
                 advisorHtml = `
                     <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">💡 戦術アドバイス</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">💡 ${currentLang === 'ja' ? '戦術アドバイス' : 'Tactical Advice'}</span>
                             <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.advisor.reasonJa : routing.advisor.reasonEn}</div>
@@ -1759,7 +2635,7 @@
                 signalHtml = `
                     <div style="background:rgba(168,85,247,0.08); border:1px solid #a855f7; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:#a855f7;">🚨 アシストシグナル</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:#a855f7;">🚨 ${currentLang === 'ja' ? 'アシストシグナル' : 'Assist Signal'}</span>
                             <span class="tag-badge tag-PURPLE" style="font-size:0.65rem;">${routing.signal.stance} (P:${routing.signal.priority})</span>
                         </div>
                         <div style="font-weight:bold; font-size:0.8rem; color:#f8fafc;">${routing.signal.icon} ${currentLang === 'ja' ? routing.signal.labelJa : routing.signal.labelEn}</div>
@@ -1770,7 +2646,7 @@
                 signalHtml = `
                     <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:0.6;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">🚨 アシストシグナル</span>
+                            <span style="font-size:0.75rem; font-weight:bold; color:var(--text-secondary);">🚨 ${currentLang === 'ja' ? 'アシストシグナル' : 'Assist Signal'}</span>
                             <span class="tag-badge tag-ITEM" style="font-size:0.65rem;">NONE</span>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-secondary);">${currentLang === 'ja' ? routing.signal.reasonJa : routing.signal.reasonEn}</div>
@@ -1918,7 +2794,7 @@
                 <!-- Layer 1: Nano Badge -->
                 <div class="layer-box">
                     <div class="layer-header">
-                        <span>Layer 1: Nano Badge (所持品・魔法スロット表示)</span>
+                        <span>Layer 1: Nano Badge (${currentLang === 'ja' ? '所持品・魔法スロット表示' : 'Slot / Minimal'})</span>
                         <span class="tag-badge tag-LOW">Minimal</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:12px;">
@@ -1927,14 +2803,14 @@
                             <span class="key-badge">a</span>
                             <span style="font-size:0.8rem; font-weight:bold; color:#38bdf8;">${currentLang === 'ja' ? '推奨スロット' : 'Slot'}</span>
                         </div>
-                        <span style="font-size:0.8rem; color:#94a3b8;">インベントリ枠線ハイライト ＆ 最短アクション示唆</span>
+                        <span style="font-size:0.8rem; color:#94a3b8;">${currentLang === 'ja' ? 'インベントリ枠線ハイライト ＆ 最短アクション示唆' : 'Inventory slot highlight & optimal action'}</span>
                     </div>
                 </div>
 
                 <!-- Layer 2: 1-Line Signal -->
                 <div class="layer-box">
                     <div class="layer-header">
-                        <span>Layer 2: 1-Line Signal (HUD最上部バー)</span>
+                        <span>Layer 2: 1-Line Signal (${currentLang === 'ja' ? 'HUD最上部バー' : 'HUD Banner'})</span>
                         <span class="tag-badge tag-HIGH">HUD Banner</span>
                     </div>
                     <div style="background:#0f172a; border-left:4px solid #38bdf8; padding:8px 12px; border-radius:4px; font-weight:bold; font-size:0.9rem;">
@@ -1945,7 +2821,7 @@
                 <!-- Layer 3: Action & Why -->
                 <div class="layer-box">
                     <div class="layer-header">
-                        <span>Layer 3: Action & Why (ワンタップ実行 ＆ 理由解説)</span>
+                        <span>Layer 3: Action & Why (${currentLang === 'ja' ? 'ワンタップ実行 ＆ 理由解説' : 'Expanded'})</span>
                         <span class="tag-badge tag-PURPLE">Expanded</span>
                     </div>
                     

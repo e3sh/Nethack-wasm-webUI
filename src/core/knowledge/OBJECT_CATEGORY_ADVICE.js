@@ -5,6 +5,25 @@
  * 🧹 クリーン設計: 手書き長文Tips・アドバイスは全廃。純粋なカテゴリメタデータのみを定義。
  */
 
+export const OBJECT_CATEGORY_DEFINITIONS = {
+    WEAPON: { id: 'WEAPON', icon: '🗡️', nameJa: '武器', nameEn: 'Weapon', labelJa: '武器 (Weapon)', labelEn: 'Weapon' },
+    ARMOR: { id: 'ARMOR', icon: '🛡️', nameJa: '防具・鎧', nameEn: 'Armor', labelJa: '防具・鎧 (Armor)', labelEn: 'Armor' },
+    RING: { id: 'RING', icon: '💍', nameJa: '指輪', nameEn: 'Ring', labelJa: '指輪 (Ring)', labelEn: 'Ring' },
+    AMULET: { id: 'AMULET', icon: '🧿', nameJa: '魔除け', nameEn: 'Amulet', labelJa: '魔除け (Amulet)', labelEn: 'Amulet' },
+    TOOL: { id: 'TOOL', icon: '🧰', nameJa: '道具', nameEn: 'Tool', labelJa: '道具 (Tool)', labelEn: 'Tool' },
+    FOOD: { id: 'FOOD', icon: '🍖', nameJa: '食料', nameEn: 'Food', labelJa: '食料 (Food)', labelEn: 'Food' },
+    POTION: { id: 'POTION', icon: '🧪', nameJa: '薬・ポーション', nameEn: 'Potion', labelJa: '薬・ポーション (Potion)', labelEn: 'Potion' },
+    SCROLL: { id: 'SCROLL', icon: '📜', nameJa: '巻物', nameEn: 'Scroll', labelJa: '巻物 (Scroll)', labelEn: 'Scroll' },
+    SPELLBOOK: { id: 'SPELLBOOK', icon: '📖', nameJa: '魔法書', nameEn: 'Spellbook', labelJa: '魔法書 (Spellbook)', labelEn: 'Spellbook' },
+    WAND: { id: 'WAND', icon: '🪄', nameJa: '杖', nameEn: 'Wand', labelJa: '杖 (Wand)', labelEn: 'Wand' },
+    COIN: { id: 'COIN', icon: '🪙', nameJa: '金貨', nameEn: 'Gold / Coins', labelJa: '金貨 (Gold)', labelEn: 'Gold / Coins' },
+    GOLD: { id: 'GOLD', icon: '🪙', nameJa: '金貨', nameEn: 'Gold / Coins', labelJa: '金貨 (Gold)', labelEn: 'Gold / Coins' },
+    GEM: { id: 'GEM', icon: '💎', nameJa: '宝石', nameEn: 'Gem', labelJa: '宝石 (Gem)', labelEn: 'Gem' },
+    CONTAINER: { id: 'CONTAINER', icon: '📦', nameJa: '収納容器', nameEn: 'Container', labelJa: '収納容器 (Container)', labelEn: 'Container' },
+    ARTIFACT: { id: 'ARTIFACT', icon: '✨', nameJa: 'アーティファクト', nameEn: 'Artifact', labelJa: 'アーティファクト (Artifact)', labelEn: 'Artifact' },
+    OTHER: { id: 'OTHER', icon: '📦', nameJa: 'その他', nameEn: 'Other', labelJa: 'その他 (Other)', labelEn: 'Other' }
+};
+
 export const OBJECT_CATEGORY_ADVICE = {
     POTION: { category: 'POTION' },
     SCROLL: { category: 'SCROLL' },

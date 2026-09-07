@@ -294,6 +294,34 @@ describe('PromptPayloadBuilder', () => {
         expect(res.assistant.presets).toHaveLength(1);
         expect(res.assistant.categories).toEqual(['ARMOR', 'WEAPON']);
         expect(res.assistant.wishService).toBe(mockWishService);
+        expect(res.assistant.playerRole).toBe('valkyrie');
+        expect(res.assistant.playerAlignment).toBe('neutral');
+        expect(res.assistant.playerRace).toBe('human');
+        expect(res.assistant.existingArtifactCount).toBe(0);
+    });
+
+    it('WISHプロンプトでGKLのcharacterInfoおよびpayload指定のプレイヤー属性・アーティファクト数が反映されること', () => {
+        const mockWishService = {
+            getPresets: () => [],
+            getCatalogByCategory: () => ({})
+        };
+        const mockGkl = {
+            getWishService: () => mockWishService,
+            getCharacterInfo: () => ({ role: 'samurai', alignment: 'lawful', race: 'human' })
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        const payload = {
+            category: PROMPT_CATEGORY.TEXT,
+            prompt: "For what do you wish?",
+            rawPrompt: "For what do you wish?",
+            existingArtifactCount: 2
+        };
+
+        const res = builder.build(payload);
+        expect(res.assistant.playerRole).toBe('samurai');
+        expect(res.assistant.playerAlignment).toBe('lawful');
+        expect(res.assistant.existingArtifactCount).toBe(2);
     });
 
     it('wand of wishing を含むアイテム選択やメニュープロンプトで誤って WISH と判定されないこと', () => {
