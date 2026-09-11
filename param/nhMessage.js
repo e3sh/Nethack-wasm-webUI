@@ -11652,6 +11652,9 @@
         { en: "You feel a little strange.", jp: "なんだかちょっと変な感じがする。" },
         { en: "You break / your armor!", jp: "君は／鎧を壊す！" },
         { en: "You feel rather dog-ish.", jp: "なんだか犬みたいだ。" },
+        { en: "Step into that vapor cloud?", jp: "その蒸気の雲の中へ足を踏み入れる？" },
+        { en: "Die?", jp: "死ぬ？" },
+        { en: "OK, so you don't Die.", jp: "よし、じゃあ死なないってことだね。" },
     ];
 }
 
@@ -13343,6 +13346,8 @@ function nhEntities() {
         "She": "彼女",
         "Someone": "誰か",
         "such monsters": "そのような怪物",
+        "ceiling": "天井",
+        "above": "上方",
     };
 }
 
@@ -14533,7 +14538,7 @@ function nhPatterns() {
         { pattern: /^You\s+reached\s+the\s+(.*)th\s+place\s+on\s+the\s+top\s+100\s+list\.$/, replace: "トップ100リストで$1位を獲得しました。" },
         { pattern: /^Your\s+hands\s+glow\s+(.*)\.$/, replace: "あなたの手が(.*)に輝く。" },
         { pattern: /^Your\s+hands\s+begin\s+to\s+glow\s+(.*)\.$/, replace: "あなたの手が$1に輝き始めた。" },
-        { pattern: /^Your\s+hands\s+no\s+longer\s+glow\s+so\s+(.*)\.$/, replace: "あなたの手はもはやそれほど(.*)に輝いていない。" },
+        { pattern: /^Your\s+hands\s+no\s+longer\s+glow\s+so\s+(.*)\.$/, replace: "あなたの手はもはやそれほど$1に輝いていない。" },
         { pattern: /^You've\s+been\s+through\s+the\s+dungeon\s+on\s+(.*)\s+with\s+no\s+name\.$/, replace: "あなたは名もなき$1に乗ってダンジョンを進んできた。" },
         { pattern: /^(.*)\s+is\s+not\s+saddled\.$/, replace: "$1は鞍を付けていない。" },
         { pattern: /^You\s+make\s+(.*)\s+scratch\s+marks\s+on\s+(.*)s\.$/, replace: "$2に$1の引っかき傷をつける。" },
@@ -17149,6 +17154,7 @@ function nhPatterns() {
         { pattern: /^You\s+aren't\s+permitted\s+to\s+genocide\s+(.*)\.$/, replace: "$1に対するジェノサイドを行うことは許されません。" },
         { pattern: /^Some\s+(.*)\s+liquid\s+flows\s+from\s+the\s+faucet\.$/, replace: "蛇口から$1の液体が流れ出ている。" },
         { pattern: /^(.*)\s+mews\.$/, replace: "$1が鳴く。" },
+        { pattern: /^(.*)\s+seems\s+to\s+blend\s+into\s+the\s+floor\s+for\s+a\s+moment\.$/, replace: "$1が、一瞬、床に溶け込んでいるように見える。" },
     ];
 }
 
