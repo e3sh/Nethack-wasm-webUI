@@ -532,8 +532,8 @@ export class GKLPlugin {
                     });
                 }
 
-                // ✨ プレイヤー蘇生検知 (PLAYER_RESURRECTED: 命の魔除け等)
-                if (/Your amulet shines|魔除けが.*輝|生き返った/.test(text)) {
+                // ✨ プレイヤー蘇生検知 (PLAYER_RESURRECTED: 命の魔除け / 探索・ウィザードモード死亡回避等)
+                if (/Your amulet shines|魔除けが.*輝|生き返った|OK, so you don't|OK、.*はしません|ことにはならない|survived that attempt|命懸けの試みを生き延び|試みから生還した|averted death|死を免れた/.test(text)) {
                     this._isPlayerDead = false;
                     this.emitFxTrigger({
                         type: 'PLAYER_RESURRECTED',
@@ -684,7 +684,21 @@ export class GKLPlugin {
                             const st = this.statusAccessor.getStatus();
                             const maxHp = st?.hp?.max || newHp;
 
-                            if (newHp < this._prevHp) {
+                            // 💀 死亡状態からHPが正の値に回復した際のフェイルセーフ蘇生復帰
+                            if (this._isPlayerDead && newHp > 0) {
+                                this._isPlayerDead = false;
+                                const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
+                                const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
+                                this.emitFxTrigger({
+                                    type: 'PLAYER_RESURRECTED',
+                                    targetX: px,
+                                    targetY: py,
+                                    isPlayer: true,
+                                    text: 'Resurrected (HP restored)'
+                                });
+                            }
+
+                        if (newHp < this._prevHp) {
                                 this.emitFxTrigger({
                                     type: 'DAMAGE_TAKEN',
                                     targetX: px,

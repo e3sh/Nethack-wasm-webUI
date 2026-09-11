@@ -771,6 +771,101 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
                 targetY: 10,
                 isPlayer: true
             }));
+            expect(plugin._isPlayerDead).toBe(false);
+        });
+
+        it('emitFxTrigger: exploreモード死亡拒否・生還メッセージ検知時に PLAYER_RESURRECTED を発火し死亡状態を解除すること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            plugin.areaStateManager.updatePlayerPosition(12, 6);
+
+            // 1. 日本語辞書訳パターン: "OK、 die はしません。"
+            mockCore.emit('messageText', { text: 'あなたは死んだ...' });
+            expect(plugin._isPlayerDead).toBe(true);
+            fxListener.mockClear();
+
+            mockCore.emit('messageText', { text: 'OK、 die はしません。' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 12,
+                targetY: 6,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
+
+            // 2. 日本語辞書訳パターン: "あなたはその命懸けの試みを生き延びました。"
+            mockCore.emit('messageText', { text: 'You die...' });
+            expect(plugin._isPlayerDead).toBe(true);
+            fxListener.mockClear();
+
+            mockCore.emit('messageText', { text: 'あなたはその命懸けの試みを生き延びました。' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 12,
+                targetY: 6,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
+
+            // 3. 英語パターン: "OK, so you don't die."
+            mockCore.emit('messageText', { text: 'You die...' });
+            expect(plugin._isPlayerDead).toBe(true);
+            fxListener.mockClear();
+
+            mockCore.emit('messageText', { text: "OK, so you don't die." });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 12,
+                targetY: 6,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
+
+            // 4. NetHackJP訳パターン: "命を狙うその試みから生還した。"
+            mockCore.emit('messageText', { text: 'You die...' });
+            expect(plugin._isPlayerDead).toBe(true);
+            fxListener.mockClear();
+
+            mockCore.emit('messageText', { text: '命を狙うその試みから生還した。' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 12,
+                targetY: 6,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
+        });
+
+        it('emitFxTrigger: 死亡状態からステータス更新でHP回復した際にフェイルセーフで PLAYER_RESURRECTED を発火すること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            plugin.areaStateManager.updatePlayerPosition(10, 5);
+
+            // 死亡検知
+            mockCore.emit('messageText', { text: 'You die...' });
+            plugin.statusAccessor.updateField(18, 0); // HP 0
+            plugin._prevHp = 0;
+            expect(plugin._isPlayerDead).toBe(true);
+
+            fxListener.mockClear();
+
+            // HPが回復（未知のメッセージですり抜けた場合など）
+            mockCore.emit('status_update', { field: 18, value: 50 });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 10,
+                targetY: 5,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
         });
     });
 
