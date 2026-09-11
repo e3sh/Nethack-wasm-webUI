@@ -11,8 +11,8 @@
  * 実行する Wasm バリアントに応じて適切な辞書をロードし、パターン衝突の防止と高速マッチングを実現する。
  */
 
-import enCatalog from './ControlSignalCatalog.json';
-import jaCatalog from './ControlSignalCatalog.ja.json';
+import enCatalog from './ControlSignalCatalog.js';
+import jaCatalog from './ControlSignalCatalog.ja.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 export class SignalDetector {

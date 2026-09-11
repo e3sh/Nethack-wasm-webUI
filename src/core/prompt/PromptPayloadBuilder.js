@@ -6,12 +6,41 @@
  */
 
 import { PROMPT_CATEGORY } from '../types.js';
+import { SignalDetector } from './SignalDetector.js';
 
 export class PromptPayloadBuilder {
     constructor(options = {}) {
         this.translator = options.translator || null;
         this.gkl = options.gkl || null;
         this.enableKnowledge = options.enableKnowledge !== false;
+        this.signalDetector = options.signalDetector || SignalDetector.createDefault();
+        this._autoFallbackJa = !options.signalDetector;
+        this._jaSignalDetector = this._autoFallbackJa ? SignalDetector.createForLocale('ja') : null;
+    }
+
+    setSignalDetector(signalDetector) {
+        this.signalDetector = signalDetector;
+        this._autoFallbackJa = false;
+        this._jaSignalDetector = null;
+    }
+
+    /**
+     * プロンプト/ペイロードから制御シグナルを検知
+     * @private
+     */
+    _detectSignal(payload) {
+        if (!this.signalDetector) return null;
+        const result = this.signalDetector.detect(payload);
+        if (result && result.matched) {
+            return result;
+        }
+        if (this._autoFallbackJa && this._jaSignalDetector) {
+            const jaResult = this._jaSignalDetector.detect(payload);
+            if (jaResult && jaResult.matched) {
+                return jaResult;
+            }
+        }
+        return result;
     }
 
     setTranslator(translator) {
@@ -32,6 +61,8 @@ export class PromptPayloadBuilder {
     build(payload) {
         if (!payload) return null;
 
+        const signal = this._detectSignal(payload);
+
         const category = payload.category || payload.promptCategory || PROMPT_CATEGORY.OTHER;
         const rawPrompt = payload.rawPrompt || payload.prompt || payload.question || payload.message || '';
         const choices = payload.choices || '';
@@ -40,6 +71,9 @@ export class PromptPayloadBuilder {
         let inputType = 'CONFIRM';
         let options = [];
         let choicesHint = choices;
+
+        const isDirectionCategory = category === PROMPT_CATEGORY.DIRECTION || category === 'DIRECTION';
+        const isDirectionSignal = signal && (signal.signalId === 'SIGNAL_DIRECTION' || signal.subCategory === 'DIRECTION' || signal.inputType === 'DIRECTION');
 
         if (category === PROMPT_CATEGORY.MENU || (items && items.length > 0)) {
             inputType = 'MENU';
@@ -73,9 +107,7 @@ export class PromptPayloadBuilder {
                     isSelectable: item.isSelectable !== false
                 };
             });
-        } else if (category === PROMPT_CATEGORY.DIRECTION || category === 'DIRECTION' ||
-                   (category === PROMPT_CATEGORY.YN && (!choices || choices.trim() === '') &&
-                    ((rawPrompt || '').toLowerCase().includes('direction') || (rawPrompt || '').includes('方向') || (rawPrompt || '').toLowerCase().includes('which way')))) {
+        } else if (isDirectionCategory || (isDirectionSignal && (category === PROMPT_CATEGORY.YN || !choices || choices.trim() === ''))) {
             inputType = 'DIRECTION';
             options = []; // 方向入力時の誤爆を防止するため汎用選択肢ボタンは生成しない
         } else if (category === PROMPT_CATEGORY.YN || category === 'YN' || payload.context === 'yn_function' || payload.context === 'yn') {
@@ -121,21 +153,19 @@ export class PromptPayloadBuilder {
                 keys = Array.from(new Set(keys));
 
                 // コンテキスト判定 (左右選択 vs アイテム選択 vs YN確認)
-                const lowerPrompt = (rawPrompt || '').toLowerCase();
                 const lowerChoices = effectiveChoices.toLowerCase();
 
                 // 1. 左右選択 (Side Selection)
+                const isSideSelectionSignal = signal && (signal.signalId === 'SIGNAL_SIDE_SELECT' || signal.subCategory === 'SIDE_SELECT');
                 const isSideSelection = (lowerChoices === 'lr' || lowerChoices === 'l/r' || lowerChoices === 'rl') ||
-                    ((lowerChoices.includes('l') && lowerChoices.includes('r') && lowerChoices.length <= 4) &&
-                     (lowerPrompt.includes('ring') || lowerPrompt.includes('hand') || lowerPrompt.includes('side') ||
-                      (rawPrompt || '').includes('指輪') || (rawPrompt || '').includes('手') || (rawPrompt || '').includes('側')));
+                    ((lowerChoices.includes('l') && lowerChoices.includes('r') && lowerChoices.length <= 4) && isSideSelectionSignal);
 
                 // 2. Y/N 確認ダイアログ判定用のキー・選択肢チェック
                 const isYnKeysOnly = keys.length > 0 && keys.every(k => ['y', 'n', 'q', 'a', ' '].includes(k.toLowerCase()));
                 const isYnChoices = /^[ynqa\s\/]+$/i.test(effectiveChoices);
 
                 // 3. アイテム選択プロンプト (Item Selection)
-                const isItemPromptPattern = /what do you want to|eat what|read what|drink what|wear what|wield what|zap what|apply what|take off what|drop what|which item|何を使用|適用|何を食べ|何を飲|何を読|どの.*振|何を装備|何を外|何を置|何を投|どのアイテム|何を識別/i.test(rawPrompt || '');
+                const isItemSelectSignal = signal && (signal.signalId === 'SIGNAL_ITEM_SELECT' || signal.subCategory === 'ITEM_SELECT');
                 const hasItemSpecialKeys = effectiveChoices.includes('?') || effectiveChoices.includes('*') || /\[.*?(\?|\*).*?\]/.test(rawPrompt || '');
                 const hasNonYnKeys = keys.some(k => !['y', 'n', 'q', 'a', ' '].includes(k.toLowerCase()));
                 
@@ -145,7 +175,7 @@ export class PromptPayloadBuilder {
 
                 let isItemSelection = false;
                 if (!isSideSelection) {
-                    if (hasItemSpecialKeys || isItemPromptPattern) {
+                    if (hasItemSpecialKeys || isItemSelectSignal) {
                         isItemSelection = true;
                     } else if (!isYnKeysOnly && !isYnChoices && hasNonYnKeys && hasMatchingInvLetters) {
                         isItemSelection = true;
@@ -276,33 +306,60 @@ const DEFAULT_TITLES = {
                 : rawTitle;
         }
 
-        // 願い（Wishing）プロンプトの自動コンテキスト検知
-        const isTextType = (
-            inputType === 'LINE_TEXT' ||
-            category === PROMPT_CATEGORY.TEXT ||
-            category === PROMPT_CATEGORY.ASKNAME ||
-            category === PROMPT_CATEGORY.EXTCMD ||
-            category === 'LINE' ||
-            payload.inputType === 'LINE_TEXT' ||
-            payload.context === 'text' ||
-            payload.context === 'getlin'
-        );
-
-        const isWishPromptPattern = /for what do you wish|what do you want to wish for|何を願う|何をお望み|何をご所望|何を望む/i;
-        const isWishPrompt = (
-            (isTextType && isWishPromptPattern.test(rawPrompt || '')) ||
-            payload.subCategory === 'WISH'
-        );
-        let subCategory = payload.subCategory || (isWishPrompt ? 'WISH' : null);
+        // シグナル検知結果に基づく subCategory の決定
+        let subCategory = payload.subCategory || null;
         let assistant = payload.assistant || null;
 
-        if (isWishPrompt && !assistant) {
-            const wishService = (this.gkl && typeof this.gkl.getWishService === 'function')
-                ? this.gkl.getWishService()
-                : (this.gkl && this.gkl.wishService ? this.gkl.wishService : null);
+        // 1. 願い（Wishing）プロンプトのシグナル検知
+        const isWishSignal = signal && (signal.subCategory === 'WISH' || signal.signalId === 'SIGNAL_WISH');
+        const isWishPrompt = isWishSignal || payload.subCategory === 'WISH';
 
-            if (wishService) {
-                let charInfo = { race: 'human', role: 'valkyrie', alignment: 'neutral' };
+        if (isWishPrompt) {
+            subCategory = 'WISH';
+            if (!assistant) {
+                const wishService = (this.gkl && typeof this.gkl.getWishService === 'function')
+                    ? this.gkl.getWishService()
+                    : (this.gkl && this.gkl.wishService ? this.gkl.wishService : null);
+
+                if (wishService) {
+                    let charInfo = { race: 'human', role: 'valkyrie', alignment: 'neutral' };
+                    if (this.gkl) {
+                        if (typeof this.gkl.getCharacterInfo === 'function') {
+                            charInfo = this.gkl.getCharacterInfo() || charInfo;
+                        } else if (this.gkl.attributeStateManager?.characterInfo) {
+                            charInfo = this.gkl.attributeStateManager.characterInfo;
+                        }
+                    }
+                    const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
+                    const playerAlignment = payload.playerAlignment || charInfo.alignment || 'neutral';
+                    const playerRace = payload.playerRace || charInfo.race || 'human';
+
+                    assistant = {
+                        type: 'WISH',
+                        presets: typeof wishService.getPresets === 'function' ? wishService.getPresets() : [],
+                        categories: typeof wishService.getCatalogByCategory === 'function' ? Object.keys(wishService.getCatalogByCategory()) : [],
+                        wishService: wishService,
+                        playerRole: playerRole,
+                        playerAlignment: playerAlignment,
+                        playerRace: playerRace,
+                        existingArtifactCount: payload.existingArtifactCount || 0
+                    };
+                }
+            }
+        }
+
+        // 2. 💀 虐殺（Genocide）プロンプトのシグナル検知
+        const isGenocideSignal = signal && (signal.subCategory === 'GENOCIDE' || signal.signalId?.startsWith('SIGNAL_GENOCIDE'));
+        const isGenocidePrompt = isGenocideSignal || payload.subCategory === 'GENOCIDE';
+
+        if (isGenocidePrompt) {
+            subCategory = 'GENOCIDE';
+            if (!assistant) {
+                const genocideService = (this.gkl && typeof this.gkl.getGenocideService === 'function')
+                    ? this.gkl.getGenocideService()
+                    : (this.gkl && this.gkl.genocideService ? this.gkl.genocideService : null);
+
+                let charInfo = { race: 'human', role: 'valkyrie' };
                 if (this.gkl) {
                     if (typeof this.gkl.getCharacterInfo === 'function') {
                         charInfo = this.gkl.getCharacterInfo() || charInfo;
@@ -310,91 +367,39 @@ const DEFAULT_TITLES = {
                         charInfo = this.gkl.attributeStateManager.characterInfo;
                     }
                 }
-                const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
-                const playerAlignment = payload.playerAlignment || charInfo.alignment || 'neutral';
                 const playerRace = payload.playerRace || charInfo.race || 'human';
+                const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
+                const genocideMode = (signal && signal.params && signal.params.mode) || payload.genocideMode || 'ALL';
 
                 assistant = {
-                    type: 'WISH',
-                    presets: typeof wishService.getPresets === 'function' ? wishService.getPresets() : [],
-                    categories: typeof wishService.getCatalogByCategory === 'function' ? Object.keys(wishService.getCatalogByCategory()) : [],
-                    wishService: wishService,
-                    playerRole: playerRole,
-                    playerAlignment: playerAlignment,
+                    type: 'GENOCIDE',
+                    mode: genocideMode,
                     playerRace: playerRace,
-                    existingArtifactCount: payload.existingArtifactCount || 0
+                    playerRole: playerRole,
+                    presets: genocideService && typeof genocideService.getPresets === 'function' ? genocideService.getPresets(genocideMode) : [],
+                    classes: genocideService && typeof genocideService.getMonsterClasses === 'function' ? genocideService.getMonsterClasses() : [],
+                    genocideService: genocideService
                 };
             }
         }
 
-        // 💀 虐殺（Genocide）プロンプトの自動コンテキスト検知
-        // 日英混在や最新NetHack構文 (want / wish, type / kind / class) を網羅
-        const textToInspect = `${payload.rawPrompt || ''} ${payload.prompt || ''} ${rawPrompt || ''}`;
-        const isClassGenocidePattern = /(?:which|what)\s+class\s+of\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|class\s+of\s+monsters?.*genocide|genocide.*class\s+of\s+monsters?|どのクラスのモンスターを虐殺|モンスターのクラス.*虐殺/i;
-        const isSingleGenocidePattern = /(?:what|which)\s+(?:type|kind)?\s*of\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|(?:what|which)\s+monsters?\s+do\s+you\s+(?:want|wish)\s+to\s+genocide|(?:type|kind)\s+of\s+monsters?.*genocide|どの種類のモンスターを虐殺|モンスターの種類.*虐殺/i;
-        const isGenericGenocidePattern = /genocide|虐殺/i;
+        // 3. 🦎 変化制御（Polymorph Control）プロンプトのシグナル検知
+        const isPolymorphSignal = signal && (signal.subCategory === 'POLYMORPH' || signal.signalId === 'SIGNAL_POLYMORPH');
+        const isPolymorphPrompt = isPolymorphSignal || payload.subCategory === 'POLYMORPH';
 
-        const isClassGenocide = isTextType && isClassGenocidePattern.test(textToInspect);
-        const isSingleGenocide = isTextType && isSingleGenocidePattern.test(textToInspect);
-        const isGenocidePrompt = (
-            (isTextType && (isClassGenocide || isSingleGenocide || isGenericGenocidePattern.test(textToInspect))) ||
-            payload.subCategory === 'GENOCIDE'
-        );
-
-        if (!subCategory && isGenocidePrompt) {
-            subCategory = 'GENOCIDE';
-        }
-
-        if (isGenocidePrompt && !assistant) {
-            const genocideService = (this.gkl && typeof this.gkl.getGenocideService === 'function')
-                ? this.gkl.getGenocideService()
-                : (this.gkl && this.gkl.genocideService ? this.gkl.genocideService : null);
-
-            let charInfo = { race: 'human', role: 'valkyrie' };
-            if (this.gkl) {
-                if (typeof this.gkl.getCharacterInfo === 'function') {
-                    charInfo = this.gkl.getCharacterInfo() || charInfo;
-                } else if (this.gkl.attributeStateManager?.characterInfo) {
-                    charInfo = this.gkl.attributeStateManager.characterInfo;
-                }
-            }
-            const playerRace = payload.playerRace || charInfo.race || 'human';
-            const playerRole = payload.playerRole || charInfo.role || 'valkyrie';
-            // クラス虐殺なら確実に CLASS、単体虐殺なら確実に SINGLE
-            const genocideMode = isClassGenocide ? 'CLASS' : (isSingleGenocide ? 'SINGLE' : (payload.genocideMode || 'ALL'));
-
-            assistant = {
-                type: 'GENOCIDE',
-                mode: genocideMode,
-                playerRace: playerRace,
-                playerRole: playerRole,
-                presets: genocideService && typeof genocideService.getPresets === 'function' ? genocideService.getPresets(genocideMode) : [],
-                classes: genocideService && typeof genocideService.getMonsterClasses === 'function' ? genocideService.getMonsterClasses() : [],
-                genocideService: genocideService
-            };
-        }
-
-        // 🦎 変化制御（Polymorph Control）プロンプトの自動コンテキスト検知
-        const isPolymorphPattern = /become what kind of monster|どの種類のモンスターになりますか/i;
-        const isPolymorphPrompt = (
-            (isTextType && isPolymorphPattern.test(rawPrompt || '')) ||
-            payload.subCategory === 'POLYMORPH'
-        );
-
-        if (!subCategory && isPolymorphPrompt) {
+        if (isPolymorphPrompt) {
             subCategory = 'POLYMORPH';
-        }
+            if (!assistant) {
+                const polymorphService = (this.gkl && typeof this.gkl.getPolymorphService === 'function')
+                    ? this.gkl.getPolymorphService()
+                    : (this.gkl && this.gkl.polymorphService ? this.gkl.polymorphService : null);
 
-        if (isPolymorphPrompt && !assistant) {
-            const polymorphService = (this.gkl && typeof this.gkl.getPolymorphService === 'function')
-                ? this.gkl.getPolymorphService()
-                : (this.gkl && this.gkl.polymorphService ? this.gkl.polymorphService : null);
-
-            assistant = {
-                type: 'POLYMORPH',
-                presets: polymorphService && typeof polymorphService.getPresets === 'function' ? polymorphService.getPresets() : [],
-                polymorphService: polymorphService
-            };
+                assistant = {
+                    type: 'POLYMORPH',
+                    presets: polymorphService && typeof polymorphService.getPresets === 'function' ? polymorphService.getPresets() : [],
+                    polymorphService: polymorphService
+                };
+            }
         }
 
         return {

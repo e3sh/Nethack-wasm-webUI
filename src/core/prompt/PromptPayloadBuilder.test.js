@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { PromptPayloadBuilder } from './PromptPayloadBuilder.js';
+import { SignalDetector } from './SignalDetector.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 describe('PromptPayloadBuilder', () => {
@@ -479,5 +480,51 @@ describe('PromptPayloadBuilder', () => {
         expect(resJa.subCategory).toBe('POLYMORPH');
         expect(resJa.assistant).toBeDefined();
         expect(resJa.assistant.type).toBe('POLYMORPH');
+    });
+
+    describe('SignalDetector 統合と依存性注入 (DI)', () => {
+        it('カスタム SignalDetector を constructor で注入できること', () => {
+            const customCatalog = {
+                version: '1.0.0',
+                variant: 'custom',
+                signals: [
+                    {
+                        id: 'CUSTOM_WISH',
+                        subCategory: 'WISH',
+                        inputType: 'LINE_TEXT',
+                        priority: 200,
+                        contextFilter: { isTextType: true },
+                        patterns: ['Custom wish prompt:']
+                    }
+                ]
+            };
+            const customDetector = new SignalDetector(customCatalog);
+            const builder = new PromptPayloadBuilder({ signalDetector: customDetector });
+
+            const res = builder.build({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Custom wish prompt:'
+            });
+
+            expect(res.subCategory).toBe('WISH');
+            expect(res.inputType).toBe('LINE_TEXT');
+        });
+
+        it('setSignalDetector で動的に SignalDetector を切り替えられること', () => {
+            const jaDetector = SignalDetector.createForLocale('ja');
+            const builder = new PromptPayloadBuilder();
+
+            // デフォルト状態から明示的に jaDetector をセット
+            builder.setSignalDetector(jaDetector);
+
+            const res = builder.build({
+                context: 'getlin',
+                rawPrompt: 'どのクラスのモンスターを虐殺しますか？'
+            });
+
+            expect(res.subCategory).toBe('GENOCIDE');
+            expect(res.assistant).toBeDefined();
+            expect(res.assistant.mode).toBe('CLASS');
+        });
     });
 });

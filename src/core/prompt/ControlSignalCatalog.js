@@ -1,4 +1,10 @@
-{
+/**
+ * ControlSignalCatalog.js - NetHack WASM WebUI Control Signal Catalog (Vanilla / English)
+ *
+ * ブラウザネイティブESM環境 (GKLpureJSclient等) およびバンドラ双方で
+ * MIMEタイプエラーなく直接インポート可能な JavaScript モジュール。
+ */
+export const enCatalog = {
   "version": "1.0.0",
   "variant": "vanilla",
   "locale": "en",
@@ -235,4 +241,6 @@
       "description": "Item selection prompt"
     }
   ]
-}
+};
+
+export default enCatalog;

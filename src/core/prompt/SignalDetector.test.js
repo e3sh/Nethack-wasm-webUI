@@ -136,6 +136,36 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(countRes.params.targetItem).toBe('food rations');
         });
 
+        it('Direction, SideSelect, ItemSelect の英語プロンプトを検知できること', () => {
+            // Direction
+            const dirRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'In what direction?'
+            });
+            expect(dirRes.matched).toBe(true);
+            expect(dirRes.signalId).toBe('SIGNAL_DIRECTION');
+            expect(dirRes.subCategory).toBe('DIRECTION');
+            expect(dirRes.inputType).toBe('DIRECTION');
+
+            // SideSelect
+            const sideRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'Which ring? [lr]'
+            });
+            expect(sideRes.matched).toBe(true);
+            expect(sideRes.signalId).toBe('SIGNAL_SIDE_SELECT');
+            expect(sideRes.subCategory).toBe('SIDE_SELECT');
+
+            // ItemSelect
+            const itemRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'What do you want to eat? [efgh or ?*]'
+            });
+            expect(itemRes.matched).toBe(true);
+            expect(itemRes.signalId).toBe('SIGNAL_ITEM_SELECT');
+            expect(itemRes.subCategory).toBe('ITEM_SELECT');
+        });
+
         it('【重要】英語版カタログでは日本語プロンプトが検知されないこと (言語分離の検証)', () => {
             const jaWishResult = enDetector.detect({
                 category: PROMPT_CATEGORY.TEXT,
@@ -267,6 +297,36 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(countRes.matched).toBe(true);
             expect(countRes.signalId).toBe('SIGNAL_COUNT_PROMPT');
             expect(countRes.params.targetItemJa).toBe('リンゴ');
+        });
+
+        it('Direction, SideSelect, ItemSelect の日本語プロンプトを検知できること', () => {
+            // Direction
+            const dirRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'どの方向に進みますか？'
+            });
+            expect(dirRes.matched).toBe(true);
+            expect(dirRes.signalId).toBe('SIGNAL_DIRECTION');
+            expect(dirRes.subCategory).toBe('DIRECTION');
+            expect(dirRes.inputType).toBe('DIRECTION');
+
+            // SideSelect
+            const sideRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'どちらの指輪を外しますか？ [lr]'
+            });
+            expect(sideRes.matched).toBe(true);
+            expect(sideRes.signalId).toBe('SIGNAL_SIDE_SELECT');
+            expect(sideRes.subCategory).toBe('SIDE_SELECT');
+
+            // ItemSelect
+            const itemRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: '何を食べますか？ [efgh or ?*]'
+            });
+            expect(itemRes.matched).toBe(true);
+            expect(itemRes.signalId).toBe('SIGNAL_ITEM_SELECT');
+            expect(itemRes.subCategory).toBe('ITEM_SELECT');
         });
 
         it('【重要】日本語版カタログでは英語プロンプトが検知されないこと (言語分離の検証)', () => {

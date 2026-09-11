@@ -1,8 +1,14 @@
-{
+/**
+ * ControlSignalCatalog.ja.js - NetHack WASM WebUI 機械用制御シグナル辞書 (JNetHack / 日本語)
+ *
+ * ブラウザネイティブESM環境 (GKLpureJSclient等) およびバンドラ双方で
+ * MIMEタイプエラーなく直接インポート可能な JavaScript モジュール。
+ */
+export const jaCatalog = {
   "version": "1.0.0",
-  "variant": "vanilla",
-  "locale": "en",
-  "description": "NetHack WASM WebUI Control Signal Catalog (Vanilla NetHack 5.0 / English)",
+  "variant": "jnethack",
+  "locale": "ja",
+  "description": "NetHack WASM WebUI 機械用制御シグナル辞書 (JNetHack / 日本語バリアント)",
   "signals": [
     {
       "id": "SIGNAL_WISH",
@@ -13,12 +19,14 @@
         "isTextType": true
       },
       "patterns": [
-        "for what do you wish",
-        "what do you want to wish for"
+        "何を願[うい]",
+        "何をお望み",
+        "何をご所望",
+        "何を望む"
       ],
       "flags": "i",
       "params": {},
-      "description": "Wish input prompt"
+      "description": "願い (Wish) 入力プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_GENOCIDE_CLASS",
@@ -29,15 +37,14 @@
         "isTextType": true
       },
       "patterns": [
-        "(?:which|what)\\s+class\\s+of\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
-        "class\\s+of\\s+monsters?.*genocide",
-        "genocide.*class\\s+of\\s+monsters?"
+        "どのクラスのモンスターを虐殺",
+        "モンスターのクラス.*虐殺"
       ],
       "flags": "i",
       "params": {
         "mode": "CLASS"
       },
-      "description": "Genocide monster class prompt"
+      "description": "虐殺 (Genocide) - モンスタークラス指定プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_GENOCIDE_SINGLE",
@@ -48,15 +55,14 @@
         "isTextType": true
       },
       "patterns": [
-        "(?:what|which)\\s+(?:type|kind)?\\s*of\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
-        "(?:what|which)\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
-        "(?:type|kind)\\s+of\\s+monsters?.*genocide"
+        "どの種類のモンスターを虐殺",
+        "モンスターの種類.*虐殺"
       ],
       "flags": "i",
       "params": {
         "mode": "SINGLE"
       },
-      "description": "Genocide single monster prompt"
+      "description": "虐殺 (Genocide) - 単体モンスター指定プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_GENOCIDE_GENERIC",
@@ -67,13 +73,13 @@
         "isTextType": true
       },
       "patterns": [
-        "\\bgenocide\\b"
+        "虐殺"
       ],
       "flags": "i",
       "params": {
         "mode": "ALL"
       },
-      "description": "Generic genocide prompt"
+      "description": "虐殺 (Genocide) - 汎用虐殺プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_POLYMORPH",
@@ -84,11 +90,11 @@
         "isTextType": true
       },
       "patterns": [
-        "become what kind of monster"
+        "どの種類のモンスターになりますか"
       ],
       "flags": "i",
       "params": {},
-      "description": "Polymorph control prompt"
+      "description": "変化制御 (Polymorph Control) プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
@@ -100,15 +106,13 @@
         "excludeInventoryMenu": true
       },
       "patterns": [
-        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.\\s*Do what with it\\?",
-        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.",
-        "Do what with (?<containerName>.+?)\\?"
+        "(?<containerName>.+?)(?:の中身)?(?:[をでは])?(?:どうしますか|何(?:を|に)しますか)"
       ],
       "flags": "i",
       "params": {
         "source": "LOOT_COMMAND"
       },
-      "description": "Container action menu triggered by #loot"
+      "description": "#loot コマンド実行時のコンテナアクション選択メニュー (JNetHack)"
     },
     {
       "id": "SIGNAL_CONTAINER_ACTION_MENU",
@@ -119,13 +123,11 @@
         "excludeInventoryMenu": true
       },
       "patterns": [
-        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.\\s*Do what with it\\?",
-        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.",
-        "Do what with (?<containerName>.+?)\\?"
+        "(?<containerName>.+?)(?:の中身)?(?:[をでは])?(?:どうしますか|何(?:を|に)しますか)"
       ],
       "flags": "i",
       "params": {},
-      "description": "Generic container action menu"
+      "description": "汎用コンテナアクション選択メニュー (JNetHack)"
     },
     {
       "id": "SIGNAL_CONTAINER_FLOOR_SELECT",
@@ -133,11 +135,12 @@
       "inputType": "MENU",
       "priority": 100,
       "patterns": [
-        "Loot which containers"
+        "どのコンテナを物色",
+        "どの容器を物色"
       ],
       "flags": "i",
       "params": {},
-      "description": "Floor container selection menu"
+      "description": "床の複数コンテナ選択メニュー (JNetHack)"
     },
     {
       "id": "SIGNAL_CONTAINER_CATEGORY_SELECT",
@@ -145,17 +148,20 @@
       "inputType": "MENU",
       "priority": 100,
       "patterns": [
-        "^(?<directionAction>Take out|Put in) what type of objects\\?"
+        "^(?<directionActionJa>取り出す|入れる)オブジェクトの種類",
+        "^(?<directionActionJa>中に入れる|外に出す)アイテムの種類"
       ],
       "flags": "i",
       "paramsMapping": {
-        "directionAction": {
-          "Take out": { "direction": "out" },
-          "Put in": { "direction": "in" }
+        "directionActionJa": {
+          "取り出す": { "direction": "out" },
+          "外に出す": { "direction": "out" },
+          "入れる": { "direction": "in" },
+          "中に入れる": { "direction": "in" }
         }
       },
       "params": {},
-      "description": "Container category selection menu"
+      "description": "コンテナ内/外 カテゴリ選択メニュー (JNetHack)"
     },
     {
       "id": "SIGNAL_CONTAINER_ITEM_SELECT",
@@ -163,17 +169,19 @@
       "inputType": "MENU",
       "priority": 100,
       "patterns": [
-        "^(?<directionAction>Take out|Put in) what\\?"
+        "^(?<directionActionJa>何を中に入れますか|何を外に出しますか|何を取り出しますか|何を入れますか)"
       ],
       "flags": "i",
       "paramsMapping": {
-        "directionAction": {
-          "Take out": { "direction": "out" },
-          "Put in": { "direction": "in" }
+        "directionActionJa": {
+          "何を取り出しますか": { "direction": "out" },
+          "何を外に出しますか": { "direction": "out" },
+          "何を入れますか": { "direction": "in" },
+          "何を中に入れますか": { "direction": "in" }
         }
       },
       "params": {},
-      "description": "Container item selection menu"
+      "description": "コンテナ アイテム個別選択メニュー (JNetHack)"
     },
     {
       "id": "SIGNAL_COUNT_PROMPT",
@@ -181,12 +189,11 @@
       "inputType": "LINE_TEXT",
       "priority": 100,
       "patterns": [
-        "^How many(?:\\s+\\[?(?<targetItem>[^\\]\\?]+)\\]?)?\\?",
-        "^How many"
+        "(?:何個|幾つ)(?:の)?(?<targetItemJa>[^？?]*)"
       ],
       "flags": "i",
       "params": {},
-      "description": "Count prompt (How many?)"
+      "description": "数量指定プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_DIRECTION",
@@ -194,11 +201,13 @@
       "inputType": "DIRECTION",
       "priority": 100,
       "patterns": [
-        "(?:in\\s+what\\s+direction|which\\s+way|\\bdirection\\b)"
+        "どの方向",
+        "どちらの方向",
+        "方向"
       ],
       "flags": "i",
       "params": {},
-      "description": "Direction input prompt"
+      "description": "方向入力プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_SIDE_SELECT",
@@ -206,11 +215,15 @@
       "inputType": "CHOICE_BUTTONS",
       "priority": 100,
       "patterns": [
-        "(?:which\\s+ring|which\\s+hand|which\\s+side|which\\s+(?:left|right))"
+        "どちらの指輪",
+        "どちらの手",
+        "どちら側",
+        "どの指輪",
+        "左右"
       ],
       "flags": "i",
       "params": {},
-      "description": "Left/Right side selection prompt"
+      "description": "左右選択プロンプト (JNetHack)"
     },
     {
       "id": "SIGNAL_ITEM_SELECT",
@@ -218,21 +231,24 @@
       "inputType": "CHOICE_BUTTONS",
       "priority": 90,
       "patterns": [
-        "what\\s+do\\s+you\\s+want\\s+to",
-        "eat\\s+what",
-        "read\\s+what",
-        "drink\\s+what",
-        "wear\\s+what",
-        "wield\\s+what",
-        "zap\\s+what",
-        "apply\\s+what",
-        "take\\s+off\\s+what",
-        "drop\\s+what",
-        "which\\s+item"
+        "何を使用",
+        "適用",
+        "何を食べ",
+        "何を飲",
+        "何を読",
+        "どの.*振",
+        "何を装備",
+        "何を外",
+        "何を置",
+        "何を投",
+        "どのアイテム",
+        "何を識別"
       ],
       "flags": "i",
       "params": {},
-      "description": "Item selection prompt"
+      "description": "アイテム選択プロンプト (JNetHack)"
     }
   ]
-}
+};
+
+export default jaCatalog;

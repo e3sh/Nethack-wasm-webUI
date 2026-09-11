@@ -188,6 +188,59 @@
       "flags": "i",
       "params": {},
       "description": "数量指定プロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_DIRECTION",
+      "subCategory": "DIRECTION",
+      "inputType": "DIRECTION",
+      "priority": 100,
+      "patterns": [
+        "どの方向",
+        "どちらの方向",
+        "方向"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "方向入力プロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_SIDE_SELECT",
+      "subCategory": "SIDE_SELECT",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 100,
+      "patterns": [
+        "どちらの指輪",
+        "どちらの手",
+        "どちら側",
+        "どの指輪",
+        "左右"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "左右選択プロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_ITEM_SELECT",
+      "subCategory": "ITEM_SELECT",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 90,
+      "patterns": [
+        "何を使用",
+        "適用",
+        "何を食べ",
+        "何を飲",
+        "何を読",
+        "どの.*振",
+        "何を装備",
+        "何を外",
+        "何を置",
+        "何を投",
+        "どのアイテム",
+        "何を識別"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "アイテム選択プロンプト (JNetHack)"
     }
   ]
 }
