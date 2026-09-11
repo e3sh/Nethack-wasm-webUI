@@ -19,6 +19,7 @@ import { KeyHandler } from './modules/handlers/KeyHandler.js';
  */
 class GklPureJSClient {
   constructor() {
+    console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
     this.core = null;
     this.lookService = null;
     this.currentLanguage = 'ja';
@@ -186,11 +187,9 @@ class GklPureJSClient {
   initCore() {
     const workerPath = '../../src/driver/nethack.worker.js';
     const bridge = new NetHackWasmWorkerBridge(workerPath);
-    this.core = new WebUICore({ driver: bridge });
+    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: 'ja' });
+    this.core = new WebUICore({ driver: bridge, gkl: gklPlugin, keyMode: 'numpad', language: 'ja' });
     this.currentLanguage = this.core.language || 'ja';
-
-    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: this.currentLanguage });
-    gklPlugin.attach(this.core);
 
     this.lookService = new OnDemandLookService({ core: this.core });
   }

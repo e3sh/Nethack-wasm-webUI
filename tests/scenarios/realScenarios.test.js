@@ -169,7 +169,7 @@ describe('実機キャプチャシナリオ再生テスト (Phase 3 Downlink Int
     it('⑧ 実機コンテナ操作シナリオ (sack_food_in_out) の再生とコンテナFSM・中身追跡の動作検証', async () => {
         const scenario = loadFixture('sack_food_in_out_1788646234719.json');
         const driver = new ScenarioDriver(scenario);
-        const core = new WebUICore({ driver });
+        const core = new WebUICore({ driver, enableContainerFSM: true });
 
         expect(core.containerFSM).toBeDefined();
 

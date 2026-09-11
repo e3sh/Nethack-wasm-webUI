@@ -247,6 +247,46 @@ export const jaCatalog = {
       "flags": "i",
       "params": {},
       "description": "アイテム選択プロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_CONFIRM_YN",
+      "subCategory": "CONFIRM_YN",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 110,
+      "patterns": [
+        "(?:本当によろしいですか|本当によいですか|食べますか|続けますか|消しますか|上書きしますか|開けますか|よろしいですか).*?\\[y\\/n\\]",
+        "\\?.*?\\[y\\/n\\]",
+        "(?:本当によろしいですか|本当に.*ですか)"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "汎用 yes/no 確認プロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_TEXT_INPUT",
+      "subCategory": "TEXT_INPUT",
+      "inputType": "LINE_TEXT",
+      "priority": 95,
+      "patterns": [
+        "何と(?:刻み|書き|呼び|名付け)ますか",
+        "何と(?:呼び|名付け)"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "テキスト入力プロンプト (刻み・仮名付け等) (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_TOOL_SELECT",
+      "subCategory": "TOOL_SELECT",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 95,
+      "patterns": [
+        "何を使って(?:書き|開け|解除し)ますか",
+        "何で(?:書き|開け)ますか"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "道具選択プロンプト (筆記具・缶切り等) (JNetHack)"
     }
   ]
 };

@@ -46,14 +46,16 @@ export class AssistHud {
       this.elBtnAssistAction.onclick = async (e) => {
         e.stopPropagation();
         const core = this.getCore();
-        if (!this.lastAssistAction || !this.lastAssistAction.keySequence || !core) return;
-        const seq = this.lastAssistAction.keySequence;
-        //this.appendLog(`[AssistAction] '${this.lastAssistAction.labelJa || this.lastAssistAction.labelEn}' を実行 (keys: ${JSON.stringify(seq)})`);
+        if (!this.lastAssistAction || !core) return;
+        const seqOrRecipe = this.lastAssistAction.actionRecipe || this.lastAssistAction.keySequence;
+        if (!seqOrRecipe) return;
 
-        if (core.driver && typeof core.driver.queueSequence === 'function') {
-          await core.driver.queueSequence(seq);
+        if (typeof core.executeSequence === 'function') {
+          await core.executeSequence(seqOrRecipe);
+        } else if (core.driver && typeof core.driver.queueSequence === 'function') {
+          await core.driver.queueSequence(seqOrRecipe);
         } else if (typeof core.sendKeySequence === 'function') {
-          await core.sendKeySequence(seq);
+          await core.sendKeySequence(seqOrRecipe);
         }
       };
     }
@@ -107,7 +109,8 @@ export class AssistHud {
 
     // ワンタップ実行アクションボタン (Level 3)
     const action = assistState.primaryAction;
-    if (action && action.keySequence && action.keySequence.length > 0 && this.elBtnAssistAction) {
+    const hasExecutableAction = action && (action.actionRecipe || (action.keySequence && action.keySequence.length > 0));
+    if (hasExecutableAction && this.elBtnAssistAction) {
       this.elBtnAssistAction.classList.remove('hidden');
       if (this.elAssistActionLabel) {
         this.elAssistActionLabel.textContent = isEn

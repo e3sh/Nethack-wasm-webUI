@@ -9,6 +9,7 @@ import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemIn
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { getSkillProficiencyBadge } from './ItemSpecPresenter.js';
 import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from './ItemIdentificationResolver.js';
+import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
 
 export class InventoryStateManager {
     constructor(options = {}) {
@@ -193,6 +194,9 @@ export class InventoryStateManager {
                     item
                 );
                 Object.assign(item, defaultAction);
+                if (defaultAction.defaultActionRecipe) {
+                    item.actionRecipe = defaultAction.defaultActionRecipe;
+                }
             });
 
             this.items = parsedItems;
@@ -986,9 +990,26 @@ export class InventoryStateManager {
             }
         }
 
+        // 動的アクションの対話レシピ (ActionRecipe) の自動生成
+        let defaultActionRecipe = null;
+        if (letter) {
+            if (defaultVerb === 'z') {
+                defaultActionRecipe = ActionRecipeFactory.createZapWandRecipe(letter);
+            } else if (defaultVerb === 'e') {
+                defaultActionRecipe = ActionRecipeFactory.createEatFoodRecipe(letter);
+            } else if (defaultVerb === 'd') {
+                defaultActionRecipe = ActionRecipeFactory.createDropItemRecipe(letter);
+            } else if (defaultVerb === 't') {
+                defaultActionRecipe = ActionRecipeFactory.createThrowItemRecipe(letter, 'DIR_SELF');
+            } else if (defaultVerb === 'f') {
+                defaultActionRecipe = ActionRecipeFactory.createFireAmmoRecipe('DIR_SELF');
+            }
+        }
+
         return {
             defaultVerb,
             defaultSequence,
+            defaultActionRecipe,
             defaultActionLabel,
             defaultActionLabelJa,
             itemCategory,
@@ -1089,6 +1110,8 @@ export class InventoryStateManager {
             rawText: item.rawText,
             defaultVerb: item.defaultVerb,
             defaultSequence: item.defaultSequence,
+            defaultActionRecipe: item.defaultActionRecipe || item.actionRecipe || null,
+            actionRecipe: item.actionRecipe || item.defaultActionRecipe || null,
             defaultActionLabel: item.defaultActionLabel,
             defaultActionLabelJa: item.defaultActionLabelJa,
             itemCategory: item.itemCategory,

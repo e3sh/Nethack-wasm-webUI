@@ -614,6 +614,34 @@
                 this.worker.postMessage({ type: 'GET_LAST_SEQUENCE_BUFFER', payload: { requestId } });
             });
         }
+
+        /**
+         * 抽象方向コード (DIR_*) や制御キーのキーモード変換ヘルパー
+         * @param {string} token
+         * @returns {string}
+         */
+        resolveTokenKey(token) {
+            if (typeof token !== 'string') return token;
+            const mode = this.keyMode || 'numpad';
+
+            const directionMap = {
+                'numpad': {
+                    'DIR_N': '8', 'DIR_E': '6', 'DIR_S': '2', 'DIR_W': '4',
+                    'DIR_NE': '9', 'DIR_NW': '7', 'DIR_SE': '3', 'DIR_SW': '1',
+                    'DIR_SELF': '.'
+                },
+                'vi': {
+                    'DIR_N': 'k', 'DIR_E': 'l', 'DIR_S': 'j', 'DIR_W': 'h',
+                    'DIR_NE': 'u', 'DIR_NW': 'y', 'DIR_SE': 'n', 'DIR_SW': 'b',
+                    'DIR_SELF': '.'
+                }
+            };
+
+            const map = directionMap[mode] || directionMap['numpad'];
+            if (map[token]) return map[token];
+
+            return token;
+        }
     }
 
     global.NetHackWasmWorkerBridge = NetHackWasmWorkerBridge;

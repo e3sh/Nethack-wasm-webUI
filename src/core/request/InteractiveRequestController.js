@@ -207,6 +207,10 @@ export class InteractiveRequestController {
                 return [];
             }
         } catch (e) {
+            if (e && e.message && e.message.includes('superseded by new silent sync')) {
+                // 新しいサイレント同期により上書きキャンセルされた正常動作のためログ出力を抑止
+                return [];
+            }
             console.error('[InteractiveRequestController] Error executing array sequence:', e);
             return [];
         } finally {
@@ -312,43 +316,73 @@ export class InteractiveRequestController {
             }
 
             // inputRequired リスナー
+            let lastActionSentBufferIndex = -1;
+
+            // 直前メッセージの抽出ヘルパー（直近のアクション投入以降に受信したメッセージのみを対象とする）
+            const getRecentMessageText = () => {
+                for (let i = buffer.length - 1; i > lastActionSentBufferIndex; i--) {
+                    const item = buffer[i];
+                    if ((item.type === 'putstr' || item.type === 'messageText') && item.text) {
+                        return item.text;
+                    }
+                }
+                return '';
+            };
+
+            const respondAction = (resolver, action, label = '') => {
+                lastActionSentBufferIndex = buffer.length - 1;
+                let resolved = action;
+                if (typeof action === 'string') {
+                    if (this.driver && typeof this.driver.resolveTokenKey === 'function') {
+                        resolved = this.driver.resolveTokenKey(action);
+                    } else {
+                        resolved = this.resolveTokenKey(action);
+                    }
+                }
+                const labelStr = label ? ` [${label}]` : '';
+                const resolveStr = resolved !== action ? ` (resolved: '${resolved}')` : '';
+                console.log(`[InteractiveRequestController] ➡️ Responding: '${action}'${resolveStr}${labelStr}`);
+                this._respond(resolver, resolved);
+            };
+
+            console.log(`[InteractiveRequestController] 🚀 Starting recipe '${recipe.id || 'unnamed'}' (startQueue: ${JSON.stringify(startQueue)})`);
+
+            // inputRequired リスナー
             const onInputRequired = (payload) => {
                 if (isFinished) return;
 
                 buffer.push({ type: 'inputRequired', payload });
 
-                // シグナル同定
+                // シグナル同定 (直前メッセージをコンテキスト情報として渡し、シグナル検知層でバリアント辞書に基づく純粋判定を行う)
+                const lastMessage = getRecentMessageText();
                 const signal = this.signalDetector ?
-                    this.signalDetector.detect(payload) :
+                    this.signalDetector.detect(payload, { lastMessage }) :
                     { matched: false, signalId: null, subCategory: null, inputType: null, params: {} };
+
+                if (signal && signal.matched) {
+                    console.log(`[InteractiveRequestController] 📡 Signal detected: ${signal.signalId} (subCategory: ${signal.subCategory}) [contextMessage: "${lastMessage}"]`);
+                }
 
                 ctx.payload = payload;
                 ctx.signal = signal;
                 ctx.menuItems = payload.items || payload.menuItems || [];
-
-                // 終了判定 (until) のチェック
-                // startQueue が空（初動キーが消費済み）の場合に終了条件を評価
-                if (this._isUntilSatisfied(recipe.until, payload, ctx, startQueue.length)) {
-                    finish(ctx.data, true);
-                    return;
-                }
 
                 const resolver = payload.safeResolver || payload.resolver || (this.driver ? this.driver.activeResolver : null);
 
                 // 1. 初動キーが残っている場合は最優先で投入
                 if (startQueue.length > 0) {
                     const token = startQueue.shift();
-                    this._respond(resolver, token);
+                    respondAction(resolver, token, 'initial_token');
                     return;
                 }
 
-                // 2. ハンドラルールの優先順評価
+                // 2. ハンドラルールの優先順評価（初動キー消費後は until より先にハンドラを評価）
                 const handlers = recipe.handlers || [];
                 for (const handler of handlers) {
                     if (this._matchesRule(handler.match, payload, ctx)) {
                         const action = typeof handler.action === 'function' ? handler.action(ctx) : handler.action;
                         if (action !== undefined && action !== null) {
-                            this._respond(resolver, action);
+                            respondAction(resolver, action, `handler: ${handler.match?.signalId || 'matched'}`);
                         }
                         if (isFinished) return;
                         if (action !== undefined && action !== null) {
@@ -357,11 +391,18 @@ export class InteractiveRequestController {
                     }
                 }
 
-                // 3. デフォルトアクション
+                // 3. 終了判定 (until) のチェック（ハンドラで未消費の場合にターン復帰等を評価）
+                if (this._isUntilSatisfied(recipe.until, payload, ctx, startQueue.length)) {
+                    console.log(`[InteractiveRequestController] 🏁 Recipe until satisfied (${recipe.until?.type || 'turn_ready'}). Finishing.`);
+                    finish(ctx.data, true);
+                    return;
+                }
+
+                // 4. デフォルトアクション
                 if (recipe.defaultAction !== undefined) {
                     const defAction = typeof recipe.defaultAction === 'function' ? recipe.defaultAction(ctx) : recipe.defaultAction;
                     if (defAction !== undefined && defAction !== null) {
-                        this._respond(resolver, defAction);
+                        respondAction(resolver, defAction, 'default_action');
                     }
                     if (isFinished) return;
                     if (defAction !== undefined && defAction !== null) {
@@ -400,7 +441,7 @@ export class InteractiveRequestController {
             if (this.driver && this.driver.activeResolver && startQueue.length > 0) {
                 const initialToken = startQueue.shift();
                 const activeRes = this.driver.activeResolver;
-                this._respond(activeRes, initialToken);
+                respondAction(activeRes, initialToken, 'initial_token_immediate');
             }
         });
     }
@@ -421,13 +462,20 @@ export class InteractiveRequestController {
             return Boolean(condition(payload, ctx));
         }
 
-        // turn_ready 判定 (poskey 復帰)
+        // turn_ready 判定 (通常ターン復帰)
         if (condition.type === 'turn_ready') {
             const isPoskey = (payload.type && String(payload.type).toLowerCase() === 'poskey') ||
                              (payload.context && String(payload.context).toLowerCase() === 'poskey') ||
                              (payload.category && String(payload.category).toLowerCase() === 'poskey') ||
                              (payload.promptCategory && String(payload.promptCategory).toLowerCase() === 'poskey');
-            return Boolean(isPoskey);
+            if (!isPoskey) return false;
+
+            // 方向待ち等の未解決シグナルが出ている場合は通常ターン復帰とみなさない
+            if (ctx.signal && (ctx.signal.signalId === 'SIGNAL_DIRECTION' || ctx.signal.subCategory === 'DIRECTION')) {
+                return false;
+            }
+
+            return true;
         }
 
         // signalId 判定
@@ -508,10 +556,14 @@ export class InteractiveRequestController {
     _respond(resolver, action) {
         if (!resolver) return;
         try {
+            let finalAction = action;
+            if (this.driver && typeof this.driver.resolveTokenKey === 'function' && typeof action === 'string') {
+                finalAction = this.driver.resolveTokenKey(action);
+            }
             if (typeof resolver.respond === 'function') {
-                resolver.respond(action);
+                resolver.respond(finalAction);
             } else if (typeof resolver === 'function') {
-                resolver(action);
+                resolver(finalAction);
             }
         } catch (e) {
             console.error('[InteractiveRequestController] Error responding to resolver:', e);
@@ -556,5 +608,34 @@ export class InteractiveRequestController {
         } finally {
             this.setState(InteractiveRequestController.State.IDLE);
         }
+    }
+
+    /**
+     * 抽象方向コード (DIR_*) や制御トークンの物理キー解決ヘルパー
+     * driver.resolveTokenKey が存在しない場合のフォールバックとしても機能する
+     * @param {string} token
+     * @returns {string}
+     */
+    resolveTokenKey(token) {
+        if (typeof token !== 'string') return token;
+        const mode = (this.driver && this.driver.keyMode) || 'numpad';
+
+        const directionMap = {
+            'numpad': {
+                'DIR_N': '8', 'DIR_E': '6', 'DIR_S': '2', 'DIR_W': '4',
+                'DIR_NE': '9', 'DIR_NW': '7', 'DIR_SE': '3', 'DIR_SW': '1',
+                'DIR_SELF': '.'
+            },
+            'vi': {
+                'DIR_N': 'k', 'DIR_E': 'l', 'DIR_S': 'j', 'DIR_W': 'h',
+                'DIR_NE': 'u', 'DIR_NW': 'y', 'DIR_SE': 'n', 'DIR_SW': 'b',
+                'DIR_SELF': '.'
+            }
+        };
+
+        const map = directionMap[mode] || directionMap['numpad'];
+        if (map[token]) return map[token];
+
+        return token;
     }
 }

@@ -109,7 +109,9 @@ function getKeys(act: any): string[] {
 }
 
 async function handleActionClick(act: any) {
-  if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
+  if (act.actionRecipe) {
+    await executeSequence(act.actionRecipe);
+  } else if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
     await executeSequence(act.keySequence);
   } else {
     executeAction(act);

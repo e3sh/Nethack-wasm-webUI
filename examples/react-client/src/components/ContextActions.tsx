@@ -58,7 +58,9 @@ export const ContextActions: React.FC = () => {
   };
 
   const handleActionClick = useCallback(async (act: any) => {
-    if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
+    if (act.actionRecipe) {
+      await executeSequence(act.actionRecipe);
+    } else if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
       await executeSequence(act.keySequence);
     } else {
       executeAction(act);

@@ -164,6 +164,40 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(itemRes.matched).toBe(true);
             expect(itemRes.signalId).toBe('SIGNAL_ITEM_SELECT');
             expect(itemRes.subCategory).toBe('ITEM_SELECT');
+
+            // ConfirmYN
+            const confirmRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'Are you sure you want to pray? [yn]'
+            });
+            expect(confirmRes.matched).toBe(true);
+            expect(confirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
+            expect(confirmRes.subCategory).toBe('CONFIRM_YN');
+
+            const eatConfirmRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'This corpse smells terrible! Eat it anyway? [yn]'
+            });
+            expect(eatConfirmRes.matched).toBe(true);
+            expect(eatConfirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
+
+            // TextInput
+            const textRes = enDetector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What do you want to engrave on the floor?'
+            });
+            expect(textRes.matched).toBe(true);
+            expect(textRes.signalId).toBe('SIGNAL_TEXT_INPUT');
+            expect(textRes.subCategory).toBe('TEXT_INPUT');
+
+            // ToolSelect
+            const toolRes = enDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'What do you want to write with?'
+            });
+            expect(toolRes.matched).toBe(true);
+            expect(toolRes.signalId).toBe('SIGNAL_TOOL_SELECT');
+            expect(toolRes.subCategory).toBe('TOOL_SELECT');
         });
 
         it('【重要】英語版カタログでは日本語プロンプトが検知されないこと (言語分離の検証)', () => {
@@ -327,6 +361,37 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(itemRes.matched).toBe(true);
             expect(itemRes.signalId).toBe('SIGNAL_ITEM_SELECT');
             expect(itemRes.subCategory).toBe('ITEM_SELECT');
+
+            // ConfirmYN
+            const confirmRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: '本当によろしいですか？ [y/n]'
+            });
+            expect(confirmRes.matched).toBe(true);
+            expect(confirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
+
+            const eatConfirmRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: '古い死体です。本当に食べますか？ [y/n]'
+            });
+            expect(eatConfirmRes.matched).toBe(true);
+            expect(eatConfirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
+
+            // TextInput
+            const textRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: '床に何と刻みますか？'
+            });
+            expect(textRes.matched).toBe(true);
+            expect(textRes.signalId).toBe('SIGNAL_TEXT_INPUT');
+
+            // ToolSelect
+            const toolRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: '何を使って書きますか？'
+            });
+            expect(toolRes.matched).toBe(true);
+            expect(toolRes.signalId).toBe('SIGNAL_TOOL_SELECT');
         });
 
         it('【重要】日本語版カタログでは英語プロンプトが検知されないこと (言語分離の検証)', () => {
@@ -408,6 +473,38 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(result.signalId).toBe('SLASH_SIGNAL_TECHNIQUE');
             expect(result.subCategory).toBe('TECHNIQUE');
             expect(result.params.variant).toBe('slashem');
+        });
+
+        it('payload にプロンプト文面が無い場合でも、contextInfo.lastMessage から SIGNAL_DIRECTION を正しく同定できること (en / ja)', () => {
+            const enDetector = SignalDetector.createDefault();
+            const jaDetector = SignalDetector.createForLocale('ja');
+
+            // 英語バリアント (Vanilla NetHack 5.0)
+            const resEn = enDetector.detect(
+                { type: 'poskey', context: 'poskey' },
+                { lastMessage: 'In what direction?' }
+            );
+            expect(resEn.matched).toBe(true);
+            expect(resEn.signalId).toBe('SIGNAL_DIRECTION');
+            expect(resEn.inputType).toBe('DIRECTION');
+
+            // 日本語バリアント (JNetHack)
+            const resJa = jaDetector.detect(
+                { type: 'poskey', context: 'poskey' },
+                { lastMessage: 'どの方向に？' }
+            );
+            expect(resJa.matched).toBe(true);
+            expect(resJa.signalId).toBe('SIGNAL_DIRECTION');
+            expect(resJa.inputType).toBe('DIRECTION');
+
+            // 実機等価: TranslationEngine で日本語化された inputType: 'DIRECTION', prompt: 'どの方向？'
+            const resRealDevice = enDetector.detect(
+                { inputType: 'DIRECTION', prompt: 'どの方向？', title: 'どの方向？' },
+                { lastMessage: 'In what direction?' }
+            );
+            expect(resRealDevice.matched).toBe(true);
+            expect(resRealDevice.signalId).toBe('SIGNAL_DIRECTION');
+            expect(resRealDevice.subCategory).toBe('DIRECTION');
         });
     });
 });

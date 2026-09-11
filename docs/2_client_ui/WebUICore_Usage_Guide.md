@@ -72,7 +72,8 @@ core.destroy();
 | `sendKeyEvent(event)` | `boolean` | 生の `KeyboardEvent` を自動マッピングし C コアへ送信 (`preventDefault` 自動適用) |
 | `sendAction(actionName)` | `boolean` | `'MOVE_UP'`, `'CONFIRM'`, `'CANCEL'` 等の汎用キーアクション名を送信 |
 | `sendKey(inputVal, shift, ctrl, alt, rawKey)` | `void` | キー入力を C コアへ送信 (ASCIIコード・特殊キーマップへ自動変換) |
-| `querySequenceSilent(tokens, options)` | `Promise<Array<Object>>` | トークン配列（`['i', ' ']` 等）を画面非表示で自走実行し、実行結果バッファを返却 |
+| `querySequenceSilent(sequenceOrRecipe, options)` | `Promise<Array<Object> \| Object>` | トークン配列（`['i', ' ']` 等）または対話レシピオブジェクトを画面非表示で自走実行し、結果を返却 |
+| `executeSequence(sequenceOrRecipe, options)` | `Promise<boolean \| Object>` | キーシーケンスまたは対話レシピオブジェクトを安全に実行し完了状態を返却 |
 | `getLastSequenceBuffer()` | `Array<Object>` | 直近のシーケンス実行結果バッファのクリーンコピーを取得 |
 | `getSituation()` | `Object` | GKL が管理する統合ゲーム状況 (`{ status, inventory, area, tools, actions }`) を一括取得 |
 | `syncInventorySilent(options)` | `Promise<boolean>` | `querySequenceSilent(['i', ' '])` を実行し、`InventoryStateManager` を 100% 正確に最新化 |

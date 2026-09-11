@@ -137,12 +137,16 @@ export class WebUICore {
             this.promptPayloadBuilder.setGkl(this.gkl);
         }
 
-        this.signalDetector = options.signalDetector || SignalDetector.createForLocale(this.language);
+        const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
+        this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
         this.interactiveController = options.interactiveController || new InteractiveRequestController({
             driver: this.driver,
             signalDetector: this.signalDetector
         });
         this.requestController = this.interactiveController;
+        if (this.gkl) {
+            this.gkl.requestController = this.interactiveController;
+        }
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -1054,9 +1058,11 @@ export class WebUICore {
      */
     executeAction(action, options = {}) {
         this.isItemUsingActive = true;
+        console.log(`[WebUICore] ⚡ executeAction called:`, action?.id, action);
         if (this.gkl) {
             return this.gkl.executeAction(action, options);
         }
+        console.warn('[WebUICore] executeAction: this.gkl is null!');
         return false;
     }
 

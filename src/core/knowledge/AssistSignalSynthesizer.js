@@ -637,14 +637,18 @@ export class AssistSignalSynthesizer {
     static buildPrimaryAction(primarySignal, inventoryItems, spells, status) {
         if (!primarySignal) return null;
 
-        if (primarySignal.actionKeySequence) {
-            return {
+        if (primarySignal.actionKeySequence || primarySignal.actionRecipe) {
+            const action = {
                 id: `ACTION_${primarySignal.id}`,
                 labelJa: primarySignal.actionLabelJa || primarySignal.shortMessageJa,
                 labelEn: primarySignal.actionLabelEn || primarySignal.shortMessageEn,
                 keySequence: primarySignal.actionKeySequence,
                 isSafe: Boolean(primarySignal.isSafe)
             };
+            if (primarySignal.actionRecipe) {
+                action.actionRecipe = primarySignal.actionRecipe;
+            }
+            return action;
         }
 
         return null;

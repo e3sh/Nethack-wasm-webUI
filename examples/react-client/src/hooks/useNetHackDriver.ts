@@ -479,8 +479,12 @@ class NetHackDriverController {
     if (!action || !this.core) return false;
     const rawAction = typeof action === 'object' ? JSON.parse(JSON.stringify(action)) : action;
 
+    if (rawAction.actionRecipe) {
+      return this.executeSequence(rawAction.actionRecipe);
+    }
+
     if (rawAction.keySequence && Array.isArray(rawAction.keySequence) && rawAction.keySequence.length > 0) {
-      return this.queueSequence(rawAction.keySequence);
+      return this.executeSequence(rawAction.keySequence);
     }
 
     if (typeof this.core.executeAction === 'function') {
@@ -491,8 +495,14 @@ class NetHackDriverController {
     return false;
   }
 
-  public executeSequence(sequence: any[]) {
+  public executeSequence(sequence: any, options: any = {}) {
     if (!this.core) return false;
+
+    if (typeof this.core.executeSequence === 'function') {
+      return this.core.executeSequence(sequence, options);
+    } else if (this.core.requestController && typeof this.core.requestController.executeSequence === 'function') {
+      return this.core.requestController.executeSequence(sequence, options);
+    }
 
     const rawSeq = Array.isArray(sequence)
       ? sequence.map(item => {
@@ -503,13 +513,9 @@ class NetHackDriverController {
       : [sequence];
 
     if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
-      return this.core.driver.queueSequence(rawSeq);
+      return this.core.driver.queueSequence(rawSeq, options);
     } else if (typeof this.core.sendKeySequence === 'function') {
       return this.core.sendKeySequence(rawSeq);
-    } else if (typeof this.core.executeSequence === 'function') {
-      return this.core.executeSequence(rawSeq);
-    } else if (this.core.requestController && typeof this.core.requestController.executeSequence === 'function') {
-      return this.core.requestController.executeSequence(rawSeq);
     } else if (typeof this.core.sendKey === 'function') {
       rawSeq.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
       return true;
@@ -737,7 +743,7 @@ export function useNetHackDriver() {
     cancelWish: useCallback(() => driverController.cancelWish(), []),
     sendAction: useCallback((act: any) => driverController.sendAction(act), []),
     executeAction: useCallback((act: any) => driverController.executeAction(act), []),
-    executeSequence: useCallback((seq: any[]) => driverController.executeSequence(seq), []),
+    executeSequence: useCallback((seq: any, options?: any) => driverController.executeSequence(seq, options), []),
     queueSequence: useCallback((seq: any[], options?: any) => driverController.queueSequence(seq, options), []),
     getGlyphStyle: useCallback((glyphId: number, options?: any) => driverController.getGlyphStyle(glyphId, options), []),
     extractDirectionCode: useCallback((act: any) => driverController.extractDirectionCode(act), []),

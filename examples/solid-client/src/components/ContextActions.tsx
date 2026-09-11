@@ -54,7 +54,9 @@ export const ContextActions: Component = () => {
   };
 
   const handleActionClick = (act: any) => {
-    if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
+    if (act.actionRecipe) {
+      driverController.executeSequence(act.actionRecipe);
+    } else if (act.keySequence && Array.isArray(act.keySequence) && act.keySequence.length > 0) {
       driverController.executeSequence(act.keySequence);
     } else {
       driverController.executeAction(act);

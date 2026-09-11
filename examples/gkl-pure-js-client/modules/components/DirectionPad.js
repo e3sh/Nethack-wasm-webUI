@@ -180,18 +180,21 @@ export class DirectionPad {
     }
 
     // 4. 前回のHTMLと比較し変化が無ければ書き換えない (軽量化)
-    const actionKeyStr = `${this.currentLanguage}_${this.selectedDir}_${filteredActions.map(a => `${a.id}:${a.label}`).join('|')}`;
+    const actionKeyStr = `${this.currentLanguage}_${this.selectedDir}_${filteredActions.map(a => `${a.id}:${isEn ? (a.labelEn || a.label) : (a.labelJa || a.label)}`).join('|')}`;
     if (this._lastActionHtml !== actionKeyStr) {
       this._lastActionHtml = actionKeyStr;
 
       const newHtml = filteredActions.length === 0 
         ? `<div class="gkl-empty-hint">${this.selectedDir === 'ALL' ? (isEn ? 'Recommended actions for nearby targets will be shown automatically' : '周辺環境に応じたアクションが自動表示されます') : (isEn ? 'No recommended actions in this direction' : 'この方向の推奨アクションはありません')}</div>`
-        : filteredActions.map(action => `
-            <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
-              <span>${action.label}</span>
-              <span class="gkl-key-badge">${action.charStr || action.key || '?'}</span>
-            </button>
-          `).join('');
+        : filteredActions.map(action => {
+            const labelText = isEn ? (action.labelEn || action.label) : (action.labelJa || action.label);
+            return `
+              <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
+                <span>${labelText}</span>
+                <span class="gkl-key-badge">${action.charStr || action.key || '?'}</span>
+              </button>
+            `;
+          }).join('');
 
       this.elGklActionList.innerHTML = newHtml;
 
@@ -200,15 +203,22 @@ export class DirectionPad {
         const btn = this.elGklActionList.querySelector(`[data-act-id="${action.id}"]`);
         if (btn) {
           btn.onclick = () => {
+            const labelText = isEn ? (action.labelEn || action.label) : (action.labelJa || action.label);
+            console.log(`[DirectionPad] 🖱️ Action button clicked: '${labelText}' (id: ${action.id})`, action);
             if (action.risk === 'danger') {
-              const confirmMsg = isEn ? `[⚠️ Dangerous Action]\nExecute "${action.label}"?` : `【⚠️ 危険な行動】\n"${action.label}" を実行しますか？`;
+              const confirmMsg = isEn ? `[⚠️ Dangerous Action]\nExecute "${labelText}"?` : `【⚠️ 危険な行動】\n"${labelText}" を実行しますか？`;
               if (!confirm(confirmMsg)) return;
             }
             // アクション実行時にフィルターを 'ALL' に自動リセット
             this.selectedDir = 'ALL';
             this._lastActionHtml = null;
             if (core && typeof core.executeAction === 'function') {
-              core.executeAction(action);
+              const res = core.executeAction(action);
+              if (res && typeof res.catch === 'function') {
+                res.catch(err => console.error('[DirectionPad] Error executing action:', err));
+              }
+            } else {
+              console.warn('[DirectionPad] core or core.executeAction is not available!', core);
             }
           };
         }

@@ -117,9 +117,9 @@ export const InventoryGrid: React.FC = () => {
     if (e.button === 2) return;
     clearTimeout(pressTimerRef.current);
     if (!isLongPressTriggeredRef.current) {
-      const seq = (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0)
+      const seq = item.actionRecipe || (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0
         ? item.defaultSequence
-        : [item.letter];
+        : [item.letter]);
       executeSequence(seq);
     }
   };

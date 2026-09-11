@@ -10,6 +10,8 @@
  * 新しいシグナルや多言語対応、Wikiリンク変更、優先度チューニングは本ファイルを編集するだけで反映される。
  */
 
+import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
+
 export const ASSIST_SIGNAL_DEFINITIONS = {
     // 1. 石化進行
     'SIGNAL_PETRIFY_CURE': {
@@ -481,6 +483,15 @@ export function createAssistSignal(signalId, params = {}) {
     const finalDetailWhyJa = detailWhyJa || def.detailWhyJa;
     const finalDetailWhyEn = detailWhyEn || def.detailWhyEn;
 
+    let finalActionRecipe = params.actionRecipe || null;
+    if (!finalActionRecipe) {
+        if (def.stance === 'PRAY' || def.id.endsWith('_PRAY')) {
+            finalActionRecipe = ActionRecipeFactory.createPrayRecipe();
+        } else if (def.id === 'SIGNAL_PETRIFY_CURE') {
+            finalActionRecipe = ActionRecipeFactory.createEatFoodRecipe(invlet, { forceEat: true });
+        }
+    }
+
     const signal = {
         id: def.id,
         priority: def.priority,
@@ -493,6 +504,7 @@ export function createAssistSignal(signalId, params = {}) {
         detailWhyEn: finalDetailWhyEn,
         wikiTopic: def.wikiTopic,
         actionKeySequence: finalKeySequence,
+        actionRecipe: finalActionRecipe,
         actionLabelJa: finalActionLabelJa,
         actionLabelEn: finalActionLabelEn
     };

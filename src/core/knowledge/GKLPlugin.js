@@ -421,11 +421,13 @@ export class GKLPlugin {
             }
         }
 
-        if (core.driver) {
+        if (core.interactiveController || core.requestController) {
+            this.requestController = core.interactiveController || core.requestController;
+        } else if (core.driver) {
             this.requestController = new RequestController(core.driver);
-            if (this.lookService) {
-                this.lookService.setCore(core);
-            }
+        }
+        if (this.lookService) {
+            this.lookService.setCore(core);
         }
 
         // WebUICore からのパブリックイベントにバインド
@@ -1334,9 +1336,14 @@ export class GKLPlugin {
      */
     executeAction(action, options = {}) {
         if (!action || !this.core) return false;
+        console.log(`[GKLPlugin] 🎯 executeAction: id=${action.id}, hasRecipe=${Boolean(action.actionRecipe || action.recipe)}, hasKeySeq=${Boolean(action.keySequence)}`);
 
         // ⚔️ 攻撃アクション時の演出イベント (ATTACK_HIT) 発火
-        if (action.id?.startsWith('ACTION_ATTACK_') || action.category === 'COMBAT' || action.isAttack) {
+        // ※ 遠隔射撃 (ACTION_FIRE_ / target === 'ranged') は近接スラッシュ演出を除外
+        const isMeleeAttack = action.id?.startsWith('ACTION_ATTACK_') ||
+            (action.category === 'COMBAT' && action.target !== 'ranged' && !action.id?.startsWith('ACTION_FIRE_')) ||
+            (action.isAttack && !action.isRanged && action.target !== 'ranged');
+        if (isMeleeAttack) {
             const dirKey = action.dirCode || action.directionKey || action.direction;
             const offset = this._getDirOffset(dirKey);
             const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
@@ -1349,6 +1356,11 @@ export class GKLPlugin {
                 targetX: tx,
                 targetY: ty
             });
+        }
+
+        // 【0】対話レシピ (actionRecipe / recipe) が指定されている場合は最優先でレシピ実行 (モードB)
+        if (action.actionRecipe || action.recipe) {
+            return this.executeSequence(action.actionRecipe || action.recipe, options);
         }
 
         // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
@@ -1420,20 +1432,27 @@ export class GKLPlugin {
 
     /**
      * キーシーケンスの実行
-     * @param {Array<string>} sequence 
+     * @param {Array<string>|Object} sequence 
      * @param {Object} [options={}] 
      * @returns {Promise<boolean>}
      */
     async executeSequence(sequence, options = {}) {
-        if (!Array.isArray(sequence) || sequence.length === 0 || !this.core) return false;
+        if (!sequence || !this.core) return false;
+        console.log(`[GKLPlugin] 🔄 executeSequence called: isArray=${Array.isArray(sequence)}, type=${typeof sequence}, id=${sequence?.id}`);
+        const isArray = Array.isArray(sequence);
+        if (isArray && sequence.length === 0) return false;
 
         let success = false;
-        if (this.requestController && typeof this.requestController.executeSequence === 'function') {
+        if (this.core.interactiveController && typeof this.core.interactiveController.executeSequence === 'function') {
+            success = await this.core.interactiveController.executeSequence(sequence, options);
+        } else if (typeof this.core.executeSequence === 'function') {
+            success = await this.core.executeSequence(sequence, options);
+        } else if (this.requestController && typeof this.requestController.executeSequence === 'function') {
             success = await this.requestController.executeSequence(sequence, options);
         } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
             this.core.driver.queueSequence(sequence, options);
             success = true;
-        } else {
+        } else if (isArray) {
             sequence.forEach(ch => this.core.sendKey(ch, false, false, false, ch, true));
             success = true;
         }

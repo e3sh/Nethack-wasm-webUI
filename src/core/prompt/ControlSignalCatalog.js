@@ -239,6 +239,44 @@ export const enCatalog = {
       "flags": "i",
       "params": {},
       "description": "Item selection prompt"
+    },
+    {
+      "id": "SIGNAL_CONFIRM_YN",
+      "subCategory": "CONFIRM_YN",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 110,
+      "patterns": [
+        "(?:Are you sure(?: you want to)?|really|smells terrible|eat it|open a tin|stop eating|Wipe it out|Add to the existing message).*?\\[[a-z0-9,\\/\\* ]*y[^\\]]*n[^\\]]*\\]",
+        "(?:Are you sure(?: you want to)? pray|Really pray)\\?",
+        "(?:Are you sure|really want to)\\?"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "General yes/no confirmation prompt"
+    },
+    {
+      "id": "SIGNAL_TOOL_SELECT",
+      "subCategory": "TOOL_SELECT",
+      "inputType": "CHOICE_BUTTONS",
+      "priority": 105,
+      "patterns": [
+        "What do you want to (?:write with|open the tin with|untrap with)"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Tool selection prompt for applying / engraving"
+    },
+    {
+      "id": "SIGNAL_TEXT_INPUT",
+      "subCategory": "TEXT_INPUT",
+      "inputType": "LINE_TEXT",
+      "priority": 95,
+      "patterns": [
+        "What do you want to (?:engrave|write(?!\\s+with)|call|name)"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Text input prompt (engrave, naming, calling)"
     }
   ]
 };

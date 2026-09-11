@@ -603,6 +603,37 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(payload.targetY).toBe(4);
         });
 
+        it('executeAction: actionRecipe を持つ射撃アクション実行時、近接スラッシュ演出が除外され、core.interactiveController.executeSequence が呼び出されること', async () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const executeSequenceSpy = vi.fn().mockResolvedValue(true);
+            mockCore.interactiveController = {
+                executeSequence: executeSequenceSpy
+            };
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            const fireRecipe = { id: 'RECIPE_FIRE_AMMO', start: ['f'] };
+            const fireAction = {
+                id: 'ACTION_FIRE_E',
+                category: 'COMBAT',
+                target: 'ranged',
+                key: 'f6',
+                keySequence: ['f', 'DIR_E'],
+                actionRecipe: fireRecipe
+            };
+
+            const result = await plugin.executeAction(fireAction);
+
+            // 近接スラッシュ演出 (ATTACK_HIT) は発火しないこと
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 新型コントローラ (interactiveController) の executeSequence が呼ばれていること
+            expect(executeSequenceSpy).toHaveBeenCalledWith(fireRecipe, {});
+            expect(result).toBe(true);
+        });
+
         it('撃破メッセージ受信時に KILL_CONFIRMED イベントが発行されること', () => {
             const plugin = new GKLPlugin();
             const mockCore = createMockCore();

@@ -7,6 +7,7 @@
 import { isShopkeeperMonster } from './glyphClassifier.js';
 import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
 import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
+import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
 
 export class ContextActionEngine {
     /**
@@ -1058,6 +1059,7 @@ export class ContextActionEngine {
                     labelJa: `標的に射撃 [${dirNameJa}] (f)`,
                     key: `f${targetKey}`,
                     keySequence: ['f', dirToken],
+                    actionRecipe: ActionRecipeFactory.createFireAmmoRecipe(dirToken),
                     charStr: 'f',
                     directionKey: dirToken,
                     direction: dir,
@@ -1091,6 +1093,7 @@ export class ContextActionEngine {
                     labelJa: `標的に投擲 [${dirNameJa}] (t:${ammo.letter})`,
                     key: `t${ammo.letter}${targetKey}`,
                     keySequence: ['t', ammo.letter, dirToken],
+                    actionRecipe: ActionRecipeFactory.createThrowItemRecipe(ammo.letter, dirToken),
                     charStr: 't',
                     directionKey: dirToken,
                     direction: dir,

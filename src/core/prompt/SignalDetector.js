@@ -126,12 +126,17 @@ export class SignalDetector {
             return this._createEmptyResult('');
         }
 
-        const normalizedPayload = (typeof payload === 'string') ? { rawPrompt: payload } : payload;
+        const normalizedPayload = typeof payload === 'string' ? { prompt: payload } : payload;
+
+        // C コア生プロンプトの抽出（UI翻訳層を経由する前の純粋な生文字列）
         const rawPrompt = normalizedPayload.rawPrompt ||
-                          normalizedPayload.prompt ||
+                          normalizedPayload.rawMessage ||
                           normalizedPayload.query ||
                           normalizedPayload.question ||
+                          contextInfo.lastMessage ||
+                          contextInfo.recentText ||
                           normalizedPayload.message ||
+                          normalizedPayload.prompt ||
                           '';
 
         const mergedContext = {
@@ -150,23 +155,43 @@ export class SignalDetector {
                 continue;
             }
 
-            // 2. パターンマッチングの評価
-            for (const regex of sig.patterns) {
-                const match = rawPrompt.match(regex);
-                if (match) {
-                    // パラメータの抽出・マッピング
-                    const params = this._extractParams(sig, match, normalizedPayload);
+            // 1.5 inputType / category の構造的一致（DIRECTION 等の明確な制御シグナルは即座に同定）
+            if (sig.id === 'SIGNAL_DIRECTION' && (
+                normalizedPayload.inputType === 'DIRECTION' ||
+                normalizedPayload.category === 'DIRECTION' ||
+                normalizedPayload.promptCategory === 'DIRECTION'
+            )) {
+                return {
+                    matched: true,
+                    signalId: sig.id,
+                    subCategory: sig.subCategory,
+                    inputType: sig.inputType,
+                    params: {},
+                    confidence: 1.0,
+                    rawPrompt: rawPrompt || normalizedPayload.prompt || '',
+                    signalDef: sig
+                };
+            }
 
-                    return {
-                        matched: true,
-                        signalId: sig.id,
-                        subCategory: sig.subCategory,
-                        inputType: sig.inputType,
-                        params: params,
-                        confidence: 1.0,
-                        rawPrompt: rawPrompt,
-                        signalDef: sig
-                    };
+            // 2. パターンマッチングの評価 (C コア生プロンプトと照合)
+            if (rawPrompt) {
+                for (const regex of sig.patterns) {
+                    const match = rawPrompt.match(regex);
+                    if (match) {
+                        // パラメータの抽出・マッピング
+                        const params = this._extractParams(sig, match, normalizedPayload);
+
+                        return {
+                            matched: true,
+                            signalId: sig.id,
+                            subCategory: sig.subCategory,
+                            inputType: sig.inputType,
+                            params: params,
+                            confidence: 1.0,
+                            rawPrompt: rawPrompt,
+                            signalDef: sig
+                        };
+                    }
                 }
             }
 

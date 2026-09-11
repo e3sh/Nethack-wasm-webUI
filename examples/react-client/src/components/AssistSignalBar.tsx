@@ -74,7 +74,14 @@ export const AssistSignalBar: React.FC = () => {
   const handleExecuteAction = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     const act = primaryAction;
-    if (!act || !act.keySequence || act.keySequence.length === 0) return;
+    if (!act) return;
+
+    if (act.actionRecipe) {
+      await executeSequence(act.actionRecipe);
+      return;
+    }
+
+    if (!act.keySequence || act.keySequence.length === 0) return;
 
     const rawSeq = JSON.parse(JSON.stringify(act.keySequence));
     const res = await queueSequence(rawSeq);
@@ -94,7 +101,7 @@ export const AssistSignalBar: React.FC = () => {
 
       <div className="assist-signal-actions">
         {/* Level 3 ワンタップ実行ボタン */}
-        {primaryAction && primaryAction.keySequence && primaryAction.keySequence.length > 0 && (
+        {primaryAction && (primaryAction.actionRecipe || (primaryAction.keySequence && primaryAction.keySequence.length > 0)) && (
           <button
             className="btn btn-assist-action"
             onClick={handleExecuteAction}

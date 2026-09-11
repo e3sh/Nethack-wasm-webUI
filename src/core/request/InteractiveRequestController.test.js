@@ -232,6 +232,152 @@ describe('InteractiveRequestController (汎用連続リクエストコントロ�
             expect(result.success).toBe(true);
             expect(result.data).toEqual({ extracted: 42 });
         });
+
+        it('途中で発生する poskey (方向入力待ち) で即座に終了せず、SIGNAL_DIRECTION に反応して方向キーを送信すること', async () => {
+            const listeners = {};
+            mockDriver.on = vi.fn((evt, fn) => { listeners[evt] = fn; });
+            mockDriver.off = vi.fn((evt, fn) => { if (listeners[evt] === fn) delete listeners[evt]; });
+
+            const recipe = {
+                start: ['f'],
+                handlers: [
+                    {
+                        match: { signalId: 'SIGNAL_DIRECTION' },
+                        action: 'DIR_E'
+                    }
+                ],
+                until: { type: 'turn_ready' },
+                timeoutMs: 1000
+            };
+
+            const resolverTurnStart = { respond: vi.fn() };
+            mockDriver.activeResolver = resolverTurnStart;
+
+            const executePromise = controller.querySequenceSilent(recipe);
+
+            // 初動キー 'f' が投入される
+            expect(resolverTurnStart.respond).toHaveBeenCalledWith('f');
+
+            // Step 1: C コアが putstr で "In what direction?" を送出
+            listeners['putstr']({ windowId: 1, text: 'In what direction?' });
+
+            // Step 2: C コアが poskey 入力待ちを発行 (文面なしの生 poskey)
+            const resolverDirection = { respond: vi.fn() };
+            listeners['inputRequired']({
+                type: 'poskey',
+                context: 'poskey',
+                safeResolver: resolverDirection
+            });
+
+            // 【超重要】until: turn_ready で即終了せず、ハンドラが SIGNAL_DIRECTION を検知して方向を投入すること！
+            expect(resolverDirection.respond).toHaveBeenCalledWith('6');
+
+            // Step 3: 矢が発射され、通常のターン復帰 (直前メッセージなしの poskey)
+            const resolverTurnNext = { respond: vi.fn() };
+            listeners['inputRequired']({
+                type: 'poskey',
+                context: 'poskey',
+                safeResolver: resolverTurnNext
+            });
+
+            // 通常ターン復帰なので resolverTurnNext は消費されずにシーケンス完了
+            expect(resolverTurnNext.respond).not.toHaveBeenCalled();
+
+            const result = await executePromise;
+            expect(result.success).toBe(true);
+            expect(controller.getState()).toBe(InteractiveRequestController.State.IDLE);
+        });
+
+        it('方向トークン (DIR_N 等) が driver.resolveTokenKey で正しく物理キーに解決されて送信されること', async () => {
+            const listeners = {};
+            mockDriver.on = vi.fn((evt, fn) => { listeners[evt] = fn; });
+            mockDriver.off = vi.fn((evt, fn) => { if (listeners[evt] === fn) delete listeners[evt]; });
+            mockDriver.resolveTokenKey = vi.fn((token) => {
+                if (token === 'DIR_N') return '8';
+                return token;
+            });
+
+            const recipe = {
+                start: ['f'],
+                handlers: [
+                    {
+                        match: { signalId: 'SIGNAL_DIRECTION' },
+                        action: 'DIR_N'
+                    }
+                ],
+                until: { type: 'turn_ready' }
+            };
+
+            const resolverStart = { respond: vi.fn() };
+            mockDriver.activeResolver = resolverStart;
+
+            const executePromise = controller.querySequenceSilent(recipe);
+
+            // putstr で方向プロンプト
+            listeners['putstr']({ text: 'In what direction?' });
+
+            // poskey で方向待機
+            const resolverDir = { respond: vi.fn() };
+            listeners['inputRequired']({
+                type: 'poskey',
+                context: 'poskey',
+                safeResolver: resolverDir
+            });
+
+            // driver.resolveTokenKey('DIR_N') が呼ばれ、'8' が投入されること
+            expect(mockDriver.resolveTokenKey).toHaveBeenCalledWith('DIR_N');
+            expect(resolverDir.respond).toHaveBeenCalledWith('8');
+
+            // 通常ターン復帰
+            listeners['inputRequired']({
+                type: 'poskey',
+                context: 'poskey',
+                safeResolver: { respond: vi.fn() }
+            });
+
+            const result = await executePromise;
+            expect(result.success).toBe(true);
+        });
+
+        it('矢筒が空で方向プロンプトが出ず通常ターンに復帰した場合、方向キーが誤爆せず安全に完了すること', async () => {
+            const listeners = {};
+            mockDriver.on = vi.fn((evt, fn) => { listeners[evt] = fn; });
+            mockDriver.off = vi.fn((evt, fn) => { if (listeners[evt] === fn) delete listeners[evt]; });
+
+            const recipe = {
+                start: ['f'],
+                handlers: [
+                    {
+                        match: { signalId: 'SIGNAL_DIRECTION' },
+                        action: 'DIR_N'
+                    }
+                ],
+                until: { type: 'turn_ready' }
+            };
+
+            const resolverStart = { respond: vi.fn() };
+            mockDriver.activeResolver = resolverStart;
+
+            const executePromise = controller.querySequenceSilent(recipe);
+            expect(resolverStart.respond).toHaveBeenCalledWith('f');
+
+            // putstr で弾切れメッセージ (方向プロンプトではない)
+            listeners['putstr']({ text: 'You have no ammunition in your quiver.' });
+
+            // 通常ターン復帰 poskey
+            const resolverTurn = { respond: vi.fn() };
+            listeners['inputRequired']({
+                type: 'poskey',
+                context: 'poskey',
+                safeResolver: resolverTurn
+            });
+
+            const result = await executePromise;
+            expect(result.success).toBe(true);
+
+            // 【重要】方向キーは送信されず、通常ターンの resolver は未消費であること
+            expect(resolverTurn.respond).not.toHaveBeenCalled();
+        });
     });
 
     // =========================================================================
