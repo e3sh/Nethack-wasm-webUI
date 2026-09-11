@@ -24,7 +24,10 @@ const bridge = new NetHackWasmWorkerBridge();
 // 2. WebUICore インスタンスの生成
 const core = new WebUICore({ 
     driver: bridge,
-    translateEnabled: true,
+    variant: 'vanilla',        // Wasm C コアのバリアント指定 ('vanilla' | 'jnethack')
+    language: 'ja',            // UI 表示言語 ('ja' | 'en')
+    translateEnabled: true,    // UI テキスト動的翻訳の有効化
+    keyMode: 'numpad',         // 入力モード ('numpad' | 'vi')
     soundMode: 'se'
 });
 
@@ -50,6 +53,46 @@ await core.restart({ clearStorage: true });
 // 6. リソース破棄
 core.destroy();
 ```
+
+### 1.1 WebUICore 初期化オプション (`options`)
+
+| オプション名 | 型 | デフォルト値 | 説明 |
+| :--- | :--- | :--- | :--- |
+| **`driver`** | `Object` | `null` | `NetHackWasmWorkerBridge` または `NetHackWasmDriver` インスタンス。 |
+| **`variant`** | `string` | `'vanilla'` | **【重要】Wasm C コアのバリアント種別** (`'vanilla'` \| `'jnethack'`)。<br>制御シグナル検知器（`SignalDetector` / `InteractiveRequestController`）が C コア生プロンプトの同定に用いる**機械用カタログ（英語または日本語）**を決定します。 |
+| **`language`** | `string` | `'ja'` | **UI 表示言語** (`'ja'` \| `'en'`)。<br>画面表示用翻訳エンジン（`TranslationEngine`）が UI コンポーネントに描画するテキストの言語です。 |
+| **`translateEnabled`** | `boolean` | `true` | UI テキストの動的翻訳を有効にするかどうか。 |
+| **`keyMode`** | `string` | `'numpad'` | 方向・移動キーのモード (`'numpad'` = 数字キー 1〜9 \| `'vi'` = hjkl)。推奨アクション等の抽象方向コード（`DIR_W` 等）は自動的にこのモードに従って物理キー（例: `'4'` または `'h'`）に解決されます。 |
+| **`gkl`** | `GKLPlugin` | 自動生成 | GKL（Game Knowledge Layer）プラグインインスタンス。外部で生成したインスタンスを注入して一元化することも可能です。 |
+| **`soundMode`** | `string` | `'none'` | サウンド再生モード (`'se'`, `'bgm'`, `'none'`)。 |
+
+> [!IMPORTANT]
+> ### 🚨 【超重要】バリアント指定 (`variant`) と翻訳・表示言語指定 (`language`) の完全分離
+> 
+> WebUICore において、**「C コアとの通信制御（システム）」** と **「画面への UI 描画（プレイヤー向け）」** は完全に独立した別レイヤーとして設計されています。
+> 
+> ```
+> 【Cコア / Wasm エンジン】
+>      │
+>      │ 生データ (例: "In what direction?")
+>      ├───► [UI 翻訳レイヤー] (TranslationEngine: language / translateEnabled)
+>      │          │
+>      │          └──► UI 画面表示 (例: 「どの方向？」) ※シグナル制御には一切干渉しない
+>      │
+>      └───► [シグナル制御層] (SignalDetector & InteractiveRequestController: variant)
+>                 │
+>                 └──► C コア生プロンプト辞書 (variant: 'vanilla' = 英語カタログ)
+>                      ※UI が日本語表示であっても、C コアの生データから直接判定
+> ```
+> 
+> - **Vanilla NetHack 5.0 Wasm を日本語 UI で遊ぶ場合（現在の標準設定）**:  
+>   `variant: 'vanilla'` かつ `language: 'ja'` と指定します。  
+>   C コア自身は英語で生データ（`"In what direction?"` 等）を出力するため、シグナル制御層は**英語カタログ**を使って正確に制御シグナル（`SIGNAL_DIRECTION` 等）を検知します。UI 翻訳層がどうテキストを表示しようと、シグナル判定が壊れることはありません。
+> - **JNetHack Wasm（日本語 C コア）を動かす場合**:  
+>   `variant: 'jnethack'` と指定します。  
+>   C コア自身が日本語生データを出力するため、シグナル制御層は**日本語カタログ**を使って検知します。
+> 
+> **※シグナル制御層が UI 表示用の翻訳後テキストを読み取ることは設計上禁止されています。** これにより、翻訳辞書のアップデートや多言語対応によって自動アクションや対話シーケンスが破壊されるリスクが根本的に排除されています。
 
 ---
 

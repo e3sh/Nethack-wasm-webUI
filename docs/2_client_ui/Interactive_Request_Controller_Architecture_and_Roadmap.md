@@ -104,11 +104,25 @@ flowchart LR
     RAW --> TR --> JP --> UI
 ```
 
-### 3.2 バリアント・ロケール別辞書の完全分離
+### 3.2 バリアント・ロケール別辞書の完全分離と WebUICore 設定
 パターン衝突を根絶するため、Vanilla NetHack 5.0（英語コア）と JNetHack（日本語コア）で辞書ファイルを物理分離しています：
 - 英語 Wasm コア: `src/core/prompt/ControlSignalCatalog.js`
 - 日本語 Wasm コア: `src/core/prompt/ControlSignalCatalog.ja.js`
-- 動的ファクトリ: `SignalDetector.createForLocale(localeOrVariant)`
+- 動的ファクトリ: `SignalDetector.createForLocale(coreVariant)`
+
+#### 【設計原則】UI 表示言語 (`language`) と C コアバリアント (`variant`) の直交性
+WebUICore の初期化時、シグナル検出器は UI 表示言語（`options.language`）ではなく、**Wasm C コアのバリアント種別（`options.variant`、デフォルト `'vanilla'`）** に基づいてカタログを選択します：
+
+```javascript
+// WebUICore.js での初期化
+const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
+this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
+```
+
+- **なぜ UI 言語を使ってはいけないのか**:  
+  UI を日本語表示（`language: 'ja'`）にしていても、動いている Wasm エンジンが Vanilla NetHack 5.0 であれば、C コアから出力される生メッセージは常に英語（例: `"In what direction?"`）です。  
+  シグナル検出器が UI 言語に引っ張られて日本語辞書をロードしてしまうと、C コアの英語生プロンプトにマッチせず、制御シグナルが一切検知できなくなります。  
+  また、シグナル検出器が UI 翻訳後のテキスト（`"どの方向？"`）を読み取るような実装にすると、翻訳辞書の改修や言い回しの変更によって内部制御が破壊されるため、**シグナル制御層は C コアの生データ（`rawPrompt`, `lastMessage`）のみを対象とする** 原則を徹底しています。
 
 ### 3.3 シグナル検知のアルゴリズムと戻り値構造
 `SignalDetector.detect(payload, contextInfo)` は以下の多層判定を優先度（`priority` 降順）に従って実行します：
@@ -313,3 +327,22 @@ gantt
    セッション中（`isContainerSessionActive === true`）は、汎用プロンプト・一般メニューのレンダリングをサプレスし、裏でのダイアログ重複起動を 100% 防止。
 3. **対話レシピによる出し入れ実行**:
    アイテム移動・数量指定・再同期を `InteractiveRequestController` のレシピを用いて安全・アトミックに実行。
+
+---
+
+## 8. 将来の展望と気付き (Future Note: GKL Variant Adaptation)
+
+### Game Knowledge Layer (GKL) 全体におけるバリアント適応への気付き
+本改修では、Wasm C コア通信・プロンプト同定層（`SignalDetector`）において `variant`（`'vanilla'` / `'jnethack'` 等）の物理カタログ分離と、UI 表示言語（`language`）との直交化を確立しました。
+
+しかし、**Game Knowledge Layer (GKL) というコンセプト全体を見渡すと、シグナル辞書にとどまらず、ゲーム知識そのものがバリアント毎に調整・拡張されるべき性質を持つ** という重要な気付きが得られています：
+
+1. **静的エンティティ知識**:
+   - `OBJECT_KNOWLEDGE_MAP`, `MONSTER_KNOWLEDGE_MAP` 等の図鑑データやグリフ対応（Slash'EM, JNetHack, dNetHack 等での独自モンスター・新アイテム・外見定義）。
+2. **ルール・ドメインサービス**:
+   - `ChemistryKnowledge`（調合・錬金）、`WishService`（願い）、`SkillStateManager`（スキル体系）など、バリアント独自のルールセット。
+3. **戦術推論**:
+   - `ContextActionEngine` におけるバリアント固有コマンド（例: `#technique` 等）の提案。
+
+**将来の方針メモ**:
+現時点では過剰設計を避けるため Vanilla NetHack 5.0 を主軸に保ちますが、将来的に多種多様なバリアントへ対応を広げる際は、`WebUICore` の `variant` 指定をキーとして、各知識モジュールを「バリアント知識プロバイダ（Knowledge Provider / Adapter）」としてプラガブルに差し替える設計が自然な拡張パスとなります。
