@@ -137,6 +137,19 @@ describe('PolymorphService', () => {
         const byJa = service.findMonsterByName('銀のドラゴン');
         expect(byJa).not.toBeNull();
         expect(byJa.name).toBe('silver dragon');
+
+        // エイリアス名での検索
+        const byAlias1 = service.findMonsterByName('銀ドラゴン');
+        expect(byAlias1).not.toBeNull();
+        expect(byAlias1.name).toBe('silver dragon');
+
+        const byAlias2 = service.findMonsterByName('シルバードラゴン');
+        expect(byAlias2).not.toBeNull();
+        expect(byAlias2.name).toBe('silver dragon');
+
+        const byAlias3 = service.findMonsterByName('マインドフレイヤ');
+        expect(byAlias3).not.toBeNull();
+        expect(byAlias3.name).toBe('mind flayer');
     });
 
     it('should sanitize monster names for NetHack C engine (strip curly braces)', () => {

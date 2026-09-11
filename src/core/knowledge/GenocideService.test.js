@@ -86,6 +86,11 @@ describe('GenocideService', () => {
             const svcWithTrans = new GenocideService({ translator: mockTranslator });
             const results = svcWithTrans.suggest('リッチ');
             expect(results.some(r => r.nameJa.includes('リッチ'))).toBe(true);
+
+            // エイリアス名でのサジェスト
+            const aliasResults = svcWithTrans.suggest('マインドフレイヤ', { mode: 'SINGLE' });
+            expect(aliasResults.length).toBeGreaterThan(0);
+            expect(aliasResults.some(r => r.nameEn === 'mind flayer')).toBe(true);
         });
 
         it('should filter monsters belonging to a symbol correctly via SSOT', () => {

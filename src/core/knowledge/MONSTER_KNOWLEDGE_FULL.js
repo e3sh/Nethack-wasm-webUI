@@ -1098,8 +1098,19 @@ for (let i = 0; i <= 382; i++) {
         size: official.size || 'MEDIUM'
     };
 
-    const officialJpName = MONSTER_JP_MAP.monsters[rawName] || MONSTER_JP_MAP.monsters[cleanId] || null;
-    const monsterAliases = MONSTER_JP_MAP.aliases[cleanId] || [];
+    const cleanName = rawName.replace(/\{.*?\}/g, '').trim().toLowerCase();
+    const altMatch = rawName.match(/\{([^}]+)\}/);
+    const altName = altMatch ? altMatch[1].trim().toLowerCase() : null;
+
+    const officialJpName = MONSTER_JP_MAP.monsters[rawName] || 
+                           MONSTER_JP_MAP.monsters[cleanName] || 
+                           (altName && MONSTER_JP_MAP.monsters[altName]) || 
+                           MONSTER_JP_MAP.monsters[cleanId] || null;
+    const monsterAliases = MONSTER_JP_MAP.aliases[cleanName] || 
+                           (altName && MONSTER_JP_MAP.aliases[altName]) || 
+                           MONSTER_JP_MAP.aliases[rawName.toLowerCase()] || 
+                           MONSTER_JP_MAP.aliases[cleanId.replace(/_/g, ' ')] || 
+                           MONSTER_JP_MAP.aliases[cleanId] || [];
 
     const monsterEntry = {
         id: cleanId || `mon_${i}`,

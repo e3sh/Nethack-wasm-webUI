@@ -824,7 +824,12 @@
                 }
 
                 // 別名・エイリアス
-                aliases = masterMon?.aliases || (cleanId ? MONSTER_JP_MAP.aliases[cleanId] : []) || [];
+                const monLower = rawEnglishName.toLowerCase();
+                const monClean = monLower.replace(/\{.*?\}/g, '').trim();
+                const defaultMonAliases = MONSTER_JP_MAP.aliases[monClean] ||
+                                          MONSTER_JP_MAP.aliases[monLower] ||
+                                          (cleanId ? MONSTER_JP_MAP.aliases[cleanId.replace(/_/g, ' ')] : []) || [];
+                aliases = (masterMon?.aliases && masterMon.aliases.length > 0) ? masterMon.aliases : defaultMonAliases;
                 if (Array.isArray(entity.aliases) && entity.aliases.length > 0) {
                     aliases = Array.from(new Set([...aliases, ...entity.aliases]));
                 }
@@ -851,10 +856,17 @@
                 const rawJp = OBJECT_JP_MAP.objects[rawEnglishName] || fullItem?.nameJa || '';
                 knowledgeNameJa = (typeof rawJp === 'object' && rawJp !== null) ? (rawJp.noun || rawJp.adj || String(rawJp)) : String(rawJp || '');
 
-                // 別名・エイリアス
-                const aliasKey = rawEnglishName.toLowerCase();
-                const defaultAliases = OBJECT_JP_MAP.aliases[aliasKey] ? [OBJECT_JP_MAP.aliases[aliasKey]] : [];
-                aliases = fullItem?.aliases || defaultAliases;
+                // 別名・エイリアス (逆引き)
+                const targetKey = rawEnglishName.toLowerCase();
+                const defaultItemAliases = [];
+                if (OBJECT_JP_MAP && OBJECT_JP_MAP.aliases) {
+                    for (const [alias, target] of Object.entries(OBJECT_JP_MAP.aliases)) {
+                        if (target && target.toLowerCase() === targetKey) {
+                            defaultItemAliases.push(alias);
+                        }
+                    }
+                }
+                aliases = (fullItem?.aliases && fullItem.aliases.length > 0) ? fullItem.aliases : defaultItemAliases;
                 if (Array.isArray(entity.aliases) && entity.aliases.length > 0) {
                     aliases = Array.from(new Set([...aliases, ...entity.aliases]));
                 }

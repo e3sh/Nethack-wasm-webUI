@@ -154,6 +154,26 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
                 expect(mon.threat.severity).toBe(km.expectedSeverity);
             }
         });
+
+        it('主要モンスター（マインドフレア、銀ドラゴン、リッチ等）の aliases が 100% 正常に格納されていること', () => {
+            const mindFlayer = MONSTER_KNOWLEDGE_MAP.get('mind flayer');
+            expect(mindFlayer).toBeDefined();
+            expect(mindFlayer.aliases).toContain('マインドフレイヤ');
+            expect(mindFlayer.aliases).toContain('マインドフレア');
+
+            const silverDragon = MONSTER_KNOWLEDGE_MAP.get('silver dragon');
+            expect(silverDragon).toBeDefined();
+            expect(silverDragon.aliases).toContain('銀のドラゴン');
+            expect(silverDragon.aliases).toContain('シルバードラゴン');
+
+            const masterLich = MONSTER_KNOWLEDGE_MAP.get('master lich');
+            expect(masterLich).toBeDefined();
+            expect(masterLich.aliases).toContain('マスター・リッチ');
+
+            const cockatrice = MONSTER_KNOWLEDGE_MAP.get('cockatrice');
+            expect(cockatrice).toBeDefined();
+            expect(cockatrice.aliases).toContain('コカトリス');
+        });
     });
 
     describe('3. 脅威と防護のクロス整合性マトリクス監査 (Threat & Protection Cross-Integrity)', () => {

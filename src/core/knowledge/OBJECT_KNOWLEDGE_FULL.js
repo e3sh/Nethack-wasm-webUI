@@ -588,6 +588,19 @@ const SPECIFIC_ITEM_DETAILS = {
     }
 };
 
+// OBJECT_JP_MAP.aliases ({ [alias]: targetEnglishName }) からの逆引きマップ (targetEnglishName -> alias[])
+export const REVERSE_OBJECT_ALIASES_MAP = new Map();
+if (OBJECT_JP_MAP && OBJECT_JP_MAP.aliases) {
+    for (const [alias, target] of Object.entries(OBJECT_JP_MAP.aliases)) {
+        if (!target) continue;
+        const key = target.trim().toLowerCase();
+        if (!REVERSE_OBJECT_ALIASES_MAP.has(key)) {
+            REVERSE_OBJECT_ALIASES_MAP.set(key, []);
+        }
+        REVERSE_OBJECT_ALIASES_MAP.get(key).push(alias);
+    }
+}
+
 // 全 481 アイテムのデータ初期構築
 export function initFullObjectKnowledge() {
     OBJECT_KNOWLEDGE_MAP.clear();
@@ -757,7 +770,13 @@ export function initFullObjectKnowledge() {
         const officialJpName = typeof rawJpName === 'object' && rawJpName !== null
             ? (rawJpName.noun || rawJpName.adj || String(rawJpName))
             : String(rawJpName || standardName);
-        const itemAliases = OBJECT_JP_MAP.aliases[standardName.toLowerCase()] || [];
+        const lowerStandard = standardName.toLowerCase();
+        const lowerBase = (base.name || '').toLowerCase();
+        const lowerTile = (tileName || '').split('/')[0].trim().toLowerCase();
+        const itemAliases = REVERSE_OBJECT_ALIASES_MAP.get(lowerStandard) ||
+                            REVERSE_OBJECT_ALIASES_MAP.get(lowerBase) ||
+                            REVERSE_OBJECT_ALIASES_MAP.get(lowerTile) ||
+                            [];
 
         const entry = {
             id: `item_onum_${i}`,

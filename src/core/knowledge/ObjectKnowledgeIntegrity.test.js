@@ -193,4 +193,46 @@ describe('OBJECT_KNOWLEDGE_FULL Integrity & Property Coverage', () => {
         expect(pickAxe).toBeDefined();
         expect(OBJECT_KNOWLEDGE_MAP.get(pickAxe.onum).canBeUnidentified).toBe(false);
     });
+
+    it('should correctly resolve registered item aliases from OBJECT_JP_MAP', () => {
+        // SDSM & GDSM
+        const sdsm = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'silver dragon scale mail');
+        expect(sdsm).toBeDefined();
+        expect(sdsm.aliases).toContain('sdsm');
+        expect(sdsm.aliases).toContain('銀鱗');
+
+        const gdsm = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'gray dragon scale mail');
+        expect(gdsm).toBeDefined();
+        expect(gdsm.aliases).toContain('gdsm');
+        expect(gdsm.aliases).toContain('灰鱗');
+
+        // Scroll of Genocide
+        const genocide = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'scroll of genocide');
+        expect(genocide).toBeDefined();
+        expect(genocide.aliases).toContain('虐殺');
+        expect(genocide.aliases).toContain('大虐殺');
+
+        // Wands
+        const deathWand = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'wand of death');
+        expect(deathWand).toBeDefined();
+        expect(deathWand.aliases).toContain('死杖');
+
+        const wishWand = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'wand of wishing');
+        expect(wishWand).toBeDefined();
+        expect(wishWand.aliases).toContain('願杖');
+
+        // Tools & Boots
+        const bag = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'bag of holding');
+        expect(bag).toBeDefined();
+        expect(bag.aliases).toContain('ホールド鞄');
+
+        const speedBoots = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'speed boots');
+        expect(speedBoots).toBeDefined();
+        expect(speedBoots.aliases).toContain('早足靴');
+
+        // Item without aliases
+        const food = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'food ration');
+        expect(food).toBeDefined();
+        expect(food.aliases).toEqual([]);
+    });
 });
