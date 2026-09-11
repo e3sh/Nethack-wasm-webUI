@@ -1,0 +1,192 @@
+{
+  "version": "1.0.0",
+  "variant": "vanilla",
+  "locale": "en",
+  "description": "NetHack WASM WebUI Control Signal Catalog (Vanilla NetHack 5.0 / English)",
+  "signals": [
+    {
+      "id": "SIGNAL_WISH",
+      "subCategory": "WISH",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "for what do you wish",
+        "what do you want to wish for"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Wish input prompt"
+    },
+    {
+      "id": "SIGNAL_GENOCIDE_CLASS",
+      "subCategory": "GENOCIDE",
+      "inputType": "LINE_TEXT",
+      "priority": 120,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "(?:which|what)\\s+class\\s+of\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
+        "class\\s+of\\s+monsters?.*genocide",
+        "genocide.*class\\s+of\\s+monsters?"
+      ],
+      "flags": "i",
+      "params": {
+        "mode": "CLASS"
+      },
+      "description": "Genocide monster class prompt"
+    },
+    {
+      "id": "SIGNAL_GENOCIDE_SINGLE",
+      "subCategory": "GENOCIDE",
+      "inputType": "LINE_TEXT",
+      "priority": 110,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "(?:what|which)\\s+(?:type|kind)?\\s*of\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
+        "(?:what|which)\\s+monsters?\\s+do\\s+you\\s+(?:want|wish)\\s+to\\s+genocide",
+        "(?:type|kind)\\s+of\\s+monsters?.*genocide"
+      ],
+      "flags": "i",
+      "params": {
+        "mode": "SINGLE"
+      },
+      "description": "Genocide single monster prompt"
+    },
+    {
+      "id": "SIGNAL_GENOCIDE_GENERIC",
+      "subCategory": "GENOCIDE",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "\\bgenocide\\b"
+      ],
+      "flags": "i",
+      "params": {
+        "mode": "ALL"
+      },
+      "description": "Generic genocide prompt"
+    },
+    {
+      "id": "SIGNAL_POLYMORPH",
+      "subCategory": "POLYMORPH",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "become what kind of monster"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Polymorph control prompt"
+    },
+    {
+      "id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
+      "subCategory": "CONTAINER_ACTION_MENU",
+      "inputType": "MENU",
+      "priority": 150,
+      "contextFilter": {
+        "triggerCommand": "#loot",
+        "excludeInventoryMenu": true
+      },
+      "patterns": [
+        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.\\s*Do what with it\\?",
+        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.",
+        "Do what with (?<containerName>.+?)\\?"
+      ],
+      "flags": "i",
+      "params": {
+        "source": "LOOT_COMMAND"
+      },
+      "description": "Container action menu triggered by #loot"
+    },
+    {
+      "id": "SIGNAL_CONTAINER_ACTION_MENU",
+      "subCategory": "CONTAINER_ACTION_MENU",
+      "inputType": "MENU",
+      "priority": 100,
+      "contextFilter": {
+        "excludeInventoryMenu": true
+      },
+      "patterns": [
+        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.\\s*Do what with it\\?",
+        "(?:^|[\\.\\!\\?]\\s+)(?:There is [^.]+?\\.\\s+)?(?<containerName>.+?)\\s+is\\s+(?:now\\s+)?empty\\.",
+        "Do what with (?<containerName>.+?)\\?"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Generic container action menu"
+    },
+    {
+      "id": "SIGNAL_CONTAINER_FLOOR_SELECT",
+      "subCategory": "CONTAINER_FLOOR_SELECT",
+      "inputType": "MENU",
+      "priority": 100,
+      "patterns": [
+        "Loot which containers"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Floor container selection menu"
+    },
+    {
+      "id": "SIGNAL_CONTAINER_CATEGORY_SELECT",
+      "subCategory": "CONTAINER_CATEGORY_SELECT",
+      "inputType": "MENU",
+      "priority": 100,
+      "patterns": [
+        "^(?<directionAction>Take out|Put in) what type of objects\\?"
+      ],
+      "flags": "i",
+      "paramsMapping": {
+        "directionAction": {
+          "Take out": { "direction": "out" },
+          "Put in": { "direction": "in" }
+        }
+      },
+      "params": {},
+      "description": "Container category selection menu"
+    },
+    {
+      "id": "SIGNAL_CONTAINER_ITEM_SELECT",
+      "subCategory": "CONTAINER_ITEM_SELECT",
+      "inputType": "MENU",
+      "priority": 100,
+      "patterns": [
+        "^(?<directionAction>Take out|Put in) what\\?"
+      ],
+      "flags": "i",
+      "paramsMapping": {
+        "directionAction": {
+          "Take out": { "direction": "out" },
+          "Put in": { "direction": "in" }
+        }
+      },
+      "params": {},
+      "description": "Container item selection menu"
+    },
+    {
+      "id": "SIGNAL_COUNT_PROMPT",
+      "subCategory": "COUNT_PROMPT",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "patterns": [
+        "^How many(?:\\s+\\[?(?<targetItem>[^\\]\\?]+)\\]?)?\\?",
+        "^How many"
+      ],
+      "flags": "i",
+      "params": {},
+      "description": "Count prompt (How many?)"
+    }
+  ]
+}
