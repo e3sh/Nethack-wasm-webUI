@@ -14,6 +14,7 @@ export default defineConfig({
       'src/core/knowledge/*.test.js',
       'src/core/container/*.test.js',
       'src/core/inspector/*.test.js',
+      'src/core/request/*.test.js',
       'src/testing/*.test.js',
       'tests/**/*.test.js'
     ]

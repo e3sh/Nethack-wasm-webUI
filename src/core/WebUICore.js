@@ -19,6 +19,8 @@ import { TextWindowManager } from './window/TextWindowManager.js';
 import { DebugInspector } from './inspector/DebugInspector.js';
 import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { ContainerTransactionFSM } from './container/ContainerTransactionFSM.js';
+import { InteractiveRequestController } from './request/InteractiveRequestController.js';
+import { SignalDetector } from './prompt/SignalDetector.js';
 
 export const KEYS = {
     ESC: 27,
@@ -134,6 +136,13 @@ export class WebUICore {
         if (this.promptPayloadBuilder && this.gkl) {
             this.promptPayloadBuilder.setGkl(this.gkl);
         }
+
+        this.signalDetector = options.signalDetector || SignalDetector.createForLocale(this.language);
+        this.interactiveController = options.interactiveController || new InteractiveRequestController({
+            driver: this.driver,
+            signalDetector: this.signalDetector
+        });
+        this.requestController = this.interactiveController;
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -415,22 +424,30 @@ export class WebUICore {
 
     /**
      * 汎用サイレント・シーケンスクエリ (Generic Silent Sequence Query)
-     * 任意のトークン配列（['i', ' '], ['+', ' '] 等）を画面表示なし（suppressPrompts: true）で自走実行し、
-     * シーケンス完了後に driver.getLastSequenceBuffer() のクリーンな実行結果バッファを返却します。
-     * @param {Array<string|number>} tokens - 実行するトークン配列
+     * - モードA: 任意のトークン配列（['i', ' '], ['+', ' '] 等）を画面表示なし（suppressPrompts: true）で自走実行し、
+     *   シーケンス完了後に driver.getLastSequenceBuffer() のクリーンな実行結果バッファを返却します。
+     * - モードB: スクリプト・レシピ型オブジェクトを実行し、シグナル同定・動的ハンドラ駆動で対話実行します。
+     * @param {Array<string|number>|Object} tokensOrRecipe - 実行するトークン配列またはレシピオブジェクト
      * @param {Object} [options={}] - オプション
-     * @returns {Promise<Array<Object>>} シーケンス実行結果バッファの配列
+     * @returns {Promise<Array<Object>|Object>} シーケンス実行結果
      */
-    async querySequenceSilent(tokens, options = {}) {
-        if (!Array.isArray(tokens) || tokens.length === 0) {
-            return [];
-        }
+    async querySequenceSilent(tokensOrRecipe, options = {}) {
+        if (!tokensOrRecipe) return [];
+        if (Array.isArray(tokensOrRecipe) && tokensOrRecipe.length === 0) return [];
 
         const opts = { suppressPrompts: true, isSilentSync: true, ...options };
 
+        if (this.interactiveController) {
+            const result = await this.interactiveController.querySequenceSilent(tokensOrRecipe, opts);
+            if (Array.isArray(result)) {
+                this.emit('sequenceFinished', { buffer: result, isSilentSync: true, syncType: opts.syncType });
+            }
+            return result;
+        }
+
         if (this.driver && typeof this.driver.queueSequence === 'function') {
             try {
-                const buffer = await this.driver.queueSequence(tokens, opts);
+                const buffer = await this.driver.queueSequence(tokensOrRecipe, opts);
                 const bufArray = Array.isArray(buffer) ? buffer : [];
                 this.emit('sequenceFinished', { buffer: bufArray, isSilentSync: true, syncType: opts.syncType });
                 return bufArray;
@@ -438,7 +455,7 @@ export class WebUICore {
                 return [];
             }
         } else if (this.gkl && this.gkl.requestController) {
-            this.gkl.requestController.executeSequence(tokens, opts);
+            this.gkl.requestController.executeSequence(tokensOrRecipe, opts);
         }
 
         return new Promise((resolve) => {
@@ -992,33 +1009,41 @@ export class WebUICore {
 
     /**
      * キーシーケンスを安全に実行し、必要に応じて非同期でサイレント・インベントリ同期を起動する
-     * @param {Array<string>} sequence 
+     * @param {Array<string>|Object} sequence 
      * @param {Object} [options={}] 
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean|Object>}
      */
     async executeSequence(sequence, options = {}) {
-        if (!Array.isArray(sequence) || sequence.length === 0) return false;
+        if (!sequence) return false;
+        const isArray = Array.isArray(sequence);
+        if (isArray && sequence.length === 0) return false;
 
-        if (sequence.some(k => k === 'C' || k === '#name' || k === '#call' || k === 'name' || k === 'call')) {
-            this.isManualNamingActive = true;
-        }
-        const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
-        if (sequence.some(k => itemUseKeys.has(k))) {
-            this.isItemUsingActive = true;
+        if (isArray) {
+            if (sequence.some(k => k === 'C' || k === '#name' || k === '#call' || k === 'name' || k === 'call')) {
+                this.isManualNamingActive = true;
+            }
+            const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+            if (sequence.some(k => itemUseKeys.has(k))) {
+                this.isItemUsingActive = true;
+            }
         }
 
         let success = false;
-        if (this.requestController && typeof this.requestController.executeSequence === 'function') {
+        if (this.interactiveController) {
+            success = await this.interactiveController.executeSequence(sequence, options);
+        } else if (this.requestController && typeof this.requestController.executeSequence === 'function') {
             success = await this.requestController.executeSequence(sequence, options);
         } else if (this.driver && typeof this.driver.queueSequence === 'function') {
             this.driver.queueSequence(sequence, options);
             success = true;
-        } else {
+        } else if (isArray) {
             sequence.forEach(ch => this.sendKey(ch, false, false, false, ch, true));
             success = true;
         }
 
-        this.emit('userActionSent', { sequence });
+        if (isArray) {
+            this.emit('userActionSent', { sequence });
+        }
         return success;
     }
 
