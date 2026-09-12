@@ -221,8 +221,8 @@ export class ContextActionEngine {
                             category: 'INTERACT',
                             label: `Unlock container with ${keyItem.rawText || 'key'}`,
                             labelJa: `箱を解錠 (${keyItem.letter})`,
-                            key: `a${keyItem.letter}.`,
-                            keySequence: ['a', keyItem.letter, 'DIR_SELF'],
+                            key: `a${keyItem.letter}.y`,
+                            keySequence: ['a', keyItem.letter, 'DIR_SELF', 'y'],
                             charStr: 'a',
                             target: 'feet',
                             entity: feet.middle,
@@ -716,8 +716,8 @@ export class ContextActionEngine {
                         category: 'INTERACT',
                         label: `Unlock door [${dirCode}] with ${keyItem.rawText || 'key'}`,
                         labelJa: `扉を解錠 [${dirNameJa}] (${keyItem.letter})`,
-                        key: `a${keyItem.letter}${dirKey}`,
-                        keySequence: ['a', keyItem.letter, dirKey],
+                        key: `a${keyItem.letter}${dirKey}y`,
+                        keySequence: ['a', keyItem.letter, dirKey, 'y'],
                         charStr: 'a',
                         directionKey: dirKey,
                         direction: item.dir,
@@ -938,35 +938,7 @@ export class ContextActionEngine {
                 });
             }
 
-            // 隣接マスの箱 (Adjacent Container)
-            const isAdjContainer = (item.cell.middle && item.cell.middle.isContainer) || flags.isContainer;
-            if (isAdjContainer && keyItem) {
-                if (!actions.some(a => a.id === `ACTION_UNLOCK_CONTAINER_${dirCode}`)) {
-                    actions.push({
-                        id: `ACTION_UNLOCK_CONTAINER_${dirCode}`,
-                        category: 'INTERACT',
-                        label: `Unlock container [${dirCode}] with ${keyItem.rawText || 'key'}`,
-                        labelJa: `箱を解錠 [${dirNameJa}] (${keyItem.letter})`,
-                        key: `a${keyItem.letter}${dirKey}`,
-                        keySequence: ['a', keyItem.letter, dirKey],
-                        charStr: 'a',
-                        directionKey: dirKey,
-                        direction: item.dir,
-                        isDirectional: true,
-                        dirNameJa,
-                        dirSymbol,
-                        target: 'adjacent',
-                        risk: null,
-                        priority: 95,
-                        description: `Apply ${keyItem.rawText || 'key'} to unlock container`,
-                        descriptionJa: `${dirNameJa}の箱の鍵を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
-                    });
-                }
-            }
-
-
             // 鉄格子 (Iron Bars)
-
             else if (flags.isIronBars) {
                 actions.push({
                     id: `ACTION_MELT_BARS_${dirCode}`,

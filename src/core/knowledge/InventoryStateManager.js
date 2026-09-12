@@ -124,7 +124,7 @@ export class InventoryStateManager {
                 }
 
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
-                const equipState = this.parseEquipState(rawText);
+                const equipState = this.parseEquipState(rawText, categoryFlags);
                 const identification = ItemIdentificationResolver.resolve({
                     rawText,
                     onum,
@@ -464,7 +464,9 @@ export class InventoryStateManager {
         const verb = isDigWand ? 'z' : 'a';
 
         // 装備状態のパース (Wielded, Offhand, Quivered, Worn)
-        const equipState = this.parseEquipState(rawText);
+        const equipState = this.parseEquipState(rawText, {
+            onumCategory, isPickAxe, isAxe, isAmmo, isLauncher
+        });
 
         // カテゴリ別デフォルト推奨アクションおよび副次的アクションの判定
         const defaultAction = this.determineDefaultAction(rawText, {
@@ -965,7 +967,7 @@ export class InventoryStateManager {
                         makeAlt('a', defaultSequence, '使う (a)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                     ].filter(Boolean);
-                } else if (/\b(sword|saber|dagger|knife|axe|spear|bow|arrow|crossbow|bolt|sling|flint|mace|flail|hammer|lance|trident|staff|pick-axe|mattock|dart|shuriken|boomerang|whip|scythe|halberd|glaive|javelin|club|katana|wakizashi|tsurugi|blade)\b/i.test(cleanText) || /剣|刀|短剣|ダガー|斧|槍|弓|矢|ツルハシ|棍棒|ハンマー|ダーツ|手裏剣|鞭/.test(cleanText) || categoryFlags.isPickAxe || categoryFlags.isAxe) {
+                } else if (/\b(swords?|sabers?|daggers?|knives|knife|axes?|spears?|bows?|arrows?|crossbows?|bolts?|slings?|flint|maces?|flails?|hammers?|lances?|tridents?|staffs?|staves|pick-axes?|mattocks?|darts?|shurikens?|boomerangs?|whips?|scythes?|halberds?|glaives?|javelins?|clubs?|katanas?|wakizashis?|tsurugis?|blades?)\b/i.test(cleanText) || /剣|刀|短剣|ダガー|斧|槍|弓|矢|ツルハシ|棍棒|ハンマー|ダーツ|手裏剣|鞭/.test(cleanText) || categoryFlags.isPickAxe || categoryFlags.isAxe) {
                     defaultVerb = 'w';
                     defaultSequence = letter ? ['w', letter] : ['w'];
                     defaultActionLabel = 'Wield weapon';
@@ -1022,9 +1024,10 @@ export class InventoryStateManager {
     /**
      * テキスト表現からの装備状態（Wielded, Offhand, Quivered, Worn, スロット）のパース
      * @param {string} rawText 
+     * @param {Object} [categoryFlags={}]
      * @returns {Object} { isWielded, isOffhand, isQuivered, isWorn, equipSlot }
      */
-    parseEquipState(rawText) {
+    parseEquipState(rawText, categoryFlags = {}) {
         if (!rawText || typeof rawText !== 'string') {
             return { isWielded: false, isOffhand: false, isQuivered: false, isWorn: false, equipSlot: null };
         }
@@ -1038,30 +1041,59 @@ export class InventoryStateManager {
         // 明示的なサブ武器 / 二刀流の副手 (in off hand, in off-hand, alternate weapon; not wielded, 副武器, 逆の手に持っている)
         const isExplicitOffhand = /\b(in off hand|in off-hand|off-hand weapon|alternate weapon)\b/i.test(rawText) || /副武器|逆の手に持っている/i.test(rawText);
 
+        // 武器候補判定 (categoryFlags、または武器・投擲物名キーワード)
+        const isWeaponCandidate = (categoryFlags && (
+            categoryFlags.onumCategory === 'WEAPON' ||
+            categoryFlags.isAxe ||
+            categoryFlags.isPickAxe ||
+            categoryFlags.isAmmo ||
+            categoryFlags.isLauncher
+        )) || /\b(?:swords?|sabers?|daggers?|knives|knife|axes?|spears?|bows?|arrows?|crossbows?|bolts?|slings?|maces?|flails?|hammers?|lances?|tridents?|staffs?|staves|pick-axes?|mattocks?|darts?|shurikens?|boomerangs?|whips?|scythes?|halberds?|glaives?|javelins?|clubs?|katanas?|wakizashis?|tsurugis?|blades?)\b/i.test(rawText)
+           || /(?:剣|刀|短剣|ダガー|斧|槍|弓|矢|ツルハシ|棍棒|ハンマー|ダーツ|手裏剣|鞭)/.test(rawText);
+
+        // 英語のメイン武器装備表現:
+        // - (weapon in hand), (weapon in right hand), (weapon in left hand), (weapon in hands)
+        // - (wielded), (wielded in right hand), (wielded in left hand)
+        // - (tethered to ...)
+        const isEnglishWielded = /(?:\bweapon in (?:hands?|right hand|left hand)\b|\bwielded\b|\btethered to\b)/i.test(rawText);
+
+        // 日本語のメイン武器装備表現:
+        // - (手に装備中), (右手に装備中), (左手に装備中), (両手に装備中)
+        // - (手に持っている), (右手に持っている), (左手に持っている), (両手に持っている)
+        // - (武器：右手), (武器：左手), (武器：両手), 武器：手に持っている
+        // - (右手持ち), (左手持ち)
+        // - (二刀流中), (右手に二刀流中), (左手に二刀流中)
+        // - 武器候補かつ (装備中)
+        const isJapaneseWielded = /(?:[左右両]?手に装備中|[左右両]?手に持っている|武器：[左右両手]|二刀流中|[左右]手持ち)/.test(rawText) ||
+            (isWeaponCandidate && /[\(（]装備中[\)）]/.test(rawText));
+
         if (isExplicitOffhand) {
             isOffhand = true;
             equipSlot = 'offhand';
-        } else if (/\b(weapon in hand|weapon in hands|weapon in right hand|weapon in left hand|\(wielded\))\b/i.test(rawText) || /手に持っている|左手に持っている|右手に持っている/i.test(rawText)) {
+        } else if (isEnglishWielded || isJapaneseWielded) {
             // メイン武器 (左利き時の weapon in left hand も含む)
             isWielded = true;
             equipSlot = 'weapon';
         }
 
-        // 矢筒 (in quiver, quivered)
-        if (/\b(in quiver|quivered)\b/i.test(rawText) || /矢筒/i.test(rawText)) {
+        // 矢筒 (in quiver, quivered, at the ready, 準備完了, 矢筒)
+        if (/\b(in quiver|quivered|at the ready)\b/i.test(rawText) || /矢筒|準備完了/.test(rawText)) {
             isQuivered = true;
             equipSlot = 'quiver';
         }
 
-        // 着用中 (being worn, on left hand, on right hand, around neck, on head, on feet, on hands, 左手, 右手)
-        if (/\b(being worn|on left hand|on right hand|on left finger|on right finger|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(rawText) || /(着用|装備中|左手|右手)/i.test(rawText)) {
-            isWorn = true;
-            if (!equipSlot) {
-                if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(rawText)) equipSlot = 'ring_left';
-                else if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(rawText)) equipSlot = 'ring_right';
-                else if (/around neck|首/i.test(rawText)) equipSlot = 'amulet';
-                else if (/shield|盾/i.test(rawText)) equipSlot = 'shield';
-                else equipSlot = 'worn';
+        // 着用中 (being worn, on left hand, on right hand, on left finger, on right finger, around neck, on head, on feet, on hands, embedded in shield)
+        // ※メイン武器 (isWielded) や副手 (isOffhand) と判定されたアイテムは除外
+        if (!isWielded && !isOffhand) {
+            if (/\b(being worn|on left hand|on right hand|on left finger|on right finger|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(rawText) || /(着用|装備中|装着中|左手|右手)/i.test(rawText)) {
+                isWorn = true;
+                if (!equipSlot) {
+                    if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(rawText)) equipSlot = 'ring_left';
+                    else if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(rawText)) equipSlot = 'ring_right';
+                    else if (/around neck|首/i.test(rawText)) equipSlot = 'amulet';
+                    else if (/shield|盾/i.test(rawText)) equipSlot = 'shield';
+                    else equipSlot = 'worn';
+                }
             }
         }
 

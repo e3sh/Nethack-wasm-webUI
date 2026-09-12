@@ -531,6 +531,56 @@ describe('InventoryStateManager', () => {
         expect(changed3).toBe(true);
         expect(manager.getItemByLetter('a').isWielded).toBe(true);
     });
+
+    it('複数個所持している武器 (3 daggers (wielded) / 3本の短剣 (装備中)) が正しくメイン武器として認識されること', () => {
+        const manager = new InventoryStateManager();
+
+        // 英語版: スタック武器 (wielded)
+        const enLines = [
+            "a - 3 daggers (wielded)",
+            "b - a helmet (being worn)",
+            "c - 10 +0 arrows (in quiver)"
+        ];
+        manager.updateFromLines(enLines);
+
+        const daggerEn = manager.getItemByLetter('a');
+        expect(daggerEn).toBeDefined();
+        expect(daggerEn.isWielded).toBe(true);
+        expect(daggerEn.isWorn).toBe(false);
+        expect(daggerEn.equipSlot).toBe('weapon');
+        expect(daggerEn.defaultVerb).toBe('w');
+        expect(daggerEn.defaultSequence).toEqual(['w', '-']);
+        expect(daggerEn.defaultActionLabelJa).toBe('手放す (w-)');
+
+        const helmetEn = manager.getItemByLetter('b');
+        expect(helmetEn.isWorn).toBe(true);
+        expect(helmetEn.isWielded).toBe(false);
+
+        // 日本語版: スタック武器 (3本の短剣 (装備中)) & 単数武器 (+0の短剣 (右手に装備中))
+        const managerJa = new InventoryStateManager();
+        const jaLines = [
+            "a - 3本の短剣 (装備中)",
+            "b - +0の短剣 (右手に装備中)",
+            "c - 鉄の兜 (装備中)"
+        ];
+        managerJa.updateFromLines(jaLines);
+
+        const daggerJa = managerJa.getItemByLetter('a');
+        expect(daggerJa).toBeDefined();
+        // 二刀流正規化: 2本ある場合は2本目が副武器になるため、aがメイン武器、bが副武器
+        expect(daggerJa.isWielded).toBe(true);
+        expect(daggerJa.isWorn).toBe(false);
+        expect(daggerJa.equipSlot).toBe('weapon');
+
+        const daggerSingleJa = managerJa.getItemByLetter('b');
+        expect(daggerSingleJa.isOffhand).toBe(true);
+        expect(daggerSingleJa.isWorn).toBe(false);
+
+        // 防具 (ヘルメット) は武器ではないため (装備中) でも isWorn: true, isWielded: false
+        const helmetJa = managerJa.getItemByLetter('c');
+        expect(helmetJa.isWorn).toBe(true);
+        expect(helmetJa.isWielded).toBe(false);
+    });
 });
 
 

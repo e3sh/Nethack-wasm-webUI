@@ -120,6 +120,56 @@ describe('Action Execution Protocol Test Suite (第2防壁: 契約検査フェ�
             fakeDriver.assertCompleted();
         });
 
+        it('扉解錠アクション (ACTION_UNLOCK_DOOR_*): [a, key, DIR_*, y] が確認プロンプトを経て規約通り完走すること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 3988); // 閉じた扉
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [{ letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }];
+
+            const areaState = areaMgr.getAreaState();
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const unlockDoorAction = actions.find(a => a.id?.startsWith('ACTION_UNLOCK_DOOR'));
+            expect(unlockDoorAction).toBeDefined();
+
+            fakeDriver.queueSequence(unlockDoorAction.keySequence);
+            expect(fakeDriver.stepPoskey()).toBe('a');
+            expect(fakeDriver.stepGetch()).toBe('k');
+            expect(fakeDriver.stepGetch()).toBe('DIR_E');
+            expect(fakeDriver.stepYn('yn', 'y')).toBe('y');
+            fakeDriver.assertCompleted();
+        });
+
+        it('足元箱解錠アクション (ACTION_UNLOCK_CONTAINER_FEET): [a, key, DIR_SELF, y] が確認プロンプトを経て規約通り完走すること', () => {
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [{ letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }];
+
+            const areaState = {
+                feet: {
+                    middle: {
+                        type: 'ITEM',
+                        isContainer: true,
+                        rawText: 'large box',
+                        name: 'large box'
+                    }
+                },
+                adjacentMonsters: [],
+                adjacentEntities: []
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const unlockFeetAction = actions.find(a => a.id === 'ACTION_UNLOCK_CONTAINER_FEET');
+            expect(unlockFeetAction).toBeDefined();
+
+            fakeDriver.queueSequence(unlockFeetAction.keySequence);
+            expect(fakeDriver.stepPoskey()).toBe('a');
+            expect(fakeDriver.stepGetch()).toBe('k');
+            expect(fakeDriver.stepGetch()).toBe('DIR_SELF');
+            expect(fakeDriver.stepYn('yn', 'y')).toBe('y');
+            fakeDriver.assertCompleted();
+        });
+
         it('足元アイテム拾い (ACTION_PICKUP): [,] が規約通り完走すること', () => {
             const areaMgr = new AreaStateManager(80, 21);
             areaMgr.updatePlayerPosition(10, 10);

@@ -10728,6 +10728,7 @@
         { en: "Fainting", jp: "昏倒" },
         { en: "Fainted", jp: "気絶" },
         { en: "Starved", jp: "餓死" },
+        { en: "Confused.", jp: "混乱" },
         { en: "BAREH", jp: "素手（武器なし）" },
         { en: "BLIND", jp: "盲目" },
         { en: "BUSY", jp: "多忙" },
@@ -11656,6 +11657,9 @@
         { en: "Die?", jp: "死ぬ？" },
         { en: "OK, so you don't die.", jp: "よし、じゃあ死なないってことだね。" },
         { en: "Do you want to keep the save file?", jp: "セーブデータは残しておきますか？" },
+        { en: "Ulch - that meat was tainted!", jp: "うわっ――あの肉、腐ってた！" },
+        { en: "You feel deathly sick.", jp: "死ぬほど気分が悪い。" },
+        { en: "You cannot throw an object at yourself.", jp: "自分自身に向かって物を投げることはできません。" },
     ];
 }
 
@@ -13349,6 +13353,7 @@ function nhEntities() {
         "such monsters": "そのような怪物",
         "ceiling": "天井",
         "above": "上方",
+        "no traps on the door": "罠のない扉",
     };
 }
 

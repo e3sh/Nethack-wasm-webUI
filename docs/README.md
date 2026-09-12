@@ -81,10 +81,11 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 ---
 
 ### 7. 🔮 将来構想 & アーキテクチャ深化 (`docs/7_futures/`)
-次期開発セッションに向けたインテリジェント UI およびマイクロカーネル化の構想資料です。
+次期開発セッションに向けたインテリジェント UI、マイクロカーネル化、およびバリアント適応拡張の構想資料です。
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
+| **[gkl_variant_adaptation_architecture.md](./7_futures/gkl_variant_adaptation_architecture.md)** | `🔵 reference` | GKL バリアント適応拡張・互換性構想（メタデータ契約・リジェクト是非・便利機能層/ナレッジ層分離） |
 | **[gkl_intelligent_ui_ideas.ja.md](./7_futures/gkl_intelligent_ui_ideas.ja.md)** | `🔵 reference` | 次世代インテリジェントUI構想（虐殺・2画面コンテナ・変化制御・魔法詠唱ダイアログ等） |
 | **[webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)** | `🔵 reference` | 将来の WebUICore 完全独立・マイクロカーネル化構想（WebUIDevice/WebUISound分離） |
 
@@ -129,7 +130,7 @@ docs/
 ├── 4_sound/              # 音響システム仕様書 (直下1本 + archive/)
 ├── 5_gamedata/           # ゲームリファレンスデータ群 (直下8本 + archive/)
 ├── 6_project_reports/    # 最新再評価レポート & プロジェクト報告書 (直下4本 + archive/)
-├── 7_futures/            # 次世代インテリジェントUI・マイクロカーネル構想 (直下2本)
+├── 7_futures/            # 次世代インテリジェントUI・マイクロカーネル・バリアント構想 (直下3本)
 ├── 8_testing/            # テストガイド & ロードマップ・構想書 (直下4本)
 └── 9_translation/        # 辞書運用マニュアル & 次世代刷新構想 (直下2本 + archive/)
 ```
