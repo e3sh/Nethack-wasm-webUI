@@ -209,6 +209,7 @@
 
                             data.resolver = {
                                 respond: safeRespond,
+                                resolve: safeRespond,
                                 cancel: safeCancel,
                                 isResolved: () => resolved
                             };

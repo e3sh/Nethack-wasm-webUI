@@ -170,8 +170,8 @@
             let parsedVal = null;
             let glyphId = null;
 
-            if (!ptr) {
-                return { fld, field: fld, value: 0, rawVal: 0, parsedVal: 0, chg, clr };
+            if (!ptr && fld !== 20 && fld !== 10) {
+                return { fld, field: fld, value: 0, rawVal: 0, parsedVal: 0, chg, clr, dlevelData: null, goldData: null };
             }
 
             if (fld === 22) { // BL_CONDITION
@@ -353,25 +353,34 @@
         }
 
         /**
-         * C言語側の menu_item 構造体 (12バイト/個) 配列のメモリ領域を確保・構築します。
-         * sizeof(struct mi) = 12 bytes in Wasm32:
-         *   offset 0: mi.item (anything union, 4 bytes)
-         *   offset 4: mi.count (long, 4 bytes)
-         *   offset 8: mi.itemflags (unsigned int, 4 bytes)
+         * select_menu の返却用 menu_item 構造体配列バッファを生成します。
+         * NetHack 5.0 / 3.7 C 構造体定義:
+         * struct mi {
+         *   anything item;      (8 bytes in wasm32 due to int64 member, 8-byte aligned)
+         *   long count;         (4 bytes at offset 8)
+         *   unsigned itemflags; (4 bytes at offset 12)
+         * }; // sizeof(menu_item) == 16 bytes
+         *
+         * Offset:
+         *   offset 0:  mi.item.a_obj / mi.item.a_int (uint32, low 4 bytes)
+         *   offset 4:  mi.item high 4 bytes (zero padding, 4 bytes)
+         *   offset 8:  mi.count (int32, 4 bytes)
+         *   offset 12: mi.itemflags (unsigned int, 4 bytes)
          */
         buildMenuItemBuffer(selectedItems) {
             const M = this.Module;
             const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
             if (!mallocFn || !selectedItems || selectedItems.length === 0) return 0;
 
-            const ITEM_SIZE = 12;
+            const ITEM_SIZE = 16;
             const ptr = mallocFn(ITEM_SIZE * selectedItems.length);
 
             selectedItems.forEach((item, index) => {
                 const offset = ptr + (index * ITEM_SIZE);
                 this.setValue(offset, item.identifier !== undefined ? item.identifier : 0, 'i32');
-                this.setValue(offset + 4, item.count !== undefined ? item.count : -1, 'i32');
-                this.setValue(offset + 8, (item.itemflags || 0) | 1, 'i32'); // SELECTED = 1
+                this.setValue(offset + 4, 0, 'i32'); // high 4 bytes (zero padding)
+                this.setValue(offset + 8, item.count !== undefined ? item.count : -1, 'i32');
+                this.setValue(offset + 12, (item.itemflags || 0) | 1, 'i32'); // SELECTED = 1
             });
 
             return ptr;
