@@ -326,6 +326,11 @@ export class DebugInspector {
             this.broadcastLog('EVENT:inputResolved', {});
         });
 
+        this.core.on('inputAutoResolved', (payload) => {
+            this.broadcastLog('EVENT:inputAutoResolved', payload);
+            this.scheduleBroadcastState();
+        });
+
         // --- Core 高レベルイベントのバインド ---
         this.core.on('inputRequired', (payload) => {
             this.broadcastLog('EVENT:inputRequired', {

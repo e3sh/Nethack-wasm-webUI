@@ -600,5 +600,72 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(mockResolver.respond).not.toHaveBeenCalled();
             expect(inputRequiredListener).toHaveBeenCalledTimes(1);
         });
+
+        it('セーブデータ再開時 (isResumingSave = true) の ASKNAME プロンプトがチャタリングガードに阻害されず自動応答されること', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.ASKNAME)
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            core.isResumingSave = true;
+            core.resumeSavePlayerName = 'TesterHero';
+
+            const mockResolver = { respond: vi.fn() };
+            const inputRequiredListener = vi.fn();
+            const inputAutoResolvedListener = vi.fn();
+            core.on('inputRequired', inputRequiredListener);
+            core.on('inputAutoResolved', inputAutoResolvedListener);
+
+            // ASKNAME プロンプトを発行
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.ASKNAME,
+                context: 'askname',
+                prompt: 'What is your name?',
+                rawPrompt: 'What is your name?',
+                resolver: mockResolver
+            });
+
+            // チャタリングガードに阻害されず即座に mockResolver.respond が呼ばれること
+            expect(mockResolver.respond).toHaveBeenCalledWith('TesterHero');
+            // UI への inputRequired は発火せず、inputAutoResolved が発火すること
+            expect(inputRequiredListener).not.toHaveBeenCalled();
+            expect(inputAutoResolvedListener).toHaveBeenCalledTimes(1);
+            expect(inputAutoResolvedListener).toHaveBeenCalledWith(expect.objectContaining({
+                category: PROMPT_CATEGORY.ASKNAME,
+                response: 'TesterHero'
+            }));
+        });
+    });
+
+    describe('restart - コア再起動処理', () => {
+        it('driver.restart が存在する場合、正しく委譲して restarted イベントを発行すること', async () => {
+            const mockDriver = {
+                on: vi.fn(),
+                emit: vi.fn(),
+                restart: vi.fn().mockResolvedValue(true)
+            };
+            const core = new WebUICore({ driver: mockDriver });
+            const restartedListener = vi.fn();
+            core.on('restarted', restartedListener);
+
+            const result = await core.restart({ clearStorage: true, autoStart: false });
+
+            expect(mockDriver.restart).toHaveBeenCalledWith({ clearStorage: true, autoStart: false });
+            expect(result).toBe(true);
+            expect(restartedListener).toHaveBeenCalledTimes(1);
+        });
+
+        it('driver が restart を持たない場合でもエラーにならず完了すること', async () => {
+            const core = new WebUICore({ driver: { on: vi.fn(), emit: vi.fn() } });
+            const result = await core.restart({ autoStart: false });
+            expect(result).toBe(true);
+        });
     });
 });
+

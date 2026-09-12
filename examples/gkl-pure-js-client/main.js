@@ -170,6 +170,11 @@ class GklPureJSClient {
       getContainerModal: () => this.containerModal,
     });
 
+    // 10. Startup Step Progression State
+    this.isStartingUp = true;
+    this.isSaveResuming = false;
+    this.startupStep = 'INITIALIZING';
+
     this.init();
   }
 
@@ -187,11 +192,19 @@ class GklPureJSClient {
   initCore() {
     const workerPath = '../../src/driver/nethack.worker.js';
     const bridge = new NetHackWasmWorkerBridge(workerPath);
-    const gklPlugin = new GKLPlugin({ keyMode: 'numpad', language: 'ja' });
-    this.core = new WebUICore({ driver: bridge, gkl: gklPlugin, keyMode: 'numpad', language: 'ja' });
+    this.core = new WebUICore({ driver: bridge, keyMode: 'numpad' });
     this.currentLanguage = this.core.language || 'ja';
 
     this.lookService = new OnDemandLookService({ core: this.core });
+  }
+
+  setLanguage(lang) {
+    if (this.core && typeof this.core.setLanguage === 'function') {
+      this.core.setLanguage(lang);
+    } else {
+      this.currentLanguage = (lang === 'en' ? 'en' : 'ja');
+      this.onLanguageChanged();
+    }
   }
 
   bindCoreEvents() {
@@ -205,10 +218,16 @@ class GklPureJSClient {
     this.core.on('stateChange', ({ state }) => {
       if (state === 'INITIALIZING') {
         this.resetUiForNewGame();
-        this.modalManager.elLoading.classList.remove('hidden');
         this.modalManager.elGameOverModal.classList.add('hidden');
+        if (this.isStartingUp) {
+          this.setStartupView(this.startupStep);
+        } else {
+          this.modalManager.elLoading.classList.remove('hidden');
+        }
       } else if (state === 'READY' || state === 'RUNNING' || state === 'WAITING_INPUT') {
-        this.modalManager.elLoading.classList.add('hidden');
+        if (!this.isStartingUp) {
+          this.modalManager.elLoading.classList.add('hidden');
+        }
         this.modalManager.elGameOverModal.classList.add('hidden');
       }
     });
@@ -286,6 +305,39 @@ class GklPureJSClient {
 
     // 7. Input Required Prompts & Modals
     this.core.on('inputRequired', (data) => {
+      // 起動シーケンス進行中の場合
+      if (this.isStartingUp && this.startupStep === 'PROGRESS') {
+        const cat = data?.promptCategory || data?.category;
+        console.log(`[Startup] inputRequired during PROGRESS: cat=${cat}, prompt=${data?.prompt || data?.rawPrompt}`);
+
+        // 1. 本編最初の通常ターン（POSKEY）を受信した時点で準備完了へ移行
+        if (cat === 'POSKEY') {
+          this.transitionToStartupReady();
+          return;
+        }
+        if (this.isSaveResuming) {
+          // 2. セーブ復元処理中の空バッファ待機のみを自動通過
+          const hasMeaningfulText = (data?.lines && data.lines.length > 0) || 
+                                    (data?.prompt && data.prompt !== 'Press Space or Enter to continue...' && data.prompt.trim() !== '');
+          
+          if (cat === 'KEY' && !hasMeaningfulText) {
+            console.log('[Startup] Auto-responding Space for empty KEY prompt during save restore');
+            setTimeout(() => {
+              if (this.core) this.core.respond(' ', { force: true });
+            }, 30);
+            return;
+          }
+          // 3. ロックファイル衝突 (YN) や具体的なテキスト/選択肢が発生した場合は
+          // ローディングを隠してモーダルを操作可能にする
+          if (this.modalManager.elLoading) this.modalManager.elLoading.classList.add('hidden');
+          if (this.modalManager.elSelectorCard) this.modalManager.elSelectorCard.classList.add('hidden');
+        } else {
+          // 新規ゲーム時: キャラ作成プロンプト操作のためローディングを隠す
+          if (this.modalManager.elLoading) this.modalManager.elLoading.classList.add('hidden');
+          if (this.modalManager.elSelectorCard) this.modalManager.elSelectorCard.classList.add('hidden');
+        }
+      }
+
       // コンテナFSMがアクティブな場合、通常のメニュー表示は抑制（二面パネルUIが担当）
       if (this.core.containerFSM && this.core.containerFSM.isActive()) {
         this.renderGklUi();
@@ -293,6 +345,10 @@ class GklPureJSClient {
       }
       this.modalManager.handleInputRequired(data);
       this.renderGklUi();
+    });
+
+    this.core.on('inputAutoResolved', (data) => {
+      console.log(`[Startup] inputAutoResolved: category=${data?.category}, response=${data?.response}`);
     });
 
     // 8. Input Resolved
@@ -476,7 +532,7 @@ class GklPureJSClient {
           btnRefreshInv.textContent = '...';
           await this.core.gkl.syncInventorySilent();
           btnRefreshInv.disabled = false;
-          btnRefreshInv.textContent = '🔄 同期';
+          btnRefreshInv.textContent = this.currentLanguage === 'en' ? '🔄 Sync' : '🔄 同期';
         }
       };
     }
@@ -610,7 +666,16 @@ class GklPureJSClient {
       });
     }
 
-    window.addEventListener('keydown', (e) => this.keyHandler.handleGlobalKeyDown(e));
+    window.addEventListener('keydown', (e) => {
+      if (this.isStartingUp && this.startupStep === 'READY') {
+        if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.completeStartup(e.code || e.key);
+        return;
+      }
+      this.keyHandler.handleGlobalKeyDown(e);
+    });
   }
 
   renderGklUi() {
@@ -658,7 +723,10 @@ class GklPureJSClient {
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
 
     const elBtnRefreshInv = document.getElementById('btn-refresh-inv');
-    if (elBtnRefreshInv) elBtnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
+    if (elBtnRefreshInv) {
+      elBtnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
+      elBtnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
+    }
 
     const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');
     if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
@@ -666,11 +734,35 @@ class GklPureJSClient {
     const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
     if (elKnHeader) elKnHeader.textContent = isEn ? '💡 Structured Knowledge (GKL Knowledge)' : '💡 構造化ナレッジ (GKL Knowledge)';
 
+    const btnRestart = document.getElementById('btn-restart');
+    if (btnRestart) btnRestart.title = isEn ? 'Restart game immediately' : 'ゲームを即時再起動';
+
+    const btnDeleteSave = document.getElementById('btn-delete-save');
+    if (btnDeleteSave) btnDeleteSave.title = isEn ? 'Delete save file completely' : 'セーブデータを完全削除';
+
     const btnStartResume = document.getElementById('btn-start-resume');
     if (btnStartResume) btnStartResume.textContent = isEn ? '▶️ Continue Game' : '▶️ セーブデータから再開';
 
     const btnStartNew = document.getElementById('btn-start-new');
     if (btnStartNew) btnStartNew.textContent = isEn ? '⚠️ New Game (Delete Save)' : '⚠️ 新規ゲーム開始 (セーブ破棄)';
+
+    const btnStartFresh = document.getElementById('btn-start-fresh');
+    if (btnStartFresh) btnStartFresh.textContent = isEn ? '⚔️ Start Adventure' : '⚔️ 新しい冒険を始める';
+
+    const btnEnter = document.getElementById('btn-enter-dungeon');
+    if (btnEnter) btnEnter.textContent = isEn ? '▶️ Enter Dungeon [Space / Move]' : '▶️ ダンジョンへ入る [Space / 移動キー]';
+
+    const readyMsg = document.getElementById('start-ready-msg');
+    if (readyMsg) readyMsg.textContent = isEn ? 'Dungeon Ready! Enter dungeon' : '✨ 準備完了！ ダンジョンへ入る';
+
+    const progressText = document.getElementById('start-card-progress-text');
+    if (progressText) {
+      if (this.isSaveResuming) {
+        progressText.textContent = isEn ? '🔄 Restoring dungeon state...' : '🔄 ダンジョンを復元中...';
+      } else {
+        progressText.textContent = isEn ? '🔄 Generating new dungeon...' : '🔄 新しいダンジョンを生成中...';
+      }
+    }
 
     if (this.knowledgeView.currentBottomTab === 'knowledge' && this.lastKnowledgeTarget) {
       this.knowledgeView.renderKnowledgeCard(this.lastKnowledgeTarget);
@@ -726,26 +818,102 @@ class GklPureJSClient {
     }
   }
 
-  async restartGame() {
-    this.resetUiForNewGame();
-    this.modalManager.elLoading.classList.remove('hidden');
-    this.modalManager.elGameOverModal.classList.add('hidden');
-    this.modalManager.elSelectorCard.classList.add('hidden');
-    this.modalManager.elSpinnerBox.classList.remove('hidden');
+  setStartupView(step) {
+    this.startupStep = step;
 
-    await this.core.restart({ clearStorage: false, autoStart: false });
+    const card = this.modalManager.elSelectorCard;
+    const cardButtons = document.getElementById('start-card-buttons');
+    const cardInfo = document.getElementById('start-card-info');
+    const cardSpinner = document.getElementById('start-card-spinner');
+    const cardReady = document.getElementById('start-card-ready');
+    const readyAction = document.getElementById('start-card-ready-action');
+    const spinnerBox = this.modalManager.elSpinnerBox;
+    const loadingOverlay = this.modalManager.elLoading;
+
+    if (step === 'INITIALIZING') {
+      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+      if (spinnerBox) spinnerBox.classList.remove('hidden');
+      if (card) card.classList.add('hidden');
+      return;
+    }
+
+    if (step === 'SELECTION') {
+      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+      if (spinnerBox) spinnerBox.classList.add('hidden');
+      if (card) card.classList.remove('hidden', 'is-fade-out');
+      if (cardButtons) cardButtons.classList.remove('hidden');
+      if (cardInfo) cardInfo.classList.remove('hidden');
+      if (cardSpinner) cardSpinner.classList.add('hidden');
+      if (cardReady) cardReady.classList.add('hidden');
+      if (readyAction) readyAction.classList.add('hidden');
+      return;
+    }
+
+    if (step === 'PROGRESS') {
+      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+      if (spinnerBox) spinnerBox.classList.add('hidden');
+      if (card) card.classList.remove('hidden', 'is-fade-out');
+      if (cardButtons) cardButtons.classList.add('hidden');
+      if (cardInfo) cardInfo.classList.add('hidden');
+      if (cardSpinner) cardSpinner.classList.remove('hidden');
+      if (cardReady) cardReady.classList.add('hidden');
+      if (readyAction) readyAction.classList.add('hidden');
+      return;
+    }
+
+    if (step === 'READY') {
+      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+      if (spinnerBox) spinnerBox.classList.add('hidden');
+      if (card) card.classList.remove('hidden', 'is-fade-out');
+      if (cardButtons) cardButtons.classList.add('hidden');
+      if (cardInfo) cardInfo.classList.add('hidden');
+      if (cardSpinner) cardSpinner.classList.add('hidden');
+      if (cardReady) cardReady.classList.remove('hidden');
+      if (readyAction) readyAction.classList.remove('hidden');
+      return;
+    }
+
+    if (step === 'PLAYING') {
+      if (card) card.classList.add('is-fade-out');
+      setTimeout(() => {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        if (card) {
+          card.classList.add('hidden');
+          card.classList.remove('is-fade-out');
+        }
+      }, 200);
+      return;
+    }
+  }
+
+  async restartGame() {
+    this.isStartingUp = true;
+    this.setStartupView('INITIALIZING');
+    this.resetUiForNewGame();
+    this.modalManager.elGameOverModal.classList.add('hidden');
+
+    try {
+      await this.core.restart({ clearStorage: false, autoStart: false });
+    } catch (err) {
+      console.warn("[GklPureJSClient] core.restart:", err);
+    }
     await this.bootstrapGame();
   }
 
   async deleteSaveFile() {
-    if (confirm("セーブファイルを完全に削除しますか？")) {
+    const isEn = this.currentLanguage === 'en';
+    const confirmMsg = isEn ? 'Are you sure you want to completely delete the save file?' : 'セーブファイルを完全に削除しますか？';
+    if (confirm(confirmMsg)) {
+      this.isStartingUp = true;
+      this.setStartupView('INITIALIZING');
       this.resetUiForNewGame();
-      this.modalManager.elLoading.classList.remove('hidden');
       this.modalManager.elGameOverModal.classList.add('hidden');
-      this.modalManager.elSelectorCard.classList.add('hidden');
-      this.modalManager.elSpinnerBox.classList.remove('hidden');
 
-      await this.core.restart({ clearStorage: true, autoStart: false });
+      try {
+        await this.core.restart({ clearStorage: true, autoStart: false });
+      } catch (err) {
+        console.warn("[GklPureJSClient] core.restart:", err);
+      }
       await this.bootstrapGame();
     }
   }
@@ -765,38 +933,143 @@ class GklPureJSClient {
 
   async bootstrapGame() {
     try {
+      this.isStartingUp = true;
+      this.setStartupView('SELECTION');
+
+      const btnStartResume = document.getElementById('btn-start-resume');
+      const btnStartNew = document.getElementById('btn-start-new');
+      const btnStartFresh = document.getElementById('btn-start-fresh');
+      const cardTitle = document.getElementById('start-card-title');
+      const cardMsg = document.getElementById('start-card-msg');
+      const isEn = this.currentLanguage === 'en';
+
       const saveInfo = await this.core.detectSavedGameInfo();
-      if (saveInfo.hasSave) {
-        if (this.modalManager.elSaveName) {
-          this.modalManager.elSaveName.textContent = saveInfo.savePlayerName || 'Hero';
-        }
-        this.modalManager.elSpinnerBox.classList.add('hidden');
-        this.modalManager.elSelectorCard.classList.remove('hidden');
+      if (saveInfo && saveInfo.hasSave) {
+        this.isSaveResuming = true;
+        if (cardTitle) cardTitle.textContent = isEn ? '💾 Save Data Found' : '💾 セーブデータが見つかりました';
+        if (cardMsg) cardMsg.innerHTML = `${isEn ? 'Player' : '冒険者'}: <strong id="start-save-name">${saveInfo.savePlayerName || 'Hero'}</strong>`;
+        if (btnStartResume) btnStartResume.classList.remove('hidden');
+        if (btnStartNew) btnStartNew.classList.remove('hidden');
+        if (btnStartFresh) btnStartFresh.classList.add('hidden');
+      } else {
+        this.isSaveResuming = false;
+        if (cardTitle) cardTitle.textContent = '⚔️ NetHack Wasm WebUI';
+        if (cardMsg) cardMsg.innerHTML = isEn ? 'Begin a new adventure in the Mazes of Menace.' : '危険に満ちた死の迷宮へ、新たな冒険に出発します。';
+        if (btnStartResume) btnStartResume.classList.add('hidden');
+        if (btnStartNew) btnStartNew.classList.add('hidden');
+        if (btnStartFresh) btnStartFresh.classList.remove('hidden');
+      }
 
-        document.getElementById('btn-start-resume').onclick = async () => {
-          this.modalManager.elSelectorCard.classList.add('hidden');
-          this.modalManager.elSpinnerBox.classList.remove('hidden');
-          await this.core.start('nethack.js');
+      if (btnStartResume) {
+        btnStartResume.onclick = async () => {
+          await this.startWithProgress(true, false);
         };
+      }
 
-        document.getElementById('btn-start-new').onclick = async () => {
-          const isEn = this.currentLanguage === 'en';
+      if (btnStartNew) {
+        btnStartNew.onclick = async () => {
           const confirmMsg = isEn
             ? 'Delete saved game and start a new game?'
             : '保存されているセーブデータを破棄して最初から開始しますか？';
           if (!window.confirm(confirmMsg)) return;
-          this.modalManager.elSelectorCard.classList.add('hidden');
-          this.modalManager.elSpinnerBox.classList.remove('hidden');
-          await this.core.start('nethack.js', { forceNewGame: true });
+          await this.startWithProgress(false, true);
         };
-      } else {
-        await this.core.start('nethack.js');
+      }
+
+      if (btnStartFresh) {
+        btnStartFresh.onclick = async () => {
+          await this.startWithProgress(false, false);
+        };
       }
     } catch (e) {
       console.error("Core start error:", e);
     }
   }
+
+  async startWithProgress(isResume, forceNewGame) {
+    this.isSaveResuming = isResume;
+    this.setStartupView('PROGRESS');
+
+    const isEn = this.currentLanguage === 'en';
+    const progressText = document.getElementById('start-card-progress-text');
+    if (progressText) {
+      progressText.textContent = isResume
+        ? (isEn ? '🔄 Restoring dungeon state...' : '🔄 ダンジョンを復元中...')
+        : (isEn ? '🔄 Generating new dungeon...' : '🔄 新しいダンジョンを生成中...');
+    }
+
+    try {
+      await this.core.start('nethack.js', { forceNewGame });
+    } catch (e) {
+      console.error("Core start failed:", e);
+    }
+  }
+
+  transitionToStartupReady() {
+    if (this.startupStep !== 'PROGRESS') return;
+    this.setStartupView('READY');
+
+    const isEn = this.currentLanguage === 'en';
+    const cardTitle = document.getElementById('start-card-title');
+    const cardReady = document.getElementById('start-card-ready');
+    const readyMsg = document.getElementById('start-ready-msg');
+    const btnEnter = document.getElementById('btn-enter-dungeon');
+
+    if (cardTitle) {
+      cardTitle.textContent = isEn ? '✨ Ready to Enter' : '✨ ダンジョン突入準備完了';
+    }
+    if (cardReady) {
+      cardReady.onclick = () => this.completeStartup(' ');
+    }
+    if (readyMsg) {
+      readyMsg.textContent = isEn
+        ? 'Dungeon is ready! Press Space or Move key'
+        : 'ダンジョンの準備が整いました！ [Space] または [移動キー] で開始';
+    }
+    if (btnEnter) {
+      btnEnter.textContent = isEn
+        ? '▶️ Enter Dungeon [Space / Move]'
+        : '▶️ ダンジョンへ入る [Space / 移動キー]';
+      btnEnter.onclick = () => this.completeStartup(' ');
+    }
+  }
+
+  completeStartup(triggerCodeOrKey = null) {
+    if (!this.isStartingUp && this.startupStep === 'PLAYING') return;
+    this.isStartingUp = false;
+    this.setStartupView('PLAYING');
+
+    setTimeout(() => {
+      window.focus();
+
+      if (this.isSaveResuming) {
+        const isEn = this.currentLanguage === 'en';
+        //const restoreMsg = isEn
+        //  ? '💾 Saved game restored. Move to begin your adventure.'
+        //  : '💾 セーブデータを復元しました。移動キーで行動を開始してください。';
+        //this.addMessageLog(restoreMsg);
+
+        // curses 初回画面フラッシュを促すため、Space/Enterによる突入時は Ctrl-R (Redraw) を送信してマップを描画
+        if (!triggerCodeOrKey || triggerCodeOrKey === ' ' || triggerCodeOrKey === 'Space' || triggerCodeOrKey === 'Enter') {
+          if (this.core) {
+            this.core.sendKey('r', false, true, false, 'r', true);
+          }
+          return;
+        }
+      }
+
+      if (triggerCodeOrKey && this.core) {
+        if (triggerCodeOrKey !== ' ' && triggerCodeOrKey !== 'Space' && triggerCodeOrKey !== 'Enter') {
+          this.core.sendKey(triggerCodeOrKey);
+        }
+      }
+    }, 200);
+  }
 }
 
 // 起動
-new GklPureJSClient();
+const gklClient = new GklPureJSClient();
+if (typeof window !== 'undefined') {
+  window.gklClient = gklClient;
+}
+

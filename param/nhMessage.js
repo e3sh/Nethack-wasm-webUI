@@ -11654,7 +11654,8 @@
         { en: "You feel rather dog-ish.", jp: "なんだか犬みたいだ。" },
         { en: "Step into that vapor cloud?", jp: "その蒸気の雲の中へ足を踏み入れる？" },
         { en: "Die?", jp: "死ぬ？" },
-        { en: "OK, so you don't Die.", jp: "よし、じゃあ死なないってことだね。" },
+        { en: "OK, so you don't die.", jp: "よし、じゃあ死なないってことだね。" },
+        { en: "Do you want to keep the save file?", jp: "セーブデータは残しておきますか？" },
     ];
 }
 

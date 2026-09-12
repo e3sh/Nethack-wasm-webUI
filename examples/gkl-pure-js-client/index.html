@@ -48,19 +48,45 @@
 
         <!-- ダンジョンマップエリア (GameCanvas & ASCII Grid & オーバーレイ) -->
         <section class="game-viewport">
-          <!-- ローディングオーバーレイ -->
+          <!-- ローディング・タイトルオーバーレイ -->
           <div id="loading-overlay" class="overlay">
             <div id="loading-spinner-box" class="spinner-box">
               <div class="spinner"></div>
               <p id="loading-text">Initializing NetHack Core Engine & GKL Layer...</p>
             </div>
-            <!-- セーブデータ存在時の選択ダイアログ -->
+            <!-- ゲーム開始・再開タイトルカード -->
             <div id="start-selector-card" class="selector-card hidden">
-              <h3>💾 Save Data Found</h3>
-              <p>Player: <strong id="start-save-name">Hero</strong></p>
-              <div class="selector-buttons">
+              <div class="selector-header">
+                <h3 id="start-card-title">⚔️ NetHack Wasm WebUI</h3>
+                <p id="start-card-subtitle" class="start-card-subtitle">Game Knowledge Layer Edition</p>
+              </div>
+              <div id="start-card-info" class="start-card-info">
+                <p id="start-card-msg">Player: <strong id="start-save-name">Hero</strong></p>
+              </div>
+              <!-- スピナー/進行中インジケータ（ステップ2用） -->
+              <div id="start-card-spinner" class="start-card-spinner hidden">
+                <div class="spinner spinner-small"></div>
+                <span id="start-card-progress-text">ダンジョンを復元中...</span>
+              </div>
+              <!-- 準備完了インジケータ（ステップ3用） -->
+              <div id="start-card-ready" class="start-card-ready hidden">
+                <div class="start-ready-banner">
+                  <span class="start-ready-sparkle">✨</span>
+                  <span id="start-ready-msg">準備完了！ ダンジョンへ入る</span>
+                </div>
+                <div class="press-any-key-hint">
+                  <span class="press-any-key-icon">▼</span>
+                </div>
+              </div>
+              <!-- アクションボタン群（ステップ1用） -->
+              <div id="start-card-buttons" class="selector-buttons">
                 <button id="btn-start-resume" class="btn btn-primary btn-large">▶️ Continue Game</button>
                 <button id="btn-start-new" class="btn btn-danger">⚠️ New Game (Delete Save)</button>
+                <button id="btn-start-fresh" class="btn btn-primary btn-large hidden">⚔️ Start Adventure</button>
+              </div>
+              <!-- 準備完了時のクリック用ボタン（ステップ3用） -->
+              <div id="start-card-ready-action" class="selector-buttons hidden">
+                <button id="btn-enter-dungeon" class="btn btn-success btn-large">▶️ Enter Dungeon [Space / Move]</button>
               </div>
             </div>
           </div>

@@ -1066,3 +1066,160 @@
   font-weight: 700;
 }
 
+/* ============================================================================
+   KEY カテゴリ & 待機用バウンスアニメーション (Section 5)
+   ============================================================================ */
+.prompt-bar.is-key-waiting {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.prompt-bar.is-key-waiting:hover {
+  background-color: #22223b;
+  border-color: var(--accent-gold, #f0c040);
+  box-shadow: 0 0 10px rgba(240, 192, 64, 0.25);
+}
+
+.prompt-key-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.prompt-key-continue-btn:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  transform: translateY(-1px);
+}
+
+.prompt-key-continue-btn:active {
+  transform: translateY(0);
+}
+
+.press-any-key-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  opacity: 0.85;
+}
+
+.press-any-key-icon {
+  font-size: 18px;
+  color: var(--accent-gold, #f0c040);
+  animation: press-key-bounce 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes press-key-bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(5px);
+    opacity: 1.0;
+  }
+}
+
+/* ============================================================================
+   タイトルカード一体型ステップ進行スタイル (Section 7)
+   ============================================================================ */
+.selector-card {
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 230, 118, 0.2);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.selector-card.is-fade-out {
+  opacity: 0;
+  transform: scale(0.96) translateY(-10px);
+  pointer-events: none;
+}
+
+.start-card-subtitle {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.start-card-info {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 0.95rem;
+}
+
+.start-card-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: #a7f3d0;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.spinner-small {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+}
+
+.start-card-ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.start-ready-banner {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid #10b981;
+  color: #6ee7b7;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-ready-sparkle {
+  font-size: 1.2rem;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: 1px solid #34d399;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #34d399, #10b981);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+}
+
+

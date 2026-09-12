@@ -128,7 +128,6 @@ export class ModalManager {
     this.selectableMenuButtons = [];
     this.clearAllModals();
     if (this.elGameOverModal) this.elGameOverModal.classList.add('hidden');
-    if (this.elSelectorCard) this.elSelectorCard.classList.add('hidden');
   }
 
   handleInputRequired(data) {
@@ -348,6 +347,48 @@ export class ModalManager {
       return;
     }
 
+    // KEY カテゴリ: 「何か押せ」バウンスアニメーションアイコン (PromptCategory Guide Section 5-1) + マウス/タッチ操作対応
+    if (category === 'KEY') {
+      if (this.elPromptBar) {
+        this.elPromptBar.classList.remove('hidden');
+        this.elPromptBar.classList.add('is-key-waiting');
+        this.elPromptBar.onclick = () => {
+          if (core) {
+            if (typeof core.sendKey === 'function') {
+              core.sendKey('Space');
+            } else if (typeof core.respond === 'function') {
+              core.respond(' ');
+            }
+          }
+        };
+      }
+      if (this.elPromptText) this.elPromptText.textContent = '';
+      if (this.elInputControls) {
+        const isEn = this.currentLanguage === 'en';
+        const continueBtnText = isEn ? '▶ Continue (Space)' : '▶ 続ける (Space)';
+        this.elInputControls.innerHTML = `
+          <button id="btn-key-continue" class="prompt-key-continue-btn">${continueBtnText}</button>
+          <span class="press-any-key-hint">
+            <span class="press-any-key-icon">▼</span>
+          </span>
+        `;
+        const btnContinue = document.getElementById('btn-key-continue') || this.elInputControls.querySelector?.('#btn-key-continue');
+        if (btnContinue) {
+          btnContinue.onclick = (e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (core) {
+              if (typeof core.sendKey === 'function') {
+                core.sendKey('Space');
+              } else if (typeof core.respond === 'function') {
+                core.respond(' ');
+              }
+            }
+          };
+        }
+      }
+      return;
+    }
+
     if (data.inputType === 'SINGLE_KEY' || category === 'YN' || data.context === 'yn_function') {
       if (this.elPromptBar) this.elPromptBar.classList.remove('hidden');
       const promptTitle = data.promptText || data.title || rawPrompt || 'Press key...';
@@ -388,7 +429,11 @@ export class ModalManager {
   }
 
   clearAllModals() {
-    if (this.elPromptBar) this.elPromptBar.classList.add('hidden');
+    if (this.elPromptBar) {
+      this.elPromptBar.classList.add('hidden');
+      this.elPromptBar.classList.remove('is-key-waiting');
+      this.elPromptBar.onclick = null;
+    }
     if (this.elMenuModal) this.elMenuModal.classList.add('hidden');
     if (this.elWishModal) this.elWishModal.classList.add('hidden');
     if (this.elGenocideModal) this.elGenocideModal.classList.add('hidden');

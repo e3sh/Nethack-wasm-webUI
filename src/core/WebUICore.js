@@ -575,7 +575,7 @@ export class WebUICore {
         return true;
     }
 
-    respond(inputVal) {
+    respond(inputVal, options = {}) {
         if (!this.activeResolver) return;
 
         // ユーザーの手動入力時、実行中のサイレント同期タスクがあれば手動入力を優先して安全にキャンセル
@@ -585,8 +585,10 @@ export class WebUICore {
             }
         }
 
-        if (this.lastInputTime && (Date.now() - this.lastInputTime < 120) && 
+        const force = options === true || Boolean(options && options.force);
+        if (!force && this.lastInputTime && (Date.now() - this.lastInputTime < 120) && 
            (this.currentPromptCategory === PROMPT_CATEGORY.YN || this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME)) {
+            console.warn(`[WebUICore] Chattering guard blocked respond('${inputVal}') (${Date.now() - this.lastInputTime}ms < 120ms, category: ${this.currentPromptCategory})`);
             return;
         }
 
@@ -1510,7 +1512,14 @@ export class WebUICore {
                             if (this.gkl.spellStateManager) this.gkl.spellStateManager.invalidate();
                         }
                     }
-                    this.respond(finalName.trim());
+                    this.emit('inputAutoResolved', {
+                        category: PROMPT_CATEGORY.ASKNAME,
+                        context: 'askname',
+                        response: finalName.trim(),
+                        prompt: rawPrompt,
+                        translatedPrompt
+                    });
+                    this.respond(finalName.trim(), { force: true });
                     return;
                 }
             }
@@ -1521,11 +1530,25 @@ export class WebUICore {
                 if (this.itemNamingMode === 'auto_memo') {
                     const autoName = this.getAutoMemoName();
                     this.emit('itemNamingAutoMemo', { prompt: rawPrompt, name: autoName, translatedPrompt });
-                    this.respond(autoName);
+                    this.emit('inputAutoResolved', {
+                        category: category,
+                        context: 'docall',
+                        response: autoName,
+                        prompt: rawPrompt,
+                        translatedPrompt
+                    });
+                    this.respond(autoName, { force: true });
                     return;
                 } else {
                     this.emit('itemNamingSkipped', { prompt: rawPrompt, translatedPrompt });
-                    this.respond('');
+                    this.emit('inputAutoResolved', {
+                        category: category,
+                        context: 'docall',
+                        response: '',
+                        prompt: rawPrompt,
+                        translatedPrompt
+                    });
+                    this.respond('', { force: true });
                     return;
                 }
             }
