@@ -39,6 +39,11 @@ related_code:
   - **`BL_HUNGER` (field 17)**: 空腹・満腹状態 (`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"`) の解釈と文字列変換。
   - **`BL_CONDITION` (field 22)**: ビットマスクからの全30種状態異常文字列配列への展開。
 
+> [!WARNING]
+> ### 💡 低層バインドの教訓: Wasm32 における 12B vs 16B メモリ破壊
+> 初期実装では「32bit 環境なのでポインタは 4 バイト、`struct mi` は `item (4B) + count (4B) + itemflags (4B) = 12B`」と仮定してバッファを割り当てていました。しかし、NetHack C コアの `anything` 共用体には 64bit 整数（`genericptr_t` 等）が含まれるため、Clang/LLVM コンパイラは Wasm32 環境であっても **8 バイト境界でのアライメント** を強制します。
+> その結果、実際の `sizeof(struct mi)` は **16 バイト** となり、12 バイトで連続配置すると 2 つ目以降の選択項目オフセットが 4 バイトずつズレて C コアが不正メモリアクセスや未定義動作を起こしました。低層構造体バッファを構築する際は、コンパイラのアライメント規則（8バイト境界）を厳密に遵守する必要があります。
+
 ### 2.2 仮想ファイルシステム ＆ 永続化 (`NetHackFSManager.js`)
 - **システム環境ファイルの全自動生成とオプション重複防止**:
   - NetHack C コア初期化時に必須となる `/sysconf`, `/perm`, `NetHack.cnf`, `.nethackrc` を仮想 FS (Emscripten `FS`) 上へ自動構築。
@@ -73,6 +78,12 @@ related_code:
   - `cancelSequence()` が呼び出された場合、進行中のアクティブタスクに加えて FIFO キュー内に保留されている未実行予約タスクも一括で `reject(new Error('Sequence cancelled'))` キャンセル・消去されます。
 - **サイレント実行時のウィンドウ自動解決・デッドロック防止 (`suppressPrompts`)**:
   - `suppressPrompts: true`（サイレント同期やマクロ実行中）にブロッキングウィンドウ（`display_nhwindow` with `blocking: true` / `windowId > 3`）やファイル表示（`display_file`）が発生した場合、UI へのイベント発行を抑止しつつ、残存トークンの自動消費または `safeResolver(0)` による即座クローズを実施。非同期ループがハング（デッドロック）することを構造的に防止します。
+
+> [!WARNING]
+> ### 💡 シーケンス制御の教訓: サイレント実行とデッドロック
+> 自動同期などのサイレントシーケンス（`suppressPrompts: true`）実行時、移動先でアイテム一覧ウィンドウやヘルプ等のブロッキングウィンドウ（`display_nhwindow`）が発生した場合、初期実装では「UI へのイベント発行を抑止する」だけで、C コア側のウィンドウ待機（Asyncify スタック休止）を解決していませんでした。
+> このため、UI 側には何も表示されないまま Wasm プロセスが永遠に応答待ちとなり、デッドロック（ハング）する致命的不具合が発生しました。
+> 現在の実装では、`suppressPrompts` 時にウィンドウ表示が発生した場合、残存トークンの消費または `safeResolver(0)` による即座クローズを自律実行することで、このデッドロックを構造的に根絶しています。
 
 ---
 

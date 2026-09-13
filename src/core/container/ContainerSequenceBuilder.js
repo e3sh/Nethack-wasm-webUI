@@ -51,8 +51,10 @@ export class ContainerSequenceBuilder {
             }
 
             // 2. 開いているコンテナ自身ではないか (Self-containment Guard)
+            const containerIdentifier = container ? container.identifier : null;
             if ((containerLetter && letter === containerLetter) ||
-                (containerOnum !== -1 && itemOnum !== -1 && itemOnum === containerOnum)) {
+                (containerOnum !== -1 && itemOnum !== -1 && itemOnum === containerOnum) ||
+                (containerIdentifier && item.identifier && containerIdentifier === item.identifier)) {
                 excludedItems.push({ item, reason: 'SELF_CONTAINER' });
                 continue;
             }

@@ -1027,6 +1027,9 @@ export class WebUICore {
             if (sequence.some(k => itemUseKeys.has(k))) {
                 this.isItemUsingActive = true;
             }
+            if (sequence.length >= 2 && itemUseKeys.has(sequence[0]) && typeof sequence[1] === 'string' && /^[a-zA-Z]$/.test(sequence[1])) {
+                this.lastUsedItemLetter = sequence[1];
+            }
         }
 
         let success = false;

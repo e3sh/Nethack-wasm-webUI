@@ -234,46 +234,145 @@ export class ContainerController {
             let letter = options.letter || null;
             let matchedInventoryItem = null;
 
-            // インベントリから該当アイテムを探索
-            if (this.core) {
-                const invMgr = (this.core.gkl && this.core.gkl.inventoryStateManager) || this.core.inventoryStateManager;
-                const items = invMgr ? (typeof invMgr.getItems === 'function' ? invMgr.getItems() : invMgr.items) : [];
-                if (Array.isArray(items) && items.length > 0) {
-                    if (!letter && this.core.lastUsedItemLetter) {
-                        letter = this.core.lastUsedItemLetter;
-                    }
-                    if (letter) {
-                        matchedInventoryItem = items.find(it => (it.letter === letter || it.invlet === letter));
-                    }
-                    if (!matchedInventoryItem) {
-                        const targetName = containerName.toLowerCase().replace(/^(?:the|an?)\s+/, '').trim();
-                        matchedInventoryItem = items.find(it => {
-                            const raw = (it.rawText || it.name || '').toLowerCase();
-                            return targetName && (raw.includes(targetName) || (targetName.includes('sack') && raw.includes('sack')));
-                        });
-                    }
-                }
-            }
+            // 1. 手持ちコンテナ判定 (NetHack C コアは手持ちアイテムに "your " / "あなたの" を付与)
+            const isYourContainer = /^(?:your|あなたの)\s*/i.test(containerName);
+
+            // 2. targetName の正規化 ("your bag" -> "bag", "the large box" -> "large box", "あなたの鞄" -> "鞄")
+            const cleanTarget = containerName
+                .toLowerCase()
+                .replace(/^(?:the|an?|your|その|あの|あなたの)\s*/i, '')
+                .replace(/[\?？\.\!]$/, '')
+                .trim();
+
+            const isBagPattern = /\b(bag|sack)\b/i.test(cleanTarget) || /(?:鞄|袋|バックパック)/.test(cleanTarget);
+            const isBoxPattern = /\b(box|chest|iron safe|sarcophagus)\b/i.test(cleanTarget) || /(?:箱|宝箱|金庫)/.test(cleanTarget);
+            const isFloorNamed = isBoxPattern;
+            const isTheContainer = /^(?:the|その|あの)\s*/i.test(containerName);
 
             const isLootTriggered = payload.signal?.id === 'SIGNAL_CONTAINER_ACTION_MENU_LOOT' ||
                                    signalParams.source === 'LOOT_COMMAND' ||
                                    Boolean(signalParams.isFloorContainer);
-            const isFloorNamed = /chest|box|iron safe|sarcophagus/i.test(containerName);
 
+            // 3. 床コンテナか手持ちコンテナかを厳格判定
             let isFloor;
             if (options.isFloorContainer !== undefined) {
                 isFloor = options.isFloorContainer;
-            } else if (isLootTriggered) {
-                isFloor = true;
-            } else if (matchedInventoryItem) {
+            } else if (isYourContainer) {
+                // NetHack C コアにおいて "your " が付くのは 100% 手持ちインベントリ内アイテム
                 isFloor = false;
+            } else if (isLootTriggered || isTheContainer || isFloorNamed) {
+                // "#loot" コマンド由来、"the ..." プレフィックス、または "your" が付かない床箱名は 100% 床コンテナ
+                isFloor = true;
             } else {
-                isFloor = isFloorNamed;
+                isFloor = false;
             }
 
-            if (!isFloor && matchedInventoryItem) {
-                letter = matchedInventoryItem.letter || matchedInventoryItem.invlet || letter;
-            } else if (isFloor) {
+            // 4. 手持ちコンテナの場合のみインベントリから該当アイテムを探索（床コンテナへの手持ち誤同定を完全遮断）
+            if (!isFloor) {
+                if (options.item) {
+                    matchedInventoryItem = options.item;
+                    letter = options.item.letter || options.item.invlet || letter;
+                } else if (this.core) {
+                    const invMgr = (this.core.gkl && this.core.gkl.inventoryStateManager) || this.core.inventoryStateManager;
+                    const items = invMgr ? (typeof invMgr.getItems === 'function' ? invMgr.getItems() : invMgr.items) : [];
+                    if (Array.isArray(items) && items.length > 0) {
+                        // lastUsedItemLetter の検証: 直前の使用アイテムがコンテナ（鞄・箱）と一致する場合のみ採用
+                        let candidateItem = null;
+                        if (!letter && this.core.lastUsedItemLetter) {
+                            const lastLetter = this.core.lastUsedItemLetter;
+                            const found = items.find(it => (it.letter === lastLetter || it.invlet === lastLetter));
+                            if (found) {
+                                const raw = (found.rawText || found.name || '').toLowerCase();
+                                const name = (found.name || '').toLowerCase();
+                                const matchesName = cleanTarget && (raw.includes(cleanTarget) || name.includes(cleanTarget));
+                                const matchesBag = isBagPattern && (/\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
+                                                                    /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(name) ||
+                                                                    /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name) ||
+                                                                    (found.onum >= 217 && found.onum <= 220) || found.isBag);
+                                const matchesBox = isBoxPattern && (/\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
+                                                                    /\b(large box|chest|box|ice box|iron safe)\b/i.test(name) ||
+                                                                    /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name) ||
+                                                                    (found.onum >= 214 && found.onum <= 216) || found.isBox);
+                                if (matchesName || matchesBag || matchesBox) {
+                                    candidateItem = found;
+                                    letter = lastLetter;
+                                }
+                            }
+                        }
+
+                        if (candidateItem) {
+                            matchedInventoryItem = candidateItem;
+                        } else if (letter) {
+                            matchedInventoryItem = items.find(it => (it.letter === letter || it.invlet === letter));
+                        }
+
+                        if (!matchedInventoryItem) {
+                            matchedInventoryItem = items.find(it => {
+                                const raw = (it.rawText || it.name || '').toLowerCase();
+                                const name = (it.name || '').toLowerCase();
+
+                                // 完全・部分一致
+                                if (cleanTarget && (raw.includes(cleanTarget) || name.includes(cleanTarget))) {
+                                    return true;
+                                }
+
+                                // 袋系（bag / sack / oilskin sack / bag of holding / bag of tricks）の包括照合
+                                if (isBagPattern) {
+                                    const itemIsBag = /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
+                                                      /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(name) ||
+                                                      /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name) ||
+                                                      (it.onum >= 217 && it.onum <= 220) || it.isBag;
+                                    if (itemIsBag) return true;
+                                }
+
+                                // 箱系（large box / chest / ice box / iron safe）の包括照合
+                                if (isBoxPattern) {
+                                    const itemIsBox = /\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
+                                                      /\b(large box|chest|box|ice box|iron safe)\b/i.test(name) ||
+                                                      /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name) ||
+                                                      (it.onum >= 214 && it.onum <= 216) || it.isBox;
+                                    if (itemIsBox) return true;
+                                }
+                                return false;
+                            });
+                        }
+
+                        // フォールバック: 手持ちコンテナ確定時にインベントリ内同種アイテムが1つだけならそれを採用
+                        if (!matchedInventoryItem) {
+                            if (isBagPattern) {
+                                const bagItems = items.filter(it => {
+                                    const raw = (it.rawText || it.name || '').toLowerCase();
+                                    const name = (it.name || '').toLowerCase();
+                                    return /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
+                                           /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(name) ||
+                                           /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name) ||
+                                           (it.onum >= 217 && it.onum <= 220) || it.isBag;
+                                });
+                                if (bagItems.length === 1) {
+                                    matchedInventoryItem = bagItems[0];
+                                }
+                            } else if (isBoxPattern) {
+                                const boxItems = items.filter(it => {
+                                    const raw = (it.rawText || it.name || '').toLowerCase();
+                                    const name = (it.name || '').toLowerCase();
+                                    return /\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
+                                           /\b(large box|chest|box|ice box|iron safe)\b/i.test(name) ||
+                                           /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name) ||
+                                           (it.onum >= 214 && it.onum <= 216) || it.isBox;
+                                });
+                                if (boxItems.length === 1) {
+                                    matchedInventoryItem = boxItems[0];
+                                }
+                            }
+                        }
+
+                        if (matchedInventoryItem) {
+                            letter = matchedInventoryItem.letter || matchedInventoryItem.invlet || letter;
+                        }
+                    }
+                }
+            } else {
+                // 床コンテナ確定時は letter と matchedInventoryItem を確実にクリア
                 letter = null;
                 matchedInventoryItem = null;
             }
@@ -284,6 +383,7 @@ export class ContainerController {
 
             this.currentContainer = {
                 name: containerName,
+                cleanName: cleanTarget,
                 rawName: containerName,
                 letter: letter,
                 identifier: matchedInventoryItem?.identifier || null,

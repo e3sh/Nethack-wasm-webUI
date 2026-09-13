@@ -154,6 +154,50 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             expect(contentsManager.getItems()[0].identifier).toBe(501);
             expect(contentsManager.getItems()[1].identifier).toBe(502);
         });
+
+        it('未識別の鞄 (an empty bag / "Do what with your bag?"): 手持ちアイテムと正確に同定され、letter が設定されて手持ちコンテナとして認識されること', async () => {
+            // インベントリに未識別の鞄 { letter: 'g', rawText: 'an empty bag', identifier: 777 } を設定
+            mockCore.gkl.inventoryStateManager.getItems = vi.fn(() => [
+                { letter: 'a', rawText: 'a +0 dagger', identifier: 101 },
+                { letter: 'g', rawText: 'an empty bag', identifier: 777 },
+                { letter: 'f', rawText: 'food ration', identifier: 102 },
+            ]);
+
+            const mockResolver = { respond: vi.fn() };
+            const payload = {
+                rawPromptText: 'Do what with your bag? [i or ?*]',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    subCategory: 'CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your bag' },
+                },
+                items: [
+                    { charStr: 'i', str: 'Put in' },
+                ],
+                safeResolver: mockResolver,
+            };
+
+            const handled = await controller.handleInitialActionMenu(payload);
+
+            expect(handled).toBe(true);
+            expect(controller.isActive()).toBe(true);
+            expect(controller.currentContainer).toBeDefined();
+            // 手持ち鞄として letter が 'g' に特定されていること
+            expect(controller.currentContainer.letter).toBe('g');
+            expect(controller.currentContainer.identifier).toBe(777);
+            expect(controller.currentContainer.isFloorContainer).toBe(false);
+
+            // 自己投入ガード (validatePutIn) で開いている bag 自身の投入がブロックされること
+            const selfItem = { letter: 'g', rawText: 'an empty bag', identifier: 777 };
+            const validation = controller.validatePutIn(selfItem);
+            expect(validation.allowed).toBe(false);
+            expect(validation.reason).toBe('SELF_CONTAINER');
+
+            // 別のアイテム (food ration) は投入可能であること
+            const otherItem = { letter: 'f', rawText: 'food ration', identifier: 102 };
+            const otherValidation = controller.validatePutIn(otherItem);
+            expect(otherValidation.allowed).toBe(true);
+        });
     });
 
     // ========================================================================
@@ -477,4 +521,172 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             expect(testCore.off).toHaveBeenCalledWith('signal', expect.any(Function));
         });
     });
+
+    describe('8. 箱（large box / chest）の出し入れ・同定テスト（床コンテナおよび手持ちコンテナ）', () => {
+        let testCore;
+        let testInteractive;
+        let controller;
+
+        beforeEach(() => {
+            testInteractive = {
+                querySequenceSilent: vi.fn().mockResolvedValue({ success: true, buffer: [] }),
+                acquireSessionLock: vi.fn(() => true),
+                releaseSessionLock: vi.fn(() => true)
+            };
+
+            testCore = {
+                interactiveController: testInteractive,
+                inventoryStateManager: {
+                    getItems: () => [
+                        { letter: 'a', invlet: 'a', name: 'food ration', identifier: 10, count: 1 },
+                        { letter: 'b', invlet: 'b', name: 'large box', identifier: 20, onum: 214, count: 1 }
+                    ]
+                },
+                lastUsedItemLetter: 'a', // 直前に食料を食べたレターが残っている状況を模擬
+                on: vi.fn(),
+                off: vi.fn()
+            };
+
+            controller = new ContainerController({
+                core: testCore,
+                interactiveController: testInteractive
+            });
+        });
+
+        it('床の大型箱 (the large box) を開けた際、手持ち箱や lastUsedItemLetter があっても床コンテナと判定されること', async () => {
+            const payload = {
+                rawPrompt: 'Do what with the large box? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'the large box' }
+                },
+                items: [
+                    { charStr: 'o', label: 'Take out' },
+                    { charStr: 'i', label: 'Put in' }
+                ]
+            };
+
+            // 中身取得ハンドラのエミュレート
+            testInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const ctx = {
+                    menuItems: [
+                        { identifier: 101, charStr: 'a', str: '3 gold pieces' },
+                        { identifier: 102, charStr: 'b', str: 'an uncursed dagger' }
+                    ]
+                };
+                const itemHandler = recipe.handlers.find(h => h.match?.subCategory === 'CONTAINER_ITEM_SELECT');
+                itemHandler.action(ctx);
+                return { success: true, buffer: [] };
+            });
+
+            const opened = await controller.handleInitialActionMenu(payload);
+            expect(opened).toBe(true);
+            expect(controller.currentContainer.isFloorContainer).toBe(true);
+            expect(controller.currentContainer.letter).toBeNull();
+            expect(controller.currentContainer.cleanName).toBe('large box');
+            expect(controller.contentsManager.getItems().length).toBe(2);
+
+            // 取り出し (Take Out) の検証: start が ['#', 'loot'] であること
+            const targetItem = controller.contentsManager.getItems()[1]; // dagger
+            testInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                expect(recipe.start).toEqual(['#', 'loot']);
+                return { success: true, buffer: [] };
+            });
+
+            const transferRes = await controller.transferItem({
+                direction: 'out',
+                item: targetItem
+            });
+            expect(transferRes.success).toBe(true);
+            expect(testInteractive.querySequenceSilent).toHaveBeenCalled();
+        });
+
+        it('手持ちの箱 (your large box) を開けた際、手持ち箱のレターと同定され [a, letter] で出し入れされること', async () => {
+            const payload = {
+                rawPrompt: 'Do what with your large box? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your large box' }
+                },
+                items: [
+                    { charStr: 'o', label: 'Take out' },
+                    { charStr: 'i', label: 'Put in' }
+                ]
+            };
+
+            testInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const ctx = {
+                    menuItems: [{ identifier: 201, charStr: 'a', str: 'a ruby' }]
+                };
+                const itemHandler = recipe.handlers.find(h => h.match?.subCategory === 'CONTAINER_ITEM_SELECT');
+                itemHandler.action(ctx);
+                return { success: true, buffer: [] };
+            });
+
+            const opened = await controller.handleInitialActionMenu(payload);
+            expect(opened).toBe(true);
+            expect(controller.currentContainer.isFloorContainer).toBe(false);
+            expect(controller.currentContainer.letter).toBe('b');
+            expect(controller.currentContainer.identifier).toBe(20);
+
+            // 投入 (Put In) の検証: start が ['a', 'b'] であること
+            const putInItem = { letter: 'a', name: 'food ration', identifier: 10, count: 1 };
+            testInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                expect(recipe.start).toEqual(['a', 'b']);
+                return { success: true, buffer: [] };
+            });
+
+            const transferRes = await controller.transferItem({
+                direction: 'in',
+                item: putInItem
+            });
+            expect(transferRes.success).toBe(true);
+            expect(testInteractive.querySequenceSilent).toHaveBeenCalled();
+        });
+
+        it('手持ちの宝箱 (your chest) で修飾名 (an unlocked chest) でも単一所持フォールバックで同定されること', async () => {
+            testCore.inventoryStateManager.getItems = () => [
+                { letter: 'c', invlet: 'c', name: 'an unlocked chest', identifier: 30, onum: 215, count: 1 }
+            ];
+
+            const payload = {
+                rawPrompt: 'Do what with your chest? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your chest' }
+                },
+                items: [{ charStr: 'i', label: 'Put in' }] // 空箱
+            };
+
+            const opened = await controller.handleInitialActionMenu(payload);
+            expect(opened).toBe(true);
+            expect(controller.currentContainer.isFloorContainer).toBe(false);
+            expect(controller.currentContainer.letter).toBe('c');
+            expect(controller.currentContainer.identifier).toBe(30);
+        });
+
+        it('手持ちの箱自身をその箱に投入 (Put In) しようとした場合に自己投入ガードでブロックされること', async () => {
+            const payload = {
+                rawPrompt: 'Do what with your large box? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your large box' }
+                },
+                items: [{ charStr: 'i', label: 'Put in' }]
+            };
+
+            await controller.handleInitialActionMenu(payload);
+
+            const selfItem = { letter: 'b', invlet: 'b', name: 'large box', identifier: 20, count: 1 };
+            const res = await controller.transferItem({
+                direction: 'in',
+                item: selfItem
+            });
+
+            expect(res.success).toBe(false);
+            expect(res.error.message).toContain('Blocked by safety guard');
+            expect(testInteractive.querySequenceSilent).not.toHaveBeenCalled();
+        });
+    });
 });
+
