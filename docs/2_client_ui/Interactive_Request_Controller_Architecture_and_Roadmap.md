@@ -237,12 +237,24 @@ const result = await core.querySequenceSilent({
 - `ctx.finish(resultData)`: シーケンスを明示的に即時正常完了させるメソッド。
 
 ### 4.4 セーフティガード (デッドロック根絶機構)
+- **二重実行ガード (`isExecuting`)**:
+  既に別のシーケンスやレシピが実行中の場合、`executeArraySequence` および `executeRecipe` は二重実行を検知して警告を出力し、直ちに処理を中断して衝突を防ぎます。
 - **タイムアウト自動復帰 (`abortWithESC`)**:
   指定された `timeoutMs`（デフォルト 3000ms）を超過した場合、または異常発生時：
   1. Driver の実行中シーケンスをキャンセル（`driver.cancelSequence()`）。
   2. 現在待機中の `activeResolver` があれば ESC (`'\x1b'`) で直ちに解放。
   3. さらに **ESC 連打 (`['\x1b', '\x1b', '\x1b']`)** を投入し、C コアの状態を確実にトップレベルの通常ターン（poskey）へ復帰させます。
-  4. `{ success: false, error: Error('timed out...'), data, buffer }` を返却。
+  4. 保持中のセッションロックを強制解放（`forceReleaseSessionLock()`）して通常状態へ安全復帰。
+  5. `{ success: false, error: Error('timed out...'), data, buffer }` を返却。
+
+### 4.5 汎用セッションロック機構 (SessionLock & 排他制御)
+複数ターンに跨る対話トランザクション（コンテナ、ペーパードール、ショップ等）において、外部からの割り込みや自動同期を安全に排他するための基幹機能です：
+- **`acquireSessionLock(ownerId = 'default')`**: セッションロックを取得（他者がロック中の場合は `false` を返却）。
+- **`releaseSessionLock(ownerId = 'default')`**: 指定オーナーのロックを解放。
+- **`forceReleaseSessionLock()`**: エラー復帰時などに強制的にロックを解放。
+- **`isSessionLocked()`**: ロック中かどうかを判定。
+- **`getSessionLockOwner()`**: 現在ロックを保持しているオーナーIDを取得。
+- **`isBusy()` / `isActive()`**: コントローラがレシピ実行中（`isExecuting()`）またはセッションロック中（`isSessionLocked()`）の場合に `true` を返却。WebUICore はこれに連動してプロンプト描画をサプレスし、裏での自動サイレント同期を安全に保留します。
 
 ---
 
@@ -321,18 +333,22 @@ gantt
 
 ### フェーズ 5: コンテナ UI の再開・本接続 (本丸) 【実装完了・全テスト通過】
 従来の外部スパイ方式（キー盗み聞き）を廃止し、**正規パイプラインでの入口検知とセッションガード、およびオンデマンド・アトミック実行アーキテクチャ**によってコンテナ二面パネルを完全に本接続・再開しました：
-1. **正規の入口検知**:
-   `PromptPayloadBuilder` が `CONTAINER_ACTION_MENU`（"Do what with your sack/chest?"）を検知し、`inputType: 'CONTAINER'` を発行。WebUICore の `inputRequired` ハンドラがセッション未開始時に `ContainerSessionManager.handleInitialActionMenu()` を呼び出して中身を先読みし、`q` で通常ターン（poskey）に着地させてから二面パネルを起動。
-2. **`ContainerSessionGuard` による通常プロンプト遮断**:
-   セッション中（`isContainerSessionActive === true`）は、汎用プロンプト・一般メニューの画面レンダリングをサプレスし、裏でのダイアログ重複起動を 100% 防止。
+1. **正規の入口検知と `ContainerController`**:
+   `PromptPayloadBuilder` が `CONTAINER_ACTION_MENU`（"Do what with your sack/chest?"）を検知し、`inputType: 'CONTAINER'` を発行。WebUICore の `inputRequired` / `signal` ハンドラから `ContainerController.handleInitialActionMenu()` を呼び出して中身を先読みし、`q` で通常ターン（poskey）に着地させてから二面パネルを起動。
+2. **汎用セッションロックによる排他制御**:
+   セッション中（`isContainerSessionActive === true`）は、IRC のセッションロック（`acquireSessionLock('container')`）により、汎用プロンプト・一般メニューの画面レンダリングをサプレスし、裏での自動同期重複起動を 100% 防止。
 3. **オンデマンド・アトミック実行による出し入れ実行**:
    - 二面パネル表示中は C コアを通常ターン（`poskey`）で完全静止。
-   - ユーザー操作時のみ `InteractiveRequestController` のレシピ（`openPrefix` → `i`/`o` → 全カテゴリ → `identifier` 完全一致 & `count` 選択 → `q` 脱出 → `turn_ready` 着地）を一瞬で実行。
-   - トランザクション完了時に最新データをフェッチして悲観的更新（Pessimistic Sync）を実行。
+   - ユーザー操作時のみ `InteractiveRequestController` のレシピ（正規化された `openPrefix`（手持ち: `['a', letter]` / 床: `['#', 'loot']`） → `i`/`o` → 全カテゴリ → `identifier` 完全一致 & `count` 選択（全量時は `count: -1`） → `q` 脱出 → `turn_ready` 着地）を一瞬で実行。
+   - トランザクション完了時に `contentsManager` のローカル追跡モデルを更新し、`core.gkl.syncInventorySilent()` を実行。
+   - 金貨（`$` / Gold Pieces）の正規認識・数量管理、最上部ソート、手持ち所持金（Status gold）のUI合成表示を完全サポート。
    - モーダルクローズ時は既に C コアが poskey に着地しているため、後始末キー送信が不要で安全に通常プレイへ復帰。
 - **実装モジュール**:
-  - `src/core/container/ContainerSessionManager.js`
-  - `src/core/container/ContainerSessionManager.test.js`
+  - `src/core/container/ContainerController.js`
+  - `src/core/container/ContainerController.test.js`
+  - `src/core/container/ContainerContentsManager.js`
+  - `src/core/container/ContainerSafetyGuard.js`
+  - `src/core/container/ContainerSequenceBuilder.js`
   - `src/core/WebUICore.js`
   - `src/core/prompt/PromptPayloadBuilder.js`
   - `examples/gkl-pure-js-client/modules/components/ContainerModal.js`

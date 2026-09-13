@@ -84,7 +84,7 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
 - **引数**:
   - `tokens`: `Array<string | number>` - トークン配列 (例: `['#', 'kick', 'DIR_E']` や `['i', ' ', '\x1b']`)
   - `options`: `Object` - 省略可
-    - `suppressPrompts`: `true` に設定すると、画面プロンプト（`putmsg`）の発行を抑止してサイレント消化を行います。
+    - `suppressPrompts`: `true` に設定すると、画面プロンプト（`putmsg`）の発行を抑止してサイレント消化を行います。また、実行中に発生したブロッキングウィンドウ（`display_nhwindow`）やファイル表示（`display_file`）の UI イベント発火を抑止し、シーケンストークンの消費または `safeResolver(0)` による即座クローズを全自動で実行してデッドロックを防止します。
     - `isSilentSync`: `true` に設定すると、自動同期タスクとして認識され、未実行の旧サイレントタスクが残留している場合に古いタスクを安全にキャンセル（`reject`）して重複を防ぎます。
     - `sequenceId`: タスクを特定する一意の識別 ID（自動生成されます）。
 - **戻り値**: `Promise<Array<Object>>`
@@ -133,8 +133,9 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
   ```
 
 #### レスポンダーオブジェクト (`SafeResolver`)
-UI 側からは `resolver.respond(value)` または `resolver.cancel()` を呼び出します。
-- **二重呼び出し防止 (Safe Guard)**: 同じ Resolver に対して 2 回以上 `respond()` を呼んでも 2 回目以降は安全な no-op となり警告・例外が発生しません。
+UI 側からは `resolver.respond(value)`、`resolver.resolve(value)`（エイリアス）、または `resolver.cancel()` を呼び出します。
+- **`resolve(value)` エイリアス**: Promise / Asyncify レスポンダーとの親和性を高める互換エイリアス（`respond` と同等動作）。
+- **二重呼び出し防止 (Safe Guard)**: 同じ Resolver に対して 2 回以上 `respond()` や `resolve()` を呼んでも 2 回目以降は安全な no-op となり警告・例外が発生しません。
 - **Proxy ディープコピー (unwrapPayload)**: Vue 3 / SolidJS 等の Reactive State (Proxy) オブジェクトを渡した場合、Worker 通信前に自動的に Plain JavaScript Object に変換されます。
 
 ---
@@ -153,6 +154,15 @@ import {
 ```
 
 - **`getTileMapping()`**: 2D Canvas 描画用のスプライトタイルインデックス参照テーブル（`Record<number, number>`）を取得します。
+- **`NetHackMemory.buildMenuItemBuffer(selectedItems)`**:
+  - `select_menu` 応答用の C言語 `menu_item` (`struct mi`) 配列バッファを生成します。
+  - NetHack 5.0 / 3.7 C 構造体レイアウト（`sizeof(struct mi) == 16 bytes`、8バイト境界アライメント）に完全準拠：
+    - offset 0: `mi.item` low 4B (`identifier`)
+    - offset 4: `mi.item` high 4B (ゼロ埋めパディング)
+    - offset 8: `mi.count` (int32、`-1` は NetHack C コアにおける「全量スタック選択」フラグ)
+    - offset 12: `mi.itemflags` (unsigned int、デフォルトで `SELECTED = 1`)
+  - 引数: `Array<{ identifier: number, count?: number, itemflags?: number }>`
+  - 戻り値: Wasm メモリ上のポインタ数値 (`number`)
 
 ---
 

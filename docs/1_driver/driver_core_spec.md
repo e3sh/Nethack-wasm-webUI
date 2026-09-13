@@ -29,10 +29,11 @@ related_code:
 - **動的関数の遅延・動的解決 (Dynamic Binding)**:
   - Wasm インスタンス化のタイミングに左右されないよう、`Module.getValue`, `Module.setValue`, `UTF8ToString`, `stringToUTF8` を呼び出し時に動的にバインド・解決します。
 - **C 構造体サイズ整合 (`menu_item` / `struct mi`)**:
-  - Wasm32 ABI レイアウト (`sizeof(struct mi) = 12 bytes`: `item` 4b, `count` 4b, `itemflags` 4b) に合わせてメモリ確保サイズを 12バイトに適正化。
+  - NetHack 5.0 / 3.7 において、`anything` 共用体に 64bit 整数が含まれるため、Wasm32 環境でも 8 バイト境界でアラインされ、`sizeof(struct mi)` は 16 バイトとなります (`offset 0`: `mi.item` low 4B, `offset 4`: `mi.item` high 4B zero padding, `offset 8`: `mi.count` int32 4B, `offset 12`: `mi.itemflags` unsigned int 4B)。`NetHackMemory.buildMenuItemBuffer()` はこの 16 バイト境界仕様に厳密に準拠してバッファを構築します。
 - **型曖昧さ・ESC/キャンセルの安全鋳造 (Safe Cast & Fallback)**:
   - C コアからのポインタ書き込み `setPointerValue(ret_ptr, 's', value)` において、`value` が数値 `27` (ESC) や `0` や `-1` などのキャンセルコードで渡された場合でも、例外クラッシュさせずに安全に NULL ポインタ (`0`) または C 文字列ポインタへ動的変換します。
 - **ステータス情報の完全構造化デコード (`BL_` フィールド)**:
+  - `ptr` が未設定（0）の場合でも、`BL_DLEVEL` (20) や `BL_GOLD` (10) 等のステータス解析で例外クラッシュを起こさないよう null ガード（未設定時の例外抑止）を実施。
   - **`BL_GOLD` (field 10)**: 金額および Gold Pieces Glyph ID (`3886`) の自動解析データ `goldData` を生成。
   - **`BL_DLEVEL` (field 20)**: ダンジョン名 (`dlevelStr`), 階層数値 (`dlevelNum`), ダンジョンブランチ (`branch`) を解析した `dlevelData` を生成。
   - **`BL_HUNGER` (field 17)**: 空腹・満腹状態 (`"Satiated"`, `"Hungry"`, `"Weak"`, `"Fainting"`) の解釈と文字列変換。
@@ -70,6 +71,8 @@ related_code:
   - **ターゲット指定モード (`isTargetingMode`) での保護待機**: `/` キー等の視察・ターゲット指定中はキュー内でタスクが待機し、ターゲット解散直後に自動的に再開・Promise 解決されます。
 - **安全な一括キャンセル (`cancelSequence`)**:
   - `cancelSequence()` が呼び出された場合、進行中のアクティブタスクに加えて FIFO キュー内に保留されている未実行予約タスクも一括で `reject(new Error('Sequence cancelled'))` キャンセル・消去されます。
+- **サイレント実行時のウィンドウ自動解決・デッドロック防止 (`suppressPrompts`)**:
+  - `suppressPrompts: true`（サイレント同期やマクロ実行中）にブロッキングウィンドウ（`display_nhwindow` with `blocking: true` / `windowId > 3`）やファイル表示（`display_file`）が発生した場合、UI へのイベント発行を抑止しつつ、残存トークンの自動消費または `safeResolver(0)` による即座クローズを実施。非同期ループがハング（デッドロック）することを構造的に防止します。
 
 ---
 
@@ -118,3 +121,4 @@ graph TD
 1. **`NetHackWasmWorkerBridge.js` (メインスレッド側)**:
    - UI レイヤーから従来の `NetHackWasmDriver` と 100% 同一のインターフェースとしてアクセスできるブリッジ。
    - `on()`, `off()` EventEmitter API を提供し、UI 側のレスポンダー呼び出しを Worker に安全伝送します。
+   - `data.resolver` オブジェクトには従来の `respond()` に加え、Promise 等との親和性を高める `resolve()` エイリアスを提供（`respond`, `resolve`, `cancel`, `isResolved`）。

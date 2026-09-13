@@ -170,6 +170,9 @@ KEYS.TAB;       // 9
 | `inputRequired` | `payload` | メニュー表示・YNプロンプト・テキストプロンプト等の入力待機通知 (`promptCategory` 付与) |
 | `inputResolved` | `void` | 入力モーダル閉塞・解決通知 |
 | `textWindowModal` | `{ title, lines, resolver, payload }` | 整形・翻訳済み `title` を含む全画面ヘルプ・テキスト表示要求 |
+| `signal` | `payload` | 制御シグナル検知通知 (Pub/Sub: 自律UI・Featureモジュール用) |
+| `signal:<signalId>` | `payload` | 特定シグナルID（例: `signal:SIGNAL_CONTAINER_ACTION_MENU`）通知 |
+| `containerTransaction` | `{ state, containerName, contents, isBagOfHolding, isFloorContainer, isContainerSessionActive }` | コンテナ二面パネル同期・トランザクション状態通知 |
 | `gameOver` | `result` (`GameOverResult`) | 翻訳済み死因 `deathMessage` やスコアボード確定時のリザルト通知 |
 | `exited` | `{ gameOverResult, exitCode }` | Wasm プロセス終了時の通知 |
 
@@ -188,6 +191,14 @@ KEYS.TAB;       // 9
    - `cursor` イベント受診時、操作中のターゲットカーソル座標 `(x, y)` の位置に金色のフォーカス枠を描画。セルサイズ 16px * 14px の**内側 1px（`dx+1.5, dy+1.5, 13px * 11px`）**に描画して残像ゴミの発生を抑止すること。
 5. **ローディングガード**:
    - `state === CoreState.INITIALIZING` 時は全操作入力を受け付けず、画面中央にローディングインジケーターを表示すること。
+6. **コンテナ二面パネル UI (`ContainerController`) の統合パターン**:
+   - `ContainerController` をインスタンス化し、`controller.attach(core)` を呼び出すことで、C コアからの `SIGNAL_CONTAINER_ACTION_MENU` を自動購読します。
+   - `core.on('containerTransaction', (data) => ...)` を監視し、`data.isContainerSessionActive === true` の時に二面パネルモーダルを表示。
+   - アイテム転送は `controller.transferItem({ direction: 'in'|'out', item, count })` を呼び出し（1個、任意数、および全量 `count: -1`）。
+   - 手持ち所持金（`core.getStatus()?.gold?.amount`）が 1 枚以上の場合、UI 側で左パネル最上部にレター `$` のアイテムとして自動合成して表示します。
+   - 閉じるボタン押下時は `controller.closeSession()` を呼び出します（C コアは常に poskey で待機しているためキー送信不要で即座に閉じます）。
+7. **IRC トランザクション中の画面サプレスと排他制御**:
+   - `core.interactiveController.isBusy()`（レシピ実行中またはセッションロック中）の間は、途中のプロンプト描画（`renderer.showPrompt`）が自動的にサプレスされ、バックグラウンドの自動サイレント同期（所持品同期等）も安全に抑止されます。
 
 ---
 
