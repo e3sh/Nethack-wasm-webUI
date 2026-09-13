@@ -219,34 +219,37 @@ sequenceDiagram
 
 ---
 
-### 5.3 現在の運用方針：コンテナ改修の一時保留とバイパス（現行状態）
+### 5.3 フェーズ 5 実装完了：コンテナ UI の本接続とオンデマンド・アトミック実行基盤 (現在稼働中)
 
-上記 6 つの課題の対症療法によるコード肥大化・デッドロックの泥沼化を防ぐため、**コンテナ専用 FSM の改修作業は現段階で一時保留**とする。
+WebUICore 基幹連続リクエストコントローラ（`InteractiveRequestController`）および機械用制御シグナル同定基盤（`SignalDetector`）の整備を受け、**フェーズ 5: コンテナ UI の再開・本接続** が完了しました。
 
-#### 1. コンテナ処理のバイパス措置（現在の動作）
-- **設定変更**: [`WebUICore.js`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/WebUICore.js) において、`enableContainerFSM` のデフォルト値を `false`（明示的に `true` が指定された場合のみ有効）に変更。
-- **ゲーム内の挙動**: コンテナを開いた際の自動インターセプト（FSM による先読みやキー横取り）が停止し、**NetHack ネイティブのメニュー操作（通常の NetHack C コア挙動）として動作**する。これにより、ハングや誤移動を気にせず通常のゲームプレイ・動作検証が可能となる。
-- **実装資産の温存**:
-  - `ContainerModal`（二面パネル GUI、タイル/絵文字アイコン、日本語化、ドラッグ＆ドロップ UI）
-  - `ContainerContentsManager`（中身 SSOT）
-  - `ContainerTransactionFSM`（動的ディスパッチロジック）
-  等のこれまでの実装資産・単体テストコードはすべて保持されており、`options.enableContainerFSM: true` を渡すことでいつでも再有効化・テストが可能である。
+#### 1. 新アーキテクチャの構造と解決された課題
+従来の外部スパイ方式（キー盗み聞き）や巨大FSMによるメニュー居座りを全廃し、以下の新パイプラインに刷新しました：
 
-#### 2. 今後のロードマップ：WebUICore 汎用 RequestController への昇格
-- **課題の本質**:
-  低レベル固定配列（`Driver.queueSequence`）と局所的コントローラ（`GKL.RequestController`）の混在により、動的なメニュー待機を伴う対話処理が各所に散らばっていたことが根本原因である。
-- **次期アーキテクチャ**:
-  `RequestController` の概念を GKL プラグインから **`WebUICore` の基盤機能へと昇格**させ、「プロンプトやメニュータイプに応じた動的分岐が可能な汎用連続リクエストコントローラ」として整備する。
-  詳細は [`docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) を参照。
-- **コンテナ再開時の接続**:
-  基盤コントローラが完成した段階で、コンテナ操作を「汎用コントローラに渡す小さな宣言的対話レシピ」として接続・再開する。
+1. **正規の入口検知 (Normal Entry Detection)**:
+   - プレイヤーが鞄（`a`）やチェスト（`#loot`）を開いた際、`SignalDetector` が `SIGNAL_CONTAINER_ACTION_MENU` を検知。
+   - `PromptPayloadBuilder` が `inputType: 'CONTAINER'` を発行。
+   - `WebUICore` の `inputRequired` ハンドラがセッション未開始時に `ContainerSessionManager.handleInitialActionMenu()` を呼び出して中身を先読みし、`'q'` で脱出して C コアを通常ターン（`poskey`）に着地させてから二面パネル（`containerTransaction`）を開く。
+2. **オンデマンド・アトミック実行 (On-demand Atomic Execution)**:
+   - **二面パネル表示中は C コアを通常ターン（`poskey`）で完全静止**。
+   - ユーザーがアイテム移動（入れる / 出す / 数量指定）をクリックした瞬間のみ、`InteractiveRequestController` の対話レシピ（`openPrefix` → `i`/`o` → 全カテゴリ → `identifier` 完全一致 & `count` 選択 → `'q'` 脱出 → `turn_ready` 着地）を一瞬で実行。
+   - レシピ完了後に所持品インベントリ（`InventoryStateManager`）とコンテナ中身マネージャーを最新同期（悲観的更新）。
+3. **安全なモーダルクローズ**:
+   - C コアは既に通常ターン（`poskey`）で静止しているため、モーダルを閉じる（ESCや閉じるボタン）際に C コアへ後始末キーを送信する必要が一切ない。
+   - キー取り残しやデッドロックが構造的に根絶された。
+4. **完全キー化 (`identifier` SSOT) & 数量指定**:
+   - あいまい文字列一致（`includes`）やレター照合を全廃。
+   - C コアのポインタ値（`identifier`）と指定数量（`count`、-1 は全量）で完全一致指定することにより、スタックアイテムの移動や誤移動を根絶。
+5. **セッション境界ガード**:
+   - セッション中（`isContainerSessionActive === true`）は、汎用プロンプト・一般メニューの画面レンダリングをサプレスし、裏でのダイアログ重複起動を 100% 防止。
 
-#### 3. コンテナアーキテクチャの根本刷新指針（入口の正常化とセッションガード）
-これまでの「外側からキー入力を盗み聞きして無理やり割り込む方式」を全面廃止し、以下の新パイプラインに刷新する：
-1. **正規の入口検知**: `PromptPayloadBuilder` が C コアの `ACTION_MENU` を受けて `inputType: 'CONTAINER'` を発行。複数箱がある場合（"Loot which containers?"）は一般メニューに選ばせ、箱が確定した瞬間に二面パネルを開く。
-2. **`containerContext`（同定知識）の引き渡し**: セッション開始時に対象コンテナの完全な情報（手持ちレター、ポインタ、床座標、箱番号等）をセッションへ渡し、セッション内での確実な開け直し（Re-open）を可能にする。
-3. **セッション境界ガード**: コンテナセッション中は `PromptPayloadBuilder` の通常プロンプト構築をサプレス（弾く）し、裏表での多重起動やプロンプト混信を 100% 遮断する。
-（詳細設計は [`docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) 第6章を参照）
+#### 2. 実装構成モジュール
+- **セッション統括マネージャー**: `src/core/container/ContainerSessionManager.js`
+- **単体テストスイート**: `src/core/container/ContainerSessionManager.test.js` (11 tests / 実機等価エミュレーション含む)
+- **WebUICore ファサード統合**: `src/core/WebUICore.js` (`executeContainerTransfer`, `closeContainerSession`, `syncContainerContents`, `isContainerSessionActive`)
+- **シグナル＆プロンプト連携**: `src/core/prompt/PromptPayloadBuilder.js`, `SignalDetector.js`
+- **二面パネルクライアント GUI**: `examples/gkl-pure-js-client/modules/components/ContainerModal.js`, `main.js`
+- **自動テスト検証**: `npx vitest run` 全 60 ファイル 794 件全件グリーンパス。
 
 
 

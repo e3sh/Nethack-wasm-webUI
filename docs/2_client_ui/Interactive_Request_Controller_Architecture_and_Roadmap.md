@@ -303,9 +303,9 @@ gantt
     設計資料確定 & 棚卸し (フェーズ1)           :done, 2026-09-01, 2026-09-05
     制御シグナル同定基盤 SignalDetector (ステップ1-3) :done, 2026-09-06, 2026-09-10
     InteractiveRequestController 実装 (フェーズ2-3)   :done, 2026-09-11, 2026-09-11
+    コンテナUI本接続 & セッションガード (フェーズ5)  :done, 2026-09-12, 2026-09-12
     section 今後の計画
-    既存機能の段階的レシピ移行 (フェーズ4)         :active, 2026-09-12, 2026-09-18
-    コンテナUI本接続 & セッションガード (フェーズ5)  :2026-09-19, 2026-09-30
+    既存機能の段階的レシピ移行 (フェーズ4)         :active, 2026-09-13, 2026-09-18
 ```
 
 ### フェーズ 4: 連続コマンド使用箇所の調査と動的アクションのレシピ化
@@ -319,14 +319,24 @@ gantt
    - **アイテム直接使用**: 飲食（`e`）、着用（`w`, `W`）、発動（`a`）、投擲（`t`）など（途中で「どれを」「何個」「どの方向」「本当に？」などのサブプロンプトが動的に挟まる操作）。
    - **推奨アクション (ContextAction)**: ドア開放、戦闘、移動など状況に応じたマルチステップキー送信。
 
-### フェーズ 5: コンテナ UI の再開・本接続 (本丸)
-従来の外部スパイ方式（キー盗み聞き）を廃止し、**正規パイプラインでの入口検知とセッションガード**によってコンテナ二面パネルを再開します：
+### フェーズ 5: コンテナ UI の再開・本接続 (本丸) 【実装完了・全テスト通過】
+従来の外部スパイ方式（キー盗み聞き）を廃止し、**正規パイプラインでの入口検知とセッションガード、およびオンデマンド・アトミック実行アーキテクチャ**によってコンテナ二面パネルを完全に本接続・再開しました：
 1. **正規の入口検知**:
-   `PromptPayloadBuilder` が `CONTAINER_ACTION_MENU`（"Do what with your sack/chest?"）を検知し、`inputType: 'CONTAINER'` を発行。
+   `PromptPayloadBuilder` が `CONTAINER_ACTION_MENU`（"Do what with your sack/chest?"）を検知し、`inputType: 'CONTAINER'` を発行。WebUICore の `inputRequired` ハンドラがセッション未開始時に `ContainerSessionManager.handleInitialActionMenu()` を呼び出して中身を先読みし、`q` で通常ターン（poskey）に着地させてから二面パネルを起動。
 2. **`ContainerSessionGuard` による通常プロンプト遮断**:
-   セッション中（`isContainerSessionActive === true`）は、汎用プロンプト・一般メニューのレンダリングをサプレスし、裏でのダイアログ重複起動を 100% 防止。
-3. **対話レシピによる出し入れ実行**:
-   アイテム移動・数量指定・再同期を `InteractiveRequestController` のレシピを用いて安全・アトミックに実行。
+   セッション中（`isContainerSessionActive === true`）は、汎用プロンプト・一般メニューの画面レンダリングをサプレスし、裏でのダイアログ重複起動を 100% 防止。
+3. **オンデマンド・アトミック実行による出し入れ実行**:
+   - 二面パネル表示中は C コアを通常ターン（`poskey`）で完全静止。
+   - ユーザー操作時のみ `InteractiveRequestController` のレシピ（`openPrefix` → `i`/`o` → 全カテゴリ → `identifier` 完全一致 & `count` 選択 → `q` 脱出 → `turn_ready` 着地）を一瞬で実行。
+   - トランザクション完了時に最新データをフェッチして悲観的更新（Pessimistic Sync）を実行。
+   - モーダルクローズ時は既に C コアが poskey に着地しているため、後始末キー送信が不要で安全に通常プレイへ復帰。
+- **実装モジュール**:
+  - `src/core/container/ContainerSessionManager.js`
+  - `src/core/container/ContainerSessionManager.test.js`
+  - `src/core/WebUICore.js`
+  - `src/core/prompt/PromptPayloadBuilder.js`
+  - `examples/gkl-pure-js-client/modules/components/ContainerModal.js`
+  - `examples/gkl-pure-js-client/main.js`
 
 ---
 

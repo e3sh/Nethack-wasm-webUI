@@ -674,7 +674,7 @@ describe('ContainerTransactionFSM', () => {
 
             // 床コンテナ用のプレフィックスが実行される
             const runner = core.executeSequence.mock.calls.length > 0 ? core.executeSequence : core.querySequenceSilent;
-            expect(runner).toHaveBeenCalledWith(['#', 'loot', '\r', '.']);
+            expect(runner).toHaveBeenCalledWith(['#', 'loot', '\r']);
         });
 
         it('closeSession() を呼んだ際、セッションが安全に終了し IDLE に復帰すること', () => {
