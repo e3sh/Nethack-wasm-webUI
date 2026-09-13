@@ -859,14 +859,23 @@
                         return 0;
                     }
 
+                    const isSuppressPrompts = Boolean(this.sequenceOptions && this.sequenceOptions.suppressPrompts);
+
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
                         this.inputResolver.createPending('display', { windowId }) :
                         { promise: Promise.resolve(0), safeResolver: null };
 
-                    this.emit("display_nhwindow", { windowId, blocking, resolver: safeResolver });
+                    if (!isSuppressPrompts) {
+                        this.emit("display_nhwindow", { windowId, blocking, resolver: safeResolver });
+                    }
 
                     if (this.inputResolver && (blocking || windowId > 3)) {
+                        if (!this.tryConsumeSequenceToken("", safeResolver, 'display_nhwindow')) {
+                            if (isSuppressPrompts && safeResolver) {
+                                safeResolver(0);
+                            }
+                        }
                         await promise;
                         this.setState(NetHackWasmDriver.DriverState.RUNNING);
                     }
@@ -966,12 +975,14 @@
 
                     const promptCategory = this.getPromptCategory('display_file', 'file');
 
+                    const isSuppressPrompts = Boolean(this.sequenceOptions && this.sequenceOptions.suppressPrompts);
+
                     this.recordSequenceBuffer({ type: 'display_file', filename, complain, fileText });
-                    if (!this.sequenceOptions.suppressPrompts) {
+                    if (!isSuppressPrompts) {
                         this.emit("display_file", { filename, complain, fileText, promptCategory, resolver: safeResolver });
                     }
                     if (!this.tryConsumeSequenceToken("", safeResolver, 'display_file')) {
-                        if (this.sequenceOptions.suppressPrompts && safeResolver) {
+                        if (isSuppressPrompts && safeResolver) {
                             safeResolver(0);
                         }
                     }

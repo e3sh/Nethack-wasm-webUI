@@ -347,5 +347,51 @@ test('NetHackWasmDriver - queueSequence automatic 2-stage inventory menu transit
     await seqPromise;
 });
 
+test('NetHackWasmDriver - shim_display_nhwindow auto-resolves when suppressPrompts is set', async () => {
+    const driver = new NetHackWasmDriver();
+    let displayEmitted = false;
+    driver.on('display_nhwindow', () => {
+        displayEmitted = true;
+    });
 
+    // 1. 移動キー 1 つのサイレントシーケンス（travelTo の隣接移動や遠隔トラベル完了後の状態を模倣）
+    const seqPromise = driver.queueSequence(['DIR_E'], { suppressPrompts: true, isSilentSync: true });
 
+    // 2. poskey で移動トークンが消費される
+    const poskeyPromise = driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    const key = await poskeyPromise;
+    assert.equal(key, '6'.charCodeAt(0), 'DIR_E should resolve to ASCII code of 6');
+
+    // 3. 移動先でアイテム一覧ウィンドウ (windowId: 4, blocking: 1) が発生
+    // suppressPrompts: true のため、UIへのemitは抑止され、safeResolver(0) で即座に自動クローズされること
+    const displayPromise = driver.eventHook('shim_display_nhwindow', 4, 1);
+    await displayPromise;
+
+    assert.equal(displayEmitted, false, 'display_nhwindow should be suppressed when suppressPrompts is true');
+
+    // 4. 次のターン (poskey) に到達した時点でシーケンスがデッドロックせずに正常解決すること
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    const buffer = await seqPromise;
+    assert.ok(Array.isArray(buffer), 'Sequence should resolve successfully without deadlocking');
+});
+
+test('NetHackWasmDriver - shim_display_nhwindow consumes sequence token when available', async () => {
+    const driver = new NetHackWasmDriver();
+
+    // 1. 移動 + ウィンドウ閉鎖キー ' ' のシーケンス
+    const seqPromise = driver.queueSequence(['DIR_E', ' ']);
+
+    // 2. poskey で DIR_E が消費される
+    const poskeyPromise = driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    await poskeyPromise;
+
+    // 3. 移動先でブロッキングウィンドウ (windowId: 4, blocking: 1) が発生
+    // 残りのトークン ' ' が自動消費されてウィンドウが閉じられること
+    const displayPromise = driver.eventHook('shim_display_nhwindow', 4, 1);
+    await displayPromise;
+
+    // 4. 次の poskey でシーケンスが正常完了すること
+    driver.eventHook('shim_nh_poskey', 0, 0, 0);
+    const buffer = await seqPromise;
+    assert.ok(Array.isArray(buffer), 'Sequence should resolve successfully by consuming window closing token');
+});
