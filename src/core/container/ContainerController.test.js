@@ -346,6 +346,77 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             // 中身から消滅して 0 件になっていること（最後の1個問題の解消保証）
             expect(contentsManager.getItems().length).toBe(0);
         });
+
+        it('金貨を取り出した際、accelerator $ や gold テキストで正しく識別子が同定され取り出せること', async () => {
+            contentsManager.updateFromMenuItems([
+                { identifier: 9999, accelerator: 36, ch: 36, str: '234 gold pieces', count: 234, glyph: 3886 }
+            ]);
+
+            const goldItem = contentsManager.getItems()[0];
+            expect(goldItem.letter).toBe('$');
+
+            let capturedSelections = null;
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 0, str: 'Coins' },
+                        { identifier: 9999, accelerator: 36, ch: 36, str: '234 gold pieces', glyph: 3886 },
+                    ],
+                };
+                capturedSelections = handler.action(ctx);
+                return { success: true };
+            });
+
+            // 全量取り出し (count: -1)
+            const result = await controller.transferItem({
+                direction: 'out',
+                item: goldItem,
+                count: -1,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedSelections).toEqual([{ identifier: 9999, count: -1 }]);
+            expect(contentsManager.getItems().length).toBe(0);
+        });
+
+        it('手持ちの金貨をコンテナに投入した際、select_menu で金貨が同定され正しく投入されること', async () => {
+            const playerGoldItem = {
+                letter: '$',
+                invlet: '$',
+                name: 'gold pieces',
+                rawText: '100 gold pieces',
+                count: 100,
+                isGold: true
+            };
+
+            let capturedSelections = null;
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 0, str: 'Coins' },
+                        { identifier: 12345, accelerator: 36, ch: 36, str: '100 gold pieces', glyph: 3886 },
+                        { identifier: 0, str: 'Weapons' },
+                        { identifier: 54321, accelerator: 97, ch: 97, str: 'a dagger', glyph: 2000 }
+                    ],
+                };
+                capturedSelections = handler.action(ctx);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: playerGoldItem,
+                count: 100,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedSelections).toEqual([{ identifier: 12345, count: 100 }]);
+            // contentsManager に金貨が追加されたこと
+            const contents = contentsManager.getItems();
+            expect(contents.some(it => it.isGold && it.count === 100)).toBe(true);
+        });
     });
 
     // ========================================================================

@@ -140,6 +140,9 @@ function createMockCore() {
       }
       return '';
     }),
+    getStatus: vi.fn(() => ({
+      gold: { amount: 150, glyphId: 3886 }
+    })),
   };
 
   return core;
@@ -490,6 +493,55 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
       expect(modalEl.innerHTML).toContain('glyph-105');
       // 絵文字シンボルフォールバック (potion -> 🧪)
       expect(modalEl.innerHTML).toContain('🧪');
+    });
+
+    it('プレイヤー所持金が存在する場合、左パネルに金貨アイテムが表示され投入できること', async () => {
+      modal.show({
+        containerName: 'the sack',
+        contents: [],
+      });
+
+      // 左パネルに金貨が表示されること
+      expect(modalEl.innerHTML).toContain('150枚の金貨');
+      expect(modalEl.innerHTML).toContain('$)');
+
+      // 金貨アイテムの投入実行
+      const goldItem = {
+        letter: '$',
+        invlet: '$',
+        isGold: true,
+        rawText: '150枚の金貨',
+        count: 150
+      };
+
+      await modal.executePutIn(goldItem, 50);
+
+      expect(mockCore.containerController.transferItem).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'in',
+        item: expect.objectContaining({ isGold: true, letter: '$' }),
+        count: 50
+      }));
+    });
+
+    it('コンテナ内に金貨が存在する場合、右パネルに金貨が表示され取り出せること', async () => {
+      modal.show({
+        containerName: 'the chest',
+        contents: [
+          { identifier: 3333, letter: '$', name: '200 gold pieces', rawText: '200 gold pieces', count: 200, isGold: true }
+        ],
+      });
+
+      // 右パネルに金貨が表示されること
+      expect(modalEl.innerHTML).toContain('200 gold pieces');
+
+      const goldItem = modal.containerItems[0];
+      await modal.executeTakeOut(goldItem, -1);
+
+      expect(mockCore.containerController.transferItem).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'out',
+        item: expect.objectContaining({ identifier: 3333, isGold: true }),
+        count: -1
+      }));
     });
   });
 });

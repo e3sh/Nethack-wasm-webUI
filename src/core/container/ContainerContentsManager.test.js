@@ -147,6 +147,50 @@ describe('ContainerContentsManager', () => {
             expect(manager.items[1].letter).toBe('b');
             expect(manager.items[1].identifier).toBe(3204550);
         });
+
+        it('should correctly parse gold items with letter $, accelerator $, and quantity', () => {
+            const menuItems = [
+                { identifier: 0, accelerator: 0, ch: 0, attr: 7, str: 'Coins' },
+                { identifier: 55555, accelerator: 36, ch: 36, attr: 0, str: '234 gold pieces', glyph: 3886 },
+                { identifier: 0, accelerator: 0, ch: 0, attr: 7, str: 'Weapons' },
+                { identifier: 66666, accelerator: 97, ch: 97, attr: 0, str: 'a dagger', glyph: 2000 }
+            ];
+
+            manager.openContainer({ name: 'a chest' });
+            manager.updateFromMenuItems(menuItems);
+
+            expect(manager.items).toHaveLength(2);
+
+            // 金貨アイテムの検証
+            const gold = manager.items[0];
+            expect(gold.isGold).toBe(true);
+            expect(gold.letter).toBe('$');
+            expect(gold.accelerator).toBe('$');
+            expect(gold.count).toBe(234);
+            expect(gold.glyphId).toBe(3886);
+            expect(gold.identifier).toBe(55555);
+
+            // 通常アイテムの検証 (レター採番が 'a' から開始されること)
+            const dagger = manager.items[1];
+            expect(dagger.letter).toBe('a');
+            expect(dagger.name).toBe('a dagger');
+        });
+
+        it('should not skip single gold piece in Japanese ("金貨") when identifier is non-zero', () => {
+            const menuItems = [
+                { identifier: 0, accelerator: 0, ch: 0, attr: 7, str: '金貨' }, // 見出し
+                { identifier: 77777, accelerator: 36, ch: 36, attr: 0, str: '金貨', glyph: 3886 } // 1枚の金貨アイテム
+            ];
+
+            manager.openContainer({ name: '大箱' });
+            manager.updateFromMenuItems(menuItems);
+
+            expect(manager.items).toHaveLength(1);
+            expect(manager.items[0].isGold).toBe(true);
+            expect(manager.items[0].letter).toBe('$');
+            expect(manager.items[0].count).toBe(1);
+            expect(manager.items[0].identifier).toBe(77777);
+        });
     });
 
     // ========================================================================
@@ -172,22 +216,29 @@ describe('ContainerContentsManager', () => {
             expect(manager.isEmpty).toBe(false);
             expect(manager.items).toHaveLength(5);
 
-            expect(manager.items[0].count).toBe(1);
-            expect(manager.items[0].name).toBe('food ration');
-            expect(manager.items[0].rawText).toBe('a food ration');
+            // NetHack 仕様 (flags.inv_order): 金貨が常に先頭 (index 0) に配置されること
+            expect(manager.items[0].count).toBe(234);
+            expect(manager.items[0].name).toBe('gold pieces');
+            expect(manager.items[0].letter).toBe('$');
+            expect(manager.items[0].isGold).toBe(true);
 
-            expect(manager.items[1].count).toBe(6);
-            expect(manager.items[1].name).toBe('uncursed daggers');
-            expect(manager.items[1].rawText).toBe('6 uncursed daggers');
+            expect(manager.items[1].count).toBe(1);
+            expect(manager.items[1].name).toBe('food ration');
+            expect(manager.items[1].rawText).toBe('a food ration');
+            expect(manager.items[1].letter).toBe('a');
 
-            expect(manager.items[2].count).toBe(1);
-            expect(manager.items[2].name).toBe('uncursed sack');
+            expect(manager.items[2].count).toBe(6);
+            expect(manager.items[2].name).toBe('uncursed daggers');
+            expect(manager.items[2].rawText).toBe('6 uncursed daggers');
+            expect(manager.items[2].letter).toBe('b');
 
-            expect(manager.items[3].count).toBe(234);
-            expect(manager.items[3].name).toBe('gold pieces');
+            expect(manager.items[3].count).toBe(1);
+            expect(manager.items[3].name).toBe('uncursed sack');
+            expect(manager.items[3].letter).toBe('c');
 
             expect(manager.items[4].count).toBe(1);
             expect(manager.items[4].name).toBe('Schroedinger\'s cat!');
+            expect(manager.items[4].letter).toBe('d');
         });
 
         it('should parse Japanese text lines into container contents', () => {
@@ -488,6 +539,71 @@ describe('ContainerContentsManager', () => {
                 { prompt: 'Put in what?' }
             ];
             expect(manager.hasCategoryMenu(buf)).toBe(false);
+        });
+    });
+
+    // ========================================================================
+    // onItemPutIn() / onItemTakenOut() - Gold Handling
+    // ========================================================================
+
+    describe('onItemPutIn() & onItemTakenOut() - Gold Handling', () => {
+        it('should correctly accumulate gold quantity when put in', () => {
+            manager.openContainer({ name: 'a chest' });
+            manager.onItemPutIn({
+                letter: '$',
+                count: 100,
+                name: 'gold pieces',
+                isGold: true
+            });
+
+            expect(manager.items).toHaveLength(1);
+            expect(manager.items[0].letter).toBe('$');
+            expect(manager.items[0].count).toBe(100);
+
+            // 追加投入で数量が合算されること
+            manager.onItemPutIn({
+                letter: '$',
+                count: 50,
+                name: 'gold pieces',
+                isGold: true
+            });
+
+            expect(manager.items).toHaveLength(1);
+            expect(manager.items[0].count).toBe(150);
+            expect(manager.items[0].name).toBe('150 gold pieces');
+        });
+
+        it('should partially take out gold when count is specified', () => {
+            manager.openContainer({ name: 'a chest' });
+            manager.onItemPutIn({
+                letter: '$',
+                count: 200,
+                name: 'gold pieces',
+                isGold: true
+            });
+
+            // 50枚取り出し
+            manager.onItemTakenOut({
+                letter: '$',
+                count: 50,
+                name: 'gold pieces',
+                isGold: true
+            });
+
+            expect(manager.items).toHaveLength(1);
+            expect(manager.items[0].count).toBe(150);
+            expect(manager.items[0].name).toBe('150 gold pieces');
+
+            // 全量（150枚以上または -1）取り出しで消滅
+            manager.onItemTakenOut({
+                letter: '$',
+                count: -1,
+                name: 'gold pieces',
+                isGold: true
+            });
+
+            expect(manager.items).toHaveLength(0);
+            expect(manager.isEmpty).toBe(true);
         });
     });
 });

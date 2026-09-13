@@ -234,10 +234,38 @@ export class ContainerModal {
     const invMgr = (core && core.gkl && core.gkl.inventoryStateManager) || (core && core.inventoryStateManager);
     if (invMgr) {
       if (typeof invMgr.getItems === 'function') {
-        playerItems = invMgr.getItems() || [];
+        playerItems = [...(invMgr.getItems() || [])];
       } else if (Array.isArray(invMgr.items)) {
-        playerItems = invMgr.items;
+        playerItems = [...invMgr.items];
       }
+    }
+
+    // プレイヤー所持金 (Au / Gold) の合成表示
+    let playerGoldAmount = 0;
+    if (core && typeof core.getStatus === 'function') {
+      const st = core.getStatus();
+      if (st && st.gold && typeof st.gold.amount === 'number') {
+        playerGoldAmount = st.gold.amount;
+      }
+    } else if (this.options && typeof this.options.goldAmount === 'number') {
+      playerGoldAmount = this.options.goldAmount;
+    }
+
+    if (playerGoldAmount > 0) {
+      const goldText = isEn ? `${playerGoldAmount} gold pieces` : `${playerGoldAmount}枚の金貨`;
+      playerItems.unshift({
+        letter: '$',
+        invlet: '$',
+        accelerator: '$',
+        rawText: goldText,
+        name: isEn ? 'gold pieces' : '金貨',
+        str: goldText,
+        glyphId: 3886,
+        isGold: true,
+        count: playerGoldAmount,
+        quantity: playerGoldAmount,
+        category: 'GOLD'
+      });
     }
 
     // コンテナ中身リストの取得 (contentsManager SSOT を優先。空の場合は show() 等で渡されたアイテムを維持)

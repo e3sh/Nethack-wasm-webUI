@@ -467,28 +467,53 @@ export class ContainerController {
                             ctx.state = 'ITEM_SELECTED';
                             const menuItems = ctx.menuItems || [];
 
+                            // 金貨アイテム判定
+                            const isGoldTarget = item.isGold || item.letter === '$' || item.invlet === '$' ||
+                                                 /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(item.name || item.str || item.rawText || '');
+
                             // identifier の厳密同定
                             let targetId = item.identifier || 0;
-                            if (!targetId || !menuItems.some(mi => mi.identifier === targetId)) {
-                                const targetLetter = item.letter || item.invlet || item.accelerator;
-                                const targetName = (item.name || item.str || item.rawText || '').toLowerCase().trim();
+                            if (targetId && !menuItems.some(mi => mi.identifier === targetId)) {
+                                targetId = 0; // ポインタが変動していたら再同定へ
+                            }
 
-                                const letterMatch = menuItems.find(mi => {
-                                    if (mi.identifier === 0) return false;
-                                    const ch = mi.charStr || (mi.accelerator ? String.fromCharCode(mi.accelerator) : '') || mi.ch;
-                                    return targetLetter && ch && ch.toLowerCase() === targetLetter.toLowerCase();
-                                });
-
-                                if (letterMatch && letterMatch.identifier) {
-                                    targetId = letterMatch.identifier;
-                                } else {
-                                    const nameMatch = menuItems.find(mi => {
+                            if (!targetId) {
+                                if (isGoldTarget) {
+                                    // 金貨アイテムの優先探索: accelerator === 36 ('$')、glyph === 3886、またはテキスト照合
+                                    const goldMatch = menuItems.find(mi => {
                                         if (mi.identifier === 0) return false;
+                                        const ch = mi.charStr || (mi.accelerator ? String.fromCharCode(mi.accelerator) : '') || mi.ch;
+                                        if (ch === '$' || mi.accelerator === 36) return true;
+                                        if (mi.glyph === 3886 || (mi.glyphInfo && mi.glyphInfo.glyph === 3886)) return true;
                                         const miText = (mi.rawStr || mi.str || mi.text || '').toLowerCase();
-                                        return targetName && (miText.includes(targetName) || targetName.includes(miText));
+                                        return /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(miText);
                                     });
-                                    if (nameMatch && nameMatch.identifier) {
-                                        targetId = nameMatch.identifier;
+                                    if (goldMatch && goldMatch.identifier) {
+                                        targetId = goldMatch.identifier;
+                                    }
+                                }
+
+                                if (!targetId) {
+                                    const targetLetter = item.letter || item.invlet || item.accelerator;
+                                    const targetName = (item.name || item.str || item.rawText || '').toLowerCase().trim();
+
+                                    const letterMatch = menuItems.find(mi => {
+                                        if (mi.identifier === 0) return false;
+                                        const ch = mi.charStr || (mi.accelerator ? String.fromCharCode(mi.accelerator) : '') || mi.ch;
+                                        return targetLetter && ch && ch.toLowerCase() === targetLetter.toLowerCase();
+                                    });
+
+                                    if (letterMatch && letterMatch.identifier) {
+                                        targetId = letterMatch.identifier;
+                                    } else {
+                                        const nameMatch = menuItems.find(mi => {
+                                            if (mi.identifier === 0) return false;
+                                            const miText = (mi.rawStr || mi.str || mi.text || '').toLowerCase();
+                                            return targetName && (miText.includes(targetName) || targetName.includes(miText));
+                                        });
+                                        if (nameMatch && nameMatch.identifier) {
+                                            targetId = nameMatch.identifier;
+                                        }
                                     }
                                 }
                             }

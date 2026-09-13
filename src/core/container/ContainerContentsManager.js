@@ -88,6 +88,7 @@ export class ContainerContentsManager {
         const parsedItems = [];
 
         // カテゴリヘッダーの判定パターン (英語・日本語)
+        // ※末尾の金貨/Gold/Coinsは、identifier === 0 のセクション行判定と組み合わせて使用
         const CATEGORY_HEADER_REGEX = /^(?:Contents of|.+の収納物|.+の中身|Comestibles|Weapons|Armor|Tools|Food|Scrolls|Potions|Wands|Rings|Amulets|Gems|Gold|Coins|Statues|Spellbooks|Iron balls|Chains|Venoms|食料|武器|防具|道具|巻物|薬品|杖|指輪|魔除け|宝石|金貨)[:：]?$/i;
 
         for (let i = 0; i < menuItems.length; i++) {
@@ -108,8 +109,18 @@ export class ContainerContentsManager {
                 continue;
             }
 
+            // 金貨判定 (NetHack では COIN_CLASS / 金貨の accelerator は '$' = 36)
+            let rawCh = mi.charStr || mi.letter || mi.accelerator || mi.ch || 0;
+            const isGoldCh = (rawCh === 36 || rawCh === '$');
+            const isGoldText = /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(cleanedText);
+            const isGold = isGoldCh || isGoldText || (mi.glyph === 3886) || (mi.glyphInfo && mi.glyphInfo.glyph === 3886);
+
             // 2. カテゴリヘッダー正規表現にマッチする行をスキップ
-            if (CATEGORY_HEADER_REGEX.test(cleanedText)) {
+            // (ただし identifier が 0 でない金貨アイテム行 "金貨" 等は除外しない)
+            if (!isGold && CATEGORY_HEADER_REGEX.test(cleanedText)) {
+                continue;
+            }
+            if (identifier === undefined && !isGold && CATEGORY_HEADER_REGEX.test(cleanedText)) {
                 continue;
             }
 
@@ -119,8 +130,9 @@ export class ContainerContentsManager {
             }
 
             let letter = '';
-            const rawCh = mi.charStr || mi.letter || mi.accelerator || mi.ch || 0;
-            if (typeof rawCh === 'number' && rawCh > 0) {
+            if (isGold) {
+                letter = '$';
+            } else if (typeof rawCh === 'number' && rawCh > 0) {
                 letter = String.fromCharCode(rawCh);
             } else if (typeof rawCh === 'string' && rawCh.length > 0 && rawCh !== '\0') {
                 letter = rawCh.trim();
@@ -132,17 +144,31 @@ export class ContainerContentsManager {
             }
 
             // 4. identifier が未指定のモック環境等で、レターも持たずテキスト先頭にもレターがない行はヘッダー行と見なしてスキップ
-            if (identifier === undefined && (!letter || !/^[a-zA-Z]$/.test(letter))) {
+            if (identifier === undefined && !isGold && (!letter || !/^[a-zA-Z]$/.test(letter))) {
                 continue;
             }
 
-            // アクセラレータが空の場合は、コンテナ内メニュー順序 (0-based) に従って 'a', 'b', 'c'... を割り当てる
-            if (!letter || !/^[a-zA-Z]$/.test(letter)) {
+            // アクセラレータが空の場合は、コンテナ内メニュー順序 (0-based) に従って 'a', 'b', 'c'... を割り当てる (金貨除く)
+            if (!isGold && (!letter || !/^[a-zA-Z]$/.test(letter))) {
                 letter = String.fromCharCode('a'.charCodeAt(0) + (parsedItems.length % 26));
             }
 
-            const glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
+            let glyphId = typeof mi.glyph === 'number' ? mi.glyph : (mi.glyphInfo ? mi.glyphInfo.glyph : -1);
+            if (isGold && glyphId < 0) {
+                glyphId = 3886; // NetHack 5.0 Gold Pieces default glyph
+            }
             const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo && typeof mi.glyphInfo.onum === 'number' ? mi.glyphInfo.onum : -1);
+
+            // 金貨の数量パース ("234 gold pieces" -> 234, "1枚の金貨" -> 1)
+            let itemCount = mi.count || -1;
+            if (isGold && itemCount <= 0) {
+                const gMatch = cleanedText.match(/^(\d+)\s*(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨)/i);
+                if (gMatch) {
+                    itemCount = parseInt(gMatch[1], 10);
+                } else if (/^(?:a|one|1)\s+gold\s+piece/i.test(cleanedText) || cleanedText === '金貨' || cleanedText === '1枚の金貨') {
+                    itemCount = 1;
+                }
+            }
 
             parsedItems.push({
                 letter: letter,
@@ -153,7 +179,8 @@ export class ContainerContentsManager {
                 glyphId,
                 onum,
                 identifier: (identifier !== undefined && identifier !== 0) ? identifier : (i + 1),
-                count: mi.count || -1,
+                count: itemCount,
+                isGold: isGold,
             });
         }
 
@@ -226,14 +253,17 @@ export class ContainerContentsManager {
                 }
             }
 
+            const isGold = /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(name) || /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(trimmed);
+
             parsedItems.push({
-                letter: '',
+                letter: isGold ? '$' : '',
                 rawText: trimmed,
                 name: name,
-                glyphId: -1,
+                glyphId: isGold ? 3886 : -1,
                 onum: -1,
                 identifier: i + 1,
                 count: count,
+                isGold: isGold,
             });
         }
 
@@ -421,9 +451,11 @@ export class ContainerContentsManager {
         const targetName = (item.name || item.rawText || '').trim();
         const targetLetter = item.letter || item.invlet || '';
         const targetIdentifier = item.identifier || 0;
+        const isGoldItem = item.isGold || targetLetter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(targetName);
 
         // 同一アイテムの重複追加（二重 push）を完全ガード
         const existing = this.items.find(it => {
+            if (isGoldItem && (it.isGold || it.letter === '$' || /(?:gold\s+pieces?|枚の金貨|^金貨$)/i.test(it.name || it.rawText || ''))) return true;
             if (targetIdentifier !== 0 && it.identifier !== 0 && it.identifier === targetIdentifier) return true;
             if (targetLetter && /^[a-zA-Z]$/.test(targetLetter) && it.letter === targetLetter && it.name === targetName) return true;
             if (targetName && it.name === targetName && it.rawText === (item.rawText || item.name)) return true;
@@ -431,22 +463,33 @@ export class ContainerContentsManager {
         });
 
         if (existing) {
-            if (typeof item.count === 'number' && item.count > 0 && typeof existing.count === 'number' && existing.count > 0) {
-                existing.count += item.count;
+            const addCount = (typeof item.count === 'number' && item.count > 0) ? item.count : (item.quantity > 0 ? item.quantity : 1);
+            if (typeof existing.count === 'number' && existing.count > 0) {
+                existing.count += addCount;
+            } else {
+                existing.count = addCount;
+            }
+            if (existing.isGold || isGoldItem) {
+                existing.rawText = `${existing.count} gold pieces`;
+                existing.name = existing.rawText;
+                existing.str = existing.rawText;
             }
             this.isKnown = true;
             this.isEmpty = false;
             return;
         }
 
+        const count = typeof item.count === 'number' ? item.count : (item.quantity > 0 ? item.quantity : -1);
         this.items.push({
-            letter: targetLetter,
+            letter: isGoldItem ? '$' : targetLetter,
+            accelerator: isGoldItem ? '$' : targetLetter,
             rawText: item.rawText || item.name || '',
             name: item.name || item.rawText || '',
-            glyphId: item.glyphId !== undefined ? item.glyphId : -1,
+            glyphId: item.glyphId !== undefined && item.glyphId >= 0 ? item.glyphId : (isGoldItem ? 3886 : -1),
             onum: item.onum !== undefined ? item.onum : -1,
             identifier: targetIdentifier,
-            count: typeof item.count === 'number' ? item.count : -1,
+            count: count,
+            isGold: isGoldItem,
         });
         this.reindexLetters();
         this.isKnown = true;
@@ -459,18 +502,29 @@ export class ContainerContentsManager {
      */
     onItemTakenOut(item) {
         if (!item) return;
+        const targetName = (item.name || item.rawText || '').trim();
+        const targetLetter = item.letter || item.invlet || '';
+        const isGoldItem = item.isGold || targetLetter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(targetName);
+
         // identifier または letter または rawText または name で一致するものを探索
         const idx = this.items.findIndex(i =>
+            (isGoldItem && (i.isGold || i.letter === '$' || /(?:gold\s+pieces?|枚の金貨|^金貨$)/i.test(i.name || i.rawText || ''))) ||
             (item.identifier && i.identifier === item.identifier) ||
-            (item.letter && i.letter === item.letter) ||
+            (targetLetter && i.letter === targetLetter) ||
             (item.rawText && i.rawText === item.rawText) ||
-            (item.name && i.name === item.name)
+            (targetName && i.name === targetName)
         );
         if (idx >= 0) {
             const existing = this.items[idx];
+            const takeCount = (typeof item.count === 'number' && item.count > 0) ? item.count : (item.quantity > 0 ? item.quantity : -1);
             // 部分取り出し（数量指定）判定
-            if (typeof item.count === 'number' && item.count > 0 && typeof existing.count === 'number' && existing.count > item.count) {
-                existing.count -= item.count;
+            if (takeCount > 0 && typeof existing.count === 'number' && existing.count > takeCount) {
+                existing.count -= takeCount;
+                if (existing.isGold) {
+                    existing.rawText = `${existing.count} gold pieces`;
+                    existing.name = existing.rawText;
+                    existing.str = existing.rawText;
+                }
             } else {
                 this.items.splice(idx, 1);
             }
@@ -482,19 +536,37 @@ export class ContainerContentsManager {
 
     /**
      * 中身アイテムのレターを一意かつ連続して再採番 ('a'..'z', 'A'..'Z')
+     * ※NetHack 仕様 (flags.inv_order): 金貨 (isGold / '$') は常に先頭に配置し、レター '$' を維持
      */
     reindexLetters() {
+        // 金貨アイテムを常に先頭 (インデックス 0) にソート
+        this.items.sort((a, b) => {
+            const aIsGold = !!(a.isGold || a.letter === '$');
+            const bIsGold = !!(b.isGold || b.letter === '$');
+            if (aIsGold && !bIsGold) return -1;
+            if (!aIsGold && bIsGold) return 1;
+            return 0;
+        });
+
+        let letterIdx = 0;
         for (let i = 0; i < this.items.length; i++) {
-            let letter = '';
-            if (i < 26) {
-                letter = String.fromCharCode('a'.charCodeAt(0) + i);
-            } else if (i < 52) {
-                letter = String.fromCharCode('A'.charCodeAt(0) + (i - 26));
-            } else {
-                letter = String.fromCharCode('a'.charCodeAt(0) + (i % 26));
+            const it = this.items[i];
+            if (it.isGold || it.letter === '$') {
+                it.letter = '$';
+                it.accelerator = '$';
+                continue;
             }
-            this.items[i].letter = letter;
-            this.items[i].accelerator = letter;
+            let letter = '';
+            if (letterIdx < 26) {
+                letter = String.fromCharCode('a'.charCodeAt(0) + letterIdx);
+            } else if (letterIdx < 52) {
+                letter = String.fromCharCode('A'.charCodeAt(0) + (letterIdx - 26));
+            } else {
+                letter = String.fromCharCode('a'.charCodeAt(0) + (letterIdx % 26));
+            }
+            it.letter = letter;
+            it.accelerator = letter;
+            letterIdx++;
         }
     }
 
