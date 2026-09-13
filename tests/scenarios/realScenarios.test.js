@@ -9,6 +9,7 @@ import path from 'path';
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
 import { ScenarioDriver } from '../../test/helpers/ScenarioDriver.js';
+import { ContainerController } from '../../src/core/container/ContainerController.js';
 
 function loadFixture(filename) {
     const filePath = path.resolve(__dirname, '../../test/fixtures/scenarios', filename);
@@ -166,15 +167,16 @@ describe('実機キャプチャシナリオ再生テスト (Phase 3 Downlink Int
         expect(eyeAdvice.messageJa).toContain('麻痺');
     });
 
-    it('⑧ 実機コンテナ操作シナリオ (sack_food_in_out) の再生とコンテナFSM・中身追跡の動作検証', async () => {
+    it('⑧ 実機コンテナ操作シナリオ (sack_food_in_out) の再生とコンテナコントローラ・中身追跡の動作検証', async () => {
         const scenario = loadFixture('sack_food_in_out_1788646234719.json');
         const driver = new ScenarioDriver(scenario);
-        const core = new WebUICore({ driver, enableContainerFSM: true });
+        const core = new WebUICore({ driver });
 
-        expect(core.containerFSM).toBeDefined();
+        const containerController = new ContainerController({ core });
+        containerController.attach(core);
 
         const transactionEvents = [];
-        core.on('containerTransaction', (data) => {
+        containerController.on('containerTransaction', (data) => {
             transactionEvents.push(data);
         });
 

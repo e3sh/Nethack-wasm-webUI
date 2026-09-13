@@ -18,7 +18,6 @@ import { PromptPayloadBuilder } from './prompt/PromptPayloadBuilder.js';
 import { TextWindowManager } from './window/TextWindowManager.js';
 import { DebugInspector } from './inspector/DebugInspector.js';
 import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
-import { ContainerTransactionFSM } from './container/ContainerTransactionFSM.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
 
@@ -155,15 +154,6 @@ export class WebUICore {
         this.activeMenuItems = [];
         
         this.inspector = isInspectorActive ? new DebugInspector(this, options.inspectorOptions) : null;
-
-        // ContainerTransactionFSM: コンテナ操作のマルチステップ・トランザクション管理
-        // ※基盤連続リクエストコントローラ昇格作業に伴い、現在は安全のためデフォルトで無効化（バイパス）。
-        //  コンテナUI資産・コードは保持され、options.enableContainerFSM: true で即座に再有効化可能。
-        const enableContainerFSM = options.enableContainerFSM === true;
-        this.containerFSM = enableContainerFSM ? new ContainerTransactionFSM(this, {
-            inventoryStateManager: this.gkl ? this.gkl.inventoryStateManager : null,
-            debug: options.debugContainerFSM || false,
-        }) : null;
         
         this.lastInputTime = 0;
         this.isPendingPrefix = false;
@@ -171,6 +161,8 @@ export class WebUICore {
         this.autoCancelItemNaming = itemNamingMode !== 'manual';
         this.isManualNamingActive = false;
         this.isItemUsingActive = false;
+        this.lastUsedItemLetter = null;
+        this.lastTriggerCommand = null;
         this.lastRawMessageText = '';
 
         this._initRenderer();
@@ -360,11 +352,6 @@ export class WebUICore {
             }
             this.plugins = [];
         }
-
-        if (this.containerFSM && typeof this.containerFSM.detach === 'function') {
-            this.containerFSM.detach();
-        }
-        this.containerFSM = null;
 
         if (this.gkl && typeof this.gkl.detach === 'function') {
             this.gkl.detach();
@@ -682,6 +669,9 @@ export class WebUICore {
             const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
             if (itemUseKeys.has(inputStr)) {
                 this.isItemUsingActive = true;
+            } else if (this.isItemUsingActive && /^[a-zA-Z]$/.test(inputStr)) {
+                this.lastUsedItemLetter = inputStr;
+                this.isItemUsingActive = false;
             }
             if (inputStr === 'C' || inputStr === '#name' || inputStr === '#call') {
                 this.isManualNamingActive = true;
@@ -696,6 +686,9 @@ export class WebUICore {
             }
         } else if (this.currentPromptCategory === PROMPT_CATEGORY.MENU && finalResponse !== 0) {
             // メニューでアイテム選択が確定した場合（非キャンセル）、アイテム状態が変化する可能性があるため通知
+            if (typeof inputVal === 'string' && /^[a-zA-Z]$/.test(inputVal)) {
+                this.lastUsedItemLetter = inputVal;
+            }
             this.emit('userActionSent', { sequence: ['MENU_SELECT'] });
             this.isPendingPrefix = false;
         }
@@ -847,6 +840,8 @@ export class WebUICore {
         if (!extCmdName) return;
         const cleanCmd = typeof extCmdName === 'string' ? extCmdName.replace(/^#+/, '').trim() : '';
         if (!cleanCmd) return;
+
+        this.lastTriggerCommand = `#${cleanCmd.toLowerCase()}`;
 
         if (cleanCmd.toLowerCase() === 'name' || cleanCmd.toLowerCase() === 'call') {
             this.isManualNamingActive = true;
@@ -1607,6 +1602,7 @@ export class WebUICore {
                 rawPrompt: rawPrompt,
                 items: translatedItems,
                 menuItems: translatedItems,
+                triggerCommand: this.lastTriggerCommand || payload.triggerCommand || null,
                 safeResolver: resolver,
                 resolver: resolver,
                 buttonOverlay: this.gamepad.getButtonOverlay(category, this.currentPromptChoices)
@@ -1632,11 +1628,12 @@ export class WebUICore {
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼
             // ※方向指定中やサブプロンプト中・プレフィックス待機中を除外した「純粋なトップレベル通常ターン待機」時のみ安全に実行
             const isPoskeyContext = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
-            const isContainerActive = Boolean(this.containerFSM && typeof this.containerFSM.isActive === 'function' && this.containerFSM.isActive());
-            const isTopLevelTurn = isPoskeyContext && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices && !isContainerActive;
+            const isInteractiveExecuting = Boolean(this.interactiveController && this.interactiveController.isBusy());
+            const isTopLevelTurn = isPoskeyContext && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices && !isInteractiveExecuting;
             if (isTopLevelTurn) {
                 this.isManualNamingActive = false;
                 this.isItemUsingActive = false;
+                this.lastTriggerCommand = null;
                 if (this.gkl && typeof this.gkl.syncPendingStateSilent === 'function') {
                     this.gkl.syncPendingStateSilent();
                 } else if (this.gkl && this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) {
@@ -1651,7 +1648,19 @@ export class WebUICore {
                 guiInput: guiData
             };
 
-            this.renderer.showPrompt(passThroughPayload);
+            // 📡 汎用制御シグナル通知 (Pub/Sub: 自律UI・Featureモジュールへの通知)
+            if (guiData && (guiData.signalId || guiData.signal)) {
+                this.emit('signal', passThroughPayload);
+                if (guiData.signalId) {
+                    this.emit(`signal:${guiData.signalId}`, passThroughPayload);
+                }
+            }
+
+            // 🛡️ 汎用トランザクション実行中の画面描画サプレス
+            // (IRC対話セッション中や動的シーケンス実行中は、途中のプロンプト描画を抑制)
+            if (!isInteractiveExecuting) {
+                this.renderer.showPrompt(passThroughPayload);
+            }
             this.emit('inputRequired', passThroughPayload);
         });
 

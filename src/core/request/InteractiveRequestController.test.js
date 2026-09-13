@@ -525,4 +525,63 @@ describe('InteractiveRequestController (汎用連続リクエストコントロ�
             expect(execResult).toBe(true);
         });
     });
+
+    // =========================================================================
+    // 6. 汎用セッションロック／排他制御 (SessionLock & isBusy)
+    // =========================================================================
+    describe('6. 汎用セッションロック／排他制御 (SessionLock & isBusy)', () => {
+        it('acquireSessionLock / releaseSessionLock により正しくロックの確保・解放ができること', () => {
+            expect(controller.isSessionLocked()).toBe(false);
+            expect(controller.isBusy()).toBe(false);
+            expect(controller.isActive()).toBe(false);
+
+            // ロック取得
+            const acquired = controller.acquireSessionLock('container');
+            expect(acquired).toBe(true);
+            expect(controller.isSessionLocked()).toBe(true);
+            expect(controller.isBusy()).toBe(true);
+            expect(controller.isActive()).toBe(true);
+            expect(controller.getSessionLockOwner()).toBe('container');
+
+            // 同一オーナーによる再取得は許可
+            expect(controller.acquireSessionLock('container')).toBe(true);
+
+            // 異なるオーナーによる取得は拒否
+            expect(controller.acquireSessionLock('paperdoll')).toBe(false);
+
+            // 異なるオーナーによる解放は拒否
+            expect(controller.releaseSessionLock('paperdoll')).toBe(false);
+            expect(controller.isSessionLocked()).toBe(true);
+
+            // 正しいオーナーによる解放
+            const released = controller.releaseSessionLock('container');
+            expect(released).toBe(true);
+            expect(controller.isSessionLocked()).toBe(false);
+            expect(controller.isBusy()).toBe(false);
+            expect(controller.getSessionLockOwner()).toBeNull();
+        });
+
+        it('forceReleaseSessionLock でオーナーに関わらず強制解放できること', () => {
+            controller.acquireSessionLock('shop');
+            expect(controller.isSessionLocked()).toBe(true);
+
+            controller.forceReleaseSessionLock();
+            expect(controller.isSessionLocked()).toBe(false);
+            expect(controller.isBusy()).toBe(false);
+        });
+
+        it('実行中 (EXECUTING) の場合に二重実行が防止されること', async () => {
+            controller.setState(InteractiveRequestController.State.EXECUTING);
+            expect(controller.isBusy()).toBe(true);
+
+            // 配列モード
+            const arrayRes = await controller._executeArrayMode(['a']);
+            expect(arrayRes).toEqual([]);
+
+            // レシピモード
+            const recipeRes = await controller._executeRecipeMode({ start: ['a'] });
+            expect(recipeRes.success).toBe(false);
+            expect(recipeRes.error.message).toContain('already executing');
+        });
+    });
 });

@@ -87,8 +87,8 @@ export class ContainerContentsManager {
 
         const parsedItems = [];
 
-        // カテゴリヘッダーの判定パターン
-        const CATEGORY_HEADER_REGEX = /^(?:Contents of|.+の収納物|.+の中身|Comestibles|Weapons|Armor|Tools|Food|Scrolls|Potions|Wands|Rings|Amulets|Gems|Gold|食料|武器|防具|道具|巻物|薬品|杖|指輪|魔除け|宝石|金貨)[:：]?$/i;
+        // カテゴリヘッダーの判定パターン (英語・日本語)
+        const CATEGORY_HEADER_REGEX = /^(?:Contents of|.+の収納物|.+の中身|Comestibles|Weapons|Armor|Tools|Food|Scrolls|Potions|Wands|Rings|Amulets|Gems|Gold|Coins|Statues|Spellbooks|Iron balls|Chains|Venoms|食料|武器|防具|道具|巻物|薬品|杖|指輪|魔除け|宝石|金貨)[:：]?$/i;
 
         for (let i = 0; i < menuItems.length; i++) {
             const mi = menuItems[i];
@@ -100,7 +100,23 @@ export class ContainerContentsManager {
             const cleanedText = rawText.replace(/^>\s*/, '').trim();
             if (!cleanedText) continue;
 
-            const identifier = mi.identifier !== undefined ? mi.identifier : 0;
+            const identifier = mi.identifier !== undefined ? mi.identifier : undefined;
+
+            // 🌟 NetHack C コア仕様:
+            // 1. identifier が明示的に 0 の項目は、選択不能なヘッダー・セクション見出し行 (NO_MENU_ITEM) であるため絶対にアイテムではない
+            if (identifier !== undefined && identifier === 0) {
+                continue;
+            }
+
+            // 2. カテゴリヘッダー正規表現にマッチする行をスキップ
+            if (CATEGORY_HEADER_REGEX.test(cleanedText)) {
+                continue;
+            }
+
+            // 3. 空メッセージ行をスキップ
+            if (/is\s+(now\s+)?empty/i.test(cleanedText) || /中身は空/.test(cleanedText) || /^空の/.test(cleanedText)) {
+                continue;
+            }
 
             let letter = '';
             const rawCh = mi.charStr || mi.letter || mi.accelerator || mi.ch || 0;
@@ -115,14 +131,8 @@ export class ContainerContentsManager {
                 if (match) letter = match[1];
             }
 
-            // カテゴリヘッダー行（identifier === 0 かつカテゴリ名、または letter がなくヘッダー名）をスキップ
-            if ((identifier === 0 && (!letter || !/^[a-zA-Z]$/.test(letter)) && CATEGORY_HEADER_REGEX.test(cleanedText)) ||
-                CATEGORY_HEADER_REGEX.test(cleanedText)) {
-                continue;
-            }
-
-            // 空メッセージ行をスキップ
-            if (/is\s+(now\s+)?empty/i.test(cleanedText) || /中身は空/.test(cleanedText) || /^空の/.test(cleanedText)) {
+            // 4. identifier が未指定のモック環境等で、レターも持たずテキスト先頭にもレターがない行はヘッダー行と見なしてスキップ
+            if (identifier === undefined && (!letter || !/^[a-zA-Z]$/.test(letter))) {
                 continue;
             }
 
@@ -142,7 +152,7 @@ export class ContainerContentsManager {
                 str: cleanedText,
                 glyphId,
                 onum,
-                identifier: identifier !== 0 ? identifier : (i + 1),
+                identifier: (identifier !== undefined && identifier !== 0) ? identifier : (i + 1),
                 count: mi.count || -1,
             });
         }
@@ -180,16 +190,14 @@ export class ContainerContentsManager {
             const trimmed = rawLine.trim();
             if (!trimmed) continue;
 
-            // ヘッダー行をスキップ (Contents of ... / ...の収納物: / ...の中身:)
-            if (/^contents\s+of\s+/i.test(trimmed) || /収納物[:：]?$/i.test(trimmed) || /中身[:：]?$/i.test(trimmed)) {
+            // ヘッダー行をスキップ (Contents of ... / ...の収納物: / ...の中身: / 各種カテゴリ名)
+            if (/^contents\s+of\s+/i.test(trimmed) || /収納物[:：]?$/i.test(trimmed) || /中身[:：]?$/i.test(trimmed) ||
+                /^(?:Contents of|.+の収納物|.+の中身|Comestibles|Weapons|Armor|Tools|Food|Scrolls|Potions|Wands|Rings|Amulets|Gems|Gold|Coins|Statues|Spellbooks|Iron balls|Chains|Venoms|食料|武器|防具|道具|巻物|薬品|杖|指輪|魔除け|宝石|金貨)[:：]?$/i.test(trimmed)) {
                 continue;
             }
 
             // 「〜は空です」メッセージ行のスキップ
             if (/is\s+(now\s+)?empty/i.test(trimmed) || /中身は空/i.test(trimmed) || /^空の/.test(trimmed)) {
-                continue;
-            }
-            if (/is\s+(now\s+)?empty/i.test(trimmed) || /中身は空/i.test(trimmed)) {
                 continue;
             }
 

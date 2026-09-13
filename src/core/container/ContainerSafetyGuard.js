@@ -90,6 +90,7 @@ export class ContainerSafetyGuard {
      */
     isBagOfHolding(containerInfo) {
         if (!containerInfo) return false;
+        if (containerInfo.isBagOfHolding) return true;
 
         // onum による確定判定
         if (containerInfo.onum === DANGEROUS_ONUMS.BAG_OF_HOLDING) return true;
@@ -115,9 +116,9 @@ export class ContainerSafetyGuard {
         }
 
         const onum = typeof item.onum === 'number' ? item.onum : -1;
-        const rawText = item.rawText || '';
+        const rawText = item.rawText || item.name || '';
         const identification = item.identification || {};
-        const isUnidentified = identification.isUnidentified || false;
+        const isUnidentified = identification.isUnidentified || item.isUnidentified || item.isSuspicious || false;
 
         // 【層1】onum による確定判定
         if (onum === DANGEROUS_ONUMS.WAN_CANCELLATION) {

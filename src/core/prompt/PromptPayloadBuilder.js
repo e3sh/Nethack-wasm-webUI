@@ -402,9 +402,21 @@ const DEFAULT_TITLES = {
             }
         }
 
+        // 4. 📦 コンテナ（Container）プロンプトのシグナル検知
+        const isContainerActionSignal = signal && (signal.subCategory === 'CONTAINER_ACTION_MENU' || signal.signalId?.startsWith('SIGNAL_CONTAINER_ACTION_MENU'));
+        const isContainerPrompt = isContainerActionSignal || payload.subCategory === 'CONTAINER_ACTION_MENU';
+
+        if (isContainerPrompt) {
+            subCategory = 'CONTAINER_ACTION_MENU';
+            inputType = 'CONTAINER';
+        } else if (signal && signal.subCategory && signal.subCategory.startsWith('CONTAINER_')) {
+            subCategory = signal.subCategory;
+        }
+
         return {
             inputType: inputType,
             subCategory: subCategory,
+            signal: signal,
             title: translatedTitle,
             rawTitle: rawTitle,
             promptText: payload.prompt || rawPrompt,

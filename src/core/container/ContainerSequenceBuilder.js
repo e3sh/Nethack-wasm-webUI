@@ -88,46 +88,52 @@ export class ContainerSequenceBuilder {
     /**
      * コンテナを開くためのプレフィックスシーケンスを取得
      * - 手持ちコンテナ: ['a', letter]
-     * - 床コンテナ (#loot): ['#', 'loot', '\r']
+     * - 床コンテナ (#loot): ['#', 'loot']
      *
      * @param {Object|string} container - コンテナ情報 { letter, isFloorContainer, ... } または レター文字列
      * @returns {Array<string>} プレフィックス配列
      */
     getContainerOpenPrefix(container) {
-        if (!container) return ['#', 'loot', '\r', '.'];
+        if (!container) return ['#', 'loot'];
         if (typeof container === 'string') {
             if (/^[a-zA-Z]$/.test(container)) {
                 return ['a', container];
             }
-            return ['#', 'loot', '\r', '.'];
+            return ['#', 'loot'];
         }
         if (container.isFloorContainer || !container.letter || container.letter === '.' || !/^[a-zA-Z]$/.test(container.letter)) {
             // 同一マスに複数コンテナが存在し、対象選択レター (targetLetter) が指定されている場合
             if (container.targetLetter && /^[a-zA-Z]$/.test(container.targetLetter)) {
-                return ['#', 'loot', '\r', '.', container.targetLetter];
+                return ['#', 'loot', container.targetLetter];
             }
-            return ['#', 'loot', '\r', '.'];
+            return ['#', 'loot'];
         }
         return ['a', container.letter];
     }
 
     /**
-     * アイテム選択用のトークン（単一文字または一括選択オブジェクト配列）を生成
+     * アイテム選択用のオブジェクト配列（identifier, count）を生成
+     * ※キーストローク（文字や数値列）ではなく、select_menu に渡す純粋な構造体配列
      *
      * @param {Array<Object>} items - 選択対象アイテム配列
-     * @returns {string|Array<Object>} トークン
+     * @param {number} [defaultQuantity=-1] - デフォルト数量 (-1 = 全量)
+     * @returns {Array<{ identifier: number, count: number }>}
+     */
+    buildItemSelectionObjects(items, defaultQuantity = -1) {
+        const itemList = Array.isArray(items) ? items : (items ? [items] : []);
+        return itemList.map(it => ({
+            identifier: it.identifier !== undefined ? it.identifier : (it.accelerator ? it.accelerator.charCodeAt(0) : (it.letter ? it.letter.charCodeAt(0) : 0)),
+            count: typeof it.count === 'number' ? it.count : (typeof it.transferCount === 'number' ? it.transferCount : defaultQuantity),
+        }));
+    }
+
+    /**
+     * 後方互換性ヘルパー: 常にオブジェクト配列を返却（文字送信は全廃）
+     * @param {Array<Object>} items
+     * @returns {Array<{ identifier: number, count: number }>}
      */
     buildItemSelectionToken(items) {
-        const itemList = Array.isArray(items) ? items : (items ? [items] : []);
-        if (itemList.length === 0) return '\x1b';
-        if (itemList.length === 1) {
-            // accelerator (取り出しメニュー由来) を最優先し、次に letter / invlet
-            return itemList[0].accelerator || itemList[0].letter || itemList[0].invlet || 'a';
-        }
-        return itemList.map(it => ({
-            identifier: it.identifier || (it.accelerator ? it.accelerator.charCodeAt(0) : (it.letter ? it.letter.charCodeAt(0) : 0)),
-            count: typeof it.count === 'number' ? it.count : -1,
-        }));
+        return this.buildItemSelectionObjects(items);
     }
 
     /**
@@ -150,13 +156,12 @@ export class ContainerSequenceBuilder {
      * - コンテナを開く
      * - 'i' で投入モード
      * - 'a' で全カテゴリ (All types)
-     * - token で対象アイテムを選択
-     * - '\r' (Enter) で選択確定（※ \x1b だとキャンセルになるため必須）
+     * ※アイテム選択自体はキーストロークではなく、シグナルハンドラ側で完了させる
      *
      * @param {Object} container - { letter, onum, isBagOfHolding, name, isFloorContainer }
      * @param {Array<Object>} items - 投入対象アイテム
      * @param {Object} [options={}] - { allowSuspicious: boolean }
-     * @returns {{ sequence: Array<string|Object>|null, validItems: Array<Object>, excludedItems: Array<Object> }}
+     * @returns {{ sequence: Array<string>|null, validItems: Array<Object>, excludedItems: Array<Object> }}
      */
     buildPutInSequence(container, items, options = {}) {
         const prefix = this.getContainerOpenPrefix(container);
@@ -166,9 +171,8 @@ export class ContainerSequenceBuilder {
             return { sequence: null, validItems: [], excludedItems };
         }
 
-        const token = this.buildItemSelectionToken(validItems);
-        // 一括シーケンス: 全カテゴリ 'a' → アイテム指定 (select_menu は選択肢受理で即完了するため \r は不要)
-        const sequence = [...prefix, 'i', 'a', token];
+        // 純粋な起動キーのみ（アイテム選択はシグナルハンドラ側で実施）
+        const sequence = [...prefix, 'i', 'a'];
         return { sequence, validItems, excludedItems };
     }
 
@@ -177,11 +181,11 @@ export class ContainerSequenceBuilder {
      * - コンテナを開く
      * - 'o' で取り出しモード
      * - 'a' で全カテゴリ (All types)
-     * - token で対象アイテムを選択
+     * ※アイテム選択自体はキーストロークではなく、シグナルハンドラ側で完了させる
      *
      * @param {Object} container - { letter, isFloorContainer }
      * @param {Array<Object>} items - 取り出し対象アイテム
-     * @returns {{ sequence: Array<string|Object>|null, items: Array<Object> }}
+     * @returns {{ sequence: Array<string>|null, items: Array<Object> }}
      */
     buildTakeOutSequence(container, items) {
         const prefix = this.getContainerOpenPrefix(container);
@@ -191,8 +195,7 @@ export class ContainerSequenceBuilder {
             return { sequence: null, items: [] };
         }
 
-        const token = this.buildItemSelectionToken(itemList);
-        const sequence = [...prefix, 'o', 'a', token];
+        const sequence = [...prefix, 'o', 'a'];
         return { sequence, items: itemList };
     }
 }

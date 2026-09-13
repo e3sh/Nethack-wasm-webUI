@@ -39,6 +39,7 @@ export class InteractiveRequestController {
         this.driver = options.driver || null;
         this.signalDetector = options.signalDetector || null;
         this.state = InteractiveRequestController.State.IDLE;
+        this.sessionLock = null;
         this.listeners = new Map();
         this._inputRequiredHandler = null;
 
@@ -92,6 +93,83 @@ export class InteractiveRequestController {
      */
     isExecuting() {
         return this.state === InteractiveRequestController.State.EXECUTING;
+    }
+
+    /**
+     * 汎用セッションロックの取得
+     * 複数ターンに跨る対話トランザクション（コンテナ、ペーパードール、ショップ等）用
+     * @param {string} [ownerId='default']
+     * @returns {boolean} ロック取得成功時 true
+     */
+    acquireSessionLock(ownerId = 'default') {
+        if (this.sessionLock && this.sessionLock.ownerId !== ownerId) {
+            return false;
+        }
+        this.sessionLock = { ownerId, acquiredAt: Date.now() };
+        this.emit('sessionLockAcquired', { ownerId });
+        return true;
+    }
+
+    /**
+     * 汎用セッションロックの解放
+     * @param {string} [ownerId='default']
+     * @returns {boolean} ロック解放成功時 true
+     */
+    releaseSessionLock(ownerId = 'default') {
+        if (!this.sessionLock) return false;
+        if (ownerId && this.sessionLock.ownerId !== ownerId) {
+            return false;
+        }
+        const releasedOwner = this.sessionLock.ownerId;
+        this.sessionLock = null;
+        this.emit('sessionLockReleased', { ownerId: releasedOwner });
+        return true;
+    }
+
+    /**
+     * 汎用セッションロックの強制解放
+     * @returns {boolean}
+     */
+    forceReleaseSessionLock() {
+        if (this.sessionLock) {
+            const releasedOwner = this.sessionLock.ownerId;
+            this.sessionLock = null;
+            this.emit('sessionLockReleased', { ownerId: releasedOwner, forced: true });
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * セッションがロックされているかどうか
+     * @returns {boolean}
+     */
+    isSessionLocked() {
+        return this.sessionLock !== null;
+    }
+
+    /**
+     * 現在のセッションロックオーナーIDを取得
+     * @returns {string|null}
+     */
+    getSessionLockOwner() {
+        return this.sessionLock ? this.sessionLock.ownerId : null;
+    }
+
+    /**
+     * コントローラがビジー（実行中またはセッションロック中）かどうか
+     * @returns {boolean}
+     */
+    isBusy() {
+        return this.isExecuting() || this.isSessionLocked();
+    }
+
+    /**
+     * アクティブかどうか (isBusy と同義)
+     * @returns {boolean}
+     */
+    isActive() {
+        return this.isBusy();
     }
 
     /**
@@ -195,6 +273,11 @@ export class InteractiveRequestController {
             return [];
         }
 
+        if (this.isExecuting()) {
+            console.warn('[InteractiveRequestController] Cannot execute array sequence: already executing.');
+            return [];
+        }
+
         this.setState(InteractiveRequestController.State.EXECUTING);
         try {
             if (typeof this.driver.queueSequence === 'function') {
@@ -229,6 +312,11 @@ export class InteractiveRequestController {
     async _executeRecipeMode(recipe, options = {}) {
         if (!this.driver) {
             return { success: false, data: null, buffer: [], error: new Error('Driver is not attached.') };
+        }
+
+        if (this.isExecuting()) {
+            console.warn('[InteractiveRequestController] Cannot execute recipe: already executing.');
+            return { success: false, data: null, buffer: [], error: new Error('InteractiveRequestController is already executing.') };
         }
 
         this.setState(InteractiveRequestController.State.EXECUTING);
@@ -562,6 +650,8 @@ export class InteractiveRequestController {
             }
             if (typeof resolver.respond === 'function') {
                 resolver.respond(finalAction);
+            } else if (typeof resolver.resolve === 'function') {
+                resolver.resolve(finalAction);
             } else if (typeof resolver === 'function') {
                 resolver(finalAction);
             }
@@ -606,6 +696,7 @@ export class InteractiveRequestController {
         } catch (err) {
             console.error('[InteractiveRequestController] Error during abortWithESC:', err);
         } finally {
+            this.forceReleaseSessionLock();
             this.setState(InteractiveRequestController.State.IDLE);
         }
     }

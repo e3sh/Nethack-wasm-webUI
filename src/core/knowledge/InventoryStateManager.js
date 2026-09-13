@@ -164,6 +164,7 @@ export class InventoryStateManager {
                     rawText,
                     glyphId,
                     onum,
+                    identifier: (mi.identifier !== undefined ? mi.identifier : 0),
                     identification,
                     knowledge,
                     skillBadge,

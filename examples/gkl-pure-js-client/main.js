@@ -12,6 +12,7 @@ import { DirectionPad } from './modules/components/DirectionPad.js';
 import { StatusView } from './modules/components/StatusView.js';
 import { ModalManager } from './modules/components/ModalManager.js';
 import { ContainerModal } from './modules/components/ContainerModal.js';
+import { ContainerController } from '../../src/core/container/ContainerController.js';
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 
 /**
@@ -21,6 +22,7 @@ class GklPureJSClient {
   constructor() {
     console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
     this.core = null;
+    this.containerController = null;
     this.lookService = null;
     this.currentLanguage = 'ja';
     this.userPreferredTab = 'advices';
@@ -160,6 +162,7 @@ class GklPureJSClient {
     this.containerModal = new ContainerModal({
       elContainerModal: document.getElementById('container-modal'),
       getCore: () => this.core,
+      getContainerController: () => this.containerController,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
     });
 
@@ -194,6 +197,9 @@ class GklPureJSClient {
     const bridge = new NetHackWasmWorkerBridge(workerPath);
     this.core = new WebUICore({ driver: bridge, keyMode: 'numpad' });
     this.currentLanguage = this.core.language || 'ja';
+
+    this.containerController = new ContainerController({ core: this.core });
+    this.containerController.attach(this.core);
 
     this.lookService = new OnDemandLookService({ core: this.core });
   }
@@ -338,8 +344,8 @@ class GklPureJSClient {
         }
       }
 
-      // コンテナFSMがアクティブな場合、通常のメニュー表示は抑制（二面パネルUIが担当）
-      if (this.core.containerFSM && this.core.containerFSM.isActive()) {
+      // コンテナセッションがアクティブな場合、通常のメニュー表示は抑制（二面パネルUIが担当）
+      if (this.core.isContainerSessionActive) {
         this.renderGklUi();
         return;
       }

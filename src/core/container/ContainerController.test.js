@@ -1,0 +1,409 @@
+/**
+ * ContainerController.test.js
+ *
+ * ContainerController（IRC & Signal-Driven コンテナ対話制御基盤）の単体テスト
+ *
+ * 検証項目:
+ * 1. 初回オープン時の空/非空の遷移 (SIGNAL_CONTAINER_ACTION_MENU)
+ * 2. 投入（Put In）時のセーフティガードブロック (自己投入・装備中・BoH危険物)
+ * 3. 投入（Put In）時の IRC レシピ実行と 16バイト構造体直接返却
+ * 4. 取り出し（Take Out）時の正常取り出しと最後の1個の消滅
+ * 5. 裏マクロなし、平文パースなしで turn_ready 着地をもって完了することの保証
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { ContainerController } from './ContainerController.js';
+import { ContainerSafetyGuard } from './ContainerSafetyGuard.js';
+import { ContainerContentsManager } from './ContainerContentsManager.js';
+
+describe('ContainerController (IRC & Signal-Driven)', () => {
+    let controller;
+    let mockCore;
+    let mockInteractive;
+    let safetyGuard;
+    let contentsManager;
+
+    beforeEach(() => {
+        mockCore = {
+            emit: vi.fn(),
+            lastUsedItemLetter: null,
+            gkl: {
+                syncInventorySilent: vi.fn().mockResolvedValue(true),
+                inventoryStateManager: {
+                    getItems: vi.fn(() => [
+                        { letter: 'a', rawText: 'a +0 dagger', identifier: 101 },
+                        { letter: 's', rawText: 'the sack', identifier: 999 },
+                        { letter: 'b', rawText: 'a bag of holding', identifier: 998, onum: 346 },
+                        { letter: 'w', rawText: 'a wand of cancellation', identifier: 201, onum: 263, spe: 1 },
+                        { letter: 'u', rawText: 'a wooden wand', identifier: 202, isSuspicious: true },
+                        { letter: 'e', rawText: 'a sword (weapon in hand)', identifier: 301, isWielded: true },
+                    ]),
+                },
+            },
+            activeResolver: null,
+        };
+
+        mockInteractive = {
+            isExecuting: vi.fn(() => false),
+            querySequenceSilent: vi.fn().mockResolvedValue({ success: true, buffer: [] }),
+        };
+
+        safetyGuard = new ContainerSafetyGuard();
+        contentsManager = new ContainerContentsManager();
+
+        controller = new ContainerController({
+            core: mockCore,
+            interactiveController: mockInteractive,
+            safetyGuard: safetyGuard,
+            contentsManager: contentsManager,
+        });
+    });
+
+    // ========================================================================
+    // 1. 基本状態とセーフティチェック委譲
+    // ========================================================================
+
+    describe('Basic state and safety delegation', () => {
+        it('初期状態では非アクティブであること', () => {
+            expect(controller.isActive()).toBe(false);
+            expect(controller.getContentsManager()).toBe(contentsManager);
+            expect(controller.getSafetyGuard()).toBe(safetyGuard);
+        });
+
+        it('checkSafety() で items のセーフティ判定が委譲され、criticalItems / suspiciousItems が取得できること', () => {
+            const items = [
+                { onum: 263, rawText: 'wand of cancellation', spe: 1 },
+                { rawText: 'wooden wand', isSuspicious: true },
+                { rawText: 'food ration' },
+            ];
+
+            const result = controller.checkSafety(items);
+            expect(result.hasDanger).toBe(true);
+            expect(result.criticalItems.length).toBe(1);
+            expect(result.criticalItems[0].item.rawText).toBe('wand of cancellation');
+            expect(result.suspiciousItems.length).toBe(1);
+            expect(result.safe.length).toBe(1);
+        });
+    });
+
+    // ========================================================================
+    // 2. 初回オープン時の空/非空の遷移 (handleInitialActionMenu)
+    // ========================================================================
+
+    describe('handleInitialActionMenu (Initial entry)', () => {
+        it('中身が空の場合 (Take out なし): "q" で応答して即座に通常ターンへ抜け、空でオープンすること', async () => {
+            const mockResolver = { respond: vi.fn() };
+            const payload = {
+                rawPromptText: 'Do what with your sack? [i or ?*]',
+                items: [
+                    { charStr: 'i', str: 'Put in' },
+                ],
+                safeResolver: mockResolver,
+            };
+
+            const handled = await controller.handleInitialActionMenu(payload);
+
+            expect(handled).toBe(true);
+            expect(controller.isActive()).toBe(true);
+            expect(mockResolver.respond).toHaveBeenCalledWith('q');
+            expect(contentsManager.getItems()).toEqual([]);
+            // IRC querySequenceSilent は呼ばれない（空なので覗き見不要）
+            expect(mockInteractive.querySequenceSilent).not.toHaveBeenCalled();
+            // イベントが発行されること
+            expect(mockCore.emit).toHaveBeenCalledWith('containerTransaction', expect.objectContaining({
+                state: 'ACTION_PROMPT',
+                contents: [],
+                isContainerSessionActive: true,
+            }));
+        });
+
+        it('中身がある場合 (Take out あり): "o" で初回一覧を取得し ESC で抜けて通常ターンに着地すること', async () => {
+            const payload = {
+                rawPromptText: 'Do what with your sack? [io or ?*]',
+                items: [
+                    { charStr: 'i', str: 'Put in' },
+                    { charStr: 'o', str: 'Take out' },
+                ],
+            };
+
+            let capturedRecipe = null;
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                capturedRecipe = recipe;
+                // ハンドラをシミュレート
+                const itemSelectHandler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 501, charStr: 'a', str: 'a potion of healing', count: 1 },
+                        { identifier: 502, charStr: 'b', str: 'a scroll of identify', count: 2 },
+                    ],
+                };
+                const actionResult = itemSelectHandler.action(ctx);
+                expect(actionResult).toBe('\x1b'); // 取り出さずにキャンセルして抜ける
+                return { success: true };
+            });
+
+            const handled = await controller.handleInitialActionMenu(payload);
+
+            expect(handled).toBe(true);
+            expect(controller.isActive()).toBe(true);
+            expect(capturedRecipe).toBeDefined();
+            expect(capturedRecipe.start).toEqual(['o']);
+            expect(capturedRecipe.until).toEqual({ type: 'turn_ready' });
+            // contentsManager にアイテムが格納されていること
+            expect(contentsManager.getItems().length).toBe(2);
+            expect(contentsManager.getItems()[0].identifier).toBe(501);
+            expect(contentsManager.getItems()[1].identifier).toBe(502);
+        });
+    });
+
+    // ========================================================================
+    // 3. 投入（Put In）の事前セーフティガード (validatePutIn)
+    // ========================================================================
+
+    describe('validatePutIn (Safety Guard)', () => {
+        beforeEach(async () => {
+            // 袋 (sack) を開いている状態を作る
+            await controller.handleInitialActionMenu({
+                rawPromptText: 'Do what with your sack?',
+                items: [{ charStr: 'i', str: 'Put in' }],
+                safeResolver: { respond: vi.fn() },
+            }, { letter: 's', containerName: 'sack' });
+        });
+
+        it('開いているコンテナ自身の投入をブロックすること (SELF_CONTAINER)', () => {
+            const selfItem = { letter: 's', identifier: 999, rawText: 'the sack' };
+            const validation = controller.validatePutIn(selfItem);
+            expect(validation.allowed).toBe(false);
+            expect(validation.reason).toBe('SELF_CONTAINER');
+        });
+
+        it('装備中・着用中アイテムの投入をブロックすること (EQUIPPED)', () => {
+            const equippedItem = { letter: 'e', identifier: 301, isWielded: true, rawText: 'a sword' };
+            const validation = controller.validatePutIn(equippedItem);
+            expect(validation.allowed).toBe(false);
+            expect(validation.reason).toBe('EQUIPPED');
+        });
+
+        it('Bag of Holding に対する打ち消しの杖投入をブロックすること (BOH_CRITICAL)', () => {
+            // BoH を開いた状態に変更
+            controller.currentContainer.isBagOfHolding = true;
+
+            const cancelWand = { letter: 'w', onum: 263, rawText: 'wand of cancellation', spe: 1 };
+            const validation = controller.validatePutIn(cancelWand);
+            expect(validation.allowed).toBe(false);
+            expect(validation.reason).toBe('BOH_CRITICAL');
+        });
+
+        it('Bag of Holding に対する未識別アイテム投入に警告を発すること (BOH_SUSPICIOUS)', () => {
+            controller.currentContainer.isBagOfHolding = true;
+
+            const susWand = { letter: 'u', rawText: 'wooden wand', isSuspicious: true };
+            const validation = controller.validatePutIn(susWand);
+            expect(validation.allowed).toBe(false);
+            expect(validation.valid).toBe(true);
+            expect(validation.warning).toBe('BOH_SUSPICIOUS');
+        });
+
+        it('通常アイテムの投入を許可すること', () => {
+            const food = { letter: 'a', identifier: 101, rawText: 'a +0 dagger' };
+            const validation = controller.validatePutIn(food);
+            expect(validation.allowed).toBe(true);
+            expect(validation.valid).toBe(true);
+        });
+    });
+
+    // ========================================================================
+    // 4. 投入（Put In）時の IRC レシピ実行と 16バイト構造体直接返却
+    // ========================================================================
+
+    describe('transferItem (Put In execution)', () => {
+        beforeEach(async () => {
+            await controller.handleInitialActionMenu({
+                rawPromptText: 'Do what with your sack?',
+                items: [{ charStr: 'i', str: 'Put in' }],
+                safeResolver: { respond: vi.fn() },
+            }, { letter: 's', containerName: 'sack' });
+        });
+
+        it('危険アイテムの投入は IRC を起動せずに即座にエラー返却されること', async () => {
+            controller.currentContainer.isBagOfHolding = true;
+            const cancelWand = { letter: 'w', onum: 263, rawText: 'wand of cancellation', spe: 1 };
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: cancelWand,
+            });
+
+            expect(result.success).toBe(false);
+            expect(result.error.message).toContain('Blocked by safety guard: BOH_CRITICAL');
+            expect(mockInteractive.querySequenceSilent).not.toHaveBeenCalled();
+        });
+
+        it('正常投入時: レシピが turn_ready まで走り、CONTAINER_ITEM_SELECT が 16バイト構造体を返すこと', async () => {
+            const foodItem = { letter: 'f', identifier: 777, rawText: 'a food ration' };
+            let capturedRecipe = null;
+
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                capturedRecipe = recipe;
+                // CONTAINER_ITEM_SELECT ハンドラのシミュレーション
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 777, charStr: 'f', str: 'a food ration', count: 1 },
+                    ],
+                };
+                const selections = handler.action(ctx);
+                expect(selections).toEqual([{ identifier: 777, count: 2 }]);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: foodItem,
+                quantity: 2,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedRecipe).toBeDefined();
+            expect(capturedRecipe.id).toBe('RECIPE_CONTAINER_IN');
+            expect(capturedRecipe.until).toEqual({ type: 'turn_ready' });
+            // contentsManager にアイテムが追加されていること
+            const contents = contentsManager.getItems();
+            expect(contents.length).toBe(1);
+            expect(contents[0].identifier).toBe(777);
+            expect(contents[0].count).toBe(2);
+        });
+
+        it('全量投入時 (count: -1 または未指定): select_menu に count: -1 が渡されること', async () => {
+            const arrowItem = { letter: 'a', identifier: 888, rawText: '50 arrows' };
+            let capturedSelections = null;
+
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 888, charStr: 'a', str: '50 arrows' },
+                    ],
+                };
+                capturedSelections = handler.action(ctx);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: arrowItem,
+                count: -1,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedSelections).toEqual([{ identifier: 888, count: -1 }]);
+        });
+    });
+
+    // ========================================================================
+    // 5. 取り出し（Take Out）時の正常取り出しと最後の1個の消滅
+    // ========================================================================
+
+    describe('transferItem (Take Out execution)', () => {
+        beforeEach(async () => {
+            // 初期状態としてアイテムが1個入っているコンテナを開く
+            await controller.handleInitialActionMenu({
+                rawPromptText: 'Do what with your sack? [io or ?*]',
+                items: [{ charStr: 'o', str: 'Take out' }],
+            }, { letter: 's', containerName: 'sack' });
+
+            contentsManager.updateFromMenuItems([
+                { identifier: 801, charStr: 'a', str: 'a scroll of teleportation', count: 1 },
+            ]);
+        });
+
+        it('1個のアイテムを取り出した際、中身が0件になり消滅すること', async () => {
+            const targetItem = { identifier: 801, charStr: 'a', str: 'a scroll of teleportation', count: 1 };
+            let capturedRecipe = null;
+
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                capturedRecipe = recipe;
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 801, charStr: 'a', str: 'a scroll of teleportation', count: 1 },
+                    ],
+                };
+                const selections = handler.action(ctx);
+                expect(selections).toEqual([{ identifier: 801, count: 1 }]);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'out',
+                item: targetItem,
+                count: 1,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedRecipe.id).toBe('RECIPE_CONTAINER_OUT');
+            expect(capturedRecipe.until).toEqual({ type: 'turn_ready' });
+            // 中身から消滅して 0 件になっていること（最後の1個問題の解消保証）
+            expect(contentsManager.getItems().length).toBe(0);
+        });
+    });
+
+    // ========================================================================
+    // 6. セッション終了 (closeSession)
+    // ========================================================================
+
+    describe('closeSession', () => {
+        it('セッションを正常に終了し、IDLE イベントを発行すること', async () => {
+            await controller.handleInitialActionMenu({
+                rawPromptText: 'Do what with your sack?',
+                items: [{ charStr: 'i', str: 'Put in' }],
+                safeResolver: { respond: vi.fn() },
+            }, { letter: 's', containerName: 'sack' });
+
+            expect(controller.isActive()).toBe(true);
+
+            controller.closeSession();
+
+            expect(controller.isActive()).toBe(false);
+            expect(mockCore.emit).toHaveBeenCalledWith('containerTransaction', {
+                state: 'IDLE',
+                isContainerSessionActive: false,
+            });
+        });
+    });
+
+    describe('attach / detach & Signal Subscription', () => {
+        it('attach 時に core の signal イベントを購読し、SIGNAL_CONTAINER_ACTION_MENU 受信時に自律起動すること', async () => {
+            const listeners = {};
+            const testCore = {
+                on: vi.fn((evt, fn) => { listeners[evt] = fn; }),
+                off: vi.fn((evt, fn) => { if (listeners[evt] === fn) delete listeners[evt]; }),
+                emit: vi.fn(),
+                interactiveController: {
+                    isBusy: vi.fn(() => false),
+                    acquireSessionLock: vi.fn(() => true),
+                    releaseSessionLock: vi.fn(() => true)
+                }
+            };
+
+            const autoController = new ContainerController();
+            const spyHandle = vi.spyOn(autoController, 'handleInitialActionMenu').mockResolvedValue(true);
+
+            autoController.attach(testCore);
+            expect(testCore.on).toHaveBeenCalledWith('signal', expect.any(Function));
+
+            // シグナルを発火
+            const payload = {
+                signal: { signalId: 'SIGNAL_CONTAINER_ACTION_MENU' },
+                subCategory: 'CONTAINER_ACTION_MENU'
+            };
+            listeners['signal'](payload);
+
+            expect(spyHandle).toHaveBeenCalledWith(payload);
+
+            // detach 後は反応しないこと
+            autoController.detach();
+            expect(testCore.off).toHaveBeenCalledWith('signal', expect.any(Function));
+        });
+    });
+});

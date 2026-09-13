@@ -126,6 +126,27 @@ describe('ContainerContentsManager', () => {
             expect(manager.items).toHaveLength(1);
             expect(manager.items[0].letter).toBe('a');
         });
+
+        it('should strictly skip C-core header lines (identifier === 0) and assign sequential letters to real items', () => {
+            const menuItems = [
+                { identifier: 0, accelerator: '\0', ch: '\0', attr: 7, str: 'Comestibles' },
+                { identifier: 3201216, accelerator: '\0', ch: '\0', attr: 0, str: 'a food ration', glyph: 3741 },
+                { identifier: 0, accelerator: '\0', ch: '\0', attr: 7, str: 'Weapons' },
+                { identifier: 3204550, accelerator: '\0', ch: '\0', attr: 0, str: 'a dagger', glyph: 2000 }
+            ];
+
+            manager.openContainer({ name: 'a sack' });
+            manager.updateFromMenuItems(menuItems);
+
+            expect(manager.items).toHaveLength(2);
+            expect(manager.items[0].name).toBe('a food ration');
+            expect(manager.items[0].letter).toBe('a');
+            expect(manager.items[0].identifier).toBe(3201216);
+
+            expect(manager.items[1].name).toBe('a dagger');
+            expect(manager.items[1].letter).toBe('b');
+            expect(manager.items[1].identifier).toBe(3204550);
+        });
     });
 
     // ========================================================================

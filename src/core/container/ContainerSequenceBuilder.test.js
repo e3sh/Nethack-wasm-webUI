@@ -68,18 +68,18 @@ describe('ContainerSequenceBuilder', () => {
     });
 
     describe('buildPutInSequence', () => {
-        it('単一アイテムの安全な投入シーケンスを生成すること (All types 含む)', () => {
+        it('単一アイテムの投入時: 純粋な初期入力シーケンス (openPrefix + i + a) を生成し、アイテムレターは含めないこと', () => {
             const container = { letter: 'e', name: 'sack' };
             const items = [
                 { letter: 'f', name: 'food ration' },
             ];
 
             const { sequence, validItems } = builder.buildPutInSequence(container, items);
-            expect(sequence).toEqual(['a', 'e', 'i', 'a', 'f']);
+            expect(sequence).toEqual(['a', 'e', 'i', 'a']);
             expect(validItems.length).toBe(1);
         });
 
-        it('複数アイテムの一括投入シーケンスを生成すること (menuSelectionToken 含む)', () => {
+        it('複数アイテムの一括投入時: 純粋な初期入力シーケンス (openPrefix + i + a) を生成し、トークンは含めないこと', () => {
             const container = { letter: 'e', name: 'sack' };
             const items = [
                 { letter: 'f', identifier: 1001, name: 'food ration' },
@@ -87,13 +87,7 @@ describe('ContainerSequenceBuilder', () => {
             ];
 
             const { sequence, validItems } = builder.buildPutInSequence(container, items);
-            expect(sequence).toEqual([
-                'a', 'e', 'i', 'a',
-                [
-                    { identifier: 1001, count: -1 },
-                    { identifier: 1002, count: -1 }
-                ]
-            ]);
+            expect(sequence).toEqual(['a', 'e', 'i', 'a']);
             expect(validItems.length).toBe(2);
         });
 
@@ -116,9 +110,9 @@ describe('ContainerSequenceBuilder', () => {
             expect(seq).toEqual(['a', 'e', 'o', 'a', '\x1b']);
         });
 
-        it('中身閲覧シーケンスを生成すること (床コンテナ / 箱: #loot + . + o + a + ESC)', () => {
+        it('中身閲覧シーケンスを生成すること (床コンテナ / 箱: #loot + o + a + ESC)', () => {
             const seq = builder.buildLookSequence({ isFloorContainer: true, name: 'chest' });
-            expect(seq).toEqual(['#', 'loot', '\r', '.', 'o', 'a', '\x1b']);
+            expect(seq).toEqual(['#', 'loot', 'o', 'a', '\x1b']);
         });
     });
 
@@ -128,24 +122,25 @@ describe('ContainerSequenceBuilder', () => {
             expect(builder.getContainerOpenPrefix({ letter: 'f' })).toEqual(['a', 'f']);
         });
 
-        it('床コンテナまたは letter がない場合は [#, loot, \\r, .] を返すこと', () => {
-            expect(builder.getContainerOpenPrefix({ isFloorContainer: true })).toEqual(['#', 'loot', '\r', '.']);
-            expect(builder.getContainerOpenPrefix({ letter: '.' })).toEqual(['#', 'loot', '\r', '.']);
-            expect(builder.getContainerOpenPrefix(null)).toEqual(['#', 'loot', '\r', '.']);
+        it('床コンテナまたは letter がない場合は [#, loot] を返すこと', () => {
+            expect(builder.getContainerOpenPrefix({ isFloorContainer: true })).toEqual(['#', 'loot']);
+            expect(builder.getContainerOpenPrefix({ letter: '.' })).toEqual(['#', 'loot']);
+            expect(builder.getContainerOpenPrefix(null)).toEqual(['#', 'loot']);
         });
 
         it('同一マスに複数コンテナが存在する場合は targetLetter を付与すること', () => {
-            expect(builder.getContainerOpenPrefix({ isFloorContainer: true, targetLetter: 'b' })).toEqual(['#', 'loot', '\r', '.', 'b']);
+            expect(builder.getContainerOpenPrefix({ isFloorContainer: true, targetLetter: 'b' })).toEqual(['#', 'loot', 'b']);
         });
     });
 
-    describe('buildItemSelectionToken', () => {
-        it('単一アイテムの場合はレター文字列を返すこと', () => {
-            expect(builder.buildItemSelectionToken([{ letter: 'f' }])).toBe('f');
+    describe('buildItemSelectionObjects & buildItemSelectionToken', () => {
+        it('単一アイテムでも文字ではなく常にオブジェクト配列を返すこと（文字送信全廃）', () => {
+            const token = builder.buildItemSelectionObjects([{ letter: 'f', identifier: 501 }]);
+            expect(token).toEqual([{ identifier: 501, count: -1 }]);
         });
 
-        it('複数アイテムの場合は identifier/count 配列トークンを返すこと', () => {
-            const token = builder.buildItemSelectionToken([
+        it('複数アイテムの場合、各アイテムの count と identifier を含むオブジェクト配列を返すこと', () => {
+            const token = builder.buildItemSelectionObjects([
                 { letter: 'a', identifier: 101, count: 2 },
                 { letter: 'b', identifier: 102 }
             ]);
@@ -157,24 +152,18 @@ describe('ContainerSequenceBuilder', () => {
     });
 
     describe('buildTakeOutSequence', () => {
-        it('単一アイテムの取り出しシーケンスを生成すること', () => {
+        it('単一アイテムの取り出し時: 純粋な初期入力シーケンス (openPrefix + o + a) を生成すること', () => {
             const container = { letter: 'e' };
             const items = [{ letter: 'a' }];
             const { sequence } = builder.buildTakeOutSequence(container, items);
-            expect(sequence).toEqual(['a', 'e', 'o', 'a', 'a']);
+            expect(sequence).toEqual(['a', 'e', 'o', 'a']);
         });
 
-        it('複数アイテムの一括取り出しシーケンスを生成すること', () => {
+        it('複数アイテムの一括取り出し時: 純粋な初期入力シーケンス (openPrefix + o + a) を生成すること', () => {
             const container = { letter: 'e' };
             const items = [{ letter: 'a', identifier: 201 }, { letter: 'b', identifier: 202 }];
             const { sequence } = builder.buildTakeOutSequence(container, items);
-            expect(sequence).toEqual([
-                'a', 'e', 'o', 'a',
-                [
-                    { identifier: 201, count: -1 },
-                    { identifier: 202, count: -1 }
-                ]
-            ]);
+            expect(sequence).toEqual(['a', 'e', 'o', 'a']);
         });
     });
 });

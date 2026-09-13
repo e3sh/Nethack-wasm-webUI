@@ -6,8 +6,6 @@
  * Bag of Holding 防爆セーフティガードの統合ビュー。
  */
 
-import { ContainerAction } from '../../../../src/core/container/ContainerPromptDetector.js';
-
 export class ContainerModal {
   /**
    * @param {Object} options
@@ -16,8 +14,10 @@ export class ContainerModal {
    * @param {Function} [options.getLoadedTileImagePath] - タイル画像パス取得関数
    */
   constructor(options = {}) {
+    this.options = options;
     this.elContainerModal = options.elContainerModal || document.getElementById('container-modal');
     this.getCore = options.getCore || (() => null);
+    this.containerController = options.containerController || null;
     this.getLoadedTileImagePath = options.getLoadedTileImagePath || (() => '../../pict/nethack_default_32.png');
 
     this.currentLanguage = 'ja';
@@ -31,7 +31,9 @@ export class ContainerModal {
 
     // 選択中アイテム
     this.selectedLeftItem = null;
+    this.selectedLeftIndex = null;
     this.selectedRightItem = null;
+    this.selectedRightIndex = null;
 
     // 数量指定 (-1 = 全量)
     this.specifiedQuantity = -1;
@@ -43,6 +45,19 @@ export class ContainerModal {
     this.isProcessing = false;
 
     this._ensureDom();
+  }
+
+  /**
+   * ContainerController の取得
+   * @returns {Object|null}
+   */
+  getContainerController() {
+    if (this.containerController) return this.containerController;
+    if (typeof this.options?.getContainerController === 'function') {
+      return this.options.getContainerController();
+    }
+    const core = this.getCore();
+    return (core && core.containerController) || null;
   }
 
   setLanguage(lang) {
@@ -130,20 +145,6 @@ export class ContainerModal {
   }
 
   /**
-   * 数量の決定 (指定値 > アイテム内count > quantity > 文字列パース > -1)
-   * @private
-   */
-  _resolveItemCount(item, specifiedQty) {
-    if (typeof specifiedQty === 'number' && specifiedQty > 0) return specifiedQty;
-    if (typeof item.count === 'number' && item.count > 0) return item.count;
-    if (typeof item.quantity === 'number' && item.quantity > 0) return item.quantity;
-    const text = item.rawText || item.rawStr || item.str || item.name || '';
-    const m = text.match(/^(\d+)\s+/);
-    if (m) return parseInt(m[1], 10);
-    return -1;
-  }
-
-  /**
    * DOM構造の確保（index.html に存在しない場合は自動生成）
    * @private
    */
@@ -165,11 +166,21 @@ export class ContainerModal {
     this.containerName = data.containerName || 'Container';
     this.containerType = data.containerType || 'UNKNOWN';
     this.isBagOfHolding = !!data.isBagOfHolding;
-    this.containerItems = (data.contents && data.contents.items) ? data.contents.items : [];
+    if (Array.isArray(data.contents)) {
+      this.containerItems = data.contents;
+    } else if (data.contents && Array.isArray(data.contents.items)) {
+      this.containerItems = data.contents.items;
+    } else {
+      this.containerItems = [];
+    }
 
     this.selectedLeftItem = null;
+    this.selectedLeftIndex = null;
     this.selectedRightItem = null;
-    this.specifiedQuantity = -1;
+    this.selectedRightIndex = null;
+    if (!this.isVisible) {
+      this.specifiedQuantity = -1;
+    }
     this._pendingWarningAction = null;
     this.isVisible = true;
 
@@ -197,12 +208,13 @@ export class ContainerModal {
    */
   close() {
     this.isProcessing = false;
-    const core = this.getCore();
-    if (core && core.containerFSM) {
-      if (typeof core.containerFSM.closeSession === 'function') {
-        core.containerFSM.closeSession();
-      } else if (core.containerFSM.isActive()) {
-        core.containerFSM.selectAction(ContainerAction.QUIT);
+    const ctrl = this.getContainerController();
+    if (ctrl && typeof ctrl.closeSession === 'function') {
+      ctrl.closeSession();
+    } else {
+      const core = this.getCore();
+      if (core && typeof core.closeContainerSession === 'function') {
+        core.closeContainerSession();
       }
     }
     this.hide();
@@ -215,6 +227,7 @@ export class ContainerModal {
     if (!this.elContainerModal || !this.isVisible) return;
     const isEn = this.currentLanguage === 'en';
     const core = this.getCore();
+    const ctrl = this.getContainerController();
 
     // プレイヤー所持品リストの取得
     let playerItems = [];
@@ -227,30 +240,32 @@ export class ContainerModal {
       }
     }
 
-    // コンテナ中身リストの取得 (FSM / contentsManager SSOT を優先)
-    if (core && core.containerFSM && core.containerFSM.contentsManager) {
-      const fsmItems = core.containerFSM.contentsManager.getItems();
-      if (Array.isArray(fsmItems)) {
-        this.containerItems = fsmItems;
+    // コンテナ中身リストの取得 (contentsManager SSOT を優先。空の場合は show() 等で渡されたアイテムを維持)
+    if (ctrl && ctrl.contentsManager) {
+      const currentItems = ctrl.contentsManager.getItems();
+      if (Array.isArray(currentItems) && (currentItems.length > 0 || !this.containerItems || this.containerItems.length === 0)) {
+        this.containerItems = currentItems;
       }
     }
 
     // 各アイテムの投入可否バリデーション (SSOT)
     const validationMap = new Map();
-    if (core && core.containerFSM && typeof core.containerFSM.validatePutIn === 'function') {
+    if (ctrl && typeof ctrl.validatePutIn === 'function') {
       playerItems.forEach(item => {
-        validationMap.set(item, core.containerFSM.validatePutIn(item));
+        validationMap.set(item, ctrl.validatePutIn(item));
       });
     }
 
     // 投入先が BoH の場合、各アイテムのセーフティ評価を事前計算
     const safetyMap = new Map();
-    if (this.isBagOfHolding && core && core.containerFSM) {
+    if (this.isBagOfHolding && ctrl && typeof ctrl.checkSafety === 'function') {
       playerItems.forEach(item => {
-        const assessment = core.containerFSM.checkSafety([item]);
-        if (assessment.critical.length > 0) {
+        const assessment = ctrl.checkSafety([item]);
+        const isCritical = assessment.critical ? assessment.critical.length > 0 : (assessment.criticalItems && assessment.criticalItems.length > 0);
+        const isSuspicious = assessment.suspicious ? assessment.suspicious.length > 0 : (assessment.suspiciousItems && assessment.suspiciousItems.length > 0);
+        if (isCritical) {
           safetyMap.set(item, 'CRITICAL');
-        } else if (assessment.suspicious.length > 0) {
+        } else if (isSuspicious) {
           safetyMap.set(item, 'SUSPICIOUS');
         } else {
           safetyMap.set(item, 'SAFE');
@@ -283,12 +298,12 @@ export class ContainerModal {
           <button class="container-close-btn" id="btn-container-close" title="${isEn ? 'Close (ESC / q)' : '閉じる (ESC / q)'}">✕</button>
         </div>
 
-        <!-- Body: Two-Pane GUI -->
+        <!-- Main Body: Two-Pane Layout -->
         <div class="container-two-pane-body">
           <!-- Left Pane: Player Inventory -->
           <div class="container-pane" id="pane-player-inventory">
             <div class="container-pane-header">
-              <span>🎒 ${isEn ? 'Player Inventory' : '所持品一覧'}</span>
+              <span class="pane-title">🎒 ${isEn ? 'Inventory (Put In)' : '所持品 (入れる)'}</span>
               <span class="pane-badge-count" id="badge-left-count">${playerItems.length}</span>
             </div>
             <div class="container-item-list" id="list-player-inventory">
@@ -296,36 +311,36 @@ export class ContainerModal {
             </div>
           </div>
 
-          <!-- Middle Controls -->
+          <!-- Middle Action Controls -->
           <div class="container-middle-controls">
-            <button class="container-action-btn btn-put" id="btn-container-put" ${(!this.selectedLeftItem || this.isProcessing) ? 'disabled' : ''}>
-              <span>▶</span>
-              <span>${isEn ? 'Put In' : '入れる'}</span>
-            </button>
-            <button class="container-action-btn btn-take" id="btn-container-take" ${(!this.selectedRightItem || this.isProcessing) ? 'disabled' : ''}>
-              <span>◀</span>
-              <span>${isEn ? 'Take Out' : '出す'}</span>
-            </button>
-            <!-- 個別操作優先のため、一括移動ボタンは安全のために非表示 -->
-            <button class="container-action-btn btn-all" id="btn-container-put-all" style="display: none;">
-              <span>▶▶</span>
-              <span>${isEn ? 'Put All' : '全て入れる'}</span>
-            </button>
-            <button class="container-action-btn btn-all" id="btn-container-take-all" style="display: none;">
-              <span>◀◀</span>
-              <span>${isEn ? 'Take All' : '全て出す'}</span>
-            </button>
-
+            <!-- 数量指定コントロール -->
             <div class="container-quantity-box">
-              <label for="input-container-qty">${isEn ? 'Qty:' : '数量:'}</label>
-              <input type="number" id="input-container-qty" min="1" placeholder="All" value="${this.specifiedQuantity > 0 ? this.specifiedQuantity : ''}" />
+              <label for="input-container-qty">${isEn ? 'Qty:' : '数量'}</label>
+              <input type="number" id="input-container-qty" min="1" max="999" placeholder="all" value="${this.specifiedQuantity > 0 ? this.specifiedQuantity : ''}" />
             </div>
+
+            <button class="container-action-btn btn-put" id="btn-container-put" disabled title="${isEn ? 'Put In' : '入れる'}">
+              <span class="btn-icon">▶</span>
+              <span class="btn-label">${isEn ? 'Put' : '入れる'}</span>
+            </button>
+            <button class="container-action-btn btn-take" id="btn-container-take" disabled title="${isEn ? 'Take Out' : '出す'}">
+              <span class="btn-icon">◀</span>
+              <span class="btn-label">${isEn ? 'Take' : '出す'}</span>
+            </button>
+            <button class="container-action-btn btn-all" id="btn-container-put-all" title="${isEn ? 'Put All' : '全て入れる'}">
+              <span class="btn-icon">▶▶</span>
+              <span class="btn-label">${isEn ? 'All In' : '全入'}</span>
+            </button>
+            <button class="container-action-btn btn-all" id="btn-container-take-all" title="${isEn ? 'Take All' : '全て出す'}">
+              <span class="btn-icon">◀◀</span>
+              <span class="btn-label">${isEn ? 'All Out' : '全出'}</span>
+            </button>
           </div>
 
           <!-- Right Pane: Container Contents -->
           <div class="container-pane" id="pane-container-contents">
             <div class="container-pane-header">
-              <span>📦 ${isEn ? 'Container Contents' : 'コンテナの中身'}</span>
+              <span class="pane-title">📦 ${isEn ? 'Inside Container' : '鞄・箱の中身'}</span>
               <span class="pane-badge-count" id="badge-right-count">${this.containerItems.length}</span>
             </div>
             <div class="container-item-list" id="list-container-contents">
@@ -339,12 +354,9 @@ export class ContainerModal {
 
         <!-- Debug / Sequence Status Panel -->
         <div class="container-debug-panel" id="container-debug-panel" style="background:#11111b; border-top:1px solid rgba(255,255,255,0.1); padding:4px 12px; font-family:monospace; font-size:11px; color:#a6adc8; display:flex; justify-content:space-between; align-items:center;">
-          <div id="container-debug-text" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;">
+          <div id="container-debug-text" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;">
             ${this._renderDebugInfoHtml(core, isEn)}
           </div>
-          <button type="button" id="btn-container-sync-now" style="background:#313244; color:#cdd6f4; border:1px solid rgba(255,255,255,0.15); border-radius:4px; padding:2px 8px; cursor:pointer; font-size:10px;">
-            🔄 ${isEn ? 'Sync' : '再同期'}
-          </button>
         </div>
 
         <!-- Footer -->
@@ -374,15 +386,10 @@ export class ContainerModal {
     }
 
     return items.map((item, idx) => {
-      const isSelected = this.selectedLeftItem && (
-        (this.selectedLeftItem.identifier && item.identifier && this.selectedLeftItem.identifier === item.identifier) ||
-        (this.selectedLeftItem.onum && item.onum && this.selectedLeftItem.onum === item.onum) ||
-        (this.selectedLeftItem.letter && (this.selectedLeftItem.letter === item.letter || this.selectedLeftItem.invlet === item.letter)) ||
-        (this.selectedLeftItem.rawText && item.rawText && this.selectedLeftItem.rawText === item.rawText)
-      );
+      const isSelected = (this.selectedLeftIndex === idx);
       const safety = safetyMap.get(item) || 'SAFE';
       const validation = validationMap ? validationMap.get(item) : null;
-      const isInvalid = validation && !validation.valid;
+      const isInvalid = validation ? (validation.valid === false || validation.allowed === false) : false;
       const reason = validation ? validation.reason : null;
 
       const isSelfContainer = reason === 'SELF_CONTAINER';
@@ -451,12 +458,7 @@ export class ContainerModal {
     }
 
     return items.map((item, idx) => {
-      const isSelected = this.selectedRightItem && (
-        (this.selectedRightItem.identifier && this.selectedRightItem.identifier === item.identifier) ||
-        (this.selectedRightItem.onum && this.selectedRightItem.onum === item.onum) ||
-        (this.selectedRightItem.str && this.selectedRightItem.str === item.str) ||
-        (this.selectedRightItem.name && this.selectedRightItem.name === item.name)
-      );
+      const isSelected = (this.selectedRightIndex === idx);
 
       const rowClasses = ['container-item-row'];
       if (isSelected) rowClasses.push('selected');
@@ -483,23 +485,41 @@ export class ContainerModal {
   }
 
   /**
+   * アイテム転送の共通実行 (ctrl.transferItem 優先, core.executeContainerTransfer フォールバック)
+   * @private
+   */
+  async _transferItem(options) {
+    const ctrl = this.getContainerController();
+    if (ctrl && typeof ctrl.transferItem === 'function') {
+      return await ctrl.transferItem(options);
+    }
+    const core = this.getCore();
+    if (core && typeof core.executeContainerTransfer === 'function') {
+      return await core.executeContainerTransfer(options);
+    }
+    return { success: false, error: new Error('No container transfer provider available.') };
+  }
+
+  /**
    * 直近トランザクションのデバッグ表示HTML生成
    * @private
    */
   _renderDebugInfoHtml(core, isEn) {
-    const debug = (core && core.containerFSM && core.containerFSM.lastTransactionDebug) ? core.containerFSM.lastTransactionDebug : null;
+    const ctrl = this.getContainerController();
+    const debug = (ctrl && ctrl.lastTransactionDebug) ? ctrl.lastTransactionDebug : null;
     if (!debug) {
       return `<span style="color:#6c7086;">${isEn ? 'Status: Standby at poskey' : '状態: 通常ターン待機中 (poskey)'}</span>`;
     }
-    const statusColor = debug.status === 'SUCCESS' ? '#a6e3a1' : (debug.status === 'ERROR' ? '#f38ba8' : '#f9e2af');
-    const seqStr = Array.isArray(debug.sequence) ? JSON.stringify(debug.sequence) : '';
-    const bufferText = Array.isArray(debug.bufferMessages) && debug.bufferMessages.length > 0
-      ? ` | [C-Core] ${debug.bufferMessages.slice(-1)[0]}`
-      : (debug.message ? ` | ${debug.message}` : '');
+    const statusColor = (debug.success || debug.status === 'SUCCESS') ? '#a6e3a1' : '#f38ba8';
+    const statusText = debug.success !== undefined ? (debug.success ? 'SUCCESS' : 'ERROR') : debug.status;
+    const dirText = debug.direction ? `[${debug.direction.toUpperCase()}] ` : '';
+    const itemName = debug.item ? (debug.item.name || debug.item.str || debug.item.rawText || '') : '';
+    const qtyText = debug.quantity !== undefined ? ` (qty: ${debug.quantity})` : '';
+    const errText = debug.error ? ` | Error: ${debug.error.message || debug.error}` : '';
     return `
-      <span style="color:${statusColor}; font-weight:bold;">[${debug.status}]</span>
-      <span style="color:#89b4fa; margin-left:6px;">Seq: <code>${seqStr}</code></span>
-      <span style="color:#cdd6f4; margin-left:6px;">${bufferText}</span>
+      <span style="color:${statusColor}; font-weight:bold;">[${statusText}]</span>
+      <span style="color:#89b4fa; margin-left:6px;">${dirText}${itemName}${qtyText}</span>
+      <span style="color:#cdd6f4; margin-left:6px;">${errText}</span>
     `;
   }
 
@@ -510,26 +530,6 @@ export class ContainerModal {
   _bindEvents(playerItems, safetyMap, validationMap) {
     const isEn = this.currentLanguage === 'en';
     const core = this.getCore();
-
-    // 手動再同期ボタン
-    const btnSync = document.getElementById('btn-container-sync-now');
-    if (btnSync) {
-      btnSync.onclick = async () => {
-        if (this.isProcessing) return;
-        this.isProcessing = true;
-        btnSync.textContent = '⏳...';
-        try {
-          if (core && core.containerFSM && typeof core.containerFSM.syncContentsSilent === 'function') {
-            await core.containerFSM.syncContentsSilent({ force: true });
-          }
-        } catch (e) {
-          console.error('[ContainerModal] Sync error:', e);
-        } finally {
-          this.isProcessing = false;
-          this.render();
-        }
-      };
-    }
 
     // 閉じるボタン
     const btnClose = document.getElementById('btn-container-close');
@@ -555,13 +555,15 @@ export class ContainerModal {
       if (!item) return;
 
       const validation = validationMap ? validationMap.get(item) : null;
-      const isInvalid = validation && !validation.valid;
+      const isInvalid = validation ? (validation.valid === false || validation.allowed === false) : false;
 
       // クリックで選択 (処理中または無効アイテムは選択不可)
       row.onclick = () => {
         if (this.isProcessing || isInvalid) return;
         this.selectedLeftItem = item;
+        this.selectedLeftIndex = idx;
         this.selectedRightItem = null;
+        this.selectedRightIndex = null;
         this._updateSelectionStyles();
       };
 
@@ -569,6 +571,7 @@ export class ContainerModal {
       row.ondblclick = () => {
         if (this.isProcessing || isInvalid) return;
         this.selectedLeftItem = item;
+        this.selectedLeftIndex = idx;
         this.executePutIn(item, this.specifiedQuantity);
       };
 
@@ -609,7 +612,9 @@ export class ContainerModal {
       row.onclick = () => {
         if (this.isProcessing) return;
         this.selectedRightItem = item;
+        this.selectedRightIndex = idx;
         this.selectedLeftItem = null;
+        this.selectedLeftIndex = null;
         this._updateSelectionStyles();
       };
 
@@ -617,6 +622,7 @@ export class ContainerModal {
       row.ondblclick = () => {
         if (this.isProcessing) return;
         this.selectedRightItem = item;
+        this.selectedRightIndex = idx;
         this.executeTakeOut(item, this.specifiedQuantity);
       };
 
@@ -746,29 +752,15 @@ export class ContainerModal {
   _updateSelectionStyles() {
     const leftRows = this.elContainerModal.querySelectorAll('#list-player-inventory .container-item-row');
     leftRows.forEach(row => {
-      const letter = row.dataset.letter;
-      const id = row.dataset.id;
-      const isSelected = this.selectedLeftItem && (
-        (this.selectedLeftItem.identifier && String(this.selectedLeftItem.identifier) === id) ||
-        (this.selectedLeftItem.onum && String(this.selectedLeftItem.onum) === id) ||
-        (this.selectedLeftItem.letter && (this.selectedLeftItem.letter === letter || this.selectedLeftItem.invlet === letter)) ||
-        (this.selectedLeftItem.rawText && row.querySelector('.item-name-box') && row.querySelector('.item-name-box').title.includes(this.selectedLeftItem.rawText))
-      );
+      const idx = parseInt(row.dataset.index, 10);
+      const isSelected = (this.selectedLeftIndex !== null && this.selectedLeftIndex === idx);
       row.classList.toggle('selected', !!isSelected);
     });
 
     const rightRows = this.elContainerModal.querySelectorAll('#list-container-contents .container-item-row');
     rightRows.forEach(row => {
       const idx = parseInt(row.dataset.index, 10);
-      const item = this.containerItems[idx];
-      const id = row.dataset.id;
-      const isSelected = this.selectedRightItem && (
-        (item && this.selectedRightItem.identifier && item.identifier && this.selectedRightItem.identifier === item.identifier) ||
-        (item && this.selectedRightItem.onum && item.onum && this.selectedRightItem.onum === item.onum) ||
-        (id && this.selectedRightItem.identifier && String(this.selectedRightItem.identifier) === id) ||
-        (item && this.selectedRightItem.str === item.str) ||
-        (item && this.selectedRightItem.name === item.name)
-      );
+      const isSelected = (this.selectedRightIndex !== null && this.selectedRightIndex === idx);
       row.classList.toggle('selected', !!isSelected);
     });
 
@@ -780,21 +772,37 @@ export class ContainerModal {
   }
 
   /**
+   * アイテム移動時の数量を解決
+   * 数量指定がある場合はその数値、未指定(空欄="all")時は -1 (全量)
+   * @private
+   */
+  _resolveItemCount(item, count = -1) {
+    if (typeof count === 'number' && count > 0) {
+      return count;
+    }
+    if (typeof this.specifiedQuantity === 'number' && this.specifiedQuantity > 0) {
+      return this.specifiedQuantity;
+    }
+    return -1;
+  }
+
+  /**
    * アイテム投入の実行
    * @param {Object} item
    * @param {number} count
    */
   executePutIn(item, count = -1) {
-    const finalCount = count > 0 ? count : this.specifiedQuantity;
+    const finalCount = this._resolveItemCount(item, count);
     if (this.isProcessing) return;
-    const core = this.getCore();
-    if (!core || !core.containerFSM) return;
+    const ctrl = this.getContainerController();
+    if (!ctrl) return;
     const isEn = this.currentLanguage === 'en';
 
-    // FSM の validatePutIn が存在する場合は SSOT バリデーションチェックを実行
-    if (typeof core.containerFSM.validatePutIn === 'function') {
-      const validation = core.containerFSM.validatePutIn(item);
-      if (!validation.valid) {
+    // validatePutIn による SSOT バリデーションチェックを実行
+    if (typeof ctrl.validatePutIn === 'function') {
+      const validation = ctrl.validatePutIn(item);
+      const isBlocked = validation.valid === false || validation.allowed === false;
+      if (isBlocked) {
         if (validation.reason === 'SELF_CONTAINER') {
           alert(isEn
             ? `[BLOCKED] You cannot put the container inside itself!`
@@ -813,7 +821,7 @@ export class ContainerModal {
             : `【投入拒絶】このアイテムを入れると Bag of Holding が魔法の爆発を起こします！\n\n対象: ${item.rawText || item.name}`);
           return;
         }
-        if (validation.reason === 'BOH_SUSPICIOUS') {
+        if (validation.reason === 'BOH_SUSPICIOUS' || validation.warning === 'BOH_SUSPICIOUS') {
           this._showWarningModal({
             title: isEn ? '⚠️ Caution: Potential Danger' : '⚠️ 警告: 爆発の危険性',
             message: isEn
@@ -821,7 +829,7 @@ export class ContainerModal {
               : `この未識別の杖または袋は「打ち消しの杖」や「軽量化の鞄」の可能性があり、鞄が爆発する恐れがあります。\n\n本当に「${item.rawText || item.name}」を鞄に入れますか？`,
             onProceed: () => {
               this._hideWarningModal();
-              this._doTransferIn(item, count, true);
+              this._doTransferIn(item, finalCount, true);
             },
             onCancel: () => {
               this._hideWarningModal();
@@ -829,31 +837,6 @@ export class ContainerModal {
           });
           return;
         }
-        return;
-      }
-    } else if (this.isBagOfHolding) {
-      // フォールバック（validatePutIn が未提供の場合のセーフティチェック）
-      const safety = core.containerFSM.checkSafety([item]);
-      if (safety.critical.length > 0) {
-        alert(isEn
-          ? `[BLOCKED] Putting this item will EXPLODE the Bag of Holding!\n\nItem: ${item.rawText || item.name}`
-          : `【投入拒絶】このアイテムを入れると Bag of Holding が魔法の爆発を起こします！\n\n対象: ${item.rawText || item.name}`);
-        return;
-      }
-      if (safety.suspicious.length > 0) {
-        this._showWarningModal({
-          title: isEn ? '⚠️ Caution: Potential Danger' : '⚠️ 警告: 爆発の危険性',
-          message: isEn
-            ? `This unidentified wand or bag could be a Wand of Cancellation or Bag of Holding, which will EXPLODE the bag.\n\nAre you sure you want to put "${item.rawText || item.name}" inside?`
-            : `この未識別の杖または袋は「打ち消しの杖」や「軽量化の鞄」の可能性があり、鞄が爆発する恐れがあります。\n\n本当に「${item.rawText || item.name}」を鞄に入れますか？`,
-          onProceed: () => {
-            this._hideWarningModal();
-            this._doTransferIn(item, finalCount, true);
-          },
-          onCancel: () => {
-            this._hideWarningModal();
-          }
-        });
         return;
       }
     }
@@ -866,42 +849,31 @@ export class ContainerModal {
    * @private
    */
   async _doTransferIn(item, count, allowSuspicious = false) {
-    const core = this.getCore();
-    if (!core || !core.containerFSM) return;
+    const ctrl = this.getContainerController();
+    if (!ctrl && !this.getCore()) return;
 
-    // 楽観的配列変更（push）は完全撤廃！
+    // 選択状態の確実なクリア
     this.selectedLeftItem = null;
+    this.selectedLeftIndex = null;
     this.isProcessing = true;
     this.render();
 
     const targetCount = this._resolveItemCount(item, count);
-    const transferOpts = {
-      direction: 'in',
-      items: [{
-        letter: item.letter || item.invlet,
-        identifier: item.identifier,
-        count: targetCount,
-        rawText: item.rawText,
-        name: item.name,
-      }],
-    };
-    if (allowSuspicious) {
-      transferOpts.allowSuspicious = true;
-    }
 
     try {
-      const res = core.containerFSM.transferItems(transferOpts);
-      if (res && typeof core.containerFSM.waitForCompletion === 'function') {
-        await core.containerFSM.waitForCompletion(3000);
-      } else if (res && typeof res.then === 'function') {
-        await res;
-      }
+      await this._transferItem({
+        direction: 'in',
+        item: item,
+        count: targetCount,
+        allowSuspicious
+      });
     } catch (err) {
       console.error('Error during transferIn:', err);
     } finally {
       this.isProcessing = false;
-      if (core.containerFSM.contentsManager) {
-        this.containerItems = [...core.containerFSM.contentsManager.getItems()];
+      const c = this.getContainerController();
+      if (c && c.contentsManager) {
+        this.containerItems = [...c.contentsManager.getItems()];
       }
       this.render();
     }
@@ -913,41 +885,30 @@ export class ContainerModal {
    * @param {number} count
    */
   async executeTakeOut(item, count = -1) {
-    const finalCount = count > 0 ? count : this.specifiedQuantity;
+    const finalCount = this._resolveItemCount(item, count);
     if (this.isProcessing) return;
-    const core = this.getCore();
-    if (!core || !core.containerFSM) return;
+    const ctrl = this.getContainerController();
+    if (!ctrl && !this.getCore()) return;
 
-    // 楽観的配列変更（splice）は完全撤廃！
+    // 選択状態の確実なクリア
     this.selectedRightItem = null;
+    this.selectedRightIndex = null;
     this.isProcessing = true;
     this.render();
 
-    const targetCount = this._resolveItemCount(item, finalCount);
-    const transferOpts = {
-      direction: 'out',
-      items: [{
-        identifier: item.identifier,
-        accelerator: item.accelerator || item.letter || item.charStr || (item.ch ? String.fromCharCode(item.ch) : (item.invlet || 'a')),
-        letter: item.accelerator || item.letter || item.charStr || (item.ch ? String.fromCharCode(item.ch) : (item.invlet || 'a')),
-        count: targetCount,
-        rawText: item.rawStr || item.str || item.rawText || item.name,
-      }],
-    };
-
     try {
-      const res = core.containerFSM.transferItems(transferOpts);
-      if (res && typeof core.containerFSM.waitForCompletion === 'function') {
-        await core.containerFSM.waitForCompletion(3000);
-      } else if (res && typeof res.then === 'function') {
-        await res;
-      }
+      await this._transferItem({
+        direction: 'out',
+        item: item,
+        count: finalCount
+      });
     } catch (err) {
       console.error('Error during transferOut:', err);
     } finally {
       this.isProcessing = false;
-      if (core.containerFSM.contentsManager) {
-        this.containerItems = [...core.containerFSM.contentsManager.getItems()];
+      const c = this.getContainerController();
+      if (c && c.contentsManager) {
+        this.containerItems = [...c.contentsManager.getItems()];
       }
       this.render();
     }
@@ -959,7 +920,7 @@ export class ContainerModal {
   async executePutAll(items, safetyMap) {
     if (this.isProcessing) return;
     const core = this.getCore();
-    if (!core || !core.containerFSM) return;
+    if (!core) return;
     const isEn = this.currentLanguage === 'en';
 
     // 投入先が BoH の場合、CRITICAL なアイテムは除外
@@ -1003,22 +964,25 @@ export class ContainerModal {
 
     const doPut = async (itemsToPut, allowSuspicious = false) => {
       this.isProcessing = true;
+      this.selectedLeftItem = null;
+      this.selectedLeftIndex = null;
       this.render();
-      const opts = { direction: 'in', items: itemsToPut };
-      if (allowSuspicious) opts.allowSuspicious = true;
       try {
-        const p = core.containerFSM.transferItems(opts);
-        if (p && typeof core.containerFSM.waitForCompletion === 'function') {
-          await core.containerFSM.waitForCompletion();
-        } else if (p && typeof p.then === 'function') {
-          await p;
+        for (const item of itemsToPut) {
+          await this._transferItem({
+            direction: 'in',
+            item: item,
+            count: -1,
+            allowSuspicious
+          });
         }
       } catch (err) {
         console.error('Error during executePutAll:', err);
       } finally {
         this.isProcessing = false;
-        if (core.containerFSM.contentsManager) {
-          this.containerItems = [...core.containerFSM.contentsManager.getItems()];
+        const ctrl = this.getContainerController();
+        if (ctrl && ctrl.contentsManager) {
+          this.containerItems = [...ctrl.contentsManager.getItems()];
         }
         this.render();
       }
@@ -1058,34 +1022,29 @@ export class ContainerModal {
    */
   async executeTakeAll(items) {
     if (this.isProcessing) return;
-    const core = this.getCore();
-    if (!core || !core.containerFSM || items.length === 0) return;
+    const ctrl = this.getContainerController();
+    if ((!ctrl && !this.getCore()) || !items || items.length === 0) return;
 
     this.isProcessing = true;
+    this.selectedRightItem = null;
+    this.selectedRightIndex = null;
     this.render();
 
     try {
-      const p = core.containerFSM.transferItems({
-        direction: 'out',
-        items: items.map(it => ({
-          identifier: it.identifier,
-          letter: it.charStr || (it.ch ? String.fromCharCode(it.ch) : null),
-          count: -1,
-          rawText: it.rawStr || it.str,
-        })),
-      });
-
-      if (p && typeof core.containerFSM.waitForCompletion === 'function') {
-        await core.containerFSM.waitForCompletion();
-      } else if (p && typeof p.then === 'function') {
-        await p;
+      for (const item of items) {
+        await this._transferItem({
+          direction: 'out',
+          item: item,
+          count: -1
+        });
       }
     } catch (err) {
       console.error('Error during executeTakeAll:', err);
     } finally {
       this.isProcessing = false;
-      if (core.containerFSM.contentsManager) {
-        this.containerItems = [...core.containerFSM.contentsManager.getItems()];
+      const c = this.getContainerController();
+      if (c && c.contentsManager) {
+        this.containerItems = [...c.contentsManager.getItems()];
       }
       this.render();
     }

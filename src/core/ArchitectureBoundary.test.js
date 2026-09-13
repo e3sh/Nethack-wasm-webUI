@@ -121,4 +121,64 @@ describe('Architecture Boundary & Layer Isolation Guard Tests (再発防止テ�
         expect(gkl.spellStateManager.isSynced).toBe(false);
         expect(gkl.skillStateManager.isSynced).toBe(false);
     });
+
+    it('WebUICore がコンテナやペーパードール等の個別機能ドメインを一切保持・参照していないこと (完全汎用化ガード)', () => {
+        const coreFilePath = path.resolve(__dirname, 'WebUICore.js');
+        const content = fs.readFileSync(coreFilePath, 'utf-8');
+
+        // 禁止パターン: コンテナ専用のプロパティ、コントローラ、メソッド
+        const forbiddenPatterns = [
+            /import\s+.*ContainerController.*from/,
+            /containerController/i,
+            /isContainerSessionActive/i,
+            /executeContainerTransfer/i,
+            /closeContainerSession/i,
+            /isContainerActive/i,
+            /isContainerActionMenu/i,
+            /isPaperdollActive/i,
+            /paperdollController/i,
+            /isShopActive/i,
+            /shopController/i
+        ];
+
+        const violations = [];
+        for (const pattern of forbiddenPatterns) {
+            if (pattern.test(content)) {
+                violations.push(pattern.toString());
+            }
+        }
+
+        expect(violations, `WebUICore.js に個別機能ドメイン（コンテナ・ペーパードール等）の汚染が検出されました:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
+
+        // インスタンスプロパティとしても個別機能コントローラが存在しないこと
+        const mockDriver = { on: vi.fn(), off: vi.fn(), emit: vi.fn() };
+        const core = new WebUICore({ driver: mockDriver });
+        expect(core.containerController).toBeUndefined();
+        expect(core.paperdollController).toBeUndefined();
+        expect(core.isContainerSessionActive).toBeUndefined();
+        expect(core.executeContainerTransfer).toBeUndefined();
+        expect(core.closeContainerSession).toBeUndefined();
+    });
+
+    it('InteractiveRequestController (IRC) が個別機能ドメインに非依存の汎用トランザクション基盤であること', () => {
+        const ircFilePath = path.resolve(__dirname, 'request/InteractiveRequestController.js');
+        const content = fs.readFileSync(ircFilePath, 'utf-8');
+
+        // 禁止パターン: IRC 内への特定機能のハードコード
+        const forbiddenPatterns = [
+            /import\s+.*Container.*from/,
+            /import\s+.*Paperdoll.*from/,
+            /\bcontainer\b/i,
+            /\bpaperdoll\b/i
+        ];
+
+        const violations = [];
+        for (const pattern of forbiddenPatterns) {
+            if (pattern.test(content)) {
+                violations.push(pattern.toString());
+            }
+        }
+
+        expect(violations, `InteractiveRequestController.js に個別機能ドメインの汚染が検出されました:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
+    });
 });
