@@ -15,32 +15,36 @@ export class SoundEngine {
      */
     constructor(options = {}) {
         let activeMode = null;
+        let activeVolume = options.volume !== undefined ? options.volume : null;
 
-        // 1. localStorage ユーザー設定を最優先で取得
+        // 1. localStorage (nh.config) ユーザー設定を取得
         if (typeof localStorage !== 'undefined') {
             try {
-                const directMode = localStorage.getItem("nethack_sound_mode");
-                if (directMode) {
-                    activeMode = directMode;
-                } else {
-                    const savedConfigStr = localStorage.getItem("nh.config");
-                    if (savedConfigStr) {
-                        const savedConfig = JSON.parse(savedConfigStr);
-                        if (savedConfig && savedConfig.sound_mode) {
+                const savedConfigStr = localStorage.getItem("nh.config");
+                if (savedConfigStr) {
+                    const savedConfig = JSON.parse(savedConfigStr);
+                    if (savedConfig) {
+                        if (savedConfig.sound_mode) {
                             activeMode = savedConfig.sound_mode;
+                        }
+                        if (activeVolume === null && savedConfig.sound_volume !== undefined) {
+                            activeVolume = parseInt(savedConfig.sound_volume, 10);
                         }
                     }
                 }
             } catch (e) {}
         }
 
-        // 2. localStorage に無ければ options.soundMode、それも無ければ 'auto'
+        // 2. 設定が無ければ options、それも無ければデフォルト ('auto' / 80)
         if (!activeMode) {
             activeMode = options.soundMode || 'auto';
         }
+        if (activeVolume === null || isNaN(activeVolume)) {
+            activeVolume = 80;
+        }
 
         this.soundMode = activeMode;
-        this.volume = options.volume !== undefined ? options.volume : 80;
+        this.volume = activeVolume;
         this.soundDir = options.soundDir || 'assets/sounds/';
         this.cooldownMap = new Map();
         this.failedAssetCache = new Set(); // 存在しない音声アセットのブラックリスト

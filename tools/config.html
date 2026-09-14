@@ -413,8 +413,8 @@
         function saveCurrentConfig() {
             const soundModeEl = document.getElementById("sound_mode");
             const soundVolEl = document.getElementById("sound_volume");
-            const currentSoundMode = soundModeEl ? soundModeEl.value : (localStorage.getItem("nethack_sound_mode") || "mute");
-            const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : parseInt(localStorage.getItem("nethack_sound_volume") || "80", 10);
+            const currentSoundMode = soundModeEl ? soundModeEl.value : "mute";
+            const currentSoundVol = soundVolEl ? parseInt(soundVolEl.value, 10) : 80;
             const itemNamingModeEl = document.getElementById("item_naming_mode");
             const currentItemNamingMode = itemNamingModeEl ? itemNamingModeEl.value : "auto_memo";
 
@@ -499,8 +499,6 @@
             const confirmMsg = isJp ? I18N_TEXTS.ja.resetConfirm : I18N_TEXTS.en.resetConfirm;
             if (confirm(confirmMsg)) {
                 localStorage.removeItem("nh.config");
-                localStorage.removeItem("nethack_sound_mode");
-                localStorage.removeItem("nethack_sound_volume");
                 location.reload();
             }
         }

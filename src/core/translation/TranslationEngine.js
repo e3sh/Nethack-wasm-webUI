@@ -77,7 +77,6 @@ export class TranslationEngine {
                     try { nhConfig = JSON.parse(savedStr) || {}; } catch (e) {}
                 }
                 nhConfig.lang = this.enabled;
-                nhConfig.translate_enabled = this.enabled;
                 localStorage.setItem("nh.config", JSON.stringify(nhConfig));
             } catch (e) {}
         }

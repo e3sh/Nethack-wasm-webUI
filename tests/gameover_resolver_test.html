@@ -596,8 +596,6 @@
                         try { FS.unlink(`/save/${f}`); } catch(e) {}
                     }
                 }
-                localStorage.removeItem("nethack_has_saved_game");
-                localStorage.removeItem("nethack_last_player_name");
                 fsManager.syncToPersistent();
                 await runInspection();
             } catch (e) { console.error("Clear save error:", e); }

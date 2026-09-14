@@ -191,7 +191,12 @@ class SoundManagerClass {
 
     log(type, msg) {
         const entry = `[${new Date().toLocaleTimeString()}] [${type}] ${msg}`;
-        const isDebug = (typeof d !== 'undefined' && d.DEBUG_MSG) || (typeof g !== 'undefined' && g.define && g.define.DEBUG) || localStorage.getItem("nethack_debug_log") === "true";
+        let nhDebug = false;
+        try {
+            const saved = localStorage.getItem("nh.config");
+            if (saved) nhDebug = !!JSON.parse(saved).debug;
+        } catch(e) {}
+        const isDebug = (typeof d !== 'undefined' && d.DEBUG_MSG) || (typeof g !== 'undefined' && g.define && g.define.DEBUG) || nhDebug;
         if (isDebug) {
             console.log(entry);
         }
@@ -201,9 +206,8 @@ class SoundManagerClass {
     }
 
     loadSettings() {
-        if (!localStorage.getItem("nethack_sound_mode") && !localStorage.getItem("nh.config")) {
-            this.soundMode = "mute";
-        }
+        this.soundMode = "mute";
+        this.volume = 80;
         try {
             const nhConfigStr = localStorage.getItem("nh.config");
             if (nhConfigStr) {
@@ -212,12 +216,6 @@ class SoundManagerClass {
                 if (nhConfig.sound_volume !== undefined) this.volume = parseInt(nhConfig.sound_volume, 10);
             }
         } catch (e) {}
-
-        const directMode = localStorage.getItem("nethack_sound_mode");
-        if (directMode) this.soundMode = directMode;
-
-        const directVol = localStorage.getItem("nethack_sound_volume");
-        if (directVol) this.volume = parseInt(directVol, 10);
 
         const waveGainStr = localStorage.getItem("nethack_wave_gain");
         if (waveGainStr) this.waveGain = parseFloat(waveGainStr);
@@ -296,7 +294,6 @@ class SoundManagerClass {
 
     setMode(mode) {
         this.soundMode = mode;
-        localStorage.setItem("nethack_sound_mode", mode);
         try {
             const nhConfig = JSON.parse(localStorage.getItem("nh.config") || "{}");
             nhConfig.sound_mode = mode;
@@ -307,7 +304,6 @@ class SoundManagerClass {
 
     setVolume(vol) {
         this.volume = Math.max(0, Math.min(100, vol));
-        localStorage.setItem("nethack_sound_volume", this.volume);
         try {
             const nhConfig = JSON.parse(localStorage.getItem("nh.config") || "{}");
             nhConfig.sound_volume = this.volume;

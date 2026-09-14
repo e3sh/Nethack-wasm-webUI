@@ -82,12 +82,8 @@ export class WebUICore {
                 if (savedConfigStr) {
                     const savedConfig = JSON.parse(savedConfigStr);
                     if (savedConfig) {
-                        if (isTranslateActive === undefined) {
-                            if (savedConfig.lang !== undefined) {
-                                isTranslateActive = !!savedConfig.lang;
-                            } else if (savedConfig.translate_enabled !== undefined) {
-                                isTranslateActive = !!savedConfig.translate_enabled;
-                            }
+                        if (isTranslateActive === undefined && savedConfig.lang !== undefined) {
+                            isTranslateActive = !!savedConfig.lang;
                         }
                         if (isInspectorActive === undefined && savedConfig.debug !== undefined) {
                             isInspectorActive = !!savedConfig.debug;

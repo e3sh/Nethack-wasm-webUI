@@ -160,23 +160,28 @@ pickup_types:$
 #### 🟢 現役で利用されるキー (Active)
 | ストレージキー | 型 / 形式 | 用途・格納内容 |
 | :--- | :--- | :--- |
-| **`nh.config`** | JSON String | コア設定オブジェクト (`{ gryph, lang, debug, item_naming_mode, extra_options, sound_mode, sound_volume }`) |
+| **`nh.config`** | JSON String | **全共通設定オブジェクト (SSOT)**: `{ gryph, lang, larn, debug, item_naming_mode, sound_mode, sound_volume, extra_options }` |
 | **`nh.gpadAssign`** | JSON String | ゲームパッドのボタン・軸割り当て設定 (`KEYASSIGN`) |
 | **`nh.tpadAssign`** | JSON String | タッチパッド・仮想十字キーの入力割り当て |
-| **`nethack_sound_mode`** | String | サウンド再生モード (`'all'` \| `'se'` \| `'mute'`) |
-| **`nethack_sound_volume`** | Number (0.0〜1.0) | 全体マスター音量 |
-| **`nethack_wave_gain`** | Number | 効果音 (WAV/SE) のゲイン倍率 |
-| **`nethack_beep_gain`** | Number | ビープ音 (Synth Beep) のゲイン倍率 |
-| **`nethack_webui_topten`** | JSON String | ローカルハイスコア・ランキング履歴 |
+| **`nethack_container_view_mode`** | String (`'list'` \| `'grid'`) | GKLコンテナモーダルの表示モード切替 |
+| **`nethack_username`** | String | テスト用クライアントでのプレイヤー名記憶 |
+| **`nethack_webui_topten`** | JSON String | ローカルハイスコア・ランキング履歴（Legacy クライアント用） |
+| **`nethack_wave_gain`** | Number | 効果音 (WAV/SE) のゲイン倍率（Legacy SoundManager 用） |
+| **`nethack_beep_gain`** | Number | ビープ音 (Synth Beep) のゲイン倍率（Legacy SoundManager 用） |
 
-#### ⚠️ 移行済み・非推奨となったキー (Deprecated / Migrated)
-| ストレージキー | 旧用途 | 現在の移行先・推奨手法 |
+#### ⚠️ 廃止・撤去済み、または非推奨となったキー (Deprecated / Removed)
+| ストレージキー | 旧用途 | 現在の移行先・ステータス |
 | :--- | :--- | :--- |
+| **`nethack_sound_mode`** | サウンド再生モード | **完全撤去**: `nh.config.sound_mode` へ一本化されました。 |
+| **`nethack_sound_volume`**| マスター音量 | **完全撤去**: `nh.config.sound_volume` へ一本化されました。 |
+| **`translate_enabled`** | 日本語翻訳有効フラグ | **完全撤去**: `nh.config.lang` (boolean) へ一本化されました。 |
+| **`nethack_debug_log`** | サウンドデバッグ出力 | **完全撤去**: `nh.config.debug` へ一本化されました。 |
+| **`nethack_has_saved_game`** / **`nethack_last_player_name`** | 過去のセーブ情報 | **完全撤去**: 削除コードも含め撤去されました。 |
 | **`nh.temp`** | 未翻訳ログ収集バッファ | **移行**: [`inspector_console.html`](../src/core/inspector/inspector_console.html) の「📝 翻訳管理」タブにて `BroadcastChannel` 経由でリアルタイム収集・CSVエクスポート |
 | **`nh.ext_data`** | カスタム仮訳辞書データ | **移行**: メインスレッド負荷軽減のため、動的注入 API または `dictionary.csv` 編集後に `python tools/dict_converter.py import` で `param/nhMessage.js` を生成・反映するフローへ移行 |
 | **`nh.play_log`** | 翻訳対比ログ | **移行**: `DebugInspector` のメモリバッファおよびリアルタイムストリーミングへ移行 |
 
-> **設計上の背景**: `localStorage` への頻繁な同期書き込みはゲームループのフレームレート低下を招き、5MB の容量制限もあったため、重いログ収集や辞書キャッシュは `BroadcastChannel` と専用インスペクターへ完全に分離されました。
+> **設計上の背景**: `localStorage` への頻繁な同期書き込みはゲームループのフレームレート低下を招き、5MB の容量制限もあったため、重いログ収集や辞書キャッシュは `BroadcastChannel` と専用インスペクターへ完全に分離されました。また、個別キーに分散していたサウンドや翻訳設定はすべて `nh.config` に一元化（SSOT化）されました。
 
 ---
 
