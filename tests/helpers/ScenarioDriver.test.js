@@ -3,7 +3,7 @@
  * ScenarioDriver 疑似ドライバの単体・統合テスト
  */
 import { describe, it, expect } from 'vitest';
-import { ScenarioDriver } from '../../test/helpers/ScenarioDriver.js';
+import { ScenarioDriver } from './ScenarioDriver.js';
 import { WebUICore } from '../../src/core/WebUICore.js';
 
 describe('ScenarioDriver - シナリオ再生疑似ドライバ', () => {

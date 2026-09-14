@@ -256,11 +256,6 @@ export class SituationCache {
     queryAction(query: any): any;
 }
 
-export class RequestController {
-    constructor(driver: DriverLike);
-    requestInventory(): Promise<any>;
-}
-
 export interface MonsterKnowledge {
     id: string;
     monOffset?: number;
@@ -367,7 +362,8 @@ export class WebUICore {
     areaStateManager: AreaStateManager;
     inventoryStateManager: InventoryStateManager;
     situationCache: SituationCache;
-    requestController: RequestController | null;
+    interactiveController: any;
+    requestController: any;
     promptPayloadBuilder: PromptPayloadBuilder;
     textWindowManager: TextWindowManager;
     inspector: DebugInspector | null;

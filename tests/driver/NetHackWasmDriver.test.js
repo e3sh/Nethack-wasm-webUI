@@ -1,0 +1,398 @@
+import { describe, it, expect } from 'vitest';
+import '../../src/driver/InputResolver.js';
+import '../../src/driver/NetHackMemory.js';
+import '../../src/driver/NetHackFSManager.js';
+import '../../src/driver/NetHackWasmDriver.js';
+
+const NetHackWasmDriver = globalThis.NetHackWasmDriver;
+
+describe('NetHackWasmDriver', () => {
+    it('filterSysconfLogs option', () => {
+        const driver = new NetHackWasmDriver({ filterSysconfLogs: true });
+        let emitted = false;
+
+        driver.on('raw_print', () => { emitted = true; });
+        driver.eventHook('shim_raw_print', ['MAXPLAYERS are set in sysconf file.']);
+
+        expect(emitted).toBe(false);
+    });
+
+    it('deduplicateMessages option', () => {
+        const driver = new NetHackWasmDriver({ deduplicateMessages: true, filterSysconfLogs: false });
+        const messages = [];
+
+        driver.on('raw_print', (payload) => { messages.push(payload.text); });
+
+        driver.eventHook('shim_raw_print', ['Welcome to NetHack!']);
+        driver.eventHook('shim_raw_print', ['Welcome to NetHack!']);
+
+        expect(messages.length).toBe(1);
+        expect(messages[0]).toBe('Welcome to NetHack!');
+    });
+
+    it('promptCategory tag in inputRequired', async () => {
+        const driver = new NetHackWasmDriver();
+        let capturedCategory = null;
+
+        driver.on('inputRequired', (payload) => {
+            capturedCategory = payload.promptCategory;
+            payload.resolver.respond('y');
+        });
+
+        driver.eventHook('shim_yn_function', ['Save game?', 'yn', 'y']);
+        expect(capturedCategory).toBe('YN');
+    });
+
+    it('autoRespondEmptyMenu', async () => {
+        const driver = new NetHackWasmDriver({ autoRespondEmptyMenu: true });
+        let inputFired = false;
+
+        driver.on('inputRequired', () => { inputFired = true; });
+
+        driver.eventHook('shim_start_menu', [1, 0]);
+        driver.eventHook('shim_end_menu', [1, 'Empty Menu Header']);
+        const res = await driver.eventHook('shim_select_menu', [1, 1, 0]);
+
+        expect(inputFired).toBe(false);
+        expect(res).toBe(0);
+    });
+
+    it('shim_get_ext_cmd string command resolution', async () => {
+        const driver = new NetHackWasmDriver();
+        let capturedCategory = null;
+
+        driver.on('inputRequired', (payload) => {
+            capturedCategory = payload.promptCategory;
+            payload.resolver.respond('pray');
+        });
+
+        const promise = driver.eventHook('shim_get_ext_cmd', []);
+        const idx = await promise;
+
+        expect(capturedCategory).toBe('EXTCMD');
+        const prayIdx = NetHackWasmDriver.DEFAULT_EXTCMDS.indexOf('pray');
+        expect(idx).toBe(prayIdx);
+    });
+
+    it('lastSequenceBuffer functionality', async () => {
+        const driver = new NetHackWasmDriver();
+        const seqPromise = driver.queueSequence(['i']);
+        seqPromise.catch(() => {});
+
+        expect(driver.isExecutingSequence).toBe(true);
+        expect(driver.getLastSequenceBuffer()).toEqual([]);
+
+        driver.eventHook('shim_putstr', 1, 0, 'You have a dagger.');
+
+        const buffer = driver.getLastSequenceBuffer();
+        expect(buffer.length).toBe(1);
+        expect(buffer[0].type).toBe('putstr');
+        expect(buffer[0].text).toBe('You have a dagger.');
+
+        // Cancel sequence clears buffer and tasks
+        driver.cancelSequence();
+        expect(driver.getLastSequenceBuffer()).toEqual([]);
+        expect(driver.isExecutingSequence).toBe(false);
+    });
+
+    it('lastSequenceBuffer menu capture after sequence token consumption', async () => {
+        const driver = new NetHackWasmDriver({ autoRespondEmptyMenu: false });
+
+        // 1. queueSequence(['i']) を開始
+        driver.queueSequence(['i']);
+        expect(driver.isExecutingSequence).toBe(true);
+
+        // 2. Cコアが getch で入力待ちになり 'i' が自走消費される
+        const getchPromise = driver.eventHook('shim_nhgetch', []);
+        const key = await getchPromise;
+        expect(key).toBe('i');
+
+        // トークンは消費されたが、Cコアが出力を完了するまで isExecutingSequence は true のまま！
+        expect(driver.isExecutingSequence).toBe(true);
+
+        // 3. Cコアがメニューを構築して出力
+        driver.eventHook('shim_start_menu', 1, 1);
+        driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a dagger', 0);
+        driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+        // shim_select_menu を発火
+        const selectPromise = driver.eventHook('shim_select_menu', 1, 1, 0);
+
+        // 4. バッファを確認: select_menu とその中のアイテムが保存されているか！
+        const buffer = driver.getLastSequenceBuffer();
+        expect(buffer.length).toBe(1);
+        expect(buffer[0].type).toBe('select_menu');
+        expect(buffer[0].prompt).toBe('Inventory');
+        expect(buffer[0].items.length).toBe(1);
+        expect(buffer[0].items[0].str).toBe('a - a dagger');
+
+        // 5. メニューに応答し、次の通常入力待ち (poskey等) が発生したら isExecutingSequence が完了して false になる
+        driver.sendInput(0);
+        await selectPromise;
+
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        expect(driver.isExecutingSequence).toBe(false);
+    });
+
+    it('FIFO sequence task queue sequential execution and option isolation', async () => {
+        const driver = new NetHackWasmDriver();
+        const emittedPrompts = [];
+        driver.on('putmsg', (payload) => { emittedPrompts.push(payload.text); });
+
+        // 1. Task A (suppressPrompts: false) と Task B (suppressPrompts: true) を連続投入
+        driver.queueSequence(['kick'], { suppressPrompts: false });
+        driver.queueSequence(['i'], { suppressPrompts: true });
+
+        // Task A がアクティブ
+        expect(driver.isExecutingSequence).toBe(true);
+        expect(driver.sequenceTaskQueue.length).toBe(1); // Task B が予約待機中
+
+        // 2. Cコアが shim_get_ext_cmd で 'kick' を消費 (suppressPrompts: false なので "#" の putmsg が emit される)
+        const extPromise = driver.eventHook('shim_get_ext_cmd', []);
+        const extIdx = await extPromise;
+        const kickIdx = NetHackWasmDriver.DEFAULT_EXTCMDS.indexOf('kick');
+        expect(extIdx).toBe(kickIdx);
+        expect(emittedPrompts.length).toBe(1);
+        expect(emittedPrompts[0]).toBe('#');
+
+        // 3. Task A のトークンが消化された。次の Cコア呼び出し (shim_nhgetch) で Task B ('i') へ自動移行して消化
+        const getchPromise = driver.eventHook('shim_nhgetch', ['Inventory prompt']);
+        const getchKey = await getchPromise;
+        expect(getchKey).toBe('i');
+
+        // Task B の suppressPrompts: true により、'Inventory prompt' の putmsg は emit されず、配列長は 1 のまま！
+        expect(emittedPrompts.length).toBe(1);
+    });
+
+    it('queueSequence Promise resolution and isSilentSync cancellation safeguards', async () => {
+        const driver = new NetHackWasmDriver({ autoRespondEmptyMenu: false });
+
+        // 1. queueSequence が Promise を返し、バッファで解約されるか
+        const seqPromise = driver.queueSequence(['i'], { isSilentSync: true });
+
+        driver.eventHook('shim_nhgetch', []);
+        driver.eventHook('shim_start_menu', 1, 1);
+        driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a dagger', 0);
+        driver.eventHook('shim_end_menu', 1, 'Inventory');
+        const selectPromise = driver.eventHook('shim_select_menu', 1, 1, 0);
+
+        driver.sendInput(0);
+        await selectPromise;
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+
+        const buffer = await seqPromise;
+        expect(Array.isArray(buffer)).toBe(true);
+        expect(buffer.length).toBe(1);
+        expect(buffer[0].type).toBe('select_menu');
+
+        // 2. 新しい isSilentSync が投入された際、未実行の旧 isSilentSync がキャンセルされるか
+        const p1 = driver.queueSequence(['i'], { isSilentSync: true });
+        let p1Rejected = false;
+        p1.catch(err => { p1Rejected = true; });
+
+        const p2 = driver.queueSequence(['i'], { isSilentSync: true });
+        await Promise.resolve();
+
+        expect(p1Rejected).toBe(true);
+        driver.cancelSequence();
+        p2.catch(() => {});
+    });
+
+    it('queueSequence stepDelayMs and allowMapUpdates options', async () => {
+        const driver = new NetHackWasmDriver();
+
+        let mapDisplayEmitted = false;
+        let putstrEmitted = false;
+
+        driver.on('display_nhwindow', (data) => {
+            if (data.windowId <= 3 && !data.blocking) {
+                mapDisplayEmitted = true;
+            }
+        });
+        driver.on('putstr', () => {
+            putstrEmitted = true;
+        });
+
+        const startTime = Date.now();
+        const seqPromise = driver.queueSequence(['j'], { isSilentSync: true, stepDelayMs: 30, allowMapUpdates: true });
+
+        // 1. isSilentSync 時でも allowMapUpdates: true / stepDelayMs > 0 の場合、非ブロック display_nhwindow (windowId: 2) が emit されるか確認
+        driver.eventHook('shim_display_nhwindow', 2, 0); // WIN_MAP non-blocking
+        expect(mapDisplayEmitted).toBe(true);
+
+        // 2. putstr 等のメッセージ系イベントは依然として抑止されることの確認
+        driver.eventHook('shim_putstr', 1, 0, 'Test message');
+        expect(putstrEmitted).toBe(false);
+
+        // 3. stepDelayMs に応じて自動応答が遅延されることを確認
+        const getchPromise = driver.eventHook('shim_nhgetch');
+        const midTime = Date.now();
+        expect(midTime - startTime).toBeLessThan(20);
+
+        const key = await getchPromise;
+        const endTime = Date.now();
+        expect(key).toBe('j');
+        expect(endTime - startTime).toBeGreaterThanOrEqual(25);
+
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        await seqPromise;
+    });
+
+    it('select_menu token resolution (accelerator, index, cancel)', async () => {
+        const driver = new NetHackWasmDriver();
+
+        // 1. メニューのセットアップ
+        driver.eventHook('shim_start_menu', 1, 1);
+        driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a blessed +1 long sword', 0);
+        driver.eventHook('shim_add_menu', 1, 0, 102, 'b'.charCodeAt(0), 0, 0, 0, 'b - 5 uncursed potions of healing', 0);
+        driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+        // (A) 文字列トークン 'a' で応答 -> item 101 が選択される
+        driver.on('inputRequired', (payload) => {
+            if (payload.context === 'select_menu') {
+                payload.resolver.respond('a');
+            }
+        });
+
+        const selectPromiseA = driver.eventHook('shim_select_menu', 1, 1, 0);
+        const countA = await selectPromiseA;
+        expect(countA).toBe(1);
+
+        // (B) 文字列トークン 'B' (大文字) で応答 -> item 102 が選択される
+        driver.listeners.delete('inputRequired');
+        driver.on('inputRequired', (payload) => {
+            if (payload.context === 'select_menu') {
+                payload.resolver.respond('B');
+            }
+        });
+
+        const selectPromiseB = driver.eventHook('shim_select_menu', 1, 1, 0);
+        const countB = await selectPromiseB;
+        expect(countB).toBe(1);
+
+        // (C) 数値インデックス 2 で応答 -> 2番目のアイテム (item 102) が選択される
+        driver.listeners.delete('inputRequired');
+        driver.on('inputRequired', (payload) => {
+            if (payload.context === 'select_menu') {
+                payload.resolver.respond(2);
+            }
+        });
+
+        const selectPromiseC = driver.eventHook('shim_select_menu', 1, 1, 0);
+        const countC = await selectPromiseC;
+        expect(countC).toBe(1);
+
+        // (D) キャンセル値 (ESC: 27 または '0') で応答 -> 0 が返る
+        driver.listeners.delete('inputRequired');
+        driver.on('inputRequired', (payload) => {
+            if (payload.context === 'select_menu') {
+                payload.resolver.respond(27);
+            }
+        });
+
+        const selectPromiseD = driver.eventHook('shim_select_menu', 1, 1, 0);
+        const countD = await selectPromiseD;
+        expect(countD).toBe(0);
+    });
+
+    it('queueSequence automatic 2-stage inventory menu transition', async () => {
+        const driver = new NetHackWasmDriver();
+
+        // 1. queueSequence(['i', 'a']) を開始
+        const seqPromise = driver.queueSequence(['i', 'a']);
+
+        // 2. Cコアが getch で 'i' を消費
+        const getchPromise = driver.eventHook('shim_nhgetch');
+        const key = await getchPromise;
+        expect(key).toBe('i');
+
+        // 3. Cコアが 1段目インベントリメニューを出力
+        driver.eventHook('shim_start_menu', 1, 1);
+        driver.eventHook('shim_add_menu', 1, 0, 101, 'a'.charCodeAt(0), 0, 0, 0, 'a - a long sword', 0);
+        driver.eventHook('shim_end_menu', 1, 'Inventory');
+
+        // shim_select_menu が呼ばれると、キュー内の 'a' が自動消費・解決されて Cコアへ返る
+        const select1Promise = driver.eventHook('shim_select_menu', 1, 1, 0);
+        const select1Count = await select1Promise;
+        expect(select1Count).toBe(1);
+
+        // 4. Cコアが 2段目アイテムアクションメニューを出力
+        driver.eventHook('shim_start_menu', 2, 1);
+        driver.eventHook('shim_add_menu', 2, 0, 201, 'w'.charCodeAt(0), 0, 0, 0, 'w - Wield this item', 0);
+        driver.eventHook('shim_add_menu', 2, 0, 202, 'd'.charCodeAt(0), 0, 0, 0, 'd - Drop this item', 0);
+        driver.eventHook('shim_end_menu', 2, 'Do what with a long sword?');
+
+        // 2段目メニューの select_menu 発火 (トークンは空になったので inputRequired が通常発火する)
+        let stage2Prompt = null;
+        driver.on('inputRequired', (payload) => {
+            if (payload.context === 'select_menu') {
+                stage2Prompt = payload.prompt;
+                payload.resolver.respond(27); // ESC キャンセル
+            }
+        });
+
+        const select2Promise = driver.eventHook('shim_select_menu', 2, 1, 0);
+        await select2Promise;
+
+        expect(stage2Prompt).toBe('Do what with a long sword?');
+
+        // バッファに両方のメニューが記録されていることを確認
+        const buffer = driver.getLastSequenceBuffer();
+        const menuEntries = buffer.filter(b => b.type === 'select_menu');
+        expect(menuEntries.length).toBe(2);
+        expect(menuEntries[0].prompt).toBe('Inventory');
+        expect(menuEntries[1].prompt).toBe('Do what with a long sword?');
+
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        await seqPromise;
+    });
+
+    it('shim_display_nhwindow auto-resolves when suppressPrompts is set', async () => {
+        const driver = new NetHackWasmDriver();
+        let displayEmitted = false;
+        driver.on('display_nhwindow', () => {
+            displayEmitted = true;
+        });
+
+        // 1. 移動キー 1 つのサイレントシーケンス（travelTo の隣接移動や遠隔トラベル完了後の状態を模倣）
+        const seqPromise = driver.queueSequence(['DIR_E'], { suppressPrompts: true, isSilentSync: true });
+
+        // 2. poskey で移動トークンが消費される
+        const poskeyPromise = driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        const key = await poskeyPromise;
+        expect(key).toBe('6'.charCodeAt(0));
+
+        // 3. 移動先でアイテム一覧ウィンドウ (windowId: 4, blocking: 1) が発生
+        // suppressPrompts: true のため、UIへのemitは抑止され、safeResolver(0) で即座に自動クローズされること
+        const displayPromise = driver.eventHook('shim_display_nhwindow', 4, 1);
+        await displayPromise;
+
+        expect(displayEmitted).toBe(false);
+
+        // 4. 次のターン (poskey) に到達した時点でシーケンスがデッドロックせずに正常解決すること
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        const buffer = await seqPromise;
+        expect(Array.isArray(buffer)).toBe(true);
+    });
+
+    it('shim_display_nhwindow consumes sequence token when available', async () => {
+        const driver = new NetHackWasmDriver();
+
+        // 1. 移動 + ウィンドウ閉鎖キー ' ' のシーケンス
+        const seqPromise = driver.queueSequence(['DIR_E', ' ']);
+
+        // 2. poskey で DIR_E が消費される
+        const poskeyPromise = driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        await poskeyPromise;
+
+        // 3. 移動先でブロッキングウィンドウ (windowId: 4, blocking: 1) が発生
+        // 残りのトークン ' ' が自動消費されてウィンドウが閉じられること
+        const displayPromise = driver.eventHook('shim_display_nhwindow', 4, 1);
+        await displayPromise;
+
+        // 4. 次の poskey でシーケンスが正常完了すること
+        driver.eventHook('shim_nh_poskey', 0, 0, 0);
+        const buffer = await seqPromise;
+        expect(Array.isArray(buffer)).toBe(true);
+    });
+});

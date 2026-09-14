@@ -8,7 +8,6 @@ import { SituationCache } from './SituationCache.js';
 import { ContextActionEngine } from './ContextActionEngine.js';
 import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
-import { RequestController } from './RequestController.js';
 import { StructuredKnowledgeEngine } from './StructuredKnowledgeEngine.js';
 import { OnDemandLookService } from './OnDemandLookService.js';
 import { DiscoveryStateManager } from './DiscoveryStateManager.js';
@@ -423,8 +422,6 @@ export class GKLPlugin {
 
         if (core.interactiveController || core.requestController) {
             this.requestController = core.interactiveController || core.requestController;
-        } else if (core.driver) {
-            this.requestController = new RequestController(core.driver);
         }
         if (this.lookService) {
             this.lookService.setCore(core);

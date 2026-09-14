@@ -8,11 +8,11 @@ import fs from 'fs';
 import path from 'path';
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
-import { ScenarioDriver } from '../../test/helpers/ScenarioDriver.js';
+import { ScenarioDriver } from '../helpers/ScenarioDriver.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
 
 function loadFixture(filename) {
-    const filePath = path.resolve(__dirname, '../../test/fixtures/scenarios', filename);
+    const filePath = path.resolve(__dirname, '../fixtures/scenarios', filename);
     const content = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(content);
 }

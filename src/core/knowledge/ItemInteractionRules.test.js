@@ -3,7 +3,7 @@ import { ContextActionEngine } from './ContextActionEngine.js';
 import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { InventoryStateManager } from './InventoryStateManager.js';
 import { AreaStateManager } from './AreaStateManager.js';
-import { createTestItem } from '../../../test/helpers/testItemFactory.js';
+import { createTestItem } from '../../../tests/helpers/testItemFactory.js';
 
 describe('ITEM_INTERACTION_RULES - アイテム・相互作用ルール連携テスト', () => {
 

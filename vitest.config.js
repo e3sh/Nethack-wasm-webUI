@@ -5,20 +5,13 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: [
-      'src/core/*.test.js',
-      'src/core/prompt/*.test.js',
-      'src/core/window/*.test.js',
-      'src/core/input/*.test.js',
-      'src/core/translation/*.test.js',
-      'src/core/lifecycle/GameOverResolver.test.js',
-      'src/core/knowledge/*.test.js',
-      'src/core/container/*.test.js',
-      'src/core/inspector/*.test.js',
-      'src/core/request/*.test.js',
-      'src/testing/*.test.js',
+      'src/**/*.test.js',
       'tests/**/*.test.js'
+    ],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/docs/**'
     ]
   }
 });
-
-

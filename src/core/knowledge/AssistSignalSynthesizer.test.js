@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AssistSignalSynthesizer } from './AssistSignalSynthesizer.js';
-import { createTestItem } from '../../../test/helpers/testItemFactory.js';
+import { createTestItem } from '../../../tests/helpers/testItemFactory.js';
 
 describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => {
 

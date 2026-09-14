@@ -3,7 +3,7 @@
  * ナレッジ連動型テストファクトリ createTestItem の単体テスト
  */
 import { describe, it, expect } from 'vitest';
-import { createTestItem } from '../../test/helpers/testItemFactory.js';
+import { createTestItem } from './testItemFactory.js';
 
 describe('testItemFactory - createTestItem', () => {
 

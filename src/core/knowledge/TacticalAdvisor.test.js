@@ -6,7 +6,7 @@ import { SpellStateManager } from './SpellStateManager.js';
 import { StatusAccessor } from '../StatusAccessor.js';
 import { AreaStateManager } from './AreaStateManager.js';
 import { AttributeStateManager } from './AttributeStateManager.js';
-import { createTestItem } from '../../../test/helpers/testItemFactory.js';
+import { createTestItem } from '../../../tests/helpers/testItemFactory.js';
 
 describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト', () => {
 

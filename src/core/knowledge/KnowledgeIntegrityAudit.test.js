@@ -8,6 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
+import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
+import { AttributeStateManager } from './AttributeStateManager.js';
 import { MONSTER_KNOWLEDGE_MAP, ALL_MONSTER_KNOWLEDGE_BASE } from './MONSTER_KNOWLEDGE_FULL.js';
 import { TacticalAdvisor } from './TacticalAdvisor.js';
 import { AreaStateManager } from './AreaStateManager.js';
@@ -85,6 +87,233 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
             const wwBoots = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'water walking boots');
             expect(wwBoots).toBeDefined();
             expect(wwBoots.protectsAgainst).toContain('WATER');
+        });
+
+        it('全 481 アイテムが OBJECT_KNOWLEDGE_BASE と OBJECT_KNOWLEDGE_MAP に存在し、型安全な基本プロパティを完全保持していること', () => {
+            expect(OBJECT_KNOWLEDGE_BASE.length).toBe(481);
+            expect(OBJECT_KNOWLEDGE_MAP.size).toBe(481);
+
+            for (let i = 0; i <= 480; i++) {
+                expect(OBJECT_KNOWLEDGE_MAP.has(i)).toBe(true);
+                const item = OBJECT_KNOWLEDGE_MAP.get(i);
+                expect(item).toBeDefined();
+                expect(item.onum).toBe(i);
+                expect(item.id).toBe(`item_onum_${i}`);
+                expect(item.name).toBeTruthy();
+                expect(item.category).toBeTruthy();
+                expect(typeof item.material).toBe('string');
+                expect(typeof item.weight).toBe('number');
+                expect(typeof item.cost).toBe('number');
+                expect(typeof item.hands).toBe('number');
+                expect(typeof item.skill).toBe('string');
+                expect(item.stats).toBeDefined();
+                expect(typeof item.nameJa).toBe('string');
+                expect(item.nameJa.length).toBeGreaterThan(0);
+            }
+        });
+
+        it('武器のスキル、ダメージダイス、両手持ち、材質が NetHack 5.0 定義と整合していること', () => {
+            // onum 55: two-handed sword
+            const twoHandedSword = OBJECT_KNOWLEDGE_MAP.get(55);
+            expect(twoHandedSword.name).toBe('two-handed sword');
+            expect(twoHandedSword.category).toBe('WEAPON');
+            expect(twoHandedSword.skill).toBe('two-handed sword');
+            expect(twoHandedSword.hands).toBe(2);
+            expect(twoHandedSword.material).toBe('iron');
+            expect(twoHandedSword.sdam).toBe('1d12');
+            expect(twoHandedSword.ldam).toBe('3d6');
+            expect(twoHandedSword.weight).toBe(150);
+            expect(twoHandedSword.cost).toBe(50);
+
+            // onum 34: dagger
+            const dagger = OBJECT_KNOWLEDGE_MAP.get(34);
+            expect(dagger.name).toBe('dagger');
+            expect(dagger.category).toBe('WEAPON');
+            expect(dagger.skill).toBe('dagger');
+            expect(dagger.hands).toBe(1);
+            expect(dagger.material).toBe('iron');
+            expect(dagger.sdam).toBe('1d4');
+            expect(dagger.ldam).toBe('1d3');
+            expect(dagger.hitBonus).toBe(2);
+
+            // onum 37: silver dagger
+            const silverDagger = OBJECT_KNOWLEDGE_MAP.get(37);
+            expect(silverDagger.material).toBe('silver');
+
+            // onum 88: crossbow
+            const crossbow = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'crossbow');
+            expect(crossbow).toBeDefined();
+            const crossbowFull = OBJECT_KNOWLEDGE_MAP.get(crossbow.onum);
+            expect(crossbowFull.category).toBe('WEAPON');
+            expect(crossbowFull.isLauncher).toBe(true);
+            expect(crossbowFull.skill).toBe('crossbow');
+            expect(crossbowFull.hands).toBe(2);
+        });
+
+        it('防具の AC、MC、防具スロット、伝達属性が NetHack 5.0 定義と整合していること', () => {
+            // Red dragon scale mail (FIRE_RES)
+            const redDSM = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'red dragon scale mail');
+            expect(redDSM).toBeDefined();
+            const redDSMFull = OBJECT_KNOWLEDGE_MAP.get(redDSM.onum);
+            expect(redDSMFull.category).toBe('ARMOR');
+            expect(redDSMFull.armorSlot).toBe('suit');
+            expect(redDSMFull.propConveyed).toBe('FIRE_RES');
+            expect(redDSMFull.material).toBe('dragon_hide');
+            expect(redDSMFull.ac).toBe(1);
+            expect(redDSMFull.acBonus).toBe(9);
+
+            // Silver dragon scale mail (REFLECTING)
+            const silverDSM = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'silver dragon scale mail');
+            expect(silverDSM).toBeDefined();
+            const silverDSMFull = OBJECT_KNOWLEDGE_MAP.get(silverDSM.onum);
+            expect(silverDSMFull.propConveyed).toBe('REFLECTING');
+
+            // Cloak of magic resistance (ANTIMAGIC, MC 1)
+            const mrCloak = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'cloak of magic resistance');
+            expect(mrCloak).toBeDefined();
+            const mrCloakFull = OBJECT_KNOWLEDGE_MAP.get(mrCloak.onum);
+            expect(mrCloakFull.propConveyed).toBe('ANTIMAGIC');
+            expect(mrCloakFull.armorSlot).toBe('cloak');
+            expect(mrCloakFull.mc).toBe(1);
+        });
+
+        it('指輪、アミュレット、杖の属性および zapType が NetHack 5.0 定義と整合していること', () => {
+            // Ring of teleportation (NetHack 内部名: 'teleportation', category: 'RING')
+            const teleRing = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'RING' && (b.name === 'teleportation' || b.sn === 'RIN_TELEPORTATION'));
+            expect(teleRing).toBeDefined();
+            const teleRingFull = OBJECT_KNOWLEDGE_MAP.get(teleRing.onum);
+            expect(teleRingFull.category).toBe('RING');
+            expect(teleRingFull.propConveyed).toBe('TELEPORT');
+
+            // Amulet of reflection (category: 'AMULET')
+            const reflectAmulet = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'AMULET' && b.propConveyed === 'REFLECTING');
+            expect(reflectAmulet).toBeDefined();
+            const reflectAmuletFull = OBJECT_KNOWLEDGE_MAP.get(reflectAmulet.onum);
+            expect(reflectAmuletFull.category).toBe('AMULET');
+            expect(reflectAmuletFull.propConveyed).toBe('REFLECTING');
+
+            // Wand of death (ray)
+            const deathWand = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'WAND' && (b.name === 'death' || b.sn === 'WAN_DEATH'));
+            expect(deathWand).toBeDefined();
+            const deathWandFull = OBJECT_KNOWLEDGE_MAP.get(deathWand.onum);
+            expect(deathWandFull.category).toBe('WAND');
+            expect(deathWandFull.zapType).toBe('ray');
+            expect(deathWandFull.isCharged).toBe(true);
+
+            // Wand of digging (ray)
+            const digWand = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'WAND' && (b.name === 'digging' || b.sn === 'WAN_DIGGING'));
+            expect(digWand).toBeDefined();
+            const digWandFull = OBJECT_KNOWLEDGE_MAP.get(digWand.onum);
+            expect(digWandFull.category).toBe('WAND');
+            expect(digWandFull.zapType).toBe('ray');
+        });
+
+        it('構造化ナレッジから AttributeStateManager の外因性耐性（Extrinsics）が正しく推論されること', () => {
+            const attrManager = new AttributeStateManager();
+
+            const redDSM = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'red dragon scale mail');
+            const teleRing = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'RING' && (b.name === 'teleportation' || b.sn === 'RIN_TELEPORTATION'));
+
+            const inventoryItems = [
+                {
+                    letter: 'a',
+                    onum: redDSM.onum,
+                    rawText: 'a - a +0 red dragon scale mail (being worn)',
+                    isWorn: true,
+                    isArmor: true,
+                    knowledge: OBJECT_KNOWLEDGE_MAP.get(redDSM.onum)
+                },
+                {
+                    letter: 'b',
+                    onum: teleRing.onum,
+                    rawText: 'b - a ring of teleportation (on left hand)',
+                    isWorn: true,
+                    isWornLeft: true,
+                    knowledge: OBJECT_KNOWLEDGE_MAP.get(teleRing.onum)
+                }
+            ];
+
+            attrManager.updateExtrinsicsFromInventory(inventoryItems);
+            const effective = attrManager.getEffectiveResistances();
+
+            expect(effective.fire).toBe(true);
+            expect(effective.teleport).toBe(true);
+            expect(effective.cold).toBe(false);
+        });
+
+        it('ランダム化アイテムと固定アイテムの canBeUnidentified フラグが正しく識別されていること', () => {
+            // Randomized categories must have canBeUnidentified === true
+            const healPotion = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'POTION' && b.name === 'healing');
+            expect(healPotion).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(healPotion.onum).canBeUnidentified).toBe(true);
+
+            const idScroll = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'SCROLL' && b.name === 'identify');
+            expect(idScroll).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(idScroll.onum).canBeUnidentified).toBe(true);
+
+            const digWand = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'WAND' && b.name === 'digging');
+            expect(digWand).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(digWand.onum).canBeUnidentified).toBe(true);
+
+            // Randomized tool / armor
+            const touchstone = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'touchstone');
+            expect(touchstone).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(touchstone.onum).canBeUnidentified).toBe(true);
+
+            // Fixed items: food, dagger, pick-axe must have canBeUnidentified === false
+            const foodRation = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'food ration');
+            expect(foodRation).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(foodRation.onum).canBeUnidentified).toBe(false);
+
+            const dagger = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'dagger');
+            expect(dagger).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(dagger.onum).canBeUnidentified).toBe(false);
+
+            const pickAxe = OBJECT_KNOWLEDGE_BASE.find(b => b.name === 'pick-axe');
+            expect(pickAxe).toBeDefined();
+            expect(OBJECT_KNOWLEDGE_MAP.get(pickAxe.onum).canBeUnidentified).toBe(false);
+        });
+
+        it('OBJECT_JP_MAP に登録されたアイテムエイリアス（略称・日本語俗称）が正しく解決されること', () => {
+            // SDSM & GDSM
+            const sdsm = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'silver dragon scale mail');
+            expect(sdsm).toBeDefined();
+            expect(sdsm.aliases).toContain('sdsm');
+            expect(sdsm.aliases).toContain('銀鱗');
+
+            const gdsm = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'gray dragon scale mail');
+            expect(gdsm).toBeDefined();
+            expect(gdsm.aliases).toContain('gdsm');
+            expect(gdsm.aliases).toContain('灰鱗');
+
+            // Scroll of Genocide
+            const genocide = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'scroll of genocide');
+            expect(genocide).toBeDefined();
+            expect(genocide.aliases).toContain('虐殺');
+            expect(genocide.aliases).toContain('大虐殺');
+
+            // Wands
+            const deathWand = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'wand of death');
+            expect(deathWand).toBeDefined();
+            expect(deathWand.aliases).toContain('死杖');
+
+            const wishWand = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'wand of wishing');
+            expect(wishWand).toBeDefined();
+            expect(wishWand.aliases).toContain('願杖');
+
+            // Tools & Boots
+            const bag = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'bag of holding');
+            expect(bag).toBeDefined();
+            expect(bag.aliases).toContain('ホールド鞄');
+
+            const speedBoots = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'speed boots');
+            expect(speedBoots).toBeDefined();
+            expect(speedBoots.aliases).toContain('早足靴');
+
+            // Item without aliases
+            const food = Array.from(OBJECT_KNOWLEDGE_MAP.values()).find(i => i.name === 'food ration');
+            expect(food).toBeDefined();
+            expect(food.aliases).toEqual([]);
         });
     });
 
