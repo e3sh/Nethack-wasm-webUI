@@ -193,4 +193,99 @@ describe('DebugInspector', () => {
             vi.useRealTimers();
         }
     });
+
+    it('ActionRecipe などの関数や循環参照が含まれる場合でも DataCloneError を防ぎ、structuredClone で正常に複製できること', () => {
+        const core = createMockCore();
+        // 関数 (ActionRecipe のハンドラ等) を含むアイテムと循環参照を設定
+        const circularObj = { name: 'circular item' };
+        circularObj.self = circularObj;
+
+        core.situationCache.getSituation = () => ({
+            inventory: {
+                items: [
+                    {
+                        letter: 'a',
+                        name: 'wand of striking',
+                        defaultActionRecipe: {
+                            id: 'RECIPE_ZAP_WAND',
+                            handlers: [
+                                {
+                                    match: { signalId: 'SIGNAL_DIRECTION' },
+                                    action: (ctx) => 'DIR_E' // ← 関数オブジェクト
+                                }
+                            ]
+                        }
+                    },
+                    circularObj
+                ]
+            },
+            actions: [
+                {
+                    id: 'ACTION_FIRE',
+                    actionRecipe: {
+                        handler: (ctx) => 'DIR_N' // ← 関数オブジェクト
+                    }
+                }
+            ],
+            someSet: new Set([1, 2, 3]),
+            someMap: new Map([['key', 'val']])
+        });
+
+        const inspector = new DebugInspector(core, { autoStart: false });
+        let postedSnapshot = null;
+        inspector.channel = {
+            postMessage: vi.fn((msg) => {
+                if (msg.type === 'INSPECTOR_STATE_SNAPSHOT') {
+                    // 実際の BroadcastChannel と同様に structuredClone を適用して検証
+                    structuredClone(msg.snapshot);
+                    postedSnapshot = msg.snapshot;
+                }
+            })
+        };
+        inspector.isBroadcasting = true;
+
+        const snapshot = inspector.broadcastState();
+
+        // 1. broadcastState が例外を投げずに完了すること
+        expect(snapshot).toBeDefined();
+
+        // 2. channel.postMessage に渡されたスナップショットが structuredClone できること
+        expect(postedSnapshot).toBeDefined();
+        expect(inspector.channel.postMessage).toHaveBeenCalledTimes(1);
+
+        // 3. 関数が文字列 '[Function]' に変換されていること
+        const zapHandlerAction = postedSnapshot.situation.inventory.items[0].defaultActionRecipe.handlers[0].action;
+        expect(zapHandlerAction).toBe('[Function]');
+
+        // 4. 循環参照が '[Circular]' に変換されていること
+        expect(postedSnapshot.situation.inventory.items[1].self).toBe('[Circular]');
+
+        // 5. Set, Map が安全に配列・オブジェクトに変換されていること
+        expect(postedSnapshot.situation.someSet).toEqual([1, 2, 3]);
+        expect(postedSnapshot.situation.someMap).toEqual({ key: 'val' });
+    });
+
+    it('broadcastLog に関数オブジェクトが含まれていても安全にクローン可能な形式で送信されること', () => {
+        const core = createMockCore();
+        const inspector = new DebugInspector(core, { autoStart: false });
+        let postedLog = null;
+        inspector.channel = {
+            postMessage: vi.fn((msg) => {
+                if (msg.type === 'INSPECTOR_LOG') {
+                    structuredClone(msg.entry);
+                    postedLog = msg.entry;
+                }
+            })
+        };
+        inspector.isBroadcasting = true;
+
+        inspector.broadcastLog('TEST_FN', {
+            callback: () => true,
+            label: 'safe'
+        });
+
+        expect(postedLog).toBeDefined();
+        expect(postedLog.data.callback).toBe('[Function]');
+        expect(postedLog.data.label).toBe('safe');
+    });
 });

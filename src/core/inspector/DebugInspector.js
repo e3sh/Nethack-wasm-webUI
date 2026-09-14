@@ -81,14 +81,54 @@ export class DebugInspector {
     }
 
     /**
+     * オブジェクトを Structured Clone Algorithm で安全に複製可能なデータに正規化
+     * - 関数 (Function) を '[Function]' 文字列に置換
+     * - Set, Map を配列/オブジェクトに変換
+     * - 循環参照を安全に検知・保護
+     * @param {*} obj
+     * @returns {*}
+     */
+    toCloneSafe(obj) {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj !== 'object') {
+            return typeof obj === 'function' ? '[Function]' : obj;
+        }
+
+        try {
+            const seen = new WeakSet();
+            return JSON.parse(JSON.stringify(obj, (key, value) => {
+                if (typeof value === 'function') {
+                    return '[Function]';
+                }
+                if (typeof value === 'object' && value !== null) {
+                    if (seen.has(value)) {
+                        return '[Circular]';
+                    }
+                    seen.add(value);
+                }
+                if (value instanceof Set) {
+                    return Array.from(value);
+                }
+                if (value instanceof Map) {
+                    return Object.fromEntries(value);
+                }
+                return value;
+            }));
+        } catch (e) {
+            return { error: 'Serialization failed', message: String(e) };
+        }
+    }
+
+    /**
      * ログおよび状態の送信
      */
     broadcastLog(category, data) {
+        const safeData = this.toCloneSafe(data);
         const entry = {
             id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             timestamp: new Date().toLocaleTimeString(),
             category: category,
-            data: data
+            data: safeData
         };
 
         this.logs.push(entry);
@@ -102,7 +142,11 @@ export class DebugInspector {
                     type: 'INSPECTOR_LOG',
                     entry: entry
                 });
-            } catch (e) {}
+            } catch (e) {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn('[DebugInspector] Failed to broadcast log:', e);
+                }
+            }
         }
         return entry;
     }
@@ -111,11 +155,12 @@ export class DebugInspector {
      * 翻訳ログの配信
      */
     broadcastTranslationLog(data) {
+        const safeData = this.toCloneSafe(data);
         const entry = {
             id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             timestamp: new Date().toLocaleTimeString(),
             category: 'TRANSLATION',
-            data: data
+            data: safeData
         };
 
         this.logs.push(entry);
@@ -127,10 +172,14 @@ export class DebugInspector {
             try {
                 this.channel.postMessage({
                     type: 'TRANSLATION_LOG',
-                    data: data,
+                    data: safeData,
                     entry: entry
                 });
-            } catch (e) {}
+            } catch (e) {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn('[DebugInspector] Failed to broadcast translation log:', e);
+                }
+            }
         }
         return entry;
     }
@@ -170,42 +219,6 @@ export class DebugInspector {
             recentHistory: [...this.core.gkl.silentSyncTracker.recentHistory]
         } : null;
 
-        const fsm = this.core.containerFSM;
-        const containerInfo = (fsm && typeof fsm.getContainerInfo === 'function')
-            ? fsm.getContainerInfo()
-            : null;
-        const playerInventory = (this.core.gkl && this.core.gkl.inventoryStateManager)
-            ? this.core.gkl.inventoryStateManager.getItems()
-            : [];
-        const isSessionActive = Boolean(fsm && (fsm.isActive() || fsm._sessionActive));
-        const contentsSnapshot = (fsm && fsm.contentsManager)
-            ? fsm.contentsManager.getSnapshot()
-            : null;
-
-        if (containerInfo && containerInfo.name) {
-            this._lastContainerInfo = containerInfo;
-        }
-        if (contentsSnapshot && (contentsSnapshot.containerName || (contentsSnapshot.items && contentsSnapshot.items.length > 0))) {
-            this._lastContentsSnapshot = contentsSnapshot;
-        }
-
-        const effectiveContainerInfo = (containerInfo && containerInfo.name) ? containerInfo : (this._lastContainerInfo || null);
-        const effectiveContents = contentsSnapshot || this._lastContentsSnapshot || null;
-
-        const containerSnapshot = {
-            state: fsm ? fsm.state : 'IDLE',
-            isActive: isSessionActive,
-            containerInfo: effectiveContainerInfo,
-            contents: effectiveContents,
-            debug: (fsm && fsm.lastTransactionDebug) ? fsm.lastTransactionDebug : null,
-            playerInventory: playerInventory.map(it => ({
-                letter: it.letter || it.invlet || '',
-                name: it.name || it.rawText || '',
-                count: it.count || 1,
-                identifier: it.identifier,
-            }))
-        };
-
         const stateSnapshot = {
             state: this.core.state,
             promptCategory: this.core.currentPromptCategory,
@@ -214,20 +227,25 @@ export class DebugInspector {
             driverStatus: driverSummary,
             silentSyncStatus: silentSyncTracker,
             discoveries: discoveriesData,
-            situation: situation || {},
-            container: containerSnapshot
+            situation: situation || {}
         };
+
+        const cloneSafeSnapshot = this.toCloneSafe(stateSnapshot);
 
         if (this.channel && this.isBroadcasting) {
             try {
                 this.channel.postMessage({
                     type: 'INSPECTOR_STATE_SNAPSHOT',
-                    snapshot: stateSnapshot
+                    snapshot: cloneSafeSnapshot
                 });
-            } catch (e) {}
+            } catch (e) {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn('[DebugInspector] Failed to broadcast state snapshot:', e);
+                }
+            }
         }
 
-        return stateSnapshot;
+        return cloneSafeSnapshot;
     }
 
     /**
@@ -280,27 +298,11 @@ export class DebugInspector {
                     });
                 } catch (e) {}
             }
-        } else if (msg.type === 'CONTAINER_SELECT_ACTION') {
-            if (this.core.containerFSM && typeof this.core.containerFSM.selectAction === 'function') {
-                this.core.containerFSM.selectAction(msg.action);
-            }
-            this.broadcastLog('INJECT:container', `Container action selected: ${msg.action}`);
-        } else if (msg.type === 'CONTAINER_TRANSFER') {
-            if (this.core.containerFSM && typeof this.core.containerFSM.transferItems === 'function') {
-                this.core.containerFSM.transferItems(msg.options);
-            }
-            this.broadcastLog('INJECT:container', `Container transferItems: ${JSON.stringify(msg.options)}`);
         }
     }
 
     _bindCoreEvents() {
         if (!this.core || typeof this.core.on !== 'function') return;
-
-        // --- コンテナトランザクションイベント ---
-        this.core.on('containerTransaction', (payload) => {
-            this.broadcastLog('EVENT:containerTransaction', payload);
-            this.broadcastState();
-        });
 
         // --- ライフサイクル / 状態遷移イベント ---
         this.core.on('stateChange', (payload) => {
@@ -437,11 +439,12 @@ export class DebugInspector {
         });
 
         this.core.on('messageUntranslated', (data) => {
+            const safeData = this.toCloneSafe(data);
             const entry = {
                 id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                 timestamp: new Date().toLocaleTimeString(),
                 category: 'UNTRANSLATED',
-                data: data
+                data: safeData
             };
 
             this.logs.push(entry);
@@ -453,10 +456,14 @@ export class DebugInspector {
                 try {
                     this.channel.postMessage({
                         type: 'MESSAGE_UNTRANSLATED',
-                        data: data,
+                        data: safeData,
                         entry: entry
                     });
-                } catch (e) {}
+                } catch (e) {
+                    if (typeof console !== 'undefined' && console.warn) {
+                        console.warn('[DebugInspector] Failed to broadcast untranslated message:', e);
+                    }
+                }
             }
         });
 
