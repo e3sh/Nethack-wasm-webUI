@@ -17,6 +17,9 @@
 | **[ArchitectureDecisionRecord.md](./3_gkl/ArchitectureDecisionRecord.md)** | `🟢 active` | `src/core/knowledge/` | GKL アーキテクチャ意思決定記録 (ADR) |
 | **[TacticalAdvisor_Specification_and_Architecture.md](./3_gkl/TacticalAdvisor_Specification_and_Architecture.md)** | `🟢 active` | `src/core/knowledge/TacticalAdvisor.js` | データ駆動型戦術アドバイザー（ADVICE_DEFINITIONS）設計仕様 |
 | **[Assist_Signal_and_Stance_Architecture.md](./3_gkl/Assist_Signal_and_Stance_Architecture.md)** | `🟢 active` | `src/core/knowledge/AssistSignalSynthesizer.js` | アシストシグナル＆スタンス（ASSIST_SIGNAL_DEFINITIONS）設計 |
+| **[Container_Interaction_Specification_IRC.md](./3_gkl/Container_Interaction_Specification_IRC.md)** | `🟢 active` | `src/core/container/` | IRC ベース二画面コンテナ出し入れ対話仕様書 (ContainerController) |
+| **[Equipment_Paperdoll_and_Dependency_Architecture.md](./3_gkl/Equipment_Paperdoll_and_Dependency_Architecture.md)** | `🟢 active` | `src/core/knowledge/` | 装備ペーパードールUI ＆ 依存関係診断・換装プランナー設計仕様書 |
+| **[Encumbrance_and_Weight_Management_Architecture.md](./3_gkl/Encumbrance_and_Weight_Management_Architecture.md)** | `🟢 active` | `src/core/knowledge/` | インベントリ重量・負荷状態管理仕様書 (ゲージ/ランプモデル) |
 | **[GKL_Visual_FX_Event_Architecture.md](./3_gkl/GKL_Visual_FX_Event_Architecture.md)** | `🟢 active` | `src/core/knowledge/` | 視覚演出 (Visual FX) イベントおよび音響連携アーキテクチャ |
 | **[GKL_Structured_Knowledge_Usage_Guide.md](./3_gkl/GKL_Structured_Knowledge_Usage_Guide.md)** | `🟢 active` | `src/core/knowledge/` | 構造化知識ベース API 利用リファレンス |
 | **[📦 archive/ サブフォルダ](./3_gkl/archive/)** | `📦 archived` | - | 完了済み設計書（SSOT統合、ポストコンバット同期等）・旧資料群（11ファイル退避済） |
@@ -28,7 +31,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 active` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全45スイート・491テスト 100% PASS） |
+| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 active` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全58スイート・758テスト 100% PASS） |
 | **[Testing_Modernization_Implementation_Roadmap.md](./8_testing/Testing_Modernization_Implementation_Roadmap.md)** | `🟢 active` | `tests/`, `src/testing/` | テスト基盤刷新ロードマップ（全5フェーズ） |
 | **[Scenario_Testing_and_Event_Capture_Architecture.md](./8_testing/Scenario_Testing_and_Event_Capture_Architecture.md)** | `🟢 active` | `tools/scenario-recorder.html` | 下り方向：実機イベントキャプチャ＆統合シナリオ再生設計 |
 | **[Sequence_Protocol_Validation_Architecture.md](./8_testing/Sequence_Protocol_Validation_Architecture.md)** | `🟢 active` | `tests/protocol/` | 上り方向：キーシーケンス・プロトコル3重防壁検証設計 |
@@ -64,6 +67,8 @@ WASM Cコアをバックグラウンド Web Worker で駆動するドライバ�
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
 | **[WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md)** | `🟢 active` | `src/core/WebUICore.js` | WebUICore 利用ガイド・機能仕様 |
+| **[Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md)** | `🟢 active` | `src/core/request/` | 汎用連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤仕様書 |
+| **[PromptCategory_UI_Implementation_Guide.md](./2_client_ui/PromptCategory_UI_Implementation_Guide.md)** | `🟢 active` | `src/core/prompt/` | プロンプトカテゴリ分類 ＆ UI 実装ガイド |
 | **[Modern_Web_Components_Update_Rules.md](./2_client_ui/Modern_Web_Components_Update_Rules.md)** | `🟢 active` | `src/` | モダン Web コンポーネント実装・更新規約 |
 | **[gkl_inspect_cell_on_demand_guide.md](./2_client_ui/gkl_inspect_cell_on_demand_guide.md)** | `🟢 active` | `src/core/knowledge/OnDemandLookService.js` | セルオンデマンド照会・インスペクト実装ガイド |
 | **[📦 archive/ サブフォルダ](./2_client_ui/archive/)** | `📦 archived` | - | 入力仕様、UI Decoupling設計、描画パフォーマンス分析等（8ファイル退避済） |
@@ -110,11 +115,11 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
-| **[handover_20260905_status_reevaluation.ja.md](./6_project_reports/handover_20260905_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】完了状態・ペンディング状態 再評価総合レポート（2026/09/05）** |
+| **[handover_20260914_status_reevaluation.ja.md](./6_project_reports/handover_20260914_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】完了状態・ペンディング状態 再評価総合レポート（2026/09/14）** |
 | **[notebooklm_knowledge_base.md](./6_project_reports/notebooklm_knowledge_base.md)** | `🔵 reference` | AIアシスタント・NotebookLM用ナレッジベース構築手順 |
 | **[driver_improvements.md](./6_project_reports/driver_improvements.md)** | `🔵 reference` | ドライバ改善・イベントディスパッチ最適化レポート |
 | **[nethack_jp_wasm_experiment.md](./6_project_reports/nethack_jp_wasm_experiment.md)** | `🔵 reference` | NetHack日本語版 (NetHackJP) WASM化実験記録 |
-| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜中期の引き継ぎ資料・進捗報告書群（10ファイル退避済） |
+| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜直近の引き継ぎ資料・進捗報告書群（11ファイル退避済: 2026/09/05版含む） |
 
 ---
 
@@ -125,8 +130,8 @@ docs/
 ├── README.md             # ドキュメント総合ポータル（本ファイル: SSOT）
 ├── FAQ_and_Configuration_Guide.md # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
 ├── 1_driver/             # WASM Driver 仕様書 (直下3本 + archive/)
-├── 2_client_ui/          # UI / WebUICore 仕様書 (直下3本 + archive/)
-├── 3_gkl/                # GKL 総合・ADR・戦術・演出・API仕様書 (直下6本 + archive/)
+├── 2_client_ui/          # UI / WebUICore 仕様書 (直下5本 + archive/)
+├── 3_gkl/                # GKL 総合・ADR・戦術・演出・API・コンテナ・ペーパードール仕様書 (直下9本 + archive/)
 ├── 4_sound/              # 音響システム仕様書 (直下1本 + archive/)
 ├── 5_gamedata/           # ゲームリファレンスデータ群 (直下8本 + archive/)
 ├── 6_project_reports/    # 最新再評価レポート & プロジェクト報告書 (直下4本 + archive/)
