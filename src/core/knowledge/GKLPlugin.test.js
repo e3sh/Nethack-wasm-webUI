@@ -137,6 +137,49 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(mockCore.querySequenceSilent).toHaveBeenNthCalledWith(4, ['#', 'enhance', ' ', '\x1b'], { syncType: 'skills' });
     });
 
+    it('hasPendingSync: 未同期ステートの有無を正確に判定すること', () => {
+        const plugin = new GKLPlugin();
+        plugin.inventoryStateManager.isSynced = true;
+        plugin.attributeStateManager.isSynced = true;
+        plugin.spellStateManager.isSynced = true;
+        plugin.skillStateManager.isSynced = true;
+
+        expect(plugin.hasPendingSync()).toBe(false);
+
+        plugin.inventoryStateManager.isSynced = false;
+        expect(plugin.hasPendingSync()).toBe(true);
+    });
+
+    it('executeSequence: 完了後に未同期ステートがあればサイレント同期が起動されること', async () => {
+        const plugin = new GKLPlugin();
+        const mockCore = createMockCore();
+        mockCore.interactiveController = {
+            executeSequence: vi.fn().mockResolvedValue(true)
+        };
+        plugin.attach(mockCore);
+
+        const syncPendingSpy = vi.spyOn(plugin, 'syncPendingStateSilent').mockResolvedValue(true);
+
+        // 全て同期済み
+        plugin.inventoryStateManager.isSynced = true;
+        plugin.attributeStateManager.isSynced = true;
+        plugin.spellStateManager.isSynced = true;
+        plugin.skillStateManager.isSynced = true;
+
+        await plugin.executeSequence(['k']);
+        expect(syncPendingSpy).not.toHaveBeenCalled();
+
+        // アイテム操作で inventory がダーティ化
+        await plugin.executeSequence(['w', 'a']);
+        expect(syncPendingSpy).toHaveBeenCalledTimes(1);
+
+        // isSilentSync: true 時は起動しない
+        syncPendingSpy.mockClear();
+        plugin.inventoryStateManager.isSynced = false;
+        await plugin.executeSequence(['w', 'a'], { isSilentSync: true });
+        expect(syncPendingSpy).not.toHaveBeenCalled();
+    });
+
     it('syncAllSilent: インベントリ、属性、魔法、スキルの一括直列同期が実行されること', async () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();

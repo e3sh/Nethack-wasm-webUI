@@ -113,15 +113,62 @@ describe('InventoryStateManager', () => {
         expect(unwornArmor.defaultVerb).toBe('W');
         expect(unwornArmor.defaultSequence).toEqual(['W', 'f']);
 
-        // g: worn armor -> T (take off)
+        // g: worn armor -> T (take off, 単一装着のため余剰キーなしの ['T'])
         const wornArmor = manager.getItemByLetter('g');
         expect(wornArmor.defaultVerb).toBe('T');
-        expect(wornArmor.defaultSequence).toEqual(['T', 'g']);
+        expect(wornArmor.defaultSequence).toEqual(['T']);
 
         // h: wielded weapon -> w (unwield w-)
         const wieldedWeapon = manager.getItemByLetter('h');
         expect(wieldedWeapon.defaultVerb).toBe('w');
         expect(wieldedWeapon.defaultSequence).toEqual(['w', '-']);
+    });
+
+    it('防具脱衣アクション (T): 単一防具装着時は余剰キーなしの [T]、複数防具装着時は対象指定の [T, letter] が設定されること', () => {
+        const manager = new InventoryStateManager();
+
+        // 1. 防具が1個だけ装着されている場合 -> ['T']
+        manager.updateFromLines([
+            "a - an uncursed +0 leather armor (being worn)"
+        ]);
+        const singleArmor = manager.getItemByLetter('a');
+        expect(singleArmor.defaultVerb).toBe('T');
+        expect(singleArmor.defaultSequence).toEqual(['T']);
+
+        // 2. 異部位防具が2個装着されている場合 (兜 + 鎧) -> NetHack は対象を聞くため ['T', letter]
+        manager.updateFromLines([
+            "a - an uncursed +0 leather armor (being worn)",
+            "b - an uncursed +0 helmet (being worn)"
+        ]);
+        const armor1 = manager.getItemByLetter('a');
+        const armor2 = manager.getItemByLetter('b');
+        expect(armor1.defaultVerb).toBe('T');
+        expect(armor1.defaultSequence).toEqual(['T', 'a']);
+        expect(armor2.defaultVerb).toBe('T');
+        expect(armor2.defaultSequence).toEqual(['T', 'b']);
+
+        // 3. 同一部位多層装着の場合 (Tシャツ + 鎧):
+        // NetHack では最外層 (鎧) しか脱げず脱衣可能防具数は 1 のため、鎧の脱衣は余剰キーなしの ['T'] になること
+        manager.updateFromLines([
+            "a - an uncursed Hawaiian shirt (being worn)",
+            "b - an uncursed +0 leather armor (being worn)"
+        ]);
+        const shirt = manager.getItemByLetter('a');
+        const suit = manager.getItemByLetter('b');
+        expect(suit.defaultVerb).toBe('T');
+        expect(suit.defaultSequence).toEqual(['T']);
+
+        // 4. 多部位 + 多層装着の場合 (兜 + Tシャツ + 鎧):
+        // 脱衣可能な防具が 2 箇所 (兜 と 鎧) あるため、対象指定の ['T', letter] になること
+        manager.updateFromLines([
+            "a - an uncursed Hawaiian shirt (being worn)",
+            "b - an uncursed +0 leather armor (being worn)",
+            "c - an uncursed helmet (being worn)"
+        ]);
+        const suitMulti = manager.getItemByLetter('b');
+        const helmMulti = manager.getItemByLetter('c');
+        expect(suitMulti.defaultSequence).toEqual(['T', 'b']);
+        expect(helmMulti.defaultSequence).toEqual(['T', 'c']);
     });
 
     it('未識別アイテム（milky potion, runed wand）や多彩な食品（corpse, K-ration, pancake）の推奨判定が正常に行われること', () => {

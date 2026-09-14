@@ -1023,7 +1023,7 @@ export class WebUICore {
             if (sequence.some(k => k === 'C' || k === '#name' || k === '#call' || k === 'name' || k === 'call')) {
                 this.isManualNamingActive = true;
             }
-            const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+            const itemUseKeys = new Set(['w', 'r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
             if (sequence.some(k => itemUseKeys.has(k))) {
                 this.isItemUsingActive = true;
             }
@@ -1048,6 +1048,26 @@ export class WebUICore {
         if (isArray) {
             this.emit('userActionSent', { sequence });
         }
+
+        if (!options.isSilentSync && this.gkl) {
+            const hasPending = typeof this.gkl.hasPendingSync === 'function'
+                ? this.gkl.hasPendingSync()
+                : Boolean(
+                    (this.gkl.inventoryStateManager && !this.gkl.inventoryStateManager.isSynced) ||
+                    (this.gkl.attributeStateManager && !this.gkl.attributeStateManager.isSynced) ||
+                    (this.gkl.spellStateManager && !this.gkl.spellStateManager.isSynced) ||
+                    (this.gkl.skillStateManager && !this.gkl.skillStateManager.isSynced)
+                );
+
+            if (hasPending) {
+                if (typeof this.gkl.syncPendingStateSilent === 'function') {
+                    this.gkl.syncPendingStateSilent();
+                } else if (typeof this.gkl.syncInventorySilent === 'function') {
+                    this.gkl.syncInventorySilent();
+                }
+            }
+        }
+
         return success;
     }
 

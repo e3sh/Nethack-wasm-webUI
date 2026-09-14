@@ -614,7 +614,48 @@ export class InventoryStateManager {
                 ];
             } else {
                 defaultVerb = 'T';
-                defaultSequence = letter ? ['T', letter] : ['T'];
+                // NetHack Cソース (do_wear.c count_worn_stuff) 準拠の脱衣可能防具数 (Narmorpieces) 算出
+                // 兜、盾、手袋、靴は各独立。胴体部位 (cloak/suit/shirt) は最外層の1点のみが脱衣対象としてカウントされる。
+                const wornArmors = Array.isArray(itemList)
+                    ? itemList.filter(i => i.isWorn && i.equipSlot !== 'ring_left' && i.equipSlot !== 'ring_right' && i.equipSlot !== 'amulet')
+                    : [];
+
+                let hasHelm = false;
+                let hasShield = false;
+                let hasGloves = false;
+                let hasBoots = false;
+                let hasCloak = false;
+                let hasSuit = false;
+                let hasShirt = false;
+
+                for (const wa of wornArmors) {
+                    const slot = this._resolveArmorSlot(wa);
+                    if (slot === 'helm' || slot === 'helmet') hasHelm = true;
+                    else if (slot === 'shield') hasShield = true;
+                    else if (slot === 'gloves') hasGloves = true;
+                    else if (slot === 'boots') hasBoots = true;
+                    else if (slot === 'cloak') hasCloak = true;
+                    else if (slot === 'shirt') hasShirt = true;
+                    else hasSuit = true;
+                }
+
+                let removableArmorCount = 0;
+                if (hasHelm) removableArmorCount++;
+                if (hasShield) removableArmorCount++;
+                if (hasGloves) removableArmorCount++;
+                if (hasBoots) removableArmorCount++;
+                // 胴体防具: cloak -> suit -> shirt の順に最外層の1点のみが脱衣可能
+                if (hasCloak) removableArmorCount++;
+                else if (hasSuit) removableArmorCount++;
+                else if (hasShirt) removableArmorCount++;
+
+                if (removableArmorCount <= 1) {
+                    // 脱衣可能な防具が1個だけの場合、NetHack は文字を聞かずに即座に脱ぐため余剰キーを送信しない
+                    defaultSequence = ['T'];
+                } else {
+                    // 脱衣可能な防具が2個以上ある場合のみ、T の後に防具文字を指定する
+                    defaultSequence = letter ? ['T', letter] : ['T'];
+                }
                 defaultActionLabel = 'Take off armor';
                 defaultActionLabelJa = '脱ぐ (T)';
                 itemCategory = 'ARMOR';
@@ -1121,6 +1162,30 @@ export class InventoryStateManager {
             .replace(/\b(blessed|uncursed|cursed)\b/gi, '') // BUC削除
             .replace(/\b(rusty|corroded|burnt|poisoned|\+\d+|-\d+)\b/gi, '') // 状態・強化値削除
             .trim();
+    }
+
+    /**
+     * 防具アイテムの装備部位スロット (helm, shield, gloves, boots, cloak, suit, shirt) を解決
+     * @param {Object} item 
+     * @returns {string} 'helm'|'shield'|'gloves'|'boots'|'cloak'|'suit'|'shirt'
+     */
+    _resolveArmorSlot(item) {
+        if (!item) return 'suit';
+        if (item.equipSlot === 'shield') return 'shield';
+        if (item.knowledge && item.knowledge.armorSlot) return item.knowledge.armorSlot;
+        if (item.armorSlot) return item.armorSlot;
+        if (typeof item.onum === 'number' && item.onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(item.onum)) {
+            const k = OBJECT_KNOWLEDGE_MAP.get(item.onum);
+            if (k && k.armorSlot) return k.armorSlot;
+        }
+        const text = (item.rawText || '').toLowerCase();
+        if (/\b(?:shield)\b|盾/.test(text)) return 'shield';
+        if (/\b(?:helm|helmet|hat|cap|cornuthaum|dunce cap)\b|兜|帽子/.test(text)) return 'helm';
+        if (/\b(?:gloves?|gauntlets?)\b|手袋|ガントレット/.test(text)) return 'gloves';
+        if (/\b(?:boots?|shoes?)\b|靴|ブーツ/.test(text)) return 'boots';
+        if (/\b(?:cloak|cape|robe|mantle)\b|外套|マント|ローブ/.test(text)) return 'cloak';
+        if (/\b(?:shirt|t-shirt)\b|シャツ|ｔシャツ/i.test(text)) return 'shirt';
+        return 'suit';
     }
 
     // =========================================================================

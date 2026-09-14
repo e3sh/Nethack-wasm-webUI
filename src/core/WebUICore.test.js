@@ -53,6 +53,40 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
         expect(mockInventoryStateManager.invalidate).toHaveBeenCalledTimes(1);
     });
 
+    it('executeSequence: アイコンクリック等のアイテム操作 (w, a 等) 完了後にサイレント同期が起動されること (移動キー・isSilentSync時は不要な同期が走らないこと)', async () => {
+        const mockDriver = createMockDriver();
+        const core = new WebUICore({ driver: mockDriver });
+
+        // syncPendingStateSilent をスパイ
+        const syncPendingStateSilentSpy = vi.fn().mockResolvedValue(true);
+        core.gkl.syncPendingStateSilent = syncPendingStateSilentSpy;
+
+        // すべてのステートを同期済みにして初期化
+        core.gkl.inventoryStateManager.isSynced = true;
+        if (core.gkl.attributeStateManager) core.gkl.attributeStateManager.isSynced = true;
+        if (core.gkl.spellStateManager) core.gkl.spellStateManager.isSynced = true;
+        if (core.gkl.skillStateManager) core.gkl.skillStateManager.isSynced = true;
+
+        // 1. 移動キー 'k' (非アイテム操作) 実行: 同期が走らないこと
+        await core.executeSequence(['k']);
+        expect(core.isItemUsingActive).toBe(false);
+        expect(syncPendingStateSilentSpy).not.toHaveBeenCalled();
+
+        // 2. 武器装備操作 ['w', 'a'] 実行: itemUseKeys('w')検知、isSynced=false化、サイレント同期起動
+        core.gkl.inventoryStateManager.isSynced = true;
+        await core.executeSequence(['w', 'a']);
+        expect(core.isItemUsingActive).toBe(true);
+        expect(core.lastUsedItemLetter).toBe('a');
+        expect(core.gkl.inventoryStateManager.isSynced).toBe(false);
+        expect(syncPendingStateSilentSpy).toHaveBeenCalledTimes(1);
+
+        // 3. サイレント同期実行中 (options.isSilentSync = true) のシーケンスでは不要な同期が起動しないこと
+        syncPendingStateSilentSpy.mockClear();
+        core.gkl.inventoryStateManager.isSynced = false;
+        await core.executeSequence(['w', 'a'], { isSilentSync: true });
+        expect(syncPendingStateSilentSpy).not.toHaveBeenCalled();
+    });
+
     it('respond: 単発キー入力・応答時に無条件で invalidate() を呼ばないこと', () => {
         const mockDriver = createMockDriver();
         const core = new WebUICore({ driver: mockDriver });

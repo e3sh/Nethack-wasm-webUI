@@ -879,6 +879,19 @@ export class GKLPlugin {
     }
 
     /**
+     * 未同期ステート（所持品・ステータス属性・魔法・スキル等）が存在するか判定する
+     * @returns {boolean}
+     */
+    hasPendingSync() {
+        return Boolean(
+            (this.inventoryStateManager && !this.inventoryStateManager.isSynced) ||
+            (this.attributeStateManager && !this.attributeStateManager.isSynced) ||
+            (this.spellStateManager && !this.spellStateManager.isSynced) ||
+            (this.skillStateManager && !this.skillStateManager.isSynced)
+        );
+    }
+
+    /**
      * 未同期状態のステート（所持品・魔法・スキル等）を検知し、直列かつ安全にサイレント同期を実行する。
      * @param {Object} [options={}]
      * @returns {Promise<boolean>}
@@ -1471,6 +1484,26 @@ export class GKLPlugin {
         if (this.core && typeof this.core.emit === 'function') {
             this.core.emit('userActionSent', { sequence });
         }
+
+        if (!options.isSilentSync) {
+            const hasPending = typeof this.hasPendingSync === 'function'
+                ? this.hasPendingSync()
+                : Boolean(
+                    (this.inventoryStateManager && !this.inventoryStateManager.isSynced) ||
+                    (this.attributeStateManager && !this.attributeStateManager.isSynced) ||
+                    (this.spellStateManager && !this.spellStateManager.isSynced) ||
+                    (this.skillStateManager && !this.skillStateManager.isSynced)
+                );
+
+            if (hasPending) {
+                if (typeof this.syncPendingStateSilent === 'function') {
+                    this.syncPendingStateSilent();
+                } else if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && typeof this.syncInventorySilent === 'function') {
+                    this.syncInventorySilent();
+                }
+            }
+        }
+
         return success;
     }
 
