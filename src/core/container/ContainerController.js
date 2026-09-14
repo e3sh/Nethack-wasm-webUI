@@ -13,6 +13,7 @@
 import { ContainerSafetyGuard } from './ContainerSafetyGuard.js';
 import { ContainerContentsManager, ContainerType } from './ContainerContentsManager.js';
 import { ContainerSequenceBuilder } from './ContainerSequenceBuilder.js';
+import { isContainerItem, isBagItem, isBoxItem, resolveItemOnum } from '../knowledge/glyphClassifier.js';
 
 export class ContainerController {
     /**
@@ -276,7 +277,7 @@ export class ContainerController {
                     const invMgr = (this.core.gkl && this.core.gkl.inventoryStateManager) || this.core.inventoryStateManager;
                     const items = invMgr ? (typeof invMgr.getItems === 'function' ? invMgr.getItems() : invMgr.items) : [];
                     if (Array.isArray(items) && items.length > 0) {
-                        // lastUsedItemLetter の検証: 直前の使用アイテムがコンテナ（鞄・箱）と一致する場合のみ採用
+                        // 階層0: lastUsedItemLetter の検証 (直前の使用アイテムがコンテナの場合に最優先採用)
                         let candidateItem = null;
                         if (!letter && this.core.lastUsedItemLetter) {
                             const lastLetter = this.core.lastUsedItemLetter;
@@ -285,14 +286,15 @@ export class ContainerController {
                                 const raw = (found.rawText || found.name || '').toLowerCase();
                                 const name = (found.name || '').toLowerCase();
                                 const matchesName = cleanTarget && (raw.includes(cleanTarget) || name.includes(cleanTarget));
-                                const matchesBag = isBagPattern && (/\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
+
+                                const isFlagBag = isBagItem(found);
+                                const isFlagBox = isBoxItem(found);
+                                const matchesBag = isBagPattern && (isFlagBag || /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
                                                                     /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(name) ||
-                                                                    /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name) ||
-                                                                    (found.onum >= 217 && found.onum <= 220) || found.isBag);
-                                const matchesBox = isBoxPattern && (/\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
+                                                                    /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name));
+                                const matchesBox = isBoxPattern && (isFlagBox || /\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
                                                                     /\b(large box|chest|box|ice box|iron safe)\b/i.test(name) ||
-                                                                    /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name) ||
-                                                                    (found.onum >= 214 && found.onum <= 216) || found.isBox);
+                                                                    /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name));
                                 if (matchesName || matchesBag || matchesBox) {
                                     candidateItem = found;
                                     letter = lastLetter;
@@ -306,15 +308,43 @@ export class ContainerController {
                             matchedInventoryItem = items.find(it => (it.letter === letter || it.invlet === letter));
                         }
 
+                        // 階層1: GlyphID / onum による種別フラグを第一級キーとする探索
+                        if (!matchedInventoryItem) {
+                            const flagMatches = items.filter(it => {
+                                if (isBagPattern && isBagItem(it)) return true;
+                                if (isBoxPattern && isBoxItem(it)) return true;
+                                if (!isBagPattern && !isBoxPattern && isContainerItem(it)) return true;
+                                return false;
+                            });
+
+                            if (flagMatches.length === 1) {
+                                // 種別フラグに合致するアイテムが1つだけなら、名前の修飾語や表記揺れに関わらず確定
+                                matchedInventoryItem = flagMatches[0];
+                            } else if (flagMatches.length > 1) {
+                                // 複数存在する場合は名前（cleanTarget）で絞り込み
+                                const nameMatched = flagMatches.find(it => {
+                                    const raw = (it.rawText || it.name || '').toLowerCase();
+                                    const name = (it.name || '').toLowerCase();
+                                    return cleanTarget && (raw.includes(cleanTarget) || name.includes(cleanTarget));
+                                });
+                                matchedInventoryItem = nameMatched || flagMatches[0];
+                            }
+                        }
+
+                        // 階層2: テキスト名（cleanTarget）との直接一致照合
+                        if (!matchedInventoryItem && cleanTarget) {
+                            matchedInventoryItem = items.find(it => {
+                                const raw = (it.rawText || it.name || '').toLowerCase();
+                                const name = (it.name || '').toLowerCase();
+                                return raw.includes(cleanTarget) || name.includes(cleanTarget);
+                            });
+                        }
+
+                        // 階層3: テキスト正規表現による包括照合（GlyphID/onum が未取得の環境用フォールバック）
                         if (!matchedInventoryItem) {
                             matchedInventoryItem = items.find(it => {
                                 const raw = (it.rawText || it.name || '').toLowerCase();
                                 const name = (it.name || '').toLowerCase();
-
-                                // 完全・部分一致
-                                if (cleanTarget && (raw.includes(cleanTarget) || name.includes(cleanTarget))) {
-                                    return true;
-                                }
 
                                 // 袋系（bag / sack / oilskin sack / bag of holding / bag of tricks）の包括照合
                                 if (isBagPattern) {
@@ -337,13 +367,14 @@ export class ContainerController {
                             });
                         }
 
-                        // フォールバック: 手持ちコンテナ確定時にインベントリ内同種アイテムが1つだけならそれを採用
+                        // 階層4: フォールバック: 手持ちコンテナ確定時にインベントリ内同種アイテムが1つだけならそれを採用
                         if (!matchedInventoryItem) {
                             if (isBagPattern) {
                                 const bagItems = items.filter(it => {
                                     const raw = (it.rawText || it.name || '').toLowerCase();
                                     const name = (it.name || '').toLowerCase();
-                                    return /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
+                                    return isBagItem(it) ||
+                                           /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(raw) ||
                                            /\b(bag|sack|bag of holding|bag of tricks|oilskin sack)\b/i.test(name) ||
                                            /(?:鞄|袋|バックパック)/.test(raw) || /(?:鞄|袋|バックパック)/.test(name) ||
                                            (it.onum >= 217 && it.onum <= 220) || it.isBag;
@@ -355,7 +386,8 @@ export class ContainerController {
                                 const boxItems = items.filter(it => {
                                     const raw = (it.rawText || it.name || '').toLowerCase();
                                     const name = (it.name || '').toLowerCase();
-                                    return /\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
+                                    return isBoxItem(it) ||
+                                           /\b(large box|chest|box|ice box|iron safe)\b/i.test(raw) ||
                                            /\b(large box|chest|box|ice box|iron safe)\b/i.test(name) ||
                                            /(?:箱|宝箱|金庫)/.test(raw) || /(?:箱|宝箱|金庫)/.test(name) ||
                                            (it.onum >= 214 && it.onum <= 216) || it.isBox;
@@ -377,9 +409,14 @@ export class ContainerController {
                 matchedInventoryItem = null;
             }
 
+            const resolvedOnum = matchedInventoryItem ? resolveItemOnum(matchedInventoryItem) : -1;
             const isBagOfHolding = this.safetyGuard ?
-                this.safetyGuard.isBagOfHolding({ name: containerName, rawText: containerName, onum: matchedInventoryItem?.onum }) :
+                this.safetyGuard.isBagOfHolding({ name: containerName, rawText: containerName, onum: resolvedOnum, glyphId: matchedInventoryItem?.glyphId }) :
                 /bag of holding/i.test(containerName);
+
+            const isCont = matchedInventoryItem ? isContainerItem(matchedInventoryItem) : (isBagPattern || isBoxPattern);
+            const isBag = matchedInventoryItem ? isBagItem(matchedInventoryItem) : isBagPattern;
+            const isBox = matchedInventoryItem ? isBoxItem(matchedInventoryItem) : isBoxPattern;
 
             this.currentContainer = {
                 name: containerName,
@@ -387,7 +424,11 @@ export class ContainerController {
                 rawName: containerName,
                 letter: letter,
                 identifier: matchedInventoryItem?.identifier || null,
-                onum: matchedInventoryItem?.onum || -1,
+                onum: resolvedOnum,
+                glyphId: matchedInventoryItem?.glyphId ?? (matchedInventoryItem?.glyph ?? -1),
+                isContainer: isCont,
+                isBag: isBag,
+                isBox: isBox,
                 isFloorContainer: isFloor,
                 isBagOfHolding: isBagOfHolding,
                 targetLetter: options.targetLetter || null

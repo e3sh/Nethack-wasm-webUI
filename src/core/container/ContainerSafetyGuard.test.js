@@ -294,4 +294,29 @@ describe('ContainerSafetyGuard', () => {
             expect(guard._extractCharges(null)).toBeNull();
         });
     });
+
+    // ========================================================================
+    // GlyphID 由来の onum 自動解決テスト
+    // ========================================================================
+
+    describe('GlyphID resolution', () => {
+        it('should recognize container as Bag of Holding via glyphId: 3667', () => {
+            const containerWithGlyphOnly = { glyphId: 3667, rawText: 'a silk bag' };
+            expect(guard.isBagOfHolding(containerWithGlyphOnly)).toBe(true);
+        });
+
+        it('should block Bag of Holding item via glyphId: 3667 even without onum', () => {
+            const bohItem = { glyphId: 3667, rawText: 'a silk bag' };
+            const result = guard.assessItem(bohItem, bohContainer);
+            expect(result.level).toBe(DangerLevel.CRITICAL);
+        });
+
+        it('should block Wand of Cancellation via glyphId: 3711 even with unknown text', () => {
+            // GLYPH_OBJ_OFF(3448) + WAN_CANCELLATION(263) = 3711
+            const wocItem = { glyphId: 3711, rawText: 'a silver wand (0:3)' };
+            const result = guard.assessItem(wocItem, bohContainer);
+            expect(result.level).toBe(DangerLevel.CRITICAL);
+        });
+    });
 });
+

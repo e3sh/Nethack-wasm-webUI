@@ -688,5 +688,64 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             expect(testInteractive.querySequenceSilent).not.toHaveBeenCalled();
         });
     });
+
+    describe('9. GlyphID による種別管理（isContainer / isBag / isBox）に基づく同定テスト', () => {
+        it('修飾名や特殊名称であっても、glyphId (3665) から袋コンテナと同定され、currentContainer にフラグが設定されること', async () => {
+            // onum なし、テキストが特殊修飾名、glyphId: 3665 (sack) のみを持つインベントリアイテム
+            mockCore.gkl.inventoryStateManager.getItems.mockReturnValue([
+                { letter: 'd', rawText: 'an ornate embroidered silk container', glyphId: 3665, identifier: 300 }
+            ]);
+
+            const payload = {
+                rawPrompt: 'Do what with your bag? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your bag' }
+                },
+                items: [{ charStr: 'i', label: 'Put in' }]
+            };
+
+            const handled = await controller.handleInitialActionMenu(payload);
+            expect(handled).toBe(true);
+
+            expect(controller.currentContainer).toBeDefined();
+            expect(controller.currentContainer.letter).toBe('d');
+            expect(controller.currentContainer.isFloorContainer).toBe(false);
+            expect(controller.currentContainer.isContainer).toBe(true);
+            expect(controller.currentContainer.isBag).toBe(true);
+            expect(controller.currentContainer.isBox).toBe(false);
+            expect(controller.currentContainer.onum).toBe(217); // 3665 - 3448 = 217 (SACK)
+            expect(controller.currentContainer.glyphId).toBe(3665);
+        });
+
+        it('修飾名の箱アイテムであっても、glyphId (3663) から箱コンテナと同定され、currentContainer にフラグが設定されること', async () => {
+            mockCore.gkl.inventoryStateManager.getItems.mockReturnValue([
+                { letter: 'k', rawText: 'an ancient coffer', glyphId: 3663, identifier: 400 }
+            ]);
+
+            const payload = {
+                rawPrompt: 'Do what with your chest? [:oibrs nq or ?] (q)',
+                signal: {
+                    id: 'SIGNAL_CONTAINER_ACTION_MENU',
+                    params: { containerName: 'your chest' }
+                },
+                items: [{ charStr: 'i', label: 'Put in' }]
+            };
+
+            const handled = await controller.handleInitialActionMenu(payload);
+            expect(handled).toBe(true);
+
+            expect(controller.currentContainer).toBeDefined();
+            expect(controller.currentContainer.letter).toBe('k');
+            expect(controller.currentContainer.isFloorContainer).toBe(false);
+            expect(controller.currentContainer.isContainer).toBe(true);
+            expect(controller.currentContainer.isBag).toBe(false);
+            expect(controller.currentContainer.isBox).toBe(true);
+            expect(controller.currentContainer.onum).toBe(215); // 3663 - 3448 = 215 (CHEST)
+            expect(controller.currentContainer.glyphId).toBe(3663);
+        });
+    });
+
 });
+
 

@@ -384,6 +384,67 @@ export function isBoulderEntity(entity) {
     return false;
 }
 
+/**
+ * アイテムまたは数値 (onum / glyphId) から onum を抽出
+ * @param {Object|number} item
+ * @returns {number} onum (不明時は -1)
+ */
+export function resolveItemOnum(item) {
+    if (typeof item === 'number') {
+        if (item >= 0 && item <= 480) return item; // onum
+        return getOnumFromGlyph(item); // glyphId
+    }
+    if (!item || typeof item !== 'object') return -1;
+    if (typeof item.onum === 'number' && item.onum >= 0) return item.onum;
+    const glyphId = typeof item.glyphId === 'number' ? item.glyphId :
+                    (typeof item.glyph === 'number' ? item.glyph :
+                    (item.glyphInfo && typeof item.glyphInfo.glyph === 'number' ? item.glyphInfo.glyph : -1));
+    if (glyphId >= 0) {
+        return getOnumFromGlyph(glyphId);
+    }
+    return -1;
+}
+
+/**
+ * アイテムがコンテナ (箱・宝箱・保冷箱・袋・鞄: onum 214〜220) か判定
+ * @param {Object|number} item 
+ * @returns {boolean}
+ */
+export function isContainerItem(item) {
+    if (!item) return false;
+    if (typeof item === 'object') {
+        if (item.isContainer === true) return true;
+        if (item.isBox === true || item.isBag === true) return true;
+    }
+    const onum = resolveItemOnum(item);
+    return onum >= 214 && onum <= 220;
+}
+
+/**
+ * アイテムが箱系コンテナ (large box, chest, ice box: onum 214〜216) か判定
+ * @param {Object|number} item 
+ * @returns {boolean}
+ */
+export function isBoxItem(item) {
+    if (!item) return false;
+    if (typeof item === 'object' && item.isBox === true) return true;
+    const onum = resolveItemOnum(item);
+    return onum >= 214 && onum <= 216;
+}
+
+/**
+ * アイテムが袋・鞄系コンテナ (sack, oilskin sack, bag of holding, bag of tricks: onum 217〜220) か判定
+ * @param {Object|number} item 
+ * @returns {boolean}
+ */
+export function isBagItem(item) {
+    if (!item) return false;
+    if (typeof item === 'object' && item.isBag === true) return true;
+    const onum = resolveItemOnum(item);
+    return onum >= 217 && onum <= 220;
+}
+
+
 
 
 

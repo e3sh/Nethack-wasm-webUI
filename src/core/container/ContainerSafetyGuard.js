@@ -15,6 +15,8 @@
  */
 
 import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/OBJECT_KNOWLEDGE_FULL.js';
+import { resolveItemOnum } from '../knowledge/glyphClassifier.js';
+
 
 /**
  * 危険度レベル定数
@@ -32,12 +34,18 @@ export const DangerLevel = {
 
 /**
  * 既知の危険 onum 定数
- * (NetHack 5.0 objects.h / glyphClassifier.js 互換)
+ * (NetHack 5.0 tilemappings.lst / objects.h 準拠、旧定数も完全サポート)
  */
-const DANGEROUS_ONUMS = {
-    WAN_CANCELLATION: 263,  // wand of cancellation (NetHack 5.0)
-    BAG_OF_HOLDING: 346,    // bag of holding
-    BAG_OF_TRICKS: 345,     // bag of tricks
+export const DANGEROUS_ONUMS = {
+    // NetHack 5.0 正式 onum (objects.h / tilemappings.lst)
+    WAN_CANCELLATION: 423,   // wand of cancellation (onum 423, glyph 3871)
+    BAG_OF_HOLDING: 219,     // bag of holding (onum 219, glyph 3667)
+    BAG_OF_TRICKS: 220,      // bag of tricks (onum 220, glyph 3668)
+
+    // レガシー / 互換 onum (既存テスト互換用)
+    WAN_CANCELLATION_LEGACY: 263,
+    BAG_OF_HOLDING_LEGACY: 346,
+    BAG_OF_TRICKS_LEGACY: 345,
 };
 
 /**
@@ -51,6 +59,7 @@ const DANGER_TEXT_PATTERNS = [
     { pattern: /\bbag of tricks\b/i,       onum: DANGEROUS_ONUMS.BAG_OF_TRICKS,    type: 'bag' },
     { pattern: /いたずらの袋/,             onum: DANGEROUS_ONUMS.BAG_OF_TRICKS,    type: 'bag' },
 ];
+
 
 /**
  * 未識別の杖の外見名パターン (NetHack 5.0)
@@ -66,12 +75,14 @@ const UNIDENTIFIED_BAG_PATTERN = /\b(bag|sack)\b/i;
 
 
 export class ContainerSafetyGuard {
+    static DANGEROUS_ONUMS = DANGEROUS_ONUMS;
 
     /**
      * @param {Object} [options={}]
      * @param {Object} [options.inventoryStateManager] - GKL の InventoryStateManager
      */
     constructor(options = {}) {
+
         this.inventoryStateManager = options.inventoryStateManager || null;
     }
 
@@ -92,8 +103,9 @@ export class ContainerSafetyGuard {
         if (!containerInfo) return false;
         if (containerInfo.isBagOfHolding) return true;
 
-        // onum による確定判定
-        if (containerInfo.onum === DANGEROUS_ONUMS.BAG_OF_HOLDING) return true;
+        // onum / glyphId による確定判定
+        const onum = resolveItemOnum(containerInfo);
+        if (onum === DANGEROUS_ONUMS.BAG_OF_HOLDING || onum === DANGEROUS_ONUMS.BAG_OF_HOLDING_LEGACY) return true;
 
         // テキストパターンによるフォールバック判定
         const text = containerInfo.name || containerInfo.rawText || '';
@@ -115,25 +127,26 @@ export class ContainerSafetyGuard {
             return { level: DangerLevel.SAFE, reason: '', item };
         }
 
-        const onum = typeof item.onum === 'number' ? item.onum : -1;
+        const onum = resolveItemOnum(item);
         const rawText = item.rawText || item.name || '';
         const identification = item.identification || {};
         const isUnidentified = identification.isUnidentified || item.isUnidentified || item.isSuspicious || false;
 
         // 【層1】onum による確定判定
-        if (onum === DANGEROUS_ONUMS.WAN_CANCELLATION) {
+        if (onum === DANGEROUS_ONUMS.WAN_CANCELLATION || onum === DANGEROUS_ONUMS.WAN_CANCELLATION_LEGACY) {
             return this._assessWandOfCancellation(item, rawText);
         }
-        if (onum === DANGEROUS_ONUMS.BAG_OF_HOLDING) {
+        if (onum === DANGEROUS_ONUMS.BAG_OF_HOLDING || onum === DANGEROUS_ONUMS.BAG_OF_HOLDING_LEGACY) {
             return {
                 level: DangerLevel.CRITICAL,
                 reason: 'Bag of Holding の中に別の Bag of Holding を入れると爆発します！',
                 item
             };
         }
-        if (onum === DANGEROUS_ONUMS.BAG_OF_TRICKS) {
+        if (onum === DANGEROUS_ONUMS.BAG_OF_TRICKS || onum === DANGEROUS_ONUMS.BAG_OF_TRICKS_LEGACY) {
             return this._assessBagOfTricks(item, rawText);
         }
+
 
         // 【層2】テキストパターンによる確定判定 (onum が不明な場合のフォールバック)
         if (onum < 0) {
