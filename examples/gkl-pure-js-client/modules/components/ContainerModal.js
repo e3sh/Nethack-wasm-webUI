@@ -44,7 +44,34 @@ export class ContainerModal {
     // トランザクション処理中フラグ (SSOT 二重操作防止)
     this.isProcessing = false;
 
+    // 表示形式: 'list' (詳細リスト) または 'grid' (IconInventory風アイコングリッド)
+    let savedViewMode = 'list';
+    try {
+      savedViewMode = localStorage.getItem('nethack_container_view_mode') || 'list';
+    } catch (e) {
+      // localStorage 非対応環境
+    }
+    this.viewMode = savedViewMode === 'grid' ? 'grid' : 'list';
+
     this._ensureDom();
+  }
+
+  /**
+   * 表示モード（リスト/グリッド）の切り替え
+   * @param {'list'|'grid'} mode
+   */
+  setViewMode(mode) {
+    const validMode = mode === 'grid' ? 'grid' : 'list';
+    if (this.viewMode === validMode) return;
+    this.viewMode = validMode;
+    try {
+      localStorage.setItem('nethack_container_view_mode', validMode);
+    } catch (e) {
+      // ignore
+    }
+    if (this.isVisible) {
+      this.render();
+    }
   }
 
   /**
@@ -116,19 +143,37 @@ export class ContainerModal {
 
   /**
    * アイテムのタイル画像または絵文字アイコンHTMLを生成
+   * @param {Object} item
+   * @param {number} [displaySize=20]
    * @private
    */
-  _getItemIconHtml(item) {
+  _getItemIconHtml(item, displaySize = 20) {
     const core = this.getCore();
     const glyphId = item.glyphId !== undefined ? item.glyphId : (item.glyph !== undefined ? item.glyph : -1);
     if (glyphId >= 0 && core && typeof core.getGlyphHtml === 'function') {
       const tileImgPath = this.getLoadedTileImagePath();
-      const glyphHtml = core.getGlyphHtml(glyphId, { tileImage: tileImgPath, displaySize: 20 });
+      const glyphHtml = core.getGlyphHtml(glyphId, { tileImage: tileImgPath, displaySize });
       if (glyphHtml) {
         return `<span class="container-item-icon">${glyphHtml}</span>`;
       }
     }
     return `<span class="container-item-icon container-item-emoji">${this.getItemSymbol(item)}</span>`;
+  }
+
+  /**
+   * アイテムのスタック個数を取得
+   * @param {Object} item
+   * @returns {number}
+   * @private
+   */
+  _getItemCount(item) {
+    if (!item) return 1;
+    if (typeof item.count === 'number' && item.count > 0) return item.count;
+    if (typeof item.quantity === 'number' && item.quantity > 0) return item.quantity;
+    const text = item.rawText || item.rawStr || item.str || item.name || '';
+    const m = text.match(/^(\d+)\s+/);
+    if (m) return parseInt(m[1], 10);
+    return 1;
   }
 
   /**
@@ -323,7 +368,18 @@ export class ContainerModal {
             </h3>
             ${safetyBadgeHtml}
           </div>
-          <button class="container-close-btn" id="btn-container-close" title="${isEn ? 'Close (ESC / q)' : '閉じる (ESC / q)'}">✕</button>
+          <div class="container-modal-header-actions">
+            <!-- ビュー切り替えトグル (リスト ⇄ アイコン) -->
+            <div class="container-view-toggle" role="group" aria-label="${isEn ? 'View Mode' : '表示切替'}">
+              <button class="container-toggle-btn ${this.viewMode === 'list' ? 'active' : ''}" id="btn-view-list" title="${isEn ? 'List View (Detailed)' : 'リスト表示 (詳細)'}">
+                ☰ <span class="toggle-text">${isEn ? 'List' : 'リスト'}</span>
+              </button>
+              <button class="container-toggle-btn ${this.viewMode === 'grid' ? 'active' : ''}" id="btn-view-grid" title="${isEn ? 'Icon View (Grid)' : 'アイコン表示 (グリッド)'}">
+                ⊞ <span class="toggle-text">${isEn ? 'Icons' : 'アイコン'}</span>
+              </button>
+            </div>
+            <button class="container-close-btn" id="btn-container-close" title="${isEn ? 'Close (ESC / q)' : '閉じる (ESC / q)'}">✕</button>
+          </div>
         </div>
 
         <!-- Main Body: Two-Pane Layout -->
@@ -334,8 +390,10 @@ export class ContainerModal {
               <span class="pane-title">🎒 ${isEn ? 'Inventory (Put In)' : '所持品 (入れる)'}</span>
               <span class="pane-badge-count" id="badge-left-count">${playerItems.length}</span>
             </div>
-            <div class="container-item-list" id="list-player-inventory">
-              ${this._renderPlayerItemsHtml(playerItems, safetyMap, validationMap, isEn)}
+            <div class="container-item-list ${this.viewMode === 'grid' ? 'is-grid-view' : 'is-list-view'}" id="list-player-inventory">
+              ${this.viewMode === 'grid'
+                ? this._renderPlayerItemsGridHtml(playerItems, safetyMap, validationMap, isEn)
+                : this._renderPlayerItemsHtml(playerItems, safetyMap, validationMap, isEn)}
             </div>
           </div>
 
@@ -371,8 +429,10 @@ export class ContainerModal {
               <span class="pane-title">📦 ${isEn ? 'Inside Container' : '鞄・箱の中身'}</span>
               <span class="pane-badge-count" id="badge-right-count">${this.containerItems.length}</span>
             </div>
-            <div class="container-item-list" id="list-container-contents">
-              ${this._renderContainerItemsHtml(this.containerItems, isEn)}
+            <div class="container-item-list ${this.viewMode === 'grid' ? 'is-grid-view' : 'is-list-view'}" id="list-container-contents">
+              ${this.viewMode === 'grid'
+                ? this._renderContainerItemsGridHtml(this.containerItems, isEn)
+                : this._renderContainerItemsHtml(this.containerItems, isEn)}
             </div>
           </div>
 
@@ -513,6 +573,136 @@ export class ContainerModal {
   }
 
   /**
+   * 左パネル（所持品）のアイテムグリッドHTML生成 (IconInventory風)
+   * @private
+   */
+  _renderPlayerItemsGridHtml(items, safetyMap, validationMap, isEn) {
+    if (items.length === 0) {
+      return `<div class="container-empty-hint">${isEn ? 'No items in inventory' : '所持品がありません'}</div>`;
+    }
+
+    return items.map((item, idx) => {
+      const isSelected = (this.selectedLeftIndex === idx);
+      const safety = safetyMap.get(item) || 'SAFE';
+      const validation = validationMap ? validationMap.get(item) : null;
+      const isInvalid = validation ? (validation.valid === false || validation.allowed === false) : false;
+      const reason = validation ? validation.reason : null;
+
+      const isSelfContainer = reason === 'SELF_CONTAINER';
+      const isEquipped = reason === 'EQUIPPED' || item.isWielded || item.isWorn || item.worn || item.isQuivered;
+      const isCritical = safety === 'CRITICAL' || reason === 'BOH_CRITICAL';
+      const isSuspicious = safety === 'SUSPICIOUS' || reason === 'BOH_SUSPICIOUS';
+
+      const slotClasses = ['container-item-row', 'container-item-slot'];
+      if (isSelected) slotClasses.push('selected');
+      if (isInvalid) slotClasses.push('item-disabled');
+      if (isSelfContainer) slotClasses.push('self-container');
+      if (isCritical) slotClasses.push('boh-danger-critical');
+      if (isSuspicious) slotClasses.push('boh-danger-suspicious');
+
+      // 装備バッジ
+      let equipBadge = '';
+      if (isSelfContainer) {
+        equipBadge = `<span class="slot-badge badge-self-container" title="${isEn ? 'Current container' : '開いている鞄'}">🚫</span>`;
+      } else if (item.isWielded) {
+        equipBadge = `<span class="slot-badge badge-wielded" title="${isEn ? 'Main weapon' : 'メイン武器'}">${isEn ? 'W' : '手'}</span>`;
+      } else if (item.isOffhand) {
+        equipBadge = `<span class="slot-badge badge-offhand" title="${isEn ? 'Off-hand weapon' : '副武器'}">${isEn ? 'O' : '副'}</span>`;
+      } else if (item.isQuivered) {
+        equipBadge = `<span class="slot-badge badge-quivered" title="${isEn ? 'Quiver' : '矢筒'}">${isEn ? 'Q' : '筒'}</span>`;
+      } else if (item.isWorn || isEquipped) {
+        equipBadge = `<span class="slot-badge badge-worn" title="${isEn ? 'Worn armor' : '着用防具'}">${isEn ? 'A' : '着'}</span>`;
+      }
+
+      // 危険バッジ
+      let dangerBadge = '';
+      if (isCritical) {
+        dangerBadge = `<span class="slot-badge badge-danger-critical" title="${isEn ? 'Will EXPLODE Bag of Holding!' : 'Bag of Holding が爆発します！'}">⚠️</span>`;
+      } else if (isSuspicious) {
+        dangerBadge = `<span class="slot-badge badge-danger-suspicious" title="${isEn ? 'Unidentified wand/bag' : '未識別の杖/袋'}">❓</span>`;
+      }
+
+      // BUCバッジ
+      const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
+      const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
+      let bucBadge = '';
+      if (id.isUnidentified) {
+        bucBadge = `<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
+      } else if (bucStatus === 'CURSED') {
+        bucBadge = `<span class="slot-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
+      } else if (bucStatus === 'BLESSED') {
+        bucBadge = `<span class="slot-badge badge-buc-blessed" title="${isEn ? 'Blessed' : '祝福'}">+</span>`;
+      }
+
+      const letter = item.letter || item.invlet || '';
+      const rawText = item.rawText || item.name || '';
+      const displayName = this._getTranslatedName(rawText, isEn);
+      const iconHtml = this._getItemIconHtml(item, 32);
+      const canDrag = !isInvalid && !isCritical && !this.isProcessing;
+      const itemId = item.identifier || item.onum || item.letter || idx;
+      const count = this._getItemCount(item);
+
+      return `
+        <div class="${slotClasses.join(' ')}" 
+             data-side="left" 
+             data-index="${idx}"
+             data-id="${itemId}"
+             data-letter="${letter}"
+             draggable="${canDrag}"
+             tabindex="0"
+             title="${displayName}">
+          <span class="slot-letter">${letter}</span>
+          <div class="slot-icon-box">${iconHtml}</div>
+          ${count > 1 ? `<span class="slot-count-badge">${count > 999 ? Math.floor(count / 1000) + 'k' : count}</span>` : ''}
+          <div class="slot-badges-box">
+            ${equipBadge}
+            ${dangerBadge}
+            ${bucBadge}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /**
+   * 右パネル（コンテナ中身）のアイテムグリッドHTML生成 (IconInventory風)
+   * @private
+   */
+  _renderContainerItemsGridHtml(items, isEn) {
+    if (items.length === 0) {
+      return `<div class="container-empty-hint">${isEn ? 'Container is empty' : 'コンテナの中身は空です'}</div>`;
+    }
+
+    return items.map((item, idx) => {
+      const isSelected = (this.selectedRightIndex === idx);
+
+      const slotClasses = ['container-item-row', 'container-item-slot'];
+      if (isSelected) slotClasses.push('selected');
+
+      const letter = item.accelerator || item.letter || item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
+      const rawText = item.rawStr || item.str || item.name || '';
+      const displayName = this._getTranslatedName(rawText, isEn);
+      const iconHtml = this._getItemIconHtml(item, 32);
+      const itemId = item.identifier || item.onum || item.letter || idx;
+      const count = this._getItemCount(item);
+
+      return `
+        <div class="${slotClasses.join(' ')}" 
+             data-side="right" 
+             data-index="${idx}"
+             data-id="${itemId}"
+             draggable="true"
+             tabindex="0"
+             title="${displayName}">
+          <span class="slot-letter">${letter}</span>
+          <div class="slot-icon-box">${iconHtml}</div>
+          ${count > 1 ? `<span class="slot-count-badge">${count > 999 ? Math.floor(count / 1000) + 'k' : count}</span>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  /**
    * アイテム転送の共通実行 (ctrl.transferItem 優先, core.executeContainerTransfer フォールバック)
    * @private
    */
@@ -558,6 +748,16 @@ export class ContainerModal {
   _bindEvents(playerItems, safetyMap, validationMap) {
     const isEn = this.currentLanguage === 'en';
     const core = this.getCore();
+
+    // 表示切り替えボタン (リスト ⇄ アイコン)
+    const btnViewList = document.getElementById('btn-view-list');
+    if (btnViewList) {
+      btnViewList.onclick = () => this.setViewMode('list');
+    }
+    const btnViewGrid = document.getElementById('btn-view-grid');
+    if (btnViewGrid) {
+      btnViewGrid.onclick = () => this.setViewMode('grid');
+    }
 
     // 閉じるボタン
     const btnClose = document.getElementById('btn-container-close');

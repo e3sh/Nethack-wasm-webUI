@@ -66,6 +66,50 @@
   color: #ffaa00;
 }
 
+.container-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* View Mode Toggle Button Group */
+.container-view-toggle {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.container-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #888ea8;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.container-toggle-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.container-toggle-btn.active {
+  background: var(--primary-color, #4ecca3);
+  color: #0b0c10;
+  font-weight: bold;
+  box-shadow: 0 0 8px rgba(78, 204, 163, 0.4);
+}
+
 .container-close-btn {
   background: transparent;
   border: none;
@@ -474,6 +518,197 @@
   border: 1px solid #555;
 }
 
+/* ============================================================================
+   IconInventory Style Grid View Layout
+   ============================================================================ */
+
+.container-item-list.is-grid-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 8px;
+  align-content: flex-start;
+  padding: 10px;
+}
+
+.container-item-slot {
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  margin: 0;
+  background: #161726;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.container-item-slot:hover {
+  background: #23273e;
+  border-color: rgba(78, 204, 163, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.container-item-slot.selected {
+  background: #1a2a38;
+  border: 2px solid var(--primary-color, #4ecca3);
+  box-shadow: 0 0 10px rgba(78, 204, 163, 0.6);
+  transform: scale(1.04);
+}
+
+.container-item-slot.item-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(80%);
+}
+
+.container-item-slot.self-container {
+  border: 2px dashed #ff4757;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.container-item-slot.boh-danger-critical {
+  border: 2px solid #ff4757 !important;
+  background: rgba(255, 71, 87, 0.2) !important;
+  animation: pulse-danger 1.5s infinite;
+}
+
+.container-item-slot.boh-danger-suspicious {
+  border: 1px dashed #ffa502 !important;
+  background: rgba(255, 165, 2, 0.15) !important;
+}
+
+/* スロット中央のアイテムアイコン */
+.slot-icon-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+}
+
+.slot-icon-box .container-item-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.slot-icon-box .container-item-emoji {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* 左上のインベントリ文字 (a, b, $, etc.) */
+.slot-letter {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-gold, #f6c90e);
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* 右下のスタック数量バッジ */
+.slot-count-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 0 3px;
+  border-radius: 3px;
+  line-height: 1.1;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 右上のステータスバッジ群 */
+.slot-badges-box {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.slot-badge {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
+  color: #fff;
+}
+
+.slot-badge.badge-wielded {
+  background: var(--accent-gold, #f6c90e);
+  color: #0b0c10;
+}
+
+.slot-badge.badge-offhand {
+  background: #4ea8de;
+  color: #0b0c10;
+}
+
+.slot-badge.badge-quivered {
+  background: #2a9d8f;
+  color: #fff;
+}
+
+.slot-badge.badge-worn {
+  background: #9d4edd;
+  color: #fff;
+}
+
+.slot-badge.badge-self-container {
+  background: #ff4757;
+  font-size: 10px;
+  padding: 0;
+}
+
+.slot-badge.badge-danger-critical {
+  background: #ff4757;
+  font-size: 10px;
+  padding: 0;
+}
+
+.slot-badge.badge-danger-suspicious {
+  background: #ffa502;
+  font-size: 10px;
+  padding: 0;
+}
+
+.slot-badge.badge-buc-cursed {
+  background: #ef4444;
+  color: #fff;
+}
+
+.slot-badge.badge-buc-blessed {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.slot-badge.badge-buc-unid {
+  background: #6b7280;
+  color: #fff;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .container-two-pane-body {
@@ -496,5 +731,8 @@
   .container-quantity-box {
     margin-top: 0;
     flex-direction: row;
+  }
+  .container-toggle-btn .toggle-text {
+    display: none;
   }
 }

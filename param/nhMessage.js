@@ -11660,6 +11660,7 @@
         { en: "Ulch - that meat was tainted!", jp: "うわっ――あの肉、腐ってた！" },
         { en: "You feel deathly sick.", jp: "死ぬほど気分が悪い。" },
         { en: "You cannot throw an object at yourself.", jp: "自分自身に向かって物を投げることはできません。" },
+        { en: "You have already identified all of your possessions.", jp: "すでに、ご自身の所有物はすべて識別されています。" },
     ];
 }
 
