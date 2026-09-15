@@ -482,6 +482,42 @@ describe('PromptPayloadBuilder', () => {
         expect(resJa.assistant.type).toBe('POLYMORPH');
     });
 
+    it('Write (魔法のマーカー書き込み) プロンプトで subCategory: WRITE と assistant が付与されること', () => {
+        const mockWriteService = {
+            getPresets: (type) => [{ name: type === 'SCROLL' ? 'genocide' : 'identify' }],
+            getCatalog: (type) => [{ name: type === 'SCROLL' ? 'scroll of genocide' : 'spellbook of identify' }]
+        };
+        const mockGkl = {
+            getWriteService: () => mockWriteService
+        };
+        const builder = new PromptPayloadBuilder({ gkl: mockGkl });
+
+        // 1. 英語プロンプト (Scroll)
+        const resEnScroll = builder.build({
+            context: 'getlin',
+            prompt: "What type of scroll do you want to write?",
+            rawPrompt: "What type of scroll do you want to write?"
+        });
+        expect(resEnScroll.subCategory).toBe('WRITE');
+        expect(resEnScroll.assistant).toBeDefined();
+        expect(resEnScroll.assistant.type).toBe('WRITE');
+        expect(resEnScroll.assistant.targetType).toBe('SCROLL');
+        expect(resEnScroll.assistant.presets[0].name).toBe('genocide');
+        expect(resEnScroll.assistant.writeService).toBe(mockWriteService);
+
+        // 2. 日本語プロンプト (Spellbook)
+        const resJaBook = builder.build({
+            context: 'getlin',
+            prompt: "どんな呪文書を書くか?",
+            rawPrompt: "どんな呪文書を書くか?"
+        });
+        expect(resJaBook.subCategory).toBe('WRITE');
+        expect(resJaBook.assistant).toBeDefined();
+        expect(resJaBook.assistant.type).toBe('WRITE');
+        expect(resJaBook.assistant.targetType).toBe('SPELLBOOK');
+        expect(resJaBook.assistant.presets[0].name).toBe('identify');
+    });
+
     describe('SignalDetector 統合と依存性注入 (DI)', () => {
         it('カスタム SignalDetector を constructor で注入できること', () => {
             const customCatalog = {

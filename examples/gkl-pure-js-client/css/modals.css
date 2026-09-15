@@ -1067,6 +1067,258 @@
 }
 
 /* ============================================================================
+   🖋️ 魔法のマーカー書き込み (Write Assistant) スタイル
+   ============================================================================ */
+.write-modal-card {
+  max-width: 740px;
+}
+
+.mode-badge.write-mode {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.write-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.write-preset-btn {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.write-preset-btn:hover {
+  background-color: #21262d;
+  border-color: #58a6ff;
+  color: #fff;
+}
+
+.write-preset-btn.active {
+  background-color: #1f293d;
+  border-color: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+}
+
+.write-preset-btn-title {
+  font-weight: 600;
+  color: #e6edf3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.write-preset-btn-desc {
+  font-size: 0.7rem;
+  color: #8b949e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.write-search-container {
+  margin-bottom: 12px;
+}
+
+.write-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.write-search-input:focus {
+  border-color: #c084fc;
+  box-shadow: 0 0 8px rgba(192, 132, 252, 0.25);
+}
+
+.write-item-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  background-color: #0d1117;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 4px;
+}
+
+.write-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.write-item-row:hover {
+  background-color: #1e293b;
+}
+
+.write-item-row.selected {
+  background-color: #242b45;
+  border-color: #818cf8;
+}
+
+.write-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.write-item-main {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.write-item-sub {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.write-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* バッジスタイル */
+.cost-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.level-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-info {
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.write-safety-box {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.write-safety-box.safe {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+
+.write-safety-box.warning {
+  background-color: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+}
+
+.write-safety-box.info {
+  background-color: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #bae6fd;
+}
+
+.write-safety-box.danger {
+  background-color: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  animation: pulse-danger 2s infinite;
+}
+
+.write-preview-box {
+  background-color: #000;
+  border: 1px dashed #374151;
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.write-preview-box .preview-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.write-preview-box .preview-command {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  color: #c084fc;
+  font-weight: 700;
+}
+
+/* ============================================================================
    KEY カテゴリ & 待機用バウンスアニメーション (Section 5)
    ============================================================================ */
 .prompt-bar.is-key-waiting {

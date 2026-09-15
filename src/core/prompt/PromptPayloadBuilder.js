@@ -402,7 +402,32 @@ const DEFAULT_TITLES = {
             }
         }
 
-        // 4. 📦 コンテナ（Container）プロンプトのシグナル検知
+        // 4. 🖋️ 魔法のマーカー書き込み（Write）プロンプトのシグナル検知
+        const isWriteSignal = signal && (signal.subCategory === 'WRITE' || signal.signalId?.startsWith('SIGNAL_WRITE'));
+        const isWritePrompt = isWriteSignal || payload.subCategory === 'WRITE';
+
+        if (isWritePrompt) {
+            subCategory = 'WRITE';
+            if (!assistant) {
+                const writeService = (this.gkl && typeof this.gkl.getWriteService === 'function')
+                    ? this.gkl.getWriteService()
+                    : (this.gkl && this.gkl.writeService ? this.gkl.writeService : null);
+
+                const targetType = (signal && signal.params && signal.params.targetType)
+                    || payload.targetType
+                    || 'SCROLL';
+
+                assistant = {
+                    type: 'WRITE',
+                    targetType: targetType,
+                    presets: writeService && typeof writeService.getPresets === 'function' ? writeService.getPresets(targetType) : [],
+                    catalog: writeService && typeof writeService.getCatalog === 'function' ? writeService.getCatalog(targetType) : [],
+                    writeService: writeService
+                };
+            }
+        }
+
+        // 5. 📦 コンテナ（Container）プロンプトのシグナル検知
         const isContainerActionSignal = signal && (signal.subCategory === 'CONTAINER_ACTION_MENU' || signal.signalId?.startsWith('SIGNAL_CONTAINER_ACTION_MENU'));
         const isContainerPrompt = isContainerActionSignal || payload.subCategory === 'CONTAINER_ACTION_MENU';
 

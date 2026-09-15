@@ -15,6 +15,7 @@ import { MonsterTracker } from './MonsterTracker.js';
 import { WishService } from './WishService.js';
 import { GenocideService } from './GenocideService.js';
 import { PolymorphService } from './PolymorphService.js';
+import { WriteService } from './WriteService.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -91,6 +92,13 @@ export class GKLPlugin {
         this.polymorphService = options.polymorphService || new PolymorphService({
             translationEngine: options.translationEngine || null,
             language: this.language
+        });
+
+        this.writeService = options.writeService || new WriteService({
+            translator: options.translationEngine || null,
+            language: this.language,
+            discoveryStateManager: this.discoveryStateManager,
+            spellStateManager: this.spellStateManager
         });
 
         this._setupMonsterTrackerHooks();
@@ -274,6 +282,14 @@ export class GKLPlugin {
      */
     getPolymorphService() {
         return this.polymorphService;
+    }
+
+    /**
+     * 魔法のマーカー書き込み支援サービス (WriteService) インスタンスを取得
+     * @returns {WriteService}
+     */
+    getWriteService() {
+        return this.writeService;
     }
 
     /**

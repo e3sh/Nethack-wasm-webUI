@@ -502,6 +502,49 @@
       </div>
     </div>
 
+    <!-- 🖋️ 魔法のマーカー書き込みアシスタントモーダル (WriteModal) -->
+    <div id="write-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large write-modal-card">
+        <div class="modal-header">
+          <h2 id="write-modal-title">🖋️ 巻物への書き込み (Write Scroll)</h2>
+          <span id="write-type-badge" class="mode-badge write-mode">SCROLL</span>
+        </div>
+
+        <div class="write-modal-body">
+          <!-- 1. 定番プリセット -->
+          <div class="section-title" id="write-sec-presets">定番プリセット (Quick Presets)</div>
+          <div id="write-presets" class="write-preset-grid"></div>
+
+          <!-- 2. インクリメンタル検索 -->
+          <div class="section-title" id="write-sec-search">検索・個別指定</div>
+          <div class="write-search-container">
+            <input type="text" id="write-search-input" class="write-search-input" placeholder="アイテム名またはキーワードを入力 (例: 虐殺, genocide, identify, 鑑定)..." autocomplete="off" />
+          </div>
+
+          <!-- 3. カタログ一覧 -->
+          <div class="section-title" id="write-sec-catalog">カタログ一覧</div>
+          <div id="write-item-list" class="write-item-list"></div>
+
+          <!-- 4. 詳細・安全性警告ボックス -->
+          <div id="write-safety-box" class="write-safety-box safe">
+            <span id="write-safety-icon">✅</span>
+            <span id="write-safety-text">アイテムを選択してください</span>
+          </div>
+
+          <!-- 5. 送信プレビュー -->
+          <div class="write-preview-box">
+            <div class="preview-label" id="write-preview-label">NetHack Cコア送信文字列:</div>
+            <div id="write-preview-cmd" class="preview-command">-</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-write-cancel" class="btn btn-secondary">キャンセル (Esc)</button>
+          <button id="btn-write-submit" class="btn btn-primary btn-large">書き込む (Enter)</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Game Over / Record Modal (GameOverModal) -->
     <div id="gameover-modal" class="modal-backdrop hidden">
       <div class="modal-card modal-large">

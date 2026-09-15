@@ -65,6 +65,26 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(result.subCategory).toBe('POLYMORPH');
         });
 
+        it('Write (魔法のマーカー書き込み) の英語プロンプトを検知できること', () => {
+            const scrollRes = enDetector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What type of scroll do you want to write?'
+            });
+            expect(scrollRes.matched).toBe(true);
+            expect(scrollRes.signalId).toBe('SIGNAL_WRITE_SCROLL');
+            expect(scrollRes.subCategory).toBe('WRITE');
+            expect(scrollRes.params.targetType).toBe('SCROLL');
+
+            const bookRes = enDetector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What type of spellbook do you want to write?'
+            });
+            expect(bookRes.matched).toBe(true);
+            expect(bookRes.signalId).toBe('SIGNAL_WRITE_SPELLBOOK');
+            expect(bookRes.subCategory).toBe('WRITE');
+            expect(bookRes.params.targetType).toBe('SPELLBOOK');
+        });
+
         it('Container (コンテナ操作) の英語プロンプトを検知できること', () => {
             // ActionMenu
             const actionRes = enDetector.detect({
@@ -326,6 +346,26 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             });
             expect(result.matched).toBe(true);
             expect(result.signalId).toBe('SIGNAL_POLYMORPH');
+        });
+
+        it('Write (魔法のマーカー書き込み) の日本語プロンプトを検知できること', () => {
+            const scrollRes = jaDetector.detect({
+                context: 'getlin',
+                rawPrompt: 'どんな巻物を書くか?'
+            });
+            expect(scrollRes.matched).toBe(true);
+            expect(scrollRes.signalId).toBe('SIGNAL_WRITE_SCROLL');
+            expect(scrollRes.subCategory).toBe('WRITE');
+            expect(scrollRes.params.targetType).toBe('SCROLL');
+
+            const bookRes = jaDetector.detect({
+                context: 'getlin',
+                rawPrompt: 'どんな呪文書を書くか?'
+            });
+            expect(bookRes.matched).toBe(true);
+            expect(bookRes.signalId).toBe('SIGNAL_WRITE_SPELLBOOK');
+            expect(bookRes.subCategory).toBe('WRITE');
+            expect(bookRes.params.targetType).toBe('SPELLBOOK');
         });
 
         it('Container (コンテナ操作) の日本語プロンプトを検知できること', () => {

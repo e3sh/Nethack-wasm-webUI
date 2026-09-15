@@ -91,6 +91,59 @@
       "description": "Polymorph control prompt"
     },
     {
+      "id": "SIGNAL_WRITE_SCROLL",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 110,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "what\\s+(?:type|sort)\\s+of\\s+scroll\\s+do\\s+you\\s+want\\s+to\\s+write",
+        "what\\s+type\\s+of\\s+scroll"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SCROLL"
+      },
+      "description": "Magic marker write scroll prompt"
+    },
+    {
+      "id": "SIGNAL_WRITE_SPELLBOOK",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 110,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "what\\s+(?:type|sort)\\s+of\\s+(?:spell)?book\\s+do\\s+you\\s+want\\s+to\\s+write",
+        "what\\s+type\\s+of\\s+(?:spell)?book"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SPELLBOOK"
+      },
+      "description": "Magic marker write spellbook prompt"
+    },
+    {
+      "id": "SIGNAL_WRITE_GENERIC",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "what\\s+(?:type|sort)\\s+.*\\s+do\\s+you\\s+want\\s+to\\s+write"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SCROLL"
+      },
+      "description": "Magic marker write generic prompt"
+    },
+    {
       "id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
       "subCategory": "CONTAINER_ACTION_MENU",
       "inputType": "MENU",

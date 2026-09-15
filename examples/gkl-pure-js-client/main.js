@@ -321,7 +321,7 @@ class GklPureJSClient {
       // 起動シーケンス進行中の場合
       if (this.isStartingUp && this.startupStep === 'PROGRESS') {
         const cat = data?.promptCategory || data?.category;
-        console.log(`[Startup] inputRequired during PROGRESS: cat=${cat}, prompt=${data?.prompt || data?.rawPrompt}`);
+        //console.log(`[Startup] inputRequired during PROGRESS: cat=${cat}, prompt=${data?.prompt || data?.rawPrompt}`);
 
         // 1. 本編最初の通常ターン（POSKEY）を受信した時点で準備完了へ移行
         if (cat === 'POSKEY') {
@@ -334,7 +334,7 @@ class GklPureJSClient {
                                     (data?.prompt && data.prompt !== 'Press Space or Enter to continue...' && data.prompt.trim() !== '');
           
           if (cat === 'KEY' && !hasMeaningfulText) {
-            console.log('[Startup] Auto-responding Space for empty KEY prompt during save restore');
+            //console.log('[Startup] Auto-responding Space for empty KEY prompt during save restore');
             setTimeout(() => {
               if (this.core) this.core.respond(' ', { force: true });
             }, 30);
@@ -361,7 +361,7 @@ class GklPureJSClient {
     });
 
     this.core.on('inputAutoResolved', (data) => {
-      console.log(`[Startup] inputAutoResolved: category=${data?.category}, response=${data?.response}`);
+      //console.log(`[Startup] inputAutoResolved: category=${data?.category}, response=${data?.response}`);
     });
 
     // 8. Input Resolved

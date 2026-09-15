@@ -7,36 +7,63 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ModalManager } from '../../examples/gkl-pure-js-client/modules/components/ModalManager.js';
 import { PROMPT_CATEGORY } from '../../src/core/types.js';
+import { WriteService } from '../../src/core/knowledge/WriteService.js';
 
 function createMockElement(id = '', tag = 'div') {
   const classListSet = new Set(['hidden']);
   let innerHTML = '';
   let textContent = '';
+  const children = [];
 
   const el = {
     id,
     tagName: tag.toUpperCase(),
     style: {},
+    children,
+    value: '',
+    disabled: false,
     classList: {
       add: (cls) => classListSet.add(cls),
       remove: (cls) => classListSet.delete(cls),
       contains: (cls) => classListSet.has(cls),
     },
     addEventListener: vi.fn(),
-    appendChild: vi.fn(),
+    appendChild: vi.fn((child) => {
+      children.push(child);
+      return child;
+    }),
     querySelectorAll: () => [],
     querySelector: () => null,
     scrollIntoView: vi.fn(),
+    focus: vi.fn(),
+    click: function() {
+      if (typeof this.onclick === 'function') {
+        this.onclick();
+      }
+    },
   };
 
   Object.defineProperty(el, 'innerHTML', {
     get: () => innerHTML,
-    set: (val) => { innerHTML = val; },
+    set: (val) => {
+      innerHTML = val;
+      children.length = 0;
+    },
   });
 
   Object.defineProperty(el, 'textContent', {
     get: () => textContent,
     set: (val) => { textContent = val; },
+  });
+
+  Object.defineProperty(el, 'className', {
+    get: () => Array.from(classListSet).join(' '),
+    set: (val) => {
+      classListSet.clear();
+      if (val && typeof val === 'string') {
+        val.split(/\s+/).filter(Boolean).forEach(c => classListSet.add(c));
+      }
+    },
   });
 
   return el;
@@ -67,7 +94,12 @@ describe('ModalManager - promptCategory UI 分岐 & KEY 演出テスト', () => 
     };
 
     globalThis.document = {
-      getElementById: (id) => mockElements[id] || createMockElement(id),
+      getElementById: (id) => {
+        if (!mockElements[id]) {
+          mockElements[id] = createMockElement(id);
+        }
+        return mockElements[id];
+      },
       createElement: (tag) => createMockElement('', tag),
     };
 
@@ -224,3 +256,212 @@ describe('ModalManager - promptCategory UI 分岐 & KEY 演出テスト', () => 
     expect(mockCharModal.show).not.toHaveBeenCalled();
   });
 });
+
+describe('ModalManager - 魔法のマーカー（Write）支援モーダルテスト', () => {
+  let modalManager;
+  let mockElements;
+  let mockCore;
+  let writeService;
+
+  beforeEach(() => {
+    mockElements = {};
+    globalThis.document = {
+      getElementById: (id) => {
+        if (!mockElements[id]) {
+          mockElements[id] = createMockElement(id);
+        }
+        return mockElements[id];
+      },
+      createElement: (tag) => createMockElement('', tag),
+    };
+
+    mockCore = {
+      respond: vi.fn(),
+      sendKey: vi.fn(),
+    };
+
+    modalManager = new ModalManager({
+      getCore: () => mockCore,
+      getLoadedTileImagePath: () => '',
+      onRestartGame: vi.fn(),
+    });
+
+    writeService = new WriteService({ language: 'ja' });
+  });
+
+  it('subCategory: "WRITE"（targetType: "SCROLL"）のとき、Write モーダルが表示され、巻物用のタイトルとバッジが設定されること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const elWriteModal = mockElements['write-modal'];
+    expect(elWriteModal.classList.contains('hidden')).toBe(false);
+
+    const titleEl = mockElements['write-modal-title'];
+    expect(titleEl.textContent).toContain('巻物');
+
+    const badgeEl = mockElements['write-type-badge'];
+    expect(badgeEl.textContent).toBe('SCROLL');
+
+    const presetsContainer = mockElements['write-presets'];
+    expect(presetsContainer.children.length).toBeGreaterThan(0);
+  });
+
+  it('subCategory: "WRITE"（targetType: "SPELLBOOK"）のとき、呪文書用タイトルとバッジが設定されること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SPELLBOOK',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const titleEl = mockElements['write-modal-title'];
+    expect(titleEl.textContent).toContain('呪文書');
+
+    const badgeEl = mockElements['write-type-badge'];
+    expect(badgeEl.textContent).toBe('SPELLBOOK');
+  });
+
+  it('プリセットボタンをクリックしたときに選択アイテムが更新され、プレビューコマンドが反映されること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const presetsContainer = mockElements['write-presets'];
+    const chargingBtn = presetsContainer.children.find(btn => btn.innerHTML.includes('充填') || btn.innerHTML.includes('charging'));
+    expect(chargingBtn).toBeDefined();
+
+    chargingBtn.click();
+
+    const previewCmdEl = mockElements['write-preview-cmd'];
+    expect(previewCmdEl.textContent).toBe('charging');
+  });
+
+  it('インクリメンタル検索入力でアイテムが絞り込まれ、選択アイテムとプレビューが更新されること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const searchInput = mockElements['write-search-input'];
+    searchInput.value = 'identify';
+    searchInput.oninput();
+
+    const previewCmdEl = mockElements['write-preview-cmd'];
+    expect(previewCmdEl.textContent).toBe('identify');
+  });
+
+  it('確定ボタンクリックで、core.respond で正規コマンド文字列が送信されモーダルが閉じること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const btnSubmit = mockElements['btn-write-submit'];
+    btnSubmit.click();
+
+    expect(mockCore.respond).toHaveBeenCalledWith('genocide');
+    expect(mockElements['write-modal'].classList.contains('hidden')).toBe(true);
+  });
+
+  it('確定ボタンクリックで、core.respond がなく data.resolver がある場合に resolver で送信されること', () => {
+    const resolver = vi.fn();
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+      resolver,
+    };
+
+    // core.respond なしの状態をシミュレート
+    const mgrWithoutCore = new ModalManager({
+      getCore: () => null,
+      getLoadedTileImagePath: () => '',
+      onRestartGame: vi.fn(),
+    });
+
+    mgrWithoutCore.handleInputRequired(data);
+
+    const btnSubmit = mockElements['btn-write-submit'];
+    btnSubmit.click();
+
+    expect(resolver).toHaveBeenCalledWith('genocide');
+    expect(mockElements['write-modal'].classList.contains('hidden')).toBe(true);
+  });
+
+  it('キャンセルボタンクリックで、core.respond(\'\') が送信されモーダルが閉じること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const btnCancel = mockElements['btn-write-cancel'];
+    btnCancel.click();
+
+    expect(mockCore.respond).toHaveBeenCalledWith('');
+    expect(mockElements['write-modal'].classList.contains('hidden')).toBe(true);
+  });
+
+  it('未識別アイテム選択時に安全性警告（未識別警告）が表示されること', () => {
+    const data = {
+      subCategory: 'WRITE',
+      assistant: {
+        type: 'WRITE',
+        targetType: 'SCROLL',
+        writeService: writeService,
+      },
+    };
+
+    modalManager.handleInputRequired(data);
+
+    const searchInput = mockElements['write-search-input'];
+    searchInput.value = 'amnesia';
+    searchInput.oninput();
+
+    const safetyBox = mockElements['write-safety-box'];
+    expect(safetyBox.classList.contains('danger')).toBe(true);
+
+    const safetyText = mockElements['write-safety-text'];
+    expect(safetyText.textContent).toContain('未識別');
+  });
+});
+

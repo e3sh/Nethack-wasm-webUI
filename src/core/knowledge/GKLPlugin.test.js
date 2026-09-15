@@ -48,6 +48,14 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         expect(plugin.isNonItemSequence(['a', 'f'])).toBe(false);
     });
 
+    it('WriteService インスタンスが正しく初期化され、getWriteService で取得できること', () => {
+        const plugin = new GKLPlugin();
+        const writeService = plugin.getWriteService();
+        expect(writeService).toBeDefined();
+        expect(typeof writeService.getCatalog).toBe('function');
+        expect(writeService.getCatalog('SCROLL').length).toBeGreaterThan(0);
+    });
+
     it('attach: WebUICore にアタッチされ、userActionSent イベントを受信して非アイテム操作以外で invalidate が呼ばれること', () => {
         const plugin = new GKLPlugin();
         const mockCore = createMockCore();

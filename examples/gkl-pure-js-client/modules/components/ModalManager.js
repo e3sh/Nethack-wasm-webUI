@@ -4,6 +4,7 @@
 import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '../../../../src/core/knowledge/WishService.js';
 import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from '../../../../src/core/knowledge/GenocideService.js';
 import { PolymorphService } from '../../../../src/core/knowledge/PolymorphService.js';
+import { WriteService } from '../../../../src/core/knowledge/WriteService.js';
 
 export class ModalManager {
   constructor({
@@ -23,6 +24,8 @@ export class ModalManager {
     elSaveName,
     elWishModal,
     elGenocideModal,
+    elPolymorphModal,
+    elWriteModal,
     characterCreationModal,
     getCore,
     getLoadedTileImagePath,
@@ -57,10 +60,15 @@ export class ModalManager {
     this.currentGenocideTarget = 'L';
     this.isGenocideDangerOverride = false;
 
-    this.elPolymorphModal = document.getElementById('polymorph-modal');
+    this.elPolymorphModal = elPolymorphModal || document.getElementById('polymorph-modal');
     this.activePolymorphService = null;
     this.activePolymorphData = null;
     this.currentPolymorphTarget = 'silver dragon';
+
+    this.elWriteModal = elWriteModal || document.getElementById('write-modal');
+    this.activeWriteService = null;
+    this.activeWriteData = null;
+    this.currentWriteItem = null;
 
     this.getCore = getCore || (() => null);
     this.getLoadedTileImagePath = getLoadedTileImagePath || (() => '../../pict/nethack_default_32.png');
@@ -85,6 +93,9 @@ export class ModalManager {
     if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden') && this.activePolymorphData) {
       this.showPolymorphModal(this.activePolymorphData);
     }
+    if (this.elWriteModal && !this.elWriteModal.classList.contains('hidden') && this.activeWriteData) {
+      this.showWriteModal(this.activeWriteData);
+    }
     if (this.characterCreationModal && this.characterCreationModal.isVisible) {
       this.characterCreationModal.currentLanguage = lang;
       this.characterCreationModal.render();
@@ -97,6 +108,7 @@ export class ModalManager {
     if (this.elWishModal && !this.elWishModal.classList.contains('hidden')) return true;
     if (this.elGenocideModal && !this.elGenocideModal.classList.contains('hidden')) return true;
     if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden')) return true;
+    if (this.elWriteModal && !this.elWriteModal.classList.contains('hidden')) return true;
     if (this.elGameOverModal && !this.elGameOverModal.classList.contains('hidden')) return true;
     if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) return true;
     const elContainerModal = document.getElementById('container-modal');
@@ -114,6 +126,9 @@ export class ModalManager {
     }
     if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden')) {
       return this.elPolymorphModal.querySelector('.modal-card') || this.elPolymorphModal;
+    }
+    if (this.elWriteModal && !this.elWriteModal.classList.contains('hidden')) {
+      return this.elWriteModal.querySelector('.modal-card') || this.elWriteModal;
     }
     if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) {
       return this.elMenuModal.querySelector('.modal-content') || this.elMenuModal;
@@ -177,6 +192,12 @@ export class ModalManager {
     // 🦎 GKL 変化制御（Polymorph Control）コンテキスト判定
     if (data.subCategory === 'POLYMORPH' || (data.assistant && data.assistant.type === 'POLYMORPH')) {
       this.showPolymorphModal(data);
+      return;
+    }
+
+    // 🖋️ GKL 魔法のマーカー書き込み（Write）コンテキスト判定
+    if (data.subCategory === 'WRITE' || (data.assistant && data.assistant.type === 'WRITE')) {
+      this.showWriteModal(data);
       return;
     }
 
@@ -485,6 +506,7 @@ export class ModalManager {
     if (this.elWishModal) this.elWishModal.classList.add('hidden');
     if (this.elGenocideModal) this.elGenocideModal.classList.add('hidden');
     if (this.elPolymorphModal) this.elPolymorphModal.classList.add('hidden');
+    if (this.elWriteModal) this.elWriteModal.classList.add('hidden');
     const suggestDropdown = document.getElementById('wish-suggest-dropdown');
     if (suggestDropdown) suggestDropdown.classList.remove('active');
     const genocideSuggest = document.getElementById('genocide-suggest-dropdown');
@@ -1760,6 +1782,280 @@ export class ModalManager {
     renderPresets();
     updatePreviewAndSpec('silver dragon');
     this.elPolymorphModal.classList.remove('hidden');
+    if (searchInput) searchInput.focus();
+  }
+
+  showWriteModal(data) {
+    if (!this.elWriteModal) return;
+    const core = this.getCore();
+    const writeService = data.assistant?.writeService ||
+      (core && core.gkl && typeof core.gkl.getWriteService === 'function' ? core.gkl.getWriteService() : null) ||
+      new WriteService({ language: this.currentLanguage, translator: core?.translationEngine || null });
+
+    this.activeWriteService = writeService;
+    this.activeWriteData = data;
+
+    const lang = this.currentLanguage || 'ja';
+    writeService.setLanguage(lang);
+    const assistant = data.assistant || {};
+    const targetType = (assistant.targetType || 'SCROLL').toUpperCase();
+
+    // UI要素の取得
+    const titleEl = document.getElementById('write-modal-title');
+    const badgeEl = document.getElementById('write-type-badge');
+    const secPresetsEl = document.getElementById('write-sec-presets');
+    const presetContainer = document.getElementById('write-presets');
+    const secSearchEl = document.getElementById('write-sec-search');
+    const searchInput = document.getElementById('write-search-input');
+    const secCatalogEl = document.getElementById('write-sec-catalog');
+    const itemListContainer = document.getElementById('write-item-list');
+    const safetyBox = document.getElementById('write-safety-box');
+    const safetyIcon = document.getElementById('write-safety-icon');
+    const safetyText = document.getElementById('write-safety-text');
+    const previewLabel = document.getElementById('write-preview-label');
+    const previewCmdEl = document.getElementById('write-preview-cmd');
+    const btnCancel = document.getElementById('btn-write-cancel');
+    const btnSubmit = document.getElementById('btn-write-submit');
+
+    // 多言語ラベル設定
+    if (titleEl) {
+      if (targetType === 'SPELLBOOK') {
+        titleEl.textContent = lang === 'ja' ? '🖋️ 呪文書への書き込み (Write Spellbook)' : '🖋️ Write Spellbook Assistant';
+      } else {
+        titleEl.textContent = lang === 'ja' ? '🖋️ 巻物への書き込み (Write Scroll)' : '🖋️ Write Scroll Assistant';
+      }
+    }
+    if (badgeEl) {
+      badgeEl.textContent = targetType;
+    }
+    if (secPresetsEl) {
+      secPresetsEl.textContent = lang === 'ja' ? '定番プリセット (Quick Presets)' : 'Quick Presets';
+    }
+    if (secSearchEl) {
+      secSearchEl.textContent = lang === 'ja' ? '検索・個別指定' : 'Search / Specify';
+    }
+    if (secCatalogEl) {
+      secCatalogEl.textContent = lang === 'ja' ? 'カタログ一覧' : 'Item Catalog';
+    }
+    if (searchInput) {
+      searchInput.placeholder = lang === 'ja'
+        ? (targetType === 'SPELLBOOK' ? '呪文書名またはキーワードを入力 (例: 識別, identify, missile, 矢)...' : '巻物名またはキーワードを入力 (例: 虐殺, genocide, identify, 鑑定)...')
+        : 'Type item name or keyword (e.g. genocide, identify)...';
+    }
+    if (previewLabel) {
+      previewLabel.textContent = lang === 'ja' ? 'NetHack Cコア送信文字列:' : 'NetHack C-Core Serialized Command:';
+    }
+    if (btnCancel) {
+      btnCancel.textContent = lang === 'ja' ? 'キャンセル (Esc)' : 'Cancel (Esc)';
+    }
+    if (btnSubmit) {
+      btnSubmit.textContent = lang === 'ja' ? '書き込む (Enter)' : 'Write (Enter)';
+    }
+
+    const catalog = writeService.getCatalog(targetType);
+    let currentCatalogItems = [...catalog];
+    const presets = writeService.getPresets(targetType);
+
+    const updatePreviewAndSafety = (item) => {
+      this.currentWriteItem = item;
+      const finalCmd = item ? writeService.buildWriteCommand(item) : '';
+      if (previewCmdEl) previewCmdEl.textContent = finalCmd || '-';
+
+      if (!item) {
+        if (safetyBox) safetyBox.className = 'write-safety-box safe';
+        if (safetyIcon) safetyIcon.textContent = 'ℹ️';
+        if (safetyText) safetyText.textContent = lang === 'ja' ? 'アイテムを選択してください' : 'Please select an item';
+        if (btnSubmit) btnSubmit.disabled = true;
+        return;
+      }
+
+      if (btnSubmit) btnSubmit.disabled = false;
+
+      const safety = writeService.evaluateSafety(item, targetType);
+      if (safetyBox) {
+        safetyBox.classList.remove('safe', 'warning', 'info', 'danger');
+        if (safety.status === 'IDENTIFIED') safetyBox.classList.add('safe');
+        else if (safety.status === 'ENCOUNTERED_LABEL') safetyBox.classList.add('warning');
+        else if (safety.status === 'KNOWN_SPELL') safetyBox.classList.add('info');
+        else safetyBox.classList.add('danger');
+      }
+
+      if (safetyIcon) {
+        if (safety.status === 'IDENTIFIED') safetyIcon.textContent = '✅';
+        else if (safety.status === 'ENCOUNTERED_LABEL') safetyIcon.textContent = '🏷️';
+        else if (safety.status === 'KNOWN_SPELL') safetyIcon.textContent = '📖';
+        else safetyIcon.textContent = '⚠️';
+      }
+
+      if (safetyText) {
+        const statusLabel = lang === 'ja' ? safety.labelJa : safety.labelEn;
+        const warningMsg = lang === 'ja' ? safety.warningMessageJa : safety.warningMessageEn;
+        safetyText.textContent = warningMsg ? `${statusLabel} - ${warningMsg}` : statusLabel;
+      }
+    };
+
+    const renderPresets = () => {
+      if (!presetContainer) return;
+      presetContainer.innerHTML = '';
+      presets.forEach(p => {
+        const btn = document.createElement('button');
+        const isSelected = this.currentWriteItem && (this.currentWriteItem.writeName === p.writeName);
+        btn.className = `write-preset-btn ${isSelected ? 'active' : ''}`;
+        const title = lang === 'ja' ? p.labelJa : p.labelEn;
+        const desc = lang === 'ja' ? (p.descriptionJa || '') : (p.descriptionEn || '');
+        const costStr = p.costRange ? ` (${p.costRange[0]}-${p.costRange[1]})` : '';
+        btn.innerHTML = `
+          <span class="write-preset-btn-title">
+            <span>${title}</span>
+            <span style="color:#facc15; font-size:0.7rem;">${costStr}</span>
+          </span>
+          ${desc ? `<span class="write-preset-btn-desc">${desc}</span>` : ''}
+        `;
+        btn.onclick = () => {
+          const found = catalog.find(c => c.writeName === p.writeName) || p;
+          selectItem(found);
+        };
+        presetContainer.appendChild(btn);
+      });
+    };
+
+    const renderItemList = (items) => {
+      currentCatalogItems = items;
+      if (!itemListContainer) return;
+      itemListContainer.innerHTML = '';
+      if (items.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.padding = '12px';
+        emptyDiv.style.color = '#888';
+        emptyDiv.style.textAlign = 'center';
+        emptyDiv.style.fontSize = '0.8rem';
+        emptyDiv.textContent = lang === 'ja' ? '該当するアイテムが見つかりません' : 'No items found';
+        itemListContainer.appendChild(emptyDiv);
+        return;
+      }
+
+      items.forEach(it => {
+        const row = document.createElement('div');
+        const isSelected = this.currentWriteItem && (this.currentWriteItem.writeName === it.writeName);
+        row.className = `write-item-row ${isSelected ? 'selected' : ''}`;
+
+        const mainName = lang === 'ja' ? (it.nameJa || it.name) : it.name;
+        const subName = lang === 'ja' ? it.name : (it.nameJa || '');
+        const costRange = it.costRange ? `${it.costRange[0]}-${it.costRange[1]}` : (it.baseCost || 0);
+
+        const safety = writeService.evaluateSafety(it, targetType);
+        const safetyBadgeLabel = lang === 'ja' ? (safety.labelJa.split(' ')[0] || safety.labelJa) : (safety.labelEn.split(' ')[0] || safety.labelEn);
+        const badgeClass = safety.badgeClass || 'badge-success';
+
+        const levelHtml = it.level ? `<span class="level-badge">Lv${it.level}</span>` : '';
+
+        row.innerHTML = `
+          <div class="write-item-left">
+            <span class="write-item-main">${mainName}</span>
+            ${subName ? `<span class="write-item-sub">${subName}</span>` : ''}
+          </div>
+          <div class="write-item-right">
+            ${levelHtml}
+            <span class="cost-badge">Ink: ${costRange}</span>
+            <span class="mode-badge ${badgeClass}">${safetyBadgeLabel}</span>
+          </div>
+        `;
+
+        row.onclick = () => {
+          selectItem(it);
+        };
+        itemListContainer.appendChild(row);
+      });
+    };
+
+    const selectItem = (item) => {
+      this.currentWriteItem = item;
+      renderPresets();
+      renderItemList(currentCatalogItems);
+      updatePreviewAndSafety(item);
+    };
+
+    // 検索入力イベント
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.oninput = () => {
+        const query = searchInput.value.trim();
+        const filtered = writeService.search(query, targetType);
+        renderItemList(filtered);
+        if (filtered.length > 0 && (!this.currentWriteItem || !filtered.some(f => f.writeName === this.currentWriteItem.writeName))) {
+          selectItem(filtered[0]);
+        }
+      };
+      searchInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (btnSubmit && !btnSubmit.disabled) {
+            btnSubmit.click();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (btnCancel) {
+            btnCancel.click();
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (currentCatalogItems.length > 0) {
+            const idx = currentCatalogItems.findIndex(it => it.writeName === this.currentWriteItem?.writeName);
+            const nextIdx = (idx + 1) % currentCatalogItems.length;
+            selectItem(currentCatalogItems[nextIdx]);
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (currentCatalogItems.length > 0) {
+            const idx = currentCatalogItems.findIndex(it => it.writeName === this.currentWriteItem?.writeName);
+            const prevIdx = (idx - 1 + currentCatalogItems.length) % currentCatalogItems.length;
+            selectItem(currentCatalogItems[prevIdx]);
+          }
+        }
+      };
+    }
+
+    const sendResponse = (val) => {
+      this.clearAllModals();
+      if (core && typeof core.respond === 'function') {
+        core.respond(val);
+      } else if (data.resolver && typeof data.resolver === 'function') {
+        data.resolver(val);
+      } else if (core && typeof core.sendKey === 'function') {
+        core.sendKey(val);
+      }
+    };
+
+    if (btnSubmit) {
+      btnSubmit.onclick = () => {
+        const finalCmd = this.currentWriteItem ? writeService.buildWriteCommand(this.currentWriteItem) : '';
+        sendResponse(finalCmd);
+      };
+    }
+
+    if (btnCancel) {
+      btnCancel.onclick = () => {
+        sendResponse('');
+      };
+    }
+
+    const writeCard = this.elWriteModal.querySelector?.('.write-modal-card') || this.elWriteModal;
+    if (writeCard) {
+      writeCard.onkeydown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (btnCancel) btnCancel.click();
+        }
+      };
+    }
+
+    // 初期化表示: プリセットの先頭またはカタログの先頭アイテム
+    renderPresets();
+    renderItemList(catalog);
+    const initialItem = (presets.length > 0 ? catalog.find(c => c.writeName === presets[0].writeName) : null) || catalog[0] || null;
+    selectItem(initialItem);
+
+    this.elWriteModal.classList.remove('hidden');
     if (searchInput) searchInput.focus();
   }
 

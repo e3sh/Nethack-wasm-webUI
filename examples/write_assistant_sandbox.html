@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack 魔法のマーカー書き込みアシスタント (Write Assistant Sandbox)</title>
+    <!-- SSOT 辞書データ -->
+    <script src="../param/nhMessage.js"></script>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --panel-bg: #1e1e24;
+            --border-color: #33333d;
+            --text-color: #e0e0e0;
+            --text-muted: #888899;
+            --primary: #4f8cff;
+            --primary-hover: #6ea0ff;
+            --accent: #ffd700;
+            --danger: #ff5555;
+            --danger-hover: #ff6e6e;
+            --success: #50fa7b;
+            --warning: #ffb86c;
+            --info: #8be9fd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sandbox-header {
+            max-width: 760px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-titles h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            color: var(--info);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-titles p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .lang-switcher {
+            display: flex;
+            background-color: #1a1a22;
+            border: 1px solid #3c3c4e;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .lang-btn.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        /* コントロールバー */
+        .sim-control-bar {
+            max-width: 760px;
+            width: 100%;
+            background-color: #181820;
+            border: 1px solid #2d2d3a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sim-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .sim-group label {
+            color: var(--text-muted);
+        }
+
+        .sim-group select, .sim-group input {
+            background-color: #24242f;
+            border: 1px solid #3c3c4e;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        /* モーダルコンテナ */
+        .assistant-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-width: 760px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* タブ切替 */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .mode-tab-btn {
+            background: #282834;
+            border: 1px solid #3c3c4e;
+            color: var(--text-muted);
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .mode-tab-btn.active {
+            background: #353545;
+            color: #fff;
+            border-color: var(--info);
+            box-shadow: 0 0 8px rgba(139, 233, 253, 0.2);
+        }
+
+        /* プリセットバー */
+        .presets-section {
+            margin-bottom: 16px;
+        }
+
+        .presets-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            background: #252530;
+            border: 1px solid #3a3a4c;
+            color: #d0d0d8;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-btn:hover {
+            background: #323242;
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        /* 検索バー */
+        .search-container {
+            margin-bottom: 14px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: #141418;
+            border: 1px solid #3c3c4e;
+            border-radius: 6px;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        /* リストコンテナ */
+        .item-list {
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid #2a2a36;
+            border-radius: 6px;
+            background: #16161c;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #22222c;
+            transition: background-color 0.1s;
+        }
+
+        .item-row:hover {
+            background-color: #242430;
+        }
+
+        .item-row.selected {
+            background-color: #2a2d3e;
+            border-left: 3px solid var(--primary);
+        }
+
+        .item-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .item-name-main {
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .item-name-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .item-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* バッジ */
+        .badge {
+            font-size: 11px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: rgba(80, 250, 123, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(80, 250, 123, 0.3);
+        }
+
+        .badge-warning {
+            background: rgba(255, 184, 108, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(255, 184, 108, 0.3);
+        }
+
+        .badge-info {
+            background: rgba(139, 233, 253, 0.15);
+            color: var(--info);
+            border: 1px solid rgba(139, 233, 253, 0.3);
+        }
+
+        .badge-danger {
+            background: rgba(255, 85, 85, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(255, 85, 85, 0.3);
+        }
+
+        .cost-badge {
+            font-size: 11px;
+            background: #252532;
+            color: #b0b0c0;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid #383848;
+            white-space: nowrap;
+        }
+
+        /* 選択詳細・警告パネル */
+        .detail-panel {
+            margin-top: 16px;
+            background: #191922;
+            border: 1px solid #333342;
+            border-radius: 6px;
+            padding: 12px 16px;
+        }
+
+        .warning-box {
+            background: rgba(255, 85, 85, 0.1);
+            border: 1px solid rgba(255, 85, 85, 0.4);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            color: #ff9999;
+            font-size: 13px;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-box.safe {
+            background: rgba(80, 250, 123, 0.1);
+            border-color: rgba(80, 250, 123, 0.3);
+            color: #a8ffb8;
+        }
+
+        .preview-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .preview-label {
+            color: var(--text-muted);
+        }
+
+        .preview-cmd {
+            font-family: monospace;
+            background: #0d0d12;
+            border: 1px solid #3c3c4e;
+            padding: 4px 10px;
+            border-radius: 4px;
+            color: var(--accent);
+            font-size: 14px;
+        }
+
+        .footer-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-write {
+            background: var(--primary);
+            border: none;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+
+        .btn-write:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-write.danger-action {
+            background: var(--danger);
+        }
+        .btn-write.danger-action:hover {
+            background: var(--danger-hover);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sandbox-header">
+        <div class="header-titles">
+            <h1>🖋️ NetHack 魔法のマーカー書き込みアシスタント</h1>
+            <p>白紙の巻物・白紙の魔法書への安全な書き込み支援 (Write Assistant Sandbox)</p>
+        </div>
+        <div class="lang-switcher">
+            <button id="btn-lang-ja" class="lang-btn active">日本語</button>
+            <button id="btn-lang-en" class="lang-btn">English</button>
+        </div>
+    </div>
+
+    <!-- シミュレーション環境設定 -->
+    <div class="sim-control-bar">
+        <div class="sim-group">
+            <label for="sim-ident-state">識別状態シミュレーション:</label>
+            <select id="sim-ident-state">
+                <option value="partial">一部識別済み (鑑定・地図・一部呪文等)</option>
+                <option value="all">すべて識別済み (100% 安全)</option>
+                <option value="none">完全未識別 (ゲーム開始直後・危険)</option>
+            </select>
+        </div>
+        <div class="sim-group">
+            <label for="sim-marker-ink">マーカー残インク:</label>
+            <input type="number" id="sim-marker-ink" value="35" min="0" max="100" style="width: 60px;">
+        </div>
+    </div>
+
+    <!-- アシスタントモーダル -->
+    <div class="assistant-modal">
+        <!-- 巻物 / 魔法書 切替タブ -->
+        <div class="mode-tabs">
+            <button id="tab-scroll" class="mode-tab-btn active">📜 白紙の巻物 (Scroll of Blank Paper)</button>
+            <button id="tab-spellbook" class="mode-tab-btn">📖 白紙の呪文書 (Blank Spellbook)</button>
+        </div>
+
+        <!-- 定番プリセット -->
+        <div class="presets-section">
+            <div class="presets-label" id="presets-title">定番プリセット</div>
+            <div id="preset-buttons" class="preset-buttons"></div>
+        </div>
+
+        <!-- 検索バー -->
+        <div class="search-container">
+            <input type="text" id="search-input" class="search-input" placeholder="巻物・魔法書を検索 (例: 虐殺, genocide, identify, 鑑定)...">
+        </div>
+
+        <!-- カタログリスト -->
+        <div id="item-list" class="item-list"></div>
+
+        <!-- 詳細・送信プレビュー -->
+        <div id="detail-panel" class="detail-panel">
+            <div id="safety-box" class="warning-box safe">
+                <span id="safety-icon">✅</span>
+                <span id="safety-desc">アイテムを選択してください。</span>
+            </div>
+
+            <div class="preview-row">
+                <span class="preview-label" id="lbl-preview">NetHack WASM 送信コマンド:</span>
+                <span id="cmd-preview" class="preview-cmd">-</span>
+            </div>
+
+            <div class="footer-buttons">
+                <button class="btn-cancel" id="btn-cancel">キャンセル (ESC)</button>
+                <button class="btn-write" id="btn-submit">書き込む (Enter)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Module 読み込み -->
+    <script type="module">
+        import { WriteService, WRITE_SAFETY_STATUS } from '../src/core/knowledge/WriteService.js';
+        import { DiscoveryStateManager } from '../src/core/knowledge/DiscoveryStateManager.js';
+        import { SpellStateManager } from '../src/core/knowledge/SpellStateManager.js';
+
+        let currentLang = 'ja';
+        let currentTargetType = 'SCROLL';
+        let selectedItem = null;
+
+        const dsm = new DiscoveryStateManager();
+        const ssm = new SpellStateManager();
+        const service = new WriteService({
+            discoveryStateManager: dsm,
+            spellStateManager: ssm,
+            language: currentLang
+        });
+
+        // シミュレーション状態の適用
+        function applySimulationState() {
+            const state = document.getElementById('sim-ident-state').value;
+            dsm.reset();
+            ssm.reset();
+
+            if (state === 'all') {
+                dsm.isIdentified = () => true;
+            } else if (state === 'partial') {
+                dsm.isIdentified = (nameOrOnum) => {
+                    const str = String(nameOrOnum).toLowerCase();
+                    return str.includes('identify') || str.includes('magic mapping') || str.includes('light') || str.includes('healing');
+                };
+                dsm.appearanceMap.set('FOOBIE BLETCH', 'scroll of genocide');
+                ssm.getSpells = () => [
+                    { name: 'magic missile', level: 2 },
+                    { name: 'identify', level: 3 }
+                ];
+            } else {
+                dsm.isIdentified = () => false;
+                ssm.getSpells = () => [];
+            }
+
+            render();
+        }
+
+        // プリセット描画
+        function renderPresets() {
+            const container = document.getElementById('preset-buttons');
+            container.innerHTML = '';
+            const presets = service.getPresets(currentTargetType);
+
+            presets.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn';
+                btn.textContent = currentLang === 'ja' ? p.labelJa : p.labelEn;
+                btn.addEventListener('click', () => {
+                    const catalog = service.getCatalog(currentTargetType);
+                    const target = catalog.find(it => it.writeName === p.writeName);
+                    if (target) {
+                        selectItem(target);
+                    }
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        // リスト描画
+        function renderList() {
+            const container = document.getElementById('item-list');
+            container.innerHTML = '';
+            const query = document.getElementById('search-input').value;
+            const items = service.search(query, currentTargetType);
+            const ink = parseInt(document.getElementById('sim-marker-ink').value, 10) || 0;
+
+            if (items.length === 0) {
+                container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--text-muted);">一致するアイテムが見つかりません</div>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const safety = service.evaluateSafety(item, currentTargetType);
+                const row = document.createElement('div');
+                row.className = 'item-row' + (selectedItem && selectedItem.writeName === item.writeName ? ' selected' : '');
+
+                const left = document.createElement('div');
+                left.className = 'item-left';
+
+                const mainName = document.createElement('div');
+                mainName.className = 'item-name-main';
+                mainName.textContent = currentLang === 'ja' ? item.nameJa : item.name;
+
+                const subName = document.createElement('div');
+                subName.className = 'item-name-sub';
+                subName.textContent = `${item.writeName} ${item.level ? `(Lv${item.level})` : ''} - ${item.effectSummary || ''}`;
+
+                left.appendChild(mainName);
+                left.appendChild(subName);
+
+                const right = document.createElement('div');
+                right.className = 'item-right';
+
+                // コスト
+                const cost = document.createElement('span');
+                cost.className = 'cost-badge';
+                cost.textContent = `Cost: ${item.costRange[0]}〜${item.costRange[1]}`;
+                if (ink < item.costRange[0]) {
+                    cost.style.borderColor = 'var(--danger)';
+                    cost.style.color = 'var(--danger)';
+                    cost.textContent += ' ⚠️残量不足';
+                }
+
+                // 安全性バッジ
+                const badge = document.createElement('span');
+                badge.className = `badge ${safety.badgeClass}`;
+                badge.textContent = currentLang === 'ja' ? safety.labelJa : safety.labelEn;
+
+                right.appendChild(cost);
+                right.appendChild(badge);
+
+                row.appendChild(left);
+                row.appendChild(right);
+
+                row.addEventListener('click', () => {
+                    selectItem(item);
+                });
+
+                container.appendChild(row);
+            });
+        }
+
+        // アイテム選択
+        function selectItem(item) {
+            selectedItem = item;
+            renderList();
+
+            const safety = service.evaluateSafety(item, currentTargetType);
+            const safetyBox = document.getElementById('safety-box');
+            const safetyIcon = document.getElementById('safety-icon');
+            const safetyDesc = document.getElementById('safety-desc');
+            const cmdPreview = document.getElementById('cmd-preview');
+            const btnSubmit = document.getElementById('btn-submit');
+
+            if (safety.isSafe) {
+                safetyBox.className = 'warning-box safe';
+                safetyIcon.textContent = '✅';
+                safetyDesc.textContent = safety.warningMessageJa || `${item.nameJa || item.name} は安全に書き込み可能です。(成功率 100%)`;
+                btnSubmit.className = 'btn-write';
+                btnSubmit.textContent = currentLang === 'ja' ? '書き込む (Enter)' : 'Write (Enter)';
+            } else {
+                safetyBox.className = 'warning-box';
+                safetyIcon.textContent = '⚠️';
+                safetyDesc.textContent = safety.warningMessageJa || '未識別アイテムのため、高確率で失敗し白紙とインクが消滅します！';
+                btnSubmit.className = 'btn-write danger-action';
+                btnSubmit.textContent = currentLang === 'ja' ? '危険を承知で書く (Enter)' : 'Write at Risk (Enter)';
+            }
+
+            const cmd = service.buildWriteCommand(item);
+            cmdPreview.textContent = cmd;
+        }
+
+        function render() {
+            renderPresets();
+            renderList();
+            if (!selectedItem) {
+                const catalog = service.getCatalog(currentTargetType);
+                if (catalog.length > 0) selectItem(catalog[0]);
+            } else {
+                selectItem(selectedItem);
+            }
+        }
+
+        // イベント設定
+        document.getElementById('tab-scroll').addEventListener('click', () => {
+            currentTargetType = 'SCROLL';
+            document.getElementById('tab-scroll').classList.add('active');
+            document.getElementById('tab-spellbook').classList.remove('active');
+            selectedItem = null;
+            render();
+        });
+
+        document.getElementById('tab-spellbook').addEventListener('click', () => {
+            currentTargetType = 'SPELLBOOK';
+            document.getElementById('tab-spellbook').classList.add('active');
+            document.getElementById('tab-scroll').classList.remove('active');
+            selectedItem = null;
+            render();
+        });
+
+        document.getElementById('search-input').addEventListener('input', () => {
+            renderList();
+        });
+
+        document.getElementById('sim-ident-state').addEventListener('change', applySimulationState);
+        document.getElementById('sim-marker-ink').addEventListener('input', renderList);
+
+        document.getElementById('btn-lang-ja').addEventListener('click', () => {
+            currentLang = 'ja';
+            service.setLanguage('ja');
+            document.getElementById('btn-lang-ja').classList.add('active');
+            document.getElementById('btn-lang-en').classList.remove('active');
+            render();
+        });
+
+        document.getElementById('btn-lang-en').addEventListener('click', () => {
+            currentLang = 'en';
+            service.setLanguage('en');
+            document.getElementById('btn-lang-en').classList.add('active');
+            document.getElementById('btn-lang-ja').classList.remove('active');
+            render();
+        });
+
+        document.getElementById('btn-submit').addEventListener('click', () => {
+            if (selectedItem) {
+                const cmd = service.buildWriteCommand(selectedItem);
+                alert(`NetHack コアへ送信: "${cmd}"`);
+            }
+        });
+
+        document.getElementById('btn-cancel').addEventListener('click', () => {
+            alert('キャンセル: ESC (\\033) を送信');
+        });
+
+        // 初期実行
+        applySimulationState();
+    </script>
+</body>
+</html>

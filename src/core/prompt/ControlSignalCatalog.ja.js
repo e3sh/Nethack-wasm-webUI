@@ -97,6 +97,57 @@ export const jaCatalog = {
       "description": "変化制御 (Polymorph Control) プロンプト (JNetHack)"
     },
     {
+      "id": "SIGNAL_WRITE_SCROLL",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 110,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "どんな巻物を書くか"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SCROLL"
+      },
+      "description": "魔法のマーカー 巻物書き込みプロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_WRITE_SPELLBOOK",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 110,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "どんな(?:呪文書|本)を書くか"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SPELLBOOK"
+      },
+      "description": "魔法のマーカー 魔法書書き込みプロンプト (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_WRITE_GENERIC",
+      "subCategory": "WRITE",
+      "inputType": "LINE_TEXT",
+      "priority": 100,
+      "contextFilter": {
+        "isTextType": true
+      },
+      "patterns": [
+        "どんな.*を書くか"
+      ],
+      "flags": "i",
+      "params": {
+        "targetType": "SCROLL"
+      },
+      "description": "魔法のマーカー 書き込み汎用プロンプト (JNetHack)"
+    },
+    {
       "id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
       "subCategory": "CONTAINER_ACTION_MENU",
       "inputType": "MENU",
