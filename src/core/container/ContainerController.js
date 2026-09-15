@@ -445,7 +445,7 @@ export class ContainerController {
 
             // 中身が空なら、'q' でアクションメニューを抜けて poskey へ
             if (!hasTakeOut) {
-                console.log('[ContainerController] Container is empty. Leaving with \'q\'.');
+                //console.log('[ContainerController] Container is empty. Leaving with \'q\'.');
                 const activeRes = payload.safeResolver || payload.resolver || (this.core ? this.core.activeResolver : null);
                 if (activeRes && typeof activeRes.respond === 'function') {
                     activeRes.respond('q');
@@ -464,7 +464,7 @@ export class ContainerController {
             }
 
             // 中身が存在する場合: 初回のみ 'o' で一覧を取得し 'ESC' で抜けて poskey へ
-            console.log('[ContainerController] Container has items. Fetching initial contents...');
+            //console.log('[ContainerController] Container has items. Fetching initial contents...');
             const initialFetchRecipe = {
                 id: 'RECIPE_CONTAINER_INITIAL_FETCH',
                 start: ['o'],
@@ -490,7 +490,7 @@ export class ContainerController {
                         match: { subCategory: 'CONTAINER_ITEM_SELECT' },
                         action: (ctx) => {
                             const items = ctx.menuItems || [];
-                            console.log(`[ContainerController] Extracted ${items.length} initial items from container.`);
+                            //console.log(`[ContainerController] Extracted ${items.length} initial items from container.`);
                             this.contentsManager.updateFromMenuItems(items);
                             ctx.state = 'CONTENTS_EXTRACTED';
                             return '\x1b'; // 取り出さずにキャンセル
@@ -569,7 +569,7 @@ export class ContainerController {
 
         try {
             const openPrefix = this.sequenceBuilder.getContainerOpenPrefix(this.currentContainer);
-            console.log(`[ContainerController] Executing ${direction}: item=${item.name || item.rawText}, count=${count}`);
+            //console.log(`[ContainerController] Executing ${direction}: item=${item.name || item.rawText}, count=${count}`);
 
             const transferRecipe = {
                 id: `RECIPE_CONTAINER_${direction.toUpperCase()}`,

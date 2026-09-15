@@ -21,7 +21,7 @@ import { KeyHandler } from './modules/handlers/KeyHandler.js';
  */
 class GklPureJSClient {
   constructor() {
-    console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
+    //console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
     this.core = null;
     this.containerController = null;
     this.lookService = null;

@@ -11661,6 +11661,18 @@
         { en: "You feel deathly sick.", jp: "死ぬほど気分が悪い。" },
         { en: "You cannot throw an object at yourself.", jp: "自分自身に向かって物を投げることはできません。" },
         { en: "You have already identified all of your possessions.", jp: "すでに、ご自身の所有物はすべて識別されています。" },
+        { en: "quality apparel and accessories", jp: "高品質なアパレルとアクセサリー" },
+        { en: "\"Pilgrim, you enter a sacred place!\"", jp: "「巡礼者よ、あなたは聖域に足を踏み入れた！」" },
+        { en: "You have a forbidding feeling...", jp: "不吉な予感がする..." },
+        { en: "You hear an animal carcass being offered in sacrifice.", jp: "動物の死骸が生贄として捧げられる音が聞こえる。" },
+        { en: "\"I am in your debt.  I will grant one wish!\"", jp: "「お礼に、願いを一つ叶えてあげよう！」" },
+        { en: "You don't have enough gold to buy the item on your bill.", jp: "請求書の品物を買うのに十分なゴールドがない。" },
+        { en: "Your marker dries out!", jp: "マーカーのインクが乾いてしまった！" },
+        { en: "Your marker is too dry to write that!", jp: "マーカーが乾きすぎていて、それを書くことができない！" },
+        { en: "Nothing seems to happen.", jp: "何も起こらないようだ。" },
+        { en: "The water flow seems stronger now.", jp: "水の流れが、今の方が強くなっているようだ。" },
+        { en: "You don't know how to write that.", jp: "その書き方がわからないんだ。" },
+        { en: "A wisp of vapor rises up...", jp: "一筋の湯気が立ち上る..." },
     ];
 }
 
@@ -11762,10 +11774,10 @@ function nhEntities() {
         "Monk": "武闘家",
         "monk": "武闘家",
         "Priest": "司祭",
-        "priest": "僧侶",
+        "priest": "司祭",
         "Priestess": "女司祭",
-        "priestess": "女僧侶",
-        "Priest/Priestess": "僧侶/女僧侶",
+        "priestess": "女司祭",
+        "Priest/Priestess": "司祭/女司祭",
         "Ranger": "レンジャー",
         "ranger": "レンジャー",
         "Rogue": "ならず者",
@@ -13355,6 +13367,7 @@ function nhEntities() {
         "ceiling": "天井",
         "above": "上方",
         "no traps on the door": "罠のない扉",
+        "stringy": "繊維質",
     };
 }
 
@@ -14626,6 +14639,7 @@ function nhPatterns() {
         { pattern: /^Your\s+(.*)\s+glows\s+(.*)\s+for\s+a\s+while\.$/, replace: "あなたの$1が、しばらくの間、$2に輝いている。" },
         { pattern: /^Click!\s+\s+(.*)\s+triggers\s+something\.$/, replace: "カチッ！ $1が何かを作動させた。" },
         { pattern: /^Click!\s+\s+(.*)\s+triggers\s+a\s+rolling\s+boulder\s+trap\.$/, replace: "カチッ！ $1が転がる岩の罠を作動させた。" },
+        { pattern: /^You\s+write\s+\"(.*)\s+was\s+here!\"\s+and\s+(.*)\s+disappears\.$/, replace: "「$1がここにいた！」と書き込むと、巻物が消えてしまいます。" },
         { pattern: /^More\s+info\s+about\s+\"(.*)\"\?$/, replace: "「$1」についてもっと詳しく？" },
         { pattern: /^What\s+do\s+you\s+want\s+to\s+(.*)\?\s+\[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
         { pattern: /^(.*)\s+\((.*)\)$/, replace: "$1 ( $2 )" },
@@ -16388,7 +16402,7 @@ function nhPatterns() {
         { pattern: /^This\s+satiates\s+your\s+(.*)!$/, replace: "これであなたの $1 は満足できます!" },
         { pattern: /^My,\s+this\s+is\s+a\s+(.*)\s+(.*)!$/, replace: "やあ、これは $1  $2 です!" },
         { pattern: /^(.*)\s+\-\-\s+core\s+dumped\.$/, replace: "$1 -- コアがダンプされました。" },
-        { pattern: /^This\s+(.*)\s+is\s+(.*)$/, replace: "この $1 は $2 です" },
+        { pattern: /^This\s+(.*)\s+is\s+(.*)\.$/, replace: "この $1 は $2 です。" },
         { pattern: /^Magic\s+spreads\s+through\s+your\s+body\s+as\s+you\s+digest\s+the\s+(.*)\.$/, replace: "$1 を消化すると、魔法が体中に広がります。" },
         { pattern: /^body\s+takes\s+on\s+a\s+(.*)\s+transparency\.\.\.$/, replace: "ボディは $1 透明になります..." },
         { pattern: /^are\s+suddenly\s+very\s+(.*)!$/, replace: "突然とても $1 になりました!" },
@@ -17162,6 +17176,11 @@ function nhPatterns() {
         { pattern: /^Some\s+(.*)\s+liquid\s+flows\s+from\s+the\s+faucet\.$/, replace: "蛇口から$1の液体が流れ出ている。" },
         { pattern: /^(.*)\s+mews\.$/, replace: "$1が鳴く。" },
         { pattern: /^(.*)\s+seems\s+to\s+blend\s+into\s+the\s+floor\s+for\s+a\s+moment\.$/, replace: "$1が、一瞬、床に溶け込んでいるように見える。" },
+        { pattern: /^(.*)\s+is\s+killed\s+by\s+(.*)!$/, replace: "$1が$2で倒された！" },
+        { pattern: /^The\s+priestess\s+of\s+(.*)\s+intones:$/, replace: "$1の巫女がこう唱える：" },
+        { pattern: /^(.*)\s+is\s+left\s+unfinished\s+and\s+your\s+writing\s+fades\.$/, replace: "$1は未完成のまま残り、あなたの文字は薄れていく。" },
+        { pattern: /^(.*)\s+warps\s+strangely,\s+then\s+turns\s+(.*)\.$/, replace: "$1が奇妙に歪み、やがて$2に変わる。" },
+        { pattern: /^You\s+hold\s+(.*)\s+under\s+the\s+tap\.$/, replace: "$1を、蛇口の下に置きます。" },
     ];
 }
 

@@ -1376,7 +1376,7 @@ export class GKLPlugin {
      */
     executeAction(action, options = {}) {
         if (!action || !this.core) return false;
-        console.log(`[GKLPlugin] 🎯 executeAction: id=${action.id}, hasRecipe=${Boolean(action.actionRecipe || action.recipe)}, hasKeySeq=${Boolean(action.keySequence)}`);
+        //console.log(`[GKLPlugin] 🎯 executeAction: id=${action.id}, hasRecipe=${Boolean(action.actionRecipe || action.recipe)}, hasKeySeq=${Boolean(action.keySequence)}`);
 
         // ⚔️ 攻撃アクション時の演出イベント (ATTACK_HIT) 発火
         // ※ 遠隔射撃 (ACTION_FIRE_ / target === 'ranged') は近接スラッシュ演出を除外
@@ -1478,7 +1478,7 @@ export class GKLPlugin {
      */
     async executeSequence(sequence, options = {}) {
         if (!sequence || !this.core) return false;
-        console.log(`[GKLPlugin] 🔄 executeSequence called: isArray=${Array.isArray(sequence)}, type=${typeof sequence}, id=${sequence?.id}`);
+        //console.log(`[GKLPlugin] 🔄 executeSequence called: isArray=${Array.isArray(sequence)}, type=${typeof sequence}, id=${sequence?.id}`);
         const isArray = Array.isArray(sequence);
         if (isArray && sequence.length === 0) return false;
 

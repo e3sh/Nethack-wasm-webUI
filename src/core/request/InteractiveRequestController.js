@@ -429,11 +429,11 @@ export class InteractiveRequestController {
                 }
                 const labelStr = label ? ` [${label}]` : '';
                 const resolveStr = resolved !== action ? ` (resolved: '${resolved}')` : '';
-                console.log(`[InteractiveRequestController] ➡️ Responding: '${action}'${resolveStr}${labelStr}`);
+                //console.log(`[InteractiveRequestController] ➡️ Responding: '${action}'${resolveStr}${labelStr}`);
                 this._respond(resolver, resolved);
             };
 
-            console.log(`[InteractiveRequestController] 🚀 Starting recipe '${recipe.id || 'unnamed'}' (startQueue: ${JSON.stringify(startQueue)})`);
+            //console.log(`[InteractiveRequestController] 🚀 Starting recipe '${recipe.id || 'unnamed'}' (startQueue: ${JSON.stringify(startQueue)})`);
 
             // inputRequired リスナー
             const onInputRequired = (payload) => {
@@ -448,7 +448,7 @@ export class InteractiveRequestController {
                     { matched: false, signalId: null, subCategory: null, inputType: null, params: {} };
 
                 if (signal && signal.matched) {
-                    console.log(`[InteractiveRequestController] 📡 Signal detected: ${signal.signalId} (subCategory: ${signal.subCategory}) [contextMessage: "${lastMessage}"]`);
+                    //console.log(`[InteractiveRequestController] 📡 Signal detected: ${signal.signalId} (subCategory: ${signal.subCategory}) [contextMessage: "${lastMessage}"]`);
                 }
 
                 ctx.payload = payload;
@@ -481,7 +481,7 @@ export class InteractiveRequestController {
 
                 // 3. 終了判定 (until) のチェック（ハンドラで未消費の場合にターン復帰等を評価）
                 if (this._isUntilSatisfied(recipe.until, payload, ctx, startQueue.length)) {
-                    console.log(`[InteractiveRequestController] 🏁 Recipe until satisfied (${recipe.until?.type || 'turn_ready'}). Finishing.`);
+                    //console.log(`[InteractiveRequestController] 🏁 Recipe until satisfied (${recipe.until?.type || 'turn_ready'}). Finishing.`);
                     finish(ctx.data, true);
                     return;
                 }
