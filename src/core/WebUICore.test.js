@@ -667,6 +667,7 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
 
             // チャタリングガードに阻害されず即座に mockResolver.respond が呼ばれること
             expect(mockResolver.respond).toHaveBeenCalledWith('TesterHero');
+            expect(core.playerName).toBe('TesterHero');
             // UI への inputRequired は発火せず、inputAutoResolved が発火すること
             expect(inputRequiredListener).not.toHaveBeenCalled();
             expect(inputAutoResolvedListener).toHaveBeenCalledTimes(1);
@@ -674,6 +675,43 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
                 category: PROMPT_CATEGORY.ASKNAME,
                 response: 'TesterHero'
             }));
+        });
+
+        it('新規ゲーム開始時の ASKNAME プロンプトで手動入力された名前が core.playerName に反映されること', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.ASKNAME)
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const mockResolver = { respond: vi.fn() };
+            const inputRequiredListener = vi.fn();
+            core.on('inputRequired', inputRequiredListener);
+
+            // 新規開始時の ASKNAME プロンプトを発行（detectedName: 'guest'）
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.ASKNAME,
+                context: 'askname',
+                prompt: 'What is your name?',
+                rawPrompt: 'What is your name?',
+                detectedName: 'guest',
+                resolver: mockResolver
+            });
+
+            // 初期フォールバックとして detectedName が core.playerName に設定されること
+            expect(core.playerName).toBe('guest');
+            expect(inputRequiredListener).toHaveBeenCalledTimes(1);
+
+            // ユーザーが 'Heroine' と入力して respond (テスト内のためデバウンスをリセット)
+            core.lastInputTime = 0;
+            core.respond('Heroine');
+            expect(core.playerName).toBe('Heroine');
+            expect(mockResolver.respond).toHaveBeenCalledWith('Heroine');
         });
     });
 

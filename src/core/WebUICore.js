@@ -160,6 +160,7 @@ export class WebUICore {
         this.lastUsedItemLetter = null;
         this.lastTriggerCommand = null;
         this.lastRawMessageText = '';
+        this.playerName = options.playerName || '';
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -205,6 +206,15 @@ export class WebUICore {
             this.gkl.setLanguage(resolvedLang);
         }
         this.emit('languageChanged', { language: resolvedLang });
+    }
+
+    /**
+     * プレイヤー名（キャラクター名）の設定
+     * @param {string} name
+     */
+    setPlayerName(name) {
+        if (!name || typeof name !== 'string') return;
+        this.playerName = name.trim();
     }
 
 
@@ -267,6 +277,9 @@ export class WebUICore {
         const hasSave = !startOptions.forceNewGame && (!!(detectedSaveName && detectedSaveName.trim().length > 0) || this.hasSaveData());
         this.isResumingSave = hasSave;
         this.resumeSavePlayerName = hasSave ? detectedSaveName.trim() : "";
+        if (this.resumeSavePlayerName) {
+            this.playerName = this.resumeSavePlayerName;
+        }
 
         return new Promise((resolve, reject) => {
             const onInitDone = async () => {
@@ -642,6 +655,9 @@ export class WebUICore {
                  this.currentPromptCategory === PROMPT_CATEGORY.EXTCMD) {
             if (typeof inputVal === 'string') {
                 finalResponse = inputVal;
+                if (this.currentPromptCategory === PROMPT_CATEGORY.ASKNAME && inputVal.trim()) {
+                    this.playerName = inputVal.trim();
+                }
             } else if (inputVal === 27 || inputVal === KEYS.ESC) {
                 finalResponse = '\x1b';
             } else {
@@ -1518,6 +1534,7 @@ export class WebUICore {
             if (category === PROMPT_CATEGORY.ASKNAME || rawPrompt.includes('Who are you') || rawPrompt.includes('your name') || payload.context === 'askname') {
                 if (this.isResumingSave || this.resumeSavePlayerName) {
                     const finalName = this.resumeSavePlayerName || payload.detectedName || 'Hero';
+                    this.playerName = finalName.trim();
                     if (this.gkl) {
                         if (typeof this.gkl.invalidateAllCaches === 'function') {
                             this.gkl.invalidateAllCaches();
@@ -1535,6 +1552,8 @@ export class WebUICore {
                     });
                     this.respond(finalName.trim(), { force: true });
                     return;
+                } else if (!this.playerName && (payload.detectedName || payload.defaultName)) {
+                    this.playerName = (payload.detectedName || payload.defaultName).trim();
                 }
             }
 

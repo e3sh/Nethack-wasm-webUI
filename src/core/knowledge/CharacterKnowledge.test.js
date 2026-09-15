@@ -2,8 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { 
     RACE_KNOWLEDGE_MAP, 
     ROLE_KNOWLEDGE_MAP, 
+    ALIGNMENT_KNOWLEDGE_MAP,
+    GENDER_KNOWLEDGE_MAP,
     resolveRaceKey, 
     resolveRoleKey, 
+    resolveAlignmentKey,
+    resolveGenderKey,
+    getRoleKnowledge,
+    getRaceKnowledge,
+    getAlignmentKnowledge,
+    getGenderKnowledge,
+    getCharacterBadges,
     calculateInnateResistances 
 } from './CHARACTER_KNOWLEDGE_BASE.js';
 import { 
@@ -77,6 +86,128 @@ describe('GKL SSOT Phase 1 - Knowledge Infrastructure Tests', () => {
             const unknownRes = calculateInnateResistances('UnknownRace', 'UnknownRole', 10);
             expect(typeof unknownRes).toBe('object');
             expect(Object.keys(unknownRes).length).toBe(0);
+        });
+
+        it('should verify official NetHack role.c race and alignment constraints across all 13 roles', () => {
+            // Arc: human, dwarf, gnome / lawful, neutral / male, female
+            const arc = ROLE_KNOWLEDGE_MAP.archeologist;
+            expect(arc.allowedRaces).toEqual(['human', 'dwarf', 'gnome']);
+            expect(arc.allowedAlignments).toEqual(['lawful', 'neutral']);
+            expect(arc.allowedGenders).toEqual(['male', 'female']);
+
+            // Bar: human, orc / neutral, chaotic
+            const bar = ROLE_KNOWLEDGE_MAP.barbarian;
+            expect(bar.allowedRaces).toEqual(['human', 'orc']);
+            expect(bar.allowedAlignments).toEqual(['neutral', 'chaotic']);
+
+            // Cav: human, dwarf, gnome / lawful, neutral
+            const cav = ROLE_KNOWLEDGE_MAP.caveman;
+            expect(cav.allowedRaces).toEqual(['human', 'dwarf', 'gnome']);
+            expect(cav.allowedAlignments).toEqual(['lawful', 'neutral']);
+
+            // Hea: human, gnome / neutral only
+            const hea = ROLE_KNOWLEDGE_MAP.healer;
+            expect(hea.allowedRaces).toEqual(['human', 'gnome']);
+            expect(hea.allowedAlignments).toEqual(['neutral']);
+
+            // Kni: human only / lawful only
+            const kni = ROLE_KNOWLEDGE_MAP.knight;
+            expect(kni.allowedRaces).toEqual(['human']);
+            expect(kni.allowedAlignments).toEqual(['lawful']);
+
+            // Mon: human only / lawful, neutral, chaotic
+            const mon = ROLE_KNOWLEDGE_MAP.monk;
+            expect(mon.allowedRaces).toEqual(['human']);
+            expect(mon.allowedAlignments).toEqual(['lawful', 'neutral', 'chaotic']);
+
+            // Pri: human, elf / lawful, neutral, chaotic
+            const pri = ROLE_KNOWLEDGE_MAP.priest;
+            expect(pri.allowedRaces).toEqual(['human', 'elf']);
+            expect(pri.allowedAlignments).toEqual(['lawful', 'neutral', 'chaotic']);
+
+            // Ran: human, elf, gnome, orc / neutral, chaotic
+            const ran = ROLE_KNOWLEDGE_MAP.ranger;
+            expect(ran.allowedRaces).toEqual(['human', 'elf', 'gnome', 'orc']);
+            expect(ran.allowedAlignments).toEqual(['neutral', 'chaotic']);
+
+            // Rog: human, orc / chaotic only
+            const rog = ROLE_KNOWLEDGE_MAP.rogue;
+            expect(rog.allowedRaces).toEqual(['human', 'orc']);
+            expect(rog.allowedAlignments).toEqual(['chaotic']);
+
+            // Sam: human only / lawful only
+            const sam = ROLE_KNOWLEDGE_MAP.samurai;
+            expect(sam.allowedRaces).toEqual(['human']);
+            expect(sam.allowedAlignments).toEqual(['lawful']);
+
+            // Tou: human only / neutral only
+            const tou = ROLE_KNOWLEDGE_MAP.tourist;
+            expect(tou.allowedRaces).toEqual(['human']);
+            expect(tou.allowedAlignments).toEqual(['neutral']);
+
+            // Val: human, dwarf / lawful, neutral / female only!
+            const val = ROLE_KNOWLEDGE_MAP.valkyrie;
+            expect(val.allowedRaces).toEqual(['human', 'dwarf']);
+            expect(val.allowedAlignments).toEqual(['lawful', 'neutral']);
+            expect(val.allowedGenders).toEqual(['female']);
+
+            // Wiz: human, elf, gnome, orc / neutral, chaotic
+            const wiz = ROLE_KNOWLEDGE_MAP.wizard;
+            expect(wiz.allowedRaces).toEqual(['human', 'elf', 'gnome', 'orc']);
+            expect(wiz.allowedAlignments).toEqual(['neutral', 'chaotic']);
+        });
+
+        it('should verify official NetHack role.c race alignment constraints across all 5 races', () => {
+            // Human: lawful, neutral, chaotic
+            expect(RACE_KNOWLEDGE_MAP.human.allowedAlignments).toEqual(['lawful', 'neutral', 'chaotic']);
+            // Dwarf: lawful only
+            expect(RACE_KNOWLEDGE_MAP.dwarf.allowedAlignments).toEqual(['lawful']);
+            // Elf: chaotic only
+            expect(RACE_KNOWLEDGE_MAP.elf.allowedAlignments).toEqual(['chaotic']);
+            // Gnome: neutral only
+            expect(RACE_KNOWLEDGE_MAP.gnome.allowedAlignments).toEqual(['neutral']);
+            // Orc: chaotic only
+            expect(RACE_KNOWLEDGE_MAP.orc.allowedAlignments).toEqual(['chaotic']);
+        });
+
+        it('should resolve alignment and gender keys correctly', () => {
+            expect(resolveAlignmentKey('lawful')).toBe('lawful');
+            expect(resolveAlignmentKey('秩序')).toBe('lawful');
+            expect(resolveAlignmentKey('neutral')).toBe('neutral');
+            expect(resolveAlignmentKey('中立')).toBe('neutral');
+            expect(resolveAlignmentKey('chaotic')).toBe('chaotic');
+            expect(resolveAlignmentKey('混沌')).toBe('chaotic');
+
+            expect(resolveGenderKey('male')).toBe('male');
+            expect(resolveGenderKey('男性')).toBe('male');
+            expect(resolveGenderKey('female')).toBe('female');
+            expect(resolveGenderKey('女性')).toBe('female');
+        });
+
+        it('should generate proper character badges with constraint and trait distinctions in Japanese and English', () => {
+            // Valkyrie: female only (constraint), cold res (trait), combat (trait)
+            const valBadgesJa = getCharacterBadges('role', 'valkyrie', 'ja');
+            expect(valBadgesJa.some(b => b.type === 'constraint' && b.label === '女性限定')).toBe(true);
+            expect(valBadgesJa.some(b => b.type === 'trait' && b.label === '冷気耐性')).toBe(true);
+
+            const valBadgesEn = getCharacterBadges('role', 'valkyrie', 'en');
+            expect(valBadgesEn.some(b => b.type === 'constraint' && b.label === 'Female only')).toBe(true);
+            expect(valBadgesEn.some(b => b.type === 'trait' && b.label === 'Cold res')).toBe(true);
+
+            // Knight: human only, lawful only
+            const kniBadgesJa = getCharacterBadges('role', 'knight', 'ja');
+            expect(kniBadgesJa.some(b => b.type === 'constraint' && b.label === '人間限定')).toBe(true);
+            expect(kniBadgesJa.some(b => b.type === 'constraint' && b.label === '秩序固定')).toBe(true);
+
+            // Dwarf: lawful only (constraint), infravision (trait)
+            const dwaBadgesJa = getCharacterBadges('race', 'dwarf', 'ja');
+            expect(dwaBadgesJa.some(b => b.type === 'constraint' && b.label === '秩序固定')).toBe(true);
+            expect(dwaBadgesJa.some(b => b.type === 'trait' && b.label === '暗視')).toBe(true);
+
+            // Orc: chaotic only (constraint), infravision / poison res (traits)
+            const orcBadgesJa = getCharacterBadges('race', 'orc', 'ja');
+            expect(orcBadgesJa.some(b => b.type === 'constraint' && b.label === '混沌固定')).toBe(true);
+            expect(orcBadgesJa.some(b => b.type === 'trait' && b.label === '毒耐性')).toBe(true);
         });
     });
 

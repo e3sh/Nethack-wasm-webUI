@@ -178,6 +178,13 @@ export class SignalDetector {
                 for (const regex of sig.patterns) {
                     const match = rawPrompt.match(regex);
                     if (match) {
+                        // キャラクタ作成シグナル固有の安全性検証 (汎用確認 'is this ok' 等の誤爆防止)
+                        if (sig.subCategory === 'CHARACTER_CREATION') {
+                            if (!this._validateCharacterCreation(match, rawPrompt, normalizedPayload)) {
+                                continue;
+                            }
+                        }
+
                         // パラメータの抽出・マッピング
                         const params = this._extractParams(sig, match, normalizedPayload);
 
@@ -207,6 +214,24 @@ export class SignalDetector {
                         inputType: sig.inputType,
                         params: { ...sig.params, containerName },
                         confidence: 0.9,
+                        rawPrompt: rawPrompt,
+                        signalDef: sig
+                    };
+                }
+            }
+
+            // 4. キャラクタ作成シグナルの補足判定 (メニュー項目構造からの判定)
+            if (sig.subCategory === 'CHARACTER_CREATION') {
+                const items = normalizedPayload.items || normalizedPayload.menuItems || [];
+                if (this._isCharacterCreationFromItems(items, rawPrompt)) {
+                    const params = this._extractParams(sig, { groups: {} }, normalizedPayload);
+                    return {
+                        matched: true,
+                        signalId: sig.id,
+                        subCategory: sig.subCategory,
+                        inputType: sig.inputType,
+                        params: params,
+                        confidence: 0.95,
                         rawPrompt: rawPrompt,
                         signalDef: sig
                     };
@@ -355,6 +380,24 @@ export class SignalDetector {
             }
         }
 
+        // step のフォールバック正規化 (キャラクタ作成)
+        if (!params.step && sig.subCategory === 'CHARACTER_CREATION') {
+            const raw = (payload.rawPrompt || payload.prompt || '').toLowerCase();
+            if (raw.includes('role') || raw.includes('profession') || raw.includes('職業') || raw.includes('役職')) {
+                params.step = 'role';
+            } else if (raw.includes('race') || raw.includes('species') || raw.includes('種族')) {
+                params.step = 'race';
+            } else if (raw.includes('gender') || raw.includes('sex') || raw.includes('性別')) {
+                params.step = 'gender';
+            } else if (raw.includes('align') || raw.includes('creed') || raw.includes('属性') || raw.includes('陣営')) {
+                params.step = 'alignment';
+            } else if (raw.includes('all that apply') || raw.includes('すべて選択')) {
+                params.step = 'filter';
+            } else if (raw.includes('is this ok') || raw.includes('start game') || raw.includes('よろしいですか') || raw.includes('ゲームを開始')) {
+                params.step = 'confirm';
+            }
+        }
+
         return params;
     }
 
@@ -387,6 +430,63 @@ export class SignalDetector {
             if (/^(?:throw|投げる)(?:\s|$)/i.test(text)) return true;
         }
         return false;
+    }
+
+    /**
+     * キャラクタ作成シグナルの妥当性検証 (汎用確認 'is this ok' 等の誤爆防止)
+     * @private
+     */
+    _validateCharacterCreation(match, rawPrompt, payload) {
+        const prompt = String(rawPrompt || '').toLowerCase();
+        // 1. 明確なキャラクタ作成プロンプト（職業・種族・性別・属性選択、全選択）は無条件でOK
+        if (/pick an? (?:role|race|gender|alignment|profession|species|sex|creed)/i.test(prompt) ||
+            /(?:役職|職業|種族|性別|陣営|属性)を選択/i.test(prompt) ||
+            /pick all that apply/i.test(prompt) ||
+            /適用するものをすべて選択/i.test(prompt)) {
+            return true;
+        }
+
+        // 2. 確認系（is this ok, よろしいですか等）の場合は、アイテム行に確定画面特有の要素があるか検証
+        const items = payload.items || payload.menuItems || [];
+        return this._isCharacterCreationFromItems(items, rawPrompt);
+    }
+
+    /**
+     * メニュー項目群からキャラクタ作成画面（Step 13 確定画面またはヘッダー）を判定
+     * @private
+     */
+    _isCharacterCreationFromItems(items, rawPrompt = '') {
+        if (!Array.isArray(items) || items.length === 0) return false;
+
+        let hasHeader = false;
+        let hasConfirmChoice = false;
+
+        for (const item of items) {
+            if (!item) continue;
+            const text = (item.rawStr || item.str || item.text || item.label || '').trim();
+            const lower = text.toLowerCase();
+
+            // 1. キャラクタ属性ヘッダー: <role> <race> <gender> <alignment> または Archeologist human <gender> lawful
+            if (/<(?:role|race|gender|alignment)>/i.test(text) ||
+                /＜(?:役職|種族|性別|属性)＞/.test(text)) {
+                hasHeader = true;
+            }
+
+            // 2. 確定画面タイトル: Name the <align> <gender> <race> <role>
+            if (/\bthe\s+(?:lawful|neutral|chaotic)\s+(?:male|female)\s+(?:human|elf|dwarf|gnome|orc)/i.test(text) ||
+                /(?:秩序|中立|混沌)\s+(?:男|女)\s+(?:人間|エルフ|ドワーフ|ノーム|オーク)/.test(text)) {
+                hasHeader = true;
+            }
+
+            // 3. 確定画面選択肢: start game, choose role again
+            if (lower.includes('start game') || lower.includes('choose role again') ||
+                text.includes('ゲームを開始') || text.includes('選び直')) {
+                hasConfirmChoice = true;
+            }
+        }
+
+        // キャラクタヘッダーがあるか、または確定画面のヘッダー+選択肢が存在すれば確定
+        return hasHeader || hasConfirmChoice;
     }
 
     /**

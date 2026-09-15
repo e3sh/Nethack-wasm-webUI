@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack キャラクタ作成 (Character Creation Sandbox)</title>
+    <!-- SSOT 辞書データがあれば参照 -->
+    <script src="../param/nhMessage.js" onerror="console.warn('nhMessage.js not loaded')"></script>
+    <style>
+        :root {
+            --bg-color: #0d0e12;
+            --panel-bg: #16181f;
+            --panel-header-bg: #1c1f28;
+            --card-bg: #20232e;
+            --card-bg-hover: #2a2f3e;
+            --card-bg-active: #2c3a5e;
+            --card-border-active: #5c8dff;
+            --border-color: #2e3240;
+            --text-color: #e2e4ea;
+            --text-muted: #8b92a5;
+            --text-dim: #5a6072;
+            --primary: #4f8cff;
+            --primary-hover: #6ea0ff;
+            --accent: #f0b232;
+            --danger: #ff5555;
+            --success: #50fa7b;
+            --tag-bg: #262a38;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* サンドボックスヘッダー */
+        .sandbox-header {
+            max-width: 820px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-titles h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-titles h1 .badge {
+            font-size: 11px;
+            background: #2a2c3a;
+            color: #a0a5b8;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-weight: normal;
+        }
+
+        .header-titles p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* 言語切替スイッチャー */
+        .lang-switcher {
+            display: flex;
+            background-color: #1a1b24;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .lang-btn.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        .lang-btn:hover:not(.active) {
+            background-color: #252836;
+            color: #ccc;
+        }
+
+        /* シミュレーション設定コントロールバー */
+        .sim-control-bar {
+            max-width: 820px;
+            width: 100%;
+            background-color: #151720;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .sim-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sim-select {
+            background-color: #212431;
+            border: 1px solid #3c4055;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .btn-sim {
+            background-color: #262b3a;
+            border: 1px solid #3d4358;
+            color: #ccd0e0;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+
+        .btn-sim:hover {
+            background-color: #343b50;
+            color: #fff;
+        }
+
+        /* キャラクタ作成モーダル */
+        .char-create-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+            max-width: 820px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* モーダル上部：タイトル＆キャラ名 */
+        .char-modal-top {
+            background: linear-gradient(180deg, var(--panel-header-bg) 0%, var(--panel-bg) 100%);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .char-title-area h2 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            color: #fff;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .char-title-area p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .char-name-badge {
+            background: #212433;
+            border: 1px solid #3c425c;
+            padding: 6px 14px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .char-name-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .char-name-val {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* タブナビゲーション */
+        .char-tabs-bar {
+            display: flex;
+            background-color: #12131a;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+            gap: 4px;
+        }
+
+        .char-tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .char-tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .char-tab-btn.active {
+            color: var(--primary-hover);
+            border-bottom-color: var(--primary);
+            background: rgba(79, 140, 255, 0.08);
+        }
+
+        .char-tab-btn .tab-key {
+            font-size: 10px;
+            background: #252838;
+            color: #9aa1b5;
+            padding: 1px 6px;
+            border-radius: 3px;
+            border: 1px solid #363b50;
+            font-family: monospace;
+        }
+
+        .char-tab-btn.active .tab-key {
+            background: #2e4475;
+            color: #bed6ff;
+            border-color: #486cb8;
+        }
+
+        .char-tab-btn .tab-val {
+            font-size: 11px;
+            color: var(--accent);
+            background: #252219;
+            padding: 1px 6px;
+            border-radius: 3px;
+            border: 1px solid #4a3e1b;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* コンテンツ領域 */
+        .char-modal-body {
+            padding: 24px;
+            min-height: 320px;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* カードグリッド */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .choice-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            transition: all 0.15s ease-out;
+            text-align: left;
+        }
+
+        .choice-card:hover {
+            background: var(--card-bg-hover);
+            border-color: #4a526d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .choice-card.selected {
+            background: var(--card-bg-active);
+            border-color: var(--card-border-active);
+            box-shadow: 0 0 0 1px var(--card-border-active), 0 4px 14px rgba(79, 140, 255, 0.25);
+        }
+
+        .choice-card.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(0.8);
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-acc {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: bold;
+            background: #181a24;
+            color: #9ea5bd;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            border: 1px solid #363b50;
+        }
+
+        .choice-card.selected .card-acc {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .card-icon {
+            font-size: 20px;
+        }
+
+        .card-name-main {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .choice-card.selected .card-name-main {
+            color: #70a4ff;
+        }
+
+        .card-name-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* 最終確認画面（Confirm Step） */
+        .confirm-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 20px 0;
+            gap: 20px;
+        }
+
+        .confirm-avatar {
+            font-size: 56px;
+            background: #1f2333;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 20px rgba(240, 178, 50, 0.2);
+        }
+
+        .confirm-title {
+            font-size: 20px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .confirm-summary-pill {
+            display: flex;
+            gap: 8px;
+            background: #1c1f2b;
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid #363c52;
+            font-size: 14px;
+        }
+
+        .confirm-summary-pill span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* モーダルフッター / プレビューバー */
+        .char-modal-footer {
+            background-color: #14151d;
+            border-top: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .footer-preview {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .preview-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preview-tags {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .preview-tag {
+            background: var(--tag-bg);
+            border: 1px solid #363b50;
+            color: #d2d6e6;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .preview-tag.filled {
+            background: #1c2742;
+            border-color: #3b5fa8;
+            color: #8bb6ff;
+            font-weight: 500;
+        }
+
+        .preview-tag.unset {
+            color: var(--text-dim);
+            border-style: dashed;
+        }
+
+        .footer-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-action {
+            padding: 9px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .btn-action.primary {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-action.primary:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 2px 8px rgba(79, 140, 255, 0.4);
+        }
+
+        .btn-action.secondary {
+            background-color: #252838;
+            border: 1px solid #3d435c;
+            color: #b0b6cc;
+        }
+
+        .btn-action.secondary:hover {
+            background-color: #32374c;
+            color: #fff;
+        }
+
+        .btn-action.random-btn {
+            background: #2b2518;
+            border: 1px solid #634f23;
+            color: #ffd276;
+        }
+
+        .btn-action.random-btn:hover {
+            background: #3d331e;
+            color: #ffe199;
+        }
+
+        /* ログ & デバッグエリア */
+        .debug-panel {
+            max-width: 820px;
+            width: 100%;
+            margin-top: 24px;
+            background: #12131a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 12px;
+        }
+
+        .debug-title {
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .debug-content {
+            font-family: monospace;
+            color: #9ba1b5;
+            background: #090a0e;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 140px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- サンドボックスヘッダー -->
+    <div class="sandbox-header">
+        <div class="header-titles">
+            <h1>
+                NetHack キャラクタ作成
+                <span class="badge">Character Creation Sandbox</span>
+            </h1>
+            <p id="desc-text">1面ダイアログ内のタブ切り替えでスムーズにロール/種族/性別/属性を選択</p>
+        </div>
+        <div class="lang-switcher">
+            <button class="lang-btn active" id="btn-lang-ja" onclick="setLanguage('ja')">日本語</button>
+            <button class="lang-btn" id="btn-lang-en" onclick="setLanguage('en')">English</button>
+        </div>
+    </div>
+
+    <!-- シミュレーションコントロールバー -->
+    <div class="sim-control-bar">
+        <div class="sim-group">
+            <span class="sim-label">シナリオステップ:</span>
+            <select id="step-select" class="sim-select" onchange="jumpToStep(parseInt(this.value))">
+                <option value="3">Step 3: 初期ロール選択 (全種族/属性フリー)</option>
+                <option value="4">Step 4: 種族タブ表示 (Pick race first)</option>
+                <option value="7">Step 7: 属性タブ表示 (Pick alignment first)</option>
+                <option value="10">Step 10: 属性[Lawful]選択後のロール絞り込み</option>
+                <option value="11">Step 11: ロール[Archeologist]選択後の種族絞り込み</option>
+                <option value="12">Step 12: 種族[Human]選択後の性別絞り込み</option>
+                <option value="13">Step 13: 最終確認 (Is this ok?)</option>
+            </select>
+        </div>
+        <button class="btn-sim" onclick="prevStep()">◀ 前のステップ</button>
+        <button class="btn-sim" onclick="nextStep()">次のステップ ▶</button>
+        <button class="btn-sim" onclick="playAutoDemo()">▶ シナリオ自動再生</button>
+        <button class="btn-sim" onclick="resetScenario()">↺ リセット</button>
+    </div>
+
+    <!-- キャラクタ作成ダイアログ本体 -->
+    <div class="char-create-modal" id="charModal">
+        <!-- 上部ヘッダー -->
+        <div class="char-modal-top">
+            <div class="char-title-area">
+                <h2 id="modal-heading">⚔️ キャラクタ作成</h2>
+                <p id="modal-subheading">冒険に出るキャラクターの能力と出自を決定します</p>
+            </div>
+            <div class="char-name-badge">
+                <span class="char-name-label" id="lbl-char-name">NAME</span>
+                <span class="char-name-val" id="val-char-name">home</span>
+            </div>
+        </div>
+
+        <!-- タブバー -->
+        <div class="char-tabs-bar" id="tabsBar">
+            <button class="char-tab-btn active" id="tab-role" onclick="onTabClicked('role')">
+                <span class="tab-key">?</span>
+                <span class="tab-title" id="tab-title-role">職業 (Role)</span>
+                <span class="tab-val" id="tab-val-role" style="display:none;"></span>
+            </button>
+            <button class="char-tab-btn" id="tab-race" onclick="onTabClicked('race')">
+                <span class="tab-key">/</span>
+                <span class="tab-title" id="tab-title-race">種族 (Race)</span>
+                <span class="tab-val" id="tab-val-race" style="display:none;"></span>
+            </button>
+            <button class="char-tab-btn" id="tab-gender" onclick="onTabClicked('gender')">
+                <span class="tab-key">"</span>
+                <span class="tab-title" id="tab-title-gender">性別 (Gender)</span>
+                <span class="tab-val" id="tab-val-gender" style="display:none;"></span>
+            </button>
+            <button class="char-tab-btn" id="tab-align" onclick="onTabClicked('align')">
+                <span class="tab-key">[</span>
+                <span class="tab-title" id="tab-title-align">属性 (Alignment)</span>
+                <span class="tab-val" id="tab-val-align" style="display:none;"></span>
+            </button>
+        </div>
+
+        <!-- メインコンテンツ領域 -->
+        <div class="char-modal-body" id="modalBody">
+            <div class="section-header">
+                <div class="section-title">
+                    <span id="category-icon">🧙</span>
+                    <span id="category-title">職業を選択してください</span>
+                </div>
+                <div class="section-subtitle" id="category-hint">キーボードの各キーまたはクリックで選択</div>
+            </div>
+
+            <!-- カード一覧 -->
+            <div class="cards-grid" id="cardsGrid">
+                <!-- 動的に生成されます -->
+            </div>
+
+            <!-- 最終確認ビュー（Step 13のときのみ表示） -->
+            <div class="confirm-view" id="confirmView" style="display: none;">
+                <div class="confirm-avatar" id="confirmAvatar">🤠</div>
+                <div class="confirm-title" id="confirmTitle">冒険の準備が整いました！</div>
+                <div class="confirm-summary-pill">
+                    <span id="conf-name">home</span> the 
+                    <span id="conf-align">lawful</span> 
+                    <span id="conf-gender">male</span> 
+                    <span id="conf-race">human</span> 
+                    <span id="conf-role">Archeologist</span>
+                </div>
+                <p id="confirmSubtitle" style="color: var(--text-muted); font-size: 13px; max-width: 480px; margin: 0 auto;">
+                    この構成でダンジョンへの挑戦を開始しますか？
+                </p>
+            </div>
+        </div>
+
+        <!-- 下部フッター / プレビュー -->
+        <div class="char-modal-footer">
+            <div class="footer-preview">
+                <div class="preview-label" id="lbl-curr-config">CURRENT CONFIGURATION</div>
+                <div class="preview-tags" id="previewTags">
+                    <div class="preview-tag unset" id="tag-preview-role">職業: 未選択</div>
+                    <div class="preview-tag unset" id="tag-preview-race">種族: 未選択</div>
+                    <div class="preview-tag unset" id="tag-preview-gender">性別: 未選択</div>
+                    <div class="preview-tag unset" id="tag-preview-align">属性: 未選択</div>
+                </div>
+            </div>
+            <div class="footer-actions">
+                <button class="btn-action random-btn" id="btn-action-left" onclick="onLeftActionClicked()">
+                    <span id="btn-icon-left">🎲</span>
+                    <span id="btn-text-left">おまかせ (*)</span>
+                </button>
+                <button class="btn-action primary" id="btn-submit-char" onclick="onSubmitStart()">
+                    <span>▶</span>
+                    <span id="btn-text-start">ゲーム開始</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- デバッグ / ログパネル -->
+    <div class="debug-panel">
+        <div class="debug-title">
+            <span>NetHack Windowport メッセージ & 応答ログ</span>
+            <span id="debug-step-info">Current Step: 3</span>
+        </div>
+        <div class="debug-content" id="debugLog">ログがここに表示されます...</div>
+    </div>
+
+    <script>
+        // --- Translation Engine (nhMessage & nhEntities 連携) ---
+        class SimpleTranslator {
+            constructor() {
+                this.messages = new Map();
+                this.entities = new Map();
+                this.init();
+            }
+
+            init() {
+                if (typeof nhMessage === 'function') {
+                    try {
+                        const msgs = nhMessage();
+                        if (Array.isArray(msgs)) {
+                            msgs.forEach(m => {
+                                if (m && m.en && m.jp) this.messages.set(m.en, m.jp);
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load nhMessage:', e);
+                    }
+                }
+                if (typeof nhEntities === 'function') {
+                    try {
+                        const ents = nhEntities();
+                        if (ents && typeof ents === 'object') {
+                            for (const [en, jp] of Object.entries(ents)) {
+                                if (typeof jp === 'string') {
+                                    this.entities.set(en, jp);
+                                    this.entities.set(en.toLowerCase(), jp);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load nhEntities:', e);
+                    }
+                }
+            }
+
+            translate(text) {
+                if (!text || typeof text !== 'string') return text;
+                const clean = text.trim();
+
+                // 1. 完全一致 (nhMessage)
+                if (this.messages.has(clean)) return this.messages.get(clean);
+
+                // 2. 単語・エンティティ一致 (nhEntities)
+                if (this.entities.has(clean)) return this.entities.get(clean);
+                if (this.entities.has(clean.toLowerCase())) return this.entities.get(clean.toLowerCase());
+
+                // 3. 冠詞 (a, an, the) 除去後のエンティティ一致 (例: "an Archeologist" -> "Archeologist")
+                const stripped = clean.replace(/^(an?|the)\s+/i, '').trim();
+                if (this.entities.has(stripped)) return this.entities.get(stripped);
+                if (this.entities.has(stripped.toLowerCase())) return this.entities.get(stripped.toLowerCase());
+
+                // 4. "Caveman/Cavewoman" などのスラッシュ分割
+                if (stripped.includes('/')) {
+                    const firstPart = stripped.split('/')[0].trim();
+                    if (this.entities.has(firstPart)) return this.entities.get(firstPart);
+                }
+
+                return text;
+            }
+        }
+
+        const translator = new SimpleTranslator();
+
+        // シンボルアイコンのみ保持（独自説明文は全廃）
+        const ICONS = {
+            roles: {
+                an_Archeologist: "🤠", a_Barbarian: "🪓", a_Caveman_Cavewoman: "🦴", a_Healer: "🩺",
+                a_Knight: "🛡️", a_Monk: "🥋", a_Priest_Priestess: "✝️", a_Rogue: "🗡️",
+                a_Ranger: "🏹", a_Samurai: "⚔️", a_Tourist: "📸", a_Valkyrie: "⚡", a_Wizard: "🔮"
+            },
+            races: {
+                human: "👤", elf: "🧝", dwarf: "⛏️", gnome: "🍄", orc: "👹"
+            },
+            genders: {
+                male: "♂️", female: "♀️"
+            },
+            alignments: {
+                lawful: "⚖️", neutral: "☯️", chaotic: "🌀"
+            }
+        };
+
+        // --- シナリオデータ（char_generate_1789427360539.json から抽出） ---
+        const SCENARIO_STEPS = {
+            3: {
+                step: 3,
+                activeTab: 'role',
+                headerText: "<role> <race> <gender> <alignment>",
+                prompt: "Pick a role or profession",
+                items: [
+                    { acc: "a", id: 1, key: "an_Archeologist", name: "an Archeologist" },
+                    { acc: "b", id: 2, key: "a_Barbarian", name: "a Barbarian" },
+                    { acc: "c", id: 3, key: "a_Caveman_Cavewoman", name: "a Caveman/Cavewoman" },
+                    { acc: "h", id: 4, key: "a_Healer", name: "a Healer" },
+                    { acc: "k", id: 5, key: "a_Knight", name: "a Knight" },
+                    { acc: "m", id: 6, key: "a_Monk", name: "a Monk" },
+                    { acc: "p", id: 7, key: "a_Priest_Priestess", name: "a Priest/Priestess" },
+                    { acc: "r", id: 8, key: "a_Rogue", name: "a Rogue" },
+                    { acc: "R", id: 9, key: "a_Ranger", name: "a Ranger" },
+                    { acc: "s", id: 10, key: "a_Samurai", name: "a Samurai" },
+                    { acc: "t", id: 11, key: "a_Tourist", name: "a Tourist" },
+                    { acc: "v", id: 12, key: "a_Valkyrie", name: "a Valkyrie" },
+                    { acc: "w", id: 13, key: "a_Wizard", name: "a Wizard" }
+                ],
+                config: { role: null, race: null, gender: null, align: null }
+            },
+            4: {
+                step: 4,
+                activeTab: 'race',
+                headerText: "<role> <race> <gender> <alignment>",
+                prompt: "Pick a race or species",
+                items: [
+                    { acc: "h", id: 1, key: "human", name: "human" },
+                    { acc: "e", id: 2, key: "elf", name: "elf" },
+                    { acc: "d", id: 3, key: "dwarf", name: "dwarf" },
+                    { acc: "g", id: 4, key: "gnome", name: "gnome" },
+                    { acc: "o", id: 5, key: "orc", name: "orc" }
+                ],
+                config: { role: null, race: null, gender: null, align: null }
+            },
+            7: {
+                step: 7,
+                activeTab: 'align',
+                headerText: "<role> <race> <gender> <alignment>",
+                prompt: "Pick an alignment or creed",
+                items: [
+                    { acc: "l", id: 1, key: "lawful", name: "lawful" },
+                    { acc: "n", id: 2, key: "neutral", name: "neutral" },
+                    { acc: "c", id: 3, key: "chaotic", name: "chaotic" }
+                ],
+                config: { role: null, race: null, gender: null, align: null }
+            },
+            10: {
+                step: 10,
+                activeTab: 'role',
+                headerText: "<role> <race> <gender> lawful",
+                prompt: "Pick a role or profession",
+                items: [
+                    { acc: "a", id: 1, key: "an_Archeologist", name: "an Archeologist" },
+                    { acc: "c", id: 3, key: "a_Caveman_Cavewoman", name: "a Caveman/Cavewoman" },
+                    { acc: "k", id: 5, key: "a_Knight", name: "a Knight" },
+                    { acc: "m", id: 6, key: "a_Monk", name: "a Monk" },
+                    { acc: "p", id: 7, key: "a_Priest_Priestess", name: "a Priest/Priestess" },
+                    { acc: "s", id: 10, key: "a_Samurai", name: "a Samurai" },
+                    { acc: "v", id: 12, key: "a_Valkyrie", name: "a Valkyrie" }
+                ],
+                config: { role: null, race: null, gender: null, align: "lawful" }
+            },
+            11: {
+                step: 11,
+                activeTab: 'race',
+                headerText: "Archeologist <race> <gender> lawful",
+                prompt: "Pick a race or species",
+                items: [
+                    { acc: "h", id: 1, key: "human", name: "human" },
+                    { acc: "d", id: 3, key: "dwarf", name: "dwarf" }
+                ],
+                config: { role: "Archeologist", race: null, gender: null, align: "lawful" }
+            },
+            12: {
+                step: 12,
+                activeTab: 'gender',
+                headerText: "Archeologist human <gender> lawful",
+                prompt: "Pick a gender or sex",
+                items: [
+                    { acc: "m", id: 1, key: "male", name: "male" },
+                    { acc: "f", id: 2, key: "female", name: "female" }
+                ],
+                config: { role: "Archeologist", race: "human", gender: null, align: "lawful" }
+            },
+            13: {
+                step: 13,
+                activeTab: 'confirm',
+                headerText: "home the lawful male human Archeologist",
+                prompt: "Is this ok? [ynq]",
+                items: [
+                    { acc: "y", id: 1, name: "Yes; start game" },
+                    { acc: "n", id: 2, name: "No; choose role again" },
+                    { acc: "q", id: -1, name: "Quit" }
+                ],
+                config: { role: "Archeologist", race: "human", gender: "male", align: "lawful" }
+            }
+        };
+
+        // --- 状態管理 ---
+        let currentLang = 'ja';
+        let currentStepKey = 3;
+        let isAutoPlaying = false;
+
+        // --- 初期化 ---
+        function init() {
+            renderStep(currentStepKey);
+            logDebug(`[Initialized] Scenario loaded. Starting at Step ${currentStepKey}`);
+        }
+
+        // --- 言語切り替え ---
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('btn-lang-ja').classList.toggle('active', lang === 'ja');
+            document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+            
+            // テキスト更新
+            if (lang === 'ja') {
+                document.getElementById('desc-text').textContent = '1面ダイアログ内のタブ切り替えでスムーズにロール/種族/性別/属性を選択';
+                document.getElementById('modal-heading').textContent = '⚔️ キャラクタ作成';
+                document.getElementById('modal-subheading').textContent = '冒険に出るキャラクターの能力と出自を決定します';
+                document.getElementById('tab-title-role').textContent = '役職 (Role)';
+                document.getElementById('tab-title-race').textContent = '種族 (Race)';
+                document.getElementById('tab-title-gender').textContent = '性別 (Gender)';
+                document.getElementById('tab-title-align').textContent = '陣営 (Alignment)';
+                document.getElementById('lbl-curr-config').textContent = 'CURRENT CONFIGURATION';
+            } else {
+                document.getElementById('desc-text').textContent = 'Seamless tabbed dialog for picking Role, Race, Gender, and Alignment';
+                document.getElementById('modal-heading').textContent = '⚔️ Character Creation';
+                document.getElementById('modal-subheading').textContent = 'Choose abilities and background for your adventurer';
+                document.getElementById('tab-title-role').textContent = 'Role';
+                document.getElementById('tab-title-race').textContent = 'Race';
+                document.getElementById('tab-title-gender').textContent = 'Gender';
+                document.getElementById('tab-title-align').textContent = 'Alignment';
+                document.getElementById('lbl-curr-config').textContent = 'CURRENT CONFIGURATION';
+            }
+            renderStep(currentStepKey);
+        }
+
+        // --- ステップ描画 ---
+        function renderStep(stepKey) {
+            currentStepKey = stepKey;
+            const data = SCENARIO_STEPS[stepKey];
+            if (!data) return;
+
+            document.getElementById('step-select').value = stepKey;
+            const promptDisplay = currentLang === 'ja' ? translator.translate(data.prompt) : data.prompt;
+            document.getElementById('debug-step-info').textContent = `Current Step: ${stepKey} (${promptDisplay})`;
+
+            // タブのアクティブ状態更新
+            const tabs = ['role', 'race', 'gender', 'align'];
+            tabs.forEach(t => {
+                const elTab = document.getElementById(`tab-${t}`);
+                if (elTab) {
+                    elTab.classList.toggle('active', data.activeTab === t);
+                }
+                const elVal = document.getElementById(`tab-val-${t}`);
+                if (elVal) {
+                    const val = data.config[t];
+                    if (val) {
+                        elVal.textContent = currentLang === 'ja' ? translator.translate(val) : val;
+                        elVal.style.display = 'inline-block';
+                    } else {
+                        elVal.style.display = 'none';
+                    }
+                }
+            });
+
+            // プレビュータグ更新
+            tabs.forEach(t => {
+                const elTag = document.getElementById(`tag-preview-${t}`);
+                const val = data.config[t];
+                const typeLabel = (currentLang === 'ja') ? 
+                    { role: '役職', race: '種族', gender: '性別', align: '陣営' }[t] : 
+                    { role: 'Role', race: 'Race', gender: 'Gender', align: 'Align' }[t];
+
+                if (val) {
+                    elTag.className = 'preview-tag filled';
+                    const dispVal = currentLang === 'ja' ? translator.translate(val) : val;
+                    elTag.textContent = `${typeLabel}: ${dispVal}`;
+                } else {
+                    elTag.className = 'preview-tag unset';
+                    elTag.textContent = `${typeLabel}: ${currentLang === 'ja' ? '未選択' : 'None'}`;
+                }
+            });
+
+            // Step 13 (Confirm View) の特別処理
+            const confirmView = document.getElementById('confirmView');
+            const cardsGrid = document.getElementById('cardsGrid');
+            const sectionHeader = document.querySelector('.section-header');
+
+            if (data.activeTab === 'confirm') {
+                confirmView.style.display = 'flex';
+                cardsGrid.style.display = 'none';
+                sectionHeader.style.display = 'none';
+
+                const aVal = currentLang === 'ja' ? translator.translate(data.config.align) : data.config.align;
+                const gVal = currentLang === 'ja' ? translator.translate(data.config.gender) : data.config.gender;
+                const rVal = currentLang === 'ja' ? translator.translate(data.config.race) : data.config.race;
+                const roVal = currentLang === 'ja' ? translator.translate(data.config.role) : data.config.role;
+
+                document.getElementById('conf-name').textContent = "home";
+                document.getElementById('conf-align').textContent = aVal;
+                document.getElementById('conf-gender').textContent = gVal;
+                document.getElementById('conf-race').textContent = rVal;
+                document.getElementById('conf-role').textContent = roVal;
+
+                document.getElementById('confirmTitle').textContent = (currentLang === 'ja') ? 
+                    '冒険の準備が整いました！' : 'Ready for Adventure!';
+                document.getElementById('confirmSubtitle').textContent = (currentLang === 'ja') ? 
+                    'この構成でダンジョンへの挑戦を開始しますか？' : 'Start your adventure with this character configuration?';
+
+                // Step 13 用のボタン設定（NetHack の y/n/q 選択肢に準拠）
+                const btnLeft = document.getElementById('btn-action-left');
+                btnLeft.className = 'btn-action secondary';
+                document.getElementById('btn-icon-left').textContent = '↺';
+                document.getElementById('btn-text-left').textContent = (currentLang === 'ja') ? 
+                    'やり直す (n)' : 'Choose again (n)';
+
+                document.getElementById('btn-text-start').textContent = (currentLang === 'ja') ?
+                    translator.translate('Yes; start game') : 'Start Game (y)';
+                document.getElementById('btn-submit-char').focus();
+                return;
+            } else {
+                confirmView.style.display = 'none';
+                cardsGrid.style.display = 'grid';
+                sectionHeader.style.display = 'flex';
+
+                // 通常ステップ用のボタン設定（おまかせ / 次へ）
+                const btnLeft = document.getElementById('btn-action-left');
+                btnLeft.className = 'btn-action random-btn';
+                document.getElementById('btn-icon-left').textContent = '🎲';
+                document.getElementById('btn-text-left').textContent = (currentLang === 'ja') ? 
+                    (translator.translate("Random") + ' (*)') : 'Random (*)';
+
+                document.getElementById('btn-text-start').textContent = (currentLang === 'ja') ? 
+                    '次へ / 決定' : 'Next / Confirm';
+            }
+
+            // セクションタイトル＆ヒント（TranslateEngine連携）
+            const catIcons = { role: '🧙', race: '🧝', gender: '⚧️', align: '⚖️' };
+            document.getElementById('category-icon').textContent = catIcons[data.activeTab] || '⚔️';
+            document.getElementById('category-title').textContent = promptDisplay;
+            document.getElementById('category-hint').textContent = currentLang === 'ja' ? 
+                'キーボードの各キーまたはカードクリックで選択' : 'Choose by hotkey or clicking card';
+
+            // カード一覧の生成（TranslateEngine経由）
+            cardsGrid.innerHTML = '';
+            data.items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'choice-card';
+                card.onclick = () => onCardClicked(item);
+
+                const iconMap = ICONS[data.activeTab === 'role' ? 'roles' : 
+                                      data.activeTab === 'race' ? 'races' : 
+                                      data.activeTab === 'gender' ? 'genders' : 'alignments'] || {};
+                const icon = iconMap[item.key] || '✨';
+
+                // 翻訳名と英語原文
+                const translated = translator.translate(item.name);
+                const nameMain = (currentLang === 'ja') ? translated : item.name;
+                const nameSub = (currentLang === 'ja' && translated !== item.name) ? item.name : '';
+
+                // 選択中ハイライト
+                if (data.config[data.activeTab] && data.config[data.activeTab].toLowerCase().includes(item.key ? item.key.toLowerCase() : '')) {
+                    card.classList.add('selected');
+                }
+
+                card.innerHTML = `
+                    <div class="card-header-row">
+                        <span class="card-acc">${item.acc}</span>
+                        <span class="card-icon">${icon}</span>
+                    </div>
+                    <div class="card-name-main">${nameMain}</div>
+                    ${nameSub ? `<div class="card-name-sub">${nameSub}</div>` : ''}
+                `;
+                cardsGrid.appendChild(card);
+            });
+        }
+
+        // --- イベントハンドラ ---
+        function onTabClicked(tabName) {
+            logDebug(`[Tab Clicked] Tab: ${tabName}`);
+            // タブ切り替えキーの送信シミュレーション
+            const keyMap = { role: '?', race: '/', gender: '"', align: '[' };
+            const key = keyMap[tabName];
+            logDebug(`>> Sending accelerator key to NetHack: '${key}'`);
+
+            // シナリオ上の対応ステップへジャンプ
+            if (tabName === 'role') {
+                if (SCENARIO_STEPS[currentStepKey].config.align === 'lawful') jumpToStep(10);
+                else jumpToStep(3);
+            } else if (tabName === 'race') {
+                if (SCENARIO_STEPS[currentStepKey].config.role === 'Archeologist') jumpToStep(11);
+                else jumpToStep(4);
+            } else if (tabName === 'gender') {
+                jumpToStep(12);
+            } else if (tabName === 'align') {
+                jumpToStep(7);
+            }
+        }
+
+        function onCardClicked(item) {
+            logDebug(`[Card Clicked] Selected: ${item.name} (acc: '${item.acc}', id: ${item.id})`);
+            logDebug(`>> Sending choice key to NetHack: '${item.acc}'`);
+
+            // シナリオの遷移をエミュレート
+            if (currentStepKey === 3 || currentStepKey === 10) {
+                // Role選択後 -> 種族へ
+                jumpToStep(11);
+            } else if (currentStepKey === 4 || currentStepKey === 11) {
+                // Race選択後 -> 性別へ
+                jumpToStep(12);
+            } else if (currentStepKey === 7) {
+                // Align選択後 -> ロール絞り込みへ
+                jumpToStep(10);
+            } else if (currentStepKey === 12) {
+                // Gender選択後 -> 最終確認へ
+                jumpToStep(13);
+            }
+        }
+
+        function onLeftActionClicked() {
+            if (currentStepKey === 13) {
+                onChooseAgain();
+            } else {
+                onPickRandom();
+            }
+        }
+
+        function onChooseAgain() {
+            logDebug(`[Choose Again] Sending accelerator: 'n' (No; choose role again)`);
+            jumpToStep(3);
+        }
+
+        function onPickRandom() {
+            logDebug(`[Random Clicked] Sending accelerator: '*' (Pick Random)`);
+            jumpToStep(13);
+        }
+
+        function onSubmitStart() {
+            if (currentStepKey === 13) {
+                logDebug(`[Game Start] Sending 'y' (Confirm character) -> Launching Dungeon!`);
+                alert(currentLang === 'ja' ? 'ダンジョンへの挑戦を開始します！' : 'Entering the Dungeon!');
+            } else {
+                jumpToStep(13);
+            }
+        }
+
+        // --- ステップ操作 ---
+        const stepKeys = [3, 4, 7, 10, 11, 12, 13];
+
+        function jumpToStep(stepKey) {
+            renderStep(stepKey);
+            logDebug(`[State Change] Jumped to Step ${stepKey}`);
+        }
+
+        function nextStep() {
+            const idx = stepKeys.indexOf(currentStepKey);
+            if (idx < stepKeys.length - 1) {
+                jumpToStep(stepKeys[idx + 1]);
+            }
+        }
+
+        function prevStep() {
+            const idx = stepKeys.indexOf(currentStepKey);
+            if (idx > 0) {
+                jumpToStep(stepKeys[idx - 1]);
+            }
+        }
+
+        function resetScenario() {
+            jumpToStep(3);
+            logDebug(`[Reset] Reset scenario to initial state.`);
+        }
+
+        async function playAutoDemo() {
+            if (isAutoPlaying) return;
+            isAutoPlaying = true;
+            logDebug(`[Auto Demo] Starting automated scenario replay...`);
+
+            for (const k of stepKeys) {
+                jumpToStep(k);
+                await new Promise(r => setTimeout(r, 1200));
+            }
+
+            isAutoPlaying = false;
+            logDebug(`[Auto Demo] Finished automated demo.`);
+        }
+
+        function logDebug(msg) {
+            const el = document.getElementById('debugLog');
+            const time = new Date().toLocaleTimeString();
+            el.textContent = `[${time}] ${msg}\n` + el.textContent;
+        }
+
+        // キーボードショートカット
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            const step = SCENARIO_STEPS[currentStepKey];
+            if (!step) return;
+
+            // Step 13 (最終確認) のキーボード処理
+            if (currentStepKey === 13) {
+                if (e.key === 'n' || e.key === 'N') {
+                    e.preventDefault();
+                    onChooseAgain();
+                } else if (e.key === 'y' || e.key === 'Y' || e.key === 'Enter') {
+                    e.preventDefault();
+                    onSubmitStart();
+                } else if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+                    e.preventDefault();
+                    logDebug(`[Quit] Sending 'q' (Quit)`);
+                    alert(currentLang === 'ja' ? 'キャラクター作成を中止しました。' : 'Character creation canceled.');
+                }
+                return;
+            }
+
+            // 通常ステップのタブ切替キー
+            if (e.key === '?') onTabClicked('role');
+            else if (e.key === '/') onTabClicked('race');
+            else if (e.key === '"') onTabClicked('gender');
+            else if (e.key === '[') onTabClicked('align');
+            else if (e.key === '*') onPickRandom();
+            else {
+                // 選択肢アクセラレータキー判定
+                const matched = step.items.find(i => i.acc === e.key);
+                if (matched) {
+                    e.preventDefault();
+                    onCardClicked(matched);
+                }
+            }
+        });
+
+        // 起動
+        init();
+    </script>
+</body>
+</html>

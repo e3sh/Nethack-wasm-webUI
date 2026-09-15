@@ -277,6 +277,32 @@ export const enCatalog = {
       "flags": "i",
       "params": {},
       "description": "Text input prompt (engrave, naming, calling)"
+    },
+    {
+      "id": "SIGNAL_CHARACTER_CREATION",
+      "subCategory": "CHARACTER_CREATION",
+      "inputType": "MENU",
+      "priority": 150,
+      "patterns": [
+        "^pick an? (?<stepType>role|race|gender|alignment|profession|species|sex|creed)",
+        "^pick all that apply",
+        "^(?:is this ok|start game|choose role again)"
+      ],
+      "flags": "i",
+      "params": {},
+      "paramsMapping": {
+        "stepType": {
+          "role": { "step": "role" },
+          "profession": { "step": "role" },
+          "race": { "step": "race" },
+          "species": { "step": "race" },
+          "gender": { "step": "gender" },
+          "sex": { "step": "gender" },
+          "alignment": { "step": "alignment" },
+          "creed": { "step": "alignment" }
+        }
+      },
+      "description": "Character creation prompt/menu"
     }
   ]
 };

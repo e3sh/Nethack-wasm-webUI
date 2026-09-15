@@ -195,9 +195,63 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
                 category: PROMPT_CATEGORY.YN,
                 rawPrompt: 'What do you want to write with?'
             });
-            expect(toolRes.matched).toBe(true);
-            expect(toolRes.signalId).toBe('SIGNAL_TOOL_SELECT');
             expect(toolRes.subCategory).toBe('TOOL_SELECT');
+
+            // CharacterCreation
+            const roleRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Pick a role or profession'
+            });
+            expect(roleRes.matched).toBe(true);
+            expect(roleRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
+            expect(roleRes.subCategory).toBe('CHARACTER_CREATION');
+            expect(roleRes.params.step).toBe('role');
+
+            const raceRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Pick a race or species'
+            });
+            expect(raceRes.matched).toBe(true);
+            expect(raceRes.params.step).toBe('race');
+
+            const genderRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Pick a gender or sex'
+            });
+            expect(genderRes.matched).toBe(true);
+            expect(genderRes.params.step).toBe('gender');
+
+            const alignRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Pick an alignment or creed'
+            });
+            expect(alignRes.matched).toBe(true);
+            expect(alignRes.params.step).toBe('alignment');
+
+            // Step 13 (最終確認メニュー)
+            const confirmMenuRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Is this ok? [ynq]',
+                items: [
+                    { identifier: 0, str: 'home the lawful male human Archeologist' },
+                    { identifier: 1, accelerator: 'y', str: 'Yes; start game' },
+                    { identifier: 2, accelerator: 'n', str: 'No; choose role again' }
+                ]
+            });
+            expect(confirmMenuRes.matched).toBe(true);
+            expect(confirmMenuRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
+            expect(confirmMenuRes.params.step).toBe('confirm');
+
+            // アイテム使用メニューはキャラ作成シグナルとして誤検知されないこと
+            const itemMenuRes = enDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'What do you want to use or apply?',
+                items: [
+                    { identifier: 1, accelerator: 'a', str: 'the blessed +1 silver dragon scale mail' },
+                    { identifier: 2, accelerator: 'b', str: 'the +0 Hawaiian shirt' }
+                ]
+            });
+            expect(itemMenuRes.signalId).not.toBe('SIGNAL_CHARACTER_CREATION');
         });
 
         it('【重要】英語版カタログでは日本語プロンプトが検知されないこと (言語分離の検証)', () => {
@@ -392,6 +446,27 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             });
             expect(toolRes.matched).toBe(true);
             expect(toolRes.signalId).toBe('SIGNAL_TOOL_SELECT');
+
+            // キャラクタ作成 (JNetHack)
+            const jaRoleRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: '職業を選択してください'
+            });
+            expect(jaRoleRes.matched).toBe(true);
+            expect(jaRoleRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
+            expect(jaRoleRes.params.step).toBe('role');
+
+            const jaConfirmRes = jaDetector.detect({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'よろしいですか？ [ynq]',
+                items: [
+                    { identifier: 0, str: 'home 秩序 男 人間 考古学者' },
+                    { identifier: 1, accelerator: 'y', str: 'はい; ゲームを開始' }
+                ]
+            });
+            expect(jaConfirmRes.matched).toBe(true);
+            expect(jaConfirmRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
+            expect(jaConfirmRes.params.step).toBe('confirm');
         });
 
         it('【重要】日本語版カタログでは英語プロンプトが検知されないこと (言語分離の検証)', () => {

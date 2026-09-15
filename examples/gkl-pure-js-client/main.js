@@ -11,6 +11,7 @@ import { AssistHud } from './modules/components/AssistHud.js';
 import { DirectionPad } from './modules/components/DirectionPad.js';
 import { StatusView } from './modules/components/StatusView.js';
 import { ModalManager } from './modules/components/ModalManager.js';
+import { CharacterCreationModal } from './modules/components/CharacterCreationModal.js';
 import { ContainerModal } from './modules/components/ContainerModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
@@ -136,7 +137,12 @@ class GklPureJSClient {
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath
     });
 
-    // 8. Modal Manager
+    // 8. Character Creation Modal (Tabbed Wizard)
+    this.characterCreationModal = new CharacterCreationModal({
+      getCore: () => this.core
+    });
+
+    // 8.1 Modal Manager
     this.modalManager = new ModalManager({
       elPromptBar: document.getElementById('prompt-bar'),
       elPromptText: document.getElementById('prompt-text'),
@@ -153,6 +159,7 @@ class GklPureJSClient {
       elSelectorCard: document.getElementById('start-selector-card'),
       elSaveName: document.getElementById('start-save-name'),
       elWishModal: document.getElementById('wish-modal'),
+      characterCreationModal: this.characterCreationModal,
       getCore: () => this.core,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
       onRestartGame: () => this.restartGame()
@@ -724,6 +731,7 @@ class GklPureJSClient {
     this.statusView.setLanguage(this.currentLanguage);
     this.modalManager.setLanguage(this.currentLanguage);
     this.containerModal.setLanguage(this.currentLanguage);
+    if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
@@ -940,6 +948,9 @@ class GklPureJSClient {
   async bootstrapGame() {
     try {
       this.isStartingUp = true;
+      if (this.characterCreationModal) {
+        this.characterCreationModal.reset();
+      }
       this.setStartupView('SELECTION');
 
       const btnStartResume = document.getElementById('btn-start-resume');
@@ -1013,6 +1024,9 @@ class GklPureJSClient {
 
   transitionToStartupReady() {
     if (this.startupStep !== 'PROGRESS') return;
+    if (this.characterCreationModal) {
+      this.characterCreationModal.isCompleted = true;
+    }
     this.setStartupView('READY');
 
     const isEn = this.currentLanguage === 'en';

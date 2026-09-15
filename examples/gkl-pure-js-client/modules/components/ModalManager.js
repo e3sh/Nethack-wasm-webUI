@@ -23,10 +23,12 @@ export class ModalManager {
     elSaveName,
     elWishModal,
     elGenocideModal,
+    characterCreationModal,
     getCore,
     getLoadedTileImagePath,
     onRestartGame
   }) {
+    this.characterCreationModal = characterCreationModal || null;
     this.elPromptBar = elPromptBar;
     this.elPromptText = elPromptText;
     this.elInputControls = elInputControls;
@@ -83,9 +85,14 @@ export class ModalManager {
     if (this.elPolymorphModal && !this.elPolymorphModal.classList.contains('hidden') && this.activePolymorphData) {
       this.showPolymorphModal(this.activePolymorphData);
     }
+    if (this.characterCreationModal && this.characterCreationModal.isVisible) {
+      this.characterCreationModal.currentLanguage = lang;
+      this.characterCreationModal.render();
+    }
   }
 
   isAnyModalOpen() {
+    if (this.characterCreationModal && this.characterCreationModal.isVisible) return true;
     if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) return true;
     if (this.elWishModal && !this.elWishModal.classList.contains('hidden')) return true;
     if (this.elGenocideModal && !this.elGenocideModal.classList.contains('hidden')) return true;
@@ -127,6 +134,9 @@ export class ModalManager {
     this.activeMenuFocusIndex = 0;
     this.selectableMenuButtons = [];
     this.clearAllModals();
+    if (this.characterCreationModal && typeof this.characterCreationModal.reset === 'function') {
+      this.characterCreationModal.reset();
+    }
     if (this.elGameOverModal) this.elGameOverModal.classList.add('hidden');
   }
 
@@ -139,6 +149,18 @@ export class ModalManager {
     const items = data.menuItems || data.items || [];
     const textLines = data.lines || [];
     const core = this.getCore();
+
+    // ⚔️ キャラクター作成（Character Creation）コンテキスト判定 (専用シグナル SIGNAL_CHARACTER_CREATION / subCategory: 'CHARACTER_CREATION' 優先)
+    const isCharCreationSignal = data.subCategory === 'CHARACTER_CREATION' || data.signal?.id === 'SIGNAL_CHARACTER_CREATION';
+    const isCharCreation = isCharCreationSignal || (this.characterCreationModal && this.characterCreationModal.isCharacterCreationMenu(data));
+    if (this.characterCreationModal && isCharCreation && !this.characterCreationModal.isCompleted) {
+      this.characterCreationModal.show(data, this.currentLanguage);
+      return;
+    } else {
+      if (this.characterCreationModal && this.characterCreationModal.isVisible) {
+        this.characterCreationModal.hide();
+      }
+    }
 
     // 🎯 GKL 願い（Wishing）コンテキスト判定
     if (data.subCategory === 'WISH' || (data.assistant && data.assistant.type === 'WISH')) {
@@ -242,19 +264,37 @@ export class ModalManager {
 
     if (isLineText) {
       if (this.elPromptBar) this.elPromptBar.classList.remove('hidden');
-      const promptTitle = data.promptText || data.title || rawPrompt || 'Enter text:';
+      const isAskName = category === 'ASKNAME' || data.context === 'askname' || /Who are you|your name/i.test(rawPrompt);
+      const defaultName = data.detectedName || data.defaultName || (core && core.playerName) || '';
+
+      const promptTitle = data.promptText || data.title || rawPrompt || (isAskName ? 'What is your name?' : 'Enter text:');
       if (this.elPromptText) this.elPromptText.textContent = promptTitle;
       if (this.elInputControls) {
+        const placeholder = isAskName ? (defaultName || 'Hero') : 'Type here...';
         this.elInputControls.innerHTML = `
-          <input type="text" id="prompt-text-input" placeholder="Type here..." />
+          <input type="text" id="prompt-text-input" placeholder="${placeholder}" />
           <button id="btn-submit-text">OK</button>
         `;
 
         const inputEl = document.getElementById('prompt-text-input');
         const submitBtn = document.getElementById('btn-submit-text');
 
+        if (inputEl && isAskName && defaultName) {
+          inputEl.value = defaultName;
+        }
+
         const submitAction = () => {
-          const val = inputEl.value;
+          let val = inputEl.value.trim();
+          if (isAskName) {
+            if (!val && defaultName) val = defaultName;
+            const finalName = val || 'Hero';
+            if (this.characterCreationModal) {
+              this.characterCreationModal.characterName = finalName;
+            }
+            if (core && typeof core.setPlayerName === 'function') {
+              core.setPlayerName(finalName);
+            }
+          }
           if (core) core.respond(val);
         };
 
@@ -275,7 +315,12 @@ export class ModalManager {
               }
             }
           };
-          setTimeout(() => inputEl.focus(), 50);
+          setTimeout(() => {
+            inputEl.focus();
+            if (isAskName && defaultName) {
+              inputEl.select();
+            }
+          }, 50);
         }
       }
       return;
@@ -421,7 +466,9 @@ export class ModalManager {
     this.selectableMenuButtons.forEach((btn, index) => {
       if (index === this.activeMenuFocusIndex) {
         btn.classList.add('focus');
-        btn.scrollIntoView({ block: 'nearest' });
+        if (typeof btn.scrollIntoView === 'function') {
+          btn.scrollIntoView({ block: 'nearest' });
+        }
       } else {
         btn.classList.remove('focus');
       }

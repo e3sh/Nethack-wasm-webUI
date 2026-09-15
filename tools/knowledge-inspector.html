@@ -607,7 +607,7 @@
         import { OBJECT_KNOWLEDGE_BASE } from '../src/core/knowledge/OBJECT_KNOWLEDGE_BASE.js';
         import { OBJECT_JP_MAP } from '../src/core/knowledge/OBJECT_JP_MAP.js';
         import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from '../src/core/knowledge/tilemappings_data.js';
-        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from '../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
+        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP, ALIGNMENT_KNOWLEDGE_MAP, GENDER_KNOWLEDGE_MAP } from '../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
         import { TERRAIN_KNOWLEDGE_MAP } from '../src/core/knowledge/TERRAIN_KNOWLEDGE_BASE.js';
         import { CHEMISTRY_INTERACTIONS } from '../src/core/knowledge/CHEMISTRY_KNOWLEDGE_BASE.js';
         import { ADVICE_DEFINITIONS } from '../src/core/knowledge/ADVICE_DEFINITIONS.js';
@@ -1298,6 +1298,16 @@
                         const descEn = (e.descEn || '').toLowerCase();
                         const invoke = (e.invoke || '').toLowerCase();
                         if (base.includes(query) || role.includes(query) || descJa.includes(query) || descEn.includes(query) || invoke.includes(query)) compMatch = true;
+                    } else if (currentTab === 'CHARACTER') {
+                        const tagsJa = (e.tags?.ja || []).join(' ').toLowerCase();
+                        const tagsEn = (e.tags?.en || []).join(' ').toLowerCase();
+                        const descJa = (e.description?.ja || '').toLowerCase();
+                        const descEn = (e.description?.en || '').toLowerCase();
+                        const races = (e.allowedRaces || []).join(' ').toLowerCase();
+                        const aligns = (e.allowedAlignments || []).join(' ').toLowerCase();
+                        if (tagsJa.includes(query) || tagsEn.includes(query) || descJa.includes(query) || descEn.includes(query) || races.includes(query) || aligns.includes(query)) {
+                            compMatch = true;
+                        }
                     }
 
                     return idStr.includes(query) || nameStr.includes(query) || trStr.includes(query) || topicStr.includes(query) || msgStr.includes(query) || aliasesStr.includes(query) || compMatch;
@@ -1397,7 +1407,9 @@
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '✨';
                 } else if (currentTab === 'CHARACTER') {
                     title = currentLang === 'ja' ? (e.nameJa || e.name) : e.name;
-                    subtitle = e.subType;
+                    const tags = e.tags ? (currentLang === 'ja' ? e.tags.ja : e.tags.en) : [];
+                    const tagStr = tags && tags.length > 0 ? ` • ${tags.slice(0, 2).join(', ')}` : '';
+                    subtitle = `${e.subType}${tagStr}`;
                     badgeClass = e.subType === 'RACE' ? 'tag-PURPLE' : 'tag-INFO';
                     badgeText = e.subType;
                     const glyphId = getEntityGlyphId(e);
@@ -2451,17 +2463,105 @@
             const glyphId = getEntityGlyphId(char);
             const iconStyle = getEntityGlyphStyleString(glyphId, 48);
 
+            const descText = char.description ? (currentLang === 'ja' ? char.description.ja : char.description.en) : '';
+            const tags = char.tags ? (currentLang === 'ja' ? char.tags.ja : char.tags.en) : [];
+
+            // 制約ラベルマップ
+            const RACE_LABELS = {
+                human: { ja: '人間 (Human)', en: 'Human' },
+                dwarf: { ja: 'ドワーフ (Dwarf)', en: 'Dwarf' },
+                elf: { ja: 'エルフ (Elf)', en: 'Elf' },
+                gnome: { ja: 'ノーム (Gnome)', en: 'Gnome' },
+                orc: { ja: 'オーク (Orc)', en: 'Orc' }
+            };
+
+            const ALIGN_LABELS = {
+                lawful: { ja: '秩序 (Lawful)', en: 'Lawful' },
+                neutral: { ja: '中立 (Neutral)', en: 'Neutral' },
+                chaotic: { ja: '混沌 (Chaotic)', en: 'Chaotic' }
+            };
+
+            const GENDER_LABELS = {
+                male: { ja: '男性 (Male)', en: 'Male' },
+                female: { ja: '女性 (Female)', en: 'Female' }
+            };
+
+            // 制約マトリクス HTML
+            let constraintsHtml = '';
+            if (isRace) {
+                const aligns = char.allowedAlignments || [];
+                constraintsHtml = `
+                    <div class="info-block" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
+                        <div class="section-title">⚖️ ${currentLang === 'ja' ? '種族属性制約 (NetHack role.c SSOT)' : 'Allowed Alignments'}</div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                            ${aligns.map(a => `<span class="tag-badge ${a === 'lawful' ? 'tag-INFO' : (a === 'chaotic' ? 'tag-LETHAL' : 'tag-LOW')}" style="font-size:0.8rem; padding:4px 10px;">${currentLang === 'ja' ? ALIGN_LABELS[a]?.ja : ALIGN_LABELS[a]?.en}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                const races = char.allowedRaces || [];
+                const aligns = char.allowedAlignments || [];
+                const genders = char.allowedGenders || [];
+                const femaleName = currentLang === 'ja' ? char.nameFemaleJa : char.nameFemale;
+
+                constraintsHtml = `
+                    <div class="info-block" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; display:flex; flex-direction:column; gap:10px;">
+                        <div class="section-title">📋 ${currentLang === 'ja' ? '公式制約マトリクス (NetHack role.c SSOT)' : 'Official Constraints Matrix'}</div>
+                        
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🧝 ${currentLang === 'ja' ? '選択可能種族 (Allowed Races):' : 'Allowed Races:'}</div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${races.map(r => `<span class="tag-badge tag-PURPLE" style="font-size:0.75rem; padding:3px 8px;">${currentLang === 'ja' ? RACE_LABELS[r]?.ja : RACE_LABELS[r]?.en}</span>`).join('')}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">⚖️ ${currentLang === 'ja' ? '選択可能属性 (Allowed Alignments):' : 'Allowed Alignments:'}</div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${aligns.map(a => `<span class="tag-badge ${a === 'lawful' ? 'tag-INFO' : (a === 'chaotic' ? 'tag-LETHAL' : 'tag-LOW')}" style="font-size:0.75rem; padding:3px 8px;">${currentLang === 'ja' ? ALIGN_LABELS[a]?.ja : ALIGN_LABELS[a]?.en}</span>`).join('')}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">⚧️ ${currentLang === 'ja' ? '選択可能性別 (Allowed Genders):' : 'Allowed Genders:'}</div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                ${genders.map(g => `<span class="tag-badge ${g === 'female' && genders.length === 1 ? 'tag-WARNING' : 'tag-ITEM'}" style="font-size:0.75rem; padding:3px 8px;">${currentLang === 'ja' ? GENDER_LABELS[g]?.ja : GENDER_LABELS[g]?.en}${genders.length === 1 ? (currentLang === 'ja' ? ' [限定]' : ' [Only]') : ''}</span>`).join('')}
+                                ${femaleName ? `<span style="font-size:0.75rem; color:#f0b232; margin-left:8px;">♀️ ${currentLang === 'ja' ? `女性形称号: ${femaleName}` : `Female Title: ${femaleName}`}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             knowledgeCard.innerHTML = `
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:16px;">
                         <div class="card-icon-slot">${iconStyle ? `<div style="${iconStyle}"></div>` : (char.icon || (isRace ? '🧝' : '🧙'))}</div>
                         <div class="card-title-group">
                             <h2>${displayTitle}</h2>
-                            <div class="raw-name">${isRace ? 'Race' : 'Role / Class'} ID: ${char.id}</div>
+                            <div class="raw-name">${isRace ? 'Race' : 'Role / Class'} ID: ${char.id}${char.code ? ` | Code: ${char.code}` : ''}</div>
                         </div>
                     </div>
                     <span class="tag-badge ${isRace ? 'tag-PURPLE' : 'tag-INFO'}">${char.subType}</span>
                 </div>
+
+                ${descText ? `
+                    <div class="info-block benefit-block">
+                        <div class="section-title" style="color:#38bdf8;">📖 ${currentLang === 'ja' ? '概要・解説' : 'Overview & Lore'}</div>
+                        <div style="font-size:0.9rem; line-height:1.5; color:#f8fafc;">${descText}</div>
+                    </div>
+                ` : ''}
+
+                ${tags.length > 0 ? `
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
+                        <div class="section-title">🏷️ ${currentLang === 'ja' ? '特徴・生得特性タグ (Tags)' : 'Characteristics & Tags'}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                            ${tags.map(t => `<span class="tag-badge tag-INFO" style="font-size:0.75rem; padding:3px 8px; font-weight:bold;">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${constraintsHtml}
 
                 <div class="info-block">
                     <div class="section-title">✨ ${currentLang === 'ja' ? '確定内在能力・耐性タイムライン (SSOT)' : 'Innate Abilities Timeline'}</div>

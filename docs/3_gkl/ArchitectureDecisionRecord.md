@@ -114,6 +114,19 @@ related_code:
   4. **調停エンジン（Arbiter）によるサプレス方針**:
      - 高優先度の `BLOCK` や `ALERT` がアクティブな場合、低優先度の `GUIDE` や `INFO` を自動的に一時非表示（サプレス）または集約し、本当に命に関わる警告が埋もれない情報トリアージを保証する。
 
+### 1.16 制御シグナル (Control Signal) によるメニュー判断集約と専用UI化原則 (Control Signal SoC Principle)
+- **背景と課題（UI層へのメニュー判断漏れ出しの防止）**:
+  - キャラクタ作成画面、コンテナ操作、ペーパードール、重量管理など、NetHack の CUI 出力をリッチな専用 UI に拡張する際、「このメニューは何の操作か」「この文字列はアイテムか確定画面か」という判定を UI 層（Modal や View）に委ねると、アーティファクト名（`the blessed +1...`）への誤爆や、多言語・バリアント差分によるコードの重複・破綻を招く。
+- **決定された設計原則（黄金律: Core/GKLでSIGNAL確定 ➔ UIは描画に専念）**:
+  1. **UI層の文脈解析の完全撤廃**:
+     - UI コンポーネントは生プロンプト文字列の正規表現パースを行ってはならない。
+     - すべてのメニュー／プロンプトは `ControlSignalCatalog`（Vanilla/JNetHackのSSOT辞書）および `SignalDetector` / `PromptPayloadBuilder` を経由し、機械可読な制御シグナル（`SIGNAL_...` / `subCategory: '...'`）として Core 側で確定・付与してから UI にディスパッチする。
+  2. **2大制御モデルの明確な分離**:
+     - **受動的モーダル型 (Passive Modal Control)**: C コアが自律的にウィザードを進め、UI は届いたシグナルを描画して1文字打ち返す（例: キャラクタ作成、願い、変化、虐殺）。セッション専有は不要。
+     - **能動的作業セッション型 (Active Session / Recipe Execution)**: プレイヤーの1意図に対して複数コマンドを自律連続実行する。中間プロンプトの割り込みや状態破綻を防ぐため、`SessionLock`（作業中縛り）により操作権をコントローラが専有する（例: コンテナ操作、ペーパードール装備着脱、重量一括ドロップ）。
+  3. **詳細設計ドキュメント**:
+     - 詳細は [`docs/3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md) を参照。
+
 ---
 
 ## 2. 実装仕様 (`lastSequenceBuffer` & `querySequenceSilent`)

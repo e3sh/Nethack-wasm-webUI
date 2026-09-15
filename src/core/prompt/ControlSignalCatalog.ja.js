@@ -287,6 +287,32 @@ export const jaCatalog = {
       "flags": "i",
       "params": {},
       "description": "道具選択プロンプト (筆記具・缶切り等) (JNetHack)"
+    },
+    {
+      "id": "SIGNAL_CHARACTER_CREATION",
+      "subCategory": "CHARACTER_CREATION",
+      "inputType": "MENU",
+      "priority": 150,
+      "patterns": [
+        "(?<stepType>役職|職業|種族|性別|陣営|属性)を選択",
+        "(?<stepType>役職|職業|種族|性別|陣営|属性)を選んでください",
+        "適用するものをすべて選択",
+        "該当するものを選択",
+        "(?:よろしいですか|ゲームを開始|選び直)"
+      ],
+      "flags": "i",
+      "params": {},
+      "paramsMapping": {
+        "stepType": {
+          "役職": { "step": "role" },
+          "職業": { "step": "role" },
+          "種族": { "step": "race" },
+          "性別": { "step": "gender" },
+          "陣営": { "step": "alignment" },
+          "属性": { "step": "alignment" }
+        }
+      },
+      "description": "キャラクタ作成プロンプト/メニュー (JNetHack)"
     }
   ]
 };

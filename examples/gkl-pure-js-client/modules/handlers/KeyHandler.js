@@ -24,6 +24,10 @@ export class KeyHandler {
     }
 
     const modal = this.getModalManager();
+    // キャラクター作成モーダル表示中は通常のゲームキー入力をブロック
+    if (modal && modal.characterCreationModal && modal.characterCreationModal.isVisible) {
+      return;
+    }
     if (modal) {
       const activeCard = modal.getActiveModalCard ? modal.getActiveModalCard() : null;
       if (activeCard) {

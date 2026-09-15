@@ -413,6 +413,14 @@ const DEFAULT_TITLES = {
             subCategory = signal.subCategory;
         }
 
+        // 5. ⚔️ キャラクタ作成（Character Creation）プロンプトのシグナル検知
+        const isCharCreationSignal = signal && (signal.subCategory === 'CHARACTER_CREATION' || signal.signalId === 'SIGNAL_CHARACTER_CREATION');
+        const isCharCreationPrompt = isCharCreationSignal || payload.subCategory === 'CHARACTER_CREATION';
+
+        if (isCharCreationPrompt) {
+            subCategory = 'CHARACTER_CREATION';
+        }
+
         return {
             inputType: inputType,
             subCategory: subCategory,

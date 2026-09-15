@@ -526,5 +526,22 @@ describe('PromptPayloadBuilder', () => {
             expect(res.assistant).toBeDefined();
             expect(res.assistant.mode).toBe('CLASS');
         });
+
+        it('キャラクタ作成メニューで subCategory: "CHARACTER_CREATION" および signal が付与されること', () => {
+            const builder = new PromptPayloadBuilder();
+            const res = builder.build({
+                category: PROMPT_CATEGORY.MENU,
+                rawPrompt: 'Pick a role or profession',
+                items: [
+                    { identifier: 0, str: '<role> <race> <gender> <alignment>' },
+                    { identifier: 1, accelerator: 'a', str: 'an Archeologist' }
+                ]
+            });
+
+            expect(res.subCategory).toBe('CHARACTER_CREATION');
+            expect(res.signal).toBeDefined();
+            expect(res.signal.signalId).toBe('SIGNAL_CHARACTER_CREATION');
+            expect(res.signal.params.step).toBe('role');
+        });
     });
 });

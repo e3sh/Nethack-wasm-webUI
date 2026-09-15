@@ -26,6 +26,7 @@ function createMockElement(id = '', tag = 'div') {
     appendChild: vi.fn(),
     querySelectorAll: () => [],
     querySelector: () => null,
+    scrollIntoView: vi.fn(),
   };
 
   Object.defineProperty(el, 'innerHTML', {
@@ -179,5 +180,47 @@ describe('ModalManager - promptCategory UI 分岐 & KEY 演出テスト', () => 
     expect(mockElements.elPromptBar.classList.contains('hidden')).toBe(true);
     expect(mockElements.elPromptBar.classList.contains('is-key-waiting')).toBe(false);
     expect(mockElements.elPromptBar.onclick).toBeNull();
+  });
+
+  it('subCategory: "CHARACTER_CREATION" の場合、characterCreationModal.show が呼ばれること', () => {
+    const mockCharModal = {
+      isCompleted: false,
+      isVisible: false,
+      show: vi.fn(),
+      hide: vi.fn(),
+      isCharacterCreationMenu: vi.fn().mockReturnValue(false),
+    };
+    modalManager.characterCreationModal = mockCharModal;
+
+    const data = {
+      subCategory: 'CHARACTER_CREATION',
+      signal: { id: 'SIGNAL_CHARACTER_CREATION' },
+      menuItems: [{ identifier: 1, accelerator: 'a', str: 'an Archeologist' }]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockCharModal.show).toHaveBeenCalledWith(data, 'ja');
+  });
+
+  it('characterCreationModal.isCompleted === true の場合、CHARACTER_CREATION シグナルがあってもモーダルが開かないこと', () => {
+    const mockCharModal = {
+      isCompleted: true,
+      isVisible: false,
+      show: vi.fn(),
+      hide: vi.fn(),
+      isCharacterCreationMenu: vi.fn().mockReturnValue(false),
+    };
+    modalManager.characterCreationModal = mockCharModal;
+
+    const data = {
+      subCategory: 'CHARACTER_CREATION',
+      signal: { id: 'SIGNAL_CHARACTER_CREATION' },
+      menuItems: [{ identifier: 1, accelerator: 'a', str: 'an Archeologist' }]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockCharModal.show).not.toHaveBeenCalled();
   });
 });
