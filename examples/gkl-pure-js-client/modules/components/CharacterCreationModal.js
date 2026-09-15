@@ -162,7 +162,7 @@ export class CharacterCreationModal {
         <!-- 下部フッター / プレビュー -->
         <div class="char-modal-footer">
           <div class="char-footer-preview">
-            <div class="char-preview-label">CURRENT CONFIGURATION</div>
+            <div class="char-preview-label" id="cc-preview-label">CURRENT CONFIGURATION</div>
             <div class="char-preview-tags" id="cc-preview-tags">
               <div class="char-preview-tag unset" id="cc-tag-role">役職: 未選択</div>
               <div class="char-preview-tag unset" id="cc-tag-race">種族: 未選択</div>
@@ -336,13 +336,14 @@ export class CharacterCreationModal {
     // ヘッダ行から現在の構成を抽出（例: "<role> <race> <gender> lawful" や "Archeologist human <gender> lawful"）
     for (const item of this.currentItems) {
       const s = (item.rawStr || item.str || item.text || '').trim();
-      if (s.startsWith('<') || s.includes('<role>') || s.includes('<race>') || s.includes('<gender>') || s.includes('<alignment>')) {
+      if (s.startsWith('<') || s.includes('<role>') || s.includes('<race>') || s.includes('<gender>') || s.includes('<alignment>') ||
+          /^(Archeologist|Barbarian|Caveman|Cavewoman|Healer|Knight|Monk|Priest|Priestess|Ranger|Rogue|Samurai|Tourist|Valkyrie|Wizard|<role>)/i.test(s)) {
         const parts = s.split(/\s+/);
         if (parts.length >= 4) {
-          if (parts[0] !== '<role>') this.selectedConfig.role = parts[0];
-          if (parts[1] !== '<race>') this.selectedConfig.race = parts[1];
-          if (parts[2] !== '<gender>') this.selectedConfig.gender = parts[2];
-          if (parts[3] !== '<alignment>') this.selectedConfig.align = parts[3];
+          this.selectedConfig.role = (parts[0] !== '<role>') ? parts[0] : null;
+          this.selectedConfig.race = (parts[1] !== '<race>') ? parts[1] : null;
+          this.selectedConfig.gender = (parts[2] !== '<gender>') ? parts[2] : null;
+          this.selectedConfig.align = (parts[3] !== '<alignment>') ? parts[3] : null;
         }
         break;
       } else if (this.activeTab === 'confirm') {
@@ -442,7 +443,8 @@ export class CharacterCreationModal {
 
     const core = this.getCore();
     if (core && core.translator && typeof core.translator.translate === 'function') {
-      return core.translator.translate(text);
+      const res = core.translator.translate(text);
+      if (res && res !== text) return res;
     }
     if (typeof nhEntities === 'function') {
       const ents = nhEntities();
@@ -450,6 +452,17 @@ export class CharacterCreationModal {
       if (ents[stripped]) return ents[stripped];
       if (ents[stripped.toLowerCase()]) return ents[stripped.toLowerCase()];
     }
+
+    // SSOT ナレッジベースによるフォールバック翻訳
+    const roleK = getRoleKnowledge(text);
+    if (roleK?.nameJa) return roleK.nameJa;
+    const raceK = getRaceKnowledge(text);
+    if (raceK?.nameJa) return raceK.nameJa;
+    const alignK = getAlignmentKnowledge(text);
+    if (alignK?.nameJa) return alignK.nameJa;
+    const genderK = getGenderKnowledge(text);
+    if (genderK?.nameJa) return genderK.nameJa;
+
     return text;
   }
 
@@ -503,7 +516,10 @@ export class CharacterCreationModal {
       }
     });
 
-    // プレビュータグの更新
+    // プレビュータグおよび CURRENT CONFIGURATION ラベルの更新
+    const elPreviewLabel = document.getElementById('cc-preview-label');
+    let hasCurrentPending = false;
+
     tabs.forEach(t => {
       const elTag = document.getElementById(`cc-tag-${t}`);
       if (!elTag) return;
@@ -511,13 +527,30 @@ export class CharacterCreationModal {
       const typeLabel = isJa ? { role: '役職', race: '種族', gender: '性別', align: '陣営' }[t] : { role: 'Role', race: 'Race', gender: 'Gender', align: 'Align' }[t];
 
       if (val) {
+        // 選択済みの項目は今の Blue のまま
         elTag.className = 'char-preview-tag filled';
         elTag.textContent = `${typeLabel}: ${isJa ? this.translate(val) : val}`;
+      } else if (this.activeTab === t) {
+        // 現在アクティブな画面でカード未選択（未確定・選び直し）の場合は注目色 (Amber/Gold)
+        hasCurrentPending = true;
+        elTag.className = 'char-preview-tag pending';
+        elTag.textContent = `${typeLabel}: ${isJa ? '選択待ち' : 'Pending'}`;
       } else {
+        // 未到達の未選択項目は通常の灰色破線
         elTag.className = 'char-preview-tag unset';
         elTag.textContent = `${typeLabel}: ${isJa ? '未選択' : 'None'}`;
       }
     });
+
+    if (elPreviewLabel) {
+      if (hasCurrentPending) {
+        elPreviewLabel.classList.add('pending');
+        elPreviewLabel.textContent = isJa ? 'CURRENT CONFIGURATION (選択待ち)' : 'CURRENT CONFIGURATION (PENDING)';
+      } else {
+        elPreviewLabel.classList.remove('pending');
+        elPreviewLabel.textContent = 'CURRENT CONFIGURATION';
+      }
+    }
 
     // ビューの切り替え（Confirm vs 通常選択）
     const confirmView = document.getElementById('cc-confirm-view');

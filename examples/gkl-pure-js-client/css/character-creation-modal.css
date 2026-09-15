@@ -377,6 +377,13 @@
   color: #5a6072;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  transition: color 0.2s ease;
+}
+
+.char-preview-label.pending {
+  color: #f0b232;
+  font-weight: 600;
+  letter-spacing: 0.8px;
 }
 
 .char-preview-tags {
@@ -396,6 +403,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  transition: all 0.2s ease;
 }
 
 .char-preview-tag.filled {
@@ -403,6 +411,26 @@
   border-color: #3b5fa8;
   color: #8bb6ff;
   font-weight: 500;
+}
+
+.char-preview-tag.pending {
+  background: rgba(240, 178, 50, 0.15);
+  border: 1px solid #f0b232;
+  color: #f0b232;
+  font-weight: 600;
+  box-shadow: 0 0 6px rgba(240, 178, 50, 0.3);
+  animation: char-tag-glow 2s infinite alternate ease-in-out;
+}
+
+@keyframes char-tag-glow {
+  0% {
+    box-shadow: 0 0 3px rgba(240, 178, 50, 0.2);
+    border-color: #d99a22;
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(240, 178, 50, 0.45);
+    border-color: #f0b232;
+  }
 }
 
 .char-preview-tag.unset {

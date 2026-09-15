@@ -308,10 +308,10 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
   });
 
   it('性別選択画面で female 選択時に male カードが誤って selected にならないこと (部分一致バグ防止)', () => {
-    const genderMenuData = {
+    const femaleMenuData = {
       prompt: 'Pick a gender or sex',
       menuItems: [
-        { identifier: 0, str: 'Archeologist human <gender> lawful' },
+        { identifier: 0, str: 'Archeologist human female lawful' },
         { identifier: 1, accelerator: 'm', str: 'male' },
         { identifier: 2, accelerator: 'f', str: 'female' },
         { identifier: -1, accelerator: 'q', str: 'Quit' }
@@ -319,8 +319,7 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
     };
 
     // 1. female が確定している場合
-    modal.selectedConfig.gender = 'female';
-    modal.show(genderMenuData, 'ja');
+    modal.show(femaleMenuData, 'ja');
 
     const cardsGrid = document.getElementById('cc-cards-grid');
     // male カードは selected になっておらず、female カードのみ selected であること
@@ -333,8 +332,16 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
 
     // 2. male が確定している場合
     cardsGrid.children = [];
-    modal.selectedConfig.gender = 'male';
-    modal.show(genderMenuData, 'ja');
+    const maleMenuData = {
+      prompt: 'Pick a gender or sex',
+      menuItems: [
+        { identifier: 0, str: 'Archeologist human male lawful' },
+        { identifier: 1, accelerator: 'm', str: 'male' },
+        { identifier: 2, accelerator: 'f', str: 'female' },
+        { identifier: -1, accelerator: 'q', str: 'Quit' }
+      ]
+    };
+    modal.show(maleMenuData, 'ja');
 
     const newCards = cardsGrid.children;
     const newMaleCard = newCards.find(c => c.innerHTML.includes('male') && !c.innerHTML.includes('female'));
@@ -410,5 +417,48 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
     modal.isCompleted = true;
     expect(modal.isCharacterCreationMenu(signalData1)).toBe(false);
     expect(modal.isCharacterCreationMenu(signalData2)).toBe(false);
+  });
+
+  it('カード未選択の状態でRoleメニューに戻った際、CURRENT CONFIGURATION および対象タグが pending (選択待ち色) になり、選択済みの項目は filled (Blue) を維持すること', () => {
+    // 属性 lawful だけ確定し、Roleメニューに戻された状態 (<role> <race> <gender> lawful)
+    const roleMenuData = {
+      prompt: 'Pick a role or profession',
+      menuItems: [
+        { identifier: 0, str: '<role> <race> <gender> lawful' },
+        { identifier: 1, accelerator: 'a', str: 'an Archeologist' },
+        { identifier: 2, accelerator: 'b', str: 'a Barbarian' },
+        { identifier: -1, accelerator: 'q', str: 'Quit' }
+      ]
+    };
+
+    modal.show(roleMenuData, 'ja');
+
+    const elTagRole = document.getElementById('cc-tag-role');
+    const elTagAlign = document.getElementById('cc-tag-align');
+    const elTagRace = document.getElementById('cc-tag-race');
+    const elPreviewLabel = document.getElementById('cc-preview-label');
+
+    // 1. Role は未選択なので pending (選択待ち) スタイルになる
+    expect(elTagRole.className).toContain('pending');
+    expect(elTagRole.textContent).toContain('選択待ち');
+
+    // 2. 確定済みの Align (lawful) は filled (従来の Blue) のまま
+    expect(elTagAlign.className).toContain('filled');
+    expect(elTagAlign.textContent).toContain('秩序');
+
+    // 3. まだ到達していない未選択の Race は通常の unset (グレー)
+    expect(elTagRace.className).toContain('unset');
+    expect(elTagRace.textContent).toContain('未選択');
+
+    // 4. CURRENT CONFIGURATION ラベルも pending スタイルになる
+    expect(elPreviewLabel.classList.add).toHaveBeenCalledWith('pending');
+    expect(elPreviewLabel.textContent).toContain('選択待ち');
+
+    // 5. Role カードを選択して確定した場合
+    modal.selectedConfig.role = 'Archeologist';
+    modal.render();
+
+    expect(elTagRole.className).toContain('filled');
+    expect(elTagRole.textContent).toContain('考古学者');
   });
 });
