@@ -17176,3 +17176,5 @@ Message,The '-' prefix should be followed by a movement command.,「-」の後�
 Pattern,^(.*) falls down (.*)\.$,$1が$2を転がり落ちる。,,
 Message,You don't even have enough gold for that!,それをする金すら持っていない！,,
 Item,sword,剣,,
+Message,You feel weak!,体がだるい！,,
+Message,You haven't been exercising properly.,あなたはきちんと運動をしていないですね。,,

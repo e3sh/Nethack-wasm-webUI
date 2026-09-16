@@ -11680,6 +11680,8 @@
         { en: "You stagger under your load.  Movement is still very hard.", jp: "荷物の重さに足元がふらつく。移動は相変わらず非常に困難だ。" },
         { en: "The '-' prefix should be followed by a movement command.", jp: "「-」の後に移動コマンドを入力してください。" },
         { en: "You don't even have enough gold for that!", jp: "それをする金すら持っていない！" },
+        { en: "You feel weak!", jp: "体がだるい！" },
+        { en: "You haven't been exercising properly.", jp: "あなたはきちんと運動をしていないですね。" },
     ];
 }
 
