@@ -131,6 +131,39 @@ export class TacticalAdvisor {
             return i.isSilver || i.knowledge?.isSilver || i.material === 'silver' || i.knowledge?.material === 'silver';
         }) : [];
 
+        const wolfsbaneItems = inventoryState ? (inventoryState.items || []).filter(i => {
+            const raw = (i.name || i.knowledge?.name || '').toLowerCase();
+            return raw.includes('wolfsbane') || i.onum === 283 || i.sn === 'SPRIG_OF_WOLFSBANE';
+        }) : [];
+
+        // 人獣化防護判定 (Werebane装備中、または変化防御の指輪着用中、耐性持ち)
+        const isProtectedFromLycanthropy = () => {
+            if (effectiveResists.protectionFromShapeChangers || effectiveResists.lycanthropy) {
+                return { protected: true, reasonJa: '変化防御耐性', reasonEn: 'Protection from shape changers' };
+            }
+            if (inventoryState && Array.isArray(inventoryState.items)) {
+                // Werebane 装備中
+                const werebaneItem = inventoryState.items.find(i => i.isWielded && (
+                    (i.name && i.name.toLowerCase().includes('werebane')) ||
+                    i.artifactId === 'art_werebane' ||
+                    i.artifact?.toLowerCase() === 'werebane'
+                ));
+                if (werebaneItem) {
+                    return { protected: true, reasonJa: '人狼殺し(Werebane)装備', reasonEn: 'Wielding Werebane' };
+                }
+                // 変化防御の指輪 着用中
+                const shapeRing = inventoryState.items.find(i => i.isWorn && (
+                    (i.name && i.name.toLowerCase().includes('protection from shape changers')) ||
+                    i.onum === 200 ||
+                    i.sn === 'RIN_PROTECTION_FROM_SHAPE_CHAN'
+                ));
+                if (shapeRing) {
+                    return { protected: true, reasonJa: '変化防御の指輪着用', reasonEn: 'Wearing ring of protection from shape changers' };
+                }
+            }
+            return { protected: false, reasonJa: '', reasonEn: '' };
+        };
+
         const cureSicknessItems = inventoryState ? (inventoryState.items || []).filter(i => {
             const eff = i.effects || i.knowledge?.effects || {};
             return Boolean(eff.cureSickness);
@@ -152,6 +185,7 @@ export class TacticalAdvisor {
             slime: { detected: false, maxWeight: 0, monName: '', monNameJa: '', threatDef: null },
             drown: { detected: false, maxWeight: 0, monName: '', monNameJa: '', threatDef: null },
             confusionGaze: { detected: false, maxWeight: 0, monName: '', monNameJa: '', threatDef: null },
+            lycanthropy: { detected: false, maxWeight: 0, monName: '', monNameJa: '', threatDef: null },
             evilSlaying: { detected: false, maxWeight: 0, monName: '', monNameJa: '' }
         };
 
@@ -290,7 +324,20 @@ export class TacticalAdvisor {
                 }
             }
 
-            // 11. アンデッド・悪魔・銀弱点 (Evil Slaying)
+            // 11. 人獣化 (LYCANTHROPY)
+            const isWere = (monName && (monName.toLowerCase().startsWith('were') || monName.toLowerCase().includes('were'))) ||
+                           (monNameJa && (monNameJa.includes('人狼') || monNameJa.includes('人ネズミ') || monNameJa.includes('人ジャッカル')));
+            if (threat?.effect === 'LYCANTHROPY' || threatType === 'LYCANTHROPY' || traits.causesLycanthropy || monKnowledge.causesLycanthropy || attacks.some(a => a.effect === 'lycanthropy') || isWere) {
+                threats.lycanthropy.detected = true;
+                if (weight > threats.lycanthropy.maxWeight) {
+                    threats.lycanthropy.maxWeight = weight;
+                    threats.lycanthropy.monName = monName;
+                    threats.lycanthropy.monNameJa = monNameJa;
+                    threats.lycanthropy.threatDef = threat;
+                }
+            }
+
+            // 12. アンデッド・悪魔・銀弱点 (Evil Slaying)
             if (traits.isUndead || traits.isDemon || monKnowledge.isUndead || monKnowledge.isDemon || (Array.isArray(monKnowledge.weaknesses) && monKnowledge.weaknesses.includes('silver'))) {
                 threats.evilSlaying.detected = true;
                 if (weight > threats.evilSlaying.maxWeight) {
@@ -507,7 +554,46 @@ export class TacticalAdvisor {
             }));
         }
 
-        // 11. 銀特効サジェスト
+        // 11. 人獣化警告 (ワーウルフ・ワーラット等)
+        if (threats.lycanthropy.detected) {
+            const lycanMonName = threats.lycanthropy.monName || 'were-creature';
+            const lycanMonNameJa = threats.lycanthropy.monNameJa || '獣人';
+            const lycanProtection = isProtectedFromLycanthropy();
+
+            if (lycanProtection.protected) {
+                advices.push(createAdvice('ADVICE_THREAT_LYCANTHROPY_SAFE', {
+                    monsterJa: lycanMonNameJa,
+                    monsterEn: lycanMonName,
+                    reasonJa: lycanProtection.reasonJa,
+                    reasonEn: lycanProtection.reasonEn
+                }));
+            } else {
+                const isLurking = threats.lycanthropy.maxWeight < 1.0;
+                const adviceId = isLurking ? 'ADVICE_THREAT_LYCANTHROPY_UNSEEN' : 'ADVICE_THREAT_LYCANTHROPY';
+                const wolfsbaneLetters = wolfsbaneItems.map(i => i.letter).filter(Boolean);
+                const unwornSilver = silverWeapons.filter(w => !w.isWielded).map(w => w.letter).filter(Boolean);
+
+                let hintLetters = [];
+                let hintCommand;
+                if (wolfsbaneLetters.length > 0) {
+                    hintLetters = wolfsbaneLetters;
+                    hintCommand = 'e';
+                } else if (unwornSilver.length > 0) {
+                    hintLetters = unwornSilver;
+                    hintCommand = 'w';
+                }
+
+                advices.push(createAdvice(adviceId, {
+                    monsterJa: lycanMonNameJa,
+                    monsterEn: lycanMonName
+                }, {
+                    hintLetters: hintLetters.length > 0 ? hintLetters : undefined,
+                    hintCommand: hintCommand
+                }));
+            }
+        }
+
+        // 12. 銀特効サジェスト
         if (threats.evilSlaying.detected && silverWeapons.length > 0) {
             const unwornSilver = silverWeapons.find(w => !w.isWielded);
             if (unwornSilver) {
@@ -530,7 +616,7 @@ export class TacticalAdvisor {
             }
         }
 
-        // 12. 足元死体（Corpse）の石化・耐性獲得評価
+        // 13. 足元死体（Corpse）の石化・耐性獲得評価
         if (areaState.feet && areaState.feet.top) {
             const feetItem = areaState.feet.top;
             const raw = (feetItem.name || feetItem.rawText || '').toLowerCase();

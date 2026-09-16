@@ -309,6 +309,24 @@ export const ADVICE_DEFINITIONS = {
         templateJa: '🐺 人獣化警告: {monster}に噛まれると人獣化に感染します！銀製武器で速やかに撃破し、感染時はトリカブト(Wolfsbane)を摂取(\'e\')してください。',
         templateEn: '🐺 LYCANTHROPY: {monster} bite transmits infection! Slay with silver weapons; eat wolfsbane (\'e\') if infected.'
     },
+    'ADVICE_THREAT_LYCANTHROPY_UNSEEN': {
+        id: 'ADVICE_THREAT_LYCANTHROPY_UNSEEN',
+        severity: 'INFO',
+        topic: 'THREAT',
+        baseScore: 540,
+        defaultCommand: 'w',
+        fallbackCommand: 'e',
+        templateJa: '🐺 警戒: 付近に{monster}が潜伏中！噛みつきによる人獣化感染に備え、銀製武器やトリカブトを準備してください。',
+        templateEn: '🐺 CAUTION: {monster} lurking nearby! Prepare silver weapons or wolfsbane against lycanthropy infection.'
+    },
+    'ADVICE_THREAT_LYCANTHROPY_SAFE': {
+        id: 'ADVICE_THREAT_LYCANTHROPY_SAFE',
+        severity: 'INFO',
+        topic: 'THREAT',
+        baseScore: 300,
+        templateJa: '🛡️ 獣化耐性あり: {monster}が接近中ですが、{reason}により人獣化感染は防止されています。',
+        templateEn: '🛡️ LYCANTHROPY PROTECTED: {monster} nearby, but protected from infection by {reason}.'
+    },
     'ADVICE_THREAT_SWALLOW_ESCAPE': {
         id: 'ADVICE_THREAT_SWALLOW_ESCAPE',
         severity: 'CRITICAL',

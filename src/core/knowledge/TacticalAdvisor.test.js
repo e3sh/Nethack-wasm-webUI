@@ -779,6 +779,104 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(safeAdvice).toBeDefined();
             expect(safeAdvice.messageJa).toContain('防護済み');
         });
+
+        it('ワーラット遭遇時、防護手段がない場合は人獣化警告(ADVICE_THREAT_LYCANTHROPY)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 91); // wererat (monOffset: 91)
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5)
+            });
+
+            const lycanAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY');
+            expect(lycanAdvice).toBeDefined();
+            expect(lycanAdvice.messageJa).toContain('人獣化警告');
+            expect(lycanAdvice.messageJa).toContain('トリカブト');
+        });
+
+        it('ワーラット遭遇時、トリカブト(wolfsbane)を所持していれば hintLetters に提示されコマンドが "e" になること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 91); // wererat (monOffset: 91)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('sprig of wolfsbane', 'w', { onum: 283 })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            const lycanAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY');
+            expect(lycanAdvice).toBeDefined();
+            expect(lycanAdvice.hintLetters).toContain('w');
+            expect(lycanAdvice.hintCommand).toBe('e');
+        });
+
+        it('ワーウルフ遭遇時、人狼殺し(Werebane)装備中であれば安全アドバイス(ADVICE_THREAT_LYCANTHROPY_SAFE)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 21); // werewolf (monOffset: 21)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('silver saber', 's', { isWielded: true, artifactId: 'art_werebane', artifact: 'Werebane' })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY')).toBeUndefined();
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('獣化耐性あり');
+            expect(safeAdvice.messageJa).toContain('Werebane');
+        });
+
+        it('ワーウルフ遭遇時、変化防御の指輪着用中であれば安全アドバイスが出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            areaMgr.updateGlyph(11, 10, 21); // werewolf (monOffset: 21)
+
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                createTestItem('ring of protection from shape changers', 'r', { isWorn: true, onum: 200 })
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState: areaMgr.getAreaState(10, 10, 5),
+                inventoryState: invMgr
+            });
+
+            expect(advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY')).toBeUndefined();
+            const safeAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY_SAFE');
+            expect(safeAdvice).toBeDefined();
+            expect(safeAdvice.messageJa).toContain('獣化耐性あり');
+            expect(safeAdvice.messageJa).toContain('変化防御の指輪');
+        });
+
+        it('ワーウルフが潜伏中(trackedMonsters)の場合、警戒アドバイス(ADVICE_THREAT_LYCANTHROPY_UNSEEN)が出ること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+
+            const areaState = areaMgr.getAreaState(10, 10, 5);
+            areaState.trackedMonsters = [
+                { monOffset: 21, name: 'werewolf', nameJa: 'ワーウルフ', weight: 0.8, inLoS: false, lastKnownPos: { x: 12, y: 10 } }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({
+                areaState
+            });
+
+            const unseenAdvice = advices.find(a => a.id === 'ADVICE_THREAT_LYCANTHROPY_UNSEEN');
+            expect(unseenAdvice).toBeDefined();
+            expect(unseenAdvice.messageJa).toContain('警戒: 付近に');
+        });
     });
 });
 
