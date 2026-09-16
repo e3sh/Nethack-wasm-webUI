@@ -54,17 +54,62 @@ export class ContainerContentsManager {
         this.isKnown = false;
         /** @type {boolean} コンテナが空か */
         this.isEmpty = false;
+        /** @type {string|null} コンテナのインベントリレター ('b' 等) */
+        this.containerLetter = null;
+        /** @type {Map<string, Set<Function>>} */
+        this.listeners = new Map();
+    }
+
+    /**
+     * イベントリスナー登録
+     * @param {string} event 
+     * @param {Function} fn 
+     */
+    on(event, fn) {
+        if (typeof fn !== 'function') return;
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, new Set());
+        }
+        this.listeners.get(event).add(fn);
+    }
+
+    /**
+     * イベントリスナー解除
+     * @param {string} event 
+     * @param {Function} fn 
+     */
+    off(event, fn) {
+        if (this.listeners.has(event)) {
+            this.listeners.get(event).delete(fn);
+        }
+    }
+
+    /**
+     * イベント発行
+     * @param {string} event 
+     * @param {any} data 
+     */
+    emit(event, data) {
+        if (!this.listeners.has(event)) return;
+        for (const fn of this.listeners.get(event)) {
+            try {
+                fn(data);
+            } catch (err) {
+                console.error(`[ContainerContentsManager] Error in listener '${event}':`, err);
+            }
+        }
     }
 
     /**
      * コンテナの初期化（新しいコンテナ操作トランザクション開始時）
      *
-     * @param {Object} info - { name, onum, rawText }
+     * @param {Object} info - { name, onum, rawText, letter, targetLetter }
      */
     openContainer(info = {}) {
         this.containerName = info.name || info.rawText || null;
         this.containerOnum = typeof info.onum === 'number' ? info.onum : -1;
         this.containerType = detectContainerType(this.containerName);
+        this.containerLetter = info.letter || info.targetLetter || info.invlet || null;
         this.items = [];
         this.isKnown = false;
         this.isEmpty = false;
@@ -188,6 +233,15 @@ export class ContainerContentsManager {
         this.reindexLetters();
         this.isKnown = true;
         this.isEmpty = parsedItems.length === 0;
+        this.emit('contentsConfirmed', {
+            letter: this.containerLetter,
+            items: this.items,
+            isKnown: this.isKnown,
+            isEmpty: this.isEmpty,
+            containerName: this.containerName,
+            containerType: this.containerType,
+            containerOnum: this.containerOnum,
+        });
         return true;
     }
 
@@ -205,6 +259,15 @@ export class ContainerContentsManager {
             this.items = [];
             this.isKnown = true;
             this.isEmpty = true;
+            this.emit('contentsConfirmed', {
+                letter: this.containerLetter,
+                items: this.items,
+                isKnown: this.isKnown,
+                isEmpty: this.isEmpty,
+                containerName: this.containerName,
+                containerType: this.containerType,
+                containerOnum: this.containerOnum,
+            });
             return true;
         }
 
@@ -271,6 +334,15 @@ export class ContainerContentsManager {
         this.reindexLetters();
         this.isKnown = true;
         this.isEmpty = parsedItems.length === 0;
+        this.emit('contentsConfirmed', {
+            letter: this.containerLetter,
+            items: this.items,
+            isKnown: this.isKnown,
+            isEmpty: this.isEmpty,
+            containerName: this.containerName,
+            containerType: this.containerType,
+            containerOnum: this.containerOnum,
+        });
         return true;
     }
 
@@ -476,6 +548,14 @@ export class ContainerContentsManager {
             }
             this.isKnown = true;
             this.isEmpty = false;
+            this.emit('itemTransferred', {
+                direction: 'in',
+                item,
+                items: this.items,
+                containerName: this.containerName,
+                containerType: this.containerType,
+                containerOnum: this.containerOnum,
+            });
             return;
         }
 
@@ -494,6 +574,15 @@ export class ContainerContentsManager {
         this.reindexLetters();
         this.isKnown = true;
         this.isEmpty = false;
+        this.emit('itemTransferred', {
+            letter: this.containerLetter,
+            direction: 'in',
+            item,
+            items: this.items,
+            containerName: this.containerName,
+            containerType: this.containerType,
+            containerOnum: this.containerOnum,
+        });
     }
 
     /**
@@ -532,6 +621,15 @@ export class ContainerContentsManager {
         this.reindexLetters();
         this.isKnown = true;
         this.isEmpty = this.items.length === 0;
+        this.emit('itemTransferred', {
+            letter: this.containerLetter,
+            direction: 'out',
+            item,
+            items: this.items,
+            containerName: this.containerName,
+            containerType: this.containerType,
+            containerOnum: this.containerOnum,
+        });
     }
 
     /**

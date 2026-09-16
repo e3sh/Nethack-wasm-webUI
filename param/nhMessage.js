@@ -8673,7 +8673,7 @@
         { en: "gaze at monsters", jp: "モンスターを見つめる" },
         { en: "hide or to spin a web", jp: "隠れたり、蜘蛛の巣を張ったりする" },
         { en: "spin a web", jp: "網を張る" },
-        { en: "summon help", jp: "助けを呼ぶ" },
+        { en: "summon help", jp: "助けを呼ぶ(summon help)" },
         { en: "multiply in a fountain", jp: "噴水で増える" },
         { en: "use your horn", jp: "ホーンを使ってください" },
         { en: "emit a mental blast", jp: "精神的な爆発を起こす" },
@@ -11622,6 +11622,7 @@
         { en: "You are jolted with electricity!", jp: "あなたは電気ショックを受けます！" },
         { en: "You hear a sound reminiscent of an elephant stepping on a peanut.", jp: "象がピーナッツを踏みつけるような音が聞こえる。" },
         { en: "The bugs on the floor slow down!", jp: "床の上の虫の動きが遅くなる！" },
+        { en: "The bugs on the floor stop moving!", jp: "床にいた虫たちが動きを止めた！" },
         { en: "Unidentified item.", jp: "正体不明の品。" },
         { en: "Gravel flies up from the floor.", jp: "床から砂利が飛び散る。" },
         { en: "You have a very bad case of stomach acid.", jp: "あなたは胃酸過多がかなりひどいです。" },
@@ -11673,6 +11674,12 @@
         { en: "The water flow seems stronger now.", jp: "水の流れが、今の方が強くなっているようだ。" },
         { en: "You don't know how to write that.", jp: "その書き方がわからないんだ。" },
         { en: "A wisp of vapor rises up...", jp: "一筋の湯気が立ち上る..." },
+        { en: "Reach into this bag", jp: "この袋に手を伸ばす" },
+        { en: "You shrink / your cloak!", jp: "マントが縮んでしまった！" },
+        { en: "You can't throw or shoot without hands.", jp: "手がないと、物を投げたり撃ったりできない。" },
+        { en: "You stagger under your load.  Movement is still very hard.", jp: "荷物の重さに足元がふらつく。移動は相変わらず非常に困難だ。" },
+        { en: "The '-' prefix should be followed by a movement command.", jp: "「-」の後に移動コマンドを入力してください。" },
+        { en: "You don't even have enough gold for that!", jp: "それをする金すら持っていない！" },
     ];
 }
 
@@ -14142,6 +14149,7 @@ function nhItems() {
         "tethered to left hand": { noun: "左手に紐付け", adj: "左手に紐付け" },
         "tethered to hands": { noun: "両手に紐付け", adj: "両手に紐付け" },
         "your": { noun: "あなたの", adj: "あなたの" },
+        "sword": "剣",
     };
 }
 
@@ -17181,6 +17189,8 @@ function nhPatterns() {
         { pattern: /^(.*)\s+is\s+left\s+unfinished\s+and\s+your\s+writing\s+fades\.$/, replace: "$1は未完成のまま残り、あなたの文字は薄れていく。" },
         { pattern: /^(.*)\s+warps\s+strangely,\s+then\s+turns\s+(.*)\.$/, replace: "$1が奇妙に歪み、やがて$2に変わる。" },
         { pattern: /^You\s+hold\s+(.*)\s+under\s+the\s+tap\.$/, replace: "$1を、蛇口の下に置きます。" },
+        { pattern: /^(.*)s\s+weld\s+themselves\s+to\s+(.*)'s\s+hand!$/, replace: "$1が$2の手にくっついてしまった！" },
+        { pattern: /^(.*)\s+falls\s+down\s+(.*)\.$/, replace: "$1が$2を転がり落ちる。" },
     ];
 }
 

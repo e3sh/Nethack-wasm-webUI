@@ -16,6 +16,7 @@ import { WishService } from './WishService.js';
 import { GenocideService } from './GenocideService.js';
 import { PolymorphService } from './PolymorphService.js';
 import { WriteService } from './WriteService.js';
+import { EncumbranceStateManager } from './EncumbranceStateManager.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 /**
@@ -30,6 +31,7 @@ export class GKLPlugin {
      * @param {SpellStateManager} [options.spellStateManager]
      * @param {SkillStateManager} [options.skillStateManager]
      * @param {AttributeStateManager} [options.attributeStateManager]
+     * @param {EncumbranceStateManager} [options.encumbranceStateManager]
      * @param {MonsterTracker} [options.monsterTracker]
      * @param {'vi'|'numpad'} [options.keyMode]
      * @param {'ja'|'en'} [options.language]
@@ -42,6 +44,10 @@ export class GKLPlugin {
         this.spellStateManager = options.spellStateManager || new SpellStateManager();
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
         this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
+        this.encumbranceStateManager = options.encumbranceStateManager || new EncumbranceStateManager({
+            statusAccessor: this.statusAccessor,
+            inventoryStateManager: this.inventoryStateManager,
+        });
 
         this.language = options.language || 'ja';
 
@@ -54,7 +60,10 @@ export class GKLPlugin {
             this.attributeStateManager,
             this.skillStateManager,
             TacticalAdvisor,
-            { language: this.language }
+            {
+                language: this.language,
+                encumbranceStateManager: this.encumbranceStateManager
+            }
         );
 
         if (options.keyMode || options.numpad) {
@@ -227,6 +236,25 @@ export class GKLPlugin {
         if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
             this.skillStateManager.invalidate();
         }
+        if (this.encumbranceStateManager && typeof this.encumbranceStateManager.reset === 'function') {
+            this.encumbranceStateManager.reset();
+        }
+    }
+
+    /**
+     * 重量・負荷状態マネージャー (EncumbranceStateManager) を取得
+     * @returns {EncumbranceStateManager}
+     */
+    getEncumbranceStateManager() {
+        return this.encumbranceStateManager;
+    }
+
+    /**
+     * 現在の重量・負荷統合状態を取得
+     * @returns {Object}
+     */
+    getEncumbranceState() {
+        return this.encumbranceStateManager ? this.encumbranceStateManager.getEncumbranceState() : null;
     }
 
     /**

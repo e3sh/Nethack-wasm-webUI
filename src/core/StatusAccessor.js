@@ -142,6 +142,43 @@ export class StatusAccessor {
         const scoreVal = parseNum(f[8], 0);
         const turnsVal = parseNum(f[16], 0);
 
+        // Encumbrance / Capacity (9: BL_CAP)
+        // 0: Unencumbered, 1: Burdened, 2: Stressed, 3: Strained, 4: Overtaxed, 5: Overloaded
+        let capVal = 0;
+        let encumbranceStr = "Unencumbered";
+        const capNames = ["Unencumbered", "Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded"];
+        const rawCap = f[9];
+        if (typeof rawCap === 'string') {
+            const trimmed = rawCap.trim();
+            if (!trimmed) {
+                // NetHack Cコアの UNENCUMBERED は空文字列 ""
+                capVal = 0;
+                encumbranceStr = "Unencumbered";
+            } else {
+                const lower = trimmed.toLowerCase();
+                const foundIdx = capNames.findIndex(n => n.toLowerCase() === lower);
+                if (foundIdx >= 0) {
+                    capVal = foundIdx;
+                    encumbranceStr = capNames[foundIdx];
+                } else {
+                    const num = parseInt(trimmed, 10);
+                    if (!isNaN(num) && num >= 0 && num <= 5) {
+                        capVal = num;
+                        encumbranceStr = capNames[num];
+                    }
+                }
+            }
+        } else if (typeof rawCap === 'number') {
+            // 0〜5 の正規ステータス値のみ許可。ポインタゴミ値 (6以上や負数) は 0 (Unencumbered)
+            if (rawCap >= 0 && rawCap <= 5) {
+                capVal = Math.floor(rawCap);
+                encumbranceStr = capNames[capVal] || "Unencumbered";
+            } else {
+                capVal = 0;
+                encumbranceStr = "Unencumbered";
+            }
+        }
+
         // Level (13: BL_XP) & Experience Points (21: BL_EXP)
         const levelVal = parseNum(f[13], 1);
         const expPointsVal = parseNum(f[21], 0);
@@ -168,6 +205,8 @@ export class StatusAccessor {
             hunger: hungerStr,
             stats: stats,
             align: alignVal,
+            cap: capVal,
+            encumbrance: encumbranceStr,
             score: scoreVal,
             hasScore: hasScore,
             level: levelVal,

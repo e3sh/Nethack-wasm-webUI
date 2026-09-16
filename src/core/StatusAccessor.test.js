@@ -46,4 +46,27 @@ describe('StatusAccessor', () => {
         expect(res.stats.wis).toBe(10);
         expect(res.stats.cha).toBe(9);
     });
+
+    it('負荷状態 (BL_CAP = 9) が数値および文字列から正常にパースできること', () => {
+        const status = new StatusAccessor();
+        
+        // デフォルト: Unencumbered (0)
+        expect(status.getStatus().cap).toBe(0);
+        expect(status.getStatus().encumbrance).toBe("Unencumbered");
+
+        // 数値指定: 1 -> Burdened
+        status.updateField(9, 1);
+        expect(status.getStatus().cap).toBe(1);
+        expect(status.getStatus().encumbrance).toBe("Burdened");
+
+        // 数値指定: 5 -> Overloaded
+        status.updateField(9, 5);
+        expect(status.getStatus().cap).toBe(5);
+        expect(status.getStatus().encumbrance).toBe("Overloaded");
+
+        // 文字列指定: "Stressed" -> 2
+        status.updateField(9, "Stressed");
+        expect(status.getStatus().cap).toBe(2);
+        expect(status.getStatus().encumbrance).toBe("Stressed");
+    });
 });

@@ -356,6 +356,48 @@ export class ContainerModal {
       `;
     }
 
+    // コンテナ総重量 & BoH 軽減情報の算出
+    const encMgr = (core && core.gkl && typeof core.gkl.getEncumbranceStateManager === 'function')
+      ? core.gkl.getEncumbranceStateManager()
+      : null;
+
+    let bagWeight = 15;
+    let bohEffectText = '';
+    const itemsCount = this.containerItems.length;
+
+    if (encMgr) {
+      const curContainer = ctrl?.currentContainer;
+      const letter = curContainer?.letter || curContainer?.invlet;
+      if (letter && encMgr.containerCache.has(letter)) {
+        const rec = encMgr.containerCache.get(letter);
+        bagWeight = rec.effectiveWeight;
+        if (rec.containerType === 'BAG_OF_HOLDING') {
+          if (rec.bcursed > 0) bohEffectText = isEn ? '[ Magic: 75% reduced ]' : '[ 魔法効果: 75% 軽減中 ]';
+          else if (rec.bcursed === 0) bohEffectText = isEn ? '[ Magic: 50% reduced ]' : '[ 魔法効果: 50% 軽減中 ]';
+          else if (rec.bcursed < 0) bohEffectText = isEn ? '[ Cursed: 200% burden ]' : '[ 呪い: 200% 重加算 ]';
+        }
+      } else {
+        let rawWt = 0;
+        this.containerItems.forEach(it => { rawWt += encMgr.getItemWeight(it); });
+        const buc = this.containerName ? (this.containerName.toLowerCase().includes('blessed') ? 1 : (this.containerName.toLowerCase().includes('cursed') && !this.containerName.toLowerCase().includes('uncursed') ? -1 : 0)) : 0;
+        if (this.isBagOfHolding) {
+          if (buc > 0) { bagWeight = 15 + Math.ceil(rawWt / 4); bohEffectText = isEn ? '[ Magic: 75% reduced ]' : '[ 魔法効果: 75% 軽減中 ]'; }
+          else if (buc < 0) { bagWeight = 15 + rawWt * 2; bohEffectText = isEn ? '[ Cursed: 200% burden ]' : '[ 呪い: 200% 重加算 ]'; }
+          else { bagWeight = 15 + Math.ceil(rawWt / 2); bohEffectText = isEn ? '[ Magic: 50% reduced ]' : '[ 魔法効果: 50% 軽減中 ]'; }
+        } else {
+          bagWeight = 15 + rawWt;
+        }
+      }
+    }
+
+    const weightBadgeHtml = `
+      <span class="container-weight-badge" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; background:rgba(255,255,255,0.08); padding:3px 8px; border-radius:4px; color:#a6adc8;" title="${isEn ? `Total bag weight: ${bagWeight}` : `袋全体の総重量: ${bagWeight}`}">
+        <span>⚖️</span>
+        <span>${isEn ? `Weight: ${bagWeight} (${itemsCount} items)` : `重量: ${bagWeight} (${itemsCount}個)`}</span>
+        ${bohEffectText ? `<span style="color:#a6e3a1; font-weight:bold; margin-left:2px;">${bohEffectText}</span>` : ''}
+      </span>
+    `;
+
     // HTML 構造の構築
     this.elContainerModal.innerHTML = `
       <div class="container-modal-card${this.isProcessing ? ' is-processing' : ''}" role="dialog" aria-modal="true">
@@ -367,6 +409,7 @@ export class ContainerModal {
               ${this.isProcessing ? `<span style="font-size: 12px; font-weight: normal; color: #f9e2af; margin-left: 8px;">⏳ ${isEn ? 'Processing...' : '処理中...'}</span>` : ''}
             </h3>
             ${safetyBadgeHtml}
+            ${weightBadgeHtml}
           </div>
           <div class="container-modal-header-actions">
             <!-- ビュー切り替えトグル (リスト ⇄ アイコン) -->

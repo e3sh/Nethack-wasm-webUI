@@ -22,6 +22,7 @@ export class SituationCache {
      * @param {Object} [tacticalAdvisorClass=null] - TacticalAdvisor クラス
      * @param {Object} [options={}] - オプション
      * @param {Object} [options.assistSignalSynthesizerClass] - AssistSignalSynthesizer クラス
+     * @param {Object} [options.encumbranceStateManager] - EncumbranceStateManager インスタンス
      */
     constructor(statusAccessor = null, inventoryStateManager = null, areaStateManager = null, actionEngineClass = null, spellStateManager = null, attributeStateManager = null, skillStateManager = null, tacticalAdvisorClass = null, options = {}) {
         this.statusAccessor = statusAccessor;
@@ -33,6 +34,7 @@ export class SituationCache {
         this.skillStateManager = skillStateManager;
         this.tacticalAdvisorClass = tacticalAdvisorClass;
         this.assistSignalSynthesizerClass = (options && options.assistSignalSynthesizerClass) || AssistSignalSynthesizer;
+        this.encumbranceStateManager = (options && options.encumbranceStateManager) || null;
         this.language = (options && options.language) || 'ja';
     }
 
@@ -48,7 +50,7 @@ export class SituationCache {
     /**
      * コンポーネントのアタッチ
      */
-    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, tacticalAdvisorClass, assistSignalSynthesizerClass, language }) {
+    attach({ statusAccessor, inventoryStateManager, areaStateManager, actionEngineClass, spellStateManager, attributeStateManager, skillStateManager, tacticalAdvisorClass, assistSignalSynthesizerClass, encumbranceStateManager, language }) {
         if (statusAccessor) this.statusAccessor = statusAccessor;
         if (inventoryStateManager) this.inventoryStateManager = inventoryStateManager;
         if (areaStateManager) this.areaStateManager = areaStateManager;
@@ -58,6 +60,7 @@ export class SituationCache {
         if (skillStateManager) this.skillStateManager = skillStateManager;
         if (tacticalAdvisorClass) this.tacticalAdvisorClass = tacticalAdvisorClass;
         if (assistSignalSynthesizerClass) this.assistSignalSynthesizerClass = assistSignalSynthesizerClass;
+        if (encumbranceStateManager) this.encumbranceStateManager = encumbranceStateManager;
         if (language) this.setLanguage(language);
     }
 
@@ -150,6 +153,11 @@ export class SituationCache {
             ? areaState.perceivedMonsters
             : [];
 
+        // 負荷・重量状態の抽出
+        const encumbrance = this.encumbranceStateManager && typeof this.encumbranceStateManager.getEncumbranceState === 'function'
+            ? this.encumbranceStateManager.getEncumbranceState()
+            : null;
+
         return {
             status,
             inventory: {
@@ -173,7 +181,8 @@ export class SituationCache {
             advices,
             assistState,
             landmarks,
-            perceivedMonsters
+            perceivedMonsters,
+            encumbrance
         };
     }
 

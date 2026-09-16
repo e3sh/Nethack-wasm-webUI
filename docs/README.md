@@ -105,6 +105,7 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 | **[glyph_tile_mapping.ja.md](./5_gamedata/glyph_tile_mapping.ja.md)** | Glyph ID とタイル番号の対応表 |
 | **[monster_list.ja.md](./5_gamedata/monster_list.ja.md)** / **[item_list.ja.md](./5_gamedata/item_list.ja.md)** | モンスター / アイテムの日英対訳一覧 |
 | **[ListofActionsbyTerrainTypeinNetHack.md](./5_gamedata/ListofActionsbyTerrainTypeinNetHack.md)** | 地形別アクション一覧リファレンス |
+| **[polymorph_carrying_capacity_mechanics.ja.md](./5_gamedata/polymorph_carrying_capacity_mechanics.ja.md)** | 多重変身（Polymorph）時の運搬許容量・所持重量減少メカニズム調査資料 |
 | **[Guidebook.ja.html](./5_gamedata/Guidebook.ja.html)** | NetHack 5.0 日本語公式ガイドブック |
 | **[📦 archive/ サブフォルダ](./5_gamedata/archive/)** | 店主仕様・アイテム効果レポート等（3ファイル退避済） |
 

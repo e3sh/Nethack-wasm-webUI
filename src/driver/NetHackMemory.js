@@ -188,6 +188,13 @@
                     rawVal = (typeof ptr === 'number' && ptr > 65536) ? this.getValue(ptr, 'i32') : ptr;
                 }
                 parsedVal = this.parseHungerState(rawVal);
+            } else if (fld === 9) { // BL_CAP (空文字列 = Unencumbered)
+                try {
+                    rawVal = this.UTF8ToString(ptr);
+                } catch (e) {
+                    rawVal = (typeof ptr === 'number' && ptr > 65536) ? this.getValue(ptr, 'i32') : ptr;
+                }
+                parsedVal = rawVal || "";
             } else {
                 if (typeof ptr === 'string') {
                     rawVal = ptr;

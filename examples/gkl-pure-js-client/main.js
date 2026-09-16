@@ -208,6 +208,24 @@ class GklPureJSClient {
     this.containerController = new ContainerController({ core: this.core });
     this.containerController.attach(this.core);
 
+    // GKL EncumbranceStateManager と ContainerController の自動連携
+    const encMgr = this.core.gkl?.getEncumbranceStateManager();
+    if (encMgr && this.containerController.contentsManager) {
+      encMgr.setContainerContentsManager(this.containerController.contentsManager);
+    }
+
+    // コンテナ中身の確定・出し入れ時にインベントリ・負荷ゲージを即座に再描画
+    if (this.containerController.contentsManager) {
+      this.containerController.contentsManager.on('contentsConfirmed', () => {
+        const situation = this.core.getSituation();
+        this.renderAll(situation);
+      });
+      this.containerController.contentsManager.on('itemTransferred', () => {
+        const situation = this.core.getSituation();
+        this.renderAll(situation);
+      });
+    }
+
     this.lookService = new OnDemandLookService({ core: this.core });
   }
 
@@ -707,8 +725,8 @@ class GklPureJSClient {
     // 1. GKL 推奨アクションパネル
     this.directionPad.renderGklActions(situation.actions || []);
 
-    // 2. GKL アイコン型所持品インベントリ (Level 1 Nano Badge 付与)
-    this.inventoryView.renderGklInventory(situation.inventory, slotBadges);
+    // 2. GKL アイコン型所持品インベントリ (Level 1 Nano Badge 付与 & 負荷ゲージ)
+    this.inventoryView.renderGklInventory(situation.inventory, slotBadges, situation.encumbrance);
 
     // 3. 属性耐性 & 修得魔法 & スキル熟練度
     this.statusView.renderGklAttributes(situation.attributes);

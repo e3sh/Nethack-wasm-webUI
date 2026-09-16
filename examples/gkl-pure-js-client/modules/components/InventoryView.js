@@ -1,3 +1,5 @@
+import { EncumbrancePresenter } from '../../../../src/core/knowledge/EncumbrancePresenter.js';
+
 /**
  * InventoryView - アイコン型インベントリグリッド & ツールチップ & BUCバッジ & 長押し/右クリックアクションマネージャー
  */
@@ -5,6 +7,7 @@ export class InventoryView {
   constructor({
     elGklInventoryGrid,
     elGklInvCount,
+    elGklEncumbrance,
     elGklTooltip,
     elGklTtName,
     elGklTtTags,
@@ -14,6 +17,7 @@ export class InventoryView {
   }) {
     this.elGklInventoryGrid = elGklInventoryGrid;
     this.elGklInvCount = elGklInvCount;
+    this.elGklEncumbrance = elGklEncumbrance || null;
     this.elGklTooltip = elGklTooltip;
     this.elGklTtName = elGklTtName;
     this.elGklTtTags = elGklTtTags;
@@ -23,11 +27,15 @@ export class InventoryView {
     this.onInspectItem = onInspectItem || (() => {});
 
     this.currentLanguage = 'ja';
+    this.presenter = new EncumbrancePresenter({ language: this.currentLanguage });
     this._lastInvHtml = null;
   }
 
   setLanguage(lang) {
     this.currentLanguage = lang;
+    if (this.presenter) {
+      this.presenter.setLanguage(lang);
+    }
     this._lastInvHtml = null;
   }
 
@@ -59,12 +67,39 @@ export class InventoryView {
     return '📦';
   }
 
-  renderGklInventory(inventory, slotBadges = {}) {
+  _ensureEncumbranceContainer() {
+    if (this.elGklEncumbrance) return this.elGklEncumbrance;
+    if (this.elGklInventoryGrid && this.elGklInventoryGrid.parentElement) {
+      let footer = this.elGklInventoryGrid.parentElement.querySelector('.gkl-inventory-footer');
+      if (!footer) {
+        footer = document.createElement('div');
+        footer.className = 'gkl-inventory-footer';
+        footer.style.cssText = 'padding: 6px 10px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);';
+        this.elGklInventoryGrid.parentElement.appendChild(footer);
+      }
+      this.elGklEncumbrance = footer;
+      return this.elGklEncumbrance;
+    }
+    return null;
+  }
+
+  renderEncumbrance(encumbrance) {
+    const el = this._ensureEncumbranceContainer();
+    if (!el || !encumbrance) return;
+    this.presenter.setLanguage(this.currentLanguage);
+    el.innerHTML = this.presenter.renderMiniGaugeHtml(encumbrance, { language: this.currentLanguage });
+  }
+
+  renderGklInventory(inventory, slotBadges = {}, encumbrance = null) {
     if (!this.elGklInventoryGrid || !inventory) return;
     const isEn = this.currentLanguage === 'en';
     const items = inventory.items || [];
     if (this.elGklInvCount) {
       this.elGklInvCount.textContent = items.length;
+    }
+
+    if (encumbrance) {
+      this.renderEncumbrance(encumbrance);
     }
 
     const newHtml = items.length === 0
