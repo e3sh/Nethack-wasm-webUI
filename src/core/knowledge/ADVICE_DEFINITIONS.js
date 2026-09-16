@@ -259,6 +259,32 @@ export const ADVICE_DEFINITIONS = {
         templateEn: '💡 Skilled Weapon: [{letter}] {itemName} (Skill: {rankEn}) is more effective.'
     },
 
+    // 15b. 装備換装・依存関係
+    'ADVICE_EQUIP_DEPENDENCY_BLOCKER': {
+        id: 'ADVICE_EQUIP_DEPENDENCY_BLOCKER',
+        severity: 'TIP',
+        topic: 'EQUIPMENT',
+        baseScore: 320,
+        templateJa: '💡 換装手順: [{letter}] {itemName} を装備するには、先に {blockers} を脱ぐ必要があります（所要約 {turns} ターン）。',
+        templateEn: '💡 Equip Sequence: To equip [{letter}] {itemName}, you must first remove {blockers} (~{turns} turns).'
+    },
+    'ADVICE_EQUIP_CURSED_BLOCKER': {
+        id: 'ADVICE_EQUIP_CURSED_BLOCKER',
+        severity: 'WARNING',
+        topic: 'EQUIPMENT',
+        baseScore: 600,
+        templateJa: '⚠️ 換装阻害: {blocker} が呪われていて脱げないため、[{letter}] {itemName} を装備できません。',
+        templateEn: '⚠️ Equip Blocked: {blocker} is cursed and cannot be removed, blocking [{letter}] {itemName}.'
+    },
+    'ADVICE_EQUIP_COCKATRICE_DANGER': {
+        id: 'ADVICE_EQUIP_COCKATRICE_DANGER',
+        severity: 'CRITICAL',
+        topic: 'EQUIPMENT',
+        baseScore: 1000,
+        templateJa: '🚨 石化即死警告: 手袋未着用でコカトリスの死体 [{letter}] を持つと石化即死します！必ず手袋を着用してください。',
+        templateEn: '🚨 INSTANT DEATH: Wielding cockatrice corpse [{letter}] without gloves causes instant petrification! Wear gloves first.'
+    },
+
     // 16. 魔法阻害
     'ADVICE_MAGIC_METALLIC_ARMOR': {
         id: 'ADVICE_MAGIC_METALLIC_ARMOR',

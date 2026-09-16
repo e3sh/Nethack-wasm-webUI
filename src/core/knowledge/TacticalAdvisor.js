@@ -11,6 +11,8 @@ import { MONSTER_KNOWLEDGE_MAP } from './MONSTER_KNOWLEDGE_FULL.js';
 import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from './ITEM_INTERACTION_RULES.js';
 import { isShopkeeperMonster } from './glyphClassifier.js';
 import { createAdvice } from './ADVICE_DEFINITIONS.js';
+import { EquipmentDependencyAnalyzer } from './EquipmentDependencyAnalyzer.js';
+import { isCockatriceCorpse } from './EquipmentRules.js';
 
 export class TacticalAdvisor {
 
@@ -52,6 +54,9 @@ export class TacticalAdvisor {
 
         // 4. 装備適正・熟練武器アドバイスの評価 (Equipment & Weapon Suitability)
         this.evaluateEquipmentAdvices(inventoryState, skillStateManager, advices);
+
+        // 4b. 装備換装・依存関係・呪い阻害・コカトリス警告の評価 (Equipment Dependency & Safety)
+        this.evaluateEquipmentDependencyAdvices(inventoryState, advices);
 
         // 5. 魔法詠唱・防具干渉アドバイスの評価 (Magic & Metallic Armor Penalty)
         this.evaluateMagicAdvices(inventoryState, spellStateManager, advices);
@@ -929,6 +934,62 @@ export class TacticalAdvisor {
                 rankEn: rankLabelEn,
                 hintLetters: [wItem.letter]
             }));
+        }
+    }
+
+    /**
+     * 4b. 装備換装・依存関係・呪い阻害・コカトリス警告の評価
+     */
+    static evaluateEquipmentDependencyAdvices(inventoryState, advices) {
+        if (!inventoryState) return;
+        const items = Array.isArray(inventoryState)
+            ? inventoryState
+            : (inventoryState.items || (inventoryState.getItems ? inventoryState.getItems() : []));
+
+        if (!Array.isArray(items) || items.length === 0) return;
+
+        for (const item of items) {
+            if (!item || !item.letter) continue;
+
+            // コカトリス死体の素手保持警告
+            if (isCockatriceCorpse(item)) {
+                const report = EquipmentDependencyAnalyzer.analyzeDependency(inventoryState, item);
+                if (report && !report.canExecute && report.risks?.blockingReason?.includes('石化')) {
+                    advices.push(createAdvice('ADVICE_EQUIP_COCKATRICE_DANGER', {
+                        letter: item.letter,
+                        hintLetters: [item.letter]
+                    }));
+                }
+                continue;
+            }
+
+            // 未装備のアイテムに対する換装診断
+            if (!item.isWorn && !item.isWielded && !item.isOffhand && !item.isQuivered) {
+                const report = EquipmentDependencyAnalyzer.analyzeDependency(inventoryState, item);
+                if (!report) continue;
+
+                // 呪われたブロッカーによって換装が阻害されている場合
+                if (!report.canExecute && report.risks?.hasCursedBlocker) {
+                    const cursedBlocker = report.blockers.find(b => b.isCursed);
+                    advices.push(createAdvice('ADVICE_EQUIP_CURSED_BLOCKER', {
+                        letter: item.letter,
+                        itemName: item.name || item.rawText || 'item',
+                        blocker: cursedBlocker ? cursedBlocker.name : '防具',
+                        hintLetters: [item.letter]
+                    }));
+                }
+                // ブロッカーがあり、所要ターンが大きい換装手順の場合
+                else if (report.canExecute && report.blockers.length > 0 && report.risks.totalEstimatedTurns >= 3) {
+                    const blockerList = report.blockers.map(b => b.name).join(', ');
+                    advices.push(createAdvice('ADVICE_EQUIP_DEPENDENCY_BLOCKER', {
+                        letter: item.letter,
+                        itemName: item.name || item.rawText || 'item',
+                        blockers: blockerList,
+                        turns: report.risks.totalEstimatedTurns,
+                        hintLetters: [item.letter]
+                    }));
+                }
+            }
         }
     }
 

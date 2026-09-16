@@ -878,6 +878,53 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(unseenAdvice.messageJa).toContain('警戒: 付近に');
         });
     });
+
+    describe('装備換装・依存関係アドバイス (Equipment Dependency Advices)', () => {
+        it('Cloak が呪われている状態で未装備の Shirt を所持している場合、換装阻害警告(ADVICE_EQUIP_CURSED_BLOCKER)が出ること', () => {
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'b', name: 'cursed cloak of magic resistance', armorSlot: 'cloak', isWorn: true, isCursed: true, rawText: 'b - a cursed cloak of magic resistance (being worn)' },
+                { letter: 'c', name: 'leather armor', armorSlot: 'suit', isWorn: true, rawText: 'c - a leather armor (being worn)' },
+                { letter: 'd', name: 'Hawaiian shirt', armorSlot: 'shirt', isWorn: false, rawText: 'd - a Hawaiian shirt' }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });
+            const advice = advices.find(a => a.id === 'ADVICE_EQUIP_CURSED_BLOCKER');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('WARNING');
+            expect(advice.messageJa).toContain('呪われていて脱げないため');
+            expect(advice.messageJa).toContain('Hawaiian shirt');
+        });
+
+        it('CloakとSuit着用中に未装備のShirtを所持している場合、換装手順アドバイス(ADVICE_EQUIP_DEPENDENCY_BLOCKER)が出ること', () => {
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'b', name: 'cloak of protection', armorSlot: 'cloak', isWorn: true, rawText: 'b - a cloak of protection (being worn)' },
+                { letter: 'c', name: 'plate mail', armorSlot: 'suit', isWorn: true, weight: 450, rawText: 'c - a plate mail (being worn)' },
+                { letter: 'd', name: 'Hawaiian shirt', armorSlot: 'shirt', isWorn: false, rawText: 'd - a Hawaiian shirt' }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });
+            const advice = advices.find(a => a.id === 'ADVICE_EQUIP_DEPENDENCY_BLOCKER');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('TIP');
+            expect(advice.messageJa).toContain('先に');
+            expect(advice.messageJa).toContain('脱ぐ必要があります');
+        });
+
+        it('手袋未着用でコカトリスの死体を所持している場合、石化即死警告(ADVICE_EQUIP_COCKATRICE_DANGER)が出ること', () => {
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'c', name: 'cockatrice corpse', isCorpse: true, rawText: 'c - a cockatrice corpse' }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });
+            const advice = advices.find(a => a.id === 'ADVICE_EQUIP_COCKATRICE_DANGER');
+            expect(advice).toBeDefined();
+            expect(advice.severity).toBe('CRITICAL');
+            expect(advice.messageJa).toContain('石化即死警告');
+        });
+    });
 });
 
 

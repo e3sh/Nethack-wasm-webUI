@@ -8,14 +8,18 @@
  * 🧹 クリーン設計: 0, '0', null, 'none', undefined, false の無効値は完全自動除外。
  */
 
+import { EquipmentDependencyAnalyzer } from './EquipmentDependencyAnalyzer.js';
+
 /**
  * アイテムナレッジおよびプレイヤースキル状態から適応型スペックバッジ配列を生成
  * @param {Object} knowledge - OBJECT_KNOWLEDGE_MAP のエントリまたはアイテムナレッジ
  * @param {Object} [options={}] - オプション
- * @param {Object} [options={}] - オプション
  * @param {Object} [options.skillStateManager] - SkillStateManager インスタンス
  * @param {boolean} [options.includeCommonPhysics=true] - 材質・重量の共通物理属性を含めるか
  * @param {'ja'|'en'} [options.language='ja'] - 表示言語
+ * @param {Object} [options.dependencyReport] - EquipmentDependencyReport
+ * @param {Array<Object>|Object} [options.inventory] - インベントリ情報
+ * @param {Object} [options.item] - 対象アイテム
  * @returns {Array<{ id: string, label: string, value: string, type: string, highlight?: boolean, skillBadge?: { id?: string, label?: string, isProficient?: boolean, isEnhanceable?: boolean, rankKey?: string, rankLabel?: string, [key: string]: any } | null, [key: string]: any }>}
  */
 export function getAdaptiveItemSpecs(knowledge, options = {}) {
@@ -555,6 +559,86 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
                 type: 'physics'
             });
         }
+    }
+
+    // 🛡️ 装備換装診断スペック（所要ターン、ブロッカー、換装不可警告）の適応統合
+    let depReport = options.dependencyReport || null;
+    if (!depReport && (options.inventory || options.inventoryState) && (options.item || knowledge)) {
+        const inv = options.inventory || options.inventoryState;
+        const target = options.item || knowledge;
+        // 未装備アイテムの場合のみ診断
+        if (target && !target.isWorn && !target.isWielded && !target.isOffhand && !target.isQuivered) {
+            depReport = EquipmentDependencyAnalyzer.analyzeDependency(inv, target);
+        }
+    }
+
+    if (depReport) {
+        const depSpecs = getEquipmentDependencySpecs(depReport, { language });
+        specs.push(...depSpecs);
+    }
+
+    return specs;
+}
+
+/**
+ * EquipmentDependencyReport から適応型スペックバッジ配列を生成
+ * @param {Object} report - EquipmentDependencyReport
+ * @param {Object} [options={}]
+ * @param {'ja'|'en'} [options.language='ja']
+ * @returns {Array<Object>}
+ */
+export function getEquipmentDependencySpecs(report, options = {}) {
+    const specs = [];
+    if (!report) return specs;
+
+    const language = options.language || 'ja';
+    const isEn = (language === 'en');
+
+    // 1. 換装不可ブロック理由
+    if (!report.canExecute && report.risks?.blockingReason) {
+        specs.push({
+            id: 'equip_blocked',
+            label: isEn ? 'Equip Blocked' : '換装不可',
+            value: report.risks.blockingReason,
+            type: 'warning',
+            highlight: true
+        });
+        return specs;
+    }
+
+    // 2. 換装ブロッカー（脱ぐ必要のあるアイテム）
+    if (Array.isArray(report.blockers) && report.blockers.length > 0) {
+        const blockerNames = report.blockers.map(b => b.name || b.rawText || b.slot).join(', ');
+        specs.push({
+            id: 'equip_blockers',
+            label: isEn ? 'Blockers' : '脱衣ブロッカー',
+            value: blockerNames,
+            type: 'warning',
+            highlight: report.risks?.hasCursedBlocker
+        });
+    }
+
+    // 3. 所要ターン数（複数ターンの場合）
+    const totalTurns = report.risks?.totalEstimatedTurns || 1;
+    if (totalTurns > 1) {
+        specs.push({
+            id: 'equip_turns',
+            label: isEn ? 'Equip Turns' : '換装所要ターン',
+            value: isEn ? `~${totalTurns} turns` : `約 ${totalTurns} ターン`,
+            type: totalTurns >= 5 ? 'warning' : 'info',
+            highlight: totalTurns >= 5
+        });
+    }
+
+    // 4. 着直しアイテム（巻き戻しスタック）
+    if (Array.isArray(report.itemsToRewear) && report.itemsToRewear.length > 0) {
+        const rewearNames = report.itemsToRewear.map(r => r.name || r.rawText || r.slot).join(', ');
+        specs.push({
+            id: 'equip_rewear',
+            label: isEn ? 'Rewear' : '着直し予定',
+            value: rewearNames,
+            type: 'info'
+        });
     }
 
     return specs;

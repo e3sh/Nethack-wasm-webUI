@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getAdaptiveItemSpecs, getSkillProficiencyBadge } from './ItemSpecPresenter.js';
+import { getAdaptiveItemSpecs, getSkillProficiencyBadge, getEquipmentDependencySpecs } from './ItemSpecPresenter.js';
 import { OBJECT_KNOWLEDGE_MAP } from './OBJECT_KNOWLEDGE_FULL.js';
 import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
 import { SkillStateManager } from './SkillStateManager.js';
@@ -199,5 +199,44 @@ describe('ItemSpecPresenter Adaptive Formatting', () => {
         const jaWoodMatSpec = jaWoodSpecs.find(s => s.id === 'material');
         expect(jaWoodMatSpec).toBeDefined();
         expect(jaWoodMatSpec.value).toBe('木 (Wood)');
+    });
+
+    it('should generate equipment dependency specs when dependencyReport or inventory is provided', () => {
+        const inventory = [
+            { letter: 'b', name: 'cloak of protection', armorSlot: 'cloak', isWorn: true, rawText: 'b - a cloak of protection (being worn)' },
+            { letter: 'c', name: 'plate mail', armorSlot: 'suit', isWorn: true, weight: 450, rawText: 'c - a plate mail (being worn)' }
+        ];
+        const shirtItem = { letter: 'd', name: 'Hawaiian shirt', armorSlot: 'shirt', isWorn: false, rawText: 'd - a Hawaiian shirt' };
+
+        const specs = getAdaptiveItemSpecs(shirtItem, { inventory, item: shirtItem, language: 'ja' });
+        const blockerSpec = specs.find(s => s.id === 'equip_blockers');
+        expect(blockerSpec).toBeDefined();
+        expect(blockerSpec.value).toContain('cloak of protection');
+        expect(blockerSpec.value).toContain('plate mail');
+
+        const turnsSpec = specs.find(s => s.id === 'equip_turns');
+        expect(turnsSpec).toBeDefined();
+        expect(turnsSpec.value).toBe('約 13 ターン');
+
+        const rewearSpec = specs.find(s => s.id === 'equip_rewear');
+        expect(rewearSpec).toBeDefined();
+        expect(rewearSpec.value).toContain('plate mail');
+    });
+
+    it('should show equip_blocked badge when換装不可（呪いブロッカー等）', () => {
+        const report = {
+            canExecute: false,
+            blockers: [{ slot: 'cloak', name: 'cursed cloak', isCursed: true }],
+            risks: {
+                blockingReason: 'cursed cloak が呪われていて脱げないため換装不可',
+                hasCursedBlocker: true,
+                totalEstimatedTurns: 1
+            }
+        };
+
+        const specs = getEquipmentDependencySpecs(report, { language: 'ja' });
+        expect(specs.length).toBe(1);
+        expect(specs[0].id).toBe('equip_blocked');
+        expect(specs[0].value).toContain('呪われていて脱げない');
     });
 });
