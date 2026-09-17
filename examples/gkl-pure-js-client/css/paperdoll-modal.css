@@ -185,6 +185,19 @@
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
 }
 
+/* 表示専用（非選択・読取専用）スロット (例: 副武器 / 控え) */
+.paperdoll-slot.is-readonly {
+  cursor: default !important;
+  opacity: 0.9;
+}
+
+.paperdoll-slot.is-readonly:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(30, 41, 59, 0.7);
+  transform: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
 .paperdoll-slot.is-cursed::after {
   content: '⚠️ 呪い';
   position: absolute;

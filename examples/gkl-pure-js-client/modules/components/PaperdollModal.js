@@ -211,6 +211,11 @@ export class PaperdollModal {
     const status = situation?.status || core?.status || {};
     const encumbrance = situation?.encumbrance || null;
 
+    // 副武器スロットは表示専用のため、選択されていた場合は主手スロットへ安全にフォールバック
+    if (this.selectedSlot === EQUIP_SLOTS.OFF_HAND) {
+      this.selectedSlot = EQUIP_SLOTS.MAIN_HAND;
+    }
+
     // 現在の装備状態マップ抽出
     const equippedState = EquipmentDependencyAnalyzer.extractEquippedState(inventory);
 
@@ -359,7 +364,8 @@ export class PaperdollModal {
     const isEn = this.currentLanguage === 'en';
     const def = this.slotDefinitions[slotId] || { labelJa: slotId, labelEn: slotId, icon: '📦' };
     const item = equippedState[slotId] || null;
-    const isSelected = this.selectedSlot === slotId;
+    const isReadonly = slotId === EQUIP_SLOTS.OFF_HAND;
+    const isSelected = !isReadonly && this.selectedSlot === slotId;
 
     let iconHtml = def.icon;
     let bucTagHtml = '';
@@ -393,10 +399,17 @@ export class PaperdollModal {
     const itemName = item ? this._getItemDisplayName(item) : (isEn ? def.labelEn : def.labelJa);
     const itemShortName = itemName.length > 9 ? itemName.slice(0, 8) + '…' : itemName;
 
+    let tooltipText = itemName;
+    if (isReadonly) {
+      tooltipText += isEn
+        ? ' (Alternate weapon; switch with Swap (x) button)'
+        : ' (控え武器 / 正副切替(x)ボタンで切替)';
+    }
+
     return `
-      <div class="paperdoll-slot ${isSelected ? 'is-selected' : ''} ${cursedClass}"
+      <div class="paperdoll-slot ${isSelected ? 'is-selected' : ''} ${isReadonly ? 'is-readonly' : ''} ${cursedClass}"
            data-slot="${slotId}"
-           title="${itemName}">
+           title="${tooltipText}">
         ${letterTagHtml}
         ${bucTagHtml}
         <div class="slot-icon-box">${iconHtml}</div>
@@ -698,6 +711,11 @@ export class PaperdollModal {
     const allSlots = this.elPaperdollModal.querySelectorAll('[data-slot]');
     allSlots.forEach(slotEl => {
       const slotId = slotEl.dataset.slot;
+
+      // 副武器（控え）スロットは表示専用のため、クリック選択・D&Dをスキップ
+      if (slotId === EQUIP_SLOTS.OFF_HAND) {
+        return;
+      }
 
       slotEl.onclick = () => {
         this.selectedSlot = slotId;

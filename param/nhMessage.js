@@ -11684,6 +11684,9 @@
         { en: "You haven't been exercising properly.", jp: "あなたはきちんと運動をしていないですね。" },
         { en: "You finish taking off your suit.", jp: "スーツを脱ぎ終えました。" },
         { en: "You can't wear that!", jp: "それを着ることはできません！" },
+        { en: "You add to the writing in the dust with your fingertip.", jp: "指先で、ほこりの上に書かれた文字に何かを書き加える。" },
+        { en: "You switch to your primary weapon.", jp: "メイン武器に切り替える。" },
+        { en: "You can't use two weapons while wearing a shield.", jp: "盾を装備している間は、二刀流は使えない。" },
     ];
 }
 

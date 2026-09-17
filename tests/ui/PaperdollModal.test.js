@@ -562,4 +562,26 @@ describe('PaperdollModal - 装備ペーパードールUI', () => {
 
     hideSpy.mockRestore();
   });
+
+  it('副武器（OFF_HAND / 控え）スロットが表示専用（is-readonly）であり、選択されても主手へフォールバックされること', () => {
+    // 控え武器を持たせる
+    mockSituation.inventory.items.push({
+      letter: 'g',
+      name: 'silver dagger',
+      isOffhand: true,
+      rawText: 'g - a silver dagger (alternate weapon; not wielded)'
+    });
+
+    paperdoll.show();
+    const html = modalElement.innerHTML;
+
+    // data-slot="off_hand" に is-readonly クラスが付与されていること
+    expect(html).toMatch(/class="paperdoll-slot[^"]*is-readonly[^"]*"[\s\S]*?data-slot="off_hand"/);
+    expect(html).toContain('控え武器 / 正副切替(x)ボタンで切替');
+
+    // 誤って selectedSlot に off_hand が指定されても、render() で main_hand にフォールバックすること
+    paperdoll.selectedSlot = EQUIP_SLOTS.OFF_HAND;
+    paperdoll.render();
+    expect(paperdoll.selectedSlot).toBe(EQUIP_SLOTS.MAIN_HAND);
+  });
 });
