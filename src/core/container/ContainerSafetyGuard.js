@@ -14,8 +14,8 @@
  * アイテムの識別状態に応じた判定を行う。
  */
 
-import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/OBJECT_KNOWLEDGE_FULL.js';
-import { resolveItemOnum } from '../knowledge/glyphClassifier.js';
+import { OBJECT_KNOWLEDGE_MAP } from "../knowledge/data/OBJECT_KNOWLEDGE_FULL.js";
+import { resolveItemOnum } from "../knowledge/engines/glyphClassifier.js";
 
 
 /**

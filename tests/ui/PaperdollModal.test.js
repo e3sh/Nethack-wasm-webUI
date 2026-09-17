@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PaperdollModal } from '../../examples/gkl-pure-js-client/modules/components/PaperdollModal.js';
-import { EQUIP_SLOTS } from '../../src/core/knowledge/EquipmentRules.js';
+import { EQUIP_SLOTS } from "../../src/core/knowledge/equipment/EquipmentRules.js";
 
 // 軽量DOMモック
 function createMockElement(id = '', tag = 'div') {

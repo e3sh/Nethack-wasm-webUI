@@ -1,6 +1,6 @@
 ﻿import { describe, it, expect, beforeEach } from 'vitest';
 import { InventoryView } from '../../examples/gkl-pure-js-client/modules/components/InventoryView.js';
-import { InventoryStateManager } from '../../src/core/knowledge/InventoryStateManager.js';
+import { InventoryStateManager } from "../../src/core/knowledge/state/InventoryStateManager.js";
 
 describe('InventoryView - スタック武器（複数個の短剣）のメイン装備枠とバッジ表示', () => {
   let inventoryView;

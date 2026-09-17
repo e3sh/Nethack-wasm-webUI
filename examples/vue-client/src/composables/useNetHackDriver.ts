@@ -1,9 +1,9 @@
 import { ref, onMounted } from 'vue';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
-import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
-import { ATTRIBUTE_DEFINITIONS } from '@core/knowledge/AttributeStateManager.js';
-import { getAdaptiveItemSpecs } from '@core/knowledge/ItemSpecPresenter.js';
+import { GKLPlugin } from "@core/knowledge/GKLPlugin.js";
+import { ATTRIBUTE_DEFINITIONS } from "@core/knowledge/state/AttributeStateManager.js";
+import { getAdaptiveItemSpecs } from "@core/knowledge/presenters/ItemSpecPresenter.js";
 import { useGameStore } from '../stores/gameStore';
 
 class NetHackDriverController {

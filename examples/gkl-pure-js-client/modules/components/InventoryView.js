@@ -1,6 +1,6 @@
-import { EncumbrancePresenter } from '../../../../src/core/knowledge/EncumbrancePresenter.js';
-import { EquipmentActionPlanner } from '../../../../src/core/knowledge/EquipmentActionPlanner.js';
-import { resolveEligibleSlots, isTwoHandedWeapon, isCockatriceCorpse } from '../../../../src/core/knowledge/EquipmentRules.js';
+import { EncumbrancePresenter } from "../../../../src/core/knowledge/presenters/EncumbrancePresenter.js";
+import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment/EquipmentActionPlanner.js";
+import { resolveEligibleSlots, isTwoHandedWeapon, isCockatriceCorpse } from "../../../../src/core/knowledge/equipment/EquipmentRules.js";
 
 /**
  * InventoryView - アイコン型インベントリグリッド & ツールチップ & BUCバッジ & 長押し/右クリックアクションマネージャー

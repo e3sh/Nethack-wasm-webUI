@@ -1,8 +1,8 @@
 import { writable, get } from 'svelte/store';
 import { NetHackWasmWorkerBridge } from '@driver/index.js';
 import { WebUICore } from '@core/WebUICore.js';
-import { GKLPlugin } from '@core/knowledge/GKLPlugin.js';
-import { getAdaptiveItemSpecs } from '@core/knowledge/ItemSpecPresenter.js';
+import { GKLPlugin } from "@core/knowledge/GKLPlugin.js";
+import { getAdaptiveItemSpecs } from "@core/knowledge/presenters/ItemSpecPresenter.js";
 import {
   addMessage,
   updateStatus,

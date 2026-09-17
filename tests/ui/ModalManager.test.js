@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ModalManager } from '../../examples/gkl-pure-js-client/modules/components/ModalManager.js';
 import { PROMPT_CATEGORY } from '../../src/core/types.js';
-import { WriteService } from '../../src/core/knowledge/WriteService.js';
+import { WriteService } from "../../src/core/knowledge/services/WriteService.js";
 
 function createMockElement(id = '', tag = 'div') {
   const classListSet = new Set(['hidden']);

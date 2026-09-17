@@ -13,7 +13,7 @@ import {
   resolveRaceKey,
   resolveGenderKey,
   resolveAlignmentKey
-} from '../../../../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
+} from "../../../../src/core/knowledge/data/CHARACTER_KNOWLEDGE_BASE.js";
 
 export class CharacterCreationModal {
   /**

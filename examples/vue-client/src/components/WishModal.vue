@@ -147,7 +147,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../composables/useNetHackDriver';
 import { storeToRefs } from 'pinia';
-import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { WishService, WISH_PRESETS, CATEGORY_LABELS } from "@core/knowledge/services/WishService.js";
 import { trapFocus } from '@core/input/focusTrap.js';
 
 const gameStore = useGameStore();

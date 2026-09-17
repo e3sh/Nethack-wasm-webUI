@@ -1,4 +1,4 @@
-import { DEFAULT_TOMBSTONE_GLYPH } from '../../../../src/core/knowledge/AreaStateManager.js';
+import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
 
 /**
  * MapRenderer - メインCanvas (Graphic Canvas) & ASCII Grid の描画マネージャー

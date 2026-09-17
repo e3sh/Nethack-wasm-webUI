@@ -4,8 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SequenceProtocolValidator } from '../../src/testing/SequenceProtocolValidator.js';
-import { ITEM_INTERACTION_RULES } from '../../src/core/knowledge/ITEM_INTERACTION_RULES.js';
-import { AssistSignalSynthesizer } from '../../src/core/knowledge/AssistSignalSynthesizer.js';
+import { ITEM_INTERACTION_RULES } from "../../src/core/knowledge/data/ITEM_INTERACTION_RULES.js";
+import { AssistSignalSynthesizer } from "../../src/core/knowledge/engines/AssistSignalSynthesizer.js";
 
 describe('Sequence Protocol Validation Suite (第1防壁: 静的プロトコルリンター)', () => {
 

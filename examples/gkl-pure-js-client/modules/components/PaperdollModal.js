@@ -12,10 +12,10 @@ import {
   resolveEligibleSlots,
   isTwoHandedWeapon,
   isCockatriceCorpse
-} from '../../../../src/core/knowledge/EquipmentRules.js';
-import { EquipmentDependencyAnalyzer } from '../../../../src/core/knowledge/EquipmentDependencyAnalyzer.js';
-import { EquipmentActionPlanner } from '../../../../src/core/knowledge/EquipmentActionPlanner.js';
-import { OBJECT_JP_MAP } from '../../../../src/core/knowledge/OBJECT_JP_MAP.js';
+} from "../../../../src/core/knowledge/equipment/EquipmentRules.js";
+import { EquipmentDependencyAnalyzer } from "../../../../src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js";
+import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment/EquipmentActionPlanner.js";
+import { OBJECT_JP_MAP } from "../../../../src/core/knowledge/data/OBJECT_JP_MAP.js";
 import { PROMPT_CATEGORY } from '../../../../src/core/types.js';
 
 export class PaperdollModal {

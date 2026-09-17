@@ -1,10 +1,10 @@
 /**
  * ModalManager - プロンプトバー、メニュー/テキストモーダル、ローディング、ゲームオーバー、スコアボード、願いビルダーマネージャー
  */
-import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '../../../../src/core/knowledge/WishService.js';
-import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from '../../../../src/core/knowledge/GenocideService.js';
-import { PolymorphService } from '../../../../src/core/knowledge/PolymorphService.js';
-import { WriteService } from '../../../../src/core/knowledge/WriteService.js';
+import { WishService, WISH_PRESETS, CATEGORY_LABELS } from "../../../../src/core/knowledge/services/WishService.js";
+import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from "../../../../src/core/knowledge/services/GenocideService.js";
+import { PolymorphService } from "../../../../src/core/knowledge/services/PolymorphService.js";
+import { WriteService } from "../../../../src/core/knowledge/services/WriteService.js";
 
 export class ModalManager {
   constructor({

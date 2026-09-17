@@ -10,11 +10,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ProtocolValidatorFakeDriver } from '../helpers/ProtocolValidatorFakeDriver.js';
-import { ContextActionEngine } from '../../src/core/knowledge/ContextActionEngine.js';
-import { AreaStateManager } from '../../src/core/knowledge/AreaStateManager.js';
-import { InventoryStateManager } from '../../src/core/knowledge/InventoryStateManager.js';
-import { ITEM_INTERACTION_RULES } from '../../src/core/knowledge/ITEM_INTERACTION_RULES.js';
-import { ASSIST_SIGNAL_DEFINITIONS, createAssistSignal } from '../../src/core/knowledge/ASSIST_SIGNAL_DEFINITIONS.js';
+import { ContextActionEngine } from "../../src/core/knowledge/engines/ContextActionEngine.js";
+import { AreaStateManager } from "../../src/core/knowledge/state/AreaStateManager.js";
+import { InventoryStateManager } from "../../src/core/knowledge/state/InventoryStateManager.js";
+import { ITEM_INTERACTION_RULES } from "../../src/core/knowledge/data/ITEM_INTERACTION_RULES.js";
+import { ASSIST_SIGNAL_DEFINITIONS, createAssistSignal } from "../../src/core/knowledge/data/ASSIST_SIGNAL_DEFINITIONS.js";
 import { createTestItem } from '../helpers/testItemFactory.js';
 
 describe('Action Execution Protocol Test Suite (第2防壁: 契約検査フェイクドライバー)', () => {

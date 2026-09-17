@@ -13,7 +13,7 @@
 import { ContainerSafetyGuard } from './ContainerSafetyGuard.js';
 import { ContainerContentsManager, ContainerType } from './ContainerContentsManager.js';
 import { ContainerSequenceBuilder } from './ContainerSequenceBuilder.js';
-import { isContainerItem, isBagItem, isBoxItem, resolveItemOnum } from '../knowledge/glyphClassifier.js';
+import { isContainerItem, isBagItem, isBoxItem, resolveItemOnum } from "../knowledge/engines/glyphClassifier.js";
 
 export class ContainerController {
     /**

@@ -6,8 +6,8 @@
  * アイテムオブジェクトを簡潔に生成する。
  */
 
-import { OBJECT_KNOWLEDGE_MAP } from '../../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
-import { ITEM_KNOWLEDGE_BASE } from '../../src/core/knowledge/ITEM_KNOWLEDGE_BASE.js';
+import { OBJECT_KNOWLEDGE_MAP } from "../../src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js";
+import { ITEM_KNOWLEDGE_BASE } from "../../src/core/knowledge/data/ITEM_KNOWLEDGE_BASE.js";
 
 /**
  * テスト用アイテムオブジェクトを生成

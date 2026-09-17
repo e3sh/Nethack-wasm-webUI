@@ -1,4 +1,4 @@
-import { getAdaptiveItemSpecs } from '../../../../src/core/knowledge/ItemSpecPresenter.js';
+import { getAdaptiveItemSpecs } from "../../../../src/core/knowledge/presenters/ItemSpecPresenter.js";
 
 /**
  * KnowledgeView - 構造化ナレッジカード & 戦術アドバイス & ボトムタブ切り替えマネージャー

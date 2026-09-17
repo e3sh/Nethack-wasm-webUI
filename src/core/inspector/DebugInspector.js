@@ -6,7 +6,7 @@
  * Wasm 通信ログ・状態遷移・GKL キャッシュの配信およびダイレクト応答注入を行う。
  */
 
-import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/OBJECT_KNOWLEDGE_FULL.js';
+import { OBJECT_KNOWLEDGE_MAP } from "../knowledge/data/OBJECT_KNOWLEDGE_FULL.js";
 
 export class DebugInspector {
     constructor(core, options = {}) {

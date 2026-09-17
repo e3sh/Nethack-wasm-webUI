@@ -841,7 +841,7 @@ export function extractAllObjectData() {
 const items = extractAllObjectData();
 console.log(`Successfully extracted ${items.length} items (expected 481).`);
 
-const outputPath = 'C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/OBJECT_KNOWLEDGE_BASE.js';
+const outputPath = 'C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/data/OBJECT_KNOWLEDGE_BASE.js';
 const fileContent = `/**
  * OBJECT_KNOWLEDGE_BASE.js
  * NetHack 5.0 (3.7) 全 481 アイテム (onum 0〜480) 公式確定パラメータマスターデータ

@@ -1,0 +1,643 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { AreaStateManager, DEFAULT_INFERRED_FLOOR_GLYPH, createInferredFloor, normalizeFloorKey } from "../state/AreaStateManager.js";
+import { GLYPH_OFFSETS, ENTITY_TYPES } from "../engines/glyphClassifier.js";
+
+describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
+    let asm;
+
+    beforeEach(() => {
+        asm = new AreaStateManager(80, 24);
+    });
+
+    describe('createInferredFloor', () => {
+        it('should create an inferred floor entity with inferred: true and isFloor: true', () => {
+            const floor = createInferredFloor();
+            expect(floor).toBeDefined();
+            expect(floor.type).toBe(ENTITY_TYPES.TERRAIN);
+            expect(floor.glyph).toBe(DEFAULT_INFERRED_FLOOR_GLYPH);
+            expect(floor.rawGlyph).toBe(DEFAULT_INFERRED_FLOOR_GLYPH);
+            expect(floor.inferred).toBe(true);
+            expect(floor.cmapFlags).toBeDefined();
+            expect(floor.cmapFlags.isFloor).toBe(true);
+        });
+    });
+
+    describe('Player Position Terrain Inference', () => {
+        it('should safely infer floor in getAreaState feet while preserving grid cell bottom null', () => {
+            expect(asm.grid[10][10].bottom).toBeNull();
+
+            asm.updatePlayerPosition(10, 10);
+
+            // 未探索マスを勝手に床で汚染しないこと
+            const cell = asm.grid[10][10];
+            expect(cell.bottom).toBeNull();
+
+            // 状況取得時には安全に床として取得できること
+            const areaState = asm.getAreaState();
+            expect(areaState.feet.bottom).not.toBeNull();
+            expect(areaState.feet.bottom.inferred).toBe(true);
+            expect(areaState.feet.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should NOT overwrite existing terrain at player position with inferred floor', () => {
+            // 水路マス (glyph 4015) を受信して確定
+            const waterGlyph = 4015;
+            asm.updateGlyph(5, 5, waterGlyph);
+            expect(asm.grid[5][5].bottom.cmapFlags.isWater).toBe(true);
+            expect(asm.grid[5][5].bottom.inferred).toBeUndefined();
+
+            // プレイヤーがその水路マスに移動
+            asm.updatePlayerPosition(5, 5);
+
+            const cell = asm.grid[5][5];
+            expect(cell.bottom.cmapFlags.isWater).toBe(true);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+    });
+
+    describe('Monster and Pet Appearance Terrain Inference', () => {
+        it('should infer floor when monster glyph arrives at an unmapped cell', () => {
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 10; // 特定モンスター
+            expect(asm.grid[12][15].bottom).toBeNull();
+
+            asm.updateGlyph(15, 12, monsterGlyph);
+
+            const cell = asm.grid[12][15];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should infer floor when pet glyph arrives at an unmapped cell', () => {
+            const petGlyph = GLYPH_OFFSETS.GLYPH_PET_OFF + 5; // ペット
+            expect(asm.grid[8][8].bottom).toBeNull();
+
+            asm.updateGlyph(8, 8, petGlyph);
+
+            const cell = asm.grid[8][8];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.PET);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should preserve existing terrain (e.g. lava) when monster appears on it', () => {
+            const lavaGlyph = 4017;
+            asm.updateGlyph(20, 10, lavaGlyph);
+            expect(asm.grid[10][20].bottom.cmapFlags.isLava).toBe(true);
+
+            // モンスターが溶岩マスに出現
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 20;
+            asm.updateGlyph(20, 10, monsterGlyph);
+
+            const cell = asm.grid[10][20];
+            expect(cell.top).not.toBeNull();
+            expect(cell.bottom.cmapFlags.isLava).toBe(true);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+    });
+
+    describe('Item and Entity Appearance Terrain Inference', () => {
+        it('should infer floor when item glyph arrives at an unmapped cell', () => {
+            const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 10;
+            expect(asm.grid[7][7].bottom).toBeNull();
+
+            asm.updateGlyph(7, 7, itemGlyph);
+
+            const cell = asm.grid[7][7];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should infer floor when corpse / body arrives at an unmapped cell', () => {
+            const bodyGlyph = GLYPH_OFFSETS.GLYPH_BODY_OFF + 2;
+            asm.updateGlyph(6, 6, bodyGlyph);
+
+            const cell = asm.grid[6][6];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.BODY);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+        });
+
+        it('should infer floor when item arrives at a cell previously marked as UNEXPLORED', () => {
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF; // 9622
+            asm.updateGlyph(12, 12, unexploredGlyph);
+
+            expect(asm.grid[12][12].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            // アイテムグリフが届く（投てき等で視界に入った場合）
+            const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 25;
+            asm.updateGlyph(12, 12, itemGlyph);
+
+            const cell = asm.grid[12][12];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should infer floor when monster arrives at a cell previously marked as UNEXPLORED', () => {
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
+            asm.updateGlyph(13, 13, unexploredGlyph);
+
+            expect(asm.grid[13][13].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
+            asm.updateGlyph(13, 13, monsterGlyph);
+
+            const cell = asm.grid[13][13];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+        });
+    });
+
+    describe('Self-Healing / Overwrite by Genuine Terrain', () => {
+        it('should replace inferred floor with genuine terrain when terrain glyph arrives', () => {
+            // 1. モンスターが出現して仮床が推測される
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 10;
+            asm.updateGlyph(14, 14, monsterGlyph);
+
+            const cell = asm.grid[14][14];
+            expect(cell.bottom.inferred).toBe(true);
+
+            // 2. モンスターが移動し、NetHack から正規の床グリフを受信
+            const genuineFloorGlyph = 3992;
+            asm.updateGlyph(14, 14, genuineFloorGlyph);
+
+            expect(cell.bottom.inferred).toBeUndefined();
+            expect(cell.bottom.glyph).toBe(genuineFloorGlyph);
+            expect(cell.top).toBeNull();
+        });
+
+        it('should replace inferred floor with wall or door when genuine terrain arrives', () => {
+            // モンスター出現で仮床セット
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
+            asm.updateGlyph(3, 3, monsterGlyph);
+            expect(asm.grid[3][3].bottom.inferred).toBe(true);
+
+            // 壁グリフを受信
+            const wallGlyph = 3929;
+            asm.updateGlyph(3, 3, wallGlyph);
+
+            const cell = asm.grid[3][3];
+            expect(cell.bottom.inferred).toBeUndefined();
+            expect(cell.bottom.cmapFlags.isWall).toBe(true);
+        });
+    });
+
+    describe('Staircase Cache and Floor Transition Recovery', () => {
+        it('should cache staircase when terrain glyph is stair up or down', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999; // 下り階段
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            expect(asm.stairCache.has('Dlvl:1:18,12')).toBe(true);
+            const cached = asm.stairCache.get('Dlvl:1:18,12');
+            expect(cached.cmapFlags.isStairDown).toBe(true);
+        });
+
+        it('should restore staircase at player feet when revisiting floor', () => {
+            // 1. Dlvl:1 で階段(18, 12)を発見・記録
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999;
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            // 2. Dlvl:2 へ移動 (グリッドリセット & フロア切替)
+            asm.setCurrentFloor('Dlvl:2');
+            asm.resetGrid();
+            expect(asm.grid[18][12].bottom).toBeNull();
+
+            // 3. Dlvl:1 に戻ってきて (18, 12) に出現
+            asm.setCurrentFloor('Dlvl:1');
+            asm.resetGrid();
+            expect(asm.grid[18][12].bottom).toBeNull();
+
+            asm.updatePlayerPosition(18, 12);
+
+            const feetCell = asm.grid[12][18]; // y=12, x=18
+            expect(feetCell.bottom).not.toBeNull();
+            expect(feetCell.bottom.cmapFlags.isStairDown).toBe(true);
+            expect(feetCell.bottom.inferred).toBeUndefined(); // 確定情報として復元
+        });
+
+        it('should fallback to inferred floor if player arrives at non-staircase position (e.g. pit / teleport)', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            const stairDownGlyph = 3999;
+            asm.updateGlyph(18, 12, stairDownGlyph);
+
+            // フロア移動後、落とし穴等で (5, 5) に出現
+            asm.resetGrid();
+            asm.updatePlayerPosition(5, 5);
+
+            // グリッドセル自体は汚染されず未探索(null)を維持
+            const feetCell = asm.grid[5][5];
+            expect(feetCell.bottom).toBeNull();
+
+            // 状況取得時には安全に床として取得できること
+            const areaState = asm.getAreaState();
+            expect(areaState.feet.bottom).not.toBeNull();
+            expect(areaState.feet.bottom.inferred).toBe(true);
+            expect(areaState.feet.bottom.cmapFlags.isFloor).toBe(true);
+        });
+
+        it('should preload all cached stairs of the floor into grid on setCurrentFloor', () => {
+            // 1. Dlvl:1 で上り階段 (5, 5) と下り階段 (20, 15) の2つを記録
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(5, 5, 3998);   // 上り階段
+            asm.updateGlyph(20, 15, 3999); // 下り階段
+
+            // 2. Dlvl:2 へ移動 (グリッドリセット)
+            asm.setCurrentFloor('Dlvl:2');
+            asm.resetGrid();
+            expect(asm.grid[5][5].bottom).toBeNull();
+            expect(asm.grid[15][20].bottom).toBeNull();
+
+            // 3. Dlvl:1 に戻ると、グリッドに (5, 5) と (20, 15) の両方が自動復元される
+            asm.setCurrentFloor('Dlvl:1');
+            expect(asm.grid[5][5].bottom).not.toBeNull();
+            expect(asm.grid[5][5].bottom.cmapFlags.isStairUp).toBe(true);
+
+            expect(asm.grid[15][20].bottom).not.toBeNull();
+            expect(asm.grid[15][20].bottom.cmapFlags.isStairDown).toBe(true);
+        });
+
+        it('should clear stair cache when clearStairCache is called', () => {
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(10, 10, 3998); // 上り階段
+            expect(asm.stairCache.size).toBe(1);
+
+            asm.clearStairCache();
+            expect(asm.stairCache.size).toBe(0);
+        });
+
+        it('should normalize floor keys with various formats', () => {
+            expect(normalizeFloorKey('Dlvl: 1')).toBe('Dlvl:1');
+            expect(normalizeFloorKey('Dlvl:1')).toBe('Dlvl:1');
+            expect(normalizeFloorKey('2')).toBe('Dlvl:2');
+            expect(normalizeFloorKey(3)).toBe('Dlvl:3');
+            expect(normalizeFloorKey('Minetown: 3')).toBe('Minetown:3');
+            expect(normalizeFloorKey('Mines:2')).toBe('Mines:2');
+            expect(normalizeFloorKey('The Dungeons of Doom:1')).toBe('The Dungeons of Doom:1');
+            expect(normalizeFloorKey(null)).toBe('Dlvl:1');
+            expect(normalizeFloorKey('')).toBe('Dlvl:1');
+        });
+
+        it('should cache branch staircase (glyph 4002) and mark preloaded stairs with isCachedPreload', () => {
+            asm.setCurrentFloor('Mines:2');
+            const branchStairUpGlyph = 4002; // 分岐上り階段
+            asm.updateGlyph(25, 10, branchStairUpGlyph);
+
+            expect(asm.stairCache.has('Mines:2:25,10')).toBe(true);
+            const cached = asm.stairCache.get('Mines:2:25,10');
+            expect(cached.cmapFlags.isStairUp).toBe(true);
+
+            // フロア切替後、戻った時に isCachedPreload が付与されて復元される
+            asm.setCurrentFloor('Mines:3');
+            expect(asm.grid[10][25].bottom).toBeNull();
+
+            asm.setCurrentFloor('Mines:2');
+            expect(asm.grid[10][25].bottom).not.toBeNull();
+            expect(asm.grid[10][25].bottom.isCachedPreload).toBe(true);
+
+            // プレイヤーがそのマスに到達したときは isCachedPreload が解除される
+            asm.updatePlayerPosition(25, 10);
+            expect(asm.grid[10][25].bottom.isCachedPreload).toBeUndefined();
+        });
+
+        it('should reset grid and only apply target floor stairs on setCurrentFloor change', () => {
+            // 1. Dlvl:1 で下り階段を記録
+            asm.setCurrentFloor('Dlvl:1');
+            asm.updateGlyph(10, 10, 3999); // Dlvl:1 の下り階段
+            expect(asm.grid[10][10].bottom).not.toBeNull();
+
+            // 2. Dlvl:2 へフロア変更 (setCurrentFloor 内部で resetGrid が走り、Dlvl:2 のキャッシュのみ反映)
+            asm.setCurrentFloor('Dlvl:2');
+            // Dlvl:2 は新規到達フロアなので、(10, 10) は null のままで前フロアの階段が残留しないこと
+            expect(asm.grid[10][10].bottom).toBeNull();
+
+            // 3. Dlvl:2 で上り階段 (5, 5) を記録
+            asm.updateGlyph(5, 5, 3998);
+            expect(asm.grid[5][5].bottom).not.toBeNull();
+
+            // 4. 再び Dlvl:1 に戻ると、グリッドがリセットされて Dlvl:1 の階段 (10, 10) のみが復元され、Dlvl:2 の階段 (5, 5) は存在しないこと
+            asm.setCurrentFloor('Dlvl:1');
+            expect(asm.grid[10][10].bottom).not.toBeNull();
+            expect(asm.grid[10][10].bottom.cmapFlags.isStairDown).toBe(true);
+            expect(asm.grid[5][5].bottom).toBeNull();
+        });
+
+        it('should handle whitespace variations in floor keys transparently', () => {
+            asm.setCurrentFloor('Dlvl: 1'); // スペースあり
+            asm.updateGlyph(15, 15, 3999);
+
+            asm.setCurrentFloor('Dlvl:2');
+            expect(asm.grid[15][15].bottom).toBeNull();
+
+            asm.setCurrentFloor('Dlvl:1'); // スペースなしで再訪
+            expect(asm.grid[15][15].bottom).not.toBeNull();
+            expect(asm.grid[15][15].bottom.cmapFlags.isStairDown).toBe(true);
+        });
+    });
+
+    describe('Landmark Registry and POI Extraction', () => {
+        it('should extract and register various landmarks (stairs, altars, sink, fountain, throne, shopkeeper)', () => {
+            asm.setCurrentFloor('Dlvl:3');
+
+            // 1. 上り階段 (3998)
+            asm.updateGlyph(10, 5, 3998);
+            // 2. 下り階段 (3999)
+            asm.updateGlyph(20, 5, 3999);
+            // 3. 祭壇 - 中立 (4008)
+            asm.updateGlyph(30, 5, 4008);
+            // 4. 祭壇 - 秩序 (4007)
+            asm.updateGlyph(35, 5, 4007);
+            // 5. 流し台 (4013)
+            asm.updateGlyph(40, 5, 4013);
+            // 6. 噴水 (4014)
+            asm.updateGlyph(50, 5, 4014);
+            // 7. 王座 (4012)
+            asm.updateGlyph(60, 5, 4012);
+            // 8. 店主 (モンスター monOffset 271)
+            const shopkeeperGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 271;
+            asm.updateGlyph(70, 5, shopkeeperGlyph);
+
+            const summary = asm.getFloorLandmarks('Dlvl:3');
+            expect(summary.floorKey).toBe('Dlvl:3');
+            expect(summary.stairsUp.length).toBe(1);
+            expect(summary.stairsUp[0].type).toBe('STAIR_UP');
+            expect(summary.stairsDown.length).toBe(1);
+            expect(summary.stairsDown[0].type).toBe('STAIR_DOWN');
+            expect(summary.altars.length).toBe(2);
+            expect(summary.altars[0].details.alignment).toBe('neutral');
+            expect(summary.altars[1].details.alignment).toBe('lawful');
+            expect(summary.sinks.length).toBe(1);
+            expect(summary.sinks[0].type).toBe('SINK');
+            expect(summary.fountains.length).toBe(1);
+            expect(summary.thrones.length).toBe(1);
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].type).toBe('SHOP');
+            expect(summary.all.length).toBe(8);
+
+            const allLandmarks = asm.getAllLandmarks();
+            expect(allLandmarks.length).toBe(8);
+        });
+
+        it('店主が同フロア内を移動した場合でも、SHOP ランドマークが最新座標の1件に維持され重複しないこと', () => {
+            asm.setCurrentFloor('Dlvl:4');
+            const shopkeeperGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 271;
+
+            // 1. 最初は (15, 8) に店主が出現
+            asm.updateGlyph(15, 8, shopkeeperGlyph);
+            let summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].x).toBe(15);
+            expect(summary.shops[0].y).toBe(8);
+
+            // 2. 店主が (15, 9) に1歩移動
+            asm.updateGlyph(15, 9, shopkeeperGlyph);
+            summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1); // 2件にならず1件のまま
+            expect(summary.shops[0].x).toBe(15);
+            expect(summary.shops[0].y).toBe(9); // 最新座標に更新
+
+            // 3. 店主が (16, 9) にさらに移動
+            asm.updateGlyph(16, 9, shopkeeperGlyph);
+            summary = asm.getFloorLandmarks('Dlvl:4');
+            expect(summary.shops.length).toBe(1);
+            expect(summary.shops[0].x).toBe(16);
+            expect(summary.shops[0].y).toBe(9);
+        });
+
+        it('should handle pending landmarks during floor transition', () => {
+            asm.prepareFloorTransition();
+            expect(asm.isFloorPending).toBe(true);
+
+            // フロア確定待ち中に流し台と祭壇を受信
+            asm.updateGlyph(12, 8, 4013); // 流し台
+            asm.updateGlyph(14, 8, 4008); // 祭壇
+
+            expect(asm.pendingLandmarks.length).toBe(2);
+
+            // フロア確定
+            asm.setCurrentFloor('Dlvl:5');
+            expect(asm.isFloorPending).toBe(false);
+            expect(asm.pendingLandmarks.length).toBe(0);
+
+            const summary = asm.getFloorLandmarks('Dlvl:5');
+            expect(summary.sinks.length).toBe(1);
+            expect(summary.altars.length).toBe(1);
+        });
+
+        it('should clear landmarks on clearLandmarkCache', () => {
+            asm.setCurrentFloor('Dlvl:2');
+            asm.updateGlyph(10, 10, 4013);
+            expect(asm.getAllLandmarks().length).toBe(1);
+
+            asm.clearLandmarkCache();
+            expect(asm.getAllLandmarks().length).toBe(0);
+            expect(asm.stairCache.size).toBe(0);
+        });
+
+        it('should generate grouped summary with count and multi-coordinate tooltips (e.g. Oracle with 4 fountains)', () => {
+            asm.setCurrentFloor('Dlvl:5');
+
+            // 神託所 (Oracle) のように噴水が4つ並ぶケース
+            asm.updateGlyph(20, 10, 4014);
+            asm.updateGlyph(20, 12, 4014);
+            asm.updateGlyph(35, 10, 4014);
+            asm.updateGlyph(35, 12, 4014);
+
+            // 上り階段1つ、下り階段1つ
+            asm.updateGlyph(10, 5, 3998);
+            asm.updateGlyph(50, 18, 3999);
+
+            // 中立祭壇1つ
+            asm.updateGlyph(28, 11, 4008);
+
+            const floorData = asm.getFloorLandmarks('Dlvl:5');
+            expect(floorData.totalCount).toBe(7);
+            expect(floorData.all.length).toBe(7);
+
+            // summary は 4種類 (FOUNTAIN, STAIR_UP, STAIR_DOWN, ALTAR:neutral) に集約される
+            expect(floorData.summary.length).toBe(4);
+
+            const fountainSummary = floorData.summary.find(s => s.type === 'FOUNTAIN');
+            expect(fountainSummary).toBeDefined();
+            expect(fountainSummary.count).toBe(4);
+            expect(fountainSummary.coords.length).toBe(4);
+            expect(fountainSummary.icon).toBe('⛲');
+            expect(fountainSummary.nameJa).toBe('噴水');
+            expect(fountainSummary.nameEn).toBe('fountain');
+            expect(fountainSummary.tooltipJa).toBe('噴水 (4箇所): (20,10), (20,12), (35,10), (35,12)');
+            expect(fountainSummary.tooltipEn).toBe('fountain (4 locations): (20,10), (20,12), (35,10), (35,12)');
+
+            const stairUpSummary = floorData.summary.find(s => s.type === 'STAIR_UP');
+            expect(stairUpSummary.count).toBe(1);
+            expect(stairUpSummary.tooltipJa).toBe('上り階段: (10,5)');
+
+            const altarSummary = floorData.summary.find(s => s.type === 'ALTAR');
+            expect(altarSummary.count).toBe(1);
+            expect(altarSummary.nameJa).toBe('祭壇 (中立)');
+            expect(altarSummary.tooltipJa).toBe('祭壇 (中立): (28,11)');
+        });
+    });
+
+    describe('Boulder Push Detection and Feet Clearance', () => {
+        const BOULDER_GLYPH = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 475; // 3923
+        const PILE_BOULDER_GLYPH = GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF + 475; // 8467
+
+        it('should clear boulder from feet when pushing forward (boulder arrives at destination before player pos update)', () => {
+            // (10, 10) に岩が存在
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // プレイヤー初期位置 (9, 10)
+            asm.updatePlayerPosition(9, 10);
+
+            // 押し出し先 (11, 10) に岩が届く (Case A)
+            asm.updateGlyph(11, 10, BOULDER_GLYPH);
+
+            // プレイヤーが (10, 10) に移動
+            asm.updatePlayerPosition(10, 10);
+
+            // 移動先の足元 (10, 10) の岩がクリアされ、押し出し先 (11, 10) に岩が残る
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[10][11].middle).not.toBeNull();
+            expect(asm.grid[10][11].middle.subType).toBe(475);
+        });
+
+        it('should clear boulder from feet when pushing forward (player pos updates before boulder arrives at destination)', () => {
+            // (10, 10) に岩が存在
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // プレイヤー初期位置 (9, 10)
+            asm.updatePlayerPosition(9, 10);
+
+            // プレイヤーが (10, 10) に移動 (Case B)
+            asm.updatePlayerPosition(10, 10);
+
+            // この時点では押し出し先が未確定のため一時的に middle が残る
+            expect(asm.grid[10][10].middle).not.toBeNull();
+
+            // 押し出し先 (11, 10) に岩グリフが届く
+            asm.updateGlyph(11, 10, BOULDER_GLYPH);
+
+            // 足元 (10, 10) の岩が自動クリアされる
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[10][11].middle).not.toBeNull();
+        });
+
+        it('should retain boulder at player feet when not pushed (e.g. Scroll of Earth / Drop)', () => {
+            // プレイヤー位置 (10, 10)
+            asm.updatePlayerPosition(10, 10);
+
+            // 大地の巻物やドロップでプレイヤー足元 (10, 10) に岩が配置される
+            asm.updateGlyph(10, 10, BOULDER_GLYPH);
+
+            // 押し出し先には岩が出現しない
+            expect(asm.grid[10][10].middle).not.toBeNull();
+            expect(asm.grid[10][10].middle.subType).toBe(475);
+
+            // 状況取得時も足元のアイテムとして岩が正しく認識される
+            const areaState = asm.getAreaState();
+            expect(areaState.feet.middle).not.toBeNull();
+            expect(areaState.feet.middle.subType).toBe(475);
+        });
+
+        it('should handle diagonal boulder pushing correctly', () => {
+            // (10, 10) に山積み岩が存在
+            asm.updateGlyph(10, 10, PILE_BOULDER_GLYPH);
+
+            // プレイヤー初期位置 (9, 9) から南東 (10, 10) へ
+            asm.updatePlayerPosition(9, 9);
+            asm.updatePlayerPosition(10, 10);
+
+            // 押し出し先 (11, 11) に岩グリフが届く
+            asm.updateGlyph(11, 11, BOULDER_GLYPH);
+
+            // 足元 (10, 10) の岩がクリアされる
+            expect(asm.grid[10][10].middle).toBeNull();
+            expect(asm.grid[11][11].middle).not.toBeNull();
+        });
+
+        it('未探索マス（UNEXPLORED）の上で updatePlayerPosition が呼ばれても床に化けず UNEXPLORED が維持されること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+
+            // 隣接マス (11, 10) を未探索マスに設定
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
+            asm.updateGlyph(11, 10, unexploredGlyph);
+            expect(asm.grid[10][11].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            // (11, 10) で updatePlayerPosition が呼ばれても床には化けない
+            asm.updatePlayerPosition(11, 10);
+
+            expect(asm.grid[10][11].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+            expect(asm.grid[10][11].bottom.inferred).toBeUndefined();
+        });
+
+        it('getFocusCameraTiles がプレイヤー中心の整形済みタイルグリッドを正しく返却すること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+
+            // (10, 10) に床
+            asm.updateGlyph(10, 10, 3992);
+            // (11, 10) にモンスター (jackal: glyph 1)
+            asm.updateGlyph(11, 10, 1);
+
+            const tiles = asm.getFocusCameraTiles(2, 2, { language: 'ja' });
+            // 5x5 = 25 tiles
+            expect(tiles.length).toBe(25);
+
+            const playerTile = tiles.find(t => t.dx === 0 && t.dy === 0);
+            expect(playerTile).toBeDefined();
+            expect(playerTile.isPlayer).toBe(true);
+            expect(playerTile.isUnexplored).toBe(false);
+            expect(playerTile.bottomGlyph).toBe(3992);
+            expect(playerTile.renderGlyphs).toContain(3992);
+
+            const monsterTile = tiles.find(t => t.dx === 1 && t.dy === 0);
+            expect(monsterTile).toBeDefined();
+            expect(monsterTile.isPlayer).toBe(false);
+            expect(monsterTile.glyphId).toBe(1);
+            expect(monsterTile.isUnexplored).toBe(false);
+            // モンスターの下には仮床 (3992) が自動配置され、renderGlyphs に含まれること
+            expect(monsterTile.bottomGlyph).toBe(3992);
+            expect(monsterTile.topGlyph).toBe(1);
+            expect(monsterTile.renderGlyphs).toEqual([3992, 1]);
+
+            const farTile = tiles.find(t => t.dx === -2 && t.dy === -2);
+            expect(farTile).toBeDefined();
+            expect(farTile.isUnexplored).toBe(true);
+            expect(farTile.renderGlyphs).toEqual([]);
+        });
+
+        it('getFocusCameraTiles が死亡時にプレイヤー位置へ墓石グリフ(4011)を自動配置すること', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.updatePlayerPosition(10, 10);
+            asm.updateGlyph(10, 10, 3992);
+
+            const tiles = asm.getFocusCameraTiles(1, 1, { isDead: true });
+            const playerTile = tiles.find(t => t.isPlayer);
+            expect(playerTile).toBeDefined();
+            expect(playerTile.topGlyph).toBe(4011);
+            expect(playerTile.renderGlyphs).toEqual([3992, 4011]);
+            expect(playerTile.nameJa).toBe('墓石');
+        });
+    });
+});
+
+
+

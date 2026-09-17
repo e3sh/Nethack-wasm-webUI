@@ -1,7 +1,7 @@
 import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
 import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
-import { OnDemandLookService } from '../../src/core/knowledge/OnDemandLookService.js';
+import { OnDemandLookService } from "../../src/core/knowledge/services/OnDemandLookService.js";
 
 import { MapRenderer } from './modules/renderers/MapRenderer.js';
 import { ZoomRenderer } from './modules/renderers/ZoomRenderer.js';
