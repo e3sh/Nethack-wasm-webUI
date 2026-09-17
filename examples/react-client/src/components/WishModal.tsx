@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useNetHackDriver } from '../hooks/useNetHackDriver';
-import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/services/WishService.js';
 import { trapFocus } from '@core/input/focusTrap.js';
 
 const presets = WISH_PRESETS as any[];

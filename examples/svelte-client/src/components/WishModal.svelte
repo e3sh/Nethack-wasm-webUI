@@ -1,7 +1,7 @@
 <script lang="ts">
   import { activeWishDataStore } from '../stores/gameStore';
   import { currentLanguageStore, driverController } from '../services/useNetHackDriver';
-  import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+  import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/services/WishService.js';
   import { trapFocus } from '@core/input/focusTrap.js';
 
   const presets = WISH_PRESETS as any[];

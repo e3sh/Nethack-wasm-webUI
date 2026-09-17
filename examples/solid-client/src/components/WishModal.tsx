@@ -1,7 +1,7 @@
 import { Component, createSignal, createMemo, createEffect, onMount, onCleanup, Show, For } from 'solid-js';
 import { activeWishData, currentLanguage } from '../stores/gameStore';
 import { driverController } from '../services/useNetHackDriver';
-import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/WishService.js';
+import { WishService, WISH_PRESETS, CATEGORY_LABELS } from '@core/knowledge/services/WishService.js';
 import { trapFocus } from '@core/input/focusTrap.js';
 
 const presets = WISH_PRESETS as any[];
