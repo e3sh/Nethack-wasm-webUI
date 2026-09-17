@@ -1,4 +1,6 @@
 import { EncumbrancePresenter } from '../../../../src/core/knowledge/EncumbrancePresenter.js';
+import { EquipmentActionPlanner } from '../../../../src/core/knowledge/EquipmentActionPlanner.js';
+import { resolveEligibleSlots, isTwoHandedWeapon, isCockatriceCorpse } from '../../../../src/core/knowledge/EquipmentRules.js';
 
 /**
  * InventoryView - アイコン型インベントリグリッド & ツールチップ & BUCバッジ & 長押し/右クリックアクションマネージャー
@@ -228,17 +230,43 @@ export class InventoryView {
           const triggerNormalClick = async () => {
             const currentCore = this.getCore();
             if (!currentCore) return;
+
+            // 装備品かつ換装依存関係解決対象であるか判定
+            if (this._isEquippableItem(item)) {
+              const currentInv = (currentCore.gkl && typeof currentCore.gkl.getInventory === 'function')
+                ? currentCore.gkl.getInventory()
+                : (inventory || (currentCore.inventory?.items || currentCore.inventory || []));
+
+              const recipe = EquipmentActionPlanner.planForTarget(currentInv, item);
+              if (recipe) {
+                // 実行不能（呪詛ブロッカーや石化リスク等）の場合は安全にブロック
+                if (!recipe.canExecute) {
+                  this._showSafetyAlert(recipe.blockingReason);
+                  return;
+                }
+
+                // 依存関係（複数ステップ）または複数ターン消費の場合
+                if (recipe.steps.length > 1 || recipe.isMultiTurn) {
+                  const hasHostileNearby = this._checkNearbyHostile(currentCore);
+                  const needsConfirmation = hasHostileNearby || recipe.isMultiTurn || (recipe.risks?.targetBucStatus === 'unknown');
+
+                  if (needsConfirmation) {
+                    const confirmed = this._showConfirmationDialog(recipe, hasHostileNearby, item);
+                    if (!confirmed) return; // ユーザーがキャンセル
+                  }
+
+                  await this._executeSequence(currentCore, recipe.sequence);
+                  return;
+                }
+              }
+            }
+
+            // 依存関係のない通常の単一アクション
             const seq = (item.defaultSequence && Array.isArray(item.defaultSequence) && item.defaultSequence.length > 0)
               ? item.defaultSequence
               : [item.letter];
 
-            if (typeof currentCore.executeSequence === 'function') {
-              await currentCore.executeSequence(seq);
-            } else if (currentCore.requestController && typeof currentCore.requestController.executeSequence === 'function') {
-              await currentCore.requestController.executeSequence(seq);
-            } else {
-              seq.forEach(ch => currentCore.sendKey(ch, false, false, false, ch, true));
-            }
+            await this._executeSequence(currentCore, seq);
           };
 
           // 長押し (Pointer Events) & 通常クリック分離ハンドラ
@@ -290,6 +318,130 @@ export class InventoryView {
           };
         }
       });
+    }
+  }
+
+  /**
+   * アイテムが自動換装プランナーの対象となる装備品か判定
+   * @private
+   */
+  _isEquippableItem(item) {
+    if (!item) return false;
+    if (item.isWorn) return false; // 既に着用中の脱衣は通常アクションへ
+    const cat = String(item.category || item.knowledge?.category || '').toUpperCase();
+    if (cat === 'ARMOR' || cat === 'RING' || cat === 'AMULET') return true;
+    if (item.armorSlot || item.knowledge?.armorSlot) return true;
+    if (item.isBlindfoldOrTowel) return true;
+    const slots = resolveEligibleSlots(item);
+    if (slots.some(s => s !== 'main_hand' && s !== 'quiver')) return true;
+    if (isTwoHandedWeapon(item) || isCockatriceCorpse(item)) return true;
+    return false;
+  }
+
+  /**
+   * プレイヤー周囲に敵対モンスターが存在するか確認
+   * @private
+   */
+  _checkNearbyHostile(core) {
+    if (!core) return false;
+    try {
+      // 1. GKLPlugin の公開メソッド getPerceivedMonstersSummary を利用
+      if (core.gkl && typeof core.gkl.getPerceivedMonstersSummary === 'function') {
+        const summaries = core.gkl.getPerceivedMonstersSummary();
+        if (Array.isArray(summaries) && summaries.length > 0) {
+          const hasCloseHostile = summaries.some(m => {
+            if (m.isPet || m.isPeaceful) return false;
+            const dist = typeof m.distance === 'number' ? m.distance : (typeof m.dist === 'number' ? m.dist : 999);
+            return dist <= 5;
+          });
+          if (hasCloseHostile) return true;
+        }
+      }
+
+      // 2. core.areaState が直接公開されている場合のフォールバック
+      const areaState = (core.gkl && typeof core.gkl.getAreaState === 'function')
+        ? core.gkl.getAreaState()
+        : core.areaState;
+
+      if (areaState && areaState.grid) {
+        const playerX = areaState.playerLocation?.x ?? areaState.center?.x ?? 0;
+        const playerY = areaState.playerLocation?.y ?? areaState.center?.y ?? 0;
+
+        for (const cell of Object.values(areaState.grid)) {
+          if (!cell || !cell.monster) continue;
+          const mon = cell.monster;
+          if (mon.type === 'PET' || mon.isPet || mon.isTame || mon.isPeaceful || mon.attitude === 'PEACEFUL' || mon.flags?.isPet) {
+            continue;
+          }
+          const dx = (cell.x ?? 0) - playerX;
+          const dy = (cell.y ?? 0) - playerY;
+          const dist = Math.max(Math.abs(dx), Math.abs(dy));
+          if (dist <= 5) {
+            return true;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[InventoryView] Failed to check nearby hostiles:', e);
+    }
+    return false;
+  }
+
+  /**
+   * セーフティ確認ダイアログの表示
+   * @private
+   */
+  _showConfirmationDialog(recipe, hasHostileNearby, item) {
+    const isEn = this.currentLanguage === 'en';
+    const itemName = item ? (item.rawText || item.name) : (recipe.targetItem?.name || 'Item');
+    const stepLines = recipe.steps.map((s, idx) => `  ${idx + 1}. ${isEn ? s.descriptionEn : s.descriptionJa}`).join('\n');
+
+    let msg = '';
+    if (isEn) {
+      msg = `[Equipment Change Confirmation]\nChanging equipment for "${itemName}".\n\nSteps:\n${stepLines}\n\nEstimated time: ~${recipe.totalEstimatedTurns} turn(s).\n`;
+      if (hasHostileNearby) {
+        msg += `⚠️ WARNING: Hostile monster(s) nearby!\n`;
+      }
+      if (recipe.risks?.targetBucStatus === 'unknown') {
+        msg += `⚠️ Note: Item BUC status is unconfirmed (may be cursed).\n`;
+      }
+      msg += `\nProceed with equipment change?`;
+    } else {
+      msg = `【装備換装の確認】\n「${itemName}」を装備するため、自動換装を行います。\n\n手順:\n${stepLines}\n\n所要ターン数: 約 ${recipe.totalEstimatedTurns} ターン\n`;
+      if (hasHostileNearby) {
+        msg += `⚠️ 警告: 近くに敵対モンスターがいます！\n`;
+      }
+      if (recipe.risks?.targetBucStatus === 'unknown') {
+        msg += `⚠️ 注意: アイテムの呪詛状態(BUC)が未確定です。\n`;
+      }
+      msg += `\n換装を実行しますか？`;
+    }
+
+    return window.confirm(msg);
+  }
+
+  /**
+   * 致命的セーフティアラートの表示
+   * @private
+   */
+  _showSafetyAlert(message) {
+    const isEn = this.currentLanguage === 'en';
+    const title = isEn ? '[Equipment Safety Guard]' : '【装備セーフティガード】';
+    window.alert(`${title}\n${message}`);
+  }
+
+  /**
+   * キーストローク列の実行
+   * @private
+   */
+  async _executeSequence(core, seq) {
+    if (!core || !seq || seq.length === 0) return;
+    if (typeof core.executeSequence === 'function') {
+      await core.executeSequence(seq);
+    } else if (core.requestController && typeof core.requestController.executeSequence === 'function') {
+      await core.requestController.executeSequence(seq);
+    } else {
+      seq.forEach(ch => core.sendKey(ch, false, false, false, ch, true));
     }
   }
 }

@@ -161,6 +161,7 @@ describe('EquipmentDependencyAnalyzer', () => {
         expect(report.targetItem.targetSlot).toBe('shield');
         expect(report.blockers.map(b => b.letter)).toEqual(['a']);
         expect(report.blockers[0].actionNeeded).toBe('unwield');
+        expect(report.itemsToRewear).toHaveLength(0);
     });
 
     // 8. 盾装備中の両手武器テスト
@@ -176,6 +177,7 @@ describe('EquipmentDependencyAnalyzer', () => {
         expect(report.targetItem.targetSlot).toBe('main_hand');
         expect(report.blockers.map(b => b.letter)).toEqual(['s']);
         expect(report.blockers[0].actionNeeded).toBe('take_off');
+        expect(report.itemsToRewear).toHaveLength(0);
     });
 
     // 9. コカトリス死体セーフティテスト（素手）

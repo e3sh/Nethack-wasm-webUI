@@ -143,7 +143,7 @@ export class EquipmentDependencyAnalyzer {
         const { blockers, swapItem } = this._findBlockers(equippedState, targetSlot, targetItem);
 
         // 着直しスタック構築（一時的に脱いだアイテムをLIFO順で）
-        const itemsToRewear = this._buildRewearStack(blockers, swapItem);
+        const itemsToRewear = this._buildRewearStack(blockers, swapItem, targetItem, targetSlot);
 
         // リスク・セーフティ・所要ターン診断
         const riskReport = this._evaluateRisks(targetItem, targetSlot, equippedState, blockers, itemsToRewear);
@@ -242,11 +242,22 @@ export class EquipmentDependencyAnalyzer {
      * 着直しスタック（LIFO逆順）の構築
      * @private
      */
-    static _buildRewearStack(blockers, swapItem) {
+    static _buildRewearStack(blockers, swapItem, targetItem, targetSlot) {
         const itemsToRewear = [];
 
         // ブロッカーのうち、交換対象（swapItem）以外の「一時的に脱いだアイテム」を抽出
-        const tempRemoved = blockers.filter(b => !swapItem || b.letter !== swapItem.letter);
+        // また、排他関係（両手武器と盾など）によって外されたアイテムは着直さない
+        const isTwoHanded = targetItem && isTwoHandedWeapon(targetItem);
+        const isEquippingShield = targetSlot === EQUIP_SLOTS.SHIELD;
+
+        const tempRemoved = blockers.filter(b => {
+            if (swapItem && b.letter === swapItem.letter) return false;
+            // 盾を装備する場合、主手の両手武器は着直さない
+            if (isEquippingShield && b.slot === EQUIP_SLOTS.MAIN_HAND) return false;
+            // 両手武器を装備する場合、盾や副手武器は着直さない
+            if (isTwoHanded && (b.slot === EQUIP_SLOTS.SHIELD || b.slot === EQUIP_SLOTS.OFF_HAND)) return false;
+            return true;
+        });
 
         // 脱いだ順と逆順（LIFO）でスタック
         for (let i = tempRemoved.length - 1; i >= 0; i--) {
