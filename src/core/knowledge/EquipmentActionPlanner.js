@@ -29,11 +29,13 @@ export class EquipmentActionPlanner {
             return {
                 canExecute: false,
                 blockingReason: report.risks?.blockingReason || '換装を実行できません。',
+                blockingReasonJa: report.risks?.blockingReasonJa || report.risks?.blockingReason || '換装を実行できません。',
+                blockingReasonEn: report.risks?.blockingReasonEn || 'Cannot execute equip action.',
                 steps: [],
                 sequence: [],
                 totalEstimatedTurns: 0,
                 isMultiTurn: false,
-                risks: report.risks || { warnings: [] }
+                risks: report.risks || { warnings: [], warningsJa: [], warningsEn: [] }
             };
         }
 
@@ -98,6 +100,149 @@ export class EquipmentActionPlanner {
         const report = EquipmentDependencyAnalyzer.analyzeDependency(inventory, targetItem, requestedSlot);
         return this.plan(report, { inventory, ...options });
     }
+
+    /**
+     * EquipmentDependencyReport (analyzeTakeOff の結果) から脱衣用 ActionRecipe を生成
+     * @param {Object} report - EquipmentDependencyAnalyzer.analyzeTakeOff の結果
+     * @param {Object} [options={}]
+     * @param {Array<Object>|Object} [options.inventory=null]
+     * @returns {Object} ActionRecipe
+     */
+    static planTakeOff(report, options = {}) {
+        if (!report) return null;
+
+        if (!report.canExecute) {
+            return {
+                canExecute: false,
+                blockingReason: report.risks?.blockingReason || '脱衣を実行できません。',
+                blockingReasonJa: report.risks?.blockingReasonJa || report.risks?.blockingReason || '脱衣を実行できません。',
+                blockingReasonEn: report.risks?.blockingReasonEn || 'Cannot execute take off action.',
+                steps: [],
+                sequence: [],
+                totalEstimatedTurns: 0,
+                isMultiTurn: false,
+                risks: report.risks || { warnings: [], warningsJa: [], warningsEn: [] }
+            };
+        }
+
+        const simEquipped = this._buildInitialSimState(report, options.inventory);
+        const steps = [];
+
+        // 1. ブロッカー解除ステップ生成
+        for (const blocker of report.blockers || []) {
+            const step = this._createBlockerStep(blocker, simEquipped);
+            if (step) {
+                steps.push(step);
+            }
+        }
+
+        // 2. 対象アイテムの脱衣ステップ生成
+        const target = report.targetItem;
+        const slot = target.targetSlot;
+        const letter = target.letter;
+        const name = target.name || target.rawText || '';
+        let targetStep = null;
+
+        if (slot === EQUIP_SLOTS.MAIN_HAND || slot === EQUIP_SLOTS.OFF_HAND) {
+            targetStep = {
+                type: 'unwield',
+                verb: 'w',
+                letter: '-',
+                slot,
+                name,
+                sequence: ['w', '-'],
+                estimatedTurns: 1,
+                descriptionJa: `${name} を外す (素手になる)`,
+                descriptionEn: `Unwield ${name}`
+            };
+            delete simEquipped[slot];
+        } else if (slot === EQUIP_SLOTS.QUIVER) {
+            targetStep = {
+                type: 'quiver',
+                verb: 'Q',
+                letter: '.',
+                slot,
+                name,
+                sequence: ['Q', '.'],
+                estimatedTurns: 1,
+                descriptionJa: `${name} を矢筒から外す`,
+                descriptionEn: `Empty quiver (${name})`
+            };
+            delete simEquipped[slot];
+        } else if (slot === EQUIP_SLOTS.LEFT_RING || slot === EQUIP_SLOTS.RIGHT_RING || slot === EQUIP_SLOTS.AMULET || slot === EQUIP_SLOTS.BLINDFOLD) {
+            targetStep = {
+                type: 'remove',
+                verb: 'R',
+                letter,
+                slot,
+                name,
+                sequence: ['R', letter],
+                estimatedTurns: 1,
+                descriptionJa: `${name} (${letter}) を外す`,
+                descriptionEn: `Remove ${name} (${letter})`
+            };
+            delete simEquipped[slot];
+        } else {
+            // 防具脱衣 (T)
+            const armorCount = this._countRemovableArmors(simEquipped);
+            const sequence = armorCount > 1 ? ['T', letter] : ['T'];
+            targetStep = {
+                type: 'take_off',
+                verb: 'T',
+                letter,
+                slot,
+                name,
+                sequence,
+                estimatedTurns: estimateActionTurns('take_off', target),
+                descriptionJa: `${name} (${letter}) を脱ぐ`,
+                descriptionEn: `Take off ${name} (${letter})`
+            };
+            delete simEquipped[slot];
+        }
+
+        if (targetStep) {
+            steps.push(targetStep);
+        }
+
+        // 3. 一時的に脱いだブロッカーを着直す (LIFO)
+        for (const rewear of report.itemsToRewear || []) {
+            const step = this._createRewearStep(rewear, simEquipped);
+            if (step) {
+                steps.push(step);
+            }
+        }
+
+        const sequence = steps.flatMap(s => s.sequence);
+        const totalEstimatedTurns = steps.reduce((sum, s) => sum + (s.estimatedTurns || 1), 0);
+        const isMultiTurn = totalEstimatedTurns > 1;
+
+        return {
+            canExecute: true,
+            blockingReason: null,
+            steps,
+            sequence,
+            totalEstimatedTurns,
+            isMultiTurn,
+            risks: {
+                ...(report.risks || {}),
+                totalEstimatedTurns,
+                isMultiTurn
+            }
+        };
+    }
+
+    /**
+     * スロットまたはアイテムから直接脱衣用 ActionRecipe を生成するショートカット
+     * @param {Array<Object>|Object} inventory
+     * @param {string|Object} targetSlotOrItem
+     * @param {Object} [options={}]
+     * @returns {Object} ActionRecipe
+     */
+    static planForTakeOff(inventory, targetSlotOrItem, options = {}) {
+        const report = EquipmentDependencyAnalyzer.analyzeTakeOff(inventory, targetSlotOrItem);
+        return this.planTakeOff(report, { inventory, ...options });
+    }
+
 
     /**
      * 初期着用状態マップの作成

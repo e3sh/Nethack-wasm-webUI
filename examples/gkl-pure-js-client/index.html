@@ -180,6 +180,7 @@
           <div class="gkl-card-header">
             <span>🎒 所持品アイテム (Icon Inventory)</span>
             <div style="display:flex; align-items:center; gap:6px;">
+              <button id="btn-open-paperdoll" class="btn btn-small" title="装備詳細 ＆ ペーパードールを開く">🎽 装備詳細</button>
               <button id="btn-refresh-inv" class="btn btn-small" title="所持品情報を即座に最新同期">🔄 同期</button>
               <span id="gkl-inv-count" class="gkl-badge">0</span>
             </div>
@@ -564,6 +565,10 @@
 
     <!-- Visual Container UI Modal (Two-Pane GUI) -->
     <div id="container-modal" class="modal-backdrop hidden"></div>
+
+    <!-- Equipment Paperdoll Modal (UI & Diff Preview) -->
+    <div id="paperdoll-modal" class="modal-backdrop hidden"></div>
+
 
     <!-- アイテムツールチップ -->
     <div id="gkl-item-tooltip" class="gkl-tooltip hidden">

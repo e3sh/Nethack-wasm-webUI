@@ -13,7 +13,9 @@ import { StatusView } from './modules/components/StatusView.js';
 import { ModalManager } from './modules/components/ModalManager.js';
 import { CharacterCreationModal } from './modules/components/CharacterCreationModal.js';
 import { ContainerModal } from './modules/components/ContainerModal.js';
+import { PaperdollModal } from './modules/components/PaperdollModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
+
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 
 /**
@@ -173,11 +175,22 @@ class GklPureJSClient {
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
     });
 
+    // 8.6 Equipment Paperdoll Modal
+    this.paperdollModal = new PaperdollModal({
+      elPaperdollModal: document.getElementById('paperdoll-modal'),
+      getCore: () => this.core,
+      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
+      onEquipmentChanged: () => {
+        this.renderGklUi();
+      }
+    });
+
     // 9. Key Handler
     this.keyHandler = new KeyHandler({
       getCore: () => this.core,
       getModalManager: () => this.modalManager,
       getContainerModal: () => this.containerModal,
+      getPaperdollModal: () => this.paperdollModal,
     });
 
     // 10. Startup Step Progression State
@@ -389,10 +402,16 @@ class GklPureJSClient {
     });
 
     // GKL 状態同期イベント時の UI 再描画
-    this.core.on('inventoryStateUpdated', () => this.renderGklUi());
+    this.core.on('inventoryStateUpdated', () => {
+      this.renderGklUi();
+      if (this.paperdollModal && this.paperdollModal.isVisible) {
+        this.paperdollModal.render();
+      }
+    });
     this.core.on('attributesStateUpdated', () => this.renderGklUi());
     this.core.on('spellsStateUpdated', () => this.renderGklUi());
     this.core.on('skillsStateUpdated', () => this.renderGklUi());
+
 
     // 9. Game Over & Exited
     this.core.on('gameOver', (result) => {
@@ -555,7 +574,15 @@ class GklPureJSClient {
       });
     }
 
+    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
+    if (btnOpenPaperdoll) {
+      btnOpenPaperdoll.onclick = () => {
+        this.paperdollModal.toggle();
+      };
+    }
+
     const btnRefreshInv = document.getElementById('btn-refresh-inv');
+
     if (btnRefreshInv) {
       btnRefreshInv.onclick = async () => {
         if (this.core && this.core.gkl && typeof this.core.gkl.syncInventorySilent === 'function') {
@@ -749,15 +776,22 @@ class GklPureJSClient {
     this.statusView.setLanguage(this.currentLanguage);
     this.modalManager.setLanguage(this.currentLanguage);
     this.containerModal.setLanguage(this.currentLanguage);
+    if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
     if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
 
-    const elBtnRefreshInv = document.getElementById('btn-refresh-inv');
-    if (elBtnRefreshInv) {
-      elBtnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
-      elBtnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
+    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
+    if (btnOpenPaperdoll) {
+      btnOpenPaperdoll.textContent = isEn ? '🎽 Paperdoll' : '🎽 装備詳細';
+      btnOpenPaperdoll.title = isEn ? 'Open equipment paperdoll & loadout' : '装備詳細 ＆ ペーパードールを開く';
+    }
+
+    const btnRefreshInv = document.getElementById('btn-refresh-inv');
+    if (btnRefreshInv) {
+      btnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
+      btnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
     }
 
     const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');

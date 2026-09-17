@@ -327,4 +327,58 @@ describe('EquipmentActionPlanner', () => {
         expect(recipe.sequence).toEqual(['W', 'b']);
         expect(recipe.isMultiTurn).toBe(false);
     });
+
+    // 11. planForTakeOff: 外套を着ている状態で鎧を脱ぐ場合
+    it('planForTakeOff: 外套着用中に鎧を脱ぐ場合、外套を脱ぐ→鎧を脱ぐ→外套を着直す', () => {
+        const inventory = [
+            { letter: 'b', name: 'cloak of protection', armorSlot: 'cloak', isWorn: true, rawText: 'b - a cloak of protection (being worn)' },
+            { letter: 'c', name: 'plate mail', armorSlot: 'suit', isWorn: true, weight: 450, rawText: 'c - a plate mail (being worn)' }
+        ];
+
+        const recipe = EquipmentActionPlanner.planForTakeOff(inventory, 'suit');
+        expect(recipe.canExecute).toBe(true);
+        expect(recipe.steps).toHaveLength(3);
+
+        // 1. 外套を脱ぐ (脱げる防具は最外層のcloak 1点のみ -> NetHack仕様により ['T'] のみ)
+        expect(recipe.steps[0]).toMatchObject({
+            type: 'take_off',
+            letter: 'b',
+            sequence: ['T']
+        });
+
+        // 2. 鎧を脱ぐ (cloakが脱げた後、残り脱げる防具はsuit 1点のみ -> ['T'])
+        expect(recipe.steps[1]).toMatchObject({
+            type: 'take_off',
+            letter: 'c',
+            sequence: ['T']
+        });
+
+        // 3. 外套を着直す (['W', 'b'])
+        expect(recipe.steps[2]).toMatchObject({
+            type: 'wear',
+            letter: 'b',
+            sequence: ['W', 'b']
+        });
+
+        expect(recipe.sequence).toEqual(['T', 'T', 'W', 'b']);
+        expect(recipe.totalEstimatedTurns).toBe(7); // 1 + 5 + 1
+    });
+
+
+    // 12. planForTakeOff: 手持ち武器を外す場合
+    it('planForTakeOff: 手持ち武器を外す場合、w - が生成されること', () => {
+        const inventory = [
+            { letter: 'a', name: 'long sword', isWielded: true, rawText: 'a - a long sword (wielded)' }
+        ];
+
+        const recipe = EquipmentActionPlanner.planForTakeOff(inventory, 'main_hand');
+        expect(recipe.canExecute).toBe(true);
+        expect(recipe.steps).toHaveLength(1);
+        expect(recipe.steps[0]).toMatchObject({
+            type: 'unwield',
+            sequence: ['w', '-']
+        });
+        expect(recipe.sequence).toEqual(['w', '-']);
+    });
 });
+

@@ -217,4 +217,72 @@ describe('EquipmentDependencyAnalyzer', () => {
         expect(reportUnknown.risks.targetBucStatus).toBe('unknown');
         expect(reportUnknown.risks.warnings.some(w => w.includes('BUC未確定'))).toBe(true);
     });
+
+    // 12. analyzeTakeOff: 外套を着ている状態で鎧を脱ぐ場合
+    it('analyzeTakeOff: 外套着用中に鎧を脱ぐ場合、外套を脱ぐブロッカーと外套を着直すスタックが生成されること', () => {
+        const inventory = [
+            { letter: 'b', name: 'cloak of protection', armorSlot: 'cloak', isWorn: true, rawText: 'b - a cloak of protection (being worn)' },
+            { letter: 'c', name: 'plate mail', armorSlot: 'suit', isWorn: true, weight: 450, rawText: 'c - a plate mail (being worn)' }
+        ];
+
+        const report = EquipmentDependencyAnalyzer.analyzeTakeOff(inventory, 'suit');
+        expect(report.canExecute).toBe(true);
+        expect(report.targetItem.letter).toBe('c');
+        expect(report.blockers.map(b => b.letter)).toEqual(['b']);
+        expect(report.itemsToRewear.map(r => r.letter)).toEqual(['b']);
+        expect(report.risks.totalEstimatedTurns).toBe(1 + 5 + 1); // cloak(1) + plate(5) + cloak rewear(1) = 7
+    });
+
+    // 13. analyzeTakeOff: 手袋着用中に指輪を外す場合
+    it('analyzeTakeOff: 手袋着用中に指輪を外す場合、手袋を脱ぐブロッカーと手袋を着直すスタックが生成されること', () => {
+        const inventory = [
+            { letter: 'g', name: 'leather gloves', armorSlot: 'gloves', isWorn: true, rawText: 'g - a pair of leather gloves (being worn)' },
+            { letter: 'r', name: 'ring of regeneration', category: 'RING', isWorn: true, rawText: 'r - a ring of regeneration (on left hand)' }
+        ];
+
+        const report = EquipmentDependencyAnalyzer.analyzeTakeOff(inventory, 'left_ring');
+        expect(report.canExecute).toBe(true);
+        expect(report.blockers.map(b => b.letter)).toEqual(['g']);
+        expect(report.itemsToRewear.map(r => r.letter)).toEqual(['g']);
+        expect(report.actionNeeded).toBe('remove');
+    });
+
+    // 14. analyzeTakeOff: 呪われたアイテムの脱衣はブロックされること
+    it('analyzeTakeOff: 呪われたアイテムの脱衣は canExecute = false でブロックされること', () => {
+        const inventory = [
+            { letter: 'h', name: 'cursed helmet', armorSlot: 'helm', isWorn: true, isCursed: true, rawText: 'h - a cursed helmet (being worn)' }
+        ];
+
+        const report = EquipmentDependencyAnalyzer.analyzeTakeOff(inventory, 'helm');
+        expect(report.canExecute).toBe(false);
+        expect(report.risks.blockingReason).toContain('呪われているため自力で脱ぐことができません');
+    });
+
+    // 15. calculateEquipmentDiff: AC、耐性、重量の差分計算
+    it('calculateEquipmentDiff: AC改善、耐性付与・喪失、重量変動が正しく計算されること', () => {
+        const currentEquipped = {
+            cloak: { letter: 'c', name: 'cloak of protection', armorSlot: 'cloak', acBonus: 1, rawText: 'c - a cloak of protection' }
+        };
+
+        const newItem = {
+            letter: 'd',
+            name: 'cloak of magic resistance',
+            armorSlot: 'cloak',
+            acBonus: 2,
+            knowledge: { propConveyed: 'ANTIMAGIC' },
+            rawText: 'd - a cloak of magic resistance'
+        };
+
+        const diff = EquipmentDependencyAnalyzer.calculateEquipmentDiff(currentEquipped, newItem, 'cloak', { ac: 8 });
+
+        // AC: 8 から ACボーナスが +1 (old) -> +2 (new) となるので 8 - 1 = 7 に改善
+        expect(diff.ac.currentAc).toBe(8);
+        expect(diff.ac.targetAc).toBe(7);
+        expect(diff.ac.isImproved).toBe(true);
+        expect(diff.ac.labelJa).toContain('防御力 +1 改善');
+
+        // 耐性付与
+        expect(diff.properties.added.some(p => p.key === 'antimagic')).toBe(true);
+    });
 });
+

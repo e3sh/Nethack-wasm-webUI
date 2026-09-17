@@ -1,0 +1,661 @@
+/* ==========================================================================
+   Paperdoll Modal Styles (Equipment Paperdoll & Diff Preview)
+   ========================================================================== */
+
+.paperdoll-modal-card {
+  width: 960px;
+  max-width: 95vw;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #121826 0%, #1e293b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.15);
+  display: flex;
+  flex-direction: column;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  overflow: hidden;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.paperdoll-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.paperdoll-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paperdoll-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paperdoll-status-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.paperdoll-status-summary .badge-ac {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.paperdoll-status-summary .badge-weight {
+  color: #fbbf24;
+}
+
+.paperdoll-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.paperdoll-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+/* 2ペインメインボディ */
+.paperdoll-body {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  gap: 16px;
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 520px;
+}
+
+/* ==========================================================================
+   Left Pane: Paperdoll Grid & Body Layers
+   ========================================================================== */
+.paperdoll-stage {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  user-select: none;
+}
+
+.paperdoll-avatar-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260px;
+  height: 380px;
+  opacity: 0.12;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 50% 25%, #6366f1 0%, transparent 60%);
+}
+
+.paperdoll-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  z-index: 1;
+}
+
+.paperdoll-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+
+/* 単一スロットセル */
+.paperdoll-slot {
+  width: 70px;
+  height: 70px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.paperdoll-slot:hover {
+  border-color: #6366f1;
+  background: rgba(49, 46, 129, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(99, 102, 241, 0.25);
+}
+
+.paperdoll-slot.is-selected {
+  border-color: #fbbf24 !important;
+  background: rgba(245, 158, 11, 0.2) !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4) !important;
+}
+
+.paperdoll-slot.is-drag-over {
+  border-color: #22c55e !important;
+  background: rgba(34, 197, 94, 0.25) !important;
+  transform: scale(1.05);
+}
+
+.paperdoll-slot.is-cursed {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.15);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+}
+
+.paperdoll-slot.is-cursed::after {
+  content: '⚠️ 呪い';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  z-index: 10;
+}
+
+.slot-label {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.slot-icon-box {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  pointer-events: none;
+}
+
+.slot-letter-tag {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 10px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.slot-buc-tag {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.slot-buc-tag.buc-blessed {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.slot-buc-tag.buc-cursed {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.slot-buc-tag.buc-uncursed {
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   Torso 3-Layer Stack (Cloak -> Suit -> Shirt)
+   ========================================================================== */
+.torso-layer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  border-radius: 10px;
+  padding: 8px;
+  position: relative;
+}
+
+.torso-layer-title {
+  font-size: 10px;
+  color: #a5b4fc;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.torso-layer-slot {
+  width: 140px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  gap: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.9);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.torso-layer-slot:hover {
+  border-color: #6366f1;
+  background: rgba(49, 46, 129, 0.5);
+  transform: translateX(3px);
+}
+
+.torso-layer-slot.is-selected {
+  border-color: #fbbf24 !important;
+  background: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.torso-layer-slot.layer-cloak {
+  border-left: 4px solid #a855f7; /* 外套: 紫 */
+}
+
+.torso-layer-slot.layer-suit {
+  border-left: 4px solid #3b82f6; /* 鎧: 青 */
+}
+
+.torso-layer-slot.layer-shirt {
+  border-left: 4px solid #10b981; /* シャツ: 緑 */
+}
+
+.torso-layer-badge {
+  font-size: 9px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-cloak { background: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+.badge-suit  { background: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+.badge-shirt { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+
+.torso-item-info {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   Right Pane: Realtime Diff Preview & Item Quick Selector
+   ========================================================================== */
+.paperdoll-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 520px;
+}
+
+/* リアルタイム差分プレビューカード (下部固定フッター) */
+.paperdoll-diff-card {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+}
+
+.diff-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-target-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.diff-metric-box {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.metric-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metric-val {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.metric-delta {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.delta-better { color: #22c55e; } /* AC改善・緑 */
+.delta-worse  { color: #ef4444; } /* AC悪化・赤 */
+.delta-neutral { color: #94a3b8; }
+
+/* 耐性・特性バッジ */
+.diff-props-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diff-props-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 24px;
+  align-items: center;
+}
+
+.prop-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prop-added {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid #22c55e;
+  color: #4ade80;
+}
+
+.prop-removed {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #f87171;
+  text-decoration: line-through;
+}
+
+/* 所要時間 */
+.diff-time-box {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 注意書き・セーフティスロット (予約領域で高さ伸縮を防止) */
+.diff-warning-slot {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.diff-warning-banner {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #fca5a5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.diff-safe-hint {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+/* アクションボタンバー (常時固定高) */
+.diff-action-bar {
+  display: flex;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.btn-paperdoll-action {
+  flex: 1;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-equip {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+
+.btn-equip:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  transform: translateY(-1px);
+}
+
+.btn-takeoff {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+}
+
+.btn-takeoff:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+.btn-paperdoll-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Item Quick Selector (Filtered Items for Slot)
+   ========================================================================== */
+.paperdoll-selector-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  max-height: 280px;
+}
+
+.selector-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selector-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.selector-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.selector-item-row:hover {
+  background: rgba(49, 46, 129, 0.4);
+  border-color: #6366f1;
+}
+
+.selector-item-row.is-selected {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #fbbf24;
+}
+
+.selector-item-row.is-worn {
+  border-left: 3px solid #6366f1;
+}
+
+.selector-item-letter {
+  font-family: monospace;
+  font-weight: 700;
+  color: #e2e8f0;
+  width: 18px;
+}
+
+.selector-item-name {
+  flex: 1;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selector-empty-hint {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* ==========================================================================
+   Responsive adjustments
+   ========================================================================== */
+@media (max-width: 860px) {
+  .paperdoll-modal-card {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .paperdoll-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .paperdoll-stage {
+    padding: 10px;
+  }
+}

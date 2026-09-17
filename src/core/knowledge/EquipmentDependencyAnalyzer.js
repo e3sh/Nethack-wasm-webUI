@@ -286,16 +286,20 @@ export class EquipmentDependencyAnalyzer {
      * @private
      */
     static _evaluateRisks(targetItem, targetSlot, equippedState, blockers, itemsToRewear) {
-        const warnings = [];
+        const warningsJa = [];
+        const warningsEn = [];
         let canExecute = true;
-        let blockingReason = null;
+        let blockingReasonJa = null;
+        let blockingReasonEn = null;
 
         // 1. 呪われたブロッカーの有無判定
         const cursedBlocker = blockers.find(b => b.isCursed);
         if (cursedBlocker) {
             canExecute = false;
-            blockingReason = `${cursedBlocker.name} が呪われていて脱げないため、${targetItem.name || targetItem.rawText} を装備できません。`;
-            warnings.push(blockingReason);
+            blockingReasonJa = `${cursedBlocker.name} が呪われていて脱げないため、${targetItem.name || targetItem.rawText} を装備できません。`;
+            blockingReasonEn = `Cannot equip ${targetItem.name || targetItem.rawText} because ${cursedBlocker.name} is cursed and cannot be removed.`;
+            warningsJa.push(blockingReasonJa);
+            warningsEn.push(blockingReasonEn);
         }
 
         // 2. コカトリスの死体（Rubber chicken）セーフティ
@@ -307,8 +311,10 @@ export class EquipmentDependencyAnalyzer {
 
             if (!hasGloves || isGlovesBlocked) {
                 canExecute = false;
-                blockingReason = '素手でコカトリスの死体に触れると石化即死します！手袋を着用してください。';
-                warnings.push(blockingReason);
+                blockingReasonJa = '素手でコカトリスの死体に触れると石化即死します！手袋を着用してください。';
+                blockingReasonEn = 'Touching a cockatrice corpse with bare hands causes fatal petrification! Wear gloves first.';
+                warningsJa.push(blockingReasonJa);
+                warningsEn.push(blockingReasonEn);
             }
         }
 
@@ -317,14 +323,16 @@ export class EquipmentDependencyAnalyzer {
         let targetBucStatus = 'unknown';
         if (targetItem.isCursed || targetItem.identification?.bucStatus === 'CURSED' || /\bcursed\b|呪われ/.test(raw)) {
             targetBucStatus = 'cursed';
-            warnings.push('このアイテムは呪われています。一度装備すると解呪するまで自力で外せなくなります。');
+            warningsJa.push('このアイテムは呪われています。一度装備すると解呪するまで自力で外せなくなります。');
+            warningsEn.push('This item is cursed. Once equipped, it cannot be removed without uncursing.');
         } else if (targetItem.isBlessed || targetItem.identification?.bucStatus === 'BLESSED' || /\bblessed\b|祝福/.test(raw)) {
             targetBucStatus = 'blessed';
         } else if (targetItem.isUncursed || targetItem.identification?.bucStatus === 'UNCURSED' || /\buncursed\b/.test(raw)) {
             targetBucStatus = 'uncursed';
         } else {
             targetBucStatus = 'unknown';
-            warnings.push('呪われている可能性があります（BUC未確定）。');
+            warningsJa.push('呪われている可能性があります（BUC未確定）。');
+            warningsEn.push('Item may be cursed (BUC status unconfirmed).');
         }
 
         // 4. 所要ターン数の計算
@@ -340,7 +348,8 @@ export class EquipmentDependencyAnalyzer {
 
         const isMultiTurn = totalEstimatedTurns > 1;
         if (isMultiTurn && canExecute) {
-            warnings.push(`換装に合計約 ${totalEstimatedTurns} ターンを消費します。敵の接近に注意してください。`);
+            warningsJa.push(`換装に合計約 ${totalEstimatedTurns} ターンを消費します。敵の接近に注意してください。`);
+            warningsEn.push(`Equipping will take ~${totalEstimatedTurns} turns. Beware of nearby monsters.`);
         }
 
         return {
@@ -350,9 +359,355 @@ export class EquipmentDependencyAnalyzer {
                 isMultiTurn,
                 hasCursedBlocker: Boolean(cursedBlocker),
                 targetBucStatus,
-                warnings,
-                blockingReason
+                warnings: warningsJa,
+                warningsJa,
+                warningsEn,
+                blockingReason: blockingReasonJa,
+                blockingReasonJa,
+                blockingReasonEn
             }
         };
     }
+
+
+    /**
+     * 装備中のアイテムを脱ぐ（Take off / Remove / Unwield）際の依存関係を解析
+     * @param {Array<Object>|Object} inventory - インベントリ情報
+     * @param {string|Object} targetSlotOrItem - スロットIDまたはアイテム
+     * @returns {Object} EquipmentDependencyReport
+     */
+    static analyzeTakeOff(inventory, targetSlotOrItem) {
+        if (!targetSlotOrItem) return null;
+
+        const equippedState = this.extractEquippedState(inventory);
+        let targetSlot = typeof targetSlotOrItem === 'string' ? targetSlotOrItem : null;
+        let targetItem = null;
+
+        if (targetSlot) {
+            targetItem = equippedState[targetSlot] || null;
+        } else {
+            const raw = (targetSlotOrItem.rawText || targetSlotOrItem.name || '').toLowerCase();
+            targetSlot = this._detectEquippedSlot(targetSlotOrItem, raw);
+            targetItem = targetSlot ? equippedState[targetSlot] : null;
+        }
+
+        if (!targetItem || !targetSlot) {
+            return {
+                targetItem: {
+                    letter: targetSlotOrItem.letter || '',
+                    name: targetSlotOrItem.name || targetSlotOrItem.rawText || '',
+                    rawText: targetSlotOrItem.rawText || targetSlotOrItem.name || '',
+                    targetSlot: targetSlot || 'unknown',
+                    isTakeOff: true
+                },
+                actionNeeded: 'take_off',
+                canExecute: false,
+                blockers: [],
+                itemsToRewear: [],
+                risks: {
+                    totalEstimatedTurns: 0,
+                    isMultiTurn: false,
+                    hasCursedBlocker: false,
+                    targetBucStatus: 'unknown',
+                    warnings: ['装備されていません。'],
+                    warningsJa: ['装備されていません。'],
+                    warningsEn: ['Not currently equipped.'],
+                    blockingReason: 'このアイテムは現在装備されていません。',
+                    blockingReasonJa: 'このアイテムは現在装備されていません。',
+                    blockingReasonEn: 'This item is not currently equipped.'
+                }
+            };
+        }
+
+        // 脱衣アクションの判定
+        const actionNeeded = (targetSlot === EQUIP_SLOTS.LEFT_RING || targetSlot === EQUIP_SLOTS.RIGHT_RING || targetSlot === EQUIP_SLOTS.AMULET || targetSlot === EQUIP_SLOTS.BLINDFOLD)
+            ? 'remove'
+            : (targetSlot === EQUIP_SLOTS.MAIN_HAND || targetSlot === EQUIP_SLOTS.OFF_HAND)
+                ? 'unwield'
+                : 'take_off';
+
+        // 呪い判定（対象自身が呪われている場合、脱げない）
+        const isCursed = Boolean(targetItem.isCursed);
+        const warningsJa = [];
+        const warningsEn = [];
+        let canExecute = !isCursed;
+        let blockingReasonJa = isCursed ? `${targetItem.name || targetItem.rawText} は呪われているため自力で脱ぐことができません！` : null;
+        let blockingReasonEn = isCursed ? `${targetItem.name || targetItem.rawText} is cursed and cannot be removed!` : null;
+        if (isCursed) {
+            warningsJa.push(blockingReasonJa);
+            warningsEn.push(blockingReasonEn);
+        }
+
+        // ブロッカー探索（脱ぐために先に脱ぐべき外側の装備）
+        const blockers = [];
+
+        // 1. レイヤードアーマー
+        if (targetSlot === EQUIP_SLOTS.SHIRT) {
+            if (equippedState[EQUIP_SLOTS.CLOAK]) {
+                blockers.push(this._createBlockerEntry(equippedState[EQUIP_SLOTS.CLOAK], EQUIP_SLOTS.CLOAK, 'take_off'));
+            }
+            if (equippedState[EQUIP_SLOTS.SUIT]) {
+                blockers.push(this._createBlockerEntry(equippedState[EQUIP_SLOTS.SUIT], EQUIP_SLOTS.SUIT, 'take_off'));
+            }
+        } else if (targetSlot === EQUIP_SLOTS.SUIT) {
+            if (equippedState[EQUIP_SLOTS.CLOAK]) {
+                blockers.push(this._createBlockerEntry(equippedState[EQUIP_SLOTS.CLOAK], EQUIP_SLOTS.CLOAK, 'take_off'));
+            }
+        }
+
+        // 2. 手袋（指輪を外す場合）
+        if (targetSlot === EQUIP_SLOTS.LEFT_RING || targetSlot === EQUIP_SLOTS.RIGHT_RING) {
+            if (equippedState[EQUIP_SLOTS.GLOVES]) {
+                blockers.push(this._createBlockerEntry(equippedState[EQUIP_SLOTS.GLOVES], EQUIP_SLOTS.GLOVES, 'take_off'));
+            }
+        }
+
+        // ブロッカーの呪い判定
+        const cursedBlocker = blockers.find(b => b.isCursed);
+        if (cursedBlocker) {
+            canExecute = false;
+            blockingReasonJa = `${cursedBlocker.name} が呪われていて脱げないため、${targetItem.name || targetItem.rawText} を脱ぐことができません。`;
+            blockingReasonEn = `Cannot remove ${targetItem.name || targetItem.rawText} because ${cursedBlocker.name} is cursed and cannot be removed.`;
+            warningsJa.push(blockingReasonJa);
+            warningsEn.push(blockingReasonEn);
+        }
+
+        // 着直しスタック構築（一時的に脱いだブロッカーを LIFO 逆順で着直す）
+        const itemsToRewear = [];
+        for (let i = blockers.length - 1; i >= 0; i--) {
+            const b = blockers[i];
+            const rewearAction = (b.slot === EQUIP_SLOTS.LEFT_RING || b.slot === EQUIP_SLOTS.RIGHT_RING || b.slot === EQUIP_SLOTS.AMULET || b.slot === EQUIP_SLOTS.BLINDFOLD)
+                ? 'put_on'
+                : (b.slot === EQUIP_SLOTS.MAIN_HAND || b.slot === EQUIP_SLOTS.OFF_HAND)
+                    ? 'wield'
+                    : 'wear';
+            itemsToRewear.push({
+                slot: b.slot,
+                letter: b.letter,
+                name: b.name,
+                rawText: b.rawText,
+                actionNeeded: rewearAction,
+                estimatedTurns: estimateActionTurns(rewearAction, b)
+            });
+        }
+
+        // ターン計算
+        const blockerTurns = blockers.reduce((sum, b) => sum + (b.estimatedTurns || 1), 0);
+        const targetTurns = estimateActionTurns(actionNeeded, targetItem);
+        const rewearTurns = itemsToRewear.reduce((sum, r) => sum + (r.estimatedTurns || 1), 0);
+        const totalEstimatedTurns = blockerTurns + targetTurns + rewearTurns;
+        const isMultiTurn = totalEstimatedTurns > 1;
+
+        if (isMultiTurn && canExecute) {
+            warningsJa.push(`脱衣に合計約 ${totalEstimatedTurns} ターンを消費します。敵の接近に注意してください。`);
+            warningsEn.push(`Removing will take ~${totalEstimatedTurns} turns. Beware of nearby monsters.`);
+        }
+
+        return {
+            targetItem: {
+                letter: targetItem.letter || '',
+                name: targetItem.name || targetItem.rawText || '',
+                rawText: targetItem.rawText || targetItem.name || '',
+                targetSlot,
+                isTakeOff: true
+            },
+            actionNeeded,
+            canExecute,
+            blockers,
+            itemsToRewear,
+            risks: {
+                totalEstimatedTurns,
+                isMultiTurn,
+                hasCursedBlocker: Boolean(cursedBlocker),
+                targetBucStatus: targetItem.isCursed ? 'cursed' : (targetItem.isBlessed ? 'blessed' : (targetItem.isUncursed ? 'uncursed' : 'unknown')),
+                warnings: warningsJa,
+                warningsJa,
+                warningsEn,
+                blockingReason: blockingReasonJa,
+                blockingReasonJa,
+                blockingReasonEn
+            }
+        };
+    }
+
+    /**
+     * 装備換装時のリアルタイム差分（AC、耐性・特性、重量負荷）を純粋計算
+     * @param {Object} equippedState - extractEquippedState の結果
+     * @param {Object|null} targetItem - 装備するアイテム（null または isTakeOff の場合は脱衣）
+     * @param {string} targetSlot - 対象スロットID
+     * @param {Object} [currentStatus={}] - プレイヤーの現在ステータス（{ ac: 10 } など）
+     * @param {Object} [currentEncumbrance=null] - 負荷状態情報
+     * @returns {Object} 差分プレビューデータ
+     */
+    static calculateEquipmentDiff(equippedState, targetItem, targetSlot, currentStatus = {}, currentEncumbrance = null) {
+        const currentAc = typeof currentStatus?.ac === 'number' ? currentStatus.ac : 10;
+        const currentItem = equippedState ? equippedState[targetSlot] : null;
+
+        // 1. 防御力 (AC) 差分計算
+        const oldAcBonus = this._getItemAcBonus(currentItem);
+        const newAcBonus = targetItem ? this._getItemAcBonus(targetItem) : 0;
+        const deltaAcBonus = newAcBonus - oldAcBonus; // 正: 防御力向上
+        const targetAc = currentAc - deltaAcBonus; // NetHackではAC低下が防御向上
+
+        const acDiff = {
+            currentAc,
+            targetAc,
+            deltaBonus: deltaAcBonus,
+            isImproved: deltaAcBonus > 0,
+            isWorsened: deltaAcBonus < 0,
+            labelJa: deltaAcBonus > 0
+                ? `防御力 +${deltaAcBonus} 改善`
+                : (deltaAcBonus < 0 ? `防御力 ${deltaAcBonus} 悪化` : 'AC変動なし'),
+            labelEn: deltaAcBonus > 0
+                ? `Defense +${deltaAcBonus} (Better)`
+                : (deltaAcBonus < 0 ? `Defense ${deltaAcBonus} (Worse)` : 'No AC change')
+        };
+
+        // 2. 特性・耐性 (Properties / Resistances) 差分計算
+        const oldProps = this._getItemConveyedProperties(currentItem);
+        const newProps = targetItem ? this._getItemConveyedProperties(targetItem) : [];
+
+        const addedProps = newProps.filter(p => !oldProps.some(op => op.key === p.key));
+        const removedProps = oldProps.filter(p => !newProps.some(np => np.key === p.key));
+
+        // 3. 重量 (Weight) 差分計算
+        const oldWeight = this._getItemWeight(currentItem);
+        const newWeight = targetItem ? this._getItemWeight(targetItem) : 0;
+        const deltaWeight = newWeight - oldWeight;
+
+        return {
+            targetSlot,
+            targetItem,
+            currentItem,
+            ac: acDiff,
+            properties: {
+                added: addedProps,
+                removed: removedProps
+            },
+            weight: {
+                oldWeight,
+                newWeight,
+                deltaWeight
+            }
+        };
+    }
+
+    /**
+     * アイテムの AC 寄与ボーナス（AC改善量）を算出
+     * @private
+     */
+    static _getItemAcBonus(item) {
+        if (!item) return 0;
+        const raw = (item.rawText || item.name || '').toLowerCase();
+        const knowledge = item.knowledge || {};
+        const stats = knowledge.stats || {};
+
+        let baseBonus = 0;
+        if (typeof item.acBonus === 'number') {
+            baseBonus = item.acBonus;
+        } else if (typeof stats.acBonus === 'number') {
+            baseBonus = stats.acBonus;
+        } else if (typeof item.ac === 'number') {
+            baseBonus = 10 - item.ac;
+        } else if (typeof stats.ac === 'number') {
+            baseBonus = 10 - stats.ac;
+        } else if (typeof knowledge.ac === 'number') {
+            baseBonus = 10 - knowledge.ac;
+        }
+
+        // エンチャント値 (+1, +2, -1 等) の加算
+        let ench = 0;
+        if (typeof item.enchantment === 'number') {
+            ench = item.enchantment;
+        } else {
+            const match = raw.match(/([+-]\d+)/);
+            if (match) {
+                ench = parseInt(match[1], 10);
+            }
+        }
+
+        return baseBonus + ench;
+    }
+
+    /**
+     * アイテムが付与する特性・耐性リストを抽出
+     * @private
+     */
+    static _getItemConveyedProperties(item) {
+        if (!item) return [];
+        const props = [];
+        const raw = (item.rawText || item.name || '').toLowerCase();
+        const knowledge = item.knowledge || {};
+        const prop = knowledge.propConveyed || knowledge.stats?.propConveyed || null;
+
+        const propMaster = {
+            FIRE_RES: { key: 'fire', labelJa: '🔥火炎耐性', labelEn: 'Fire Res' },
+            COLD_RES: { key: 'cold', labelJa: '❄️冷気耐性', labelEn: 'Cold Res' },
+            SHOCK_RES: { key: 'shock', labelJa: '⚡電撃耐性', labelEn: 'Shock Res' },
+            DISINT_RES: { key: 'disint', labelJa: '💥分解耐性', labelEn: 'Disint Res' },
+            POISON_RES: { key: 'poison', labelJa: '🧪毒耐性', labelEn: 'Poison Res' },
+            SLEEP_RES: { key: 'sleep', labelJa: '💤睡眠耐性', labelEn: 'Sleep Res' },
+            REFLECTING: { key: 'reflect', labelJa: '🛡️反射', labelEn: 'Reflection' },
+            ANTIMAGIC: { key: 'antimagic', labelJa: '🔮耐魔', labelEn: 'Magic Res' },
+            DRAIN_RES: { key: 'drain', labelJa: '🩸ドレイン耐性', labelEn: 'Drain Res' },
+            FREE_ACTION: { key: 'freeAction', labelJa: '🤸自由行動', labelEn: 'Free Action' },
+            STEALTH: { key: 'stealth', labelJa: '👟隠密', labelEn: 'Stealth' },
+            LEVITATION: { key: 'levitation', labelJa: '🪶浮遊', labelEn: 'Levitation' },
+            FAST: { key: 'fast', labelJa: '⚡倍速', labelEn: 'Speed' },
+            SEE_INVIS: { key: 'seeInvis', labelJa: '👁️可視', labelEn: 'See Invis' },
+            TELEPAT: { key: 'telepat', labelJa: '🧠テレパシー', labelEn: 'Telepathy' },
+            WARNING: { key: 'warning', labelJa: '⚠️警戒', labelEn: 'Warning' }
+        };
+
+        if (prop && propMaster[prop]) {
+            props.push(propMaster[prop]);
+        }
+
+        // テキストマッチ判定フォールバック
+        if (/fire resistance|red dragon/i.test(raw) && !props.some(p => p.key === 'fire')) {
+            props.push(propMaster.FIRE_RES);
+        }
+        if (/cold resistance|white dragon/i.test(raw) && !props.some(p => p.key === 'cold')) {
+            props.push(propMaster.COLD_RES);
+        }
+        if (/shock resistance|blue dragon/i.test(raw) && !props.some(p => p.key === 'shock')) {
+            props.push(propMaster.SHOCK_RES);
+        }
+        if (/disintegration|black dragon/i.test(raw) && !props.some(p => p.key === 'disint')) {
+            props.push(propMaster.DISINT_RES);
+        }
+        if (/poison resistance/i.test(raw) && !props.some(p => p.key === 'poison')) {
+            props.push(propMaster.POISON_RES);
+        }
+        if (/reflecting|silver dragon|shield of reflection/i.test(raw) && !props.some(p => p.key === 'reflect')) {
+            props.push(propMaster.REFLECTING);
+        }
+        if (/magic resistance|gray dragon|cloak of magic resistance/i.test(raw) && !props.some(p => p.key === 'antimagic')) {
+            props.push(propMaster.ANTIMAGIC);
+        }
+        if (/stealth|elven cloak|boots of stealth/i.test(raw) && !props.some(p => p.key === 'stealth')) {
+            props.push(propMaster.STEALTH);
+        }
+        if (/speed|boots of speed/i.test(raw) && !props.some(p => p.key === 'fast')) {
+            props.push(propMaster.FAST);
+        }
+        if (/levitation/i.test(raw) && !props.some(p => p.key === 'levitation')) {
+            props.push(propMaster.LEVITATION);
+        }
+
+        return props;
+    }
+
+    /**
+     * アイテムの重量を概算
+     * @private
+     */
+    static _getItemWeight(item) {
+        if (!item) return 0;
+        if (typeof item.weight === 'number') return item.weight;
+        if (typeof item.knowledge?.weight === 'number') return item.knowledge.weight;
+        if (typeof item.knowledge?.stats?.weight === 'number') return item.knowledge.stats.weight;
+        return 0;
+    }
 }
+

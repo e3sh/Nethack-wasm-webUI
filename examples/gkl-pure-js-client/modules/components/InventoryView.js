@@ -152,7 +152,7 @@ export class InventoryView {
           }
 
           return `
-            <div class="gkl-item-slot ${equipClassStr}" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
+            <div class="gkl-item-slot ${equipClassStr}" draggable="true" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
               <span class="gkl-slot-letter">${item.letter}</span>
               <div class="gkl-slot-icon" id="slot-icon-${item.letter}"></div>
               ${nanoBadgeHtml}
@@ -187,6 +187,12 @@ export class InventoryView {
         }
 
         if (slot) {
+          slot.ondragstart = (e) => {
+            if (e.dataTransfer) {
+              e.dataTransfer.setData('text/plain', item.letter);
+            }
+          };
+
           slot.onmouseenter = () => {
             this.onInspectItem(item);
             if (this.elGklTtName) this.elGklTtName.textContent = item.rawText;
