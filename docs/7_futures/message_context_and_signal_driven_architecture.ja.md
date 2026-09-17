@@ -2,13 +2,15 @@
 title: メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
 status: proposal / future vision
 created_at: 2026-09-16
-last_updated: 2026-09-16
+last_updated: 2026-09-17
 related_code:
   - src/core/WebUICore.js
   - src/core/prompt/SignalDetector.js
   - src/core/prompt/ControlSignalCatalog.js
   - src/driver/NetHackWasmDriver.js
   - dictionary.csv
+  - tools/extract_source_messages.py
+  - docs/7_futures/source_message_extraction_methodology_guide.ja.md
 ---
 
 # メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
@@ -190,9 +192,10 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
   実戦でのプロンプト挙動・メッセージパターンの知見蓄積
     │
     ▼
-[Phase 1: 静的抽出基盤の確立]
+[Phase 1: 静的抽出基盤の確立] ★完了
   Python スクリプトによる NetHack C ソース＆ dat ファイルの全メッセージ自動抽出
   JSON / CSV 形式の「コンテキスト付きメッセージマスタ (source_messages.json)」生成
+  ※設計思想・運用ガイド: `docs/7_futures/source_message_extraction_methodology_guide.ja.md`
     │
     ▼
 [Phase 2: 既存翻訳資産とのマッピング]
