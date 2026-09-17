@@ -90,9 +90,12 @@ export class EquipmentDependencyAnalyzer {
         }
 
         if (item.isWorn || /\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b|着用|装備中|装着中/i.test(raw)) {
+            // 装身具: AMULET クラスは首スロット以外に装備されない (1対1対応)
+            if (item.category === 'AMULET' || item.itemCategory === 'AMULET' || item.onumCategory === 'AMULET' || item.knowledge?.category === 'AMULET' || /amulet|魔よけ|魔除け|お守り|アミュレット|護符|首飾り/i.test(raw)) {
+                return EQUIP_SLOTS.AMULET;
+            }
             if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(raw)) return EQUIP_SLOTS.LEFT_RING;
             if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(raw)) return EQUIP_SLOTS.RIGHT_RING;
-            if (/around neck|首/i.test(raw)) return EQUIP_SLOTS.AMULET;
             if (/shield|盾/i.test(raw) || item.armorSlot === 'shield' || item.knowledge?.armorSlot === 'shield') return EQUIP_SLOTS.SHIELD;
             if (/cloak|mantle|cape|robe|外套|マント|ローブ/i.test(raw) || item.armorSlot === 'cloak' || item.knowledge?.armorSlot === 'cloak') return EQUIP_SLOTS.CLOAK;
             if (/suit|mail|armor|jacket|鎧|甲冑|胴着/i.test(raw) || item.armorSlot === 'suit' || item.knowledge?.armorSlot === 'suit') return EQUIP_SLOTS.SUIT;
@@ -100,7 +103,13 @@ export class EquipmentDependencyAnalyzer {
             if (/helmet|helm|hat|cap|兜|帽子/i.test(raw) || item.armorSlot === 'helm' || item.knowledge?.armorSlot === 'helm') return EQUIP_SLOTS.HELM;
             if (/gloves|gauntlets|手袋|籠手/i.test(raw) || item.armorSlot === 'gloves' || item.knowledge?.armorSlot === 'gloves') return EQUIP_SLOTS.GLOVES;
             if (/boots|shoes|靴|ブーツ/i.test(raw) || item.armorSlot === 'boots' || item.knowledge?.armorSlot === 'boots') return EQUIP_SLOTS.BOOTS;
-            if (/blindfold|towel|目隠し|タオル/i.test(raw)) return EQUIP_SLOTS.BLINDFOLD;
+            if (/blindfold|towel|目隠し|タオル/i.test(raw) || item.isBlindfoldOrTowel) return EQUIP_SLOTS.BLINDFOLD;
+
+            // フォールバック: resolveEligibleSlots が単一部位（main_hand以外）に決定できる場合
+            const eligible = resolveEligibleSlots(item);
+            if (eligible.length === 1 && eligible[0] !== EQUIP_SLOTS.MAIN_HAND) {
+                return eligible[0];
+            }
         }
 
         return null;

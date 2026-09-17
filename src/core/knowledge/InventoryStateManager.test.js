@@ -432,15 +432,37 @@ describe('InventoryStateManager', () => {
         expect(touchstone.defaultVerb).toBe('a');
     });
 
-    it('updateFromSequenceBuffer: 手ぶら・所持品ゼロ (空バッファ/Not carrying anything) の場合でも isSynced = true と items = [] が正しく設定されること', () => {
+    it('updateFromSequenceBuffer: 明示的な手ぶらメッセージ (Not carrying anything) の場合のみ items = [] と同期されること', () => {
         const manager = new InventoryStateManager();
         manager.invalidate();
         expect(manager.isSynced).toBe(false);
 
-        // 空バッファまたは putstr のみのバッファを渡す
         manager.updateFromSequenceBuffer([{ type: 'putstr', text: 'Not carrying anything.' }]);
         expect(manager.isSynced).toBe(true);
         expect(manager.items).toEqual([]);
+    });
+
+    it('updateFromSequenceBuffer: 同期失敗・キャンセル時の空バッファや無関係なプロンプトで既存アイテムが消去されず維持されること', () => {
+        const manager = new InventoryStateManager();
+        // 初期アイテム設定
+        manager.updateFromLines([
+            'a - a +1 long sword (wielded)',
+            'p - an amulet of ESP (being worn)'
+        ]);
+        expect(manager.items.length).toBe(2);
+
+        // 1. 空バッファ [] が渡された場合 ➔ 既存アイテムが維持されること
+        const res1 = manager.updateFromSequenceBuffer([]);
+        expect(res1).toBe(false);
+        expect(manager.items.length).toBe(2);
+
+        // 2. テレポート質問等の無関係なバッファが渡された場合 ➔ 既存アイテムが維持されること
+        const res2 = manager.updateFromSequenceBuffer([
+            { type: 'raw_print', text: 'Where do you want to be teleported?' }
+        ]);
+        expect(res2).toBe(false);
+        expect(manager.items.length).toBe(2);
+        expect(manager.getItemByLetter('p')).toBeDefined();
     });
 
     it('updateFromMessage: 日本語および英語の拾得 (pickup / 拾った / 手に入れた) メッセージを正しく検知して dirty 化すること', () => {

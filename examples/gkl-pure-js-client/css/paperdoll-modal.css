@@ -639,6 +639,103 @@
 }
 
 /* ==========================================================================
+   Weapon Controls (Swap Weapons & Two-Weapon Combat)
+   ========================================================================== */
+.paperdoll-weapon-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+}
+
+.paperdoll-tool-btn {
+  width: 70px;
+  height: 24px;
+  padding: 2px 4px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.paperdoll-tool-btn .tool-btn-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.paperdoll-tool-btn .tool-btn-label {
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: -0.2px;
+}
+
+.paperdoll-tool-btn:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.paperdoll-tool-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* 正副武器切替ボタン */
+.paperdoll-tool-btn.btn-swap-weapon:hover:not(:disabled) {
+  border-color: #38bdf8;
+  color: #7dd3fc;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+/* 二刀流トグルボタン (通常・非活性・アクティブ) */
+.paperdoll-tool-btn.btn-two-weapon:hover:not(:disabled) {
+  border-color: #f59e0b;
+  color: #fde68a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+/* 二刀流アクティブ状態 (ON: 金枠・ゴールド点灯グロー) */
+.paperdoll-tool-btn.btn-two-weapon.is-active {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.35) 0%, rgba(202, 138, 4, 0.5) 100%);
+  border: 1px solid #facc15;
+  color: #fef08a;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5), inset 0 0 6px rgba(250, 204, 21, 0.25);
+  font-weight: 700;
+}
+
+.paperdoll-tool-btn.btn-two-weapon.is-active:hover {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.45) 0%, rgba(202, 138, 4, 0.6) 100%);
+  border-color: #fde047;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.7), inset 0 0 8px rgba(250, 204, 21, 0.35);
+}
+
+/* 非活性 (適性なし / disabled) */
+.paperdoll-tool-btn:disabled,
+.paperdoll-tool-btn.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ==========================================================================
    Responsive adjustments
    ========================================================================== */
 @media (max-width: 860px) {

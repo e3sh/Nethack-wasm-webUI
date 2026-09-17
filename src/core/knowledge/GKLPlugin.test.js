@@ -1018,6 +1018,23 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(invalidateSpy).toHaveBeenCalledTimes(1);
             expect(plugin.inventoryStateManager.isSynced).toBe(false);
         });
+
+        it('Where do you want to be teleported? のテレポート先問い合わせ中は syncInventorySilent がガードされ実行されないこと', async () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            // テレポート問い合わせメッセージをシミュレート
+            mockCore.lastRawMessageText = 'Where do you want to be teleported?';
+
+            const querySpy = vi.spyOn(mockCore, 'querySequenceSilent');
+
+            const res = await plugin.syncInventorySilent();
+
+            // ガードされて false が返り、キーシーケンスは一切投入されないこと
+            expect(res).toBe(false);
+            expect(querySpy).not.toHaveBeenCalled();
+        });
     });
 });
 

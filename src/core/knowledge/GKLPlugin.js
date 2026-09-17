@@ -966,6 +966,56 @@ export class GKLPlugin {
     }
 
     /**
+     * 対話プロンプト・テレポート先指定・ターゲティング待機中かどうかを判定
+     * @param {boolean} [force=false]
+     * @returns {boolean}
+     * @private
+     */
+    _isPromptOrTargetingActive(force = false) {
+        if (force || !this.core) return false;
+
+        if (this.core.currentPromptCategory) {
+            const cat = this.core.currentPromptCategory;
+            if (cat === PROMPT_CATEGORY.MENU ||
+                cat === PROMPT_CATEGORY.DIRECTION || 
+                cat === PROMPT_CATEGORY.YN || 
+                cat === PROMPT_CATEGORY.TEXT || 
+                cat === PROMPT_CATEGORY.ASKNAME || 
+                cat === PROMPT_CATEGORY.FILE || 
+                cat === PROMPT_CATEGORY.EXTCMD) {
+                return true;
+            }
+        }
+
+        // 直近メッセージ（putstr, raw_print, driver.lastEmittedMessage等）から
+        // テレポート先選択や座標・方向問い合わせ中を包括的に判定
+        const recentMessages = [
+            this.core.lastPutstrText || '',
+            this.core.lastRawMessageText || '',
+            (this.core.driver && this.core.driver.lastEmittedMessage) || ''
+        ].join(' ').toLowerCase();
+
+        if (recentMessages.includes('プレフィックス') || 
+            recentMessages.includes('prefix') || 
+            (recentMessages.includes('count') && recentMessages.includes('command'))) {
+            return true;
+        }
+
+        if (recentMessages.includes('where do you want to') ||
+            recentMessages.includes('desired position') ||
+            recentMessages.includes('in what direction') ||
+            recentMessages.includes('which way') ||
+            recentMessages.includes('どこにテレポート') ||
+            recentMessages.includes('どこにジャンプ') ||
+            recentMessages.includes('テレポート') ||
+            recentMessages.includes('どの方向')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * バックグラウンドで画面を一切汚さずに `i ` (インベントリ一覧) キーシーケンスをサイレント実行し、
      * 最新の所持品データを非同期で同期獲得する。
      * @param {Object} [options={}]
@@ -977,23 +1027,8 @@ export class GKLPlugin {
 
         const { force = false } = options;
 
-        // モーダルプロンプト表示中などのガード
-        if (!force && this.core.currentPromptCategory) {
-            const cat = this.core.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return false;
-            }
-        }
-
-        // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）のガード
-        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
-        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+        // モーダルプロンプト表示中・テレポート指定中などのガード
+        if (this._isPromptOrTargetingActive(force)) {
             return false;
         }
 
@@ -1023,21 +1058,7 @@ export class GKLPlugin {
 
         const { force = false } = options;
 
-        if (!force && this.core.currentPromptCategory) {
-            const cat = this.core.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return false;
-            }
-        }
-
-        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
-        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+        if (this._isPromptOrTargetingActive(force)) {
             return false;
         }
 
@@ -1065,21 +1086,7 @@ export class GKLPlugin {
 
         const { force = false } = options;
 
-        if (!force && this.core.currentPromptCategory) {
-            const cat = this.core.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return false;
-            }
-        }
-
-        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
-        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+        if (this._isPromptOrTargetingActive(force)) {
             return false;
         }
 
@@ -1112,21 +1119,7 @@ export class GKLPlugin {
 
         const { force = false } = options;
 
-        if (!force && this.core.currentPromptCategory) {
-            const cat = this.core.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return false;
-            }
-        }
-
-        const lastMsg = (this.core.lastPutstrText || '').toLowerCase();
-        if (!force && (lastMsg.includes('プレフィックス') || lastMsg.includes('prefix') || (lastMsg.includes('count') && lastMsg.includes('command')))) {
+        if (this._isPromptOrTargetingActive(force)) {
             return false;
         }
 

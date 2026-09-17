@@ -81,8 +81,16 @@ export function resolveEligibleSlots(item) {
     const raw = (item.rawText || item.name || '').toLowerCase();
     const knowledge = item.knowledge || {};
     const stats = knowledge.stats || {};
-    const cat = item.category || knowledge.category || item.onumCategory || '';
+    const cat = item.category || item.itemCategory || knowledge.category || item.onumCategory || '';
     const armorSlot = item.armorSlot || knowledge.armorSlot || stats.armorSlot;
+
+    // 0. equipSlot の明示的指定がある場合の優先判定
+    if (item.equipSlot === 'amulet') return ['amulet'];
+    if (item.equipSlot === 'ring_left' || item.equipSlot === 'ring_right') return ['left_ring', 'right_ring'];
+    if (item.equipSlot === 'blindfold') return ['blindfold'];
+    if (item.equipSlot && ['cloak', 'suit', 'shirt', 'helm', 'gloves', 'shield', 'boots'].includes(item.equipSlot)) {
+        return [item.equipSlot];
+    }
 
     // 1. 防具（ARMOR）
     if (cat === 'ARMOR' || armorSlot) {
@@ -109,11 +117,13 @@ export function resolveEligibleSlots(item) {
     }
 
     // 2. 装身具 (RING, AMULET)
+    // ※ NetHack において首に装備できるものは AMULET のみ、かつ AMULET は首にしか装備できない (1対1)
+    if (cat === 'AMULET' || item.itemCategory === 'AMULET' || item.equipSlot === 'amulet' ||
+        /amulet|魔よけ|魔除け|お守り|アミュレット|護符|首飾り/i.test(raw)) {
+        return ['amulet'];
+    }
     if (cat === 'RING' || /ring|指輪/.test(raw)) {
         return ['left_ring', 'right_ring'];
-    }
-    if (cat === 'AMULET' || /amulet|necklace|pendant|首飾り|護符|アミュレット/.test(raw)) {
-        return ['amulet'];
     }
 
     // 3. 目隠し・タオル

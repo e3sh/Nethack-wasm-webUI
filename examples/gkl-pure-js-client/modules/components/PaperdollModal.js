@@ -16,6 +16,7 @@ import {
 import { EquipmentDependencyAnalyzer } from '../../../../src/core/knowledge/EquipmentDependencyAnalyzer.js';
 import { EquipmentActionPlanner } from '../../../../src/core/knowledge/EquipmentActionPlanner.js';
 import { OBJECT_JP_MAP } from '../../../../src/core/knowledge/OBJECT_JP_MAP.js';
+import { PROMPT_CATEGORY } from '../../../../src/core/types.js';
 
 export class PaperdollModal {
   /**
@@ -217,6 +218,39 @@ export class PaperdollModal {
     const currentAc = typeof status.ac === 'number' ? status.ac : 10;
     const currentWeight = encumbrance?.totalWeight ?? 0;
 
+    // 二刀流状態および排他条件判定 (NetHack厳格ルール: 盾や両手武器装備中は二刀流不可)
+    const hasShield = Boolean(equippedState[EQUIP_SLOTS.SHIELD]);
+    const mainHandItem = equippedState[EQUIP_SLOTS.MAIN_HAND];
+    const isTwoHanded = Boolean(mainHandItem && isTwoHandedWeapon(mainHandItem));
+
+    // 二刀流点灯判定: 盾・両手武器を装備しておらず、かつ実際に副武器構え(in off-hand/二刀流中)であること
+    let isTwoWeaponActive = false;
+    if (!hasShield && !isTwoHanded) {
+      const offhandItem = equippedState[EQUIP_SLOTS.OFF_HAND];
+      if (offhandItem) {
+        const raw = (offhandItem.rawText || '').toLowerCase();
+        const isAlternateOnly = /alternate weapon/i.test(raw) && !/in off[- ]hand|二刀流中/i.test(raw);
+        if (!isAlternateOnly) {
+          if (/in off[- ]hand|二刀流中/i.test(raw) || offhandItem.isOffhand) {
+            isTwoWeaponActive = true;
+          }
+        }
+      }
+    }
+
+    const isTwoWeaponEligible = this._checkTwoWeaponEligibility(situation, core);
+    const canToggleTwoWeapon = isTwoWeaponEligible && !hasShield && !isTwoHanded;
+
+    // ツールチップ文言の構築
+    let twoWeaponTooltip = isEn ? 'Two-Weapon (#twoweapon / X)' : '二刀流 (#twoweapon / X)';
+    if (hasShield) {
+      twoWeaponTooltip += isEn ? ' (Cannot use while wearing a shield)' : ' (盾装備中は二刀流不可)';
+    } else if (isTwoHanded) {
+      twoWeaponTooltip += isEn ? ' (Cannot use while wielding a two-handed weapon)' : ' (両手武器装備中は二刀流不可)';
+    } else if (!isTwoWeaponEligible) {
+      twoWeaponTooltip += isEn ? ' (Restricted for current role or skill)' : ' (二刀流不可)';
+    }
+
     // HTMLテンプレート構築
     this.elPaperdollModal.innerHTML = `
       <div class="paperdoll-modal-card" role="dialog" aria-modal="true">
@@ -250,9 +284,26 @@ export class PaperdollModal {
 
               <!-- 2行目: 主手 / 胴体3層レイヤード / 副手 -->
               <div class="paperdoll-row" style="align-items: stretch;">
-                <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
+                <div class="paperdoll-weapon-col">
                   ${this._renderSlotHtml(EQUIP_SLOTS.MAIN_HAND, equippedState)}
+
+                  <!-- 正副武器切替ボタン (x) -->
+                  <button type="button" class="paperdoll-tool-btn btn-swap-weapon" id="btn-paperdoll-swap"
+                          title="${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}">
+                    <span class="tool-btn-icon">🔄</span>
+                    <span class="tool-btn-label">${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}</span>
+                  </button>
+
                   ${this._renderSlotHtml(EQUIP_SLOTS.OFF_HAND, equippedState)}
+
+                  <!-- 二刀流トグルボタン (X) -->
+                  <button type="button" class="paperdoll-tool-btn btn-two-weapon ${isTwoWeaponActive ? 'is-active' : ''} ${!canToggleTwoWeapon ? 'is-disabled' : ''}"
+                          id="btn-paperdoll-two-weapon"
+                          ${!canToggleTwoWeapon ? 'disabled' : ''}
+                          title="${twoWeaponTooltip}">
+                    <span class="tool-btn-icon">⚔️⚔️</span>
+                    <span class="tool-btn-label">${isEn ? 'Two-Weapon (#twoweapon / X)' : '二刀流 (#twoweapon / X)'}</span>
+                  </button>
                 </div>
 
                 <!-- 胴体3層レイヤードカード (外套 ➔ 鎧 ➔ シャツ) -->
@@ -725,6 +776,63 @@ export class PaperdollModal {
     });
 
     this._bindActionButtons(equippedState, inventory);
+    this._bindWeaponButtons();
+  }
+
+  /**
+   * 武器操作ボタン（切替 / 二刀流トグル）のバインド
+   * @private
+   */
+  _bindWeaponButtons() {
+    const core = this.getCore();
+
+    // 正副武器切替 (x)
+    const btnSwap = this.elPaperdollModal.querySelector('#btn-paperdoll-swap');
+    if (btnSwap) {
+      btnSwap.onclick = async () => {
+        if (this.isProcessing || !core) return;
+        this.isProcessing = true;
+        let hasPrompt = false;
+        try {
+          const res = await this._executeSequence(core, ['x']);
+          hasPrompt = Boolean(res?.hasPrompt);
+          if (typeof this.onEquipmentChanged === 'function') {
+            this.onEquipmentChanged();
+          }
+        } finally {
+          this.isProcessing = false;
+          if (hasPrompt) {
+            this.hide();
+          } else if (this.isVisible) {
+            this.render();
+          }
+        }
+      };
+    }
+
+    // 二刀流トグル (X / #twoweapon)
+    const btnTwoWeapon = this.elPaperdollModal.querySelector('#btn-paperdoll-two-weapon');
+    if (btnTwoWeapon) {
+      btnTwoWeapon.onclick = async () => {
+        if (this.isProcessing || !core || btnTwoWeapon.disabled) return;
+        this.isProcessing = true;
+        let hasPrompt = false;
+        try {
+          const res = await this._executeSequence(core, ['X']);
+          hasPrompt = Boolean(res?.hasPrompt);
+          if (typeof this.onEquipmentChanged === 'function') {
+            this.onEquipmentChanged();
+          }
+        } finally {
+          this.isProcessing = false;
+          if (hasPrompt) {
+            this.hide();
+          } else if (this.isVisible) {
+            this.render();
+          }
+        }
+      };
+    }
   }
 
   /**
@@ -798,8 +906,10 @@ export class PaperdollModal {
     }
 
     this.isProcessing = true;
+    let hasPrompt = false;
     try {
-      await this._executeSequence(core, recipe.sequence);
+      const res = await this._executeSequence(core, recipe.sequence, { slotId, actionType: 'equip', item });
+      hasPrompt = Boolean(res?.hasPrompt);
       this.selectedCandidateItem = null;
       this.hoverCandidateItem = null;
       if (typeof this.onEquipmentChanged === 'function') {
@@ -807,7 +917,11 @@ export class PaperdollModal {
       }
     } finally {
       this.isProcessing = false;
-      this.render();
+      if (hasPrompt) {
+        this.hide();
+      } else if (this.isVisible) {
+        this.render();
+      }
     }
   }
 
@@ -854,8 +968,10 @@ export class PaperdollModal {
 
 
     this.isProcessing = true;
+    let hasPrompt = false;
     try {
-      await this._executeSequence(core, recipe.sequence);
+      const res = await this._executeSequence(core, recipe.sequence, { slotId, actionType: 'takeOff' });
+      hasPrompt = Boolean(res?.hasPrompt);
       this.selectedCandidateItem = null;
       this.hoverCandidateItem = null;
       if (typeof this.onEquipmentChanged === 'function') {
@@ -863,16 +979,24 @@ export class PaperdollModal {
       }
     } finally {
       this.isProcessing = false;
-      this.render();
+      if (hasPrompt) {
+        this.hide();
+      } else if (this.isVisible) {
+        this.render();
+      }
     }
   }
 
   /**
    * キーストローク列の実行
+   * @param {Object} core
+   * @param {Array<string>} seq
+   * @param {Object} [options={}]
+   * @returns {Promise<{ hasPrompt: boolean }>}
    * @private
    */
-  async _executeSequence(core, seq) {
-    if (!core || !seq || seq.length === 0) return;
+  async _executeSequence(core, seq, options = {}) {
+    if (!core || !seq || seq.length === 0) return { hasPrompt: false };
     if (typeof core.executeSequence === 'function') {
       await core.executeSequence(seq);
     } else if (core.requestController && typeof core.requestController.executeSequence === 'function') {
@@ -880,6 +1004,111 @@ export class PaperdollModal {
     } else {
       seq.forEach(ch => core.sendKey(ch, false, false, false, ch, true));
     }
+
+    // 1. 対話プロンプト（テレポート先指定など）が発生したかを厳密に判定
+    // ※通常ターン待機（POSKEY / NONE / 移動待ち）は除外し、ユーザー入力が必要なプロンプトのみ検出
+    const hasPrompt = this._hasActiveInteractivePrompt(core, options);
+
+    if (hasPrompt) {
+      return { hasPrompt: true };
+    }
+
+    // 2. プロンプトが発生していない場合、インベントリの静音同期を待機してUIと状態を一致させる
+    try {
+      if (core.gkl && typeof core.gkl.syncInventorySilent === 'function') {
+        await core.gkl.syncInventorySilent();
+      } else if (typeof core.syncInventorySilent === 'function') {
+        await core.syncInventorySilent();
+      }
+    } catch (e) {
+      console.warn('[PaperdollModal] Inventory sync failed:', e);
+    }
+
+    return { hasPrompt: false };
+  }
+
+  /**
+   * ユーザーの回答や方向選択を要求する対話型プロンプトがアクティブかを判定
+   * ※通常のターン待機（POSKEY / NONE / マップ移動待ち）は除外
+   * @param {Object} core
+   * @param {Object} [options={}]
+   * @returns {boolean}
+   * @private
+   */
+  _hasActiveInteractivePrompt(core, options = {}) {
+    if (!core) return false;
+
+    // 1. プロンプトカテゴリの明示的な対話型カテゴリ判定
+    // (POSKEY, NONE, UNINITIALIZED 等の通常ターン待機は対話プロンプトではない)
+    const cat = core.currentPromptCategory;
+    const interactiveCategories = new Set([
+      PROMPT_CATEGORY.DIRECTION,
+      PROMPT_CATEGORY.YN,
+      PROMPT_CATEGORY.TEXT,
+      PROMPT_CATEGORY.ASKNAME,
+      PROMPT_CATEGORY.FILE,
+      PROMPT_CATEGORY.EXTCMD,
+      PROMPT_CATEGORY.MENU,
+      'DIRECTION',
+      'YN',
+      'TEXT',
+      'ASKNAME',
+      'FILE',
+      'EXTCMD',
+      'MENU',
+      'COORDINATE'
+    ]);
+
+    if (cat && interactiveCategories.has(cat)) {
+      return true;
+    }
+
+    // 2. 選択肢 (currentPromptChoices) が設定されている場合（YN質問など）
+    if (core.currentPromptChoices && typeof core.currentPromptChoices === 'string' && core.currentPromptChoices.trim().length > 0) {
+      return true;
+    }
+
+    // 3. アクティブなメニューアイテムが存在する場合
+    if (Array.isArray(core.activeMenuItems) && core.activeMenuItems.length > 0) {
+      return true;
+    }
+
+    // 4. ModalManager が対話プロンプトを表示中か
+    const modalMgr = core.modalManager || (typeof window !== 'undefined' && window.app && window.app.modalManager);
+    if (modalMgr) {
+      if (modalMgr.isDirectionPromptActive) return true;
+      if (modalMgr.isTextWindowMode) return true;
+      if (modalMgr.elPromptBar && !modalMgr.elPromptBar.classList.contains('hidden') && !modalMgr.elPromptBar.classList.contains('is-key-waiting')) return true;
+      if (modalMgr.elMenuModal && !modalMgr.elMenuModal.classList.contains('hidden')) return true;
+    }
+
+    // 5. テレポート制御や「Where do you want to...」などのプロンプト文言チェック
+    // raw_print, putstr, driver.lastEmittedMessage, renderer.messages を包括的に走査
+    const recentMessages = [
+      core.lastRawMessageText || '',
+      core.lastPutstrText || '',
+      (core.driver && core.driver.lastEmittedMessage) || '',
+      (core.renderer && Array.isArray(core.renderer.messages) ? core.renderer.messages.slice(-3).join(' ') : '')
+    ].join(' ').toLowerCase();
+
+    if (recentMessages.includes('where do you want to') || 
+        recentMessages.includes('desired position') || 
+        recentMessages.includes('in what direction') ||
+        recentMessages.includes('which way') ||
+        recentMessages.includes('どこにテレポート') ||
+        recentMessages.includes('どこにジャンプ') ||
+        recentMessages.includes('どの方向')) {
+      return true;
+    }
+
+    // アミュレット操作時のテレポートプロンプト特別保護 (アミュレット脱衣・装備直後)
+    if (options.slotId === EQUIP_SLOTS.AMULET) {
+      if (recentMessages.includes('teleport') || recentMessages.includes('テレポート') || recentMessages.includes('どこに')) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -930,6 +1159,52 @@ export class PaperdollModal {
       return confirm(msg);
     }
     return true; // テスト環境ではデフォルト許可
+  }
+
+  /**
+   * 二刀流適性判定（職業・スキル・現在装備から評価）
+   * @param {Object} situation
+   * @param {Object} core
+   * @returns {boolean}
+   * @private
+   */
+  _checkTwoWeaponEligibility(situation, core) {
+    // 1. スキル情報から判定
+    const skills = situation?.skills?.items || situation?.skills || [];
+    if (Array.isArray(skills) && skills.length > 0) {
+      const twoWeaponSkill = skills.find(s => {
+        const name = (s.name || s.nameRaw || '').toLowerCase();
+        return name.includes('two-weapon') || name.includes('二刀流');
+      });
+      if (twoWeaponSkill) {
+        const rankKey = twoWeaponSkill.rank?.key || twoWeaponSkill.rankKey || '';
+        return rankKey !== 'restricted' && !twoWeaponSkill.isRestricted;
+      }
+    }
+
+    // 2. 職業情報から判定 (侍, バーバリアン, ローグ, レンジャー, 騎士 等)
+    const charInfo = situation?.attributes?.characterInfo || core?.characterInfo || {};
+    const charSummary = situation?.attributes?.characterSummary || {};
+    const role = (charInfo.role || charSummary.role || situation?.status?.role || core?.status?.role || '').toLowerCase();
+
+    const eligibleRoles = ['samurai', 'barbarian', 'rogue', 'ranger', 'knight', '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'];
+    if (role && eligibleRoles.some(r => role.includes(r))) {
+      return true;
+    }
+
+    // 3. 既に二刀流中のアイテムが存在する場合
+    if (situation?.equipment?.isTwoWeapon) return true;
+    const invItems = situation?.inventory?.items || core?.inventory?.items || [];
+    if (invItems.some(i => i.isOffhand)) return true;
+
+    // 4. 明示的な非適性職の場合は false
+    const ineligibleRoles = ['valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman', 'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'];
+    if (role && ineligibleRoles.some(r => role.includes(r))) {
+      return false;
+    }
+
+    // 職業・スキルともに情報未確定の場合は操作可能（デフォルト true）
+    return true;
   }
 }
 

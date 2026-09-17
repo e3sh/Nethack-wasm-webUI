@@ -220,6 +220,47 @@ export class InventoryStateManager {
      */
     updateFromSequenceBuffer(sequenceBuffer) {
         if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
+            // バッファが空の場合は同期失敗またはキャンセルとみなし、既存のアイテム状態を安全に保持
+            return false;
+        }
+
+        for (const item of sequenceBuffer) {
+            if (!item) continue;
+
+            if (item.menuItems || item.items) {
+                const menuItems = item.menuItems || item.items;
+                if (Array.isArray(menuItems) && menuItems.length > 0) {
+                    const changed = this.updateFromMenuItems(menuItems);
+                    if (changed || this.items.length > 0) {
+                        return changed;
+                    }
+                }
+            }
+
+            if (item.lines || item.text) {
+                const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
+                if (Array.isArray(lines) && lines.length > 0) {
+                    const changed = this.updateFromLines(lines);
+                    if (changed) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // メニューアイテムも有効テキスト行も見つからなかった場合
+        // 明示的な「何も持っていない」メッセージ（Not carrying anything / 何も持っていません）があるか検査
+        const hasExplicitEmptyMessage = sequenceBuffer.some(item => {
+            const txt = [
+                item.text || '',
+                item.prompt || '',
+                item.message || '',
+                (Array.isArray(item.lines) ? item.lines.join(' ') : '')
+            ].join(' ').toLowerCase();
+            return txt.includes('not carrying anything') || txt.includes('何も持っていません');
+        });
+
+        if (hasExplicitEmptyMessage) {
             const emptySig = this._buildSignature([]);
             if (this.isSynced && this._lastInventorySignature === emptySig) {
                 return false;
@@ -231,34 +272,8 @@ export class InventoryStateManager {
             return hadItems;
         }
 
-        for (const item of sequenceBuffer) {
-            if (!item) continue;
-
-            if (item.menuItems || item.items) {
-                const menuItems = item.menuItems || item.items;
-                if (Array.isArray(menuItems) && menuItems.length > 0) {
-                    return this.updateFromMenuItems(menuItems);
-                }
-            }
-
-            if (item.lines || item.text) {
-                const lines = item.lines || (typeof item.text === 'string' ? item.text.split('\n') : []);
-                if (Array.isArray(lines) && lines.length > 0) {
-                    return this.updateFromLines(lines);
-                }
-            }
-        }
-
-        // メニューアイテムも有効テキスト行も見つからなかった場合 ("Not carrying anything." 等)
-        const emptySig = this._buildSignature([]);
-        if (this.isSynced && this._lastInventorySignature === emptySig) {
-            return false;
-        }
-        const hadItems = this.items.length > 0;
-        this.items = [];
-        this.isSynced = true;
-        this._lastInventorySignature = emptySig;
-        return hadItems;
+        // 明示的な空メッセージがない場合は、インベントリとは無関係のバッファ（別プロンプト等）とみなし既存状態を維持
+        return false;
     }
 
     /**
@@ -281,6 +296,18 @@ export class InventoryStateManager {
                 });
             }
         });
+
+        if (menuItems.length === 0) {
+            // アイテム行が1行もマッチしなかった場合（プロンプト質問文や一般ログ等）
+            const hasExplicitEmpty = lines.some(l => {
+                const s = String(l).toLowerCase();
+                return s.includes('not carrying anything') || s.includes('何も持っていません');
+            });
+            if (hasExplicitEmpty) {
+                return this.updateFromMenuItems([]);
+            }
+            return false;
+        }
 
         return this.updateFromMenuItems(menuItems);
     }
@@ -979,7 +1006,7 @@ export class InventoryStateManager {
                         makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                     ].filter(Boolean);
-                } else if (/\b(amulet|amulets|circular|spherical|oval|triangular|pyramidal|square|concave|hexagonal|octagonal)\b/i.test(cleanText) || /魔よけ|お守り/.test(cleanText)) {
+                } else if (/\b(amulet|amulets|circular|spherical|oval|triangular|pyramidal|square|concave|hexagonal|octagonal)\b/i.test(cleanText) || /魔よけ|魔除け|お守り|アミュレット|護符|首飾り/.test(cleanText)) {
                     defaultVerb = 'P';
                     defaultSequence = letter ? ['P', letter] : ['P'];
                     defaultActionLabel = 'Put on amulet';
@@ -1132,8 +1159,9 @@ export class InventoryStateManager {
                 if (!equipSlot) {
                     if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(rawText)) equipSlot = 'ring_left';
                     else if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(rawText)) equipSlot = 'ring_right';
-                    else if (/around neck|首/i.test(rawText)) equipSlot = 'amulet';
-                    else if (/shield|盾/i.test(rawText)) equipSlot = 'shield';
+                    else if (/around neck|首/i.test(rawText) || categoryFlags?.onumCategory === 'AMULET' || /\b(amulet|necklace|pendant)\b|首飾り|護符|アミュレット/i.test(rawText)) equipSlot = 'amulet';
+                    else if (/shield|盾/i.test(rawText) || categoryFlags?.isShield || categoryFlags?.armorSlot === 'shield') equipSlot = 'shield';
+                    else if (categoryFlags?.armorSlot) equipSlot = categoryFlags.armorSlot;
                     else equipSlot = 'worn';
                 }
             }

@@ -16,6 +16,11 @@ describe('EquipmentRules', () => {
     it('resolveEligibleSlots: 装身具・武器・矢筒の適合スロットを解決できること', () => {
         expect(resolveEligibleSlots({ category: 'RING', name: 'ring of regeneration' })).toEqual(['left_ring', 'right_ring']);
         expect(resolveEligibleSlots({ category: 'AMULET', name: 'amulet of ESP' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ itemCategory: 'AMULET', name: '超感覚の魔よけ' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: '円形の魔よけ' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: 'イェンダーの魔除け' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: '生命維持のお守り' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ equipSlot: 'amulet', name: 'strange item' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ isBlindfoldOrTowel: true, name: 'blindfold' })).toEqual(['blindfold']);
         expect(resolveEligibleSlots({ isAmmo: true, name: 'arrows' })).toEqual(['quiver', 'main_hand']);
         expect(resolveEligibleSlots({ category: 'WEAPON', name: 'long sword' })).toEqual(['main_hand']);
@@ -283,6 +288,30 @@ describe('EquipmentDependencyAnalyzer', () => {
 
         // 耐性付与
         expect(diff.properties.added.some(p => p.key === 'antimagic')).toBe(true);
+    });
+
+    // 16. extractEquippedState: アミュレットの装備スロット検出
+    it('extractEquippedState: アミュレット (being worn) が EQUIP_SLOTS.AMULET に正しくマッピングされること', () => {
+        const inventory = [
+            { letter: 'p', name: 'amulet of ESP', isWorn: true, rawText: 'p - an amulet of ESP (being worn)' },
+            { letter: 'q', name: '超感覚のアミュレット', isWorn: true, rawText: 'q - 超感覚のアミュレット (装備中)' },
+            { letter: 'r', name: 'circular amulet', isWorn: true, rawText: 'r - a circular amulet (being worn)' }
+        ];
+
+        // 1つ目のアミュレット
+        const state1 = EquipmentDependencyAnalyzer.extractEquippedState([inventory[0]]);
+        expect(state1[EQUIP_SLOTS.AMULET]).toBeDefined();
+        expect(state1[EQUIP_SLOTS.AMULET].letter).toBe('p');
+
+        // 和名アミュレット
+        const state2 = EquipmentDependencyAnalyzer.extractEquippedState([inventory[1]]);
+        expect(state2[EQUIP_SLOTS.AMULET]).toBeDefined();
+        expect(state2[EQUIP_SLOTS.AMULET].letter).toBe('q');
+
+        // 未識別アミュレット
+        const state3 = EquipmentDependencyAnalyzer.extractEquippedState([inventory[2]]);
+        expect(state3[EQUIP_SLOTS.AMULET]).toBeDefined();
+        expect(state3[EQUIP_SLOTS.AMULET].letter).toBe('r');
     });
 });
 
