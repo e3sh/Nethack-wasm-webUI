@@ -407,7 +407,7 @@ export class PaperdollModal {
     }
 
     return `
-      <div class="paperdoll-slot ${isSelected ? 'is-selected' : ''} ${isReadonly ? 'is-readonly' : ''} ${cursedClass}"
+      <div class="paperdoll-slot ${item ? 'has-item' : 'is-empty'} ${isSelected ? 'is-selected' : ''} ${isReadonly ? 'is-readonly' : ''} ${cursedClass}"
            data-slot="${slotId}"
            title="${tooltipText}">
         ${letterTagHtml}
@@ -453,10 +453,10 @@ export class PaperdollModal {
       }
     }
 
-    const itemName = item ? `${item.letter ? item.letter + ' - ' : ''}${this._getItemDisplayName(item)}` : (isEn ? `Empty (${def.labelEn})` : `(未着用: ${def.labelJa})`);
+    const itemName = item ? `${item.letter ? item.letter + ' - ' : ''}${this._getItemDisplayName(item)}` : (isEn ? `Empty (${def.labelEn})` : `未着用 (${def.labelJa})`);
 
     return `
-      <div class="torso-layer-slot ${layerTypeClass} ${isSelected ? 'is-selected' : ''} ${cursedClass}"
+      <div class="torso-layer-slot ${layerTypeClass} ${item ? 'has-item' : 'is-empty'} ${isSelected ? 'is-selected' : ''} ${cursedClass}"
            data-slot="${slotId}"
            title="${itemName}">
         <span class="torso-layer-badge ${layerBadgeClass}">L${layerNum}</span>

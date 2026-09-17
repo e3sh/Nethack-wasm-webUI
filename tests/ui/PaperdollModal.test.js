@@ -144,6 +144,22 @@ describe('PaperdollModal - 装備ペーパードールUI', () => {
     expect(html).toContain('is-cursed');
   });
 
+  it('装備中スロットに has-item、未装備の空きスロットに is-empty クラスが付与されること', () => {
+    paperdoll.show();
+    const html = modalElement.innerHTML;
+
+    // 通常スロット: 主手 (weapon) や手 (gloves) には has-item、頭 (helm) や足 (boots) には is-empty
+    expect(html).toMatch(/class="[^"]*paperdoll-slot[^"]*has-item[^"]*"[^>]*data-slot="main_hand"/);
+    expect(html).toMatch(/class="[^"]*paperdoll-slot[^"]*has-item[^"]*"[^>]*data-slot="gloves"/);
+    expect(html).toMatch(/class="[^"]*paperdoll-slot[^"]*is-empty[^"]*"[^>]*data-slot="helm"/);
+    expect(html).toMatch(/class="[^"]*paperdoll-slot[^"]*is-empty[^"]*"[^>]*data-slot="boots"/);
+
+    // 胴体レイヤースロット: 外套・鎧は has-item、シャツは未着用なので is-empty
+    expect(html).toMatch(/class="[^"]*torso-layer-slot[^"]*has-item[^"]*"[^>]*data-slot="cloak"/);
+    expect(html).toMatch(/class="[^"]*torso-layer-slot[^"]*has-item[^"]*"[^>]*data-slot="suit"/);
+    expect(html).toMatch(/class="[^"]*torso-layer-slot[^"]*is-empty[^"]*"[^>]*data-slot="shirt"/);
+  });
+
   it('スロット選択と適合アイテム絞り込み（クイックセレクター）が動作すること', () => {
     paperdoll.selectedSlot = EQUIP_SLOTS.HELM;
     paperdoll.show();
