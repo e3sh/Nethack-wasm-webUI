@@ -793,6 +793,18 @@
                 renderEngravings();
                 renderWard();
             });
+
+            // 別タブ（ゲーム本編画面）での手帳更新をリアルタイムに自動同期
+            window.addEventListener('storage', async (e) => {
+                if (e.key === 'nethack_webui_lore_codex') {
+                    await codex.load();
+                    updateStatsUI();
+                    renderRumors();
+                    renderOracles();
+                    renderEngravings();
+                    renderWard();
+                }
+            });
         }
 
         // タブ切り替え

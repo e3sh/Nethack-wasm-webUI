@@ -3322,7 +3322,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_25",
-    "text": "[cookie] A wish?  Okay, make me a fortune cookie!",
+    "text": "A wish?  Okay, make me a fortune cookie!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -3762,7 +3762,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_80",
-    "text": "[cookie] Help!  I'm being held prisoner in a fortune cookie factory!",
+    "text": "Help!  I'm being held prisoner in a fortune cookie factory!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -4170,7 +4170,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_131",
-    "text": "[cookie] No part of this fortune may be reproduced, stored in a retrieval system, ...",
+    "text": "No part of this fortune may be reproduced, stored in a retrieval system, ...",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -4402,7 +4402,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_160",
-    "text": "[cookie] Sorry, no fortune this time.  Better luck next cookie!",
+    "text": "Sorry, no fortune this time.  Better luck next cookie!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -4666,7 +4666,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_193",
-    "text": "[cookie] They say that a fortune only has 1 line and you can't read between it.",
+    "text": "They say that a fortune only has 1 line and you can't read between it.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -4674,7 +4674,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_194",
-    "text": "[cookie] They say that a fortune only has 1 line, but you can read between it.",
+    "text": "They say that a fortune only has 1 line, but you can read between it.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -4706,7 +4706,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_198",
-    "text": "[cookie] They say that a gypsy could tell your fortune for a price.",
+    "text": "They say that a gypsy could tell your fortune for a price.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -5146,7 +5146,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_253",
-    "text": "[cookie] They say that fortune cookies are food for thought.",
+    "text": "They say that fortune cookies are food for thought.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -5962,7 +5962,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_355",
-    "text": "[cookie] This fortune cookie is copy protected.",
+    "text": "This fortune cookie is copy protected.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -5970,7 +5970,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_356",
-    "text": "[cookie] This fortune cookie is the property of Fortune Cookies, Inc.",
+    "text": "This fortune cookie is the property of Fortune Cookies, Inc.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6090,7 +6090,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_371",
-    "text": "[cookie] Warning:  fortune reading can be hazardous to your health.",
+    "text": "Warning:  fortune reading can be hazardous to your health.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6114,7 +6114,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_374",
-    "text": "[cookie] What a pity, you cannot read it!",
+    "text": "What a pity, you cannot read it!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6154,7 +6154,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_379",
-    "text": "[cookie] Why are you wasting time reading fortunes?",
+    "text": "Why are you wasting time reading fortunes?",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6194,7 +6194,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_384",
-    "text": "[cookie] You are destined to be misled by a fortune.",
+    "text": "You are destined to be misled by a fortune.",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6234,7 +6234,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_389",
-    "text": "[cookie] You choke on the fortune cookie.  --More--",
+    "text": "You choke on the fortune cookie.  --More--",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6258,7 +6258,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_392",
-    "text": "[cookie] You hear the fortune cookie's hissing!",
+    "text": "You hear the fortune cookie's hissing!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
@@ -6282,7 +6282,7 @@ export const RUMORS = [
   },
   {
     "id": "rumor_fal_395",
-    "text": "[cookie] You swallowed the fortune!",
+    "text": "You swallowed the fortune!",
     "translatedText": "",
     "isTrue": false,
     "category": "RUMOR",
