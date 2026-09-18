@@ -208,6 +208,7 @@ $$\text{Beep最終音量} = \left(\frac{\text{rule.volume}}{100}\right) \times \
 
 ## 6. 関連ドキュメント
 
+* [dynamic_musical_synthesis_concept.ja.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/4_sound/dynamic_musical_synthesis_concept.ja.md) - 動的音程シンセシス構想（きしむ床の12音階、モンスターの声、跳ね橋演奏のWeb Audio演出）
 * [soundprocs_shim_research.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/soundprocs_shim_research.md) - NetHack 5.0 soundprocs アーキテクチャと WASM shim 拡張に関する技術考察・研究レポート
 * [README.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/README.md) - プロジェクト全体の概要
 * [shim_reference.ja.md](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/shim_reference.ja.md) - NetHack WASM shim インターフェースリファレンス

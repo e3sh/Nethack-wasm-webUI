@@ -17,9 +17,10 @@ export class LoreCodex {
      */
     constructor(options = {}) {
         this.storage = options.storage || new LoreCodexStorage();
-        this.rumors = new Map();   // rumorId -> rumorObject
-        this.oracles = new Map();  // oracleId -> oracleObject
-        this.currentWard = null;   // 最新の結界状態
+        this.rumors = new Map();     // rumorId -> rumorObject
+        this.oracles = new Map();    // oracleId -> oracleObject
+        this.engravings = new Map(); // engravingId -> engravingObject (床文字・落書き・墓碑銘コレクション)
+        this.currentWard = null;     // 最新の結界状態
         this.listeners = new Set();
         this.master = LORE_MASTER;
 
@@ -130,6 +131,56 @@ export class LoreCodex {
     }
 
     /**
+     * 床の刻み文字 / 落書き / 墓碑銘を冒険手帳に記録・追加
+     *
+     * @param {Object} engraving
+     * @param {string} [engraving.id]
+     * @param {string} engraving.text - 原型または読み取った文字列
+     * @param {string} [engraving.actualText] - 読んだ際のかすれ文字
+     * @param {string} [engraving.translatedText] - 日本語訳
+     * @param {string} [engraving.source] - 出典 (Portal, Discworld, 墓碑銘等)
+     * @param {string} [engraving.category='ENGRAVING']
+     * @param {string} [engraving.subCategory]
+     * @param {boolean} [engraving.isHeadstone=false]
+     * @returns {{ isNew: boolean, engraving: Object }}
+     */
+    addEngraving(engraving) {
+        if (!engraving || (!engraving.id && !engraving.text)) {
+            return { isNew: false, engraving: null };
+        }
+
+        const id = engraving.id || `engr_${(engraving.text || engraving.actualText).substring(0, 32).toLowerCase()}`;
+        const existing = this.engravings.get(id);
+        const isNew = !existing;
+
+        // 床文字コレクション内の category は ENGRAVING / HEADSTONE / ELBERETH に正規化
+        let validCategory = engraving.category || existing?.category;
+        if (!validCategory || validCategory === 'RUMOR' || validCategory === 'ORACLE') {
+            validCategory = engraving.isHeadstone ? 'HEADSTONE' : (engraving.category === 'ELBERETH' ? 'ELBERETH' : 'ENGRAVING');
+        }
+
+        const entry = {
+            id: id,
+            text: engraving.text || existing?.text || engraving.actualText || '',
+            actualText: engraving.actualText || existing?.actualText || '',
+            translatedText: engraving.translatedText || existing?.translatedText || '',
+            source: engraving.source || existing?.source || (engraving.isHeadstone ? '墓碑銘 (Headstone)' : '床の落書き'),
+            category: validCategory,
+            subCategory: engraving.subCategory || existing?.subCategory || (engraving.category === 'RUMOR' ? 'RUMOR' : ''),
+            isHeadstone: engraving.isHeadstone || existing?.isHeadstone || false,
+            firstDiscoveredAt: existing ? existing.firstDiscoveredAt : new Date().toISOString(),
+            lastSeenAt: new Date().toISOString(),
+            seenCount: (existing?.seenCount || 0) + 1
+        };
+
+        this.engravings.set(id, entry);
+        this._autoSave();
+        this._notify('engravingAdded', { isNew, engraving: entry });
+
+        return { isNew, engraving: entry };
+    }
+
+    /**
      * 最新の床の刻み文字 / Elbereth 結界状態を更新
      * @param {Object} wardData
      */
@@ -175,7 +226,24 @@ export class LoreCodex {
     }
 
     /**
-     * 収集統計（Rumor / Oracle / 全体）の取得
+     * 収集した床文字・落書き・墓碑銘一覧を取得
+     * @param {'recent'|'id'|'category'} [sortBy='recent']
+     * @returns {Array<Object>}
+     */
+    getEngravings(sortBy = 'recent') {
+        const list = Array.from(this.engravings.values());
+        if (sortBy === 'recent') {
+            return list.sort((a, b) => new Date(b.lastSeenAt) - new Date(a.lastSeenAt));
+        } else if (sortBy === 'category') {
+            return list.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+        } else if (sortBy === 'id') {
+            return list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+        }
+        return list;
+    }
+
+    /**
+     * 収集統計（Rumor / Oracle / Engraving / 全体）の取得
      * @returns {Object}
      */
     getStats() {
@@ -188,10 +256,12 @@ export class LoreCodex {
         const trueCount = collectedRumors.filter(r => r.isTrue).length;
         const falseCount = collectedRumors.filter(r => !r.isTrue).length;
         const oracleCount = this.oracles.size;
+        const engravingCount = this.engravings.size;
 
         return {
             rumors: {
                 total: totalMasterRumors,
+                totalMaster: totalMasterRumors,
                 collected: collectedRumors.length,
                 trueCount: trueCount,
                 falseCount: falseCount,
@@ -199,16 +269,25 @@ export class LoreCodex {
                 totalFalse: totalMasterFalse,
                 percentage: Number(((collectedRumors.length / totalMasterRumors) * 100).toFixed(1)),
                 truePercentage: Number(((trueCount / totalMasterTrue) * 100).toFixed(1)),
-                falsePercentage: Number(((falseCount / totalMasterFalse) * 100).toFixed(1))
+                falsePercentage: Number(((falseCount / totalMasterFalse) * 100).toFixed(1)),
+                ratio: totalMasterRumors > 0 ? collectedRumors.length / totalMasterRumors : 0,
+                trueRatio: totalMasterTrue > 0 ? trueCount / totalMasterTrue : 0,
+                falseRatio: totalMasterFalse > 0 ? falseCount / totalMasterFalse : 0
             },
             oracles: {
                 total: totalMasterOracles,
+                totalMaster: totalMasterOracles,
                 collected: oracleCount,
-                percentage: Number(((oracleCount / totalMasterOracles) * 100).toFixed(1))
+                percentage: Number(((oracleCount / totalMasterOracles) * 100).toFixed(1)),
+                ratio: totalMasterOracles > 0 ? oracleCount / totalMasterOracles : 0
+            },
+            engravings: {
+                collected: engravingCount
             },
             overall: {
                 totalEntries: totalMasterRumors + totalMasterOracles,
-                totalCollected: collectedRumors.length + oracleCount,
+                totalCollected: collectedRumors.length + oracleCount + engravingCount,
+                totalEngravings: engravingCount,
                 percentage: Number((((collectedRumors.length + oracleCount) / (totalMasterRumors + totalMasterOracles)) * 100).toFixed(1))
             }
         };
@@ -218,14 +297,14 @@ export class LoreCodex {
      * 伝承コレクションの検索・フィルタ
      *
      * @param {string} [query=''] - 検索語 (英和部分一致)
-     * @param {'ALL'|'TRUE'|'FALSE'|'ORACLE'} [filter='ALL'] - 種別フィルタ
+     * @param {'ALL'|'RUMOR'|'TRUE'|'FALSE'|'ORACLE'|'ENGRAVING'} [filter='ALL'] - 種別フィルタ
      * @returns {Array<Object>}
      */
     search(query = '', filter = 'ALL') {
         const q = String(query).trim().toLowerCase();
         let items = [];
 
-        if (filter !== 'ORACLE') {
+        if (filter !== 'ORACLE' && filter !== 'ENGRAVING') {
             const rumors = this.getRumors();
             for (const r of rumors) {
                 if (filter === 'TRUE' && !r.isTrue) continue;
@@ -237,6 +316,11 @@ export class LoreCodex {
         if (filter === 'ALL' || filter === 'ORACLE') {
             const oracles = this.getOracles();
             items.push(...oracles);
+        }
+
+        if (filter === 'ALL' || filter === 'ENGRAVING') {
+            const engravings = this.getEngravings();
+            items.push(...engravings);
         }
 
         if (!q) {
@@ -270,6 +354,7 @@ export class LoreCodex {
         return {
             rumors: Array.from(this.rumors.values()),
             oracles: Array.from(this.oracles.values()),
+            engravings: Array.from(this.engravings.values()),
             lastWard: this.currentWard
         };
     }
@@ -305,6 +390,11 @@ export class LoreCodex {
                 if (o && o.id) this.oracles.set(o.id, o);
             }
         }
+        if (Array.isArray(data.engravings)) {
+            for (const e of data.engravings) {
+                if (e && e.id) this.engravings.set(e.id, e);
+            }
+        }
         if (data.lastWard) {
             this.currentWard = data.lastWard;
         }
@@ -317,6 +407,7 @@ export class LoreCodex {
     async reset() {
         this.rumors.clear();
         this.oracles.clear();
+        this.engravings.clear();
         this.currentWard = null;
         if (this.storage) {
             await this.storage.clear();

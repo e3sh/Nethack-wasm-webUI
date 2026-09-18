@@ -235,6 +235,17 @@ export class WebUICore {
     }
 
     /**
+     * GKLプラグインが管理する統合ゲーム状況 (Situation) を取得
+     * @returns {Object|null}
+     */
+    getSituation() {
+        if (this.gkl && typeof this.gkl.getSituation === 'function') {
+            return this.gkl.getSituation();
+        }
+        return null;
+    }
+
+    /**
      * 冒険手帳・伝承コレクションマネージャを取得
      * @returns {LoreCodex}
      */
@@ -1376,7 +1387,15 @@ export class WebUICore {
 
             // 📡 Layer 4: LORE シグナル検知 & Codex 連携
             if (this.loreDetector) {
-                const loreSignal = this.loreDetector.processMessage(rawText);
+                let anchorCandidate = null;
+                const asm = this.gkl?.areaStateManager;
+                const playerX = asm?.playerX ?? -1;
+                const playerY = asm?.playerY ?? -1;
+                if (asm && playerX >= 0 && playerY >= 0) {
+                    anchorCandidate = asm.getEngravingAt(playerX, playerY);
+                }
+
+                const loreSignal = this.loreDetector.processMessage(rawText, { anchorCandidate });
                 if (loreSignal && loreSignal.matched) {
                     if (this.loreCodex) {
                         if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR') {
@@ -1397,6 +1416,43 @@ export class WebUICore {
                             });
                         } else if (loreSignal.signalId === 'SIGNAL_LORE_ENGRAVE') {
                             this.loreCodex.updateWard(loreSignal);
+
+                            // 同一マスでの風化追跡のため、同定結果を AreaStateManager の床文字キャッシュに保存
+                            if (asm && playerX >= 0 && playerY >= 0 && !loreSignal.isHeadstone) {
+                                asm.setEngravingAt(playerX, playerY, loreSignal.restored || {
+                                    pristineText: loreSignal.pristineText,
+                                    actualText: loreSignal.actualText,
+                                    translation: loreSignal.restored?.translation || '',
+                                    source: loreSignal.restored?.source || '',
+                                    category: loreSignal.restored?.category || (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                                    subCategory: loreSignal.restored?.subCategory || '',
+                                    isTrue: loreSignal.restored?.isTrue ?? null
+                                });
+                            }
+
+                            // 考古学的に復元された内容が噂話 (RUMOR) の場合、噂話図鑑にも自動収集
+                            if (loreSignal.restored?.category === 'RUMOR' && loreSignal.restored?.pristineText) {
+                                this.loreCodex.addRumor({
+                                    id: loreSignal.restored.id || undefined,
+                                    text: loreSignal.restored.pristineText,
+                                    translatedText: loreSignal.restored.translation,
+                                    isTrue: loreSignal.restored.isTrue,
+                                    source: 'engraving'
+                                });
+                            }
+
+                            // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録
+                            if (typeof this.loreCodex.addEngraving === 'function') {
+                                this.loreCodex.addEngraving({
+                                    text: loreSignal.pristineText || loreSignal.actualText,
+                                    actualText: loreSignal.actualText,
+                                    translatedText: loreSignal.restored?.translation || (loreSignal.isElbereth ? 'エルベレス' : ''),
+                                    source: loreSignal.restored?.source || (loreSignal.isHeadstone ? '墓碑銘 (Headstone)' : (loreSignal.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
+                                    category: loreSignal.isHeadstone ? 'HEADSTONE' : (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                                    subCategory: loreSignal.restored?.category || '',
+                                    isHeadstone: loreSignal.isHeadstone || false
+                                });
+                            }
                         }
                     }
                     this.emit('signal', loreSignal);

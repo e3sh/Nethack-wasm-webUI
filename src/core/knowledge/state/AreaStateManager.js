@@ -68,6 +68,7 @@ export class AreaStateManager {
         this.isFloorPending = false;     // clear_nhwindow 後のフロア確定待ちフラグ
         this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
         this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
+        this.engravingCache = new Map(); // 現在フロアの床文字同定キャッシュ ("x,y" => EngravingData)
         this.grid = [];
         this.resetGrid();
     }
@@ -432,6 +433,9 @@ export class AreaStateManager {
         }
         this.lastMoveDx = 0;
         this.lastMoveDy = 0;
+        if (this.engravingCache) {
+            this.engravingCache.clear();
+        }
         this.grid = [];
         for (let y = 0; y < this.height; y++) {
             const row = [];
@@ -447,6 +451,38 @@ export class AreaStateManager {
             }
             this.grid.push(row);
         }
+    }
+
+    /**
+     * 指定座標の床文字キャッシュを取得
+     * @param {number} x
+     * @param {number} y
+     * @returns {Object|null}
+     */
+    getEngravingAt(x, y) {
+        if (!this.engravingCache) return null;
+        return this.engravingCache.get(`${x},${y}`) || null;
+    }
+
+    /**
+     * 指定座標の床文字キャッシュを保存・更新
+     * @param {number} x
+     * @param {number} y
+     * @param {Object} data
+     */
+    setEngravingAt(x, y, data) {
+        if (!this.engravingCache || !data) return;
+        this.engravingCache.set(`${x},${y}`, data);
+    }
+
+    /**
+     * 指定座標の床文字キャッシュを消去 (完全に踏み消されて床に戻った場合など)
+     * @param {number} x
+     * @param {number} y
+     */
+    clearEngravingAt(x, y) {
+        if (!this.engravingCache) return;
+        this.engravingCache.delete(`${x},${y}`);
     }
 
     /**

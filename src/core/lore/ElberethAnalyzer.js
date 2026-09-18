@@ -109,9 +109,10 @@ export class ElberethAnalyzer {
         // - または "elbereth" の大文字小文字違い
         const isCaseInsensitiveElbereth = trimmed.toLowerCase() === target.toLowerCase();
         const startsWithElb = trimmed.toLowerCase().startsWith('elb');
-        const hasHighIntegrity = integrity >= 0.35 && (trimmed.includes('Elb') || trimmed.includes('elb') || trimmed.includes('bereth') || trimmed.includes('ber?th'));
+        const startsWithEl = trimmed.toLowerCase().startsWith('el') && integrity >= 0.4;
+        const hasHighIntegrity = integrity >= 0.6 || (integrity >= 0.35 && (trimmed.includes('Elb') || trimmed.includes('elb') || trimmed.includes('bereth') || trimmed.includes('ber?th') || trimmed.toLowerCase().includes('ereth')));
 
-        const isElbereth = isCaseInsensitiveElbereth || startsWithElb || hasHighIntegrity;
+        const isElbereth = isCaseInsensitiveElbereth || startsWithElb || startsWithEl || hasHighIntegrity;
 
         if (!isElbereth) {
             return {

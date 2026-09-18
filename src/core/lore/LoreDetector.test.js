@@ -67,6 +67,46 @@ describe('LoreDetector - メッセージストリーム LORE シグナル検知�
         expect(sig.isWardActive).toBe(false);
         expect(sig.status).toBe('DEGRADED');
         expect(sig.warning).toContain('結界無効');
+        expect(sig.restored).not.toBeNull();
+        expect(sig.restored.pristineText).toBe('Elbereth');
+    });
+
+    it('墓石 (HEADSTONE) のメッセージを検知し、劣化しない墓碑銘として判定されること', () => {
+        expect(detector.processMessage('Something is engraved here on the headstone.')).toBeNull();
+
+        const sig = detector.processMessage('You read: "Rest in Peace".');
+        expect(sig).not.toBeNull();
+        expect(sig.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sig.engraveType).toBe('HEADSTONE');
+        expect(sig.isHeadstone).toBe(true);
+        expect(sig.actualText).toBe('Rest in Peace');
+        expect(sig.isElbereth).toBe(false);
+        expect(sig.isWardActive).toBe(false);
+        expect(sig.warning).toBeNull();
+    });
+
+    it('かすれた床文字から考古学的復元結果 (restored) がペイロードに付与されること', () => {
+        // engrave.txt の落書きのかすれ
+        const sigEngrave = detector.processMessage('You read: "Th? c?ke ?s a l?e".');
+        expect(sigEngrave).not.toBeNull();
+        expect(sigEngrave.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sigEngrave.actualText).toBe('Th? c?ke ?s a l?e');
+        expect(sigEngrave.pristineText).toBe('The cake is a lie');
+        expect(sigEngrave.restored).not.toBeNull();
+        expect(sigEngrave.restored.pristineText).toBe('The cake is a lie');
+        expect(sigEngrave.restored.translation).toContain('ケーキは嘘だ');
+        expect(sigEngrave.restored.source).toContain('Portal');
+        expect(sigEngrave.restored.confidence).toBeGreaterThan(0.7);
+
+        // 床に刻まれた噂話 (Rumor) のかすれ
+        const sigRumor = detector.processMessage('You read: "A cry?tal pl?te ma?l wi?l not ru?t."');
+        expect(sigRumor).not.toBeNull();
+        expect(sigRumor.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sigRumor.restored).not.toBeNull();
+        expect(sigRumor.restored.category).toBe('RUMOR');
+        expect(sigRumor.restored.isTrue).toBe(true);
+        expect(sigRumor.restored.pristineText).toBe('A crystal plate mail will not rust.');
+        expect(sigRumor.restored.translation).toContain('錆びない');
     });
 
     it('神託所の大預言から SIGNAL_LORE_ORACLE を検知できること', () => {
@@ -84,6 +124,114 @@ one last charge may yet be wrested from it!`;
         expect(sig.translatedText).toBeTruthy();
     });
 
+    it('同一行にプレフィックスと読取結果が連結されたメッセージから刻み種別と復元を検知できること (英語)', () => {
+        // 1. 床の落書き (floor)
+        const msgFloor = 'There\'s some graffiti on the floor here.  You read: "Th? c?ke ?s a l?e".';
+        const sig1 = detector.processMessage(msgFloor);
+        expect(sig1).not.toBeNull();
+        expect(sig1.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sig1.engraveType).toBe('MARK');
+        expect(sig1.actualText).toBe('Th? c?ke ?s a l?e');
+        expect(sig1.restored).not.toBeNull();
+        expect(sig1.restored.pristineText).toBe('The cake is a lie');
+
+        // 2. 地面の落書き (ground - 洞窟や非部屋)
+        const msgGround = 'There\'s some graffiti on the ground here.  You read: "Th? c?ke ?s a l?e".';
+        const sig2 = detector.processMessage(msgGround);
+        expect(sig2).not.toBeNull();
+        expect(sig2.engraveType).toBe('MARK');
+
+        // 3. 埃の刻み文字 (dust 連結)
+        const msgDust = 'Something is written here in the dust.  You read: "Elbereth".';
+        const sig3 = detector.processMessage(msgDust);
+        expect(sig3).not.toBeNull();
+        expect(sig3.engraveType).toBe('DUST');
+        expect(sig3.isElbereth).toBe(true);
+        expect(sig3.isWardActive).toBe(true);
+
+        // 4. 床の刻み文字 (engraved 連結)
+        const msgEngrave = 'Something is engraved here on the floor.  You read: "Vlad was here".';
+        const sig4 = detector.processMessage(msgEngrave);
+        expect(sig4).not.toBeNull();
+        expect(sig4.engraveType).toBe('ENGRAVE');
+
+        // 5. 焼き付き文字 (burned 連結)
+        const msgBurn = 'Some text has been burned into the floor here.  You read: "Vlad was here".';
+        const sig5 = detector.processMessage(msgBurn);
+        expect(sig5).not.toBeNull();
+        expect(sig5.engraveType).toBe('BURN');
+
+        // 6. 盲目時の触覚読取 (You feel the words 連結)
+        const msgBlind = 'Something is engraved here on the floor.  You feel the words: "Elbereth".';
+        const sig6 = detector.processMessage(msgBlind);
+        expect(sig6).not.toBeNull();
+        expect(sig6.engraveType).toBe('ENGRAVE');
+        expect(sig6.isElbereth).toBe(true);
+    });
+
+    it('複数行に分割された英語メッセージから刻み種別と復元を検知できること (Read: や --More-- に対応)', () => {
+        // 1. 標準的な複数行分割 (1行目 There's..., 2行目 You read: ...)
+        expect(detector.processMessage('There\'s some graffiti on the floor here.')).toBeNull();
+        const sig1 = detector.processMessage('You read: "Th? c?ke ?s a l?e".');
+        expect(sig1).not.toBeNull();
+        expect(sig1.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sig1.engraveType).toBe('MARK');
+        expect(sig1.restored.pristineText).toBe('The cake is a lie');
+
+        // 2. You なしの "Read: ..." パターン
+        expect(detector.processMessage('There\'s some graffiti on the floor here.')).toBeNull();
+        const sig2 = detector.processMessage('Read: "Vlad was here".');
+        expect(sig2).not.toBeNull();
+        expect(sig2.actualText).toBe('Vlad was here');
+        expect(sig2.engraveType).toBe('MARK');
+
+        // 4. 実機ログ生テキスト (\r 混入および先頭オフセットずれによる復元)
+        expect(detector.processMessage('There\'s some graffiti on the floor here.')).toBeNull();
+        const rawUserMsg = 'You read: "hey ?ay tha? ga?ter sn? e me?t may nct ?aste good b?t it s still hcalt?y.\r".';
+        const sig4 = detector.processMessage(rawUserMsg);
+        expect(sig4).not.toBeNull();
+        expect(sig4.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sig4.engraveType).toBe('MARK');
+        expect(sig4.restored).not.toBeNull();
+        expect(sig4.restored.pristineText).toBe("They say that garter snake meat may not taste good but it's still healthy.");
+        expect(sig4.restored.translation).toContain('ガータースネーク');
+        expect(sig4.restored.confidence).toBeGreaterThan(0.9);
+        expect(sig4.restored.isTrue).toBe(true);
+    });
+
+    it('NetHackJPの日本語メッセージ (同一行連結および複数行) を完璧に検知できること', () => {
+        // 日本語: 落書き踏み荒らし (同一行連結)
+        const msgGraffiti = '床に落書きがある.  あなたは読んだ: "Th? c?ke ?s a l?e".';
+        const sig1 = detector.processMessage(msgGraffiti);
+        expect(sig1).not.toBeNull();
+        expect(sig1.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+        expect(sig1.engraveType).toBe('MARK');
+        expect(sig1.restored.pristineText).toBe('The cake is a lie');
+
+        // 日本語: 埃文字 (複数行)
+        expect(detector.processMessage('埃の上に何かが書かれている.')).toBeNull();
+        const sig2 = detector.processMessage('あなたは読んだ: "Elbereth".');
+        expect(sig2).not.toBeNull();
+        expect(sig2.engraveType).toBe('DUST');
+        expect(sig2.isElbereth).toBe(true);
+        expect(sig2.isWardActive).toBe(true);
+
+        // 日本語: 盲目時の触覚読取
+        const msgBlind = '床に何かが刻まれている.  あなたは文字を触って感じた: "Elbereth".';
+        const sig3 = detector.processMessage(msgBlind);
+        expect(sig3).not.toBeNull();
+        expect(sig3.engraveType).toBe('ENGRAVE');
+        expect(sig3.isElbereth).toBe(true);
+
+        // 日本語: フォーチュンクッキー
+        expect(detector.processMessage('このクッキーには紙片が入っている.')).toBeNull();
+        expect(detector.processMessage('こう書かれている:')).toBeNull();
+        const sigRumor = detector.processMessage("A blindfold can be very useful if you're telepathic.");
+        expect(sigRumor).not.toBeNull();
+        expect(sigRumor.signalId).toBe('SIGNAL_LORE_RUMOR');
+        expect(sigRumor.source).toBe('cookie');
+    });
+
     it('通常の戦闘・行動メッセージで誤爆 (False Positive) を起こさないこと', () => {
         const normalMessages = [
             'You hit the goblin!',
@@ -92,7 +240,9 @@ one last charge may yet be wrested from it!`;
             'In what direction?',
             'What do you want to drink? [a or ?*]',
             'You feel much better.',
-            'There is a wooden door here.'
+            'There is a wooden door here.',
+            '床の上に何かがある.',
+            'ゴブリンを攻撃した!'
         ];
 
         for (const msg of normalMessages) {

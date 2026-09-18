@@ -15,6 +15,7 @@ import { CharacterCreationModal } from './modules/components/CharacterCreationMo
 import { ContainerModal } from './modules/components/ContainerModal.js';
 import { PaperdollModal } from './modules/components/PaperdollModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
+import { EngravingHud } from './modules/components/EngravingHud.js';
 
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 
@@ -139,6 +140,21 @@ class GklPureJSClient {
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath
     });
 
+    // 7.5 Engraving HUD (案A: ステータスバー直下の床文字考古学復元バナー)
+    this.engravingHud = new EngravingHud({
+      elEngravingHud: document.getElementById('engraving-hud'),
+      elEngravingHudIcon: document.getElementById('engraving-hud-icon'),
+      elEngravingActual: document.getElementById('engraving-actual'),
+      elEngravingArrow: document.getElementById('engraving-arrow'),
+      elEngravingPristine: document.getElementById('engraving-pristine'),
+      elEngravingConfidenceBadge: document.getElementById('engraving-confidence-badge'),
+      elEngravingTranslation: document.getElementById('engraving-translation'),
+      elEngravingSourceBadge: document.getElementById('engraving-source-badge'),
+      elBtnEngraveReapply: document.getElementById('btn-engrave-reapply'),
+      elBtnEngravingClose: document.getElementById('btn-engraving-close'),
+      getCore: () => this.core
+    });
+
     // 8. Character Creation Modal (Tabbed Wizard)
     this.characterCreationModal = new CharacterCreationModal({
       getCore: () => this.core
@@ -230,12 +246,10 @@ class GklPureJSClient {
     // コンテナ中身の確定・出し入れ時にインベントリ・負荷ゲージを即座に再描画
     if (this.containerController.contentsManager) {
       this.containerController.contentsManager.on('contentsConfirmed', () => {
-        const situation = this.core.getSituation();
-        this.renderAll(situation);
+        this.renderGklUi();
       });
       this.containerController.contentsManager.on('itemTransferred', () => {
-        const situation = this.core.getSituation();
-        this.renderAll(situation);
+        this.renderGklUi();
       });
     }
 
@@ -302,11 +316,24 @@ class GklPureJSClient {
       if (x >= 0 && y >= 0) {
         this.mapRenderer.redrawSingleCell(x, y);
       }
+
+      // プレイヤーが移動した場合は床文字HUDを自然に片付け
+      if (prevX !== x || prevY !== y) {
+        this.engravingHud?.onPlayerMoved(x, y);
+      }
+    });
+
+    // 4.5 床文字・考古学的復元シグナル (SIGNAL_LORE_ENGRAVE) の受信 (案A HUD)
+    this.core.on('signal:SIGNAL_LORE_ENGRAVE', (data) => {
+      console.log('[GklClient] Received signal:SIGNAL_LORE_ENGRAVE:', data);
+      if (this.isGameExited) return;
+      this.engravingHud?.show(data);
     });
 
     if (typeof window !== 'undefined') {
       window.core = this.core;
       window.gkl = this.core.gkl;
+      window.engravingHud = this.engravingHud;
     }
 
     // 5. Print Glyph (Map Update & GKL AreaStateManager 同期)
@@ -734,6 +761,10 @@ class GklPureJSClient {
       }
       this.keyHandler.handleGlobalKeyDown(e);
     });
+  }
+
+  renderAll() {
+    this.renderGklUi();
   }
 
   renderGklUi() {

@@ -382,6 +382,7 @@ export class WebUICore {
     getHighScores(): ScoreboardEntry[];
     getHighScoresAsync(): Promise<ScoreboardEntry[]>;
     getStatus(): StructuredStatus;
+    getSituation(): SituationData | null;
     translate(text: string): string;
     lookupWord(word: string, pos?: string): string;
     getGlyphStyle(glyph: number | object, options?: GlyphRenderOptions): Record<string, string> | null;

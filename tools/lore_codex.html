@@ -335,6 +335,21 @@
             color: var(--accent-blue);
             border: 1px solid rgba(88, 166, 255, 0.3);
         }
+        .truth-badge.engraving {
+            background-color: rgba(210, 153, 34, 0.15);
+            color: var(--accent-gold);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
+        .truth-badge.headstone {
+            background-color: rgba(140, 149, 159, 0.2);
+            color: #c9d1d9;
+            border: 1px solid rgba(140, 149, 159, 0.4);
+        }
+        .truth-badge.elbereth {
+            background-color: rgba(88, 166, 255, 0.15);
+            color: var(--accent-blue);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
 
         .card-id {
             font-family: var(--font-mono);
@@ -538,6 +553,9 @@
         <button class="nav-tab" onclick="switchTab('oracles')">
             🔮 神託アーカイブ (Oracles) <span class="badge-count" id="navOracleCount">0/20</span>
         </button>
+        <button class="nav-tab" onclick="switchTab('engravings')">
+            🏛️ 床文字・落書き (Engravings) <span class="badge-count" id="navEngravingCount">0</span>
+        </button>
         <button class="nav-tab" onclick="switchTab('ward')">
             🛡️ Elbereth 結界モニター <span class="badge-count" id="navWardStatus">NONE</span>
         </button>
@@ -589,6 +607,17 @@
                     <div class="progress-bar-fill oracle" id="statOracleBar" style="width: 0%;"></div>
                 </div>
             </div>
+
+            <div class="stat-card" style="border-top: 2px solid var(--accent-gold);">
+                <div class="stat-label">床文字・落書き (ENGRAVING)</div>
+                <div class="stat-value-group">
+                    <div class="stat-value" id="statEngravingCount" style="color: var(--accent-gold);">0</div>
+                    <div class="stat-total">件記録</div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="statEngravingBar" style="width: 100%; background: var(--accent-gold);"></div>
+                </div>
+            </div>
         </section>
 
         <!-- 噂話タブビュー -->
@@ -620,6 +649,29 @@
             </div>
             <div id="oracleEmpty" class="empty-state hidden">
                 神託がまだ記録されていません。神託所（Oracle）で相談すると記録されます。
+            </div>
+        </section>
+
+        <!-- 床文字・落書きタブビュー -->
+        <section id="viewEngravings" class="hidden">
+            <div class="controls-bar">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" id="searchEngravingInput" placeholder="床文字・落書きを検索 (英和キーワード, 'Elbereth', '国庫' など)..." oninput="renderEngravings()">
+                </div>
+                <div class="filter-group">
+                    <button class="filter-chip active" id="filterEngrAll" onclick="setEngravingFilter('ALL')">すべて</button>
+                    <button class="filter-chip" id="filterEngrGraffiti" onclick="setEngravingFilter('ENGRAVING')">🏛️ 落書き・引用</button>
+                    <button class="filter-chip" id="filterEngrHeadstone" onclick="setEngravingFilter('HEADSTONE')">🪦 墓碑銘</button>
+                    <button class="filter-chip" id="filterEngrElbereth" onclick="setEngravingFilter('ELBERETH')">🛡️ Elbereth</button>
+                </div>
+            </div>
+
+            <div class="codex-grid" id="engravingGrid">
+                <!-- 床文字カード群が動的生成されます -->
+            </div>
+            <div id="engravingEmpty" class="empty-state hidden">
+                床文字や墓碑銘がまだ記録されていません。ダンジョンの床文字を読むと手帳に記録されます。
             </div>
         </section>
 
@@ -662,6 +714,22 @@
                     <span>⚠️</span>
                     <span id="wardWarningText">結界無効: 文字が風化しています（再刻みが必要です）</span>
                 </div>
+
+                <!-- GKL 考古学的復元情報ボックス -->
+                <div class="ward-restored-box" id="wardRestoredBox" style="display: none; margin-top: 16px; padding: 14px; background: rgba(88, 166, 255, 0.08); border: 1px solid var(--accent-blue); border-radius: 8px;">
+                    <div style="font-size: 11px; font-weight: 700; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">
+                        🏛️ GKL 考古学的復元アシスト (Engraving Archaeology & Restoration)
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                        <span style="font-family: var(--font-mono); font-size: 15px; color: var(--accent-gold); font-weight: 600;" id="wardRestoredPristine">-</span>
+                        <span style="font-size: 12px; color: var(--true-color); font-family: var(--font-mono);" id="wardRestoredConfidence">100% 同定</span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-primary); margin-bottom: 8px;" id="wardRestoredTranslation">（完全日本語訳）</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap;">
+                        <span>出典: <b id="wardRestoredSource" style="color: var(--text-primary);">-</b></span>
+                        <span>分類: <b id="wardRestoredCategory" style="color: var(--text-primary);">-</b></span>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -685,6 +753,9 @@
             <button class="btn" onclick="simulateDegradeWard()">
                 💨 結界を風化させる (Elber?th)
             </button>
+            <button class="btn btn-gold" onclick="simulateScuffedRestoration()">
+                🏛️ かすれ落書き復元 (Portal/格言/噂話)
+            </button>
         </div>
     </div>
 
@@ -704,6 +775,7 @@
 
         let activeTab = 'rumors';
         let currentRumorFilter = 'ALL';
+        let currentEngravingFilter = 'ALL';
         let showAllMasterMode = false;
 
         // UI 初期化
@@ -711,12 +783,14 @@
             updateStatsUI();
             renderRumors();
             renderOracles();
+            renderEngravings();
             renderWard();
 
             codex.subscribe((event, data) => {
                 updateStatsUI();
                 renderRumors();
                 renderOracles();
+                renderEngravings();
                 renderWard();
             });
         }
@@ -727,6 +801,7 @@
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById('viewRumors').classList.add('hidden');
             document.getElementById('viewOracles').classList.add('hidden');
+            document.getElementById('viewEngravings').classList.add('hidden');
             document.getElementById('viewWard').classList.add('hidden');
 
             if (tabName === 'rumors') {
@@ -735,8 +810,11 @@
             } else if (tabName === 'oracles') {
                 document.querySelectorAll('.nav-tab')[1].classList.add('active');
                 document.getElementById('viewOracles').classList.remove('hidden');
-            } else if (tabName === 'ward') {
+            } else if (tabName === 'engravings') {
                 document.querySelectorAll('.nav-tab')[2].classList.add('active');
+                document.getElementById('viewEngravings').classList.remove('hidden');
+            } else if (tabName === 'ward') {
+                document.querySelectorAll('.nav-tab')[3].classList.add('active');
                 document.getElementById('viewWard').classList.remove('hidden');
             }
         };
@@ -759,6 +837,10 @@
             document.getElementById('statOraclePercent').textContent = `${stats.oracles.percentage}%`;
             document.getElementById('statOracleRatio').textContent = `${stats.oracles.collected} / ${stats.oracles.total}`;
             document.getElementById('statOracleBar').style.width = `${stats.oracles.percentage}%`;
+
+            const engrCount = stats.engravings?.collected || 0;
+            document.getElementById('statEngravingCount').textContent = engrCount;
+            document.getElementById('navEngravingCount').textContent = engrCount;
 
             document.getElementById('navRumorCount').textContent = `${stats.rumors.collected}/${stats.rumors.total}`;
             document.getElementById('navOracleCount').textContent = `${stats.oracles.collected}/${stats.oracles.total}`;
@@ -785,7 +867,8 @@
                     return r.text.toLowerCase().includes(q) || (r.translatedText && r.translatedText.toLowerCase().includes(q));
                 });
             } else {
-                rumors = codex.search(query, currentRumorFilter).filter(item => item.category === 'RUMOR');
+                const filter = currentRumorFilter === 'ALL' ? 'RUMOR' : currentRumorFilter;
+                rumors = codex.search(query, filter).filter(item => item.category === 'RUMOR' && item.isTrue !== undefined);
             }
 
             if (rumors.length === 0) {
@@ -858,6 +941,71 @@
             }).join('');
         };
 
+        // 床文字・落書きフィルタ変更
+        window.setEngravingFilter = function(filter) {
+            currentEngravingFilter = filter;
+            document.querySelectorAll('#viewEngravings .filter-chip').forEach(btn => btn.classList.remove('active'));
+            if (filter === 'ALL') document.getElementById('filterEngrAll').classList.add('active');
+            else if (filter === 'ENGRAVING') document.getElementById('filterEngrGraffiti').classList.add('active');
+            else if (filter === 'HEADSTONE') document.getElementById('filterEngrHeadstone').classList.add('active');
+            else if (filter === 'ELBERETH') document.getElementById('filterEngrElbereth').classList.add('active');
+            renderEngravings();
+        };
+
+        // 床文字・落書きのレンダリング
+        window.renderEngravings = function() {
+            const grid = document.getElementById('engravingGrid');
+            const emptyEl = document.getElementById('engravingEmpty');
+            const query = document.getElementById('searchEngravingInput')?.value || '';
+
+            let engravings = codex.getEngravings();
+            if (currentEngravingFilter !== 'ALL') {
+                engravings = engravings.filter(e => e.category === currentEngravingFilter);
+            }
+            if (query) {
+                const q = query.toLowerCase();
+                engravings = engravings.filter(e => 
+                    (e.text && e.text.toLowerCase().includes(q)) ||
+                    (e.actualText && e.actualText.toLowerCase().includes(q)) ||
+                    (e.translatedText && e.translatedText.toLowerCase().includes(q)) ||
+                    (e.source && e.source.toLowerCase().includes(q))
+                );
+            }
+
+            if (engravings.length === 0) {
+                grid.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+            emptyEl.classList.add('hidden');
+
+            grid.innerHTML = engravings.map(e => {
+                const badgeClass = e.isHeadstone ? 'headstone' : (e.category === 'ELBERETH' ? 'elbereth' : 'engraving');
+                const badgeText = e.isHeadstone ? '🪦 墓碑銘 (Headstone)' : (e.category === 'ELBERETH' ? '🛡️ Elbereth 結界' : '🏛️ 床の落書き');
+                const trHtml = e.translatedText ? `<div class="card-text-jp">${escapeHtml(e.translatedText)}</div>` : '';
+                const actualHtml = (e.actualText && e.actualText !== e.text) 
+                    ? `<div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 4px;">読取時のかすれ: <span style="color: var(--accent-gold);">${escapeHtml(e.actualText)}</span></div>` 
+                    : '';
+                const seenCountHtml = e.seenCount ? `<span>遭遇回数: <b>x${e.seenCount}</b></span>` : '';
+
+                return `
+                    <div class="lore-card">
+                        <div class="card-header">
+                            <span class="truth-badge ${badgeClass}">${badgeText}</span>
+                            <span class="card-id">${escapeHtml(e.id)}</span>
+                        </div>
+                        <div class="card-text-en">${escapeHtml(e.text)}</div>
+                        ${actualHtml}
+                        ${trHtml}
+                        <div class="card-footer">
+                            <span>出典: ${escapeHtml(e.source || '床の刻み文字')}</span>
+                            ${seenCountHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
         // 結界モニターのレンダリング
         window.renderWard = function() {
             const ward = codex.getCurrentWard();
@@ -901,11 +1049,22 @@
             integrityBar.style.width = `${pct}%`;
             integrityBar.className = `progress-bar-fill ${status === 'ACTIVE' ? 'true' : 'false'}`;
 
-            if (ward.warning) {
-                warningBox.style.display = 'flex';
-                warningText.textContent = ward.warning;
+            const restoredBox = document.getElementById('wardRestoredBox');
+            const restoredPristine = document.getElementById('wardRestoredPristine');
+            const restoredConfidence = document.getElementById('wardRestoredConfidence');
+            const restoredTranslation = document.getElementById('wardRestoredTranslation');
+            const restoredSource = document.getElementById('wardRestoredSource');
+            const restoredCategory = document.getElementById('wardRestoredCategory');
+
+            if (ward.restored && ward.restored.pristineText) {
+                restoredBox.style.display = 'block';
+                restoredPristine.textContent = ward.restored.pristineText;
+                restoredConfidence.textContent = `${Math.round((ward.restored.confidence || 1.0) * 100)}% 同定`;
+                restoredTranslation.textContent = ward.restored.translation || '（翻訳データ未登録）';
+                restoredSource.textContent = ward.restored.source || '-';
+                restoredCategory.textContent = `${ward.restored.category || ''} ${ward.restored.subCategory ? `(${ward.restored.subCategory})` : ''}`.trim() || '-';
             } else {
-                warningBox.style.display = 'none';
+                restoredBox.style.display = 'none';
             }
         };
 
@@ -1000,6 +1159,44 @@
             const sig = detector.processMessage(`You read: "${chosen}".`);
             if (sig) {
                 codex.updateWard(sig);
+                switchTab('ward');
+            }
+        };
+
+        // シミュレーション: かすれ落書きの考古学的復元
+        window.simulateScuffedRestoration = function() {
+            const samples = [
+                { text: "Th? c?ke ?s a l?e", note: "Portal (Valve)" },
+                { text: "M?da?, in E?en, I'm Ada?.", note: "Famous Palindrome" },
+                { text: "^rooo!  Wcrcwolvcs of Ycndor!", note: "Warren Zevon parody" },
+                { text: "A cry?tal pl?te ma?l wi?l not ru?t.", note: "NetHack Rumor" },
+                { text: "Nccd a |ight?  Comc visit thc Minc?own branch of Izchak's", note: "Izchak's Lighting Store" },
+                { text: "If you can read these words then you are not only a nerd", note: "Whispers Under Ground" },
+                { text: "V|ad was hcrc", note: "Count Dracula" }
+            ];
+            const chosen = samples[Math.floor(Math.random() * samples.length)];
+            detector.processMessage(`Something is engraved here on the floor.`);
+            const sig = detector.processMessage(`You read: "${chosen.text}".`);
+            if (sig) {
+                codex.updateWard(sig);
+                if (sig.restored?.category === 'RUMOR' && sig.restored.pristineText) {
+                    codex.addRumor({
+                        id: sig.restored.id || undefined,
+                        text: sig.restored.pristineText,
+                        translatedText: sig.restored.translation,
+                        isTrue: sig.restored.isTrue,
+                        source: 'engraving'
+                    });
+                }
+                codex.addEngraving({
+                    text: sig.pristineText || sig.actualText,
+                    actualText: sig.actualText,
+                    translatedText: sig.restored?.translation || (sig.isElbereth ? 'エルベレス' : ''),
+                    source: sig.restored?.source || (sig.isHeadstone ? '墓碑銘 (Headstone)' : (sig.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
+                    category: sig.isHeadstone ? 'HEADSTONE' : (sig.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                    subCategory: sig.restored?.category || '',
+                    isHeadstone: sig.isHeadstone || false
+                });
                 switchTab('ward');
             }
         };

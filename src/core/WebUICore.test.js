@@ -871,6 +871,73 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(currentWard).toBeDefined();
             expect(currentWard.actualText).toBe('Elbereth');
             expect(currentWard.isWardActive).toBe(true);
+            expect(currentWard.restored).toBeDefined();
+            expect(currentWard.restored.pristineText).toBe('Elbereth');
+        });
+
+        it('かすれた床の噂話から SIGNAL_LORE_ENGRAVE が発行され、考古学的に復元されて冒険手帳に自動登録されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const engraveSignalListener = vi.fn();
+            core.on('signal:SIGNAL_LORE_ENGRAVE', engraveSignalListener);
+
+            putstrHandler({ text: 'Something is engraved here on the floor.' });
+            // かすれた噂話
+            putstrHandler({ text: 'You read: "A cry?tal pl?te ma?l wi?l not ru?t.".' });
+
+            expect(engraveSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = engraveSignalListener.mock.calls[0][0];
+            expect(emitted.restored).toBeDefined();
+            expect(emitted.restored.pristineText).toBe('A crystal plate mail will not rust.');
+            expect(emitted.restored.category).toBe('RUMOR');
+            expect(emitted.restored.isTrue).toBe(true);
+            expect(emitted.restored.translation).toContain('錆びない');
+
+            // 冒険手帳 (Codex) に自動登録されていること
+            const codex = core.getCodex();
+            const codexRumors = codex.getRumors();
+            expect(codexRumors.length).toBe(1);
+            expect(codexRumors[0].id).toBe('rumor_tru_4');
+            expect(codexRumors[0].text).toBe('A crystal plate mail will not rust.');
+            expect(codexRumors[0].isTrue).toBe(true);
+
+            // 床文字コレクションにも登録され、category は ENGRAVING として保持されること
+            const codexEngravings = codex.getEngravings();
+            expect(codexEngravings.length).toBe(1);
+            expect(codexEngravings[0].category).toBe('ENGRAVING');
+            expect(codexEngravings[0].subCategory).toBe('RUMOR');
+            expect(codexEngravings[0].text).toBe('A crystal plate mail will not rust.');
+
+            // 噂話検索で重複（TRUEとFALSEの2重登録）が発生しないこと
+            const searchedRumors = codex.search('', 'RUMOR');
+            expect(searchedRumors.length).toBe(1);
+            expect(searchedRumors[0].id).toBe('rumor_tru_4');
+            expect(searchedRumors[0].isTrue).toBe(true);
+        });
+    });
+
+    describe('WebUICore - getSituation() delegation', () => {
+        it('core.getSituation() が GKLPlugin の getSituation() を正しく呼び出して結果を返すこと', () => {
+            const core = new WebUICore({ driver: createMockDriver() });
+            const situation = core.getSituation();
+            expect(situation).toBeDefined();
+            expect(typeof situation).toBe('object');
+            expect(situation).toHaveProperty('status');
+            expect(situation).toHaveProperty('inventory');
+            expect(situation).toHaveProperty('area');
+        });
+
+        it('core.gkl が存在しない場合は null を返すこと', () => {
+            const core = new WebUICore({ driver: createMockDriver() });
+            core.gkl = null;
+            expect(core.getSituation()).toBeNull();
         });
     });
 });

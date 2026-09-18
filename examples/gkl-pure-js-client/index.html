@@ -166,6 +166,29 @@
           </div>
         </div>
 
+        <!-- 🏛️ GKL 床文字・考古学的復元 HUD バナー (案A: ステータスバー直下) -->
+        <div id="engraving-hud" class="engraving-hud hidden">
+          <div class="engraving-hud-main">
+            <span id="engraving-hud-icon" class="engraving-hud-icon">🏛️</span>
+            <div class="engraving-hud-content">
+              <div class="engraving-hud-diff">
+                <span class="engraving-diff-label">刻み:</span>
+                <span id="engraving-actual" class="engraving-actual">--</span>
+                <span id="engraving-arrow" class="engraving-arrow">➔</span>
+                <span id="engraving-pristine" class="engraving-pristine">--</span>
+                <span id="engraving-confidence-badge" class="engraving-badge">100% 同定</span>
+              </div>
+              <div id="engraving-translation" class="engraving-translation">（完全日本語訳）</div>
+            </div>
+          </div>
+
+          <div class="engraving-hud-actions">
+            <div id="engraving-source-badge" class="engraving-source-badge">出典</div>
+            <button id="btn-engrave-reapply" class="btn-engrave-reapply hidden" title="Elbereth を再刻み">[E] 再刻み</button>
+            <button id="btn-engraving-close" class="btn-engraving-close" title="閉じる">✕</button>
+          </div>
+        </div>
+
         <!-- プロンプト入力バー (PromptModal) -->
         <div id="prompt-bar" class="prompt-bar hidden">
           <div id="prompt-text" class="prompt-text"></div>

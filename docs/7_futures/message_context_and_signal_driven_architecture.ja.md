@@ -17,6 +17,7 @@ related_code:
   - tools/build_lore_database.py
   - src/core/lore/data/LoreMasterData.js
   - src/core/lore/ElberethAnalyzer.js
+  - src/core/lore/EngravingArchaeologist.js
   - src/core/lore/LoreDetector.js
   - src/core/lore/LoreCodexStorage.js
   - src/core/lore/LoreCodex.js
@@ -237,6 +238,11 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
     ▼
 [Phase 5: 既存状態把握機能のメッセージマスタ移行と次世代シグナル駆動 WebUICore の完成]
   【目的: 「後追い文字列推測」から「メッセージマスタ起点の一元確定」への既存モジュールの刷新】
+  0. 【最優先看板機能】かすれ床文字の考古学的復元アシスト（GKL Engraving Archaeology & Restoration Engine）: ★完了 (2026-09-18)
+     - 背景・仕様: `src/engrave.c:random_engraving` では床の落書きの75%が Rumors、25%が `dat/engrave.txt` から選ばれ、`wipeout_text()` により生成時点で25%が削られ・変形（`rubouts[]`）して出現する。
+     - 解決手法: `LoreDetector` の `SIGNAL_LORE_ENGRAVE` によるコンテキスト完全同定と、Rumors (787件) + Engrave (48件) の母数約840件へのスコープ完全隔離。
+     - 価値: `docs/9_translation/translation_architecture_enhancement_plan.md` の長年の保留課題（全体ファジーマッチの誤爆リスク）をスマートに完全解決。かすれ文字（例: `El?er...` や擦れた格言）から原文を高精度同定し、完全な日本語訳と原型プレビューをプレイヤーに提示する GKL の象徴的アシスト機能。
+     - 成果物: `tools/build_lore_database.py` (48件のSSOT化), `src/core/lore/EngravingArchaeologist.js` (rubouts逆引き・類似度復元エンジン), `LoreDetector.js` / `WebUICore.js` 連携, 単体テスト (16件全パス)
   1. 効果音エンジン (SoundEngine) の移行:
      - 翻訳後テキストの部分一致から、`You_hear` (142件) やドメイン事象マスタ起点の決定論的 SE トリガーへ刷新
   2. 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行:

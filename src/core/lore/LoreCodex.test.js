@@ -114,8 +114,78 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
         expect(newCodex.getOracles()[0].id).toBe('oracle_5');
     });
 
+    it('床文字・落書き・墓碑銘の追加 (addEngraving) と一覧取得ができること', () => {
+        const res1 = codex.addEngraving({
+            text: 'The cake is a lie',
+            actualText: 'Th? c?ke ?s a l?e',
+            translatedText: 'ケーキは嘘だ',
+            source: 'Portal (Valve)',
+            category: 'ENGRAVING'
+        });
+
+        expect(res1.isNew).toBe(true);
+        expect(res1.engraving.seenCount).toBe(1);
+        expect(codex.getEngravings().length).toBe(1);
+
+        // 重複追加時は seenCount がインクリメントされる
+        const res2 = codex.addEngraving({
+            text: 'The cake is a lie',
+            actualText: 'The cake is a lie'
+        });
+        expect(res2.isNew).toBe(false);
+        expect(res2.engraving.seenCount).toBe(2);
+        expect(codex.getEngravings().length).toBe(1);
+
+        // 墓碑銘の追加
+        codex.addEngraving({
+            text: 'Rest in Peace',
+            isHeadstone: true,
+            source: '墓碑銘 (Headstone)'
+        });
+        expect(codex.getEngravings().length).toBe(2);
+    });
+
+    it('addEngraving で category: RUMOR が渡されても ENGRAVING に正規化され、噂話検索と混ざらないこと', () => {
+        // 床文字に RUMOR カテゴリを指定して追加
+        const res = codex.addEngraving({
+            text: 'A crystal plate mail will not rust.',
+            actualText: 'A cry?tal pl?te ma?l wi?l not ru?t.',
+            category: 'RUMOR',
+            source: 'rumors.tru'
+        });
+
+        expect(res.engraving.category).toBe('ENGRAVING');
+        expect(res.engraving.subCategory).toBe('RUMOR');
+
+        // 正規の噂話を追加
+        codex.addRumor({
+            id: 'rumor_tru_4',
+            text: 'A crystal plate mail will not rust.',
+            isTrue: true,
+            source: 'engraving'
+        });
+
+        // 噂話のみの検索 ('RUMOR')
+        const rumorResults = codex.search('', 'RUMOR');
+        expect(rumorResults.length).toBe(1);
+        expect(rumorResults[0].id).toBe('rumor_tru_4');
+        expect(rumorResults[0].category).toBe('RUMOR');
+        expect(rumorResults[0].isTrue).toBe(true);
+
+        // 全件検索 ('ALL') の結果から category: 'RUMOR' でフィルタしても床文字は混入しない
+        const allResults = codex.search('', 'ALL');
+        const rumorsFromAll = allResults.filter(item => item.category === 'RUMOR');
+        expect(rumorsFromAll.length).toBe(1);
+        expect(rumorsFromAll[0].id).toBe('rumor_tru_4');
+
+        // 床文字一覧 (getEngravings) には正常に登録されている
+        expect(codex.getEngravings().length).toBe(1);
+        expect(codex.getEngravings()[0].id.startsWith('engr_')).toBe(true);
+    });
+
     it('JSON エクスポートとインポートが機能すること', async () => {
         codex.addRumor({ id: 'rumor_tru_1', text: 'Rumor 1', isTrue: true });
+        codex.addEngraving({ text: 'The cake is a lie', translatedText: 'ケーキは嘘だ' });
         const json = codex.exportJSON();
         expect(json).toContain('nethack-wasm-webui');
 
@@ -124,5 +194,7 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
 
         expect(anotherCodex.getRumors().length).toBe(1);
         expect(anotherCodex.getRumors()[0].id).toBe('rumor_tru_1');
+        expect(anotherCodex.getEngravings().length).toBe(1);
+        expect(anotherCodex.getEngravings()[0].text).toBe('The cake is a lie');
     });
 });

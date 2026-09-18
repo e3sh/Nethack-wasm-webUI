@@ -12,14 +12,17 @@
 
 import { LORE_MASTER } from './data/LoreMasterData.js';
 import { ElberethAnalyzer } from './ElberethAnalyzer.js';
+import { EngravingArchaeologist } from './EngravingArchaeologist.js';
 
 export class LoreDetector {
     /**
      * @param {Object} [options]
      * @param {Object} [options.master] - カスタム LORE マスタ
+     * @param {EngravingArchaeologist} [options.archaeologist] - カスタム復元エンジン
      */
     constructor(options = {}) {
         this.master = options.master || LORE_MASTER;
+        this.archaeologist = options.archaeologist || new EngravingArchaeologist({ master: this.master });
         this.pendingRumorSource = null;
         this.pendingEngraveType = null;
         this.pendingOracleType = null;
@@ -67,41 +70,134 @@ export class LoreDetector {
         if (!trimmed) return null;
 
         // ----------------------------------------------------
-        // 1. 直前コンテキスト・先行シグナルフラグの更新
+        // 1. 床の刻み文字 (SIGNAL_LORE_ENGRAVE) の検知
+        //    NetHack 5.0 の C コア (pline / shim_putstr) から届くメッセージに対応。
+        //    - 複数行分割: 1行目 "There's some graffiti...", 2行目 "Read: \"...\"" または "You read: \"...\""
+        //    - 同一行連結: "There's some graffiti...  You read: \"...\""
+        //    - --More-- プロンプトおよび改行・キャリッジリターン (\r, \n) の混入を完全にサニタイズ
+        //
+        //    対応パターン:
+        //    - You read: "..." / Read: "..." / read: "..."
+        //    - You feel the words: "..." / Feel the words: "..."
+        //    - あなたは読んだ: "..." / 読んだ: "..." / 文字を触って感じた: "..."
         // ----------------------------------------------------
-        if (trimmed.includes('This cookie has a scrap of paper inside.')) {
+        const clean = trimmed.replace(/[\r\n]/g, '').replace(/--More--/g, '').trim();
+        const readMatch = clean.match(/(?:(?:You\s+|It\s+)?(?:read|feel the words)|(?:あなたは)?(?:読んだ|文字を触って感じた)|Read):\s*["「](.*?)["」]?[\.]?\s*$/i);
+        if (readMatch) {
+            const actualText = readMatch[1];
+
+            // 同一行内のプレフィックスまたは先行行プレフィックスから刻み種別を判定
+            let engraveType = this.pendingEngraveType;
+            if (clean.includes('headstone') || /\bgrave\b/i.test(clean) || clean.includes('墓石')) {
+                engraveType = 'HEADSTONE';
+            } else if (clean.includes('dust') || clean.includes('frost') || clean.includes('が書かれている')) {
+                engraveType = 'DUST';
+            } else if (clean.includes('engraved') || clean.includes('刻まれている')) {
+                engraveType = 'ENGRAVE';
+            } else if (clean.includes('burned') || clean.includes('melted') || clean.includes('焼き付いて') || clean.includes('溶け込んで')) {
+                engraveType = 'BURN';
+            } else if (clean.includes('graffiti') || clean.includes('落書きがある')) {
+                engraveType = 'MARK';
+            } else if (clean.includes('blood') || clean.includes('血で殴り書き')) {
+                engraveType = 'BLOOD';
+            }
+            engraveType = engraveType || 'UNKNOWN';
+            this.pendingEngraveType = null; // リセット
+
+            const isHeadstone = engraveType === 'HEADSTONE';
+
+            // 墓石 (HEADSTONE) は NetHack 仕様で劣化しない (indelible) ため、Elbereth結界やかすれ復元対象外とする
+            const analysis = isHeadstone ? {
+                actualText: actualText,
+                pristineText: actualText,
+                isElbereth: false,
+                isWardActive: false,
+                elberethIntegrity: 0.0,
+                status: 'NONE',
+                warning: null
+            } : ElberethAnalyzer.analyze(actualText);
+
+            // 墓石の場合は考古学復元ではなく、墓碑銘マスタや原文をそのまま尊重
+            const restoration = (isHeadstone || !this.archaeologist) ? null : this.archaeologist.restore(actualText, context);
+
+            const isElb = !isHeadstone && (restoration?.isElbereth || analysis.isElbereth);
+            const pristine = restoration?.matched ? restoration.pristineText : analysis.pristineText;
+
+            const result = {
+                signalId: 'SIGNAL_LORE_ENGRAVE',
+                subCategory: 'ENGRAVE',
+                matched: true,
+                actualText: analysis.actualText,
+                pristineText: pristine,
+                engraveType: engraveType,
+                isHeadstone: isHeadstone,
+                isElbereth: isElb,
+                isWardActive: analysis.isWardActive,
+                elberethIntegrity: analysis.elberethIntegrity,
+                status: analysis.status,
+                warning: analysis.warning,
+                restored: restoration?.matched ? {
+                    id: restoration.id,
+                    pristineText: restoration.pristineText,
+                    translation: restoration.translation,
+                    confidence: restoration.confidence,
+                    source: restoration.source,
+                    category: restoration.category,
+                    subCategory: restoration.subCategory,
+                    isTrue: restoration.isTrue
+                } : null,
+                confidence: isHeadstone ? 1.0 : (restoration?.matched ? restoration.confidence : 1.0),
+                rawPrompt: rawMessage
+            };
+
+            if (typeof console !== 'undefined' && console.debug) {
+                console.debug('[LoreDetector] SIGNAL_LORE_ENGRAVE detected:', result);
+            }
+
+            return result;
+        }
+
+        // ----------------------------------------------------
+        // 2. 直前コンテキスト・先行シグナルフラグの更新
+        // ----------------------------------------------------
+        if (trimmed.includes('This cookie has a scrap of paper inside.') || trimmed.includes('このクッキーには紙片が入っている.')) {
             this.pendingRumorSource = 'cookie';
             return null;
         }
-        if (trimmed === 'It reads:') {
+        if (trimmed === 'It reads:' || trimmed === 'こう書かれている:') {
             if (!this.pendingRumorSource) {
                 this.pendingRumorSource = 'paper';
             }
             return null;
         }
-        if (trimmed.includes('True to her word, the Oracle') && trimmed.includes('says:')) {
+        if ((trimmed.includes('True to her word, the Oracle') && trimmed.includes('says:')) ||
+            (trimmed.includes('約束どおり、オラクルは') && trimmed.includes('告げた:'))) {
             this.pendingRumorSource = 'oracle';
             return null;
         }
 
-        // 床の刻み文字プレフィックスの検知
-        if (trimmed.includes('is written here in the dust') || trimmed.includes('is written here in the frost')) {
+        // 床の刻み文字プレフィックスの検知（先行行として単独で届いた場合）
+        if (trimmed.includes('headstone') || /\bgrave\b/i.test(trimmed) || trimmed.includes('墓石')) {
+            this.pendingEngraveType = 'HEADSTONE';
+            return null;
+        }
+        if (trimmed.includes('is written here in the dust') || trimmed.includes('is written here in the frost') || trimmed.includes('が書かれている')) {
             this.pendingEngraveType = 'DUST';
             return null;
         }
-        if (trimmed.includes('is engraved here on the')) {
+        if (trimmed.includes('is engraved here on the') || trimmed.includes('が刻まれている')) {
             this.pendingEngraveType = 'ENGRAVE';
             return null;
         }
-        if (trimmed.includes('has been burned into the floor') || trimmed.includes('has been melted into')) {
+        if (trimmed.includes('has been burned into the floor') || trimmed.includes('has been melted into') || trimmed.includes('焼き付いて') || trimmed.includes('溶け込んで')) {
             this.pendingEngraveType = 'BURN';
             return null;
         }
-        if (trimmed.includes('graffiti on the floor')) {
+        if (trimmed.includes('graffiti') || trimmed.includes('落書きがある')) {
             this.pendingEngraveType = 'MARK';
             return null;
         }
-        if (trimmed.includes('scrawled in blood here')) {
+        if (trimmed.includes('scrawled in blood here') || trimmed.includes('血で殴り書き')) {
             this.pendingEngraveType = 'BLOOD';
             return null;
         }
@@ -111,37 +207,6 @@ export class LoreDetector {
             trimmed.includes('The Oracle scornfully takes all your gold and says:')) {
             this.pendingOracleType = trimmed.includes('scornfully') ? 'special' : 'normal';
             return null;
-        }
-
-        // ----------------------------------------------------
-        // 2. 床の刻み文字 (SIGNAL_LORE_ENGRAVE) の検知
-        //    NetHack 出力:
-        //    - You read: "..."
-        //    - You feel the words: "..."
-        // ----------------------------------------------------
-        const readMatch = trimmed.match(/^You (?:read|feel the words):\s*"(.*)"[\.]?$/);
-        if (readMatch) {
-            const actualText = readMatch[1];
-            const engraveType = this.pendingEngraveType || 'UNKNOWN';
-            this.pendingEngraveType = null; // リセット
-
-            const analysis = ElberethAnalyzer.analyze(actualText);
-
-            return {
-                signalId: 'SIGNAL_LORE_ENGRAVE',
-                subCategory: 'ENGRAVE',
-                matched: true,
-                actualText: analysis.actualText,
-                pristineText: analysis.pristineText,
-                engraveType: engraveType,
-                isElbereth: analysis.isElbereth,
-                isWardActive: analysis.isWardActive,
-                elberethIntegrity: analysis.elberethIntegrity,
-                status: analysis.status,
-                warning: analysis.warning,
-                confidence: 1.0,
-                rawPrompt: rawMessage
-            };
         }
 
         // ----------------------------------------------------
