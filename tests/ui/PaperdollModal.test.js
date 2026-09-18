@@ -160,6 +160,30 @@ describe('PaperdollModal - 装備ペーパードールUI', () => {
     expect(html).toMatch(/class="[^"]*torso-layer-slot[^"]*is-empty[^"]*"[^>]*data-slot="shirt"/);
   });
 
+  it('通常スロットおよび胴体3層スロットにアイテムのGlyph（タイル画像）が反映されること', () => {
+    // mockSituation のアイテムに glyphId を設定
+    mockSituation.inventory.items.forEach((it, idx) => {
+      it.glyphId = 1000 + idx;
+    });
+    mockCore.getGlyphStyle = vi.fn((glyphId, opts) => ({
+      backgroundImage: `url(test_tiles_${glyphId}.png)`,
+      backgroundPosition: '0px 0px'
+    }));
+
+    paperdoll.show();
+    const html = modalElement.innerHTML;
+
+    // getGlyphStyle が通常スロットと胴体スロットの両方で呼び出されていること
+    expect(mockCore.getGlyphStyle).toHaveBeenCalled();
+
+    // 通常スロット（主手・手袋等）にタイル画像スタイルが含まれること
+    expect(html).toContain('background-image:url(test_tiles_');
+
+    // 胴体スロット（外套・鎧）にもタイル画像スタイル（width:24px; height:24px）が含まれること
+    expect(html).toMatch(/<div class="torso-layer-slot[^"]*"[^>]*data-slot="cloak"[^>]*>[\s\S]*?background-image:url\(test_tiles_[\s\S]*?width:24px;\s*height:24px;[\s\S]*?<\/div>/);
+    expect(html).toMatch(/<div class="torso-layer-slot[^"]*"[^>]*data-slot="suit"[^>]*>[\s\S]*?background-image:url\(test_tiles_[\s\S]*?width:24px;\s*height:24px;[\s\S]*?<\/div>/);
+  });
+
   it('スロット選択と適合アイテム絞り込み（クイックセレクター）が動作すること', () => {
     paperdoll.selectedSlot = EQUIP_SLOTS.HELM;
     paperdoll.show();

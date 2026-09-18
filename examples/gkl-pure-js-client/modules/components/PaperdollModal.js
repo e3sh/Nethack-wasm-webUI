@@ -357,6 +357,28 @@ export class PaperdollModal {
   }
 
   /**
+   * アイテムのGlyph（タイル画像）またはデフォルトアイコンをレンダリング
+   * @private
+   * @param {Object|null} item
+   * @param {string} defaultIcon
+   * @param {number} displaySize
+   * @returns {string}
+   */
+  _renderGlyphOrIcon(item, defaultIcon, displaySize = 28) {
+    if (!item) return defaultIcon;
+    const core = this.getCore();
+    if (item.glyphId >= 0 && core && typeof core.getGlyphStyle === 'function') {
+      const tileImg = this.getLoadedTileImagePath();
+      const styleObj = core.getGlyphStyle(item.glyphId, { tileImage: tileImg, tileSize: 32, displaySize });
+      if (styleObj && styleObj.backgroundImage) {
+        const styleStr = Object.entries(styleObj).map(([k, v]) => `${k.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)}:${v}`).join(';');
+        return `<div style="${styleStr}; width:${displaySize}px; height:${displaySize}px;"></div>`;
+      }
+    }
+    return defaultIcon;
+  }
+
+  /**
    * 通常スロットのHTMLレンダリング
    * @private
    */
@@ -367,7 +389,7 @@ export class PaperdollModal {
     const isReadonly = slotId === EQUIP_SLOTS.OFF_HAND;
     const isSelected = !isReadonly && this.selectedSlot === slotId;
 
-    let iconHtml = def.icon;
+    let iconHtml = this._renderGlyphOrIcon(item, def.icon, 28);
     let bucTagHtml = '';
     let letterTagHtml = '';
     let cursedClass = '';
@@ -382,17 +404,6 @@ export class PaperdollModal {
         bucTagHtml = `<span class="slot-buc-tag buc-blessed">+</span>`;
       } else if (item.isUncursed) {
         bucTagHtml = `<span class="slot-buc-tag buc-uncursed">u</span>`;
-      }
-
-      // タイル画像の適用
-      const core = this.getCore();
-      if (item.glyphId >= 0 && core && typeof core.getGlyphStyle === 'function') {
-        const tileImg = this.getLoadedTileImagePath();
-        const styleObj = core.getGlyphStyle(item.glyphId, { tileImage: tileImg, tileSize: 32, displaySize: 28 });
-        if (styleObj && styleObj.backgroundImage) {
-          const styleStr = Object.entries(styleObj).map(([k, v]) => `${k.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)}:${v}`).join(';');
-          iconHtml = `<div style="${styleStr}; width:28px; height:28px;"></div>`;
-        }
       }
     }
 
@@ -441,7 +452,7 @@ export class PaperdollModal {
       layerTypeClass = 'layer-shirt';
     }
 
-    let iconHtml = def.icon;
+    let iconHtml = this._renderGlyphOrIcon(item, def.icon, 24);
     let bucTag = '';
     let cursedClass = '';
     if (item) {
@@ -450,6 +461,8 @@ export class PaperdollModal {
         bucTag = `<span class="slot-buc-tag buc-cursed">-</span>`;
       } else if (item.isBlessed) {
         bucTag = `<span class="slot-buc-tag buc-blessed">+</span>`;
+      } else if (item.isUncursed) {
+        bucTag = `<span class="slot-buc-tag buc-uncursed">u</span>`;
       }
     }
 
