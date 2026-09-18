@@ -1,0 +1,2288 @@
+{
+  "version": "1.0.0",
+  "description": "Layer 3 Control Signal Master (yn_function, getlin, getdir)",
+  "stats": {
+    "total_prompts": 102,
+    "matched_count": 35,
+    "matched_rate_percent": 34.31,
+    "callee_breakdown": {
+      "getdir": 26,
+      "getlin": 37,
+      "yn_function": 39
+    },
+    "phase3_cataloged_count": 82
+  },
+  "signals": [
+    {
+      "id": "apply.c:L83:getdir:1",
+      "file": "apply.c",
+      "line": 83,
+      "callee_func": "getdir",
+      "caller_func": "use_camera",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "apply/tool",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "apply.c:L332:getdir:20",
+      "file": "apply.c",
+      "line": 332,
+      "callee_func": "getdir",
+      "caller_func": "use_stethoscope",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "apply/tool",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "apply.c:L1011:getdir:66",
+      "file": "apply.c",
+      "line": 1011,
+      "callee_func": "getdir",
+      "caller_func": "use_mirror",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "apply/tool",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "apply.c:L2528:getdir:208",
+      "file": "apply.c",
+      "line": 2528,
+      "callee_func": "getdir",
+      "caller_func": "use_figurine",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "apply/tool",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "apply.c:L2939:getdir:236",
+      "file": "apply.c",
+      "line": 2939,
+      "callee_func": "getdir",
+      "caller_func": "use_whip",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "apply/tool",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "artifact.c:L1991:getdir:47",
+      "file": "artifact.c",
+      "line": 1991,
+      "callee_func": "getdir",
+      "caller_func": "invoke_fling_poison",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "artifact",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "artifact.c:L2016:getdir:49",
+      "file": "artifact.c",
+      "line": 2016,
+      "callee_func": "getdir",
+      "caller_func": "invoke_blinding_ray",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "artifact",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "botl.c:L3905:getlin:9",
+      "file": "botl.c",
+      "line": 3905,
+      "callee_func": "getlin",
+      "caller_func": "status_hilite_menu_add",
+      "raw_format": "buf",
+      "full_text": "buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "inbuf"
+      },
+      "domain": "status_hud",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "botl.c:L4176:getlin:17",
+      "file": "botl.c",
+      "line": 4176,
+      "callee_func": "getlin",
+      "caller_func": "status_hilite_menu_add",
+      "raw_format": "qry_buf",
+      "full_text": "qry_buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "inbuf"
+      },
+      "domain": "status_hud",
+      "placeholders": []
+    },
+    {
+      "id": "cmd.c:L708:getlin:3",
+      "file": "cmd.c",
+      "line": 708,
+      "callee_func": "getlin",
+      "caller_func": "doextlist",
+      "raw_format": "promptbuf",
+      "full_text": "promptbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "searchbuf"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_EXTCMD_SEARCH",
+      "assigned_sub_category": "EXTCMD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "cmd.c:L871:yn_function:6",
+      "file": "cmd.c",
+      "line": 871,
+      "callee_func": "yn_function",
+      "caller_func": "domonability",
+      "raw_format": "Hide [h] or spin a web [s]?",
+      "full_text": "Hide [h] or spin a web [s]?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "hidespinchars",
+        "default_key_raw": "'q'",
+        "default_key": "q",
+        "valid_keys": "hsq"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_SPIDER_ABILITY",
+      "assigned_sub_category": "SPECIAL_ABILITY",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "cmd.c:L2343:getlin:30",
+      "file": "cmd.c",
+      "line": 2343,
+      "callee_func": "getlin",
+      "caller_func": "handler_rebind_keys_add",
+      "raw_format": "querybuf",
+      "full_text": "querybuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "parambuf"
+      },
+      "domain": "command",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_REBIND_KEY",
+      "assigned_sub_category": "CONFIG",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "cmd.c:L3879:getdir:38",
+      "file": "cmd.c",
+      "line": 3879,
+      "callee_func": "getdir",
+      "caller_func": "get_adjacent_loc",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "cmd.c:L3894:getdir:39",
+      "file": "cmd.c",
+      "line": 3894,
+      "callee_func": "getdir",
+      "caller_func": "getdir",
+      "raw_format": "const char *s",
+      "full_text": "const char *s",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "cmd.c:L3932:yn_function:41",
+      "file": "cmd.c",
+      "line": 3932,
+      "callee_func": "yn_function",
+      "caller_func": "getdir",
+      "raw_format": "(s && *s != '^') ? s : \"In what direction?\"",
+      "full_text": "(s && *s != '^') ? s : \"In what direction?\"",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "command",
+      "placeholders": []
+    },
+    {
+      "id": "cmd.c:L4294:getdir:46",
+      "file": "cmd.c",
+      "line": 4294,
+      "callee_func": "getdir",
+      "caller_func": "dotherecmdmenu",
+      "raw_format": "(const char *) 0",
+      "full_text": "(const char *) 0",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "cmd.c:L5436:yn_function:52",
+      "file": "cmd.c",
+      "line": 5436,
+      "callee_func": "yn_function",
+      "caller_func": "yn_function",
+      "raw_format": "const char *query",
+      "full_text": "const char *query",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "const char *resp",
+        "default_key_raw": "char def"
+      },
+      "domain": "command",
+      "placeholders": []
+    },
+    {
+      "id": "cmd.c:L5551:yn_function:54",
+      "file": "cmd.c",
+      "line": 5551,
+      "callee_func": "yn_function",
+      "caller_func": "yn_function",
+      "raw_format": "",
+      "full_text": "",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "",
+        "default_key_raw": ""
+      },
+      "domain": "command",
+      "placeholders": []
+    },
+    {
+      "id": "cmd.c:L5606:getlin:55",
+      "file": "cmd.c",
+      "line": 5606,
+      "callee_func": "getlin",
+      "caller_func": "paranoid_ynq",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "ans"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CONFIRM_YN",
+      "assigned_sub_category": "CONFIRM_YN",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "cmd.c:L5625:yn_function:56",
+      "file": "cmd.c",
+      "line": 5625,
+      "callee_func": "yn_function",
+      "caller_func": "paranoid_ynq",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CONFIRM_YN",
+      "assigned_sub_category": "CONFIRM_YN",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "cmd.c:L5627:yn_function:57",
+      "file": "cmd.c",
+      "line": 5627,
+      "callee_func": "yn_function",
+      "caller_func": "paranoid_ynq",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynchars",
+        "default_key_raw": "'n'",
+        "default_key": "n"
+      },
+      "domain": "command",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CONFIRM_YN",
+      "assigned_sub_category": "CONFIRM_YN",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "detect.c:L1285:yn_function:34",
+      "file": "detect.c",
+      "line": 1285,
+      "callee_func": "yn_function",
+      "caller_func": "use_crystal_ball",
+      "raw_format": "What do you look for?",
+      "full_text": "What do you look for?",
+      "translation": "何を探しますか？",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "detection",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CRYSTAL_BALL",
+      "assigned_sub_category": "CRYSTAL_BALL",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "dig.c:L1140:getdir:53",
+      "file": "dig.c",
+      "line": 1140,
+      "callee_func": "getdir",
+      "caller_func": "use_pick_axe",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "dig",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "do_name.c:L115:getlin:0",
+      "file": "do_name.c",
+      "line": 115,
+      "callee_func": "getlin",
+      "caller_func": "name_from_player",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "outbuf"
+      },
+      "domain": "naming",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_TEXT_INPUT",
+      "assigned_sub_category": "TEXT_INPUT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "do_wear.c:L2246:yn_function:90",
+      "file": "do_wear.c",
+      "line": 2246,
+      "callee_func": "yn_function",
+      "caller_func": "accessory_or_armor_on",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": "=== TODO === 右と左、どちらの $1  $2 ですか?",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "rightleftchars",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0",
+        "valid_keys": "rlq"
+      },
+      "domain": "wear",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_SIDE_SELECT",
+      "assigned_sub_category": "SIDE_SELECT",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "dokick.c:L1254:yn_function:72",
+      "file": "dokick.c",
+      "line": 1254,
+      "callee_func": "yn_function",
+      "caller_func": "dokick",
+      "raw_format": "Kick your steed?",
+      "full_text": "Kick your steed?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynchars",
+        "default_key_raw": "'y'",
+        "default_key": "y"
+      },
+      "domain": "kick",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "dokick.c:L1303:getdir:80",
+      "file": "dokick.c",
+      "line": 1303,
+      "callee_func": "getdir",
+      "caller_func": "dokick",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "kick",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "dothrow.c:L95:getdir:0",
+      "file": "dothrow.c",
+      "line": 95,
+      "callee_func": "getdir",
+      "caller_func": "throw_obj",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "throw",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "dungeon.c:L2498:getlin:9",
+      "file": "dungeon.c",
+      "line": 2498,
+      "callee_func": "getlin",
+      "caller_func": "query_annotation",
+      "raw_format": "tmpbuf",
+      "full_text": "tmpbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "nbuf"
+      },
+      "domain": "dungeon",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%.30s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_DUNGEON_ANNOTATION",
+      "assigned_sub_category": "NAME",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "dungeon.c:L2535:getlin:10",
+      "file": "dungeon.c",
+      "line": 2535,
+      "callee_func": "getlin",
+      "caller_func": "query_annotation",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "nbuf"
+      },
+      "domain": "dungeon",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DUNGEON_ANNOTATION",
+      "assigned_sub_category": "NAME",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "eat.c:L2701:yn_function:110",
+      "file": "eat.c",
+      "line": 2701,
+      "callee_func": "yn_function",
+      "caller_func": "edibility_prompts",
+      "raw_format": "buf",
+      "full_text": "buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "yn"
+      },
+      "domain": "eat/hunger",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_EAT_QUERY",
+      "assigned_sub_category": "EAT",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "eat.c:L3580:yn_function:135",
+      "file": "eat.c",
+      "line": 3580,
+      "callee_func": "yn_function",
+      "caller_func": "floorfood",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "ynq"
+      },
+      "domain": "eat/hunger",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_EAT_FLOOR_QUERY",
+      "assigned_sub_category": "EAT",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "eat.c:L3614:yn_function:137",
+      "file": "eat.c",
+      "line": 3614,
+      "callee_func": "yn_function",
+      "caller_func": "floorfood",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": "=== TODO === クマトラップを $1 することしかできません。",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "ynq"
+      },
+      "domain": "eat/hunger",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_EAT_FLOOR_QUERY",
+      "assigned_sub_category": "EAT",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "eat.c:L3626:yn_function:138",
+      "file": "eat.c",
+      "line": 3626,
+      "callee_func": "yn_function",
+      "caller_func": "floorfood",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "ynq"
+      },
+      "domain": "eat/hunger",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%ld",
+          "specifier": "%ld",
+          "type": "number"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_EAT_FLOOR_QUERY",
+      "assigned_sub_category": "EAT",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "eat.c:L3667:yn_function:139",
+      "file": "eat.c",
+      "line": 3667,
+      "callee_func": "yn_function",
+      "caller_func": "floorfood",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "ynq"
+      },
+      "domain": "eat/hunger",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_EAT_FLOOR_QUERY",
+      "assigned_sub_category": "EAT",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "end.c:L629:yn_function:8",
+      "file": "end.c",
+      "line": 629,
+      "callee_func": "yn_function",
+      "caller_func": "disclose",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": "=== TODO === $1 のときに何を持っていたか見てみたいですか?",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "game_over/score",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_OVERVIEW",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "end.c:L640:yn_function:9",
+      "file": "end.c",
+      "line": 640,
+      "callee_func": "yn_function",
+      "caller_func": "disclose",
+      "raw_format": "Do you want to see your attributes?",
+      "full_text": "Do you want to see your attributes?",
+      "translation": "自分の能力を見たいか？",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "game_over/score",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_OVERVIEW",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "end.c:L678:yn_function:10",
+      "file": "end.c",
+      "line": 678,
+      "callee_func": "yn_function",
+      "caller_func": "disclose",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": "=== TODO === あなたの行動 $1 を見たいですか?",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "game_over/score",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_OVERVIEW",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "end.c:L683:yn_function:11",
+      "file": "end.c",
+      "line": 683,
+      "callee_func": "yn_function",
+      "caller_func": "disclose",
+      "raw_format": "Do you want to see the dungeon overview?",
+      "full_text": "Do you want to see the dungeon overview?",
+      "translation": "ダンジョンの概要を見たいか？",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "game_over/score",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_OVERVIEW",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "engrave.c:L1127:yn_function:41",
+      "file": "engrave.c",
+      "line": 1127,
+      "callee_func": "yn_function",
+      "caller_func": "doengrave",
+      "raw_format": "Do you want to add to the current engraving?",
+      "full_text": "Do you want to add to the current engraving?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'y'",
+        "default_key": "y",
+        "valid_keys": "ynq"
+      },
+      "domain": "engrave",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_TEXT_INPUT",
+      "assigned_sub_category": "TEXT_INPUT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "engrave.c:L1199:getlin:48",
+      "file": "engrave.c",
+      "line": 1199,
+      "callee_func": "getlin",
+      "caller_func": "doengrave",
+      "raw_format": "de->qbuf",
+      "full_text": "de->qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "de->ebuf",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "engrave",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_TEXT_INPUT",
+      "assigned_sub_category": "TEXT_INPUT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "insight.c:L2801:yn_function:6",
+      "file": "insight.c",
+      "line": 2801,
+      "callee_func": "yn_function",
+      "caller_func": "list_vanquished",
+      "raw_format": "Do you want an account of creatures vanquished?",
+      "full_text": "Do you want an account of creatures vanquished?",
+      "translation": "倒したクリーチャーの記録を見たいか？",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "allow_yn",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynq",
+        "default_key": "y"
+      },
+      "domain": "insight",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_VANQUISHED",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "insight.c:L2994:yn_function:9",
+      "file": "insight.c",
+      "line": 2994,
+      "callee_func": "yn_function",
+      "caller_func": "list_genocided",
+      "raw_format": "buf",
+      "full_text": "buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(ngone > 1) ? \"ynaq\" : \"ynq\\033a\"",
+        "default_key_raw": "defquery",
+        "valid_keys": "ynaq",
+        "default_key": "y"
+      },
+      "domain": "insight",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 2,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_DISCLOSE_GENOCIDED",
+      "assigned_sub_category": "DISCLOSE",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "invent.c:L1903:yn_function:19",
+      "file": "invent.c",
+      "line": 1903,
+      "callee_func": "yn_function",
+      "caller_func": "getobj",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "inventory",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_ITEM_SELECT",
+      "assigned_sub_category": "ITEM_SELECT",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "invent.c:L2225:getlin:31",
+      "file": "invent.c",
+      "line": 2225,
+      "callee_func": "getlin",
+      "caller_func": "ggetobj",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "inventory",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_ITEM_SELECT",
+      "assigned_sub_category": "ITEM_SELECT",
+      "assigned_input_type": "CHOICE_BUTTONS"
+    },
+    {
+      "id": "invent.c:L2433:yn_function:38",
+      "file": "invent.c",
+      "line": 2433,
+      "callee_func": "yn_function",
+      "caller_func": "askchain",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(takeoff || ident || otmp->quan < 2L)\n                                ? ynaqchars : ynNaqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n"
+      },
+      "domain": "inventory",
+      "placeholders": []
+    },
+    {
+      "id": "invent.c:L3915:yn_function:51",
+      "file": "invent.c",
+      "line": 3915,
+      "callee_func": "yn_function",
+      "caller_func": "dotypeinv",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "types",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "inventory",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_INVENTORY_TYPE_LIST",
+      "assigned_sub_category": "INVENTORY",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "invent.c:L5010:yn_function:81",
+      "file": "invent.c",
+      "line": 5010,
+      "callee_func": "yn_function",
+      "caller_func": "adjust_split",
+      "raw_format": "Split off how many?",
+      "full_text": "Split off how many?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "inventory",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_SPLIT_PROMPT",
+      "assigned_sub_category": "COUNT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "invent.c:L5137:yn_function:84",
+      "file": "invent.c",
+      "line": 5137,
+      "callee_func": "yn_function",
+      "caller_func": "doorganize_core",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "inventory",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%ld",
+          "specifier": "%ld",
+          "type": "number"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_ADJUST_LETTER",
+      "assigned_sub_category": "INVENTORY",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "lock.c:L952:getdir:57",
+      "file": "lock.c",
+      "line": 952,
+      "callee_func": "getdir",
+      "caller_func": "doclose",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "door/container",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "mail.c:L766:getlin:19",
+      "file": "mail.c",
+      "line": 766,
+      "callee_func": "getlin",
+      "caller_func": "readmail",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "mail",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "minion.c:L360:getlin:17",
+      "file": "minion.c",
+      "line": 360,
+      "callee_func": "getlin",
+      "caller_func": "bribe",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "minion",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_BRIBE_AMOUNT",
+      "assigned_sub_category": "BRIBE",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "mon.c:L5049:getlin:114",
+      "file": "mon.c",
+      "line": 5049,
+      "callee_func": "getlin",
+      "caller_func": "wiz_force_cham_form",
+      "raw_format": "pprompt",
+      "full_text": "pprompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "monster",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "music.c:L608:getdir:35",
+      "file": "music.c",
+      "line": 608,
+      "callee_func": "getdir",
+      "caller_func": "do_improvisation",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "music",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "music.c:L780:getlin:54",
+      "file": "music.c",
+      "line": 780,
+      "callee_func": "getlin",
+      "caller_func": "do_play_instrument",
+      "raw_format": "What tune are you playing? [5 notes, A-G]",
+      "full_text": "What tune are you playing? [5 notes, A-G]",
+      "translation": "どんな曲を演奏しますか？ [$1]",
+      "match_tier": "PATTERN",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "music",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_MUSIC_TUNE",
+      "assigned_sub_category": "MUSIC",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "nhlua.c:L692:getlin:4",
+      "file": "nhlua.c",
+      "line": 692,
+      "callee_func": "getlin",
+      "caller_func": "nhl_getlin",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "nhlua",
+      "placeholders": []
+    },
+    {
+      "id": "o_init.c:L1006:yn_function:7",
+      "file": "o_init.c",
+      "line": 1006,
+      "callee_func": "yn_function",
+      "caller_func": "doclassdisco",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "discosyms",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "o_init",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DISCOVERY_CLASS",
+      "assigned_sub_category": "DISCOVERY",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "options.c:L3325:getlin:2",
+      "file": "options.c",
+      "line": 3325,
+      "callee_func": "getlin",
+      "caller_func": "optfn_pickup_types",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "abuf"
+      },
+      "domain": "options",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 2,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "options.c:L6305:getlin:12",
+      "file": "options.c",
+      "line": 6305,
+      "callee_func": "getlin",
+      "caller_func": "handler_autopickup_exception",
+      "raw_format": "What new autopickup exception pattern?",
+      "full_text": "What new autopickup exception pattern?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "&apebuf[1]"
+      },
+      "domain": "options",
+      "placeholders": []
+    },
+    {
+      "id": "options.c:L6388:getlin:13",
+      "file": "options.c",
+      "line": 6388,
+      "callee_func": "getlin",
+      "caller_func": "handler_menu_colors",
+      "raw_format": "What new menucolor pattern?",
+      "full_text": "What new menucolor pattern?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "mcbuf"
+      },
+      "domain": "options",
+      "placeholders": []
+    },
+    {
+      "id": "options.c:L6472:getlin:15",
+      "file": "options.c",
+      "line": 6472,
+      "callee_func": "getlin",
+      "caller_func": "handler_msgtype",
+      "raw_format": "What new message pattern?",
+      "full_text": "What new message pattern?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "mtbuf"
+      },
+      "domain": "options",
+      "placeholders": []
+    },
+    {
+      "id": "options.c:L8639:getlin:25",
+      "file": "options.c",
+      "line": 8639,
+      "callee_func": "getlin",
+      "caller_func": "doset_simple_menu",
+      "raw_format": "buf",
+      "full_text": "buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "abuf"
+      },
+      "domain": "options",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "options.c:L8908:getlin:26",
+      "file": "options.c",
+      "line": 8908,
+      "callee_func": "getlin",
+      "caller_func": "doset",
+      "raw_format": "buf",
+      "full_text": "buf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "abuf"
+      },
+      "domain": "options",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "pager.c:L1812:getlin:9",
+      "file": "pager.c",
+      "line": 1812,
+      "callee_func": "getlin",
+      "caller_func": "do_look",
+      "raw_format": "Specify what? (type the word)",
+      "full_text": "Specify what? (type the word)",
+      "translation": "$1 ( $2 )",
+      "match_tier": "PATTERN",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "out_str"
+      },
+      "domain": "pager/help",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_SPECIFY_OBJECT",
+      "assigned_sub_category": "LOOK",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "pager.c:L2291:getdir:16",
+      "file": "pager.c",
+      "line": 2291,
+      "callee_func": "getdir",
+      "caller_func": "doidtrap",
+      "raw_format": "^",
+      "full_text": "^",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "pager/help",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "pager.c:L2629:yn_function:28",
+      "file": "pager.c",
+      "line": 2629,
+      "callee_func": "yn_function",
+      "caller_func": "dowhatdoes",
+      "raw_format": "What command?",
+      "full_text": "What command?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "pager/help",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WHAT_COMMAND",
+      "assigned_sub_category": "COMMAND_HELP",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "pager.c:L2638:yn_function:29",
+      "file": "pager.c",
+      "line": 2638,
+      "callee_func": "yn_function",
+      "caller_func": "dowhatdoes",
+      "raw_format": "]",
+      "full_text": "]",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "pager/help",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WHAT_COMMAND",
+      "assigned_sub_category": "COMMAND_HELP",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "pickup.c:L202:getlin:1",
+      "file": "pickup.c",
+      "line": 202,
+      "callee_func": "getlin",
+      "caller_func": "query_classes",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "inbuf"
+      },
+      "domain": "pickup",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        },
+        {
+          "index": 1,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_PICKUP_CLASSES",
+      "assigned_sub_category": "ITEM_SELECT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "pickup.c:L2422:yn_function:50",
+      "file": "pickup.c",
+      "line": 2422,
+      "callee_func": "yn_function",
+      "caller_func": "loot_mon",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynqchars",
+        "default_key_raw": "'n'",
+        "default_key": "n"
+      },
+      "domain": "pickup",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
+      "assigned_sub_category": "CONTAINER_ACTION_MENU",
+      "assigned_input_type": "MENU"
+    },
+    {
+      "id": "pickup.c:L3094:yn_function:76",
+      "file": "pickup.c",
+      "line": 3094,
+      "callee_func": "yn_function",
+      "caller_func": "use_container",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "pbuf",
+        "default_key_raw": "more_containers ? 'n' : 'q'"
+      },
+      "domain": "pickup",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CONTAINER_ACTION_MENU_LOOT",
+      "assigned_sub_category": "CONTAINER_ACTION_MENU",
+      "assigned_input_type": "MENU"
+    },
+    {
+      "id": "pline.c:L616:yn_function:19",
+      "file": "pline.c",
+      "line": 616,
+      "callee_func": "yn_function",
+      "caller_func": "impossible",
+      "raw_format": "Report now?",
+      "full_text": "Report now?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynchars",
+        "default_key_raw": "'n'",
+        "default_key": "n",
+        "valid_keys": "yn"
+      },
+      "domain": "pline",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_SYSTEM_REPORT_NOW",
+      "assigned_sub_category": "SYSTEM",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "polyself.c:L507:getlin:6",
+      "file": "polyself.c",
+      "line": 507,
+      "callee_func": "getlin",
+      "caller_func": "polyself",
+      "raw_format": "Become what kind of monster? [type the name]",
+      "full_text": "Become what kind of monster? [type the name]",
+      "translation": "=== TODO === どのようなモンスターになるでしょうか？ [名前を入力してください]",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "polymorph",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_POLYMORPH",
+      "assigned_sub_category": "POLYMORPH",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "polyself.c:L1403:getdir:63",
+      "file": "polyself.c",
+      "line": 1403,
+      "callee_func": "getdir",
+      "caller_func": "dobreathe",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "polymorph",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "polyself.c:L1425:getdir:65",
+      "file": "polyself.c",
+      "line": 1425,
+      "callee_func": "getdir",
+      "caller_func": "dospit",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "polymorph",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "quest.c:L166:yn_function:3",
+      "file": "quest.c",
+      "line": 166,
+      "callee_func": "yn_function",
+      "caller_func": "is_pure",
+      "raw_format": "adjust?",
+      "full_text": "adjust?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'y'",
+        "default_key": "y"
+      },
+      "domain": "quest",
+      "placeholders": []
+    },
+    {
+      "id": "read.c:L2627:getlin:124",
+      "file": "read.c",
+      "line": 2627,
+      "callee_func": "getlin",
+      "caller_func": "do_class_genocide",
+      "raw_format": "promptbuf",
+      "full_text": "promptbuf",
+      "translation": "=== TODO === どのクラスのモンスターを虐殺したいですか?",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "item/scroll",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_GENOCIDE_CLASS",
+      "assigned_sub_category": "GENOCIDE",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "read.c:L2831:getlin:136",
+      "file": "read.c",
+      "line": 2831,
+      "callee_func": "getlin",
+      "caller_func": "do_genocide",
+      "raw_format": "promptbuf",
+      "full_text": "promptbuf",
+      "translation": "=== TODO === 虐殺したいモンスターの種類は何ですか?",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "item/scroll",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_GENOCIDE_SINGLE",
+      "assigned_sub_category": "GENOCIDE",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "read.c:L3344:getlin:150",
+      "file": "read.c",
+      "line": 3344,
+      "callee_func": "getlin",
+      "caller_func": "create_particular",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": "=== TODO === どのようなモンスターを作成しますか？",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "item/scroll",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CREATE_MONSTER",
+      "assigned_sub_category": "CREATE_MONSTER",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "role.c:L2233:yn_function:2",
+      "file": "role.c",
+      "line": 2233,
+      "callee_func": "yn_function",
+      "caller_func": "genl_player_setup",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "role/character_creation",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CHARACTER_CREATION",
+      "assigned_sub_category": "CHARACTER_CREATION",
+      "assigned_input_type": "MENU"
+    },
+    {
+      "id": "role.c:L2257:yn_function:3",
+      "file": "role.c",
+      "line": 2257,
+      "callee_func": "yn_function",
+      "caller_func": "genl_player_setup",
+      "raw_format": "prompt",
+      "full_text": "prompt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "ynaqchars",
+        "default_key_raw": "'y'",
+        "default_key": "y"
+      },
+      "domain": "role/character_creation",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CHARACTER_CREATION",
+      "assigned_sub_category": "CHARACTER_CREATION",
+      "assigned_input_type": "MENU"
+    },
+    {
+      "id": "shk.c:L2105:yn_function:94",
+      "file": "shk.c",
+      "line": 2105,
+      "callee_func": "yn_function",
+      "caller_func": "pay_billed_items",
+      "raw_format": "Itemized billing?",
+      "full_text": "Itemized billing?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "\"ynq m\"",
+        "default_key_raw": "'q'",
+        "valid_keys": "ynqm",
+        "default_key": "q"
+      },
+      "domain": "shop",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_ITEMIZED_BILLING",
+      "assigned_sub_category": "SHOP",
+      "assigned_input_type": "CONFIRM_YN"
+    },
+    {
+      "id": "sit.c:L52:getlin:2",
+      "file": "sit.c",
+      "line": 52,
+      "callee_func": "getlin",
+      "caller_func": "throne_sit_effect",
+      "raw_format": "Throne sit effect (1..13) [0=random]",
+      "full_text": "Throne sit effect (1..13) [0=random]",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "sit/throne",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WIZARD_PROMPT",
+      "assigned_sub_category": "WIZARD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "sounds.c:L1283:getdir:35",
+      "file": "sounds.c",
+      "line": 1283,
+      "callee_func": "getdir",
+      "caller_func": "dochat",
+      "raw_format": "Talk to whom? (in what direction)",
+      "full_text": "Talk to whom? (in what direction)",
+      "translation": "=== TODO === 誰と話しますか？ (どの方向に)",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "sound",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "sounds.c:L1423:getdir:45",
+      "file": "sounds.c",
+      "line": 1423,
+      "callee_func": "getdir",
+      "caller_func": "tiphat",
+      "raw_format": "At whom? (in what direction)",
+      "full_text": "At whom? (in what direction)",
+      "translation": "=== TODO === 誰に? (どの方向に)",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "sound",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "spell.c:L758:yn_function:40",
+      "file": "spell.c",
+      "line": 758,
+      "callee_func": "yn_function",
+      "caller_func": "getspell",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "(char *) 0",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "spell",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_CAST_SPELL",
+      "assigned_sub_category": "SPELL",
+      "assigned_input_type": "SINGLE_KEY"
+    },
+    {
+      "id": "spell.c:L1472:getdir:59",
+      "file": "spell.c",
+      "line": 1472,
+      "callee_func": "getdir",
+      "caller_func": "spelleffects",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "spell",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "steed.c:L46:getdir:1",
+      "file": "steed.c",
+      "line": 46,
+      "callee_func": "getdir",
+      "caller_func": "use_saddle",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "steed/mount",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "steed.c:L182:getdir:12",
+      "file": "steed.c",
+      "line": 182,
+      "callee_func": "getdir",
+      "caller_func": "doride",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "steed/mount",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "teleport.c:L1198:getlin:15",
+      "file": "teleport.c",
+      "line": 1198,
+      "callee_func": "getlin",
+      "caller_func": "level_tele",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "teleport",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_LEVEL_TELEPORT",
+      "assigned_sub_category": "TELEPORT",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "trap.c:L5802:getdir:285",
+      "file": "trap.c",
+      "line": 5802,
+      "callee_func": "getdir",
+      "caller_func": "untrap",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "trap",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "vault.c:L497:getlin:13",
+      "file": "vault.c",
+      "line": 497,
+      "callee_func": "getlin",
+      "caller_func": "invault",
+      "raw_format": "Deaf ? \"You are required to supply your name. -\"\n                        : \"\\\"Hello stranger, who are you?\\\" -\"",
+      "full_text": "Deaf ? \"You are required to supply your name. -\"\n                        : \"\\\"Hello stranger, who are you?\\\" -\"",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "vault",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_GUARD_NAME_INQUIRY",
+      "assigned_sub_category": "NAME",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "windows.c:L1836:getlin:7",
+      "file": "windows.c",
+      "line": 1836,
+      "callee_func": "getlin",
+      "caller_func": "getlin",
+      "raw_format": "const char *query",
+      "full_text": "const char *query",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "char *bufp"
+      },
+      "domain": "windowport",
+      "placeholders": []
+    },
+    {
+      "id": "wizcmds.c:L359:getlin:12",
+      "file": "wizcmds.c",
+      "line": 359,
+      "callee_func": "getlin",
+      "caller_func": "wiz_load_lua",
+      "raw_format": "Load which lua file?",
+      "full_text": "Load which lua file?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "wizcmds",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WIZARD_PROMPT",
+      "assigned_sub_category": "WIZARD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "wizcmds.c:L372:getlin:14",
+      "file": "wizcmds.c",
+      "line": 372,
+      "callee_func": "getlin",
+      "caller_func": "wiz_load_splua",
+      "raw_format": "Load which des lua file?",
+      "full_text": "Load which des lua file?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "wizcmds",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WIZARD_PROMPT",
+      "assigned_sub_category": "WIZARD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "wizcmds.c:L422:yn_function:17",
+      "file": "wizcmds.c",
+      "line": 422,
+      "callee_func": "yn_function",
+      "caller_func": "wiz_flip_level",
+      "raw_format": "prmpt",
+      "full_text": "prmpt",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "choices",
+        "default_key_raw": "'\\0'",
+        "default_key": "\\0"
+      },
+      "domain": "wizcmds",
+      "placeholders": []
+    },
+    {
+      "id": "wizcmds.c:L445:getlin:19",
+      "file": "wizcmds.c",
+      "line": 445,
+      "callee_func": "getlin",
+      "caller_func": "wiz_level_change",
+      "raw_format": "To what experience level do you want to be set?",
+      "full_text": "To what experience level do you want to be set?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "wizcmds",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WIZARD_PROMPT",
+      "assigned_sub_category": "WIZARD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "wizcmds.c:L506:getdir:24",
+      "file": "wizcmds.c",
+      "line": 506,
+      "callee_func": "getdir",
+      "caller_func": "wiz_telekinesis",
+      "raw_format": "which direction?",
+      "full_text": "which direction?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "wizcmds",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "wizcmds.c:L1528:yn_function:44",
+      "file": "wizcmds.c",
+      "line": 1528,
+      "callee_func": "yn_function",
+      "caller_func": "list_migrating_mons",
+      "raw_format": "List which?",
+      "full_text": "List which?",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "yn_function",
+        "valid_keys_raw": "prmpt",
+        "default_key_raw": "'q'",
+        "default_key": "q"
+      },
+      "domain": "wizcmds",
+      "placeholders": []
+    },
+    {
+      "id": "wizcmds.c:L1874:getlin:47",
+      "file": "wizcmds.c",
+      "line": 1874,
+      "callee_func": "getlin",
+      "caller_func": "wiz_migrate_mons",
+      "raw_format": "How many random monsters to migrate to next level? [0]",
+      "full_text": "How many random monsters to migrate to next level? [0]",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "inbuf"
+      },
+      "domain": "wizcmds",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WIZARD_PROMPT",
+      "assigned_sub_category": "WIZARD",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "write.c:L126:getlin:6",
+      "file": "write.c",
+      "line": 126,
+      "callee_func": "getlin",
+      "caller_func": "dowrite",
+      "raw_format": "qbuf",
+      "full_text": "qbuf",
+      "translation": null,
+      "match_tier": "UNMATCHED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "namebuf"
+      },
+      "domain": "writing",
+      "placeholders": [
+        {
+          "index": 0,
+          "raw": "%s",
+          "specifier": "%s",
+          "type": "string"
+        }
+      ],
+      "assigned_signal_id": "SIGNAL_WRITE_SPELLBOOK",
+      "assigned_sub_category": "WRITE",
+      "assigned_input_type": "LINE_TEXT"
+    },
+    {
+      "id": "zap.c:L2615:getdir:56",
+      "file": "zap.c",
+      "line": 2615,
+      "callee_func": "getdir",
+      "caller_func": "dozap",
+      "raw_format": "(char *) 0",
+      "full_text": "In what direction?",
+      "translation": "どの方向？ ",
+      "match_tier": "EXACT_FULL",
+      "prompt_meta": {
+        "prompt_func": "getdir"
+      },
+      "domain": "item/wand_spell",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_DIRECTION",
+      "assigned_sub_category": "DIRECTION",
+      "assigned_input_type": "DIRECTION"
+    },
+    {
+      "id": "zap.c:L6230:getlin:169",
+      "file": "zap.c",
+      "line": 6230,
+      "callee_func": "getlin",
+      "caller_func": "makewish",
+      "raw_format": "promptbuf",
+      "full_text": "promptbuf",
+      "translation": "=== TODO === 何を望むのですか",
+      "match_tier": "INFERRED",
+      "prompt_meta": {
+        "prompt_func": "getlin",
+        "target_buf": "buf"
+      },
+      "domain": "item/wand_spell",
+      "placeholders": [],
+      "assigned_signal_id": "SIGNAL_WISH",
+      "assigned_sub_category": "WISH",
+      "assigned_input_type": "LINE_TEXT"
+    }
+  ]
+}

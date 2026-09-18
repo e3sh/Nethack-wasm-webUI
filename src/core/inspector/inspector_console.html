@@ -220,6 +220,12 @@
         }
         .log-item.EVENT-inputRequired { border-left-color: var(--warn-color); }
         .log-item.INJECT { border-left-color: var(--danger-color); }
+        .log-item.SIGNAL { border-left-color: #cba6f7; background-color: rgba(203, 166, 247, 0.07); }
+        .log-item.SIGNAL .log-cat { color: #cba6f7; }
+        .signal-badge { background-color: #cba6f7; color: #11111b; padding: 2px 7px; border-radius: 4px; font-weight: bold; font-size: 11px; margin-right: 6px; display: inline-block; }
+        .signal-prop { color: #a6adc8; margin-right: 8px; font-size: 12px; }
+        .signal-val { color: #89dceb; font-weight: bold; }
+        .signal-keys { color: #a6e3a1; font-weight: bold; }
         .log-time { color: #6c7086; margin-right: 8px; font-size: 11px; }
         .log-cat { color: var(--accent-color); font-weight: bold; margin-right: 8px; }
 
@@ -543,8 +549,12 @@
 
         <!-- Tab 4: Live Event Stream -->
         <div id="tabLogs" class="tab-content">
-            <div class="toolbar">
-                <input type="text" id="filterInput" placeholder="Filter logs (e.g. inputRequired, message)...">
+            <div class="toolbar" style="gap: 6px; flex-wrap: wrap;">
+                <input type="text" id="filterInput" placeholder="Filter logs (e.g. SIGNAL, inputRequired, message)..." oninput="refilterLogs()" style="flex: 1; min-width: 200px;">
+                <button class="btn" onclick="setLogFilter('')">All</button>
+                <button class="btn" style="color: #cba6f7; border-color: #cba6f7;" onclick="setLogFilter('SIGNAL')">📡 Signals</button>
+                <button class="btn" style="color: #f9e2af; border-color: #f9e2af;" onclick="setLogFilter('inputRequired')">📥 InputRequired</button>
+                <button class="btn" style="color: #a6e3a1; border-color: #a6e3a1;" onclick="setLogFilter('TRANSLATION')">📝 Translation</button>
                 <button class="btn" onclick="clearLogs()">Clear Logs</button>
             </div>
             <div class="log-list" id="logList">
@@ -638,7 +648,25 @@
             }
         };
 
+        const allLogEntries = [];
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function renderLogEntry(entry) {
+            allLogEntries.push(entry);
+            if (allLogEntries.length > 1000) allLogEntries.shift();
+            appendLogItem(entry);
+        }
+
+        function appendLogItem(entry) {
             const logList = document.getElementById('logList');
             const filter = document.getElementById('filterInput').value.trim().toLowerCase();
             const textContent = `${entry.category} ${JSON.stringify(entry.data)}`.toLowerCase();
@@ -647,13 +675,64 @@
 
             const item = document.createElement('div');
             item.className = `log-item ${entry.category.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+
+            let bodyHtml = '';
+            if (entry.category === 'SIGNAL' && typeof entry.data === 'object' && entry.data) {
+                const sig = entry.data;
+                const keysHtml = sig.validKeys ? `<span class="signal-prop">Keys: <span class="signal-keys">${escapeHtml(sig.validKeys)}</span></span>` : '';
+                const defKeyHtml = sig.defaultKey ? `<span class="signal-prop">Default: <span class="signal-keys">'${escapeHtml(sig.defaultKey)}'</span></span>` : '';
+                const paramsStr = (sig.params && Object.keys(sig.params).length > 0) ? JSON.stringify(sig.params) : '';
+                const paramsHtml = paramsStr ? `<span class="signal-prop">Params: <span class="signal-val">${escapeHtml(paramsStr)}</span></span>` : '';
+                const promptHtml = sig.prompt ? `<span style="color:#cdd6f4; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 3px;">"${escapeHtml(sig.prompt)}"</span>` : '';
+
+                bodyHtml = `
+                    <span class="signal-badge">${escapeHtml(sig.signalId || 'UNKNOWN')}</span>
+                    <span class="signal-prop">Type: <span class="signal-val">${escapeHtml(sig.inputType || '-')}</span></span>
+                    <span class="signal-prop">SubCat: <span class="signal-val">${escapeHtml(sig.subCategory || '-')}</span></span>
+                    ${keysHtml}
+                    ${defKeyHtml}
+                    ${paramsHtml}
+                    ${promptHtml}
+                `;
+            } else if (entry.category === 'EVENT:inputRequired' && typeof entry.data === 'object' && entry.data) {
+                const req = entry.data;
+                const sigBadge = req.signalId ? `<span class="signal-badge" style="background:#89b4fa; color:#111;">${escapeHtml(req.signalId)}</span>` : '';
+                bodyHtml = `
+                    ${sigBadge}
+                    <span>${escapeHtml(JSON.stringify(req))}</span>
+                `;
+            } else {
+                const dataStr = typeof entry.data === 'object' ? JSON.stringify(entry.data) : String(entry.data);
+                bodyHtml = `<span>${escapeHtml(dataStr)}</span>`;
+            }
+
             item.innerHTML = `
-                <span class="log-time">${entry.timestamp}</span>
-                <span class="log-cat">[${entry.category}]</span>
-                <span>${typeof entry.data === 'object' ? JSON.stringify(entry.data) : entry.data}</span>
+                <span class="log-time">${escapeHtml(entry.timestamp)}</span>
+                <span class="log-cat">[${escapeHtml(entry.category)}]</span>
+                ${bodyHtml}
             `;
             logList.appendChild(item);
             logList.scrollTop = logList.scrollHeight;
+        }
+
+        function setLogFilter(cat) {
+            const filterInput = document.getElementById('filterInput');
+            filterInput.value = cat;
+            refilterLogs();
+        }
+
+        function refilterLogs() {
+            const logList = document.getElementById('logList');
+            logList.innerHTML = '';
+            for (const entry of allLogEntries) {
+                appendLogItem(entry);
+            }
+        }
+
+        function clearLogs() {
+            allLogEntries.length = 0;
+            const logList = document.getElementById('logList');
+            logList.innerHTML = '';
         }
 
         function renderStateSnapshot(s) {

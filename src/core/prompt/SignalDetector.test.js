@@ -622,4 +622,266 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(resRealDevice.subCategory).toBe('DIRECTION');
         });
     });
+
+    describe('5. Phase 3: NetHack 5.0 C コア由来の完全網羅制御シグナル検証', () => {
+        const detector = SignalDetector.createDefault();
+
+        it('音楽演奏プロンプト (SIGNAL_MUSIC_TUNE) を正しく検知できること', () => {
+            const res = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What tune are you playing? [5 notes, A-G]'
+            });
+            expect(res.matched).toBe(true);
+            expect(res.signalId).toBe('SIGNAL_MUSIC_TUNE');
+            expect(res.subCategory).toBe('MUSIC');
+            expect(res.inputType).toBe('LINE_TEXT');
+            expect(res.params.maxNotes).toBe(5);
+        });
+
+        it('レベルテレポートプロンプト (SIGNAL_LEVEL_TELEPORT) を正しく検知できること', () => {
+            const res = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'To what level do you want to teleport?'
+            });
+            expect(res.matched).toBe(true);
+            expect(res.signalId).toBe('SIGNAL_LEVEL_TELEPORT');
+            expect(res.subCategory).toBe('TELEPORT');
+            expect(res.inputType).toBe('LINE_TEXT');
+        });
+
+        it('命名・アノテーション・身元確認プロンプトを種別ごとに検知できること', () => {
+            // 道具・モンスター命名
+            const nameRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What do you want to name this broadsword?'
+            });
+            expect(nameRes.matched).toBe(true);
+            expect(nameRes.signalId).toBe('SIGNAL_TEXT_INPUT');
+
+            // ダンジョン階層アノテーション
+            const annotRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'What do you want to call this dungeon level?'
+            });
+            expect(annotRes.matched).toBe(true);
+            expect(annotRes.signalId).toBe('SIGNAL_DUNGEON_ANNOTATION');
+            expect(annotRes.subCategory).toBe('NAME');
+
+            // 門番の身元確認
+            const guardRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: '"Hello stranger, who are you?" -'
+            });
+            expect(guardRes.matched).toBe(true);
+            expect(guardRes.signalId).toBe('SIGNAL_GUARD_NAME_INQUIRY');
+        });
+
+        it('刻み文字追記確認プロンプト (SIGNAL_ENGRAVE_ADD_QUERY) を正しく検知できること', () => {
+            const res = detector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'Do you want to add to the current engraving?'
+            });
+            expect(res.matched).toBe(true);
+            expect(res.signalId).toBe('SIGNAL_ENGRAVE_ADD_QUERY');
+            expect(res.subCategory).toBe('ENGRAVE');
+            expect(res.validKeys).toBe('ynq');
+            expect(res.defaultKey).toBe('y');
+        });
+
+        it('食事確認プロンプト (SIGNAL_EAT_QUERY / SIGNAL_EAT_FLOOR_QUERY) を正しく検知できること', () => {
+            // 持ち物食事
+            const invEat = detector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'Eat the tripe ration?'
+            });
+            expect(invEat.matched).toBe(true);
+            expect(invEat.signalId).toBe('SIGNAL_EAT_QUERY');
+            expect(invEat.subCategory).toBe('EAT');
+            expect(invEat.validKeys).toBe('yn');
+            expect(invEat.defaultKey).toBe('n');
+
+            // 床の食事
+            const floorEat = detector.detect({
+                category: PROMPT_CATEGORY.YN,
+                rawPrompt: 'There is a pear here; eat it?'
+            });
+            expect(floorEat.matched).toBe(true);
+            expect(floorEat.signalId).toBe('SIGNAL_EAT_FLOOR_QUERY');
+            expect(floorEat.subCategory).toBe('EAT');
+            expect(floorEat.validKeys).toBe('ynq');
+            expect(floorEat.defaultKey).toBe('n');
+        });
+
+        it('ゲーム終了時開示プロンプト群 (DISCLOSE) を正確に識別できること', () => {
+            // 所持品
+            const possRes = detector.detect({
+                rawPrompt: 'Do you want your possessions identified?'
+            });
+            expect(possRes.matched).toBe(true);
+            expect(possRes.signalId).toBe('SIGNAL_DISCLOSE_POSSESSIONS');
+            expect(possRes.params.discloseType).toBe('POSSESSIONS');
+            expect(possRes.validKeys).toBe('ynq');
+
+            // 属性
+            const attrRes = detector.detect({
+                rawPrompt: 'Do you want to see your attributes?'
+            });
+            expect(attrRes.matched).toBe(true);
+            expect(attrRes.signalId).toBe('SIGNAL_DISCLOSE_ATTRIBUTES');
+            expect(attrRes.params.discloseType).toBe('ATTRIBUTES');
+
+            // 行動
+            const condRes = detector.detect({
+                rawPrompt: 'Do you want to see your conduct?'
+            });
+            expect(condRes.matched).toBe(true);
+            expect(condRes.signalId).toBe('SIGNAL_DISCLOSE_CONDUCT');
+            expect(condRes.params.discloseType).toBe('CONDUCT');
+
+            // ダンジョン概要
+            const overRes = detector.detect({
+                rawPrompt: 'Do you want to see the dungeon overview?'
+            });
+            expect(overRes.matched).toBe(true);
+            expect(overRes.signalId).toBe('SIGNAL_DISCLOSE_OVERVIEW');
+            expect(overRes.params.discloseType).toBe('OVERVIEW');
+
+            // 撃破記録
+            const vanqRes = detector.detect({
+                rawPrompt: 'Do you want an account of creatures vanquished?'
+            });
+            expect(vanqRes.matched).toBe(true);
+            expect(vanqRes.signalId).toBe('SIGNAL_DISCLOSE_VANQUISHED');
+            expect(vanqRes.params.discloseType).toBe('VANQUISHED');
+
+            // 虐殺一覧
+            const genoRes = detector.detect({
+                rawPrompt: 'Do you want a list of species genocided?'
+            });
+            expect(genoRes.matched).toBe(true);
+            expect(genoRes.signalId).toBe('SIGNAL_DISCLOSE_GENOCIDED');
+            expect(genoRes.params.discloseType).toBe('GENOCIDED');
+            expect(genoRes.validKeys).toBe('ynaq');
+        });
+
+        it('特殊能力・アクションプロンプトを正確に検知できること', () => {
+            // クモ能力 (hide or spin)
+            const spiderRes = detector.detect({
+                rawPrompt: 'Hide [h] or spin a web [s]?'
+            });
+            expect(spiderRes.matched).toBe(true);
+            expect(spiderRes.signalId).toBe('SIGNAL_SPIDER_ABILITY');
+            expect(spiderRes.validKeys).toBe('hsq');
+            expect(spiderRes.defaultKey).toBe('q');
+
+            // 水晶玉探索
+            const ballRes = detector.detect({
+                rawPrompt: 'What do you look for?'
+            });
+            expect(ballRes.matched).toBe(true);
+            expect(ballRes.signalId).toBe('SIGNAL_CRYSTAL_BALL');
+
+            // 乗騎キック確認
+            const kickRes = detector.detect({
+                rawPrompt: 'Kick your steed?'
+            });
+            expect(kickRes.matched).toBe(true);
+            expect(kickRes.signalId).toBe('SIGNAL_STEED_KICK');
+            expect(kickRes.validKeys).toBe('yn');
+            expect(kickRes.defaultKey).toBe('y');
+
+            // 悪魔への賄賂額入力
+            const bribeRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'How much will you offer?'
+            });
+            expect(bribeRes.matched).toBe(true);
+            expect(bribeRes.signalId).toBe('SIGNAL_BRIBE_AMOUNT');
+
+            // 店主の明細請求
+            const billRes = detector.detect({
+                rawPrompt: 'Itemized billing?'
+            });
+            expect(billRes.matched).toBe(true);
+            expect(billRes.signalId).toBe('SIGNAL_ITEMIZED_BILLING');
+            expect(billRes.validKeys).toBe('ynqm');
+            expect(billRes.defaultKey).toBe('q');
+        });
+
+        it('操作・インベントリ・コマンド系プロンプトを正確に検知できること', () => {
+            // 分割数
+            const splitRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Split off how many?'
+            });
+            expect(splitRes.matched).toBe(true);
+            expect(splitRes.signalId).toBe('SIGNAL_SPLIT_PROMPT');
+
+            // 見る対象の指定
+            const lookRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Specify what? (type the word)'
+            });
+            expect(lookRes.matched).toBe(true);
+            expect(lookRes.signalId).toBe('SIGNAL_SPECIFY_OBJECT');
+
+            // コマンドヘルプ
+            const cmdRes = detector.detect({
+                rawPrompt: 'What command?'
+            });
+            expect(cmdRes.matched).toBe(true);
+            expect(cmdRes.signalId).toBe('SIGNAL_WHAT_COMMAND');
+
+            // 拡張コマンド検索
+            const extRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Search for which extended command?'
+            });
+            expect(extRes.matched).toBe(true);
+            expect(extRes.signalId).toBe('SIGNAL_EXTCMD_SEARCH');
+
+            // 呪文詠唱
+            const spellRes = detector.detect({
+                rawPrompt: 'Cast which spell?'
+            });
+            expect(spellRes.matched).toBe(true);
+            expect(spellRes.signalId).toBe('SIGNAL_CAST_SPELL');
+
+            // システムエラーレポート
+            const sysRes = detector.detect({
+                rawPrompt: 'Report now?'
+            });
+            expect(sysRes.matched).toBe(true);
+            expect(sysRes.signalId).toBe('SIGNAL_SYSTEM_REPORT_NOW');
+            expect(sysRes.validKeys).toBe('yn');
+            expect(sysRes.defaultKey).toBe('n');
+
+            // モンスター生成
+            const createRes = detector.detect({
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Create what kind of monster?'
+            });
+            expect(createRes.matched).toBe(true);
+            expect(createRes.signalId).toBe('SIGNAL_CREATE_MONSTER');
+        });
+
+        it('通常のゲームプレイナレーションが制御シグナルに誤爆しないこと (False Positive ゼロ検証)', () => {
+            const falsePositives = [
+                'You hit the goblin.',
+                'The door opens.',
+                'You feel much better.',
+                'You hear someone crying out.',
+                'There is a closed door here.',
+                'You displace the kitten.',
+                'Welcome to NetHack! You are an elven wizard.',
+                'The stairs lead up.'
+            ];
+
+            for (const text of falsePositives) {
+                const res = detector.detect({ rawPrompt: text });
+                expect(res.matched).toBe(false);
+                expect(res.signalId).toBeNull();
+            }
+        });
+    });
 });

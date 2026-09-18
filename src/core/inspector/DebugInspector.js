@@ -334,8 +334,24 @@ export class DebugInspector {
         });
 
         // --- Core 高レベルイベントのバインド ---
+        this.core.on('signal', (payload) => {
+            const sig = payload?.signal || (payload?.guiData && payload.guiData.signal) || {};
+            this.broadcastLog('SIGNAL', {
+                signalId: sig.signalId || payload?.signalId || 'UNKNOWN',
+                subCategory: sig.subCategory || payload?.subCategory,
+                inputType: sig.inputType || payload?.inputType,
+                validKeys: sig.validKeys || payload?.validKeys || null,
+                defaultKey: sig.defaultKey || payload?.defaultKey || null,
+                params: sig.params || {},
+                confidence: sig.confidence !== undefined ? sig.confidence : 1.0,
+                prompt: payload?.rawPrompt || payload?.promptText || payload?.prompt || ''
+            });
+        });
+
         this.core.on('inputRequired', (payload) => {
+            const sig = payload?.signal || (payload?.guiData && payload.guiData.signal) || null;
             this.broadcastLog('EVENT:inputRequired', {
+                signalId: payload?.signalId || sig?.signalId || undefined,
                 inputType: payload ? payload.inputType : undefined,
                 prompt: payload ? (payload.prompt || payload.rawPrompt) : undefined,
                 title: payload ? payload.title : undefined,

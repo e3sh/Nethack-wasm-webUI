@@ -2,7 +2,7 @@
 title: メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
 status: proposal / future vision
 created_at: 2026-09-16
-last_updated: 2026-09-17
+last_updated: 2026-09-18
 related_code:
   - src/core/WebUICore.js
   - src/core/prompt/SignalDetector.js
@@ -10,6 +10,11 @@ related_code:
   - src/driver/NetHackWasmDriver.js
   - dictionary.csv
   - tools/extract_source_messages.py
+  - tools/map_source_to_dictionary.py
+  - tools/data/source_messages_mapped.json
+  - tools/data/mapping_report.txt
+  - tools/data/untranslated_source_messages.csv
+  - tools/data/control_signals_master.json
   - docs/7_futures/source_message_extraction_methodology_guide.ja.md
 ---
 
@@ -198,14 +203,18 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
   ※設計思想・運用ガイド: `docs/7_futures/source_message_extraction_methodology_guide.ja.md`
     │
     ▼
-[Phase 2: 既存翻訳資産とのマッピング]
-  抽出された英文フォーマットと、既存 dictionary.csv (17,000件) の自動照合
-  翻訳の完全性検証と、ドメイン・セマンティクスタグの付与
-    │
-    ▼
-[Phase 3: 制御シグナルの先行完全網羅]
-  数が約40件ずつと限定されている yn_function / getlin / getdir を完全カタログ化
-  SignalDetector を「完全網羅型」へ置き換え、プロンプト誤爆を完全撲滅
+[Phase 2: 既存翻訳資産とのマッピング] ★完了 (2026-09-18)
+  抽出された英文フォーマットと、既存 dictionary.csv (17,191件) の多層自動照合 (map_source_to_dictionary.py)
+  全 14,849 件のコンテキスト付きマッピングマスタ (source_messages_mapped.json) 生成
+  主要ゲームドメイン (Quest 96%, Rumors 96.5%, 飲食・祈り・魔法 85〜94%) の極めて高い翻訳完全性を実証
+  未翻訳ギャップリスト (untranslated_source_messages.csv: 8,794件) による課題の可視化
+  Phase 3 直結の制御シグナルマスタ (control_signals_master.json: 102件) を完全集約
+[Phase 3: 制御シグナルの先行完全網羅] ★完了 (2026-09-18)
+  NetHack 5.0 C ソース全102件の制御呼び出し (yn_function 39件, getlin 37件, getdir 26件) を精緻に分類・マッピング
+  カタログ自動生成・同期ツール (tools/build_control_signal_catalog.py) を確立
+  Vanilla/英語の完全網羅制御シグナルカタログ (src/core/prompt/ControlSignalCatalog.js: 全52シグナル) を生成
+  validKeys / defaultKey / inputType / subCategory / params の完全付与と SignalDetector.js への決定論的伝播
+  全単体テスト (32件) および全体回帰テスト (65ファイル / 908件) 100% パスによる誤爆ゼロ実証
     │
     ▼
 [Phase 4: LORE / コレクション系シグナルと拡張機能の実装]

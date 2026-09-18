@@ -288,4 +288,34 @@ describe('DebugInspector', () => {
         expect(postedLog.data.callback).toBe('[Function]');
         expect(postedLog.data.label).toBe('safe');
     });
+
+    it('core が signal イベントを発火した際、category: SIGNAL のログが自動ブロードキャストされること', () => {
+        const core = createMockCore();
+        const inspector = new DebugInspector(core, { autoStart: true });
+        let postedLog = null;
+        inspector.channel = {
+            postMessage: vi.fn((msg) => {
+                if (msg.type === 'INSPECTOR_LOG') {
+                    postedLog = msg.entry;
+                }
+            })
+        };
+
+        core.emit('signal', {
+            signalId: 'SIGNAL_WISH',
+            subCategory: 'WISH',
+            inputType: 'LINE_TEXT',
+            validKeys: null,
+            defaultKey: null,
+            params: {},
+            rawPrompt: 'For what do you wish?'
+        });
+
+        expect(postedLog).toBeDefined();
+        expect(postedLog.category).toBe('SIGNAL');
+        expect(postedLog.data.signalId).toBe('SIGNAL_WISH');
+        expect(postedLog.data.subCategory).toBe('WISH');
+        expect(postedLog.data.inputType).toBe('LINE_TEXT');
+        expect(postedLog.data.prompt).toBe('For what do you wish?');
+    });
 });

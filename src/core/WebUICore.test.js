@@ -739,5 +739,72 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(result).toBe(true);
         });
     });
+
+    describe('制御シグナル発行 (Pub/Sub: core.emit("signal", payload))', () => {
+        it('制御シグナルにマッチするプロンプト発生時に signal および signal:SIGNAL_ID イベントが発行されること', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.YN)
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const signalListener = vi.fn();
+            const specificSignalListener = vi.fn();
+
+            core.on('signal', signalListener);
+            core.on('signal:SIGNAL_STEED_KICK', specificSignalListener);
+
+            const mockResolver = { respond: vi.fn() };
+
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.YN,
+                context: 'yn_function',
+                prompt: 'Kick your steed?',
+                rawPrompt: 'Kick your steed?',
+                resolver: mockResolver
+            });
+
+            expect(signalListener).toHaveBeenCalledTimes(1);
+            expect(specificSignalListener).toHaveBeenCalledTimes(1);
+
+            const emittedPayload = signalListener.mock.calls[0][0];
+            expect(emittedPayload.signalId).toBe('SIGNAL_STEED_KICK');
+            expect(emittedPayload.validKeys).toBe('yn');
+            expect(emittedPayload.defaultKey).toBe('y');
+            expect(emittedPayload.signal).toBeDefined();
+            expect(emittedPayload.signal.matched).toBe(true);
+        });
+
+        it('制御シグナルにマッチしないプロンプトでは signal イベントが発行されないこと', () => {
+            let inputRequiredHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.LINE)
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const signalListener = vi.fn();
+            core.on('signal', signalListener);
+
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.LINE,
+                context: 'getlin',
+                prompt: 'Some random unrecognized prompt text',
+                rawPrompt: 'Some random unrecognized prompt text',
+                resolver: { respond: vi.fn() }
+            });
+
+            expect(signalListener).not.toHaveBeenCalled();
+        });
+    });
 });
 

@@ -1679,18 +1679,25 @@ export class WebUICore {
                 }
             }
 
+            const detectedSignal = (guiData && guiData.signal) ? guiData.signal : null;
+            const signalId = detectedSignal?.signalId || guiData?.signalId || null;
+
             const passThroughPayload = {
                 ...basePayload,
                 ...guiData,
+                signalId: signalId,
+                signal: detectedSignal,
+                validKeys: detectedSignal?.validKeys || guiData?.validKeys || null,
+                defaultKey: detectedSignal?.defaultKey || guiData?.defaultKey || null,
                 guiData: guiData,
                 guiInput: guiData
             };
 
             // 📡 汎用制御シグナル通知 (Pub/Sub: 自律UI・Featureモジュールへの通知)
-            if (guiData && (guiData.signalId || guiData.signal)) {
+            if (detectedSignal && detectedSignal.matched) {
                 this.emit('signal', passThroughPayload);
-                if (guiData.signalId) {
-                    this.emit(`signal:${guiData.signalId}`, passThroughPayload);
+                if (signalId) {
+                    this.emit(`signal:${signalId}`, passThroughPayload);
                 }
             }
 
