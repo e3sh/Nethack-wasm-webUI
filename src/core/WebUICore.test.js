@@ -806,5 +806,73 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(signalListener).not.toHaveBeenCalled();
         });
     });
+
+    describe('Phase 4: LORE シグナル検知 & 冒険手帳 (Codex) 連携', () => {
+        it('メッセージストリームから SIGNAL_LORE_RUMOR が検知され、Codex に蓄積・Pub/Sub 発行されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const signalListener = vi.fn();
+            const rumorSignalListener = vi.fn();
+            core.on('signal', signalListener);
+            core.on('signal:SIGNAL_LORE_RUMOR', rumorSignalListener);
+
+            // フォーチュンクッキーを読むシーケンス
+            putstrHandler({ text: 'This cookie has a scrap of paper inside.' });
+            putstrHandler({ text: 'It reads:' });
+            putstrHandler({ text: "A blindfold can be very useful if you're telepathic." });
+
+            expect(signalListener).toHaveBeenCalledTimes(1);
+            expect(rumorSignalListener).toHaveBeenCalledTimes(1);
+
+            const emittedSignal = rumorSignalListener.mock.calls[0][0];
+            expect(emittedSignal.signalId).toBe('SIGNAL_LORE_RUMOR');
+            expect(emittedSignal.isTrue).toBe(true);
+            expect(emittedSignal.source).toBe('cookie');
+
+            // Codex への蓄積検証
+            const codex = core.getCodex();
+            expect(codex).toBeDefined();
+            const rumors = codex.getRumors();
+            expect(rumors.length).toBe(1);
+            expect(rumors[0].id).toBe('rumor_tru_1');
+            expect(rumors[0].isTrue).toBe(true);
+        });
+
+        it('床文字メッセージから SIGNAL_LORE_ENGRAVE が発行され、結界状態が更新されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const engraveSignalListener = vi.fn();
+            core.on('signal:SIGNAL_LORE_ENGRAVE', engraveSignalListener);
+
+            putstrHandler({ text: 'Something is written here in the dust.' });
+            putstrHandler({ text: 'You read: "Elbereth".' });
+
+            expect(engraveSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = engraveSignalListener.mock.calls[0][0];
+            expect(emitted.isElbereth).toBe(true);
+            expect(emitted.isWardActive).toBe(true);
+            expect(emitted.engraveType).toBe('DUST');
+
+            const currentWard = core.getCodex().getCurrentWard();
+            expect(currentWard).toBeDefined();
+            expect(currentWard.actualText).toBe('Elbereth');
+            expect(currentWard.isWardActive).toBe(true);
+        });
+    });
 });
+
 

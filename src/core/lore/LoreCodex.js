@@ -1,0 +1,356 @@
+/**
+ * LoreCodex.js - 冒険手帳・伝承コレクションマネージャ
+ *
+ * プレイヤーが獲得した噂話 (Rumor)、神託 (Oracle)、床の結界文字 (Engrave / Elbereth)
+ * をセッション横断で蓄積・検索・真偽照合・統計集計する知識基盤。
+ */
+
+import { LoreCodexStorage } from './LoreCodexStorage.js';
+import { LORE_MASTER } from './data/LoreMasterData.js';
+import { WARD_STATUS } from './ElberethAnalyzer.js';
+
+export class LoreCodex {
+    /**
+     * @param {Object} [options]
+     * @param {LoreCodexStorage} [options.storage] - カスタムストレージ
+     * @param {boolean} [options.autoLoad=true] - 初期化時にストレージから自動復元するか
+     */
+    constructor(options = {}) {
+        this.storage = options.storage || new LoreCodexStorage();
+        this.rumors = new Map();   // rumorId -> rumorObject
+        this.oracles = new Map();  // oracleId -> oracleObject
+        this.currentWard = null;   // 最新の結界状態
+        this.listeners = new Set();
+        this.master = LORE_MASTER;
+
+        if (options.autoLoad !== false) {
+            this.load();
+        }
+    }
+
+    /**
+     * 変更リスナーの登録
+     * @param {Function} listener
+     * @returns {Function} 解除関数
+     */
+    subscribe(listener) {
+        if (typeof listener === 'function') {
+            this.listeners.add(listener);
+        }
+        return () => this.listeners.delete(listener);
+    }
+
+    _notify(event, data) {
+        for (const listener of this.listeners) {
+            try {
+                listener(event, data, this);
+            } catch (e) {
+                console.error('[LoreCodex] Listener error:', e);
+            }
+        }
+    }
+
+    /**
+     * 噂話の追加・記録
+     *
+     * @param {Object} rumor
+     * @param {string} rumor.id - 噂ID (例: 'rumor_tru_1')
+     * @param {string} rumor.text - 英語原文
+     * @param {string} [rumor.translatedText] - 日本語訳
+     * @param {boolean} rumor.isTrue - 真偽
+     * @param {string} [rumor.source='cookie'] - 入手元 ('cookie'|'paper'|'oracle')
+     * @returns {{ isNew: boolean, rumor: Object }}
+     */
+    addRumor(rumor) {
+        if (!rumor || (!rumor.id && !rumor.text)) {
+            return { isNew: false, rumor: null };
+        }
+
+        const id = rumor.id || `custom_${rumor.text.substring(0, 20)}`;
+        const existing = this.rumors.get(id);
+        const isNew = !existing;
+
+        const entry = {
+            id: id,
+            text: rumor.text,
+            translatedText: rumor.translatedText || existing?.translatedText || '',
+            isTrue: rumor.isTrue !== undefined ? rumor.isTrue : (existing ? existing.isTrue : true),
+            category: 'RUMOR',
+            subCategory: rumor.isTrue ? 'TRUE_RUMOR' : 'FALSE_RUMOR',
+            source: rumor.source || existing?.source || 'unknown',
+            firstDiscoveredAt: existing ? existing.firstDiscoveredAt : new Date().toISOString(),
+            lastSeenAt: new Date().toISOString(),
+            seenCount: (existing?.seenCount || 0) + 1
+        };
+
+        this.rumors.set(id, entry);
+        this._autoSave();
+        this._notify('rumorAdded', { isNew, rumor: entry });
+
+        return { isNew, rumor: entry };
+    }
+
+    /**
+     * 神託の追加・記録
+     *
+     * @param {Object} oracle
+     * @param {string} oracle.id - 神託ID (例: 'oracle_1')
+     * @param {string} oracle.text - 英文
+     * @param {string} [oracle.translatedText] - 日本語訳
+     * @param {string} [oracle.title] - 概要タイトル
+     * @param {boolean} [oracle.isSpecial=false]
+     * @returns {{ isNew: boolean, oracle: Object }}
+     */
+    addOracle(oracle) {
+        if (!oracle || (!oracle.id && !oracle.text)) {
+            return { isNew: false, oracle: null };
+        }
+
+        const id = oracle.id || `custom_oracle_${oracle.text.substring(0, 20)}`;
+        const existing = this.oracles.get(id);
+        const isNew = !existing;
+
+        const entry = {
+            id: id,
+            title: oracle.title || existing?.title || oracle.text.split('\n')[0].substring(0, 40),
+            text: oracle.text,
+            translatedText: oracle.translatedText || existing?.translatedText || '',
+            category: 'ORACLE',
+            isSpecial: oracle.isSpecial || existing?.isSpecial || false,
+            firstDiscoveredAt: existing ? existing.firstDiscoveredAt : new Date().toISOString(),
+            lastSeenAt: new Date().toISOString(),
+            seenCount: (existing?.seenCount || 0) + 1
+        };
+
+        this.oracles.set(id, entry);
+        this._autoSave();
+        this._notify('oracleAdded', { isNew, oracle: entry });
+
+        return { isNew, oracle: entry };
+    }
+
+    /**
+     * 最新の床の刻み文字 / Elbereth 結界状態を更新
+     * @param {Object} wardData
+     */
+    updateWard(wardData) {
+        this.currentWard = {
+            ...wardData,
+            updatedAt: new Date().toISOString()
+        };
+        this._notify('wardUpdated', this.currentWard);
+    }
+
+    /**
+     * 現在の結界状態を取得
+     * @returns {Object|null}
+     */
+    getCurrentWard() {
+        return this.currentWard;
+    }
+
+    /**
+     * 収集した噂話一覧を取得 (デフォルト: 最新順)
+     * @param {'recent'|'id'|'truth'} [sortBy='recent']
+     * @returns {Array<Object>}
+     */
+    getRumors(sortBy = 'recent') {
+        const list = Array.from(this.rumors.values());
+        if (sortBy === 'recent') {
+            return list.sort((a, b) => new Date(b.lastSeenAt) - new Date(a.lastSeenAt));
+        } else if (sortBy === 'truth') {
+            return list.sort((a, b) => Number(b.isTrue) - Number(a.isTrue));
+        } else if (sortBy === 'id') {
+            return list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+        }
+        return list;
+    }
+
+    /**
+     * 収集した神託一覧を取得
+     * @returns {Array<Object>}
+     */
+    getOracles() {
+        return Array.from(this.oracles.values()).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    }
+
+    /**
+     * 収集統計（Rumor / Oracle / 全体）の取得
+     * @returns {Object}
+     */
+    getStats() {
+        const totalMasterRumors = this.master?.metadata?.rumorCount || 787;
+        const totalMasterTrue = this.master?.metadata?.trueRumorCount || 390;
+        const totalMasterFalse = this.master?.metadata?.falseRumorCount || 397;
+        const totalMasterOracles = this.master?.metadata?.oracleCount || 20;
+
+        const collectedRumors = Array.from(this.rumors.values());
+        const trueCount = collectedRumors.filter(r => r.isTrue).length;
+        const falseCount = collectedRumors.filter(r => !r.isTrue).length;
+        const oracleCount = this.oracles.size;
+
+        return {
+            rumors: {
+                total: totalMasterRumors,
+                collected: collectedRumors.length,
+                trueCount: trueCount,
+                falseCount: falseCount,
+                totalTrue: totalMasterTrue,
+                totalFalse: totalMasterFalse,
+                percentage: Number(((collectedRumors.length / totalMasterRumors) * 100).toFixed(1)),
+                truePercentage: Number(((trueCount / totalMasterTrue) * 100).toFixed(1)),
+                falsePercentage: Number(((falseCount / totalMasterFalse) * 100).toFixed(1))
+            },
+            oracles: {
+                total: totalMasterOracles,
+                collected: oracleCount,
+                percentage: Number(((oracleCount / totalMasterOracles) * 100).toFixed(1))
+            },
+            overall: {
+                totalEntries: totalMasterRumors + totalMasterOracles,
+                totalCollected: collectedRumors.length + oracleCount,
+                percentage: Number((((collectedRumors.length + oracleCount) / (totalMasterRumors + totalMasterOracles)) * 100).toFixed(1))
+            }
+        };
+    }
+
+    /**
+     * 伝承コレクションの検索・フィルタ
+     *
+     * @param {string} [query=''] - 検索語 (英和部分一致)
+     * @param {'ALL'|'TRUE'|'FALSE'|'ORACLE'} [filter='ALL'] - 種別フィルタ
+     * @returns {Array<Object>}
+     */
+    search(query = '', filter = 'ALL') {
+        const q = String(query).trim().toLowerCase();
+        let items = [];
+
+        if (filter !== 'ORACLE') {
+            const rumors = this.getRumors();
+            for (const r of rumors) {
+                if (filter === 'TRUE' && !r.isTrue) continue;
+                if (filter === 'FALSE' && r.isTrue) continue;
+                items.push(r);
+            }
+        }
+
+        if (filter === 'ALL' || filter === 'ORACLE') {
+            const oracles = this.getOracles();
+            items.push(...oracles);
+        }
+
+        if (!q) {
+            return items;
+        }
+
+        return items.filter(item => {
+            const textMatch = item.text && item.text.toLowerCase().includes(q);
+            const trMatch = item.translatedText && item.translatedText.toLowerCase().includes(q);
+            const titleMatch = item.title && item.title.toLowerCase().includes(q);
+            const idMatch = item.id && item.id.toLowerCase().includes(q);
+            return textMatch || trMatch || titleMatch || idMatch;
+        });
+    }
+
+    /**
+     * ストレージへの非同期自動保存
+     * @private
+     */
+    async _autoSave() {
+        if (!this.storage) return;
+        const data = this.serialize();
+        await this.storage.save(data);
+    }
+
+    /**
+     * 現在の状態をシリアライズ
+     * @returns {Object}
+     */
+    serialize() {
+        return {
+            rumors: Array.from(this.rumors.values()),
+            oracles: Array.from(this.oracles.values()),
+            lastWard: this.currentWard
+        };
+    }
+
+    /**
+     * ストレージからの復元
+     * @returns {Promise<boolean>}
+     */
+    async load() {
+        if (!this.storage) return false;
+        const data = await this.storage.load();
+        if (!data) return false;
+
+        this.deserialize(data);
+        this._notify('loaded', this.getStats());
+        return true;
+    }
+
+    /**
+     * データをデシリアライズして取り込み
+     * @param {Object} data
+     */
+    deserialize(data) {
+        if (!data) return;
+
+        if (Array.isArray(data.rumors)) {
+            for (const r of data.rumors) {
+                if (r && r.id) this.rumors.set(r.id, r);
+            }
+        }
+        if (Array.isArray(data.oracles)) {
+            for (const o of data.oracles) {
+                if (o && o.id) this.oracles.set(o.id, o);
+            }
+        }
+        if (data.lastWard) {
+            this.currentWard = data.lastWard;
+        }
+    }
+
+    /**
+     * 手帳のリセット (全消去)
+     * @returns {Promise<boolean>}
+     */
+    async reset() {
+        this.rumors.clear();
+        this.oracles.clear();
+        this.currentWard = null;
+        if (this.storage) {
+            await this.storage.clear();
+        }
+        this._notify('reset', null);
+        return true;
+    }
+
+    /**
+     * JSON バックアップエクスポート
+     * @returns {string}
+     */
+    exportJSON() {
+        const data = this.serialize();
+        return this.storage ? this.storage.exportJSON(data) : JSON.stringify(data);
+    }
+
+    /**
+     * JSON バックアップからのインポート
+     * @param {string} jsonString
+     * @returns {Promise<boolean>}
+     */
+    async importJSON(jsonString) {
+        try {
+            const data = this.storage ? this.storage.importJSON(jsonString) : JSON.parse(jsonString);
+            this.deserialize(data);
+            await this._autoSave();
+            this._notify('imported', this.getStats());
+            return true;
+        } catch (e) {
+            console.error('[LoreCodex] Import failed:', e);
+            return false;
+        }
+    }
+}
+
+export default LoreCodex;

@@ -267,6 +267,7 @@
         <div style="display: flex; gap: 16px; margin-bottom: 20px;">
             <a href="../index.html" class="nav-back" style="margin-bottom: 0;">← Back to Title</a>
             <a href="config.html" class="nav-back" style="margin-bottom: 0;">⚙️ Config</a>
+            <a href="lore_codex.html" class="nav-back" style="margin-bottom: 0; color: #e3b341;">📜 Rumor & Lore Codex</a>
         </div>
 
         <header class="header">
@@ -281,6 +282,26 @@
                 <div><strong>State:</strong> <span id="status-state-text">Checking...</span></div>
                 <div><strong>Active Player:</strong> <span id="status-player-text" style="color:var(--accent-hover); font-weight:600;">None</span></div>
                 <div><strong>Total Saved Files:</strong> <span id="status-count-text">0</span></div>
+            </div>
+        </section>
+
+        <!-- Rumor & Lore Codex Meta-Persistence Section -->
+        <section class="card" style="border-left: 4px solid #e3b341;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 class="section-title" style="margin-bottom: 0; color: #e3b341;">📜 Rumor & Lore Codex (冒険手帳)</h2>
+                <a href="lore_codex.html" class="btn btn-primary" style="background: rgba(227, 179, 65, 0.2); border-color: #e3b341; color: #e3b341;">Open Codex Prototype →</a>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                Wasmセーブデータとは独立してセッション横断で永続化されるプレイヤーの知識・コレクション資産です。
+            </p>
+            <div id="codex-status-summary" style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; margin-bottom: 16px;">
+                <div><strong>Collected Rumors:</strong> <span id="codex-rumor-count" style="color: #3fb950; font-weight: 600;">0 / 787</span></div>
+                <div><strong>Collected Oracles:</strong> <span id="codex-oracle-count" style="color: #58a6ff; font-weight: 600;">0 / 20</span></div>
+                <div><strong>Storage:</strong> <span id="codex-storage-type">localStorage</span></div>
+            </div>
+            <div class="global-actions" style="margin-bottom: 0;">
+                <button class="btn btn-primary" onclick="exportCodexJSON()">Export Codex (JSON)</button>
+                <button class="btn btn-danger" onclick="resetCodexData()">Reset Codex</button>
             </div>
         </section>
 
@@ -343,6 +364,7 @@
         async function init() {
             await refreshIDB();
             refreshLS();
+            refreshCodexStatus();
             setupDragAndDrop();
         }
 
@@ -573,6 +595,54 @@
                     refreshIDB();
                 };
             }
+        }
+
+        // --- Lore Codex Meta-Persistence ---
+
+        function refreshCodexStatus() {
+            try {
+                const raw = localStorage.getItem('nethack_webui_lore_codex');
+                const rumorEl = document.getElementById('codex-rumor-count');
+                const oracleEl = document.getElementById('codex-oracle-count');
+                if (!rumorEl || !oracleEl) return;
+
+                if (!raw) {
+                    rumorEl.textContent = '0 / 787 (0.0%)';
+                    oracleEl.textContent = '0 / 20';
+                    return;
+                }
+                const parsed = JSON.parse(raw);
+                const data = parsed.data || parsed;
+                const rCount = Array.isArray(data.rumors) ? data.rumors.length : 0;
+                const oCount = Array.isArray(data.oracles) ? data.oracles.length : 0;
+                const pct = ((rCount / 787) * 100).toFixed(1);
+                rumorEl.textContent = `${rCount} / 787 (${pct}%)`;
+                oracleEl.textContent = `${oCount} / 20`;
+            } catch (e) {
+                console.warn('Error reading codex in save manager:', e);
+            }
+        }
+
+        function exportCodexJSON() {
+            const raw = localStorage.getItem('nethack_webui_lore_codex');
+            if (!raw) {
+                alert('No Codex data found to export.');
+                return;
+            }
+            const blob = new Blob([raw], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nethack_lore_codex_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function resetCodexData() {
+            if (!confirm('Remove ALL Rumor & Lore Codex data? This will clear all collected rumors and oracles. This cannot be undone.')) return;
+            localStorage.removeItem('nethack_webui_lore_codex');
+            refreshCodexStatus();
+            alert('Codex data cleared.');
         }
 
         window.onload = init;

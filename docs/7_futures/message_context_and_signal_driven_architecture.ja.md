@@ -13,8 +13,15 @@ related_code:
   - tools/map_source_to_dictionary.py
   - tools/data/source_messages_mapped.json
   - tools/data/mapping_report.txt
-  - tools/data/untranslated_source_messages.csv
   - tools/data/control_signals_master.json
+  - tools/build_lore_database.py
+  - src/core/lore/data/LoreMasterData.js
+  - src/core/lore/ElberethAnalyzer.js
+  - src/core/lore/LoreDetector.js
+  - src/core/lore/LoreCodexStorage.js
+  - src/core/lore/LoreCodex.js
+  - tools/lore_codex.html
+  - tools/save_manager.html
   - docs/7_futures/source_message_extraction_methodology_guide.ja.md
 ---
 
@@ -217,13 +224,33 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
   全単体テスト (32件) および全体回帰テスト (65ファイル / 908件) 100% パスによる誤爆ゼロ実証
     │
     ▼
-[Phase 4: LORE / コレクション系シグナルと拡張機能の実装]
-  Rumors / Engrave / Oracles のシグナル化
-  冒険手帳 (Codex) や Elbereth モニター UI の実験的追加
+[Phase 4: LORE / コレクション系シグナルと拡張機能の実装] ★完了 (2026-09-18)
+  NetHack 5.0 の Rumors (真実 390件 / 偽り 397件) および Oracles (20件) の SSOT マスタデータ化 (tools/build_lore_database.py, LoreMasterData.js)
+  3大 LORE シグナル (SIGNAL_LORE_RUMOR, SIGNAL_LORE_ENGRAVE, SIGNAL_LORE_ORACLE) の決定論的検知エンジン (LoreDetector.js)
+  src/engrave.c の wipeout_text 仕様に基づく Elbereth 結界解析器 (ElberethAnalyzer.js: 残存率・風化・結界有効性判定)
+  Wasm セーブと完全分離されたセッション横断メタ永続化基盤 (LoreCodexStorage.js & LoreCodex.js: IndexedDB/localStorage, JSON export/import)
+  WebUICore への Pub/Sub (core.emit('signal', ...)) および冒険手帳 API (core.getCodex()) の完全統合
+  クライアント専用コンテンツプロトタイプ画面 (tools/lore_codex.html: 噂話図鑑, 神託アーカイブ, 結界モニター, シミュレータ) の構築
+  SaveManager (tools/save_manager.html) への冒険手帳データ管理連携
+  新規単体テスト (21件) および全体回帰テスト (68ファイル / 932件) 100% パスによるリグレッションゼロ実証
     │
     ▼
-[Phase 5: 次世代シグナル駆動 WebUICore の完成]
-  メッセージ監視の一元化、多言語（Vanilla / JNetHack）の完全共通シグナル化達成
+[Phase 5: 既存状態把握機能のメッセージマスタ移行と次世代シグナル駆動 WebUICore の完成]
+  【目的: 「後追い文字列推測」から「メッセージマスタ起点の一元確定」への既存モジュールの刷新】
+  1. 効果音エンジン (SoundEngine) の移行:
+     - 翻訳後テキストの部分一致から、`You_hear` (142件) やドメイン事象マスタ起点の決定論的 SE トリガーへ刷新
+  2. 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行:
+     - `You_feel` (231件) や `eat.c` / `potion.c` のメッセージ ID 照合による誤爆ゼロの耐性獲得・体内変化検知
+  3. 道具識別エンジン (ItemIdentificationResolver) の移行:
+     - `read.c` / `zap.c` 等のメッセージマスタ ID に基づく、未識別アイテム（巻物・杖等）の確定的自動判明
+  4. 多言語透過性 (Language-Agnostic) の完全達成:
+     - メッセージ ID（例: `eat.c:L123:You_feel:5`）を内部キーとし、GKL や判定ロジックから英語/日本語の二重キーワード依存を完全撤廃
+  5. LORE / Codex 機能の GameKnowledge (GKL) 配下への正式配置転換と責務純化:
+     - Phase 4 で暫定的に WebUICore に直接内蔵した LORE / Codex 機能（`src/core/lore/`）を、本来のドメイン境界である GKL 配下（`src/core/knowledge/lore/`）へ正式移設
+     - WebUICore は低レベル I/O とシグナル発行に特化し、GKLPlugin がシグナルを購読して Codex を更新・管理する疎結合構成へ純化
+     - TacticalAdvisor（戦術助言）と Elbereth 結界状態のシームレスな内部連携を実現
+  6. メッセージ監視パイプラインの一元化:
+     - WebUICore から流れる全メッセージをマスタ照合済みの構造化コンテキスト（`messageContext`）として一元ディスパッチする完成形へ
 ```
 
 ---

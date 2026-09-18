@@ -336,14 +336,18 @@ export class DebugInspector {
         // --- Core 高レベルイベントのバインド ---
         this.core.on('signal', (payload) => {
             const sig = payload?.signal || (payload?.guiData && payload.guiData.signal) || {};
+            const loreParams = payload?.signalId === 'SIGNAL_LORE_RUMOR' ? { isTrue: payload.isTrue, source: payload.source, text: payload.text, tr: payload.translatedText } :
+                               payload?.signalId === 'SIGNAL_LORE_ENGRAVE' ? { actualText: payload.actualText, isElbereth: payload.isElbereth, isWardActive: payload.isWardActive, integrity: payload.elberethIntegrity, type: payload.engraveType } :
+                               payload?.signalId === 'SIGNAL_LORE_ORACLE' ? { oracleId: payload.oracleId, title: payload.title } : {};
+
             this.broadcastLog('SIGNAL', {
                 signalId: sig.signalId || payload?.signalId || 'UNKNOWN',
                 subCategory: sig.subCategory || payload?.subCategory,
                 inputType: sig.inputType || payload?.inputType,
                 validKeys: sig.validKeys || payload?.validKeys || null,
                 defaultKey: sig.defaultKey || payload?.defaultKey || null,
-                params: sig.params || {},
-                confidence: sig.confidence !== undefined ? sig.confidence : 1.0,
+                params: { ...(sig.params || {}), ...(payload?.params || {}), ...loreParams },
+                confidence: sig.confidence !== undefined ? sig.confidence : (payload?.confidence !== undefined ? payload.confidence : 1.0),
                 prompt: payload?.rawPrompt || payload?.promptText || payload?.prompt || ''
             });
         });

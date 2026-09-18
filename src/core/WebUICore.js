@@ -20,6 +20,8 @@ import { DebugInspector } from './inspector/DebugInspector.js';
 import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
+import { LoreDetector } from './lore/LoreDetector.js';
+import { LoreCodex } from './lore/LoreCodex.js';
 
 export const KEYS = {
     ESC: 27,
@@ -134,6 +136,8 @@ export class WebUICore {
 
         const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
         this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
+        this.loreDetector = options.loreDetector || new LoreDetector();
+        this.loreCodex = options.loreCodex || new LoreCodex();
         this.interactiveController = options.interactiveController || new InteractiveRequestController({
             driver: this.driver,
             signalDetector: this.signalDetector
@@ -228,6 +232,22 @@ export class WebUICore {
 
     getState() {
         return this.state;
+    }
+
+    /**
+     * 冒険手帳・伝承コレクションマネージャを取得
+     * @returns {LoreCodex}
+     */
+    getCodex() {
+        return this.loreCodex;
+    }
+
+    /**
+     * 冒険手帳・伝承コレクションマネージャを取得 (エイリアス)
+     * @returns {LoreCodex}
+     */
+    getLoreCodex() {
+        return this.loreCodex;
     }
 
     async detectSavedGameInfo() {
@@ -1353,6 +1373,37 @@ export class WebUICore {
             }
             this.renderer.appendMessage(translated);
             this.emit('message', translated);
+
+            // 📡 Layer 4: LORE シグナル検知 & Codex 連携
+            if (this.loreDetector) {
+                const loreSignal = this.loreDetector.processMessage(rawText);
+                if (loreSignal && loreSignal.matched) {
+                    if (this.loreCodex) {
+                        if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR') {
+                            this.loreCodex.addRumor({
+                                id: loreSignal.rumorId,
+                                text: loreSignal.text,
+                                translatedText: loreSignal.translatedText,
+                                isTrue: loreSignal.isTrue,
+                                source: loreSignal.source
+                            });
+                        } else if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE') {
+                            this.loreCodex.addOracle({
+                                id: loreSignal.oracleId,
+                                title: loreSignal.title,
+                                text: loreSignal.text,
+                                translatedText: loreSignal.translatedText,
+                                isSpecial: loreSignal.isSpecial
+                            });
+                        } else if (loreSignal.signalId === 'SIGNAL_LORE_ENGRAVE') {
+                            this.loreCodex.updateWard(loreSignal);
+                        }
+                    }
+                    this.emit('signal', loreSignal);
+                    this.emit(`signal:${loreSignal.signalId}`, loreSignal);
+                    this.emit('loreSignal', loreSignal);
+                }
+            }
         };
 
         this.driver.on('putstr', (data) => {
