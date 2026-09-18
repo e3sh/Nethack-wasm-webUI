@@ -13391,7 +13391,7 @@ function nhEntities() {
 function nhItems() {
     return {
         "cursed": "呪われた",
-        "uncursed": "呪われていない",
+        "uncursed": "普通の",
         "blessed": "祝福された",
         "unblessed": "祝福されていない",
         "diluted": "薄まった",
