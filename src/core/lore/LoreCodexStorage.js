@@ -52,11 +52,11 @@ export class LoreCodexStorage {
     }
 
     /**
-     * データを保存
+     * データを保存 (完全同期)
      * @param {Object} data
-     * @returns {Promise<boolean>}
+     * @returns {boolean}
      */
-    async save(data) {
+    save(data) {
         try {
             const storage = this._getStorage();
             const payload = {
@@ -74,10 +74,10 @@ export class LoreCodexStorage {
     }
 
     /**
-     * データを読み込み
-     * @returns {Promise<Object|null>}
+     * データを読み込み (完全同期)
+     * @returns {Object|null}
      */
-    async load() {
+    load() {
         try {
             const storage = this._getStorage();
             const raw = storage.getItem(this.storageKey);
@@ -91,10 +91,10 @@ export class LoreCodexStorage {
     }
 
     /**
-     * ストレージを消去
-     * @returns {Promise<boolean>}
+     * ストレージを消去 (完全同期)
+     * @returns {boolean}
      */
-    async clear() {
+    clear() {
         try {
             const storage = this._getStorage();
             storage.removeItem(this.storageKey);

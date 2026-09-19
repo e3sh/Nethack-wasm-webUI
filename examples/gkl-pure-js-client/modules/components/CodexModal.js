@@ -284,9 +284,44 @@ export class CodexModal {
     }
 
     /**
+     * Codex の変更リスナーを確実に購読 (モーダルを開く前でも常時受信可能にする)
+     */
+    _ensureSubscribed() {
+        const core = this.getCore();
+        const codex = core?.getLoreCodex();
+        if (codex && this._subscribedCodex !== codex) {
+            const onUpdate = () => {
+                this.notifyUnreadCount();
+                if (this.isVisible) {
+                    this.updateSummaryBar();
+                    this.renderList();
+                    this.renderDetail();
+                    this.updateUnreadBadges();
+                }
+            };
+            if (typeof codex.subscribe === 'function') {
+                codex.subscribe(onUpdate);
+            } else if (typeof codex.on === 'function') {
+                codex.on('updated', onUpdate);
+            }
+            this._subscribedCodex = codex;
+            this._subscribed = true;
+        }
+    }
+
+    /**
+     * 初期化・未読件数即時反映
+     */
+    init() {
+        this._ensureSubscribed();
+        this.notifyUnreadCount();
+    }
+
+    /**
      * 外部リスナーへ未読件数変更を通知
      */
     notifyUnreadCount() {
+        this._ensureSubscribed();
         const counts = this.getUnreadCounts();
         if (typeof this.onUnreadCountChanged === 'function') {
             this.onUnreadCountChanged(counts.total, counts);
@@ -368,25 +403,7 @@ export class CodexModal {
         this.elCodexModal.classList.remove('hidden');
 
         // Codex の変更リスナーを購読
-        const core = this.getCore();
-        const codex = core?.getLoreCodex();
-        if (codex && !this._subscribed) {
-            const onUpdate = () => {
-                this.notifyUnreadCount();
-                if (this.isVisible) {
-                    this.updateSummaryBar();
-                    this.renderList();
-                    this.renderDetail();
-                    this.updateUnreadBadges();
-                }
-            };
-            if (typeof codex.subscribe === 'function') {
-                codex.subscribe(onUpdate);
-            } else if (typeof codex.on === 'function') {
-                codex.on('updated', onUpdate);
-            }
-            this._subscribed = true;
-        }
+        this._ensureSubscribed();
 
         this.applyLanguageUI();
         this.updateSummaryBar();

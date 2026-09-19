@@ -38,44 +38,50 @@ export class LoreDetector {
         this.pendingEngraveType = null;
         this.pendingOracleType = null;
 
-        // 高速照合用マップの構築
+        // 高速照合用マップの構築 (英語原文のみを登録し、変動する日本語訳には依存しない)
         this.rumorsByText = new Map();
         this.rumorsByNormText = new Map();
         for (const r of (this.master.rumors || [])) {
-            this.rumorsByText.set(r.text, r);
-            this.rumorsByNormText.set(this._normalizeText(r.text), r);
+            if (r.text) {
+                this.rumorsByText.set(r.text, r);
+                this.rumorsByNormText.set(this._normalizeText(r.text), r);
+            }
         }
 
         this.oraclesByText = new Map();
         this.oraclesByNormText = new Map();
         this.oraclesFirstLineMap = new Map();
         for (const o of (this.master.oracles || [])) {
-            this.oraclesByText.set(o.text, o);
-            const norm = this._normalizeText(o.text);
-            this.oraclesByNormText.set(norm, o);
-            const firstLine = o.text.split('\n')[0].trim();
-            if (firstLine) {
-                this.oraclesFirstLineMap.set(this._normalizeText(firstLine), o);
+            if (o.text) {
+                this.oraclesByText.set(o.text, o);
+                const norm = this._normalizeText(o.text);
+                this.oraclesByNormText.set(norm, o);
+                const firstLine = o.text.split('\n')[0].trim();
+                if (firstLine) {
+                    this.oraclesFirstLineMap.set(this._normalizeText(firstLine), o);
+                }
             }
         }
     }
 
     /**
-     * テキストの空白・記号正規化
+     * テキストの空白・記号正規化 (英語 rawText 基準)
      * @param {string} str
      * @returns {string}
      */
     _normalizeText(str) {
         if (!str) return '';
-        return str.replace(/\s+/g, ' ')
-                  .replace(/^["'「]/, '')
-                  .replace(/["'」][\.]?$/, '')
+        return str.replace(/[\s\u3000]+/g, ' ')
+                  .replace(/^["'「『]/, '')
+                  .replace(/["'」』][\.]?$/, '')
+                  .replace(/[。\.]$/, '')
+                  .replace(/_+$/, '')
                   .trim()
                   .toLowerCase();
     }
 
     /**
-     * 噂話マスタとの照合（完全一致、クォート除去一致、正規化一致）
+     * 噂話マスタとの照合（完全一致、カーソル除去一致、クォート除去一致、正規化一致）
      * @param {string} text
      * @returns {Object|null}
      * @private
@@ -83,10 +89,12 @@ export class LoreDetector {
     _findRumor(text) {
         if (!text) return null;
         const trimmed = text.trim();
-        const unquoted = trimmed.replace(/^["'「]/, '').replace(/["'」][\.]?$/, '').trim();
-        const norm = this._normalizeText(trimmed);
+        const strippedCursor = trimmed.replace(/_+$/, '').trim();
+        const unquoted = strippedCursor.replace(/^["'「]/, '').replace(/["'」][\.]?$/, '').trim();
+        const norm = this._normalizeText(strippedCursor);
 
         return this.rumorsByText.get(trimmed) ||
+               this.rumorsByText.get(strippedCursor) ||
                this.rumorsByText.get(unquoted) ||
                this.rumorsByNormText.get(norm) ||
                null;
@@ -101,9 +109,11 @@ export class LoreDetector {
     _findOracle(text) {
         if (!text) return null;
         const trimmed = text.trim();
-        const norm = this._normalizeText(trimmed);
+        const strippedCursor = trimmed.replace(/_+$/, '').trim();
+        const norm = this._normalizeText(strippedCursor);
 
         return this.oraclesByText.get(trimmed) ||
+               this.oraclesByText.get(strippedCursor) ||
                this.oraclesByNormText.get(norm) ||
                this.oraclesFirstLineMap.get(norm) ||
                null;
@@ -121,8 +131,8 @@ export class LoreDetector {
             return null;
         }
 
-        // サニタイズ: 改行コードを半角スペースへ置換（複数行に渡る大預言の単語結合を防ぐ）、--More-- の除去
-        const clean = rawMessage.replace(/[\r\n]+/g, ' ').replace(/--More--/g, '').trim();
+        // サニタイズ: 改行コードを半角スペースへ置換（複数行に渡る大預言の単語結合を防ぐ）、--More-- の除去、末尾カーソル記号 '_' および余分な空白の除去
+        const clean = rawMessage.replace(/[\r\n]+/g, ' ').replace(/--More--/g, '').trim().replace(/_+$/, '').trim();
         if (!clean) return null;
 
         // 履歴バッファへの記録
@@ -142,7 +152,7 @@ export class LoreDetector {
             clean.includes('クッキーの中に紙切れ') || clean.includes('クッキーには紙片') || clean.includes('紙片が入っている') ||
             clean.includes('あなたはクッキーを割って')) {
             this.currentMode = 'COOKIE_OPENED';
-            this.modeStepsRemaining = 3;
+            this.modeStepsRemaining = 5;
             this.pendingRumorSource = 'cookie';
             return null;
         }
@@ -156,7 +166,7 @@ export class LoreDetector {
             const trailingContent = readPrefixMatch[1].trim();
 
             this.currentMode = 'COOKIE_READING';
-            this.modeStepsRemaining = 2;
+            this.modeStepsRemaining = 4;
             this.pendingRumorSource = isFromCookie ? 'cookie' : (this.pendingRumorSource || 'paper');
 
             if (!trailingContent) {
@@ -168,7 +178,7 @@ export class LoreDetector {
         if ((clean.includes('True to her word, the Oracle') && clean.includes('says:')) ||
             (clean.includes('約束どおり、オラクルは') && clean.includes('告げた:'))) {
             this.currentMode = 'ORACLE_RUMOR';
-            this.modeStepsRemaining = 2;
+            this.modeStepsRemaining = 3;
             this.pendingRumorSource = 'oracle';
             return null;
         }
@@ -178,7 +188,7 @@ export class LoreDetector {
             clean.includes('オラクルはしばらく瞑想したのち、厳かに口を開いた') ||
             clean.includes('オラクルは軽蔑するようにあなたの全財産を取り上げ')) {
             this.currentMode = 'ORACLE_MAJOR';
-            this.modeStepsRemaining = 3;
+            this.modeStepsRemaining = 4;
             this.pendingOracleType = clean.includes('scornfully') ? 'special' : 'normal';
             return null;
         }
@@ -226,57 +236,55 @@ export class LoreDetector {
         }
 
         // ====================================================
-        // PHASE 2: 現在のモードに基づく本文同定・シグナル発行
+        // PHASE 2: 噂話・神託の直接同定（Shim仕様最優先）
+        //          クッキー・紙片・オラクルの本文が届いた場合、
+        //          モードの有無にかかわらず英語マスターと直ちに照合・同定する
         // ====================================================
-
-        // 2-1. クッキーまたは神託所の噂話読取モード (COOKIE_READING / ORACLE_RUMOR)
-        if (this.currentMode === 'COOKIE_READING' || this.currentMode === 'ORACLE_RUMOR') {
-            let candidate = clean;
-            const prefixMatch = clean.match(/^(?:It reads:|そこにはこう書いてある[：:]|こう書かれている[：:])\s*(.*)$/i);
-            if (prefixMatch && prefixMatch[1]) {
-                candidate = prefixMatch[1].trim();
-            }
-
-            const rumor = this._findRumor(candidate);
-            if (rumor) {
-                const source = (this.currentMode === 'ORACLE_RUMOR') ? 'oracle' : (this.pendingRumorSource || 'cookie');
-                this._resetMode();
-
-                return {
-                    signalId: 'SIGNAL_LORE_RUMOR',
-                    subCategory: 'RUMOR',
-                    matched: true,
-                    rumorId: rumor.id,
-                    text: rumor.text,
-                    translatedText: rumor.translatedText,
-                    isTrue: rumor.isTrue,
-                    source: source,
-                    confidence: 1.0,
-                    rawPrompt: rawMessage
-                };
-            }
+        let candidate = clean;
+        const prefixMatch = clean.match(/^(?:It reads:|そこにはこう書いてある[：:]|こう書かれている[：:]|こう書いてある[：:])\s*(.*)$/i);
+        if (prefixMatch && prefixMatch[1]) {
+            candidate = prefixMatch[1].trim();
         }
 
-        // 2-2. 神託所の大預言読取モード (ORACLE_MAJOR)
-        if (this.currentMode === 'ORACLE_MAJOR') {
-            const oracle = this._findOracle(clean);
-            if (oracle) {
-                const isSpecial = this.pendingOracleType === 'special' || oracle.isSpecial;
-                this._resetMode();
+        const matchedRumor = this._findRumor(candidate) || (candidate !== clean ? this._findRumor(clean) : null);
+        if (matchedRumor) {
+            const source = (this.currentMode === 'ORACLE_RUMOR')
+                ? 'oracle'
+                : (this.pendingRumorSource || (this.currentMode === 'COOKIE_OPENED' ? 'cookie' : 'cookie'));
+            this._resetMode();
 
-                return {
-                    signalId: 'SIGNAL_LORE_ORACLE',
-                    subCategory: 'ORACLE',
-                    matched: true,
-                    oracleId: oracle.id,
-                    title: oracle.title,
-                    text: oracle.text,
-                    translatedText: oracle.translatedText,
-                    isSpecial: isSpecial,
-                    confidence: 1.0,
-                    rawPrompt: rawMessage
-                };
-            }
+            return {
+                signalId: 'SIGNAL_LORE_RUMOR',
+                subCategory: 'RUMOR',
+                matched: true,
+                rumorId: matchedRumor.id,
+                text: matchedRumor.text,
+                translatedText: matchedRumor.translatedText,
+                isTrue: matchedRumor.isTrue,
+                source: source,
+                confidence: 1.0,
+                rawPrompt: rawMessage
+            };
+        }
+
+        // 神託所の大預言 (ORACLE_MAJOR または 直接マッチ)
+        const matchedOracle = this._findOracle(clean);
+        if (matchedOracle && (this.currentMode === 'ORACLE_MAJOR' || clean.length > 30)) {
+            const isSpecial = this.pendingOracleType === 'special' || matchedOracle.isSpecial;
+            this._resetMode();
+
+            return {
+                signalId: 'SIGNAL_LORE_ORACLE',
+                subCategory: 'ORACLE',
+                matched: true,
+                oracleId: matchedOracle.id,
+                title: matchedOracle.title,
+                text: matchedOracle.text,
+                translatedText: matchedOracle.translatedText,
+                isSpecial: isSpecial,
+                confidence: 1.0,
+                rawPrompt: rawMessage
+            };
         }
 
         // 2-3. 床の刻み文字・墓碑銘の検知 (SIGNAL_LORE_ENGRAVE)

@@ -107,3 +107,110 @@ describe('StatusView - renderGklAttributes 種族・ロール表示機能', () =
     expect(html).toContain('属性耐性: なし');
   });
 });
+
+describe('StatusView - 負荷(Encumbrance)・ヘルスカラー・レイアウト制御', () => {
+  let statusView;
+  let elStatusBar;
+  let elStName;
+  let elStCond;
+  let elHpBarFill;
+
+  beforeEach(() => {
+    const classSet = new Set();
+    const mockClassList = {
+      add: (...cls) => cls.forEach(c => classSet.add(c)),
+      remove: (...cls) => cls.forEach(c => classSet.delete(c)),
+      contains: (c) => classSet.has(c),
+      toggle: (c, force) => {
+        if (force !== undefined) {
+          if (force) classSet.add(c); else classSet.delete(c);
+        } else {
+          if (classSet.has(c)) classSet.delete(c); else classSet.add(c);
+        }
+      }
+    };
+
+    elStatusBar = { classList: mockClassList };
+    elStName = { textContent: '', classList: { ...mockClassList, classSet: new Set() } };
+    elStName.classList.add = (...cls) => cls.forEach(c => elStName.classList.classSet.add(c));
+    elStName.classList.remove = (...cls) => cls.forEach(c => elStName.classList.classSet.delete(c));
+    elStName.classList.contains = (c) => elStName.classList.classSet.has(c);
+
+    elStCond = { textContent: '', style: {}, classList: mockClassList };
+    elHpBarFill = { style: {} };
+
+    statusView = new StatusView({
+      elStatusBar,
+      elStName,
+      elStCond,
+      elHpBarFill,
+      getCore: () => null
+    });
+  });
+
+  it('負荷(Burdened)発生時にステータス条件バッジに「負荷」が追加されること', () => {
+    statusView.updateStatus({
+      title: 'Hero',
+      hp: { current: 15, max: 15 },
+      conditions: [],
+      hunger: '',
+      encumbrance: 'Burdened',
+      cap: 1
+    });
+
+    expect(elStCond.textContent).toContain('負荷');
+    expect(elStCond.style.backgroundColor).toBe('#d97706');
+  });
+
+  it('重荷(Stressed)発生時に「重荷」と警告カラーが表示されること', () => {
+    statusView.updateStatus({
+      title: 'Hero',
+      hp: { current: 15, max: 15 },
+      conditions: [],
+      hunger: '',
+      encumbrance: 'Stressed',
+      cap: 2
+    });
+
+    expect(elStCond.textContent).toContain('重荷');
+    expect(elStCond.style.backgroundColor).toBe('#ea580c');
+  });
+
+  it('HP残量に応じてキャラ名(st-name)にヘルスカラークラスが付与されること', () => {
+    // 瀕死 (15%以下)
+    statusView.updateStatus({
+      title: 'Hero',
+      hp: { current: 2, max: 20 },
+      conditions: []
+    });
+    expect(elStName.classList.contains('hp-status-critical')).toBe(true);
+
+    // 健全 (65%超)
+    statusView.updateStatus({
+      title: 'Hero',
+      hp: { current: 18, max: 20 },
+      conditions: []
+    });
+    expect(elStName.classList.contains('hp-status-healthy')).toBe(true);
+    expect(elStName.classList.contains('hp-status-critical')).toBe(false);
+  });
+
+  it('setLayoutModeでclassicとmodernが正しく切り替わること', () => {
+    statusView.setLayoutMode('classic');
+    expect(elStatusBar.classList.contains('layout-classic')).toBe(true);
+    expect(elStatusBar.classList.contains('layout-modern')).toBe(false);
+
+    statusView.setLayoutMode('modern');
+    expect(elStatusBar.classList.contains('layout-modern')).toBe(true);
+    expect(elStatusBar.classList.contains('layout-classic')).toBe(false);
+  });
+
+  it('setGaugeVisibilityでhide-gaugesクラスが正しく着脱されること', () => {
+    statusView.setGaugeVisibility(false);
+    expect(elStatusBar.classList.contains('hide-gauges')).toBe(true);
+
+    statusView.setGaugeVisibility(true);
+    expect(elStatusBar.classList.contains('hide-gauges')).toBe(false);
+  });
+});
+

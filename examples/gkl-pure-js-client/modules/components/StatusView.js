@@ -62,16 +62,60 @@ export class StatusView {
     this.currentLanguage = lang;
   }
 
+  setLayoutMode(mode) {
+    if (!this.elStatusBar) return;
+    if (mode === 'classic') {
+      this.elStatusBar.classList.add('layout-classic');
+      this.elStatusBar.classList.remove('layout-modern');
+    } else {
+      this.elStatusBar.classList.add('layout-modern');
+      this.elStatusBar.classList.remove('layout-classic');
+    }
+  }
+
+  setGaugeVisibility(visible) {
+    if (!this.elStatusBar) return;
+    if (visible) {
+      this.elStatusBar.classList.remove('hide-gauges');
+    } else {
+      this.elStatusBar.classList.add('hide-gauges');
+    }
+  }
+
+  setGklExtraVisibility(visible) {
+    if (!this.elStatusBar) return;
+    if (visible) {
+      this.elStatusBar.classList.remove('hide-gkl-extra');
+    } else {
+      this.elStatusBar.classList.add('hide-gkl-extra');
+    }
+  }
+
   updateStatus(status) {
     if (!status) return;
     if (this.elStName) this.elStName.textContent = status.title || 'Hero';
     if (this.elStDlvl) this.elStDlvl.textContent = status.dlevel ? status.dlevel.text : 'Dlvl:1';
     
-    // HP ゲージ＆テキスト
+    // HP ゲージ＆テキスト ＆ ヘルスカラー
     if (status.hp) {
       if (this.elStHp) this.elStHp.textContent = `HP:${status.hp.current}(${status.hp.max})`;
-      const hpPct = Math.max(0, Math.min(100, Math.round((status.hp.current / Math.max(1, status.hp.max)) * 100)));
+      const hpRatio = status.hp.max > 0 ? (status.hp.current / status.hp.max) : 0;
+      const hpPct = Math.max(0, Math.min(100, Math.round(hpRatio * 100)));
       if (this.elHpBarFill) this.elHpBarFill.style.width = `${hpPct}%`;
+
+      // オリジナル風: キャラ名 (st-name) のヘルスカラー連動
+      if (this.elStName) {
+        this.elStName.classList.remove('hp-status-healthy', 'hp-status-warning', 'hp-status-danger', 'hp-status-critical');
+        if (hpRatio <= 0.15) {
+          this.elStName.classList.add('hp-status-critical');
+        } else if (hpRatio <= 0.35) {
+          this.elStName.classList.add('hp-status-danger');
+        } else if (hpRatio <= 0.65) {
+          this.elStName.classList.add('hp-status-warning');
+        } else {
+          this.elStName.classList.add('hp-status-healthy');
+        }
+      }
     } else {
       if (this.elStHp) this.elStHp.textContent = 'HP:0(0)';
       if (this.elHpBarFill) this.elHpBarFill.style.width = '0%';
@@ -111,14 +155,49 @@ export class StatusView {
       return t;
     };
 
+    // 負荷 (Encumbrance) の判定と日本語マッピング
+    const encumbranceJaMap = {
+      'Burdened': '負荷',
+      'Stressed': '重荷',
+      'Strained': '酷使',
+      'Overtaxed': '過負荷',
+      'Overloaded': '限界'
+    };
+    const capNames = ['Unencumbered', 'Burdened', 'Stressed', 'Strained', 'Overtaxed', 'Overloaded'];
+
     const rawConds = (status.conditions || []).concat(status.hunger ? [status.hunger] : []);
+
+    // Encumbrance がある場合に追加
+    let encText = null;
+    let encCap = status.cap !== undefined ? status.cap : 0;
+    if (status.encumbrance && status.encumbrance !== 'Unencumbered') {
+      encText = status.encumbrance;
+    } else if (encCap > 0 && encCap < capNames.length) {
+      encText = capNames[encCap];
+    }
+    if (encText && encText !== 'Unencumbered') {
+      const displayEnc = isJa ? (encumbranceJaMap[encText] || encText) : encText;
+      rawConds.push(displayEnc);
+    }
+
     const conds = rawConds.map(c => translateText(c));
     if (this.elStCond) {
       if (conds.length > 0) {
         this.elStCond.classList.remove('hidden');
         this.elStCond.textContent = conds.join(', ');
+        // 負荷がある場合のバッジ色ハイライト
+        if (encCap >= 4) {
+          this.elStCond.style.backgroundColor = '#dc2626'; // Overloaded / Overtaxed: 危険赤
+        } else if (encCap >= 2) {
+          this.elStCond.style.backgroundColor = '#ea580c'; // Stressed / Strained: 警告オレンジ
+        } else if (encCap === 1) {
+          this.elStCond.style.backgroundColor = '#d97706'; // Burdened: 注意アンバー
+        } else {
+          this.elStCond.style.backgroundColor = '';
+        }
       } else {
         this.elStCond.classList.add('hidden');
+        this.elStCond.style.backgroundColor = '';
       }
     }
 

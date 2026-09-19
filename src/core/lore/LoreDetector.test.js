@@ -223,13 +223,21 @@ one last charge may yet be wrested from it!`;
         expect(sig3.engraveType).toBe('ENGRAVE');
         expect(sig3.isElbereth).toBe(true);
 
-        // 日本語: フォーチュンクッキー
-        expect(detector.processMessage('このクッキーには紙片が入っている.')).toBeNull();
-        expect(detector.processMessage('こう書かれている:')).toBeNull();
-        const sigRumor = detector.processMessage("A blindfold can be very useful if you're telepathic.");
-        expect(sigRumor).not.toBeNull();
-        expect(sigRumor.signalId).toBe('SIGNAL_LORE_RUMOR');
-        expect(sigRumor.source).toBe('cookie');
+        // フォーチュンクッキー (英語 rawText 本文)
+        expect(detector.processMessage('This cookie has a scrap of paper inside.')).toBeNull();
+        expect(detector.processMessage('It reads:')).toBeNull();
+        const sigEnRumor1 = detector.processMessage('Good day for overcoming obstacles.  Try a steeplechase.');
+        expect(sigEnRumor1).not.toBeNull();
+        expect(sigEnRumor1.signalId).toBe('SIGNAL_LORE_RUMOR');
+        expect(sigEnRumor1.rumorId).toBe('rumor_fal_78');
+        expect(sigEnRumor1.isTrue).toBe(false);
+
+        // 単独行での噂話フォールバック検知 (英語 rawText)
+        const sigEnRumor2 = detector.processMessage('They say that only big spenders carry gold.');
+        expect(sigEnRumor2).not.toBeNull();
+        expect(sigEnRumor2.signalId).toBe('SIGNAL_LORE_RUMOR');
+        expect(sigEnRumor2.rumorId).toBe('rumor_fal_290');
+        expect(sigEnRumor2.isTrue).toBe(false);
     });
 
     it('通常の戦闘・行動メッセージで誤爆 (False Positive) を起こさないこと', () => {
@@ -250,3 +258,4 @@ one last charge may yet be wrested from it!`;
         }
     });
 });
+

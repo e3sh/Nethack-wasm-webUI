@@ -97,21 +97,27 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
         expect(falseItems[0].isTrue).toBe(false);
     });
 
-    it('セッション横断保存 (Storage) への保存と復元が正しく動作すること', async () => {
+    it('セッション横断保存 (Storage) への保存と復元が正しく動作すること', () => {
         codex.addRumor({ id: 'rumor_tru_10', text: 'Rumor 10', isTrue: true });
         codex.addOracle({ id: 'oracle_5', text: 'Oracle 5' });
 
-        // 別インスタンスで同じストレージから復元
-        const newCodex = new LoreCodex({
+        // 別インスタンスで同じストレージから復元 (autoLoad: true によるコンストラクタ即時復元)
+        const autoLoadedCodex = new LoreCodex({
+            storage: new LoreCodexStorage({ customStorage })
+        });
+        expect(autoLoadedCodex.getRumors().length).toBe(1);
+        expect(autoLoadedCodex.getRumors()[0].id).toBe('rumor_tru_10');
+        expect(autoLoadedCodex.getOracles().length).toBe(1);
+        expect(autoLoadedCodex.getOracles()[0].id).toBe('oracle_5');
+
+        // 明示的な load() 呼び出しも同期で機能すること
+        const manualCodex = new LoreCodex({
             storage: new LoreCodexStorage({ customStorage }),
             autoLoad: false
         });
-        await newCodex.load();
-
-        expect(newCodex.getRumors().length).toBe(1);
-        expect(newCodex.getRumors()[0].id).toBe('rumor_tru_10');
-        expect(newCodex.getOracles().length).toBe(1);
-        expect(newCodex.getOracles()[0].id).toBe('oracle_5');
+        expect(manualCodex.getRumors().length).toBe(0);
+        manualCodex.load();
+        expect(manualCodex.getRumors().length).toBe(1);
     });
 
     it('床文字・落書き・墓碑銘の追加 (addEngraving) と一覧取得ができること', () => {
@@ -183,14 +189,14 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
         expect(codex.getEngravings()[0].id.startsWith('engr_')).toBe(true);
     });
 
-    it('JSON エクスポートとインポートが機能すること', async () => {
+    it('JSON エクスポートとインポートが機能すること', () => {
         codex.addRumor({ id: 'rumor_tru_1', text: 'Rumor 1', isTrue: true });
         codex.addEngraving({ text: 'The cake is a lie', translatedText: 'ケーキは嘘だ' });
         const json = codex.exportJSON();
         expect(json).toContain('nethack-wasm-webui');
 
         const anotherCodex = new LoreCodex({ autoLoad: false });
-        await anotherCodex.importJSON(json);
+        anotherCodex.importJSON(json);
 
         expect(anotherCodex.getRumors().length).toBe(1);
         expect(anotherCodex.getRumors()[0].id).toBe('rumor_tru_1');

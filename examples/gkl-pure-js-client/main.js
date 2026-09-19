@@ -232,7 +232,9 @@ class GklPureJSClient {
   init() {
     this.mapRenderer.init();
     this.zoomRenderer.init();
+    this.initLayoutConfig();
     this.initCore();
+    this.codexModal?.init();
     this.bindCoreEvents();
     this.bindDOMEvents();
     this.onLanguageChanged();
@@ -351,6 +353,14 @@ class GklPureJSClient {
       console.log('[GklClient] Received signal:SIGNAL_LORE_ENGRAVE:', data);
       if (this.isGameExited) return;
       this.engravingHud?.show(data);
+    });
+
+    // 4.6 伝承シグナル (噂話、神託、床文字、墓碑銘) 受信時の冒険手帳未読バッジ即時反映
+    this.core.on('loreSignal', (data) => {
+      console.log('[GklClient] Received loreSignal for LoreCodex:', data);
+      if (this.codexModal) {
+        this.codexModal.notifyUnreadCount();
+      }
     });
 
     if (typeof window !== 'undefined') {
@@ -605,7 +615,7 @@ class GklPureJSClient {
 
       // メニュー項目クリック時に自動で閉じる
       this.settingsDropdown.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-menu-item')) {
+        if (e.target.closest('.btn-menu-item') || e.target.closest('.btn-preset-item')) {
           this.settingsDropdown.classList.add('hidden');
         }
       });
@@ -626,6 +636,34 @@ class GklPureJSClient {
         }
       });
     }
+
+    // 🎨 外観・レイアウト設定イベント
+    const btnPresetClassic = document.getElementById('btn-preset-classic');
+    if (btnPresetClassic) {
+      btnPresetClassic.onclick = () => this.setPreset('classic');
+    }
+    const btnPresetModern = document.getElementById('btn-preset-modern');
+    if (btnPresetModern) {
+      btnPresetModern.onclick = () => this.setPreset('modern');
+    }
+
+    const bindLayoutCheckbox = (id, propName) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.onchange = (e) => {
+          this.layoutConfig[propName] = Boolean(e.target.checked);
+          this.layoutConfig.preset = 'custom';
+          this.saveLayoutConfig(this.layoutConfig);
+          this.applyLayoutConfig(this.layoutConfig);
+        };
+      }
+    };
+    bindLayoutCheckbox('chk-panel-inventory', 'panelInventory');
+    bindLayoutCheckbox('chk-panel-actions', 'panelActions');
+    bindLayoutCheckbox('chk-panel-knowledge', 'panelKnowledge');
+    bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
+    bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
+    bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
 
     const btnRestart = document.getElementById('btn-restart');
     if (btnRestart) btnRestart.onclick = () => this.restartGame();
@@ -1010,6 +1048,8 @@ class GklPureJSClient {
     if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
       this.core.gkl.reset();
     }
+
+    this.codexModal?.notifyUnreadCount();
   }
 
   setStartupView(step) {
@@ -1264,6 +1304,129 @@ class GklPureJSClient {
         }
       }
     }, 200);
+  }
+
+  // ==========================================
+  // 🎨 レイアウト & 外観カスタマイズ管理
+  // ==========================================
+  initLayoutConfig() {
+    this.layoutConfig = this.loadLayoutConfig();
+    this.applyLayoutConfig(this.layoutConfig);
+  }
+
+  getDefaultLayoutConfig() {
+    return {
+      preset: 'modern',
+      panelInventory: true,
+      panelActions: true,
+      panelKnowledge: true,
+      statusClassic2Line: false,
+      statusGauges: true,
+      statusGklExtra: true
+    };
+  }
+
+  loadLayoutConfig() {
+    try {
+      const saved = localStorage.getItem('gkl_ui_layout_config');
+      if (saved) {
+        return { ...this.getDefaultLayoutConfig(), ...JSON.parse(saved) };
+      }
+    } catch (err) {
+      console.warn('[GKLpureJSclient] Failed to load layout config from localStorage', err);
+    }
+    return this.getDefaultLayoutConfig();
+  }
+
+  saveLayoutConfig(config) {
+    try {
+      localStorage.setItem('gkl_ui_layout_config', JSON.stringify(config));
+    } catch (err) {
+      console.warn('[GKLpureJSclient] Failed to save layout config to localStorage', err);
+    }
+  }
+
+  applyLayoutConfig(config) {
+    this.layoutConfig = config;
+
+    // 1. 各サイドパネルカードの表示/非表示
+    const cardInv = document.getElementById('card-inventory');
+    const cardAct = document.getElementById('card-actions');
+    const cardKno = document.getElementById('card-knowledge');
+    const sidePanel = document.getElementById('gkl-side-panel');
+    const workspace = document.querySelector('.gkl-workspace');
+
+    if (cardInv) cardInv.classList.toggle('hidden', !config.panelInventory);
+    if (cardAct) cardAct.classList.toggle('hidden', !config.panelActions);
+    if (cardKno) cardKno.classList.toggle('hidden', !config.panelKnowledge);
+
+    // 3枠すべて非表示ならサイドパネル全体を隠し、1カラム全画面化
+    const isAllHidden = !config.panelInventory && !config.panelActions && !config.panelKnowledge;
+    if (sidePanel) sidePanel.classList.toggle('hidden', isAllHidden);
+    if (workspace) workspace.classList.toggle('no-sidebar', isAllHidden);
+
+    // 2. ステータスバー設定
+    if (this.statusView) {
+      this.statusView.setLayoutMode(config.statusClassic2Line ? 'classic' : 'modern');
+      this.statusView.setGaugeVisibility(config.statusGauges);
+      this.statusView.setGklExtraVisibility(config.statusGklExtra);
+    }
+
+    // 3. 設定メニュー内チェックボックスの同期
+    const chkInv = document.getElementById('chk-panel-inventory');
+    const chkAct = document.getElementById('chk-panel-actions');
+    const chkKno = document.getElementById('chk-panel-knowledge');
+    const chk2Line = document.getElementById('chk-status-classic-2line');
+    const chkGauges = document.getElementById('chk-status-gauges');
+    const chkGkl = document.getElementById('chk-status-gkl-extra');
+
+    if (chkInv) chkInv.checked = Boolean(config.panelInventory);
+    if (chkAct) chkAct.checked = Boolean(config.panelActions);
+    if (chkKno) chkKno.checked = Boolean(config.panelKnowledge);
+    if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
+    if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
+    if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);
+
+    // 4. プリセットボタンのアクティブ表示同期
+    const btnClassic = document.getElementById('btn-preset-classic');
+    const btnModern = document.getElementById('btn-preset-modern');
+    if (btnClassic) btnClassic.classList.toggle('active', config.preset === 'classic');
+    if (btnModern) btnModern.classList.toggle('active', config.preset === 'modern');
+  }
+
+  setPreset(presetName) {
+    let newConfig = { ...this.layoutConfig };
+    if (presetName === 'classic') {
+      newConfig = {
+        preset: 'classic',
+        panelInventory: false,
+        panelActions: false,
+        panelKnowledge: false,
+        statusClassic2Line: true,
+        statusGauges: true, // ユーザー要望：代替ゲージとしてHPゲージは残す
+        statusGklExtra: false
+      };
+      // クラシック選択時はズームカメラもOFFに
+      if (this.zoomRenderer && this.zoomRenderer.isZoomMode) {
+        this.zoomRenderer.toggleZoom(false);
+      }
+    } else if (presetName === 'modern') {
+      newConfig = {
+        preset: 'modern',
+        panelInventory: true,
+        panelActions: true,
+        panelKnowledge: true,
+        statusClassic2Line: false,
+        statusGauges: true,
+        statusGklExtra: true
+      };
+      // モダン選択時はズームカメラもONに
+      if (this.zoomRenderer && !this.zoomRenderer.isZoomMode) {
+        this.zoomRenderer.toggleZoom(true);
+      }
+    }
+    this.saveLayoutConfig(newConfig);
+    this.applyLayoutConfig(newConfig);
   }
 }
 

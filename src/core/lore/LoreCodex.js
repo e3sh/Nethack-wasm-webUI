@@ -377,13 +377,13 @@ export class LoreCodex {
     }
 
     /**
-     * ストレージへの非同期自動保存
+     * ストレージへの自動保存 (同期)
      * @private
      */
-    async _autoSave() {
+    _autoSave() {
         if (!this.storage) return;
         const data = this.serialize();
-        await this.storage.save(data);
+        this.storage.save(data);
     }
 
     /**
@@ -400,12 +400,12 @@ export class LoreCodex {
     }
 
     /**
-     * ストレージからの復元
-     * @returns {Promise<boolean>}
+     * ストレージからの復元 (同期)
+     * @returns {boolean}
      */
-    async load() {
+    load() {
         if (!this.storage) return false;
-        const data = await this.storage.load();
+        const data = this.storage.load();
         if (!data) return false;
 
         this.deserialize(data);
@@ -441,16 +441,16 @@ export class LoreCodex {
     }
 
     /**
-     * 手帳のリセット (全消去)
-     * @returns {Promise<boolean>}
+     * 手帳のリセット (全消去・同期)
+     * @returns {boolean}
      */
-    async reset() {
+    reset() {
         this.rumors.clear();
         this.oracles.clear();
         this.engravings.clear();
         this.currentWard = null;
         if (this.storage) {
-            await this.storage.clear();
+            this.storage.clear();
         }
         this._notify('reset', null);
         return true;
@@ -466,15 +466,15 @@ export class LoreCodex {
     }
 
     /**
-     * JSON バックアップからのインポート
+     * JSON バックアップからのインポート (同期)
      * @param {string} jsonString
-     * @returns {Promise<boolean>}
+     * @returns {boolean}
      */
-    async importJSON(jsonString) {
+    importJSON(jsonString) {
         try {
             const data = this.storage ? this.storage.importJSON(jsonString) : JSON.parse(jsonString);
             this.deserialize(data);
-            await this._autoSave();
+            this._autoSave();
             this._notify('imported', this.getStats());
             return true;
         } catch (e) {

@@ -117,15 +117,82 @@
   font-size: 13px;
 }
 
-/* ホバー時またはトグル固定時の展開状態 */
-.status-bar:hover .status-details,
-.status-bar.is-expanded .status-details {
+/* ホバー時またはトグル固定時の展開状態 (モダン時) */
+.status-bar.layout-modern:hover .status-details,
+.status-bar.layout-modern.is-expanded .status-details {
   max-height: 450px;
   overflow-y: auto;
   opacity: 1;
   margin-top: 6px;
   padding-top: 8px;
   border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ⚔️ クラシック (常時2行) レイアウト */
+.status-bar.layout-classic {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.status-bar.layout-classic .btn-status-toggle {
+  display: none !important;
+}
+
+.status-bar.layout-classic .status-main {
+  order: 2; /* 2行目: ダンジョン・リソース・状態 */
+  width: 100%;
+  gap: 12px;
+}
+
+.status-bar.layout-classic .status-details {
+  order: 1; /* 1行目: キャラ基本能力値・属性 */
+  max-height: none !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ゲージ非表示オプション */
+.status-bar.hide-gauges .gauge-bg {
+  display: none !important;
+}
+
+/* GKL耐性・修得魔法・スキル行の非表示オプション */
+.status-bar.hide-gkl-extra #status-gkl-extra {
+  display: none !important;
+}
+
+/* キャラ名 (st-name) のHPヘルスカラー連動 (NetHack statuscolors / status hilites風) */
+.st-item.title.hp-status-healthy {
+  color: #4ecca3 !important; /* 通常・健全: グリーン */
+}
+
+.st-item.title.hp-status-warning {
+  color: #f1c40f !important; /* 警戒 (HP <= 65%): イエロー */
+}
+
+.st-item.title.hp-status-danger {
+  color: #fb923c !important; /* 危険 (HP <= 35%): オレンジ */
+}
+
+.st-item.title.hp-status-critical {
+  color: #ef4444 !important; /* 瀕死 (HP <= 15%): レッド */
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+  animation: pulse-critical 1.5s infinite;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 
 .status-stats-grid,

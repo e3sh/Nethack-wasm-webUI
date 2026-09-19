@@ -247,4 +247,25 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
     modal.markAllAsRead();
     expect(notifiedCount).toBe(0);
   });
+
+  it('モーダルを開く前(open前)でも、init後にLoreCodexにアイテムが追加された際に未読通知が届くこと', () => {
+    let notifiedCount = -1;
+    modal.onUnreadCountChanged = (count) => {
+      notifiedCount = count;
+    };
+
+    // 初期化 (未オープン状態)
+    modal.init();
+
+    // 新しい噂話を追加
+    const codex = mockCore.getLoreCodex();
+    codex.addRumor({
+      id: 'rumor_test_auto_notify',
+      text: 'Auto notify test rumor',
+      isTrue: true
+    });
+
+    expect(notifiedCount).toBeGreaterThan(0);
+  });
 });
+

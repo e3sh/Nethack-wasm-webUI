@@ -268,7 +268,8 @@ export class EngravingArchaeologist {
             };
         }
 
-        // 2. 完全一致チェック (完全一致なら即座に返却)
+        // 2. 完全一致チェック (英語原型 または 日本語訳との完全一致)
+        const normQuery = trimmed.replace(/[\s\u3000]+/g, ' ').replace(/[。\.]$/, '');
         for (const entry of this.corpus) {
             if (trimmed === entry.pristineText) {
                 return {
@@ -281,12 +282,33 @@ export class EngravingArchaeologist {
                     subCategory: entry.subCategory,
                     source: entry.source,
                     isTrue: entry.isTrue,
-                    isElbereth: entry.isElbereth,
-                    isWardActive: entry.isElbereth,
-                    elberethIntegrity: entry.isElbereth ? 1.0 : 0.0,
+                    isElbereth: false,
+                    isWardActive: false,
+                    elberethIntegrity: 0.0,
                     actualText: trimmed,
-                    reason: 'Exact corpus match'
+                    reason: 'Exact pristine match'
                 };
+            }
+            if (entry.translatedText) {
+                const normTrans = entry.translatedText.replace(/[\s\u3000]+/g, ' ').replace(/[。\.]$/, '');
+                if (normQuery === normTrans || trimmed === entry.translatedText) {
+                    return {
+                        id: entry.id,
+                        matched: true,
+                        confidence: 1.0,
+                        pristineText: entry.pristineText,
+                        translation: entry.translatedText,
+                        category: entry.category,
+                        subCategory: entry.subCategory,
+                        source: entry.source,
+                        isTrue: entry.isTrue,
+                        isElbereth: false,
+                        isWardActive: false,
+                        elberethIntegrity: 0.0,
+                        actualText: trimmed,
+                        reason: 'Exact Japanese translation match'
+                    };
+                }
             }
         }
 

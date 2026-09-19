@@ -22,12 +22,61 @@
         <div class="settings-dropdown-wrapper">
           <button id="btn-settings-toggle" class="btn btn-secondary" title="設定・システムメニュー">⚙️ 設定</button>
           <div id="settings-menu-dropdown" class="settings-menu-dropdown hidden">
+            <!-- 外観・プリセット -->
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-layout-section">外観・レイアウト</span>
+              <div class="settings-preset-buttons">
+                <button id="btn-preset-classic" class="btn-preset-item" title="1カラム全画面・常時2行ステータス・NetHack原作風">⚔️ クラシック (原作風)</button>
+                <button id="btn-preset-modern" class="btn-preset-item" title="2カラム全枠表示・リッチGKLモード">🛡️ GKLモダン (標準)</button>
+              </div>
+            </div>
+            <div class="settings-menu-separator"></div>
+
+            <!-- サイド枠トグル -->
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-panels-section">サイドパネル枠</span>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-panel-inventory" checked />
+                <span>🎒 所持品 (Icon Inventory)</span>
+              </label>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-panel-actions" checked />
+                <span>🧠 推奨アクション</span>
+              </label>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-panel-knowledge" checked />
+                <span>🛡️ アドバイス＆ナレッジ</span>
+              </label>
+            </div>
+            <div class="settings-menu-separator"></div>
+
+            <!-- ステータス・HUD -->
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-status-section">ステータス ＆ HUD</span>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-status-classic-2line" />
+                <span>📜 ステータス常時2行表示</span>
+              </label>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-status-gauges" checked />
+                <span>📊 HP/MP ゲージバー</span>
+              </label>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-status-gkl-extra" checked />
+                <span>🧬 耐性・修得魔法・スキル行</span>
+              </label>
+            </div>
+            <div class="settings-menu-separator"></div>
+
+            <!-- ビュー・カメラ -->
             <div class="settings-menu-group">
               <span class="settings-menu-title" id="lbl-settings-view-section">表示・カメラ</span>
               <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: 🎨 Graphic Canvas</button>
               <button id="btn-toggle-zoom" class="btn-menu-item">🎯 ズームカメラ: ON</button>
             </div>
             <div class="settings-menu-separator"></div>
+
+            <!-- システム操作 -->
             <div class="settings-menu-group">
               <span class="settings-menu-title" id="lbl-settings-sys-section">システム操作</span>
               <button id="btn-restart" class="btn-menu-item">🔄 Restart (再起動)</button>
@@ -211,9 +260,9 @@
       </section>
 
       <!-- 右エリア: GKL 所持品 ＆ 推奨アクション ＆ 構造化ナレッジ -->
-      <aside class="gkl-side-panel">
+      <aside id="gkl-side-panel" class="gkl-side-panel">
         <!-- 🎒 アイコン型常時表示インベントリ (最上部) -->
-        <div class="gkl-card">
+        <div id="card-inventory" class="gkl-card">
           <div class="gkl-card-header">
             <span>🎒 所持品アイテム (Icon Inventory)</span>
             <div style="display:flex; align-items:center; gap:6px;">
@@ -228,7 +277,7 @@
         </div>
 
         <!-- 🧠 GKL 推奨アクションパネル (中段) -->
-        <div class="gkl-card">
+        <div id="card-actions" class="gkl-card">
           <div class="gkl-card-header">
             <span>🧠 推奨アクション (ContextActions)</span>
             <span id="gkl-action-count" class="gkl-badge">0</span>
@@ -259,7 +308,7 @@
         </div>
 
         <!-- 💡 GKL 構造化ナレッジ ＆ 戦術アドバイス カード (最下部 タブ切替) -->
-        <div class="gkl-card">
+        <div id="card-knowledge" class="gkl-card">
           <div class="gkl-card-header gkl-card-header-tabs">
             <div class="gkl-header-tabs">
               <button id="tab-btn-advices" class="gkl-tab-btn active" title="戦術アドバイス ＆ 危険警告を表示">

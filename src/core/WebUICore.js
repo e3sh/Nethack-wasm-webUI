@@ -1432,13 +1432,28 @@ export class WebUICore {
 
                             // 考古学的に復元された内容が噂話 (RUMOR) の場合、噂話図鑑にも自動収集
                             if (loreSignal.restored?.category === 'RUMOR' && loreSignal.restored?.pristineText) {
-                                this.loreCodex.addRumor({
+                                const rumorData = {
                                     id: loreSignal.restored.id || undefined,
                                     text: loreSignal.restored.pristineText,
                                     translatedText: loreSignal.restored.translation,
                                     isTrue: loreSignal.restored.isTrue,
                                     source: 'engraving'
-                                });
+                                };
+                                this.loreCodex.addRumor(rumorData);
+                                const rumorSignal = {
+                                    signalId: 'SIGNAL_LORE_RUMOR',
+                                    subCategory: 'RUMOR',
+                                    matched: true,
+                                    rumorId: rumorData.id,
+                                    text: rumorData.text,
+                                    translatedText: rumorData.translatedText,
+                                    isTrue: rumorData.isTrue,
+                                    source: 'engraving',
+                                    confidence: loreSignal.confidence || 1.0,
+                                    rawPrompt: rawText
+                                };
+                                this.emit('signal:SIGNAL_LORE_RUMOR', rumorSignal);
+                                this.emit('loreSignal', rumorSignal);
                             }
 
                             // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録

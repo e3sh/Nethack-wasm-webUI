@@ -921,6 +921,43 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(searchedRumors[0].id).toBe('rumor_tru_4');
             expect(searchedRumors[0].isTrue).toBe(true);
         });
+
+        it('床文字や本文単独行から偽りの噂話（FALSE_RUMOR）が届いた際、確実にCodexへ登録され未読シグナルが発行されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const rumorSignalListener = vi.fn();
+            const loreSignalListener = vi.fn();
+            core.on('signal:SIGNAL_LORE_RUMOR', rumorSignalListener);
+            core.on('loreSignal', loreSignalListener);
+
+            // 1. 床文字から rumor_fal_78（障害を乗り越えるには良い日だ…）
+            putstrHandler({ text: 'Something is written here in the dust.' });
+            putstrHandler({ text: 'You read: "Good day for overcoming obstacles.  Try a steeplechase."' });
+
+            expect(rumorSignalListener).toHaveBeenCalledTimes(1);
+            expect(rumorSignalListener.mock.calls[0][0].rumorId).toBe('rumor_fal_78');
+            expect(rumorSignalListener.mock.calls[0][0].isTrue).toBe(false);
+
+            // 2. 本文単独行から rumor_fal_290（大金持ちだけが金を持ち歩くという。）
+            putstrHandler({ text: 'They say that only big spenders carry gold.' });
+
+            expect(rumorSignalListener).toHaveBeenCalledTimes(2);
+            expect(rumorSignalListener.mock.calls[1][0].rumorId).toBe('rumor_fal_290');
+            expect(rumorSignalListener.mock.calls[1][0].isTrue).toBe(false);
+
+            // Codex に両方とも正しく登録されていること
+            const codex = core.getCodex();
+            const rumors = codex.getRumors();
+            expect(rumors.some(r => r.id === 'rumor_fal_78')).toBe(true);
+            expect(rumors.some(r => r.id === 'rumor_fal_290')).toBe(true);
+        });
     });
 
     describe('WebUICore - getSituation() delegation', () => {

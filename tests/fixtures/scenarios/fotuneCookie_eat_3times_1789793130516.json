@@ -1,0 +1,3504 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "キャプチャシナリオ",
+    "description": "",
+    "createdAt": "2026-09-19T04:45:08.250Z",
+    "turn": 12
+  },
+  "initialState": {
+    "status": {
+      "hp": 14,
+      "maxHp": 14,
+      "dlevel": "Dlvl:1  ",
+      "x": 61,
+      "y": 3
+    },
+    "initialEvents": [
+      {
+        "type": "curs",
+        "data": {
+          "x": 61,
+          "y": 3
+        }
+      }
+    ],
+    "silentBuffers": {
+      "i": [
+        "a - an uncursed +2 pair of leather gloves (being worn)",
+        "b - an uncursed +1 robe (being worn)",
+        "f - 4 uncursed food rations",
+        "g - 5 uncursed apples",
+        "h - 7 uncursed oranges",
+        "i - 3 uncursed fortune cookies",
+        "c - a blessed scroll of light",
+        "j - a blessed spellbook of confuse monster",
+        "d - 2 uncursed potions of healing",
+        "e - a blessed potion of healing",
+        "k - a wand of wishing (0:3)"
+      ]
+    }
+  },
+  "events": [
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "What do you want to eat? [fghi or ?*]",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This fortune cookie is delicious!",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112340
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This cookie has a scrap of paper inside.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112343
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "It reads:",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112344
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "They say that a wand of cancellation is like a wand of polymorph.\r",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112345
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112346
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 62,
+        "y": 3,
+        "glyphInfo": {
+          "glyph": 798,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 4112,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112346
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 63,
+        "y": 3,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112348
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112350
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112351
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112351
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112352
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793112352
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 14,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793112352
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793112331_lamfw",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "What do you want to eat? [fghi or ?*]",
+            "fromSequence": true
+          },
+          {
+            "type": "raw_print",
+            "text": "This fortune cookie is delicious!"
+          },
+          {
+            "type": "raw_print",
+            "text": "This cookie has a scrap of paper inside."
+          },
+          {
+            "type": "raw_print",
+            "text": "It reads:"
+          },
+          {
+            "type": "raw_print",
+            "text": "They say that a wand of cancellation is like a wand of polymorph.\r"
+          }
+        ]
+      },
+      "timestamp": 1789793112353
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112353
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 15,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793112354
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793112353_a61fn",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3737,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3737,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed fortune cookies",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3737,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3737,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed fortune cookies",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1789793112355
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "What do you want to eat? [fghi or ?*]",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This fortune cookie is delicious!",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115424
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This cookie has a scrap of paper inside.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115426
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "It reads:",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115426
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "They say that a giant gets strong by eating right, try it!_\r",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115427
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115428
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 62,
+        "y": 3,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115428
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 63,
+        "y": 4,
+        "glyphInfo": {
+          "glyph": 798,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 4112,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115429
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 16,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793115431
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793115410_8omxb",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "What do you want to eat? [fghi or ?*]",
+            "fromSequence": true
+          },
+          {
+            "type": "raw_print",
+            "text": "This fortune cookie is delicious!"
+          },
+          {
+            "type": "raw_print",
+            "text": "This cookie has a scrap of paper inside."
+          },
+          {
+            "type": "raw_print",
+            "text": "It reads:"
+          },
+          {
+            "type": "raw_print",
+            "text": "They say that a giant gets strong by eating right, try it!_\r"
+          }
+        ]
+      },
+      "timestamp": 1789793115432
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115432
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 17,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793115433
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793115432_526p0",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3737,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3737,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed fortune cookie",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3737,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 11,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3737,
+                "identifier": 105,
+                "accelerator": "i",
+                "ch": "i",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed fortune cookie",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1789793115434
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117574
+    },
+    {
+      "type": "clear_nhwindow",
+      "data": {
+        "windowId": 1,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117574
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117575
+    },
+    {
+      "type": "putmsg",
+      "data": {
+        "text": "What do you want to eat? [fghi or ?*]",
+        "fromSequence": true,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117575
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117575
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This fortune cookie is delicious!",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117575
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": 17,
+        "field": 17,
+        "value": "Satiated",
+        "glyphId": null,
+        "rawVal": "Satiated",
+        "parsedVal": "Satiated",
+        "goldData": null,
+        "dlevelData": null,
+        "chg": -1,
+        "clr": 8,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117576
+    },
+    {
+      "type": "status_update",
+      "data": {
+        "fld": -1,
+        "field": -1,
+        "value": 0,
+        "rawVal": 0,
+        "parsedVal": 0,
+        "chg": 0,
+        "clr": 8,
+        "dlevelData": null,
+        "goldData": null,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117577
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "This cookie has a scrap of paper inside.",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117578
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "It reads:",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117579
+    },
+    {
+      "type": "raw_print",
+      "data": {
+        "text": "They say that the `hair of the dog' is sometimes an effective remedy.\r",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117581
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117582
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 63,
+        "y": 4,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117582
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 62,
+        "y": 5,
+        "glyphInfo": {
+          "glyph": 798,
+          "symbol": 102,
+          "framecolor": 8,
+          "flags": 4112,
+          "color": 15,
+          "symidx": 129,
+          "ch": "f"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117583
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117585
+    },
+    {
+      "type": "display_nhwindow",
+      "data": {
+        "windowId": 3,
+        "blocking": false,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117585
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793117585
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 18,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793117585
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793117571_mm5il",
+        "buffer": [
+          {
+            "type": "putmsg",
+            "text": "What do you want to eat? [fghi or ?*]",
+            "fromSequence": true
+          },
+          {
+            "type": "raw_print",
+            "text": "This fortune cookie is delicious!"
+          },
+          {
+            "type": "raw_print",
+            "text": "This cookie has a scrap of paper inside."
+          },
+          {
+            "type": "raw_print",
+            "text": "It reads:"
+          },
+          {
+            "type": "raw_print",
+            "text": "They say that the `hair of the dog' is sometimes an effective remedy.\r"
+          }
+        ]
+      },
+      "timestamp": 1789793117586
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117586
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": false,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 19,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793117587
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793117586_0h7yc",
+        "buffer": [
+          {
+            "type": "select_menu",
+            "windowId": 4,
+            "how": 1,
+            "menuItems": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "items": [
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Armor",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3607,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3607,
+                "identifier": 97,
+                "accelerator": "a",
+                "ch": "a",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +2 pair of leather gloves (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3591,
+                  "symbol": 91,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 108,
+                  "ch": "["
+                },
+                "glyph": 3591,
+                "identifier": 98,
+                "accelerator": "b",
+                "ch": "b",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "an uncursed +1 robe (being worn)",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Comestibles",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3741,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 3,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3741,
+                "identifier": 102,
+                "accelerator": "f",
+                "ch": "f",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "4 uncursed food rations",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3725,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 1,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3725,
+                "identifier": 103,
+                "accelerator": "g",
+                "ch": "g",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "5 uncursed apples",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3726,
+                  "symbol": 37,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 9,
+                  "symidx": 112,
+                  "ch": "%"
+                },
+                "glyph": 3726,
+                "identifier": 104,
+                "accelerator": "h",
+                "ch": "h",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "7 uncursed oranges",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Scrolls",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3780,
+                  "symbol": 63,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 114,
+                  "ch": "?"
+                },
+                "glyph": 3780,
+                "identifier": 99,
+                "accelerator": "c",
+                "ch": "c",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed scroll of light",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Spellbooks",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3825,
+                  "symbol": 43,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 15,
+                  "symidx": 115,
+                  "ch": "+"
+                },
+                "glyph": 3825,
+                "identifier": 106,
+                "accelerator": "j",
+                "ch": "j",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed spellbook of confuse monster",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Potions",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 100,
+                "accelerator": "d",
+                "ch": "d",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "2 uncursed potions of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3755,
+                  "symbol": 33,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 10,
+                  "symidx": 113,
+                  "ch": "!"
+                },
+                "glyph": 3755,
+                "identifier": 101,
+                "accelerator": "e",
+                "ch": "e",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a blessed potion of healing",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 9624,
+                  "symbol": 32,
+                  "framecolor": 8,
+                  "flags": 2048,
+                  "color": 8,
+                  "symidx": 191,
+                  "ch": " "
+                },
+                "glyph": 9624,
+                "identifier": 0,
+                "accelerator": "\u0000",
+                "ch": "\u0000",
+                "gch": "\u0000",
+                "attr": 7,
+                "clr": 8,
+                "str": "Wands",
+                "itemflags": 0
+              },
+              {
+                "windowId": 4,
+                "glyphInfo": {
+                  "glyph": 3862,
+                  "symbol": 47,
+                  "framecolor": 8,
+                  "flags": 0,
+                  "color": 6,
+                  "symidx": 116,
+                  "ch": "/"
+                },
+                "glyph": 3862,
+                "identifier": 107,
+                "accelerator": "k",
+                "ch": "k",
+                "gch": "\u0000",
+                "attr": 0,
+                "clr": 8,
+                "str": "a wand of wishing (0:3)",
+                "itemflags": 0
+              }
+            ],
+            "prompt": ""
+          }
+        ]
+      },
+      "timestamp": 1789793117588
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "RUNNING",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127292
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 60,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127292
+    },
+    {
+      "type": "cliparound",
+      "data": {
+        "x": 60,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127292
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 60,
+        "y": 3,
+        "glyphInfo": {
+          "glyph": 336,
+          "symbol": 64,
+          "framecolor": 8,
+          "flags": 4097,
+          "color": 15,
+          "symidx": 176,
+          "ch": "@"
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127293
+    },
+    {
+      "type": "print_glyph",
+      "data": {
+        "windowId": 3,
+        "x": 61,
+        "y": 3,
+        "glyphInfo": {
+          "glyph": 3992,
+          "symbol": 46,
+          "framecolor": 8,
+          "flags": 0,
+          "color": 7,
+          "symidx": 19,
+          "ch": "."
+        },
+        "bkglyphInfo": {
+          "glyph": 9622,
+          "symbol": 32,
+          "framecolor": 8,
+          "flags": 2048,
+          "color": 8,
+          "symidx": 191,
+          "ch": " "
+        },
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127293
+    },
+    {
+      "type": "curs",
+      "data": {
+        "windowId": 3,
+        "x": 60,
+        "y": 3,
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": false
+      },
+      "timestamp": 1789793127296
+    },
+    {
+      "type": "stateChange",
+      "data": {
+        "state": "WAITING_INPUT",
+        "isExecutingSequence": true,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true
+      },
+      "timestamp": 1789793127296
+    },
+    {
+      "type": "inputRequired",
+      "data": {
+        "context": "poskey",
+        "type": "poskey",
+        "promptCategory": "POSKEY",
+        "resolverId": 20,
+        "hasResolver": true,
+        "isExecutingSequence": false,
+        "isTopLevelTurn": true,
+        "canAcceptSequenceInterruption": true,
+        "resolver": {}
+      },
+      "timestamp": 1789793127296
+    },
+    {
+      "type": "sequenceFinished",
+      "data": {
+        "sequenceId": "seq_1789793127283_7g5ob",
+        "buffer": []
+      },
+      "timestamp": 1789793127297
+    }
+  ]
+}
