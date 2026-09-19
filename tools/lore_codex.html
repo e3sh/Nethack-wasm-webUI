@@ -357,6 +357,32 @@
             color: var(--text-secondary);
         }
 
+        .card-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-card-delete {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1;
+            transition: all 0.15s ease;
+            opacity: 0.6;
+        }
+        .btn-card-delete:hover {
+            opacity: 1;
+            color: var(--false-color);
+            background-color: rgba(248, 81, 73, 0.15);
+            border-color: rgba(248, 81, 73, 0.4);
+            transform: scale(1.1);
+        }
+
         .card-text-en {
             font-size: 13px;
             line-height: 1.5;
@@ -896,12 +922,18 @@
                 const truthText = isTrue ? '✅ 真実 (TRUE)' : '❌ 偽り (FALSE)';
                 const trHtml = r.translatedText ? `<div class="card-text-jp">${escapeHtml(r.translatedText)}</div>` : '';
                 const seenCountHtml = r.seenCount ? `<span>遭遇回数: <b>x${r.seenCount}</b></span>` : `<span>マスタプレビュー</span>`;
+                const deleteBtnHtml = !showAllMasterMode 
+                    ? `<button class="btn-card-delete" onclick="deleteEntry('${escapeHtml(r.id)}', 'RUMOR', event)" title="この噂話を削除">🗑️</button>` 
+                    : '';
 
                 return `
                     <div class="lore-card">
                         <div class="card-header">
                             <span class="truth-badge ${truthClass}">${truthText}</span>
-                            <span class="card-id">${escapeHtml(r.id)}</span>
+                            <div class="card-header-actions">
+                                <span class="card-id">${escapeHtml(r.id)}</span>
+                                ${deleteBtnHtml}
+                            </div>
                         </div>
                         <div class="card-text-en">${escapeHtml(r.text)}</div>
                         ${trHtml}
@@ -935,11 +967,18 @@
 
             grid.innerHTML = oracles.map(o => {
                 const trHtml = o.translatedText ? `<div class="card-text-jp">${escapeHtml(o.translatedText)}</div>` : '';
+                const deleteBtnHtml = !showAllMasterMode 
+                    ? `<button class="btn-card-delete" onclick="deleteEntry('${escapeHtml(o.id)}', 'ORACLE', event)" title="この神託を削除">🗑️</button>` 
+                    : '';
+
                 return `
                     <div class="lore-card">
                         <div class="card-header">
                             <span class="truth-badge oracle">🔮 大預言 (MAJOR ORACLE)</span>
-                            <span class="card-id">${escapeHtml(o.id)}</span>
+                            <div class="card-header-actions">
+                                <span class="card-id">${escapeHtml(o.id)}</span>
+                                ${deleteBtnHtml}
+                            </div>
                         </div>
                         <div style="font-weight: 600; font-size: 13px; color: var(--accent-gold);">${escapeHtml(o.title || '')}</div>
                         <div class="card-text-en" style="white-space: pre-line;">${escapeHtml(o.text)}</div>
@@ -1004,7 +1043,10 @@
                     <div class="lore-card">
                         <div class="card-header">
                             <span class="truth-badge ${badgeClass}">${badgeText}</span>
-                            <span class="card-id">${escapeHtml(e.id)}</span>
+                            <div class="card-header-actions">
+                                <span class="card-id">${escapeHtml(e.id)}</span>
+                                <button class="btn-card-delete" onclick="deleteEntry('${escapeHtml(e.id)}', 'ENGRAVING', event)" title="この床文字を削除">🗑️</button>
+                            </div>
                         </div>
                         <div class="card-text-en">${escapeHtml(e.text)}</div>
                         ${actualHtml}
@@ -1241,6 +1283,25 @@
                 event.target.value = '';
             };
             reader.readAsText(file);
+        };
+
+        // 個別エントリの削除
+        window.deleteEntry = function(id, category, event) {
+            if (event) event.stopPropagation();
+            if (!id) return;
+            const categoryLabel = category === 'ENGRAVING' ? '床文字' : (category === 'RUMOR' ? '噂話' : '神託');
+            if (!confirm(`この${categoryLabel}の記録を削除しますか？\nID: ${id}`)) {
+                return;
+            }
+            const success = codex.removeEntry(id, category);
+            if (success) {
+                updateStatsUI();
+                if (category === 'ENGRAVING') renderEngravings();
+                else if (category === 'RUMOR') renderRumors();
+                else if (category === 'ORACLE') renderOracles();
+            } else {
+                alert('削除に失敗しました。');
+            }
         };
 
         // 手帳リセット

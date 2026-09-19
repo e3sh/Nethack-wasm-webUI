@@ -113,6 +113,10 @@ export class ModalManager {
     if (this.elSelectorCard && !this.elSelectorCard.classList.contains('hidden')) return true;
     const elContainerModal = document.getElementById('container-modal');
     if (elContainerModal && !elContainerModal.classList.contains('hidden')) return true;
+    const elPaperdollModal = document.getElementById('paperdoll-modal');
+    if (elPaperdollModal && !elPaperdollModal.classList.contains('hidden')) return true;
+    const elCodexModal = document.getElementById('codex-modal');
+    if (elCodexModal && !elCodexModal.classList.contains('hidden')) return true;
     if (this.isGameExited) return true;
     return false;
   }

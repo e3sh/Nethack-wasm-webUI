@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冒険手帳 (Lore Codex) クライアントUI プロトタイプ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-backdrop: rgba(5, 8, 14, 0.85);
+            --modal-bg: #121720;
+            --panel-bg: #18202c;
+            --item-hover: #222d3d;
+            --item-selected: rgba(88, 166, 255, 0.15);
+            --border-color: #2b3544;
+            --border-highlight: #3b495c;
+            --text-primary: #e6edf3;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-gold: #f59e0b;
+            --accent-blue: #38bdf8;
+            --true-color: #22c55e;
+            --false-color: #ef4444;
+            --oracle-color: #a855f7;
+            --engr-color: #eab308;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-serif: 'Cinzel', serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0b0f17;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.05) 0%, transparent 40%);
+        }
+
+        /* モーダルシミュレーション外枠 */
+        .modal-window {
+            width: 100%;
+            max-width: 980px;
+            height: 85vh;
+            max-height: 720px;
+            background: var(--modal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 1. モーダルヘッダー */
+        .modal-header {
+            background: rgba(24, 32, 44, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-icon { font-size: 22px; }
+        .brand-title {
+            font-family: var(--font-serif);
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: var(--accent-gold);
+        }
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-left: 6px;
+        }
+
+        .header-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-tool {
+            background: #222d3d;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+        .btn-tool:hover {
+            background: #2c394d;
+            color: var(--text-primary);
+            border-color: var(--border-highlight);
+        }
+        .btn-tool.active {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+        .btn-lang {
+            background: #1e293b;
+            border: 1px solid #3b82f6;
+            color: #38bdf8;
+            font-weight: 700;
+        }
+        .btn-lang:hover {
+            background: #2563eb;
+            color: #fff;
+        }
+        .btn-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+        .btn-close:hover { color: #fff; background: rgba(239, 68, 68, 0.2); }
+
+        /* 2. 📊 総計サマリーバー */
+        .summary-bar {
+            background: #0e131b;
+            padding: 8px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .summary-label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .summary-val {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .summary-progress-wrap {
+            width: 100px;
+            height: 6px;
+            background: #222d3d;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-left: 2px;
+        }
+        .summary-progress-bar {
+            height: 100%;
+            background: var(--accent-gold);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .summary-divider {
+            width: 1px;
+            height: 18px;
+            background: var(--border-color);
+        }
+
+        /* 3. タブナビゲーション */
+        .nav-tabs {
+            display: flex;
+            background: #141b24;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+            gap: 4px;
+        }
+        .nav-tab {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab.active {
+            color: var(--accent-gold);
+            border-bottom-color: var(--accent-gold);
+        }
+        .badge-count {
+            background: #243042;
+            color: var(--text-primary);
+            font-size: 11px;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-family: var(--font-mono);
+        }
+
+        /* 4. メイン Master-Detail ワークスペース */
+        .workspace {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        /* 左ペイン: Master List */
+        .master-pane {
+            width: 52%;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            background: #121720;
+        }
+
+        /* 検索・絞り込みコントロール */
+        .list-controls {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #151d27;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #0f141d;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 5px 10px;
+            gap: 6px;
+        }
+        .search-box:focus-within {
+            border-color: var(--accent-blue);
+        }
+        .search-input {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 12px;
+            width: 100%;
+            outline: none;
+        }
+        .filter-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .chip {
+            background: #1d2634;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .chip:hover { border-color: var(--border-highlight); color: var(--text-primary); }
+        .chip.active {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+        .chip.true.active {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: var(--true-color);
+            color: var(--true-color);
+        }
+        .chip.false.active {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--false-color);
+            color: var(--false-color);
+        }
+
+        /* リストスクロール領域 */
+        .list-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 3px;
+            border: 1px solid transparent;
+            transition: all 0.12s ease;
+            background: #151d27;
+        }
+        .list-item:hover {
+            background: var(--item-hover);
+            border-color: var(--border-highlight);
+        }
+        .list-item.selected {
+            background: var(--item-selected);
+            border-color: var(--accent-blue);
+        }
+
+        .item-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            white-space: nowrap;
+        }
+        .badge-true { background: rgba(34, 197, 94, 0.15); color: var(--true-color); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-false { background: rgba(239, 68, 68, 0.15); color: var(--false-color); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-oracle { background: rgba(168, 85, 247, 0.15); color: var(--oracle-color); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .badge-engr { background: rgba(234, 179, 8, 0.15); color: var(--engr-color); border: 1px solid rgba(234, 179, 8, 0.3); }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .item-id {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .item-snippet {
+            font-size: 12px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .item-trans-snippet {
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .item-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* 右ペイン: Detail Card */
+        .detail-pane {
+            width: 48%;
+            background: #161e2a;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .detail-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: fadeIn 0.15s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .detail-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .detail-id {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .detail-body {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .text-en-box {
+            background: #0f141d;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #f1f5f9;
+            font-family: var(--font-mono);
+            white-space: pre-line;
+        }
+        .text-jp-box {
+            background: rgba(56, 189, 248, 0.05);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+        .text-jp-box.subtle-en {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px dashed rgba(148, 163, 184, 0.25);
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .text-jp-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+        }
+        .text-jp-label.subtle-en {
+            color: #64748b;
+        }
+
+        .detail-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            background: #111722;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+        }
+        .meta-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .meta-label {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+        .meta-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        /* 5. 最下部 テストシミュレータバー */
+        .sim-bar {
+            background: #0a0d13;
+            border-top: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .sim-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .btn-sim {
+            background: #1b2330;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .btn-sim:hover { background: #283446; border-color: var(--accent-gold); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- クライアント用 冒険手帳モーダル -->
+    <div class="modal-window">
+        <!-- 1. ヘッダー -->
+        <header class="modal-header">
+            <div class="brand">
+                <span class="brand-icon">📜</span>
+                <span class="brand-title" id="txtBrandTitle">RUMOR & LORE CODEX</span>
+                <span class="brand-subtitle" id="txtBrandSubtitle">冒険手帳 (伝承アーカイブ)</span>
+            </div>
+            <div class="header-tools">
+                <!-- 🌐 言語切替ボタン -->
+                <button class="btn-tool btn-lang" id="btnToggleLang" onclick="toggleLanguage()">
+                    🌐 <span id="txtCurrentLang">JP</span>
+                </button>
+                <button class="btn-tool" id="btnMasterMode" onclick="toggleMasterMode()">
+                    <span id="masterModeIcon">👁️</span>
+                    <span id="masterModeLabel">全マスタ閲覧 (未収集表示)</span>
+                </button>
+                <button class="btn-close" onclick="alert('クライアントではEscキーまたは外枠クリックで閉じます')">✕</button>
+            </div>
+        </header>
+
+        <!-- 2. 📊 総計サマリーバー (進捗一括把握) -->
+        <div class="summary-bar">
+            <div class="summary-item">
+                <span class="summary-label" id="lblSumRumor">噂話 総収集率:</span>
+                <span class="summary-val" id="sumRumorRatio">0 / 787</span>
+                <span class="summary-val" id="sumRumorPct" style="color:var(--accent-gold);">(0.0%)</span>
+                <div class="summary-progress-wrap">
+                    <div class="summary-progress-bar" id="sumRumorBar"></div>
+                </div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="summary-label" id="lblSumTrue">真実 (TRUE):</span>
+                <span class="summary-val" id="sumTrueRatio" style="color:var(--true-color);">0 / 390</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="summary-label" id="lblSumFalse">偽り (FALSE):</span>
+                <span class="summary-val" id="sumFalseRatio" style="color:var(--false-color);">0 / 397</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="summary-label" id="lblSumOracle">神託 (ORACLE):</span>
+                <span class="summary-val" id="sumOracleRatio" style="color:var(--oracle-color);">0 / 20</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="summary-label" id="lblSumEngr">床文字:</span>
+                <span class="summary-val" id="sumEngrCount" style="color:var(--engr-color);">0 件</span>
+            </div>
+        </div>
+
+        <!-- 3. タブナビゲーション -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="tabRumors" onclick="switchTab('rumors')">
+                <span id="txtTabRumors">📜 噂話 (Rumors)</span> <span class="badge-count" id="badgeRumors">0</span>
+            </button>
+            <button class="nav-tab" id="tabOracles" onclick="switchTab('oracles')">
+                <span id="txtTabOracles">🔮 神託 (Oracles)</span> <span class="badge-count" id="badgeOracles">0</span>
+            </button>
+            <button class="nav-tab" id="tabEngravings" onclick="switchTab('engravings')">
+                <span id="txtTabEngravings">🏛️ 床文字・落書き (Engravings)</span> <span class="badge-count" id="badgeEngravings">0</span>
+            </button>
+        </div>
+
+        <!-- 4. Master-Detail 2ペインワークスペース -->
+        <div class="workspace">
+            <!-- 左ペイン: Master 一覧リスト -->
+            <aside class="master-pane">
+                <div class="list-controls">
+                    <div class="search-box">
+                        <span>🔍</span>
+                        <input type="text" id="searchInput" class="search-input" placeholder="英和キーワード検索 (例: 'plate', '指輪', 'Elbereth')..." oninput="applyFilters()">
+                    </div>
+                    <!-- 噂話用フィルタ -->
+                    <div class="filter-row" id="filtersRumor">
+                        <button class="chip active" id="filterAll" onclick="setRumorFilter('ALL')">すべて</button>
+                        <button class="chip true" id="filterTrue" onclick="setRumorFilter('TRUE')">✅ 真実のみ</button>
+                        <button class="chip false" id="filterFalse" onclick="setRumorFilter('FALSE')">❌ 偽りのみ</button>
+                    </div>
+                    <!-- 床文字用フィルタ -->
+                    <div class="filter-row hidden" id="filtersEngraving">
+                        <button class="chip active" id="chipEngrAll" onclick="setEngrFilter('ALL')">すべて</button>
+                        <button class="chip" id="chipEngrGraffiti" onclick="setEngrFilter('ENGRAVING')">🏛️ 落書き</button>
+                        <button class="chip" id="chipEngrHeadstone" onclick="setEngrFilter('HEADSTONE')">🪦 墓碑銘</button>
+                        <button class="chip" id="chipEngrElbereth" onclick="setEngrFilter('ELBERETH')">🛡️ Elbereth</button>
+                    </div>
+                </div>
+
+                <!-- スクロール可能リスト -->
+                <div class="list-scroll" id="masterList">
+                    <!-- 動的生成 -->
+                </div>
+            </aside>
+
+            <!-- 右ペイン: Detail 選択カード -->
+            <main class="detail-pane" id="detailPane">
+                <div class="detail-empty" id="detailEmpty">
+                    <span>👈</span>
+                    <span id="txtDetailEmpty">左側のリストから項目を選択すると、<br>完全な英和テキストと詳細情報が表示されます。</span>
+                </div>
+                <div class="detail-card hidden" id="detailCard">
+                    <!-- 動的生成 -->
+                </div>
+            </main>
+        </div>
+
+        <!-- 5. シミュレータ＆テストバー -->
+        <footer class="sim-bar">
+            <span id="txtSimLabel">⚡ 動作検証用シミュレータ:</span>
+            <div class="sim-btns">
+                <button class="btn-sim" id="btnSimCookie" onclick="simulateEatCookie()">🍪 クッキーを食べる</button>
+                <button class="btn-sim" id="btnSimPaper" onclick="simulateReadPaper()">📜 紙片を読む</button>
+                <button class="btn-sim" id="btnSimOracle" onclick="simulateOracleConsult()">🔮 神託を受ける</button>
+                <button class="btn-sim" id="btnSimEngr" onclick="simulateReadEngraving()">🏛️ かすれ床文字発見</button>
+                <button class="btn-sim" id="btnSimReset" onclick="confirmReset()" style="color:var(--false-color);">🗑️ 初期化</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ES Module スクリプト -->
+    <script type="module">
+        import { LoreCodex } from '../src/core/lore/LoreCodex.js';
+        import { LoreDetector } from '../src/core/lore/LoreDetector.js';
+        import { LORE_MASTER } from '../src/core/lore/data/LoreMasterData.js';
+
+        // 多言語リソース辞書 (i18n)
+        const I18N = {
+            ja: {
+                langButton: 'JP',
+                brandTitle: 'RUMOR & LORE CODEX',
+                brandSubtitle: '冒険手帳 (伝承アーカイブ)',
+                masterModeOn: '全マスタ閲覧 (未収集表示)',
+                masterModeOff: '獲得済みのみ表示',
+                lblSumRumor: '噂話 総収集率:',
+                lblSumTrue: '真実 (TRUE):',
+                lblSumFalse: '偽り (FALSE):',
+                lblSumOracle: '神託 (ORACLE):',
+                lblSumEngr: '床文字:',
+                unitItems: '件',
+                tabRumors: '📜 噂話 (Rumors)',
+                tabOracles: '🔮 神託 (Oracles)',
+                tabEngravings: '🏛️ 床文字・落書き (Engravings)',
+                searchPlaceholder: "英和キーワード検索 (例: 'plate', '指輪', 'Elbereth')...",
+                filterAll: 'すべて',
+                filterTrue: '✅ 真実のみ',
+                filterFalse: '❌ 偽りのみ',
+                filterGraffiti: '🏛️ 落書き',
+                filterHeadstone: '🪦 墓碑銘',
+                filterElbereth: '🛡️ Elbereth',
+                detailEmpty: '左側のリストから項目を選択すると、<br>完全な英和テキストと詳細情報が表示されます。',
+                badgeTrue: 'TRUE',
+                badgeFalse: 'FALSE',
+                badgeOracle: 'ORACLE',
+                badgeGraffiti: '🏛️ 落書',
+                badgeHeadstone: '🪦 墓碑',
+                badgeElbereth: '🛡️ 結界',
+                truthBadgeTrue: '✅ 真実の噂 (TRUE)',
+                truthBadgeFalse: '❌ 偽りの噂 (FALSE)',
+                truthBadgeOracle: '🔮 デルフィの大預言 (ORACLE)',
+                badgeHeadstoneCard: '🪦 墓碑銘 (HEADSTONE)',
+                badgeElberethCard: '🛡️ 魔除けの結界 (ELBERETH)',
+                badgeGraffitiCard: '🏛️ 床の落書き (ENGRAVING)',
+                encounters: '遭遇回数:',
+                undiscoveredMaster: '（未獲得マスタ）',
+                uncollected: '未収集',
+                lblActualScuffed: '読取時のかすれ文字 (ACTUAL):',
+                lblTranslation: '日本語訳 (TRANSLATION):',
+                lblTranslationEnNote: '日本語参考訳 (JAPANESE TRANSLATION):',
+                noTranslation: '（日本語訳データ未登録）',
+                lblMetaLocation: '発見場所・階層',
+                lblMetaOrigin: '元ネタ・引用出典',
+                lblMetaSource: '入手媒体 / 出典',
+                lblMetaStatus: '状態',
+                lblMetaCategory: '分類',
+                statusCollected: '✅ 獲得済み',
+                statusUndiscovered: '🔒 未発見',
+                srcDelphi: 'デルフィ神託所',
+                srcFloor: '床文字',
+                simLabel: '⚡ 動作検証用シミュレータ:',
+                simCookie: '🍪 クッキーを食べる',
+                simPaper: '📜 紙片を読む',
+                simOracle: '🔮 神託を受ける',
+                simEngr: '🏛️ かすれ床文字発見',
+                simReset: '🗑️ 初期化',
+                confirmReset: '手帳データを初期化しますか？'
+            },
+            en: {
+                langButton: 'EN',
+                brandTitle: 'RUMOR & LORE CODEX',
+                brandSubtitle: 'Adventure Codex & Lore Archive',
+                masterModeOn: 'Show All Lore (Master Preview)',
+                masterModeOff: 'Show Collected Only',
+                lblSumRumor: 'Rumors Collected:',
+                lblSumTrue: 'True Rumors:',
+                lblSumFalse: 'False Rumors:',
+                lblSumOracle: 'Oracles:',
+                lblSumEngr: 'Engravings:',
+                unitItems: 'entries',
+                tabRumors: '📜 Rumors',
+                tabOracles: '🔮 Oracles',
+                tabEngravings: '🏛️ Engravings',
+                searchPlaceholder: "Search by keyword (e.g. 'plate', 'ring', 'Elbereth')...",
+                filterAll: 'All',
+                filterTrue: '✅ True Only',
+                filterFalse: '❌ False Only',
+                filterGraffiti: '🏛️ Graffiti',
+                filterHeadstone: '🪦 Headstone',
+                filterElbereth: '🛡️ Elbereth',
+                detailEmpty: 'Select an item from the list on the left<br>to view its full text and details.',
+                badgeTrue: 'TRUE',
+                badgeFalse: 'FALSE',
+                badgeOracle: 'ORACLE',
+                badgeGraffiti: '🏛️ Engr',
+                badgeHeadstone: '🪦 Grave',
+                badgeElbereth: '🛡️ Ward',
+                truthBadgeTrue: '✅ True Rumor (TRUE)',
+                truthBadgeFalse: '❌ False Rumor (FALSE)',
+                truthBadgeOracle: '🔮 Major Oracle of Delphi',
+                badgeHeadstoneCard: '🪦 Headstone Inscription',
+                badgeElberethCard: '🛡️ Ward of Elbereth',
+                badgeGraffitiCard: '🏛️ Dungeon Graffiti',
+                encounters: 'Encounters:',
+                undiscoveredMaster: '(Undiscovered Master)',
+                uncollected: 'Locked',
+                lblActualScuffed: 'Scuffed / Rubbed text read (ACTUAL):',
+                lblTranslation: 'Japanese Translation (Reference):',
+                lblTranslationEnNote: 'Japanese Translation (Reference):',
+                noTranslation: '(No translation registered)',
+                lblMetaLocation: 'Found Location / Depth',
+                lblMetaOrigin: 'Origin / Reference',
+                lblMetaSource: 'Source / Medium',
+                lblMetaStatus: 'Status',
+                lblMetaCategory: 'Category',
+                statusCollected: '✅ Collected',
+                statusUndiscovered: '🔒 Undiscovered',
+                srcDelphi: 'Oracle of Delphi',
+                srcFloor: 'Floor Engraving',
+                simLabel: '⚡ Simulator (For Testing):',
+                simCookie: '🍪 Eat Cookie',
+                simPaper: '📜 Read Paper',
+                simOracle: '🔮 Consult Oracle',
+                simEngr: '🏛️ Read Engraving',
+                simReset: '🗑️ Reset Codex',
+                confirmReset: 'Reset all collected lore data?'
+            }
+        };
+
+        const codex = new LoreCodex();
+        const detector = new LoreDetector();
+        window.codex = codex;
+        window.detector = detector;
+        window.LORE_MASTER = LORE_MASTER;
+
+        let currentLang = 'ja';
+        let activeTab = 'rumors';
+        let currentRumorFilter = 'ALL';
+        let currentEngrFilter = 'ALL';
+        let isMasterMode = false;
+        let selectedItem = null;
+
+        // 入手媒体フォーマッタ
+        function formatMedium(item, isEn) {
+            if (item.category === 'ORACLE') {
+                return isEn ? 'Oracle of Delphi' : 'デルフィ神託所';
+            }
+
+            if (item.category === 'RUMOR') {
+                if (item.source === 'paper') return isEn ? 'Scrap of Paper' : '床の紙片';
+                if (item.source === 'engraving') return isEn ? 'Floor Engraving' : '床の刻み文字';
+                return isEn ? 'Fortune Cookie' : 'フォーチュンクッキー';
+            }
+
+            // 床文字・落書き・墓碑銘
+            if (item.isHeadstone) {
+                return isEn ? 'Headstone Inscription' : '墓碑銘 (Headstone)';
+            }
+            if (item.category === 'ELBERETH') {
+                return isEn ? 'Ward of Elbereth' : 'Elbereth (魔除けの結界文字)';
+            }
+
+            return isEn ? 'Dungeon Floor Engraving' : '床の落書き';
+        }
+
+        // 元ネタ・引用出典フォーマッタ
+        function formatOrigin(item, isEn) {
+            const src = item.source || '';
+            if (!src || src === 'cookie' || src === 'paper' || src === 'engraving' || src === '床の落書き' || src === '魔除けの結界') {
+                return null;
+            }
+            const match = src.match(/^(.*?)\s*[（\(]([^）\)]+)[）\)]\s*$/);
+            if (match) {
+                const enPart = match[1].trim();
+                const jaPart = match[2].trim();
+                return isEn ? (enPart || jaPart) : (enPart ? `${jaPart} (${enPart})` : jaPart);
+            }
+            return src;
+        }
+
+        // 出典文字列の多言語フォーマッタ
+        function formatSource(sourceStr, item, isEn) {
+            const t = I18N[isEn ? 'en' : 'ja'];
+            if (!sourceStr) {
+                if (item && item.category === 'ORACLE') return t.srcDelphi;
+                if (item && item.isHeadstone) return isEn ? 'Headstone Inscription' : '墓碑銘 (Headstone)';
+                if (item && item.category === 'ELBERETH') return isEn ? 'Ward of Elbereth' : 'Elbereth (魔除けの結界文字)';
+                return isEn ? 'Dungeon Floor Engraving' : '床の落書き';
+            }
+
+            // 既知の英語コード値の変換
+            if (sourceStr === 'cookie') return isEn ? 'Fortune Cookie' : 'フォーチュンクッキー';
+            if (sourceStr === 'paper') return isEn ? 'Scrap of Paper' : '紙片 (床・本)';
+            if (sourceStr === 'engraving') return isEn ? 'Floor Engraving' : '床の刻み文字';
+
+            // 日本語の混ざった固定フォールバック
+            if (sourceStr.includes('墓碑銘')) return isEn ? 'Headstone Inscription' : '墓碑銘 (Headstone)';
+            if (sourceStr.includes('魔除けの結界') || sourceStr.includes('Elbereth')) return isEn ? 'Ward of Elbereth' : 'Elbereth (魔除けの結界文字)';
+            if (sourceStr.includes('床の落書き') || sourceStr.includes('床の刻み文字')) return isEn ? 'Dungeon Floor Engraving' : '床の落書き';
+
+            // "English Title (日本語解説)" 形式の分離と整形
+            const match = sourceStr.match(/^(.*?)\s*[（\(]([^）\)]+)[）\)]\s*$/);
+            if (match) {
+                const enPart = match[1].trim();
+                const jaPart = match[2].trim();
+                if (isEn) {
+                    // 英語モードなら英語タイトルのみ（日本語解説を除去）
+                    return enPart || jaPart;
+                } else {
+                    // 日本語モードなら「日本語解説 (英語タイトル)」または自然な併記
+                    return enPart ? `${jaPart} (${enPart})` : jaPart;
+                }
+            }
+
+            return sourceStr;
+        }
+
+        // カテゴリの多言語フォーマッタ
+        function formatCategory(catStr, isEn) {
+            if (!catStr) return isEn ? 'General' : '一般';
+            const catMap = {
+                'TRUE_RUMOR': { en: 'True Rumor', ja: '真実の噂' },
+                'FALSE_RUMOR': { en: 'False Rumor', ja: '偽りの噂' },
+                'RUMOR': { en: 'Rumor', ja: '噂話' },
+                'ORACLE': { en: 'Oracle', ja: '神託' },
+                'SPECIAL_ORACLE': { en: 'Special Oracle', ja: '特別神託' },
+                'ENGRAVING': { en: 'Graffiti / Quote', ja: '床の落書き・格言' },
+                'HEADSTONE': { en: 'Headstone', ja: '墓碑銘' },
+                'ELBERETH': { en: 'Elbereth Ward', ja: 'Elbereth結界' },
+                'LITERATURE': { en: 'Literature / Fiction', ja: '文学・SF小説' },
+                'CINEMA': { en: 'Cinema / Movies', ja: '映画・映像' },
+                'PALINDROME': { en: 'Palindrome', ja: '回文' },
+                'HUMOR': { en: 'Humor / Parody', ja: 'ユーモア・パロディ' },
+                'GAME': { en: 'Video Games', ja: 'ビデオゲーム' },
+                'SYSTEM': { en: 'UNIX / Operating System', ja: 'UNIX・システム' },
+                'TECH': { en: 'Technology / Internet', ja: 'インターネット・IT' },
+                'MEDIA': { en: 'TV / Pop Culture', ja: 'メディア・大衆文化' },
+                'COMIC': { en: 'Comic / Strip', ja: 'コミック・漫画' },
+                'MUSIC': { en: 'Music / Pop Song', ja: '音楽・ヒット曲' }
+            };
+
+            const found = catMap[catStr];
+            if (found) return isEn ? found.en : found.ja;
+            return catStr;
+        }
+
+        function init() {
+            applyLanguageUI();
+            updateSummaryBar();
+            renderList();
+            renderDetail();
+
+            codex.subscribe(() => {
+                updateSummaryBar();
+                renderList();
+                renderDetail();
+            });
+        }
+
+        // 言語切り替え
+        window.toggleLanguage = function() {
+            currentLang = currentLang === 'ja' ? 'en' : 'ja';
+            applyLanguageUI();
+            renderList();
+            renderDetail();
+        };
+
+        function applyLanguageUI() {
+            const t = I18N[currentLang];
+            document.getElementById('txtCurrentLang').textContent = t.langButton;
+            document.getElementById('txtBrandTitle').textContent = t.brandTitle;
+            document.getElementById('txtBrandSubtitle').textContent = t.brandSubtitle;
+            document.getElementById('masterModeLabel').textContent = isMasterMode ? t.masterModeOff : t.masterModeOn;
+
+            document.getElementById('lblSumRumor').textContent = t.lblSumRumor;
+            document.getElementById('lblSumTrue').textContent = t.lblSumTrue;
+            document.getElementById('lblSumFalse').textContent = t.lblSumFalse;
+            document.getElementById('lblSumOracle').textContent = t.lblSumOracle;
+            document.getElementById('lblSumEngr').textContent = t.lblSumEngr;
+
+            document.getElementById('txtTabRumors').textContent = t.tabRumors;
+            document.getElementById('txtTabOracles').textContent = t.tabOracles;
+            document.getElementById('txtTabEngravings').textContent = t.tabEngravings;
+
+            document.getElementById('searchInput').placeholder = t.searchPlaceholder;
+            document.getElementById('filterAll').textContent = t.filterAll;
+            document.getElementById('filterTrue').textContent = t.filterTrue;
+            document.getElementById('filterFalse').textContent = t.filterFalse;
+
+            document.getElementById('chipEngrAll').textContent = t.filterAll;
+            document.getElementById('chipEngrGraffiti').textContent = t.filterGraffiti;
+            document.getElementById('chipEngrHeadstone').textContent = t.filterHeadstone;
+            document.getElementById('chipEngrElbereth').textContent = t.filterElbereth;
+
+            document.getElementById('txtDetailEmpty').innerHTML = t.detailEmpty;
+
+            document.getElementById('txtSimLabel').textContent = t.simLabel;
+            document.getElementById('btnSimCookie').textContent = t.simCookie;
+            document.getElementById('btnSimPaper').textContent = t.simPaper;
+            document.getElementById('btnSimOracle').textContent = t.simOracle;
+            document.getElementById('btnSimEngr').textContent = t.simEngr;
+            document.getElementById('btnSimReset').textContent = t.simReset;
+        }
+
+        // サマリーバー更新
+        function updateSummaryBar() {
+            const stats = codex.getStats();
+            const t = I18N[currentLang];
+
+            document.getElementById('sumRumorRatio').textContent = `${stats.rumors.collected} / ${stats.rumors.total}`;
+            document.getElementById('sumRumorPct').textContent = `(${stats.rumors.percentage}%)`;
+            document.getElementById('sumRumorBar').style.width = `${stats.rumors.percentage}%`;
+
+            document.getElementById('sumTrueRatio').textContent = `${stats.rumors.trueCount} / ${stats.rumors.totalTrue}`;
+            document.getElementById('sumFalseRatio').textContent = `${stats.rumors.falseCount} / ${stats.rumors.totalFalse}`;
+            document.getElementById('sumOracleRatio').textContent = `${stats.oracles.collected} / ${stats.oracles.total}`;
+            document.getElementById('sumEngrCount').textContent = `${stats.engravings?.collected || 0} ${t.unitItems}`;
+
+            document.getElementById('badgeRumors').textContent = stats.rumors.collected;
+            document.getElementById('badgeOracles').textContent = stats.oracles.collected;
+            document.getElementById('badgeEngravings').textContent = stats.engravings?.collected || 0;
+        }
+
+        // タブ切り替え
+        window.switchTab = function(tab) {
+            activeTab = tab;
+            selectedItem = null;
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            if (tab === 'rumors') document.getElementById('tabRumors').classList.add('active');
+            else if (tab === 'oracles') document.getElementById('tabOracles').classList.add('active');
+            else if (tab === 'engravings') document.getElementById('tabEngravings').classList.add('active');
+
+            document.getElementById('filtersRumor').classList.toggle('hidden', tab !== 'rumors');
+            document.getElementById('filtersEngraving').classList.toggle('hidden', tab !== 'engravings');
+
+            document.getElementById('searchInput').value = '';
+            renderList();
+            renderDetail();
+        };
+
+        // フィルタ変更
+        window.setRumorFilter = function(filter) {
+            currentRumorFilter = filter;
+            document.querySelectorAll('#filtersRumor .chip').forEach(c => c.classList.remove('active'));
+            if (filter === 'ALL') document.getElementById('filterAll').classList.add('active');
+            else if (filter === 'TRUE') document.getElementById('filterTrue').classList.add('active');
+            else if (filter === 'FALSE') document.getElementById('filterFalse').classList.add('active');
+            renderList();
+        };
+
+        window.setEngrFilter = function(filter) {
+            currentEngrFilter = filter;
+            document.querySelectorAll('#filtersEngraving .chip').forEach(c => c.classList.remove('active'));
+            if (filter === 'ALL') document.getElementById('chipEngrAll').classList.add('active');
+            else if (filter === 'ENGRAVING') document.getElementById('chipEngrGraffiti').classList.add('active');
+            else if (filter === 'HEADSTONE') document.getElementById('chipEngrHeadstone').classList.add('active');
+            else if (filter === 'ELBERETH') document.getElementById('chipEngrElbereth').classList.add('active');
+            renderList();
+        };
+
+        window.applyFilters = function() {
+            renderList();
+        };
+
+        // 全マスタ閲覧トグル
+        window.toggleMasterMode = function() {
+            isMasterMode = !isMasterMode;
+            const btn = document.getElementById('btnMasterMode');
+            const t = I18N[currentLang];
+            btn.classList.toggle('active', isMasterMode);
+            document.getElementById('masterModeIcon').textContent = isMasterMode ? '🔒' : '👁️';
+            document.getElementById('masterModeLabel').textContent = isMasterMode ? t.masterModeOff : t.masterModeOn;
+            renderList();
+        };
+
+        // 一覧リストの描画
+        function renderList() {
+            const listEl = document.getElementById('masterList');
+            const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+            const t = I18N[currentLang];
+            const isEn = currentLang === 'en';
+
+            let items = [];
+
+            if (activeTab === 'rumors') {
+                if (isMasterMode) {
+                    items = LORE_MASTER.rumors.map(r => {
+                        const collected = codex.getRumor(r.id);
+                        return {
+                            ...r,
+                            category: 'RUMOR',
+                            collected: !!collected,
+                            seenCount: collected?.seenCount || 0
+                        };
+                    });
+                } else {
+                    items = codex.search(q, 'RUMOR').filter(i => i.category === 'RUMOR' && i.isTrue !== undefined).map(i => ({
+                        ...i,
+                        collected: true
+                    }));
+                }
+
+                // フィルタ
+                if (currentRumorFilter === 'TRUE') items = items.filter(i => i.isTrue);
+                if (currentRumorFilter === 'FALSE') items = items.filter(i => !i.isTrue);
+
+            } else if (activeTab === 'oracles') {
+                if (isMasterMode) {
+                    items = LORE_MASTER.oracles.map(o => {
+                        const collected = codex.getOracle(o.id);
+                        return {
+                            ...o,
+                            category: 'ORACLE',
+                            collected: !!collected,
+                            seenCount: collected?.seenCount || 0
+                        };
+                    });
+                } else {
+                    items = codex.getOracles().map(i => ({ ...i, collected: true }));
+                }
+            } else if (activeTab === 'engravings') {
+                items = codex.getEngravings().map(i => ({ ...i, collected: true }));
+                if (currentEngrFilter !== 'ALL') {
+                    items = items.filter(i => i.category === currentEngrFilter);
+                }
+            }
+
+            // 検索絞り込み (英和双方で検索可能)
+            if (q) {
+                items = items.filter(i => {
+                    const tEn = (i.text || i.actualText || '').toLowerCase();
+                    const tJp = (i.translatedText || i.title || '').toLowerCase();
+                    const id = (i.id || '').toLowerCase();
+                    return tEn.includes(q) || tJp.includes(q) || id.includes(q);
+                });
+            }
+
+            if (items.length === 0) {
+                listEl.innerHTML = `
+                    <div style="padding:40px 16px; text-align:center; color:var(--text-muted); font-size:12px;">
+                        ${isEn ? 'No matching lore found.' : '一致するデータがありません'}
+                    </div>
+                `;
+                return;
+            }
+
+            // アイテム選択の維持
+            if (selectedItem) {
+                const found = items.find(i => (i.id && i.id === selectedItem.id) || (i.text && i.text === selectedItem.text));
+                if (found) selectedItem = found;
+                else selectedItem = null;
+            }
+            if (!selectedItem && items.length > 0) {
+                selectedItem = items[0];
+            }
+
+            listEl.innerHTML = items.map((item, idx) => {
+                const isSel = selectedItem && ((item.id && item.id === selectedItem.id) || (item.text && item.text === selectedItem.text));
+                const itemClass = isSel ? 'list-item selected' : 'list-item';
+                
+                let badgeHtml = '';
+                if (item.category === 'RUMOR' || item.isTrue !== undefined) {
+                    badgeHtml = item.isTrue 
+                        ? `<span class="item-badge badge-true">${t.badgeTrue}</span>`
+                        : `<span class="item-badge badge-false">${t.badgeFalse}</span>`;
+                } else if (item.category === 'ORACLE' || item.title) {
+                    badgeHtml = `<span class="item-badge badge-oracle">${t.badgeOracle}</span>`;
+                } else {
+                    const sub = item.isHeadstone ? t.badgeHeadstone : (item.category === 'ELBERETH' ? t.badgeElbereth : t.badgeGraffiti);
+                    badgeHtml = `<span class="item-badge badge-engr">${sub}</span>`;
+                }
+
+                const snippet = escapeHtml(item.title || item.text || item.actualText || '');
+                const transSnippet = escapeHtml(item.translatedText || '');
+                const seen = item.seenCount ? `x${item.seenCount}` : (isMasterMode && !item.collected ? t.uncollected : '');
+
+                // 英語モード時は英文スニペットを主体とし、日本語モード時は日本語訳スニペットを併記
+                const transRowHtml = (!isEn && transSnippet) 
+                    ? `<div class="item-trans-snippet">${transSnippet}</div>` 
+                    : '';
+
+                return `
+                    <div class="${itemClass}" onclick="selectListItem(${idx})" data-idx="${idx}">
+                        ${badgeHtml}
+                        <div class="item-info">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span class="item-id">${escapeHtml(item.id || '')}</span>
+                                <span class="item-meta">${seen}</span>
+                            </div>
+                            <div class="item-snippet">${snippet}</div>
+                            ${transRowHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            window._currentItems = items;
+            renderDetail();
+        }
+
+        // リスト選択
+        window.selectListItem = function(idx) {
+            if (window._currentItems && window._currentItems[idx]) {
+                selectedItem = window._currentItems[idx];
+                document.querySelectorAll('.list-item').forEach((el, i) => {
+                    el.classList.toggle('selected', i === idx);
+                });
+                renderDetail();
+            }
+        };
+
+        // 詳細カードの描画
+        function renderDetail() {
+            const emptyEl = document.getElementById('detailEmpty');
+            const cardEl = document.getElementById('detailCard');
+            const t = I18N[currentLang];
+            const isEn = currentLang === 'en';
+
+            if (!selectedItem) {
+                emptyEl.classList.remove('hidden');
+                cardEl.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            cardEl.classList.remove('hidden');
+
+            const item = selectedItem;
+            let truthBadge = '';
+            if (item.category === 'RUMOR' || item.isTrue !== undefined) {
+                truthBadge = item.isTrue 
+                    ? `<span class="item-badge badge-true" style="font-size:12px; padding:3px 8px;">${t.truthBadgeTrue}</span>`
+                    : `<span class="item-badge badge-false" style="font-size:12px; padding:3px 8px;">${t.truthBadgeFalse}</span>`;
+            } else if (item.category === 'ORACLE' || item.title) {
+                truthBadge = `<span class="item-badge badge-oracle" style="font-size:12px; padding:3px 8px;">${t.truthBadgeOracle}</span>`;
+            } else {
+                const sub = item.isHeadstone ? t.badgeHeadstoneCard : (item.category === 'ELBERETH' ? t.badgeElberethCard : t.badgeGraffitiCard);
+                truthBadge = `<span class="item-badge badge-engr" style="font-size:12px; padding:3px 8px;">${sub}</span>`;
+            }
+
+            const headerHtml = `
+                <div class="detail-title-group">
+                    <div>${truthBadge}</div>
+                    ${item.title ? `<div style="font-size:15px; font-weight:700; color:var(--accent-gold); margin-top:4px;">${escapeHtml(item.title)}</div>` : ''}
+                </div>
+                <div style="text-align:right;">
+                    <div class="detail-id">${escapeHtml(item.id || '')}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                        ${item.seenCount ? `${t.encounters} <b>x${item.seenCount}</b>` : (isMasterMode && !item.collected ? `<span style="color:var(--text-muted);">${t.undiscoveredMaster}</span>` : '')}
+                    </div>
+                </div>
+            `;
+
+            const actualScuffedHtml = (item.actualText && item.actualText !== item.text) ? `
+                <div style="background:#111620; border:1px dashed var(--accent-gold); border-radius:6px; padding:8px 12px; font-size:12px;">
+                    <div style="color:var(--text-muted); font-size:10px; margin-bottom:2px;">${t.lblActualScuffed}</div>
+                    <div style="font-family:var(--font-mono); color:var(--accent-gold);">${escapeHtml(item.actualText)}</div>
+                </div>
+            ` : '';
+
+            // 日本語訳ボックス (EN モード時は補助・参考枠として表示)
+            let transHtml = '';
+            if (item.translatedText) {
+                if (isEn) {
+                    transHtml = `
+                        <div class="text-jp-box subtle-en">
+                            <div class="text-jp-label subtle-en">${t.lblTranslationEnNote}</div>
+                            <div>${escapeHtml(item.translatedText)}</div>
+                        </div>
+                    `;
+                } else {
+                    transHtml = `
+                        <div class="text-jp-box">
+                            <div class="text-jp-label">${t.lblTranslation}</div>
+                            <div>${escapeHtml(item.translatedText)}</div>
+                        </div>
+                    `;
+                }
+            } else if (!isEn) {
+                transHtml = `
+                    <div class="text-jp-box" style="color:var(--text-muted); font-style:italic;">
+                        ${t.noTranslation}
+                    </div>
+                `;
+            }
+
+            const mediumVal = formatMedium(item, isEn);
+            const originVal = formatOrigin(item, isEn);
+            const statusVal = (item.collected || item.seenCount) ? t.statusCollected : t.statusUndiscovered;
+            const categoryVal = formatCategory(item.subCategory || item.category, isEn);
+
+            const originCellHtml = originVal ? `
+                <div class="meta-cell">
+                    <span class="meta-label">${t.lblMetaOrigin}</span>
+                    <span class="meta-value" style="color:var(--accent-gold);">${escapeHtml(originVal)}</span>
+                </div>
+            ` : '';
+
+            const metaHtml = `
+                <div class="detail-meta-grid">
+                    <div class="meta-cell">
+                        <span class="meta-label">${t.lblMetaSource}</span>
+                        <span class="meta-value">${escapeHtml(mediumVal)}</span>
+                    </div>
+                    ${originCellHtml}
+                    <div class="meta-cell">
+                        <span class="meta-label">${t.lblMetaCategory}</span>
+                        <span class="meta-value">${escapeHtml(categoryVal)}</span>
+                    </div>
+                    <div class="meta-cell">
+                        <span class="meta-label">${t.lblMetaStatus}</span>
+                        <span class="meta-value">${statusVal}</span>
+                    </div>
+                </div>
+            `;
+
+            cardEl.innerHTML = `
+                <div class="detail-header">
+                    ${headerHtml}
+                </div>
+                <div class="detail-body">
+                    ${actualScuffedHtml}
+                    <div class="text-en-box">
+                        ${escapeHtml(item.text || item.actualText || '')}
+                    </div>
+                    ${transHtml}
+                    ${metaHtml}
+                </div>
+            `;
+        }
+
+        // シミュレーション用アクション
+        window.simulateEatCookie = function() {
+            const random = LORE_MASTER.rumors[Math.floor(Math.random() * LORE_MASTER.rumors.length)];
+            detector.processMessage('This cookie has a scrap of paper inside.');
+            detector.processMessage('It reads:');
+            const sig = detector.processMessage(random.text);
+            if (sig) {
+                codex.addRumor({
+                    id: sig.rumorId,
+                    text: sig.text,
+                    translatedText: sig.translatedText,
+                    isTrue: sig.isTrue,
+                    source: sig.source
+                });
+                switchTab('rumors');
+            }
+        };
+
+        window.simulateReadPaper = function() {
+            const random = LORE_MASTER.rumors[Math.floor(Math.random() * LORE_MASTER.rumors.length)];
+            detector.processMessage('It reads:');
+            const sig = detector.processMessage(random.text);
+            if (sig) {
+                codex.addRumor({
+                    id: sig.rumorId,
+                    text: sig.text,
+                    translatedText: sig.translatedText,
+                    isTrue: sig.isTrue,
+                    source: 'paper'
+                });
+                switchTab('rumors');
+            }
+        };
+
+        window.simulateOracleConsult = function() {
+            const random = LORE_MASTER.oracles[Math.floor(Math.random() * LORE_MASTER.oracles.length)];
+            detector.processMessage('The Oracle meditates for a moment and then intones:');
+            const sig = detector.processMessage(random.text);
+            if (sig) {
+                codex.addOracle({
+                    id: sig.oracleId,
+                    title: sig.title,
+                    text: sig.text,
+                    translatedText: sig.translatedText,
+                    isSpecial: sig.isSpecial
+                });
+                switchTab('oracles');
+            }
+        };
+
+        window.simulateReadEngraving = function() {
+            const samples = [
+                { text: "Th? c?ke ?s a l?e", note: "Portal" },
+                { text: "M?da?, in E?en, I'm Ada?.", note: "Palindrome" },
+                { text: "^rooo!  Wcrcwolvcs of Ycndor!", note: "Werewolves" },
+                { text: "A cry?tal pl?te ma?l wi?l not ru?t.", note: "Rumor" },
+                { text: "Elber?th", note: "Elbereth" }
+            ];
+            const chosen = samples[Math.floor(Math.random() * samples.length)];
+            detector.processMessage(`Something is engraved here on the floor.`);
+            const sig = detector.processMessage(`You read: "${chosen.text}".`);
+            if (sig) {
+                if (sig.restored?.category === 'RUMOR' && sig.restored.pristineText) {
+                    codex.addRumor({
+                        id: sig.restored.id || undefined,
+                        text: sig.restored.pristineText,
+                        translatedText: sig.restored.translation,
+                        isTrue: sig.restored.isTrue,
+                        source: 'engraving'
+                    });
+                }
+                codex.addEngraving({
+                    text: sig.pristineText || sig.actualText,
+                    actualText: sig.actualText,
+                    translatedText: sig.restored?.translation || (sig.isElbereth ? 'エルベレス' : ''),
+                    source: sig.restored?.source || (sig.isElbereth ? '魔除けの結界' : '床の落書き'),
+                    category: sig.isHeadstone ? 'HEADSTONE' : (sig.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                    subCategory: sig.restored?.category || ''
+                });
+                switchTab('engravings');
+            }
+        };
+
+        window.confirmReset = async function() {
+            const t = I18N[currentLang];
+            if (confirm(t.confirmReset)) {
+                await codex.reset();
+            }
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -181,6 +181,46 @@ export class LoreCodex {
     }
 
     /**
+     * 伝承エントリの個別削除
+     *
+     * @param {string} id - 削除対象ID
+     * @param {'RUMOR'|'ORACLE'|'ENGRAVING'} [category=null] - カテゴリ指定 (省略時は全コレクションから検索)
+     * @returns {boolean} 削除が成功したかどうか
+     */
+    removeEntry(id, category = null) {
+        if (!id) return false;
+        let deleted = false;
+
+        if (!category || category === 'RUMOR') {
+            if (this.rumors.delete(id)) deleted = true;
+        }
+        if (!category || category === 'ORACLE') {
+            if (this.oracles.delete(id)) deleted = true;
+        }
+        if (!category || category === 'ENGRAVING') {
+            if (this.engravings.delete(id)) deleted = true;
+        }
+
+        if (deleted) {
+            this._autoSave();
+            this._notify('entryRemoved', { id, category });
+            this._notify('updated', this.getStats());
+        }
+
+        return deleted;
+    }
+
+    /**
+     * 床文字エントリの個別削除 (ショートカット)
+     *
+     * @param {string} id
+     * @returns {boolean}
+     */
+    removeEngraving(id) {
+        return this.removeEntry(id, 'ENGRAVING');
+    }
+
+    /**
      * 最新の床の刻み文字 / Elbereth 結界状態を更新
      * @param {Object} wardData
      */

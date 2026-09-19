@@ -14,6 +14,7 @@ import { ModalManager } from './modules/components/ModalManager.js';
 import { CharacterCreationModal } from './modules/components/CharacterCreationModal.js';
 import { ContainerModal } from './modules/components/ContainerModal.js';
 import { PaperdollModal } from './modules/components/PaperdollModal.js';
+import { CodexModal } from './modules/components/CodexModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
 import { EngravingHud } from './modules/components/EngravingHud.js';
 
@@ -39,6 +40,8 @@ class GklPureJSClient {
     this.asciiGrid = document.getElementById('ascii-grid');
     this.btnToggleView = document.getElementById('btn-toggle-view');
     this.btnToggleZoom = document.getElementById('btn-toggle-zoom');
+    this.btnSettingsToggle = document.getElementById('btn-settings-toggle');
+    this.settingsDropdown = document.getElementById('settings-menu-dropdown');
     this.elMessageLog = document.getElementById('message-log');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
 
@@ -201,12 +204,21 @@ class GklPureJSClient {
       }
     });
 
+    // 8.7 Lore Codex Modal (冒険手帳・伝承図鑑)
+    this.codexModal = new CodexModal({
+      elCodexModal: document.getElementById('codex-modal'),
+      getCore: () => this.core,
+      onUnreadCountChanged: (count) => this.updateCodexBadge(count),
+      onClose: () => {}
+    });
+
     // 9. Key Handler
     this.keyHandler = new KeyHandler({
       getCore: () => this.core,
       getModalManager: () => this.modalManager,
       getContainerModal: () => this.containerModal,
       getPaperdollModal: () => this.paperdollModal,
+      getCodexModal: () => this.codexModal,
     });
 
     // 10. Startup Step Progression State
@@ -262,6 +274,17 @@ class GklPureJSClient {
     } else {
       this.currentLanguage = (lang === 'en' ? 'en' : 'ja');
       this.onLanguageChanged();
+    }
+  }
+
+  updateCodexBadge(count) {
+    const elBadge = document.getElementById('codex-unread-badge');
+    if (!elBadge) return;
+    if (count > 0) {
+      elBadge.textContent = count > 99 ? '99+' : count;
+      elBadge.classList.remove('hidden');
+    } else {
+      elBadge.classList.add('hidden');
     }
   }
 
@@ -574,9 +597,44 @@ class GklPureJSClient {
       };
     }
 
-    document.getElementById('btn-restart').onclick = () => this.restartGame();
-    document.getElementById('btn-delete-save').onclick = () => this.deleteSaveFile();
-    document.getElementById('btn-gameover-restart').onclick = () => this.restartGame();
+    if (this.btnSettingsToggle && this.settingsDropdown) {
+      this.btnSettingsToggle.onclick = (e) => {
+        e.stopPropagation();
+        this.settingsDropdown.classList.toggle('hidden');
+      };
+
+      // メニュー項目クリック時に自動で閉じる
+      this.settingsDropdown.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-menu-item')) {
+          this.settingsDropdown.classList.add('hidden');
+        }
+      });
+
+      // 外側クリックで閉じる
+      document.addEventListener('click', (e) => {
+        if (!this.settingsDropdown.classList.contains('hidden') &&
+            !this.settingsDropdown.contains(e.target) &&
+            e.target !== this.btnSettingsToggle) {
+          this.settingsDropdown.classList.add('hidden');
+        }
+      });
+
+      // Escキーで閉じる
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !this.settingsDropdown.classList.contains('hidden')) {
+          this.settingsDropdown.classList.add('hidden');
+        }
+      });
+    }
+
+    const btnRestart = document.getElementById('btn-restart');
+    if (btnRestart) btnRestart.onclick = () => this.restartGame();
+
+    const btnDeleteSave = document.getElementById('btn-delete-save');
+    if (btnDeleteSave) btnDeleteSave.onclick = () => this.deleteSaveFile();
+
+    const btnGameoverRestart = document.getElementById('btn-gameover-restart');
+    if (btnGameoverRestart) btnGameoverRestart.onclick = () => this.restartGame();
 
     const elStatusBar = document.getElementById('status-bar');
     if (elStatusBar) {
@@ -605,6 +663,15 @@ class GklPureJSClient {
     if (btnOpenPaperdoll) {
       btnOpenPaperdoll.onclick = () => {
         this.paperdollModal.toggle();
+      };
+    }
+
+    const btnOpenCodex = document.getElementById('btn-open-codex');
+    if (btnOpenCodex) {
+      btnOpenCodex.onclick = () => {
+        if (this.codexModal) {
+          this.codexModal.open();
+        }
       };
     }
 
@@ -808,6 +875,7 @@ class GklPureJSClient {
     this.modalManager.setLanguage(this.currentLanguage);
     this.containerModal.setLanguage(this.currentLanguage);
     if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
+    if (this.codexModal) this.codexModal.setLanguage(this.currentLanguage);
     if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
@@ -817,6 +885,17 @@ class GklPureJSClient {
     if (btnOpenPaperdoll) {
       btnOpenPaperdoll.textContent = isEn ? '🎽 Paperdoll' : '🎽 装備詳細';
       btnOpenPaperdoll.title = isEn ? 'Open equipment paperdoll & loadout' : '装備詳細 ＆ ペーパードールを開く';
+    }
+
+    const btnOpenCodex = document.getElementById('btn-open-codex');
+    const lblCodex = document.getElementById('btn-codex-label');
+    if (lblCodex) {
+      lblCodex.textContent = isEn ? '📜 Codex' : '📜 冒険手帳';
+    } else if (btnOpenCodex) {
+      btnOpenCodex.textContent = isEn ? '📜 Codex' : '📜 冒険手帳';
+    }
+    if (btnOpenCodex) {
+      btnOpenCodex.title = isEn ? 'Open adventure rumor & lore codex' : '冒険手帳・伝承図鑑を開く';
     }
 
     const btnRefreshInv = document.getElementById('btn-refresh-inv');
@@ -831,11 +910,29 @@ class GklPureJSClient {
     const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
     if (elKnHeader) elKnHeader.textContent = isEn ? '💡 Structured Knowledge (GKL Knowledge)' : '💡 構造化ナレッジ (GKL Knowledge)';
 
+    const btnSettingsToggle = document.getElementById('btn-settings-toggle');
+    if (btnSettingsToggle) {
+      btnSettingsToggle.textContent = isEn ? '⚙️ Settings' : '⚙️ 設定';
+      btnSettingsToggle.title = isEn ? 'Settings & system menu' : '設定・システムメニュー';
+    }
+
+    const lblViewSec = document.getElementById('lbl-settings-view-section');
+    if (lblViewSec) lblViewSec.textContent = isEn ? 'Display & Camera' : '表示・カメラ';
+
+    const lblSysSec = document.getElementById('lbl-settings-sys-section');
+    if (lblSysSec) lblSysSec.textContent = isEn ? 'System Operations' : 'システム操作';
+
     const btnRestart = document.getElementById('btn-restart');
-    if (btnRestart) btnRestart.title = isEn ? 'Restart game immediately' : 'ゲームを即時再起動';
+    if (btnRestart) {
+      btnRestart.textContent = isEn ? '🔄 Restart Game' : '🔄 Restart (再起動)';
+      btnRestart.title = isEn ? 'Restart game immediately' : 'ゲームを即時再起動';
+    }
 
     const btnDeleteSave = document.getElementById('btn-delete-save');
-    if (btnDeleteSave) btnDeleteSave.title = isEn ? 'Delete save file completely' : 'セーブデータを完全削除';
+    if (btnDeleteSave) {
+      btnDeleteSave.textContent = isEn ? '🗑️ Delete Save' : '🗑️ Delete Save (セーブ削除)';
+      btnDeleteSave.title = isEn ? 'Delete save file completely' : 'セーブデータを完全削除';
+    }
 
     const btnStartResume = document.getElementById('btn-start-resume');
     if (btnStartResume) btnStartResume.textContent = isEn ? '▶️ Continue Game' : '▶️ セーブデータから再開';

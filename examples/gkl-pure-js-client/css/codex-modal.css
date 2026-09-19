@@ -1,0 +1,539 @@
+/* ============================================================================
+   codex-modal.css - 冒険手帳 (Rumor & Lore Codex) モーダルスタイル
+   ============================================================================ */
+
+.codex-modal-backdrop {
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 14, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.codex-modal-card {
+  width: 95%;
+  max-width: 1000px;
+  height: 85vh;
+  max-height: 740px;
+  background: #121720;
+  border: 1px solid #2b3544;
+  border-radius: 12px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  padding: 0 !important; /* modal-card のデフォルトパディングを解除 */
+}
+
+/* 1. モーダルヘッダー */
+.codex-modal-header {
+  background: rgba(24, 32, 44, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 12px 20px;
+  border-bottom: 1px solid #2b3544;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.codex-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.codex-brand-icon { font-size: 22px; }
+.codex-brand-title {
+  font-family: 'Cinzel', serif, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #f59e0b;
+}
+.codex-brand-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-left: 6px;
+}
+
+.codex-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.codex-btn-tool {
+  background: #222d3d;
+  border: 1px solid #2b3544;
+  color: #94a3b8;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.codex-btn-tool:hover {
+  background: #2c394d;
+  color: #e6edf3;
+  border-color: #3b495c;
+}
+.codex-btn-tool.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+.codex-btn-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.codex-btn-close:hover { color: #fff; background: rgba(239, 68, 68, 0.2); }
+
+/* 2. 📊 総計サマリーバー */
+.codex-summary-bar {
+  background: #0e131b;
+  padding: 8px 20px;
+  border-bottom: 1px solid #2b3544;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.codex-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.codex-summary-label {
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.codex-summary-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #e6edf3;
+}
+.codex-summary-progress-wrap {
+  width: 90px;
+  height: 6px;
+  background: #222d3d;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-left: 2px;
+}
+.codex-summary-progress-bar {
+  height: 100%;
+  background: #f59e0b;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+.codex-summary-divider {
+  width: 1px;
+  height: 18px;
+  background: #2b3544;
+}
+
+/* 3. タブナビゲーション */
+.codex-nav-tabs {
+  display: flex;
+  background: #141b24;
+  border-bottom: 1px solid #2b3544;
+  padding: 0 16px;
+  gap: 4px;
+}
+.codex-nav-tab {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+.codex-nav-tab:hover { color: #e6edf3; }
+.codex-nav-tab.active {
+  color: #f59e0b;
+  border-bottom-color: #f59e0b;
+}
+.codex-badge-count {
+  background: #243042;
+  color: #e6edf3;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* 4. メイン Master-Detail ワークスペース */
+.codex-workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* 左ペイン: Master List */
+.codex-master-pane {
+  width: 52%;
+  border-right: 1px solid #2b3544;
+  display: flex;
+  flex-direction: column;
+  background: #121720;
+}
+
+/* 検索・絞り込みコントロール */
+.codex-list-controls {
+  padding: 10px 14px;
+  border-bottom: 1px solid #2b3544;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #151d27;
+}
+.codex-search-box {
+  display: flex;
+  align-items: center;
+  background: #0f141d;
+  border: 1px solid #2b3544;
+  border-radius: 6px;
+  padding: 5px 10px;
+  gap: 6px;
+}
+.codex-search-box:focus-within {
+  border-color: #38bdf8;
+}
+.codex-search-input {
+  background: none;
+  border: none;
+  color: #e6edf3;
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+}
+.codex-filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.codex-chip {
+  background: #1d2634;
+  border: 1px solid #2b3544;
+  color: #94a3b8;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.codex-chip:hover { border-color: #3b495c; color: #e6edf3; }
+.codex-chip.active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  font-weight: 600;
+}
+.codex-chip.true.active {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.codex-chip.false.active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* リストスクロール領域 */
+.codex-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+.codex-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 3px;
+  border: 1px solid transparent;
+  transition: all 0.12s ease;
+  background: #151d27;
+}
+.codex-list-item:hover {
+  background: #222d3d;
+  border-color: #3b495c;
+}
+.codex-list-item.selected {
+  background: rgba(88, 166, 255, 0.15);
+  border-color: #38bdf8;
+}
+
+.codex-item-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+.codex-item-badge.badge-true { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+.codex-item-badge.badge-false { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+.codex-item-badge.badge-oracle { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+.codex-item-badge.badge-engr { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
+
+.codex-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.codex-item-id {
+  font-size: 10px;
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+}
+.codex-item-snippet {
+  font-size: 12px;
+  color: #e6edf3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.codex-item-trans-snippet {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.codex-item-meta {
+  font-size: 10px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* 右ペイン: Detail Card */
+.codex-detail-pane {
+  width: 48%;
+  background: #161e2a;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 13px;
+  gap: 10px;
+  text-align: center;
+}
+
+.codex-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: codexFadeIn 0.15s ease-out;
+}
+@keyframes codexFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.codex-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #2b3544;
+  padding-bottom: 12px;
+}
+.codex-detail-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.codex-detail-id {
+  font-size: 11px;
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.codex-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.codex-text-en-box {
+  background: #0f141d;
+  border: 1px solid #2b3544;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f1f5f9;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: pre-line;
+}
+.codex-text-jp-box {
+  background: rgba(56, 189, 248, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+.codex-text-jp-box.subtle-en {
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+  font-size: 13px;
+}
+.codex-text-jp-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+.codex-text-jp-label.subtle-en {
+  color: #64748b;
+}
+
+.codex-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  background: #111722;
+  border: 1px solid #2b3544;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 11px;
+}
+.codex-meta-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.codex-meta-label {
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.codex-meta-value {
+  color: #e6edf3;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ============================================================================
+   未読通知バッジ ＆ ✨ NEW マーカー
+   ============================================================================ */
+
+/* 1. ヘッダーの手帳ボタン上の未読バッジ */
+.codex-header-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codex-badge-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  animation: codex-badge-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.codex-badge-unread.hidden {
+  display: none !important;
+}
+
+@keyframes codex-badge-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 2. タブ上の未読数バッジ */
+.codex-tab-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.codex-tab-unread.hidden {
+  display: none !important;
+}
+
+/* 3. リスト項目内の ✨ NEW バッジ */
+.codex-item-badge.badge-new {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
+}
+
+/* 4. 未読アイテム行のハイライト効果 */
+.codex-list-item.is-unread {
+  border-left: 3px solid #10b981;
+  background: rgba(16, 185, 129, 0.04);
+}
+.codex-list-item.is-unread:hover {
+  background: rgba(16, 185, 129, 0.09);
+}

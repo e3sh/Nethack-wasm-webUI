@@ -4,14 +4,31 @@
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
 
 export class KeyHandler {
-  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal }) {
+  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
+    this.getCodexModal = getCodexModal || (() => null);
   }
 
   handleGlobalKeyDown(e) {
+    // 冒険手帳モーダルが開いている場合の処理
+    const codexModal = this.getCodexModal();
+    if (codexModal && codexModal.isOpen()) {
+      if (e.key === 'Escape' || e.code === 'Escape') {
+        e.preventDefault();
+        codexModal.close();
+        return;
+      }
+      // 検索入力欄にフォーカスがある場合はキーイベントをそのまま通す
+      if (e.target && e.target.id === 'codex-search-input') {
+        return;
+      }
+      // モーダル表示中は通常のゲームキー入力をブロック
+      return;
+    }
+
     // ペーパードールモーダルが開いている場合の処理
     const paperdollModal = this.getPaperdollModal();
     if (paperdollModal && paperdollModal.isVisible) {

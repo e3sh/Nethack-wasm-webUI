@@ -197,4 +197,32 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
         expect(anotherCodex.getEngravings().length).toBe(1);
         expect(anotherCodex.getEngravings()[0].text).toBe('The cake is a lie');
     });
+
+    it('removeEntry および removeEngraving で個別伝承を安全に削除できること', () => {
+        // 噂話・神託・床文字を登録
+        codex.addRumor({ id: 'rumor_del_1', text: 'Rumor to delete', isTrue: true });
+        codex.addOracle({ id: 'oracle_del_1', text: 'Oracle to delete' });
+        const engrRes = codex.addEngraving({ text: 'Scuffed text ?l?er??h', isHeadstone: false });
+
+        expect(codex.getRumors().length).toBe(1);
+        expect(codex.getOracles().length).toBe(1);
+        expect(codex.getEngravings().length).toBe(1);
+
+        // 床文字の個別削除 (removeEngraving)
+        const engrId = engrRes.engraving.id;
+        const deletedEngr = codex.removeEngraving(engrId);
+        expect(deletedEngr).toBe(true);
+        expect(codex.getEngravings().length).toBe(0);
+
+        // 噂話の個別削除 (removeEntry)
+        const deletedRumor = codex.removeEntry('rumor_del_1', 'RUMOR');
+        expect(deletedRumor).toBe(true);
+        expect(codex.getRumors().length).toBe(0);
+
+        // 存在しないIDは false
+        expect(codex.removeEntry('not_exist_id')).toBe(false);
+
+        // 神託は残っている
+        expect(codex.getOracles().length).toBe(1);
+    });
 });

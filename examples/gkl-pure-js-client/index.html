@@ -14,13 +14,27 @@
         <span class="logo-icon">🐉</span>
         <span class="title">NetHack Wasm <small>GKL Pure JS Client</small></span>
       </div>
-      <div class="quick-actions">
-        <button id="btn-toggle-view" class="btn btn-secondary">ビュー切替: 🎨 Graphic Canvas</button>
-        <button id="btn-toggle-zoom" class="btn btn-secondary">🎯 ズームカメラ: ON</button>
-      </div>
-      <div class="controls">
-        <button id="btn-restart" class="btn btn-secondary">🔄 Restart</button>
-        <button id="btn-delete-save" class="btn btn-danger">🗑️ Delete Save</button>
+      <div class="header-actions">
+        <button id="btn-open-codex" class="btn btn-secondary codex-header-btn" title="冒険手帳・伝承図鑑を開く">
+          <span id="btn-codex-label">📜 冒険手帳</span>
+          <span id="codex-unread-badge" class="codex-badge-unread hidden">0</span>
+        </button>
+        <div class="settings-dropdown-wrapper">
+          <button id="btn-settings-toggle" class="btn btn-secondary" title="設定・システムメニュー">⚙️ 設定</button>
+          <div id="settings-menu-dropdown" class="settings-menu-dropdown hidden">
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-view-section">表示・カメラ</span>
+              <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: 🎨 Graphic Canvas</button>
+              <button id="btn-toggle-zoom" class="btn-menu-item">🎯 ズームカメラ: ON</button>
+            </div>
+            <div class="settings-menu-separator"></div>
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-sys-section">システム操作</span>
+              <button id="btn-restart" class="btn-menu-item">🔄 Restart (再起動)</button>
+              <button id="btn-delete-save" class="btn-menu-item btn-menu-danger">🗑️ Delete Save (セーブ削除)</button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -591,6 +605,116 @@
 
     <!-- Equipment Paperdoll Modal (UI & Diff Preview) -->
     <div id="paperdoll-modal" class="modal-backdrop hidden"></div>
+
+    <!-- 📜 冒険手帳 (Rumor & Lore Codex) Modal -->
+    <div id="codex-modal" class="modal-backdrop codex-modal-backdrop hidden">
+      <div class="modal-card modal-large codex-modal-card">
+        <!-- 1. ヘッダー -->
+        <div class="codex-modal-header">
+          <div class="codex-brand">
+            <span class="codex-brand-icon">📜</span>
+            <span class="codex-brand-title" id="codex-brand-title">RUMOR & LORE CODEX</span>
+            <span class="codex-brand-subtitle" id="codex-brand-subtitle">冒険手帳 (伝承アーカイブ)</span>
+          </div>
+          <div class="codex-header-tools">
+            <button class="codex-btn-tool" id="btn-codex-mark-all-read" title="すべての新着を既読にする">
+              <span id="codex-mark-read-icon">✓</span>
+              <span id="codex-mark-read-label">すべて既読</span>
+            </button>
+            <button class="codex-btn-close" id="btn-codex-close">✕</button>
+          </div>
+        </div>
+
+        <!-- 2. 📊 総計サマリーバー -->
+        <div class="codex-summary-bar">
+          <div class="codex-summary-item">
+            <span class="codex-summary-label" id="codex-lbl-sum-rumor">噂話 総収集率:</span>
+            <span class="codex-summary-val" id="codex-sum-rumor-ratio">0 / 787</span>
+            <span class="codex-summary-val" id="codex-sum-rumor-pct" style="color:#f59e0b;">(0.0%)</span>
+            <div class="codex-summary-progress-wrap">
+              <div class="codex-summary-progress-bar" id="codex-sum-rumor-bar"></div>
+            </div>
+          </div>
+          <div class="codex-summary-divider"></div>
+          <div class="codex-summary-item">
+            <span class="codex-summary-label" id="codex-lbl-sum-true">真実 (TRUE):</span>
+            <span class="codex-summary-val" id="codex-sum-true-ratio" style="color:#22c55e;">0 / 390</span>
+          </div>
+          <div class="codex-summary-divider"></div>
+          <div class="codex-summary-item">
+            <span class="codex-summary-label" id="codex-lbl-sum-false">偽り (FALSE):</span>
+            <span class="codex-summary-val" id="codex-sum-false-ratio" style="color:#ef4444;">0 / 397</span>
+          </div>
+          <div class="codex-summary-divider"></div>
+          <div class="codex-summary-item">
+            <span class="codex-summary-label" id="codex-lbl-sum-oracle">神託 (ORACLE):</span>
+            <span class="codex-summary-val" id="codex-sum-oracle-ratio" style="color:#a855f7;">0 / 20</span>
+          </div>
+          <div class="codex-summary-divider"></div>
+          <div class="codex-summary-item">
+            <span class="codex-summary-label" id="codex-lbl-sum-engr">床文字:</span>
+            <span class="codex-summary-val" id="codex-sum-engr-count" style="color:#eab308;">0 件</span>
+          </div>
+        </div>
+
+        <!-- 3. タブナビゲーション -->
+        <div class="codex-nav-tabs">
+          <button class="codex-nav-tab active" id="codex-tab-rumors">
+            <span id="codex-txt-tab-rumors">📜 噂話 (Rumors)</span>
+            <span class="codex-badge-count" id="codex-badge-rumors">0</span>
+            <span class="codex-tab-unread hidden" id="codex-unread-tab-rumors">0</span>
+          </button>
+          <button class="codex-nav-tab" id="codex-tab-oracles">
+            <span id="codex-txt-tab-oracles">🔮 神託 (Oracles)</span>
+            <span class="codex-badge-count" id="codex-badge-oracles">0</span>
+            <span class="codex-tab-unread hidden" id="codex-unread-tab-oracles">0</span>
+          </button>
+          <button class="codex-nav-tab" id="codex-tab-engravings">
+            <span id="codex-txt-tab-engravings">🏛️ 床文字・落書き (Engravings)</span>
+            <span class="codex-badge-count" id="codex-badge-engravings">0</span>
+            <span class="codex-tab-unread hidden" id="codex-unread-tab-engravings">0</span>
+          </button>
+        </div>
+
+        <!-- 4. Master-Detail 2ペインワークスペース -->
+        <div class="codex-workspace">
+          <!-- 左ペイン: Master 一覧リスト -->
+          <aside class="codex-master-pane">
+            <div class="codex-list-controls">
+              <div class="codex-search-box">
+                <span>🔍</span>
+                <input type="text" id="codex-search-input" class="codex-search-input" placeholder="英和キーワード検索 (例: 'plate', '指輪', 'Elbereth')...">
+              </div>
+              <!-- 噂話用フィルタ -->
+              <div class="codex-filter-row" id="codex-filters-rumor">
+                <button class="codex-chip active" id="codex-filter-all">すべて</button>
+                <button class="codex-chip true" id="codex-filter-true">✅ 真実のみ</button>
+                <button class="codex-chip false" id="codex-filter-false">❌ 偽りのみ</button>
+              </div>
+              <!-- 床文字用フィルタ -->
+              <div class="codex-filter-row hidden" id="codex-filters-engraving">
+                <button class="codex-chip active" id="codex-engr-all">すべて</button>
+                <button class="codex-chip" id="codex-engr-graffiti">🏛️ 落書き</button>
+                <button class="codex-chip" id="codex-engr-headstone">🪦 墓碑銘</button>
+                <button class="codex-chip" id="codex-engr-elbereth">🛡️ Elbereth</button>
+              </div>
+            </div>
+
+            <!-- スクロール可能リスト -->
+            <div class="codex-list-scroll" id="codex-master-list"></div>
+          </aside>
+
+          <!-- 右ペイン: Detail 選択カード -->
+          <main class="codex-detail-pane" id="codex-detail-pane">
+            <div class="codex-detail-empty" id="codex-detail-empty">
+              <span>👈</span>
+              <span>左側のリストから項目を選択すると、<br>完全な英和テキストと詳細情報が表示されます。</span>
+            </div>
+            <div class="codex-detail-card hidden" id="codex-detail-card"></div>
+          </main>
+        </div>
+      </div>
+    </div>
 
 
     <!-- アイテムツールチップ -->
