@@ -19,6 +19,7 @@ import { ContainerController } from '../../src/core/container/ContainerControlle
 import { EngravingHud } from './modules/components/EngravingHud.js';
 
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
+import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
@@ -37,6 +38,7 @@ class GklPureJSClient {
 
     // DOM Elements
     this.canvas = document.getElementById('game-canvas');
+    this.webgpuCanvas = document.getElementById('webgpu-canvas');
     this.asciiGrid = document.getElementById('ascii-grid');
     this.btnToggleView = document.getElementById('btn-toggle-view');
     this.btnToggleZoom = document.getElementById('btn-toggle-zoom');
@@ -45,12 +47,25 @@ class GklPureJSClient {
     this.elMessageLog = document.getElementById('message-log');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
 
+    this.currentViewMode = 'graphic'; // 'graphic' | 'ascii' | 'hd2d'
+
     // 1. Map Renderer
     this.mapRenderer = new MapRenderer({
       canvas: this.canvas,
       asciiGrid: this.asciiGrid,
       btnToggleView: this.btnToggleView,
       getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid
+    });
+
+    // 1.5. WebGPU HD2D Renderer (✨ 3D ジオラマビュー)
+    this.webgpuRenderer = new WebGPUHD2DRenderer({
+      canvas: this.webgpuCanvas,
+      getSituation: () => this.core?.gkl?.getSituation(),
+      getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
+      getGlyphBuffer: () => this.mapRenderer.glyphGridBuffer,
+      getCore: () => this.core,
+      getTileImg: () => this.mapRenderer.tileImg,
+      isTileLoaded: () => this.mapRenderer.tileLoaded,
     });
 
     // 2. Zoom Camera Renderer
@@ -232,6 +247,13 @@ class GklPureJSClient {
   init() {
     this.mapRenderer.init();
     this.zoomRenderer.init();
+    if (this.webgpuRenderer) {
+      this.webgpuRenderer.init().then((ok) => {
+        if (ok) {
+          //console.log("[WebGPU HD2D] Ready for view toggle!");
+        }
+      });
+    }
     this.initLayoutConfig();
     this.initCore();
     this.codexModal?.init();
@@ -596,9 +618,47 @@ class GklPureJSClient {
     });
   }
 
+  cycleViewMode() {
+    const isEn = this.currentLanguage === 'en';
+    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
+
+    if (this.currentViewMode === 'graphic') {
+      this.currentViewMode = 'ascii';
+      this.mapRenderer.switchViewMode(false);
+      this.webgpuRenderer?.setActive(false);
+      if (this.btnToggleView) {
+        this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🔤 Color ASCII Grid';
+      }
+    } else if (this.currentViewMode === 'ascii') {
+      if (isWebGpuAvailable) {
+        this.currentViewMode = 'hd2d';
+        this.canvas.classList.add('hidden');
+        this.asciiGrid.classList.add('hidden');
+        this.webgpuRenderer.setActive(true);
+        if (this.btnToggleView) {
+          this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '✨ WebGPU HD-2D';
+        }
+      } else {
+        this.currentViewMode = 'graphic';
+        this.mapRenderer.switchViewMode(true);
+        this.webgpuRenderer?.setActive(false);
+        if (this.btnToggleView) {
+          this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🎨 Graphic Canvas';
+        }
+      }
+    } else { // 'hd2d'
+      this.currentViewMode = 'graphic';
+      this.webgpuRenderer?.setActive(false);
+      this.mapRenderer.switchViewMode(true);
+      if (this.btnToggleView) {
+        this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🎨 Graphic Canvas';
+      }
+    }
+  }
+
   bindDOMEvents() {
     this.btnToggleView.onclick = () => {
-      this.mapRenderer.switchViewMode(!this.mapRenderer.isGraphicCanvasMode);
+      this.cycleViewMode();
     };
 
     if (this.btnToggleZoom) {
@@ -802,6 +862,12 @@ class GklPureJSClient {
         await this.core.gkl.travelTo({ x: gx, y: gy });
       }
     };
+
+    // WebGPU HD2D レンダラーのクリック＆ホバーイベント接続
+    if (this.webgpuRenderer) {
+      this.webgpuRenderer.onCellClick = (gx, gy) => handleCanvasInspect(gx, gy, false);
+      this.webgpuRenderer.onCellHover = (gx, gy) => handleCanvasInspect(gx, gy, true);
+    }
 
     // メインキャンバスのクリック＆ホバーイベント
     if (this.canvas) {

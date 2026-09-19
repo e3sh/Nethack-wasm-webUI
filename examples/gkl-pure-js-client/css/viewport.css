@@ -15,7 +15,8 @@
   min-height: 336px;
 }
 
-#game-canvas {
+#game-canvas,
+#webgpu-canvas {
   width: 1280px;
   height: 336px;
   max-width: 100%;
@@ -23,6 +24,61 @@
   object-fit: contain;
   image-rendering: pixelated;
   cursor: crosshair;
+}
+
+#webgpu-debug-hud {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(12, 16, 28, 0.78);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(120, 210, 255, 0.35);
+  border-radius: 16px;
+  padding: 4px 12px;
+  color: #cce6ff;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: auto;
+  cursor: default;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+#webgpu-debug-hud .hud-details {
+  display: none;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: #a0c4e8;
+}
+
+#webgpu-debug-hud:hover {
+  background: rgba(12, 16, 28, 0.92);
+  border-color: rgba(120, 210, 255, 0.6);
+  border-radius: 6px;
+}
+
+#webgpu-debug-hud:hover .hud-details {
+  display: block;
+}
+
+#webgpu-debug-hud .badge-ok {
+  color: #4cd05d;
+  font-weight: bold;
+}
+
+#webgpu-debug-hud .badge-error {
+  color: #ff5555;
+  font-weight: bold;
+}
+
+#webgpu-debug-hud .badge-layer {
+  display: inline-block;
+  margin-right: 6px;
 }
 
 /* 80x24 Color ASCII Grid */

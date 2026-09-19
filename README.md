@@ -39,6 +39,19 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 
 </details>
 
+<details>
+<summary>🧪 <b>【実験的テックデモ】WebGPU (WGSL) による HD-2D 風 3D ジオラマ表示（クリックで展開）</b></summary>
+
+<br />
+
+<div align="center">
+  <img src="assets/images/quarterview.png" width="680" alt="WebGPU HD-2D ジオラマレンダラー (実験的プロトタイプ)" />
+  <p><em>NetHack の世界をオクトパストラベラー風の 3D ジオラマ（立体石壁キューブ、水平石畳、直立ビルボード）としてリアルタイム描画する完全アドオンの技術検証デモ。<br />
+  （※クライアント内の「ビュー切替」ボタンで通常 Canvas ⇄ ASCII ⇄ ✨ HD-2D をワンクリック切替可能 / 非アクティブ時負荷0% / 詳細: <a href="docs/7_futures/webgpu_hd2d_diorama_renderer.ja.md">設計・移植ガイド</a>）</em></p>
+</div>
+
+</details>
+
 ---
 
 ## ✨ 主な機能 & 特長
