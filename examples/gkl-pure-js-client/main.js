@@ -886,6 +886,36 @@ class GklPureJSClient {
       });
     }
 
+    // ASCII Grid のクリック＆ホバーイベント (Event Delegation)
+    if (this.asciiGrid) {
+      const getAsciiCellCoords = (e) => {
+        const target = e.target;
+        if (target && target.id && target.id.startsWith('ascii-cell-')) {
+          const parts = target.id.split('-');
+          return { gx: parseInt(parts[2], 10), gy: parseInt(parts[3], 10) };
+        }
+        return null;
+      };
+
+      this.asciiGrid.addEventListener('mousemove', async (e) => {
+        const coords = getAsciiCellCoords(e);
+        if (coords) {
+          await handleCanvasInspect(coords.gx, coords.gy, true);
+        }
+      });
+
+      this.asciiGrid.addEventListener('mouseleave', () => {
+        this.knowledgeView.renderKnowledgeCard(null);
+      });
+
+      this.asciiGrid.addEventListener('click', async (e) => {
+        const coords = getAsciiCellCoords(e);
+        if (coords) {
+          await handleCanvasInspect(coords.gx, coords.gy, false);
+        }
+      });
+    }
+
     // ズームカメラ (zoom-canvas) のクリック＆ホバーイベント
     const zoomCanvas = document.getElementById('zoom-canvas');
     if (zoomCanvas) {
