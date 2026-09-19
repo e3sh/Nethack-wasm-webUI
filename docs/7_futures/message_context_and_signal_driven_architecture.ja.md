@@ -2,7 +2,7 @@
 title: メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
 status: proposal / future vision
 created_at: 2026-09-16
-last_updated: 2026-09-18
+last_updated: 2026-09-19
 related_code:
   - src/core/WebUICore.js
   - src/core/prompt/SignalDetector.js
@@ -24,6 +24,7 @@ related_code:
   - tools/lore_codex.html
   - tools/save_manager.html
   - docs/7_futures/source_message_extraction_methodology_guide.ja.md
+  - docs/7_futures/phase5_detailed_migration_plan.ja.md
 ---
 
 # メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
@@ -238,6 +239,16 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
     ▼
 [Phase 5: 既存状態把握機能のメッセージマスタ移行と次世代シグナル駆動 WebUICore の完成]
   【目的: 「後追い文字列推測」から「メッセージマスタ起点の一元確定」への既存モジュールの刷新】
+  ※詳細設計・移行手順書: `docs/7_futures/phase5_detailed_migration_plan.ja.md`
+  ※作業規模と複雑性を踏まえ、以下の4つのサブステージ（Stage 5.1〜5.4）で段階的に移行を推進：
+    ・Stage 5.1: 責務純化とアーキテクチャ境界の確立（LORE/Codex の GKL 移設、WebUICore の純化）
+    ・Stage 5.2: 実行時メッセージコンテキスト照合基盤の確立（軽量カタログ生成と MessageContextResolver 新設）
+    ・Stage 5.3: ドメイン別既存モジュールのメッセージマスタ移行
+      - 5.3A: 効果音エンジン (SoundEngine) の決定論的トリガー移行 (You_hear 142件 & ドメイン事象)
+      - 5.3B: 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行 (You_feel 231件 & 飲食/薬品)
+      - 5.3C: 道具識別エンジン (ItemIdentificationResolver) の確定的判明移行 (read.c / zap.c 等)
+    ・Stage 5.4: 多言語透過性 (Language-Agnostic) の完全達成と全体回帰検証 (932+件テストパス)
+  ------------------------------------------------------------------------------------------------
   0. 【最優先看板機能】かすれ床文字の考古学的復元アシスト（GKL Engraving Archaeology & Restoration Engine）: ★完了 (2026-09-18)
      - 背景・仕様: `src/engrave.c:random_engraving` では床の落書きの75%が Rumors、25%が `dat/engrave.txt` から選ばれ、`wipeout_text()` により生成時点で25%が削られ・変形（`rubouts[]`）して出現する。
      - 解決手法: `LoreDetector` の `SIGNAL_LORE_ENGRAVE` によるコンテキスト完全同定と、Rumors (787件) + Engrave (48件) の母数約840件へのスコープ完全隔離。
