@@ -160,9 +160,12 @@ struct Uniforms {
   time: f32,
   hasTexture: f32,
   topDownFactor: f32,
-  padding1: f32,
-  padding2: f32,
-  padding3: f32,
+  lightRadius: f32,
+  ambientFloor: f32,
+  pad0: f32,
+  playerPos: vec2<f32>,
+  pad1: f32,
+  pad2: f32,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -178,7 +181,7 @@ struct VertexInput {
   @location(4) isPlayer: f32,       // 0.0: false, 1.0: true
   @location(5) animOffset: f32,
   @location(6) tileIndex: f32,
-  @location(7) padding: f32,
+  @location(7) tileLight: f32,      // 0.2 ~ 1.0 (タイルの基礎環境明度)
 };
 
 struct VertexOutput {
@@ -187,6 +190,8 @@ struct VertexOutput {
   @location(1) @interpolate(flat) layerType: f32,
   @location(2) @interpolate(flat) isPlayer: f32,
   @location(3) texCoord: vec2<f32>,
+  @location(4) @interpolate(flat) tileLight: f32,
+  @location(5) worldPos: vec3<f32>,
 };
 
 @vertex
@@ -240,6 +245,8 @@ fn vs_main(input: VertexInput) -> VertexOutput {
   out.uv = input.uv;
   out.layerType = input.layerType;
   out.isPlayer = input.isPlayer;
+  out.tileLight = input.tileLight;
+  out.worldPos = finalPos;
 
   // タイルアトラス UV 座標計算 (ピクセル絶対位置から安全に算出)
   let tileCols = floor(uniforms.texWidth / 32.0);
@@ -257,14 +264,26 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   let uv = input.uv;
 
+  // プレイヤー中心の光サークル (ランタン視界)
+  let dist = distance(input.worldPos.xz, uniforms.playerPos);
+  let torchLight = 1.0 - smoothstep(1.5, uniforms.lightRadius, dist);
+
+  // 総合明度: タイル基礎明度 (tileLight) と ランタン光 (torchLight) をブレンド
+  // 視界外でも最低限のシルエット (0.22) は確保
+  var light = max(input.tileLight * uniforms.ambientFloor, torchLight * 0.95);
+  light = clamp(light, 0.22, 1.15);
+
+  if (input.isPlayer > 0.5) {
+    // プレイヤー自身は常に最大光度
+    light = 1.0;
+  }
+
   // 1. タイルテクスチャがロードされている場合 (通常動作)
   if (uniforms.hasTexture > 0.5) {
     let texColor = textureSample(tileTexture, tileSampler, input.texCoord);
 
     if (input.layerType >= 2.5) {
       // 【キャラクター (Layer 4)、アイテム (Layer 3)、エフェクト (Layer 5)】
-      // アルファ値のみで透過判定！
-      // 黒ピクセル（目・輪郭線・黒髪など）は正常に黒として描画し、透過部分 (a < 0.2) のみ discard する
       if (texColor.a < 0.2) {
         discard;
       }
@@ -273,29 +292,33 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
       if (input.isPlayer > 0.5) {
         // 自キャラは視認性向上のためほんのり明るく
         spriteColor = mix(spriteColor, vec3<f32>(1.0, 0.98, 0.85), 0.08);
+      } else if (input.layerType >= 4.5) {
+        // エフェクト (Layer 5) は自発光のため減衰なし
+      } else {
+        spriteColor = spriteColor * light;
       }
       return vec4<f32>(spriteColor, 1.0);
 
     } else if (input.layerType < 0.5) {
       // 【床 (Layer 0)】
       if (texColor.a < 0.1) {
-        return vec4<f32>(0.10, 0.12, 0.15, 1.0); // 床タイルの透明地色
+        return vec4<f32>(vec3<f32>(0.10, 0.12, 0.15) * light, 1.0); // 床タイルの透明地色
       }
-      return vec4<f32>(texColor.rgb, 1.0);
+      return vec4<f32>(texColor.rgb * light, 1.0);
 
     } else if (input.layerType < 1.5) {
       // 【壁天面 (Layer 1)】
       if (texColor.a < 0.1) {
-        return vec4<f32>(0.35, 0.38, 0.42, 1.0);
+        return vec4<f32>(vec3<f32>(0.35, 0.38, 0.42) * light, 1.0);
       }
-      return vec4<f32>(texColor.rgb, 1.0);
+      return vec4<f32>(texColor.rgb * light, 1.0);
 
     } else {
       // 【壁前面 (Layer 2)】
       if (texColor.a < 0.1) {
-        return vec4<f32>(0.24, 0.26, 0.30, 1.0);
+        return vec4<f32>(vec3<f32>(0.24, 0.26, 0.30) * light, 1.0);
       }
-      return vec4<f32>(texColor.rgb * 0.72, 1.0);
+      return vec4<f32>(texColor.rgb * 0.72 * light, 1.0);
     }
   }
 
@@ -306,12 +329,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   } else if (input.layerType < 2.5 && input.layerType >= 1.5) {
     baseColor = vec3<f32>(0.30, 0.32, 0.36); // 壁前面
   } else if (input.layerType < 3.5 && input.layerType >= 2.5) {
-    let dist = abs(uv.x - 0.5) + abs(uv.y - 0.5);
-    if (dist > 0.42) { discard; }
+    let dist2 = abs(uv.x - 0.5) + abs(uv.y - 0.5);
+    if (dist2 > 0.42) { discard; }
     baseColor = vec3<f32>(0.20, 0.85, 0.95); // アイテム
   } else if (input.layerType < 4.5 && input.layerType >= 3.5) {
-    let dist = distance(uv, vec2<f32>(0.5, 0.5));
-    if (dist > 0.48) { discard; }
+    let dist2 = distance(uv, vec2<f32>(0.5, 0.5));
+    if (dist2 > 0.48) { discard; }
     if (input.isPlayer > 0.5) {
       baseColor = vec3<f32>(1.0, 0.88, 0.2);
     } else {
@@ -319,11 +342,11 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     }
   } else {
     // エフェクトフォールバック (黄金の光)
-    let dist = distance(uv, vec2<f32>(0.5, 0.5));
-    if (dist > 0.45) { discard; }
+    let dist2 = distance(uv, vec2<f32>(0.5, 0.5));
+    if (dist2 > 0.45) { discard; }
     baseColor = vec3<f32>(1.0, 0.95, 0.3);
   }
-  return vec4<f32>(baseColor, 1.0);
+  return vec4<f32>(baseColor * light, 1.0);
 }
 `;
 
@@ -415,6 +438,15 @@ export class WebGPUHD2DRenderer {
     this.lastActivityTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.isIdle = false;
     this.lastRenderTime = 0;
+
+    // ライティング＆視界効果 (Lighting & Lantern / Fog)
+    this.currentLightRadius = 6.0;
+    this.targetLightRadius = 6.0;
+    this.ambientFloor = 0.45;
+
+    // 環境パーティクル (浮遊微粒子・ダスト・加算合成)
+    this.ambientParticles = [];
+    this._initAmbientParticles();
   }
 
   async init() {
@@ -694,7 +726,7 @@ export class WebGPUHD2DRenderer {
       <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b> &nbsp;|&nbsp; <span>${modeBadge}${idleBadge}</span></div>
       <div class="hud-details">
         <div>${texBadge} &nbsp;|&nbsp; Instances: <b>${total}</b> (<span class="badge-layer" style="color:#60c075">Floor: ${floor}</span> <span class="badge-layer" style="color:#e0b070">Wall: ${wall}</span> <span class="badge-layer" style="color:#40e0ff">Item: ${item}</span> <span class="badge-layer" style="color:#ffdc40">Char: ${char}</span> <span class="badge-layer" style="color:#ff80df">Fx: ${effect}</span>)</div>
-        <div>Player: (${this.playerX.toFixed(0)}, ${this.playerY.toFixed(0)}) &nbsp;|&nbsp; Cam: (${camX}, ${camZ}) &nbsp;|&nbsp; Tilt: ${(this.currentTopDownFactor * 100).toFixed(0)}%</div>
+        <div>Player: (${this.playerX.toFixed(0)}, ${this.playerY.toFixed(0)}) &nbsp;|&nbsp; Cam: (${camX}, ${camZ}) &nbsp;|&nbsp; Tilt: ${(this.currentTopDownFactor * 100).toFixed(0)}% &nbsp;|&nbsp; <span style="color:#ffe57f">💡 Light: r=${this.currentLightRadius.toFixed(1)}</span></div>
       </div>
     `;
   }
@@ -888,6 +920,68 @@ export class WebGPUHD2DRenderer {
     }
   }
 
+  _initAmbientParticles() {
+    this.ambientParticles = [];
+    const count = 32;
+    for (let i = 0; i < count; i++) {
+      this.ambientParticles.push({
+        offsetX: (Math.random() * 2 - 1) * 6.0,
+        offsetY: Math.random() * 1.5,
+        offsetZ: (Math.random() * 2 - 1) * 6.0,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() * 0.2) + 0.06, // ふわりと上に上昇
+        vz: (Math.random() - 0.5) * 0.25,
+        size: Math.random() * 1.8 + 1.2,
+        baseAlpha: Math.random() * 0.35 + 0.25,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 1.2 + 0.8,
+        isGold: Math.random() > 0.45
+      });
+    }
+  }
+
+  _renderAmbientParticles(ctx, now) {
+    if (!this.ambientParticles || this.ambientParticles.length === 0) return;
+    const dt = 0.016;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter'; // 加算合成で暗闇に光る微粒子
+
+    for (const p of this.ambientParticles) {
+      p.offsetX += p.vx * dt;
+      p.offsetY += p.vy * dt;
+      p.offsetZ += p.vz * dt;
+
+      // 一定の高さや範囲を超えたらランダムにリセットして循環
+      if (p.offsetY > 1.6 || Math.abs(p.offsetX) > 7.0 || Math.abs(p.offsetZ) > 7.0) {
+        p.offsetX = (Math.random() * 2 - 1) * 5.5;
+        p.offsetY = 0.05;
+        p.offsetZ = (Math.random() * 2 - 1) * 5.5;
+      }
+
+      const worldX = this.playerX + p.offsetX;
+      const worldY = p.offsetY;
+      const worldZ = this.playerY + p.offsetZ;
+
+      const proj = this.worldToScreen(worldX, worldY, worldZ);
+      if (proj && proj.screenX >= -10 && proj.screenX <= this.canvas.width + 10 &&
+          proj.screenY >= -10 && proj.screenY <= this.canvas.height + 10) {
+        const pulse = Math.sin(now * 0.003 * p.speed + p.phase);
+        const currentAlpha = Math.max(0.05, p.baseAlpha * (0.6 + 0.4 * pulse));
+        
+        ctx.fillStyle = p.isGold
+          ? `rgba(255, 215, 120, ${currentAlpha})`
+          : `rgba(160, 220, 255, ${currentAlpha * 0.8})`;
+
+        ctx.beginPath();
+        ctx.arc(proj.screenX, proj.screenY, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
   /**
    * Visual FX の描画＆自動ライフサイクル管理 (オーバーレイ Canvas 2D)
    */
@@ -897,6 +991,9 @@ export class WebGPUHD2DRenderer {
     ctx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
 
     const ts = 32;
+
+    // 0. 環境浮遊パーティクル (加算合成 lighter)
+    this._renderAmbientParticles(ctx, now);
 
     // 1. 自キャラ枠 ＆ ターゲットカーソル枠の描画
     this._renderCursorFrames(ctx, ts, now);
@@ -1197,7 +1294,29 @@ export class WebGPUHD2DRenderer {
 
     Mat4.multiply(this.viewProjMatrix, projMatrix, viewMatrix);
 
-    // 3. インスタンスデータの構築 (Dirty キャッシュ判定)
+    // 3. プレイヤー足元セルの環境判定に基づき、視界半径 (lightRadius) を動的に補間
+    const playerCell = areaGrid ? areaGrid[Math.round(this.playerY)]?.[Math.round(this.playerX)] : null;
+    let targetRadius = 6.2; // デフォルト (通常の部屋)
+    if (playerCell && playerCell.bottom) {
+      const pGlyph = playerCell.bottom.rawGlyph;
+      if (pGlyph === 3995 || pGlyph === 3997) {
+        // 通路: 視界を狭めて閉塞感と緊張感を高める (半径 3.8)
+        targetRadius = 3.8;
+      } else if (pGlyph === 3993) {
+        // 暗い部屋: 少し狭め (半径 4.6)
+        targetRadius = 4.6;
+      } else if (pGlyph === 3992 || pGlyph === 3996) {
+        // 明るい部屋 / 照らされた通路: 広々 (半径 7.5)
+        targetRadius = 7.5;
+      }
+    }
+    this.targetLightRadius = targetRadius;
+    if (Math.abs(this.targetLightRadius - this.currentLightRadius) > 0.05) {
+      this.currentLightRadius += (this.targetLightRadius - this.currentLightRadius) * 0.12;
+      this.wakeUp();
+    }
+
+    // 4. インスタンスデータの構築 (Dirty キャッシュ判定)
     const turn = situation?.turn ?? 0;
     const activeMonstersCount = area?.activeMonsters?.length ?? 0;
     const dirtyCount = area?.dirtyCells ? area.dirtyCells.size : 0;
@@ -1235,7 +1354,7 @@ export class WebGPUHD2DRenderer {
       let countEffect = 0;
       const data = this.instanceData;
 
-      const pushInstance = (wx, wy, wz, layerType, isPlayer = 0.0, anim = 0.0, tileIdx = 0.0) => {
+      const pushInstance = (wx, wy, wz, layerType, isPlayer = 0.0, anim = 0.0, tileIdx = 0.0, tileLight = 1.0) => {
         if (instanceCount >= this.maxInstances) return;
         const idx = instanceCount * 8;
         data[idx + 0] = wx;
@@ -1245,7 +1364,7 @@ export class WebGPUHD2DRenderer {
         data[idx + 4] = isPlayer;
         data[idx + 5] = anim;
         data[idx + 6] = tileIdx;
-        data[idx + 7] = 0.0;
+        data[idx + 7] = tileLight;
         instanceCount++;
 
         if (layerType === 0.0) countFloor++;
@@ -1260,19 +1379,34 @@ export class WebGPUHD2DRenderer {
           const cell = areaGrid ? areaGrid[y]?.[x] : null;
           let drawnAny = false;
 
+          // タイルの基礎環境明度の判定 (明室: 1.0, 暗室: 0.35, 通路: 0.45, 壁: 0.75, その他: 0.85)
+          let cellLight = 0.85;
+          if (cell && cell.bottom) {
+            const g = cell.bottom.rawGlyph;
+            if (g === 3993) {
+              cellLight = 0.35; // 暗い部屋 (S_darkroom)
+            } else if (g === 3995 || g === 3994 || g === 3997) {
+              cellLight = 0.45; // 通路 (S_corr, S_engrcorr)
+            } else if (g === 3992 || g === 3996) {
+              cellLight = 1.0;  // 明るい部屋 (S_room), 明るい通路 (S_litcorr)
+            } else if (cell.bottom.category === 'WALL' || cell.bottom.cmapFlags?.isWall) {
+              cellLight = 0.75; // 壁
+            }
+          }
+
           if (cell) {
             // Layer 0 & 1/2: Bottom (床 / 壁)
             if (cell.bottom && cell.bottom.rawGlyph >= 0) {
               const isWall = cell.bottom.category === 'WALL' || cell.bottom.cmapFlags?.isWall;
               const tileIdx = getTileIdx(cell.bottom.rawGlyph);
               if (isWall) {
-                pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, tileIdx); // 壁天面
+                pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, tileIdx, cellLight); // 壁天面
                 // トップビューモード専用時以外は壁前面も生成
                 if (this.cameraMode !== 'topdown') {
-                  pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, tileIdx); // 壁前面
+                  pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, tileIdx, cellLight); // 壁前面
                 }
               } else {
-                pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx); // 床
+                pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx, cellLight); // 床
               }
               drawnAny = true;
             }
@@ -1280,7 +1414,7 @@ export class WebGPUHD2DRenderer {
             // Layer 3: Middle (アイテム)
             if (cell.middle && cell.middle.rawGlyph >= 0) {
               const tileIdx = getTileIdx(cell.middle.rawGlyph);
-              pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx);
+              pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx, cellLight);
               drawnAny = true;
             }
 
@@ -1290,19 +1424,20 @@ export class WebGPUHD2DRenderer {
               // 🪦 プレイヤー死亡時は墓石タイルを配置 (静止、バウンスなし: anim = -1.0)
               const tombGlyph = (typeof DEFAULT_TOMBSTONE_GLYPH !== 'undefined') ? DEFAULT_TOMBSTONE_GLYPH : 2321;
               const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
-              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx);
+              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx, cellLight);
               drawnAny = true;
             } else if (cell.top && cell.top.rawGlyph >= 0) {
               const isPlayer = cell.top.isPlayer ? 1.0 : 0.0;
               const tileIdx = getTileIdx(cell.top.rawGlyph);
-              pushInstance(x, 0.0, y, 4.0, isPlayer, (x * 3 + y * 5) % 8, tileIdx);
+              const charLight = isPlayer > 0.5 ? 1.0 : cellLight;
+              pushInstance(x, 0.0, y, 4.0, isPlayer, (x * 3 + y * 5) % 8, tileIdx, charLight);
               drawnAny = true;
             }
 
             // Layer 5: Effect (過渡的エフェクト: 投擲物・杖ビーム・爆発等)
             if (cell.effect && cell.effect.rawGlyph >= 0) {
               const tileIdx = getTileIdx(cell.effect.rawGlyph);
-              pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx);
+              pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx, 1.0); // 自発光
               drawnAny = true;
             }
           }
@@ -1313,14 +1448,14 @@ export class WebGPUHD2DRenderer {
             if (isDeathPos) {
               const tombGlyph = (typeof DEFAULT_TOMBSTONE_GLYPH !== 'undefined') ? DEFAULT_TOMBSTONE_GLYPH : 2321;
               const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
-              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx);
+              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx, cellLight);
             } else {
               const gId = glyphBuffer[y][x].glyph;
               const tileIdx = getTileIdx(gId);
               if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
-                pushInstance(x, 0.0, y, 4.0, 1.0, 0.0, tileIdx);
+                pushInstance(x, 0.0, y, 4.0, 1.0, 0.0, tileIdx, 1.0);
               } else {
-                pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx);
+                pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx, 1.0);
               }
             }
           }
@@ -1344,18 +1479,21 @@ export class WebGPUHD2DRenderer {
       this.isInstanceDirty = false;
     }
 
-    // 4. Uniform バッファ書き込み (96 bytes = 24 floats)
-    // viewProj (16 floats) + texWidth, texHeight, time, hasTexture (4 floats) + topDownFactor, padding (4 floats)
-    const uniformArray = new Float32Array(24);
+    // 5. Uniform バッファ書き込み (112 bytes = 28 floats, 128 bytes バッファ内に格納)
+    const uniformArray = new Float32Array(28);
     uniformArray.set(this.viewProjMatrix, 0);
     uniformArray[16] = this.texWidth;
     uniformArray[17] = this.texHeight;
     uniformArray[18] = timeInSeconds;
     uniformArray[19] = this.hasTexture ? 1.0 : 0.0;
     uniformArray[20] = this.currentTopDownFactor;
-    uniformArray[21] = 0.0;
-    uniformArray[22] = 0.0;
-    uniformArray[23] = 0.0;
+    uniformArray[21] = this.currentLightRadius;
+    uniformArray[22] = this.ambientFloor;
+    uniformArray[23] = 0.0; // pad0
+    uniformArray[24] = this.playerX;
+    uniformArray[25] = this.playerY;
+    uniformArray[26] = 0.0; // pad1
+    uniformArray[27] = 0.0; // pad2
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
     // 5. レンダリングコマンドの発行
