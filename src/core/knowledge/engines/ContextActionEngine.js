@@ -167,6 +167,156 @@ export class ContextActionEngine {
         return metaMap[code] || { dirCode: code, dirNameJa: code, dirSymbol: '' };
     }
 
+    /**
+     * 指定された方向コード（SELF または 8方向）に対するデフォルト推奨アクション（待機 または 移動/押す）を生成
+     * ※ 方向選択時にアクションが0件または1件のとき、キーボードのない環境でも移動・岩押し・待機を行えるように提示するためのアクション
+     * @param {string} dirCode - 'SELF' または 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'
+     * @param {Object} [areaState=null] - AreaState オブジェクト（地形・壁チェック用、省略可能）
+     * @param {Object} [options={}] - 言語等のオプション { language: 'ja'|'en' }
+     * @returns {Object|null} デフォルト推奨アクション（壁等で進行不能な場合は null）
+     */
+    static getDefaultActionForDirection(dirCode, areaState = null, options = {}) {
+        if (!dirCode || dirCode === 'ALL') return null;
+
+        const cleanDir = String(dirCode).toUpperCase().replace(/^DIR_/, '');
+        const validDirs = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
+        if (!validDirs.has(cleanDir)) return null;
+
+        const language = (options && options.language) || 'ja';
+        const isEn = (language === 'en');
+
+        if (cleanDir === 'SELF') {
+            return {
+                id: 'ACTION_DEFAULT_WAIT',
+                category: 'SURVIVAL',
+                label: isEn ? 'Wait (1 turn)' : '待機 (1ターン)',
+                description: isEn ? 'Wait in place for 1 turn' : 'その場で1ターン待機・経過させます',
+                key: '.',
+                keySequence: ['.'],
+                charStr: '.',
+                directionKey: 'DIR_SELF',
+                dirCode: 'SELF',
+                directionCode: 'SELF',
+                icon: '⏳',
+                priority: 10,
+                isDefault: true
+            };
+        }
+
+        // 8方向のメタ情報
+        const meta = this.getDirectionMeta(cleanDir);
+        const dirNameJa = meta.dirNameJa || cleanDir;
+        const dirSymbol = meta.dirSymbol || '';
+        const enDirNameMap = {
+            'N': 'North', 'E': 'East', 'S': 'South', 'W': 'West',
+            'NE': 'Northeast', 'NW': 'Northwest', 'SE': 'Southeast', 'SW': 'Southwest'
+        };
+        const dirNameEn = enDirNameMap[cleanDir] || cleanDir;
+
+        // 壁（進入不能地形）のチェック（areaState が与えられている場合）
+        if (areaState && Array.isArray(areaState.adjacentEntities)) {
+            const adj = areaState.adjacentEntities.find(e => {
+                const c = e.dir && (e.dir.code || e.dir);
+                return c === cleanDir || (typeof c === 'string' && c.replace(/^DIR_/, '') === cleanDir);
+            });
+            if (adj && adj.cell) {
+                const cell = adj.cell;
+                const isWall = Boolean(cell.bottom?.cmapFlags?.isWall || cell.bottom?.cmapFlags?.isIronBars);
+                // 岩（boulder）やモンスター、アイテムがある場合は壁であっても押す/攻撃等の可能性があるため除外しない
+                const hasEntity = Boolean(cell.middle || cell.top);
+                if (isWall && !hasEntity) {
+                    return null; // 純粋な壁で障害物もない場合は移動アクションを出さない
+                }
+            }
+        }
+
+        const dirToken = `DIR_${cleanDir}`;
+        return {
+            id: `ACTION_DEFAULT_MOVE_${cleanDir}`,
+            category: 'DEFAULT',
+            label: isEn ? `Move / Push ${dirNameEn} [${dirSymbol || cleanDir}]` : `${dirNameJa}へ移動 / 押す [${dirSymbol || cleanDir}]`,
+            description: isEn ? `Move towards ${dirNameEn} or push obstacles/boulders` : `${dirNameJa}方向に移動するか、障害物・巨石を押します`,
+            key: dirToken,
+            keySequence: [dirToken],
+            charStr: dirSymbol || cleanDir,
+            directionKey: dirToken,
+            dirCode: cleanDir,
+            directionCode: cleanDir,
+            icon: '🚶',
+            priority: 10,
+            isDefault: true
+        };
+    }
+
+    /**
+     * 指定された方向コードに対するダッシュ（走り）推奨アクションを生成
+     * ※ 方向キーのダブルタップ時に、突き当たりや分岐点まで一気に走るためのアクション
+     * @param {string} dirCode - 'SELF' または 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'
+     * @param {Object} [areaState=null] - AreaState オブジェクト（地形・壁チェック用、省略可能）
+     * @param {Object} [options={}] - 言語等のオプション { language: 'ja'|'en' }
+     * @returns {Object|null} ダッシュ推奨アクション（壁等で進行不能な場合は null）
+     */
+    static getDashActionForDirection(dirCode, areaState = null, options = {}) {
+        if (!dirCode || dirCode === 'ALL') return null;
+
+        const cleanDir = String(dirCode).toUpperCase().replace(/^DIR_/, '');
+        const validDirs = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'SELF']);
+        if (!validDirs.has(cleanDir)) return null;
+
+        const language = (options && options.language) || 'ja';
+        const isEn = (language === 'en');
+
+        if (cleanDir === 'SELF') {
+            return this.getDefaultActionForDirection('SELF', areaState, options);
+        }
+
+        // 8方向のメタ情報
+        const meta = this.getDirectionMeta(cleanDir);
+        const dirNameJa = meta.dirNameJa || cleanDir;
+        const dirSymbol = meta.dirSymbol || '';
+        const enDirNameMap = {
+            'N': 'North', 'E': 'East', 'S': 'South', 'W': 'West',
+            'NE': 'Northeast', 'NW': 'Northwest', 'SE': 'Southeast', 'SW': 'Southwest'
+        };
+        const dirNameEn = enDirNameMap[cleanDir] || cleanDir;
+
+        // 壁（進入不能地形）のチェック（areaState が与えられている場合）
+        if (areaState && Array.isArray(areaState.adjacentEntities)) {
+            const adj = areaState.adjacentEntities.find(e => {
+                const c = e.dir && (e.dir.code || e.dir);
+                return c === cleanDir || (typeof c === 'string' && c.replace(/^DIR_/, '') === cleanDir);
+            });
+            if (adj && adj.cell) {
+                const cell = adj.cell;
+                const isWall = Boolean(cell.bottom?.cmapFlags?.isWall || cell.bottom?.cmapFlags?.isIronBars);
+                const hasEntity = Boolean(cell.middle || cell.top);
+                if (isWall && !hasEntity) {
+                    return null;
+                }
+            }
+        }
+
+        const dirToken = `DIR_${cleanDir}`;
+        return {
+            id: `ACTION_DASH_MOVE_${cleanDir}`,
+            category: 'DEFAULT',
+            label: isEn ? `Dash / Run ${dirNameEn} [${dirSymbol || cleanDir}]` : `${dirNameJa}へダッシュ [${dirSymbol || cleanDir}]`,
+            description: isEn ? `Run towards ${dirNameEn} until an obstacle or monster is seen` : `${dirNameJa}方向に何かに遭遇するまで一気に走ります`,
+            key: `G${dirToken}`,
+            keySequence: ['G', dirToken],
+            charStr: dirSymbol || cleanDir,
+            directionKey: dirToken,
+            dirCode: cleanDir,
+            directionCode: cleanDir,
+            icon: '🏃',
+            priority: 10,
+            isDefault: true,
+            isDash: true
+        };
+    }
+
+
+
 
     /**
      * インベントリからキーアイテム・道具を抽出

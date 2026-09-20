@@ -1130,6 +1130,34 @@ export class WebUICore {
     }
 
     /**
+     * 指定方向のデフォルト推奨アクション（待機 または 移動/押す）を取得
+     * @param {string} dirCode - 'SELF' または 'N', 'NE' 等
+     * @param {Object} [options={}] - オプション
+     * @returns {Object|null}
+     */
+    getDefaultAction(dirCode, options = {}) {
+        if (this.gkl && typeof this.gkl.getDefaultAction === 'function') {
+            return this.gkl.getDefaultAction(dirCode, { language: this.language, ...options });
+        }
+        return null;
+    }
+
+    /**
+     * 指定方向のダッシュ（走り）推奨アクションを取得
+     * @param {string} dirCode - 'SELF' または 'N', 'NE' 等
+     * @param {Object} [options={}] - オプション
+     * @returns {Object|null}
+     */
+    getDashAction(dirCode, options = {}) {
+        if (this.gkl && typeof this.gkl.getDashAction === 'function') {
+            return this.gkl.getDashAction(dirCode, { language: this.language, ...options });
+        }
+        return null;
+    }
+
+
+
+    /**
      * キーモード ('vi' または 'numpad') の指定
      * C コアの number_pad オプション変更時やクライアント環境設定時に呼出
      * @param {'vi'|'numpad'} mode 

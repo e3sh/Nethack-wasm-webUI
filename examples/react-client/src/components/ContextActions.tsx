@@ -9,7 +9,7 @@ export const ContextActions: React.FC = () => {
   const gklSituation = useGameStore((state) => state.gklSituation);
   const currentLanguage = useGameStore((state) => state.currentLanguage);
 
-  const { extractDirectionCode, executeSequence, executeAction } = useNetHackDriver();
+  const { extractDirectionCode, getDefaultAction, executeSequence, executeAction } = useNetHackDriver();
 
   const isEn = currentLanguage === 'en';
 
@@ -32,11 +32,21 @@ export const ContextActions: React.FC = () => {
     if (selectedDir === 'ALL') {
       return rawActions;
     }
-    return rawActions.filter((act: any) => {
+    const filtered = rawActions.filter((act: any) => {
       const dir = extractDirectionCode(act);
       return dir === selectedDir;
     });
-  }, [rawActions, selectedDir, extractDirectionCode]);
+
+    // 方向選択時に対象アクションが 0件 または 1件 の場合、デフォルト推奨アクション（待機 または 移動/押す）を追加
+    if (filtered.length <= 1 && typeof getDefaultAction === 'function') {
+      const defaultAct = getDefaultAction(selectedDir);
+      if (defaultAct && !filtered.some((a: any) => a.id === defaultAct.id)) {
+        return [...filtered, defaultAct];
+      }
+    }
+
+    return filtered;
+  }, [rawActions, selectedDir, extractDirectionCode, getDefaultAction]);
 
   const getActionItemClass = (act: any): string => {
     if (act.category === 'SURVIVAL' || act.isEmergency || act.severity === 'CRITICAL') {

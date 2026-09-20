@@ -1187,6 +1187,31 @@ export class GKLPlugin {
     }
 
     /**
+     * 指定方向のデフォルト推奨アクション（待機 または 移動/押す）を取得
+     * @param {string} dirCode 
+     * @param {Object} [options={}]
+     * @returns {Object|null}
+     */
+    getDefaultAction(dirCode, options = {}) {
+        const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : null;
+        const lang = options.language || this.language || 'ja';
+        return ContextActionEngine.getDefaultActionForDirection(dirCode, areaState, { language: lang, ...options });
+    }
+
+    /**
+     * 指定方向のダッシュ（走り）推奨アクションを取得
+     * @param {string} dirCode 
+     * @param {Object} [options={}]
+     * @returns {Object|null}
+     */
+    getDashAction(dirCode, options = {}) {
+        const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : null;
+        const lang = options.language || this.language || 'ja';
+        return ContextActionEngine.getDashActionForDirection(dirCode, areaState, { language: lang, ...options });
+    }
+
+
+    /**
      * テストおよびインスペクター用の統合診断サマリーを取得
      * Vitest のスナップショットテスト (toMatchInlineSnapshot) を強力に支援する
      * @returns {Object}

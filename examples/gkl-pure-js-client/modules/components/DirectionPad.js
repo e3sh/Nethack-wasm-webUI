@@ -49,14 +49,98 @@ export class DirectionPad {
    */
   initDirectionPadEvents() {
     if (this.elGklDirectionPad) {
-      this.elGklDirectionPad.addEventListener('click', (e) => {
+      let longPressTimer = null;
+      let startPos = null;
+      let isLongPressTriggered = false;
+      let currentDir = null;
+      let lastTapTime = 0;
+      let lastTapDir = '';
+
+      const clearLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        startPos = null;
+        currentDir = null;
+      };
+
+      this.elGklDirectionPad.addEventListener('pointerdown', (e) => {
         const btn = e.target.closest('.gkl-dir-btn');
         if (!btn) return;
-        const dir = btn.dataset.dir;
+        clearLongPress();
+        isLongPressTriggered = false;
+        currentDir = btn.dataset.dir;
+        startPos = { x: e.clientX, y: e.clientY };
+
+        longPressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          const core = this.getCore();
+          if (core && typeof core.getDefaultAction === 'function') {
+            const defaultAct = core.getDefaultAction(currentDir, { language: this.currentLanguage });
+            if (defaultAct) {
+              if (defaultAct.actionRecipe && typeof core.executeSequence === 'function') {
+                core.executeSequence(defaultAct.actionRecipe);
+              } else if (defaultAct.keySequence && typeof core.executeSequence === 'function') {
+                core.executeSequence(defaultAct.keySequence);
+              } else if (typeof core.executeAction === 'function') {
+                core.executeAction(defaultAct);
+              }
+            }
+          }
+        }, 450);
+      });
+
+      this.elGklDirectionPad.addEventListener('pointermove', (e) => {
+        if (startPos) {
+          const dx = Math.abs(e.clientX - startPos.x);
+          const dy = Math.abs(e.clientY - startPos.y);
+          if (dx > 10 || dy > 10) {
+            clearLongPress();
+          }
+        }
+      });
+
+      this.elGklDirectionPad.addEventListener('pointerup', (e) => {
+        const btn = e.target.closest('.gkl-dir-btn');
+        const dir = btn ? btn.dataset.dir : null;
+        const triggered = isLongPressTriggered;
+        clearLongPress();
+
+        if (triggered || !dir) return;
+
+        const now = Date.now();
+        if (now - lastTapTime < 300 && lastTapDir === dir) {
+          // 🏃 ダブルタップ成立: ダッシュ移動（走り）を即時実行
+          lastTapTime = 0;
+          lastTapDir = '';
+          const core = this.getCore();
+          if (core && typeof core.getDashAction === 'function') {
+            const dashAct = core.getDashAction(dir, { language: this.currentLanguage });
+            if (dashAct) {
+              if (dashAct.actionRecipe && typeof core.executeSequence === 'function') {
+                core.executeSequence(dashAct.actionRecipe);
+              } else if (dashAct.keySequence && typeof core.executeSequence === 'function') {
+                core.executeSequence(dashAct.keySequence);
+              } else if (typeof core.executeAction === 'function') {
+                core.executeAction(dashAct);
+              }
+              return;
+            }
+          }
+        }
+
+        lastTapTime = now;
+        lastTapDir = dir;
+
+        // 通常クリック時: フィルター切り替え
         this.selectedDir = (this.selectedDir === dir) ? 'ALL' : dir;
         this._lastActionHtml = null;
         this.onDirectionFiltered(this.selectedDir);
       });
+
+      this.elGklDirectionPad.addEventListener('pointercancel', clearLongPress);
+      this.elGklDirectionPad.addEventListener('pointerleave', clearLongPress);
     }
 
     if (this.elBtnDirReset) {
@@ -86,29 +170,34 @@ export class DirectionPad {
     };
     const dirNameMap = isEn ? dirNameMapEn : dirNameMapJa;
 
+    const hint = isEn
+      ? ' (Double-tap: Dash / Long press: 1-step)'
+      : ' (ダブルタップ: ダッシュ / 長押し: 1歩移動・待機)';
     const dirTitleMapEn = {
-      'NW': 'Northwest (7 / y / ↖)',
-      'N': 'North (8 / k / ↑)',
-      'NE': 'Northeast (9 / u / ↗)',
-      'W': 'West (4 / h / ←)',
-      'SELF': 'Self / Feet (5 / . / ·)',
-      'E': 'East (6 / l / →)',
-      'SW': 'Southwest (1 / b / ↙)',
-      'S': 'South (2 / j / ↓)',
-      'SE': 'Southeast (3 / n / ↘)'
+      'NW': 'Northwest (7 / y / ↖)' + hint,
+      'N': 'North (8 / k / ↑)' + hint,
+      'NE': 'Northeast (9 / u / ↗)' + hint,
+      'W': 'West (4 / h / ←)' + hint,
+      'SELF': 'Self / Feet (5 / . / ·)' + hint,
+      'E': 'East (6 / l / →)' + hint,
+      'SW': 'Southwest (1 / b / ↙)' + hint,
+      'S': 'South (2 / j / ↓)' + hint,
+      'SE': 'Southeast (3 / n / ↘)' + hint
     };
     const dirTitleMapJa = {
-      'NW': '北西 (7 / y / ↖)',
-      'N': '北 (8 / k / ↑)',
-      'NE': '北東 (9 / u / ↗)',
-      'W': '西 (4 / h / ←)',
-      'SELF': '足元 (5 / . / ・)',
-      'E': '東 (6 / l / →)',
-      'SW': '南西 (1 / b / ↙)',
-      'S': '南 (2 / j / ↓)',
-      'SE': '南東 (3 / n / ↘)'
+      'NW': '北西 (7 / y / ↖)' + hint,
+      'N': '北 (8 / k / ↑)' + hint,
+      'NE': '北東 (9 / u / ↗)' + hint,
+      'W': '西 (4 / h / ←)' + hint,
+      'SELF': '足元 (5 / . / ・)' + hint,
+      'E': '東 (6 / l / →)' + hint,
+      'SW': '南西 (1 / b / ↙)' + hint,
+      'S': '南 (2 / j / ↓)' + hint,
+      'SE': '南東 (3 / n / ↘)' + hint
     };
     const dirTitleMap = isEn ? dirTitleMapEn : dirTitleMapJa;
+
+
 
     // リセットボタンの状態
     if (this.elBtnDirReset) {
@@ -172,21 +261,30 @@ export class DirectionPad {
       ? actions
       : actions.filter(action => this.extractDirectionCode(action) === this.selectedDir);
 
+    // 方向選択時に対象アクションが 0件 または 1件 の場合、デフォルト推奨アクション（待機 または 移動/押す）を追加
+    let displayedActions = filteredActions;
+    if (this.selectedDir !== 'ALL' && filteredActions.length <= 1 && core && typeof core.getDefaultAction === 'function') {
+      const defaultAct = core.getDefaultAction(this.selectedDir, { language: this.currentLanguage });
+      if (defaultAct && !filteredActions.some(a => a.id === defaultAct.id)) {
+        displayedActions = [...filteredActions, defaultAct];
+      }
+    }
+
     // 件数バッジの表示 (例: 絞り込み時は 3/10、全体時は 10)
     if (this.elGklActionCount) {
       this.elGklActionCount.textContent = (this.selectedDir === 'ALL')
         ? actions.length
-        : `${filteredActions.length}/${actions.length}`;
+        : `${displayedActions.length}/${actions.length}`;
     }
 
     // 4. 前回のHTMLと比較し変化が無ければ書き換えない (軽量化)
-    const actionKeyStr = `${this.currentLanguage}_${this.selectedDir}_${filteredActions.map(a => `${a.id}:${isEn ? (a.labelEn || a.label) : (a.labelJa || a.label)}`).join('|')}`;
+    const actionKeyStr = `${this.currentLanguage}_${this.selectedDir}_${displayedActions.map(a => `${a.id}:${isEn ? (a.labelEn || a.label) : (a.labelJa || a.label)}`).join('|')}`;
     if (this._lastActionHtml !== actionKeyStr) {
       this._lastActionHtml = actionKeyStr;
 
-      const newHtml = filteredActions.length === 0 
+      const newHtml = displayedActions.length === 0 
         ? `<div class="gkl-empty-hint">${this.selectedDir === 'ALL' ? (isEn ? 'Recommended actions for nearby targets will be shown automatically' : '周辺環境に応じたアクションが自動表示されます') : (isEn ? 'No recommended actions in this direction' : 'この方向の推奨アクションはありません')}</div>`
-        : filteredActions.map(action => {
+        : displayedActions.map(action => {
             const labelText = isEn ? (action.labelEn || action.label) : (action.labelJa || action.label);
             return `
               <button class="gkl-action-btn ${action.risk === 'danger' ? 'danger' : ''}" data-act-id="${action.id}">
@@ -199,8 +297,9 @@ export class DirectionPad {
       this.elGklActionList.innerHTML = newHtml;
 
       // ボタンイベント登録
-      filteredActions.forEach(action => {
+      displayedActions.forEach(action => {
         const btn = this.elGklActionList.querySelector(`[data-act-id="${action.id}"]`);
+
         if (btn) {
           btn.onclick = () => {
             const labelText = isEn ? (action.labelEn || action.label) : (action.labelJa || action.label);

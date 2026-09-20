@@ -57,7 +57,7 @@ import DirectionPad from './DirectionPad.vue';
 
 const gameStore = useGameStore();
 const { gklSituation } = storeToRefs(gameStore);
-const { currentLanguage, extractDirectionCode, executeSequence, executeAction } = useNetHackDriver();
+const { currentLanguage, extractDirectionCode, getDefaultAction, executeSequence, executeAction } = useNetHackDriver();
 
 const selectedDir = ref<string>('ALL');
 
@@ -83,11 +83,22 @@ const filteredActions = computed(() => {
   if (selectedDir.value === 'ALL') {
     return rawActions.value;
   }
-  return rawActions.value.filter((act: any) => {
+  const filtered = rawActions.value.filter((act: any) => {
     const dir = extractDirectionCode(act);
     return dir === selectedDir.value;
   });
+
+  // 方向選択時に対象アクションが 0件 または 1件 の場合、デフォルト推奨アクション（待機 または 移動/押す）を追加
+  if (filtered.length <= 1 && typeof getDefaultAction === 'function') {
+    const defaultAct = getDefaultAction(selectedDir.value);
+    if (defaultAct && !filtered.some((a: any) => a.id === defaultAct.id)) {
+      return [...filtered, defaultAct];
+    }
+  }
+
+  return filtered;
 });
+
 
 function getActionItemClass(act: any): string {
   if (act.category === 'SURVIVAL' || act.isEmergency || act.severity === 'CRITICAL') {

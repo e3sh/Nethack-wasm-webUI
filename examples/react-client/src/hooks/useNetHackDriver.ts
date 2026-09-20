@@ -541,6 +541,24 @@ class NetHackDriverController {
     return 'SELF';
   }
 
+  public getDefaultAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDefaultAction === 'function') {
+      return this.core.getDefaultAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+  public getDashAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDashAction === 'function') {
+      return this.core.getDashAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+
+
   public getZoomAreaTiles(radius: number = 3): Array<any> {
     if (this.core && this.core.gkl && typeof this.core.gkl.getFocusCameraTiles === 'function') {
       return this.core.gkl.getFocusCameraTiles(radius, radius);
@@ -747,6 +765,8 @@ export function useNetHackDriver() {
     queueSequence: useCallback((seq: any[], options?: any) => driverController.queueSequence(seq, options), []),
     getGlyphStyle: useCallback((glyphId: number, options?: any) => driverController.getGlyphStyle(glyphId, options), []),
     extractDirectionCode: useCallback((act: any) => driverController.extractDirectionCode(act), []),
+    getDefaultAction: useCallback((dirCode: string) => driverController.getDefaultAction(dirCode), []),
+    getDashAction: useCallback((dirCode: string) => driverController.getDashAction(dirCode), []),
     getZoomAreaTiles: useCallback((radius?: number) => driverController.getZoomAreaTiles(radius), []),
     getAdjacentAreaTiles: useCallback(() => driverController.getZoomAreaTiles(1), []),
     inspectTileKnowledge: useCallback((x: number, y: number, isHover?: boolean) => driverController.inspectTileKnowledge(x, y, isHover), []),

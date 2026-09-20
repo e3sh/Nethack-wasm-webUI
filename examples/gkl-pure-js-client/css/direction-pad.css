@@ -107,9 +107,18 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
+
+.gkl-dir-btn:active {
+  transform: scale(0.92) !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
 
 /* アクションが存在する方向（点灯・ハイライト） */
 .gkl-dir-btn.has-action {

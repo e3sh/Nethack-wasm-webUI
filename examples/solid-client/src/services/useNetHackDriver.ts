@@ -461,6 +461,24 @@ export class NetHackDriverController {
     return action.isDirectional === false ? 'SELF' : 'NONE';
   }
 
+  public getDefaultAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDefaultAction === 'function') {
+      return this.core.getDefaultAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+  public getDashAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDashAction === 'function') {
+      return this.core.getDashAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+
+
   public sendWish(wishText: string) {
     if (!wishText) {
       this.cancelWish();

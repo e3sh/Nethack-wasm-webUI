@@ -767,7 +767,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: all 0.12s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 .gkl-dir-btn:hover {
@@ -775,11 +778,18 @@ body {
   border-color: #64748b;
 }
 
+.gkl-dir-btn:active {
+  transform: scale(0.92);
+  background: #0284c7;
+  color: #ffffff;
+}
+
 .gkl-dir-btn.active {
   background: #0284c7;
   border-color: #38bdf8;
   color: #ffffff;
 }
+
 
 .gkl-dir-btn.has-action {
   border-color: #38bdf8;

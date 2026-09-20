@@ -141,4 +141,119 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(adjUnlockAction).toBeUndefined();
         });
     });
+
+    describe('getDefaultActionForDirection - 方向選択時のデフォルト推奨アクション（待機・移動/押す）', () => {
+        it('SELF を指定した場合、待機アクション (ACTION_DEFAULT_WAIT) を返すこと', () => {
+            const actJa = ContextActionEngine.getDefaultActionForDirection('SELF', null, { language: 'ja' });
+            expect(actJa).toBeDefined();
+            expect(actJa.id).toBe('ACTION_DEFAULT_WAIT');
+            expect(actJa.label).toBe('待機 (1ターン)');
+            expect(actJa.keySequence).toEqual(['.']);
+            expect(actJa.dirCode).toBe('SELF');
+
+            const actEn = ContextActionEngine.getDefaultActionForDirection('SELF', null, { language: 'en' });
+            expect(actEn.label).toBe('Wait (1 turn)');
+        });
+
+        it('8方向（例: N, E）を指定した場合、移動/押すアクションを返すこと', () => {
+            const actN = ContextActionEngine.getDefaultActionForDirection('N', null, { language: 'ja' });
+            expect(actN).toBeDefined();
+            expect(actN.id).toBe('ACTION_DEFAULT_MOVE_N');
+            expect(actN.label).toContain('北へ移動 / 押す');
+            expect(actN.keySequence).toEqual(['DIR_N']);
+            expect(actN.dirCode).toBe('N');
+
+            const actE = ContextActionEngine.getDefaultActionForDirection('E', null, { language: 'en' });
+            expect(actE).toBeDefined();
+            expect(actE.id).toBe('ACTION_DEFAULT_MOVE_E');
+            expect(actE.label).toContain('Move / Push East');
+            expect(actE.keySequence).toEqual(['DIR_E']);
+        });
+
+        it('areaState で対象方向が壁 (isWall: true) かつ岩やモンスターがない場合、null を返して移動アクションを抑制すること', () => {
+            const areaState = {
+                adjacentEntities: [
+                    {
+                        dir: { code: 'N' },
+                        cell: {
+                            bottom: { type: 'TERRAIN', cmapFlags: { isWall: true } },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+            const act = ContextActionEngine.getDefaultActionForDirection('N', areaState);
+            expect(act).toBeNull();
+        });
+
+        it('areaState で対象方向が壁であっても岩 (middle) やモンスター (top) がある場合、移動/押すアクションを返すこと', () => {
+            const areaState = {
+                adjacentEntities: [
+                    {
+                        dir: { code: 'N' },
+                        cell: {
+                            bottom: { type: 'TERRAIN', cmapFlags: { isWall: true } },
+                            middle: { name: 'boulder', type: 'ITEM' },
+                            top: null
+                        }
+                    }
+                ]
+            };
+            const act = ContextActionEngine.getDefaultActionForDirection('N', areaState);
+            expect(act).toBeDefined();
+            expect(act.id).toBe('ACTION_DEFAULT_MOVE_N');
+        });
+
+        it('generateActions() で生成されるアクション一覧にはデフォルトアクションが含まれないこと（全表示での点灯・溢れ防止）', () => {
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [],
+                adjacentEntities: []
+            };
+            const actions = ContextActionEngine.generateActions(areaState);
+            expect(actions.some(a => a.id === 'ACTION_DEFAULT_WAIT')).toBe(false);
+            expect(actions.some(a => a.id.startsWith('ACTION_DEFAULT_MOVE_'))).toBe(false);
+        });
+
+        it('getDashActionForDirection: 8方向指定で G + DIR_* のダッシュ移動シーケンスを生成すること', () => {
+            const dashN = ContextActionEngine.getDashActionForDirection('N', null, { language: 'ja' });
+            expect(dashN).toBeDefined();
+            expect(dashN.id).toBe('ACTION_DASH_MOVE_N');
+            expect(dashN.keySequence).toEqual(['G', 'DIR_N']);
+            expect(dashN.label).toContain('北へダッシュ');
+            expect(dashN.icon).toBe('🏃');
+
+            const dashE = ContextActionEngine.getDashActionForDirection('E', null, { language: 'en' });
+            expect(dashE).toBeDefined();
+            expect(dashE.keySequence).toEqual(['G', 'DIR_E']);
+            expect(dashE.label).toContain('Dash / Run East');
+        });
+
+        it('getDashActionForDirection: SELF 指定時は待機アクションを返却すること', () => {
+            const dashSelf = ContextActionEngine.getDashActionForDirection('SELF', null);
+            expect(dashSelf).toBeDefined();
+            expect(dashSelf.id).toBe('ACTION_DEFAULT_WAIT');
+            expect(dashSelf.keySequence).toEqual(['.']);
+        });
+
+        it('getDashActionForDirection: 壁の方向へのダッシュは null を返して抑制すること', () => {
+            const areaState = {
+                adjacentEntities: [
+                    {
+                        dir: { code: 'E' },
+                        cell: {
+                            bottom: { type: 'TERRAIN', cmapFlags: { isWall: true } },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+            const dashE = ContextActionEngine.getDashActionForDirection('E', areaState);
+            expect(dashE).toBeNull();
+        });
+    });
 });
+
+

@@ -554,6 +554,24 @@ class NetHackDriverController {
     return 'SELF';
   }
 
+  public getDefaultAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDefaultAction === 'function') {
+      return this.core.getDefaultAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+  public getDashAction(dirCode: string): any {
+    if (!dirCode || dirCode === 'ALL' || !this.core) return null;
+    if (typeof this.core.getDashAction === 'function') {
+      return this.core.getDashAction(dirCode, { language: this.currentLanguage });
+    }
+    return null;
+  }
+
+
+
   public getZoomAreaTiles(radius: number = 3): Array<any> {
     if (this.core && this.core.gkl && typeof this.core.gkl.getFocusCameraTiles === 'function') {
       return this.core.gkl.getFocusCameraTiles(radius, radius);
@@ -750,6 +768,8 @@ export function useNetHackDriver() {
     queueSequence: (seq: any[], options?: any) => driverController.queueSequence(seq, options),
     getGlyphStyle: (glyphId: number, options?: any) => driverController.getGlyphStyle(glyphId, options),
     extractDirectionCode: (act: any) => driverController.extractDirectionCode(act),
+    getDefaultAction: (dirCode: string) => driverController.getDefaultAction(dirCode),
+    getDashAction: (dirCode: string) => driverController.getDashAction(dirCode),
     getZoomAreaTiles: (radius?: number) => driverController.getZoomAreaTiles(radius),
     getAdjacentAreaTiles: () => driverController.getZoomAreaTiles(1),
     inspectTileKnowledge: (x: number, y: number, isHover?: boolean) => driverController.inspectTileKnowledge(x, y, isHover),
