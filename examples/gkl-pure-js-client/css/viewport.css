@@ -140,7 +140,7 @@
 .clr-14 { color: #00e5ff; }
 .clr-15 { color: #ffffff; }
 
-/* 🗺️ フロア全体 ミニマップ HUD (右上固定 / [Tab] で画面中央オーバーレイ展開) */
+/* 🗺️ フロア全体 ミニマップ HUD (通常: 右上固定 / 自キャラ接近時: 左上自動退避 / [Tab] で画面中央オーバーレイ展開) */
 .minimap-hud-box {
   position: absolute;
   top: 12px;
@@ -155,7 +155,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: left 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), right 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
   cursor: pointer;
   user-select: none;
 }
@@ -163,6 +163,18 @@
 .minimap-hud-box:hover {
   border-color: rgba(120, 210, 255, 0.6);
   background: rgba(12, 16, 28, 0.95);
+  opacity: 1 !important;
+}
+
+/* 🏃‍♂️ プレイヤーが右端・右上に接近した際の自動退避 (左上ドッキング) */
+.minimap-hud-box.dock-left {
+  right: auto;
+  left: 12px;
+}
+
+/* 👻 プレイヤーやモンスターと近接・重なり時のゴースト半透明化 (死角ゼロ) */
+.minimap-hud-box.is-ghosted {
+  opacity: 0.28;
 }
 
 /* [Tab] キー展開時: 画面中央オーバーレイ (大画面マキシマイズ) */
@@ -177,6 +189,7 @@
   padding: 8px 12px 12px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.25);
   z-index: 100;
+  opacity: 1 !important;
 }
 
 .minimap-header {

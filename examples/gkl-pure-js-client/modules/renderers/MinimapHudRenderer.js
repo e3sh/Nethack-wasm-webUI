@@ -132,6 +132,9 @@ export class MinimapHudRenderer {
       this.posBadge.textContent = `@ (${playerX},${playerY})`;
     }
 
+    // 🏃‍♂️ 自キャラがミニマップの裏に隠れないよう自動退避・ゴースト判定
+    this.updateSmartDocking(playerX, playerY);
+
     const w = this.canvas.width;
     const h = this.canvas.height;
     const ctx = this.ctx;
@@ -298,6 +301,57 @@ export class MinimapHudRenderer {
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+  }
+
+  /**
+   * 🏃‍♂️ 自キャラやカーソルがミニマップの裏に隠れるのを防ぐスマート退避＆ゴースト化
+   * プレイヤーが画面右端・右上に接近した場合は左上へ自動退避し、重なった場合は半透明化
+   */
+  updateSmartDocking(playerX, playerY) {
+    if (!this.hudBox || this.isMaximized) {
+      if (this.hudBox) {
+        this.hudBox.classList.remove('dock-left');
+        this.hudBox.classList.remove('is-ghosted');
+      }
+      return;
+    }
+
+    const ts = 32;
+    const canvasW = 720;
+    const canvasH = 288;
+    const bgW = this.virtualScreen?.width || 2560;
+    const bgH = this.virtualScreen?.height || 768;
+
+    // メインカメラの切り出し基準座標 (即時追従準拠)
+    const cx = playerX * ts + ts / 2;
+    const cy = playerY * ts + ts / 2;
+    const srcX = Math.max(0, Math.min(bgW - canvasW, cx - canvasW / 2));
+    const srcY = Math.max(0, Math.min(bgH - canvasH, cy - canvasH / 2));
+
+    // 自キャラのメイン画面内ピクセル座標
+    const screenX = playerX * ts - srcX;
+    const screenY = playerY * ts - srcY;
+
+    // プレイヤーが画面右端・右上エリア (x >= canvasW - 270 && y <= 120) に侵入した場合は左上へ自動退避
+    const isPlayerInTopRight = (screenX >= (canvasW - 270) && screenY <= 120);
+
+    if (isPlayerInTopRight) {
+      this.hudBox.classList.add('dock-left');
+    } else {
+      this.hudBox.classList.remove('dock-left');
+    }
+
+    // どちらのドッキング位置でも、万が一自キャラまたはカーソルが直下に位置する場合はゴースト化
+    const currentIsLeft = this.hudBox.classList.contains('dock-left');
+    const isUnderMinimap = currentIsLeft
+      ? (screenX <= 260 && screenY <= 100)
+      : (screenX >= (canvasW - 260) && screenY <= 100);
+
+    if (isUnderMinimap) {
+      this.hudBox.classList.add('is-ghosted');
+    } else {
+      this.hudBox.classList.remove('is-ghosted');
     }
   }
 }

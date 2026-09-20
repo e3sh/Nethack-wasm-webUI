@@ -204,4 +204,42 @@ describe('MinimapHudRenderer - ミニマップ HUD ＆ [Tab] オーバーレイ 
     expect(mockCanvas.width).toBe(240);
     expect(mockCanvas.height).toBe(72);
   });
+
+  it('7. プレイヤーがダンジョン右端・右上に近づいた際にミニマップが自動退避 (dock-left) すること', () => {
+    const classSet = new Set();
+    const dynamicHudBox = {
+      classList: {
+        add: vi.fn((cls) => classSet.add(cls)),
+        remove: vi.fn((cls) => classSet.delete(cls)),
+        contains: vi.fn((cls) => classSet.has(cls))
+      },
+      addEventListener: vi.fn()
+    };
+
+    const minimap = new MinimapHudRenderer({
+      minimapCanvas: mockCanvas,
+      minimapHudBox: dynamicHudBox,
+      minimapPosBadge: mockPosBadge,
+      btnToggleMinimap: mockToggleBtn,
+      virtualScreen: vScreen
+    });
+
+    // プレイヤーがダンジョン右端 (x: 75, y: 2) に接近
+    minimap.renderMinimap({
+      area: { playerX: 75, playerY: 2 },
+      landmarks: { all: [] }
+    });
+
+    // dock-left クラスが付与され、左上へ退避すること
+    expect(dynamicHudBox.classList.add).toHaveBeenCalledWith('dock-left');
+    expect(classSet.has('dock-left')).toBe(true);
+
+    // プレイヤーが中央 (x: 40, y: 12) に戻った場合、通常位置 (右上) に復帰すること
+    minimap.renderMinimap({
+      area: { playerX: 40, playerY: 12 },
+      landmarks: { all: [] }
+    });
+    expect(dynamicHudBox.classList.remove).toHaveBeenCalledWith('dock-left');
+    expect(classSet.has('dock-left')).toBe(false);
+  });
 });
