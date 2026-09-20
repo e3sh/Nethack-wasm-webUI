@@ -14,7 +14,7 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 ### メインゲーム画面 & 直感的なアイテム・装備管理
 | GKL Pure JS クライアント (メインプレイ画面) | 装備詳細 & ペーパードール |
 | :---: | :---: |
-| <img src="assets/images/gklpurejsclient.png" width="480" alt="NetHack WebUI メイン画面" /> | <img src="assets/images/paperdoll.png" width="480" alt="装備詳細 & ペーパードール" /> |
+| <img src="assets/images/gklpurejsclient_2.png" width="480" alt="NetHack WebUI メイン画面" /> | <img src="assets/images/paperdoll.png" width="480" alt="装備詳細 & ペーパードール" /> |
 | フォーカスカメラ、リアルタイムHUD、周辺モンスター気配検知、ワンクリック推奨アクション | 胴体3層レイヤー（外套/鎧/シャツ）、AC・重量変化シミュレーション、**脱衣所要ターン数と事故リスク警告** |
 
 | コンテナ操作UI (宝箱・鞄) | Structured Knowledge Inspector |
@@ -36,19 +36,6 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 | :---: | :---: |
 | <img src="assets/images/polymorph_dialog.png" width="480" alt="変化制御ダイアログ" /> | <img src="assets/images/write_dialog.png" width="480" alt="巻物書き込みダイアログ" /> |
 | 戦闘・魔法・探索など用途別定番変身、飛行/壁抜け等の特性表示、**体型不一致による防具破壊・脱落の事前警告** | 定番プリセット、必要インク量目安表示、**未識別失敗・白紙ロスト警告**（※魔導書・本への書き込み専用画面にも対応） |
-
-</details>
-
-<details>
-<summary>🧪 <b>【実験的テックデモ】WebGPU (WGSL) による HD-2D 風 3D ジオラマ表示（クリックで展開）</b></summary>
-
-<br />
-
-<div align="center">
-  <img src="assets/images/quarterview.png" width="680" alt="WebGPU HD-2D ジオラマレンダラー (実験的プロトタイプ)" />
-  <p><em>NetHack の世界をオクトパストラベラー風の 3D ジオラマ（立体石壁キューブ、水平石畳、直立ビルボード）としてリアルタイム描画する完全アドオンの技術検証デモ。<br />
-  （※クライアント内の「ビュー切替」ボタンで通常 Canvas ⇄ ASCII ⇄ ✨ HD-2D をワンクリック切替可能 / 非アクティブ時負荷0% / 詳細: <a href="docs/7_futures/webgpu_hd2d_diorama_renderer.ja.md">設計・移植ガイド</a>）</em></p>
-</div>
 
 </details>
 
