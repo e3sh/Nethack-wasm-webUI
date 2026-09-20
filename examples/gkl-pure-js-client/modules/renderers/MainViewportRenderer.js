@@ -152,17 +152,17 @@ export class MainViewportRenderer {
     }
   }
 
-  switchViewMode(graphicCanvasMode) {
+  switchViewMode(graphicCanvasMode, updateButton = true) {
     this.isGraphicCanvasMode = graphicCanvasMode;
     if (this.isGraphicCanvasMode) {
       if (this.canvas) this.canvas.classList.remove('hidden');
       if (this.asciiGrid) this.asciiGrid.classList.add('hidden');
-      this.updateViewButtonText();
+      if (updateButton) this.updateViewButtonText();
       this.render();
     } else {
       if (this.canvas) this.canvas.classList.add('hidden');
       if (this.asciiGrid) this.asciiGrid.classList.remove('hidden');
-      this.updateViewButtonText();
+      if (updateButton) this.updateViewButtonText();
       this.renderColorAsciiMap();
     }
   }

@@ -145,6 +145,10 @@ export class MinimapHudRenderer {
 
     // 2. VirtualDungeonScreen.bgCanvas (2560x768) 全体を 1 回の drawImage で縮小転送
     if (this.virtualScreen && this.virtualScreen.bgCanvas) {
+      if (this.virtualScreen.dirtyCells && this.virtualScreen.dirtyCells.size > 0 && areaState?.grid) {
+        const glyphGrid = this.getCore()?.gkl?.areaStateManager?.glyphGridBuffer;
+        this.virtualScreen.flushDirtyCells(areaState.grid, glyphGrid);
+      }
       const bgW = this.virtualScreen.width || (80 * 32);
       const bgH = this.virtualScreen.height || (24 * 32);
       ctx.drawImage(this.virtualScreen.bgCanvas, 0, 0, bgW, bgH, 0, 0, w, h);

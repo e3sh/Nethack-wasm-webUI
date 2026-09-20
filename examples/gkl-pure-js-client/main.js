@@ -44,6 +44,7 @@ class GklPureJSClient {
     this.webgpuCanvas = document.getElementById('webgpu-canvas');
     this.asciiGrid = document.getElementById('ascii-grid');
     this.btnToggleView = document.getElementById('btn-toggle-view');
+    this.btnToggleCameraMode = document.getElementById('btn-toggle-camera-mode');
     this.btnToggleMinimap = document.getElementById('btn-toggle-minimap') || document.getElementById('btn-toggle-zoom');
     this.btnToggleZoom = this.btnToggleMinimap; // 後方互換
     this.btnSettingsToggle = document.getElementById('btn-settings-toggle');
@@ -272,7 +273,14 @@ class GklPureJSClient {
     if (this.webgpuRenderer) {
       this.webgpuRenderer.init().then((ok) => {
         if (ok) {
-          //console.log("[WebGPU HD2D] Ready for view toggle!");
+          // WebGPU 対応環境ではデフォルトで HD2D ジオラマを本番メインに昇格
+          this.currentViewMode = 'hd2d';
+          this.updateViewModeUI();
+          //console.log("[WebGPU HD2D] ✨ HD2D Diorama promoted to primary renderer!");
+        } else {
+          // 非対応環境では Canvas 2D フォールバック
+          this.currentViewMode = 'graphic';
+          this.updateViewModeUI();
         }
       });
     }
@@ -288,10 +296,16 @@ class GklPureJSClient {
 
   startMainRenderLoop() {
     const loop = () => {
-      if (this.currentViewMode === 'graphic' && this.mainViewportRenderer) {
-        const situation = this.core?.gkl?.getSituation();
-        if (situation) {
+      const situation = this.core?.gkl?.getSituation();
+      if (situation) {
+        if (this.currentViewMode === 'graphic' && this.mainViewportRenderer) {
           this.mainViewportRenderer.renderMainViewport(situation.area);
+        } else if (this.currentViewMode === 'hd2d') {
+          // WebGPU モード時も VirtualDungeonScreen の Dirty セルをオフスクリーン Canvas にフラッシュ！
+          this.virtualScreen.flushDirtyCells(situation.area?.grid, this.mainViewportRenderer.glyphGridBuffer);
+        }
+        // WebGPU HD2D モード中もミニマップ HUD はフロア全体をリアルタイム連動描画
+        if (this.currentViewMode === 'graphic' || this.currentViewMode === 'hd2d') {
           this.minimapRenderer?.renderMinimap(situation);
         }
       }
@@ -396,6 +410,11 @@ class GklPureJSClient {
         this.minimapRenderer.targetCursorX = x;
         this.minimapRenderer.targetCursorY = y;
       }
+      if (this.webgpuRenderer) {
+        this.webgpuRenderer.targetCursorX = x;
+        this.webgpuRenderer.targetCursorY = y;
+        this.webgpuRenderer.wakeUp();
+      }
 
       if (prevX >= 0 && prevY >= 0) this.mainViewportRenderer.redrawSingleCell(prevX, prevY);
       if (x >= 0 && y >= 0) {
@@ -443,6 +462,10 @@ class GklPureJSClient {
         this.mainViewportRenderer.asciiGridBuffer[y][x] = { ch, color };
         this.mainViewportRenderer.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
         this.mainViewportRenderer.redrawSingleCell(x, y);
+        if (this.currentViewMode === 'hd2d' && this.webgpuRenderer) {
+          this.webgpuRenderer.markDirty();
+          this.webgpuRenderer.wakeUp();
+        }
       }
     });
 
@@ -451,12 +474,16 @@ class GklPureJSClient {
       if (windowId === 2 || windowId === 0) {
         this.virtualScreen?.clearScreen();
         this.mainViewportRenderer.clearMapGrid();
+        this.webgpuRenderer?.markDirty();
+        this.webgpuRenderer?.wakeUp();
       }
     });
 
     this.core.on('map_cleared', () => {
       this.virtualScreen?.clearScreen();
       this.mainViewportRenderer.clearMapGrid();
+      this.webgpuRenderer?.markDirty();
+      this.webgpuRenderer?.wakeUp();
     });
 
     this.core.on('restarted', () => {
@@ -538,13 +565,27 @@ class GklPureJSClient {
       await this.handleExited(data);
     });
 
-    // 10. Visual FX 演出トリガーイベント (fx_trigger) 購読
+    // 10. Visual FX 演出トリガーイベント (fx_trigger) 購読 (2D Canvas ＆ WebGPU HD-2D 両対応)
     this.core.on('fx_trigger', (fx) => {
       if (!fx || !fx.type) return;
       const now = performance.now();
 
+      const dispatchFx = (fxObj) => {
+        this.mainViewportRenderer.addVisualFx(fxObj);
+        if (this.webgpuRenderer) {
+          this.webgpuRenderer.addVisualFx(fxObj);
+        }
+      };
+
+      const dispatchShake = (intensity, duration) => {
+        this.mainViewportRenderer.triggerScreenShake(intensity, duration);
+        if (this.webgpuRenderer) {
+          this.webgpuRenderer.triggerScreenShake(intensity, duration);
+        }
+      };
+
       if (fx.type === 'ATTACK_HIT') {
-        this.mainViewportRenderer.addVisualFx({
+        dispatchFx({
           type: 'SLASH',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -553,7 +594,7 @@ class GklPureJSClient {
           color: '#ffffff'
         });
       } else if (fx.type === 'DAMAGE_TAKEN') {
-        this.mainViewportRenderer.addVisualFx({
+        dispatchFx({
           type: 'DAMAGE_FLASH',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -563,9 +604,9 @@ class GklPureJSClient {
           durationMs: 160,
           color: '#ff1744'
         });
-        this.mainViewportRenderer.triggerScreenShake(3, 100);
+        dispatchShake(3, 100);
       } else if (fx.type === 'KILL_CONFIRMED') {
-        this.mainViewportRenderer.addVisualFx({
+        dispatchFx({
           type: 'KILL_BURST',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -574,7 +615,7 @@ class GklPureJSClient {
           color: '#ffd700'
         });
       } else if (fx.type === 'RECOVER_HEAL') {
-        this.mainViewportRenderer.addVisualFx({
+        dispatchFx({
           type: 'HEAL_RING',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -587,8 +628,12 @@ class GklPureJSClient {
       } else if (fx.type === 'PLAYER_DIED') {
         this.mainViewportRenderer.isPlayerDead = true;
         this.mainViewportRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
-        this.mainViewportRenderer.triggerScreenShake(5, 300);
-        this.mainViewportRenderer.addVisualFx({
+        if (this.webgpuRenderer) {
+          this.webgpuRenderer.isPlayerDead = true;
+          this.webgpuRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
+        }
+        dispatchShake(5, 300);
+        dispatchFx({
           type: 'DEATH_BURST',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -600,11 +645,17 @@ class GklPureJSClient {
         if (fx.targetX !== undefined && fx.targetY !== undefined) {
           this.mainViewportRenderer.redrawSingleCell(fx.targetX, fx.targetY);
         }
+        this.webgpuRenderer?.markDirty();
+        this.webgpuRenderer?.wakeUp();
       } else if (fx.type === 'PLAYER_RESURRECTED') {
         const prevDeathPos = this.mainViewportRenderer.deathPosition;
         this.mainViewportRenderer.isPlayerDead = false;
         this.mainViewportRenderer.deathPosition = null;
-        this.mainViewportRenderer.addVisualFx({
+        if (this.webgpuRenderer) {
+          this.webgpuRenderer.isPlayerDead = false;
+          this.webgpuRenderer.deathPosition = null;
+        }
+        dispatchFx({
           type: 'HEAL_RING',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -616,6 +667,8 @@ class GklPureJSClient {
         if (prevDeathPos) {
           this.mainViewportRenderer.redrawSingleCell(prevDeathPos.x, prevDeathPos.y);
         }
+        this.webgpuRenderer?.markDirty();
+        this.webgpuRenderer?.wakeUp();
       }
     });
 
@@ -641,40 +694,91 @@ class GklPureJSClient {
   }
 
   cycleViewMode() {
+    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
+
+    if (this.currentViewMode === 'hd2d') {
+      this.currentViewMode = 'graphic';
+    } else if (this.currentViewMode === 'graphic') {
+      this.currentViewMode = 'ascii';
+    } else { // 'ascii'
+      if (isWebGpuAvailable) {
+        this.currentViewMode = 'hd2d';
+      } else {
+        this.currentViewMode = 'graphic';
+      }
+    }
+    this.updateViewModeUI();
+  }
+
+  updateViewModeUI() {
     const isEn = this.currentLanguage === 'en';
     const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
 
-    if (this.currentViewMode === 'graphic') {
-      this.currentViewMode = 'ascii';
-      this.mapRenderer.switchViewMode(false);
+    // 次のビューモードの判定
+    let nextViewMode = 'graphic';
+    if (this.currentViewMode === 'hd2d') {
+      nextViewMode = 'graphic';
+    } else if (this.currentViewMode === 'graphic') {
+      nextViewMode = 'ascii';
+    } else { // 'ascii'
+      nextViewMode = isWebGpuAvailable ? 'hd2d' : 'graphic';
+    }
+
+    const viewModeLabels = {
+      graphic: isEn ? '🎨 2D Graphic' : '🎨 2Dグラフィック',
+      ascii: isEn ? '🔤 ASCII' : '🔤 ASCII',
+      hd2d: isEn ? '✨ HD-2D' : '✨ HD-2D'
+    };
+
+    const toggleViewPrefix = isEn ? 'Toggle View: ' : 'ビュー切替: ';
+    const toggleViewText = `${toggleViewPrefix}${viewModeLabels[this.currentViewMode]} ➜ ${viewModeLabels[nextViewMode]}`;
+
+    if (this.currentViewMode === 'hd2d') {
+      this.canvas.classList.add('hidden');
+      this.asciiGrid.classList.add('hidden');
+      this.webgpuCanvas.classList.remove('hidden');
+      this.webgpuRenderer?.setActive(true);
+      if (this.btnToggleCameraMode) {
+        this.btnToggleCameraMode.style.display = 'block';
+        const camMode = this.webgpuRenderer?.cameraMode || 'diorama';
+        const nextCamMode = camMode === 'topdown' ? 'diorama' : 'topdown';
+        const camModeLabels = {
+          diorama: isEn ? 'Diorama' : 'ジオラマ',
+          topdown: isEn ? 'Top-Down' : 'トップビュー'
+        };
+        const camPrefix = isEn ? '📷 Camera: ' : '📷 カメラ: ';
+        this.btnToggleCameraMode.textContent = `${camPrefix}${camModeLabels[camMode]} ➜ ${camModeLabels[nextCamMode]}`;
+      }
+    } else if (this.currentViewMode === 'graphic') {
       this.webgpuRenderer?.setActive(false);
-      if (this.btnToggleView) {
-        this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🔤 Color ASCII Grid';
+      this.asciiGrid.classList.add('hidden');
+      this.webgpuCanvas.classList.add('hidden');
+      this.canvas.classList.remove('hidden');
+      this.mainViewportRenderer.switchViewMode(true, false);
+      if (this.btnToggleCameraMode) {
+        this.btnToggleCameraMode.style.display = 'none';
       }
-    } else if (this.currentViewMode === 'ascii') {
-      if (isWebGpuAvailable) {
-        this.currentViewMode = 'hd2d';
-        this.canvas.classList.add('hidden');
-        this.asciiGrid.classList.add('hidden');
-        this.webgpuRenderer.setActive(true);
-        if (this.btnToggleView) {
-          this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '✨ WebGPU HD-2D';
-        }
-      } else {
-        this.currentViewMode = 'graphic';
-        this.mapRenderer.switchViewMode(true);
-        this.webgpuRenderer?.setActive(false);
-        if (this.btnToggleView) {
-          this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🎨 Graphic Canvas';
-        }
-      }
-    } else { // 'hd2d'
-      this.currentViewMode = 'graphic';
+    } else { // 'ascii'
       this.webgpuRenderer?.setActive(false);
-      this.mapRenderer.switchViewMode(true);
-      if (this.btnToggleView) {
-        this.btnToggleView.textContent = (isEn ? 'Toggle View: ' : 'ビュー切替: ') + '🎨 Graphic Canvas';
+      this.canvas.classList.add('hidden');
+      this.webgpuCanvas.classList.add('hidden');
+      this.asciiGrid.classList.remove('hidden');
+      this.mainViewportRenderer.switchViewMode(false, false);
+      if (this.btnToggleCameraMode) {
+        this.btnToggleCameraMode.style.display = 'none';
       }
+    }
+
+    // ビュー切替ボタンのテキスト設定（switchViewMode等の後で確実に適用）
+    if (this.btnToggleView) {
+      this.btnToggleView.textContent = toggleViewText;
+    }
+  }
+
+  toggleCameraMode() {
+    if (this.webgpuRenderer && this.currentViewMode === 'hd2d') {
+      this.webgpuRenderer.toggleCameraMode();
+      this.updateViewModeUI();
     }
   }
 
@@ -682,6 +786,12 @@ class GklPureJSClient {
     this.btnToggleView.onclick = () => {
       this.cycleViewMode();
     };
+
+    if (this.btnToggleCameraMode) {
+      this.btnToggleCameraMode.onclick = () => {
+        this.toggleCameraMode();
+      };
+    }
 
     if (this.btnToggleMinimap) {
       this.btnToggleMinimap.onclick = () => {
@@ -1026,6 +1136,7 @@ class GklPureJSClient {
 
     this.mainViewportRenderer.setLanguage(this.currentLanguage);
     this.minimapRenderer.setLanguage(this.currentLanguage);
+    this.updateViewModeUI();
     this.knowledgeView.setLanguage(this.currentLanguage);
     this.inventoryView.setLanguage(this.currentLanguage);
     this.assistHud.setLanguage(this.currentLanguage);
@@ -1148,6 +1259,16 @@ class GklPureJSClient {
     this.zoomRenderer.isPlayerDead = false;
     this.zoomRenderer.deathPosition = null;
     this.zoomRenderer.activeFxList = [];
+    this.mainViewportRenderer.isPlayerDead = false;
+    this.mainViewportRenderer.deathPosition = null;
+    this.mainViewportRenderer.activeFxList = [];
+    if (this.webgpuRenderer) {
+      this.webgpuRenderer.isPlayerDead = false;
+      this.webgpuRenderer.deathPosition = null;
+      this.webgpuRenderer.activeFxList = [];
+      this.webgpuRenderer.markDirty();
+      this.webgpuRenderer.wakeUp();
+    }
     this.lastKnowledgeTarget = null;
     this.userPreferredTab = 'advices';
 

@@ -6,6 +6,8 @@
  * 本番 NetHack タイルテクスチャ ＆ 鮮明なジオラマ立体ベースで描画するアドオンレンダラー。
  */
 
+import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
+
 // ============================================================================
 // 1. 超軽量 4x4 行列ユーティリティ (外部依存ゼロ)
 // ============================================================================
@@ -157,6 +159,10 @@ struct Uniforms {
   texHeight: f32,
   time: f32,
   hasTexture: f32,
+  topDownFactor: f32,
+  padding1: f32,
+  padding2: f32,
+  padding3: f32,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -192,22 +198,42 @@ fn vs_main(input: VertexInput) -> VertexOutput {
   let ly = input.localPos.y;
 
   if (input.layerType < 0.5) {
-    // 【Layer 0: 床】 水平プレーン (Y = 0.0, XZ平面)
-    finalPos += vec3<f32>(lx, 0.0, ly);
+    // 【Layer 0: 床・地形】 水平プレーン (Y = 0.0, XZ平面, -ly で正しい向き)
+    finalPos += vec3<f32>(lx, 0.0, -ly);
   } else if (input.layerType < 1.5) {
-    // 【Layer 1: 壁キューブ天面】 水平プレーン (Y = 1.0, XZ平面)
-    finalPos += vec3<f32>(lx, 1.0, ly);
+    // 【Layer 1: 壁キューブ天面】 水平プレーン (Y = 0.45, XZ平面, -ly で正しい向き)
+    finalPos += vec3<f32>(lx, 0.45, -ly);
   } else if (input.layerType < 2.5) {
-    // 【Layer 2: 壁キューブ前面】 垂直プレーン (手前 Z = +0.5, Y = 0.0 ~ 1.0)
-    finalPos += vec3<f32>(lx, ly + 0.5, 0.5);
+    // 【Layer 2: 壁キューブ前面】 垂直プレーン (手前 Z = +0.5, Y = 0.0 ~ 0.45)
+    // キャラクター (高さ 0.88) が手前壁の陰に隠れないよう高さを 0.45 に調整
+    let frontHeight = (ly + 0.5) * 0.45 * (1.0 - uniforms.topDownFactor);
+    let frontZ = 0.5 * (1.0 - uniforms.topDownFactor);
+    finalPos += vec3<f32>(lx, frontHeight, frontZ);
   } else if (input.layerType < 3.5) {
-    // 【Layer 3: アイテム】 浮遊水平プレーン (Y = 0.25 + 微バウンス, XZ平面)
-    let bounce = sin(uniforms.time * 4.0 + input.animOffset) * 0.05;
-    finalPos += vec3<f32>(lx * 0.75, 0.25 + bounce, ly * 0.75);
+    // 【Layer 3: アイテム】 静止水平プレーン (床面直上 Y = 0.12, XZ平面, バウンスなし)
+    // カメラの Up ベクトル ([0, 0, -1]) に合わせて -ly で正しい向きに配置
+    finalPos += vec3<f32>(lx * 0.75, 0.12, -ly * 0.75);
+  } else if (input.layerType < 4.5) {
+    // 【Layer 4: キャラクター - スクリーン正対チルトビルボード (マスの中心基準)】
+    // マスの中心 (worldPos) を原点として、カメラの視線ベクトルに直交する Up 方向 (ジオラマ: (0.343, -0.939), トップビュー: (0.0, -1.0)) に展開。
+    // animOffset < -0.5 (墓石など) の場合はバウンスを強制ゼロで完全静止
+    var bounce = 0.0;
+    if (input.animOffset >= -0.5) {
+      bounce = abs(sin(uniforms.time * 6.0 + input.animOffset)) * 0.06;
+    }
+    let upVec = mix(vec2<f32>(0.343, -0.939), vec2<f32>(0.0, -1.0), uniforms.topDownFactor);
+    let h = ly * 0.88;
+    let centerY = mix(0.44, 0.30, uniforms.topDownFactor);
+    // bounce をカメラ・スクリーンの Up ベクトル (upVec) に沿って適用することで、
+    // ジオラマモード・トップビューモードの双方で画面上方向に均一かつ生き生きとしたふわふわ跳ねアニメーションを実現
+    let dioramaTilt = vec3<f32>(lx * 0.88, centerY + (h + bounce) * upVec.x, (h + bounce) * upVec.y);
+    finalPos += dioramaTilt;
   } else {
-    // 【Layer 4: キャラクター】 直立ビルボード (手前 +Z を向く直立プレーン, Y = 0.0 ~ 0.9)
-    let bounce = abs(sin(uniforms.time * 6.0 + input.animOffset)) * 0.06;
-    finalPos += vec3<f32>(lx * 0.88, (ly + 0.5) * 0.88 + bounce, 0.05);
+    // 【Layer 5: 過渡的エフェクト (投擲物、杖ビーム、爆発等) - 空中正対チルトビルボード (マスの中心基準)】
+    // マスの中心・空中 (Y = 0.45) を基準にスクリーン正対チルト展開
+    let upVec = mix(vec2<f32>(0.343, -0.939), vec2<f32>(0.0, -1.0), uniforms.topDownFactor);
+    let h = ly * 0.88;
+    finalPos += vec3<f32>(lx * 0.88, 0.45 + h * upVec.x, h * upVec.y);
   }
 
   out.position = uniforms.viewProj * vec4<f32>(finalPos, 1.0);
@@ -231,80 +257,72 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   let uv = input.uv;
 
-  // 1. 各レイヤーの基本立体カラー (ジオラマベース)
-  var baseColor = vec3<f32>(0.20, 0.34, 0.26); // 床
-  if (input.layerType < 0.5) {
-    // 床: スレートグリーン + 黒枠グリッド線
-    if (uv.x < 0.06 || uv.x > 0.94 || uv.y < 0.06 || uv.y > 0.94) {
-      baseColor = vec3<f32>(0.08, 0.15, 0.11);
-    }
-  } else if (input.layerType < 1.5) {
-    // 壁天面: サンドストーン
-    baseColor = vec3<f32>(0.88, 0.76, 0.55);
-    if (uv.x < 0.06 || uv.x > 0.94 || uv.y < 0.06 || uv.y > 0.94) {
-      baseColor = vec3<f32>(0.68, 0.56, 0.38);
-    }
-  } else if (input.layerType < 2.5) {
-    // 壁前面: 陰影レンガブラウン
-    baseColor = vec3<f32>(0.58, 0.42, 0.28);
-    if (uv.x < 0.06 || uv.x > 0.94 || uv.y < 0.06 || uv.y > 0.94) {
-      baseColor = vec3<f32>(0.38, 0.26, 0.16);
-    }
-  } else if (input.layerType < 3.5) {
-    // アイテム: ひし形
-    let dist = abs(uv.x - 0.5) + abs(uv.y - 0.5);
-    if (dist > 0.42) { discard; }
-    baseColor = vec3<f32>(0.15, 0.90, 1.0);
-  } else {
-    // キャラクター: 円形トークン
-    let dist = distance(uv, vec2<f32>(0.5, 0.5));
-    if (dist > 0.48) { discard; }
-    if (input.isPlayer > 0.5) {
-      baseColor = vec3<f32>(1.0, 0.88, 0.15);
-    } else {
-      baseColor = vec3<f32>(0.95, 0.20, 0.20);
-    }
-  }
-
-  // 2. タイルテクスチャ合成
+  // 1. タイルテクスチャがロードされている場合 (通常動作)
   if (uniforms.hasTexture > 0.5) {
     let texColor = textureSample(tileTexture, tileSampler, input.texCoord);
 
     if (input.layerType >= 2.5) {
-      // キャラクター & アイテム:
-      // タイルの非黒・非透明ピクセルを鮮やかに表示
-      let hasContent = texColor.a > 0.2 && (texColor.r > 0.06 || texColor.g > 0.06 || texColor.b > 0.06);
-      if (hasContent) {
-        var charRgb = texColor.rgb;
-        if (input.isPlayer > 0.5) {
-          // 自キャラはほんのり明るく存在感を強調
-          charRgb = mix(charRgb, vec3<f32>(1.0, 0.95, 0.7), 0.12);
-        }
-        return vec4<f32>(charRgb, 1.0);
+      // 【キャラクター (Layer 4)、アイテム (Layer 3)、エフェクト (Layer 5)】
+      // アルファ値のみで透過判定！
+      // 黒ピクセル（目・輪郭線・黒髪など）は正常に黒として描画し、透過部分 (a < 0.2) のみ discard する
+      if (texColor.a < 0.2) {
+        discard;
       }
-      // タイルの透明/黒ピクセル部分は、トークン形状外を破棄
-      if (input.layerType < 3.5) {
-        let dist = abs(uv.x - 0.5) + abs(uv.y - 0.5);
-        if (dist > 0.40) { discard; }
-      } else {
-        let dist = distance(uv, vec2<f32>(0.5, 0.5));
-        if (dist > 0.45) { discard; }
+
+      var spriteColor = texColor.rgb;
+      if (input.isPlayer > 0.5) {
+        // 自キャラは視認性向上のためほんのり明るく
+        spriteColor = mix(spriteColor, vec3<f32>(1.0, 0.98, 0.85), 0.08);
       }
-      return vec4<f32>(baseColor, 1.0);
+      return vec4<f32>(spriteColor, 1.0);
+
+    } else if (input.layerType < 0.5) {
+      // 【床 (Layer 0)】
+      if (texColor.a < 0.1) {
+        return vec4<f32>(0.10, 0.12, 0.15, 1.0); // 床タイルの透明地色
+      }
+      return vec4<f32>(texColor.rgb, 1.0);
+
+    } else if (input.layerType < 1.5) {
+      // 【壁天面 (Layer 1)】
+      if (texColor.a < 0.1) {
+        return vec4<f32>(0.35, 0.38, 0.42, 1.0);
+      }
+      return vec4<f32>(texColor.rgb, 1.0);
+
     } else {
-      // 床 & 壁:
-      // タイルに絵柄（石の線や模様）がある部分はベースカラーの上にオーバーレイ
-      let hasDetail = texColor.a > 0.1 && (texColor.r > 0.06 || texColor.g > 0.06 || texColor.b > 0.06);
-      if (hasDetail) {
-        let blended = mix(baseColor, texColor.rgb, 0.55);
-        return vec4<f32>(blended, 1.0);
-      } else {
-        // 背景の黒部分はベースカラーをそのまま表示 (真っ暗になるのを100%防止！)
-        return vec4<f32>(baseColor, 1.0);
+      // 【壁前面 (Layer 2)】
+      if (texColor.a < 0.1) {
+        return vec4<f32>(0.24, 0.26, 0.30, 1.0);
       }
+      return vec4<f32>(texColor.rgb * 0.72, 1.0);
     }
   }
 
+  // 2. テクスチャ未ロード時 / フォールバック用のソリッドカラー
+  var baseColor = vec3<f32>(0.18, 0.22, 0.26); // 床
+  if (input.layerType < 1.5 && input.layerType >= 0.5) {
+    baseColor = vec3<f32>(0.45, 0.48, 0.52); // 壁天面
+  } else if (input.layerType < 2.5 && input.layerType >= 1.5) {
+    baseColor = vec3<f32>(0.30, 0.32, 0.36); // 壁前面
+  } else if (input.layerType < 3.5 && input.layerType >= 2.5) {
+    let dist = abs(uv.x - 0.5) + abs(uv.y - 0.5);
+    if (dist > 0.42) { discard; }
+    baseColor = vec3<f32>(0.20, 0.85, 0.95); // アイテム
+  } else if (input.layerType < 4.5 && input.layerType >= 3.5) {
+    let dist = distance(uv, vec2<f32>(0.5, 0.5));
+    if (dist > 0.48) { discard; }
+    if (input.isPlayer > 0.5) {
+      baseColor = vec3<f32>(1.0, 0.88, 0.2);
+    } else {
+      baseColor = vec3<f32>(0.9, 0.2, 0.2);
+    }
+  } else {
+    // エフェクトフォールバック (黄金の光)
+    let dist = distance(uv, vec2<f32>(0.5, 0.5));
+    if (dist > 0.45) { discard; }
+    baseColor = vec3<f32>(1.0, 0.95, 0.3);
+  }
   return vec4<f32>(baseColor, 1.0);
 }
 `;
@@ -358,16 +376,45 @@ export class WebGPUHD2DRenderer {
     this.frameCount = 0;
     this.lastFpsUpdate = 0;
     this.currentFps = 0;
-    this.instanceCounts = { total: 0, floor: 0, wall: 0, item: 0, char: 0 };
+    this.instanceCounts = { total: 0, floor: 0, wall: 0, item: 0, char: 0, effect: 0 };
     this.debugHudElement = null;
 
-    // カメラ位置 (斜め約 45度見下ろしの HD-2D ジオラマアングル ＆ スムーズ追従)
+    // カメラ位置・モード (diorama: 斜め見下ろし / topdown: 真上俯瞰)
+    this.cameraMode = 'diorama'; // 'diorama' | 'topdown'
     this.currentCamX = null;
     this.currentCamZ = null;
-    this.camEye = [40.0, 18.0, 26.0];
+    this.currentCamDistZ = 4.2;
+    this.currentCamHeight = 11.5;
+    this.currentTopDownFactor = 0.0;
+    this.currentUpY = 1.0;
+    this.currentUpZ = 0.0;
+    this.camEye = [40.0, 11.5, 12.0 + 4.2];
     this.camCenter = [40.0, 0.0, 12.0];
     this.playerX = 40.0;
     this.playerY = 12.0;
+
+    // Visual FX & Screen Shake State
+    this.activeFxList = [];
+    this.screenShakeTime = 0;
+    this.screenShakeDuration = 0;
+    this.screenShakeIntensity = 0;
+    this.fxCanvas = null;
+    this.fxCtx = null;
+    this.targetCursorX = -1;
+    this.targetCursorY = -1;
+    this.isPlayerDead = false;
+    this.deathPosition = null;
+
+    // インスタンスバッファ Dirty キャッシュ
+    this.isInstanceDirty = true;
+    this.cachedInstanceCount = 0;
+    this.lastGridSignature = null;
+
+    // 省電力モード (Idle Throttling)
+    this.isPowerSavingEnabled = true;
+    this.lastActivityTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.isIdle = false;
+    this.lastRenderTime = 0;
   }
 
   async init() {
@@ -397,6 +444,7 @@ export class WebGPUHD2DRenderer {
 
       await this._initPipeline(format);
       this._setupEventListeners();
+      this._initFxOverlay();
       this._createDebugHud();
 
       // 非同期でタイルアトラスをロード
@@ -635,16 +683,18 @@ export class WebGPUHD2DRenderer {
       return;
     }
 
-    const { total, floor, wall, item, char } = this.instanceCounts;
+    const { total, floor, wall, item, char, effect = 0 } = this.instanceCounts;
     const camX = this.currentCamX !== null ? this.currentCamX.toFixed(1) : '-';
     const camZ = this.currentCamZ !== null ? this.currentCamZ.toFixed(1) : '-';
     const texBadge = this.hasTexture ? `Texture: OK` : `Texture: ${this.textureStatus}`;
+    const modeBadge = this.cameraMode === 'topdown' ? '📐 TopDown' : '🏛️ Diorama';
+    const idleBadge = this.isIdle ? ' <span style="color:#88ddff">[Idle 省電力]</span>' : '';
 
     this.debugHudElement.innerHTML = `
-      <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b></div>
+      <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b> &nbsp;|&nbsp; <span>${modeBadge}${idleBadge}</span></div>
       <div class="hud-details">
-        <div>${texBadge} &nbsp;|&nbsp; Instances: <b>${total}</b> (<span class="badge-layer" style="color:#60c075">Floor: ${floor}</span> <span class="badge-layer" style="color:#e0b070">Wall: ${wall}</span> <span class="badge-layer" style="color:#40e0ff">Item: ${item}</span> <span class="badge-layer" style="color:#ffdc40">Char: ${char}</span>)</div>
-        <div>Player: (${this.playerX.toFixed(0)}, ${this.playerY.toFixed(0)}) &nbsp;|&nbsp; Cam: (${camX}, ${camZ})</div>
+        <div>${texBadge} &nbsp;|&nbsp; Instances: <b>${total}</b> (<span class="badge-layer" style="color:#60c075">Floor: ${floor}</span> <span class="badge-layer" style="color:#e0b070">Wall: ${wall}</span> <span class="badge-layer" style="color:#40e0ff">Item: ${item}</span> <span class="badge-layer" style="color:#ffdc40">Char: ${char}</span> <span class="badge-layer" style="color:#ff80df">Fx: ${effect}</span>)</div>
+        <div>Player: (${this.playerX.toFixed(0)}, ${this.playerY.toFixed(0)}) &nbsp;|&nbsp; Cam: (${camX}, ${camZ}) &nbsp;|&nbsp; Tilt: ${(this.currentTopDownFactor * 100).toFixed(0)}%</div>
       </div>
     `;
   }
@@ -707,14 +757,290 @@ export class WebGPUHD2DRenderer {
     ];
   }
 
+  setCameraMode(mode) {
+    if (mode === 'diorama' || mode === 'topdown') {
+      if (this.cameraMode !== mode) {
+        this.cameraMode = mode;
+        this.isInstanceDirty = true;
+        this.wakeUp();
+      }
+    }
+  }
+
+  toggleCameraMode() {
+    this.setCameraMode(this.cameraMode === 'diorama' ? 'topdown' : 'diorama');
+    return this.cameraMode;
+  }
+
+  markDirty() {
+    this.isInstanceDirty = true;
+    this.wakeUp();
+  }
+
+  wakeUp() {
+    this.lastActivityTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.isIdle = false;
+  }
+
+  _initFxOverlay() {
+    if (!this.canvas || typeof document === 'undefined') return;
+    let fxCanvas = document.getElementById('webgpu-fx-canvas');
+    if (!fxCanvas && this.canvas.parentElement) {
+      fxCanvas = document.createElement('canvas');
+      fxCanvas.id = 'webgpu-fx-canvas';
+      fxCanvas.width = this.canvas.width;
+      fxCanvas.height = this.canvas.height;
+      this.canvas.parentElement.appendChild(fxCanvas);
+    }
+    if (fxCanvas) {
+      this.fxCanvas = fxCanvas;
+      this.fxCtx = fxCanvas.getContext('2d');
+    }
+  }
+
+  addVisualFx(fx) {
+    if (!fx) return;
+    this.activeFxList.push(fx);
+    this.wakeUp();
+  }
+
+  triggerScreenShake(intensity = 3, durationMs = 100) {
+    this.screenShakeTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.screenShakeDuration = durationMs;
+    this.screenShakeIntensity = intensity;
+    this.wakeUp();
+  }
+
+  /**
+   * 3D ワールド座標 (gx: X, gy: 高さY, gz: 奥行きZ) を 2D スクリーンピクセル座標へ変換 (透視投影)
+   */
+  worldToScreen(gx, gy, gz = 0.0) {
+    const wx = gx;
+    const wy = gy; // 3D 上の高さ Y
+    const wz = gz; // 3D 上の奥 Z
+
+    const m = this.viewProjMatrix;
+    const clipX = m[0] * wx + m[4] * wy + m[8] * wz + m[12];
+    const clipY = m[1] * wx + m[5] * wy + m[9] * wz + m[13];
+    const clipW = m[3] * wx + m[7] * wy + m[11] * wz + m[15];
+
+    if (clipW <= 0.0001) return null; // カメラの背面
+
+    const ndcX = clipX / clipW;
+    const ndcY = clipY / clipW;
+
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const screenX = (ndcX + 1.0) * 0.5 * w;
+    const screenY = (1.0 - ndcY) * 0.5 * h;
+
+    return { screenX, screenY, depth: clipW };
+  }
+
+  /**
+   * 自キャラ枠ハイライト ＆ ターゲットカーソル枠の描画 (オーバーレイ Canvas 2D)
+   */
+  _renderCursorFrames(ctx, ts, now) {
+    // 1. 自キャラ枠ハイライト (通常緑 / 死亡時赤)
+    const pProj = this.worldToScreen(this.playerX, 0.44, this.playerY);
+    if (pProj) {
+      const sx = Math.round(pProj.screenX - ts / 2);
+      const sy = Math.round(pProj.screenY - ts / 2);
+      ctx.save();
+      ctx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+      ctx.lineWidth = this.isPlayerDead ? 1.5 : 2;
+      ctx.strokeRect(sx + 1, sy + 1, ts - 2, ts - 2);
+      ctx.restore();
+    }
+
+    // 2. ターゲットカーソル枠 (Look や照準時: 金色パルス明滅 ＋ 四隅ブラケット)
+    if (this.targetCursorX >= 0 && this.targetCursorY >= 0 &&
+        (this.targetCursorX !== this.playerX || this.targetCursorY !== this.playerY)) {
+      this.wakeUp(); // カーソルのパルス明滅中は 60FPS 描画
+      const cProj = this.worldToScreen(this.targetCursorX, 0.44, this.targetCursorY);
+      if (cProj) {
+        const sx = Math.round(cProj.screenX - ts / 2);
+        const sy = Math.round(cProj.screenY - ts / 2);
+        const pulse = 0.65 + 0.35 * Math.sin(now / 140);
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 8;
+        ctx.strokeRect(sx + 1, sy + 1, ts - 2, ts - 2);
+
+        // 四隅コーナーブラケット演出
+        const cornerLen = 7;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        // 左上
+        ctx.beginPath(); ctx.moveTo(sx, sy + cornerLen); ctx.lineTo(sx, sy); ctx.lineTo(sx + cornerLen, sy); ctx.stroke();
+        // 右上
+        ctx.beginPath(); ctx.moveTo(sx + ts - cornerLen, sy); ctx.lineTo(sx + ts, sy); ctx.lineTo(sx + ts, sy + cornerLen); ctx.stroke();
+        // 左下
+        ctx.beginPath(); ctx.moveTo(sx, sy + ts - cornerLen); ctx.lineTo(sx, sy + ts); ctx.lineTo(sx + cornerLen, sy + ts); ctx.stroke();
+        // 右下
+        ctx.beginPath(); ctx.moveTo(sx + ts - cornerLen, sy + ts); ctx.lineTo(sx + ts, sy + ts); ctx.lineTo(sx + ts, sy + ts - cornerLen); ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+  }
+
+  /**
+   * Visual FX の描画＆自動ライフサイクル管理 (オーバーレイ Canvas 2D)
+   */
+  renderVisualFx(now) {
+    if (!this.fxCtx || !this.fxCanvas) return;
+    const ctx = this.fxCtx;
+    ctx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+
+    const ts = 32;
+
+    // 1. 自キャラ枠 ＆ ターゲットカーソル枠の描画
+    this._renderCursorFrames(ctx, ts, now);
+
+    // 2. Visual FX の描画
+    if (!this.activeFxList || this.activeFxList.length === 0) return;
+
+    // FX 再生中はアイドル化させず 60FPS を維持
+    this.wakeUp();
+
+    const canvasW = this.fxCanvas.width;
+    const canvasH = this.fxCanvas.height;
+
+    this.activeFxList = this.activeFxList.filter(fx => {
+      const elapsed = now - fx.startTime;
+      if (elapsed >= fx.durationMs) return false;
+
+      const progress = Math.min(1.0, elapsed / fx.durationMs);
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+
+      const targetGx = fx.followPlayer ? this.playerX : fx.gx;
+      const targetGy = fx.followPlayer ? this.playerY : fx.gy;
+
+      if (targetGx === undefined || targetGy === undefined) return true;
+
+      // 3D 空間からスクリーンピクセル座標へ変換 (高さ Y = 0.45)
+      const projected = this.worldToScreen(targetGx, 0.45, targetGy);
+      if (!projected) return true;
+
+      const screenX = Math.round(projected.screenX - ts / 2);
+      const screenY = Math.round(projected.screenY - ts / 2);
+
+      if (screenX < -ts || screenX > canvasW || screenY < -ts || screenY > canvasH) {
+        return true;
+      }
+
+      ctx.save();
+
+      if (fx.type === 'SLASH') {
+        // ⚔️ 斬撃エフェクト
+        const alpha = 1 - progress;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ffd740';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        const startX = screenX + 4;
+        const startY = screenY + 4;
+        const endX = startX + (ts - 8) * Math.min(1.0, progress * 2.5);
+        const endY = startY + (ts - 8) * Math.min(1.0, progress * 2.5);
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        if (progress > 0.2) {
+          ctx.strokeStyle = `rgba(255, 215, 64, ${alpha * 0.8})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(screenX + ts - 8, screenY + 8);
+          ctx.lineTo(screenX + 8, screenY + ts - 8);
+          ctx.stroke();
+        }
+      } else if (fx.type === 'DAMAGE_FLASH') {
+        // 💥 被弾赤フラッシュ
+        const alpha = (1 - progress) * 0.6;
+        ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
+        ctx.fillRect(screenX, screenY, ts, ts);
+        ctx.strokeStyle = `rgba(255, 23, 68, ${1 - progress})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenX, screenY, ts, ts);
+      } else if (fx.type === 'KILL_BURST') {
+        // 💀 撃破消滅バースト
+        const alpha = 1 - progress;
+        const radius = (ts * 0.5) * (0.3 + easeOut * 0.7);
+        const cx = screenX + ts / 2;
+        const cy = screenY + ts / 2;
+
+        ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff9100';
+        ctx.shadowBlur = 8;
+
+        ctx.beginPath();
+        ctx.moveTo(cx - radius, cy);
+        ctx.lineTo(cx + radius, cy);
+        ctx.moveTo(cx, cy - radius);
+        ctx.lineTo(cx, cy + radius);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(255, 235, 59, ${alpha})`;
+        const d = radius * 0.7;
+        const pSize = Math.max(1, 3 * (1 - progress));
+        ctx.fillRect(cx - d, cy - d, pSize, pSize);
+        ctx.fillRect(cx + d, cy - d, pSize, pSize);
+        ctx.fillRect(cx - d, cy + d, pSize, pSize);
+        ctx.fillRect(cx + d, cy + d, pSize, pSize);
+      } else if (fx.type === 'HEAL_RING') {
+        // 💚 回復リング
+        const alpha = 1 - progress;
+        const liftY = -easeOut * 12;
+        const cx = screenX + ts / 2;
+        const cy = screenY + ts / 2 + liftY;
+        const r = 4 + easeOut * 10;
+
+        ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#69f0ae';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (fx.type === 'DEATH_BURST') {
+        // 🪦 死亡エフェクト
+        const alpha = Math.max(0, 1 - progress);
+        const radius = (ts * 0.8) * (0.2 + easeOut * 1.2);
+        const cx = screenX + ts / 2;
+        const cy = screenY + ts / 2;
+
+        ctx.strokeStyle = `rgba(239, 68, 68, ${alpha * 0.9})`;
+        ctx.lineWidth = 3 * (1 - progress * 0.5);
+        ctx.shadowColor = '#dc2626';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      return true;
+    });
+  }
+
   setActive(active) {
     this.isActive = active;
     if (active) {
       this.canvas.classList.remove('hidden');
+      if (this.fxCanvas) this.fxCanvas.classList.remove('hidden');
       if (this.debugHudElement) this.debugHudElement.style.display = 'block';
+      this.wakeUp();
+      this.isInstanceDirty = true;
       this._startRenderLoop();
     } else {
       this.canvas.classList.add('hidden');
+      if (this.fxCanvas) this.fxCanvas.classList.add('hidden');
       if (this.debugHudElement) this.debugHudElement.style.display = 'none';
       if (this.animationFrameId) {
         cancelAnimationFrame(this.animationFrameId);
@@ -726,7 +1052,40 @@ export class WebGPUHD2DRenderer {
   _startRenderLoop() {
     const loop = (timestamp) => {
       if (!this.isActive) return;
-      this.render(timestamp / 1000.0);
+
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+      // エフェクトまたはシェイク発生中は常時アクティブ (wakeUp)
+      const hasActiveFx = this.activeFxList && this.activeFxList.length > 0;
+      const hasShake = this.screenShakeTime > 0;
+      if (hasActiveFx || hasShake) {
+        this.wakeUp();
+      }
+
+      // アイドル判定:
+      // 1. カメラ座標追従が収束している
+      const isCamSettled = this.currentCamX !== null &&
+        Math.abs(this.currentCamX - this.playerX) < 0.01 &&
+        Math.abs(this.currentCamZ - this.playerY) < 0.01;
+      // 2. カメラアングル (topDownFactor) 補間が収束している
+      const targetFactor = this.cameraMode === 'topdown' ? 1.0 : 0.0;
+      const isAngleSettled = Math.abs(this.currentTopDownFactor - targetFactor) < 0.005;
+      // 3. 直近 1.5 秒間にプレイヤー操作・ダンジョン変化がない
+      const timeSinceActivity = now - this.lastActivityTime;
+
+      if (this.isPowerSavingEnabled && isCamSettled && isAngleSettled && timeSinceActivity > 1500 && !hasActiveFx && !hasShake) {
+        this.isIdle = true;
+      } else {
+        this.isIdle = false;
+      }
+
+      // 省電力モード時は 15 FPS (約 66ms 間隔) に間引き、通常時は 60 FPS
+      const minInterval = this.isIdle ? 66.6 : 0;
+      if (now - this.lastRenderTime >= minInterval) {
+        this.render(timestamp / 1000.0);
+        this.lastRenderTime = now;
+      }
+
       this.animationFrameId = requestAnimationFrame(loop);
     };
     this.animationFrameId = requestAnimationFrame(loop);
@@ -753,7 +1112,10 @@ export class WebGPUHD2DRenderer {
     let targetPx = 40.0;
     let targetPy = 12.0;
 
-    if (area && typeof area.playerX === 'number') {
+    if (this.isPlayerDead && this.deathPosition) {
+      targetPx = this.deathPosition.x;
+      targetPy = this.deathPosition.y;
+    } else if (area && typeof area.playerX === 'number') {
       targetPx = area.playerX;
       targetPy = area.playerY;
     } else if (area?.playerLocation) {
@@ -771,10 +1133,13 @@ export class WebGPUHD2DRenderer {
       }
     }
 
-    this.playerX = targetPx;
-    this.playerY = targetPy;
+    if (targetPx !== this.playerX || targetPy !== this.playerY) {
+      this.playerX = targetPx;
+      this.playerY = targetPy;
+      this.wakeUp();
+    }
 
-    // 2. カメラ行列計算 (プレイヤー追従 HD-2D ジオラマ斜め見下ろしビュー)
+    // 2. カメラ行列計算 (プレイヤー追従 ＆ ジオラマ/トップビュー スムーズ補間)
     if (this.currentCamX === null || this.currentCamZ === null) {
       this.currentCamX = targetPx;
       this.currentCamZ = targetPy;
@@ -783,123 +1148,214 @@ export class WebGPUHD2DRenderer {
       this.currentCamZ += (targetPy - this.currentCamZ) * 0.12;
     }
 
-    const camHeight = 18.0;
-    const camDistZ = 16.0;
+    // 目標パラメータ (自キャラ周辺を大きく迫力あるサイズでクローズアップ)
+    const isTopDown = this.cameraMode === 'topdown';
+    const targetDistZ = isTopDown ? 0.001 : 4.2;
+    const targetHeight = isTopDown ? 11.0 : 11.5;
+    const targetFactor = isTopDown ? 1.0 : 0.0;
+    const targetUpY = isTopDown ? 0.0 : 1.0;
+    const targetUpZ = isTopDown ? -1.0 : 0.0;
 
-    const eyeX = this.currentCamX;
-    const eyeY = camHeight;
-    const eyeZ = this.currentCamZ + camDistZ;
+    // スムーズ補間 (Lerp)
+    this.currentCamDistZ += (targetDistZ - this.currentCamDistZ) * 0.15;
+    this.currentCamHeight += (targetHeight - this.currentCamHeight) * 0.15;
+    this.currentTopDownFactor += (targetFactor - this.currentTopDownFactor) * 0.15;
+    this.currentUpY += (targetUpY - this.currentUpY) * 0.15;
+    this.currentUpZ += (targetUpZ - this.currentUpZ) * 0.15;
+
+    // 画面シェイクの計算
+    let shakeX = 0;
+    let shakeZ = 0;
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (this.screenShakeTime > 0) {
+      const elapsed = nowMs - this.screenShakeTime;
+      if (elapsed < this.screenShakeDuration) {
+        const progress = 1 - (elapsed / this.screenShakeDuration);
+        const mag = (this.screenShakeIntensity * progress) * 0.12;
+        shakeX = (Math.random() * 2 - 1) * mag;
+        shakeZ = (Math.random() * 2 - 1) * mag;
+      } else {
+        this.screenShakeTime = 0;
+      }
+    }
+
+    const eyeX = this.currentCamX + shakeX;
+    const eyeY = this.currentCamHeight;
+    const eyeZ = this.currentCamZ + this.currentCamDistZ + shakeZ;
 
     this.camEye = [eyeX, eyeY, eyeZ];
-    this.camCenter = [this.currentCamX, 0.0, this.currentCamZ];
-    const up = [0.0, 1.0, 0.0];
+    this.camCenter = [this.currentCamX + shakeX, 0.0, this.currentCamZ + shakeZ];
+    const up = [0.0, this.currentUpY, this.currentUpZ];
 
     const viewMatrix = Mat4.create();
     Mat4.lookAt(viewMatrix, this.camEye, this.camCenter, up);
 
     const aspect = this.canvas.width / this.canvas.height;
     const projMatrix = Mat4.create();
-    Mat4.perspective(projMatrix, 36.0 * (Math.PI / 180), aspect, 0.5, 120.0);
+    const fov = isTopDown ? 28.0 : 30.0;
+    Mat4.perspective(projMatrix, fov * (Math.PI / 180), aspect, 0.5, 120.0);
 
     Mat4.multiply(this.viewProjMatrix, projMatrix, viewMatrix);
 
-    // 3. インスタンスデータの構築 (1インスタンス = 8 floats)
-    let instanceCount = 0;
-    let countFloor = 0;
-    let countWall = 0;
-    let countItem = 0;
-    let countChar = 0;
-    const data = this.instanceData;
+    // 3. インスタンスデータの構築 (Dirty キャッシュ判定)
+    const turn = situation?.turn ?? 0;
+    const activeMonstersCount = area?.activeMonsters?.length ?? 0;
+    const dirtyCount = area?.dirtyCells ? area.dirtyCells.size : 0;
 
-    const pushInstance = (wx, wy, wz, layerType, isPlayer = 0.0, anim = 0.0, tileIdx = 0.0) => {
-      if (instanceCount >= this.maxInstances) return;
-      const idx = instanceCount * 8;
-      data[idx + 0] = wx;
-      data[idx + 1] = wy;
-      data[idx + 2] = wz;
-      data[idx + 3] = layerType;
-      data[idx + 4] = isPlayer;
-      data[idx + 5] = anim;
-      data[idx + 6] = tileIdx;
-      data[idx + 7] = 0.0;
-      instanceCount++;
-
-      if (layerType === 0.0) countFloor++;
-      else if (layerType === 1.0 || layerType === 2.0) countWall++;
-      else if (layerType === 3.0) countItem++;
-      else if (layerType === 4.0) countChar++;
-    };
-
-    for (let y = 0; y < 24; y++) {
-      for (let x = 0; x < 80; x++) {
-        const cell = areaGrid ? areaGrid[y]?.[x] : null;
-        let drawnAny = false;
-
-        if (cell) {
-          // Layer 0 & 1/2: Bottom (床 / 壁)
-          if (cell.bottom && cell.bottom.rawGlyph >= 0) {
-            const isWall = cell.bottom.category === 'WALL' || cell.bottom.cmapFlags?.isWall;
-            const tileIdx = getTileIdx(cell.bottom.rawGlyph);
-            if (isWall) {
-              pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, tileIdx); // 壁天面
-              pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, tileIdx); // 壁前面
-            } else {
-              pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx); // 床
-            }
-            drawnAny = true;
-          }
-
-          // Layer 3: Middle (アイテム)
-          if (cell.middle && cell.middle.rawGlyph >= 0) {
-            const tileIdx = getTileIdx(cell.middle.rawGlyph);
-            pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx);
-            drawnAny = true;
-          }
-
-          // Layer 4: Top (モンスター / プレイヤー)
-          if (cell.top && cell.top.rawGlyph >= 0) {
-            const isPlayer = cell.top.isPlayer ? 1.0 : 0.0;
-            const tileIdx = getTileIdx(cell.top.rawGlyph);
-            pushInstance(x, 0.0, y, 4.0, isPlayer, (x * 3 + y * 5) % 8, tileIdx);
-            drawnAny = true;
-          }
-        }
-
-        // フォールバック: areaGrid が未初期化の場合は glyphBuffer から直接描画
-        if (!drawnAny && glyphBuffer && glyphBuffer[y]?.[x]?.glyph >= 0) {
-          const gId = glyphBuffer[y][x].glyph;
-          const tileIdx = getTileIdx(gId);
-          if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
-            pushInstance(x, 0.0, y, 4.0, 1.0, 0.0, tileIdx);
-          } else {
-            pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx);
+    // 過渡的エフェクトグリフ (投擲物・杖ビーム・爆発) の存在検出
+    let currentEffectCount = 0;
+    if (areaGrid) {
+      for (let y = 0; y < 24; y++) {
+        for (let x = 0; x < 80; x++) {
+          if (areaGrid[y]?.[x]?.effect && areaGrid[y][x].effect.rawGlyph >= 0) {
+            currentEffectCount++;
           }
         }
       }
     }
-
-    this.instanceCounts = {
-      total: instanceCount,
-      floor: countFloor,
-      wall: countWall,
-      item: countItem,
-      char: countChar
-    };
-
-    // 4. GPU バッファ書き込み
-    if (instanceCount > 0) {
-      this.device.queue.writeBuffer(this.instanceBuffer, 0, this.instanceData, 0, instanceCount * 8);
+    if (currentEffectCount > 0) {
+      this.wakeUp();
     }
 
-    // Uniform バッファ書き込み
-    // viewProj (16 floats = 64 bytes)
-    // texWidth (1 float), texHeight (1 float), time (1 float), hasTexture (1 float) = 16 bytes
-    const uniformArray = new Float32Array(20);
+    const gridSignature = `${turn}_${Math.round(targetPx)}_${Math.round(targetPy)}_${activeMonstersCount}_${dirtyCount}_${currentEffectCount}_${this.cameraMode}_${this.isPlayerDead ? 1 : 0}`;
+
+    if (gridSignature !== this.lastGridSignature) {
+      this.isInstanceDirty = true;
+      this.lastGridSignature = gridSignature;
+      this.wakeUp();
+    }
+
+    // セルまたは状態に変更がある時のみインスタンスバッファを再生成
+    if (this.isInstanceDirty) {
+      let instanceCount = 0;
+      let countFloor = 0;
+      let countWall = 0;
+      let countItem = 0;
+      let countChar = 0;
+      let countEffect = 0;
+      const data = this.instanceData;
+
+      const pushInstance = (wx, wy, wz, layerType, isPlayer = 0.0, anim = 0.0, tileIdx = 0.0) => {
+        if (instanceCount >= this.maxInstances) return;
+        const idx = instanceCount * 8;
+        data[idx + 0] = wx;
+        data[idx + 1] = wy;
+        data[idx + 2] = wz;
+        data[idx + 3] = layerType;
+        data[idx + 4] = isPlayer;
+        data[idx + 5] = anim;
+        data[idx + 6] = tileIdx;
+        data[idx + 7] = 0.0;
+        instanceCount++;
+
+        if (layerType === 0.0) countFloor++;
+        else if (layerType === 1.0 || layerType === 2.0) countWall++;
+        else if (layerType === 3.0) countItem++;
+        else if (layerType === 4.0) countChar++;
+        else if (layerType === 5.0) countEffect++;
+      };
+
+      for (let y = 0; y < 24; y++) {
+        for (let x = 0; x < 80; x++) {
+          const cell = areaGrid ? areaGrid[y]?.[x] : null;
+          let drawnAny = false;
+
+          if (cell) {
+            // Layer 0 & 1/2: Bottom (床 / 壁)
+            if (cell.bottom && cell.bottom.rawGlyph >= 0) {
+              const isWall = cell.bottom.category === 'WALL' || cell.bottom.cmapFlags?.isWall;
+              const tileIdx = getTileIdx(cell.bottom.rawGlyph);
+              if (isWall) {
+                pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, tileIdx); // 壁天面
+                // トップビューモード専用時以外は壁前面も生成
+                if (this.cameraMode !== 'topdown') {
+                  pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, tileIdx); // 壁前面
+                }
+              } else {
+                pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx); // 床
+              }
+              drawnAny = true;
+            }
+
+            // Layer 3: Middle (アイテム)
+            if (cell.middle && cell.middle.rawGlyph >= 0) {
+              const tileIdx = getTileIdx(cell.middle.rawGlyph);
+              pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx);
+              drawnAny = true;
+            }
+
+            // Layer 4: Top (モンスター / プレイヤー / 死亡時墓石)
+            const isDeathPos = this.isPlayerDead && this.deathPosition && x === this.deathPosition.x && y === this.deathPosition.y;
+            if (isDeathPos) {
+              // 🪦 プレイヤー死亡時は墓石タイルを配置 (静止、バウンスなし: anim = -1.0)
+              const tombGlyph = (typeof DEFAULT_TOMBSTONE_GLYPH !== 'undefined') ? DEFAULT_TOMBSTONE_GLYPH : 2321;
+              const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
+              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx);
+              drawnAny = true;
+            } else if (cell.top && cell.top.rawGlyph >= 0) {
+              const isPlayer = cell.top.isPlayer ? 1.0 : 0.0;
+              const tileIdx = getTileIdx(cell.top.rawGlyph);
+              pushInstance(x, 0.0, y, 4.0, isPlayer, (x * 3 + y * 5) % 8, tileIdx);
+              drawnAny = true;
+            }
+
+            // Layer 5: Effect (過渡的エフェクト: 投擲物・杖ビーム・爆発等)
+            if (cell.effect && cell.effect.rawGlyph >= 0) {
+              const tileIdx = getTileIdx(cell.effect.rawGlyph);
+              pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx);
+              drawnAny = true;
+            }
+          }
+
+          // フォールバック: areaGrid が未初期化、または過渡的グリフの場合
+          if (!drawnAny && glyphBuffer && glyphBuffer[y]?.[x]?.glyph >= 0) {
+            const isDeathPos = this.isPlayerDead && this.deathPosition && x === this.deathPosition.x && y === this.deathPosition.y;
+            if (isDeathPos) {
+              const tombGlyph = (typeof DEFAULT_TOMBSTONE_GLYPH !== 'undefined') ? DEFAULT_TOMBSTONE_GLYPH : 2321;
+              const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
+              pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx);
+            } else {
+              const gId = glyphBuffer[y][x].glyph;
+              const tileIdx = getTileIdx(gId);
+              if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
+                pushInstance(x, 0.0, y, 4.0, 1.0, 0.0, tileIdx);
+              } else {
+                pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx);
+              }
+            }
+          }
+        }
+      }
+
+      this.instanceCounts = {
+        total: instanceCount,
+        floor: countFloor,
+        wall: countWall,
+        item: countItem,
+        char: countChar,
+        effect: countEffect
+      };
+
+      // GPU バッファ書き込み
+      if (instanceCount > 0) {
+        this.device.queue.writeBuffer(this.instanceBuffer, 0, this.instanceData, 0, instanceCount * 8);
+      }
+      this.cachedInstanceCount = instanceCount;
+      this.isInstanceDirty = false;
+    }
+
+    // 4. Uniform バッファ書き込み (96 bytes = 24 floats)
+    // viewProj (16 floats) + texWidth, texHeight, time, hasTexture (4 floats) + topDownFactor, padding (4 floats)
+    const uniformArray = new Float32Array(24);
     uniformArray.set(this.viewProjMatrix, 0);
     uniformArray[16] = this.texWidth;
     uniformArray[17] = this.texHeight;
     uniformArray[18] = timeInSeconds;
     uniformArray[19] = this.hasTexture ? 1.0 : 0.0;
+    uniformArray[20] = this.currentTopDownFactor;
+    uniformArray[21] = 0.0;
+    uniformArray[22] = 0.0;
+    uniformArray[23] = 0.0;
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
     // 5. レンダリングコマンドの発行
@@ -928,14 +1384,31 @@ export class WebGPUHD2DRenderer {
     renderPass.setVertexBuffer(0, this.vertexBuffer);
     renderPass.setVertexBuffer(1, this.instanceBuffer);
 
-    if (instanceCount > 0) {
-      renderPass.draw(6, instanceCount, 0, 0);
+    if (this.cachedInstanceCount > 0) {
+      renderPass.draw(6, this.cachedInstanceCount, 0, 0);
     }
 
     renderPass.end();
     this.device.queue.submit([commandEncoder.finish()]);
 
-    // 6. デバッグ HUD の更新
+    // 6. Visual FX 最前面オーバーレイ描画
+    this.renderVisualFx(nowMs);
+
+    // 7. デバッグ HUD の更新
     this._updateDebugHud(timeInSeconds);
+  }
+
+  /**
+   * マルチカメラ描画ヘルパー: 1回のインスタンスバッファから別カメラ行列・別レンダーターゲットに描画可能
+   */
+  renderSubViewport({ renderPass, viewProjMatrix, topDownFactor = 1.0, timeInSeconds = 0 }) {
+    if (!this.isSupported || !this.pipeline || !this.bindGroup || this.cachedInstanceCount === 0) return;
+
+    // サブカメラ用の Uniform を更新して描画
+    renderPass.setPipeline(this.pipeline);
+    renderPass.setBindGroup(0, this.bindGroup);
+    renderPass.setVertexBuffer(0, this.vertexBuffer);
+    renderPass.setVertexBuffer(1, this.instanceBuffer);
+    renderPass.draw(6, this.cachedInstanceCount, 0, 0);
   }
 }
