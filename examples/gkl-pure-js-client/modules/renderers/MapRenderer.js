@@ -4,12 +4,13 @@ import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/Ar
  * MapRenderer - メインCanvas (Graphic Canvas) & ASCII Grid の描画マネージャー
  */
 export class MapRenderer {
-  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid }) {
+  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid, virtualScreen = null }) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
     this.asciiGrid = asciiGrid;
     this.btnToggleView = btnToggleView;
     this.getAreaGrid = getAreaGrid || (() => null);
+    this.virtualScreen = virtualScreen;
 
     this.isGraphicCanvasMode = true;
     this.currentLanguage = 'ja';
@@ -24,13 +25,22 @@ export class MapRenderer {
     this.deathPosition = null;
 
     // Multi-path Sprite Tile Image Loader (Main: Opaque)
-    this.tileImg = new Image();
-    this.tileLoaded = false;
-    this.loadedTileImagePath = null;
+    this.tileImg = this.virtualScreen?.tileImg || (typeof Image !== 'undefined' ? new Image() : null);
+    this.tileLoaded = Boolean(this.virtualScreen?.tileLoaded);
+    this.loadedTileImagePath = this.virtualScreen?.loadedTileImagePath || null;
   }
 
   init() {
     this.initAsciiGridDom();
+
+    if (this.virtualScreen && this.virtualScreen.tileLoaded) {
+      this.tileImg = this.virtualScreen.tileImg;
+      this.tileLoaded = true;
+      this.loadedTileImagePath = this.virtualScreen.loadedTileImagePath;
+      this.redrawAllGraphicTiles();
+      return;
+    }
+
     this.initTileImageWithFallback([
       '../../pict/nethack_default_32.png',
       '../../assets/nethack_default_32.png',
@@ -42,6 +52,12 @@ export class MapRenderer {
       this.tileImg.src = p;
       this.loadedTileImagePath = p;
       this.tileLoaded = true;
+      if (this.virtualScreen && !this.virtualScreen.tileLoaded) {
+        this.virtualScreen.tileImg = this.tileImg;
+        this.virtualScreen.tileLoaded = true;
+        this.virtualScreen.loadedTileImagePath = p;
+        this.virtualScreen.markAllDirty();
+      }
       this.redrawAllGraphicTiles();
     });
   }
@@ -185,6 +201,10 @@ export class MapRenderer {
 
   drawTileGlyph(glyphId, cols, tileMap, dx, dy, animY = 0) {
     if (!this.ctx) return;
+    if (this.virtualScreen) {
+      this.virtualScreen.drawTile(this.ctx, glyphId, dx, dy, 16, 14, animY, () => tileMap);
+      return;
+    }
     const tileIndex = tileMap[glyphId] !== undefined ? tileMap[glyphId] : 0;
     const sx = (tileIndex % cols) * 32;
     const sy = Math.floor(tileIndex / cols) * 32;

@@ -10,6 +10,7 @@ export class ZoomRenderer {
     getSituation,
     getGlyphBuffer,
     getCore,
+    virtualScreen = null,
     tileImg,
     tileLoaded
   }) {
@@ -22,6 +23,7 @@ export class ZoomRenderer {
     this.getSituation = getSituation || (() => null);
     this.getGlyphBuffer = getGlyphBuffer || (() => null);
     this.getCore = getCore || (() => null);
+    this.virtualScreen = virtualScreen;
     this.mainTileImg = tileImg;
     this.mainTileLoaded = tileLoaded;
 
@@ -33,9 +35,9 @@ export class ZoomRenderer {
     this.deathPosition = null;
 
     // Multi-path Sprite Tile Image Loader (Zoom: Transparent)
-    this.zoomTileImg = new Image();
-    this.zoomTileLoaded = false;
-    this.loadedZoomTileImagePath = null;
+    this.zoomTileImg = this.virtualScreen?.tileImg || (typeof Image !== 'undefined' ? new Image() : null);
+    this.zoomTileLoaded = Boolean(this.virtualScreen?.tileLoaded);
+    this.loadedZoomTileImagePath = this.virtualScreen?.loadedTileImagePath || null;
 
     // Visual FX & Screen Shake State
     this.activeFxList = [];
@@ -45,6 +47,17 @@ export class ZoomRenderer {
   }
 
   init() {
+    if (this.virtualScreen && this.virtualScreen.tileLoaded) {
+      this.zoomTileImg = this.virtualScreen.tileImg;
+      this.zoomTileLoaded = true;
+      this.loadedZoomTileImagePath = this.virtualScreen.loadedTileImagePath;
+      const situation = this.getSituation();
+      if (situation) {
+        this.renderZoomCanvas(situation.area);
+      }
+      return;
+    }
+
     this.initTileImageWithFallback([
       '../../pict/nethack_default_32_tr.png',
       '../../assets/nethack_default_32_tr.png',
@@ -56,6 +69,12 @@ export class ZoomRenderer {
       this.zoomTileImg.src = p;
       this.loadedZoomTileImagePath = p;
       this.zoomTileLoaded = true;
+      if (this.virtualScreen) {
+        this.virtualScreen.tileImg = this.zoomTileImg;
+        this.virtualScreen.tileLoaded = true;
+        this.virtualScreen.loadedTileImagePath = p;
+        this.virtualScreen.markAllDirty();
+      }
       const situation = this.getSituation();
       if (situation) {
         this.renderZoomCanvas(situation.area);
@@ -149,16 +168,22 @@ export class ZoomRenderer {
       this.zoomPosBadge.textContent = `@ (${px},${py})`;
     }
 
-    const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
-    const activeZoomImg = (this.zoomTileLoaded && this.zoomTileImg && this.zoomTileImg.naturalWidth > 0)
-      ? this.zoomTileImg
-      : (this.mainTileLoaded && this.mainTileImg && this.mainTileImg.naturalWidth > 0 ? this.mainTileImg : null);
-    const cols = (activeZoomImg && activeZoomImg.width) ? Math.floor(activeZoomImg.width / 32) : 40;
+    // 1. 仮想スクリーンが存在する場合、残っている差分セルをオフスクリーン背景に反映
+    if (this.virtualScreen) {
+      const core = this.getCore();
+      const asm = core?.gkl?.areaStateManager;
+      if (asm && typeof asm.getDirtyCells === 'function' && asm.getDirtyCells().size > 0) {
+        this.virtualScreen.markCellsDirty(asm.getDirtyCells());
+        asm.clearDirtyCells();
+      }
+      this.virtualScreen.flushDirtyCells(areaState?.grid, this.getGlyphBuffer());
+    }
 
     const canvasW = this.zoomCanvas.width; // 672
     const canvasH = this.zoomCanvas.height; // 288
     const zoomTileSize = 32; // 拡大 32px タイル
-
+    const halfRangeX = 10;
+    const halfRangeY = 4;
     const now = performance.now();
 
     // 画面シェイクの計算
@@ -182,12 +207,35 @@ export class ZoomRenderer {
     this.zoomCtx.fillStyle = '#090916';
     this.zoomCtx.fillRect(0, 0, canvasW, canvasH);
 
-    // 21x9 マスを中心（10,4）に配置
-    const halfRangeX = 10;
-    const halfRangeY = 4;
-    // キビキビとした上方向バウンス (周期約0.5秒, 0〜-3px / 死亡時は静止)
-    const bounceY = this.isPlayerDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
+    // 2. 仮想スクリーン背景から自キャラ周辺を高速切り出し転送 (たった 1 回の drawImage)
+    if (this.virtualScreen && this.virtualScreen.bgCanvas) {
+      const viewStartX = px - halfRangeX;
+      const viewStartY = py - halfRangeY;
+      const viewCols = halfRangeX * 2 + 1; // 21
+      const viewRows = halfRangeY * 2 + 1; // 9
 
+      const clipX = Math.max(0, viewStartX);
+      const clipY = Math.max(0, viewStartY);
+      const clipRight = Math.min(this.virtualScreen.cols, viewStartX + viewCols);
+      const clipBottom = Math.min(this.virtualScreen.rows, viewStartY + viewRows);
+
+      if (clipRight > clipX && clipBottom > clipY) {
+        const srcX = clipX * zoomTileSize;
+        const srcY = clipY * zoomTileSize;
+        const srcW = (clipRight - clipX) * zoomTileSize;
+        const srcH = (clipBottom - clipY) * zoomTileSize;
+
+        const dstX = (clipX - viewStartX) * zoomTileSize;
+        const dstY = (clipY - viewStartY) * zoomTileSize;
+        const dstW = srcW;
+        const dstH = srcH;
+
+        this.zoomCtx.drawImage(this.virtualScreen.bgCanvas, srcX, srcY, srcW, srcH, dstX, dstY, dstW, dstH);
+      }
+    }
+
+    // 3. 動的モンスター・自キャラ (Top) & エフェクト & 枠線のみを描画
+    const bounceY = this.isPlayerDead ? 0 : -Math.round(Math.abs(Math.sin(Date.now() / 160)) * 3);
     const core = this.getCore();
     const tiles = (core && core.gkl && typeof core.gkl.getFocusCameraTiles === 'function')
       ? core.gkl.getFocusCameraTiles(halfRangeX, halfRangeY, {
@@ -197,54 +245,49 @@ export class ZoomRenderer {
         })
       : [];
 
+    const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
+    const cols = (this.zoomTileImg?.width) ? Math.floor(this.zoomTileImg.width / 32) : 40;
+
     for (const t of tiles) {
       const screenX = (t.dx + halfRangeX) * zoomTileSize;
       const screenY = (t.dy + halfRangeY) * zoomTileSize;
 
-      if (t.isUnexplored) {
-        this.zoomCtx.fillStyle = '#000000';
-        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-        continue;
+      // virtualScreen が未初期化の場合のみフォールバックで未探索や静的レイヤーを描画
+      if (!this.virtualScreen) {
+        if (t.isUnexplored) {
+          this.zoomCtx.fillStyle = '#000000';
+          this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+          continue;
+        }
+
+        if (t.renderGlyphs && t.renderGlyphs.length > 0) {
+          if (t.bottomGlyph !== undefined && t.bottomGlyph >= 0) {
+            this.drawZoomTile(t.bottomGlyph, cols, tileMap, screenX, screenY, 0);
+          }
+          if (t.middleGlyph !== undefined && t.middleGlyph >= 0) {
+            this.drawZoomTile(t.middleGlyph, cols, tileMap, screenX, screenY, 0);
+          }
+        }
       }
 
-      if (t.renderGlyphs && t.renderGlyphs.length > 0) {
-        // Layer 1: Bottom (地形)
-        if (t.bottomGlyph !== undefined && t.bottomGlyph >= 0) {
-          this.drawZoomTile(t.bottomGlyph, cols, tileMap, screenX, screenY, 0);
-        }
+      // 自キャラマスのネオン枠ハイライト
+      if (t.isPlayer) {
+        this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+        this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
+        this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
+      }
 
-        // Layer 2: Middle (アイテム)
-        if (t.middleGlyph !== undefined && t.middleGlyph >= 0) {
-          this.drawZoomTile(t.middleGlyph, cols, tileMap, screenX, screenY, 0);
-        }
-
-        // 自キャラマスのネオン枠ハイライト
-        if (t.isPlayer) {
-          this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
-          this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
-          this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-        }
-
-        // Layer 3: Top (キャラクター/モンスター / 死亡時墓石)
-        if (t.topGlyph !== undefined && t.topGlyph >= 0) {
-          const isBouncingMonster = Boolean(t.cell && t.cell.top && !this.isPlayerDead);
-          this.drawZoomTile(t.topGlyph, cols, tileMap, screenX, screenY, isBouncingMonster ? bounceY : 0);
-        }
-
-        // Layer 4: Effect (過渡的エフェクト)
-        if (t.effectGlyph !== undefined && t.effectGlyph >= 0) {
-          this.drawZoomTile(t.effectGlyph, cols, tileMap, screenX, screenY, 0);
-        }
-      } else if (t.glyphId >= 0) {
-        if (t.isPlayer) {
-          this.zoomCtx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
-          this.zoomCtx.lineWidth = this.isPlayerDead ? 1 : 2;
-          this.zoomCtx.strokeRect(screenX + 1, screenY + 1, zoomTileSize - 2, zoomTileSize - 2);
-        }
+      // Layer 3: Top (キャラクター/モンスター / 死亡時墓石) - バウンスアニメ
+      if (t.topGlyph !== undefined && t.topGlyph >= 0) {
+        const isBouncingMonster = Boolean(t.cell && t.cell.top && !this.isPlayerDead);
+        this.drawZoomTile(t.topGlyph, cols, tileMap, screenX, screenY, isBouncingMonster ? bounceY : 0);
+      } else if (!this.virtualScreen && t.glyphId >= 0 && (!t.renderGlyphs || t.renderGlyphs.length === 0)) {
         this.drawZoomTile(t.glyphId, cols, tileMap, screenX, screenY, 0);
-      } else {
-        this.zoomCtx.fillStyle = '#000000';
-        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+      }
+
+      // Layer 4: Effect (過渡的エフェクト)
+      if (t.effectGlyph !== undefined && t.effectGlyph >= 0) {
+        this.drawZoomTile(t.effectGlyph, cols, tileMap, screenX, screenY, 0);
       }
 
       // 🎯 ターゲットカーソル枠 または 自キャラ枠
@@ -403,6 +446,11 @@ export class ZoomRenderer {
   }
 
   drawZoomTile(glyphId, cols, tileMap, dx, dy, animY = 0) {
+    if (this.virtualScreen) {
+      this.virtualScreen.drawTile(this.zoomCtx, glyphId, dx, dy, 32, 32, animY, () => tileMap);
+      return;
+    }
+
     const activeZoomImg = (this.zoomTileLoaded && this.zoomTileImg && this.zoomTileImg.naturalWidth > 0)
       ? this.zoomTileImg
       : (this.mainTileLoaded && this.mainTileImg && this.mainTileImg.naturalWidth > 0 ? this.mainTileImg : null);

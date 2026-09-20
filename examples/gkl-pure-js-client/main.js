@@ -5,6 +5,7 @@ import { OnDemandLookService } from "../../src/core/knowledge/services/OnDemandL
 
 import { MapRenderer } from './modules/renderers/MapRenderer.js';
 import { ZoomRenderer } from './modules/renderers/ZoomRenderer.js';
+import { VirtualDungeonScreen } from './modules/renderers/VirtualDungeonScreen.js';
 import { KnowledgeView } from './modules/components/KnowledgeView.js';
 import { InventoryView } from './modules/components/InventoryView.js';
 import { AssistHud } from './modules/components/AssistHud.js';
@@ -49,12 +50,16 @@ class GklPureJSClient {
 
     this.currentViewMode = 'graphic'; // 'graphic' | 'ascii' | 'hd2d'
 
+    // 0. 仮想スクリーン統合背景マネージャー (80x24 x 32px: 2560x768px オフスクリーン)
+    this.virtualScreen = new VirtualDungeonScreen();
+
     // 1. Map Renderer
     this.mapRenderer = new MapRenderer({
       canvas: this.canvas,
       asciiGrid: this.asciiGrid,
       btnToggleView: this.btnToggleView,
-      getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid
+      getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
+      virtualScreen: this.virtualScreen
     });
 
     // 1.5. WebGPU HD2D Renderer (✨ 3D ジオラマビュー)
@@ -77,6 +82,7 @@ class GklPureJSClient {
       getSituation: () => this.core?.gkl?.getSituation(),
       getGlyphBuffer: () => this.mapRenderer.glyphGridBuffer,
       getCore: () => this.core,
+      virtualScreen: this.virtualScreen,
       tileImg: this.mapRenderer.tileImg,
       tileLoaded: this.mapRenderer.tileLoaded
     });
@@ -245,6 +251,16 @@ class GklPureJSClient {
   }
 
   init() {
+    this.virtualScreen.initTileImageWithFallback([
+      '../../pict/nethack_default_32_tr.png',
+      '../../assets/nethack_default_32_tr.png',
+      'pict/nethack_default_32_tr.png',
+      'assets/nethack_default_32_tr.png',
+      '/pict/nethack_default_32_tr.png',
+      '/assets/nethack_default_32_tr.png'
+    ], () => {
+      this.virtualScreen.markAllDirty();
+    });
     this.mapRenderer.init();
     this.zoomRenderer.init();
     if (this.webgpuRenderer) {
@@ -399,6 +415,7 @@ class GklPureJSClient {
       const gId = (gi.glyph !== undefined && gi.glyph !== null) ? gi.glyph : (glyph !== undefined && glyph !== null ? glyph : -1);
 
       if (x >= 0 && x < 80 && y >= 0 && y < 24) {
+        this.virtualScreen?.markDirty(x, y);
         this.mapRenderer.asciiGridBuffer[y][x] = { ch, color };
         this.mapRenderer.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
         this.mapRenderer.redrawSingleCell(x, y);
@@ -413,6 +430,7 @@ class GklPureJSClient {
     // 6. Clear Window / Clear Map
     this.core.on('clear_nhwindow', ({ windowId }) => {
       if (windowId === 2 || windowId === 0) {
+        this.virtualScreen?.clearScreen();
         this.mapRenderer.clearMapGrid();
         if (this.zoomRenderer.zoomCtx && this.zoomRenderer.zoomCanvas) {
           this.zoomRenderer.zoomCtx.fillStyle = '#090916';
@@ -422,6 +440,7 @@ class GklPureJSClient {
     });
 
     this.core.on('map_cleared', () => {
+      this.virtualScreen?.clearScreen();
       this.mapRenderer.clearMapGrid();
     });
 
@@ -1127,6 +1146,7 @@ class GklPureJSClient {
     this.userPreferredTab = 'advices';
 
     this.modalManager.reset();
+    this.virtualScreen?.clearScreen();
     this.mapRenderer.clearMapGrid();
     if (this.elMessageLog) this.elMessageLog.innerHTML = '';
 

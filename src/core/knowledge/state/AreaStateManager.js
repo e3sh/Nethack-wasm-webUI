@@ -69,8 +69,46 @@ export class AreaStateManager {
         this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
         this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
         this.engravingCache = new Map(); // 現在フロアの床文字同定キャッシュ ("x,y" => EngravingData)
+        this.dirtyCells = new Set();     // 変更があったセルの座標キャッシュ ("x,y")
         this.grid = [];
         this.resetGrid();
+    }
+
+    /**
+     * 指定セルの差分更新フラグを付与
+     * @param {number} x
+     * @param {number} y
+     */
+    markDirty(x, y) {
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            this.dirtyCells.add(`${x},${y}`);
+        }
+    }
+
+    /**
+     * 全セルの差分更新フラグを一括付与
+     */
+    markAllDirty() {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.dirtyCells.add(`${x},${y}`);
+            }
+        }
+    }
+
+    /**
+     * 差分セル一覧を取得
+     * @returns {Set<string>}
+     */
+    getDirtyCells() {
+        return this.dirtyCells;
+    }
+
+    /**
+     * 差分セル一覧をクリア
+     */
+    clearDirtyCells() {
+        this.dirtyCells.clear();
     }
 
     /**
@@ -101,6 +139,7 @@ export class AreaStateManager {
                 if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
                     if (this.grid[y] && this.grid[y][x]) {
                         this.grid[y][x].bottom = { ...stairEntity, isCachedPreload: true };
+                        this.markDirty(x, y);
                     }
                 }
             }
@@ -451,6 +490,7 @@ export class AreaStateManager {
             }
             this.grid.push(row);
         }
+        this.markAllDirty();
     }
 
     /**
@@ -564,6 +604,7 @@ export class AreaStateManager {
                 cell.middle = null;
                 cell.top = null;
                 cell.effect = null;
+                this.markDirty(x, y);
 
                 // 階段・ハシゴであればフロア別キャッシュに記録 (後方互換性)
                 if (info.cmapFlags && (info.cmapFlags.isStairUp || info.cmapFlags.isStairDown)) {
@@ -589,6 +630,7 @@ export class AreaStateManager {
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 cell.effect = null;
+                this.markDirty(x, y);
 
                 // 🎯 押し出し先への岩出現検知 (Case B: プレイヤー移動後に押し出し先マスへ岩グリフが届いた場合)
                 if (isBoulderGlyph(glyphId) && (this.lastMoveDx !== 0 || this.lastMoveDy !== 0)) {
@@ -599,6 +641,7 @@ export class AreaStateManager {
                         if (feetCell && feetCell.middle && isBoulderEntity(feetCell.middle)) {
                             // 押し出し先に岩が届いたため、足元の岩をクリア
                             feetCell.middle = null;
+                            this.markDirty(this.playerX, this.playerY);
                         }
                     }
                 }
@@ -612,6 +655,7 @@ export class AreaStateManager {
                     : null;
                 if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
                     cell.bottom = createInferredFloor();
+                    this.markDirty(x, y);
                 }
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
                 cell.effect = null;
@@ -656,8 +700,10 @@ export class AreaStateManager {
                 const cachedStair = this.stairCache ? this.stairCache.get(key) : null;
                 if (cachedStair) {
                     cell.bottom = { ...cachedStair };
+                    this.markDirty(x, y);
                 } else if (cell.bottom && cell.bottom.isCachedPreload) {
                     delete cell.bottom.isCachedPreload;
+                    this.markDirty(x, y);
                 }
             }
             if (this.playerX === x && this.playerY === y) return false;
@@ -684,6 +730,8 @@ export class AreaStateManager {
                         if (pushedCell && pushedCell.middle && isBoulderEntity(pushedCell.middle)) {
                             // 押し出し先に既に岩が存在するため、足元の岩をクリア
                             cell.middle = null;
+                            this.markDirty(x, y);
+                            this.markDirty(pushedX, pushedY);
                         }
                     }
                 }
