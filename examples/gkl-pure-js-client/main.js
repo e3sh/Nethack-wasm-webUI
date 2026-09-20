@@ -5,6 +5,8 @@ import { OnDemandLookService } from "../../src/core/knowledge/services/OnDemandL
 
 import { MapRenderer } from './modules/renderers/MapRenderer.js';
 import { ZoomRenderer } from './modules/renderers/ZoomRenderer.js';
+import { MainViewportRenderer } from './modules/renderers/MainViewportRenderer.js';
+import { MinimapHudRenderer } from './modules/renderers/MinimapHudRenderer.js';
 import { VirtualDungeonScreen } from './modules/renderers/VirtualDungeonScreen.js';
 import { KnowledgeView } from './modules/components/KnowledgeView.js';
 import { InventoryView } from './modules/components/InventoryView.js';
@@ -42,7 +44,8 @@ class GklPureJSClient {
     this.webgpuCanvas = document.getElementById('webgpu-canvas');
     this.asciiGrid = document.getElementById('ascii-grid');
     this.btnToggleView = document.getElementById('btn-toggle-view');
-    this.btnToggleZoom = document.getElementById('btn-toggle-zoom');
+    this.btnToggleMinimap = document.getElementById('btn-toggle-minimap') || document.getElementById('btn-toggle-zoom');
+    this.btnToggleZoom = this.btnToggleMinimap; // 後方互換
     this.btnSettingsToggle = document.getElementById('btn-settings-toggle');
     this.settingsDropdown = document.getElementById('settings-menu-dropdown');
     this.elMessageLog = document.getElementById('message-log');
@@ -53,39 +56,42 @@ class GklPureJSClient {
     // 0. 仮想スクリーン統合背景マネージャー (80x24 x 32px: 2560x768px オフスクリーン)
     this.virtualScreen = new VirtualDungeonScreen();
 
-    // 1. Map Renderer
-    this.mapRenderer = new MapRenderer({
+    // 1. メインビューポートレンダラー (自キャラ追従 32px 原寸スプライトビュー)
+    this.mainViewportRenderer = new MainViewportRenderer({
       canvas: this.canvas,
       asciiGrid: this.asciiGrid,
       btnToggleView: this.btnToggleView,
+      virtualScreen: this.virtualScreen,
       getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
-      virtualScreen: this.virtualScreen
+      getSituation: () => this.core?.gkl?.getSituation(),
+      getCore: () => this.core
     });
+    // 後方互換エイリアス
+    this.mapRenderer = this.mainViewportRenderer;
 
     // 1.5. WebGPU HD2D Renderer (✨ 3D ジオラマビュー)
     this.webgpuRenderer = new WebGPUHD2DRenderer({
       canvas: this.webgpuCanvas,
       getSituation: () => this.core?.gkl?.getSituation(),
       getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
-      getGlyphBuffer: () => this.mapRenderer.glyphGridBuffer,
+      getGlyphBuffer: () => this.mainViewportRenderer.glyphGridBuffer,
       getCore: () => this.core,
-      getTileImg: () => this.mapRenderer.tileImg,
-      isTileLoaded: () => this.mapRenderer.tileLoaded,
+      getTileImg: () => this.mainViewportRenderer.tileImg,
+      isTileLoaded: () => this.mainViewportRenderer.tileLoaded,
     });
 
-    // 2. Zoom Camera Renderer
-    this.zoomRenderer = new ZoomRenderer({
-      zoomCanvas: document.getElementById('zoom-canvas'),
-      zoomViewportBox: document.getElementById('zoom-viewport-box'),
-      zoomPosBadge: document.getElementById('zoom-pos-badge'),
-      btnToggleZoom: this.btnToggleZoom,
-      getSituation: () => this.core?.gkl?.getSituation(),
-      getGlyphBuffer: () => this.mapRenderer.glyphGridBuffer,
-      getCore: () => this.core,
+    // 2. ミニマップ HUD レンダラー (フロア全体 80x24 縮小転送 ＆ ピン留めオーバーレイ ＆ [Tab] 最大化)
+    this.minimapRenderer = new MinimapHudRenderer({
+      minimapCanvas: document.getElementById('minimap-canvas'),
+      minimapHudBox: document.getElementById('minimap-hud-box') || document.getElementById('zoom-viewport-box'),
+      minimapPosBadge: document.getElementById('minimap-pos-badge') || document.getElementById('zoom-pos-badge'),
+      btnToggleMinimap: document.getElementById('btn-minimap-toggle'),
       virtualScreen: this.virtualScreen,
-      tileImg: this.mapRenderer.tileImg,
-      tileLoaded: this.mapRenderer.tileLoaded
+      getSituation: () => this.core?.gkl?.getSituation(),
+      getCore: () => this.core
     });
+    // 後方互換ラッパー: 既存の zoomRenderer プロパティ経由のアクセスを安全に維持
+    this.zoomRenderer = this.mainViewportRenderer;
 
     // 3. Knowledge & Advices View
     this.knowledgeView = new KnowledgeView({
@@ -240,6 +246,7 @@ class GklPureJSClient {
       getContainerModal: () => this.containerModal,
       getPaperdollModal: () => this.paperdollModal,
       getCodexModal: () => this.codexModal,
+      getMinimapRenderer: () => this.minimapRenderer,
     });
 
     // 10. Startup Step Progression State
@@ -261,8 +268,7 @@ class GklPureJSClient {
     ], () => {
       this.virtualScreen.markAllDirty();
     });
-    this.mapRenderer.init();
-    this.zoomRenderer.init();
+    this.mainViewportRenderer.init();
     if (this.webgpuRenderer) {
       this.webgpuRenderer.init().then((ok) => {
         if (ok) {
@@ -277,7 +283,21 @@ class GklPureJSClient {
     this.bindDOMEvents();
     this.onLanguageChanged();
     this.bootstrapGame();
-    this.zoomRenderer.startGklRenderLoop();
+    this.startMainRenderLoop();
+  }
+
+  startMainRenderLoop() {
+    const loop = () => {
+      if (this.currentViewMode === 'graphic' && this.mainViewportRenderer) {
+        const situation = this.core?.gkl?.getSituation();
+        if (situation) {
+          this.mainViewportRenderer.renderMainViewport(situation.area);
+          this.minimapRenderer?.renderMinimap(situation);
+        }
+      }
+      requestAnimationFrame(loop);
+    };
+    loop();
   }
 
   initCore() {
@@ -368,16 +388,18 @@ class GklPureJSClient {
 
     // 4. Cursor Movement
     this.core.on('cursor', ({ x, y }) => {
-      const prevX = this.mapRenderer.targetCursorX;
-      const prevY = this.mapRenderer.targetCursorY;
-      this.mapRenderer.targetCursorX = x;
-      this.mapRenderer.targetCursorY = y;
-      this.zoomRenderer.targetCursorX = x;
-      this.zoomRenderer.targetCursorY = y;
+      const prevX = this.mainViewportRenderer.targetCursorX;
+      const prevY = this.mainViewportRenderer.targetCursorY;
+      this.mainViewportRenderer.targetCursorX = x;
+      this.mainViewportRenderer.targetCursorY = y;
+      if (this.minimapRenderer) {
+        this.minimapRenderer.targetCursorX = x;
+        this.minimapRenderer.targetCursorY = y;
+      }
 
-      if (prevX >= 0 && prevY >= 0) this.mapRenderer.redrawSingleCell(prevX, prevY);
+      if (prevX >= 0 && prevY >= 0) this.mainViewportRenderer.redrawSingleCell(prevX, prevY);
       if (x >= 0 && y >= 0) {
-        this.mapRenderer.redrawSingleCell(x, y);
+        this.mainViewportRenderer.redrawSingleCell(x, y);
       }
 
       // プレイヤーが移動した場合は床文字HUDを自然に片付け
@@ -405,6 +427,8 @@ class GklPureJSClient {
       window.core = this.core;
       window.gkl = this.core.gkl;
       window.engravingHud = this.engravingHud;
+      window.mainViewportRenderer = this.mainViewportRenderer;
+      window.minimapRenderer = this.minimapRenderer;
     }
 
     // 5. Print Glyph (Map Update & GKL AreaStateManager 同期)
@@ -416,14 +440,9 @@ class GklPureJSClient {
 
       if (x >= 0 && x < 80 && y >= 0 && y < 24) {
         this.virtualScreen?.markDirty(x, y);
-        this.mapRenderer.asciiGridBuffer[y][x] = { ch, color };
-        this.mapRenderer.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
-        this.mapRenderer.redrawSingleCell(x, y);
-
-        if (this.zoomRenderer.isZoomMode && this.zoomRenderer.zoomCtx && this.core.gkl) {
-          const situation = this.core.gkl.getSituation();
-          this.zoomRenderer.renderZoomCanvas(situation?.area);
-        }
+        this.mainViewportRenderer.asciiGridBuffer[y][x] = { ch, color };
+        this.mainViewportRenderer.glyphGridBuffer[y][x] = { glyph: gId, ch, color };
+        this.mainViewportRenderer.redrawSingleCell(x, y);
       }
     });
 
@@ -431,17 +450,13 @@ class GklPureJSClient {
     this.core.on('clear_nhwindow', ({ windowId }) => {
       if (windowId === 2 || windowId === 0) {
         this.virtualScreen?.clearScreen();
-        this.mapRenderer.clearMapGrid();
-        if (this.zoomRenderer.zoomCtx && this.zoomRenderer.zoomCanvas) {
-          this.zoomRenderer.zoomCtx.fillStyle = '#090916';
-          this.zoomRenderer.zoomCtx.fillRect(0, 0, this.zoomRenderer.zoomCanvas.width, this.zoomRenderer.zoomCanvas.height);
-        }
+        this.mainViewportRenderer.clearMapGrid();
       }
     });
 
     this.core.on('map_cleared', () => {
       this.virtualScreen?.clearScreen();
-      this.mapRenderer.clearMapGrid();
+      this.mainViewportRenderer.clearMapGrid();
     });
 
     this.core.on('restarted', () => {
@@ -529,7 +544,7 @@ class GklPureJSClient {
       const now = performance.now();
 
       if (fx.type === 'ATTACK_HIT') {
-        this.zoomRenderer.addVisualFx({
+        this.mainViewportRenderer.addVisualFx({
           type: 'SLASH',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -538,7 +553,7 @@ class GklPureJSClient {
           color: '#ffffff'
         });
       } else if (fx.type === 'DAMAGE_TAKEN') {
-        this.zoomRenderer.addVisualFx({
+        this.mainViewportRenderer.addVisualFx({
           type: 'DAMAGE_FLASH',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -548,9 +563,9 @@ class GklPureJSClient {
           durationMs: 160,
           color: '#ff1744'
         });
-        this.zoomRenderer.triggerScreenShake(3, 100);
+        this.mainViewportRenderer.triggerScreenShake(3, 100);
       } else if (fx.type === 'KILL_CONFIRMED') {
-        this.zoomRenderer.addVisualFx({
+        this.mainViewportRenderer.addVisualFx({
           type: 'KILL_BURST',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -559,7 +574,7 @@ class GklPureJSClient {
           color: '#ffd700'
         });
       } else if (fx.type === 'RECOVER_HEAL') {
-        this.zoomRenderer.addVisualFx({
+        this.mainViewportRenderer.addVisualFx({
           type: 'HEAL_RING',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -570,12 +585,10 @@ class GklPureJSClient {
           color: '#00e676'
         });
       } else if (fx.type === 'PLAYER_DIED') {
-        this.mapRenderer.isPlayerDead = true;
-        this.mapRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
-        this.zoomRenderer.isPlayerDead = true;
-        this.zoomRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
-        this.zoomRenderer.triggerScreenShake(5, 300);
-        this.zoomRenderer.addVisualFx({
+        this.mainViewportRenderer.isPlayerDead = true;
+        this.mainViewportRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
+        this.mainViewportRenderer.triggerScreenShake(5, 300);
+        this.mainViewportRenderer.addVisualFx({
           type: 'DEATH_BURST',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -585,19 +598,13 @@ class GklPureJSClient {
           color: '#ef4444'
         });
         if (fx.targetX !== undefined && fx.targetY !== undefined) {
-          this.mapRenderer.redrawSingleCell(fx.targetX, fx.targetY);
-        }
-        if (this.zoomRenderer.isZoomMode && this.zoomRenderer.zoomCtx && this.core && this.core.gkl) {
-          const situation = this.core.gkl.getSituation();
-          this.zoomRenderer.renderZoomCanvas(situation?.area);
+          this.mainViewportRenderer.redrawSingleCell(fx.targetX, fx.targetY);
         }
       } else if (fx.type === 'PLAYER_RESURRECTED') {
-        const prevDeathPos = this.mapRenderer.deathPosition;
-        this.mapRenderer.isPlayerDead = false;
-        this.mapRenderer.deathPosition = null;
-        this.zoomRenderer.isPlayerDead = false;
-        this.zoomRenderer.deathPosition = null;
-        this.zoomRenderer.addVisualFx({
+        const prevDeathPos = this.mainViewportRenderer.deathPosition;
+        this.mainViewportRenderer.isPlayerDead = false;
+        this.mainViewportRenderer.deathPosition = null;
+        this.mainViewportRenderer.addVisualFx({
           type: 'HEAL_RING',
           gx: fx.targetX,
           gy: fx.targetY,
@@ -607,11 +614,7 @@ class GklPureJSClient {
           color: '#ffd700'
         });
         if (prevDeathPos) {
-          this.mapRenderer.redrawSingleCell(prevDeathPos.x, prevDeathPos.y);
-        }
-        if (this.zoomRenderer.isZoomMode && this.zoomRenderer.zoomCtx && this.core && this.core.gkl) {
-          const situation = this.core.gkl.getSituation();
-          this.zoomRenderer.renderZoomCanvas(situation?.area);
+          this.mainViewportRenderer.redrawSingleCell(prevDeathPos.x, prevDeathPos.y);
         }
       }
     });
@@ -680,9 +683,12 @@ class GklPureJSClient {
       this.cycleViewMode();
     };
 
-    if (this.btnToggleZoom) {
-      this.btnToggleZoom.onclick = () => {
-        this.zoomRenderer.toggleZoom();
+    if (this.btnToggleMinimap) {
+      this.btnToggleMinimap.onclick = () => {
+        this.minimapRenderer.toggleVisibility();
+        const isEn = this.currentLanguage === 'en';
+        const prefix = isEn ? '🗺️ Minimap HUD: ' : '🗺️ ミニマップ HUD: ';
+        this.btnToggleMinimap.textContent = prefix + (this.minimapRenderer.isVisible ? 'ON' : 'OFF');
       };
     }
 
@@ -1018,8 +1024,8 @@ class GklPureJSClient {
   onLanguageChanged() {
     const isEn = this.currentLanguage === 'en';
 
-    this.mapRenderer.setLanguage(this.currentLanguage);
-    this.zoomRenderer.setLanguage(this.currentLanguage);
+    this.mainViewportRenderer.setLanguage(this.currentLanguage);
+    this.minimapRenderer.setLanguage(this.currentLanguage);
     this.knowledgeView.setLanguage(this.currentLanguage);
     this.inventoryView.setLanguage(this.currentLanguage);
     this.assistHud.setLanguage(this.currentLanguage);
@@ -1522,9 +1528,9 @@ class GklPureJSClient {
         statusGauges: true, // ユーザー要望：代替ゲージとしてHPゲージは残す
         statusGklExtra: false
       };
-      // クラシック選択時はズームカメラもOFFに
-      if (this.zoomRenderer && this.zoomRenderer.isZoomMode) {
-        this.zoomRenderer.toggleZoom(false);
+      // クラシック選択時はミニマップHUDもOFFに
+      if (this.minimapRenderer && this.minimapRenderer.isVisible) {
+        this.minimapRenderer.toggleVisibility(false);
       }
     } else if (presetName === 'modern') {
       newConfig = {
@@ -1536,9 +1542,9 @@ class GklPureJSClient {
         statusGauges: true,
         statusGklExtra: true
       };
-      // モダン選択時はズームカメラもONに
-      if (this.zoomRenderer && !this.zoomRenderer.isZoomMode) {
-        this.zoomRenderer.toggleZoom(true);
+      // モダン選択時はミニマップHUDもONに
+      if (this.minimapRenderer && !this.minimapRenderer.isVisible) {
+        this.minimapRenderer.toggleVisibility(true);
       }
     }
     this.saveLayoutConfig(newConfig);

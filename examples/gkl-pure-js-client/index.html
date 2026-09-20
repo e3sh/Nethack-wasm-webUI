@@ -71,8 +71,8 @@
             <!-- ビュー・カメラ -->
             <div class="settings-menu-group">
               <span class="settings-menu-title" id="lbl-settings-view-section">表示・カメラ</span>
-              <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: 🎨 Graphic Canvas</button>
-              <button id="btn-toggle-zoom" class="btn-menu-item">🎯 ズームカメラ: ON</button>
+              <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: 🎨 Main Camera</button>
+              <button id="btn-toggle-minimap" class="btn-menu-item">🗺️ ミニマップ HUD: ON</button>
             </div>
             <div class="settings-menu-separator"></div>
 
@@ -154,19 +154,20 @@
             </div>
           </div>
 
-          <!-- 描画用 2D Graphic Canvas (全体 80x24 View) -->
-          <canvas id="game-canvas" width="1280" height="336"></canvas>
+          <!-- 描画用 2D Graphic Canvas (自キャラ中心メインビューポート 32px 原寸スプライト) -->
+          <canvas id="game-canvas" width="720" height="288"></canvas>
 
           <!-- 描画用 WebGPU HD2D Canvas (3D ジオラマ View) -->
-          <canvas id="webgpu-canvas" width="1280" height="336" class="hidden"></canvas>
+          <canvas id="webgpu-canvas" width="720" height="288" class="hidden"></canvas>
 
-          <!-- 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ右上固定) -->
-          <div id="zoom-viewport-box" class="zoom-viewport-box">
-            <div class="zoom-header">
-              <span>🎯 FOCUS CAMERA</span>
-              <span id="zoom-pos-badge" class="zoom-badge">@ (0,0)</span>
+          <!-- 🗺️ フロア全体 ミニマップ HUD (右上固定 / [Tab] で画面中央オーバーレイ展開) -->
+          <div id="minimap-hud-box" class="minimap-hud-box">
+            <div class="minimap-header">
+              <span class="minimap-title">🗺️ MINIMAP</span>
+              <span id="minimap-pos-badge" class="minimap-badge">@ (0,0)</span>
+              <button id="btn-minimap-toggle" class="minimap-expand-btn" title="マップ展開 / 収納 [Tab]">⛶</button>
             </div>
-            <canvas id="zoom-canvas" width="672" height="288"></canvas>
+            <canvas id="minimap-canvas" width="240" height="72"></canvas>
           </div>
 
           <!-- 🧭 フロア設備案内フローティング HUD (Landmarks Bar) -->

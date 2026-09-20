@@ -12,13 +12,13 @@
   border: 1px solid var(--border-color);
   border-radius: 6px;
   overflow: hidden;
-  min-height: 336px;
+  min-height: 288px;
 }
 
 #game-canvas,
 #webgpu-canvas {
-  width: 1280px;
-  height: 336px;
+  width: 720px;
+  height: 288px;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -140,7 +140,107 @@
 .clr-14 { color: #00e5ff; }
 .clr-15 { color: #ffffff; }
 
-/* 🎯 自キャラ周辺 拡大ズームカメラ窓 (オーバーレイ中央固定) */
+/* 🗺️ フロア全体 ミニマップ HUD (右上固定 / [Tab] で画面中央オーバーレイ展開) */
+.minimap-hud-box {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(12, 16, 28, 0.85);
+  border: 1px solid rgba(120, 210, 255, 0.35);
+  border-radius: 6px;
+  padding: 4px 6px 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.minimap-hud-box:hover {
+  border-color: rgba(120, 210, 255, 0.6);
+  background: rgba(12, 16, 28, 0.95);
+}
+
+/* [Tab] キー展開時: 画面中央オーバーレイ (大画面マキシマイズ) */
+.minimap-hud-box.maximized {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  background: rgba(9, 11, 20, 0.95);
+  border: 2px solid rgba(120, 210, 255, 0.85);
+  border-radius: 8px;
+  padding: 8px 12px 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.25);
+  z-index: 100;
+}
+
+.minimap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--primary-color, #78d2ff);
+  letter-spacing: 0.5px;
+  padding-bottom: 2px;
+}
+
+.minimap-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.minimap-badge {
+  background: #090916;
+  border: 1px solid var(--border-color, #232936);
+  color: var(--accent-gold, #ffd740);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+}
+
+.minimap-expand-btn {
+  background: transparent;
+  border: 1px solid rgba(120, 210, 255, 0.3);
+  border-radius: 3px;
+  color: #cce6ff;
+  padding: 0 4px;
+  font-size: 10px;
+  cursor: pointer;
+  line-height: 14px;
+  transition: all 0.15s ease;
+}
+
+.minimap-expand-btn:hover {
+  background: rgba(120, 210, 255, 0.2);
+  border-color: #78d2ff;
+  color: #fff;
+}
+
+#minimap-canvas {
+  background: #05070e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  image-rendering: pixelated;
+  display: block;
+  width: 240px;
+  height: 72px;
+}
+
+.minimap-hud-box.maximized #minimap-canvas {
+  width: 720px;
+  height: 216px;
+  border-color: rgba(120, 210, 255, 0.4);
+}
+
+/* 旧ズームボックス互換性フォールバック */
 .zoom-viewport-box {
   position: absolute;
   top: 50%;
@@ -151,39 +251,11 @@
   border-radius: 6px;
   padding: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
   z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
-.zoom-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10px;
-  font-weight: bold;
-  color: var(--primary-color);
-  letter-spacing: 0.5px;
-}
-
-.zoom-badge {
-  background: #090916;
-  border: 1px solid var(--border-color);
-  color: var(--accent-gold);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-}
-
-#zoom-canvas {
-  width: 672px;
-  height: 288px;
-  background: #000;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  image-rendering: pixelated;
-  display: block;
-  cursor: crosshair;
-}
+.zoom-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; color: var(--primary-color); }
+.zoom-badge { background: #090916; border: 1px solid var(--border-color); color: var(--accent-gold); padding: 1px 4px; border-radius: 3px; }
+#zoom-canvas { width: 672px; height: 288px; background: #000; display: block; }

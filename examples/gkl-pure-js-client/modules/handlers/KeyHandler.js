@@ -4,12 +4,13 @@
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
 
 export class KeyHandler {
-  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal }) {
+  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal, getMinimapRenderer }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
+    this.getMinimapRenderer = getMinimapRenderer || (() => null);
   }
 
   handleGlobalKeyDown(e) {
@@ -132,6 +133,21 @@ export class KeyHandler {
     }
 
     if (modal.isAnyModalOpen && modal.isAnyModalOpen()) {
+      return;
+    }
+
+    // 🗺️ ミニマップ HUD 全体オーバーレイ展開 [Tab]
+    const minimap = this.getMinimapRenderer ? this.getMinimapRenderer() : null;
+    if (minimap && (e.code === 'Tab' || e.key === 'Tab')) {
+      e.preventDefault();
+      minimap.toggleMaximize();
+      return;
+    }
+
+    // ミニマップ最大化中に Escape が押された場合は縮小
+    if (minimap && minimap.isMaximized && (e.code === 'Escape' || e.key === 'Escape')) {
+      e.preventDefault();
+      minimap.toggleMaximize(false);
       return;
     }
 
