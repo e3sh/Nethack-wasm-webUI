@@ -14,19 +14,98 @@ export class LoreCodex {
      * @param {Object} [options]
      * @param {LoreCodexStorage} [options.storage] - カスタムストレージ
      * @param {boolean} [options.autoLoad=true] - 初期化時にストレージから自動復元するか
+     * @param {Object} [options.translationEngine] - 翻訳エンジン (TranslationEngine)
+     * @param {Object} [options.translator] - 翻訳エンジン別名
+     * @param {Object} [options.master] - カスタム LORE マスタ
      */
     constructor(options = {}) {
         this.storage = options.storage || new LoreCodexStorage();
+        this.translationEngine = options.translationEngine || options.translator || null;
         this.rumors = new Map();     // rumorId -> rumorObject
         this.oracles = new Map();    // oracleId -> oracleObject
         this.engravings = new Map(); // engravingId -> engravingObject (床文字・落書き・墓碑銘コレクション)
         this.currentWard = null;     // 最新の結界状態
         this.listeners = new Set();
-        this.master = LORE_MASTER;
+        this.master = options.master || LORE_MASTER;
 
         if (options.autoLoad !== false) {
             this.load();
         }
+    }
+
+    /**
+     * 翻訳エンジンの設定・更新（最新辞書による翻訳再解決も同時に実行）
+     * @param {Object} engine - TranslationEngine インスタンス
+     */
+    setTranslationEngine(engine) {
+        this.translationEngine = engine;
+        this.refreshTranslations();
+    }
+
+    /**
+     * 辞書更新や言語切り替え時に全メモリ上エントリの翻訳を再解決
+     */
+    refreshTranslations() {
+        for (const [id, r] of this.rumors.entries()) {
+            r.translatedText = this._resolveTranslation(r, 'RUMOR');
+        }
+        for (const [id, o] of this.oracles.entries()) {
+            o.translatedText = this._resolveTranslation(o, 'ORACLE');
+        }
+        for (const [id, e] of this.engravings.entries()) {
+            e.translatedText = this._resolveTranslation(e, e.category || (e.isHeadstone ? 'HEADSTONE' : 'ENGRAVING'));
+        }
+        this._notify('translationsRefreshed', null);
+    }
+
+    /**
+     * エントリの日本語訳を動的に解決（マスタまたは翻訳エンジン）
+     * @param {Object} item
+     * @param {'RUMOR'|'ORACLE'|'ENGRAVING'|'HEADSTONE'|'ELBERETH'} [category]
+     * @returns {string}
+     * @private
+     */
+    _resolveTranslation(item, category = null) {
+        if (!item) return '';
+
+        const targetCat = category || item.category || (item.isHeadstone ? 'HEADSTONE' : '');
+
+        // 1. Elbereth の場合
+        if (targetCat === 'ELBERETH' || item.isElbereth) {
+            return 'エルベレス';
+        }
+
+        const rawText = (item.text || item.actualText || '').trim();
+        if (!rawText) return item.translatedText || '';
+
+        // 2. マスタデータからの逆引き
+        if (targetCat === 'RUMOR') {
+            if (this.master?.rumors) {
+                const found = this.master.rumors.find(r => r.id === item.id || r.text === rawText);
+                if (found && found.translatedText) return found.translatedText;
+            }
+        } else if (targetCat === 'ORACLE') {
+            if (this.master?.oracles) {
+                const found = this.master.oracles.find(o => o.id === item.id || o.text === rawText);
+                if (found && found.translatedText) return found.translatedText;
+            }
+        } else if (targetCat === 'ENGRAVING' && !item.isHeadstone) {
+            if (this.master?.engravings) {
+                const found = this.master.engravings.find(e => e.id === item.id || e.text === rawText);
+                if (found && found.translatedText) return found.translatedText;
+            }
+        }
+
+        // 3. TranslationEngine による動的翻訳（墓碑銘やマスタ外の床文字・噂話）
+        if (this.translationEngine && typeof this.translationEngine.translate === 'function') {
+            const translated = this.translationEngine.translate(rawText);
+            if (translated && translated !== rawText) {
+                return translated;
+            }
+        }
+
+        // 4. 既存の translatedText があればフォールバック
+        return item.translatedText || '';
     }
 
     /**
@@ -71,10 +150,11 @@ export class LoreCodex {
         const existing = this.rumors.get(id);
         const isNew = !existing;
 
+        const tr = rumor.translatedText || this._resolveTranslation({ id, text: rumor.text }, 'RUMOR');
         const entry = {
             id: id,
             text: rumor.text,
-            translatedText: rumor.translatedText || existing?.translatedText || '',
+            translatedText: tr || existing?.translatedText || '',
             isTrue: rumor.isTrue !== undefined ? rumor.isTrue : (existing ? existing.isTrue : true),
             category: 'RUMOR',
             subCategory: rumor.isTrue ? 'TRUE_RUMOR' : 'FALSE_RUMOR',
@@ -111,11 +191,12 @@ export class LoreCodex {
         const existing = this.oracles.get(id);
         const isNew = !existing;
 
+        const tr = oracle.translatedText || this._resolveTranslation({ id, text: oracle.text }, 'ORACLE');
         const entry = {
             id: id,
             title: oracle.title || existing?.title || oracle.text.split('\n')[0].substring(0, 40),
             text: oracle.text,
-            translatedText: oracle.translatedText || existing?.translatedText || '',
+            translatedText: tr || existing?.translatedText || '',
             category: 'ORACLE',
             isSpecial: oracle.isSpecial || existing?.isSpecial || false,
             firstDiscoveredAt: existing ? existing.firstDiscoveredAt : new Date().toISOString(),
@@ -159,11 +240,21 @@ export class LoreCodex {
             validCategory = engraving.isHeadstone ? 'HEADSTONE' : (engraving.category === 'ELBERETH' ? 'ELBERETH' : 'ENGRAVING');
         }
 
+        const rawText = engraving.text || existing?.text || engraving.actualText || '';
+        const tr = engraving.translatedText || this._resolveTranslation({
+            id,
+            text: rawText,
+            actualText: engraving.actualText,
+            isHeadstone: engraving.isHeadstone,
+            isElbereth: validCategory === 'ELBERETH',
+            category: validCategory
+        }, validCategory);
+
         const entry = {
             id: id,
-            text: engraving.text || existing?.text || engraving.actualText || '',
+            text: rawText,
             actualText: engraving.actualText || existing?.actualText || '',
-            translatedText: engraving.translatedText || existing?.translatedText || '',
+            translatedText: tr || existing?.translatedText || '',
             source: engraving.source || existing?.source || (engraving.isHeadstone ? '墓碑銘 (Headstone)' : '床の落書き'),
             category: validCategory,
             subCategory: engraving.subCategory || existing?.subCategory || (engraving.category === 'RUMOR' ? 'RUMOR' : ''),
@@ -387,14 +478,19 @@ export class LoreCodex {
     }
 
     /**
-     * 現在の状態をシリアライズ
+     * 現在の状態をシリアライズ (LocalStorage 容量節約のため translatedText を除外)
      * @returns {Object}
      */
     serialize() {
+        const stripTranslation = (item) => {
+            const { translatedText, ...rest } = item;
+            return rest;
+        };
+
         return {
-            rumors: Array.from(this.rumors.values()),
-            oracles: Array.from(this.oracles.values()),
-            engravings: Array.from(this.engravings.values()),
+            rumors: Array.from(this.rumors.values()).map(stripTranslation),
+            oracles: Array.from(this.oracles.values()).map(stripTranslation),
+            engravings: Array.from(this.engravings.values()).map(stripTranslation),
             lastWard: this.currentWard
         };
     }
@@ -414,7 +510,7 @@ export class LoreCodex {
     }
 
     /**
-     * データをデシリアライズして取り込み
+     * データをデシリアライズして取り込み（メモリ復元時に日本語訳を動的解決・キャッシュ）
      * @param {Object} data
      */
     deserialize(data) {
@@ -422,17 +518,33 @@ export class LoreCodex {
 
         if (Array.isArray(data.rumors)) {
             for (const r of data.rumors) {
-                if (r && r.id) this.rumors.set(r.id, r);
+                if (r && r.id) {
+                    const entry = { ...r };
+                    const tr = this._resolveTranslation(entry, 'RUMOR');
+                    entry.translatedText = tr || entry.translatedText || '';
+                    this.rumors.set(r.id, entry);
+                }
             }
         }
         if (Array.isArray(data.oracles)) {
             for (const o of data.oracles) {
-                if (o && o.id) this.oracles.set(o.id, o);
+                if (o && o.id) {
+                    const entry = { ...o };
+                    const tr = this._resolveTranslation(entry, 'ORACLE');
+                    entry.translatedText = tr || entry.translatedText || '';
+                    this.oracles.set(o.id, entry);
+                }
             }
         }
         if (Array.isArray(data.engravings)) {
             for (const e of data.engravings) {
-                if (e && e.id) this.engravings.set(e.id, e);
+                if (e && e.id) {
+                    const entry = { ...e };
+                    const cat = entry.category || (entry.isHeadstone ? 'HEADSTONE' : (entry.isElbereth ? 'ELBERETH' : 'ENGRAVING'));
+                    const tr = this._resolveTranslation(entry, cat);
+                    entry.translatedText = tr || entry.translatedText || '';
+                    this.engravings.set(e.id, entry);
+                }
             }
         }
         if (data.lastWard) {

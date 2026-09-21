@@ -922,6 +922,49 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(searchedRumors[0].isTrue).toBe(true);
         });
 
+        it('墓碑銘（HEADSTONE）メッセージを受信した際、Codexに日本語訳が動的補完されて登録され、serialize時に除外されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            core.translator.trMap.set(
+                '...and they made me engrave my own headstone too!',
+                '....それに、自分の墓石を自分で彫らされたんだぜ！'
+            );
+            const engraveSignalListener = vi.fn();
+            core.on('signal:SIGNAL_LORE_ENGRAVE', engraveSignalListener);
+
+            // 墓石メッセージ
+            putstrHandler({ text: 'Something is engraved here on the headstone.' });
+            putstrHandler({ text: 'You read: "...and they made me engrave my own headstone too!".' });
+
+            expect(engraveSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = engraveSignalListener.mock.calls[0][0];
+            expect(emitted.isHeadstone).toBe(true);
+
+            // 冒険手帳 (Codex) に登録され、メモリ上で日本語訳が動的に補完されていること
+            const codex = core.getCodex();
+            const engravings = codex.getEngravings();
+            expect(engravings.length).toBe(1);
+            expect(engravings[0].isHeadstone).toBe(true);
+            expect(engravings[0].category).toBe('HEADSTONE');
+            expect(engravings[0].text).toBe('...and they made me engrave my own headstone too!');
+            expect(engravings[0].translatedText).toBe('....それに、自分の墓石を自分で彫らされたんだぜ！');
+
+            // 日本語キーワードで検索できること
+            const hits = codex.search('彫らされた');
+            expect(hits.length).toBe(1);
+
+            // LocalStorage 保存時 (serialize) には translatedText が除外されること (容量節約)
+            const serialized = codex.serialize();
+            expect(serialized.engravings[0].translatedText).toBeUndefined();
+        });
+
         it('床文字や本文単独行から偽りの噂話（FALSE_RUMOR）が届いた際、確実にCodexへ登録され未読シグナルが発行されること', () => {
             let putstrHandler = null;
             const mockDriver = {

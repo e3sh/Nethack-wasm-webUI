@@ -137,7 +137,10 @@ export class WebUICore {
         const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
         this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
         this.loreDetector = options.loreDetector || new LoreDetector();
-        this.loreCodex = options.loreCodex || new LoreCodex();
+        this.loreCodex = options.loreCodex || new LoreCodex({ translationEngine: this.translator });
+        if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function') {
+            this.loreCodex.setTranslationEngine(this.translator);
+        }
         this.interactiveController = options.interactiveController || new InteractiveRequestController({
             driver: this.driver,
             signalDetector: this.signalDetector
@@ -208,6 +211,9 @@ export class WebUICore {
         }
         if (this.gkl && typeof this.gkl.setLanguage === 'function') {
             this.gkl.setLanguage(resolvedLang);
+        }
+        if (this.loreCodex && typeof this.loreCodex.refreshTranslations === 'function') {
+            this.loreCodex.refreshTranslations();
         }
         this.emit('languageChanged', { language: resolvedLang });
     }
@@ -1486,10 +1492,14 @@ export class WebUICore {
 
                             // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録
                             if (typeof this.loreCodex.addEngraving === 'function') {
+                                const translated = loreSignal.restored?.translation
+                                    || (loreSignal.isElbereth ? 'エルベレス' : '')
+                                    || (this.translator ? this.translator.translate(loreSignal.pristineText || loreSignal.actualText) : '');
+
                                 this.loreCodex.addEngraving({
                                     text: loreSignal.pristineText || loreSignal.actualText,
                                     actualText: loreSignal.actualText,
-                                    translatedText: loreSignal.restored?.translation || (loreSignal.isElbereth ? 'エルベレス' : ''),
+                                    translatedText: (translated !== (loreSignal.pristineText || loreSignal.actualText)) ? translated : '',
                                     source: loreSignal.restored?.source || (loreSignal.isHeadstone ? '墓碑銘 (Headstone)' : (loreSignal.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
                                     category: loreSignal.isHeadstone ? 'HEADSTONE' : (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
                                     subCategory: loreSignal.restored?.category || '',

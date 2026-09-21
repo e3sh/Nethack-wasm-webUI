@@ -231,4 +231,74 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
         // 神託は残っている
         expect(codex.getOracles().length).toBe(1);
     });
+
+    it('LocalStorage 保存時 (serialize) に translatedText が除外され、復元時 (load) に動的補完されること', () => {
+        const mockTranslator = {
+            translate: (text) => {
+                if (text === '...and they made me engrave my own headstone too!') {
+                    return '....それに、自分の墓石を自分で彫らされたんだぜ！';
+                }
+                return text;
+            }
+        };
+
+        codex.setTranslationEngine(mockTranslator);
+
+        // 1. 噂話 (マスタ由来)、神託 (マスタ由来)、墓碑銘 (TranslationEngine由来) を追加
+        codex.addRumor({ id: 'rumor_tru_1', text: "A blindfold can be very useful if you're telepathic.", isTrue: true });
+        codex.addOracle({ id: 'oracle_1', text: 'If thy wand hath run out of charges...' });
+        codex.addEngraving({
+            text: '...and they made me engrave my own headstone too!',
+            category: 'HEADSTONE',
+            isHeadstone: true
+        });
+
+        // メモリ上では翻訳がセットされている
+        expect(codex.getRumors()[0].translatedText).toContain('テレパシー');
+        expect(codex.getOracles()[0].translatedText).toContain('もし汝の杖');
+        expect(codex.getEngravings()[0].translatedText).toBe('....それに、自分の墓石を自分で彫らされたんだぜ！');
+
+        // 2. serialize() の結果に translatedText が含まれていないこと (容量節約の確認)
+        const serialized = codex.serialize();
+        expect(serialized.rumors[0].translatedText).toBeUndefined();
+        expect(serialized.oracles[0].translatedText).toBeUndefined();
+        expect(serialized.engravings[0].translatedText).toBeUndefined();
+
+        // 3. 別の Codex インスタンスでストレージから復元した際、翻訳が動的に再解決されること
+        const restoredCodex = new LoreCodex({
+            storage: codex.storage,
+            translationEngine: mockTranslator,
+            autoLoad: true
+        });
+
+        expect(restoredCodex.getRumors()[0].translatedText).toContain('テレパシー');
+        expect(restoredCodex.getOracles()[0].translatedText).toContain('もし汝の杖');
+        expect(restoredCodex.getEngravings()[0].translatedText).toBe('....それに、自分の墓石を自分で彫らされたんだぜ！');
+
+        // 4. 動的解決された墓碑銘の日本語訳で検索できること
+        const searchHits = restoredCodex.search('彫らされた');
+        expect(searchHits.length).toBe(1);
+        expect(searchHits[0].isHeadstone).toBe(true);
+    });
+
+    it('辞書更新時に refreshTranslations / setTranslationEngine で翻訳が最新化されること', () => {
+        let currentTranslation = '旧訳：墓石を彫った';
+        const dynamicTranslator = {
+            translate: () => currentTranslation
+        };
+
+        codex.setTranslationEngine(dynamicTranslator);
+        codex.addEngraving({
+            text: 'custom epitaph',
+            isHeadstone: true
+        });
+
+        expect(codex.getEngravings()[0].translatedText).toBe('旧訳：墓石を彫った');
+
+        // 辞書更新をシミュレート
+        currentTranslation = '新訳：墓石を自分で彫らされた！';
+        codex.refreshTranslations();
+
+        expect(codex.getEngravings()[0].translatedText).toBe('新訳：墓石を自分で彫らされた！');
+    });
 });
