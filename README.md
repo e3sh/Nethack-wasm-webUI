@@ -5,6 +5,7 @@ NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `
 クラシックな NetHack の深いゲーム性をそのままに、リアルタイム日本語翻訳、リッチなペーパードール装備管理、コンテナ操作、初心者〜中級者の事故死を防ぐ各種入力支援ダイアログ、状況判断支援を行うゲーム知識層（GKL: Game Knowledge Layer）を統合しています。
 
 👉 **[🎮 ブラウザでプレイ (GKL Pure JS Client デモ)](https://e3sh.github.io/Nethack-wasm-webUI/)**  
+👉 **[📖 かんたん操作ガイド (遊び方・画面の見方)](./examples/gkl-pure-js-client/PLAYER_GUIDE.md)**  
 👉 **[🔍 ナレッジインスペクター (GKL 内部知識ベース)](https://e3sh.github.io/Nethack-wasm-webUI/tools/knowledge-inspector.html)**
 
 ---
@@ -224,6 +225,10 @@ npm test          # Vitest によるテストスイート実行
 
 ## 📚 ドキュメント
 
+### 🎮 プレイヤー向け
+- [【GKLpureJSclient】かんたん操作ガイド](examples/gkl-pure-js-client/PLAYER_GUIDE.md) - 基本操作、画面の見方、推奨アクション、設定などの完全マニュアル
+
+### 🛠️ アーキテクチャ・開発者向け
 詳しい設計や仕様については `docs/` ディレクトリを参照してください。
 
 - [逆引き設定・セーブデータ管理 FAQ / 開発者ガイド](docs/FAQ_and_Configuration_Guide.md)

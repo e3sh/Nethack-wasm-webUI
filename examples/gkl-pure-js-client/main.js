@@ -272,6 +272,12 @@ class GklPureJSClient {
     this.mainViewportRenderer.init();
     if (this.webgpuRenderer) {
       this.webgpuRenderer.init().then((ok) => {
+        if (this.layoutConfig?.preset === 'classic') {
+          // クラシックプリセットの場合は ASCII を優先
+          this.currentViewMode = 'ascii';
+          this.updateViewModeUI();
+          return;
+        }
         if (ok) {
           // WebGPU 対応環境ではデフォルトで HD2D ジオラマを本番メインに昇格
           this.currentViewMode = 'hd2d';
@@ -691,6 +697,18 @@ class GklPureJSClient {
         }
       }
     });
+  }
+
+  setViewMode(mode) {
+    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
+    let targetMode = mode;
+    if (targetMode === 'hd2d' && !isWebGpuAvailable) {
+      targetMode = 'graphic';
+    }
+    if (['hd2d', 'graphic', 'ascii'].includes(targetMode)) {
+      this.currentViewMode = targetMode;
+      this.updateViewModeUI();
+    }
   }
 
   cycleViewMode() {
@@ -1635,6 +1653,11 @@ class GklPureJSClient {
     const btnModern = document.getElementById('btn-preset-modern');
     if (btnClassic) btnClassic.classList.toggle('active', config.preset === 'classic');
     if (btnModern) btnModern.classList.toggle('active', config.preset === 'modern');
+
+    // 5. プリセットに応じたビューの初期復元
+    if (config.preset === 'classic' && this.currentViewMode !== 'ascii') {
+      this.setViewMode('ascii');
+    }
   }
 
   setPreset(presetName) {
@@ -1649,6 +1672,8 @@ class GklPureJSClient {
         statusGauges: true, // ユーザー要望：代替ゲージとしてHPゲージは残す
         statusGklExtra: false
       };
+      // クラシック選択時はビューを ASCII に切り替え
+      this.setViewMode('ascii');
       // クラシック選択時はミニマップHUDもOFFに
       if (this.minimapRenderer && this.minimapRenderer.isVisible) {
         this.minimapRenderer.toggleVisibility(false);
@@ -1663,6 +1688,8 @@ class GklPureJSClient {
         statusGauges: true,
         statusGklExtra: true
       };
+      // GKLモダン選択時はビューを HD-2D (利用可能なら) または 2Dグラフィック に切り替え
+      this.setViewMode('hd2d');
       // モダン選択時はミニマップHUDもONに
       if (this.minimapRenderer && !this.minimapRenderer.isVisible) {
         this.minimapRenderer.toggleVisibility(true);
