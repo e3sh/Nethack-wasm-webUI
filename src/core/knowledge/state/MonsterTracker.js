@@ -72,9 +72,9 @@ export class MonsterTracker {
         if (x < 0 || y < 0) return null;
 
         const info = classifyGlyph(glyphId);
-        if (info.type !== ENTITY_TYPES.MONSTER && info.type !== ENTITY_TYPES.PET) {
-            return null;
-        }
+        if (info.type === ENTITY_TYPES.PET) return null;  // Pet（味方）は追跡対象外
+        if (info.isRidden) return null;                   // Ridden（騎乗中）は追跡対象外
+        if (info.type !== ENTITY_TYPES.MONSTER) return null;
 
         const monOffset = info.subType !== undefined ? info.subType : (info.monOffset !== undefined ? info.monOffset : (glyphInfo?.monOffset ?? -1));
         const monKnowledge = (monOffset >= 0 ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null) || {};
