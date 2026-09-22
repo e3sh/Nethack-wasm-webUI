@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-21
+last_updated: 2026-09-22
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -29,25 +29,36 @@ last_updated: 2026-09-21
 
 現在設計が完了し、直近の着手対象となっている最重要リファクタリング・移行タスクです。
 
-### 1.1 Phase 5: 既存状態把握機能のメッセージマスタ移行と WebUICore 責務純化
-- **ステータス**: `🚧 in-progress`
-- **設計書**: [phase5_detailed_migration_plan.ja.md](./7_futures/phase5_detailed_migration_plan.ja.md)
-- **対象コード**: `src/core/WebUICore.js`, `src/core/knowledge/GKLPlugin.js`, `src/core/lore/`
-- **概要**: 抽出完了した NetHack Cソースメッセージ（14,849件）を基盤とし、WebUICore から LORE などのドメインロジックを GKL へ移設・純化して、メッセージ駆動パイプラインを一元化する計画。
-- **タスクロードマップ**:
-  - [ ] **Stage 5.1: 責務純化とアーキテクチャ境界の確立**
+### 1.1 Phase 5: メッセージシグナル化刷新と次世代 WebUICore / GKL 連携
+- **ステータス**: `🚧 in-progress` (設計・詳細仕様策定完了、クォータ回復待ち)
+- **マスタープラン**: [phase5_detailed_migration_plan.ja.md](./7_futures/phase5_detailed_migration_plan.ja.md)
+- **全体設計構想**: [message_context_and_signal_driven_architecture.ja.md](./7_futures/message_context_and_signal_driven_architecture.ja.md)
+- **最上位制約**: **「今できていること（全1037件テスト・全4クライアントビルド・既存モーダル操作）を絶対に壊さない」非破壊的移行**
+- **コアアーキテクチャ**:
+  - **2段構えシグナル**: WebUICore（第1層: 状況シグナル＝客観事実） ➔ GKL（第2層: `SituationCache` シグナル駆動化 ＆ 実施シグナル）
+  - **多重状況レイヤー**: 単一ターン減衰のジレンマを克服する空間距離ベースの対峙維持（迎撃時の取りこぼし防止・離脱時誤爆防止・`SpatialPatternEngine` 連携）
+  - **演出のデュアルパイプライン**: ログ・耐性・SE は即時ストリーム（Audio Queue 50〜80ms スタガード）、戦術助言はターン完了時（`poskey`）評価
+- **サブステージ別詳細ロードマップ**:
+  - [ ] **[Stage 5.1: LORE/Codex の GKL 移設と責務純化](./7_futures/phase5/stage5_1_lore_gkl_migration.ja.md)**
     - `src/core/lore/` を `src/core/knowledge/lore/` へ移設
-    - `WebUICore.js` 内のインライン LORE 処理（約90行）を GKL 側のシグナル購読へ分離
-  - [ ] **Stage 5.2: 実行時メッセージコンテキスト照合基盤**
-    - `build_message_context_catalog.py` による軽量実行時カタログ生成
-    - `MessageContextResolver` の新設（O(1)〜O(N_small) 高速同定）
-    - `WebUICore` メッセージ監視パイプラインの一元化
-  - [ ] **Stage 5.3: ドメイン別既存モジュールのメッセージマスタ移行**
-    - 効果音エンジン (`SoundEngine`): `You_hear` 等の決定論的トリガー
-    - 耐性マネージャ (`AttributeStateManager`): `You_feel` 等の確定的耐性獲得
-    - 道具識別 (`ItemIdentificationResolver`): 読解・振るメッセージによるタイプ判明
-  - [ ] **Stage 5.4: 多言語透過性の完全達成と総合検証**
-    - 日英二重キーワードの完全撤廃 (`messageId` への一元化)
+    - `WebUICore.js` 内のインライン LORE 処理（約90行）を GKL 側のシグナル購読へ分離（既存プロキシ API 完全維持）
+  - [ ] **[Stage 5.2: 状況シグナル基盤（第1層）と実行時コンテキスト照合](./7_futures/phase5/stage5_2_situation_signals.ja.md)**
+    - `build_message_context_catalog.py` による軽量実行時カタログ生成（< 250KB）
+    - `MessageContextResolver`（< 0.1ms 同定）および `ContextFrameBuffer` の新設
+    - WebUICore からの `situationSignal` 一元ディスパッチ
+  - [ ] **[Stage 5.3: GKL 状況キャッシュのシグナル駆動化と対話コンテキスト](./7_futures/phase5/stage5_3_interaction_context_and_actions.ja.md)**
+    - 既存 `SituationCache` をシグナル購読型へ進化させ、対話サブステート `InteractionContext` を統合
+    - 複数フォーカス候補、多重状況レイヤー（即時／空間距離／戦闘警戒）、フォーカスなし直接逆引き
+    - モーダル内外の境界設計（モーダル内 ActionRecipe シーケンス実行 vs 受動プロンプト維持）
+  - [ ] **[Stage 5.4: ドメイン別既存モジュールのメッセージマスタ移行](./7_futures/phase5/stage5_4_domain_modules_migration.ja.md)**
+    - **5.4A 効果音エンジン (`SoundEngine`)**: `You_hear`（142件）等 O(1) 発火、Audio Queue スタガード遅延（50〜80ms）、動的シンセシス拡張スロット
+    - **5.4B 耐性マネージャ (`AttributeStateManager`)**: `INTRINSIC_MESSAGE_MAP` による耐性獲得 O(1) 確定更新
+    - **5.4C 道具識別 (`DiscoveryStateManager`)**: `DISCOVERY_MESSAGE_MAP` による真名自動昇格
+  - [ ] **[Stage 5.5: 言語非依存ロジック確立と総合品質保証](./7_futures/phase5/stage5_5_quality_assurance_and_i18n.ja.md)**
+    - 二重キーワード（翻訳後日本語文字列依存）の完全撤廃
+    - 3層テストピラミッド再編（文章渡しテストの整理と `MessageContext` 渡しテスト主軸化）
+    - 翻訳非依存性テスト (`robustness.test.js`) 実証
+    - 全単体テスト（1037+件）および全 4 クライアント（Vue, React, Solid, Svelte）ビルド完全検証
 
 ---
 

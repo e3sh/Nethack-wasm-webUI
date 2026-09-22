@@ -2,7 +2,7 @@
 title: メッセージコンテキスト辞書とシグナル駆動型次世代WebUICoreアーキテクチャ将来構想
 status: proposal / future vision
 created_at: 2026-09-16
-last_updated: 2026-09-19
+last_updated: 2026-09-22
 related_code:
   - src/core/WebUICore.js
   - src/core/prompt/SignalDetector.js
@@ -240,34 +240,36 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
 [Phase 5: 既存状態把握機能のメッセージマスタ移行と次世代シグナル駆動 WebUICore の完成]
   【目的: 「後追い文字列推測」から「メッセージマスタ起点の一元確定」への既存モジュールの刷新】
   ※詳細設計・移行手順書: `docs/7_futures/phase5_detailed_migration_plan.ja.md`
-  ※作業規模と複雑性を踏まえ、以下の4つのサブステージ（Stage 5.1〜5.4）で段階的に移行を推進：
+  ※「WebUICore（第1層: 状況シグナル）＋ GKL（第2層: 現状把握・実施シグナル）」の2段構えモデルを採用
+  ※作業規模と複雑性を踏まえ、以下の5つのサブステージ（Stage 5.1〜5.5）で段階的に移行を推進：
     ・Stage 5.1: 責務純化とアーキテクチャ境界の確立（LORE/Codex の GKL 移設、WebUICore の純化）
-    ・Stage 5.2: 実行時メッセージコンテキスト照合基盤の確立（軽量カタログ生成と MessageContextResolver 新設）
-    ・Stage 5.3: ドメイン別既存モジュールのメッセージマスタ移行
-      - 5.3A: 効果音エンジン (SoundEngine) の決定論的トリガー移行 (You_hear 142件 & ドメイン事象)
-      - 5.3B: 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行 (You_feel 231件 & 飲食/薬品)
-      - 5.3C: 道具識別エンジン (ItemIdentificationResolver) の確定的判明移行 (read.c / zap.c 等)
-    ・Stage 5.4: 多言語透過性 (Language-Agnostic) の完全達成と全体回帰検証 (932+件テストパス)
+    ・Stage 5.2: 状況シグナル基盤の確立（軽量カタログ生成、MessageContextResolver、ContextFrameBuffer）
+    ・Stage 5.3: GKL 現状把握と実施シグナルの確立（InteractionContext、ActionSignalResolver、IRC連携）
+    ・Stage 5.4: ドメイン別既存モジュールのメッセージマスタ移行
+      - 5.4A: 効果音エンジン (SoundEngine) の刷新（Audio Queue、スタガード再生、You_hear 142件）
+      - 5.4B: 耐性・状態異常マネージャ (AttributeStateManager) の移行（You_feel 231件 & 飲食/薬品）
+      - 5.4C: 道具識別エンジン (DiscoveryStateManager) の確定的判明移行（read.c / zap.c 等）
+    ・Stage 5.5: 多言語透過性 (Language-Agnostic) の完全達成と総合回帰検証（全テスト1037+件＆全クライアントビルド）
   ------------------------------------------------------------------------------------------------
   0. 【最優先看板機能】かすれ床文字の考古学的復元アシスト（GKL Engraving Archaeology & Restoration Engine）: ★完了 (2026-09-18)
      - 背景・仕様: `src/engrave.c:random_engraving` では床の落書きの75%が Rumors、25%が `dat/engrave.txt` から選ばれ、`wipeout_text()` により生成時点で25%が削られ・変形（`rubouts[]`）して出現する。
      - 解決手法: `LoreDetector` の `SIGNAL_LORE_ENGRAVE` によるコンテキスト完全同定と、Rumors (787件) + Engrave (48件) の母数約840件へのスコープ完全隔離。
      - 価値: `docs/9_translation/translation_architecture_enhancement_plan.md` の長年の保留課題（全体ファジーマッチの誤爆リスク）をスマートに完全解決。かすれ文字（例: `El?er...` や擦れた格言）から原文を高精度同定し、完全な日本語訳と原型プレビューをプレイヤーに提示する GKL の象徴的アシスト機能。
      - 成果物: `tools/build_lore_database.py` (48件のSSOT化), `src/core/lore/EngravingArchaeologist.js` (rubouts逆引き・類似度復元エンジン), `LoreDetector.js` / `WebUICore.js` 連携, 単体テスト (16件全パス)
-  1. 効果音エンジン (SoundEngine) の移行:
-     - 翻訳後テキストの部分一致から、`You_hear` (142件) やドメイン事象マスタ起点の決定論的 SE トリガーへ刷新
-  2. 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行:
+  1. 2段構えシグナルアーキテクチャの確立:
+     - WebUICore からの客観的事実通知（状況シグナル）と、GKL の現状把握（InteractionContext: 目の前の対象、施錠状態、戦闘フラグ、能力）に基づく推奨行動通知（実施シグナル）への責務分離
+  2. 効果音エンジン (SoundEngine) の刷新:
+     - 決定論的 SE トリガーへの刷新および、同一ターン内複数 SE の音潰れを防ぐ Audio Queue & スタガード遅延再生（50〜80ms）
+  3. 耐性・状態異常マネージャ (AttributeStateManager / StatusAccessor) の移行:
      - `You_feel` (231件) や `eat.c` / `potion.c` のメッセージ ID 照合による誤爆ゼロの耐性獲得・体内変化検知
-  3. 道具識別エンジン (ItemIdentificationResolver) の移行:
+  4. 道具識別エンジン (ItemIdentificationResolver / DiscoveryStateManager) の移行:
      - `read.c` / `zap.c` 等のメッセージマスタ ID に基づく、未識別アイテム（巻物・杖等）の確定的自動判明
-  4. 多言語透過性 (Language-Agnostic) の完全達成:
-     - メッセージ ID（例: `eat.c:L123:You_feel:5`）を内部キーとし、GKL や判定ロジックから英語/日本語の二重キーワード依存を完全撤廃
-  5. LORE / Codex 機能の GameKnowledge (GKL) 配下への正式配置転換と責務純化:
-     - Phase 4 で暫定的に WebUICore に直接内蔵した LORE / Codex 機能（`src/core/lore/`）を、本来のドメイン境界である GKL 配下（`src/core/knowledge/lore/`）へ正式移設
-     - WebUICore は低レベル I/O とシグナル発行に特化し、GKLPlugin がシグナルを購読して Codex を更新・管理する疎結合構成へ純化
-     - TacticalAdvisor（戦術助言）と Elbereth 結界状態のシームレスな内部連携を実現
-  6. メッセージ監視パイプラインの一元化:
-     - WebUICore から流れる全メッセージをマスタ照合済みの構造化コンテキスト（`messageContext`）として一元ディスパッチする完成形へ
+  5. 多言語透過性 (Language-Agnostic) の完全達成:
+     - シグナル層は機械メタデータのみに純化し、画面表示テキストは `dictionary.csv`（TranslationEngine）に 100% 委譲する完全直交設計
+  6. LORE / Codex 機能の GameKnowledge (GKL) 配下への正式配置転換と責務純化:
+     - WebUICore は低レベル I/O と状況シグナル発行に特化し、GKLPlugin がシグナルを購読して Codex を更新・管理する疎結合構成へ純化
+  7. メッセージ監視パイプラインの一元化:
+     - WebUICore から流れる全メッセージをマスタ照合済みの構造化状況シグナルとして一元ディスパッチする完成形へ
 ```
 
 ---
