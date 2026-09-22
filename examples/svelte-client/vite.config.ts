@@ -13,9 +13,7 @@ function copyAssetsToDist(): Plugin {
 
       const filesToCopy = [
         'nethack.wasm',
-        'nethack_jp.wasm',
         'nethack.js',
-        'nethack_jp.js',
       ];
 
       const dirsToCopy = ['pict', 'param', 'dat', 'src/driver'];
@@ -68,12 +66,8 @@ function serveRootAssets(): Plugin {
 
         if (urlPath.endsWith('nethack.wasm')) {
           targetPath = path.join(rootDir, 'nethack.wasm');
-        } else if (urlPath.endsWith('nethack_jp.wasm')) {
-          targetPath = path.join(rootDir, 'nethack_jp.wasm');
         } else if (urlPath.endsWith('nethack.js')) {
           targetPath = path.join(rootDir, 'nethack.js');
-        } else if (urlPath.endsWith('nethack_jp.js')) {
-          targetPath = path.join(rootDir, 'nethack_jp.js');
         } else if (urlPath.startsWith('/src/driver/')) {
           targetPath = path.join(rootDir, urlPath);
         } else if (

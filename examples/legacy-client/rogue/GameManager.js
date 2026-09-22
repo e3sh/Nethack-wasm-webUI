@@ -751,7 +751,7 @@ function GameManager(g) {
         // WorkerBridge 経由の起動モデル (標準)
         if (this.bridge) {
             console.log("[GameManager] Initializing NetHack via NetHackWasmWorkerBridge...");
-            const targetWasmJs = wasmJsUrl || (window.location.pathname.includes('_jp') ? "nethack_jp.js" : "nethack.js");
+            const targetWasmJs = wasmJsUrl || "nethack.js";
 
             // config.html 等で保存された nh.config (extra_options) の読み込み
             let extraOptions = "";

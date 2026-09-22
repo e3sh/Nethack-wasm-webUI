@@ -12,7 +12,6 @@
  */
 
 import enCatalog from './ControlSignalCatalog.js';
-import jaCatalog from './ControlSignalCatalog.ja.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 export class SignalDetector {
@@ -37,25 +36,21 @@ export class SignalDetector {
 
     /**
      * ロケールまたはバリアントに応じた SignalDetector インスタンスを生成
-     * @param {'en'|'ja'|'vanilla'|'jnethack'} [localeOrVariant='en']
+     * @param {string} [_localeOrVariant='en']
      * @param {Object} [options]
      * @returns {SignalDetector}
      */
-    static createForLocale(localeOrVariant = 'en', options = {}) {
-        const catalog = SignalDetector.getCatalog(localeOrVariant);
+    static createForLocale(_localeOrVariant = 'en', options = {}) {
+        const catalog = SignalDetector.getCatalog(_localeOrVariant);
         return new SignalDetector(catalog, options);
     }
 
     /**
-     * ロケールまたはバリアントに応じた組み込みカタログを取得
-     * @param {'en'|'ja'|'vanilla'|'jnethack'} [localeOrVariant='en']
+     * ロケールまたはバリアントに応じた組み込みカタログを取得 (標準は Vanilla 英語カタログ)
+     * @param {string} [_localeOrVariant='en']
      * @returns {Object}
      */
-    static getCatalog(localeOrVariant = 'en') {
-        const key = String(localeOrVariant).toLowerCase();
-        if (key === 'ja' || key === 'jnethack' || key === 'japanese') {
-            return jaCatalog;
-        }
+    static getCatalog(_localeOrVariant = 'en') {
         return enCatalog;
     }
 

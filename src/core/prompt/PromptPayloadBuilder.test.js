@@ -364,7 +364,7 @@ describe('PromptPayloadBuilder', () => {
         expect(menuRes.assistant).toBeNull();
     });
 
-    it('虐殺（Genocide）プロンプト（クラス虐殺 / 単体虐殺、日英）を正しく検出し GENOCIDE アシスタントを生成できること', () => {
+    it('虐殺（Genocide）プロンプト（クラス虐殺 / 単体虐殺、新旧英語および翻訳後UI表示）を正しく検出し GENOCIDE アシスタントを生成できること', () => {
         const mockGenocideService = {
             getPresets: (mode) => [{ id: 'p1', target: 'L', mode }],
             getMonsterClasses: () => [{ symbol: 'L', nameEn: 'lich' }]
@@ -389,16 +389,7 @@ describe('PromptPayloadBuilder', () => {
         expect(resEnClass.assistant.playerRace).toBe('dwarf');
         expect(resEnClass.assistant.playerRole).toBe('valkyrie');
 
-        // 2. 日本語 クラス虐殺
-        const resJaClass = builder.build({
-            context: 'getlin',
-            prompt: "どのクラスのモンスターを虐殺しますか？",
-            rawPrompt: "どのクラスのモンスターを虐殺しますか？"
-        });
-        expect(resJaClass.subCategory).toBe('GENOCIDE');
-        expect(resJaClass.assistant.mode).toBe('CLASS');
-
-        // 3. 英語 単体虐殺 (旧構文: "What monster do you want to genocide?")
+        // 2. 英語 単体虐殺 (旧構文: "What monster do you want to genocide?")
         const resEnSingle = builder.build({
             category: PROMPT_CATEGORY.TEXT,
             prompt: "What monster do you want to genocide?",
@@ -406,15 +397,6 @@ describe('PromptPayloadBuilder', () => {
         });
         expect(resEnSingle.subCategory).toBe('GENOCIDE');
         expect(resEnSingle.assistant.mode).toBe('SINGLE');
-
-        // 4. 日本語 単体虐殺
-        const resJaSingle = builder.build({
-            context: 'getlin',
-            prompt: "どの種類のモンスターを虐殺しますか？",
-            rawPrompt: "どの種類のモンスターを虐殺しますか？"
-        });
-        expect(resJaSingle.subCategory).toBe('GENOCIDE');
-        expect(resJaSingle.assistant.mode).toBe('SINGLE');
 
         // 5. NetHack 3.7 / 5.0 最新英語 クラス虐殺 ("What class of monsters do you want to genocide?")
         const resEnClassLatest = builder.build({
@@ -438,7 +420,7 @@ describe('PromptPayloadBuilder', () => {
         const resClassWithHint = builder.build({
             context: 'getlin',
             prompt: "どのクラスのモンスターを虐殺しますか？ [記号かクラスを表す名前、または'?'を入力してください]",
-            rawPrompt: "どのクラスのモンスターを虐殺しますか？ [記号かクラスを表す名前、または'?'を入力してください]"
+            rawPrompt: "What class of monsters do you want to genocide? [enter a class symbol or class name, or '?']"
         });
         expect(resClassWithHint.subCategory).toBe('GENOCIDE');
         expect(resClassWithHint.assistant.mode).toBe('CLASS');
@@ -471,11 +453,11 @@ describe('PromptPayloadBuilder', () => {
         expect(resEn.assistant.type).toBe('POLYMORPH');
         expect(resEn.assistant.presets.length).toBe(1);
 
-        // 2. 日本語プロンプト: "どの種類のモンスターになりますか? [名前を入力してください]"
+        // 2. 翻訳UI実機等価: prompt は日本語で rawPrompt は英語 Vanilla コア
         const resJa = builder.build({
             context: 'getlin',
             prompt: "どの種類のモンスターになりますか? [名前を入力してください]",
-            rawPrompt: "どの種類のモンスターになりますか? [名前を入力してください]"
+            rawPrompt: "Become what kind of monster? [type the name]"
         });
         expect(resJa.subCategory).toBe('POLYMORPH');
         expect(resJa.assistant).toBeDefined();
@@ -505,11 +487,11 @@ describe('PromptPayloadBuilder', () => {
         expect(resEnScroll.assistant.presets[0].name).toBe('genocide');
         expect(resEnScroll.assistant.writeService).toBe(mockWriteService);
 
-        // 2. 日本語プロンプト (Spellbook)
+        // 2. 翻訳UI実機等価: prompt は日本語で rawPrompt は英語 Vanilla コア (Spellbook)
         const resJaBook = builder.build({
             context: 'getlin',
             prompt: "どんな呪文書を書くか?",
-            rawPrompt: "どんな呪文書を書くか?"
+            rawPrompt: "What type of spellbook do you want to write?"
         });
         expect(resJaBook.subCategory).toBe('WRITE');
         expect(resJaBook.assistant).toBeDefined();
@@ -547,20 +529,34 @@ describe('PromptPayloadBuilder', () => {
         });
 
         it('setSignalDetector で動的に SignalDetector を切り替えられること', () => {
-            const jaDetector = SignalDetector.createForLocale('ja');
+            const customCatalog = {
+                version: '1.0.0',
+                variant: 'custom',
+                signals: [
+                    {
+                        id: 'DYNAMIC_TEST_SIGNAL',
+                        subCategory: 'WISH',
+                        inputType: 'LINE_TEXT',
+                        priority: 200,
+                        contextFilter: { isTextType: true },
+                        patterns: ['Dynamic injected prompt:']
+                    }
+                ]
+            };
+            const customDetector = new SignalDetector(customCatalog);
             const builder = new PromptPayloadBuilder();
 
-            // デフォルト状態から明示的に jaDetector をセット
-            builder.setSignalDetector(jaDetector);
+            // デフォルト状態から明示的に customDetector をセット
+            builder.setSignalDetector(customDetector);
 
             const res = builder.build({
-                context: 'getlin',
-                rawPrompt: 'どのクラスのモンスターを虐殺しますか？'
+                category: PROMPT_CATEGORY.TEXT,
+                rawPrompt: 'Dynamic injected prompt:'
             });
 
-            expect(res.subCategory).toBe('GENOCIDE');
-            expect(res.assistant).toBeDefined();
-            expect(res.assistant.mode).toBe('CLASS');
+            expect(res.subCategory).toBe('WISH');
+            expect(res.inputType).toBe('LINE_TEXT');
+            expect(res.signal.signalId).toBe('DYNAMIC_TEST_SIGNAL');
         });
 
         it('キャラクタ作成メニューで subCategory: "CHARACTER_CREATION" および signal が付与されること', () => {

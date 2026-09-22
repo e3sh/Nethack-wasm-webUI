@@ -199,7 +199,7 @@ one last charge may yet be wrested from it!`;
         expect(sig4.restored.isTrue).toBe(true);
     });
 
-    it('NetHackJPの日本語メッセージ (同一行連結および複数行) を完璧に検知できること', () => {
+    it('翻訳レイヤー通過後の日本語メッセージ (同一行連結および複数行) を検知できること', () => {
         // 日本語: 落書き踏み荒らし (同一行連結)
         const msgGraffiti = '床に落書きがある.  あなたは読んだ: "Th? c?ke ?s a l?e".';
         const sig1 = detector.processMessage(msgGraffiti);

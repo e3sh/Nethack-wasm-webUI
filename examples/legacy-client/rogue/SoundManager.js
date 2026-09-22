@@ -239,14 +239,19 @@ class SoundManagerClass {
 
             const isLegacyDirInSound = typeof window !== 'undefined' && window.location.pathname.includes('/examples/legacy-client/');
             const candidatePaths = isLegacyDirInSound ? [
+                "../../param/sound_mapping.json",
+                "param/sound_mapping.json",
                 "../../sound_mapping.json",
                 "sound_mapping.json",
                 "../../../sound_mapping.json",
+                "/param/sound_mapping.json",
                 "/sound_mapping.json"
             ] : [
+                "param/sound_mapping.json",
                 "sound_mapping.json",
+                "../../param/sound_mapping.json",
                 "../../sound_mapping.json",
-                "../../../sound_mapping.json",
+                "/param/sound_mapping.json",
                 "/sound_mapping.json"
             ];
             let res = null;

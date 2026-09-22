@@ -289,234 +289,7 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
         });
     });
 
-    describe('2. JNetHack (日本語 Wasm コア辞書) の検証', () => {
-        const jaDetector = SignalDetector.createForLocale('ja');
 
-        it('JNetHack カタログが jnethack / ja であること', () => {
-            const catalog = jaDetector.getCurrentCatalog();
-            expect(catalog.variant).toBe('jnethack');
-            expect(catalog.locale).toBe('ja');
-        });
-
-        it('Wish (願い) の日本語プロンプトを検知できること', () => {
-            const payload = {
-                category: 'LINE_TEXT',
-                rawPrompt: '何を願いますか？'
-            };
-            const result = jaDetector.detect(payload);
-            expect(result.matched).toBe(true);
-            expect(result.signalId).toBe('SIGNAL_WISH');
-            expect(result.subCategory).toBe('WISH');
-            expect(result.inputType).toBe('LINE_TEXT');
-        });
-
-        it('Genocide (虐殺) の日本語プロンプトを種別ごとに検知できること', () => {
-            // クラス虐殺
-            const classRes = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: 'どのクラスのモンスターを虐殺しますか？'
-            });
-            expect(classRes.matched).toBe(true);
-            expect(classRes.signalId).toBe('SIGNAL_GENOCIDE_CLASS');
-            expect(classRes.params.mode).toBe('CLASS');
-
-            // 単体虐殺
-            const singleRes = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: 'どの種類のモンスターを虐殺しますか？'
-            });
-            expect(singleRes.matched).toBe(true);
-            expect(singleRes.signalId).toBe('SIGNAL_GENOCIDE_SINGLE');
-            expect(singleRes.params.mode).toBe('SINGLE');
-
-            // 汎用虐殺
-            const genericRes = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: '虐殺の対象'
-            });
-            expect(genericRes.matched).toBe(true);
-            expect(genericRes.signalId).toBe('SIGNAL_GENOCIDE_GENERIC');
-            expect(genericRes.params.mode).toBe('ALL');
-        });
-
-        it('Polymorph (変化制御) の日本語プロンプトを検知できること', () => {
-            const result = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: 'どの種類のモンスターになりますか？'
-            });
-            expect(result.matched).toBe(true);
-            expect(result.signalId).toBe('SIGNAL_POLYMORPH');
-        });
-
-        it('Write (魔法のマーカー書き込み) の日本語プロンプトを検知できること', () => {
-            const scrollRes = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: 'どんな巻物を書くか?'
-            });
-            expect(scrollRes.matched).toBe(true);
-            expect(scrollRes.signalId).toBe('SIGNAL_WRITE_SCROLL');
-            expect(scrollRes.subCategory).toBe('WRITE');
-            expect(scrollRes.params.targetType).toBe('SCROLL');
-
-            const bookRes = jaDetector.detect({
-                context: 'getlin',
-                rawPrompt: 'どんな呪文書を書くか?'
-            });
-            expect(bookRes.matched).toBe(true);
-            expect(bookRes.signalId).toBe('SIGNAL_WRITE_SPELLBOOK');
-            expect(bookRes.subCategory).toBe('WRITE');
-            expect(bookRes.params.targetType).toBe('SPELLBOOK');
-        });
-
-        it('Container (コンテナ操作) の日本語プロンプトを検知できること', () => {
-            // ActionMenu
-            const actionRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '大きな箱の中身をどうしますか？'
-            });
-            expect(actionRes.matched).toBe(true);
-            expect(actionRes.signalId).toBe('SIGNAL_CONTAINER_ACTION_MENU');
-            expect(actionRes.params.containerName).toBe('大きな箱');
-
-            // FloorSelect
-            const floorRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: 'どのコンテナを物色しますか？'
-            });
-            expect(floorRes.matched).toBe(true);
-            expect(floorRes.signalId).toBe('SIGNAL_CONTAINER_FLOOR_SELECT');
-
-            // CategorySelect (out / in)
-            const catOutRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '取り出すオブジェクトの種類'
-            });
-            expect(catOutRes.matched).toBe(true);
-            expect(catOutRes.params.direction).toBe('out');
-
-            const catInRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '入れるオブジェクトの種類'
-            });
-            expect(catInRes.matched).toBe(true);
-            expect(catInRes.params.direction).toBe('in');
-
-            // ItemSelect (out / in)
-            const itemOutRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '何を取り出しますか？'
-            });
-            expect(itemOutRes.matched).toBe(true);
-            expect(itemOutRes.params.direction).toBe('out');
-
-            const itemInRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '何を中に入れますか？'
-            });
-            expect(itemInRes.matched).toBe(true);
-            expect(itemInRes.params.direction).toBe('in');
-        });
-
-        it('CountPrompt (数量指定) の日本語プロンプトを検知できること', () => {
-            const countRes = jaDetector.detect({
-                category: 'LINE_TEXT',
-                rawPrompt: '何個のリンゴ？'
-            });
-            expect(countRes.matched).toBe(true);
-            expect(countRes.signalId).toBe('SIGNAL_COUNT_PROMPT');
-            expect(countRes.params.targetItemJa).toBe('リンゴ');
-        });
-
-        it('Direction, SideSelect, ItemSelect の日本語プロンプトを検知できること', () => {
-            // Direction
-            const dirRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: 'どの方向に進みますか？'
-            });
-            expect(dirRes.matched).toBe(true);
-            expect(dirRes.signalId).toBe('SIGNAL_DIRECTION');
-            expect(dirRes.subCategory).toBe('DIRECTION');
-            expect(dirRes.inputType).toBe('DIRECTION');
-
-            // SideSelect
-            const sideRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: 'どちらの指輪を外しますか？ [lr]'
-            });
-            expect(sideRes.matched).toBe(true);
-            expect(sideRes.signalId).toBe('SIGNAL_SIDE_SELECT');
-            expect(sideRes.subCategory).toBe('SIDE_SELECT');
-
-            // ItemSelect
-            const itemRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: '何を食べますか？ [efgh or ?*]'
-            });
-            expect(itemRes.matched).toBe(true);
-            expect(itemRes.signalId).toBe('SIGNAL_ITEM_SELECT');
-            expect(itemRes.subCategory).toBe('ITEM_SELECT');
-
-            // ConfirmYN
-            const confirmRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: '本当によろしいですか？ [y/n]'
-            });
-            expect(confirmRes.matched).toBe(true);
-            expect(confirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
-
-            const eatConfirmRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: '古い死体です。本当に食べますか？ [y/n]'
-            });
-            expect(eatConfirmRes.matched).toBe(true);
-            expect(eatConfirmRes.signalId).toBe('SIGNAL_CONFIRM_YN');
-
-            // TextInput
-            const textRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.TEXT,
-                rawPrompt: '床に何と刻みますか？'
-            });
-            expect(textRes.matched).toBe(true);
-            expect(textRes.signalId).toBe('SIGNAL_TEXT_INPUT');
-
-            // ToolSelect
-            const toolRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.YN,
-                rawPrompt: '何を使って書きますか？'
-            });
-            expect(toolRes.matched).toBe(true);
-            expect(toolRes.signalId).toBe('SIGNAL_TOOL_SELECT');
-
-            // キャラクタ作成 (JNetHack)
-            const jaRoleRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: '職業を選択してください'
-            });
-            expect(jaRoleRes.matched).toBe(true);
-            expect(jaRoleRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
-            expect(jaRoleRes.params.step).toBe('role');
-
-            const jaConfirmRes = jaDetector.detect({
-                category: PROMPT_CATEGORY.MENU,
-                rawPrompt: 'よろしいですか？ [ynq]',
-                items: [
-                    { identifier: 0, str: 'home 秩序 男 人間 考古学者' },
-                    { identifier: 1, accelerator: 'y', str: 'はい; ゲームを開始' }
-                ]
-            });
-            expect(jaConfirmRes.matched).toBe(true);
-            expect(jaConfirmRes.signalId).toBe('SIGNAL_CHARACTER_CREATION');
-            expect(jaConfirmRes.params.step).toBe('confirm');
-        });
-
-        it('【重要】日本語版カタログでは英語プロンプトが検知されないこと (言語分離の検証)', () => {
-            const enWishResult = jaDetector.detect({
-                category: PROMPT_CATEGORY.TEXT,
-                rawPrompt: 'For what do you wish?'
-            });
-            expect(enWishResult.matched).toBe(false);
-        });
-    });
 
     describe('3. トリガコマンド・コンテキスト制御と安全性', () => {
         const detector = SignalDetector.createDefault();
@@ -590,12 +363,11 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(result.params.variant).toBe('slashem');
         });
 
-        it('payload にプロンプト文面が無い場合でも、contextInfo.lastMessage から SIGNAL_DIRECTION を正しく同定できること (en / ja)', () => {
-            const enDetector = SignalDetector.createDefault();
-            const jaDetector = SignalDetector.createForLocale('ja');
+        it('payload にプロンプト文面が無い場合でも、contextInfo.lastMessage から SIGNAL_DIRECTION を正しく同定できること', () => {
+            const detector = SignalDetector.createDefault();
 
-            // 英語バリアント (Vanilla NetHack 5.0)
-            const resEn = enDetector.detect(
+            // Vanilla NetHack 5.0 (英語 C コア)
+            const resEn = detector.detect(
                 { type: 'poskey', context: 'poskey' },
                 { lastMessage: 'In what direction?' }
             );
@@ -603,17 +375,8 @@ describe('SignalDetector - バリアント/ロケール別辞書分離構成', (
             expect(resEn.signalId).toBe('SIGNAL_DIRECTION');
             expect(resEn.inputType).toBe('DIRECTION');
 
-            // 日本語バリアント (JNetHack)
-            const resJa = jaDetector.detect(
-                { type: 'poskey', context: 'poskey' },
-                { lastMessage: 'どの方向に？' }
-            );
-            expect(resJa.matched).toBe(true);
-            expect(resJa.signalId).toBe('SIGNAL_DIRECTION');
-            expect(resJa.inputType).toBe('DIRECTION');
-
             // 実機等価: TranslationEngine で日本語化された inputType: 'DIRECTION', prompt: 'どの方向？'
-            const resRealDevice = enDetector.detect(
+            const resRealDevice = detector.detect(
                 { inputType: 'DIRECTION', prompt: 'どの方向？', title: 'どの方向？' },
                 { lastMessage: 'In what direction?' }
             );

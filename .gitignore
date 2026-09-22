@@ -7,11 +7,8 @@ dist/
 # AI & Internal Translation Utilities
 scratch/
 *.bak
-NetHackJP/
-NetHack-NetHack-5.0/
 tools/add_oracles_to_dictionary.py
 tools/merge_database_to_dictionary.py
-tools/merge_nethackjp_translations.py
 tools/deduplicate_dictionary.py
 tools/dev_scripts/add_missing_to_csv.py
 tools/dev_scripts/audit_and_mark_todo.py

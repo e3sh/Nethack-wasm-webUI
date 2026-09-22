@@ -141,7 +141,7 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 | **[handover_20260914_status_reevaluation.ja.md](./6_project_reports/handover_20260914_status_reevaluation.ja.md)** | `📦 past` | 完了状態・ペンディング状態 再評価総合レポート（2026/09/14版） |
 | **[notebooklm_knowledge_base.md](./6_project_reports/notebooklm_knowledge_base.md)** | `🔵 reference` | AIアシスタント・NotebookLM用ナレッジベース構築手順 |
 | **[driver_improvements.md](./6_project_reports/driver_improvements.md)** | `🔵 reference` | ドライバ改善・イベントディスパッチ最適化レポート |
-| **[nethack_jp_wasm_experiment.md](./6_project_reports/nethack_jp_wasm_experiment.md)** | `🔵 reference` | NetHack日本語版 (NetHackJP) WASM化実験記録 |
+| **[nethack_jp_wasm_experiment.md](./6_project_reports/archive/nethack_jp_wasm_experiment.md)** | `📦 archived` | NetHack日本語版 (NetHackJP) WASM化実験記録（アーカイブ退避） |
 | **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜直近の引き継ぎ資料・進捗報告書群（11ファイル退避済: 2026/09/05版含む） |
 
 ---
