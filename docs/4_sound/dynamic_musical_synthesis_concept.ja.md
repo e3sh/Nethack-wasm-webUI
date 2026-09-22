@@ -1,7 +1,7 @@
 ---
-title: dynamic_musical_synthesis_concept
-status: proposal
-last_updated: 2026-09-18
+title: 動的音程シンセシス構想 (Dynamic Musical & Pitch Synthesis Concept)
+status: proposed
+last_updated: 2026-09-21
 related_code:
   - src/core/sound/SoundEngine.js
   - docs/4_sound/sound_system_spec.md
@@ -10,6 +10,7 @@ related_code:
 # 動的音程シンセシス構想 (Dynamic Musical & Pitch Synthesis Concept)
 
 > [!NOTE]
+> **ステータス**: `💡 proposed` (音響シンセシス将来構想)  
 > 本ドキュメントは、NetHack のテキストメッセージに含まれる**「音名・音程（Pitch）」「罠の音」「モンスターの鳴き声・咆哮」「楽器演奏」**を検知し、Web Audio API のオシレーター（シンセシス機能）によってリアルタイムに発音・演出する将来構想（アイデア帳・仕様案）です。
 
 ---

@@ -1,4 +1,15 @@
+---
+title: GKL駆動型インテリジェントUI・操作高度化 アイデア＆ロードマップ構想
+status: proposed
+last_updated: 2026-09-21
+related_docs:
+  - docs/ROADMAP.md
+---
+
 # GKL駆動型インテリジェントUI・操作高度化 アイデア＆ロードマップ構想
+
+> [!NOTE]
+> **ステータス**: `💡 proposed` (次世代UI将来構想)
 
 ## 1. 概要と背景
 

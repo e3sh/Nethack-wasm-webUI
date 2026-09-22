@@ -1,4 +1,16 @@
+---
+title: コンテナ対話・UI 設計仕様書 (IRC & Signal-Driven SSOT)
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - src/core/container/ContainerController.js
+  - src/core/request/
+---
+
 # コンテナ対話・UI 設計仕様書 (IRC & Signal-Driven SSOT)
+
+> [!NOTE]
+> **ステータス**: `🟢 implemented` (実装完了・現行仕様)
 
 ## 1. 基本方針・設計原則 (Core Philosophy)
 

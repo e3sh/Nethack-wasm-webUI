@@ -13423,6 +13423,7 @@ function nhEntities() {
         "Stephan": "ステファン",
         "Lance Braccus": "ランス・ブラッカス",
         "Shadowhawk": "シャドウホーク",
+        "tough": "固い",
     };
 }
 
@@ -17249,8 +17250,10 @@ function nhPatterns() {
         { pattern: /^You\s+give\s+(.*)\s+all\s+your\s+gold\.$/, replace: "あなたは$1に、持っている金貨をすべて差し出します。" },
         { pattern: /^(.*)\s+returns\s+to\s+its\s+hand!$/, replace: "$1が、その手に戻ってくる！" },
         { pattern: /^You\s+add\s+\"(.*)\"\s+to\s+your\s+repertoire,\s+as\s+'(.*)'\.$/, replace: "レパートリーに「$1」を「$2」として追加します。" },
-        { pattern: /^(.*)\s+whines.\.$/, replace: "$1がクンクンと鳴いた。" },
+        { pattern: /^(.*)\s+whines\.$/, replace: "$1がクンクンと鳴いた。" },
         { pattern: /^(.*)'s\s+ghost$/, replace: "$1の幽霊" },
+        { pattern: /^(.*)\s+purrs\.$/, replace: "$1がゴロゴロと喉を鳴らす。" },
+        { pattern: /^There\s+is\s+(.*)\s+here.\s+Check\s+it\s+for\s+traps\?$/, replace: "ここに$1があります。罠がないか調べてみますか？" },
     ];
 }
 

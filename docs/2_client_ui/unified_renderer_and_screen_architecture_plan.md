@@ -1,10 +1,20 @@
+---
+title: 仮想スクリーン統合レンダラー ＆ UI画面刷新 計画仕様書
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - examples/gkl-pure-js-client/modules/renderers/VirtualDungeonScreen.js
+  - examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js
+  - examples/gkl-pure-js-client/modules/renderers/MinimapHudRenderer.js
+---
+
 # 仮想スクリーン統合レンダラー ＆ UI画面刷新 計画仕様書
 **Unified Virtual Screen & Modern Camera Architecture Plan**
 
 - **対象プロジェクト**: NetHack-wasm-webUI
 - **作成日**: 2026-09-20
 - **保存先**: `docs/2_client_ui/unified_renderer_and_screen_architecture_plan.md`
-- **ステータス**: 設計提案・実装検討中 (RFC)
+- **ステータス**: `🟢 implemented` (Phase 1〜3 実装・テスト完了)
 
 ---
 

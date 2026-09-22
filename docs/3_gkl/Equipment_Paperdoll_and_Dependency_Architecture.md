@@ -1,5 +1,18 @@
+---
+title: 装備ペーパードールUI ＆ 依存関係診断・換装プランナー 完全設計仕様書
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - src/core/knowledge/EquipmentRules.js
+  - src/core/knowledge/EquipmentDependencyAnalyzer.js
+  - src/core/knowledge/EquipmentActionPlanner.js
+---
+
 # 装備ペーパードールUI ＆ 依存関係診断・換装プランナー 完全設計仕様書
 (Equipment Paperdoll and Dependency Architecture Specification)
+
+> [!NOTE]
+> **ステータス**: `🟢 implemented` (ルール＆診断プランナー実装完了 / UI統合進行中)
 
 ## 1. 背景とビジョン
 

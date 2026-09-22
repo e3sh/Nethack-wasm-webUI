@@ -1,4 +1,16 @@
+---
+title: インベントリ重量・負荷状態管理仕様書 (Encumbrance & Weight Architecture)
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - src/core/knowledge/EncumbranceStateManager.js
+  - src/core/knowledge/EncumbrancePresenter.js
+---
+
 # インベントリ重量・負荷状態管理仕様書 (Encumbrance & Weight Architecture)
+
+> [!NOTE]
+> **ステータス**: `🟢 implemented` (実装完了・現行仕様)
 
 ## 1. 基本方針・設計原則 (Core Philosophy)
 

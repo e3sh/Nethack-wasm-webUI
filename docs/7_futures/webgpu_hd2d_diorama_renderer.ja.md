@@ -1,4 +1,19 @@
+---
+title: WebGPU HD-2D ジオラマレンダラー アーキテクチャ設計・移植ガイド
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js
+  - tests/ui/WebGPUHD2DRenderer.test.js
+related_docs:
+  - docs/2_client_ui/unified_renderer_and_screen_architecture_plan.md
+---
+
 # WebGPU HD-2D ジオラマレンダラー アーキテクチャ設計・移植ガイド
+
+> [!NOTE]
+> **ステータス**: `🟢 implemented` (実装完了・稼働中)  
+> 生WebGPU / WGSL によるクオータビュー 3D ジオラマレンダラーとして実装・テスト完備。
 
 本ドキュメントは、NetHack-wasm-webUI において実装・稼働している **WebGPU (WGSL) による HD-2D 風 3D ジオラマレンダラー (`WebGPUHD2DRenderer`)** の最新アーキテクチャ設計、シェーダー技法、視覚効果（軽量ライティング・パーティクル）、およびモダン Web コンポーネントへの移植ガイドをまとめた技術資料です。
 

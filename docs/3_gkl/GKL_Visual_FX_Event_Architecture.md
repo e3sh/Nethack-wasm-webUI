@@ -1,4 +1,16 @@
+---
+title: GKL 演出トリガーイベント仕様 & クライアント実装設計書
+status: implemented
+last_updated: 2026-09-21
+related_code:
+  - src/core/WebUICore.js
+  - examples/gkl-pure-js-client/
+---
+
 # GKL 演出トリガーイベント仕様 & クライアント実装設計書
+
+> [!NOTE]
+> **ステータス**: `🟢 implemented` (実装完了・現行仕様)
 
 本ドキュメントは、Game Knowledge Layer (GKL) と UI クライアント（演出家）の間で、操作テンポを損なわずに効果的なゲームフィール（手応え・フィードバック）を実現するための**演出トリガーイベント仕様**および **`GklPureJSClient` における実装ガイドライン**をまとめた設計資料です。
 
