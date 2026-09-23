@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-22
+last_updated: 2026-09-23
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -89,6 +89,17 @@ last_updated: 2026-09-22
 - **ステータス**: `💡 proposed`
 - **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
 - **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
+
+### 2.5 GKL クライアント UI/UX 刷新＆レンダラー表現高度化計画
+- **ステータス**: `💡 proposed` (2026-09-23 策定)
+- **設計書**: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
+- **対象コード**: `examples/gkl-pure-js-client/`, `src/core/knowledge/`
+- **概要**: GKL Pure JS Client における視認性・操作性・没入感を飛躍させる 5 大改善テーマの実装計画。
+  1. **HD2D 自キャラ足元枠の 3D パース吸着**: 床面 $Y=0.0$ の 4 点投影による立体四角枠化。
+  2. **Pet / Ridden / piletop 視覚的識別強調**: `glyphClassifier` の判定を活かしたバッジ・足元サークル・重なりマーク表示。
+  3. **キャラクタ作成ウィザード統合**: `askname` からの断片的な CUI 選択を、モダンな 1 画面ウィザードモーダルに統合。
+  4. **右クリック / 長押し操作の統合**: マップマス指定によるフローティング ContextActions ＆ ナレッジ即時呼出。
+  5. **全画面マップ ＋ 透過 HUD レイアウト刷新**: マップをウィンドウ追従全画面化し、メッセージやステータスを透過オーバーレイ配置。
 
 ---
 
