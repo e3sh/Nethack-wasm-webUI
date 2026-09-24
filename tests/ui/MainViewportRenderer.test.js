@@ -27,6 +27,8 @@ describe('MainViewportRenderer - 自キャラ追従迫力メインビューポ�
       closePath: vi.fn(),
       stroke: vi.fn(),
       arc: vi.fn(),
+      ellipse: vi.fn(),
+      fillText: vi.fn(),
       fill: vi.fn()
     };
 
@@ -214,5 +216,71 @@ describe('MainViewportRenderer - 自キャラ追従迫力メインビューポ�
     expect(renderer.isGraphicCanvasMode).toBe(true);
     expect(mockCanvas.classList.remove).toHaveBeenCalledWith('hidden');
     expect(mockAsciiGrid.classList.add).toHaveBeenCalledWith('hidden');
+  });
+
+  it('8. Phase A テーマ 1: 自キャラ枠ハイライトが cell.middle 直後、cell.top の前に描画されること (Middle プライオリティ)', () => {
+    const areaGrid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // 自キャラ位置 (25, 10) に middle (アイテム) と top (プレイヤー) を配置
+    areaGrid[10][25] = {
+      bottom: { rawGlyph: 3992 },
+      middle: { rawGlyph: 3450 },
+      top: { rawGlyph: 100, isPlayer: true }
+    };
+
+    const callOrder = [];
+    mockCtx.strokeRect = vi.fn((x, y, w, h) => {
+      callOrder.push('strokeRect');
+    });
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getAreaGrid: () => areaGrid
+    });
+
+    renderer.drawTile = vi.fn((glyphId, cols, tileMap, sx, sy, by) => {
+      callOrder.push(`drawTile:${glyphId}`);
+    });
+
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid });
+
+    // 自キャラ枠 (strokeRect) が cell.top (100) の drawTile よりも前に呼ばれていること
+    const frameIndex = callOrder.indexOf('strokeRect');
+    const playerTileIndex = callOrder.indexOf('drawTile:100');
+    expect(frameIndex).toBeGreaterThan(-1);
+    expect(playerTileIndex).toBeGreaterThan(-1);
+    expect(frameIndex).toBeLessThan(playerTileIndex);
+  });
+
+  it('9. Phase A テーマ 2: Pet / Ridden / piletop の視覚的強調マークが描画されること', () => {
+    const areaGrid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // (25, 10): プレイヤー
+    areaGrid[10][25] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 100, isPlayer: true } };
+    // (26, 10): Pet
+    areaGrid[10][26] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 770, isPet: true } };
+    // (27, 10): Ridden
+    areaGrid[10][27] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 2700, isRidden: true } };
+    // (28, 10): piletop
+    areaGrid[10][28] = { bottom: { rawGlyph: 3992 }, middle: { rawGlyph: 8000, isPile: true }, top: null };
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getAreaGrid: () => areaGrid
+    });
+
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid });
+
+    // Pet / Ridden 用の足元サークル (ellipse または arc) が呼ばれること
+    expect(mockCtx.ellipse).toHaveBeenCalled();
+
+    // Pet (♥), Ridden (R), piletop (+) のバッジ描画 (fillText) が呼ばれること
+    expect(mockCtx.fillText).toHaveBeenCalled();
+    const renderedTexts = mockCtx.fillText.mock.calls.map(c => c[0]);
+    expect(renderedTexts).toContain('♥');
+    expect(renderedTexts).toContain('R');
+    expect(renderedTexts).toContain('+');
   });
 });

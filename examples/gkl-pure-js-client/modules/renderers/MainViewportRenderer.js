@@ -12,6 +12,7 @@
  */
 
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
+import { classifyGlyph } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 
 export class MainViewportRenderer {
   constructor({
@@ -369,6 +370,54 @@ export class MainViewportRenderer {
           }
         }
 
+        // piletop (アイテム山積み) 視覚強調マーク (右下 [+] バッジ)
+        const middleGlyph = cell?.middle?.rawGlyph ?? -1;
+        const isPile = Boolean(cell?.middle?.isPile || (middleGlyph >= 7992 && middleGlyph < 9622));
+        if (isPile) {
+          this.ctx.save();
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+          this.ctx.fillRect(screenX + ts - 11, screenY + ts - 11, 10, 10);
+          this.ctx.strokeStyle = '#ffd700';
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeRect(screenX + ts - 11, screenY + ts - 11, 10, 10);
+          if (typeof this.ctx.fillText === 'function') {
+            this.ctx.fillStyle = '#ffeb3b';
+            this.ctx.font = 'bold 9px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('+', screenX + ts - 6, screenY + ts - 6);
+          }
+          this.ctx.restore();
+        }
+
+        // 自キャラ足元枠ハイライト (Middle レイヤー: cell.middle 直後、cell.top 直前)
+        // キャラクターのドット絵・バウンスの下に潜り込ませる
+        if (isPlayerTile) {
+          this.ctx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
+          this.ctx.lineWidth = this.isPlayerDead ? 1 : 2;
+          this.ctx.strokeRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+        }
+
+        // Pet / Ridden の同定判定
+        const topGlyph = cell?.top?.rawGlyph ?? -1;
+        const isPet = Boolean(cell?.top?.isPet || (topGlyph >= 766 && topGlyph < 1532));
+        const isRidden = Boolean(cell?.top?.isRidden || (topGlyph >= 2682 && topGlyph < 3448));
+
+        // Pet / Ridden 足元サークル (直立キャラクターの足元・背面)
+        if (isPet || isRidden) {
+          this.ctx.save();
+          this.ctx.strokeStyle = isRidden ? '#00b0ff' : '#00e676';
+          this.ctx.lineWidth = 1.5;
+          this.ctx.beginPath();
+          if (typeof this.ctx.ellipse === 'function') {
+            this.ctx.ellipse(screenX + ts / 2, screenY + ts - 3, ts * 0.35, ts * 0.16, 0, 0, Math.PI * 2);
+          } else {
+            this.ctx.arc(screenX + ts / 2, screenY + ts - 3, ts * 0.3, 0, Math.PI * 2);
+          }
+          this.ctx.stroke();
+          this.ctx.restore();
+        }
+
         // Layer 3: Top (キャラクター / モンスター / 死亡時墓石)
         if (cell?.top && cell.top.rawGlyph >= 0) {
           const isBouncing = !this.isPlayerDead;
@@ -377,19 +426,33 @@ export class MainViewportRenderer {
           this.drawTile(gData.glyph, cols, tileMap, screenX, screenY, 0);
         }
 
+        // Pet / Ridden 頭上ミニバッジ (♥ / R, PileTop と同様の統一ミニバッジ形式)
+        if (isPet || isRidden) {
+          const bounceOffset = !this.isPlayerDead ? bounceY : 0;
+          const bx = screenX + ts - 6;
+          const by = screenY + bounceOffset + 6;
+          this.ctx.save();
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+          this.ctx.fillRect(bx - 5, by - 5, 10, 10);
+          this.ctx.strokeStyle = isRidden ? '#00b0ff' : '#00e676';
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeRect(bx - 5, by - 5, 10, 10);
+          if (typeof this.ctx.fillText === 'function') {
+            this.ctx.fillStyle = isRidden ? '#00b0ff' : '#00e676';
+            this.ctx.font = 'bold 9px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(isRidden ? 'R' : '♥', bx, by);
+          }
+          this.ctx.restore();
+        }
+
         // Layer 4: Effect (過渡的エフェクト)
         if (cell?.effect && cell.effect.rawGlyph >= 0) {
           this.drawTile(cell.effect.rawGlyph, cols, tileMap, screenX, screenY, 0);
         }
 
-        // 自キャラ枠ハイライト
-        if (isPlayerTile) {
-          this.ctx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
-          this.ctx.lineWidth = this.isPlayerDead ? 1 : 2;
-          this.ctx.strokeRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
-        }
-
-        // ターゲットカーソル枠
+        // ターゲットカーソル枠 (最前面)
         if (this.targetCursorX >= 0 && tx === this.targetCursorX && ty === this.targetCursorY) {
           this.ctx.strokeStyle = '#ffd700';
           this.ctx.lineWidth = 2;

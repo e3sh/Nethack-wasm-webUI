@@ -3,8 +3,6 @@ import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
 import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
 import { OnDemandLookService } from "../../src/core/knowledge/services/OnDemandLookService.js";
 
-import { MapRenderer } from './modules/renderers/MapRenderer.js';
-import { ZoomRenderer } from './modules/renderers/ZoomRenderer.js';
 import { MainViewportRenderer } from './modules/renderers/MainViewportRenderer.js';
 import { MinimapHudRenderer } from './modules/renderers/MinimapHudRenderer.js';
 import { VirtualDungeonScreen } from './modules/renderers/VirtualDungeonScreen.js';

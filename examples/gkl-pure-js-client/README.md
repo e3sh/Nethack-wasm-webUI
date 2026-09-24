@@ -122,10 +122,10 @@ examples/gkl-pure-js-client/
     ├── handlers/
     │   └── KeyHandler.js        # グローバルキー入力ディスパッチャー
     └── renderers/
-        ├── MainViewportRenderer.js # メイン 2D Canvas (32pxスプライト・カメラ追従)
-        ├── MapRenderer.js       # 2D レンダラー基底
-        ├── MinimapHudRenderer.js   # フロア全体ミニマップ HUD (展開・スマート退避)
-        ├── VirtualDungeonScreen.js # 仮想ダンジョンスクリーンキャッシュ
-        ├── WebGPUHD2DRenderer.js   # WebGPU HD-2D 3Dジオラマレンダラー
-        └── ZoomRenderer.js      # ズーム・エフェクトレンダラー
+        ├── MainViewportRenderer.js # 【現行】メイン 2D Canvas (32pxスプライト・カメラ追従・エフェクト)
+        ├── WebGPUHD2DRenderer.js   # 【現行】WebGPU HD-2D 3Dジオラマレンダラー
+        ├── MinimapHudRenderer.js   # 【現行】フロア全体ミニマップ HUD (展開・スマート退避)
+        ├── VirtualDungeonScreen.js # 【現行】仮想ダンジョンスクリーンキャッシュ (高速切り出し転送基底)
+        ├── MapRenderer.js          # (旧) 全体マップ描画 (MainViewportRenderer 移行に伴う後方互換用)
+        └── ZoomRenderer.js         # (旧) ズームカメラ描画 (MinimapHudRenderer 移行に伴う後方互換用)
 ```

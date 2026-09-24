@@ -214,10 +214,18 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     let frontHeight = (ly + 0.5) * 0.45 * (1.0 - uniforms.topDownFactor);
     let frontZ = 0.5 * (1.0 - uniforms.topDownFactor);
     finalPos += vec3<f32>(lx, frontHeight, frontZ);
-  } else if (input.layerType < 3.5) {
+  } else if (input.layerType < 3.05) {
     // 【Layer 3: アイテム】 静止水平プレーン (床面直上 Y = 0.12, XZ平面, バウンスなし)
     // カメラの Up ベクトル ([0, 0, -1]) に合わせて -ly で正しい向きに配置
     finalPos += vec3<f32>(lx * 0.75, 0.12, -ly * 0.75);
+  } else if (input.layerType < 3.25) {
+    // 【Layer 3.2: 自キャラ足元枠プレーン (Middle)】 水平プレーン (床面直上 Y = 0.02, XZ平面)
+    // 深度テストにより直立するキャラクター (Layer 4) の足元・背面へ自然に潜り込む
+    finalPos += vec3<f32>(lx * 0.96, 0.02, -ly * 0.96);
+  } else if (input.layerType < 3.45) {
+    // 【Layer 3.3: Pet / Ridden 足元サークルプレーン (Middle)】 水平プレーン (床面直上 Y = 0.015, XZ平面)
+    // 深度テストにより直立するキャラクター (Layer 4: Top) の足元・背面へ自然に潜り込む
+    finalPos += vec3<f32>(lx * 0.88, 0.015, -ly * 0.88);
   } else if (input.layerType < 4.5) {
     // 【Layer 4: キャラクター - スクリーン正対チルトビルボード (マスの中心基準)】
     // マスの中心 (worldPos) を原点として、カメラの視線ベクトルに直交する Up 方向 (ジオラマ: (0.343, -0.939), トップビュー: (0.0, -1.0)) に展開。
@@ -278,9 +286,49 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     light = 1.0;
   }
 
+  // 0. 自キャラ足元枠プレーン (Layer 3.2: Middle)
+  if (input.layerType >= 3.05 && input.layerType < 3.25) {
+    var frameColor = vec3<f32>(0.0, 0.90, 0.46); // 通常時: エメラルドグリーン (#00e676)
+    if (input.isPlayer > 1.5) {
+      frameColor = vec3<f32>(0.94, 0.27, 0.27); // 死亡時: レッド (#ef4444)
+    }
+    let edgeDist = max(abs(uv.x - 0.5), abs(uv.y - 0.5)); // 0.0 ~ 0.5
+    if (edgeDist > 0.49 || edgeDist < 0.41) {
+      if (edgeDist <= 0.41) {
+        // 内側の淡い透過グロー
+        let pulse = 0.12 + 0.05 * sin(uniforms.time * 3.0);
+        return vec4<f32>(frameColor, pulse);
+      }
+      discard;
+    }
+    // 枠線 (パルス明滅)
+    let borderAlpha = 0.88 + 0.12 * sin(uniforms.time * 4.0);
+    return vec4<f32>(frameColor, borderAlpha);
+  }
+
+  // 0-B. Pet / Ridden 足元サークルプレーン (Layer 3.3: Middle)
+  if (input.layerType >= 3.25 && input.layerType < 3.45) {
+    var circleColor = vec3<f32>(0.0, 0.90, 0.46); // Pet: エメラルドグリーン (#00e676)
+    if (input.isPlayer > 1.5) {
+      circleColor = vec3<f32>(0.0, 0.69, 1.0);   // Ridden: シアンブルー (#00b0ff)
+    }
+    let dist = distance(uv, vec2<f32>(0.5, 0.5));
+    if (dist > 0.46 || dist < 0.36) {
+      if (dist <= 0.36) {
+        // サークル内側の淡い透過グロー
+        let pulse = 0.10 + 0.04 * sin(uniforms.time * 3.0);
+        return vec4<f32>(circleColor * light, pulse);
+      }
+      discard;
+    }
+    // サークルリング線 (パルス明滅)
+    let ringAlpha = 0.85 + 0.15 * sin(uniforms.time * 4.0);
+    return vec4<f32>(circleColor, ringAlpha);
+  }
+
   // 1. タイルテクスチャがロードされている場合 (通常動作)
   if (uniforms.hasTexture > 0.5) {
-    let texColor = textureSample(tileTexture, tileSampler, input.texCoord);
+    let texColor = textureSampleLevel(tileTexture, tileSampler, input.texCoord, 0.0);
 
     if (input.layerType >= 2.5) {
       // 【キャラクター (Layer 4)、アイテム (Layer 3)、エフェクト (Layer 5)】
@@ -873,49 +921,152 @@ export class WebGPUHD2DRenderer {
    * 自キャラ枠ハイライト ＆ ターゲットカーソル枠の描画 (オーバーレイ Canvas 2D)
    */
   _renderCursorFrames(ctx, ts, now) {
-    // 1. 自キャラ枠ハイライト (通常緑 / 死亡時赤)
-    const pProj = this.worldToScreen(this.playerX, 0.44, this.playerY);
-    if (pProj) {
-      const sx = Math.round(pProj.screenX - ts / 2);
-      const sy = Math.round(pProj.screenY - ts / 2);
-      ctx.save();
-      ctx.strokeStyle = this.isPlayerDead ? '#ef4444' : '#00e676';
-      ctx.lineWidth = this.isPlayerDead ? 1.5 : 2;
-      ctx.strokeRect(sx + 1, sy + 1, ts - 2, ts - 2);
-      ctx.restore();
-    }
+    // 1. 自キャラ枠ハイライト:
+    // WebGPU パイプライン内の Layer 3.2 (Middle レイヤー, 床面直上 Y = 0.02) で描画されるため、
+    // 最前面 2D オーバーレイでの描画は行わない (深度テストによりキャラクター足元・背面に自然に潜り込む)。
 
-    // 2. ターゲットカーソル枠 (Look や照準時: 金色パルス明滅 ＋ 四隅ブラケット)
+    // 2. ターゲットカーソル枠 (Look や照準時: 4 頂点 3D 空間結線による立体パースペクティブ化 ＋ コーナー演出)
     if (this.targetCursorX >= 0 && this.targetCursorY >= 0 &&
         (this.targetCursorX !== this.playerX || this.targetCursorY !== this.playerY)) {
       this.wakeUp(); // カーソルのパルス明滅中は 60FPS 描画
-      const cProj = this.worldToScreen(this.targetCursorX, 0.44, this.targetCursorY);
-      if (cProj) {
-        const sx = Math.round(cProj.screenX - ts / 2);
-        const sy = Math.round(cProj.screenY - ts / 2);
-        const pulse = 0.65 + 0.35 * Math.sin(now / 140);
+      const tx = this.targetCursorX;
+      const ty = this.targetCursorY;
+      const p0 = this.worldToScreen(tx - 0.48, 0.01, ty - 0.48);
+      const p1 = this.worldToScreen(tx + 0.48, 0.01, ty - 0.48);
+      const p2 = this.worldToScreen(tx + 0.48, 0.01, ty + 0.48);
+      const p3 = this.worldToScreen(tx - 0.48, 0.01, ty + 0.48);
 
+      if (p0 && p1 && p2 && p3) {
+        const pulse = 0.65 + 0.35 * Math.sin(now / 140);
         ctx.save();
         ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
         ctx.lineWidth = 2;
         ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 8;
-        ctx.strokeRect(sx + 1, sy + 1, ts - 2, ts - 2);
 
-        // 四隅コーナーブラケット演出
-        const cornerLen = 7;
+        ctx.beginPath();
+        ctx.moveTo(p0.screenX, p0.screenY);
+        ctx.lineTo(p1.screenX, p1.screenY);
+        ctx.lineTo(p2.screenX, p2.screenY);
+        ctx.lineTo(p3.screenX, p3.screenY);
+        if (typeof ctx.closePath === 'function') {
+          ctx.closePath();
+        } else {
+          ctx.lineTo(p0.screenX, p0.screenY);
+        }
+        ctx.stroke();
+
+        // 四隅コーナーブラケット演出 (立体パースペクティブ結線に沿ったコーナー線)
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        // 左上
-        ctx.beginPath(); ctx.moveTo(sx, sy + cornerLen); ctx.lineTo(sx, sy); ctx.lineTo(sx + cornerLen, sy); ctx.stroke();
-        // 右上
-        ctx.beginPath(); ctx.moveTo(sx + ts - cornerLen, sy); ctx.lineTo(sx + ts, sy); ctx.lineTo(sx + ts, sy + cornerLen); ctx.stroke();
-        // 左下
-        ctx.beginPath(); ctx.moveTo(sx, sy + ts - cornerLen); ctx.lineTo(sx, sy + ts); ctx.lineTo(sx + cornerLen, sy + ts); ctx.stroke();
-        // 右下
-        ctx.beginPath(); ctx.moveTo(sx + ts - cornerLen, sy + ts); ctx.lineTo(sx + ts, sy + ts); ctx.lineTo(sx + ts, sy + ts - cornerLen); ctx.stroke();
+        const cornerFactor = 0.22;
+        // p0 (左奥)
+        ctx.beginPath();
+        ctx.moveTo(p0.screenX + (p1.screenX - p0.screenX) * cornerFactor, p0.screenY + (p1.screenY - p0.screenY) * cornerFactor);
+        ctx.lineTo(p0.screenX, p0.screenY);
+        ctx.lineTo(p0.screenX + (p3.screenX - p0.screenX) * cornerFactor, p0.screenY + (p3.screenY - p0.screenY) * cornerFactor);
+        ctx.stroke();
+
+        // p1 (右奥)
+        ctx.beginPath();
+        ctx.moveTo(p1.screenX + (p0.screenX - p1.screenX) * cornerFactor, p1.screenY + (p0.screenY - p1.screenY) * cornerFactor);
+        ctx.lineTo(p1.screenX, p1.screenY);
+        ctx.lineTo(p1.screenX + (p2.screenX - p1.screenX) * cornerFactor, p1.screenY + (p2.screenY - p1.screenY) * cornerFactor);
+        ctx.stroke();
+
+        // p2 (右手前)
+        ctx.beginPath();
+        ctx.moveTo(p2.screenX + (p1.screenX - p2.screenX) * cornerFactor, p2.screenY + (p1.screenY - p2.screenY) * cornerFactor);
+        ctx.lineTo(p2.screenX, p2.screenY);
+        ctx.lineTo(p2.screenX + (p3.screenX - p2.screenX) * cornerFactor, p2.screenY + (p3.screenY - p2.screenY) * cornerFactor);
+        ctx.stroke();
+
+        // p3 (左手前)
+        ctx.beginPath();
+        ctx.moveTo(p3.screenX + (p2.screenX - p3.screenX) * cornerFactor, p3.screenY + (p2.screenY - p3.screenY) * cornerFactor);
+        ctx.lineTo(p3.screenX, p3.screenY);
+        ctx.lineTo(p3.screenX + (p0.screenX - p3.screenX) * cornerFactor, p3.screenY + (p0.screenY - p3.screenY) * cornerFactor);
+        ctx.stroke();
 
         ctx.restore();
+      }
+    }
+  }
+
+  /**
+   * Pet / Ridden / piletop アイテムの視覚的強調描画 (3D 空間追従オーバーレイ)
+   */
+  _renderEntityHighlights(ctx, ts, now) {
+    const situation = this.getSituation ? this.getSituation() : null;
+    const area = situation?.area;
+    const areaGrid = area?.grid || (this.getAreaGrid ? this.getAreaGrid() : null);
+    if (!areaGrid) return;
+
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
+
+    for (let y = 0; y < 24; y++) {
+      for (let x = 0; x < 80; x++) {
+        const cell = areaGrid[y]?.[x];
+        if (!cell) continue;
+
+        // 1. piletop (アイテム山積み) 視覚強調マーク (右下 [+] バッジ)
+        const middleGlyph = cell.middle?.rawGlyph ?? -1;
+        const isPile = Boolean(cell.middle?.isPile || (middleGlyph >= 7992 && middleGlyph < 9622));
+        if (isPile) {
+          const itemProj = this.worldToScreen(x, 0.12, y);
+          if (itemProj && itemProj.screenX >= -20 && itemProj.screenX <= canvasW + 20 &&
+              itemProj.screenY >= -20 && itemProj.screenY <= canvasH + 20) {
+            const bx = Math.round(itemProj.screenX + ts * 0.22);
+            const by = Math.round(itemProj.screenY + ts * 0.22);
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(bx - 5, by - 5, 10, 10);
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx - 5, by - 5, 10, 10);
+            if (typeof ctx.fillText === 'function') {
+              ctx.fillStyle = '#ffeb3b';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('+', bx, by);
+            }
+            ctx.restore();
+          }
+        }
+
+        // 2. Pet / Ridden の同定判定
+        const topGlyph = cell.top?.rawGlyph ?? -1;
+        const isPet = Boolean(cell.top?.isPet || (topGlyph >= 766 && topGlyph < 1532));
+        const isRidden = Boolean(cell.top?.isRidden || (topGlyph >= 2682 && topGlyph < 3448));
+
+        if (isPet || isRidden) {
+          // ※足元サークルは WebGPU パイプライン内の Layer 3.3 (Middle レイヤー) で描画されるため、
+          // 直立キャラクター (Layer 4: Top) の足元・背面に自然に潜り込み、前面に被りません。
+
+          // 頭上ミニバッジ (頭上直上 Y = 0.88, PileTop と同様の統一ミニバッジ形式)
+          const headProj = this.worldToScreen(x, 0.88, y);
+          if (headProj && headProj.screenX >= -30 && headProj.screenX <= canvasW + 30 &&
+              headProj.screenY >= -30 && headProj.screenY <= canvasH + 30) {
+            const bx = Math.round(headProj.screenX + ts * 0.22);
+            const by = Math.round(headProj.screenY - ts * 0.22);
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(bx - 5, by - 5, 10, 10);
+            ctx.strokeStyle = isRidden ? '#00b0ff' : '#00e676';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx - 5, by - 5, 10, 10);
+            if (typeof ctx.fillText === 'function') {
+              ctx.fillStyle = isRidden ? '#00b0ff' : '#00e676';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(isRidden ? 'R' : '♥', bx, by);
+            }
+            ctx.restore();
+          }
+        }
       }
     }
   }
@@ -998,7 +1149,10 @@ export class WebGPUHD2DRenderer {
     // 1. 自キャラ枠 ＆ ターゲットカーソル枠の描画
     this._renderCursorFrames(ctx, ts, now);
 
-    // 2. Visual FX の描画
+    // 2. Pet / Ridden / piletop アイテムの視覚的強調描画 (3D 空間追従オーバーレイ)
+    this._renderEntityHighlights(ctx, ts, now);
+
+    // 3. Visual FX の描画
     if (!this.activeFxList || this.activeFxList.length === 0) return;
 
     // FX 再生中はアイドル化させず 60FPS を維持
@@ -1369,7 +1523,7 @@ export class WebGPUHD2DRenderer {
 
         if (layerType === 0.0) countFloor++;
         else if (layerType === 1.0 || layerType === 2.0) countWall++;
-        else if (layerType === 3.0) countItem++;
+        else if (layerType >= 3.0 && layerType < 3.5) countItem++;
         else if (layerType === 4.0) countChar++;
         else if (layerType === 5.0) countEffect++;
       };
@@ -1418,6 +1572,21 @@ export class WebGPUHD2DRenderer {
               drawnAny = true;
             }
 
+            // 自キャラ足元枠 (Layer 3.2: Middle) - キャラクター (Layer 4) の足元・背面に潜り込ませる
+            if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
+              pushInstance(x, 0.0, y, 3.2, this.isPlayerDead ? 2.0 : 1.0, 0.0, 0.0, 1.0);
+              drawnAny = true;
+            }
+
+            // Pet / Ridden 足元サークル (Layer 3.3: Middle) - 直立キャラクター (Layer 4) の足元・背面に潜り込ませる
+            const topGlyph = cell.top?.rawGlyph ?? -1;
+            const isPet = Boolean(cell.top?.isPet || (topGlyph >= 766 && topGlyph < 1532));
+            const isRidden = Boolean(cell.top?.isRidden || (topGlyph >= 2682 && topGlyph < 3448));
+            if (isPet || isRidden) {
+              pushInstance(x, 0.0, y, 3.3, isRidden ? 2.0 : 1.0, 0.0, 0.0, cellLight);
+              drawnAny = true;
+            }
+
             // Layer 4: Top (モンスター / プレイヤー / 死亡時墓石)
             const isDeathPos = this.isPlayerDead && this.deathPosition && x === this.deathPosition.x && y === this.deathPosition.y;
             if (isDeathPos) {
@@ -1453,6 +1622,7 @@ export class WebGPUHD2DRenderer {
               const gId = glyphBuffer[y][x].glyph;
               const tileIdx = getTileIdx(gId);
               if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
+                pushInstance(x, 0.0, y, 3.2, this.isPlayerDead ? 2.0 : 1.0, 0.0, 0.0, 1.0);
                 pushInstance(x, 0.0, y, 4.0, 1.0, 0.0, tileIdx, 1.0);
               } else {
                 pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx, 1.0);

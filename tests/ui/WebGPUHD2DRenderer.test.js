@@ -334,6 +334,122 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(rendererCode).toContain('(h + bounce) * upVec.x');
     expect(rendererCode).toContain('(h + bounce) * upVec.y');
   });
+
+  it('19. Phase A テーマ 1: WGSL 定義に Layer 3.2 自キャラ足元枠および Layer 3.3 Pet/Ridden 足元サークルが含まれること', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
+
+    expect(rendererCode).toContain('input.layerType < 3.25');
+    expect(rendererCode).toContain('input.layerType < 3.45');
+    expect(rendererCode).toContain('pushInstance(x, 0.0, y, 3.2');
+    expect(rendererCode).toContain('pushInstance(x, 0.0, y, 3.3');
+    // WGSL uniform control flow 制約回避のため textureSample ではなく textureSampleLevel を使用していること
+    expect(rendererCode).toContain('textureSampleLevel(');
+    expect(rendererCode).not.toContain('textureSample(');
+  });
+
+  it('20. Phase A テーマ 1: ターゲットカーソル枠が床面 4 隅の 3D 空間結線 (worldToScreen 結線) により描画されること', () => {
+    const renderer = new WebGPUHD2DRenderer({ canvas: mockCanvas });
+    renderer.targetCursorX = 15;
+    renderer.targetCursorY = 8;
+    renderer.playerX = 10;
+    renderer.playerY = 5;
+
+    const projectedCoords = [];
+    renderer.worldToScreen = vi.fn((wx, wy, wz) => {
+      projectedCoords.push({ wx, wy, wz });
+      return { screenX: wx * 10, screenY: wz * 10, depth: 5.0 };
+    });
+
+    const dummyCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      stroke: vi.fn(),
+      strokeStyle: '',
+      lineWidth: 0,
+      shadowColor: '',
+      shadowBlur: 0
+    };
+
+    renderer._renderCursorFrames(dummyCtx, 32, 1000);
+
+    // 4頂点 (床面 Y=0.01) が worldToScreen に渡されていること
+    expect(renderer.worldToScreen).toHaveBeenCalledTimes(4);
+    const targetCalls = projectedCoords.filter(c => Math.abs(c.wy - 0.01) < 0.001);
+    expect(targetCalls.length).toBe(4);
+    expect(dummyCtx.beginPath).toHaveBeenCalled();
+    expect(dummyCtx.moveTo).toHaveBeenCalled();
+    expect(dummyCtx.lineTo).toHaveBeenCalled();
+    expect(dummyCtx.stroke).toHaveBeenCalled();
+  });
+
+  it('21. Phase A テーマ 2: Pet / Ridden / piletop アイテムの統一ミニバッジ記号 (♥ / R / +) が正常に描画されること', () => {
+    const grid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // (5, 5): Pet
+    grid[5][5] = {
+      bottom: { rawGlyph: 3992 },
+      middle: null,
+      top: { rawGlyph: 770, isPet: true }
+    };
+    // (6, 5): Ridden
+    grid[5][6] = {
+      bottom: { rawGlyph: 3992 },
+      middle: null,
+      top: { rawGlyph: 2700, isRidden: true }
+    };
+    // (7, 5): piletop アイテム
+    grid[5][7] = {
+      bottom: { rawGlyph: 3992 },
+      middle: { rawGlyph: 8000, isPile: true },
+      top: null
+    };
+
+    const renderer = new WebGPUHD2DRenderer({
+      canvas: mockCanvas,
+      getAreaGrid: () => grid,
+      getSituation: () => ({ area: { grid } })
+    });
+
+    renderer.worldToScreen = vi.fn((wx, wy, wz) => ({ screenX: wx * 20, screenY: wz * 20 }));
+
+    const dummyCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      fillText: vi.fn(),
+      strokeStyle: '',
+      fillStyle: '',
+      lineWidth: 0,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      shadowColor: '',
+      shadowBlur: 0
+    };
+
+    renderer._renderEntityHighlights(dummyCtx, 32, 1000);
+
+    // ミニバッジの枠 (fillRect, strokeRect) が描画されること
+    expect(dummyCtx.fillRect).toHaveBeenCalled();
+    expect(dummyCtx.strokeRect).toHaveBeenCalled();
+
+    // 統一記号マークの fillText (♥, R, +) が呼ばれること
+    expect(dummyCtx.fillText).toHaveBeenCalled();
+    const textCalls = dummyCtx.fillText.mock.calls.map(call => call[0]);
+    expect(textCalls).toContain('♥');
+    expect(textCalls).toContain('R');
+    expect(textCalls).toContain('+');
+  });
 });
 
 
