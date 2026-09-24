@@ -1,0 +1,505 @@
+{
+  "rumors": {
+    "rumor_tru_1": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "blindfold"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_2": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "candelabrum of invocation"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "wax candle"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_3": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "cream pie"
+        }
+      ],
+      "remove": [
+        "food ration"
+      ]
+    },
+    "rumor_tru_4": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "crystal plate mail"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_5": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "corpse"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_6": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "katana"
+        },
+        {
+          "type": "MONSTER",
+          "cleanEn": "long worm"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_8": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "wood nymph"
+        },
+        {
+          "type": "MONSTER",
+          "id": "water_nymph",
+          "name": "water nymph",
+          "nameJa": "水のニンフ"
+        },
+        {
+          "type": "MONSTER",
+          "id": "mountain_nymph",
+          "name": "mountain nymph",
+          "nameJa": "山のニンフ"
+        },
+        {
+          "type": "ITEM",
+          "id": "item_onum_16",
+          "name": "generic iron chain",
+          "nameJa": "鉄の鎖"
+        }
+      ],
+      "remove": [
+        "item_onum_478"
+      ]
+    },
+    "rumor_tru_11": {
+      "add": [],
+      "remove": [
+        "cockatrice",
+        "item_onum_159"
+      ]
+    },
+    "rumor_tru_14": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "wand of death"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_38": {
+      "add": [],
+      "remove": [
+        "item_onum_38"
+      ]
+    },
+    "rumor_tru_77": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "vampire"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "silver dagger"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_184": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "mirror"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_203": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "mirror"
+        },
+        {
+          "type": "MONSTER",
+          "cleanEn": "floating eye"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_258": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "mirror"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_264": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "blindfold"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_fal_43": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "cockatrice"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "mirror"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_fal_178": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_fal_192": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        },
+        {
+          "type": "MONSTER",
+          "cleanEn": "floating eye"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_fal_249": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_33": {
+      "add": [
+        {
+          "type": "ITEM",
+          "id": "item_onum_365",
+          "name": "scroll of blank paper",
+          "nameJa": "白紙の巻物"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_41": {
+      "add": [
+        {
+          "type": "ITEM",
+          "id": "item_onum_264",
+          "name": "tripe ration",
+          "nameJa": "干しホルモン"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_17": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "id": "wood_nymph",
+          "name": "wood nymph",
+          "nameJa": "木のニンフ"
+        },
+        {
+          "type": "MONSTER",
+          "id": "water_nymph",
+          "name": "water nymph",
+          "nameJa": "水のニンフ"
+        },
+        {
+          "type": "MONSTER",
+          "id": "mountain_nymph",
+          "name": "mountain nymph",
+          "nameJa": "山のニンフ"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_127": {
+      "add": [
+        {
+          "type": "ITEM",
+          "id": "item_onum_296",
+          "name": "tin",
+          "nameJa": "缶詰"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_189": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "id": "kitten",
+          "name": "kitten",
+          "nameJa": "小猫"
+        }
+      ],
+      "remove": []
+    },
+    "rumor_tru_195": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "id": "little_dog",
+          "name": "little dog",
+          "nameJa": "仔犬"
+        }
+      ],
+      "remove": []
+    }
+  },
+  "oracles": {
+    "oracle_1": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "gold piece"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_2": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "tin"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "tin opener"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_3": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "scroll of identify"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_4": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "pick-axe"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_5": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "potion of holy water"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "scroll of remove curse"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_6": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "master lich"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "touchstone"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_7": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "corpse"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_8": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "wand of polymorph"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_9": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "medusa"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "blindfold"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "mirror"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_10": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "gold piece"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_12": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "ring of increase damage"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_13": {
+      "add": [
+        {
+          "type": "MONSTER",
+          "cleanEn": "floating eye"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "corpse"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_15": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "elven dagger"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "athame"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_16": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "amulet of yendor"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_17": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "bell of opening"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "candelabrum of invocation"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "book of the dead"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_18": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "wand of wishing"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "magic flute"
+        }
+      ],
+      "remove": []
+    },
+    "oracle_20": {
+      "add": [
+        {
+          "type": "ITEM",
+          "cleanEn": "athame"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "wand of fire"
+        },
+        {
+          "type": "ITEM",
+          "cleanEn": "wand of lightning"
+        }
+      ],
+      "remove": []
+    }
+  }
+}

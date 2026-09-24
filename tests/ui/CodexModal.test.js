@@ -267,5 +267,41 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
 
     expect(notifiedCount).toBeGreaterThan(0);
   });
+
+  it('relatedEntities を持つ噂話の詳細カード描画時に関連エンティティバッジが含まれること', () => {
+    modal.selectedItem = {
+      id: 'rumor_medusa_test',
+      text: 'Medusa is ugly enough to turn herself to stone.',
+      translatedText: 'メデューサは自らの醜さによって自身を石化させてしまうほどだ。',
+      isTrue: true,
+      category: 'RUMOR',
+      relatedEntities: [
+        { type: 'MONSTER', id: 'medusa', name: 'medusa', nameJa: 'メデューサ' },
+        { type: 'ITEM', id: 'mirror', name: 'mirror', nameJa: '鏡' }
+      ]
+    };
+
+    modal.renderDetail();
+    const cardEl = elementsMap['codex-detail-card'];
+    expect(cardEl.innerHTML).toContain('codex-related-section');
+    expect(cardEl.innerHTML).toContain('メデューサ');
+    expect(cardEl.innerHTML).toContain('鏡');
+  });
+
+  it('buildEntitySpecHtml がモンスターとアイテムのスペック情報を正しく生成すること', () => {
+    const monEntity = { type: 'MONSTER', id: 'medusa', name: 'medusa', nameJa: 'メデューサ', dangerLevel: 'HIGH' };
+    const itemEntity = { type: 'ITEM', id: 'mirror', name: 'mirror', nameJa: '鏡', category: 'TOOL' };
+
+    const monHtmlJa = modal.buildEntitySpecHtml(monEntity, false);
+    expect(monHtmlJa).toContain('メデューサ');
+    expect(monHtmlJa).toContain('MONSTER');
+    expect(monHtmlJa).toContain('HIGH');
+
+    const itemHtmlEn = modal.buildEntitySpecHtml(itemEntity, true);
+    expect(itemHtmlEn).toContain('mirror');
+    expect(itemHtmlEn).toContain('ITEM');
+    expect(itemHtmlEn).toContain('TOOL');
+  });
 });
+
 

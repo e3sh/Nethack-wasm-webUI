@@ -61,7 +61,13 @@ const CODEX_I18N = {
         srcPaper: '床の紙片',
         srcEngraving: '床の刻み文字',
         srcHeadstone: '墓碑銘 (Headstone)',
-        srcElbereth: 'Elbereth (魔除けの結界文字)'
+        srcElbereth: 'Elbereth (魔除けの結界文字)',
+        lblRelatedEntities: '🔗 関連する知識・対象 (Related Knowledge):',
+        specClose: '✕ 閉じる',
+        specDanger: '危険度:',
+        specCategory: '分類:',
+        specStats: '基礎値:',
+        specAdvice: '戦術助言 / 効果:'
     },
     en: {
         brandTitle: 'RUMOR & LORE CODEX',
@@ -115,7 +121,13 @@ const CODEX_I18N = {
         srcPaper: 'Scrap of Paper',
         srcEngraving: 'Floor Engraving',
         srcHeadstone: 'Headstone Inscription',
-        srcElbereth: 'Ward of Elbereth'
+        srcElbereth: 'Ward of Elbereth',
+        lblRelatedEntities: '🔗 Related Knowledge:',
+        specClose: '✕ Close',
+        specDanger: 'Danger:',
+        specCategory: 'Category:',
+        specStats: 'Stats:',
+        specAdvice: 'Tactics / Effect:'
     }
 };
 
@@ -132,6 +144,7 @@ export class CodexModal {
         this.getCore = options.getCore || (() => null);
         this.onClose = options.onClose || (() => {});
         this.onUnreadCountChanged = options.onUnreadCountChanged || (() => {});
+        this.knowledgeEngine = options.knowledgeEngine || null;
 
         this.currentLanguage = 'ja';
         this.isVisible = false;
@@ -139,11 +152,25 @@ export class CodexModal {
         this.currentRumorFilter = 'ALL';
         this.currentEngrFilter = 'ALL';
         this.selectedItem = null;
+        this.selectedEntitySpec = null;
         this._currentItems = [];
 
         this.readIds = this.loadReadIds();
         this._subscribed = false;
         this.setupDOM();
+    }
+
+    /**
+     * 構造化ナレッジエンジンの取得
+     * @returns {Object|null}
+     */
+    getKnowledgeEngine() {
+        if (this.knowledgeEngine) return this.knowledgeEngine;
+        const core = this.getCore();
+        if (core && typeof core.getKnowledgeEngine === 'function') {
+            return core.getKnowledgeEngine();
+        }
+        return null;
     }
 
     /**
@@ -703,6 +730,7 @@ export class CodexModal {
                 if (!isNaN(idx) && this._currentItems[idx]) {
                     const chosen = this._currentItems[idx];
                     this.selectedItem = chosen;
+                    this.selectedEntitySpec = null;
                     if (chosen.id) {
                         this.markAsRead(chosen.id);
                     }
@@ -827,6 +855,38 @@ export class CodexModal {
             </div>
         `;
 
+        // 関連エンティティ（クロスリファレンス）セクション
+        let relatedHtml = '';
+        if (Array.isArray(item.relatedEntities) && item.relatedEntities.length > 0) {
+            const badgesHtml = item.relatedEntities.map((ent, idx) => {
+                const isSelected = this.selectedEntitySpec && this.selectedEntitySpec.id === ent.id;
+                const entName = isEn ? ent.name : (ent.nameJa || ent.name);
+                const icon = ent.type === 'MONSTER' ? '👾' : '🛡️';
+                const typeClass = ent.type === 'MONSTER' ? 'badge-monster' : 'badge-item';
+                const activeClass = isSelected ? 'active' : '';
+                return `
+                    <button class="codex-entity-badge ${typeClass} ${activeClass}" data-entity-idx="${idx}" title="${this.escapeHtml(ent.name)}">
+                        <span>${icon}</span>
+                        <span>${this.escapeHtml(entName)}</span>
+                    </button>
+                `;
+            }).join('');
+
+            const specBoxHtml = this.selectedEntitySpec ? this.buildEntitySpecHtml(this.selectedEntitySpec, isEn) : '';
+
+            relatedHtml = `
+                <div class="codex-related-section">
+                    <div class="codex-related-title">${t.lblRelatedEntities}</div>
+                    <div class="codex-related-badges">
+                        ${badgesHtml}
+                    </div>
+                    <div id="codex-entity-spec-container" class="codex-entity-spec-box ${this.selectedEntitySpec ? '' : 'hidden'}">
+                        ${specBoxHtml}
+                    </div>
+                </div>
+            `;
+        }
+
         cardEl.innerHTML = `
             <div class="codex-detail-header">
                 ${headerHtml}
@@ -838,6 +898,111 @@ export class CodexModal {
                 </div>
                 ${transHtml}
                 ${metaHtml}
+                ${relatedHtml}
+            </div>
+        `;
+
+        // 関連エンティティバッジのクリック監視
+        cardEl.querySelectorAll('.codex-entity-badge').forEach(badge => {
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(badge.getAttribute('data-entity-idx'), 10);
+                if (item.relatedEntities && item.relatedEntities[idx]) {
+                    const targetEnt = item.relatedEntities[idx];
+                    if (this.selectedEntitySpec && this.selectedEntitySpec.id === targetEnt.id) {
+                        this.selectedEntitySpec = null;
+                    } else {
+                        this.selectedEntitySpec = targetEnt;
+                    }
+                    this.renderDetail();
+                }
+            });
+        });
+
+        const closeSpecBtn = cardEl.querySelector('#btn-close-entity-spec');
+        if (closeSpecBtn) {
+            closeSpecBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectedEntitySpec = null;
+                this.renderDetail();
+            });
+        }
+    }
+
+    /**
+     * エンティティのミニスペックカードHTML生成
+     * @param {Object} entity 
+     * @param {boolean} isEn 
+     * @returns {string}
+     */
+    buildEntitySpecHtml(entity, isEn) {
+        const t = CODEX_I18N[isEn ? 'en' : 'ja'];
+        const ke = this.getKnowledgeEngine();
+        let fullData = null;
+        if (ke) {
+            if (entity.type === 'MONSTER') {
+                fullData = ke.getMonsterKnowledge(entity.id || entity.name, { language: isEn ? 'en' : 'ja' });
+            } else if (entity.type === 'ITEM') {
+                fullData = ke.getItemKnowledge(entity.onum !== undefined ? entity.onum : (entity.id || entity.name), { language: isEn ? 'en' : 'ja' });
+            }
+        }
+
+        const displayName = isEn ? (fullData?.nameEn || entity.name) : (fullData?.nameJa || entity.nameJa || entity.name);
+        const subName = isEn ? (fullData?.nameJa || entity.nameJa || '') : (fullData?.nameEn || entity.name || '');
+        const typeLabel = entity.type === 'MONSTER' ? '👾 MONSTER' : '🛡️ ITEM';
+        
+        let detailsHtml = '';
+        if (entity.type === 'MONSTER') {
+            const danger = fullData?.dangerLevel || entity.dangerLevel || 'MEDIUM';
+            const stats = fullData?.stats ? `HD: ${fullData.stats.hd} | AC: ${fullData.stats.ac} | Spd: ${fullData.stats.speed} | MR: ${fullData.stats.mr}` : '';
+            const adviceList = fullData?.tacticalAdvice || [];
+            const adviceStr = adviceList.length > 0 ? adviceList.slice(0, 2).join(' / ') : (fullData?.threat?.description || fullData?.effectSummary || '');
+
+            detailsHtml = `
+                <div class="codex-spec-prop">
+                    <span class="codex-spec-prop-label">${t.specDanger}</span>
+                    <span class="codex-spec-prop-value" style="color:var(--accent-gold); font-weight:700;">${this.escapeHtml(danger)}</span>
+                </div>
+                ${stats ? `
+                <div class="codex-spec-prop">
+                    <span class="codex-spec-prop-label">${t.specStats}</span>
+                    <span class="codex-spec-prop-value">${this.escapeHtml(stats)}</span>
+                </div>` : ''}
+                ${adviceStr ? `
+                <div class="codex-spec-prop">
+                    <span class="codex-spec-prop-label">${t.specAdvice}</span>
+                    <span class="codex-spec-prop-value">${this.escapeHtml(adviceStr)}</span>
+                </div>` : ''}
+            `;
+        } else {
+            const category = fullData?.category || entity.category || 'TOOL';
+            const effect = fullData?.effectSummary || fullData?.actionLabel || '';
+            const cost = fullData?.cost ? `$${fullData.cost}` : '';
+
+            detailsHtml = `
+                <div class="codex-spec-prop">
+                    <span class="codex-spec-prop-label">${t.specCategory}</span>
+                    <span class="codex-spec-prop-value">${this.escapeHtml(category)} ${cost ? `(${cost})` : ''}</span>
+                </div>
+                ${effect ? `
+                <div class="codex-spec-prop">
+                    <span class="codex-spec-prop-label">${t.specAdvice}</span>
+                    <span class="codex-spec-prop-value">${this.escapeHtml(effect)}</span>
+                </div>` : ''}
+            `;
+        }
+
+        return `
+            <div class="codex-spec-header">
+                <div>
+                    <span class="codex-spec-title">${this.escapeHtml(displayName)}</span>
+                    ${subName ? `<span style="font-size:11px; color:#94a3b8; margin-left:6px;">(${this.escapeHtml(subName)})</span>` : ''}
+                    <span style="font-size:10px; color:#38bdf8; margin-left:8px; font-weight:700;">[${typeLabel}]</span>
+                </div>
+                <button class="codex-spec-close-btn" id="btn-close-entity-spec" title="閉じる">${t.specClose}</button>
+            </div>
+            <div class="codex-spec-body">
+                ${detailsHtml}
             </div>
         `;
     }

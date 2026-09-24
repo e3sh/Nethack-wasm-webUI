@@ -538,6 +538,7 @@
             <span>🛠️</span> Structured Knowledge Inspector
             <span class="badge" id="totalCountBadge">0 Entities</span>
             <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" style="font-size:0.75rem; color:#38bdf8; text-decoration:none; margin-left:10px; padding:2px 8px; border:1px dashed #38bdf8; border-radius:4px;">📄 CSV Dictionary</a>
+            <a href="lore_codex.html" target="_blank" style="font-size:0.75rem; color:#e3b341; text-decoration:none; margin-left:8px; padding:2px 8px; border:1px dashed #e3b341; border-radius:4px;">📜 Rumor & Lore Codex</a>
         </h1>
         <div class="controls-bar">
             <div class="lang-toggle">
@@ -615,6 +616,7 @@
         import { MONSTER_CLASS_DEFINITIONS, MONSTER_CLASS_MAP } from '../src/core/knowledge/data/MONSTER_CLASS_KNOWLEDGE.js';
         import { MonsterArmorRiskResolver } from '../src/core/knowledge/engines/MonsterArmorRiskResolver.js';
         import { ARTIFACT_KNOWLEDGE_BASE, ARTIFACT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/ARTIFACT_KNOWLEDGE_BASE.js';
+        import { LORE_MASTER } from '../src/core/lore/data/LoreMasterData.js';
 
         const translator = new TranslationEngine({ enabled: true });
         const knowledgeEngine = new StructuredKnowledgeEngine({ translationEngine: translator });
@@ -622,6 +624,115 @@
         let currentLang = 'ja'; // 'ja' | 'en'
         let currentTab = 'MONSTER';
         let selectedEntityId = 'cockatrice';
+
+        // -------------------------------------------------------------
+        // 伝承・噂話（LORE）クロスリファレンス逆引きヘルパー
+        // -------------------------------------------------------------
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function getRelatedLore(type, entity) {
+            if (!LORE_MASTER || !entity) return [];
+            const results = [];
+            const targetId = entity.id ? String(entity.id).toLowerCase() : '';
+            const targetName = entity.name ? entity.name.toLowerCase() : '';
+            const targetNameClean = targetName.replace(/\{.*?\}/g, '').trim();
+
+            const isMatch = (ent) => {
+                if (ent.type !== type) return false;
+                if (ent.id && targetId && String(ent.id).toLowerCase() === targetId) return true;
+                if (ent.name) {
+                    const enLower = ent.name.toLowerCase().replace(/\{.*?\}/g, '').trim();
+                    if (enLower === targetNameClean || enLower === targetName) return true;
+                }
+                if (type === 'MONSTER' && typeof ent.monOffset === 'number' && typeof entity.monOffset === 'number') {
+                    if (ent.monOffset === entity.monOffset) return true;
+                }
+                if (type === 'ITEM' && typeof ent.onum === 'number' && typeof entity.onum === 'number') {
+                    if (ent.onum === entity.onum) return true;
+                }
+                return false;
+            };
+
+            // Rumors から検索
+            if (Array.isArray(LORE_MASTER.rumors)) {
+                for (const r of LORE_MASTER.rumors) {
+                    if (Array.isArray(r.relatedEntities) && r.relatedEntities.some(isMatch)) {
+                        results.push({ ...r, loreCategory: 'RUMOR' });
+                    }
+                }
+            }
+
+            // Oracles から検索
+            if (Array.isArray(LORE_MASTER.oracles)) {
+                for (const o of LORE_MASTER.oracles) {
+                    if (Array.isArray(o.relatedEntities) && o.relatedEntities.some(isMatch)) {
+                        results.push({ ...o, loreCategory: 'ORACLE' });
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        function buildRelatedLoreHtml(type, entity) {
+            const list = getRelatedLore(type, entity);
+            if (!list || list.length === 0) return '';
+
+            const isJa = (currentLang === 'ja');
+            const title = isJa ? '関連する噂話・神託 (Rumors & Lore)' : 'Related Rumors & Lore';
+
+            const itemsHtml = list.map(item => {
+                let badgeClass = 'tag-INFO';
+                let badgeText = 'RUMOR';
+                if (item.loreCategory === 'ORACLE') {
+                    badgeClass = 'tag-LETHAL';
+                    badgeText = '🔮 ORACLE';
+                } else if (item.isTrue) {
+                    badgeClass = 'tag-LOW';
+                    badgeText = '✅ TRUE';
+                } else {
+                    badgeClass = 'tag-HIGH';
+                    badgeText = '❌ FALSE';
+                }
+
+                const enText = item.text || '';
+                const jpText = item.translatedText ? `<div style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">${escapeHtml(item.translatedText)}</div>` : '';
+
+                return `
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span class="tag-badge ${badgeClass}" style="font-size:0.75rem;">${badgeText}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); font-family:monospace;">${escapeHtml(item.id)}</span>
+                        </div>
+                        <div style="font-size:0.9rem; line-height:1.4; color:var(--text-primary); font-family:var(--font-mono, monospace);">${escapeHtml(enText)}</div>
+                        ${jpText}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="card-section" style="border-top: 1px dashed rgba(56, 189, 248, 0.3); margin-top: 16px; padding-top: 16px;">
+                    <div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span>📜</span>
+                            <span>${title}</span>
+                            <span class="badge" style="font-size:0.75rem; background:rgba(56, 189, 248, 0.15); color:var(--accent-color); border:1px solid var(--accent-color);">
+                                ${list.length} ${isJa ? '件' : 'entries'}
+                            </span>
+                        </div>
+                        <a href="lore_codex.html" target="_blank" style="font-size:0.8rem; color:var(--accent-color); text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                            ${isJa ? '手帳で開く ↗' : 'Open in Codex ↗'}
+                        </a>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        ${itemsHtml}
+                    </div>
+                </div>
+            `;
+        }
 
         // --- 1. エンティティリストの生成 ---
         const itemEntities = Array.from(knowledgeEngine.onumMap.values()).map(i => ({ ...i, entityType: 'ITEM' }));
@@ -1947,6 +2058,8 @@
                         <ul class="advice-list">${adviceHtml}</ul>
                     </div>
                 ` : ''}
+
+                ${buildRelatedLoreHtml('MONSTER', mon)}
             `;
 
             // クラス詳細へのジャンプイベント
@@ -2221,6 +2334,8 @@
                 ${invokeHtml}
 
                 ${descHtml}
+
+                ${buildRelatedLoreHtml('ITEM', art)}
             `;
 
             // ベースアイテムへのジャンプイベント
@@ -2594,6 +2709,8 @@
                         </div>
                     `}
                 </div>
+
+                ${buildRelatedLoreHtml('ITEM', item)}
             `;
         }
 

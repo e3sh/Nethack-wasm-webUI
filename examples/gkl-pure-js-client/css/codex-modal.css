@@ -537,3 +537,147 @@
 .codex-list-item.is-unread:hover {
   background: rgba(16, 185, 129, 0.09);
 }
+
+/* ============================================================================
+   関連知識 (Cross-Reference) & ミニスペック展開
+   ============================================================================ */
+
+.codex-related-section {
+  background: #111722;
+  border: 1px solid #2b3544;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codex-related-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.codex-related-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codex-related-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.codex-entity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  transition: all 0.15s ease;
+}
+
+.codex-entity-badge:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.codex-entity-badge.badge-monster {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: rgba(244, 63, 94, 0.12);
+  color: #fda4af;
+}
+.codex-entity-badge.badge-monster:hover {
+  border-color: #f43f5e;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+}
+
+.codex-entity-badge.badge-item {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+}
+.codex-entity-badge.badge-item:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+.codex-entity-badge.active {
+  border-color: #e3b341 !important;
+  box-shadow: 0 0 8px rgba(227, 179, 65, 0.4);
+}
+
+.codex-entity-spec-box {
+  background: #090d16;
+  border: 1px solid #38bdf8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-top: 6px;
+  animation: codexFadeIn 0.15s ease-out;
+}
+.codex-entity-spec-box.hidden {
+  display: none !important;
+}
+
+.codex-spec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.codex-spec-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.codex-spec-close-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+}
+.codex-spec-close-btn:hover {
+  color: #f8fafc;
+}
+
+.codex-spec-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.codex-spec-prop {
+  display: flex;
+  gap: 8px;
+}
+
+.codex-spec-prop-label {
+  color: #64748b;
+  min-width: 60px;
+  font-size: 11px;
+}
+
+.codex-spec-prop-value {
+  color: #e2e8f0;
+}
+

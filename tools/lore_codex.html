@@ -383,6 +383,145 @@
             transform: scale(1.1);
         }
 
+        /* 関連エンティティバッジ */
+        .card-related-entities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .entity-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+        }
+        .entity-badge:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.2);
+        }
+        .entity-badge.badge-monster {
+            background-color: rgba(244, 63, 94, 0.15);
+            border: 1px solid rgba(244, 63, 94, 0.4);
+            color: #fda4af;
+        }
+        .entity-badge.badge-item {
+            background-color: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #7dd3fc;
+        }
+        .btn-badge-remove {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0 3px;
+            font-size: 11px;
+            line-height: 1;
+            margin-left: 2px;
+            border-radius: 2px;
+        }
+        .btn-badge-remove:hover {
+            color: #f85149;
+            background: rgba(248, 81, 73, 0.25);
+        }
+        .btn-add-entity {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px dashed #a855f7;
+            color: #c084fc;
+            transition: all 0.15s ease;
+        }
+        .btn-add-entity:hover {
+            background: rgba(168, 85, 247, 0.25);
+            border-style: solid;
+        }
+        .picker-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #111620;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .picker-item:hover {
+            background: #1c2128;
+            border-color: var(--accent-gold);
+            transform: translateX(2px);
+        }
+
+        /* ミニスペックモーダル */
+        .spec-modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .spec-modal-backdrop.hidden {
+            display: none !important;
+        }
+        .spec-modal-content {
+            background-color: #161b22;
+            border: 1px solid var(--accent-gold);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 480px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            animation: codexFadeIn 0.15s ease-out;
+        }
+        .spec-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+        .spec-modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+        .spec-modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+        .spec-prop-row {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+        }
+        .spec-prop-lbl {
+            color: var(--text-secondary);
+            min-width: 70px;
+        }
+        .spec-prop-val {
+            color: var(--text-primary);
+        }
+
         .card-text-en {
             font-size: 13px;
             line-height: 1.5;
@@ -556,6 +695,9 @@
             </div>
         </div>
         <div class="header-actions">
+            <a href="knowledge-inspector.html" target="_blank" class="btn" style="text-decoration: none; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                🛠️ Structured Knowledge Inspector
+            </a>
             <button class="btn" onclick="toggleAllMasterMode()">
                 <span id="masterModeIcon">👁️</span> <span id="masterModeText">全マスタ閲覧 (787件)</span>
             </button>
@@ -569,6 +711,21 @@
             <button class="btn btn-danger" onclick="confirmReset()">
                 🗑️ 手帳初期化
             </button>
+            <button class="btn" id="btnToggleTagEdit" onclick="toggleTagEditMode()" style="border-color: rgba(168, 85, 247, 0.5); color: #c084fc;">
+                <span id="tagEditIcon">🏷️</span> <span id="tagEditText">タグ編集: OFF</span>
+            </button>
+            <span id="tagEditActions" class="hidden" style="display:inline-flex; align-items:center; gap:6px;">
+                <button class="btn btn-gold" onclick="exportOverridesJSON()" title="tools/lore_entity_overrides.json としてダウンロード">
+                    💾 差分保存
+                </button>
+                <button class="btn" onclick="copyOverridesJSON()" title="差分JSONをクリップボードにコピー">
+                    📋 コピー
+                </button>
+                <button class="btn" onclick="resetOverrides()" title="編集差分を破棄" style="color:var(--false-color);">
+                    🔄 リセット
+                </button>
+                <span id="tagEditDiffCount" style="font-size:11px; background:rgba(168, 85, 247, 0.2); color:#c084fc; border:1px solid #a855f7; padding:2px 6px; border-radius:4px;">0件変更</span>
+            </span>
         </div>
     </header>
 
@@ -791,21 +948,295 @@
         import { LoreDetector } from '../src/core/lore/LoreDetector.js';
         import { ElberethAnalyzer } from '../src/core/lore/ElberethAnalyzer.js';
         import { LORE_MASTER } from '../src/core/lore/data/LoreMasterData.js';
+        import { StructuredKnowledgeEngine } from '../src/core/knowledge/engines/StructuredKnowledgeEngine.js';
 
-        // グローバル Codex & Detector インスタンス
+        // グローバル Codex & Detector & KnowledgeEngine インスタンス
         const codex = new LoreCodex();
         const detector = new LoreDetector();
+        const knowledgeEngine = new StructuredKnowledgeEngine({ language: 'ja' });
         window.codex = codex;
         window.detector = detector;
         window.LORE_MASTER = LORE_MASTER;
+        window.knowledgeEngine = knowledgeEngine;
 
         let activeTab = 'rumors';
         let currentRumorFilter = 'ALL';
         let currentEngravingFilter = 'ALL';
         let showAllMasterMode = false;
 
+        // タグ編集モード & 差分状態管理
+        let tagEditMode = false;
+        let overridesState = { rumors: {}, oracles: {} };
+        let activePickerTarget = null; // { entryId, isOracle }
+
+        async function loadOverridesState() {
+            try {
+                const local = localStorage.getItem('nethack_lore_overrides');
+                if (local) {
+                    overridesState = JSON.parse(local);
+                    updateDiffCountUI();
+                    return;
+                }
+                const res = await fetch('lore_entity_overrides.json');
+                if (res.ok) {
+                    const data = await res.json();
+                    overridesState = {
+                        rumors: data.rumors || {},
+                        oracles: data.oracles || {}
+                    };
+                    updateDiffCountUI();
+                }
+            } catch (e) {
+                console.warn('Failed to load overrides JSON, using defaults.', e);
+            }
+        }
+
+        function saveOverridesState() {
+            try {
+                localStorage.setItem('nethack_lore_overrides', JSON.stringify(overridesState));
+                updateDiffCountUI();
+            } catch (e) {
+                console.error('Failed to save overrides to localStorage', e);
+            }
+        }
+
+        function updateDiffCountUI() {
+            const count = Object.keys(overridesState.rumors || {}).length + Object.keys(overridesState.oracles || {}).length;
+            const badge = document.getElementById('tagEditDiffCount');
+            if (badge) {
+                badge.textContent = `${count}件変更`;
+                badge.style.background = count > 0 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(168, 85, 247, 0.2)';
+                badge.style.borderColor = count > 0 ? 'var(--accent-gold)' : '#a855f7';
+                badge.style.color = count > 0 ? 'var(--accent-gold)' : '#c084fc';
+            }
+        }
+
+        function getEffectiveRelatedEntities(item, isOracle = false) {
+            const base = Array.isArray(item.relatedEntities) ? [...item.relatedEntities] : [];
+            const targetMap = isOracle ? overridesState.oracles : overridesState.rumors;
+            const over = targetMap[item.id];
+            if (!over) return base;
+
+            // 1. remove リストの適用
+            const removes = new Set((over.remove || []).map(r => String(r).toLowerCase()));
+            let filtered = base.filter(e => {
+                const idLower = String(e.id || '').toLowerCase();
+                const nameLower = String(e.name || '').toLowerCase();
+                const cleanLower = String(e.cleanEn || '').toLowerCase();
+                return !removes.has(idLower) && !removes.has(nameLower) && !removes.has(cleanLower);
+            });
+
+            // 2. add リストの適用
+            if (Array.isArray(over.add)) {
+                for (const a of over.add) {
+                    const exists = filtered.some(e => 
+                        (e.id && a.id && e.id === a.id) || 
+                        (e.name && a.name && e.name.toLowerCase() === a.name.toLowerCase()) ||
+                        (a.cleanEn && e.name && e.name.toLowerCase().includes(a.cleanEn.toLowerCase()))
+                    );
+                    if (!exists) {
+                        let rich = a;
+                        if (knowledgeEngine) {
+                            if (a.type === 'MONSTER') {
+                                const m = knowledgeEngine.getMonsterKnowledge(a.id || a.cleanEn || a.name);
+                                if (m) rich = { type: 'MONSTER', id: m.id, name: m.name, nameJa: m.nameJa, symbol: m.symbol, dangerLevel: m.dangerLevel };
+                            } else {
+                                const it = knowledgeEngine.getItemKnowledge(a.id || a.cleanEn || a.name);
+                                if (it) rich = { type: 'ITEM', id: it.id, onum: it.onum, name: it.name, nameJa: it.nameJa, category: it.category, symbol: it.symbol };
+                            }
+                        }
+                        filtered.push(rich);
+                    }
+                }
+            }
+
+            return filtered;
+        }
+
+        window.toggleTagEditMode = function() {
+            tagEditMode = !tagEditMode;
+            const textEl = document.getElementById('tagEditText');
+            const actionsEl = document.getElementById('tagEditActions');
+            const btn = document.getElementById('btnToggleTagEdit');
+            if (tagEditMode) {
+                textEl.textContent = 'タグ編集: ON';
+                btn.style.background = 'rgba(168, 85, 247, 0.25)';
+                btn.style.borderColor = '#c084fc';
+                actionsEl.classList.remove('hidden');
+            } else {
+                textEl.textContent = 'タグ編集: OFF';
+                btn.style.background = '';
+                btn.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                actionsEl.classList.add('hidden');
+            }
+            renderRumors();
+            renderOracles();
+        };
+
+        window.removeEntityTag = function(entryId, type, id, name, isOracle, event) {
+            if (event) event.stopPropagation();
+            const targetMap = isOracle ? overridesState.oracles : overridesState.rumors;
+            if (!targetMap[entryId]) {
+                targetMap[entryId] = { add: [], remove: [] };
+            }
+            const over = targetMap[entryId];
+            over.add = over.add.filter(a => a.id !== id && a.name !== name && a.cleanEn !== name);
+            const keyToRemove = id || name;
+            if (!over.remove.includes(keyToRemove)) {
+                over.remove.push(keyToRemove);
+            }
+            saveOverridesState();
+            if (isOracle) renderOracles();
+            else renderRumors();
+        };
+
+        window.addEntityTag = function(entryId, entity, isOracle) {
+            const targetMap = isOracle ? overridesState.oracles : overridesState.rumors;
+            if (!targetMap[entryId]) {
+                targetMap[entryId] = { add: [], remove: [] };
+            }
+            const over = targetMap[entryId];
+            over.remove = over.remove.filter(r => r !== entity.id && r !== entity.name);
+            const already = over.add.some(a => a.id === entity.id || a.name === entity.name);
+            if (!already) {
+                over.add.push(entity);
+            }
+            saveOverridesState();
+            if (isOracle) renderOracles();
+            else renderRumors();
+        };
+
+        window.openEntityPicker = function(entryId, isOracle, event) {
+            if (event) event.stopPropagation();
+            activePickerTarget = { entryId, isOracle };
+            const modal = document.getElementById('entityPickerModal');
+            const input = document.getElementById('entityPickerSearch');
+            if (modal) modal.classList.remove('hidden');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            window.renderEntityPickerList();
+        };
+
+        window.closeEntityPicker = function(e) {
+            if (e && e.target !== e.currentTarget && !e.target.classList.contains('btn-close')) return;
+            const modal = document.getElementById('entityPickerModal');
+            if (modal) modal.classList.add('hidden');
+            activePickerTarget = null;
+        };
+
+        window.renderEntityPickerList = function() {
+            const listEl = document.getElementById('entityPickerList');
+            const query = (document.getElementById('entityPickerSearch').value || '').trim().toLowerCase();
+            if (!listEl) return;
+
+            const candidates = [];
+            const seenIds = new Set();
+
+            if (knowledgeEngine) {
+                // モンスター検索 (monOffsetMap または monsters から重複排除して抽出)
+                const monsterSource = (knowledgeEngine.monOffsetMap && knowledgeEngine.monOffsetMap.size > 0)
+                    ? knowledgeEngine.monOffsetMap.values()
+                    : knowledgeEngine.monsters.values();
+
+                for (const m of monsterSource) {
+                    if (!m.name) continue;
+                    const uid = m.id || m.name;
+                    if (seenIds.has(uid)) continue;
+                    seenIds.add(uid);
+
+                    const nameLower = m.name.toLowerCase();
+                    const nameJa = m.nameJa || m.name;
+                    const qMatch = !query || nameLower.includes(query) || nameJa.toLowerCase().includes(query);
+                    if (qMatch) {
+                        candidates.push({
+                            type: 'MONSTER',
+                            id: m.id || uid,
+                            name: m.name,
+                            nameJa: nameJa,
+                            badge: m.dangerLevel || 'MONSTER'
+                        });
+                    }
+                    if (candidates.length >= 40) break;
+                }
+
+                // アイテム検索 (onumMap または items から重複排除して抽出)
+                const itemSource = (knowledgeEngine.onumMap && knowledgeEngine.onumMap.size > 0)
+                    ? knowledgeEngine.onumMap.values()
+                    : knowledgeEngine.items.values();
+
+                for (const it of itemSource) {
+                    if (!it.name) continue;
+                    const uid = it.id || (typeof it.onum === 'number' ? `obj_${it.onum}` : it.name);
+                    if (seenIds.has(uid)) continue;
+                    seenIds.add(uid);
+
+                    const nameLower = it.name.toLowerCase();
+                    const nameJa = it.nameJa || it.name;
+                    const qMatch = !query || nameLower.includes(query) || nameJa.toLowerCase().includes(query);
+                    if (qMatch) {
+                        candidates.push({
+                            type: 'ITEM',
+                            id: it.id || uid,
+                            onum: it.onum,
+                            name: it.name,
+                            nameJa: nameJa,
+                            badge: it.category || 'ITEM'
+                        });
+                    }
+                    if (candidates.length >= 80) break;
+                }
+            }
+
+            listEl.innerHTML = candidates.map(c => `
+                <div class="picker-item" onclick="window.selectPickerEntity('${c.type}', '${escapeHtml(c.id)}', '${escapeHtml(c.name)}', '${escapeHtml(c.nameJa)}')">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span>${c.type === 'MONSTER' ? '👾' : '🛡️'}</span>
+                        <span style="font-weight:600; color:#fff;">${escapeHtml(c.nameJa || c.name)}</span>
+                        <span style="font-size:11px; color:#94a3b8;">(${escapeHtml(c.name)})</span>
+                    </div>
+                    <span class="badge" style="font-size:10px; background:#1e293b; color:#38bdf8;">${escapeHtml(c.badge)}</span>
+                </div>
+            `).join('') || '<div style="color:#64748b; padding:12px; text-align:center;">一致するエンティティが見つかりません</div>';
+        };
+
+        window.selectPickerEntity = function(type, id, name, nameJa) {
+            if (!activePickerTarget) return;
+            const { entryId, isOracle } = activePickerTarget;
+            window.addEntityTag(entryId, { type, id, name, nameJa }, isOracle);
+            window.closeEntityPicker();
+        };
+
+        window.exportOverridesJSON = function() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(overridesState, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "lore_entity_overrides.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        };
+
+        window.copyOverridesJSON = function() {
+            navigator.clipboard.writeText(JSON.stringify(overridesState, null, 2))
+                .then(() => alert('差分JSONをクリップボードにコピーしました！\ntools/lore_entity_overrides.json に保存できます。'))
+                .catch(err => alert('コピーに失敗しました: ' + err));
+        };
+
+        window.resetOverrides = function() {
+            if (confirm('ローカルで行った編集差分をすべて初期化しますか？')) {
+                localStorage.removeItem('nethack_lore_overrides');
+                overridesState = { rumors: {}, oracles: {} };
+                updateDiffCountUI();
+                renderRumors();
+                renderOracles();
+            }
+        };
+
         // UI 初期化
-        function init() {
+        async function init() {
+            await loadOverridesState();
             updateStatsUI();
             renderRumors();
             renderOracles();
@@ -820,7 +1251,6 @@
                 renderWard();
             });
 
-            // 別タブ（ゲーム本編画面）での手帳更新をリアルタイムに自動同期
             window.addEventListener('storage', async (e) => {
                 if (e.key === 'nethack_webui_lore_codex') {
                     await codex.load();
@@ -896,7 +1326,6 @@
 
             let rumors = [];
             if (showAllMasterMode) {
-                // 全マスタプレビューモード
                 rumors = LORE_MASTER.rumors.filter(r => {
                     if (currentRumorFilter === 'TRUE' && !r.isTrue) return false;
                     if (currentRumorFilter === 'FALSE' && r.isTrue) return false;
@@ -926,6 +1355,23 @@
                     ? `<button class="btn-card-delete" onclick="deleteEntry('${escapeHtml(r.id)}', 'RUMOR', event)" title="この噂話を削除">🗑️</button>` 
                     : '';
 
+                const effectiveEntities = getEffectiveRelatedEntities(r, false);
+                const relatedHtml = (effectiveEntities.length > 0 || tagEditMode) ? `
+                    <div class="card-related-entities">
+                        ${effectiveEntities.map(e => `
+                            <span class="entity-badge badge-${e.type.toLowerCase()}" onclick="window.showEntitySpec('${e.type}', '${escapeHtml(e.id)}', '${escapeHtml(e.name)}', '${escapeHtml(e.nameJa || '')}')">
+                                ${e.type === 'MONSTER' ? '👾' : '🛡️'} ${escapeHtml(e.nameJa || e.name)}
+                                ${tagEditMode ? `<button class="btn-badge-remove" onclick="window.removeEntityTag('${escapeHtml(r.id)}', '${e.type}', '${escapeHtml(e.id)}', '${escapeHtml(e.name)}', false, event)" title="タグを除外">✕</button>` : ''}
+                            </span>
+                        `).join('')}
+                        ${tagEditMode ? `
+                            <button class="btn-add-entity" onclick="window.openEntityPicker('${escapeHtml(r.id)}', false, event)">
+                                ＋ 追加
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : '';
+
                 return `
                     <div class="lore-card">
                         <div class="card-header">
@@ -937,6 +1383,7 @@
                         </div>
                         <div class="card-text-en">${escapeHtml(r.text)}</div>
                         ${trHtml}
+                        ${relatedHtml}
                         <div class="card-footer">
                             <span>入手元: ${escapeHtml(r.source || 'cookie')}</span>
                             ${seenCountHtml}
@@ -971,6 +1418,23 @@
                     ? `<button class="btn-card-delete" onclick="deleteEntry('${escapeHtml(o.id)}', 'ORACLE', event)" title="この神託を削除">🗑️</button>` 
                     : '';
 
+                const effectiveEntities = getEffectiveRelatedEntities(o, true);
+                const relatedHtml = (effectiveEntities.length > 0 || tagEditMode) ? `
+                    <div class="card-related-entities">
+                        ${effectiveEntities.map(e => `
+                            <span class="entity-badge badge-${e.type.toLowerCase()}" onclick="window.showEntitySpec('${e.type}', '${escapeHtml(e.id)}', '${escapeHtml(e.name)}', '${escapeHtml(e.nameJa || '')}')">
+                                ${e.type === 'MONSTER' ? '👾' : '🛡️'} ${escapeHtml(e.nameJa || e.name)}
+                                ${tagEditMode ? `<button class="btn-badge-remove" onclick="window.removeEntityTag('${escapeHtml(o.id)}', '${e.type}', '${escapeHtml(e.id)}', '${escapeHtml(e.name)}', true, event)" title="タグを除外">✕</button>` : ''}
+                            </span>
+                        `).join('')}
+                        ${tagEditMode ? `
+                            <button class="btn-add-entity" onclick="window.openEntityPicker('${escapeHtml(o.id)}', true, event)">
+                                ＋ 追加
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : '';
+
                 return `
                     <div class="lore-card">
                         <div class="card-header">
@@ -983,6 +1447,7 @@
                         <div style="font-weight: 600; font-size: 13px; color: var(--accent-gold);">${escapeHtml(o.title || '')}</div>
                         <div class="card-text-en" style="white-space: pre-line;">${escapeHtml(o.text)}</div>
                         ${trHtml}
+                        ${relatedHtml}
                         <div class="card-footer">
                             <span>Oracle of Delphi</span>
                             <span>遭遇回数: <b>x${o.seenCount || 1}</b></span>
@@ -1312,6 +1777,77 @@
             }
         };
 
+        window.showEntitySpec = function(type, id, name, nameJa) {
+            const modal = document.getElementById('specModal');
+            const titleEl = document.getElementById('specModalTitle');
+            const bodyEl = document.getElementById('specModalBody');
+            if (!modal || !titleEl || !bodyEl) return;
+
+            const isMonster = (type === 'MONSTER');
+            let data = null;
+            if (isMonster) {
+                data = knowledgeEngine.getMonsterKnowledge(id || name, { language: 'ja' });
+            } else {
+                data = knowledgeEngine.getItemKnowledge(id || name, { language: 'ja' });
+            }
+
+            const displayName = data?.nameJa || nameJa || name;
+            const displayEn = data?.nameEn || name;
+            const icon = isMonster ? '👾' : '🛡️';
+
+            titleEl.innerHTML = `<span>${icon} ${escapeHtml(displayName)}</span> <span style="font-size:12px; color:var(--text-secondary); font-weight:normal;">(${escapeHtml(displayEn)})</span>`;
+
+            let bodyHtml = '';
+            if (isMonster) {
+                const danger = data?.dangerLevel || 'MEDIUM';
+                const stats = data?.stats ? `HD: ${data.stats.hd} | AC: ${data.stats.ac} | Spd: ${data.stats.speed} | MR: ${data.stats.mr}` : '-';
+                const adv = (data?.tacticalAdvice && data.tacticalAdvice.length > 0) ? data.tacticalAdvice.join('<br>') : (data?.threat?.description || data?.effectSummary || '特記事項なし');
+
+                bodyHtml = `
+                    <div class="spec-prop-row">
+                        <span class="spec-prop-lbl">危険度:</span>
+                        <span class="spec-prop-val" style="color:var(--accent-gold); font-weight:700;">${escapeHtml(danger)}</span>
+                    </div>
+                    <div class="spec-prop-row">
+                        <span class="spec-prop-lbl">基礎値:</span>
+                        <span class="spec-prop-val">${escapeHtml(stats)}</span>
+                    </div>
+                    <div class="spec-prop-row" style="flex-direction:column; gap:4px; margin-top:6px;">
+                        <span class="spec-prop-lbl">戦術助言 / 特徴:</span>
+                        <div class="spec-prop-val" style="background:#0d1117; padding:10px; border-radius:6px; border:1px solid var(--border-color); line-height:1.5;">${adv}</div>
+                    </div>
+                `;
+            } else {
+                const cat = data?.category || 'TOOL';
+                const cost = data?.cost ? `$${data.cost}` : '-';
+                const eff = data?.effectSummary || data?.actionLabel || '特記事項なし';
+
+                bodyHtml = `
+                    <div class="spec-prop-row">
+                        <span class="spec-prop-lbl">分類:</span>
+                        <span class="spec-prop-val">${escapeHtml(cat)}</span>
+                    </div>
+                    <div class="spec-prop-row">
+                        <span class="spec-prop-lbl">基準価格:</span>
+                        <span class="spec-prop-val">${escapeHtml(cost)}</span>
+                    </div>
+                    <div class="spec-prop-row" style="flex-direction:column; gap:4px; margin-top:6px;">
+                        <span class="spec-prop-lbl">効果 / 用途:</span>
+                        <div class="spec-prop-val" style="background:#0d1117; padding:10px; border-radius:6px; border:1px solid var(--border-color); line-height:1.5;">${eff}</div>
+                    </div>
+                `;
+            }
+
+            bodyEl.innerHTML = bodyHtml;
+            modal.classList.remove('hidden');
+        };
+
+        window.closeSpecModal = function(e) {
+            if (e && e.target !== e.currentTarget && !e.target.classList.contains('btn-close')) return;
+            const modal = document.getElementById('specModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1319,5 +1855,34 @@
 
         init();
     </script>
+
+    <!-- ミニスペックモーダル -->
+    <div id="specModal" class="spec-modal-backdrop hidden" onclick="window.closeSpecModal(event)">
+        <div class="spec-modal-content" onclick="event.stopPropagation()">
+            <div class="spec-modal-header">
+                <div id="specModalTitle" class="spec-modal-title"></div>
+                <button class="btn btn-close" onclick="window.closeSpecModal()">✕</button>
+            </div>
+            <div id="specModalBody" class="spec-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- エンティティ追加用ピッカーモーダル -->
+    <div id="entityPickerModal" class="spec-modal-backdrop hidden" onclick="window.closeEntityPicker(event)">
+        <div class="spec-modal-content" onclick="event.stopPropagation()" style="max-width: 520px;">
+            <div class="spec-modal-header">
+                <div class="spec-modal-title">＋ 関連エンティティを追加</div>
+                <button class="btn btn-close" onclick="window.closeEntityPicker()">✕</button>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <input type="text" id="entityPickerSearch" placeholder="モンスター・アイテム名で検索 (例: 'medusa', '鏡', 'blindfold')..." 
+                       style="width: 100%; padding: 8px 12px; background: #0d1117; border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 13px;"
+                       oninput="window.renderEntityPickerList()">
+            </div>
+            <div id="entityPickerList" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                <!-- 候補リスト -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
