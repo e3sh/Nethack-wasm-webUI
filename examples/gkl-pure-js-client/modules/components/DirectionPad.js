@@ -141,6 +141,17 @@ export class DirectionPad {
 
       this.elGklDirectionPad.addEventListener('pointercancel', clearLongPress);
       this.elGklDirectionPad.addEventListener('pointerleave', clearLongPress);
+      this.elGklDirectionPad.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    }
+
+    if (this.elGklActionList && typeof this.elGklActionList.addEventListener === 'function') {
+      this.elGklActionList.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
     }
 
     if (this.elBtnDirReset) {
@@ -149,6 +160,10 @@ export class DirectionPad {
         this.selectedDir = (this.selectedDir === 'NONE') ? 'ALL' : 'NONE';
         this._lastActionHtml = null;
         this.onDirectionFiltered(this.selectedDir);
+      });
+      this.elBtnDirReset.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
       });
     }
   }

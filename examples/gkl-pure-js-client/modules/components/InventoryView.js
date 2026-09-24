@@ -31,6 +31,12 @@ export class InventoryView {
     this.currentLanguage = 'ja';
     this.presenter = new EncumbrancePresenter({ language: this.currentLanguage });
     this._lastInvHtml = null;
+
+    if (this.elGklInventoryGrid && typeof this.elGklInventoryGrid.addEventListener === 'function') {
+      this.elGklInventoryGrid.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+      });
+    }
   }
 
   setLanguage(lang) {
@@ -228,6 +234,21 @@ export class InventoryView {
           // ナレッジ詳細閲覧関数 (右長押し)
           const triggerInspect = () => {
             if (this.elGklTooltip) this.elGklTooltip.classList.add('hidden');
+
+            // モーダルが前面に出た後にユーザーが右ボタンを離した際の
+            // contextmenu イベントを window レベルで確実に捕捉・抑止
+            if (typeof window !== 'undefined') {
+              const suppressHandler = (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                window.removeEventListener('contextmenu', suppressHandler, true);
+              };
+              window.addEventListener('contextmenu', suppressHandler, true);
+              setTimeout(() => {
+                window.removeEventListener('contextmenu', suppressHandler, true);
+              }, 600);
+            }
+
             if (typeof this.onInspectItem === 'function') {
               this.onInspectItem(item);
             }
@@ -306,6 +327,7 @@ export class InventoryView {
               }, LONG_PRESS_MS);
             } else if (e.button === 2) {
               // 右クリック
+              if (typeof e.preventDefault === 'function') e.preventDefault();
               isRightLongPress = false;
               slot.classList.add('pressing');
 
@@ -356,7 +378,8 @@ export class InventoryView {
 
           // 右クリックイベントハンドラ (PC向け短押しでサブメニュー、長押し完了時は抑止)
           slot.oncontextmenu = (e) => {
-            e.preventDefault();
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
             if (rightPressTimer) {
               clearTimeout(rightPressTimer);
               rightPressTimer = null;

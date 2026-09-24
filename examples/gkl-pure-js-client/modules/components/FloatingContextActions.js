@@ -100,6 +100,10 @@ export class FloatingContextActions {
       this.elPopup.addEventListener('click', (e) => {
         e.stopPropagation();
       });
+      this.elPopup.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
     }
 
     if (typeof document !== 'undefined') {

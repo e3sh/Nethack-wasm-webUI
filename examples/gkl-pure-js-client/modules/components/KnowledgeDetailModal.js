@@ -59,6 +59,10 @@ export class KnowledgeDetailModal {
           this.close();
         }
       };
+      this.elModal.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
     }
 
     if (typeof document !== 'undefined') {
