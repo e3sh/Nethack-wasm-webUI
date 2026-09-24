@@ -792,9 +792,47 @@ export class WebGPUHD2DRenderer {
       if (!this.isActive) return;
       const grid = this._raycastFloor(e.clientX, e.clientY);
       if (grid && this.onCellClick) {
-        this.onCellClick(grid.x, grid.y);
+        this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY }, false);
       }
     });
+
+    this.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!this.isActive) return;
+      const grid = this._raycastFloor(e.clientX, e.clientY);
+      if (grid) {
+        if (this.onCellContextMenu) {
+          this.onCellContextMenu(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY });
+        } else if (this.onCellClick) {
+          this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY }, true);
+        }
+      }
+    });
+  }
+
+  /**
+   * 3D ワールド座標 (gx, y, gy) を Canvas 内スクリーン座標 (screenX, screenY) に射影変換
+   * @param {number} gx
+   * @param {number} [y=0.45]
+   * @param {number} gy
+   * @returns {{ screenX: number, screenY: number } | null}
+   */
+  worldToScreen(gx, y = 0.45, gy) {
+    if (!this.viewProjMatrix || !this.canvas) return null;
+    const m = this.viewProjMatrix;
+    const clipX = m[0] * gx + m[4] * y + m[8] * gy + m[12];
+    const clipY = m[1] * gx + m[5] * y + m[9] * gy + m[13];
+    const clipW = m[3] * gx + m[7] * y + m[11] * gy + m[15];
+
+    if (clipW <= 0.0001) return null;
+
+    const ndcX = clipX / clipW;
+    const ndcY = clipY / clipW;
+
+    const screenX = ((ndcX + 1.0) / 2.0) * this.canvas.width;
+    const screenY = ((-ndcY + 1.0) / 2.0) * this.canvas.height;
+
+    return { screenX, screenY };
   }
 
   _raycastFloor(clientX, clientY) {

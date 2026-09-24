@@ -605,4 +605,79 @@ export class MainViewportRenderer {
       this.ctx.fillRect(dx + 4, dy + 4 + animY, 24, 24);
     }
   }
+
+  /**
+   * クライアント画面座標 (clientX, clientY) からダンジョンタイル座標 (gx, gy) を逆算
+   * @param {number} clientX
+   * @param {number} clientY
+   * @returns {{ gx: number, gy: number } | null}
+   */
+  screenToGrid(clientX, clientY) {
+    if (!this.canvas) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    const canvasX = (clientX - rect.left) * scaleX;
+    const canvasY = (clientY - rect.top) * scaleY;
+
+    const ts = this.tileSize || 32;
+    const bgTotalW = this.virtualScreen?.width || (80 * ts);
+    const bgTotalH = this.virtualScreen?.height || (24 * ts);
+    const cameraPixelX = this.camX * ts + ts / 2;
+    const cameraPixelY = this.camY * ts + ts / 2;
+
+    const srcW = Math.min(bgTotalW, this.canvas.width);
+    const srcH = Math.min(bgTotalH, this.canvas.height);
+
+    const srcX = Math.max(0, Math.min(bgTotalW - srcW, cameraPixelX - srcW / 2));
+    const srcY = Math.max(0, Math.min(bgTotalH - srcH, cameraPixelY - srcH / 2));
+
+    const dstX = (this.canvas.width > bgTotalW) ? Math.floor((this.canvas.width - bgTotalW) / 2) : 0;
+    const dstY = (this.canvas.height > bgTotalH) ? Math.floor((this.canvas.height - bgTotalH) / 2) : 0;
+
+    const gx = Math.floor((canvasX - dstX + srcX) / ts);
+    const gy = Math.floor((canvasY - dstY + srcY) / ts);
+
+    if (gx >= 0 && gx < 80 && gy >= 0 && gy < 24) {
+      return { gx, gy };
+    }
+    return null;
+  }
+
+  /**
+   * ダンジョンタイル座標 (gx, gy) から Canvas のクライアント画面座標 (clientX, clientY) を計算
+   * @param {number} gx
+   * @param {number} gy
+   * @returns {{ clientX: number, clientY: number } | null}
+   */
+  gridToScreen(gx, gy) {
+    if (!this.canvas) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
+    const ts = this.tileSize || 32;
+    const bgTotalW = this.virtualScreen?.width || (80 * ts);
+    const bgTotalH = this.virtualScreen?.height || (24 * ts);
+    const cameraPixelX = this.camX * ts + ts / 2;
+    const cameraPixelY = this.camY * ts + ts / 2;
+
+    const srcW = Math.min(bgTotalW, this.canvas.width);
+    const srcH = Math.min(bgTotalH, this.canvas.height);
+
+    const srcX = Math.max(0, Math.min(bgTotalW - srcW, cameraPixelX - srcW / 2));
+    const srcY = Math.max(0, Math.min(bgTotalH - srcH, cameraPixelY - srcH / 2));
+
+    const dstX = (this.canvas.width > bgTotalW) ? Math.floor((this.canvas.width - bgTotalW) / 2) : 0;
+    const dstY = (this.canvas.height > bgTotalH) ? Math.floor((this.canvas.height - bgTotalH) / 2) : 0;
+
+    const canvasX = Math.round(gx * ts - srcX + dstX + ts / 2);
+    const canvasY = Math.round(gy * ts - srcY + dstY + ts / 2);
+
+    const clientX = rect.left + canvasX * (rect.width / this.canvas.width);
+    const clientY = rect.top + canvasY * (rect.height / this.canvas.height);
+
+    return { clientX, clientY };
+  }
 }

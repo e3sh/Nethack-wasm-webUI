@@ -826,14 +826,149 @@ export class ContextActionEngine {
         };
 
         adjacentEntities.forEach(item => {
-            const b = item.cell.bottom;
-            if (!b || !b.cmapFlags) return;
-            const flags = b.cmapFlags;
-            const dirCode = item.dir.code;
+            if (!item || !item.cell) return;
+            const dirCode = item.dir?.code || (typeof item.dir === 'string' ? item.dir.replace(/^DIR_/, '') : '');
             const dirKey = this.getAbstractDirKey(item.dir);
             const dirMeta = this.getDirectionMeta(item.dir);
             const { dirNameJa, dirSymbol } = dirMeta;
-            const dirName = item.dir.name || dirCode;
+            const dirName = item.dir?.name || dirCode;
+
+            // (A) 床の物・設置物 (cell.middle: コンテナ、巨石など)
+            const middle = item.cell.middle;
+            if (middle) {
+                const isContainer = Boolean(middle.isContainer || middle.category === 'CONTAINER' || middle.isChest);
+                if (isContainer) {
+                    // 1. 鍵での解錠 (Unlock)
+                    if (keyItem && !actions.some(a => a.id === `ACTION_UNLOCK_CONTAINER_${dirCode}`)) {
+                        actions.push({
+                            id: `ACTION_UNLOCK_CONTAINER_${dirCode}`,
+                            category: 'INTERACT',
+                            label: `Unlock container [${dirCode}] with ${keyItem.rawText || 'key'}`,
+                            labelJa: `箱を解錠 [${dirNameJa}] (${keyItem.letter})`,
+                            key: `a${keyItem.letter}${dirKey}y`,
+                            keySequence: ['a', keyItem.letter, dirKey, 'y'],
+                            charStr: 'a',
+                            directionKey: dirKey,
+                            direction: item.dir,
+                            isDirectional: true,
+                            dirNameJa,
+                            dirSymbol,
+                            target: 'adjacent',
+                            entity: middle,
+                            risk: null,
+                            priority: 95,
+                            description: `Apply ${keyItem.rawText || 'key'} to unlock container in ${dirNameJa}`,
+                            descriptionJa: `${dirNameJa}の箱を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
+                        });
+                    }
+
+                    // 2. 漁る (Loot)
+                    if (!actions.some(a => a.id === `ACTION_LOOT_CONTAINER_${dirCode}`)) {
+                        actions.push({
+                            id: `ACTION_LOOT_CONTAINER_${dirCode}`,
+                            category: 'INTERACT',
+                            label: `Loot container [${dirCode}]`,
+                            labelJa: `箱を漁る [${dirNameJa}] (#loot)`,
+                            key: `#loot${dirKey}`,
+                            keySequence: ['#', 'loot', dirKey],
+                            charStr: '#loot',
+                            extCmd: 'loot',
+                            directionKey: dirKey,
+                            direction: item.dir,
+                            isDirectional: true,
+                            dirNameJa,
+                            dirSymbol,
+                            target: 'adjacent',
+                            entity: middle,
+                            risk: null,
+                            priority: 90,
+                            description: `Loot container in ${dirNameJa}`,
+                            descriptionJa: `${dirNameJa}の箱を開けて中身を確認・出し入れします`
+                        });
+                    }
+
+                    // 3. 罠解除 (Untrap)
+                    if (!actions.some(a => a.id === `ACTION_UNTRAP_CONTAINER_${dirCode}`)) {
+                        actions.push({
+                            id: `ACTION_UNTRAP_CONTAINER_${dirCode}`,
+                            category: 'INTERACT',
+                            label: `Untrap container [${dirCode}]`,
+                            labelJa: `箱の罠解除 [${dirNameJa}] (#untrap)`,
+                            key: `#untrap${dirKey}`,
+                            keySequence: ['#', 'untrap', dirKey],
+                            charStr: '#untrap',
+                            extCmd: 'untrap',
+                            directionKey: dirKey,
+                            direction: item.dir,
+                            isDirectional: true,
+                            dirNameJa,
+                            dirSymbol,
+                            target: 'adjacent',
+                            entity: middle,
+                            risk: null,
+                            priority: 80,
+                            description: `Disarm traps on container in ${dirNameJa}`,
+                            descriptionJa: `${dirNameJa}の箱にかかった罠の解除を試みます`
+                        });
+                    }
+
+                    // 4. 箱蹴り (Kick)
+                    if (!actions.some(a => a.id === `ACTION_KICK_CONTAINER_${dirCode}`)) {
+                        actions.push({
+                            id: `ACTION_KICK_CONTAINER_${dirCode}`,
+                            category: 'INTERACT',
+                            label: `Kick container [${dirCode}]`,
+                            labelJa: `箱を蹴る [${dirNameJa}]`,
+                            key: `C-d${dirKey}`,
+                            keySequence: ['#', 'kick', dirKey],
+                            charStr: '#kick',
+                            extCmd: 'kick',
+                            directionKey: dirKey,
+                            direction: item.dir,
+                            isDirectional: true,
+                            dirNameJa,
+                            dirSymbol,
+                            target: 'adjacent',
+                            entity: middle,
+                            risk: 'warning',
+                            priority: 60,
+                            description: `Kick container to break lock or check contents`,
+                            descriptionJa: `${dirNameJa}の箱を蹴って施錠破壊や中身の音を確認します`
+                        });
+                    }
+                }
+
+                // 巨石 (Boulder)
+                const isBoulder = Boolean(middle.name === 'boulder' || middle.id?.includes('boulder') || middle.isBoulder);
+                if (isBoulder) {
+                    if (!actions.some(a => a.id === `ACTION_PUSH_BOULDER_${dirCode}`)) {
+                        actions.push({
+                            id: `ACTION_PUSH_BOULDER_${dirCode}`,
+                            category: 'INTERACT',
+                            label: `Push boulder [${dirCode}]`,
+                            labelJa: `巨石を押す [${dirNameJa}]`,
+                            key: dirKey,
+                            keySequence: [dirKey],
+                            charStr: dirKey,
+                            directionKey: dirKey,
+                            direction: item.dir,
+                            isDirectional: true,
+                            dirNameJa,
+                            dirSymbol,
+                            target: 'adjacent',
+                            entity: middle,
+                            risk: null,
+                            priority: 85,
+                            description: `Push boulder in ${dirNameJa}`,
+                            descriptionJa: `${dirNameJa}の巨石を押して移動させます`
+                        });
+                    }
+                }
+            }
+
+            const b = item.cell.bottom;
+            if (!b || !b.cmapFlags) return;
+            const flags = b.cmapFlags;
 
 
             // 閉じた扉 / 施錠された扉 (Closed Door / Locked Door)

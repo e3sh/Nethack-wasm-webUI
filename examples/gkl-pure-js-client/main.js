@@ -16,8 +16,10 @@ import { CharacterCreationModal } from './modules/components/CharacterCreationMo
 import { ContainerModal } from './modules/components/ContainerModal.js';
 import { PaperdollModal } from './modules/components/PaperdollModal.js';
 import { CodexModal } from './modules/components/CodexModal.js';
+import { KnowledgeDetailModal } from './modules/components/KnowledgeDetailModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
 import { EngravingHud } from './modules/components/EngravingHud.js';
+import { FloatingContextActions } from './modules/components/FloatingContextActions.js';
 
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
@@ -110,7 +112,13 @@ class GklPureJSClient {
       elGklTtTags: document.getElementById('gkl-tt-tags'),
       getCore: () => this.core,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-      onInspectItem: (item) => this.knowledgeView.renderKnowledgeCard(item)
+      onInspectItem: (item) => {
+        if (this.knowledgeDetailModal) {
+          this.knowledgeDetailModal.open(item);
+        } else if (this.knowledgeView) {
+          this.knowledgeView.renderKnowledgeCard(item);
+        }
+      }
     });
 
     // 5. Assist HUD & Landmarks
@@ -236,6 +244,33 @@ class GklPureJSClient {
       getCore: () => this.core,
       onUnreadCountChanged: (count) => this.updateCodexBadge(count),
       onClose: () => {}
+    });
+
+    // 8.75 構造化ナレッジ詳細モーダル (KnowledgeDetailModal)
+    this.knowledgeDetailModal = new KnowledgeDetailModal({
+      elModal: document.getElementById('knowledge-detail-modal'),
+      getCore: () => this.core,
+      language: this.currentLanguage
+    });
+
+    // 8.8 Floating Context Actions (マスのスマートコンテキスト連携ポップアップ)
+    const viewportContainer = document.querySelector('.game-viewport');
+    this.floatingActions = new FloatingContextActions({
+      container: viewportContainer,
+      getCore: () => this.core,
+      onInspectDetail: (cardData) => {
+        if (this.knowledgeDetailModal) {
+          this.knowledgeDetailModal.open(cardData);
+        }
+      },
+      onNavigateKnowledge: (cardData) => {
+        if (this.knowledgeDetailModal) {
+          this.knowledgeDetailModal.open(cardData);
+        } else if (this.codexModal) {
+          this.codexModal.show();
+        }
+      },
+      language: this.currentLanguage
     });
 
     // 9. Key Handler
@@ -425,9 +460,10 @@ class GklPureJSClient {
         this.mainViewportRenderer.redrawSingleCell(x, y);
       }
 
-      // プレイヤーが移動した場合は床文字HUDを自然に片付け
+      // プレイヤーが移動した場合は床文字HUD・フローティングアクションを自然に片付け
       if (prevX !== x || prevY !== y) {
         this.engravingHud?.onPlayerMoved(x, y);
+        this.floatingActions?.onPlayerMoved(x, y);
       }
     });
 
@@ -971,11 +1007,11 @@ class GklPureJSClient {
       }
     });
 
-    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御 + GKL自動移動)
+    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御 + GKLスマート ContextActions / 自動移動)
     let lastHoverTileX = -1;
     let lastHoverTileY = -1;
 
-    const handleCanvasInspect = async (gx, gy, isHover) => {
+    const handleCanvasInspect = async (gx, gy, isHover, clientPos = null, isForceContextMenu = false) => {
       if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
       if (isHover && gx === lastHoverTileX && gy === lastHoverTileY) {
         return;
@@ -988,52 +1024,139 @@ class GklPureJSClient {
         lastHoverTileY = -1;
       }
 
+      let cardData = null;
       if (this.core?.gkl?.inspectCellOnDemand) {
-        const cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
+        cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
         if (cardData) {
           this.lastKnowledgeTarget = cardData;
           this.knowledgeView.lastKnowledgeTarget = cardData;
-
-          const basicCategories = ['FLOOR', 'WALL', 'CORRIDOR', 'TERRAIN', 'BARS'];
-          const isBasicTerrain = basicCategories.includes(cardData.category) && !cardData.isTrap && !cardData.isAltar && !cardData.isFountain && !cardData.isThrone && !cardData.isSink;
-
-          if (isBasicTerrain) {
-            if (this.userPreferredTab === 'advices') {
-              this.knowledgeView.switchBottomTab('advices');
-            } else {
-              this.knowledgeView.switchBottomTab('knowledge', cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
-            }
-          } else {
-            this.knowledgeView.switchBottomTab('knowledge', cardData, { isClickConfirmed: cardData?.isClickConfirmed || !isHover });
-          }
         }
       }
 
-      if (!isHover && this.core?.gkl?.travelTo) {
-        await this.core.gkl.travelTo({ x: gx, y: gy });
+      if (!isHover) {
+        // 自キャラ座標の取得
+        const situation = this.core?.gkl?.getSituation ? this.core.gkl.getSituation() : null;
+        const px = situation?.area?.playerX ?? this.mainViewportRenderer.targetCursorX ?? 0;
+        const py = situation?.area?.playerY ?? this.mainViewportRenderer.targetCursorY ?? 0;
+        const data = cardData || this.lastKnowledgeTarget;
+        const isPlayerTile = (gx === px && gy === py) || Boolean(data?.category === 'PLAYER' || data?.isPlayer);
+
+        const isMonster = Boolean(data?.category === 'MONSTER' || data?.hasMonster);
+        const isGimmick = Boolean(
+          data?.category === 'DOOR' || data?.isDoor ||
+          data?.category === 'ALTAR' || data?.isAltar ||
+          data?.category === 'FOUNTAIN' || data?.isFountain ||
+          data?.category === 'SINK' || data?.isSink ||
+          data?.category === 'THRONE' || data?.isThrone ||
+          data?.category === 'GRAVE' || data?.isGrave ||
+          data?.category === 'STAIRS' || data?.isStairs ||
+          data?.category === 'TRAP' || data?.isTrap ||
+          data?.category === 'CONTAINER' || data?.category === 'CHEST' || data?.isChest ||
+          data?.id?.includes('door') || data?.id?.includes('stairs')
+        );
+        const dx = Math.abs(gx - px);
+        const dy = Math.abs(gy - py);
+        const isAdjacent = (dx <= 1 && dy <= 1 && !isPlayerTile);
+
+        // GKL 推奨アクション一覧の取得
+        const allActions = this.core?.gkl?.getRecommendedActions ? this.core.gkl.getRecommendedActions() : [];
+        const applicableActions = this.floatingActions ? this.floatingActions.resolveApplicableActions({
+          targetGx: gx,
+          targetGy: gy,
+          playerX: px,
+          playerY: py,
+          cardData: data,
+          allActions
+        }) : [];
+
+        // 該当マスに固有のコンテキストアクション（デフォルト移動・待機以外）があるか判定
+        const hasSpecificAction = applicableActions.some(a => !a.isDefault && a.category !== 'DEFAULT');
+
+        // 🎯 スマートコンテキスト判定:
+        // 1. 右クリック時 (isForceContextMenu): どのマスでも強制的にメニュー展開（その場からアイテム・モンスター等の詳細ナレッジを確認可能）
+        // 2. 左クリック時:
+        //    - 自キャラ足元 (isPlayerTile): 自分・足元メニューを展開
+        //    - 隣接マス (isAdjacent): GKL推奨アクションが存在するマス（隣接モンスター、隣接の箱/ドア/ギミック等）のみメニュー展開
+        //    - 遠隔モンスター (!isAdjacent && isMonster): 不用意な突進事故防止・射撃メニュー展開
+        //    - 通常アイテムマス（武器・防具・食料・金貨等）や安全な床: メニューを出さず直接 travelTo で歩いて乗る
+        const shouldShowContextMenu = isForceContextMenu || isPlayerTile || (isAdjacent && (hasSpecificAction || isMonster || isGimmick)) || (!isAdjacent && isMonster);
+
+        if (shouldShowContextMenu && this.floatingActions) {
+
+          // スクリーン表示座標（クリックイベントの clientX/Y、または3D/2D投影）
+          let clientX = clientPos?.clientX;
+          let clientY = clientPos?.clientY;
+
+          if ((clientX === undefined || clientY === undefined) && this.currentViewMode === 'hd2d' && this.webgpuRenderer) {
+            const proj = this.webgpuRenderer.worldToScreen(gx, 0.45, gy);
+            if (proj && this.webgpuCanvas) {
+              const rect = this.webgpuCanvas.getBoundingClientRect();
+              clientX = rect.left + proj.screenX * (rect.width / this.webgpuCanvas.width);
+              clientY = rect.top + proj.screenY * (rect.height / this.webgpuCanvas.height);
+            }
+          } else if ((clientX === undefined || clientY === undefined) && this.currentViewMode === 'graphic' && this.mainViewportRenderer) {
+            const screen = this.mainViewportRenderer.gridToScreen(gx, gy);
+            if (screen) {
+              clientX = screen.clientX;
+              clientY = screen.clientY;
+            }
+          }
+
+          this.floatingActions.show({
+            gx,
+            gy,
+            playerX: px,
+            playerY: py,
+            clientX,
+            clientY,
+            cardData: data,
+            actions: allActions,
+            canTravel: !isMonster && !isPlayerTile
+          });
+        } else if (this.core?.gkl?.travelTo) {
+          // 6. 安全な床・通路等の地形 ➔ 従来通り素直に自動移動 (travelTo: 1歩移動または長距離移動)
+          this.floatingActions?.hide();
+          await this.core.gkl.travelTo({ x: gx, y: gy });
+        }
       }
     };
 
     // WebGPU HD2D レンダラーのクリック＆ホバーイベント接続
     if (this.webgpuRenderer) {
-      this.webgpuRenderer.onCellClick = (gx, gy) => handleCanvasInspect(gx, gy, false);
+      this.webgpuRenderer.onCellClick = (gx, gy, clickInfo, isRightClick = false) => {
+        handleCanvasInspect(gx, gy, false, clickInfo, isRightClick);
+      };
+      this.webgpuRenderer.onCellContextMenu = (gx, gy, clickInfo) => {
+        handleCanvasInspect(gx, gy, false, clickInfo, true);
+      };
       this.webgpuRenderer.onCellHover = (gx, gy) => handleCanvasInspect(gx, gy, true);
     }
 
-    // メインキャンバスのクリック＆ホバーイベント
+    // メインキャンバス (2D Viewport) のクリック＆ホバーイベント
     if (this.canvas) {
       this.canvas.addEventListener('mousemove', async (e) => {
-        const rect = this.canvas.getBoundingClientRect();
-        const gx = Math.floor(((e.clientX - rect.left) * (this.canvas.width / rect.width)) / 16);
-        const gy = Math.floor(((e.clientY - rect.top) * (this.canvas.height / rect.height)) / 14);
-        await handleCanvasInspect(gx, gy, true);
+        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
+        if (grid) {
+          await handleCanvasInspect(grid.gx, grid.gy, true);
+        }
       });
 
       this.canvas.addEventListener('click', async (e) => {
-        const rect = this.canvas.getBoundingClientRect();
-        const gx = Math.floor(((e.clientX - rect.left) * (this.canvas.width / rect.width)) / 16);
-        const gy = Math.floor(((e.clientY - rect.top) * (this.canvas.height / rect.height)) / 14);
-        await handleCanvasInspect(gx, gy, false);
+        e.stopPropagation();
+        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
+        if (grid) {
+          await handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, false);
+        }
+      });
+
+      // 右クリック（詳細コンテキストメニュー展開）
+      this.canvas.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
+        if (grid) {
+          await handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
+        }
       });
     }
 
@@ -1055,14 +1178,20 @@ class GklPureJSClient {
         }
       });
 
-      this.asciiGrid.addEventListener('mouseleave', () => {
-        this.knowledgeView.renderKnowledgeCard(null);
-      });
-
       this.asciiGrid.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const coords = getAsciiCellCoords(e);
         if (coords) {
-          await handleCanvasInspect(coords.gx, coords.gy, false);
+          await handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY });
+        }
+      });
+
+      this.asciiGrid.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const coords = getAsciiCellCoords(e);
+        if (coords) {
+          await handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
         }
       });
     }
@@ -1084,11 +1213,8 @@ class GklPureJSClient {
         await handleCanvasInspect(gx, gy, true);
       });
 
-      zoomCanvas.addEventListener('mouseleave', () => {
-        this.knowledgeView.renderKnowledgeCard(null);
-      });
-
       zoomCanvas.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const rect = zoomCanvas.getBoundingClientRect();
         const tileX = Math.floor(((e.clientX - rect.left) * (zoomCanvas.width / rect.width)) / 32);
         const tileY = Math.floor(((e.clientY - rect.top) * (zoomCanvas.height / rect.height)) / 32);
@@ -1099,7 +1225,23 @@ class GklPureJSClient {
         const gx = px + (tileX - 10);
         const gy = py + (tileY - 4);
 
-        await handleCanvasInspect(gx, gy, false);
+        await handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY });
+      });
+
+      zoomCanvas.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = zoomCanvas.getBoundingClientRect();
+        const tileX = Math.floor(((e.clientX - rect.left) * (zoomCanvas.width / rect.width)) / 32);
+        const tileY = Math.floor(((e.clientY - rect.top) * (zoomCanvas.height / rect.height)) / 32);
+
+        const px = this.mapRenderer.targetCursorX >= 0 ? this.mapRenderer.targetCursorX : 0;
+        const py = this.mapRenderer.targetCursorY >= 0 ? this.mapRenderer.targetCursorY : 0;
+
+        const gx = px + (tileX - 10);
+        const gy = py + (tileY - 4);
+
+        await handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
       });
     }
 
@@ -1163,6 +1305,8 @@ class GklPureJSClient {
     if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
     if (this.codexModal) this.codexModal.setLanguage(this.currentLanguage);
     if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
+    if (this.floatingActions) this.floatingActions.setLanguage(this.currentLanguage);
+    if (this.knowledgeDetailModal) this.knowledgeDetailModal.setLanguage(this.currentLanguage);
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
@@ -1194,7 +1338,7 @@ class GklPureJSClient {
     if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
 
     const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
-    if (elKnHeader) elKnHeader.textContent = isEn ? '💡 Structured Knowledge (GKL Knowledge)' : '💡 構造化ナレッジ (GKL Knowledge)';
+    if (elKnHeader) elKnHeader.textContent = isEn ? '🛡️ Tactical Advices' : '🛡️ 戦術アドバイス (Tactical Advices)';
 
     const btnSettingsToggle = document.getElementById('btn-settings-toggle');
     if (btnSettingsToggle) {

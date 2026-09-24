@@ -41,11 +41,11 @@
               </label>
               <label class="settings-checkbox-item">
                 <input type="checkbox" id="chk-panel-actions" checked />
-                <span>🧠 推奨アクション</span>
+                <span>🧠 推奨アクション (ContextActions)</span>
               </label>
               <label class="settings-checkbox-item">
                 <input type="checkbox" id="chk-panel-knowledge" checked />
-                <span>🛡️ アドバイス＆ナレッジ</span>
+                <span>🛡️ 戦術アドバイス (Tactical Advices)</span>
               </label>
             </div>
             <div class="settings-menu-separator"></div>
@@ -312,21 +312,19 @@
           </div>
         </div>
 
-        <!-- 💡 GKL 構造化ナレッジ ＆ 戦術アドバイス カード (最下部 タブ切替) -->
+        <!-- 🛡️ GKL 戦術アドバイス カード (最下部: アドバイス専用) -->
         <div id="card-knowledge" class="gkl-card">
-          <div class="gkl-card-header gkl-card-header-tabs">
-            <div class="gkl-header-tabs">
-              <button id="tab-btn-advices" class="gkl-tab-btn active" title="戦術アドバイス ＆ 危険警告を表示">
-                🛡️ アドバイス
-                <span id="tab-advices-badge" class="gkl-badge">0</span>
-              </button>
-              <button id="tab-btn-knowledge" class="gkl-tab-btn" title="直前に調査した構造化ナレッジを表示">
-                💡 ナレッジ
-              </button>
-            </div>
+          <div class="gkl-card-header">
+            <span>🛡️ 戦術アドバイス (Tactical Advices)</span>
+            <span id="tab-advices-badge" class="gkl-badge">0</span>
+          </div>
+          <!-- 互換用非表示タブボタン -->
+          <div class="hidden" style="display:none;">
+            <button id="tab-btn-advices" class="active"></button>
+            <button id="tab-btn-knowledge"></button>
           </div>
           <div id="gkl-knowledge-content" class="gkl-knowledge-content" style="padding:10px; max-height:240px; overflow-y:auto;">
-            <div class="gkl-empty-hint">ズームカメラホバーまたは所持品選択でナレッジ表示</div>
+            <div class="gkl-empty-hint">戦術状況: 平常 (安全)</div>
           </div>
         </div>
       </aside>
@@ -770,6 +768,9 @@
       </div>
     </div>
 
+
+    <!-- 構造化ナレッジ詳細モーダル -->
+    <div id="knowledge-detail-modal" class="knowledge-modal-backdrop hidden"></div>
 
     <!-- アイテムツールチップ -->
     <div id="gkl-item-tooltip" class="gkl-tooltip hidden">

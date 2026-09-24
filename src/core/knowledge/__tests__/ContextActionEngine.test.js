@@ -114,7 +114,7 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(unlockAction.key).toBe('akDIR_Ey');
         });
 
-        it('隣接マスの箱: 鍵を所持していても隣接方向への解錠アクションは生成されないこと（足元のみに限定）', () => {
+        it('隣接マスの箱 (isContainer): 鍵所持時に隣接解錠・漁る・罠解除・箱蹴りアクションが生成されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
                 { letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }
@@ -122,8 +122,6 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
 
             const areaMgr = new AreaStateManager(80, 21);
             areaMgr.updatePlayerPosition(10, 10);
-            // 東 (11, 10) に大きな箱 (chest / large box: glyphId 3448 + 348 = 3796 等)
-            // AreaStateManager の adjacentEntities に isContainer: true のオブジェクトとして認識させる
             const areaState = areaMgr.getAreaState();
             areaState.adjacentEntities = [
                 {
@@ -137,8 +135,52 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             ];
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
-            const adjUnlockAction = actions.find(a => a.id?.startsWith('ACTION_UNLOCK_CONTAINER_') && a.id !== 'ACTION_UNLOCK_CONTAINER_FEET');
-            expect(adjUnlockAction).toBeUndefined();
+
+            // 1. 解錠 (ACTION_UNLOCK_CONTAINER_E)
+            const unlockAction = actions.find(a => a.id === 'ACTION_UNLOCK_CONTAINER_E');
+            expect(unlockAction).toBeDefined();
+            expect(unlockAction.keySequence).toEqual(['a', 'k', 'DIR_E', 'y']);
+            expect(unlockAction.dirCode).toBe('E');
+
+            // 2. 漁る (ACTION_LOOT_CONTAINER_E)
+            const lootAction = actions.find(a => a.id === 'ACTION_LOOT_CONTAINER_E');
+            expect(lootAction).toBeDefined();
+            expect(lootAction.keySequence).toEqual(['#', 'loot', 'DIR_E']);
+            expect(lootAction.dirCode).toBe('E');
+
+            // 3. 罠解除 (ACTION_UNTRAP_CONTAINER_E)
+            const untrapAction = actions.find(a => a.id === 'ACTION_UNTRAP_CONTAINER_E');
+            expect(untrapAction).toBeDefined();
+            expect(untrapAction.keySequence).toEqual(['#', 'untrap', 'DIR_E']);
+            expect(untrapAction.dirCode).toBe('E');
+
+            // 4. 箱蹴り (ACTION_KICK_CONTAINER_E)
+            const kickAction = actions.find(a => a.id === 'ACTION_KICK_CONTAINER_E');
+            expect(kickAction).toBeDefined();
+            expect(kickAction.keySequence).toEqual(['#', 'kick', 'DIR_E']);
+            expect(kickAction.dirCode).toBe('E');
+        });
+
+        it('隣接マスの巨石 (boulder): 巨石を押すアクション (ACTION_PUSH_BOULDER_*) が生成されること', () => {
+            const areaMgr = new AreaStateManager(80, 21);
+            areaMgr.updatePlayerPosition(10, 10);
+            const areaState = areaMgr.getAreaState();
+            areaState.adjacentEntities = [
+                {
+                    x: 11,
+                    y: 10,
+                    dir: { code: 'E', name: 'East', key: '6' },
+                    cell: {
+                        middle: { name: 'boulder', isBoulder: true }
+                    }
+                }
+            ];
+
+            const actions = ContextActionEngine.generateActions(areaState, null);
+            const pushAction = actions.find(a => a.id === 'ACTION_PUSH_BOULDER_E');
+            expect(pushAction).toBeDefined();
+            expect(pushAction.keySequence).toEqual(['DIR_E']);
+            expect(pushAction.dirCode).toBe('E');
         });
     });
 

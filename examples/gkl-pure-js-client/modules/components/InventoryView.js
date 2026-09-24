@@ -194,7 +194,6 @@ export class InventoryView {
           };
 
           slot.onmouseenter = () => {
-            this.onInspectItem(item);
             if (this.elGklTtName) this.elGklTtName.textContent = item.rawText;
             if (this.elGklTtTags) {
               this.elGklTtTags.innerHTML = '';
@@ -214,6 +213,9 @@ export class InventoryView {
               if (item.isKey) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Key/Lockpick' : '鍵・ピック'}</span>`;
               if (item.isAxe) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Axe' : '斧'}</span>`;
               if (item.isFrostWand) this.elGklTtTags.innerHTML += `<span class="tag">${isEn ? 'Wand of Cold' : '氷の杖'}</span>`;
+
+              this.elGklTtTags.innerHTML += `<span class="tag" style="background:rgba(255,255,255,0.08);color:#cbd5e1;">${isEn ? 'Right-click / Hold: Submenu' : '右クリック / 左長押し: サブメニュー'}</span>`;
+              this.elGklTtTags.innerHTML += `<span class="tag" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.4);">${isEn ? '🔍 Right-click hold: Knowledge' : '🔍 右長押し: ナレッジ詳細'}</span>`;
             }
 
             if (this.elGklTooltip) this.elGklTooltip.classList.remove('hidden');
@@ -223,7 +225,15 @@ export class InventoryView {
             if (this.elGklTooltip) this.elGklTooltip.classList.add('hidden');
           };
 
-          // 2段目アクションメニュー起動関数 (長押し / 右クリック)
+          // ナレッジ詳細閲覧関数 (右長押し)
+          const triggerInspect = () => {
+            if (this.elGklTooltip) this.elGklTooltip.classList.add('hidden');
+            if (typeof this.onInspectItem === 'function') {
+              this.onInspectItem(item);
+            }
+          };
+
+          // 2段目アクションメニュー起動関数 (左長押し / 右クリック短押し)
           const triggerActionMenu = async () => {
             const currentCore = this.getCore();
             if (!currentCore || !currentCore.driver) return;
@@ -232,7 +242,7 @@ export class InventoryView {
             await currentCore.driver.queueSequence(['i', item.letter], { isSilentSync: true });
           };
 
-          // 通常クリック処理 (短タップ)
+          // 通常クリック処理 (左短タップ)
           const triggerNormalClick = async () => {
             const currentCore = this.getCore();
             if (!currentCore) return;
@@ -275,40 +285,68 @@ export class InventoryView {
             await this._executeSequence(currentCore, seq);
           };
 
-          // 長押し (Pointer Events) & 通常クリック分離ハンドラ
-          let pressTimer = null;
-          let isLongPress = false;
+          // 長押し (Pointer Events) & クリック分離ハンドラ
+          let leftPressTimer = null;
+          let rightPressTimer = null;
+          let isLeftLongPress = false;
+          let isRightLongPress = false;
           const LONG_PRESS_MS = 400;
 
           slot.onpointerdown = (e) => {
-            if (e.button !== 0) return; // 左クリック / タッチのみ
-            isLongPress = false;
-            slot.classList.add('pressing');
+            if (e.button === 0) {
+              // 左クリック / タッチ
+              isLeftLongPress = false;
+              slot.classList.add('pressing');
 
-            pressTimer = setTimeout(() => {
-              isLongPress = true;
-              slot.classList.remove('pressing');
-              if (navigator.vibrate) navigator.vibrate(25);
-              triggerActionMenu();
-            }, LONG_PRESS_MS);
+              leftPressTimer = setTimeout(() => {
+                isLeftLongPress = true;
+                slot.classList.remove('pressing');
+                if (navigator.vibrate) navigator.vibrate(25);
+                triggerActionMenu(); // 左長押し ➔ サブメニュー
+              }, LONG_PRESS_MS);
+            } else if (e.button === 2) {
+              // 右クリック
+              isRightLongPress = false;
+              slot.classList.add('pressing');
+
+              rightPressTimer = setTimeout(() => {
+                isRightLongPress = true;
+                slot.classList.remove('pressing');
+                if (navigator.vibrate) navigator.vibrate(25);
+                triggerInspect(); // 右長押し ➔ ナレッジ詳細
+              }, LONG_PRESS_MS);
+            }
           };
 
           slot.onpointerup = (e) => {
-            if (pressTimer) {
-              clearTimeout(pressTimer);
-              pressTimer = null;
-            }
-            slot.classList.remove('pressing');
+            if (e.button === 0) {
+              if (leftPressTimer) {
+                clearTimeout(leftPressTimer);
+                leftPressTimer = null;
+              }
+              slot.classList.remove('pressing');
 
-            if (!isLongPress && e.button === 0) {
-              triggerNormalClick();
+              if (!isLeftLongPress) {
+                triggerNormalClick(); // 左短押し ➔ 通常アクション (装備/使用)
+              }
+            } else if (e.button === 2) {
+              if (rightPressTimer) {
+                clearTimeout(rightPressTimer);
+                rightPressTimer = null;
+              }
+              slot.classList.remove('pressing');
+              // 右クリック短押しは oncontextmenu で実行
             }
           };
 
           const cancelPress = () => {
-            if (pressTimer) {
-              clearTimeout(pressTimer);
-              pressTimer = null;
+            if (leftPressTimer) {
+              clearTimeout(leftPressTimer);
+              leftPressTimer = null;
+            }
+            if (rightPressTimer) {
+              clearTimeout(rightPressTimer);
+              rightPressTimer = null;
             }
             slot.classList.remove('pressing');
           };
@@ -316,11 +354,25 @@ export class InventoryView {
           slot.onpointercancel = cancelPress;
           slot.onpointerleave = cancelPress;
 
-          // PC向け: 右クリックでも即座に2段目アクションメニューを起動
+          // 右クリックイベントハンドラ (PC向け短押しでサブメニュー、長押し完了時は抑止)
           slot.oncontextmenu = (e) => {
             e.preventDefault();
-            cancelPress();
-            triggerActionMenu();
+            if (rightPressTimer) {
+              clearTimeout(rightPressTimer);
+              rightPressTimer = null;
+            }
+            slot.classList.remove('pressing');
+
+            if (isRightLongPress) {
+              // 右長押しでナレッジ詳細モーダル表示済み
+              isRightLongPress = false;
+            } else if (isLeftLongPress) {
+              // タッチ長押し等でサブメニュー表示済み
+              isLeftLongPress = false;
+            } else {
+              // 右クリック短押し ➔ サブメニュー
+              triggerActionMenu();
+            }
           };
         }
       });

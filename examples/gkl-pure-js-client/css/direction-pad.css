@@ -171,6 +171,15 @@
   padding-right: 4px;
 }
 
+.gkl-hint-unselected {
+  padding: 8px 4px;
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  font-style: normal;
+  line-height: 1.4;
+}
+
 .gkl-action-btn {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
