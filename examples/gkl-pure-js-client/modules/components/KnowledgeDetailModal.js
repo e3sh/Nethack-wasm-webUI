@@ -1,5 +1,177 @@
 import { getAdaptiveItemSpecs } from "../../../../src/core/knowledge/presenters/ItemSpecPresenter.js";
 
+const ATTACK_TYPE_LABELS = {
+  ja: {
+    'weapon/hit': '武器/打撃',
+    'weapon': '武器攻撃',
+    'hit': '打撃',
+    'bite': '噛みつき',
+    'claw': 'ひっかき',
+    'sting': '刺突',
+    'touch': '接触',
+    'butt': '頭突き/角',
+    'gash': '引き裂き',
+    'tentacle': '触手',
+    'wrap': '巻きつき',
+    'gaze': '凝視',
+    'breath': 'ブレス',
+    'brea': 'ブレス',
+    'spell': '呪文詠唱',
+    'explode': '自爆',
+    'hiss': '威嚇',
+    'passive': '受動反撃',
+    'psychic': '精神波'
+  },
+  en: {
+    'weapon/hit': 'Weapon/Hit',
+    'weapon': 'Weapon',
+    'hit': 'Hit',
+    'bite': 'Bite',
+    'claw': 'Claw',
+    'sting': 'Sting',
+    'touch': 'Touch',
+    'butt': 'Butt',
+    'gash': 'Gash',
+    'tentacle': 'Tentacle',
+    'wrap': 'Wrap',
+    'gaze': 'Gaze',
+    'breath': 'Breath',
+    'brea': 'Breath',
+    'spell': 'Spell',
+    'explode': 'Explode',
+    'hiss': 'Hiss',
+    'passive': 'Passive',
+    'psychic': 'Psychic'
+  }
+};
+
+const ATTACK_EFFECT_LABELS = {
+  ja: {
+    'poison': '毒',
+    'fire': '火炎',
+    'cold': '冷気',
+    'shock': '電撃',
+    'acid': '酸',
+    'paralysis': '麻痺',
+    'petrify': '石化',
+    'lycanthropy': '獣化病',
+    'drain_level': 'レベルドレイン',
+    'brain_eat': '脳食い即死',
+    'slime': 'スライム化',
+    'disintegration': '分解',
+    'instant_death': '即死',
+    'sleep': '睡眠',
+    'confusion': '混乱',
+    'blind': '盲目',
+    'sickness': '病気',
+    'starvation': '飢餓',
+    'rust': '錆',
+    'curse_items': 'アイテム呪い',
+    'disenchant': '劣化',
+    'steal_item': 'アイテム盗み',
+    'steal_amulet': '魔除け盗み',
+    'drown': '溺死',
+    'stick': '付着',
+    'swallow': '丸呑み',
+    'summon': '召喚',
+    'explosion': '爆発',
+    'magic_missile': '魔法の矢'
+  },
+  en: {
+    'poison': 'Poison',
+    'fire': 'Fire',
+    'cold': 'Cold',
+    'shock': 'Shock',
+    'acid': 'Acid',
+    'paralysis': 'Paralysis',
+    'petrify': 'Petrification',
+    'lycanthropy': 'Lycanthropy',
+    'drain_level': 'Level Drain',
+    'brain_eat': 'Brain Eat',
+    'slime': 'Slime',
+    'disintegration': 'Disintegration',
+    'instant_death': 'Instant Death',
+    'sleep': 'Sleep',
+    'confusion': 'Confusion',
+    'blind': 'Blindness',
+    'sickness': 'Sickness',
+    'starvation': 'Starvation',
+    'rust': 'Rust',
+    'curse_items': 'Curse Items',
+    'disenchant': 'Disenchant',
+    'steal_item': 'Steal Item',
+    'steal_amulet': 'Steal Amulet',
+    'drown': 'Drown',
+    'stick': 'Stick',
+    'swallow': 'Swallow',
+    'summon': 'Summon',
+    'explosion': 'Explosion',
+    'magic_missile': 'Magic Missile'
+  }
+};
+
+/**
+ * 攻撃データをフォーマットして人間可読な文字列・HTMLを生成
+ * @param {string|Object} atk 
+ * @param {boolean} isEn 
+ * @returns {string}
+ */
+export function formatMonsterAttack(atk, isEn) {
+  if (typeof atk === 'string') return atk;
+  if (!atk || typeof atk !== 'object') return '';
+
+  if (atk.desc) return atk.desc;
+  if (atk.name) return atk.name;
+
+  const lang = isEn ? 'en' : 'ja';
+  const typeKey = (atk.type || '').toLowerCase();
+  const typeLabel = (ATTACK_TYPE_LABELS[lang] && ATTACK_TYPE_LABELS[lang][typeKey]) || atk.type || (isEn ? 'Attack' : '攻撃');
+
+  const damageStr = atk.damage ? `(${atk.damage})` : '';
+
+  let effectStr = '';
+  let badgeStr = '';
+  if (atk.effect && atk.effect !== 'none') {
+    const effectKey = String(atk.effect).toLowerCase();
+    const effectLabel = (ATTACK_EFFECT_LABELS[lang] && ATTACK_EFFECT_LABELS[lang][effectKey]) || atk.effect;
+    effectStr = isEn ? ` - ${effectLabel}` : ` [${effectLabel}]`;
+
+    if (effectKey === 'petrify') {
+      badgeStr = `<span class="kn-pill kn-lethal" style="margin-left:6px;">⚠️ ${isEn ? 'Fatal Petrification' : '石化即死危険'}</span>`;
+    } else if (effectKey === 'brain_eat') {
+      badgeStr = `<span class="kn-pill kn-lethal" style="margin-left:6px;">⚠️ ${isEn ? 'Lethal Brain-eating' : '脳食い即死危険'}</span>`;
+    } else if (effectKey === 'drain_level') {
+      badgeStr = `<span class="kn-pill kn-lethal" style="margin-left:6px;">⚠️ ${isEn ? 'Level Drain' : 'レベルドレイン'}</span>`;
+    } else if (effectKey === 'instant_death') {
+      badgeStr = `<span class="kn-pill kn-lethal" style="margin-left:6px;">⚠️ ${isEn ? 'Instant Death' : '即死危険'}</span>`;
+    } else if (effectKey === 'paralysis') {
+      badgeStr = `<span class="kn-pill kn-poison" style="margin-left:6px;">⚡ ${isEn ? 'Paralysis' : '麻痺危険'}</span>`;
+    } else if (effectKey === 'poison') {
+      badgeStr = `<span class="kn-pill kn-poison" style="margin-left:6px;">☠️ ${isEn ? 'Poison' : '毒効果'}</span>`;
+    }
+  }
+
+  let icon = '⚔️';
+  if (typeKey === 'breath' || typeKey === 'brea') icon = '💨';
+  else if (typeKey === 'gaze') icon = '👁️';
+  else if (typeKey === 'explode') icon = '💥';
+  else if (typeKey === 'bite') icon = '🦷';
+  else if (typeKey === 'claw') icon = '🐾';
+  else if (typeKey === 'sting') icon = '🦂';
+  else if (typeKey === 'spell') icon = '🪄';
+  else if (typeKey === 'touch') icon = '✋';
+  else if (typeKey === 'tentacle') icon = '🐙';
+  else if (typeKey === 'wrap') icon = '🐍';
+  else if (typeKey === 'psychic') icon = '🧠';
+
+  const parts = [typeLabel];
+  if (damageStr) parts.push(damageStr);
+  if (effectStr) parts.push(effectStr);
+
+  const mainText = `${icon} ${parts.join(' ').replace(/\s+\[/, ' [').replace(/\s+-\s+/, ' - ')}`;
+  return badgeStr ? `${mainText} ${badgeStr}` : mainText;
+}
+
 /**
  * KnowledgeDetailModal.js
  * 
@@ -151,19 +323,61 @@ export class KnowledgeDetailModal {
       data.dangerLevel || data.category === 'MONSTER' || data.hasMonster || data.dispositionStatus || isPet
     );
 
+    const isFeatureType = Boolean(
+      data.category === 'TERRAIN' || data.category === 'FEATURE' ||
+      data.category === 'DOOR' || data.category === 'ALTAR' ||
+      data.category === 'FOUNTAIN' || data.category === 'SINK' ||
+      data.category === 'THRONE' || data.category === 'GRAVE' ||
+      data.category === 'STAIRS' || data.category === 'TRAP' ||
+      data.isFeature || data.isTerrain || data.isTrap || data.isDoor || data.isAltar ||
+      data.isFountain || data.isSink || data.isThrone || data.isGrave || data.isStairs
+    );
+
+    const isItemType = !isMonsterType && (
+      !isFeatureType ||
+      data.category === 'OBJECT' || data.category === 'ITEM' || data.category === 'CORPSE' ||
+      data.category === 'FOOD' || data.category === 'WEAPON' || data.category === 'ARMOR' ||
+      data.category === 'POTION' || data.category === 'SCROLL' || data.category === 'WAND' ||
+      data.category === 'RING' || data.category === 'AMULET' || data.category === 'TOOL' ||
+      data.category === 'GEM' || data.category === 'BOOK' || data.category === 'SPELLBOOK' ||
+      data.category === 'GOLD' || data.category === 'COIN' || data.category === 'CONTAINER' ||
+      data.category === 'STATUE' || data.hasItems || data.rawText || data.bucStatus || data.corpseInfo
+    );
+
     let contentHtml = '';
     let headerIcon = '💡';
     let headerTitle = data.name || (isEn ? 'Knowledge Detail' : 'ナレッジ詳細');
-    let categoryBadge = data.category || (isMonsterType ? 'MONSTER' : 'ITEM');
+    let categoryBadge = data.category || (isMonsterType ? 'MONSTER' : (isFeatureType ? 'FEATURE' : 'ITEM'));
 
     if (isMonsterType) {
       headerIcon = data.isHostile ? '👾' : (data.isTame || isPet ? '🐾' : '👹');
       contentHtml = this._buildMonsterDetailHtml(data, isEn);
-    } else if (data.category === 'OBJECT' || data.category === 'ITEM' || data.hasItems || data.rawText || data.bucStatus) {
-      headerIcon = '📦';
+    } else if (isItemType) {
+      const cat = String(data.category || '').toUpperCase();
+      if (cat === 'CORPSE') headerIcon = '🥩';
+      else if (cat === 'FOOD') headerIcon = '🍖';
+      else if (cat === 'WEAPON') headerIcon = '⚔️';
+      else if (cat === 'ARMOR') headerIcon = '🛡️';
+      else if (cat === 'POTION') headerIcon = '🧪';
+      else if (cat === 'SCROLL') headerIcon = '📜';
+      else if (cat === 'WAND') headerIcon = '🪄';
+      else if (cat === 'RING') headerIcon = '💍';
+      else if (cat === 'AMULET') headerIcon = '📿';
+      else if (cat === 'GOLD' || cat === 'COIN') headerIcon = '💰';
+      else if (cat === 'CONTAINER' || cat === 'CHEST') headerIcon = '📦';
+      else if (cat === 'STATUE') headerIcon = '🗿';
+      else headerIcon = '📦';
+
       contentHtml = this._buildItemDetailHtml(data, isEn);
     } else {
-      headerIcon = '🏛️';
+      const cat = String(data.category || '').toUpperCase();
+      if (cat === 'ALTAR' || data.isAltar) headerIcon = '⛩️';
+      else if (cat === 'FOUNTAIN' || data.isFountain) headerIcon = '⛲';
+      else if (cat === 'DOOR' || data.isDoor) headerIcon = '🚪';
+      else if (cat === 'STAIRS' || data.isStairs) headerIcon = '🪜';
+      else if (cat === 'TRAP' || data.isTrap) headerIcon = '⚠️';
+      else headerIcon = '🏛️';
+
       contentHtml = this._buildFeatureDetailHtml(data, isEn);
     }
 
@@ -259,7 +473,7 @@ export class KnowledgeDetailModal {
       ? `
         <div class="kn-section-box">
           <div class="kn-section-label">⚔️ ${isEn ? 'Attacks & Capabilities' : '攻撃手段・特殊能力'}</div>
-          <ul class="kn-detail-list">${attacks.map(atk => `<li>• ${typeof atk === 'string' ? atk : (atk.desc || atk.name || JSON.stringify(atk))}</li>`).join('')}</ul>
+          <ul class="kn-detail-list">${attacks.map(atk => `<li>• ${formatMonsterAttack(atk, isEn)}</li>`).join('')}</ul>
         </div>
       `
       : '';
@@ -357,10 +571,13 @@ export class KnowledgeDetailModal {
     const bucStatus = id.bucStatus || data.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
 
     const idBadges = [];
-    if (isUnid) {
-      idBadges.push(`<span class="kn-status-badge kn-status-unid">${isEn ? '🔍 UNIDENTIFIED' : '🔍 未識別 (UNIDENTIFIED)'}</span>`);
-    } else {
-      idBadges.push(`<span class="kn-status-badge kn-status-known">${isEn ? '✅ IDENTIFIED' : '✅ 識別済み (IDENTIFIED)'}</span>`);
+    const canUnid = data.canBeUnidentified !== false && data.category !== 'CORPSE' && data.category !== 'GOLD';
+    if (canUnid) {
+      if (isUnid) {
+        idBadges.push(`<span class="kn-status-badge kn-status-unid">${isEn ? '🔍 UNIDENTIFIED' : '🔍 未識別 (UNIDENTIFIED)'}</span>`);
+      } else {
+        idBadges.push(`<span class="kn-status-badge kn-status-known">${isEn ? '✅ IDENTIFIED' : '✅ 識別済み (IDENTIFIED)'}</span>`);
+      }
     }
 
     if (bucStatus === 'BLESSED') {
@@ -376,6 +593,33 @@ export class KnowledgeDetailModal {
     }
     if (id.calledName) {
       idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🏷️ Called: ${id.calledName}` : `🏷️ 仮名: ${id.calledName}`}</span>`);
+    }
+
+    // 死体・食用情報 (CORPSE / FOOD)
+    let corpseHtml = '';
+    const cs = data.corpseInfo || data.corpseSafety;
+    if (cs) {
+      const parts = [];
+      if (cs.petrifying || cs.causesPetrification) parts.push(`<span class="kn-pill kn-lethal">⚠️ ${isEn ? 'Petrifying (Lethal!)' : '石化危険 (即死級!)'}</span>`);
+      if (cs.poisonous || cs.causesPoison) parts.push(`<span class="kn-pill kn-poison">☠️ ${isEn ? 'Poisonous' : '毒性あり'}</span>`);
+      if (cs.causesSlime) parts.push(`<span class="kn-pill kn-poison">🟢 ${isEn ? 'Slime hazard' : 'スライム化'}</span>`);
+      if (cs.isSafe || (!cs.petrifying && !cs.causesPetrification && !cs.poisonous && !cs.causesPoison && !cs.causesSlime)) {
+        if (!cs.warningNote) {
+          parts.push(`<span class="kn-pill kn-safe">🍖 ${isEn ? 'Safe to eat' : '食用安全'}</span>`);
+        }
+      }
+      if (cs.nutrition) parts.push(`<span>${isEn ? `Nutrition: ${cs.nutrition}` : `栄養価: ${cs.nutrition}`}</span>`);
+      if (cs.grantResist) parts.push(`<span class="kn-pill kn-safe">🛡️ ${isEn ? `Gain resist: ${cs.grantResist}` : `耐性獲得: ${cs.grantResist}`}</span>`);
+      if (cs.warningNote) parts.push(`<span class="weak-val">⚠️ ${cs.warningNote}</span>`);
+
+      if (parts.length > 0) {
+        corpseHtml = `
+          <div class="kn-section-box">
+            <div class="kn-section-label">🍖 ${isEn ? 'Corpse & Nutrition' : '死体・食用特性'}</div>
+            <div class="kn-row-wrap">${parts.join(' ')}</div>
+          </div>
+        `;
+      }
     }
 
     // BUC効果
@@ -420,11 +664,14 @@ export class KnowledgeDetailModal {
 
     return `
       <div class="kn-detail-container">
-        <div class="kn-status-row">
-          ${idBadges.join('')}
-        </div>
+        ${idBadges.length > 0 ? `
+          <div class="kn-status-row">
+            ${idBadges.join('')}
+          </div>
+        ` : ''}
 
         ${specsHtml}
+        ${corpseHtml}
 
         ${data.effectSummary ? `
           <div class="kn-section-box">

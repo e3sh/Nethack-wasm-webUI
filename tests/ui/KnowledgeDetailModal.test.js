@@ -222,4 +222,99 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     elModal.onclick({ target: elModal });
     expect(modal.isVisible).toBe(false);
   });
+
+  it('9. 床の死体アイテム（category: CORPSE）がダンジョンギミックではなくアイテム（死体・食用特性）として正しく描画されること', () => {
+    const corpseData = {
+      id: 'corpse_12',
+      name: 'ジャッカル の死体 (corpse)',
+      nameEn: 'jackal corpse',
+      category: 'CORPSE',
+      canBeUnidentified: false,
+      corpseInfo: {
+        edible: true,
+        poisonous: false,
+        causesPetrification: false,
+        nutrition: 50,
+        grantsIntrinsics: []
+      },
+      effectSummary: 'モンスター (ジャッカル) の死体です。食料として食べるか、祭壇で捧げることができます。'
+    };
+
+    modal.open(corpseData);
+
+    const html = elModal.innerHTML;
+    // タイトルとカテゴリ
+    expect(html).toContain('ジャッカル の死体 (corpse)');
+    expect(html).toContain('CORPSE');
+    // ダンジョンギミックになっていないこと
+    expect(html).not.toContain('ダンジョンギミック/地形');
+    // アイコンが肉・死体系であること
+    expect(html).toContain('🥩');
+    // 死体・食用特性セクションが表示されていること
+    expect(html).toContain('死体・食用特性');
+    expect(html).toContain('食用安全');
+    expect(html).toContain('栄養価: 50');
+    expect(html).toContain('効果要約');
+    expect(html).toContain('モンスター (ジャッカル) の死体です');
+  });
+
+  it('10. モンスターの attacks がオブジェクト形式（type, damage, effect）の場合に JSON 文字列ではなく人間可読な形式で描画されること', () => {
+    // lichen のような通常攻撃オブジェクト
+    const lichenData = {
+      name: '地衣類 (lichen)',
+      nameEn: 'lichen',
+      category: 'MONSTER',
+      dangerLevel: 'LOW',
+      stats: { hd: 0, ac: 9, speed: 1, mr: 0 },
+      attacks: [{ type: 'weapon/hit', damage: '1d6' }]
+    };
+
+    // 英語モードで表示
+    modal.setLanguage('en');
+    modal.open(lichenData);
+    let html = elModal.innerHTML;
+
+    // JSON 文字列のままでないこと
+    expect(html).not.toContain('{"type"');
+    expect(html).not.toContain('"weapon/hit"');
+    // 英語フォーマットの攻撃名とダメージが含まれること
+    expect(html).toContain('Weapon/Hit');
+    expect(html).toContain('(1d6)');
+
+    // 日本語モードで表示
+    modal.setLanguage('ja');
+    modal.open(lichenData);
+    html = elModal.innerHTML;
+
+    expect(html).not.toContain('{"type"');
+    expect(html).toContain('武器/打撃');
+    expect(html).toContain('(1d6)');
+
+    // 特殊効果付き攻撃（毒針、石化接触）のテスト
+    const dangerousMonster = {
+      name: 'コカトリス (cockatrice)',
+      nameEn: 'cockatrice',
+      category: 'MONSTER',
+      dangerLevel: 'LETHAL',
+      stats: { hd: 5, ac: 6, speed: 12, mr: 30 },
+      attacks: [
+        { type: 'sting', damage: '1d3', effect: 'poison' },
+        { type: 'touch', effect: 'petrify' }
+      ]
+    };
+
+    modal.setLanguage('ja');
+    modal.open(dangerousMonster);
+    html = elModal.innerHTML;
+
+    expect(html).not.toContain('{"type"');
+    expect(html).toContain('刺突');
+    expect(html).toContain('(1d3)');
+    expect(html).toContain('毒');
+    expect(html).toContain('接触');
+    expect(html).toContain('石化');
+    expect(html).toContain('石化即死危険');
+  });
 });
+
+

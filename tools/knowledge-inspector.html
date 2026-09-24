@@ -593,28 +593,28 @@
 
     <!-- ES Module Script -->
     <script type="module">
-        import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/StructuredKnowledgeEngine.js';
-        import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/OBJECT_KNOWLEDGE_FULL.js';
-        import { getAdaptiveItemSpecs } from '../src/core/knowledge/ItemSpecPresenter.js';
-        import { getAdaptiveMonsterSpecs } from '../src/core/knowledge/MonsterSpecPresenter.js';
-        import { getItemInfoFromOnum, GLYPH_OFFSETS } from '../src/core/knowledge/glyphClassifier.js';
+        import { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from '../src/core/knowledge/engines/StructuredKnowledgeEngine.js';
+        import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js';
+        import { getAdaptiveItemSpecs } from '../src/core/knowledge/presenters/ItemSpecPresenter.js';
+        import { getAdaptiveMonsterSpecs } from '../src/core/knowledge/presenters/MonsterSpecPresenter.js';
+        import { getItemInfoFromOnum, GLYPH_OFFSETS } from '../src/core/knowledge/engines/glyphClassifier.js';
         import { GlyphHelper } from '../src/core/renderers/GlyphHelper.js';
         import { TranslationEngine } from '../src/core/translation/TranslationEngine.js';
 
         // SSOT ナレッジマスター群のインポート
-        import { ALL_MONSTER_KNOWLEDGE_BASE } from '../src/core/knowledge/MONSTER_KNOWLEDGE_FULL.js';
-        import { MONSTER_JP_MAP } from '../src/core/knowledge/MONSTER_JP_MAP.js';
-        import { OBJECT_KNOWLEDGE_BASE } from '../src/core/knowledge/OBJECT_KNOWLEDGE_BASE.js';
-        import { OBJECT_JP_MAP } from '../src/core/knowledge/OBJECT_JP_MAP.js';
-        import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from '../src/core/knowledge/tilemappings_data.js';
-        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP, ALIGNMENT_KNOWLEDGE_MAP, GENDER_KNOWLEDGE_MAP } from '../src/core/knowledge/CHARACTER_KNOWLEDGE_BASE.js';
-        import { TERRAIN_KNOWLEDGE_MAP } from '../src/core/knowledge/TERRAIN_KNOWLEDGE_BASE.js';
-        import { CHEMISTRY_INTERACTIONS } from '../src/core/knowledge/CHEMISTRY_KNOWLEDGE_BASE.js';
-        import { ADVICE_DEFINITIONS } from '../src/core/knowledge/ADVICE_DEFINITIONS.js';
-        import { ASSIST_SIGNAL_DEFINITIONS } from '../src/core/knowledge/ASSIST_SIGNAL_DEFINITIONS.js';
-        import { MONSTER_CLASS_DEFINITIONS, MONSTER_CLASS_MAP } from '../src/core/knowledge/MONSTER_CLASS_KNOWLEDGE.js';
-        import { MonsterArmorRiskResolver } from '../src/core/knowledge/MonsterArmorRiskResolver.js';
-        import { ARTIFACT_KNOWLEDGE_BASE, ARTIFACT_KNOWLEDGE_MAP } from '../src/core/knowledge/ARTIFACT_KNOWLEDGE_BASE.js';
+        import { ALL_MONSTER_KNOWLEDGE_BASE } from '../src/core/knowledge/data/MONSTER_KNOWLEDGE_FULL.js';
+        import { MONSTER_JP_MAP } from '../src/core/knowledge/data/MONSTER_JP_MAP.js';
+        import { OBJECT_KNOWLEDGE_BASE } from '../src/core/knowledge/data/OBJECT_KNOWLEDGE_BASE.js';
+        import { OBJECT_JP_MAP } from '../src/core/knowledge/data/OBJECT_JP_MAP.js';
+        import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from '../src/core/knowledge/data/tilemappings_data.js';
+        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP, ALIGNMENT_KNOWLEDGE_MAP, GENDER_KNOWLEDGE_MAP } from '../src/core/knowledge/data/CHARACTER_KNOWLEDGE_BASE.js';
+        import { TERRAIN_KNOWLEDGE_MAP } from '../src/core/knowledge/data/TERRAIN_KNOWLEDGE_BASE.js';
+        import { CHEMISTRY_INTERACTIONS } from '../src/core/knowledge/data/CHEMISTRY_KNOWLEDGE_BASE.js';
+        import { ADVICE_DEFINITIONS } from '../src/core/knowledge/data/ADVICE_DEFINITIONS.js';
+        import { ASSIST_SIGNAL_DEFINITIONS } from '../src/core/knowledge/data/ASSIST_SIGNAL_DEFINITIONS.js';
+        import { MONSTER_CLASS_DEFINITIONS, MONSTER_CLASS_MAP } from '../src/core/knowledge/data/MONSTER_CLASS_KNOWLEDGE.js';
+        import { MonsterArmorRiskResolver } from '../src/core/knowledge/engines/MonsterArmorRiskResolver.js';
+        import { ARTIFACT_KNOWLEDGE_BASE, ARTIFACT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/ARTIFACT_KNOWLEDGE_BASE.js';
 
         const translator = new TranslationEngine({ enabled: true });
         const knowledgeEngine = new StructuredKnowledgeEngine({ translationEngine: translator });
