@@ -68,6 +68,7 @@ last_updated: 2026-09-24
 - **ステータス**: `🚧 in-progress` (設計・詳細仕様策定完了、クォータ回復待ち)
 - **マスタープラン**: [phase5_detailed_migration_plan.ja.md](./7_futures/phase5_detailed_migration_plan.ja.md)
 - **全体設計構想**: [message_context_and_signal_driven_architecture.ja.md](./7_futures/message_context_and_signal_driven_architecture.ja.md)
+- **バリアント適合運用規程**: [variant_message_catalog_adaptation_guide.ja.md](./7_futures/phase5/variant_message_catalog_adaptation_guide.ja.md)
 - **最上位制約**: **「今できていること（全1092件テスト・全4クライアントビルド・既存モーダル操作）を絶対に壊さない」非破壊的移行**
 - **コアアーキテクチャ**:
   - **2段構えシグナル**: WebUICore（第1層: 状況シグナル＝客観事実） ➔ GKL（第2層: `SituationCache` シグナル駆動化 ＆ 実施シグナル）
@@ -80,14 +81,17 @@ last_updated: 2026-09-24
     - `GKLPlugin.js` がシグナル（`SIGNAL_LORE_RUMOR`, `SIGNAL_LORE_ORACLE`, `SIGNAL_LORE_ENGRAVE`）を購読して図鑑・結界・床文字キャッシュを更新
     - `core.getCodex()` / `core.getLoreCodex()` のプロキシ委譲により既存UI・ツールとの完全互換性を担保（全83スイート・1,111テスト 100% PASS、全4クライアントビルド PASS）
 
-  - [ ] **[Stage 5.2: 状況シグナル基盤（第1層）と実行時コンテキスト照合](./7_futures/phase5/stage5_2_situation_signals.ja.md)**
-    - `build_message_context_catalog.py` による軽量実行時カタログ生成（< 250KB）
-    - `MessageContextResolver`（< 0.1ms 同定）および `ContextFrameBuffer` の新設
-    - WebUICore からの `situationSignal` 一元ディスパッチ
-  - [ ] **[Stage 5.3: GKL 状況キャッシュのシグナル駆動化と対話コンテキスト](./7_futures/phase5/stage5_3_interaction_context_and_actions.ja.md)**
-    - 既存 `SituationCache` をシグナル購読型へ進化させ、対話サブステート `InteractionContext` を統合
-    - 複数フォーカス候補、多重状況レイヤー（即時／空間距離／戦闘警戒）、フォーカスなし直接逆引き
-    - モーダル内外の境界設計（モーダル内 ActionRecipe シーケンス実行 vs 受動プロンプト維持）
+  - [x] **[Stage 5.2: 状況シグナル基盤（第1層）と実行時コンテキスト照合 (2026-09-25 完了)](./7_futures/phase5/stage5_2_situation_signals.ja.md)**
+    - `build_message_context_catalog.py` による軽量実行時カタログ生成（154.3KB, 完全ASCII・言語非依存、三項演算子展開＆Cコードノイズ完全排除、< 250KB DoD達成）
+    - `MessageContextResolver`（完全一致 Map + プレフィックス分類 + 正規表現テーブル、平均 0.002ms/件 << 0.1ms DoD達成）および `ContextFrameBuffer`（リングバッファ）の新設
+    - `WebUICore.js` からの `situationSignal` (`{ type: 'MESSAGE', context }`) および `messageContext:${domain}` 一元ディスパッチ配線（翻訳責務を完全分離）
+    - 全85スイート・1,128テスト 100% PASS、全4クライアントビルド 100% PASS
+  - [x] **[Stage 5.3: GKL 状況キャッシュのシグナル駆動化と対話コンテキスト (2026-09-25 完了)](./7_futures/phase5/stage5_3_interaction_context_and_actions.ja.md)**
+    - 既存 `SituationCache` をシグナル購読型へ進化させ、対話サブステート `InteractionContext` を統合（`getSituation().interaction` 提供）
+    - 複数フォーカス候補（足元 `atFeet` / 隣接 `adjacent`）、多重状況レイヤー（即時／空間距離維持／戦闘警戒）、フォーカスなし直接逆引き推測を完備
+    - 空間距離ベースの維持（チェビシェフ距離 $\le 1$）により、迎撃時の文脈消失防止と 2歩離脱時の安全な自動消去を両立
+    - `ActionSignalResolver` により施錠箱・扉に対する `recommendedActions`（合鍵・こじ開け・警告）およびワンタップ実行レシピ `ActionRecipe`（IRC 連携）を導出
+    - 全87スイート・1,149テスト 100% PASS、全4クライアントビルド 100% PASS
   - [ ] **[Stage 5.4: ドメイン別既存モジュールのメッセージマスタ移行](./7_futures/phase5/stage5_4_domain_modules_migration.ja.md)**
     - **5.4A 効果音エンジン (`SoundEngine`)**: `You_hear`（142件）等 O(1) 発火、Audio Queue スタガード遅延（50〜80ms）、動的シンセシス拡張スロット
     - **5.4B 耐性マネージャ (`AttributeStateManager`)**: `INTRINSIC_MESSAGE_MAP` による耐性獲得 O(1) 確定更新
@@ -150,10 +154,11 @@ last_updated: 2026-09-24
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全83スイート・1,103テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全85スイート・1,128テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
+| **メッセージ** | [stage5_2_situation_signals.ja.md](./7_futures/phase5/stage5_2_situation_signals.ja.md) | `src/core/message/`<br>`WebUICore.js` | `🟢 implemented` | **状況シグナル基盤 (第1層) ＆ 実行時コンテキスト照合**<br>完全ASCII軽量カタログ(154.3KB)、三項演算子展開＆ノイズ排除、超高速同定(<0.003ms)、翻訳完全分離 |
 | **操作・UI** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `CharacterIntroModal.js`<br>`ModalManager.js` | `🟢 implemented` | **ゲーム開始導入フロー最適化 (Phase C)**<br>冒険者名入力の中央カード化・ランダムネーム生成・3大作成モードカード（おまかせ/手動/即開始）連携 |
 | **画面・描画** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `WebGPUHD2DRenderer.js`<br>`MainViewportRenderer.js` | `🟢 implemented` | **自キャラ足元枠 Middle レイヤー最適化 ＆ 3D パース吸着**<br>床面 $Y=0.01$ (Layer 3.2) 配置、深度テストによる自然な足元表現、ターゲットカーソル立体結線枠 |
 | **画面・描画** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `WebGPUHD2DRenderer.js`<br>`MainViewportRenderer.js`<br>`glyphClassifier.js` | `🟢 implemented` | **Pet / Ridden / piletop 視覚的強調**<br>統一ミニバッジ (♥ / R / +)、Middle レイヤー (Layer 3.3) 足元サークル描画 |

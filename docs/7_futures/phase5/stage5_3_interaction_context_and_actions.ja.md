@@ -1,8 +1,7 @@
 ---
 title: "Phase 5 - Stage 5.3 詳細仕様書: GKL 状況キャッシュ (SituationCache) のシグナル駆動化と対話コンテキスト (InteractionContext)"
-status: proposal / specification
-created_at: 2026-09-22
-last_updated: 2026-09-22
+status: completed (2026-09-25)
+last_updated: 2026-09-25
 related_docs:
   - docs/7_futures/phase5_detailed_migration_plan.ja.md
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
@@ -259,29 +258,31 @@ interface ActionSignal {
 
 ## 5. 作業手順 (Implementation Steps)
 
-- [ ] **Step 5.3.1**: `src/core/knowledge/context/InteractionContext.js` の新規作成
-  - フォーカス候補群（`atFeet`, `adjacent`）、TTL 減衰ロジック、戦闘コンテキスト、能力判定（`assessCapabilities`）の実装。
-- [ ] **Step 5.3.2**: `src/core/knowledge/engines/ActionSignalResolver.js` の新規作成
+- [x] **Step 5.3.1**: `src/core/knowledge/context/InteractionContext.js` の新規作成
+  - フォーカス候補群（`atFeet`, `adjacent`）、TTL 減衰ロジック、戦闘コンテキスト、能力判定（`assessCapabilities`）、チェビシェフ距離離脱消去の実装。
+- [x] **Step 5.3.2**: `src/core/knowledge/engines/ActionSignalResolver.js` の新規作成
   - 状況シグナルとコンテキストから受動的 `recommendedActions` および能動的 `actionRecipe` を導出するルール群の実装。
   - フォーカスなし直接実行時のインベントリ逆引きロジックの実装。
-- [ ] **Step 5.3.3**: `GKLPlugin.js` への統合
-  - `interactionContext` と `actionSignalResolver` をインスタンス化し、WebUICore の `situationSignal` を購読して状態更新と `actionSignal` の emit を配線。
-- [ ] **Step 5.3.4**: `InteractiveRequestController.js` (IRC) との連携
-  - 実施シグナルに含まれる `actionRecipe` を安全に受領し、シーケンス実行を開始できるインターフェースを整備。
-- [ ] **Step 5.3.5**: 単体テストの作成と検証
-  - `InteractionContext.test.js`（TTL 減衰、複数フォーカス、能力評価のテスト）。
+- [x] **Step 5.3.3**: `GKLPlugin.js` および `SituationCache.js` への統合
+  - `interactionContext` と `actionSignalResolver` をインスタンス化し、`SituationCache.getSituation().interaction` を提供。
+  - WebUICore の `situationSignal` を購読して状態更新と `actionSignal` の emit を配線。
+- [x] **Step 5.3.4**: `InteractiveRequestController.js` (IRC) との連携
+  - 実施シグナルに含まれる `actionRecipe` を安全に受領し、シーケンス実行を開始できるインターフェース (`executeActionRecipe`) を整備。
+- [x] **Step 5.3.5**: 単体テストの作成と検証
+  - `InteractionContext.test.js`（TTL 減衰、複数フォーカス、能力評価、空間維持のテスト）。
   - `ActionSignalResolver.test.js`（施錠箱＋鍵所持時の推奨アクション導出、フォーカスなし時の逆引きテスト）。
+  - `GKLPlugin.test.js`（Stage 5.3 統合テスト）。
 
 ---
 
-## 6. 完了判定基準 (Definition of Done)
+## 6. 完了判定基準 (Definition of Done) 実績
 
 1. **コンテキスト追跡精度**:
-   - 箱や扉に対するアプローチ時に、足元・隣接の候補が正しく記録され、2ターン経過または移動で確実に TTL 減衰して消去されること。
+   - 箱や扉に対するアプローチ時に、足元・隣接の候補が正しく記録され、2歩離脱（チェビシェフ距離 $> 1$）またはターン経過で確実に消去されることを確認。
 2. **実施シグナル導出の正確性**:
-   - 施錠された箱があり鍵を所持している場合、信頼度 1.0 で合鍵使用の推奨アクションおよび ActionRecipe が生成されること。
-   - 鍵も道具もない場合、無理にこじ開ける危険性に関する警告（`warnings`）が含まれること。
+   - 施錠された箱があり鍵を所持している場合、信頼度 1.0 で合鍵使用の推奨アクションおよび ActionRecipe が生成されることを確認。
+   - 鍵も道具もない場合、無理にこじ開ける危険性に関する警告（`warnings`）が含まれることを確認。
 3. **非破壊原則の遵守**:
-   - 既存のコンテナモーダル・装備モーダル内の操作が 1 つも破壊されず、途中の受動プロンプトが既存通り正常に受け付けられること。
+   - 既存のコンテナモーダル・装備モーダル内の操作が 1 つも破壊されず、途中の受動プロンプトが既存通り正常に受け付けられることを確認。
 4. **テスト通過**:
-   - 新規単体テストを含め、既存 1037 件以上の全テストが 100% パスすること。
+   - 新規単体テストを含め、全87スイート・1,149テスト（既存1,128テストから21件純増）および全4クライアントビルド（Vue, React, Solid, Svelte）が 100% PASS。

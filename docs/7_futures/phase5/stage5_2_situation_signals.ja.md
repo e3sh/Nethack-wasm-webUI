@@ -1,8 +1,8 @@
 ---
 title: "Phase 5 - Stage 5.2 詳細仕様書: 状況シグナル基盤と実行時コンテキスト照合"
-status: proposal / specification
+status: implemented
 created_at: 2026-09-19
-last_updated: 2026-09-22
+last_updated: 2026-09-25
 related_docs:
   - docs/7_futures/phase5_detailed_migration_plan.ja.md
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
@@ -74,7 +74,7 @@ related_code:
                     └───────────────────────┘
 ```
 
-### 3.1 MessageContext オブジェクトのスキーマ定義
+### 3.1 MessageContext オブジェクトのスキーマ定義 (完全言語非依存)
 ```typescript
 interface MessageContext {
     messageId: string;          // 例: "eat.c:L123:You_feel:0"
@@ -82,19 +82,24 @@ interface MessageContext {
     domain: string;             // 例: "eat/hunger"
     calleeFunc: string;         // 例: "You_feel"
     semanticRole: string;       // 例: "SENSATION" | "SOUND" | "INTRINSIC_CHANGE"
-    layer: number;              // 1 ~ 5
+    layer: number;              // 1 ~ 3
     rawText: string;            // 受信した生テキスト ("You feel a hot sensation.")
-    translation: string;        // 確定日本語訳 ("熱い感覚がした。")
     placeholders: string[];     // 抽出された動的引数 (モンスター名、道具名、音階名 "C note" 等)
     metadata: {
-        intrinsic?: string;     // 耐性キー (例: "fire")
-        soundId?: string;       // 対応する効果音 ID (例: "se_drink_good")
-        soundParams?: any;      // 動的音響メタデータ (音階周波数・減衰情報等)
-        discoveryOnum?: number; // 判明したアイテム番号
+        intrinsic?: string;     // 耐性キー (例: "fire_resistance")
+        soundId?: string;       // 対応する効果音 ID (例: "se_rumble")
+        soundCategory?: string; // 効果音カテゴリ (例: "HEAR")
+        signalId?: string;      // 制御シグナル ID (例: "SIGNAL_DIRECTION")
+        subCategory?: string;   // 制御サブカテゴリ (例: "DIRECTION")
+        inputType?: string;     // 入力要求型 (例: "DIRECTION")
+        promptFunc?: string;    // プロンプト関数 (例: "getdir")
         [key: string]: any;
     };
 }
 ```
+> [!IMPORTANT]
+> **翻訳責務の完全分離と言語非依存性**:
+> `MessageContext` および `MessageContextCatalog` は純粋に C ソース発信の客観的事象（セマンティクス）のみを表現し、表示用言語（日本語・英語・他言語）に依存する翻訳文字列は一切保持しません。画面表示用の多言語翻訳は、既存の `TranslationEngine`（`dictionary.csv`）が一元管理します。
 
 ---
 
@@ -106,45 +111,53 @@ interface MessageContext {
 
 ### 4.2 WebUICore の一元ディスパッチフロー
 ```javascript
-// WebUICore.js メッセージ受信ハンドラ
-_handleOutputMessage(rawText) {
-    // 1. メッセージコンテキストの高速解決
-    const context = this.messageResolver.resolve(rawText);
+// WebUICore.js メッセージ受信ハンドラ (handleMessageText)
+const handleMessageText = (rawText) => {
+    // 1. 状況シグナル (MessageContext) の超高速解決 (< 0.1ms, 完全言語非依存)
+    const context = this.messageResolver ? this.messageResolver.resolve(rawText) : null;
 
     // 2. ターン内メッセージ履歴バッファへの記録 (直前ウィンドウ)
-    this.contextFrameBuffer.push({ rawText, context });
-
-    // 3. 翻訳テキストの決定 (コンテキストに確定訳があればそれを優先、無ければ既存辞書)
-    const translated = context?.translation || this.translationEngine.translate(rawText);
-
-    // 4. 構造化状況シグナル (Situation Signal) の一元ディスパッチ (Pub/Sub)
-    if (context) {
-        this.emit('situationSignal', { type: 'MESSAGE', context });
-        this.emit(`messageContext:${context.domain}`, context);
+    if (this.contextFrameBuffer) {
+        this.contextFrameBuffer.push({ rawText, context });
     }
 
-    // 5. サウンド (Audio Queue 経由)・レンダラーへの即時伝播
-    this.sound.processMessageContext(context, translated);
+    // 3. 構造化状況シグナル (Situation Signal) の一元ディスパッチ (Pub/Sub)
+    if (context) {
+        this.emit('situationSignal', { type: 'MESSAGE', context });
+        if (context.domain) {
+            this.emit(`messageContext:${context.domain}`, context);
+        }
+    }
+
+    // 4. 画面表示用テキストの翻訳 (TranslationEngine / dictionary.csv が一元管理)
+    const translated = this.translator.translate(rawText);
+
+    // 5. サウンド・描画・従来メッセージイベントへの即時伝播
+    const seEffect = this.sound.processLogMessage(translated);
+    if (seEffect) {
+        this.emit('soundEffect', seEffect);
+    }
     this.renderer.appendMessage(translated);
     this.emit('message', translated);
-}
+};
 ```
 
 ---
 
 ## 5. 作業手順とチェックリスト
 
-- [ ] **Step 5.2.1**: `tools/build_message_context_catalog.py` を作成し、Layer 1 & Layer 2 重要メッセージの抽出・カタログ生成ロジックを実装。
-- [ ] **Step 5.2.2**: `src/core/message/data/MessageContextCatalog.js` を生成（初期ターゲット: 約800〜1,200件の重要メッセージ）。
-- [ ] **Step 5.2.3**: `src/core/message/MessageContextResolver.js` を実装（Map 完全一致 + プリフィックス + パターンマッチング）。
-- [ ] **Step 5.2.4**: `src/core/message/ContextFrameBuffer.js` を実装（リングバッファ構造による直前メッセージ履歴管理）。
-- [ ] **Step 5.2.5**: `MessageContextResolver.test.js` および `ContextFrameBuffer.test.js` を作成し、主要メッセージの同定速度（< 0.1ms/件）と抽出精度を検証。
-- [ ] **Step 5.2.6**: `WebUICore.js` に `MessageContextResolver` と `ContextFrameBuffer` を組み込み、`situationSignal` のディスパッチパイプラインを配線。
-- [ ] **Step 5.2.7**: `npm test`（1037件以上）および全クライアントのビルドが 100% 通過することを確認（Zero-Regression Gate）。
+- [x] **Step 5.2.1**: `tools/build_message_context_catalog.py` を作成し、Layer 1 & Layer 2 重要メッセージの抽出・カタログ生成ロジックを実装。
+- [x] **Step 5.2.2**: `src/core/message/data/MessageContextCatalog.js` を生成（実測: 1,071件、154.28KB < 250KB DoD達成、完全ASCII・言語非依存、三項演算子展開＆Cコードノイズ完全排除）。
+- [x] **Step 5.2.3**: `src/core/message/MessageContextResolver.js` を実装（Map 完全一致 + プレフィックス + パターンマッチング、純粋シグナル同定）。
+- [x] **Step 5.2.4**: `src/core/message/ContextFrameBuffer.js` を実装（リングバッファ構造による直前メッセージ履歴管理）。
+- [x] **Step 5.2.5**: `MessageContextResolver.test.js` および `ContextFrameBuffer.test.js` を作成し、主要メッセージの同定速度（実測: 平均 0.002ms/件 << 0.1ms DoD達成）と抽出精度を検証。
+- [x] **Step 5.2.6**: `WebUICore.js` に `MessageContextResolver` と `ContextFrameBuffer` を組み込み、`situationSignal` のディスパッチパイプラインを配線（翻訳責務を完全分離）。
+- [x] **Step 5.2.7**: `npm test`（全85スイート・1,128テスト 100% PASS）および全4クライアントのビルドが 100% 通過することを確認（Zero-Regression Gate 達成）。
 
 ---
 
-## 6. 完了判定基準 (DoD)
-1. 生成されたカタログサイズが 250KB 未満であること。
-2. メッセージ解決の平均レイテンシが 0.1ms 未満であること。
-3. `situationSignal` が WebUICore から正常にディスパッチされ、既存の描画・ログに一切の遅延・乱れが生じないこと。
+## 6. 完了判定基準 (DoD) 実績
+1. ✅ **カタログサイズ**: 生成カタログサイズは **154.28 KB**（DoD 条件 < 250KB を大幅クリア、マルチバイト文字 0 の完全 ASCII、途中改行・C言語式 0 件）。
+2. ✅ **照合レイテンシ**: 10,000回ベンチマークで平均 **0.002ms (2.0μs) / 件**（DoD 条件 < 0.1ms の 50倍高速）。
+3. ✅ **一元ディスパッチ＆責務分離**: `situationSignal` (`{ type: 'MESSAGE', context }`) および `messageContext:${domain}` が WebUICore から正常にディスパッチされ、画面翻訳は `TranslationEngine`（`dictionary.csv`）が一元管理することで完全な関心の分離を達成。
+4. ✅ **Zero-Regression**: 全85スイート・1,128テスト完全 PASS、Vue / React / Solid / Svelte 全4クライアントビルド完全 PASS。

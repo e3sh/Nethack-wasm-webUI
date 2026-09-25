@@ -1136,6 +1136,67 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(list[0].actualText).toBe('El?ereth');
         });
     });
+
+    describe('Stage 5.3 - InteractionContext & ActionSignal 統合', () => {
+        it('getSituation: interaction コンテキストが含まれていること', () => {
+            const plugin = new GKLPlugin();
+            const situation = plugin.situationCache.getSituation();
+
+            expect(situation.interaction).toBeDefined();
+            expect(situation.interaction.focus).toBeNull();
+            expect(situation.interaction.combat).toBeDefined();
+        });
+
+        it('situationSignal 受信時に InteractionContext が更新され actionSignal が発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            let emittedActionSignal = null;
+            mockCore.on('actionSignal', (sig) => {
+                emittedActionSignal = sig;
+            });
+
+            // 施錠された箱の状況シグナルを発行
+            mockCore.emit('situationSignal', {
+                type: 'MESSAGE',
+                context: {
+                    domain: 'CONTAINER',
+                    subDomain: 'LOCKED',
+                    tags: ['container', 'locked'],
+                    params: { containerName: 'large box' }
+                }
+            });
+
+            const ic = plugin.getInteractionContext();
+            expect(ic.getPrimaryFocus()).not.toBeNull();
+            expect(ic.getPrimaryFocus().name).toBe('large box');
+            expect(ic.getPrimaryFocus().isLocked).toBe(true);
+
+            // actionSignal が emit されたこと
+            expect(emittedActionSignal).not.toBeNull();
+            expect(emittedActionSignal.signalId).toBe('ACT_CONTAINER_INTERACTION');
+            expect(emittedActionSignal.target.type).toBe('CONTAINER');
+        });
+
+        it('executeActionRecipe: requestController が存在する場合にシーケンスが委譲実行されること', async () => {
+            const plugin = new GKLPlugin();
+            const mockController = {
+                executeSequence: vi.fn().mockResolvedValue(true)
+            };
+            plugin.requestController = mockController;
+
+            const recipe = {
+                recipeId: 'TEST_RECIPE',
+                initialSequence: ['a', 'b', '.']
+            };
+
+            const result = await plugin.executeActionRecipe(recipe);
+            expect(result).toBe(true);
+            expect(mockController.executeSequence).toHaveBeenCalledWith(recipe, {});
+        });
+    });
 });
+
 
 

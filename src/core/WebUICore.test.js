@@ -1046,6 +1046,50 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(core.getSituation()).toBeNull();
         });
     });
+
+    describe('WebUICore - Phase 5 Stage 5.2 状況シグナル基盤 (第1層) と履歴バッファ', () => {
+        it('メッセージ受信時に situationSignal ({ type: "MESSAGE", context }) が発行され、履歴バッファに記録されること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+
+            const situationSignalListener = vi.fn();
+            const domainMessageListener = vi.fn();
+            core.on('situationSignal', situationSignalListener);
+            core.on('messageContext:pray/gods', domainMessageListener);
+
+            // putstr ハンドラ取得
+            const putstrCall = mockDriver.on.mock.calls.find(c => c[0] === 'putstr');
+            expect(putstrCall).toBeDefined();
+            const putstrHandler = putstrCall[1];
+
+            // 1. 完全一致メッセージ受信
+            putstrHandler({ text: 'You feel better.' });
+
+            expect(situationSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = situationSignalListener.mock.calls[0][0];
+            expect(emitted.type).toBe('MESSAGE');
+            expect(emitted.context).toBeDefined();
+            expect(emitted.context.calleeFunc).toBe('You_feel');
+            expect(emitted.context.semanticRole).toBe('PERCEPTION_FEELING');
+
+            // ドメイン別イベントも受信
+            expect(domainMessageListener).toHaveBeenCalledWith(emitted.context);
+
+            // 履歴バッファに記録されていること
+            const history = core.getMessageHistory();
+            expect(history.length).toBe(1);
+            expect(history[0].rawText).toBe('You feel better.');
+            expect(history[0].context.calleeFunc).toBe('You_feel');
+        });
+
+        it('resolveMessageContext で外部から直接 MessageContext を同定できること', () => {
+            const core = new WebUICore({ driver: createMockDriver() });
+            const ctx = core.resolveMessageContext("You can't jump very far.");
+            expect(ctx).not.toBeNull();
+            expect(ctx.calleeFunc).toBe('You_cant');
+            expect(ctx.file).toBe('apply.c');
+        });
+    });
 });
 
 

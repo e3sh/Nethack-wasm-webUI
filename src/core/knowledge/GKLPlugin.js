@@ -18,6 +18,8 @@ import { PolymorphService } from "./services/PolymorphService.js";
 import { WriteService } from "./services/WriteService.js";
 import { EncumbranceStateManager } from "./state/EncumbranceStateManager.js";
 import { LoreCodex } from "./lore/LoreCodex.js";
+import { InteractionContext } from "./context/InteractionContext.js";
+import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
 import { PROMPT_CATEGORY } from '../types.js';
 
 
@@ -53,6 +55,14 @@ export class GKLPlugin {
 
         this.language = options.language || 'ja';
 
+        this.interactionContext = options.interactionContext || new InteractionContext(this, {
+            defaultTtl: options.defaultInteractionTtl !== undefined ? options.defaultInteractionTtl : 3
+        });
+
+        this.actionSignalResolver = options.actionSignalResolver || new ActionSignalResolver(this, {
+            language: this.language
+        });
+
         this.situationCache = new SituationCache(
             this.statusAccessor,
             this.inventoryStateManager,
@@ -64,7 +74,8 @@ export class GKLPlugin {
             TacticalAdvisor,
             {
                 language: this.language,
-                encumbranceStateManager: this.encumbranceStateManager
+                encumbranceStateManager: this.encumbranceStateManager,
+                interactionContext: this.interactionContext
             }
         );
 
@@ -299,6 +310,9 @@ export class GKLPlugin {
         if (this.loreCodex && typeof this.loreCodex.refreshTranslations === 'function') {
             this.loreCodex.refreshTranslations();
         }
+        if (this.actionSignalResolver && typeof this.actionSignalResolver.setLanguage === 'function') {
+            this.actionSignalResolver.setLanguage(resolvedLang);
+        }
     }
 
     /**
@@ -415,6 +429,9 @@ export class GKLPlugin {
         if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
             this.situationCache.invalidate();
         }
+        if (this.interactionContext && typeof this.interactionContext.reset === 'function') {
+            this.interactionContext.reset();
+        }
         if (this.silentSyncTracker) {
             this.silentSyncTracker.totalCount = 0;
             this.silentSyncTracker.syncCounts = {
@@ -517,9 +534,41 @@ export class GKLPlugin {
             this.setLanguage(language);
         });
 
+        // 状況シグナル (situationSignal) 受信時のコンテキスト更新と実施シグナル (actionSignal) の導出
+        addCoreListener('situationSignal', (signal) => {
+            if (this.interactionContext && typeof this.interactionContext.handleSituationSignal === 'function') {
+                this.interactionContext.handleSituationSignal(signal);
+            }
+            if (this.actionSignalResolver && typeof this.actionSignalResolver.resolve === 'function') {
+                const actionSig = this.actionSignalResolver.resolve(this.interactionContext);
+                if (actionSig) {
+                    core.emit('actionSignal', actionSig);
+                }
+            }
+        });
+
+        // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
+        addCoreListener('inputRequired', (payload) => {
+            if (this.interactionContext && typeof this.interactionContext.setImmediatePrompt === 'function') {
+                this.interactionContext.setImmediatePrompt({
+                    type: payload.type || payload.promptCategory || 'PROMPT',
+                    prompt: payload.rawPrompt || payload.prompt || payload.question || ''
+                });
+            }
+            if (this.actionSignalResolver && typeof this.actionSignalResolver.resolve === 'function') {
+                const actionSig = this.actionSignalResolver.resolve(this.interactionContext);
+                if (actionSig) {
+                    core.emit('actionSignal', actionSig);
+                }
+            }
+        });
+
         // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行 ＆ 攻撃検知
         addCoreListener('userActionSent', ({ sequence }) => {
             if (sequence) {
+                if (this.interactionContext && typeof this.interactionContext.recordAction === 'function') {
+                    this.interactionContext.recordAction(sequence[0]);
+                }
                 if (!this.isNonItemSequence(sequence)) {
                     if (typeof this.inventoryStateManager.invalidate === 'function') {
                         this.inventoryStateManager.invalidate();
@@ -677,6 +726,9 @@ export class GKLPlugin {
             if (data && data.x !== undefined && data.y !== undefined) {
                 if (data.x >= 0 && data.x < 80 && data.y >= 0 && data.y < 21) {
                     this.areaStateManager.updatePlayerPosition(data.x, data.y);
+                    if (this.interactionContext && typeof this.interactionContext.updatePlayerPosition === 'function') {
+                        this.interactionContext.updatePlayerPosition(data.x, data.y);
+                    }
                 }
             }
         };
@@ -777,8 +829,13 @@ export class GKLPlugin {
                 // ターン数 (BL_TIME = 16) の同期
                 if (data.field === 16 || data.field === 'time' || data.field === 'turns') {
                     const parsedTurn = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
-                    if (!isNaN(parsedTurn) && this.monsterTracker) {
-                        this.monsterTracker.advanceTurn(parsedTurn);
+                    if (!isNaN(parsedTurn)) {
+                        if (this.monsterTracker) {
+                            this.monsterTracker.advanceTurn(parsedTurn);
+                        }
+                        if (this.interactionContext && typeof this.interactionContext.advanceTurn === 'function') {
+                            this.interactionContext.advanceTurn(parsedTurn);
+                        }
                     }
                 }
 
@@ -1941,5 +1998,46 @@ export class GKLPlugin {
             isDead: this._isPlayerDead,
             ...options
         });
+    }
+
+    /**
+     * 対話コンテキスト (InteractionContext) を取得
+     * @returns {InteractionContext}
+     */
+    getInteractionContext() {
+        return this.interactionContext;
+    }
+
+    /**
+     * 実施シグナル導出エンジン (ActionSignalResolver) を取得
+     * @returns {ActionSignalResolver}
+     */
+    getActionSignalResolver() {
+        return this.actionSignalResolver;
+    }
+
+    /**
+     * 現在のコンテキストから最新の実施シグナル (ActionSignal) を取得
+     * @returns {Object|null}
+     */
+    getActionSignal() {
+        if (!this.actionSignalResolver || !this.interactionContext) return null;
+        return this.actionSignalResolver.resolve(this.interactionContext);
+    }
+
+    /**
+     * ActionRecipe を InteractiveRequestController を通じて安全に実行
+     * @param {Object} recipe
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean|Object>}
+     */
+    async executeActionRecipe(recipe, options = {}) {
+        if (!recipe) return false;
+        const controller = this.requestController || (this.core && (this.core.interactiveController || this.core.requestController));
+        if (!controller || typeof controller.executeSequence !== 'function') {
+            console.warn('[GKLPlugin] executeActionRecipe failed: requestController is not available.');
+            return false;
+        }
+        return await controller.executeSequence(recipe, options);
     }
 }

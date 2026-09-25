@@ -478,14 +478,14 @@ class GklPureJSClient {
 
     // 4.5 床文字・考古学的復元シグナル (SIGNAL_LORE_ENGRAVE) の受信 (案A HUD)
     this.core.on('signal:SIGNAL_LORE_ENGRAVE', (data) => {
-      console.log('[GklClient] Received signal:SIGNAL_LORE_ENGRAVE:', data);
+      //console.log('[GklClient] Received signal:SIGNAL_LORE_ENGRAVE:', data);
       if (this.isGameExited) return;
       this.engravingHud?.show(data);
     });
 
     // 4.6 伝承シグナル (噂話、神託、床文字、墓碑銘) 受信時の冒険手帳未読バッジ即時反映
     this.core.on('loreSignal', (data) => {
-      console.log('[GklClient] Received loreSignal for LoreCodex:', data);
+      //console.log('[GklClient] Received loreSignal for LoreCodex:', data);
       if (this.codexModal) {
         this.codexModal.notifyUnreadCount();
       }

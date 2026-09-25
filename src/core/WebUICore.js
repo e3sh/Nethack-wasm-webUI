@@ -21,6 +21,7 @@ import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
 import { LoreDetector, LoreCodex } from './knowledge/index.js';
+import { MessageContextResolver, ContextFrameBuffer } from './message/index.js';
 
 
 export const KEYS = {
@@ -151,6 +152,10 @@ export class WebUICore {
         if (this.gkl) {
             this.gkl.requestController = this.interactiveController;
         }
+
+        // 📡 Phase 5 - Stage 5.2: 状況シグナル基盤 (第1層) とメッセージ履歴バッファ
+        this.messageResolver = options.messageResolver || new MessageContextResolver();
+        this.contextFrameBuffer = options.contextFrameBuffer || new ContextFrameBuffer(options.contextFrameBufferSize || 10);
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -433,6 +438,10 @@ export class WebUICore {
         if (this.scenarioRecorder && typeof this.scenarioRecorder.destroy === 'function') {
             this.scenarioRecorder.destroy();
             this.scenarioRecorder = null;
+        }
+
+        if (this.contextFrameBuffer && typeof this.contextFrameBuffer.clear === 'function') {
+            this.contextFrameBuffer.clear();
         }
 
         this.listeners.clear();
@@ -1149,7 +1158,7 @@ export class WebUICore {
      */
     executeAction(action, options = {}) {
         this.isItemUsingActive = true;
-        console.log(`[WebUICore] ⚡ executeAction called:`, action?.id, action);
+        //console.log(`[WebUICore] ⚡ executeAction called:`, action?.id, action);
         if (this.gkl) {
             return this.gkl.executeAction(action, options);
         }
@@ -1432,6 +1441,24 @@ export class WebUICore {
                 this.lastRawMessageText = trimmed;
             }
             this.emit('messageText', { windowId: 1, text: rawText });
+
+            // 📡 1. 状況シグナル (MessageContext) の超高速解決 (< 0.1ms) - 完全言語非依存
+            const context = this.messageResolver ? this.messageResolver.resolve(rawText) : null;
+
+            // 📜 2. ターン内メッセージ履歴バッファへの記録 (直前ウィンドウ)
+            if (this.contextFrameBuffer) {
+                this.contextFrameBuffer.push({ rawText, context });
+            }
+
+            // 📡 3. 構造化状況シグナル (Situation Signal: 第1層) の一元ディスパッチ (Pub/Sub)
+            if (context) {
+                this.emit('situationSignal', { type: 'MESSAGE', context });
+                if (context.domain) {
+                    this.emit(`messageContext:${context.domain}`, context);
+                }
+            }
+
+            // 🌐 4. 画面表示用テキストの翻訳 (TranslationEngine / dictionary.csv が一元管理)
             const translated = this.translator.translate(rawText);
 
             const seEffect = this.sound.processLogMessage(translated);
@@ -1957,5 +1984,23 @@ export class WebUICore {
             this.scenarioRecorder = new ScenarioRecorder(this, options);
         }
         return this.scenarioRecorder;
+    }
+
+    /**
+     * 生テキストから MessageContext を解決 (便利用アクセサ)
+     * @param {string} rawText
+     * @returns {Object|null}
+     */
+    resolveMessageContext(rawText) {
+        return this.messageResolver ? this.messageResolver.resolve(rawText) : null;
+    }
+
+    /**
+     * 直近のメッセージ履歴ウィンドウを取得
+     * @param {number} [count=10]
+     * @returns {Array<Object>}
+     */
+    getMessageHistory(count = 10) {
+        return this.contextFrameBuffer ? this.contextFrameBuffer.getRecent(count) : [];
     }
 }

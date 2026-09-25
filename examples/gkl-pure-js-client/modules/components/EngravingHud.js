@@ -91,7 +91,7 @@ export class EngravingHud {
    */
   show(data) {
     if (!this.elEngravingHud || !data) return;
-    console.log('[EngravingHud] show banner:', data);
+    //console.log('[EngravingHud] show banner:', data);
 
     if (this.autoHideTimer) {
       clearTimeout(this.autoHideTimer);
