@@ -8,13 +8,31 @@ export { SituationCache } from "./state/SituationCache.js";
 export { ContextActionEngine } from "./engines/ContextActionEngine.js";
 export { TacticalAdvisor } from "./engines/TacticalAdvisor.js";
 export { AssistSignalSynthesizer } from "./engines/AssistSignalSynthesizer.js";
-export { GlyphClassifier } from "./engines/glyphClassifier.js";
+export {
+    GlyphClassifier,
+    classifyGlyph,
+    getCmapInfo,
+    GLYPH_OFFSETS,
+    ENTITY_TYPES,
+    isShopkeeperMonster,
+    getOnumFromGlyph,
+    getItemInfoFromOnum,
+    getCategoryFromOnum,
+    isBoulderGlyph,
+    isBoulderEntity,
+    resolveItemOnum,
+    isContainerItem,
+    isBoxItem,
+    isBagItem
+} from "./engines/glyphClassifier.js";
+
 export { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from "./engines/StructuredKnowledgeEngine.js";
 export { OnDemandLookService } from "./services/OnDemandLookService.js";
 export { ItemIdentificationResolver, IDENTIFICATION_LEVELS, APPEARANCE_PATTERNS, IDENTIFICATION_TIPS } from "./engines/ItemIdentificationResolver.js";
 export { DiscoveryStateManager } from "./state/DiscoveryStateManager.js";
 export { getAdaptiveItemSpecs, getSkillProficiencyBadge } from "./presenters/ItemSpecPresenter.js";
-export { WishService, WISH_PRESETS, BLESSING_STATES, PROOF_TYPES, FAMOUS_ARTIFACTS, CATEGORY_LABELS, ITEM_JA_MAP } from "./services/WishService.js";
+export { WishService, WISH_PRESETS, BLESSING_STATES, PROOF_TYPES, FAMOUS_ARTIFACTS, CATEGORY_LABELS } from "./services/WishService.js";
+
 export { GenocideService, MONSTER_CLASS_DEFINITIONS, GENOCIDE_PRESETS } from "./services/GenocideService.js";
 export { PolymorphService } from "./services/PolymorphService.js";
 export { WriteService } from "./services/WriteService.js";
@@ -23,4 +41,11 @@ export { MonsterTracker } from "./state/MonsterTracker.js";
 export { EquipmentActionPlanner } from "./equipment/EquipmentActionPlanner.js";
 export { EquipmentRules, EQUIP_SLOTS } from "./equipment/EquipmentRules.js";
 export { EquipmentDependencyAnalyzer } from "./equipment/EquipmentDependencyAnalyzer.js";
+export { LoreCodex } from "./lore/LoreCodex.js";
+export { LoreDetector } from "./lore/LoreDetector.js";
+export { EngravingArchaeologist, RUBOUTS } from "./lore/EngravingArchaeologist.js";
+export { ElberethAnalyzer, PRISTINE_ELBERETH, WARD_STATUS } from "./lore/ElberethAnalyzer.js";
+export { LoreCodexStorage } from "./lore/LoreCodexStorage.js";
+export { LORE_MASTER, RUMORS, ORACLES, ENGRAVINGS } from "./lore/data/LoreMasterData.js";
+
 

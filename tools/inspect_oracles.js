@@ -1,4 +1,5 @@
-import { ORACLES } from '../src/core/lore/data/LoreMasterData.js';
+import { ORACLES } from '../src/core/knowledge/lore/data/LoreMasterData.js';
+
 
 ORACLES.forEach((o, i) => {
     console.log(`\n=== [ORACLE ${i + 1}] ${o.id}: ${o.title} ===`);

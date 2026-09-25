@@ -74,9 +74,12 @@ last_updated: 2026-09-24
   - **多重状況レイヤー**: 単一ターン減衰のジレンマを克服する空間距離ベースの対峙維持（迎撃時の取りこぼし防止・離脱時誤爆防止・`SpatialPatternEngine` 連携）
   - **演出のデュアルパイプライン**: ログ・耐性・SE は即時ストリーム（Audio Queue 50〜80ms スタガード）、戦術助言はターン完了時（`poskey`）評価
 - **サブステージ別詳細ロードマップ**:
-  - [ ] **[Stage 5.1: LORE/Codex の GKL 移設と責務純化](./7_futures/phase5/stage5_1_lore_gkl_migration.ja.md)**
-    - `src/core/lore/` を `src/core/knowledge/lore/` へ移設
-    - `WebUICore.js` 内のインライン LORE 処理（約90行）を GKL 側のシグナル購読へ分離（既存プロキシ API 完全維持）
+  - [x] **[Stage 5.1: LORE/Codex の GKL 移設と責務純化 (2026-09-25 完了)](./7_futures/phase5/stage5_1_lore_gkl_migration.ja.md)**
+    - `src/core/lore/` を `src/core/knowledge/lore/` へ移設、後方互換性 re-export ラッパーを配備
+    - `WebUICore.js` 内のインライン LORE / Codex ロジック（約90行）を完全撤廃し、純粋なシグナル発行（Pub/Sub）に純化
+    - `GKLPlugin.js` がシグナル（`SIGNAL_LORE_RUMOR`, `SIGNAL_LORE_ORACLE`, `SIGNAL_LORE_ENGRAVE`）を購読して図鑑・結界・床文字キャッシュを更新
+    - `core.getCodex()` / `core.getLoreCodex()` のプロキシ委譲により既存UI・ツールとの完全互換性を担保（全83スイート・1,111テスト 100% PASS、全4クライアントビルド PASS）
+
   - [ ] **[Stage 5.2: 状況シグナル基盤（第1層）と実行時コンテキスト照合](./7_futures/phase5/stage5_2_situation_signals.ja.md)**
     - `build_message_context_catalog.py` による軽量実行時カタログ生成（< 250KB）
     - `MessageContextResolver`（< 0.1ms 同定）および `ContextFrameBuffer` の新設

@@ -17,7 +17,9 @@ import { GenocideService } from "./services/GenocideService.js";
 import { PolymorphService } from "./services/PolymorphService.js";
 import { WriteService } from "./services/WriteService.js";
 import { EncumbranceStateManager } from "./state/EncumbranceStateManager.js";
+import { LoreCodex } from "./lore/LoreCodex.js";
 import { PROMPT_CATEGORY } from '../types.js';
+
 
 /**
  * Game Knowledge Layer (GKL) 独立拡張プラグイン
@@ -110,7 +112,15 @@ export class GKLPlugin {
             spellStateManager: this.spellStateManager
         });
 
+        this.loreCodex = options.loreCodex || new LoreCodex({
+            translationEngine: options.translationEngine || null
+        });
+        if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function' && options.translationEngine) {
+            this.loreCodex.setTranslationEngine(options.translationEngine);
+        }
+
         this._setupMonsterTrackerHooks();
+
 
         this.core = null;
         this.requestController = null;
@@ -286,6 +296,25 @@ export class GKLPlugin {
         if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
             this.inventoryStateManager.invalidate();
         }
+        if (this.loreCodex && typeof this.loreCodex.refreshTranslations === 'function') {
+            this.loreCodex.refreshTranslations();
+        }
+    }
+
+    /**
+     * 冒険手帳・伝承コレクションマネージャを取得
+     * @returns {LoreCodex}
+     */
+    getCodex() {
+        return this.loreCodex;
+    }
+
+    /**
+     * 冒険手帳・伝承コレクションマネージャを取得 (エイリアス)
+     * @returns {LoreCodex}
+     */
+    getLoreCodex() {
+        return this.loreCodex;
     }
 
     /**
@@ -295,6 +324,7 @@ export class GKLPlugin {
     getWishService() {
         return this.wishService;
     }
+
 
     /**
      * 虐殺支援サービス (GenocideService) インスタンスを取得
@@ -398,31 +428,6 @@ export class GKLPlugin {
         }
     }
 
-    /**
-     * 言語設定を更新し、各ナレッジサービスへ伝搬
-     * @param {'ja'|'en'} [lang='ja']
-     */
-    setLanguage(lang = 'ja') {
-        this.language = (lang === 'en' || lang === 'english') ? 'en' : 'ja';
-        if (this.situationCache) {
-            this.situationCache.language = this.language;
-            if (typeof this.situationCache.setLanguage === 'function') {
-                this.situationCache.setLanguage(this.language);
-            }
-        }
-        if (this.structuredKnowledge && typeof this.structuredKnowledge.setLanguage === 'function') {
-            this.structuredKnowledge.setLanguage(this.language);
-        }
-        if (this.wishService && typeof this.wishService.setLanguage === 'function') {
-            this.wishService.setLanguage(this.language);
-        }
-        if (this.genocideService && typeof this.genocideService.setLanguage === 'function') {
-            this.genocideService.setLanguage(this.language);
-        }
-        if (this.polymorphService && typeof this.polymorphService.setLanguage === 'function') {
-            this.polymorphService.setLanguage(this.language);
-        }
-    }
 
     /**
      * WebUICore インスタンスへプラグインをアタッチし、イベントリスナーを接続
@@ -462,7 +467,11 @@ export class GKLPlugin {
             if (this.polymorphService && typeof this.polymorphService.setTranslationEngine === 'function') {
                 this.polymorphService.setTranslationEngine(core.translator);
             }
+            if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function') {
+                this.loreCodex.setTranslationEngine(core.translator);
+            }
         }
+
 
         if (core.interactiveController || core.requestController) {
             this.requestController = core.interactiveController || core.requestController;
@@ -831,7 +840,116 @@ export class GKLPlugin {
                 }
             }
         });
+
+        // 📡 LORE シグナル購読 & Codex 自動同期
+        addCoreListener('signal:SIGNAL_LORE_RUMOR', (sig) => {
+            if (this.loreCodex && typeof this.loreCodex.addRumor === 'function' && sig) {
+                this.loreCodex.addRumor({
+                    id: sig.rumorId || sig.id,
+                    text: sig.text,
+                    translatedText: sig.translatedText,
+                    isTrue: sig.isTrue,
+                    source: sig.source
+                });
+            }
+        });
+
+        addCoreListener('signal:SIGNAL_LORE_ORACLE', (sig) => {
+            if (this.loreCodex && typeof this.loreCodex.addOracle === 'function' && sig) {
+                this.loreCodex.addOracle({
+                    id: sig.oracleId || sig.id,
+                    title: sig.title,
+                    text: sig.text,
+                    translatedText: sig.translatedText,
+                    isSpecial: sig.isSpecial
+                });
+            }
+        });
+
+        addCoreListener('signal:SIGNAL_LORE_ENGRAVE', (sig) => {
+            this._handleEngraveSignal(sig);
+        });
     }
+
+    /**
+     * 床文字 (SIGNAL_LORE_ENGRAVE) シグナル処理
+     * 結界状態更新、AreaStateManager の床文字キャッシュ保存、噂話図鑑登録、コレクション登録を一元実行
+     * @param {Object} loreSignal 
+     * @private
+     */
+    _handleEngraveSignal(loreSignal) {
+        if (!loreSignal) return;
+
+        if (this.loreCodex && typeof this.loreCodex.updateWard === 'function') {
+            this.loreCodex.updateWard(loreSignal);
+        }
+
+        const asm = this.areaStateManager;
+        const playerX = asm?.playerX ?? -1;
+        const playerY = asm?.playerY ?? -1;
+
+        // 同一マスでの風化追跡のため、同定結果を AreaStateManager の床文字キャッシュに保存
+        if (asm && playerX >= 0 && playerY >= 0 && !loreSignal.isHeadstone) {
+            asm.setEngravingAt(playerX, playerY, loreSignal.restored || {
+                pristineText: loreSignal.pristineText,
+                actualText: loreSignal.actualText,
+                translation: loreSignal.restored?.translation || '',
+                source: loreSignal.restored?.source || '',
+                category: loreSignal.restored?.category || (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                subCategory: loreSignal.restored?.subCategory || '',
+                isTrue: loreSignal.restored?.isTrue ?? null
+            });
+        }
+
+        // 考古学的に復元された内容が噂話 (RUMOR) の場合、噂話図鑑にも自動収集
+        if (loreSignal.restored?.category === 'RUMOR' && loreSignal.restored?.pristineText) {
+            const rumorData = {
+                id: loreSignal.restored.id || undefined,
+                text: loreSignal.restored.pristineText,
+                translatedText: loreSignal.restored.translation,
+                isTrue: loreSignal.restored.isTrue,
+                source: 'engraving'
+            };
+            if (this.loreCodex && typeof this.loreCodex.addRumor === 'function') {
+                this.loreCodex.addRumor(rumorData);
+            }
+            if (this.core && typeof this.core.emit === 'function') {
+                const rumorSignal = {
+                    signalId: 'SIGNAL_LORE_RUMOR',
+                    subCategory: 'RUMOR',
+                    matched: true,
+                    rumorId: rumorData.id,
+                    text: rumorData.text,
+                    translatedText: rumorData.translatedText,
+                    isTrue: rumorData.isTrue,
+                    source: 'engraving',
+                    confidence: loreSignal.confidence || 1.0,
+                    rawPrompt: loreSignal.rawPrompt || ''
+                };
+                this.core.emit('signal:SIGNAL_LORE_RUMOR', rumorSignal);
+                this.core.emit('loreSignal', rumorSignal);
+            }
+        }
+
+        // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録
+        if (this.loreCodex && typeof this.loreCodex.addEngraving === 'function') {
+            const translator = this.core?.translator;
+            const translated = loreSignal.restored?.translation
+                || (loreSignal.isElbereth ? 'エルベレス' : '')
+                || (translator ? translator.translate(loreSignal.pristineText || loreSignal.actualText) : '');
+
+            this.loreCodex.addEngraving({
+                text: loreSignal.pristineText || loreSignal.actualText,
+                actualText: loreSignal.actualText,
+                translatedText: (translated !== (loreSignal.pristineText || loreSignal.actualText)) ? translated : '',
+                source: loreSignal.restored?.source || (loreSignal.isHeadstone ? '墓碑銘 (Headstone)' : (loreSignal.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
+                category: loreSignal.isHeadstone ? 'HEADSTONE' : (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
+                subCategory: loreSignal.restored?.category || '',
+                isHeadstone: loreSignal.isHeadstone || false
+            });
+        }
+    }
+
 
     /**
      * 指定されたキーシーケンスが NetHack 上でゲームターンを消費するアクションか判定

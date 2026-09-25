@@ -6,7 +6,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CodexModal } from '../../examples/gkl-pure-js-client/modules/components/CodexModal.js';
-import { LoreCodex } from '../../src/core/lore/LoreCodex.js';
+import { LoreCodex } from '../../src/core/knowledge/lore/LoreCodex.js';
+
 
 function createMockElement(id = '', tagName = 'div') {
   const classListSet = new Set(id === 'codex-modal' ? ['hidden'] : []);

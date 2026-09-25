@@ -944,11 +944,13 @@
 
     <!-- ES Module スクリプト -->
     <script type="module">
-        import { LoreCodex } from '../src/core/lore/LoreCodex.js';
-        import { LoreDetector } from '../src/core/lore/LoreDetector.js';
-        import { ElberethAnalyzer } from '../src/core/lore/ElberethAnalyzer.js';
-        import { LORE_MASTER } from '../src/core/lore/data/LoreMasterData.js';
+        import { LoreCodex } from '../src/core/knowledge/lore/LoreCodex.js';
+        import { LoreDetector } from '../src/core/knowledge/lore/LoreDetector.js';
+        import { ElberethAnalyzer } from '../src/core/knowledge/lore/ElberethAnalyzer.js';
+        import { LORE_MASTER } from '../src/core/knowledge/lore/data/LoreMasterData.js';
         import { StructuredKnowledgeEngine } from '../src/core/knowledge/engines/StructuredKnowledgeEngine.js';
+
+
 
         // グローバル Codex & Detector & KnowledgeEngine インスタンス
         const codex = new LoreCodex();

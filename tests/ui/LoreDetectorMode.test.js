@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LoreDetector } from '../../src/core/lore/LoreDetector.js';
+import { LoreDetector } from '../../src/core/knowledge/lore/LoreDetector.js';
+
 
 describe('LoreDetector Mode-Driven Architecture', () => {
     let detector;

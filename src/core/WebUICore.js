@@ -20,8 +20,8 @@ import { DebugInspector } from './inspector/DebugInspector.js';
 import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
-import { LoreDetector } from './lore/LoreDetector.js';
-import { LoreCodex } from './lore/LoreCodex.js';
+import { LoreDetector, LoreCodex } from './knowledge/index.js';
+
 
 export const KEYS = {
     ESC: 27,
@@ -126,7 +126,8 @@ export class WebUICore {
             inventoryStateManager: options.inventoryStateManager,
             keyMode: options.keyMode || (options.numpad || options.number_pad || options.numberPad ? 'numpad' : undefined),
             language: this.language,
-            translationEngine: this.translator
+            translationEngine: this.translator,
+            loreCodex: options.loreCodex
         });
         this.use(gklPlugin);
 
@@ -137,10 +138,11 @@ export class WebUICore {
         const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
         this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
         this.loreDetector = options.loreDetector || new LoreDetector();
-        this.loreCodex = options.loreCodex || new LoreCodex({ translationEngine: this.translator });
-        if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function') {
-            this.loreCodex.setTranslationEngine(this.translator);
+        this._fallbackLoreCodex = options.loreCodex || null;
+        if (!this.gkl && !this._fallbackLoreCodex) {
+            this._fallbackLoreCodex = new LoreCodex({ translationEngine: this.translator });
         }
+
         this.interactiveController = options.interactiveController || new InteractiveRequestController({
             driver: this.driver,
             signalDetector: this.signalDetector
@@ -252,11 +254,11 @@ export class WebUICore {
     }
 
     /**
-     * 冒険手帳・伝承コレクションマネージャを取得
+     * 冒険手帳・伝承コレクションマネージャを取得 (GKL 委譲プロキシ)
      * @returns {LoreCodex}
      */
     getCodex() {
-        return this.loreCodex;
+        return this.gkl?.getCodex() || this._fallbackLoreCodex;
     }
 
     /**
@@ -264,8 +266,20 @@ export class WebUICore {
      * @returns {LoreCodex}
      */
     getLoreCodex() {
-        return this.loreCodex;
+        return this.getCodex();
     }
+
+    get loreCodex() {
+        return this.getCodex();
+    }
+
+    set loreCodex(value) {
+        this._fallbackLoreCodex = value;
+        if (this.gkl) {
+            this.gkl.loreCodex = value;
+        }
+    }
+
 
     /**
      * 構造化知識エンジン (StructuredKnowledgeEngine) を取得
@@ -1427,7 +1441,7 @@ export class WebUICore {
             this.renderer.appendMessage(translated);
             this.emit('message', translated);
 
-            // 📡 Layer 4: LORE シグナル検知 & Codex 連携
+            // 📡 Layer 4: LORE シグナル検知 & 発行 (Pub/Sub)
             if (this.loreDetector) {
                 let anchorCandidate = null;
                 const asm = this.gkl?.areaStateManager;
@@ -1439,89 +1453,17 @@ export class WebUICore {
 
                 const loreSignal = this.loreDetector.processMessage(rawText, { anchorCandidate });
                 if (loreSignal && loreSignal.matched) {
-                    if (this.loreCodex) {
-                        if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR') {
-                            this.loreCodex.addRumor({
-                                id: loreSignal.rumorId,
-                                text: loreSignal.text,
-                                translatedText: loreSignal.translatedText,
-                                isTrue: loreSignal.isTrue,
-                                source: loreSignal.source
-                            });
-                        } else if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE') {
-                            this.loreCodex.addOracle({
-                                id: loreSignal.oracleId,
-                                title: loreSignal.title,
-                                text: loreSignal.text,
-                                translatedText: loreSignal.translatedText,
-                                isSpecial: loreSignal.isSpecial
-                            });
-                        } else if (loreSignal.signalId === 'SIGNAL_LORE_ENGRAVE') {
-                            this.loreCodex.updateWard(loreSignal);
-
-                            // 同一マスでの風化追跡のため、同定結果を AreaStateManager の床文字キャッシュに保存
-                            if (asm && playerX >= 0 && playerY >= 0 && !loreSignal.isHeadstone) {
-                                asm.setEngravingAt(playerX, playerY, loreSignal.restored || {
-                                    pristineText: loreSignal.pristineText,
-                                    actualText: loreSignal.actualText,
-                                    translation: loreSignal.restored?.translation || '',
-                                    source: loreSignal.restored?.source || '',
-                                    category: loreSignal.restored?.category || (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
-                                    subCategory: loreSignal.restored?.subCategory || '',
-                                    isTrue: loreSignal.restored?.isTrue ?? null
-                                });
-                            }
-
-                            // 考古学的に復元された内容が噂話 (RUMOR) の場合、噂話図鑑にも自動収集
-                            if (loreSignal.restored?.category === 'RUMOR' && loreSignal.restored?.pristineText) {
-                                const rumorData = {
-                                    id: loreSignal.restored.id || undefined,
-                                    text: loreSignal.restored.pristineText,
-                                    translatedText: loreSignal.restored.translation,
-                                    isTrue: loreSignal.restored.isTrue,
-                                    source: 'engraving'
-                                };
-                                this.loreCodex.addRumor(rumorData);
-                                const rumorSignal = {
-                                    signalId: 'SIGNAL_LORE_RUMOR',
-                                    subCategory: 'RUMOR',
-                                    matched: true,
-                                    rumorId: rumorData.id,
-                                    text: rumorData.text,
-                                    translatedText: rumorData.translatedText,
-                                    isTrue: rumorData.isTrue,
-                                    source: 'engraving',
-                                    confidence: loreSignal.confidence || 1.0,
-                                    rawPrompt: rawText
-                                };
-                                this.emit('signal:SIGNAL_LORE_RUMOR', rumorSignal);
-                                this.emit('loreSignal', rumorSignal);
-                            }
-
-                            // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録
-                            if (typeof this.loreCodex.addEngraving === 'function') {
-                                const translated = loreSignal.restored?.translation
-                                    || (loreSignal.isElbereth ? 'エルベレス' : '')
-                                    || (this.translator ? this.translator.translate(loreSignal.pristineText || loreSignal.actualText) : '');
-
-                                this.loreCodex.addEngraving({
-                                    text: loreSignal.pristineText || loreSignal.actualText,
-                                    actualText: loreSignal.actualText,
-                                    translatedText: (translated !== (loreSignal.pristineText || loreSignal.actualText)) ? translated : '',
-                                    source: loreSignal.restored?.source || (loreSignal.isHeadstone ? '墓碑銘 (Headstone)' : (loreSignal.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
-                                    category: loreSignal.isHeadstone ? 'HEADSTONE' : (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
-                                    subCategory: loreSignal.restored?.category || '',
-                                    isHeadstone: loreSignal.isHeadstone || false
-                                });
-                            }
-                        }
+                    if (!loreSignal.rawPrompt) {
+                        loreSignal.rawPrompt = rawText;
                     }
+                    this.emit('situationSignal', { type: 'LORE', signal: loreSignal });
                     this.emit('signal', loreSignal);
                     this.emit(`signal:${loreSignal.signalId}`, loreSignal);
                     this.emit('loreSignal', loreSignal);
                 }
             }
         };
+
 
         this.driver.on('putstr', (data) => {
             const windowId = data.windowId !== undefined ? data.windowId : 1;

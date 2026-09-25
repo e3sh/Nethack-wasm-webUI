@@ -1,8 +1,9 @@
 ---
 title: "Phase 5 - Stage 5.1 詳細仕様書: LORE/Codex の GKL 配下への移設と責務純化"
-status: proposal / specification
+status: implemented
 created_at: 2026-09-19
-last_updated: 2026-09-22
+last_updated: 2026-09-25
+
 related_docs:
   - docs/7_futures/phase5_detailed_migration_plan.ja.md
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
@@ -88,13 +89,14 @@ getLoreCodex() {
 
 ## 4. 作業手順とチェックリスト
 
-- [ ] **Step 5.1.1**: ディレクトリ `src/core/knowledge/lore/` を作成し、`src/core/lore/*` の全ファイルおよびテストファイルを配置。
-- [ ] **Step 5.1.2**: 移設先ファイルの相対パス import（`LoreMasterData.js` やテストのパス）を整合。
-- [ ] **Step 5.1.3**: `src/core/knowledge/index.js` に `LoreCodex`, `LoreDetector`, `EngravingArchaeologist` 等を export 追加。
-- [ ] **Step 5.1.4**: `GKLPlugin.js` に `LoreCodex` を統合し、シグナル購読リスナーおよび `getCodex()` API を実装。
-- [ ] **Step 5.1.5**: `WebUICore.js` からインラインの Codex 更新処理を削除し、純粋な `emit` とプロキシ API にリファクタリング。
-- [ ] **Step 5.1.6**: 単体テスト（`LoreCodex.test.js`, `LoreDetector.test.js`, `EngravingArchaeologist.test.js`, `GKLPlugin.test.js`, `WebUICore.test.js`）を実行し、全パスを確認。
-- [ ] **Step 5.1.7**: `npm test`（1037件以上）および全クライアントのビルドが 100% 通過することを確認（Zero-Regression Gate）。
+- [x] **Step 5.1.1**: ディレクトリ `src/core/knowledge/lore/` を作成し、`src/core/lore/*` の全ファイルおよびテストファイルを配置。
+- [x] **Step 5.1.2**: 移設先ファイルの相対パス import（`LoreMasterData.js` やテストのパス）を整合。
+- [x] **Step 5.1.3**: `src/core/knowledge/index.js` に `LoreCodex`, `LoreDetector`, `EngravingArchaeologist` 等を export 追加。
+- [x] **Step 5.1.4**: `GKLPlugin.js` に `LoreCodex` を統合し、シグナル購読リスナーおよび `getCodex()` API を実装。
+- [x] **Step 5.1.5**: `WebUICore.js` からインラインの Codex 更新処理を削除し、純粋な `emit` とプロキシ API にリファクタリング。
+- [x] **Step 5.1.6**: 単体テスト（`LoreCodex.test.js`, `LoreDetector.test.js`, `EngravingArchaeologist.test.js`, `GKLPlugin.test.js`, `WebUICore.test.js`）を実行し、全パスを確認。
+- [x] **Step 5.1.7**: `npm test`（1111件）および全クライアント（Vue, React, Solid, Svelte）のビルドが 100% 通過することを確認（Zero-Regression Gate 達成）。
+
 
 ---
 

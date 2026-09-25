@@ -1001,7 +1001,33 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(rumors.some(r => r.id === 'rumor_fal_78')).toBe(true);
             expect(rumors.some(r => r.id === 'rumor_fal_290')).toBe(true);
         });
+
+        it('LORE シグナル検知時に situationSignal イベントが発行されること', () => {
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn()
+            };
+
+            const core = new WebUICore({ driver: mockDriver });
+            const situationSignalListener = vi.fn();
+            core.on('situationSignal', situationSignalListener);
+
+            putstrHandler({ text: 'They say that only big spenders carry gold.' });
+
+            expect(situationSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = situationSignalListener.mock.calls[0][0];
+            expect(emitted.type).toBe('LORE');
+            expect(emitted.signal).toBeDefined();
+            expect(emitted.signal.signalId).toBe('SIGNAL_LORE_RUMOR');
+            expect(emitted.signal.rumorId).toBe('rumor_fal_290');
+        });
     });
+
 
     describe('WebUICore - getSituation() delegation', () => {
         it('core.getSituation() が GKLPlugin の getSituation() を正しく呼び出して結果を返すこと', () => {

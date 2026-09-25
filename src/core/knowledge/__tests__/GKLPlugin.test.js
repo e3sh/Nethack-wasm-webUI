@@ -1036,5 +1036,106 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(querySpy).not.toHaveBeenCalled();
         });
     });
+
+    describe('Stage 5.1: LORE/Codex 移設とシグナル購読連携', () => {
+        it('getCodex および getLoreCodex で LoreCodex インスタンスが取得できること', () => {
+            const plugin = new GKLPlugin();
+            const codex = plugin.getCodex();
+            expect(codex).toBeDefined();
+            expect(plugin.getLoreCodex()).toBe(codex);
+            expect(typeof codex.getRumors).toBe('function');
+            expect(typeof codex.getOracles).toBe('function');
+            expect(typeof codex.getEngravings).toBe('function');
+        });
+
+        it('signal:SIGNAL_LORE_RUMOR を購読して噂話が LoreCodex に自動追加されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const rumorSignal = {
+                signalId: 'SIGNAL_LORE_RUMOR',
+                rumorId: 'test_rumor_001',
+                text: 'A dragon resists fire.',
+                translatedText: 'ドラゴンは火炎に耐性がある。',
+                isTrue: true,
+                source: 'fortune cookie'
+            };
+
+            mockCore.emit('signal:SIGNAL_LORE_RUMOR', rumorSignal);
+
+            const rumors = plugin.getCodex().getRumors();
+            const found = rumors.find(r => r.id === 'test_rumor_001');
+            expect(found).toBeDefined();
+            expect(found.text).toBe('A dragon resists fire.');
+            expect(found.isTrue).toBe(true);
+        });
+
+        it('signal:SIGNAL_LORE_ORACLE を購読して神託が LoreCodex に自動追加されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const oracleSignal = {
+                signalId: 'SIGNAL_LORE_ORACLE',
+                oracleId: 'test_oracle_001',
+                title: 'The Amulet of Yendor',
+                text: 'Seek the lowest depth to find the amulet.',
+                translatedText: '最下層を目指せ。',
+                isSpecial: true
+            };
+
+            mockCore.emit('signal:SIGNAL_LORE_ORACLE', oracleSignal);
+
+            const oracles = plugin.getCodex().getOracles();
+            const found = oracles.find(o => o.id === 'test_oracle_001');
+            expect(found).toBeDefined();
+            expect(found.isSpecial).toBe(true);
+        });
+
+        it('signal:SIGNAL_LORE_ENGRAVE を購読して結界状態更新、AreaStateManagerキャッシュ、床文字コレクション登録が行われること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            // プレイヤー位置を設定
+            plugin.areaStateManager.playerX = 12;
+            plugin.areaStateManager.playerY = 8;
+
+            const engraveSignal = {
+                signalId: 'SIGNAL_LORE_ENGRAVE',
+                actualText: 'El?ereth',
+                pristineText: 'Elbereth',
+                isElbereth: true,
+                isWardActive: false,
+                elberethIntegrity: 0.85,
+                restored: {
+                    pristineText: 'Elbereth',
+                    translation: 'エルベレス',
+                    confidence: 0.85,
+                    category: 'ELBERETH'
+                }
+            };
+
+            mockCore.emit('signal:SIGNAL_LORE_ENGRAVE', engraveSignal);
+
+            // 1. 結界状態の更新
+            const ward = plugin.getCodex().getCurrentWard();
+            expect(ward).toBeDefined();
+            expect(ward.isElbereth).toBe(true);
+
+            // 2. AreaStateManager の床文字キャッシュ保存
+            const cached = plugin.areaStateManager.getEngravingAt(12, 8);
+            expect(cached).toBeDefined();
+            expect(cached.pristineText).toBe('Elbereth');
+            expect(cached.translation).toBe('エルベレス');
+
+            // 3. 床文字コレクション登録
+            const list = plugin.getCodex().getEngravings();
+            expect(list.length).toBeGreaterThan(0);
+            expect(list[0].actualText).toBe('El?ereth');
+        });
+    });
 });
+
 

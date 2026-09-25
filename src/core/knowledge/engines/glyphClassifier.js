@@ -444,6 +444,26 @@ export function isBagItem(item) {
     return onum >= 217 && onum <= 220;
 }
 
+export const GlyphClassifier = {
+    GLYPH_OFFSETS,
+    ENTITY_TYPES,
+    getCmapInfo,
+    classifyGlyph,
+    isShopkeeperMonster,
+    getOnumFromGlyph,
+    getItemInfoFromOnum,
+    getCategoryFromOnum,
+    isBoulderGlyph,
+    isBoulderEntity,
+    resolveItemOnum,
+    isContainerItem,
+    isBoxItem,
+    isBagItem
+};
+
+export default GlyphClassifier;
+
+
 
 
 

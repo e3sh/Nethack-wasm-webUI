@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { LoreDetector } from '../../src/core/lore/LoreDetector.js';
-import { LoreCodex } from '../../src/core/lore/LoreCodex.js';
+import { LoreDetector } from '../../src/core/knowledge/lore/LoreDetector.js';
+import { LoreCodex } from '../../src/core/knowledge/lore/LoreCodex.js';
+
 
 describe('LoreDetector & LoreCodex - Fortune Cookie 3 Times Scenario Verification', () => {
     it('fortuneCookie_eat_3times シナリオにおいて3回すべての噂話が漏れなく検知・登録されること', () => {

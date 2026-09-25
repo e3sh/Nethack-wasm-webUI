@@ -168,3 +168,16 @@ export function isCockatriceCorpse(item) {
     if (!isCorpse) return false;
     return /cockatrice|chickatrice|コカトリス|チカトリス/.test(raw);
 }
+
+export const EquipmentRules = {
+    EQUIP_SLOTS,
+    ARMOR_LAYERS,
+    ACCESSORY_RULES,
+    estimateActionTurns,
+    resolveEligibleSlots,
+    isTwoHandedWeapon,
+    isCockatriceCorpse
+};
+
+export default EquipmentRules;
+

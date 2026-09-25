@@ -11,12 +11,13 @@ import { fileURLToPath } from 'url';
 
 import { ALL_MONSTER_KNOWLEDGE_BASE } from '../src/core/knowledge/data/MONSTER_KNOWLEDGE_FULL.js';
 import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js';
-import { RUMORS, ORACLES, ENGRAVINGS, LORE_MASTER } from '../src/core/lore/data/LoreMasterData.js';
+import { RUMORS, ORACLES, ENGRAVINGS, LORE_MASTER } from '../src/core/knowledge/lore/data/LoreMasterData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
-const OUTPUT_PATH = path.resolve(WORKSPACE_ROOT, 'src/core/lore/data/LoreMasterData.js');
+const OUTPUT_PATH = path.resolve(WORKSPACE_ROOT, 'src/core/knowledge/lore/data/LoreMasterData.js');
+
 
 // 1. エンティティインデックスの構築
 const monsterList = [];

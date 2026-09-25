@@ -9,11 +9,12 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LoreDetector } from '../../src/core/lore/LoreDetector.js';
-import { EngravingArchaeologist } from '../../src/core/lore/EngravingArchaeologist.js';
+import { LoreDetector } from '../../src/core/knowledge/lore/LoreDetector.js';
+import { EngravingArchaeologist } from '../../src/core/knowledge/lore/EngravingArchaeologist.js';
 import { AreaStateManager } from '../../src/core/knowledge/state/AreaStateManager.js';
-import { LoreCodex } from '../../src/core/lore/LoreCodex.js';
-import { LORE_MASTER } from '../../src/core/lore/data/LoreMasterData.js';
+import { LoreCodex } from '../../src/core/knowledge/lore/LoreCodex.js';
+import { LORE_MASTER } from '../../src/core/knowledge/lore/data/LoreMasterData.js';
+
 
 describe('Engraving Archaeology - 実機劣化シナリオ統合検証', () => {
     let archaeologist;
