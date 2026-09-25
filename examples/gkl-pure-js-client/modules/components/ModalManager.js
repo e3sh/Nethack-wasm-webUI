@@ -5,6 +5,7 @@ import { WishService, WISH_PRESETS, CATEGORY_LABELS } from "../../../../src/core
 import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from "../../../../src/core/knowledge/services/GenocideService.js";
 import { PolymorphService } from "../../../../src/core/knowledge/services/PolymorphService.js";
 import { WriteService } from "../../../../src/core/knowledge/services/WriteService.js";
+import { CharacterIntroModal } from "./CharacterIntroModal.js";
 
 export class ModalManager {
   constructor({
@@ -27,11 +28,17 @@ export class ModalManager {
     elPolymorphModal,
     elWriteModal,
     characterCreationModal,
+    characterIntroModal,
     getCore,
     getLoadedTileImagePath,
     onRestartGame
   }) {
     this.characterCreationModal = characterCreationModal || null;
+    this.getCore = getCore || (() => null);
+    this.characterIntroModal = characterIntroModal || new CharacterIntroModal({
+      getCore: this.getCore,
+      characterCreationModal: this.characterCreationModal
+    });
     this.elPromptBar = elPromptBar;
     this.elPromptText = elPromptText;
     this.elInputControls = elInputControls;
@@ -84,6 +91,9 @@ export class ModalManager {
 
   setLanguage(lang) {
     this.currentLanguage = lang;
+    if (this.characterIntroModal) {
+      this.characterIntroModal.setLanguage(lang);
+    }
     if (this.elWishModal && !this.elWishModal.classList.contains('hidden') && this.activeWishService) {
       this.showWishModal({ assistant: { wishService: this.activeWishService } });
     }
@@ -103,6 +113,7 @@ export class ModalManager {
   }
 
   isAnyModalOpen() {
+    if (this.characterIntroModal && this.characterIntroModal.isIntroActive()) return true;
     if (this.characterCreationModal && this.characterCreationModal.isVisible) return true;
     if (this.elMenuModal && !this.elMenuModal.classList.contains('hidden')) return true;
     if (this.elWishModal && !this.elWishModal.classList.contains('hidden')) return true;
@@ -153,6 +164,9 @@ export class ModalManager {
     this.activeMenuFocusIndex = 0;
     this.selectableMenuButtons = [];
     this.clearAllModals();
+    if (this.characterIntroModal && typeof this.characterIntroModal.reset === 'function') {
+      this.characterIntroModal.reset();
+    }
     if (this.characterCreationModal && typeof this.characterCreationModal.reset === 'function') {
       this.characterCreationModal.reset();
     }
@@ -168,6 +182,19 @@ export class ModalManager {
     const items = data.menuItems || data.items || [];
     const textLines = data.lines || [];
     const core = this.getCore();
+
+    // 👑 ゲーム開始導入 (Phase C: ASKNAME / ynaq) コンテキスト判定
+    if (this.characterIntroModal) {
+      const isAskName = category === 'ASKNAME' || data.context === 'askname' || /Who are you|your name/i.test(rawPrompt);
+      if (isAskName) {
+        this.characterIntroModal.showAskName(data);
+        return;
+      }
+      if (CharacterIntroModal.isYnaqPrompt(data)) {
+        this.characterIntroModal.showModeSelect(data);
+        return;
+      }
+    }
 
     // ⚔️ キャラクター作成（Character Creation）コンテキスト判定 (専用シグナル SIGNAL_CHARACTER_CREATION / subCategory: 'CHARACTER_CREATION' 優先)
     const isCharCreationSignal = data.subCategory === 'CHARACTER_CREATION' || data.signal?.id === 'SIGNAL_CHARACTER_CREATION';
@@ -501,6 +528,9 @@ export class ModalManager {
   }
 
   clearAllModals() {
+    if (this.characterIntroModal) {
+      this.characterIntroModal.hide();
+    }
     if (this.elPromptBar) {
       this.elPromptBar.classList.add('hidden');
       this.elPromptBar.classList.remove('is-key-waiting');

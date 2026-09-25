@@ -13,6 +13,7 @@ import { DirectionPad } from './modules/components/DirectionPad.js';
 import { StatusView } from './modules/components/StatusView.js';
 import { ModalManager } from './modules/components/ModalManager.js';
 import { CharacterCreationModal } from './modules/components/CharacterCreationModal.js';
+import { CharacterIntroModal } from './modules/components/CharacterIntroModal.js';
 import { ContainerModal } from './modules/components/ContainerModal.js';
 import { PaperdollModal } from './modules/components/PaperdollModal.js';
 import { CodexModal } from './modules/components/CodexModal.js';
@@ -197,6 +198,13 @@ class GklPureJSClient {
       getCore: () => this.core
     });
 
+    // 8.05 Character Intro Modal (Phase C: ASKNAME & ynaq)
+    this.characterIntroModal = new CharacterIntroModal({
+      getCore: () => this.core,
+      characterCreationModal: this.characterCreationModal,
+      currentLanguage: this.currentLanguage
+    });
+
     // 8.1 Modal Manager
     this.modalManager = new ModalManager({
       elPromptBar: document.getElementById('prompt-bar'),
@@ -215,6 +223,7 @@ class GklPureJSClient {
       elSaveName: document.getElementById('start-save-name'),
       elWishModal: document.getElementById('wish-modal'),
       characterCreationModal: this.characterCreationModal,
+      characterIntroModal: this.characterIntroModal,
       getCore: () => this.core,
       getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
       onRestartGame: () => this.restartGame()
@@ -1305,6 +1314,7 @@ class GklPureJSClient {
     if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
     if (this.codexModal) this.codexModal.setLanguage(this.currentLanguage);
     if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
+    if (this.characterIntroModal) this.characterIntroModal.setLanguage(this.currentLanguage);
     if (this.floatingActions) this.floatingActions.setLanguage(this.currentLanguage);
     if (this.knowledgeDetailModal) this.knowledgeDetailModal.setLanguage(this.currentLanguage);
 
@@ -1573,6 +1583,9 @@ class GklPureJSClient {
       this.isStartingUp = true;
       if (this.characterCreationModal) {
         this.characterCreationModal.reset();
+      }
+      if (this.characterIntroModal) {
+        this.characterIntroModal.reset();
       }
       this.setStartupView('SELECTION');
 

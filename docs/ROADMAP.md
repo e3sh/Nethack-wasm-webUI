@@ -29,10 +29,10 @@ last_updated: 2026-09-24
 
 現在設計が完了し、直近の着手対象および本日完了した最重要リファクタリング・機能拡充タスクです。
 
-### 1.1 GKL クライアント UI/UX 刷新＆レンダラー表現高度化 (Phase A ＆ B 実装完了)
-- **ステータス**: `🚧 in-progress` (Phase A & B 完了、Phase C & D 待ち)
+### 1.1 GKL クライアント UI/UX 刷新＆レンダラー表現高度化 (Phase A, B ＆ C 実装完了)
+- **ステータス**: `🚧 in-progress` (Phase A, B & C 完了、Phase D 待ち)
 - **設計書**: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
-- **本日 (2026-09-24) の完了内容**:
+- **本日 (2026-09-24〜25) の完了内容**:
   - **Phase A テーマ 1 (自キャラ足元枠の 3D パース吸着 ＆ Middle レイヤー最適化)**:
     - WebGPU HD2D レンダラー: WGSL パイプライン内の Layer 3.2 (自キャラ床枠) に床面 $Y=0.01$ で投入。深度テストにより直立キャラクター（Layer 4）の下に枠線が潜り込む自然な足元配置を実現。ターゲットカーソル枠は床面4隅の 3D 空間結線（`worldToScreen`）により立体吸着描画。
     - Canvas 2D レンダラー (`MainViewportRenderer.js`): 自キャラ枠描画を `cell.middle` 直後、`cell.top` 直前に移動し前後関係を統一。
@@ -42,6 +42,11 @@ last_updated: 2026-09-24
     - `FloatingContextActions.js`: マップ上のクリック対象（自キャラ足元、敵モンスター、ギミック、床）の直上に吹き出し型で推奨アクション（戦う/話す/拾う/開ける/移動）をポップアップ表示。不用意な移動暴発を抑止。
     - 右クリック時のブラウザ標準 contextmenu 表示抑止をコンポーネント全体へ適用。
     - `DirectionPad.js`: 方向未選択時にアクションボタンを非表示化・自動復帰する標準化。
+  - **Phase C テーマ 3 (ゲーム開始時の導入フロー最適化: ASKNAME ＆ ynaq カード化)**:
+    - `CharacterIntroModal.js`: `ASKNAME`（冒険者名入力）の中央カード化、🎲 ランダムネーム生成ボタン（Arthur, Conan, Lyra 等）、Enter確定 ＆ `core.setPlayerName` 連動。
+    - `ynaq` プロンプト検知時の 3 大カード選択肢提示（🎲 おまかせ作成 / ⚙️ 自分で詳細に選ぶ / ⚡ クイック即開始）。キーボード（[Y], [N], [Q]）およびクリック対応。
+    - 手動作成選択時は既存の完成された `CharacterCreationModal` へシームレス連携。
+    - 専用スタイルシート `character-intro-modal.css` の新設。
   - **ナレッジ表示方法の刷新**:
     - `KnowledgeDetailModal.js`: サイドパネルをコンパクト化し、クリック時に専用のモーダルで詳細ナレッジ（危険度、基礎ステータス、戦術助言、アイテム効果）を表示する新コンポーネントを導入。
 
@@ -96,12 +101,11 @@ last_updated: 2026-09-24
 
 設計構想・アイデアが策定されており、優先度に応じて着手を待つバックログです。
 
-### 2.1 GKL クライアント UI/UX 刷新 (Phase C ＆ D 残存タスク)
-- **ステータス**: `🚧 in-progress` (Phase A ＆ B 完了済)
+### 2.1 GKL クライアント UI/UX 刷新 (Phase D 残存タスク)
+- **ステータス**: `🚧 in-progress` (Phase A, B, C 完了済)
 - **設計書**: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
 - **対象コード**: `examples/gkl-pure-js-client/`, `src/core/knowledge/`
 - **残存テーマ**:
-  - **Phase C (テーマ 3: ゲーム開始時の導入フロー最適化)**: `ASKNAME`（名前入力）の中央カード化＆ランダム生成、`ynaq` 質問のモダンな 3 大カード選択肢提示（おまかせ作成 / 自分で選ぶ / クイック即開始）と既存 `CharacterCreationModal` へのシームレス連携。
   - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新)**: マップをウィンドウ追従全画面化（100vw × 100vh）し、メッセージログやステータスを透過オーバーレイ配置。
 
 ### 2.2 GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー
@@ -128,14 +132,26 @@ last_updated: 2026-09-24
 - **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
 - **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
 
+### 2.6 モーダル・ダイアログ群デザインシステム統一＆UIリファクタリング構想
+- **ステータス**: `💡 proposed` (2026-09-25 策定)
+- **設計書**: [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md)
+- **概要**: 導入カード、キャラ作成、コンテナ、ペーパードール、Codex、願い等の各モーダルが機能単位で順次追加されてきた経緯から生じている枠線（金枠 vs スレート枠）・ヘッダー構成・ボタン等のバラつきを、共通デザインシステム（デザイントークン・共通カード規格）として整理・統一するリファクタリング。
+
+### 2.7 GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計 (Prayer Tracker & Fuel Gauge)
+- **ステータス**: `💡 proposed` (2026-09-25 策定)
+- **設計書**: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)
+- **対象コード**: `src/core/knowledge/state/`, `MinimapHudRenderer.js`
+- **概要**: Cコード非侵襲・セーブデータ非破壊で、メッセージシグナルから「神のご機嫌・お祈りクールダウン」を逆算エミュレートし、食料寿命・燃費消費ペース（指輪・重量負荷）・航続歩数をミニマップ周辺に可視化するタイムライン予測エンジン。Phase 5 シグナル基盤との強力な連携ショーケース。
+
 ---
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全82スイート・1,092テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全83スイート・1,103テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
-| :--- | :--- | :--- | :---: | :--- |
+| :--- | :--- | :--- | :--- | :--- |
+| **操作・UI** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `CharacterIntroModal.js`<br>`ModalManager.js` | `🟢 implemented` | **ゲーム開始導入フロー最適化 (Phase C)**<br>冒険者名入力の中央カード化・ランダムネーム生成・3大作成モードカード（おまかせ/手動/即開始）連携 |
 | **画面・描画** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `WebGPUHD2DRenderer.js`<br>`MainViewportRenderer.js` | `🟢 implemented` | **自キャラ足元枠 Middle レイヤー最適化 ＆ 3D パース吸着**<br>床面 $Y=0.01$ (Layer 3.2) 配置、深度テストによる自然な足元表現、ターゲットカーソル立体結線枠 |
 | **画面・描画** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) | `WebGPUHD2DRenderer.js`<br>`MainViewportRenderer.js`<br>`glyphClassifier.js` | `🟢 implemented` | **Pet / Ridden / piletop 視覚的強調**<br>統一ミニバッジ (♥ / R / +)、Middle レイヤー (Layer 3.3) 足元サークル描画 |
 | **画面・描画** | [unified_renderer_and_screen_architecture_plan.md](./2_client_ui/unified_renderer_and_screen_architecture_plan.md) | `VirtualDungeonScreen.js`<br>`MainViewportRenderer.js`<br>`MinimapHudRenderer.js` | `🟢 implemented` | **仮想スクリーン統合レンダラー (Phase 1〜3)**<br>オフスクリーン統合、フォーカス追従、ミニマップスマート自動退避 |
