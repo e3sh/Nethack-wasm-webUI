@@ -48,12 +48,25 @@ export class LoreCodex {
     refreshTranslations() {
         for (const [id, r] of this.rumors.entries()) {
             r.translatedText = this._resolveTranslation(r, 'RUMOR');
+            if (!r.relatedEntities || r.relatedEntities.length === 0) {
+                const rel = this._resolveRelatedEntities(r, 'RUMOR');
+                if (rel && rel.length > 0) r.relatedEntities = rel;
+            }
         }
         for (const [id, o] of this.oracles.entries()) {
             o.translatedText = this._resolveTranslation(o, 'ORACLE');
+            if (!o.relatedEntities || o.relatedEntities.length === 0) {
+                const rel = this._resolveRelatedEntities(o, 'ORACLE');
+                if (rel && rel.length > 0) o.relatedEntities = rel;
+            }
         }
         for (const [id, e] of this.engravings.entries()) {
-            e.translatedText = this._resolveTranslation(e, e.category || (e.isHeadstone ? 'HEADSTONE' : 'ENGRAVING'));
+            const cat = e.category || (e.isHeadstone ? 'HEADSTONE' : 'ENGRAVING');
+            e.translatedText = this._resolveTranslation(e, cat);
+            if (!e.relatedEntities || e.relatedEntities.length === 0) {
+                const rel = this._resolveRelatedEntities(e, cat);
+                if (rel && rel.length > 0) e.relatedEntities = rel;
+            }
         }
         this._notify('translationsRefreshed', null);
     }
@@ -109,6 +122,62 @@ export class LoreCodex {
     }
 
     /**
+     * エントリの関連知識 (relatedEntities) を動的に解決（直接指定またはマスタデータ）
+     * @param {Object} item
+     * @param {'RUMOR'|'ORACLE'|'ENGRAVING'|'HEADSTONE'|'ELBERETH'} [category]
+     * @returns {Array<Object>}
+     * @private
+     */
+    _resolveRelatedEntities(item, category = null) {
+        if (!item) return [];
+        if (Array.isArray(item.relatedEntities) && item.relatedEntities.length > 0) {
+            return item.relatedEntities;
+        }
+
+        const targetCat = category || item.category || (item.isHeadstone ? 'HEADSTONE' : '');
+        const rawText = (item.text || item.actualText || '').trim();
+        const norm = (s) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const rawNorm = norm(rawText);
+
+        if (targetCat === 'RUMOR') {
+            if (this.master?.rumors) {
+                const found = this.master.rumors.find(r => 
+                    (item.id && r.id === item.id) || 
+                    (rawText && r.text === rawText) ||
+                    (rawNorm && norm(r.text) === rawNorm)
+                );
+                if (found && Array.isArray(found.relatedEntities) && found.relatedEntities.length > 0) {
+                    return found.relatedEntities;
+                }
+            }
+        } else if (targetCat === 'ORACLE') {
+            if (this.master?.oracles) {
+                const found = this.master.oracles.find(o => 
+                    (item.id && o.id === item.id) || 
+                    (rawText && (o.text === rawText || o.normalizedText === rawText)) ||
+                    (rawNorm && (norm(o.text) === rawNorm || norm(o.normalizedText) === rawNorm))
+                );
+                if (found && Array.isArray(found.relatedEntities) && found.relatedEntities.length > 0) {
+                    return found.relatedEntities;
+                }
+            }
+        } else if (targetCat === 'ENGRAVING' && !item.isHeadstone) {
+            if (this.master?.engravings) {
+                const found = this.master.engravings.find(e => 
+                    (item.id && e.id === item.id) || 
+                    (rawText && (e.text === rawText || e.normalizedText === rawText)) ||
+                    (rawNorm && (norm(e.text) === rawNorm || norm(e.normalizedText) === rawNorm))
+                );
+                if (found && Array.isArray(found.relatedEntities) && found.relatedEntities.length > 0) {
+                    return found.relatedEntities;
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
      * 変更リスナーの登録
      * @param {Function} listener
      * @returns {Function} 解除関数
@@ -151,6 +220,7 @@ export class LoreCodex {
         const isNew = !existing;
 
         const tr = rumor.translatedText || this._resolveTranslation({ id, text: rumor.text }, 'RUMOR');
+        const related = rumor.relatedEntities || existing?.relatedEntities || this._resolveRelatedEntities({ id, text: rumor.text }, 'RUMOR');
         const entry = {
             id: id,
             text: rumor.text,
@@ -163,6 +233,9 @@ export class LoreCodex {
             lastSeenAt: new Date().toISOString(),
             seenCount: (existing?.seenCount || 0) + 1
         };
+        if (related && related.length > 0) {
+            entry.relatedEntities = related;
+        }
 
         this.rumors.set(id, entry);
         this._autoSave();
@@ -192,6 +265,7 @@ export class LoreCodex {
         const isNew = !existing;
 
         const tr = oracle.translatedText || this._resolveTranslation({ id, text: oracle.text }, 'ORACLE');
+        const related = oracle.relatedEntities || existing?.relatedEntities || this._resolveRelatedEntities({ id, text: oracle.text }, 'ORACLE');
         const entry = {
             id: id,
             title: oracle.title || existing?.title || oracle.text.split('\n')[0].substring(0, 40),
@@ -203,6 +277,9 @@ export class LoreCodex {
             lastSeenAt: new Date().toISOString(),
             seenCount: (existing?.seenCount || 0) + 1
         };
+        if (related && related.length > 0) {
+            entry.relatedEntities = related;
+        }
 
         this.oracles.set(id, entry);
         this._autoSave();
@@ -249,6 +326,13 @@ export class LoreCodex {
             isElbereth: validCategory === 'ELBERETH',
             category: validCategory
         }, validCategory);
+        const related = engraving.relatedEntities || existing?.relatedEntities || this._resolveRelatedEntities({
+            id,
+            text: rawText,
+            actualText: engraving.actualText,
+            isHeadstone: engraving.isHeadstone,
+            category: validCategory
+        }, validCategory);
 
         const entry = {
             id: id,
@@ -263,6 +347,9 @@ export class LoreCodex {
             lastSeenAt: new Date().toISOString(),
             seenCount: (existing?.seenCount || 0) + 1
         };
+        if (related && related.length > 0) {
+            entry.relatedEntities = related;
+        }
 
         this.engravings.set(id, entry);
         this._autoSave();
@@ -522,6 +609,10 @@ export class LoreCodex {
                     const entry = { ...r };
                     const tr = this._resolveTranslation(entry, 'RUMOR');
                     entry.translatedText = tr || entry.translatedText || '';
+                    const related = entry.relatedEntities || this._resolveRelatedEntities(entry, 'RUMOR');
+                    if (related && related.length > 0) {
+                        entry.relatedEntities = related;
+                    }
                     this.rumors.set(r.id, entry);
                 }
             }
@@ -532,6 +623,10 @@ export class LoreCodex {
                     const entry = { ...o };
                     const tr = this._resolveTranslation(entry, 'ORACLE');
                     entry.translatedText = tr || entry.translatedText || '';
+                    const related = entry.relatedEntities || this._resolveRelatedEntities(entry, 'ORACLE');
+                    if (related && related.length > 0) {
+                        entry.relatedEntities = related;
+                    }
                     this.oracles.set(o.id, entry);
                 }
             }
@@ -543,6 +638,10 @@ export class LoreCodex {
                     const cat = entry.category || (entry.isHeadstone ? 'HEADSTONE' : (entry.isElbereth ? 'ELBERETH' : 'ENGRAVING'));
                     const tr = this._resolveTranslation(entry, cat);
                     entry.translatedText = tr || entry.translatedText || '';
+                    const related = entry.relatedEntities || this._resolveRelatedEntities(entry, cat);
+                    if (related && related.length > 0) {
+                        entry.relatedEntities = related;
+                    }
                     this.engravings.set(e.id, entry);
                 }
             }

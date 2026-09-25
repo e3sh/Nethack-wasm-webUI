@@ -267,6 +267,14 @@ export class WebUICore {
         return this.loreCodex;
     }
 
+    /**
+     * 構造化知識エンジン (StructuredKnowledgeEngine) を取得
+     * @returns {Object|null}
+     */
+    getKnowledgeEngine() {
+        return this.gkl?.structuredKnowledge || null;
+    }
+
     async detectSavedGameInfo() {
         const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
         let saveName = "";

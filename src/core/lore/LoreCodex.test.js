@@ -301,4 +301,72 @@ describe('LoreCodex - 冒険手帳・伝承コレクションマネージャ', (
 
         expect(codex.getEngravings()[0].translatedText).toBe('新訳：墓石を自分で彫らされた！');
     });
+
+    it('噂話や神託の追加時にマスタデータから relatedEntities が自動解決・付与されること', () => {
+        // 1. 噂話 (rumor_tru_1: blindfold)
+        const resRumor = codex.addRumor({
+            id: 'rumor_tru_1',
+            text: "A blindfold can be very useful if you're telepathic.",
+            isTrue: true
+        });
+        expect(resRumor.rumor.relatedEntities).toBeDefined();
+        expect(Array.isArray(resRumor.rumor.relatedEntities)).toBe(true);
+        expect(resRumor.rumor.relatedEntities.length).toBeGreaterThan(0);
+        expect(resRumor.rumor.relatedEntities[0].name).toBe('blindfold');
+        expect(resRumor.rumor.relatedEntities[0].nameJa).toBe('目隠し');
+
+        // 2. 神託 (oracle_1: gold piece)
+        const resOracle = codex.addOracle({
+            id: 'oracle_1',
+            text: 'If thy wand hath run out of charges...'
+        });
+        expect(resOracle.oracle.relatedEntities).toBeDefined();
+        expect(resOracle.oracle.relatedEntities.length).toBeGreaterThan(0);
+        expect(resOracle.oracle.relatedEntities[0].name).toBe('gold piece');
+
+        // 3. マスタにないカスタム噂話の場合は undefined または空であること
+        const customRumor = codex.addRumor({
+            id: 'custom_rumor_999',
+            text: 'Some unknown rumor not in master',
+            isTrue: true
+        });
+        expect(customRumor.rumor.relatedEntities).toBeUndefined();
+    });
+
+    it('ストレージ復元 (deserialize) 時に、relatedEntities が未定義の既存データに対しても自動補完されること', () => {
+        // 過去のセッションで relatedEntities が保存されていない JSON を想定
+        const legacyData = {
+            rumors: [
+                {
+                    id: 'rumor_tru_1',
+                    text: "A blindfold can be very useful if you're telepathic.",
+                    isTrue: true,
+                    category: 'RUMOR',
+                    seenCount: 1
+                }
+            ],
+            oracles: [
+                {
+                    id: 'oracle_1',
+                    text: 'If thy wand hath run out of charges...',
+                    category: 'ORACLE',
+                    seenCount: 1
+                }
+            ],
+            engravings: []
+        };
+
+        const newCodex = new LoreCodex({ autoLoad: false });
+        newCodex.deserialize(legacyData);
+
+        const rumors = newCodex.getRumors();
+        expect(rumors.length).toBe(1);
+        expect(rumors[0].relatedEntities).toBeDefined();
+        expect(rumors[0].relatedEntities[0].name).toBe('blindfold');
+
+        const oracles = newCodex.getOracles();
+        expect(oracles.length).toBe(1);
+        expect(oracles[0].relatedEntities).toBeDefined();
+        expect(oracles[0].relatedEntities[0].name).toBe('gold piece');
+    });
 });

@@ -363,14 +363,14 @@ export class ContextActionEngine {
                     descriptionJa: '足元に落ちているアイテムをインベントリに入れます'
                 });
 
-                // (b) コンテナ漁り / 解錠
+                // (b) コンテナ漁り / 解錠・施錠
                 if (feet.middle.isContainer) {
                     if (keyItem) {
                         actions.push({
                             id: 'ACTION_UNLOCK_CONTAINER_FEET',
                             category: 'INTERACT',
-                            label: `Unlock container with ${keyItem.rawText || 'key'}`,
-                            labelJa: `箱を解錠 (${keyItem.letter})`,
+                            label: `Lock/Unlock container with ${keyItem.rawText || 'key'}`,
+                            labelJa: `箱を解錠/施錠 (${keyItem.letter})`,
                             key: `a${keyItem.letter}.y`,
                             keySequence: ['a', keyItem.letter, 'DIR_SELF', 'y'],
                             charStr: 'a',
@@ -378,8 +378,8 @@ export class ContextActionEngine {
                             entity: feet.middle,
                             risk: null,
                             priority: 92,
-                            description: `Apply ${keyItem.rawText || 'key'} to unlock container on the floor`,
-                            descriptionJa: `手持ちの ${keyItem.rawText || '鍵/ロックピック'} で足元の箱の鍵を解錠します`
+                            description: `Apply ${keyItem.rawText || 'key'} to lock or unlock container on the floor`,
+                            descriptionJa: `手持ちの ${keyItem.rawText || '鍵/ロックピック'} で足元の箱を解錠/施錠します`
                         });
                     }
 
@@ -838,13 +838,13 @@ export class ContextActionEngine {
             if (middle) {
                 const isContainer = Boolean(middle.isContainer || middle.category === 'CONTAINER' || middle.isChest);
                 if (isContainer) {
-                    // 1. 鍵での解錠 (Unlock)
+                    // 1. 鍵での解錠/施錠 (Lock/Unlock)
                     if (keyItem && !actions.some(a => a.id === `ACTION_UNLOCK_CONTAINER_${dirCode}`)) {
                         actions.push({
                             id: `ACTION_UNLOCK_CONTAINER_${dirCode}`,
                             category: 'INTERACT',
-                            label: `Unlock container [${dirCode}] with ${keyItem.rawText || 'key'}`,
-                            labelJa: `箱を解錠 [${dirNameJa}] (${keyItem.letter})`,
+                            label: `Lock/Unlock container [${dirCode}] with ${keyItem.rawText || 'key'}`,
+                            labelJa: `箱を解錠/施錠 [${dirNameJa}] (${keyItem.letter})`,
                             key: `a${keyItem.letter}${dirKey}y`,
                             keySequence: ['a', keyItem.letter, dirKey, 'y'],
                             charStr: 'a',
@@ -857,8 +857,8 @@ export class ContextActionEngine {
                             entity: middle,
                             risk: null,
                             priority: 95,
-                            description: `Apply ${keyItem.rawText || 'key'} to unlock container in ${dirNameJa}`,
-                            descriptionJa: `${dirNameJa}の箱を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
+                            description: `Apply ${keyItem.rawText || 'key'} to lock or unlock container in ${dirNameJa}`,
+                            descriptionJa: `${dirNameJa}の箱を ${keyItem.rawText || '鍵/ロックピック'} で解錠/施錠します`
                         });
                     }
 
@@ -999,8 +999,8 @@ export class ContextActionEngine {
                     actions.push({
                         id: `ACTION_UNLOCK_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Unlock door [${dirCode}] with ${keyItem.rawText || 'key'}`,
-                        labelJa: `扉を解錠 [${dirNameJa}] (${keyItem.letter})`,
+                        label: `Lock/Unlock door [${dirCode}] with ${keyItem.rawText || 'key'}`,
+                        labelJa: `扉を解錠/施錠 [${dirNameJa}] (${keyItem.letter})`,
                         key: `a${keyItem.letter}${dirKey}y`,
                         keySequence: ['a', keyItem.letter, dirKey, 'y'],
                         charStr: 'a',
@@ -1012,8 +1012,8 @@ export class ContextActionEngine {
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Apply ${keyItem.rawText || 'key'} to unlock door in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}の扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠します`
+                        description: `Apply ${keyItem.rawText || 'key'} to lock or unlock door in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠/施錠します`
                     });
                 }
 

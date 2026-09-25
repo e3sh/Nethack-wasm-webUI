@@ -67,8 +67,8 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
         expect(fireAction.priority).toBe(95);
     });
 
-    describe('解錠操作 (Unlock actions) テスト', () => {
-        it('足元の箱解錠 (ACTION_UNLOCK_CONTAINER_FEET): 鍵所持時に末尾に "y" を伴うシーケンスが生成されること', () => {
+    describe('解錠/施錠操作 (Lock/Unlock actions) テスト', () => {
+        it('足元の箱解錠/施錠 (ACTION_UNLOCK_CONTAINER_FEET): 鍵所持時に末尾に "y" を伴うシーケンスが生成されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
                 { letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }
@@ -93,9 +93,14 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(unlockAction.keySequence).toEqual(['a', 'k', 'DIR_SELF', 'y']);
             expect(unlockAction.key).toBe('ak.y');
             expect(unlockAction.target).toBe('feet');
+            expect(unlockAction.label).toBe('箱を解錠/施錠 (k)');
+
+            const actionsEn = ContextActionEngine.generateActions(areaState, invMgr, null, { language: 'en' });
+            const unlockActionEn = actionsEn.find(a => a.id === 'ACTION_UNLOCK_CONTAINER_FEET');
+            expect(unlockActionEn.label).toBe('Lock/Unlock container with k - a skeleton key');
         });
 
-        it('扉の解錠 (ACTION_UNLOCK_DOOR_*): 鍵所持時に末尾に "y" を伴うシーケンスが生成されること', () => {
+        it('扉の解錠/施錠 (ACTION_UNLOCK_DOOR_*): 鍵所持時に末尾に "y" を伴うシーケンスが生成されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
                 { letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }
@@ -112,9 +117,10 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(unlockAction).toBeDefined();
             expect(unlockAction.keySequence).toEqual(['a', 'k', 'DIR_E', 'y']);
             expect(unlockAction.key).toBe('akDIR_Ey');
+            expect(unlockAction.label).toBe('扉を解錠/施錠 [東] (k)');
         });
 
-        it('隣接マスの箱 (isContainer): 鍵所持時に隣接解錠・漁る・罠解除・箱蹴りアクションが生成されること', () => {
+        it('隣接マスの箱 (isContainer): 鍵所持時に隣接解錠/施錠・漁る・罠解除・箱蹴りアクションが生成されること', () => {
             const invMgr = new InventoryStateManager();
             invMgr.items = [
                 { letter: 'k', name: 'skeleton key', rawText: 'k - a skeleton key', isKey: true }
@@ -136,11 +142,12 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
 
             const actions = ContextActionEngine.generateActions(areaState, invMgr);
 
-            // 1. 解錠 (ACTION_UNLOCK_CONTAINER_E)
+            // 1. 解錠/施錠 (ACTION_UNLOCK_CONTAINER_E)
             const unlockAction = actions.find(a => a.id === 'ACTION_UNLOCK_CONTAINER_E');
             expect(unlockAction).toBeDefined();
             expect(unlockAction.keySequence).toEqual(['a', 'k', 'DIR_E', 'y']);
             expect(unlockAction.dirCode).toBe('E');
+            expect(unlockAction.label).toBe('箱を解錠/施錠 [東] (k)');
 
             // 2. 漁る (ACTION_LOOT_CONTAINER_E)
             const lootAction = actions.find(a => a.id === 'ACTION_LOOT_CONTAINER_E');

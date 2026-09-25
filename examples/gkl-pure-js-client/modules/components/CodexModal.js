@@ -170,6 +170,9 @@ export class CodexModal {
         if (core && typeof core.getKnowledgeEngine === 'function') {
             return core.getKnowledgeEngine();
         }
+        if (core?.gkl?.structuredKnowledge) {
+            return core.gkl.structuredKnowledge;
+        }
         return null;
     }
 

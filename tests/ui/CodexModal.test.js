@@ -302,6 +302,18 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
     expect(itemHtmlEn).toContain('ITEM');
     expect(itemHtmlEn).toContain('TOOL');
   });
+
+  it('getKnowledgeEngine() が core.getKnowledgeEngine() または core.gkl.structuredKnowledge を参照できること', () => {
+    // 1. core.getKnowledgeEngine() がある場合
+    const mockEngine = { name: 'EngineA' };
+    mockCore.getKnowledgeEngine = () => mockEngine;
+    expect(modal.getKnowledgeEngine()).toBe(mockEngine);
+
+    // 2. core.getKnowledgeEngine() がなく core.gkl.structuredKnowledge がある場合
+    delete mockCore.getKnowledgeEngine;
+    mockCore.gkl = { structuredKnowledge: { name: 'EngineB' } };
+    expect(modal.getKnowledgeEngine()).toEqual({ name: 'EngineB' });
+  });
 });
 
 
