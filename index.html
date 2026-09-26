@@ -397,18 +397,18 @@
         <!-- Main Game Modes -->
         <main>
             <div class="play-modes">
-                <!-- GKL Pure JS Client (最新・多機能標準) -->
+                <!-- Nehww: Reference Client (最新・多機能標準) -->
                 <a href="examples/gkl-pure-js-client/index.html" class="mode-card desktop" id="card-play-gklpurejs" style="border: 2px solid #00e676; background: rgba(0, 230, 118, 0.05);">
                     <div>
                         <div class="mode-icon">🐉</div>
                         <div class="mode-header">
-                            <span class="mode-title" id="txt-gklpurejs-title">GKL Pure JS Client</span>
+                            <span class="mode-title" id="txt-gklpurejs-title">Nehww (NetHack-wasm-webUI)</span>
                             <span class="mode-tag" id="txt-gklpurejs-tag" style="background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676;">🧠 状況推論＆行動アシスト</span>
                         </div>
                         <p class="mode-desc" id="txt-gklpurejs-desc">【最新・最高機能】周囲の状況から今最適な行動を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズーム（3層透過＆浮遊アニメーション）搭載。</p>
                     </div>
                     <button class="btn-launch" style="background: linear-gradient(135deg, #00e676, #00b0ff); color: #090d16; font-weight: bold;">
-                        <span id="txt-gklpurejs-btn">GKL CLIENT START</span>
+                        <span id="txt-gklpurejs-btn">PLAY NEHWW</span>
                         <span>→</span>
                     </button>
                 </a>
@@ -468,9 +468,10 @@
         const I18N = {
             ja: {
                 subTitle: "ブラウザで即座に遊べるローグライクゲーム。日本語翻訳＆各種操作システム対応",
+                gklpurejsTitle: "Nehww (NetHack-wasm-webUI)",
                 gklpurejsTag: "🧠 状況推論＆行動アシスト",
                 gklpurejsDesc: "【最新・最高機能】周囲の状況から今最適な行動を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズーム（3層透過＆浮遊アニメーション）搭載。",
-                gklpurejsBtn: "GKL CLIENT START",
+                gklpurejsBtn: "PLAY NEHWW",
                 cltestTitle: "全クライアントテスト (cltest)",
                 cltestTag: "🚀 統合ポータル・検証",
                 cltestDesc: "Pure JS, 各種モダンフレームワーク (Vue 3, React, Svelte, SolidJS), Canvas, モバイルなど全クライアントを一元管理・起動できるテストポータル。",
@@ -482,9 +483,10 @@
             },
             en: {
                 subTitle: "Play NetHack 5.0 directly in your browser. Powered by WebAssembly with Canvas/DOM UI.",
+                gklpurejsTitle: "Nehww (NetHack-wasm-webUI)",
                 gklpurejsTag: "🧠 Context & Action Assist",
                 gklpurejsDesc: "[Flagship] Auto-suggests optimal actions based on context, features item tooltips & dynamic 3-layer zoom animation.",
-                gklpurejsBtn: "GKL CLIENT START",
+                gklpurejsBtn: "PLAY NEHWW",
                 cltestTitle: "All Clients Test Portal (cltest)",
                 cltestTag: "🚀 Client Portal & Tests",
                 cltestDesc: "Portal for testing and launching all clients: Pure JS, modern frameworks (Vue 3, React, Svelte, SolidJS), Canvas, and Mobile.",
@@ -518,6 +520,7 @@
             const t = isJp ? I18N.ja : I18N.en;
 
             document.getElementById("txt-sub-title").textContent = t.subTitle;
+            if (document.getElementById("txt-gklpurejs-title")) document.getElementById("txt-gklpurejs-title").textContent = t.gklpurejsTitle;
             if (document.getElementById("txt-gklpurejs-tag")) document.getElementById("txt-gklpurejs-tag").textContent = t.gklpurejsTag;
             if (document.getElementById("txt-gklpurejs-desc")) document.getElementById("txt-gklpurejs-desc").textContent = t.gklpurejsDesc;
             if (document.getElementById("txt-gklpurejs-btn")) document.getElementById("txt-gklpurejs-btn").textContent = t.gklpurejsBtn;

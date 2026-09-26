@@ -1,11 +1,12 @@
-# NetHack WASM WebUI
+# Nehww (NetHack-wasm-webUI)
 
 NetHack 5.0 を WebAssembly にコンパイルし、Web Worker と共通コア `WebUICore` を通じてブラウザ上で快適に動作・操作できるようにしたモダンな WebUI プロジェクトです。
+公式リファレンスクライアントとして **Nehww (ネフウ)** を搭載しています。
 
 クラシックな NetHack の深いゲーム性をそのままに、リアルタイム日本語翻訳、リッチなペーパードール装備管理、コンテナ操作、初心者〜中級者の事故死を防ぐ各種入力支援ダイアログ、状況判断支援を行うゲーム知識層（GKL: Game Knowledge Layer）を統合しています。
 
-👉 **[🎮 ブラウザでプレイ (GKL Pure JS Client デモ)](https://e3sh.github.io/Nethack-wasm-webUI/)**  
-👉 **[📖 かんたん操作ガイド (遊び方・画面の見方)](./examples/gkl-pure-js-client/PLAYER_GUIDE.md)**  
+👉 **[🎮 ブラウザでプレイ (Nehww デモ)](https://e3sh.github.io/Nethack-wasm-webUI/)**  
+👉 **[📖 かんたん操作ガイド (Nehww 遊び方・画面の見方)](./examples/gkl-pure-js-client/PLAYER_GUIDE.md)**  
 👉 **[🔍 ナレッジインスペクター (GKL 内部知識ベース)](https://e3sh.github.io/Nethack-wasm-webUI/tools/knowledge-inspector.html)**
 
 ---
