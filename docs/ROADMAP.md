@@ -74,7 +74,7 @@ last_updated: 2026-09-26
 - **設計書**:
   - 全体計画: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
   - Phase D イマーシブHUD仕様書: [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)
-- **完了済みテーマ (Phase A, B & C)**:
+- **完了済みテーマ (Phase A, B, C & D / UI Styling)**:
   - **Phase A (テーマ 1 & 2: 足元枠 3D パース吸着 ＆ Middle レイヤー最適化 ＆ Pet/Ridden 強調)**:
     - WebGPU HD2D レンダラー: WGSL パイプライン内の Layer 3.2 (自キャラ床枠) に床面 $Y=0.01$ で投入。深度テストにより直立キャラクター（Layer 4）の下に枠線が潜り込む自然な足元配置を実現。ターゲットカーソル枠は床面4隅の 3D 空間結線（`worldToScreen`）により立体吸着描画。
     - Canvas 2D レンダラー (`MainViewportRenderer.js`): 自キャラ枠描画を `cell.middle` 直後、`cell.top` 直前に移動し前後関係を統一。
@@ -87,12 +87,15 @@ last_updated: 2026-09-26
     - `CharacterIntroModal.js`: `ASKNAME`（冒険者名入力）の中央カード化、🎲 ランダムネーム生成ボタン、Enter確定 ＆ `core.setPlayerName` 連動。
     - `ynaq` プロンプト検知時の 3 大カード選択肢提示（🎲 おまかせ作成 / ⚙️ 自分で詳細に選ぶ / ⚡ クイック即開始）。キーボード（[Y], [N], [Q]）およびクリック対応。手動作成時は `CharacterCreationModal` へシームレス連携。
     - `KnowledgeDetailModal.js`: サイドパネルをコンパクト化し、クリック時に専用のモーダルで詳細ナレッジ（危険度、基礎ステータス、戦術助言、アイテム効果）を表示。
-- **直近着手テーマ (Phase D)**:
-  - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新 ＆ イマーシブメッセージウィンドウ)**:
-    - マップをウィンドウ追従全画面化（100vw × 100vh、アスペクト比維持と広大視界）
-    - アプローチB（フローティング最新行HUD `FloatingMessageHud.js` ＋ Ctrl+P展開型過去ログドロワー `MessageHistoryDrawer.js`）の実装
-    - ステータスバーのフローティングHUD化（`FloatingStatusHud.js`）
-    - 既存の固定分割3ペインレイアウトから完全オーバーレイHUD構造への移行
+  - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新 ＆ イマーシブメッセージウィンドウ) (2026-09-26 完了)**:
+    - マップをウィンドウ追従全画面化（100vw × 100vh、アスペクト比維持と広大視界、マウスホイールズーム＆HD-2Dカメラ適正化）
+    - フローティング最新行HUD (`FloatingMessageHud.js`) ＋ 過去ログドロワー (`MessageHistoryDrawer.js`: `L` キー・画面クリック展開・画面左側ピン留め固定 ＆ 自動追従スクロール)
+    - ステータスバー、緊急アシストバー、ミニマップHUD、フロア設備案内HUD、床文字HUD（Engraving）の全HUDフローティング化
+    - 右サイドパネルのワンタップ一時退避・スライドイン復帰（`Alt+S` / `[` キー / パネル内ボタン / 画面右端 Peek タブ）
+  - **UI スタイル・テーマ全体統一 (Neo-Retro Dark Glass UI) (2026-09-26 完了)**:
+    - 全画面（HUD・右サイドパネル・各種モーダル・ヘッダー・ボタン群・スクロールバー）でサイバーシアンアクセント（`#38bdf8`）とフロストガラスマテリアル（`backdrop-filter: blur(12px)` + 極細透過ボーダー）を徹底統一
+    - 右サイドパネル展開時も背景ダンジョンが透け、公式スクリーンショットとして映える本格PCゲームクライアントのルック＆フィールを確立
+    - 全90テストファイル、1,180テストすべて PASS（回帰ゼロ）
 
 ---
 

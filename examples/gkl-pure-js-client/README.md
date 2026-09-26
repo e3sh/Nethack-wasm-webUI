@@ -1,13 +1,22 @@
-# NetHack Wasm WebUI - GKL Pure JS Reference Client
+# Nehww - NetHack Wasm WebUI 公式リファレンスクライアント (GKL Pure JS Client)
 
 > **📖 プレイヤー向けの遊び方・画面の見方はこちら**  
-> [**👉【GKLpureJSclient】かんたん操作ガイド (PLAYER_GUIDE.md)**](./PLAYER_GUIDE.md)
+> [**👉【Nehww】かんたん操作ガイド (PLAYER_GUIDE.md)**](./PLAYER_GUIDE.md)
 
-`examples/gkl-pure-js-client` は、**Pure JS Client (`examples/pure-js-client`)** の安定した完全なクライアント基盤（全プロンプト、メニュー、キー入力、WASM Worker 通信、セーブ・復元等）をベースに、**GKL (Game Knowledge Layer)** のインテリジェント機能およびモダンなリッチ UI を完全統合した公式リファレンスクライアントです。
+**Nehww (ネフウ)** (`examples/gkl-pure-js-client`) は、**Pure JS Client (`examples/pure-js-client`)** の安定した完全なクライアント基盤（全プロンプト、メニュー、キー入力、WASM Worker 通信、セーブ・復元等）をベースに、**GKL (Game Knowledge Layer)** のインテリジェント機能およびモダンなリッチ UI（Neo-Retro Dark Glass イマーシブHUD）を完全統合した公式リファレンスクライアントです。
 
 ---
 
 ## 🌟 主な特徴と GKL 拡張機能
+
+### 0. 🌌 全画面ダンジョンマップ ＋ イマーシブHUD (Neo-Retro Dark Glass UI)
+* **全画面マップ（100vw × 100vh）**:
+  * 画面いっぱいに広がるダンジョン視界。マウスホイールによる直感的なスムーズズームに対応。
+* **フロストガラス・オーバーレイHUD**:
+  * フロストガラス（`backdrop-filter: blur`）と極細ボーダー、サイバーシアンアクセント（`#38bdf8`）で統一された洗練されたゲームUI。
+  * **💬 フローティングメッセージHUD**: 最新メッセージが視界を遮らず中央上部にスマートにフェード表示。
+  * **📜 過去ログドロワー (`MessageHistoryDrawer`)**: `L` キーまたはメッセージクリックでスライド展開。ピン留め（📌）により画面左端への常時固定・自動追従スクロールが可能。
+  * **🎒 右サイドパネルの一時退避・即時復帰**: `Alt+S` や `[` キー、画面右端の `🎒 所持品` Peekタブにより、戦闘中や全画面探索時にワンタップで出し入れ可能。
 
 ### 1. 迫力ある 3 つの描画エンジン ＆ カメラ追従
 * **✨ HD-2D ビューポート (`WebGPUHD2DRenderer`)**:

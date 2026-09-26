@@ -25,11 +25,11 @@
 
 | ディレクトリ | 技術スタック | 状態 | ライブデモ | 特徴・構成例 |
 | :--- | :--- | :--- | :--- | :--- |
+| **`examples/gkl-pure-js-client`** | Vanilla ES Modules + CSS | 【公式リファレンス / Nehww】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/) | 公式リファレンスクライアント「Nehww」。全画面イマーシブHUD（Neo-Retro Dark Glass UI）、HD-2D 3Dジオラマ、完全入力支援モーダル群、GKLインテリジェント連携 |
 | **`examples/vue-client`** | Vue 3 + Vite + TypeScript + Pinia | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/vue-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Visual FX、HUDシグナル、スプライトインベントリ、GKLナレッジ・アドバイス連携 |
 | **`examples/react-client`** | React 18 + Vite + TypeScript + Zustand | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/react-client/dist/index.html) | 2カラムUI、フォーカスカメラ、Zustand状態管理、GKLナレッジ・アドバイス連携 |
 | **`examples/solid-client`** | SolidJS + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2カラムUI、SolidJS Signals/Store によるリアクティブ連携、フォーカスカメラ |
 | **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2カラムUI、Svelte Writable Store による軽量リアクティブ連携、フォーカスカメラ |
-| **`examples/gkl-pure-js-client`** | Vanilla ES Modules + CSS | 【サンプル実装】 | - | フレームワーク非依存の純粋な JS / CSS による GKL 連携サンプル |
 | **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | 【最小構成】 | - | フレームワーク非依存の最小構成 `WebUICore` 直用クライアント |
 | **`examples/legacy-client`** | Canvas 2D / Touch | 【旧仕様参考】 | - | 従来のクラシックタイル描画とモバイル用バーチャルパッド実装 |
 
