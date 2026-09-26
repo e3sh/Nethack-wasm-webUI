@@ -336,4 +336,61 @@ describe('FloatingContextActions - フローティング推奨アクション UI
     floatingActions.setLanguage('en');
     expect(floatingActions.elPopup.innerHTML).toContain('Inspect');
   });
+
+  it('15. 平和的モンスター (PEACEFUL) の場合に平和的ピルとアイコンが正しく描画されること', () => {
+    floatingActions.setLanguage('ja');
+    floatingActions.show({
+      gx: 12,
+      gy: 10,
+      playerX: 10,
+      playerY: 10,
+      cardData: {
+        category: 'MONSTER',
+        name: '店主',
+        hasMonster: true,
+        dispositionStatus: 'PEACEFUL',
+        isPeaceful: true,
+        dangerLevel: 'SAFE',
+        stats: { hd: 12, ac: 0, speed: 18 }
+      }
+    });
+
+    const html = floatingActions.elPopup.innerHTML;
+    expect(html).toContain('kn-status-peaceful');
+    expect(html).toContain('☮️ 平和的');
+    expect(html).toContain('☮️'); // headerIcon
+
+    // 英語切り替え検証
+    floatingActions.setLanguage('en');
+    const htmlEn = floatingActions.elPopup.innerHTML;
+    expect(htmlEn).toContain('kn-status-peaceful');
+    expect(htmlEn).toContain('☮️ Peaceful');
+  });
+
+  it('16. 通常平和モンスター (DEFAULT_PEACEFUL) の場合に通常平和ピルが描画されること', () => {
+    floatingActions.setLanguage('ja');
+    floatingActions.show({
+      gx: 12,
+      gy: 10,
+      playerX: 10,
+      playerY: 10,
+      cardData: {
+        category: 'MONSTER',
+        name: '番兵',
+        hasMonster: true,
+        dispositionStatus: 'DEFAULT_PEACEFUL',
+        isPeaceful: true,
+        dangerLevel: 'SAFE',
+        stats: { hd: 6, ac: 5, speed: 12 }
+      }
+    });
+
+    const html = floatingActions.elPopup.innerHTML;
+    expect(html).toContain('kn-status-peaceful');
+    expect(html).toContain('☮️ 通常平和');
+
+    // 英語切り替え検証
+    floatingActions.setLanguage('en');
+    expect(floatingActions.elPopup.innerHTML).toContain('☮️ Normally Peaceful');
+  });
 });

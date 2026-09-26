@@ -71,6 +71,8 @@ export class OnDemandLookService {
             }
         }
 
+        // 🎯 目的のマスでカーソル位置を確定 (NetHack getpos pick: '.')
+        tokens.push('.');
         // 末尾は解説画面を開かないよう ESC (\u001b) でサイレント終了
         tokens.push('\u001b');
         return tokens;
@@ -85,6 +87,29 @@ export class OnDemandLookService {
         let text = '';
         let targetText = '';
 
+        const isTerrainOrPrompt = (line) => {
+            if (!line || typeof line !== 'string') return true;
+            const l = line.toLowerCase().trim();
+            return (
+                l.startsWith('pick a direction') ||
+                l.startsWith('pick a location') ||
+                l.startsWith('pick an object') ||
+                l.startsWith('pick a') ||
+                l.startsWith('pick an') ||
+                l.startsWith('pick ') ||
+                l.startsWith('please move the cursor') ||
+                l.startsWith('far look') ||
+                l.includes('floor of a room') ||
+                l.includes('dark part of a room') ||
+                l.includes('corridor') ||
+                l.includes('open door') ||
+                l.includes('closed door') ||
+                l.includes('staircase') ||
+                l.includes('solid rock') ||
+                l === 'wall' || l.endsWith(' wall')
+            );
+        };
+
         if (Array.isArray(rawBuffer)) {
             const lines = rawBuffer
                 .map(b => (typeof b === 'string' ? b : (b.text || b.str || '')))
@@ -94,33 +119,17 @@ export class OnDemandLookService {
             text = lines.join(' ');
 
             // 地形メッセージや操作プロンプトを除外した「ターゲットマスの確定情報」を抽出
-            const isTerrainOrPrompt = (line) => {
-                const l = line.toLowerCase();
-                return (
-                    l.startsWith('pick a direction') ||
-                    l.startsWith('far look') ||
-                    l.includes('floor of a room') ||
-                    l.includes('dark part of a room') ||
-                    l.includes('corridor') ||
-                    l.includes('open door') ||
-                    l.includes('closed door') ||
-                    l.includes('staircase') ||
-                    l.includes('solid rock') ||
-                    l === 'wall' || l.endsWith(' wall')
-                );
-            };
-
             const entityLines = lines.filter(l => !isTerrainOrPrompt(l));
-            targetText = entityLines.length > 0 ? entityLines[entityLines.length - 1] : (lines.length > 0 ? lines[lines.length - 1] : '');
+            targetText = entityLines.length > 0 ? entityLines[entityLines.length - 1] : '';
         } else if (typeof rawBuffer === 'string') {
             text = rawBuffer;
-            targetText = rawBuffer;
+            targetText = isTerrainOrPrompt(rawBuffer) ? '' : rawBuffer;
         }
 
-        const trimmed = targetText.trim() || text.trim();
+        const trimmed = targetText.trim();
         const lower = trimmed.toLowerCase();
         const fullLower = text.toLowerCase();
-        const hasResult = trimmed.length > 0;
+        const hasResult = trimmed.length > 0 && !isTerrainOrPrompt(trimmed);
 
         const isPlayer = lower.includes('you (') || lower.includes('yourself') || lower.startsWith('you ') || lower === 'you';
         const isPeaceful = !isPlayer && (

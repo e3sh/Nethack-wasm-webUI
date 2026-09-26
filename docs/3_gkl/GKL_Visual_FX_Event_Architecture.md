@@ -78,9 +78,9 @@ interface FxTriggerPayload {
 | 種別 (`type`) | 発火タイミング（GKL側） | ペイロード情報 | 推奨される演出表現（UI側） |
 | :--- | :--- | :--- | :--- |
 | `ATTACK_HIT` | ContextActionの攻撃ボタン押下時、または隣接敵への近接攻撃成立時 | `targetX, targetY` | 敵マスの一瞬の白/赤フラッシュ、または斜め斬撃・火花スプライト（約100ms） |
-| `DAMAGE_TAKEN` | 自キャラの `currentHP < prevHP` を検知した時 | `targetX, targetY, amount` | 自キャラマスの赤色点滅、画面の微小シェイク（1〜2px振動）、被弾SE |
+| `DAMAGE_TAKEN` | 自キャラの `currentHP < prevHP` を検知した時 | `targetX, targetY, amount` | 自キャラマスの赤色点滅、**頭上への浮遊ダメージ数値 (`-X`, 赤色/黒縁取り) ポップアップ**、画面の微小シェイク（1〜2px振動）、被弾SE |
 | `KILL_CONFIRMED` | 攻撃直後に敵Glyphが消滅、または死体/アイテムが出現した時 | `targetX, targetY` | 対象マスに煙・消滅パーティクル、または撃破SE |
-| `RECOVER_HEAL` | 自キャラの `currentHP > prevHP`（回復）またはレベルアップ時 | `targetX, targetY, amount` | 自キャラ足元からの緑/黄色の光のエフェクト上昇 |
+| `RECOVER_HEAL` | 自キャラの `currentHP > prevHP`（回復）またはレベルアップ時 | `targetX, targetY, amount` | 自キャラ足元からの緑/黄色の光のエフェクト上昇、**頭上への浮遊回復数値 (`+X`, 緑色/黒縁取り) ポップアップ** |
 | `PLAYER_DIED` | メッセージ `You die...` / `あなたは死んだ` 受信時 | `targetX, targetY, isPlayer, text` | **自キャラマスへの墓石タイル (glyph 4011 / tile 1310) 描画**、バウンス停止、死亡エフェクト・画面シェイク |
 | `PLAYER_RESURRECTED` | 命の魔除け等による蘇生メッセージ受信時 | `targetX, targetY, isPlayer, text` | 墓石表示の解除・自キャラタイルの復元、蘇生光輪エフェクト |
 

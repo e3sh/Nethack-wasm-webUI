@@ -402,6 +402,8 @@ describe('StructuredKnowledgeEngine', () => {
             expect(petMon.name).toBe('コカトリス');
             expect(petMon.dangerLevel).toBe('SAFE');
             expect(petMon.dispositionStatus).toBe('TAMED');
+            expect(petMon.isTame).toBe(true);
+            expect(petMon.isHostile).toBe(false);
             expect(trCallCount).toBe(1);
 
             // 5. 5回目: 確定Look (dynamicState あり) ➔ 静的キャッシュを再利用し動的フラグのみ合成、追加翻訳0回！
@@ -412,6 +414,8 @@ describe('StructuredKnowledgeEngine', () => {
             expect(lookMon.name).toBe('コカトリス');
             expect(lookMon.dangerLevel).toBe('SAFE');
             expect(lookMon.dispositionStatus).toBe('PEACEFUL');
+            expect(lookMon.isPeaceful).toBe(true);
+            expect(lookMon.isHostile).toBe(false);
             expect(lookMon.stats.hp).toBe('24/24');
             expect(trCallCount).toBe(1);
         });

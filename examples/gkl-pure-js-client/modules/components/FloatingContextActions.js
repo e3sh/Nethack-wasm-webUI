@@ -295,9 +295,21 @@ export class FloatingContextActions {
 
       const note = cardData.tacticalSummary || cardData.effectSummary || cardData.lore || '';
 
+      let dispositionPill = '';
+      if (cardData.dispositionStatus === 'DEFAULT_PEACEFUL' || (cardData.defaultPeaceful && !cardData.isHostile)) {
+        dispositionPill = `<span class="kn-pill kn-status-peaceful">☮️ ${isEn ? 'Normally Peaceful' : '通常平和'}</span>`;
+      } else if (cardData.dispositionStatus === 'PEACEFUL' || (cardData.isPeaceful && !cardData.isHostile)) {
+        dispositionPill = `<span class="kn-pill kn-status-peaceful">☮️ ${isEn ? 'Peaceful' : '平和的'}</span>`;
+      } else if (cardData.dispositionStatus === 'TAMED' || cardData.isTame || cardData.type === 'PET') {
+        dispositionPill = `<span class="kn-pill kn-status-tamed">🐾 ${isEn ? 'Pet' : 'ペット'}</span>`;
+      } else if (cardData.isHostile || cardData.dispositionStatus === 'HOSTILE') {
+        dispositionPill = `<span class="kn-pill kn-status-hostile">⚔️ ${isEn ? 'Hostile' : '敵対的'}</span>`;
+      }
+
       return `
         <div class="gkl-floating-knowledge">
           <div class="kn-row">
+            ${dispositionPill}
             <span class="kn-pill">Lv: ${hd}</span>
             <span class="kn-pill">AC: ${ac}</span>
             <span class="kn-pill">Spd: ${spd}</span>
@@ -392,7 +404,10 @@ export class FloatingContextActions {
       const isTrap = Boolean(cardData.category === 'TRAP' || cardData.isTrap);
 
       if (cardData.category === 'MONSTER' || cardData.hasMonster) {
-        headerIcon = cardData.isHostile ? '👾' : (cardData.isTame ? '🐾' : '👹');
+        const isPeace = cardData.dispositionStatus === 'PEACEFUL' || cardData.dispositionStatus === 'DEFAULT_PEACEFUL' || (cardData.isPeaceful && !cardData.isHostile);
+        const isPetMon = cardData.dispositionStatus === 'TAMED' || cardData.isTame || cardData.type === 'PET';
+        const isShop = cardData.id === 'shopkeeper' || cardData.monOffset === 271;
+        headerIcon = isShop ? '🏪' : (isPetMon ? '🐾' : (isPeace ? '☮️' : (cardData.isHostile ? '👾' : '👹')));
         headerTitle = cardData.name || (isEn ? 'Monster' : 'モンスター');
       } else if (isDoor) {
         headerIcon = '🚪';

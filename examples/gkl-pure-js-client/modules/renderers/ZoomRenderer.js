@@ -363,13 +363,39 @@ export class ZoomRenderer {
           this.zoomCtx.stroke();
         }
       } else if (fx.type === 'DAMAGE_FLASH') {
-        // 💥 被弾赤フラッシュ (半透明赤矩形 + 赤枠)
-        const alpha = (1 - progress) * 0.6;
-        this.zoomCtx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
-        this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
-        this.zoomCtx.strokeStyle = `rgba(255, 23, 68, ${1 - progress})`;
-        this.zoomCtx.lineWidth = 2;
-        this.zoomCtx.strokeRect(screenX, screenY, zoomTileSize, zoomTileSize);
+        // 💥 被弾赤フラッシュ (最初の160msで素早く点滅)
+        const flashProgress = Math.min(1.0, elapsed / 160);
+        if (flashProgress < 1.0) {
+          const alpha = (1 - flashProgress) * 0.6;
+          this.zoomCtx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
+          this.zoomCtx.fillRect(screenX, screenY, zoomTileSize, zoomTileSize);
+          this.zoomCtx.strokeStyle = `rgba(255, 23, 68, ${1 - flashProgress})`;
+          this.zoomCtx.lineWidth = 2;
+          this.zoomCtx.strokeRect(screenX, screenY, zoomTileSize, zoomTileSize);
+        }
+
+        // 🔢 ダメージ数値ポップアップ（上方向へ浮遊しながらフェードアウト）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (zoomTileSize * 0.75);
+          const textX = screenX + zoomTileSize / 2;
+          const textY = screenY + (zoomTileSize * 0.25) + floatY;
+
+          this.zoomCtx.save();
+          this.zoomCtx.textAlign = 'center';
+          this.zoomCtx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(zoomTileSize * 0.45));
+          this.zoomCtx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `-${fx.amount}`;
+          this.zoomCtx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          this.zoomCtx.lineWidth = 3;
+          this.zoomCtx.strokeText(text, textX, textY);
+
+          this.zoomCtx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
+          this.zoomCtx.fillText(text, textX, textY);
+          this.zoomCtx.restore();
+        }
       } else if (fx.type === 'KILL_BURST') {
         // 💀 撃破消滅バースト (放射状パーティクル・クロス光)
         const alpha = 1 - progress;
@@ -398,19 +424,46 @@ export class ZoomRenderer {
         this.zoomCtx.fillRect(cx + d, cy + d, pSize, pSize);
       } else if (fx.type === 'HEAL_RING') {
         // 💚 回復リング (上昇する緑のリング)
-        const alpha = 1 - progress;
-        const liftY = -easeOut * 12;
+        const ringProgress = Math.min(1.0, elapsed / 250);
+        const ringEaseOut = 1 - Math.pow(1 - ringProgress, 2);
+        const alpha = 1 - ringProgress;
+        const liftY = -ringEaseOut * 12;
         const cx = screenX + zoomTileSize / 2;
         const cy = screenY + zoomTileSize / 2 + liftY;
-        const r = 4 + easeOut * 10;
+        const r = 4 + ringEaseOut * 10;
 
-        this.zoomCtx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
-        this.zoomCtx.lineWidth = 2;
-        this.zoomCtx.shadowColor = '#69f0ae';
-        this.zoomCtx.shadowBlur = 6;
-        this.zoomCtx.beginPath();
-        this.zoomCtx.arc(cx, cy, r, 0, Math.PI * 2);
-        this.zoomCtx.stroke();
+        if (ringProgress < 1.0) {
+          this.zoomCtx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+          this.zoomCtx.lineWidth = 2;
+          this.zoomCtx.shadowColor = '#69f0ae';
+          this.zoomCtx.shadowBlur = 6;
+          this.zoomCtx.beginPath();
+          this.zoomCtx.arc(cx, cy, r, 0, Math.PI * 2);
+          this.zoomCtx.stroke();
+        }
+
+        // 🔢 回復数値ポップアップ（緑色）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (zoomTileSize * 0.75);
+          const textX = screenX + zoomTileSize / 2;
+          const textY = screenY + (zoomTileSize * 0.25) + floatY;
+
+          this.zoomCtx.save();
+          this.zoomCtx.textAlign = 'center';
+          this.zoomCtx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(zoomTileSize * 0.45));
+          this.zoomCtx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `+${fx.amount}`;
+          this.zoomCtx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          this.zoomCtx.lineWidth = 3;
+          this.zoomCtx.strokeText(text, textX, textY);
+
+          this.zoomCtx.fillStyle = `rgba(0, 230, 118, ${textAlpha})`;
+          this.zoomCtx.fillText(text, textX, textY);
+          this.zoomCtx.restore();
+        }
       } else if (fx.type === 'DEATH_BURST') {
         // 🪦 死亡エフェクト (拡大する赤黒の衝撃波 & 赤いクロス)
         const alpha = Math.max(0, 1 - progress);

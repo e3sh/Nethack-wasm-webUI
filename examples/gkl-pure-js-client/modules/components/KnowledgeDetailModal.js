@@ -417,9 +417,9 @@ export class KnowledgeDetailModal {
 
     let dispositionBadge = '';
     let dispositionNote = '';
-    if (data.dispositionStatus === 'PEACEFUL') {
+    if (data.dispositionStatus === 'PEACEFUL' || (data.isPeaceful && !data.isHostile && data.dispositionStatus !== 'DEFAULT_PEACEFUL')) {
       dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">${isEn ? '☮️ Peaceful (SAFE)' : '☮️ 平和的 (SAFE)'}</span>`;
-    } else if (data.dispositionStatus === 'DEFAULT_PEACEFUL') {
+    } else if (data.dispositionStatus === 'DEFAULT_PEACEFUL' || (data.defaultPeaceful && !data.isHostile)) {
       dispositionBadge = `<span class="kn-status-badge kn-status-peaceful">${isEn ? '☮️ Normally Peaceful' : '☮️ 通常平和 (SAFE)'}</span>`;
       dispositionNote = `<div class="kn-note-box">${isEn ? '※ Normally peaceful; becomes hostile if attacked or stolen from.' : '※ 通常は平和的ですが、攻撃や泥棒を行うと敵対化します。'}</div>`;
     } else if (data.dispositionStatus === 'TAMED' || data.isTame || data.type === 'PET') {

@@ -715,7 +715,7 @@ class GklPureJSClient {
           followPlayer: true,
           amount: fx.amount,
           startTime: now,
-          durationMs: 160,
+          durationMs: 500,
           color: '#ff1744'
         });
         dispatchShake(3, 100);
@@ -736,7 +736,7 @@ class GklPureJSClient {
           followPlayer: true,
           amount: fx.amount,
           startTime: now,
-          durationMs: 250,
+          durationMs: 500,
           color: '#00e676'
         });
       } else if (fx.type === 'PLAYER_DIED') {

@@ -538,23 +538,35 @@ export class StructuredKnowledgeEngine {
         if (isPlayer) {
             dynamicResult.dangerLevel = 'NONE';
             dynamicResult.dispositionStatus = 'PLAYER';
+            dynamicResult.isPlayer = true;
+            dynamicResult.isHostile = false;
         } else if (isPet) {
             dynamicResult.dangerLevel = 'SAFE';
             dynamicResult.dispositionStatus = 'TAMED';
+            dynamicResult.isTame = true;
+            dynamicResult.isHostile = false;
         } else if (dynamicState && dynamicState.hasResult !== false && (dynamicState.isPeaceful || dynamicState.isTamed || dynamicState.isHostile)) {
             if (dynamicState.isPeaceful) {
                 dynamicResult.dangerLevel = 'SAFE';
                 dynamicResult.dispositionStatus = 'PEACEFUL';
+                dynamicResult.isPeaceful = true;
+                dynamicResult.isHostile = false;
             } else if (dynamicState.isTamed) {
                 dynamicResult.dangerLevel = 'SAFE';
                 dynamicResult.dispositionStatus = 'TAMED';
+                dynamicResult.isTame = true;
+                dynamicResult.isHostile = false;
             } else if (dynamicState.isHostile) {
                 dynamicResult.dangerLevel = found.hostileDangerLevel || found.dangerLevel || 'LETHAL';
                 dynamicResult.dispositionStatus = 'HOSTILE';
+                dynamicResult.isHostile = true;
+                dynamicResult.isPeaceful = false;
             }
         } else if (found.defaultPeaceful || isShopkeeper) {
             dynamicResult.dangerLevel = 'SAFE';
             dynamicResult.dispositionStatus = 'DEFAULT_PEACEFUL';
+            dynamicResult.isPeaceful = true;
+            dynamicResult.isHostile = false;
         }
 
         if (dynamicState && dynamicState.stats) {

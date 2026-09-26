@@ -526,13 +526,39 @@ export class MainViewportRenderer {
           this.ctx.stroke();
         }
       } else if (fx.type === 'DAMAGE_FLASH') {
-        // 💥 被弾赤フラッシュ
-        const alpha = (1 - progress) * 0.6;
-        this.ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
-        this.ctx.fillRect(screenX, screenY, ts, ts);
-        this.ctx.strokeStyle = `rgba(255, 23, 68, ${1 - progress})`;
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(screenX, screenY, ts, ts);
+        // 💥 被弾赤フラッシュ（最初の160msで素早く点滅）
+        const flashProgress = Math.min(1.0, elapsed / 160);
+        if (flashProgress < 1.0) {
+          const alpha = (1 - flashProgress) * 0.6;
+          this.ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
+          this.ctx.fillRect(screenX, screenY, ts, ts);
+          this.ctx.strokeStyle = `rgba(255, 23, 68, ${1 - flashProgress})`;
+          this.ctx.lineWidth = 2;
+          this.ctx.strokeRect(screenX, screenY, ts, ts);
+        }
+
+        // 🔢 ダメージ数値ポップアップ（上方向へ浮遊しながらフェードアウト）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (ts * 0.75);
+          const textX = screenX + ts / 2;
+          const textY = screenY + (ts * 0.25) + floatY;
+
+          this.ctx.save();
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(ts * 0.45));
+          this.ctx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `-${fx.amount}`;
+          this.ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          this.ctx.lineWidth = 3;
+          this.ctx.strokeText(text, textX, textY);
+
+          this.ctx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
+          this.ctx.fillText(text, textX, textY);
+          this.ctx.restore();
+        }
       } else if (fx.type === 'KILL_BURST') {
         // 💀 撃破消滅バースト
         const alpha = 1 - progress;
@@ -561,19 +587,46 @@ export class MainViewportRenderer {
         this.ctx.fillRect(cx + d, cy + d, pSize, pSize);
       } else if (fx.type === 'HEAL_RING') {
         // 💚 回復リング
-        const alpha = 1 - progress;
-        const liftY = -easeOut * 12;
+        const ringProgress = Math.min(1.0, elapsed / 250);
+        const ringEaseOut = 1 - Math.pow(1 - ringProgress, 2);
+        const alpha = 1 - ringProgress;
+        const liftY = -ringEaseOut * 12;
         const cx = screenX + ts / 2;
         const cy = screenY + ts / 2 + liftY;
-        const r = 4 + easeOut * 10;
+        const r = 4 + ringEaseOut * 10;
 
-        this.ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
-        this.ctx.lineWidth = 2;
-        this.ctx.shadowColor = '#69f0ae';
-        this.ctx.shadowBlur = 6;
-        this.ctx.beginPath();
-        this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        this.ctx.stroke();
+        if (ringProgress < 1.0) {
+          this.ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+          this.ctx.lineWidth = 2;
+          this.ctx.shadowColor = '#69f0ae';
+          this.ctx.shadowBlur = 6;
+          this.ctx.beginPath();
+          this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          this.ctx.stroke();
+        }
+
+        // 🔢 回復数値ポップアップ（緑色）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (ts * 0.75);
+          const textX = screenX + ts / 2;
+          const textY = screenY + (ts * 0.25) + floatY;
+
+          this.ctx.save();
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(ts * 0.45));
+          this.ctx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `+${fx.amount}`;
+          this.ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          this.ctx.lineWidth = 3;
+          this.ctx.strokeText(text, textX, textY);
+
+          this.ctx.fillStyle = `rgba(0, 230, 118, ${textAlpha})`;
+          this.ctx.fillText(text, textX, textY);
+          this.ctx.restore();
+        }
       } else if (fx.type === 'DEATH_BURST') {
         // 🪦 死亡エフェクト
         const alpha = Math.max(0, 1 - progress);

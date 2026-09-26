@@ -1126,17 +1126,21 @@ export class WebGPUHD2DRenderer {
           const itemProj = this.worldToScreen(x, 0.12, y);
           if (itemProj && itemProj.screenX >= -20 && itemProj.screenX <= canvasW + 20 &&
               itemProj.screenY >= -20 && itemProj.screenY <= canvasH + 20) {
+            const badgeSize = Math.max(10, Math.min(18, Math.round(ts * 0.28)));
+            const halfSize = Math.round(badgeSize / 2);
+            const fontSize = Math.max(9, Math.min(13, Math.round(badgeSize * 0.8)));
+
             const bx = Math.round(itemProj.screenX + ts * 0.22);
             const by = Math.round(itemProj.screenY + ts * 0.22);
             ctx.save();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(bx - 5, by - 5, 10, 10);
+            ctx.fillRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
             ctx.strokeStyle = '#ffd700';
             ctx.lineWidth = 1;
-            ctx.strokeRect(bx - 5, by - 5, 10, 10);
+            ctx.strokeRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
             if (typeof ctx.fillText === 'function') {
               ctx.fillStyle = '#ffeb3b';
-              ctx.font = 'bold 9px sans-serif';
+              ctx.font = `bold ${fontSize}px sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText('+', bx, by);
@@ -1158,17 +1162,21 @@ export class WebGPUHD2DRenderer {
           const headProj = this.worldToScreen(x, 0.88, y);
           if (headProj && headProj.screenX >= -30 && headProj.screenX <= canvasW + 30 &&
               headProj.screenY >= -30 && headProj.screenY <= canvasH + 30) {
+            const badgeSize = Math.max(10, Math.min(18, Math.round(ts * 0.28)));
+            const halfSize = Math.round(badgeSize / 2);
+            const fontSize = Math.max(9, Math.min(13, Math.round(badgeSize * 0.8)));
+
             const bx = Math.round(headProj.screenX + ts * 0.22);
             const by = Math.round(headProj.screenY - ts * 0.22);
             ctx.save();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(bx - 5, by - 5, 10, 10);
+            ctx.fillRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
             ctx.strokeStyle = isRidden ? '#00b0ff' : '#00e676';
             ctx.lineWidth = 1;
-            ctx.strokeRect(bx - 5, by - 5, 10, 10);
+            ctx.strokeRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
             if (typeof ctx.fillText === 'function') {
               ctx.fillStyle = isRidden ? '#00b0ff' : '#00e676';
-              ctx.font = 'bold 9px sans-serif';
+              ctx.font = `bold ${fontSize}px sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(isRidden ? 'R' : '♥', bx, by);
@@ -1250,16 +1258,21 @@ export class WebGPUHD2DRenderer {
     const ctx = this.fxCtx;
     ctx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
 
-    const ts = 32;
+    // 3D 空間でのプレイヤー位置における 1 タイルの見かけのスクリーンピクセルサイズを動的算出
+    const pP0 = this.worldToScreen(this.playerX - 0.5, 0.45, this.playerY);
+    const pP1 = this.worldToScreen(this.playerX + 0.5, 0.45, this.playerY);
+    const baseTs = (pP0 && pP1)
+      ? Math.max(16, Math.round(Math.abs(pP1.screenX - pP0.screenX)))
+      : Math.max(16, Math.round(32 * (this.currentZoom || 1.0)));
 
     // 0. 環境浮遊パーティクル (加算合成 lighter)
     this._renderAmbientParticles(ctx, now);
 
     // 1. 自キャラ枠 ＆ ターゲットカーソル枠の描画
-    this._renderCursorFrames(ctx, ts, now);
+    this._renderCursorFrames(ctx, baseTs, now);
 
     // 2. Pet / Ridden / piletop アイテムの視覚的強調描画 (3D 空間追従オーバーレイ)
-    this._renderEntityHighlights(ctx, ts, now);
+    this._renderEntityHighlights(ctx, baseTs, now);
 
     // 3. Visual FX の描画
     if (!this.activeFxList || this.activeFxList.length === 0) return;
@@ -1285,6 +1298,13 @@ export class WebGPUHD2DRenderer {
       // 3D 空間からスクリーンピクセル座標へ変換 (高さ Y = 0.45)
       const projected = this.worldToScreen(targetGx, 0.45, targetGy);
       if (!projected) return true;
+
+      // 対象タイルの見かけのスクリーンピクセルサイズを算出 (カメラズーム・パースペクティブ完全追従)
+      const pLeft = this.worldToScreen(targetGx - 0.5, 0.45, targetGy);
+      const pRight = this.worldToScreen(targetGx + 0.5, 0.45, targetGy);
+      const ts = (pLeft && pRight)
+        ? Math.max(16, Math.round(Math.abs(pRight.screenX - pLeft.screenX)))
+        : baseTs;
 
       const screenX = Math.round(projected.screenX - ts / 2);
       const screenY = Math.round(projected.screenY - ts / 2);
@@ -1320,13 +1340,39 @@ export class WebGPUHD2DRenderer {
           ctx.stroke();
         }
       } else if (fx.type === 'DAMAGE_FLASH') {
-        // 💥 被弾赤フラッシュ
-        const alpha = (1 - progress) * 0.6;
-        ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
-        ctx.fillRect(screenX, screenY, ts, ts);
-        ctx.strokeStyle = `rgba(255, 23, 68, ${1 - progress})`;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(screenX, screenY, ts, ts);
+        // 💥 被弾赤フラッシュ（最初の160msで素早く点滅）
+        const flashProgress = Math.min(1.0, elapsed / 160);
+        if (flashProgress < 1.0) {
+          const alpha = (1 - flashProgress) * 0.6;
+          ctx.fillStyle = `rgba(244, 67, 54, ${alpha})`;
+          ctx.fillRect(screenX, screenY, ts, ts);
+          ctx.strokeStyle = `rgba(255, 23, 68, ${1 - flashProgress})`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(screenX, screenY, ts, ts);
+        }
+
+        // 🔢 ダメージ数値ポップアップ（上方向へ浮遊しながらフェードアウト）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (ts * 0.75);
+          const textX = screenX + ts / 2;
+          const textY = screenY + (ts * 0.25) + floatY;
+
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(ts * 0.45));
+          ctx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `-${fx.amount}`;
+          ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          ctx.lineWidth = 3;
+          ctx.strokeText(text, textX, textY);
+
+          ctx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
+          ctx.fillText(text, textX, textY);
+          ctx.restore();
+        }
       } else if (fx.type === 'KILL_BURST') {
         // 💀 撃破消滅バースト
         const alpha = 1 - progress;
@@ -1355,19 +1401,46 @@ export class WebGPUHD2DRenderer {
         ctx.fillRect(cx + d, cy + d, pSize, pSize);
       } else if (fx.type === 'HEAL_RING') {
         // 💚 回復リング
-        const alpha = 1 - progress;
-        const liftY = -easeOut * 12;
+        const ringProgress = Math.min(1.0, elapsed / 250);
+        const ringEaseOut = 1 - Math.pow(1 - ringProgress, 2);
+        const alpha = 1 - ringProgress;
+        const liftY = -ringEaseOut * 12;
         const cx = screenX + ts / 2;
         const cy = screenY + ts / 2 + liftY;
-        const r = 4 + easeOut * 10;
+        const r = 4 + ringEaseOut * 10;
 
-        ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#69f0ae';
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
+        if (ringProgress < 1.0) {
+          ctx.strokeStyle = `rgba(0, 230, 118, ${alpha})`;
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#69f0ae';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // 🔢 回復数値ポップアップ（緑色）
+        if (fx.amount !== undefined && fx.amount > 0) {
+          const textAlpha = Math.max(0, 1 - progress);
+          const floatY = -easeOut * (ts * 0.75);
+          const textX = screenX + ts / 2;
+          const textY = screenY + (ts * 0.25) + floatY;
+
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const fontSize = Math.max(12, Math.round(ts * 0.45));
+          ctx.font = `bold ${fontSize}px monospace, sans-serif`;
+
+          const text = `+${fx.amount}`;
+          ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
+          ctx.lineWidth = 3;
+          ctx.strokeText(text, textX, textY);
+
+          ctx.fillStyle = `rgba(0, 230, 118, ${textAlpha})`;
+          ctx.fillText(text, textX, textY);
+          ctx.restore();
+        }
       } else if (fx.type === 'DEATH_BURST') {
         // 🪦 死亡エフェクト
         const alpha = Math.max(0, 1 - progress);

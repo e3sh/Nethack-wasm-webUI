@@ -166,6 +166,7 @@
         { en: "Move cursor to object:", jp: "カーソルを対象に移動してください：" },
         { en: "Hmmm, the large box turns out to be locked.", jp: "ふーむ、大きな箱には鍵がかかっているようだ。" },
         { en: "You hear the splashing of a naiad.", jp: "ナイアデスが水しぶきを上げる音が聞こえる。" },
+        { en: "You dream that you hear the splashing of a naiad.", jp: "ナイアデスが水しぶきを上げる音が聞こえる夢を見る。" },
         { en: "You get zapped!", jp: "あなたは攻撃された！" },
         { en: "You hear a monster behind the boulder.", jp: "岩の向こう側にモンスターの気配がする。" },
         { en: "Perhaps that's why you cannot move it.", jp: "おそらくそれが、岩を動かせない理由だろう。" },
@@ -11691,6 +11692,8 @@
         { en: "You can't use two weapons while wearing a shield.", jp: "盾を装備している間は、二刀流は使えない。" },
         { en: "contribution for the temple", jp: "寺院への寄付" },
         { en: "\"I thank you for your contribution.\"", jp: "「ご寄進に感謝いたします。」" },
+        { en: "branch staircase up", jp: "分岐階段上り" },
+        { en: "branch staircase down", jp: "分岐階段下り" },
     ];
 }
 
@@ -13424,6 +13427,7 @@ function nhEntities() {
         "Lance Braccus": "ランス・ブラッカス",
         "Shadowhawk": "シャドウホーク",
         "tough": "固い",
+        "palm trees": "ヤシの木",
     };
 }
 
@@ -17254,6 +17258,9 @@ function nhPatterns() {
         { pattern: /^(.*)'s\s+ghost$/, replace: "$1の幽霊" },
         { pattern: /^(.*)\s+purrs\.$/, replace: "$1がゴロゴロと喉を鳴らす。" },
         { pattern: /^There\s+is\s+(.*)\s+here.\s+Check\s+it\s+for\s+traps\?$/, replace: "ここに$1があります。罠がないか調べてみますか？" },
+        { pattern: /^(.*)\s+howls\.$/, replace: "$1が遠吠えする。" },
+        { pattern: /^(.*)\s+yips\.$/, replace: "$1がキャンと鳴く。" },
+        { pattern: /^The\s+zap\s+doesn't\s+shock\s+the\s+(.*)!$/, replace: "その電撃では$1は驚かない！" },
     ];
 }
 

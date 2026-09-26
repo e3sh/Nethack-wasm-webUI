@@ -1848,10 +1848,15 @@ export class GKLPlugin {
 
         // 🐉 モンスターが存在する場合: オンデマンド Look (;) を非同期実行して動的状態を確定獲得！
         let dynamicState = cell.top.dynamicState || null;
-        // ホバー中 (isHover: true) は不要な Look 送信を行わず既存の確定キャッシュのみを適用
-        if (!dynamicState && !options.isHover && this.lookService) {
-            dynamicState = await this.lookService.executeLook({ x: playerX, y: playerY }, targetPos);
-            cell.top.dynamicState = dynamicState;
+        // クリック時 (!options.isHover) は常に最新の動的ステータスを実機照会し、未確定時も再照会
+        if ((!dynamicState || !dynamicState.hasResult || !options.isHover) && this.lookService) {
+            const freshState = await this.lookService.executeLook({ x: playerX, y: playerY }, targetPos);
+            if (freshState && freshState.hasResult) {
+                dynamicState = freshState;
+                cell.top.dynamicState = dynamicState;
+            } else if (!dynamicState) {
+                dynamicState = freshState;
+            }
         }
 
         const identifier = (typeof cell.top.glyph === 'number') ? cell.top.glyph : (cell.top.monOffset ?? cell.top);

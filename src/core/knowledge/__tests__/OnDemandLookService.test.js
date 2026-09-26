@@ -11,7 +11,7 @@ describe('OnDemandLookService', () => {
             const targetPos = { x: 12, y: 7 };
             const tokens = service.buildLookSequence(playerPos, targetPos);
 
-            expect(tokens).toEqual([';', 'DIR_SE', 'DIR_SE', '\u001b']);
+            expect(tokens).toEqual([';', 'DIR_SE', 'DIR_SE', '.', '\u001b']);
         });
 
         it('上 3マス 左 1マス への Look シーケンスを正確に生成できること', () => {
@@ -19,8 +19,8 @@ describe('OnDemandLookService', () => {
             const targetPos = { x: 14, y: 7 };
             const tokens = service.buildLookSequence(playerPos, targetPos);
 
-            // (15,10) -> (14,9)[DIR_NW] -> (14,8)[DIR_N] -> (14,7)[DIR_N]
-            expect(tokens).toEqual([';', 'DIR_NW', 'DIR_N', 'DIR_N', '\u001b']);
+            // (15,10) -> (14,9)[DIR_NW] -> (14,8)[DIR_N] -> (14,7)[DIR_N] -> '.' -> ESC
+            expect(tokens).toEqual([';', 'DIR_NW', 'DIR_N', 'DIR_N', '.', '\u001b']);
         });
 
         it('隣接 (上 1マス) への Look シーケンスを生成できること', () => {
@@ -28,7 +28,7 @@ describe('OnDemandLookService', () => {
             const targetPos = { x: 10, y: 4 };
             const tokens = service.buildLookSequence(playerPos, targetPos);
 
-            expect(tokens).toEqual([';', 'DIR_N', '\u001b']);
+            expect(tokens).toEqual([';', 'DIR_N', '.', '\u001b']);
         });
 
         it('自キャラマスの場合は DIR_SELF を指定して ESC で終了すること', () => {
@@ -85,6 +85,16 @@ describe('OnDemandLookService', () => {
             expect(res.isHostile).toBe(false);
             expect(res.isPeaceful).toBe(false);
         });
+
+        it('プロンプトや地形のみの場合は hasResult: false かつ isHostile: false となること', () => {
+            const res1 = service.parseLookResponse('Pick a location.');
+            expect(res1.hasResult).toBe(false);
+            expect(res1.isHostile).toBe(false);
+
+            const res2 = service.parseLookResponse(['Pick a location.', 'floor of a room']);
+            expect(res2.hasResult).toBe(false);
+            expect(res2.isHostile).toBe(false);
+        });
     });
 
     describe('executeLook', () => {
@@ -95,7 +105,7 @@ describe('OnDemandLookService', () => {
             const mockService = new OnDemandLookService({ driver: mockDriver });
             const result = await mockService.executeLook({ x: 10, y: 5 }, { x: 12, y: 7 });
 
-            expect(mockDriver.queueSequence).toHaveBeenCalledWith([';', 'DIR_SE', 'DIR_SE', '\u001b'], { isSilentSync: true, suppressPrompts: true });
+            expect(mockDriver.queueSequence).toHaveBeenCalledWith([';', 'DIR_SE', 'DIR_SE', '.', '\u001b'], { isSilentSync: true, suppressPrompts: true });
             expect(result.isPeaceful).toBe(true);
         });
     });

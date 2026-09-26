@@ -315,6 +315,46 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     expect(html).toContain('石化');
     expect(html).toContain('石化即死危険');
   });
+
+  it('11. 平和的モンスター (PEACEFUL) の場合に☮️ 平和的 (SAFE) バッジが表示されること', () => {
+    const peacefulMonster = {
+      name: '平和な店主',
+      category: 'MONSTER',
+      dangerLevel: 'SAFE',
+      dispositionStatus: 'PEACEFUL',
+      isPeaceful: true,
+      stats: { hd: 12, ac: 0, speed: 18 }
+    };
+
+    modal.setLanguage('ja');
+    modal.open(peacefulMonster);
+    expect(elModal.innerHTML).toContain('kn-status-peaceful');
+    expect(elModal.innerHTML).toContain('☮️ 平和的 (SAFE)');
+
+    modal.setLanguage('en');
+    expect(elModal.innerHTML).toContain('☮️ Peaceful (SAFE)');
+  });
+
+  it('12. 通常平和モンスター (DEFAULT_PEACEFUL) の場合に☮️ 通常平和 バッジと注釈が表示されること', () => {
+    const defaultPeaceful = {
+      name: '番兵',
+      category: 'MONSTER',
+      dangerLevel: 'SAFE',
+      dispositionStatus: 'DEFAULT_PEACEFUL',
+      defaultPeaceful: true,
+      stats: { hd: 6, ac: 5, speed: 12 }
+    };
+
+    modal.setLanguage('ja');
+    modal.open(defaultPeaceful);
+    expect(elModal.innerHTML).toContain('kn-status-peaceful');
+    expect(elModal.innerHTML).toContain('☮️ 通常平和 (SAFE)');
+    expect(elModal.innerHTML).toContain('通常は平和的ですが、攻撃や泥棒を行うと敵対化します');
+
+    modal.setLanguage('en');
+    expect(elModal.innerHTML).toContain('☮️ Normally Peaceful');
+    expect(elModal.innerHTML).toContain('Normally peaceful; becomes hostile if attacked or stolen from');
+  });
 });
 
 
