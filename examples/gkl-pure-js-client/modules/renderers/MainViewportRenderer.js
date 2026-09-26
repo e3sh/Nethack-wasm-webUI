@@ -228,6 +228,13 @@ export class MainViewportRenderer {
     this.screenShakeIntensity = intensity;
   }
 
+  resize(width, height) {
+    if (!this.canvas || width <= 0 || height <= 0) return;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.render();
+  }
+
   addVisualFx(fx) {
     this.activeFxList.push(fx);
   }

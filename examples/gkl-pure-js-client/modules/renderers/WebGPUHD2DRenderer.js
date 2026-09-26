@@ -452,14 +452,16 @@ export class WebGPUHD2DRenderer {
 
     // カメラ位置・モード (diorama: 斜め見下ろし / topdown: 真上俯瞰)
     this.cameraMode = 'diorama'; // 'diorama' | 'topdown'
+    this.userZoom = 1.0;         // プレイヤー指定ズーム倍率 (0.45〜2.5x)
+    this.currentZoom = 1.0;      // Lerp スムーズ補間現在値
     this.currentCamX = null;
     this.currentCamZ = null;
-    this.currentCamDistZ = 4.2;
-    this.currentCamHeight = 11.5;
+    this.currentCamDistZ = 5.8;
+    this.currentCamHeight = 16.5;
     this.currentTopDownFactor = 0.0;
     this.currentUpY = 1.0;
     this.currentUpZ = 0.0;
-    this.camEye = [40.0, 11.5, 12.0 + 4.2];
+    this.camEye = [40.0, 16.5, 12.0 + 5.8];
     this.camCenter = [40.0, 0.0, 12.0];
     this.playerX = 40.0;
     this.playerY = 12.0;
@@ -736,13 +738,20 @@ export class WebGPUHD2DRenderer {
 
   _createDebugHud() {
     if (this.debugHudElement) return;
-    const parent = this.canvas.parentElement;
-    if (!parent) return;
+    const existing = typeof document !== 'undefined' ? document.getElementById('webgpu-debug-hud') : null;
+    if (existing) {
+      this.debugHudElement = existing;
+      if (this.isActive) this.debugHudElement.style.display = 'block';
+      return;
+    }
+    const container = (typeof document !== 'undefined' ? (document.querySelector('.app-container') || document.body) : null) || this.canvas.parentElement;
+    if (!container) return;
 
     this.debugHudElement = document.createElement('div');
     this.debugHudElement.id = 'webgpu-debug-hud';
-    this.debugHudElement.style.display = 'none';
-    parent.appendChild(this.debugHudElement);
+    this.debugHudElement.style.display = this.isActive ? 'block' : 'none';
+    this.debugHudElement.innerHTML = `<div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>-- FPS</b> &nbsp;|&nbsp; <span>🏛️ Diorama</span> &nbsp;|&nbsp; <span style="color:#6ee7b7">🔍 1.00x</span></div>`;
+    container.appendChild(this.debugHudElement);
   }
 
   _updateDebugHud(timeInSeconds) {
@@ -771,7 +780,7 @@ export class WebGPUHD2DRenderer {
     const idleBadge = this.isIdle ? ' <span style="color:#88ddff">[Idle 省電力]</span>' : '';
 
     this.debugHudElement.innerHTML = `
-      <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b> &nbsp;|&nbsp; <span>${modeBadge}${idleBadge}</span></div>
+      <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b> &nbsp;|&nbsp; <span>${modeBadge}${idleBadge}</span> &nbsp;|&nbsp; <span style="color:#6ee7b7">🔍 ${(this.currentZoom).toFixed(2)}x</span></div>
       <div class="hud-details">
         <div>${texBadge} &nbsp;|&nbsp; Instances: <b>${total}</b> (<span class="badge-layer" style="color:#60c075">Floor: ${floor}</span> <span class="badge-layer" style="color:#e0b070">Wall: ${wall}</span> <span class="badge-layer" style="color:#40e0ff">Item: ${item}</span> <span class="badge-layer" style="color:#ffdc40">Char: ${char}</span> <span class="badge-layer" style="color:#ff80df">Fx: ${effect}</span>)</div>
         <div>Player: (${this.playerX.toFixed(0)}, ${this.playerY.toFixed(0)}) &nbsp;|&nbsp; Cam: (${camX}, ${camZ}) &nbsp;|&nbsp; Tilt: ${(this.currentTopDownFactor * 100).toFixed(0)}% &nbsp;|&nbsp; <span style="color:#ffe57f">💡 Light: r=${this.currentLightRadius.toFixed(1)}</span></div>
@@ -808,6 +817,44 @@ export class WebGPUHD2DRenderer {
         }
       }
     });
+
+    // 🔍 マウスホイールによるカメラズーム調整 (ホイール上: 拡大, ホイール下: 縮小)
+    this.canvas.addEventListener('wheel', (e) => {
+      if (!this.isActive) return;
+      e.preventDefault();
+      const zoomStep = 0.12;
+      if (e.deltaY < 0) {
+        this.userZoom = Math.min(2.5, this.userZoom + zoomStep);
+      } else {
+        this.userZoom = Math.max(0.45, this.userZoom - zoomStep);
+      }
+      this.wakeUp();
+    }, { passive: false });
+
+    // 🎯 ダブルクリックで標準ズーム (1.0x) にリセット
+    this.canvas.addEventListener('dblclick', (e) => {
+      if (!this.isActive) return;
+      e.preventDefault();
+      this.userZoom = 1.0;
+      this.wakeUp();
+    });
+  }
+
+  /**
+   * ズーム倍率を直接設定
+   * @param {number} zoom
+   */
+  setZoom(zoom) {
+    this.userZoom = Math.max(0.45, Math.min(2.5, Number(zoom) || 1.0));
+    this.wakeUp();
+  }
+
+  /**
+   * ズームを標準倍率 (1.0x) にリセット
+   */
+  resetZoom() {
+    this.userZoom = 1.0;
+    this.wakeUp();
   }
 
   /**
@@ -927,6 +974,30 @@ export class WebGPUHD2DRenderer {
     this.screenShakeDuration = durationMs;
     this.screenShakeIntensity = intensity;
     this.wakeUp();
+  }
+
+  resize(width, height) {
+    if (!this.canvas || width <= 0 || height <= 0) return;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    if (this.fxCanvas) {
+      this.fxCanvas.width = width;
+      this.fxCanvas.height = height;
+    }
+    if (this.device) {
+      if (this.depthTexture && typeof this.depthTexture.destroy === 'function') {
+        try {
+          this.depthTexture.destroy();
+        } catch {}
+      }
+      this.depthTexture = this.device.createTexture({
+        size: [width, height],
+        format: 'depth24plus',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+      this.markDirty();
+      this.wakeUp();
+    }
   }
 
   /**
@@ -1359,10 +1430,12 @@ export class WebGPUHD2DRenderer {
       // 2. カメラアングル (topDownFactor) 補間が収束している
       const targetFactor = this.cameraMode === 'topdown' ? 1.0 : 0.0;
       const isAngleSettled = Math.abs(this.currentTopDownFactor - targetFactor) < 0.005;
-      // 3. 直近 1.5 秒間にプレイヤー操作・ダンジョン変化がない
+      // 3. ズーム倍率補間が収束している
+      const isZoomSettled = Math.abs(this.currentZoom - this.userZoom) < 0.005;
+      // 4. 直近 1.5 秒間にプレイヤー操作・ダンジョン変化がない
       const timeSinceActivity = now - this.lastActivityTime;
 
-      if (this.isPowerSavingEnabled && isCamSettled && isAngleSettled && timeSinceActivity > 1500 && !hasActiveFx && !hasShake) {
+      if (this.isPowerSavingEnabled && isCamSettled && isAngleSettled && isZoomSettled && timeSinceActivity > 1500 && !hasActiveFx && !hasShake) {
         this.isIdle = true;
       } else {
         this.isIdle = false;
@@ -1437,10 +1510,18 @@ export class WebGPUHD2DRenderer {
       this.currentCamZ += (targetPy - this.currentCamZ) * 0.12;
     }
 
-    // 目標パラメータ (自キャラ周辺を大きく迫力あるサイズでクローズアップ)
+    // ズーム補間 (Lerp)
+    this.currentZoom += (this.userZoom - this.currentZoom) * 0.18;
+    const effectiveZoom = Math.max(0.35, this.currentZoom);
+    const zoomInv = 1.0 / effectiveZoom;
+
+    // 目標パラメータ (全画面解像度に応じた適正見通しスケール ＋ ズーム連動)
     const isTopDown = this.cameraMode === 'topdown';
-    const targetDistZ = isTopDown ? 0.001 : 4.2;
-    const targetHeight = isTopDown ? 11.0 : 11.5;
+    const baseDistZ = isTopDown ? 0.001 : 5.8;
+    const baseHeight = isTopDown ? 16.0 : 16.5;
+
+    const targetDistZ = baseDistZ * zoomInv;
+    const targetHeight = baseHeight * zoomInv;
     const targetFactor = isTopDown ? 1.0 : 0.0;
     const targetUpY = isTopDown ? 0.0 : 1.0;
     const targetUpZ = isTopDown ? -1.0 : 0.0;
@@ -1482,7 +1563,7 @@ export class WebGPUHD2DRenderer {
     const aspect = this.canvas.width / this.canvas.height;
     const projMatrix = Mat4.create();
     const fov = isTopDown ? 28.0 : 30.0;
-    Mat4.perspective(projMatrix, fov * (Math.PI / 180), aspect, 0.5, 120.0);
+    Mat4.perspective(projMatrix, fov * (Math.PI / 180), aspect, 0.5, 200.0);
 
     Mat4.multiply(this.viewProjMatrix, projMatrix, viewMatrix);
 

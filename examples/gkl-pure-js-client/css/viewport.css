@@ -2,51 +2,53 @@
    NetHack Wasm WebUI - GKL Pure JS Client: Viewport & Canvas Styles
    ============================================================================ */
 
-/* Game Viewport */
+/* Game Viewport (Phase D: 全画面 100vw × 100vh ダンジョンビュー) */
 .game-viewport {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #000;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  background-color: #05070e;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
-  min-height: 288px;
+  z-index: 1;
 }
 
 #game-canvas,
 #webgpu-canvas {
-  width: 720px;
-  height: 288px;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: cover;
   image-rendering: pixelated;
   cursor: crosshair;
 }
 
 #webgpu-fx-canvas {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 720px;
-  height: 288px;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: cover;
   pointer-events: none;
   z-index: 20;
 }
 
 #webgpu-debug-hud {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(12, 16, 28, 0.78);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(120, 210, 255, 0.35);
+  position: fixed;
+  top: 56px; /* ヘッダーバーの直下 */
+  left: 12px;
+  background: rgba(12, 16, 28, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(120, 210, 255, 0.4);
   border-radius: 16px;
   padding: 4px 12px;
   color: #cce6ff;
@@ -55,10 +57,15 @@
   line-height: 1.35;
   pointer-events: auto;
   cursor: default;
-  z-index: 50;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  z-index: 105;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   user-select: none;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 📜 過去ログドロワー左側固定時の左上退避シフト (ドロワー幅 400px + マージン 24px) */
+body:has(#message-history-drawer.docked-left:not(.hidden)) #webgpu-debug-hud {
+  left: 424px;
 }
 
 #webgpu-debug-hud .hud-details {
@@ -157,15 +164,16 @@
 /* 🗺️ フロア全体 ミニマップ HUD (通常: 右上固定 / 自キャラ接近時: 左上自動退避 / [Tab] で画面中央オーバーレイ展開) */
 .minimap-hud-box {
   position: absolute;
-  top: 12px;
+  top: 56px;
   right: 12px;
-  background: rgba(12, 16, 28, 0.85);
+  background: rgba(12, 16, 28, 0.88);
   border: 1px solid rgba(120, 210, 255, 0.35);
   border-radius: 6px;
   padding: 4px 6px 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  z-index: 40;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 95;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -180,10 +188,20 @@
   opacity: 1 !important;
 }
 
+/* 📱 右サイドパネル表示時の左側シフト (サイドパネル幅 340px + マージン 24px) */
+.minimap-hud-box.with-side-panel {
+  right: 364px;
+}
+
 /* 🏃‍♂️ プレイヤーが右端・右上に接近した際の自動退避 (左上ドッキング) */
 .minimap-hud-box.dock-left {
   right: auto;
   left: 12px;
+}
+
+/* 📜 過去ログドロワー左側固定時の左上退避シフト (ドロワー幅 400px + マージン 24px) */
+.minimap-hud-box.dock-left.with-pinned-drawer {
+  left: 424px;
 }
 
 /* 👻 プレイヤーやモンスターと近接・重なり時のゴースト半透明化 (死角ゼロ) */
@@ -224,11 +242,11 @@
 }
 
 .minimap-badge {
-  background: #090916;
-  border: 1px solid var(--border-color, #232936);
-  color: var(--accent-gold, #ffd740);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--accent-gold, #f59e0b);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-family: var(--font-mono, monospace);
   font-size: 10px;
 }
@@ -284,5 +302,5 @@
   gap: 4px;
 }
 .zoom-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; color: var(--primary-color); }
-.zoom-badge { background: #090916; border: 1px solid var(--border-color); color: var(--accent-gold); padding: 1px 4px; border-radius: 3px; }
+.zoom-badge { background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--accent-gold); padding: 1px 4px; border-radius: 4px; }
 #zoom-canvas { width: 672px; height: 288px; background: #000; display: block; }

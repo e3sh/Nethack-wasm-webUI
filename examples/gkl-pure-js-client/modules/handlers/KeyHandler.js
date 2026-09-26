@@ -4,16 +4,44 @@
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
 
 export class KeyHandler {
-  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal, getMinimapRenderer }) {
+  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal, getMinimapRenderer, getMessageHistoryDrawer, toggleSidePanel }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
     this.getMinimapRenderer = getMinimapRenderer || (() => null);
+    this.getMessageHistoryDrawer = getMessageHistoryDrawer || (() => null);
+    this.toggleSidePanel = toggleSidePanel || (() => null);
   }
 
   handleGlobalKeyDown(e) {
+    // 🎒 サイドパネル一時退避・再展開ショートカット (Alt+S または F2)
+    if ((e.altKey && (e.code === 'KeyS' || e.key === 's' || e.key === 'S')) || e.code === 'F2') {
+      e.preventDefault();
+      this.toggleSidePanel();
+      return;
+    }
+
+    // 📜 過去ログドロワー (Ctrl+P) の開閉ハンドリング
+    const historyDrawer = this.getMessageHistoryDrawer();
+    if (e.ctrlKey && (e.code === 'KeyP' || e.key === 'p' || e.key === 'P')) {
+      e.preventDefault();
+      if (historyDrawer) {
+        historyDrawer.toggle();
+      }
+      return;
+    }
+
+    if (historyDrawer && historyDrawer.isOpen() && !historyDrawer.isPinned) {
+      if (e.key === 'Escape' || e.code === 'Escape') {
+        e.preventDefault();
+        historyDrawer.close();
+        return;
+      }
+      // 過去ログドロワー一時展開中（モーダル表示）は通常のゲームキー入力をブロック
+      return;
+    }
     // 冒険手帳モーダルが開いている場合の処理
     const codexModal = this.getCodexModal();
     if (codexModal && codexModal.isOpen()) {

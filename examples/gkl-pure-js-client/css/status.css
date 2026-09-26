@@ -2,26 +2,37 @@
    NetHack Wasm WebUI - GKL Pure JS Client: Status & Attributes Styles
    ============================================================================ */
 
-/* Status Bar + HP/MP Gauge Boxes */
+/* Status Bar (Phase D: 画面下部中央フローティング透過 HUD) */
 .status-bar {
-  background: #1a1a2e;
-  border: 1px solid #16213e;
-  border-radius: 4px;
-  padding: 8px 12px;
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 14px;
   color: #e0e0e0;
   font-family: var(--font-mono);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  position: relative;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  gap: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+  z-index: 100;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   cursor: pointer;
 }
 
 .status-bar:hover {
-  border-color: #34495e;
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(15, 23, 42, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 12px rgba(56, 189, 248, 0.2);
 }
 
 .status-main {
@@ -33,17 +44,17 @@
   align-items: center;
 }
 
-.st-item.title { color: #4ecca3; }
-.st-item.dlvl { color: #f39c12; }
-.st-item.hp { color: #e74c3c; }
-.st-item.pw { color: #3498db; }
-.st-item.ac { color: #9b59b6; }
-.st-item.gold { color: #f1c40f; }
+.st-item.title { color: var(--primary-color, #38bdf8); }
+.st-item.dlvl { color: var(--accent-gold, #f59e0b); }
+.st-item.hp { color: #ef4444; }
+.st-item.pw { color: #38bdf8; }
+.st-item.ac { color: #c084fc; }
+.st-item.gold { color: #fbbf24; }
 
 .btn-status-toggle {
   background: transparent;
   border: none;
-  color: #7f8c8d;
+  color: #94a3b8;
   font-size: 12px;
   cursor: pointer;
   padding: 2px 6px;
@@ -52,13 +63,13 @@
 }
 
 .btn-status-toggle:hover {
-  color: #4ecca3;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .status-bar.is-expanded .btn-status-toggle {
   transform: rotate(180deg);
-  color: #4ecca3;
+  color: var(--primary-color);
 }
 
 .gauge-box {
@@ -70,9 +81,9 @@
 .gauge-bg {
   width: 70px;
   height: 8px;
-  background: #090916;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
   overflow: hidden;
 }
 
@@ -239,15 +250,15 @@
 }
 
 .gkl-attr-badge.active {
-  background: rgba(78, 204, 163, 0.2);
-  color: #4ecca3;
-  border: 1px solid #4ecca3;
-  box-shadow: 0 0 6px rgba(78, 204, 163, 0.3);
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.25);
 }
 
 .gkl-attr-badge.inactive {
   background: rgba(255, 255, 255, 0.04);
-  color: #475569;
+  color: #64748b;
   border: 1px solid rgba(255, 255, 255, 0.06);
   opacity: 0.6;
 }

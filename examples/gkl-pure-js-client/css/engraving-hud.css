@@ -3,21 +3,31 @@
  */
 
 .engraving-hud {
+  position: fixed;
+  bottom: 74px; /* ステータスバー直上 */
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(227, 179, 65, 0.5);
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(227, 179, 65, 0.6);
   border-radius: 8px;
-  padding: 8px 14px;
-  margin-top: 6px;
-  margin-bottom: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 10px rgba(227, 179, 65, 0.15);
+  padding: 8px 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 16px rgba(227, 179, 65, 0.25);
   animation: engraving-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  z-index: 20;
+  transition: bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, transform 0.3s ease;
+  z-index: 1020;
+  min-width: 360px;
+  max-width: min(760px, calc(100vw - 24px));
+}
+
+/* 🚨 緊急アシストシグナルバー出現時は被りを防ぐため直上へ自動シフト */
+body:has(#assist-signal-bar:not(.hidden)) .engraving-hud {
+  bottom: 128px;
 }
 
 .engraving-hud.hidden {
@@ -26,7 +36,7 @@
 
 .engraving-hud.fading-out {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translate(-50%, 6px);
 }
 
 /* 結界有効 (ACTIVE) */
@@ -213,10 +223,10 @@
 @keyframes engraving-slide-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translate(-50%, 8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 }

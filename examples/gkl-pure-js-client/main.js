@@ -24,6 +24,8 @@ import { FloatingContextActions } from './modules/components/FloatingContextActi
 
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
+import { FloatingMessageHud } from './modules/components/FloatingMessageHud.js';
+import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
@@ -52,6 +54,44 @@ class GklPureJSClient {
     this.settingsDropdown = document.getElementById('settings-menu-dropdown');
     this.elMessageLog = document.getElementById('message-log');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
+
+    // 💬 フローティング最新行 HUD (画面上部透過オーバーレイ: 最大5行)
+    this.floatingMessageHud = new FloatingMessageHud({
+      container: document.getElementById('floating-message-hud'),
+      maxLines: 5,
+      fadeTimeoutMs: 4500
+    });
+
+    // 📜 展開型過去ログドロワー (Ctrl+P / 履歴閲覧 / 左側ピン留め)
+    this.messageHistoryDrawer = new MessageHistoryDrawer({
+      drawerElement: document.getElementById('message-history-drawer'),
+      listElement: document.getElementById('message-drawer-list'),
+      backdropElement: document.getElementById('drawer-backdrop'),
+      btnClose: document.getElementById('btn-drawer-close'),
+      btnPin: document.getElementById('btn-drawer-pin'),
+      btnModeBilingual: document.getElementById('btn-drawer-mode-bilingual'),
+      btnModeJa: document.getElementById('btn-drawer-mode-ja'),
+      btnModeRaw: document.getElementById('btn-drawer-mode-raw'),
+      language: this.currentLanguage,
+      onPinStateChanged: (isPinned) => {
+        if (this.layoutConfig) {
+          this.layoutConfig.panelHistoryDock = isPinned;
+          this.saveLayoutConfig(this.layoutConfig);
+        }
+        const chkDock = document.getElementById('chk-panel-history-dock');
+        if (chkDock) chkDock.checked = isPinned;
+        const minimapBox = document.getElementById('minimap-hud-box');
+        if (minimapBox) minimapBox.classList.toggle('with-pinned-drawer', isPinned);
+      },
+      getCore: () => this.core
+    });
+
+    const btnOpenHistory = document.getElementById('btn-open-history');
+    if (btnOpenHistory) {
+      btnOpenHistory.onclick = () => {
+        this.messageHistoryDrawer.toggle();
+      };
+    }
 
     this.currentViewMode = 'graphic'; // 'graphic' | 'ascii' | 'hd2d'
 
@@ -290,6 +330,8 @@ class GklPureJSClient {
       getPaperdollModal: () => this.paperdollModal,
       getCodexModal: () => this.codexModal,
       getMinimapRenderer: () => this.minimapRenderer,
+      getMessageHistoryDrawer: () => this.messageHistoryDrawer,
+      toggleSidePanel: (forceState) => this.toggleSidePanel(forceState)
     });
 
     // 10. Startup Step Progression State
@@ -435,10 +477,33 @@ class GklPureJSClient {
       }
     });
 
-    // 2. Message Log
+    // 2. Message Log & Floating HUD
     this.core.on('message', (msg) => {
       if (this.isGameExited) return;
       this.addMessageLog(msg);
+    });
+
+    this.core.on('bubbleMessage', (bubble) => {
+      if (this.isGameExited || !bubble) return;
+      this.floatingMessageHud.pushMessage(bubble);
+      if (this.messageHistoryDrawer.isOpen()) {
+        this.messageHistoryDrawer.renderList();
+      }
+    });
+
+    this.core.on('messageItem', (item) => {
+      if (this.isGameExited || !item) return;
+      if (this.messageHistoryDrawer.isOpen()) {
+        this.messageHistoryDrawer.renderList();
+      }
+    });
+
+    this.core.on('messageUpdate', (item) => {
+      if (this.isGameExited || !item) return;
+      this.floatingMessageHud.updateMessage(item);
+      if (this.messageHistoryDrawer.isOpen()) {
+        this.messageHistoryDrawer.renderList();
+      }
     });
 
     // 3. Status Update
@@ -863,6 +928,20 @@ class GklPureJSClient {
       };
     }
 
+    const btnToggleDebugHud = document.getElementById('btn-toggle-debug-hud');
+    if (btnToggleDebugHud) {
+      btnToggleDebugHud.onclick = () => {
+        if (!this.webgpuRenderer) return;
+        const hud = this.webgpuRenderer.debugHudElement || document.getElementById('webgpu-debug-hud');
+        if (!hud) return;
+        const isCurrentlyVisible = hud.style.display !== 'none';
+        hud.style.display = isCurrentlyVisible ? 'none' : 'block';
+        const isEn = this.currentLanguage === 'en';
+        const prefix = isEn ? '📊 HD-2D Debug HUD: ' : '📊 HD-2D デバッグHUD: ';
+        btnToggleDebugHud.textContent = prefix + (!isCurrentlyVisible ? 'ON' : 'OFF');
+      };
+    }
+
     if (this.btnSettingsToggle && this.settingsDropdown) {
       this.btnSettingsToggle.onclick = (e) => {
         e.stopPropagation();
@@ -917,6 +996,7 @@ class GklPureJSClient {
     bindLayoutCheckbox('chk-panel-inventory', 'panelInventory');
     bindLayoutCheckbox('chk-panel-actions', 'panelActions');
     bindLayoutCheckbox('chk-panel-knowledge', 'panelKnowledge');
+    bindLayoutCheckbox('chk-panel-history-dock', 'panelHistoryDock');
     bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
     bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
     bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
@@ -929,6 +1009,20 @@ class GklPureJSClient {
 
     const btnGameoverRestart = document.getElementById('btn-gameover-restart');
     if (btnGameoverRestart) btnGameoverRestart.onclick = () => this.restartGame();
+
+    // 🎒 サブウィンドウ (右サイドパネル) のワンタップ一時退避 ＆ 再展開リスナー
+    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
+    if (btnToggleSidePanel) btnToggleSidePanel.onclick = () => this.toggleSidePanel();
+
+    const sidePanelPeekTab = document.getElementById('side-panel-peek-tab');
+    if (sidePanelPeekTab) sidePanelPeekTab.onclick = () => this.toggleSidePanel(false);
+
+    const btnCollapseSidePanel = document.getElementById('btn-collapse-side-panel');
+    if (btnCollapseSidePanel) btnCollapseSidePanel.onclick = () => this.toggleSidePanel(true);
+
+    if (typeof window !== 'undefined') {
+      window.toggleSidePanel = (forceState) => this.toggleSidePanel(forceState);
+    }
 
     const elStatusBar = document.getElementById('status-bar');
     if (elStatusBar) {
@@ -1254,6 +1348,20 @@ class GklPureJSClient {
       });
     }
 
+    // 🖥️ 全画面ウィンドウリサイズ追従 (Canvas 2D / WebGPU 解像度同期)
+    const handleResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (this.mainViewportRenderer && typeof this.mainViewportRenderer.resize === 'function') {
+        this.mainViewportRenderer.resize(w, h);
+      }
+      if (this.webgpuRenderer && typeof this.webgpuRenderer.resize === 'function') {
+        this.webgpuRenderer.resize(w, h);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    setTimeout(handleResize, 100);
+
     window.addEventListener('keydown', (e) => {
       if (this.isStartingUp && this.startupStep === 'READY') {
         if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) return;
@@ -1262,6 +1370,11 @@ class GklPureJSClient {
         this.completeStartup(e.code || e.key);
         return;
       }
+
+      if (!e.ctrlKey && !e.altKey && !['Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) {
+        this.floatingMessageHud?.onTurnPassed();
+      }
+
       this.keyHandler.handleGlobalKeyDown(e);
     });
   }
@@ -1317,6 +1430,19 @@ class GklPureJSClient {
     if (this.characterIntroModal) this.characterIntroModal.setLanguage(this.currentLanguage);
     if (this.floatingActions) this.floatingActions.setLanguage(this.currentLanguage);
     if (this.knowledgeDetailModal) this.knowledgeDetailModal.setLanguage(this.currentLanguage);
+    if (this.floatingMessageHud) this.floatingMessageHud.setLanguage(this.currentLanguage);
+    if (this.messageHistoryDrawer) this.messageHistoryDrawer.setLanguage(this.currentLanguage);
+
+    const btnOpenHistory = document.getElementById('btn-open-history');
+    const lblHistory = document.getElementById('btn-history-label');
+    if (lblHistory) {
+      lblHistory.textContent = isEn ? '📜 History' : '📜 過去ログ';
+    } else if (btnOpenHistory) {
+      btnOpenHistory.textContent = isEn ? '📜 History' : '📜 過去ログ';
+    }
+    if (btnOpenHistory) {
+      btnOpenHistory.title = isEn ? 'Open message history [Ctrl+P]' : '過去ログ全履歴を開く [Ctrl+P]';
+    }
 
     const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
     if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
@@ -1349,6 +1475,11 @@ class GklPureJSClient {
 
     const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
     if (elKnHeader) elKnHeader.textContent = isEn ? '🛡️ Tactical Advices' : '🛡️ 戦術アドバイス (Tactical Advices)';
+
+    const lblPanelHistoryDock = document.getElementById('lbl-panel-history-dock');
+    if (lblPanelHistoryDock) {
+      lblPanelHistoryDock.textContent = isEn ? '📜 History (Docked Left)' : '📜 過去ログ (左側常時固定)';
+    }
 
     const btnSettingsToggle = document.getElementById('btn-settings-toggle');
     if (btnSettingsToggle) {
@@ -1446,6 +1577,7 @@ class GklPureJSClient {
     this.virtualScreen?.clearScreen();
     this.mapRenderer.clearMapGrid();
     if (this.elMessageLog) this.elMessageLog.innerHTML = '';
+    this.floatingMessageHud?.clear();
 
     const elCritBadge = document.getElementById('st-advice-critical-badge');
     if (elCritBadge) elCritBadge.classList.add('hidden');
@@ -1736,6 +1868,8 @@ class GklPureJSClient {
       panelInventory: true,
       panelActions: true,
       panelKnowledge: true,
+      panelHistoryDock: false,
+      panelCollapsed: false,
       statusClassic2Line: false,
       statusGauges: true,
       statusGklExtra: true
@@ -1762,6 +1896,18 @@ class GklPureJSClient {
     }
   }
 
+  /**
+   * サイドパネルのクイック折りたたみ (一時退避) / 再展開をトグル
+   * @param {boolean} [forceState] - 強制設定 (true: 折りたたみ退避, false: 再展開)
+   */
+  toggleSidePanel(forceState) {
+    if (!this.layoutConfig) return;
+    const nextState = forceState !== undefined ? Boolean(forceState) : !this.layoutConfig.panelCollapsed;
+    this.layoutConfig.panelCollapsed = nextState;
+    this.saveLayoutConfig(this.layoutConfig);
+    this.applyLayoutConfig(this.layoutConfig);
+  }
+
   applyLayoutConfig(config) {
     this.layoutConfig = config;
 
@@ -1771,15 +1917,51 @@ class GklPureJSClient {
     const cardKno = document.getElementById('card-knowledge');
     const sidePanel = document.getElementById('gkl-side-panel');
     const workspace = document.querySelector('.gkl-workspace');
+    const peekTab = document.getElementById('side-panel-peek-tab');
+    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
+    const btnSidePanelLabel = document.getElementById('btn-side-panel-label');
 
     if (cardInv) cardInv.classList.toggle('hidden', !config.panelInventory);
     if (cardAct) cardAct.classList.toggle('hidden', !config.panelActions);
     if (cardKno) cardKno.classList.toggle('hidden', !config.panelKnowledge);
 
+    // 過去ログの左側常時固定 (ピン留め) 反映
+    if (this.messageHistoryDrawer && typeof this.messageHistoryDrawer.setPinned === 'function') {
+      this.messageHistoryDrawer.setPinned(Boolean(config.panelHistoryDock));
+    }
+
     // 3枠すべて非表示ならサイドパネル全体を隠し、1カラム全画面化
     const isAllHidden = !config.panelInventory && !config.panelActions && !config.panelKnowledge;
-    if (sidePanel) sidePanel.classList.toggle('hidden', isAllHidden);
-    if (workspace) workspace.classList.toggle('no-sidebar', isAllHidden);
+    const isCollapsed = Boolean(config.panelCollapsed);
+
+    if (sidePanel) {
+      sidePanel.classList.toggle('hidden', isAllHidden);
+      sidePanel.classList.toggle('collapsed', isCollapsed && !isAllHidden);
+    }
+    if (workspace) workspace.classList.toggle('no-sidebar', isAllHidden || isCollapsed);
+
+    // 復帰用peek-tab (パネル退避時かつ全非表示でない時に画面右端に出現)
+    if (peekTab) {
+      peekTab.classList.toggle('hidden', !isCollapsed || isAllHidden);
+    }
+
+    // ヘッダー内サイドパネルトグルボタンの見た目同期
+    if (btnToggleSidePanel) {
+      btnToggleSidePanel.classList.toggle('is-collapsed', isCollapsed);
+      if (btnSidePanelLabel) {
+        const isEn = this.currentLanguage === 'en';
+        btnSidePanelLabel.textContent = isCollapsed
+          ? (isEn ? '🎒 Panel ⏴' : '🎒 パネル ⏴')
+          : (isEn ? '🎒 Panel ⏵' : '🎒 パネル ⏵');
+      }
+    }
+
+    // ミニマップの位置をサイドパネル＆ピン留めドロワーの状態と自動同期 (退避時は画面右端へスムーズ追従)
+    const minimapBox = document.getElementById('minimap-hud-box');
+    if (minimapBox) {
+      minimapBox.classList.toggle('with-side-panel', !isAllHidden && !isCollapsed);
+      minimapBox.classList.toggle('with-pinned-drawer', Boolean(config.panelHistoryDock));
+    }
 
     // 2. ステータスバー設定
     if (this.statusView) {
@@ -1792,6 +1974,7 @@ class GklPureJSClient {
     const chkInv = document.getElementById('chk-panel-inventory');
     const chkAct = document.getElementById('chk-panel-actions');
     const chkKno = document.getElementById('chk-panel-knowledge');
+    const chkDock = document.getElementById('chk-panel-history-dock');
     const chk2Line = document.getElementById('chk-status-classic-2line');
     const chkGauges = document.getElementById('chk-status-gauges');
     const chkGkl = document.getElementById('chk-status-gkl-extra');
@@ -1799,6 +1982,7 @@ class GklPureJSClient {
     if (chkInv) chkInv.checked = Boolean(config.panelInventory);
     if (chkAct) chkAct.checked = Boolean(config.panelActions);
     if (chkKno) chkKno.checked = Boolean(config.panelKnowledge);
+    if (chkDock) chkDock.checked = Boolean(config.panelHistoryDock);
     if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
     if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
     if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);

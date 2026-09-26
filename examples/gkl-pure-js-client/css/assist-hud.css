@@ -2,37 +2,45 @@
    NetHack Wasm WebUI - GKL Pure JS Client: Assist HUD & Landmarks Styles
    ============================================================================ */
 
-/* Level 2: HUD 最優先アシストシグナルバー */
+/* Level 2: HUD 最優先アシストシグナルバー (Floating Assist HUD) */
 .assist-signal-bar {
+  position: fixed;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, #1e1b4b 0%, #312e81 100%);
-  border: 1px solid #6366f1;
-  border-radius: 6px;
-  padding: 6px 12px;
+  min-width: 380px;
+  max-width: 640px;
+  background: linear-gradient(90deg, rgba(30, 27, 75, 0.95) 0%, rgba(49, 46, 129, 0.95) 100%);
+  border: 1.5px solid #6366f1;
+  border-radius: 8px;
+  padding: 8px 16px;
   color: #ffffff;
   font-family: var(--font-sans);
-  position: relative;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(99, 102, 241, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: assist-slide-down 0.2s ease-out;
 }
 
 .assist-signal-bar.danger {
-  background: linear-gradient(90deg, #450a0a 0%, #7f1d1d 100%);
+  background: linear-gradient(90deg, rgba(69, 10, 10, 0.95) 0%, rgba(127, 29, 29, 0.95) 100%);
   border-color: #ef4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.5), 0 4px 16px rgba(0, 0, 0, 0.6);
   animation: assist-pulse-danger 1.5s infinite ease-in-out;
 }
 
 .assist-signal-bar.warning {
-  background: linear-gradient(90deg, #451a03 0%, #78350f 100%);
+  background: linear-gradient(90deg, rgba(69, 26, 3, 0.95) 0%, rgba(120, 53, 15, 0.95) 100%);
   border-color: #f59e0b;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4), 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
 .assist-signal-bar.success {
-  background: linear-gradient(90deg, #064e3b 0%, #065f46 100%);
+  background: linear-gradient(90deg, rgba(6, 78, 59, 0.95) 0%, rgba(6, 95, 70, 0.95) 100%);
   border-color: #10b981;
 }
 
@@ -129,26 +137,41 @@
   line-height: 1.4;
 }
 
-/* 🧭 フロア設備案内フローティング HUD */
+/* 🧭 フロア設備案内フローティング HUD (画面左上: デバッグHUD直下・探索案内) */
 .floor-landmarks-hud {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
+  position: fixed;
+  top: 90px; /* デバッグHUDの直下 */
+  left: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(100, 116, 139, 0.6);
-  border-radius: 4px;
-  padding: 3px 8px;
-  z-index: 60;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.90);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  border-radius: 6px;
+  padding: 4px 10px;
+  z-index: 104;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(56, 189, 248, 0.18);
   font-family: var(--font-mono);
   font-size: 11px;
   color: #94a3b8;
-  max-width: calc(100% - 16px);
+  max-width: min(520px, calc(100vw - 24px));
   overflow-x: auto;
+  pointer-events: auto;
+  white-space: nowrap;
+  transition: top 0.22s cubic-bezier(0.16, 1, 0.3, 1), left 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 📜 過去ログドロワー左側固定時の左上退避シフト (ドロワー幅 400px + マージン 24px) */
+body:has(#message-history-drawer.docked-left:not(.hidden)) .floor-landmarks-hud {
+  left: 424px;
+}
+
+/* デバッグHUD非表示時 (または2Dグラフィックモード時) はヘッダー直下へ自動繰り上げ */
+body:has(#webgpu-debug-hud[style*="display: none"]) .floor-landmarks-hud,
+body:has(#webgpu-canvas.hidden) .floor-landmarks-hud {
+  top: 56px;
 }
 
 .landmarks-floor-tag {

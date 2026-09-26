@@ -450,6 +450,40 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(textCalls).toContain('R');
     expect(textCalls).toContain('+');
   });
+
+  it('22. ズーム倍率の初期値が 1.0 であり、setZoom / resetZoom で適正範囲内に制御されること', () => {
+    const renderer = new WebGPUHD2DRenderer({ canvas: mockCanvas });
+    expect(renderer.userZoom).toBe(1.0);
+    expect(renderer.currentZoom).toBe(1.0);
+
+    // ズームイン
+    renderer.setZoom(1.8);
+    expect(renderer.userZoom).toBe(1.8);
+
+    // 上限ガード (2.5x)
+    renderer.setZoom(5.0);
+    expect(renderer.userZoom).toBe(2.5);
+
+    // 下限ガード (0.45x)
+    renderer.setZoom(0.1);
+    expect(renderer.userZoom).toBe(0.45);
+
+    // リセット (1.0x)
+    renderer.resetZoom();
+    expect(renderer.userZoom).toBe(1.0);
+  });
+
+  it('23. _setupEventListeners: wheel および dblclick リスナーが登録されること', () => {
+    const renderer = new WebGPUHD2DRenderer({ canvas: mockCanvas });
+    renderer._setupEventListeners();
+
+    const registeredEvents = mockCanvas.addEventListener.mock.calls.map(call => call[0]);
+    expect(registeredEvents).toContain('wheel');
+    expect(registeredEvents).toContain('dblclick');
+    expect(registeredEvents).toContain('mousemove');
+    expect(registeredEvents).toContain('click');
+    expect(registeredEvents).toContain('contextmenu');
+  });
 });
 
 

@@ -3,10 +3,12 @@
    ============================================================================ */
 
 .char-create-modal-container {
-  background-color: #16181f;
-  border: 1px solid #2e3240;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
   border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  box-shadow: var(--glass-shadow-lg);
   max-width: 820px;
   width: 92%;
   display: flex;
@@ -22,9 +24,11 @@
 
 /* 上部ヘッダー */
 .char-modal-top {
-  background: linear-gradient(180deg, #1c1f28 0%, #16181f 100%);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 14px 20px;
-  border-bottom: 1px solid #2e3240;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;

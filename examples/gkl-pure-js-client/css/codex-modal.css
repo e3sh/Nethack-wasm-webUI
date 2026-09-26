@@ -7,8 +7,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(5, 8, 14, 0.85);
-  backdrop-filter: blur(8px);
+  background: rgba(5, 8, 16, 0.78);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .codex-modal-card {
@@ -16,10 +17,12 @@
   max-width: 1000px;
   height: 85vh;
   max-height: 740px;
-  background: #121720;
-  border: 1px solid #2b3544;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
   border-radius: 12px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--glass-shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -29,10 +32,11 @@
 
 /* 1. モーダルヘッダー */
 .codex-modal-header {
-  background: rgba(24, 32, 44, 0.95);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 12px 20px;
-  border-bottom: 1px solid #2b3544;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -49,7 +53,7 @@
   font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.8px;
-  color: #f59e0b;
+  color: var(--accent-gold, #f59e0b);
 }
 .codex-brand-subtitle {
   font-size: 11px;
@@ -64,9 +68,9 @@
 }
 
 .codex-btn-tool {
-  background: #222d3d;
-  border: 1px solid #2b3544;
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -78,32 +82,33 @@
   transition: all 0.15s ease;
 }
 .codex-btn-tool:hover {
-  background: #2c394d;
-  color: #e6edf3;
-  border-color: #3b495c;
+  background: rgba(56, 189, 248, 0.15);
+  color: #ffffff;
+  border-color: rgba(56, 189, 248, 0.45);
 }
 .codex-btn-tool.active {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgba(245, 158, 11, 0.18);
   border-color: #f59e0b;
   color: #f59e0b;
 }
 .codex-btn-close {
   background: none;
   border: none;
-  color: #64748b;
+  color: #94a3b8;
   font-size: 20px;
   cursor: pointer;
   padding: 2px 8px;
   border-radius: 4px;
   line-height: 1;
+  transition: all 0.15s ease;
 }
-.codex-btn-close:hover { color: #fff; background: rgba(239, 68, 68, 0.2); }
+.codex-btn-close:hover { color: #fff; background: rgba(239, 68, 68, 0.25); }
 
 /* 2. 📊 総計サマリーバー */
 .codex-summary-bar {
-  background: #0e131b;
+  background: rgba(0, 0, 0, 0.35);
   padding: 8px 20px;
-  border-bottom: 1px solid #2b3544;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   gap: 16px;

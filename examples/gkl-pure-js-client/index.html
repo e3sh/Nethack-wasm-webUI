@@ -15,9 +15,15 @@
         <span class="title">Nehww <small>(NetHack-wasm-webUI)</small></span>
       </div>
       <div class="header-actions">
+        <button id="btn-open-history" class="btn btn-secondary history-header-btn" title="過去ログ全履歴を開く [Ctrl+P]">
+          <span id="btn-history-label">📜 過去ログ</span>
+        </button>
         <button id="btn-open-codex" class="btn btn-secondary codex-header-btn" title="冒険手帳・伝承図鑑を開く">
-          <span id="btn-codex-label">📜 冒険手帳</span>
+          <span id="btn-codex-label">📖 冒険手帳</span>
           <span id="codex-unread-badge" class="codex-badge-unread hidden">0</span>
+        </button>
+        <button id="btn-toggle-side-panel" class="btn btn-secondary side-panel-header-btn" title="サイドパネル一時退避 / 再展開 [ [ / Alt+S ]">
+          <span id="btn-side-panel-label">🎒 パネル ⏵</span>
         </button>
         <div class="settings-dropdown-wrapper">
           <button id="btn-settings-toggle" class="btn btn-secondary" title="設定・システムメニュー">⚙️ 設定</button>
@@ -47,6 +53,10 @@
                 <input type="checkbox" id="chk-panel-knowledge" checked />
                 <span>🛡️ 戦術アドバイス (Tactical Advices)</span>
               </label>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-panel-history-dock" />
+                <span id="lbl-panel-history-dock">📜 過去ログ (左側常時固定)</span>
+              </label>
             </div>
             <div class="settings-menu-separator"></div>
 
@@ -74,6 +84,7 @@
               <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: ✨ HD-2D ➜ 🎨 2Dグラフィック</button>
               <button id="btn-toggle-camera-mode" class="btn-menu-item">📷 カメラ: ジオラマ ➜ トップビュー</button>
               <button id="btn-toggle-minimap" class="btn-menu-item">🗺️ ミニマップ HUD: ON</button>
+              <button id="btn-toggle-debug-hud" class="btn-menu-item">📊 HD-2D デバッグHUD: ON</button>
             </div>
             <div class="settings-menu-separator"></div>
 
@@ -87,6 +98,9 @@
         </div>
       </div>
     </header>
+
+    <!-- 💬 フローティング最新行 HUD (画面上部透過オーバーレイ) -->
+    <div id="floating-message-hud" class="floating-message-hud"></div>
 
     <!-- 2. メインゲームビュー (game-view - GKL 2カラム構造) -->
     <main class="game-view gkl-workspace">
@@ -171,15 +185,15 @@
             <canvas id="minimap-canvas" width="240" height="72"></canvas>
           </div>
 
-          <!-- 🧭 フロア設備案内フローティング HUD (Landmarks Bar) -->
-          <div id="floor-landmarks-hud" class="floor-landmarks-hud hidden">
-            <span class="landmarks-floor-tag" id="landmarks-floor-tag">🗺️ Dlvl:1</span>
-            <div id="landmarks-badges-container" class="landmarks-badges-container"></div>
-          </div>
-
           <!-- 描画用 80x24 Color ASCII Grid -->
           <div id="ascii-grid" class="ascii-grid hidden"></div>
         </section>
+
+        <!-- 🧭 フロア設備案内フローティング HUD (Landmarks Bar) -->
+        <div id="floor-landmarks-hud" class="floor-landmarks-hud hidden">
+          <span class="landmarks-floor-tag" id="landmarks-floor-tag">🗺️ Dlvl:1</span>
+          <div id="landmarks-badges-container" class="landmarks-badges-container"></div>
+        </div>
 
         <!-- 横型ステータスバー (StatusBar + HP/MP ゲージバー) -->
         <div id="status-bar" class="status-bar">
@@ -274,6 +288,7 @@
               <button id="btn-open-paperdoll" class="btn btn-small" title="装備詳細 ＆ ペーパードールを開く">🎽 装備詳細</button>
               <button id="btn-refresh-inv" class="btn btn-small" title="所持品情報を即座に最新同期">🔄 同期</button>
               <span id="gkl-inv-count" class="gkl-badge">0</span>
+              <button id="btn-collapse-side-panel" class="btn btn-small btn-panel-collapse" title="サイドパネルを一時退避 [ [ / Alt+S ]">⏵</button>
             </div>
           </div>
           <div id="gkl-inventory-grid" class="gkl-inventory-grid">
@@ -328,6 +343,12 @@
           </div>
         </div>
       </aside>
+
+      <!-- 🎒 サイドパネル復帰用フローティングタブ (パネル退避時に画面右端に出現) -->
+      <button id="side-panel-peek-tab" class="side-panel-peek-tab hidden" title="サイドパネルを再展開 [ [ / Alt+S ]">
+        <span class="peek-tab-icon">◀</span>
+        <span class="peek-tab-label">🎒 パネル</span>
+      </button>
     </main>
 
     <!-- モード別 モーダル表示部 (MenuModal) -->
@@ -777,6 +798,27 @@
       <div class="title" id="gkl-tt-name">Item Name</div>
       <div id="gkl-tt-tags" class="tags"></div>
     </div>
+
+    <!-- 📜 過去ログドロワー (スライドイン式) ＆ 背景オーバーレイ -->
+    <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+    <aside id="message-history-drawer" class="message-history-drawer hidden">
+      <header class="drawer-header">
+        <div class="drawer-title-box">
+          <span class="drawer-title-icon">📜</span>
+          <span class="drawer-title-text" id="drawer-title-text">メッセージ過去ログ (Message History)</span>
+        </div>
+        <div class="drawer-header-actions">
+          <div class="drawer-mode-toggle">
+            <button id="btn-drawer-mode-bilingual" class="btn-drawer-mode active" title="日本語と原文を並列表示">🔀 並列</button>
+            <button id="btn-drawer-mode-ja" class="btn-drawer-mode" title="日本語のみ表示">🇯🇵 日本語</button>
+            <button id="btn-drawer-mode-raw" class="btn-drawer-mode" title="英語原文のみ表示">🇺🇸 原文</button>
+          </div>
+          <button id="btn-drawer-pin" class="btn-drawer-pin" title="画面左側に常時固定 (ピン留め)">📌</button>
+          <button id="btn-drawer-close" class="btn-drawer-close" title="閉じる [ESC]">✕</button>
+        </div>
+      </header>
+      <div id="message-drawer-list" class="message-drawer-list"></div>
+    </aside>
   </div>
 
   <!-- Parameter Scripts -->
