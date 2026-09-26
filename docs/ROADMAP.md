@@ -69,7 +69,7 @@ last_updated: 2026-09-26
     - 全単体テスト（1,157+件）および全 4 クライアント（Vue, React, Solid, Svelte）ビルド完全検証
 
 ### 1.2 GKL レファレンスクライアント (Nehww) UI/UX 刷新＆レンダラー表現高度化
-- **ステータス**: `🚧 in-progress` (Phase A, B, C 完了、Phase D 着手準備完了)
+- **ステータス**: `🟢 implemented` (Phase A〜D & UI Styling 完了、次期: Phase E)
 - **対象ディレクトリ**: `examples/gkl-pure-js-client/` (レファレンスクライアント略称: **`Nehww`**)
 - **設計書**:
   - 全体計画: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
@@ -96,6 +96,19 @@ last_updated: 2026-09-26
     - 全画面（HUD・右サイドパネル・各種モーダル・ヘッダー・ボタン群・スクロールバー）でサイバーシアンアクセント（`#38bdf8`）とフロストガラスマテリアル（`backdrop-filter: blur(12px)` + 極細透過ボーダー）を徹底統一
     - 右サイドパネル展開時も背景ダンジョンが透け、公式スクリーンショットとして映える本格PCゲームクライアントのルック＆フィールを確立
     - 全90テストファイル、1,180テストすべて PASS（回帰ゼロ）
+
+### 1.3 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
+- **ステータス**: `💡 proposed` (2026-09-26 策定)
+- **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
+- **概要**:
+  - `Nehww` で先行実証された高度なUIロジック（HUD状態マシン、モーダルスタック/FocusTrap、ペーパードール部位判定、コンテナD&Dドラフト、キーバインド調停）を、DOM非依存の Headless UI 層（**`UIController`**）として抽出・独立パッケージ化。
+  - **Model（Cコア / WASM / GKL）のシグナル高度化に対する「防腐層（Anti-Corruption Layer）」** として機能させ、Model側の内部仕様変更やストリーム化が起きても View 側の修正・手戻りをゼロにする長寿命アーキテクチャを確立。
+  - UIController にバインドする共通 **Web Components（`<nh-*>`）** を提供し、任意のフレームワーク（React / Vue / Svelte / Vanilla HTML）からタグ1行で最高峰のUIを利用可能にする。
+- **マイグレーションステップ**:
+  - [ ] **Step 1**: `Nehww` 内部のUI計算・状態管理コードを `controller/` へ分離（Headless化）
+  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack/ui-core`）化と Node.js 単体テストの整備
+  - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
+  - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
 
 ---
 
@@ -142,10 +155,11 @@ last_updated: 2026-09-26
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全88スイート・1,157テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全90スイート・1,180テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
+| **UI・体験** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`base.css` | `🟢 implemented` | **全画面マップ ＋ イマーシブHUD ＆ Neo-Retro Dark Glass UI (Phase D)**<br>100vw×100vh 全画面マップ、フローティング最新行HUD、左側ピン留め過去ログドロワー、サイバーシアン（`#38bdf8`）×フロストガラス全体統一 |
 | **メッセージ** | [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `WebUICore.js`<br>`NetHackWasmDriver.js` | `🟢 implemented` | **メッセージライフサイクル＆抑止制御**<br>モーダル（アイテム選択等）中のメッセージ抑止（`suppressMessage`）、構造化ログ（`bubbleMessage`, `messageItem`, `messageUpdate`）の一元配信 |
 | **対話・制御** | [stage5_3_interaction_context_and_actions.ja.md](./7_futures/phase5/stage5_3_interaction_context_and_actions.ja.md) | `InteractionContext.js`<br>`ActionSignalResolver.js`<br>`SituationCache.js` | `🟢 implemented` | **対話コンテキスト ＆ アクション導出基盤 (Stage 5.3)**<br>空間距離維持（チェビシェフ距離 $\le 1$）による対話維持、施錠箱・扉へのワンタップ推奨アクション（IRCレシピ連携） |
 | **メッセージ** | [stage5_2_situation_signals.ja.md](./7_futures/phase5/stage5_2_situation_signals.ja.md) | `MessageContextResolver.js`<br>`ContextFrameBuffer.js`<br>`build_message_context_catalog.py` | `🟢 implemented` | **状況シグナル基盤 (第1層) ＆ 実行時コンテキスト照合 (Stage 5.2)**<br>完全ASCII軽量カタログ(154.3KB)、三項演算子展開＆ノイズ排除、超高速同定(平均 0.0054ms)、翻訳責務完全分離 |

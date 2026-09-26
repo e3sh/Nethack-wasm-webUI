@@ -79,8 +79,9 @@ WASM Cコアをバックグラウンド Web Worker で駆動するドライバ�
 ### 5. 💻 クライアント UI & コアエンジン (`docs/2_client_ui/`)
 共通コアエンジン `WebUICore` およびフロントエンド連携仕様書です。
 
-| ドキュメント | ステータス | 関連ソースコード | 概要 |
-| :--- | :---: | :--- | :--- |
+| **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `💡 proposed` | - | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・防腐層設計） |
+| **[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)** | `🟢 implemented` | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js` | イマーシブHUD ＆ 過去ログドロワーメッセージウィンドウ仕様書 (Phase D) |
+| **[gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)** | `🟢 implemented` | `examples/gkl-pure-js-client/` | GKL レファレンスクライアント UI/UX 刷新＆レンダラー表現高度化計画 (Phase A〜D) |
 | **[WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md)** | `🟢 implemented` | `src/core/WebUICore.js` | WebUICore 利用ガイド・機能仕様 |
 | **[Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md)** | `🟢 implemented` | `src/core/request/` | 汎用連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤仕様書 |
 | **[PromptCategory_UI_Implementation_Guide.md](./2_client_ui/PromptCategory_UI_Implementation_Guide.md)** | `🟢 implemented` | `src/core/prompt/` | プロンプトカテゴリ分類 ＆ UI 実装ガイド |
