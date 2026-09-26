@@ -175,6 +175,9 @@ export class WebUICore {
         this.lastTriggerCommand = null;
         this.lastRawMessageText = '';
         this.playerName = options.playerName || '';
+        this.messageItems = [];
+        this.nextMessageId = 1;
+        this._currentActionLastItem = null;
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -641,6 +644,8 @@ export class WebUICore {
 
     respond(inputVal, options = {}) {
         if (!this.activeResolver) return;
+
+        this._currentActionLastItem = null;
 
         // ユーザーの手動入力時、実行中のサイレント同期タスクがあれば手動入力を優先して安全にキャンセル
         if (this.driver && typeof this.driver.cancelSequence === 'function') {
@@ -1434,20 +1439,43 @@ export class WebUICore {
         });
 
         // putstr メッセージ・テキストログ分離処理
-        const handleMessageText = (rawText) => {
+        const handleMessageText = (rawText, { isBold = false, attr = 0 } = {}) => {
             if (!rawText) return;
             const trimmed = rawText.trim();
             if (trimmed && !trimmed.startsWith('What do you') && !trimmed.startsWith('Call ') && !trimmed.startsWith('--More--')) {
                 this.lastRawMessageText = trimmed;
             }
-            this.emit('messageText', { windowId: 1, text: rawText });
+
+            // 直前メッセージとの同一性判定（同一アクション内の重複・昇格ロジック）
+            const lastItem = this._currentActionLastItem;
+            if (lastItem && lastItem.rawText.trim() === trimmed && trimmed.length > 0) {
+                // 直前が通常メッセージで、今回太字（または緊急属性）として送られてきた場合、太字へ昇格
+                if (!lastItem.isBold && isBold) {
+                    lastItem.isBold = true;
+                    lastItem.attr = attr;
+                    this.emit('messageUpdate', lastItem);
+                    this.emit('bubbleMessage', {
+                        id: lastItem.id,
+                        text: lastItem.text,
+                        rawText: lastItem.rawText,
+                        isBold: true
+                    });
+                    return;
+                }
+                // 同一アクション内での完全重複（属性状態も一致）であればログの重畳追加を防止
+                if (lastItem.isBold === isBold) {
+                    return;
+                }
+            }
+
+            this.emit('messageText', { windowId: 1, text: rawText, isBold, attr });
 
             // 📡 1. 状況シグナル (MessageContext) の超高速解決 (< 0.1ms) - 完全言語非依存
             const context = this.messageResolver ? this.messageResolver.resolve(rawText) : null;
 
             // 📜 2. ターン内メッセージ履歴バッファへの記録 (直前ウィンドウ)
             if (this.contextFrameBuffer) {
-                this.contextFrameBuffer.push({ rawText, context });
+                this.contextFrameBuffer.push({ rawText, context, isBold, attr });
             }
 
             // 📡 3. 構造化状況シグナル (Situation Signal: 第1層) の一元ディスパッチ (Pub/Sub)
@@ -1466,7 +1494,38 @@ export class WebUICore {
                 this.emit('soundEffect', seEffect);
             }
             this.renderer.appendMessage(translated);
+
+            // 📜 5. メッセージ履歴アイテム（MessageItem）の生成・管理
+            const prevItem = this.messageItems.length > 0 ? this.messageItems[this.messageItems.length - 1] : null;
+            if (prevItem) {
+                prevItem.isLatest = false;
+            }
+            const messageItem = {
+                id: this.nextMessageId++,
+                rawText,
+                text: translated,
+                isBold: !!isBold,
+                attr: typeof attr === 'number' ? attr : 0,
+                isLatest: true,
+                timestamp: Date.now()
+            };
+            this.messageItems.push(messageItem);
+            this._currentActionLastItem = messageItem;
+            if (this.messageItems.length > 200) {
+                this.messageItems.shift();
+            }
+
+            // 既存完全互換文字列イベント
             this.emit('message', translated);
+
+            // リッチ構造化イベント & 吹き出し通知
+            this.emit('messageItem', messageItem);
+            this.emit('bubbleMessage', {
+                id: messageItem.id,
+                text: translated,
+                rawText,
+                isBold: !!isBold
+            });
 
             // 📡 Layer 4: LORE シグナル検知 & 発行 (Pub/Sub)
             if (this.loreDetector) {
@@ -1495,13 +1554,15 @@ export class WebUICore {
         this.driver.on('putstr', (data) => {
             const windowId = data.windowId !== undefined ? data.windowId : 1;
             const rawText = data.text || '';
+            const attr = data.attr || 0;
+            const isBold = data.isBold !== undefined ? !!data.isBold : ((attr & 1) !== 0);
 
             if (rawText.trim()) {
                 this.lastPutstrText = rawText.trim();
             }
 
             if (windowId === 1 || windowId === 0) {
-                handleMessageText(rawText);
+                handleMessageText(rawText, { isBold, attr });
             }
 
             if (windowId >= 4 && this.textWindowManager) {
@@ -1510,22 +1571,26 @@ export class WebUICore {
         });
 
         this.driver.on('raw_print', (data) => {
-            if (data && data.text) handleMessageText(data.text);
+            if (data && data.text) handleMessageText(data.text, { isBold: false, attr: 0 });
         });
         this.driver.on('raw_print_bold', (data) => {
-            if (data && data.text) handleMessageText(data.text);
+            if (data && data.text) handleMessageText(data.text, { isBold: true, attr: 1 });
         });
 
         this.driver.on('putmsghistory', (data) => {
             if (data && data.text && !data.restoring) {
-                handleMessageText(data.text);
+                handleMessageText(data.text, { isBold: false, attr: 0 });
             }
         });
 
         this.driver.on('messageText', (data) => {
             if (data && data.text) {
-                handleMessageText(data.text);
+                handleMessageText(data.text, { isBold: !!data.isBold, attr: data.attr || 0 });
             }
+        });
+
+        this.driver.on('doprev_message', () => {
+            this.emit('doprev_message', {});
         });
 
         // status_update (ダンジョン分岐文字列 Dlvl:1 <-> Tutorial:1 の変化を検知して自動マップクリア)
@@ -1644,6 +1709,7 @@ export class WebUICore {
 
         // inputRequired
         this.driver.on('inputRequired', (payload) => {
+            this._currentActionLastItem = null;
             const resolver = payload.safeResolver || payload.resolver;
             this.activeResolver = resolver;
 
@@ -2002,5 +2068,32 @@ export class WebUICore {
      */
     getMessageHistory(count = 10) {
         return this.contextFrameBuffer ? this.contextFrameBuffer.getRecent(count) : [];
+    }
+
+    /**
+     * 現在の最新メッセージアイテムを取得
+     * @returns {Object|null}
+     */
+    getLatestMessage() {
+        return this.messageItems.length > 0 ? this.messageItems[this.messageItems.length - 1] : null;
+    }
+
+    /**
+     * 保持しているメッセージアイテム履歴一覧を取得
+     * @param {number} [count]
+     * @returns {Array<Object>}
+     */
+    getMessageItems(count) {
+        if (typeof count === 'number' && count > 0) {
+            return this.messageItems.slice(-count);
+        }
+        return [...this.messageItems];
+    }
+
+    /**
+     * 同一アクション（ターン）内の重複・昇格判定スコープをリセット
+     */
+    resetActionMessageScope() {
+        this._currentActionLastItem = null;
     }
 }

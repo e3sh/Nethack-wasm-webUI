@@ -30,6 +30,33 @@ describe('NetHackWasmDriver', () => {
         expect(messages[0]).toBe('Welcome to NetHack!');
     });
 
+    it('raw_print and raw_print_bold with isBold attribute and smart deduplication', () => {
+        const driver = new NetHackWasmDriver({ deduplicateMessages: true, filterSysconfLogs: false });
+        const events = [];
+
+        driver.on('raw_print', (payload) => { events.push({ type: 'normal', ...payload }); });
+        driver.on('raw_print_bold', (payload) => { events.push({ type: 'bold', ...payload }); });
+
+        // 1. 通常メッセージ
+        driver.eventHook('shim_raw_print', ['You are hungry.']);
+        // 2. 直後に同一テキストの太字メッセージが届いた場合、太字意図として抑止されずemitされる
+        driver.eventHook('shim_raw_print_bold', ['You are hungry.']);
+        // 3. 太字メッセージが連続した場合は完全重複として抑止される
+        driver.eventHook('shim_raw_print_bold', ['You are hungry.']);
+
+        expect(events.length).toBe(2);
+        expect(events[0]).toEqual({ type: 'normal', text: 'You are hungry.', isBold: false });
+        expect(events[1]).toEqual({ type: 'bold', text: 'You are hungry.', isBold: true });
+
+        // 4. 新しいアクション実行（RUNNING状態へ遷移）
+        driver.setState(NetHackWasmDriver.DriverState.RUNNING);
+
+        // 5. 次のターンで再び同一文面の太字メッセージが届いた場合、新しいアクションとして再度emitされる
+        driver.eventHook('shim_raw_print_bold', ['You are hungry.']);
+        expect(events.length).toBe(3);
+        expect(events[2]).toEqual({ type: 'bold', text: 'You are hungry.', isBold: true });
+    });
+
     it('promptCategory tag in inputRequired', async () => {
         const driver = new NetHackWasmDriver();
         let capturedCategory = null;

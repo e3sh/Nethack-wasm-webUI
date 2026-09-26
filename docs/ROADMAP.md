@@ -110,10 +110,15 @@ last_updated: 2026-09-24
 
 ### 2.1 GKL クライアント UI/UX 刷新 (Phase D 残存タスク)
 - **ステータス**: `🚧 in-progress` (Phase A, B, C 完了済)
-- **設計書**: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
+- **設計書**:
+  - [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md) (全体計画)
+  - [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) (★新設: アプローチB 全画面マップ＆イマーシブHUDメッセージウィンドウ仕様)
 - **対象コード**: `examples/gkl-pure-js-client/`, `src/core/knowledge/`
 - **残存テーマ**:
-  - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新)**: マップをウィンドウ追従全画面化（100vw × 100vh）し、メッセージログやステータスを透過オーバーレイ配置。
+  - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新 ＆ イマーシブメッセージウィンドウ)**:
+    - マップをウィンドウ追従全画面化（100vw × 100vh）
+    - アプローチB（フローティング最新行HUD ＋ Ctrl+P展開型過去ログドロワー）によるイマーシブメッセージウィンドウの実装
+    - ステータスバーのフローティングHUD化
 
 ### 2.2 GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー
 - **ステータス**: `💡 proposed` (2026-09-21 策定)

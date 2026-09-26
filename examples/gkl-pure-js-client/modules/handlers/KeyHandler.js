@@ -153,6 +153,10 @@ export class KeyHandler {
 
     if (e.code) {
       if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) return;
+      // ブラウザ標準ショートカットの抑止 (Ctrl+P: 印刷, Ctrl+S: 保存, Ctrl+D: ブックマーク等)
+      if (e.ctrlKey && ['KeyP', 'KeyS', 'KeyD', 'KeyO'].includes(e.code)) {
+        e.preventDefault();
+      }
       core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
     }
   }

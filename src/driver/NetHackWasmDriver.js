@@ -65,6 +65,7 @@
             this.menuBuffer = {};
             this.messageHistory = [];
             this.lastEmittedMessage = null;
+            this.lastEmittedMessageIsBold = false;
             this.messageWindowId = 1;
             this.version = "";
 
@@ -595,6 +596,12 @@
         }
 
         setState(newState) {
+            if (newState === NetHackWasmDriver.DriverState.RUNNING) {
+                // プレイヤーの入力またはアクション開始により C コアの実行が再開したため、
+                // 同一アクション（ターン）内の重複判定用バッファをリセット
+                this.lastEmittedMessage = null;
+                this.lastEmittedMessageIsBold = false;
+            }
             if (this.state !== newState) {
                 this.state = newState;
                 this.emit('stateChange', { state: newState });
@@ -904,11 +911,14 @@
                         break;
                     }
 
+                    const isBold = typeof attr === 'number' && (attr & 1) !== 0;
+
                     if (this.options.deduplicateMessages && cleanText.length > 0) {
-                        if (this.lastEmittedMessage === cleanText) {
+                        if (this.lastEmittedMessage === cleanText && this.lastEmittedMessageIsBold === isBold) {
                             break;
                         }
                         this.lastEmittedMessage = cleanText;
+                        this.lastEmittedMessageIsBold = isBold;
                     }
 
                     if (cleanText.length > 0 && winId === this.messageWindowId) {
@@ -916,8 +926,8 @@
                         if (this.messageHistory.length > 200) this.messageHistory.shift();
                     }
 
-                    this.emit("putstr", { windowId: winId, attr, text });
-                    this.recordSequenceBuffer({ type: 'putstr', windowId: winId, attr, text });
+                    this.emit("putstr", { windowId: winId, attr, text, isBold });
+                    this.recordSequenceBuffer({ type: 'putstr', windowId: winId, attr, text, isBold });
                     break;
                 }
 
@@ -1177,14 +1187,15 @@
                     }
 
                     if (this.options.deduplicateMessages && cleanText.length > 0) {
-                        if (this.lastEmittedMessage === cleanText) {
+                        if (this.lastEmittedMessage === cleanText && this.lastEmittedMessageIsBold === false) {
                             return 0;
                         }
                         this.lastEmittedMessage = cleanText;
+                        this.lastEmittedMessageIsBold = false;
                     }
 
-                    this.recordSequenceBuffer({ type: 'raw_print', text });
-                    this.emit("raw_print", { text });
+                    this.recordSequenceBuffer({ type: 'raw_print', text, isBold: false });
+                    this.emit("raw_print", { text, isBold: false });
                     return 0;
                 }
 
@@ -1198,14 +1209,15 @@
                     }
 
                     if (this.options.deduplicateMessages && cleanText.length > 0) {
-                        if (this.lastEmittedMessage === cleanText) {
+                        if (this.lastEmittedMessage === cleanText && this.lastEmittedMessageIsBold === true) {
                             return 0;
                         }
                         this.lastEmittedMessage = cleanText;
+                        this.lastEmittedMessageIsBold = true;
                     }
 
-                    this.recordSequenceBuffer({ type: 'raw_print_bold', text });
-                    this.emit("raw_print_bold", { text });
+                    this.recordSequenceBuffer({ type: 'raw_print_bold', text, isBold: true });
+                    this.emit("raw_print_bold", { text, isBold: true });
                     return 0;
                 }
 
@@ -1453,6 +1465,10 @@
 
                 case "shim_nhbell":
                     this.emit("bell", {});
+                    return 0;
+
+                case "shim_doprev_message":
+                    this.emit("doprev_message", {});
                     return 0;
 
                 case "shim_cliparound":
