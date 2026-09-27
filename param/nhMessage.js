@@ -11694,6 +11694,7 @@
         { en: "\"I thank you for your contribution.\"", jp: "「ご寄進に感謝いたします。」" },
         { en: "branch staircase up", jp: "分岐階段上り" },
         { en: "branch staircase down", jp: "分岐階段下り" },
+        { en: "An urge to take a bath overwhelms you.", jp: "お風呂に入りたいという衝動に強く駆られます。" },
     ];
 }
 
@@ -17261,6 +17262,7 @@ function nhPatterns() {
         { pattern: /^(.*)\s+howls\.$/, replace: "$1が遠吠えする。" },
         { pattern: /^(.*)\s+yips\.$/, replace: "$1がキャンと鳴く。" },
         { pattern: /^The\s+zap\s+doesn't\s+shock\s+the\s+(.*)!$/, replace: "その電撃では$1は驚かない！" },
+        { pattern: /^You\s+lost\s+some\s+of\s+your\s+gold\s+in\s+(.*)!$/, replace: "$1に金貨をいくつか落としてしまいました！" },
     ];
 }
 

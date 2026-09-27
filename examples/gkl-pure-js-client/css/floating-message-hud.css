@@ -4,7 +4,7 @@
 
 .floating-message-hud {
   position: absolute;
-  top: 56px; /* ヘッダーバーの直下 */
+  top: 172px; /* ミニマップHUD下端(166px)およびフロア設備案内HUD(126px)の下に配置し、画面幅縮小時の重なりを完全防止 */
   left: 50%;
   transform: translateX(-50%);
   display: flex;

@@ -43,12 +43,14 @@ export class FloatingContextActions {
     getCore,
     onNavigateKnowledge,
     onInspectDetail,
+    onUserAction,
     language = 'ja'
   }) {
     this.container = container;
     this.getCore = getCore || (() => null);
     this.onNavigateKnowledge = onNavigateKnowledge || (() => {});
     this.onInspectDetail = onInspectDetail || null;
+    this.onUserAction = onUserAction || (() => {});
     this.currentLanguage = language;
 
     this.currentTarget = null;
@@ -557,6 +559,7 @@ export class FloatingContextActions {
       btnTravel.onclick = async (e) => {
         e.stopPropagation();
         this.hide();
+        this.onUserAction();
         const core = this.getCore();
         if (core?.gkl?.travelTo) {
           await core.gkl.travelTo({ x: gx, y: gy });
@@ -659,6 +662,7 @@ export class FloatingContextActions {
     }
 
     this.hide();
+    this.onUserAction();
 
     const core = this.getCore();
     if (!core) {

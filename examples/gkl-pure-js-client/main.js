@@ -41,6 +41,7 @@ class GklPureJSClient {
     this.lastKnowledgeTarget = null;
     this.isGameExited = false;
     this.currentGameOverResult = null;
+    this.lastTurns = -1;
 
     // DOM Elements
     this.canvas = document.getElementById('game-canvas');
@@ -55,11 +56,12 @@ class GklPureJSClient {
     this.elMessageLog = document.getElementById('message-log');
     this.elGklTooltip = document.getElementById('gkl-item-tooltip');
 
-    // 💬 フローティング最新行 HUD (画面上部透過オーバーレイ: 最大5行)
+    // 💬 フローティング最新行 HUD (画面上部透過オーバーレイ: 最大5行 / 次操作起点フェード)
     this.floatingMessageHud = new FloatingMessageHud({
       container: document.getElementById('floating-message-hud'),
       maxLines: 5,
-      fadeTimeoutMs: 4500
+      fadeTimeoutMs: 0,
+      fadeDelayAfterActionMs: 2500
     });
 
     // 📜 展開型過去ログドロワー (Ctrl+P / 履歴閲覧 / 左側ピン留め)
@@ -186,7 +188,8 @@ class GklPureJSClient {
       elGklActionList: document.getElementById('gkl-action-list'),
       elGklActionCount: document.getElementById('gkl-action-count'),
       getCore: () => this.core,
-      onDirectionFiltered: () => this.renderGklUi()
+      onDirectionFiltered: () => this.renderGklUi(),
+      onUserAction: () => this.floatingMessageHud?.notifyUserAction()
     });
 
     // 7. Status Bar & Attributes & Spells & Skills
@@ -319,6 +322,7 @@ class GklPureJSClient {
           this.codexModal.show();
         }
       },
+      onUserAction: () => this.floatingMessageHud?.notifyUserAction(),
       language: this.currentLanguage
     });
 
@@ -509,6 +513,12 @@ class GklPureJSClient {
     // 3. Status Update
     this.core.on('statusUpdate', ({ status }) => {
       if (!status) return;
+      if (status.turns !== undefined && status.turns > this.lastTurns) {
+        if (this.lastTurns !== -1) {
+          this.floatingMessageHud?.notifyUserAction();
+        }
+        this.lastTurns = status.turns;
+      }
       this.statusView.updateStatus(status);
       this.renderGklUi();
     });
@@ -1219,6 +1229,7 @@ class GklPureJSClient {
         } else if (this.core?.gkl?.travelTo) {
           // 6. 安全な床・通路等の地形 ➔ 従来通り素直に自動移動 (travelTo: 1歩移動または長距離移動)
           this.floatingActions?.hide();
+          this.floatingMessageHud?.notifyUserAction();
           await this.core.gkl.travelTo({ x: gx, y: gy });
         }
       }
@@ -1372,7 +1383,7 @@ class GklPureJSClient {
       }
 
       if (!e.ctrlKey && !e.altKey && !['Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) {
-        this.floatingMessageHud?.onTurnPassed();
+        this.floatingMessageHud?.notifyUserAction();
       }
 
       this.keyHandler.handleGlobalKeyDown(e);

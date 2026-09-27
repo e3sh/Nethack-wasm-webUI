@@ -9,7 +9,8 @@ export class DirectionPad {
     elGklActionList,
     elGklActionCount,
     getCore,
-    onDirectionFiltered
+    onDirectionFiltered,
+    onUserAction
   }) {
     this.elGklDirectionPad = elGklDirectionPad;
     this.elGklFilterLabel = elGklFilterLabel;
@@ -19,6 +20,7 @@ export class DirectionPad {
 
     this.getCore = getCore || (() => null);
     this.onDirectionFiltered = onDirectionFiltered || (() => {});
+    this.onUserAction = onUserAction || (() => {});
 
     this.currentLanguage = 'ja';
     this.selectedDir = 'NONE';
@@ -79,6 +81,7 @@ export class DirectionPad {
           if (core && typeof core.getDefaultAction === 'function') {
             const defaultAct = core.getDefaultAction(currentDir, { language: this.currentLanguage });
             if (defaultAct) {
+              this.onUserAction();
               if (defaultAct.actionRecipe && typeof core.executeSequence === 'function') {
                 core.executeSequence(defaultAct.actionRecipe);
               } else if (defaultAct.keySequence && typeof core.executeSequence === 'function') {
@@ -118,6 +121,7 @@ export class DirectionPad {
           if (core && typeof core.getDashAction === 'function') {
             const dashAct = core.getDashAction(dir, { language: this.currentLanguage });
             if (dashAct) {
+              this.onUserAction();
               if (dashAct.actionRecipe && typeof core.executeSequence === 'function') {
                 core.executeSequence(dashAct.actionRecipe);
               } else if (dashAct.keySequence && typeof core.executeSequence === 'function') {
@@ -342,6 +346,7 @@ export class DirectionPad {
             // アクション実行時にフィルターを 'NONE' (未選択) に自動リセット
             this.selectedDir = 'NONE';
             this._lastActionHtml = null;
+            this.onUserAction();
             if (core && typeof core.executeAction === 'function') {
               const res = core.executeAction(action);
               if (res && typeof res.catch === 'function') {

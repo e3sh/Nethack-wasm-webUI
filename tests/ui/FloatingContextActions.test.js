@@ -393,4 +393,20 @@ describe('FloatingContextActions - フローティング推奨アクション UI
     floatingActions.setLanguage('en');
     expect(floatingActions.elPopup.innerHTML).toContain('☮️ Normally Peaceful');
   });
+
+  it('17. コンテキストアクション実行時に onUserAction コールバックが呼び出されること', async () => {
+    const onUserActionMock = vi.fn();
+    const actionCoreMock = {
+      executeAction: vi.fn().mockResolvedValue(true)
+    };
+    const fa = new FloatingContextActions({
+      container,
+      getCore: () => actionCoreMock,
+      onUserAction: onUserActionMock
+    });
+
+    await fa.executeContextAction({ id: 'ACTION_TEST', label: 'Test Action' });
+    expect(onUserActionMock).toHaveBeenCalledTimes(1);
+    expect(actionCoreMock.executeAction).toHaveBeenCalledTimes(1);
+  });
 });

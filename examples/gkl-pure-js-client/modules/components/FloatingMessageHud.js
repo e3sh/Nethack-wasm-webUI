@@ -13,15 +13,17 @@ export class FloatingMessageHud {
    * @param {Object} options
    * @param {HTMLElement} options.container - HUD 行を追加する親コンテナ
    * @param {number} [options.maxLines=5] - 最大表示行数 (標準 4〜5 行)
-   * @param {number} [options.fadeTimeoutMs=4500] - 自動フェードアウトまでの時間 (ミリ秒)
+   * @param {number} [options.fadeTimeoutMs=0] - 受信時の自動フェードアウト時間 (0: 操作起点モード。正数の場合は時間経過でも消滅)
+   * @param {number} [options.fadeDelayAfterActionMs=2500] - ユーザー操作が行われた後、フェードアウトを開始するまでの待機時間 (ミリ秒)
    * @param {Document} [options.document] - DOM ドキュメントオブジェクト
    */
-  constructor({ container, maxLines = 5, fadeTimeoutMs = 4500, document: doc = null } = {}) {
+  constructor({ container, maxLines = 5, fadeTimeoutMs = 0, fadeDelayAfterActionMs = 2500, document: doc = null } = {}) {
     this.container = container;
     this.maxLines = maxLines;
     this.fadeTimeoutMs = fadeTimeoutMs;
+    this.fadeDelayAfterActionMs = fadeDelayAfterActionMs;
     this.document = doc || (typeof document !== 'undefined' ? document : null);
-    this.lines = []; // Array<{ id, element, timer, isBold }>
+    this.lines = []; // Array<{ id, element, timer, isBold, state: 'active' | 'stale' | 'fading' }>
     this.currentLanguage = 'ja';
   }
 
@@ -86,10 +88,11 @@ export class FloatingMessageHud {
       id,
       element: lineEl,
       isBold: Boolean(isBold),
-      timer: null
+      timer: null,
+      state: 'active'
     };
 
-    // 自動フェードアウトのタイマー設定
+    // 明示的に時間起点フェードが設定されている場合のみ受信時タイマーを起動（互換性用）
     if (this.fadeTimeoutMs > 0) {
       lineEntry.timer = setTimeout(() => {
         this._fadeLine(lineEntry);
@@ -98,7 +101,7 @@ export class FloatingMessageHud {
 
     this.lines.push(lineEntry);
 
-    // 最大行数を超えた古い行をフェードアウトまたは即削除
+    // 最大行数を超えた古い行を即削除
     while (this.lines.length > this.maxLines) {
       const oldest = this.lines.shift();
       if (oldest) {
@@ -135,8 +138,16 @@ export class FloatingMessageHud {
       }
     }
 
-    // 更新された場合はタイマーをリセットして再延長
-    if (entry.timer) clearTimeout(entry.timer);
+    // 更新された場合はアクティブ状態に戻し、タイマーをリセット
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
+    entry.state = 'active';
+    if (entry.element) {
+      entry.element.classList.remove('stale', 'fading-fast');
+    }
+
     if (this.fadeTimeoutMs > 0) {
       entry.timer = setTimeout(() => {
         this._fadeLine(entry);
@@ -145,14 +156,38 @@ export class FloatingMessageHud {
   }
 
   /**
-   * ターン経過時に直前のメッセージを速やかにフェードアウトへ移行
+   * ユーザー操作（次の入力アクション）が行われたことを通知し、既存メッセージの消滅ライフサイクルを進行
    */
-  onTurnPassed() {
-    for (const entry of this.lines) {
-      if (entry.element && !entry.element.classList.contains('fading')) {
+  notifyUserAction() {
+    for (const entry of [...this.lines]) {
+      if (!entry.element) continue;
+
+      if (entry.state === 'active') {
+        // 直前ターンの最新メッセージ：操作起点タイマーを開始
+        entry.state = 'stale';
         entry.element.classList.add('fading-fast');
+
+        if (entry.timer) clearTimeout(entry.timer);
+        if (this.fadeDelayAfterActionMs > 0) {
+          entry.timer = setTimeout(() => {
+            this._fadeLine(entry);
+          }, this.fadeDelayAfterActionMs);
+        } else {
+          this._fadeLine(entry);
+        }
+      } else if (entry.state === 'stale') {
+        // すでに前回以前の操作でフェード待ちになっている古いメッセージ：
+        // 連続操作（連打・ダッシュ）時は画面を遮らないよう即座にフェードアウトへ移行
+        this._fadeLine(entry);
       }
     }
+  }
+
+  /**
+   * ターン経過 / ユーザー操作時のハンドラー (notifyUserAction のエイリアス)
+   */
+  onTurnPassed() {
+    this.notifyUserAction();
   }
 
   /**
@@ -185,7 +220,12 @@ export class FloatingMessageHud {
    * @private
    */
   _fadeLine(entry) {
-    if (!entry || !entry.element) return;
+    if (!entry || !entry.element || entry.state === 'fading') return;
+    entry.state = 'fading';
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
     entry.element.classList.add('fading');
     setTimeout(() => {
       if (entry.element && entry.element.parentNode) {

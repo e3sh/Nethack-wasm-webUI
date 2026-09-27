@@ -169,4 +169,82 @@ describe('FloatingMessageHud - フローティング最新行 HUD', () => {
     expect(container.children[2].textContent).toBe('Line 5');
     expect(container.children[2].classList.contains('line-age-0')).toBe(true);
   });
+
+  describe('操作起点ライフサイクル制御 (ターン制UX)', () => {
+    let actionHud;
+    let actionContainer;
+
+    beforeEach(() => {
+      actionContainer = createMockElement('div');
+      actionHud = new FloatingMessageHud({
+        container: actionContainer,
+        maxLines: 5,
+        fadeTimeoutMs: 0, // 時間による自動消滅は無効
+        fadeDelayAfterActionMs: 2000,
+        document: mockDoc
+      });
+    });
+
+    it('10. ユーザー操作がない場合（長考中）、何分経過してもメッセージが自動消滅しないこと', () => {
+      actionHud.pushMessage({ id: 101, text: 'A mind flayer draws near!' });
+      expect(actionContainer.children.length).toBe(1);
+
+      // 60秒（1分）長考しても消えない
+      vi.advanceTimersByTime(60000);
+      expect(actionContainer.children.length).toBe(1);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(false);
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(false);
+    });
+
+    it('11. notifyUserAction: 操作が行われるとタイマーが起動し、指定時間後にフェードアウトすること', () => {
+      actionHud.pushMessage({ id: 102, text: 'You hit the goblin.' });
+      expect(actionContainer.children.length).toBe(1);
+
+      // プレイヤーが次の操作（移動など）を実行
+      actionHud.notifyUserAction();
+
+      // fading-fast が付与される
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(true);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(false);
+
+      // fadeDelayAfterActionMs (2000ms) 経過で fading が付く
+      vi.advanceTimersByTime(2000);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+
+      // CSS 演出待ち (400ms) 経過で要素が削除される
+      vi.advanceTimersByTime(400);
+      expect(actionContainer.children.length).toBe(0);
+    });
+
+    it('12. 連続操作時: 前回の操作でフェード待ちのメッセージは、次の操作ですみやかにフェードアウトへ移行すること', () => {
+      actionHud.pushMessage({ id: 103, text: 'Message 1' });
+
+      // 1回目の操作: Message 1 がフェード待機に入る
+      actionHud.notifyUserAction();
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(true);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(false);
+
+      // わずか 300ms 後に 2回目の操作（連打移動など）
+      vi.advanceTimersByTime(300);
+      actionHud.notifyUserAction();
+
+      // Message 1 はタイマー満了を待たず即座に fading 状態へ移行
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+
+      // 400ms で完全に除去される
+      vi.advanceTimersByTime(400);
+      expect(actionContainer.children.length).toBe(0);
+    });
+
+    it('13. updateMessage: 太字昇格等の更新時はアクティブ状態へ復帰し、フェードクラスが除去されること', () => {
+      actionHud.pushMessage({ id: 104, text: 'Warning!', isBold: false });
+      actionHud.notifyUserAction();
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(true);
+
+      // 更新が発生（危険警告などで太字化）
+      actionHud.updateMessage({ id: 104, text: 'Warning!', isBold: true });
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(false);
+      expect(actionContainer.children[0].classList.contains('bold')).toBe(true);
+    });
+  });
 });
