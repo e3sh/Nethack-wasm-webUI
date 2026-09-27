@@ -503,7 +503,7 @@ export class FloatingContextActions {
           <span class="header-icon">${headerIcon}</span>
           <span class="header-title" title="${headerTitle}">${headerTitle}</span>
         </div>
-        <button class="btn-close-floating" id="btn-close-floating" title="閉じる [Esc]">×</button>
+        <button class="btn-close-floating" id="btn-close-floating" title="${isEn ? 'Close [Esc]' : '閉じる [Esc]'}">×</button>
       </div>
       ${knowledgeHtml}
       <div class="gkl-floating-list">

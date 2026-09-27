@@ -29,7 +29,8 @@ export class EngravingHud {
     elEngravingSourceBadge,
     elBtnEngraveReapply,
     elBtnEngravingClose,
-    getCore
+    getCore,
+    language = 'ja'
   }) {
     this.elEngravingHud = elEngravingHud;
     this.elEngravingHudIcon = elEngravingHudIcon;
@@ -43,11 +44,42 @@ export class EngravingHud {
     this.elBtnEngravingClose = elBtnEngravingClose;
 
     this.getCore = getCore || (() => null);
+    this.currentLanguage = language;
+    this.lastData = null;
 
     this.autoHideTimer = null;
     this.lastShownPosition = null;
 
     this.initEvents();
+    this.updateStaticLabels();
+  }
+
+  setLanguage(lang) {
+    this.currentLanguage = lang === 'en' ? 'en' : 'ja';
+    this.updateStaticLabels();
+    if (this.lastData && this.elEngravingHud && !this.elEngravingHud.classList.contains('hidden')) {
+      this.show(this.lastData);
+    }
+  }
+
+  updateStaticLabels() {
+    const isEn = this.currentLanguage === 'en';
+    let label = null;
+    if (typeof this.elEngravingHud?.querySelector === 'function') {
+      label = this.elEngravingHud.querySelector('.engraving-diff-label');
+    } else if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      label = document.querySelector('.engraving-diff-label');
+    }
+    if (label) {
+      label.textContent = isEn ? 'Text:' : '刻み:';
+    }
+    if (this.elBtnEngravingClose) {
+      this.elBtnEngravingClose.title = isEn ? 'Close [Esc]' : '閉じる';
+    }
+    if (this.elBtnEngraveReapply) {
+      this.elBtnEngraveReapply.textContent = isEn ? '[E] Re-engrave' : '[E] 再刻み';
+      this.elBtnEngraveReapply.title = isEn ? 'Re-engrave Elbereth' : 'Elbereth を再刻み';
+    }
   }
 
   initEvents() {
@@ -93,11 +125,15 @@ export class EngravingHud {
     if (!this.elEngravingHud || !data) return;
     //console.log('[EngravingHud] show banner:', data);
 
+    this.lastData = data;
+    this.updateStaticLabels();
+
     if (this.autoHideTimer) {
       clearTimeout(this.autoHideTimer);
       this.autoHideTimer = null;
     }
 
+    const isEn = this.currentLanguage === 'en';
     const actual = data.actualText || '';
     const restored = data.restored;
     const isHeadstone = Boolean(data.isHeadstone || data.engraveType === 'HEADSTONE');
@@ -113,7 +149,7 @@ export class EngravingHud {
       this.elEngravingHud.classList.add('headstone');
       if (this.elEngravingHudIcon) this.elEngravingHudIcon.textContent = '🪦';
       if (this.elEngravingConfidenceBadge) {
-        this.elEngravingConfidenceBadge.textContent = '墓碑銘 (Headstone)';
+        this.elEngravingConfidenceBadge.textContent = isEn ? 'Headstone' : '墓碑銘 (Headstone)';
       }
       if (this.elBtnEngraveReapply) this.elBtnEngraveReapply.classList.add('hidden');
     } else if (isElb) {
@@ -121,7 +157,7 @@ export class EngravingHud {
         this.elEngravingHud.classList.add('ward-active');
         if (this.elEngravingHudIcon) this.elEngravingHudIcon.textContent = '🛡️';
         if (this.elEngravingConfidenceBadge) {
-          this.elEngravingConfidenceBadge.textContent = '結界有効 (100%)';
+          this.elEngravingConfidenceBadge.textContent = isEn ? 'Ward Active (100%)' : '結界有効 (100%)';
         }
         if (this.elBtnEngraveReapply) this.elBtnEngraveReapply.classList.add('hidden');
       } else {
@@ -129,7 +165,9 @@ export class EngravingHud {
         if (this.elEngravingHudIcon) this.elEngravingHudIcon.textContent = '⚠️';
         const pct = Math.round((data.elberethIntegrity || 0) * 100);
         if (this.elEngravingConfidenceBadge) {
-          this.elEngravingConfidenceBadge.textContent = `結界無効 (${pct}% 風化)`;
+          this.elEngravingConfidenceBadge.textContent = isEn
+            ? `Ward Degraded (${pct}% eroded)`
+            : `結界無効 (${pct}% 風化)`;
         }
         if (this.elBtnEngraveReapply) this.elBtnEngraveReapply.classList.remove('hidden');
       }
@@ -141,11 +179,11 @@ export class EngravingHud {
       if (restored && restored.confidence !== undefined) {
         const pct = Math.round(restored.confidence * 100);
         if (this.elEngravingConfidenceBadge) {
-          this.elEngravingConfidenceBadge.textContent = `${pct}% 同定`;
+          this.elEngravingConfidenceBadge.textContent = isEn ? `${pct}% Identified` : `${pct}% 同定`;
         }
       } else {
         if (this.elEngravingConfidenceBadge) {
-          this.elEngravingConfidenceBadge.textContent = '手書き文字';
+          this.elEngravingConfidenceBadge.textContent = isEn ? 'Handwritten' : '手書き文字';
         }
       }
     }
@@ -177,23 +215,25 @@ export class EngravingHud {
       }
     }
 
-    // 3. 日本語訳
+    // 3. 日本語訳 / 英語解説
     if (this.elEngravingTranslation) {
       if (isHeadstone) {
-        this.elEngravingTranslation.textContent = (restored && restored.translation)
-          ? restored.translation
-          : '墓石に刻まれた銘文（風化しない永久の記録）';
+        this.elEngravingTranslation.textContent = isEn
+          ? ((restored && restored.translationEn) || 'Epitaph engraved on headstone (Permanent record)')
+          : ((restored && restored.translation) || '墓石に刻まれた銘文（風化しない永久の記録）');
         this.elEngravingTranslation.style.display = 'block';
-      } else if (restored && restored.translation) {
-        this.elEngravingTranslation.textContent = restored.translation;
+      } else if (restored && (restored.translation || restored.translationEn)) {
+        this.elEngravingTranslation.textContent = isEn
+          ? (restored.translationEn || '(Lore engraving)')
+          : (restored.translation || '（伝承の刻み文字）');
         this.elEngravingTranslation.style.display = 'block';
       } else if (isElb) {
         this.elEngravingTranslation.textContent = isWardActive
-          ? 'エルベレス（魔除けの結界文字: モンスターは近寄れません）'
-          : 'エルベレス（文字が風化し、結界の魔力が失われています）';
+          ? (isEn ? 'Elbereth (Ward of protection: monsters will not attack)' : 'エルベレス（魔除けの結界文字: モンスターは近寄れません）')
+          : (isEn ? 'Elbereth (Degraded ward: protective magic has faded)' : 'エルベレス（文字が風化し、結界の魔力が失われています）');
         this.elEngravingTranslation.style.display = 'block';
       } else {
-        this.elEngravingTranslation.textContent = '（手書きのメモ・未登録の落書き）';
+        this.elEngravingTranslation.textContent = isEn ? '(Handwritten note / graffiti)' : '（手書きのメモ・未登録の落書き）';
         this.elEngravingTranslation.style.display = 'block';
       }
     }
@@ -201,13 +241,13 @@ export class EngravingHud {
     // 4. 出典バッジ
     if (this.elEngravingSourceBadge) {
       if (isHeadstone) {
-        this.elEngravingSourceBadge.textContent = '墓碑銘 (Headstone)';
-        this.elEngravingSourceBadge.style.display = 'inline-block';
-      } else if (restored && restored.source) {
-        this.elEngravingSourceBadge.textContent = restored.source;
+        this.elEngravingSourceBadge.textContent = isEn ? 'Headstone' : '墓碑銘 (Headstone)';
         this.elEngravingSourceBadge.style.display = 'inline-block';
       } else if (isElb) {
-        this.elEngravingSourceBadge.textContent = '魔除けの結界';
+        this.elEngravingSourceBadge.textContent = isEn ? 'Ward of Protection' : '魔除けの結界';
+        this.elEngravingSourceBadge.style.display = 'inline-block';
+      } else if (restored && (restored.source || restored.sourceEn)) {
+        this.elEngravingSourceBadge.textContent = isEn ? (restored.sourceEn || restored.source) : restored.source;
         this.elEngravingSourceBadge.style.display = 'inline-block';
       } else {
         this.elEngravingSourceBadge.style.display = 'none';

@@ -236,7 +236,8 @@ class GklPureJSClient {
       elEngravingSourceBadge: document.getElementById('engraving-source-badge'),
       elBtnEngraveReapply: document.getElementById('btn-engrave-reapply'),
       elBtnEngravingClose: document.getElementById('btn-engraving-close'),
-      getCore: () => this.core
+      getCore: () => this.core,
+      language: this.currentLanguage
     });
 
     // 8. Character Creation Modal (Tabbed Wizard)
@@ -1473,12 +1474,13 @@ class GklPureJSClient {
     this.containerModal.setLanguage(this.currentLanguage);
     if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
     if (this.codexModal) this.codexModal.setLanguage(this.currentLanguage);
-    if (this.characterCreationModal) this.characterCreationModal.currentLanguage = this.currentLanguage;
+    if (this.characterCreationModal) this.characterCreationModal.setLanguage(this.currentLanguage);
     if (this.characterIntroModal) this.characterIntroModal.setLanguage(this.currentLanguage);
     if (this.floatingActions) this.floatingActions.setLanguage(this.currentLanguage);
     if (this.knowledgeDetailModal) this.knowledgeDetailModal.setLanguage(this.currentLanguage);
     if (this.floatingMessageHud) this.floatingMessageHud.setLanguage(this.currentLanguage);
     if (this.messageHistoryDrawer) this.messageHistoryDrawer.setLanguage(this.currentLanguage);
+    if (this.engravingHud) this.engravingHud.setLanguage(this.currentLanguage);
 
     const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
     if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {

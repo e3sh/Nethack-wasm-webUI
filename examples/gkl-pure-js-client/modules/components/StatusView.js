@@ -60,6 +60,10 @@ export class StatusView {
 
   setLanguage(lang) {
     this.currentLanguage = lang;
+    if (this.elBtnToggleStatusDetails) {
+      const isEn = this.currentLanguage === 'en';
+      this.elBtnToggleStatusDetails.title = isEn ? 'Toggle status details (Click to pin)' : '詳細ステータス切替 (クリックで固定)';
+    }
   }
 
   setLayoutMode(mode) {
@@ -279,7 +283,10 @@ export class StatusView {
     } else {
       const activeHtml = activeRes.map(item => {
         const displayLabel = isEn ? (item.en || item.name || item.label) : (item.label || item.name);
-        return `<span class="gkl-attr-badge active" title="${item.label || ''} / ${item.en || ''} (有効)">${displayLabel}</span>`;
+        const titleText = isEn
+          ? `${item.en || item.label || item.name} (Active)`
+          : `${item.label || ''} / ${item.en || ''} (有効)`;
+        return `<span class="gkl-attr-badge active" title="${titleText}">${displayLabel}</span>`;
       }).join(' ');
       resHtml = `<strong style="font-size:11px; color:#94a3b8;">${isEn ? '🛡️ Resistances:' : '🛡️ 属性・能力:'}</strong> ${activeHtml}`;
     }

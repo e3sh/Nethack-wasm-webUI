@@ -245,4 +245,41 @@ describe('EngravingHud - ステータスバー直下の床文字考古学復元 
     expect(mockCore.ActionRecipeFactory.createEngraveElberethRecipe).toHaveBeenCalledWith('-');
     expect(mockCore.executeSequence).toHaveBeenCalledWith(mockRecipe);
   });
+
+  it('11. setLanguage("en") 時に英語モード用のバッジやボタン文言が反映されること', () => {
+    engravingHud.setLanguage('en');
+
+    // 再刻みボタンと閉じるボタンの検証
+    expect(elements.elBtnEngraveReapply.textContent).toBe('[E] Re-engrave');
+    expect(elements.elBtnEngraveReapply.title).toBe('Re-engrave Elbereth');
+    expect(elements.elBtnEngravingClose.title).toBe('Close [Esc]');
+
+    // A. 劣化 Elbereth の場合
+    engravingHud.show({
+      actualText: 'El?ereth',
+      isElbereth: true,
+      isWardActive: false,
+      elberethIntegrity: 0.85,
+      restored: {
+        pristineText: 'Elbereth',
+        source: '魔除けの結界文字'
+      }
+    });
+    expect(elements.elEngravingConfidenceBadge.textContent).toBe('Ward Degraded (85% eroded)');
+    expect(elements.elEngravingSourceBadge.textContent).toBe('Ward of Protection');
+    expect(elements.elEngravingTranslation.textContent).toContain('Elbereth (Degraded ward');
+
+    // B. 墓碑銘の場合
+    engravingHud.show({
+      actualText: 'Rest in Peace',
+      isHeadstone: true,
+      restored: {
+        pristineText: 'Rest in Peace',
+        source: 'Headstone'
+      }
+    });
+    expect(elements.elEngravingConfidenceBadge.textContent).toBe('Headstone');
+    expect(elements.elEngravingSourceBadge.textContent).toBe('Headstone');
+    expect(elements.elEngravingTranslation.textContent).toBe('Epitaph engraved on headstone (Permanent record)');
+  });
 });

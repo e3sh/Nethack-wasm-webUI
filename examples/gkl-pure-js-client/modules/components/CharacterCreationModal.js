@@ -62,6 +62,13 @@ export class CharacterCreationModal {
     this.initDOM();
   }
 
+  setLanguage(lang) {
+    this.currentLanguage = lang === 'en' ? 'en' : 'ja';
+    if (this.isVisible) {
+      this.render();
+    }
+  }
+
   /**
    * キャラクタ作成状態のリセット
    */
