@@ -31,7 +31,7 @@ last_updated: 2026-09-27
 UI層への影響・手戻りを最小化するため、**「先に防腐層（UIController）を確立し、その保護下で基幹メッセージシグナル刷新（Phase 5 Stage 5.4〜5.5）を進める」** 順序で実行します。
 
 ### 1.1 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
-- **ステータス**: `🚧 in-progress` (Step 2 完了, 2026-09-27)
+- **ステータス**: `🚧 in-progress` (Step 3 完了, 2026-09-27)
 - **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
 - **最優先着手理由**:
   - Model（Cコア / WASM / GKL）のシグナル高度化に対する**「防腐層（Anti-Corruption Layer）」** を先行配備することで、後続の Phase 5 (Stage 5.4〜5.5) におけるイベント・シグナル刷新が起きても View 側の修正・手戻りをゼロにする。
@@ -52,8 +52,18 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - `src/ui-controller/index.js` による一元エクスポートおよび `package.json` (`@nethack-webui/ui-controller`) の配備
     - `Nehww`（`main.js`, `KeyHandler.js`, `FloatingMessageHud.js`, `PaperdollModal.js`, `ContainerModal.js`）のインポート切り替え
     - 単体テスト（`tests/ui-controller/` 全6スイート）のインポート追従
-    - 全96テストスイート・1,220テスト 100% PASS、および全4サンプルクライアント（Vue, React, Solid, Svelte）のビルド成功確認
-  - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
+  - [x] **Step 3: Web Components ライブラリ（`<nh-*>`）の実装** (2026-09-27 完了)
+    - `src/components/` ディレクトリ新設および `NhBaseElement`（Shadow DOM, ライフサイクル, 購読自動解除）配備
+    - Neo-Retro Dark Glass UI 共通 CSS トークン・スタイル（`theme.css.js`）配備
+    - コア Web Components 実装：
+      - `<nh-floating-hud>`: `FloatingMessageHudController` 連携、世代別透過・フェードアウト
+      - `<nh-modal>`: `ModalStackController` 連携、Z-Index スタック順・ESC 閉塞・FocusTrap
+      - `<nh-paperdoll>`: `PaperdollPresenter` 連携、14部位スロット、適合ハイライト、差分プレビュー
+      - `<nh-container-filer>`: `ContainerDraftController` 連携、二画面ファイラー、移動ドラフト、BoH防爆警告バッジ
+      - `<nh-ui-config>`: `UIConfigStore` 連携、外観・レイアウト設定、プリセット切り替え
+    - `src/components/index.js` 一括エクスポート & `customElements.define` 自動/一括登録
+    - インタラクティブデモカタログ (`examples/web-components-demo/index.html`) 配備
+    - 単体テスト新設、全103テストスイート・1,247テスト 100% PASS、全4サンプルクライアントビルド成功確認
   - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
 
 ### 1.2 Phase 5: メッセージシグナル化刷新と次世代 WebUICore / GKL 連携

@@ -227,8 +227,13 @@ flowchart TD
   - `index.js` 一元エクスポート、`package.json` 配備。
   - `Nehww`（`main.js`, `KeyHandler.js`, `FloatingMessageHud.js`, `PaperdollModal.js`, `ContainerModal.js`）および単体テストのインポート先を切り替え。
   - 全96テストスイート・1,220テスト 100% PASS、および全4サンプルクライアント（Vue, React, Solid, Svelte）のビルド成功確認。
-- **Step 3: Web Components 化（`<nh-*>`）**:
-  - 切り出された UIController にバインドするカスタム要素群（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）を実装。
+- **Step 3: Web Components 化（`<nh-*>`）** `[完了: 2026-09-27]`:
+  - `src/components/` ディレクトリ新設および `NhBaseElement`（Shadow DOM, ライフサイクル, 購読自動解除）配備。
+  - Neo-Retro Dark Glass UI 共通 CSS トークン・スタイルシート（`theme.css.js`）配備。
+  - 切り出された UIController にバインドする Custom Elements 群（`<nh-floating-hud>`, `<nh-modal>`, `<nh-paperdoll>`, `<nh-container-filer>`, `<nh-ui-config>`）を実装。
+  - `src/components/index.js` 一括エクスポート & `customElements.define` 自動/一括登録。
+  - インタラクティブデモカタログ (`examples/web-components-demo/index.html`) 配備。
+  - 単体テスト（`tests/components/` 8スイート・45テスト）新設、全103テストスイート・1,247テスト 100% PASS、全4サンプルクライアントビルド成功確認。
 - **Step 4: Nehww への逆輸入・共通化**:
   - `Nehww` の画面コードを、この Web Components または UIController を利用する形に差し替え、コード量を半減させつつ保守性を極限まで高める。
 

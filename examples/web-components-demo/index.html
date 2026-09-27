@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetHack Web Components Catalog & Demo (<nh-*> UI Showcase)</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --panel-bg: rgba(15, 23, 42, 0.85);
+      --card-bg: rgba(22, 33, 62, 0.75);
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary-color: #38bdf8;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "Cascadia Code", "Fira Code", Consolas, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 24px;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+    }
+
+    header {
+      max-width: 1200px;
+      margin: 0 auto 32px auto;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .demo-section {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .demo-section.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-name {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--primary-color);
+    }
+
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button.btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button.btn:hover {
+      background: var(--primary-color);
+      color: #0b0f19;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .event-log {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #a5f3fc;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+  </style>
+
+  <!-- Web Components スクリプトのインポート -->
+  <script type="module" src="../../src/components/index.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <span>🗡️ NetHack Web Components Library</span>
+      <span class="badge">v1.1 (Phase E)</span>
+    </h1>
+    <div style="font-size: 0.85rem; color: var(--text-muted);">
+      Custom Elements + Shadow DOM + UIController (Headless)
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. Floating Message HUD -->
+    <section class="demo-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>💬 メッセージ HUD</span>
+          <span class="tag-name">&lt;nh-floating-hud&gt;</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        FloatingMessageHudController と連携し、世代別透過・アニメーション・フェードアウトを自律制御します。
+      </p>
+
+      <div class="controls-bar">
+        <button class="btn" id="btn-msg-normal">通常メッセージ投入</button>
+        <button class="btn" id="btn-msg-bold">重要メッセージ (太字)</button>
+        <button class="btn" id="btn-msg-action">行動通知 (世代進行)</button>
+        <button class="btn" id="btn-msg-clear">クリア</button>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; min-height: 120px; display: flex; align-items: center; justify-content: center;">
+        <nh-floating-hud id="demo-hud" max-lines="4"></nh-floating-hud>
+      </div>
+    </section>
+
+    <!-- 2. Modal Window -->
+    <section class="demo-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>🪟 モーダル外枠</span>
+          <span class="tag-name">&lt;nh-modal&gt;</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        ModalStackController と連携し、Z-Index スタック順・ESC 閉塞・FocusTrap（Tab 巡回）を内包。
+      </p>
+
+      <div class="controls-bar">
+        <button class="btn" id="btn-open-modal">モーダルを開く</button>
+      </div>
+
+      <nh-modal id="demo-modal" title="⚔️ キャラクター詳細 (Modal Showcase)" closable="true">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <p>Neo-Retro Dark Glass UI のモーダルコンポーネントです。ESC キーまたは閉じるボタンで閉じます。</p>
+          <div>
+            <label style="font-size: 0.85rem; color: var(--text-muted);">検索キーワード入力 (FocusTrap テスト):</label>
+            <input type="text" placeholder="アイテム名を入力..." style="width: 100%; margin-top: 4px; padding: 6px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: #fff; border-radius: 4px;">
+          </div>
+        </div>
+        <div slot="footer">
+          <button class="btn" id="btn-close-modal-inner">閉じる</button>
+        </div>
+      </nh-modal>
+
+      <div class="event-log" id="modal-event-log">モーダルイベントログ: 待機中...</div>
+    </section>
+
+    <!-- 3. Paperdoll Presenter -->
+    <section class="demo-section full-width">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>👤 装備ペーパードール</span>
+          <span class="tag-name">&lt;nh-paperdoll&gt;</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        PaperdollPresenter と連携し、人型部位スロットのレイアウト、適合スロットのネオングローハイライト、装備差分プレビュー（AC・ターン数・重量・耐性）を描画します。
+      </p>
+
+      <div class="controls-bar">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">換装候補アイテムのシミュレーション:</span>
+        <button class="btn" id="btn-pick-helm">🪖 兜 (+1 iron helmet)</button>
+        <button class="btn" id="btn-pick-sword">⚔️ 武器 (long sword)</button>
+        <button class="btn" id="btn-pick-ring">💍 指輪 (ring of protection)</button>
+        <button class="btn" id="btn-pick-clear">選択解除</button>
+      </div>
+
+      <nh-paperdoll id="demo-paperdoll"></nh-paperdoll>
+
+      <div class="event-log" id="paperdoll-event-log">スロット操作ログ: 待機中...</div>
+    </section>
+
+    <!-- 4. Container Filer -->
+    <section class="demo-section full-width">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>📦 二画面ファイラー型コンテナ</span>
+          <span class="tag-name">&lt;nh-container-filer&gt;</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        ContainerDraftController と連携し、二画面ファイラーUI、移動ドラフト、手品袋（Bag of Holding）時の防爆ガードバッジおよび爆発リスク警告を表示します。
+      </p>
+
+      <div class="controls-bar">
+        <button class="btn" id="btn-toggle-boh">⚠️ 手品袋 (BoH) モード切替</button>
+        <button class="btn" id="btn-add-risk-item">💣 危険アイテム (bag of tricks) を所持品に追加</button>
+      </div>
+
+      <nh-container-filer id="demo-filer" container-name="大きな宝箱 (Large Chest)"></nh-container-filer>
+
+      <div class="event-log" id="filer-event-log">コンテナ操作ログ: 待機中...</div>
+    </section>
+
+    <!-- 5. UI Configuration -->
+    <section class="demo-section full-width">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>⚙️ UI 設定パネル</span>
+          <span class="tag-name">&lt;nh-ui-config&gt;</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        UIConfigStore と連携し、外観・レイアウト設定やプリセット（モダン / クラシック / カスタム）の即時切り替えおよび LocalStorage 永続化を提供します。
+      </p>
+
+      <nh-ui-config id="demo-config"></nh-ui-config>
+
+      <div class="event-log" id="config-event-log">設定変更ログ: 待機中...</div>
+    </section>
+
+  </div>
+
+  <script type="module">
+    let msgCounter = 1;
+    const hud = document.getElementById('demo-hud');
+    const modal = document.getElementById('demo-modal');
+    const paperdoll = document.getElementById('demo-paperdoll');
+    const filer = document.getElementById('demo-filer');
+    const config = document.getElementById('demo-config');
+
+    // 1. HUD デモ
+    document.getElementById('btn-msg-normal').addEventListener('click', () => {
+      hud.pushMessage({ id: msgCounter++, text: `ダンジョンに足を踏み入れた。 (${msgCounter})` });
+    });
+    document.getElementById('btn-msg-bold').addEventListener('click', () => {
+      hud.pushMessage({ id: msgCounter++, text: `⚠️ 遠くで大きな足音が響いた！ (${msgCounter})`, isBold: true });
+    });
+    document.getElementById('btn-msg-action').addEventListener('click', () => {
+      hud.notifyUserAction();
+    });
+    document.getElementById('btn-msg-clear').addEventListener('click', () => {
+      hud.clear();
+    });
+
+    // 2. Modal デモ
+    const modalLog = document.getElementById('modal-event-log');
+    document.getElementById('btn-open-modal').addEventListener('click', () => {
+      modal.showModal();
+    });
+    document.getElementById('btn-close-modal-inner').addEventListener('click', () => {
+      modal.close();
+    });
+    modal.addEventListener('nh-modal-open', (e) => {
+      modalLog.textContent = `[EVENT] nh-modal-open: ${JSON.stringify(e.detail)}`;
+    });
+    modal.addEventListener('nh-modal-close', (e) => {
+      modalLog.textContent = `[EVENT] nh-modal-close: ${JSON.stringify(e.detail)}`;
+    });
+
+    // 3. Paperdoll デモ
+    const paperdollLog = document.getElementById('paperdoll-event-log');
+    const initialSituation = {
+      inventory: {
+        items: [
+          { id: 1, name: 'leather armor', equipped: true, category: 'ARMOR', armorSlot: 'suit' },
+          { id: 2, name: '+2 dagger', equipped: true, category: 'WEAPON' }
+        ]
+      }
+    };
+    paperdoll.setSituation(initialSituation);
+
+    document.getElementById('btn-pick-helm').addEventListener('click', () => {
+      paperdoll.setCandidateItem({ id: 10, name: '+1 iron helmet', category: 'ARMOR', armorSlot: 'helm' });
+      paperdollLog.textContent = '候補アイテム選択: 兜 (helm スロットがハイライト)';
+    });
+    document.getElementById('btn-pick-sword').addEventListener('click', () => {
+      paperdoll.setCandidateItem({ id: 11, name: 'silver long sword', category: 'WEAPON' });
+      paperdollLog.textContent = '候補アイテム選択: 武器 (main_hand スロットがハイライト)';
+    });
+    document.getElementById('btn-pick-ring').addEventListener('click', () => {
+      paperdoll.setCandidateItem({ id: 12, name: 'ring of protection', category: 'RING' });
+      paperdollLog.textContent = '候補アイテム選択: 指輪 (left_ring / right_ring がハイライト)';
+    });
+    document.getElementById('btn-pick-clear').addEventListener('click', () => {
+      paperdoll.setCandidateItem(null);
+      paperdollLog.textContent = '候補アイテム選択解除';
+    });
+
+    paperdoll.addEventListener('slot-select', (e) => {
+      paperdollLog.textContent = `[EVENT] slot-select: 部位 [${e.detail.slotId}], 装備中: ${e.detail.currentItem ? e.detail.currentItem.name : 'なし'}`;
+    });
+
+    // 4. Container Filer デモ
+    const filerLog = document.getElementById('filer-event-log');
+    let isBoH = false;
+
+    filer.setPlayerInventory([
+      { id: 201, name: 'ration of food', count: 4, glyph: '🍎' },
+      { id: 202, name: 'potion of healing', count: 2, glyph: '🧪' },
+      { id: 203, name: 'scroll of identify', count: 3, glyph: '📜' }
+    ]);
+    filer.setContainerContents([
+      { id: 301, name: 'gold piece', count: 250, glyph: '💰' },
+      { id: 302, name: 'emerald gem', count: 1, glyph: '💎' }
+    ]);
+
+    document.getElementById('btn-toggle-boh').addEventListener('click', () => {
+      isBoH = !isBoH;
+      filer.setBagOfHolding(isBoH);
+      filerLog.textContent = `手品袋防爆モード: ${isBoH ? '有効 (ON)' : '無効 (OFF)'}`;
+    });
+
+    document.getElementById('btn-add-risk-item').addEventListener('click', () => {
+      filer.setPlayerInventory([
+        { id: 201, name: 'ration of food', count: 4, glyph: '🍎' },
+        { id: 204, name: 'bag of tricks', isBagOfTricks: true, glyph: '🎒' }
+      ]);
+      filerLog.textContent = 'プレイヤー所持品に「bag of tricks」を追加しました。';
+    });
+
+    filer.addEventListener('transfer-staged', (e) => {
+      filerLog.textContent = `[EVENT] transfer-staged: アイテム [${e.detail.draft.item.name}], 警告要否: ${e.detail.requiresWarning}`;
+    });
+    filer.addEventListener('explosion-warning', (e) => {
+      filerLog.textContent = `[CRITICAL WARNING] 手品袋への爆発危険アイテム格納を検知: ${e.detail.item.name}`;
+      alert(`⚠️ 警告: ${e.detail.item.name} を手品袋に入れると大爆発します！`);
+    });
+    filer.addEventListener('transfer-commit', (e) => {
+      filerLog.textContent = `[EVENT] transfer-commit: 合計 ${e.detail.drafts.length} 件の転送を確定`;
+      alert(`転送確定: ${e.detail.drafts.length} 件`);
+      filer.clearDraft();
+    });
+
+    // 5. Config デモ
+    const configLog = document.getElementById('config-event-log');
+    config.addEventListener('config-change', (e) => {
+      configLog.textContent = `[EVENT] config-change: ${JSON.stringify(e.detail)}`;
+    });
+    config.addEventListener('preset-change', (e) => {
+      configLog.textContent = `[EVENT] preset-change: プリセット [${e.detail.preset}] を適用`;
+    });
+  </script>
+
+</body>
+</html>
