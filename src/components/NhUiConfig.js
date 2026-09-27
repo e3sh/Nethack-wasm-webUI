@@ -140,16 +140,91 @@ input:checked + .slider {
 input:checked + .slider:before {
   transform: translateX(18px);
 }
+
+/* Select Rows */
+.select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(22, 33, 62, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.config-select {
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--nh-text-main);
+  border: 1px solid var(--nh-border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-select:focus {
+  border-color: var(--nh-primary-color);
+  box-shadow: 0 0 6px var(--nh-primary-glow);
+}
 `;
+
+export const UI_CONFIG_I18N = {
+  ja: {
+    sectionPreset: '🎨 UI プリセット',
+    presetModern: 'モダン (推奨)',
+    presetClassic: 'クラシック',
+    presetCustom: 'カスタム',
+    sectionPanels: '📐 パネル表示',
+    panelInventory: '🎒 所持品パネル',
+    panelActions: '⚡ アクションパネル',
+    panelKnowledge: '📖 知識図鑑パネル',
+    panelHistoryDock: '📜 過去ログドック',
+    sectionStatus: '📊 ステータス表示',
+    statusClassic2Line: '2行クラシック表示',
+    statusGauges: 'グラフィカルゲージ (HP/MP)',
+    statusGklExtra: 'GKL 拡張情報表示',
+    sectionMessages: '⏱️ フローティングメッセージ',
+    labelHudFadeDelay: '操作後の消去待機時間',
+    hudFadeFast: '⚡ 1.2s - 早い',
+    hudFadeNormal: '⏱️ 2.5s - 標準',
+    hudFadeSlow: '⏳ 4.0s - ゆっくり',
+    btnResetDefaults: '初期設定に戻す'
+  },
+  en: {
+    sectionPreset: '🎨 UI Presets',
+    presetModern: 'Modern (Recommended)',
+    presetClassic: 'Classic',
+    presetCustom: 'Custom',
+    sectionPanels: '📐 Panel Display',
+    panelInventory: '🎒 Inventory Panel',
+    panelActions: '⚡ Actions Panel',
+    panelKnowledge: '📖 Codex / Knowledge Panel',
+    panelHistoryDock: '📜 Message History Dock',
+    sectionStatus: '📊 Status Display',
+    statusClassic2Line: 'Classic 2-Line Status',
+    statusGauges: 'Graphical Gauges (HP/MP)',
+    statusGklExtra: 'GKL Extended Status',
+    sectionMessages: '⏱️ Floating Messages',
+    labelHudFadeDelay: 'Fade delay after action',
+    hudFadeFast: '⚡ 1.2s - Fast',
+    hudFadeNormal: '⏱️ 2.5s - Standard',
+    hudFadeSlow: '⏳ 4.0s - Relaxed',
+    btnResetDefaults: 'Reset to Defaults'
+  }
+};
 
 export class NhUiConfig extends NhBaseElement {
   static get observedAttributes() {
-    return ['preset'];
+    return ['preset', 'lang'];
   }
 
   constructor() {
     super({ customCss: CONFIG_CSS });
 
+    this.currentLanguage = this.getAttribute('lang') || 'ja';
     this.store = new UIConfigStore();
   }
 
@@ -165,7 +240,22 @@ export class NhUiConfig extends NhBaseElement {
 
     if (name === 'preset' && newValue) {
       this.store.applyPreset(newValue);
+    } else if (name === 'lang' && newValue) {
+      this.setLanguage(newValue);
     }
+  }
+
+  /**
+   * 言語の切り替え ('ja' | 'en')
+   * @param {string} lang
+   */
+  setLanguage(lang) {
+    const normalized = (lang === 'en' || lang === 'ja') ? lang : 'ja';
+    if (this.currentLanguage === normalized && this.shadowRoot && this.shadowRoot.querySelector('.config-container')) {
+      return;
+    }
+    this.currentLanguage = normalized;
+    this.render();
   }
 
   /**
@@ -203,45 +293,47 @@ export class NhUiConfig extends NhBaseElement {
   render() {
     if (!this.shadowRoot) return;
 
+    const t = UI_CONFIG_I18N[this.currentLanguage] || UI_CONFIG_I18N.ja;
+
     this.shadowRoot.innerHTML = `
       <div class="config-container">
         <!-- プリセット選択 -->
         <div class="config-section">
-          <div class="section-title">🎨 UI プリセット</div>
+          <div class="section-title">${t.sectionPreset}</div>
           <div class="preset-group">
-            <button class="preset-btn" data-preset="${PRESETS.MODERN}">モダン (推奨)</button>
-            <button class="preset-btn" data-preset="${PRESETS.CLASSIC}">クラシック</button>
-            <button class="preset-btn" data-preset="${PRESETS.CUSTOM}">カスタム</button>
+            <button class="preset-btn" data-preset="${PRESETS.MODERN}">${t.presetModern}</button>
+            <button class="preset-btn" data-preset="${PRESETS.CLASSIC}">${t.presetClassic}</button>
+            <button class="preset-btn" data-preset="${PRESETS.CUSTOM}">${t.presetCustom}</button>
           </div>
         </div>
 
         <!-- パネル表示設定 -->
         <div class="config-section">
-          <div class="section-title">📐 パネル表示</div>
+          <div class="section-title">${t.sectionPanels}</div>
           <div class="toggle-grid">
             <div class="toggle-row">
-              <span class="toggle-label">🎒 所持品パネル</span>
+              <span class="toggle-label">${t.panelInventory}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="panelInventory">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="toggle-row">
-              <span class="toggle-label">⚡ アクションパネル</span>
+              <span class="toggle-label">${t.panelActions}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="panelActions">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="toggle-row">
-              <span class="toggle-label">📖 知識図鑑パネル</span>
+              <span class="toggle-label">${t.panelKnowledge}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="panelKnowledge">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="toggle-row">
-              <span class="toggle-label">📜 過去ログドック</span>
+              <span class="toggle-label">${t.panelHistoryDock}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="panelHistoryDock">
                 <span class="slider"></span>
@@ -252,24 +344,24 @@ export class NhUiConfig extends NhBaseElement {
 
         <!-- ステータス設定 -->
         <div class="config-section">
-          <div class="section-title">📊 ステータス表示</div>
+          <div class="section-title">${t.sectionStatus}</div>
           <div class="toggle-grid">
             <div class="toggle-row">
-              <span class="toggle-label">2行クラシック表示</span>
+              <span class="toggle-label">${t.statusClassic2Line}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="statusClassic2Line">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="toggle-row">
-              <span class="toggle-label">グラフィカルゲージ (HP/MP)</span>
+              <span class="toggle-label">${t.statusGauges}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="statusGauges">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="toggle-row">
-              <span class="toggle-label">GKL 拡張情報表示</span>
+              <span class="toggle-label">${t.statusGklExtra}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="statusGklExtra">
                 <span class="slider"></span>
@@ -278,8 +370,21 @@ export class NhUiConfig extends NhBaseElement {
           </div>
         </div>
 
+        <!-- フローティングメッセージ待機時間設定 -->
+        <div class="config-section">
+          <div class="section-title">${t.sectionMessages}</div>
+          <div class="select-row">
+            <span class="toggle-label">${t.labelHudFadeDelay}</span>
+            <select class="config-select" data-config-key="hudFadeDelay">
+              <option value="1200">${t.hudFadeFast}</option>
+              <option value="2500">${t.hudFadeNormal}</option>
+              <option value="4000">${t.hudFadeSlow}</option>
+            </select>
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-          <button class="nh-btn btn-reset-defaults">初期設定に戻す</button>
+          <button class="nh-btn btn-reset-defaults">${t.btnResetDefaults}</button>
         </div>
       </div>
     `;
@@ -300,6 +405,16 @@ export class NhUiConfig extends NhBaseElement {
       cb.addEventListener('change', () => {
         const key = cb.dataset.configKey;
         this.setConfig(key, cb.checked);
+      });
+    });
+
+    // セレクトボックスのリスナー
+    const selects = this.shadowRoot.querySelectorAll('select[data-config-key]');
+    selects.forEach(sel => {
+      sel.addEventListener('change', () => {
+        const key = sel.dataset.configKey;
+        const val = parseInt(sel.value, 10);
+        this.setConfig(key, val);
       });
     });
 
@@ -333,6 +448,15 @@ export class NhUiConfig extends NhBaseElement {
       const key = cb.dataset.configKey;
       if (key in config) {
         cb.checked = Boolean(config[key]);
+      }
+    });
+
+    // セレクトボックス
+    const selects = this.shadowRoot.querySelectorAll('select[data-config-key]');
+    selects.forEach(sel => {
+      const key = sel.dataset.configKey;
+      if (key in config) {
+        sel.value = String(config[key]);
       }
     });
   }

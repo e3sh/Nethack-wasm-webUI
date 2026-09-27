@@ -25,6 +25,7 @@ export class DirectionPad {
     this.currentLanguage = 'ja';
     this.selectedDir = 'NONE';
     this._lastActionHtml = null;
+    this._lastActions = [];
 
     this.initDirectionPadEvents();
   }
@@ -32,6 +33,12 @@ export class DirectionPad {
   setLanguage(lang) {
     this.currentLanguage = lang;
     this._lastActionHtml = null;
+    if (this.elGklDirectionPad) {
+      this.renderDirectionPad(new Map());
+    }
+    if (this._lastActions && this._lastActions.length > 0) {
+      this.renderGklActions(this._lastActions);
+    }
   }
 
   /**
@@ -268,6 +275,7 @@ export class DirectionPad {
   }
 
   renderGklActions(actions) {
+    this._lastActions = actions || [];
     if (!this.elGklActionList) return;
     const isEn = this.currentLanguage === 'en';
     const core = this.getCore();

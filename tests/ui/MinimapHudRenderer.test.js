@@ -205,7 +205,7 @@ describe('MinimapHudRenderer - ミニマップ HUD ＆ [Tab] オーバーレイ 
     expect(mockCanvas.height).toBe(72);
   });
 
-  it('7. プレイヤーがダンジョン右端・右上に近づいた際にミニマップが自動退避 (dock-left) すること', () => {
+  it('7. 自キャラがどの座標にあっても退避クラスが付与されず、定位置で安定して描画されること', () => {
     const classSet = new Set();
     const dynamicHudBox = {
       classList: {
@@ -224,22 +224,13 @@ describe('MinimapHudRenderer - ミニマップ HUD ＆ [Tab] オーバーレイ 
       virtualScreen: vScreen
     });
 
-    // プレイヤーがダンジョン右端 (x: 75, y: 2) に接近
+    // プレイヤーがダンジョン右端 (x: 75, y: 2) に接近しても退避処理は行われない
     minimap.renderMinimap({
       area: { playerX: 75, playerY: 2 },
       landmarks: { all: [] }
     });
 
-    // dock-left クラスが付与され、左上へ退避すること
-    expect(dynamicHudBox.classList.add).toHaveBeenCalledWith('dock-left');
-    expect(classSet.has('dock-left')).toBe(true);
-
-    // プレイヤーが中央 (x: 40, y: 12) に戻った場合、通常位置 (右上) に復帰すること
-    minimap.renderMinimap({
-      area: { playerX: 40, playerY: 12 },
-      landmarks: { all: [] }
-    });
-    expect(dynamicHudBox.classList.remove).toHaveBeenCalledWith('dock-left');
+    expect(dynamicHudBox.classList.add).not.toHaveBeenCalledWith('dock-left');
     expect(classSet.has('dock-left')).toBe(false);
   });
 });

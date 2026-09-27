@@ -22,7 +22,8 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   panelCollapsed: false,
   statusClassic2Line: false,
   statusGauges: true,
-  statusGklExtra: true
+  statusGklExtra: true,
+  hudFadeDelay: 2500
 });
 
 export class UIConfigStore {
@@ -216,7 +217,10 @@ export class UIConfigStore {
       panelCollapsed: Boolean(raw.panelCollapsed),
       statusClassic2Line: Boolean(raw.statusClassic2Line),
       statusGauges: raw.statusGauges !== undefined ? Boolean(raw.statusGauges) : true,
-      statusGklExtra: raw.statusGklExtra !== undefined ? Boolean(raw.statusGklExtra) : true
+      statusGklExtra: raw.statusGklExtra !== undefined ? Boolean(raw.statusGklExtra) : true,
+      hudFadeDelay: typeof raw.hudFadeDelay === 'number' && !Number.isNaN(raw.hudFadeDelay)
+        ? raw.hudFadeDelay
+        : (parseInt(raw.hudFadeDelay, 10) || 2500)
     };
   }
 }

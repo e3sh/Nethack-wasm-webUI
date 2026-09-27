@@ -286,5 +286,22 @@ describe('FloatingMessageHud - フローティング最新行 HUD', () => {
       vi.advanceTimersByTime(400);
       expect(actionContainer.children.length).toBe(0);
     });
+
+    it('15. setFadeDelay(ms) で操作後のフェード開始待機時間を動的に変更できること', () => {
+      actionHud.clear();
+      actionHud.setFadeDelay(1200);
+      expect(actionHud.fadeDelayAfterActionMs).toBe(1200);
+
+      actionHud.pushMessage({ id: 301, text: 'Quick fade test' });
+      actionHud.notifyUserAction();
+
+      // 1000ms 時点ではまだフェード開始していない
+      vi.advanceTimersByTime(1000);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(false);
+
+      // 1200ms 経過でフェード開始
+      vi.advanceTimersByTime(200);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+    });
   });
 });

@@ -71,6 +71,19 @@ export class FloatingMessageHud {
   }
 
   /**
+   * 操作後のフェード開始待機時間の変更 (ミリ秒)
+   * @param {number} ms
+   */
+  setFadeDelay(ms) {
+    if (typeof ms === 'number' && !Number.isNaN(ms)) {
+      this.fadeDelayAfterActionMs = Math.max(0, ms);
+      if (this.controller && typeof this.controller.setFadeDelayAfterActionMs === 'function') {
+        this.controller.setFadeDelayAfterActionMs(this.fadeDelayAfterActionMs);
+      }
+    }
+  }
+
+  /**
    * 各行の新旧世代クラスを更新 (最新行: line-age-0, 古い行: line-age-1..)
    * @private
    */

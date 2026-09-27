@@ -777,7 +777,7 @@ export class WebGPUHD2DRenderer {
     const camZ = this.currentCamZ !== null ? this.currentCamZ.toFixed(1) : '-';
     const texBadge = this.hasTexture ? `Texture: OK` : `Texture: ${this.textureStatus}`;
     const modeBadge = this.cameraMode === 'topdown' ? '📐 TopDown' : '🏛️ Diorama';
-    const idleBadge = this.isIdle ? ' <span style="color:#88ddff">[Idle 省電力]</span>' : '';
+    const idleBadge = this.isIdle ? ' <span style="color:#88ddff">[Idle]</span>' : '';
 
     this.debugHudElement.innerHTML = `
       <div><span class="badge-ok">✨ WebGPU HD-2D</span> &nbsp;|&nbsp; <b>${this.currentFps} FPS</b> &nbsp;|&nbsp; <span>${modeBadge}${idleBadge}</span> &nbsp;|&nbsp; <span style="color:#6ee7b7">🔍 ${(this.currentZoom).toFixed(2)}x</span></div>

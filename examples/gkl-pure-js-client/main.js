@@ -1019,6 +1019,9 @@ class GklPureJSClient {
 
     if (nhUiConfig && typeof nhUiConfig.setConfigStore === 'function') {
       nhUiConfig.setConfigStore(this.uiConfigStore);
+      if (typeof nhUiConfig.setLanguage === 'function') {
+        nhUiConfig.setLanguage(this.currentLanguage);
+      }
       nhUiConfig.addEventListener('config-change', (e) => {
         this.layoutConfig = e.detail?.config || this.uiConfigStore.get();
         this.applyLayoutConfig(this.layoutConfig);
@@ -1032,6 +1035,11 @@ class GklPureJSClient {
 
     if (btnOpenUiConfig && nhModalSettings) {
       btnOpenUiConfig.onclick = () => {
+        const isEn = this.currentLanguage === 'en';
+        nhModalSettings.setAttribute('title', isEn ? '⚙️ Settings & UI Customization' : '⚙️ 環境設定・UIカスタマイズ');
+        if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {
+          nhUiConfig.setLanguage(this.currentLanguage);
+        }
         nhModalSettings.open = true;
         if (this.settingsDropdown) {
           this.settingsDropdown.classList.add('hidden');
@@ -1472,6 +1480,44 @@ class GklPureJSClient {
     if (this.floatingMessageHud) this.floatingMessageHud.setLanguage(this.currentLanguage);
     if (this.messageHistoryDrawer) this.messageHistoryDrawer.setLanguage(this.currentLanguage);
 
+    const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
+    if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {
+      nhUiConfig.setLanguage(this.currentLanguage);
+    }
+    const nhModalSettings = document.getElementById('nh-modal-settings');
+    if (nhModalSettings) {
+      nhModalSettings.setAttribute('title', isEn ? '⚙️ Settings & UI Customization' : '⚙️ 環境設定・UIカスタマイズ');
+    }
+
+    // === 1. ヘッダー：サイドパネル開閉ボタンおよび履歴・設定 ===
+    const isCollapsed = Boolean(this.layoutConfig?.panelCollapsed);
+    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
+    const btnSidePanelLabel = document.getElementById('btn-side-panel-label');
+    if (btnSidePanelLabel) {
+      btnSidePanelLabel.textContent = isCollapsed
+        ? (isEn ? '🎒 Panel ⏴' : '🎒 パネル ⏴')
+        : (isEn ? '🎒 Panel ⏵' : '🎒 パネル ⏵');
+    }
+    if (btnToggleSidePanel) {
+      btnToggleSidePanel.title = isEn
+        ? 'Toggle side panel [ F2/Alt+S ]'
+        : 'サイドパネル一時退避 / 再展開 [ F2/Alt+S ]';
+    }
+
+    const btnCollapseSidePanel = document.getElementById('btn-collapse-side-panel');
+    if (btnCollapseSidePanel) {
+      btnCollapseSidePanel.title = isEn ? 'Collapse side panel [ F2/Alt+S  ]' : 'サイドパネルを一時退避 [ F2/Alt+S ]';
+    }
+
+    const peekTab = document.getElementById('side-panel-peek-tab');
+    if (peekTab) {
+      peekTab.title = isEn ? 'Expand side panel [ F2/Alt+S ]' : 'サイドパネルを再展開 [ F2/Alt+S ]';
+      const peekLabel = peekTab.querySelector('.peek-tab-label');
+      if (peekLabel) {
+        peekLabel.textContent = isEn ? '🎒 Panel' : '🎒 パネル';
+      }
+    }
+
     const btnOpenHistory = document.getElementById('btn-open-history');
     const lblHistory = document.getElementById('btn-history-label');
     if (lblHistory) {
@@ -1483,52 +1529,98 @@ class GklPureJSClient {
       btnOpenHistory.title = isEn ? 'Open message history [Ctrl+P]' : '過去ログ全履歴を開く [Ctrl+P]';
     }
 
-    const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
-    if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
-
-    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
-    if (btnOpenPaperdoll) {
-      btnOpenPaperdoll.textContent = isEn ? '🎽 Paperdoll' : '🎽 装備詳細';
-      btnOpenPaperdoll.title = isEn ? 'Open equipment paperdoll & loadout' : '装備詳細 ＆ ペーパードールを開く';
-    }
-
     const btnOpenCodex = document.getElementById('btn-open-codex');
     const lblCodex = document.getElementById('btn-codex-label');
     if (lblCodex) {
-      lblCodex.textContent = isEn ? '📜 Codex' : '📜 冒険手帳';
+      lblCodex.textContent = isEn ? '📖 Codex' : '📖 冒険手帳';
     } else if (btnOpenCodex) {
-      btnOpenCodex.textContent = isEn ? '📜 Codex' : '📜 冒険手帳';
+      btnOpenCodex.textContent = isEn ? '📖 Codex' : '📖 冒険手帳';
     }
     if (btnOpenCodex) {
       btnOpenCodex.title = isEn ? 'Open adventure rumor & lore codex' : '冒険手帳・伝承図鑑を開く';
     }
 
-    const btnRefreshInv = document.getElementById('btn-refresh-inv');
-    if (btnRefreshInv) {
-      btnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
-      btnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
-    }
-
-    const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');
-    if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
-
-    const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
-    if (elKnHeader) elKnHeader.textContent = isEn ? '🛡️ Tactical Advices' : '🛡️ 戦術アドバイス (Tactical Advices)';
-
-    const lblPanelHistoryDock = document.getElementById('lbl-panel-history-dock');
-    if (lblPanelHistoryDock) {
-      lblPanelHistoryDock.textContent = isEn ? '📜 History (Docked Left)' : '📜 過去ログ (左側常時固定)';
-    }
-
+    // === 2. 設定ドロップダウンメニュー (settings-menu-dropdown) ===
     const btnSettingsToggle = document.getElementById('btn-settings-toggle');
     if (btnSettingsToggle) {
       btnSettingsToggle.textContent = isEn ? '⚙️ Settings' : '⚙️ 設定';
       btnSettingsToggle.title = isEn ? 'Settings & system menu' : '設定・システムメニュー';
     }
 
+    // 2.1 外観・レイアウト
+    const lblLayoutSec = document.getElementById('lbl-settings-layout-section');
+    if (lblLayoutSec) lblLayoutSec.textContent = isEn ? 'Appearance & Layout' : '外観・レイアウト';
+
+    const btnPresetClassic = document.getElementById('btn-preset-classic');
+    if (btnPresetClassic) {
+      btnPresetClassic.textContent = isEn ? '⚔️ Classic (Original)' : '⚔️ クラシック (原作風)';
+      btnPresetClassic.title = isEn
+        ? '1-Column Fullscreen, 2-line status, Classic style'
+        : '1カラム全画面・常時2行ステータス・NetHack原作風';
+    }
+    const btnPresetModern = document.getElementById('btn-preset-modern');
+    if (btnPresetModern) {
+      btnPresetModern.textContent = isEn ? '🛡️ GKL Modern (Standard)' : '🛡️ GKLモダン (標準)';
+      btnPresetModern.title = isEn
+        ? '2-Column Rich UI with full panels'
+        : '2カラム全枠表示・リッチGKLモード';
+    }
+    const btnOpenUiConfig = document.getElementById('btn-open-ui-config');
+    if (btnOpenUiConfig) {
+      btnOpenUiConfig.textContent = isEn ? '🎨 Advanced UI Settings (<nh-ui-config>)' : '🎨 UI 詳細設定 (<nh-ui-config>)';
+      btnOpenUiConfig.title = isEn ? 'Open advanced UI configuration modal' : 'UI 詳細設定ダイアログを開く';
+    }
+
+    // 2.2 サイドパネル枠
+    const lblPanelsSec = document.getElementById('lbl-settings-panels-section');
+    if (lblPanelsSec) lblPanelsSec.textContent = isEn ? 'Side Panels' : 'サイドパネル枠';
+
+    const chkInvSpan = document.querySelector('#chk-panel-inventory ~ span');
+    if (chkInvSpan) chkInvSpan.textContent = isEn ? '🎒 Inventory (Icon Inventory)' : '🎒 所持品 (Icon Inventory)';
+
+    const chkActSpan = document.querySelector('#chk-panel-actions ~ span');
+    if (chkActSpan) chkActSpan.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
+
+    const chkKnoSpan = document.querySelector('#chk-panel-knowledge ~ span');
+    if (chkKnoSpan) chkKnoSpan.textContent = isEn ? '🛡️ Tactical Advices (Tactical Advices)' : '🛡️ 戦術アドバイス (Tactical Advices)';
+
+    const lblPanelHistoryDock = document.getElementById('lbl-panel-history-dock');
+    if (lblPanelHistoryDock) {
+      lblPanelHistoryDock.textContent = isEn ? '📜 History (Docked Left)' : '📜 過去ログ (左側常時固定)';
+    }
+
+    // 2.3 ステータス ＆ HUD
+    const lblStatusSec = document.getElementById('lbl-settings-status-section');
+    if (lblStatusSec) lblStatusSec.textContent = isEn ? 'Status & HUD' : 'ステータス ＆ HUD';
+
+    const chk2LineSpan = document.querySelector('#chk-status-classic-2line ~ span');
+    if (chk2LineSpan) chk2LineSpan.textContent = isEn ? '📜 Classic 2-Line Status' : '📜 ステータス常時2行表示';
+
+    const chkGaugesSpan = document.querySelector('#chk-status-gauges ~ span');
+    if (chkGaugesSpan) chkGaugesSpan.textContent = isEn ? '📊 HP/MP Gauge Bars' : '📊 HP/MP ゲージバー';
+
+    const chkGklSpan = document.querySelector('#chk-status-gkl-extra ~ span');
+    if (chkGklSpan) chkGklSpan.textContent = isEn ? '🧬 Resistances, Spells & Skills' : '🧬 耐性・修得魔法・スキル行';
+
+    // 2.4 表示・カメラ
     const lblViewSec = document.getElementById('lbl-settings-view-section');
     if (lblViewSec) lblViewSec.textContent = isEn ? 'Display & Camera' : '表示・カメラ';
 
+    if (this.btnToggleMinimap) {
+      const prefix = isEn ? '🗺️ Minimap HUD: ' : '🗺️ ミニマップ HUD: ';
+      this.btnToggleMinimap.textContent = prefix + (this.minimapRenderer?.isVisible ? 'ON' : 'OFF');
+      this.btnToggleMinimap.title = isEn ? 'Toggle Minimap HUD' : 'ミニマップHUDの表示/非表示';
+    }
+
+    const btnToggleDebugHud = document.getElementById('btn-toggle-debug-hud');
+    if (btnToggleDebugHud) {
+      const hud = this.webgpuRenderer?.debugHudElement || document.getElementById('webgpu-debug-hud');
+      const isVisible = hud && hud.style.display !== 'none';
+      const prefix = isEn ? '📊 HD-2D Debug HUD: ' : '📊 HD-2D デバッグHUD: ';
+      btnToggleDebugHud.textContent = prefix + (isVisible ? 'ON' : 'OFF');
+    }
+
+    // 2.5 システム操作
     const lblSysSec = document.getElementById('lbl-settings-sys-section');
     if (lblSysSec) lblSysSec.textContent = isEn ? 'System Operations' : 'システム操作';
 
@@ -1542,6 +1634,38 @@ class GklPureJSClient {
     if (btnDeleteSave) {
       btnDeleteSave.textContent = isEn ? '🗑️ Delete Save' : '🗑️ Delete Save (セーブ削除)';
       btnDeleteSave.title = isEn ? 'Delete save file completely' : 'セーブデータを完全削除';
+    }
+
+    // === 3. サイドにあるパネル (gkl-side-panel) の各カード・ボタン ===
+    const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
+    if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
+
+    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
+    if (btnOpenPaperdoll) {
+      btnOpenPaperdoll.textContent = isEn ? '🎽 Paperdoll' : '🎽 装備詳細';
+      btnOpenPaperdoll.title = isEn ? 'Open equipment paperdoll & loadout' : '装備詳細 ＆ ペーパードールを開く';
+    }
+
+    const btnRefreshInv = document.getElementById('btn-refresh-inv');
+    if (btnRefreshInv) {
+      btnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
+      btnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
+    }
+
+    const invEmptyHint = document.querySelector('#gkl-inventory-grid .gkl-empty-hint');
+    if (invEmptyHint) {
+      invEmptyHint.textContent = isEn ? 'Inventory is empty' : 'インベントリ空';
+    }
+
+    const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');
+    if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
+
+    const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
+    if (elKnHeader) elKnHeader.textContent = isEn ? '🛡️ Tactical Advices (Tactical Advices)' : '🛡️ 戦術アドバイス (Tactical Advices)';
+
+    const knEmptyHint = document.querySelector('#gkl-knowledge-content .gkl-empty-hint');
+    if (knEmptyHint) {
+      knEmptyHint.textContent = isEn ? 'Tactical situation: Normal (Safe)' : '戦術状況: 平常 (安全)';
     }
 
     const btnStartResume = document.getElementById('btn-start-resume');
@@ -1967,13 +2091,22 @@ class GklPureJSClient {
     // 復帰用peek-tab (パネル退避時かつ全非表示でない時に画面右端に出現)
     if (peekTab) {
       peekTab.classList.toggle('hidden', !isCollapsed || isAllHidden);
+      const isEn = this.currentLanguage === 'en';
+      peekTab.title = isEn ? 'Expand side panel [ F2/Alt+S ]' : 'サイドパネルを再展開 [ F2/Alt+S ]';
+      const peekLabel = peekTab.querySelector('.peek-tab-label');
+      if (peekLabel) {
+        peekLabel.textContent = isEn ? '🎒 Panel' : '🎒 パネル';
+      }
     }
 
     // ヘッダー内サイドパネルトグルボタンの見た目同期
     if (btnToggleSidePanel) {
       btnToggleSidePanel.classList.toggle('is-collapsed', isCollapsed);
+      const isEn = this.currentLanguage === 'en';
+      btnToggleSidePanel.title = isEn
+        ? 'Toggle side panel [ F2/Alt+S ]'
+        : 'サイドパネル一時退避 / 再展開 [ F2/Alt+S ]';
       if (btnSidePanelLabel) {
-        const isEn = this.currentLanguage === 'en';
         btnSidePanelLabel.textContent = isCollapsed
           ? (isEn ? '🎒 Panel ⏴' : '🎒 パネル ⏴')
           : (isEn ? '🎒 Panel ⏵' : '🎒 パネル ⏵');
@@ -2020,6 +2153,11 @@ class GklPureJSClient {
     // 5. プリセットに応じたビューの初期復元
     if (config.preset === 'classic' && this.currentViewMode !== 'ascii') {
       this.setViewMode('ascii');
+    }
+
+    // 6. フローティングメッセージ待機時間設定の反映
+    if (this.floatingMessageHud && typeof config.hudFadeDelay === 'number') {
+      this.floatingMessageHud.setFadeDelay(config.hudFadeDelay);
     }
   }
 

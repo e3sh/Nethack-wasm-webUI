@@ -44,6 +44,16 @@ export class FloatingMessageHudController {
   }
 
   /**
+   * 操作後フェード開始待機時間の変更
+   * @param {number} ms
+   */
+  setFadeDelayAfterActionMs(ms) {
+    if (typeof ms === 'number' && !Number.isNaN(ms)) {
+      this.fadeDelayAfterActionMs = Math.max(0, ms);
+    }
+  }
+
+  /**
    * 現在の行リストを取得（世代 age 付き）
    */
   getLines() {

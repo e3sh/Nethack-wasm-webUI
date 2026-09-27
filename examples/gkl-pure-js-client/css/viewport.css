@@ -193,22 +193,6 @@ body:has(#message-history-drawer.docked-left:not(.hidden)) #webgpu-debug-hud {
   right: 364px;
 }
 
-/* 🏃‍♂️ プレイヤーが右端・右上に接近した際の自動退避 (左上ドッキング) */
-.minimap-hud-box.dock-left {
-  right: auto;
-  left: 12px;
-}
-
-/* 📜 過去ログドロワー左側固定時の左上退避シフト (ドロワー幅 400px + マージン 24px) */
-.minimap-hud-box.dock-left.with-pinned-drawer {
-  left: 424px;
-}
-
-/* 👻 プレイヤーやモンスターと近接・重なり時のゴースト半透明化 (死角ゼロ) */
-.minimap-hud-box.is-ghosted {
-  opacity: 0.28;
-}
-
 /* [Tab] キー展開時: 画面中央オーバーレイ (大画面マキシマイズ) */
 .minimap-hud-box.maximized {
   top: 50%;

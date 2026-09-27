@@ -68,6 +68,7 @@ export class KnowledgeView {
       if (hasCritical) {
         elCritBadge.classList.remove('hidden');
         elCritBadge.textContent = isEn ? '🚨 Danger' : '🚨 危険';
+        elCritBadge.title = isEn ? 'Critical danger! Check tactical advices in the right panel' : '重大な危険が発生中 (右下の戦術アドバイスを確認)';
       } else {
         elCritBadge.classList.add('hidden');
       }
@@ -125,8 +126,9 @@ export class KnowledgeView {
       else if (adv.topic === 'MAGIC') tagLabel = isEn ? 'MAGIC' : '魔法';
       else if (adv.topic === 'SURVIVAL') tagLabel = isEn ? 'SURVIVE' : '生存';
 
+      const hoverNotice = isEn ? '(Hover for full text)' : '(ホバーで全文表示)';
       return `
-        <div class="gkl-side-advice-card severity-${sev}" title="${msg} (ホバーで全文表示)">
+        <div class="gkl-side-advice-card severity-${sev}" title="${msg} ${hoverNotice}">
           <div class="gkl-side-advice-header">
             <div style="display:flex; align-items:center; gap:5px;">
               <span>${sev === 'CRITICAL' ? '🚨' : (sev === 'WARNING' ? '⚠️' : '💡')}</span>
