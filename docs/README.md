@@ -46,10 +46,10 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全58スイート・758テスト 100% PASS） |
-| **[Testing_Modernization_Implementation_Roadmap.md](./8_testing/Testing_Modernization_Implementation_Roadmap.md)** | `🟢 implemented` | `tests/`, `src/testing/` | テスト基盤刷新ロードマップ（全5フェーズ） |
+| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全90スイート・1,190テスト 100% PASS） |
 | **[Scenario_Testing_and_Event_Capture_Architecture.md](./8_testing/Scenario_Testing_and_Event_Capture_Architecture.md)** | `🟢 implemented` | `tools/scenario-recorder.html` | 下り方向：実機イベントキャプチャ＆統合シナリオ再生設計 |
 | **[Sequence_Protocol_Validation_Architecture.md](./8_testing/Sequence_Protocol_Validation_Architecture.md)** | `🟢 implemented` | `tests/protocol/` | 上り方向：キーシーケンス・プロトコル3重防壁検証設計 |
+| **[📦 archive/ サブフォルダ](./8_testing/archive/)** | `📦 archived` | `tests/` | 完了したテスト基盤刷新ロードマップ（全5フェーズ）等の過去移行計画を退避 |
 
 ---
 
@@ -139,11 +139,7 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
 | **[handover_20260921_status_reevaluation.ja.md](./6_project_reports/handover_20260921_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】完了状態・ペンディング状態 再評価総合レポート（2026/09/21版）** |
-| **[handover_20260914_status_reevaluation.ja.md](./6_project_reports/handover_20260914_status_reevaluation.ja.md)** | `📦 past` | 完了状態・ペンディング状態 再評価総合レポート（2026/09/14版） |
-| **[notebooklm_knowledge_base.md](./6_project_reports/notebooklm_knowledge_base.md)** | `🔵 reference` | AIアシスタント・NotebookLM用ナレッジベース構築手順 |
-| **[driver_improvements.md](./6_project_reports/driver_improvements.md)** | `🔵 reference` | ドライバ改善・イベントディスパッチ最適化レポート |
-| **[nethack_jp_wasm_experiment.md](./6_project_reports/archive/nethack_jp_wasm_experiment.md)** | `📦 archived` | NetHack日本語版 (NetHackJP) WASM化実験記録（アーカイブ退避） |
-| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜直近の引き継ぎ資料・進捗報告書群（11ファイル退避済: 2026/09/05版含む） |
+| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜過去の引き継ぎ資料・進捗報告書群・初期設計知識ベース・ドライバ改善記録（14ファイル退避済） |
 
 ---
 
@@ -153,14 +149,15 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 docs/
 ├── README.md             # ドキュメント総合ポータル（本ファイル: SSOT）
 ├── FAQ_and_Configuration_Guide.md # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
+├── ROADMAP.md            # 総合ロードマップ＆進捗ダッシュボード
 ├── 1_driver/             # WASM Driver 仕様書 (直下3本 + archive/)
-├── 2_client_ui/          # UI / WebUICore 仕様書 (直下5本 + archive/)
-├── 3_gkl/                # GKL 総合・ADR・戦術・演出・API・コンテナ・ペーパードール仕様書 (直下9本 + archive/)
-├── 4_sound/              # 音響システム仕様書 (直下1本 + archive/)
-├── 5_gamedata/           # ゲームリファレンスデータ群 (直下8本 + archive/)
-├── 6_project_reports/    # 最新再評価レポート & プロジェクト報告書 (直下4本 + archive/)
-├── 7_futures/            # 次世代インテリジェントUI・マイクロカーネル・バリアント構想 (直下3本)
-├── 8_testing/            # テストガイド & ロードマップ・構想書 (直下4本)
+├── 2_client_ui/          # UI / WebUICore 仕様書 (直下10本 + archive/)
+├── 3_gkl/                # GKL 総合・ADR・戦術・演出・API・コンテナ・ペーパードール仕様書 (直下13本 + archive/)
+├── 4_sound/              # 音響システム仕様書 (直下2本 + archive/)
+├── 5_gamedata/           # ゲームリファレンスデータ群 (直下9本 + archive/)
+├── 6_project_reports/    # 最新再評価レポート & プロジェクト報告書 (直下1本 + archive/)
+├── 7_futures/            # 次世代インテリジェントUI・マイクロカーネル・バリアント構想・Phase 5 (直下8本 + phase5/)
+├── 8_testing/            # テストガイド & 構想書 (直下3本 + archive/)
 └── 9_translation/        # 辞書運用マニュアル & 次世代刷新構想 (直下2本 + archive/)
 ```
 

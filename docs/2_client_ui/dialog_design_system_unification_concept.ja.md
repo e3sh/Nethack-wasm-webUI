@@ -1,7 +1,7 @@
 ---
 title: GKL クライアント モーダル・ダイアログ群デザインシステム統一＆UIリファクタリング構想
-status: proposed
-last_updated: 2026-09-25
+status: implemented
+last_updated: 2026-09-27
 author: e3-sh & Antigravity
 ---
 
@@ -52,5 +52,28 @@ NetHack WASM WebUI（特に GKL Pure JS Client）では、これまで多機能�
 
 ## 📋 3. ロードマップにおける位置付け
 
-- **ステータス**: `💡 proposed` (バックログ)
-- **優先度**: 中〜長期（クライアント全体のUI/UX統一、Phase D 全画面HUDレイアウト刷新以降、または並行実施を推奨）
+- **ステータス**: `🟢 implemented` (2026-09-26 完了)
+- **関連コミット**: `600c688` (Update Nehww: UI/UXの刷新)
+
+---
+
+## 🟢 4. 実装完了・達成状況 (Neo-Retro Dark Glass UI 統一)
+
+2026-09-26 の UI/UX 刷新において、本構想に基づくリファクタリングが全面的に実施・完了しました。
+
+1. **デザイントークンの一元化 (`css/base.css`)**:
+   - `--glass-bg`: `rgba(15, 23, 42, 0.78)`
+   - `--glass-blur`: `blur(12px)`
+   - `--glass-border`: `1px solid rgba(56, 189, 248, 0.22)`
+   - `--glass-shadow-lg`: `0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(56, 189, 248, 0.12)`
+   - `--primary-color`: サイバーシアン（`#38bdf8`）
+2. **全モーダルへの共通トークン適用**:
+   - `CharacterIntroModal.js` (`character-intro-modal.css`): 金枠からフロストガラス＋サイバーシアンへ統一
+   - `CharacterCreationModal.js` (`character-creation-modal.css`): スレート枠からフロストガラス規格へ統一
+   - `PaperdollModal.js` (`paperdoll-modal.css`): 人型スロットと外枠カードのフロストガラス統一
+   - `ContainerModal.js` (`container-modal.css`): ファイラーパネルのフロストガラス統一
+   - `CodexModal.js` (`codex-modal.css`): 噂・神託リストカードの共通規格化
+   - `KnowledgeDetailModal.js` (`knowledge-detail-modal.css`): 詳細ナレッジモーダルの統一
+   - `ModalManager.js` (`modals.css`): テキスト入力、YNプロンプト、インテリジェント入力支援モーダル群の統一
+3. **品質検証**:
+   - 全モーダルの表示・フォーカス・キーボード操作において回帰ゼロを達成（全90テストファイル、1,190テスト PASS）。

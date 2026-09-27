@@ -1,6 +1,6 @@
 ---
 title: Testing_Modernization_Implementation_Roadmap
-status: active
+status: archived
 last_updated: 2026-09-01
 related_docs:
   - docs/8_testing/README.md

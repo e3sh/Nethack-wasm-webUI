@@ -1,7 +1,7 @@
 # NetHack WASM WebUI 完了状態・ペンディング状態 再評価総合レポート (2026年9月21日版)
 **調査・評価実施日**: 2026年9月21日  
 **対象リポジトリ**: `Nethack-wasm-webUI` (最新コミット `55289c8` 時点)  
-**前回レポート**: [`docs/6_project_reports/handover_20260914_status_reevaluation.ja.md`](./handover_20260914_status_reevaluation.ja.md) (コミット `981fcfd`)
+**前回レポート**: [`docs/6_project_reports/archive/handover_20260914_status_reevaluation.ja.md`](./archive/handover_20260914_status_reevaluation.ja.md) (コミット `981fcfd`)
 
 ---
 

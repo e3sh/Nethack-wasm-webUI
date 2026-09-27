@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-26
+last_updated: 2026-09-27
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -27,14 +27,29 @@ last_updated: 2026-09-26
 
 ## 🔥 1. 直近フォーカス・移行計画 (Next Focus / Active Plan)
 
-現在設計が完了し、直近の着手対象および直近完了した最重要リファクタリング・機能拡充タスクです。
+現在設計が完了し、直近の着手対象である最重要リファクタリング・機能拡充タスクです。
+UI層への影響・手戻りを最小化するため、**「先に防腐層（UIController）を確立し、その保護下で基幹メッセージシグナル刷新（Phase 5 Stage 5.4〜5.5）を進める」** 順序で実行します。
 
-### 1.1 Phase 5: メッセージシグナル化刷新と次世代 WebUICore / GKL 連携
+### 1.1 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
+- **ステータス**: `💡 proposed` (2026-09-26 策定)
+- **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
+- **最優先着手理由**:
+  - Model（Cコア / WASM / GKL）のシグナル高度化に対する**「防腐層（Anti-Corruption Layer）」** を先行配備することで、後続の Phase 5 (Stage 5.4〜5.5) におけるイベント・シグナル刷新が起きても View 側の修正・手戻りをゼロにする。
+- **概要**:
+  - `Nehww`（Phase A〜D 完了）で先行実証された高度なUIロジック（HUD状態マシン、モーダルスタック/FocusTrap、ペーパードール部位判定、コンテナD&Dドラフト、キーバインド調停）を、DOM非依存の Headless UI 層（**`UIController`**）として抽出・独立パッケージ化。
+  - UIController にバインドする共通 **Web Components（`<nh-*>`）** を提供し、任意のフレームワーク（React / Vue / Svelte / Vanilla HTML）からタグ1行で最高峰のUIを利用可能にする。
+- **マイグレーションステップ**:
+  - [ ] **Step 1**: `Nehww` 内部のUI計算・状態管理コードを `controller/` へ分離（Headless化）
+  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack/ui-core`）化と Node.js 単体テストの整備
+  - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
+  - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
+
+### 1.2 Phase 5: メッセージシグナル化刷新と次世代 WebUICore / GKL 連携
 - **ステータス**: `🚧 in-progress` (Stage 5.1〜5.3 ＆ メッセージライフサイクル完了、Stage 5.4 準備中)
 - **マスタープラン**: [phase5_detailed_migration_plan.ja.md](./7_futures/phase5_detailed_migration_plan.ja.md)
 - **全体設計構想**: [message_context_and_signal_driven_architecture.ja.md](./7_futures/message_context_and_signal_driven_architecture.ja.md)
 - **バリアント適合運用規程**: [variant_message_catalog_adaptation_guide.ja.md](./7_futures/phase5/variant_message_catalog_adaptation_guide.ja.md)
-- **最上位制約**: **「今できていること（全88スイート・1,157テスト・全4クライアントビルド・既存モーダル操作）を絶対に壊さない」非破壊的移行**
+- **最上位制約**: **「今できていること（全90スイート・1,190テスト・全4クライアントビルド・既存モーダル操作）を絶対に壊さない」非破壊的移行**
 - **コアアーキテクチャ**:
   - **2段構えシグナル**: WebUICore（第1層: 状況シグナル＝客観事実） ➔ GKL（第2層: `SituationCache` シグナル駆動化 ＆ 実施シグナル）
   - **多重状況レイヤー**: 単一ターン減衰のジレンマを克服する空間距離ベースの対峙維持（チェビシェフ距離 $\le 1$、迎撃時の取りこぼし防止・離脱時誤爆防止・`SpatialPatternEngine` 連携）
@@ -66,49 +81,7 @@ last_updated: 2026-09-26
     - 二重キーワード（翻訳後日本語文字列依存）の完全撤廃
     - 3層テストピラミッド再編（文章渡しテストの整理と `MessageContext` 渡しテスト主軸化）
     - 翻訳非依存性テスト (`robustness.test.js`) 実証
-    - 全単体テスト（1,157+件）および全 4 クライアント（Vue, React, Solid, Svelte）ビルド完全検証
-
-### 1.2 GKL レファレンスクライアント (Nehww) UI/UX 刷新＆レンダラー表現高度化
-- **ステータス**: `🟢 implemented` (Phase A〜D & UI Styling 完了、次期: Phase E)
-- **対象ディレクトリ**: `examples/gkl-pure-js-client/` (レファレンスクライアント略称: **`Nehww`**)
-- **設計書**:
-  - 全体計画: [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)
-  - Phase D イマーシブHUD仕様書: [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)
-- **完了済みテーマ (Phase A, B, C & D / UI Styling)**:
-  - **Phase A (テーマ 1 & 2: 足元枠 3D パース吸着 ＆ Middle レイヤー最適化 ＆ Pet/Ridden 強調)**:
-    - WebGPU HD2D レンダラー: WGSL パイプライン内の Layer 3.2 (自キャラ床枠) に床面 $Y=0.01$ で投入。深度テストにより直立キャラクター（Layer 4）の下に枠線が潜り込む自然な足元配置を実現。ターゲットカーソル枠は床面4隅の 3D 空間結線（`worldToScreen`）により立体吸着描画。
-    - Canvas 2D レンダラー (`MainViewportRenderer.js`): 自キャラ枠描画を `cell.middle` 直後、`cell.top` 直前に移動し前後関係を統一。
-    - Pet (♥), Ridden (R), piletop (+) の統一ミニバッジおよび足元サークル（Layer 3.3）を描画。
-  - **Phase B (テーマ 4: スマート ContextActions ＆ 操作近代化)**:
-    - `FloatingContextActions.js`: マップ上のクリック対象（自キャラ足元、敵モンスター、ギミック、床）の直上に吹き出し型で推奨アクション（戦う/話す/拾う/開ける/移動）をポップアップ表示。不用意な移動暴発を抑止。
-    - 右クリック時のブラウザ標準 contextmenu 表示抑止をコンポーネント全体へ適用。
-    - `DirectionPad.js`: 方向未選択時にアクションボタンを非表示化・自動復帰する標準化。
-  - **Phase C (テーマ 3: ゲーム開始時の導入フロー最適化 ＆ ナレッジ表示刷新)**:
-    - `CharacterIntroModal.js`: `ASKNAME`（冒険者名入力）の中央カード化、🎲 ランダムネーム生成ボタン、Enter確定 ＆ `core.setPlayerName` 連動。
-    - `ynaq` プロンプト検知時の 3 大カード選択肢提示（🎲 おまかせ作成 / ⚙️ 自分で詳細に選ぶ / ⚡ クイック即開始）。キーボード（[Y], [N], [Q]）およびクリック対応。手動作成時は `CharacterCreationModal` へシームレス連携。
-    - `KnowledgeDetailModal.js`: サイドパネルをコンパクト化し、クリック時に専用のモーダルで詳細ナレッジ（危険度、基礎ステータス、戦術助言、アイテム効果）を表示。
-  - **Phase D (テーマ 5: 全画面マップ ＋ 透過 HUD レイアウト刷新 ＆ イマーシブメッセージウィンドウ) (2026-09-26 完了)**:
-    - マップをウィンドウ追従全画面化（100vw × 100vh、アスペクト比維持と広大視界、マウスホイールズーム＆HD-2Dカメラ適正化）
-    - フローティング最新行HUD (`FloatingMessageHud.js`) ＋ 過去ログドロワー (`MessageHistoryDrawer.js`: `L` キー・画面クリック展開・画面左側ピン留め固定 ＆ 自動追従スクロール)
-    - ステータスバー、緊急アシストバー、ミニマップHUD、フロア設備案内HUD、床文字HUD（Engraving）の全HUDフローティング化
-    - 右サイドパネルのワンタップ一時退避・スライドイン復帰（`Alt+S` / `[` キー / パネル内ボタン / 画面右端 Peek タブ）
-  - **UI スタイル・テーマ全体統一 (Neo-Retro Dark Glass UI) (2026-09-26 完了)**:
-    - 全画面（HUD・右サイドパネル・各種モーダル・ヘッダー・ボタン群・スクロールバー）でサイバーシアンアクセント（`#38bdf8`）とフロストガラスマテリアル（`backdrop-filter: blur(12px)` + 極細透過ボーダー）を徹底統一
-    - 右サイドパネル展開時も背景ダンジョンが透け、公式スクリーンショットとして映える本格PCゲームクライアントのルック＆フィールを確立
-    - 全90テストファイル、1,180テストすべて PASS（回帰ゼロ）
-
-### 1.3 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
-- **ステータス**: `💡 proposed` (2026-09-26 策定)
-- **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
-- **概要**:
-  - `Nehww` で先行実証された高度なUIロジック（HUD状態マシン、モーダルスタック/FocusTrap、ペーパードール部位判定、コンテナD&Dドラフト、キーバインド調停）を、DOM非依存の Headless UI 層（**`UIController`**）として抽出・独立パッケージ化。
-  - **Model（Cコア / WASM / GKL）のシグナル高度化に対する「防腐層（Anti-Corruption Layer）」** として機能させ、Model側の内部仕様変更やストリーム化が起きても View 側の修正・手戻りをゼロにする長寿命アーキテクチャを確立。
-  - UIController にバインドする共通 **Web Components（`<nh-*>`）** を提供し、任意のフレームワーク（React / Vue / Svelte / Vanilla HTML）からタグ1行で最高峰のUIを利用可能にする。
-- **マイグレーションステップ**:
-  - [ ] **Step 1**: `Nehww` 内部のUI計算・状態管理コードを `controller/` へ分離（Headless化）
-  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack/ui-core`）化と Node.js 単体テストの整備
-  - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
-  - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
+    - 全単体テスト（1,190件）および全 4 クライアント（Vue, React, Solid, Svelte）ビルド完全検証
 
 ---
 
@@ -130,23 +103,18 @@ last_updated: 2026-09-26
 - **対象コード**: `src/core/knowledge/state/`, `MinimapHudRenderer.js`
 - **概要**: Cコード非侵襲・セーブデータ非破壊で、メッセージシグナルから「神のご機嫌・お祈りクールダウン」を逆算エミュレートし、食料寿命・燃費消費ペース（指輪・重量負荷）・航続歩数をミニマップ周辺に可視化するタイムライン予測エンジン。Phase 5 シグナル基盤との強力な連携ショーケース。
 
-### 2.3 モーダル・ダイアログ群デザインシステム統一＆UIリファクタリング構想
-- **ステータス**: `💡 proposed` (2026-09-25 策定)
-- **設計書**: [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md)
-- **概要**: 導入カード、キャラ作成、コンテナ、ペーパードール、Codex、願い等の各モーダルが機能単位で順次追加されてきた経緯から生じている枠線（金枠 vs スレート枠）・ヘッダー構成・ボタン等のバラつきを、共通デザインシステム（デザイントークン・共通カード規格）として整理・統一するリファクタリング。
-
-### 2.4 動的音程シンセシス構想 (Dynamic Musical Synthesis)
+### 2.3 動的音程シンセシス構想 (Dynamic Musical Synthesis)
 - **ステータス**: `💡 proposed`
 - **設計書**: [dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md)
 - **対象コード**: `src/sound/`
 - **概要**: NetHackのメッセージに含まれる音程・罠の音・モンスターの咆哮・楽器演奏をWeb Audio APIオシレーターでリアルタイム合成発音する。外部音源ファイル不要でリッチな音響体験を提供（Stage 5.4A 効果音エンジンとの連携スロット）。
 
-### 2.5 翻訳アーキテクチャ次世代刷新
+### 2.4 翻訳アーキテクチャ次世代刷新
 - **ステータス**: `💡 proposed`
 - **設計書**: [translation_architecture_enhancement_plan.md](./9_translation/translation_architecture_enhancement_plan.md)
 - **概要**: 翻訳カテゴリ付与、かすれ文字（Engraving等）の復元、多段翻訳キャッシュパイプラインの導入。
 
-### 2.6 将来の完全独立マイクロカーネル化構想
+### 2.5 将来の完全独立マイクロカーネル化構想
 - **ステータス**: `💡 proposed`
 - **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
 - **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
@@ -155,11 +123,12 @@ last_updated: 2026-09-26
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全90スイート・1,180テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全90スイート・1,190テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI・体験** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`base.css` | `🟢 implemented` | **全画面マップ ＋ イマーシブHUD ＆ Neo-Retro Dark Glass UI (Phase D)**<br>100vw×100vh 全画面マップ、フローティング最新行HUD、左側ピン留め過去ログドロワー、サイバーシアン（`#38bdf8`）×フロストガラス全体統一 |
+| **UI・体験** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`base.css` | `🟢 implemented` | **GKL レファレンスクライアント (Nehww) UI/UX 刷新 (Phase A〜D)**<br>全画面マップ（100vw×100vh）、フローティング最新行HUD＋過去ログドロワー、足元枠3Dパース吸着、スマートContextActions、Neo-Retro Dark Glass UI統一 |
+| **UI・デザイン** | [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md) | `base.css`<br>`modals.css`<br>各種モーダル CSS | `🟢 implemented` | **モーダル・ダイアログ群デザインシステム統一 (Dark Glass UI)**<br>デザイントークン一元化（`--glass-bg`, `--glass-blur`, `--glass-border`, `--primary-color: #38bdf8`）、金枠・スレート枠のバラつき解消、全モーダル共通規格化 |
 | **メッセージ** | [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `WebUICore.js`<br>`NetHackWasmDriver.js` | `🟢 implemented` | **メッセージライフサイクル＆抑止制御**<br>モーダル（アイテム選択等）中のメッセージ抑止（`suppressMessage`）、構造化ログ（`bubbleMessage`, `messageItem`, `messageUpdate`）の一元配信 |
 | **対話・制御** | [stage5_3_interaction_context_and_actions.ja.md](./7_futures/phase5/stage5_3_interaction_context_and_actions.ja.md) | `InteractionContext.js`<br>`ActionSignalResolver.js`<br>`SituationCache.js` | `🟢 implemented` | **対話コンテキスト ＆ アクション導出基盤 (Stage 5.3)**<br>空間距離維持（チェビシェフ距離 $\le 1$）による対話維持、施錠箱・扉へのワンタップ推奨アクション（IRCレシピ連携） |
 | **メッセージ** | [stage5_2_situation_signals.ja.md](./7_futures/phase5/stage5_2_situation_signals.ja.md) | `MessageContextResolver.js`<br>`ContextFrameBuffer.js`<br>`build_message_context_catalog.py` | `🟢 implemented` | **状況シグナル基盤 (第1層) ＆ 実行時コンテキスト照合 (Stage 5.2)**<br>完全ASCII軽量カタログ(154.3KB)、三項演算子展開＆ノイズ排除、超高速同定(平均 0.0054ms)、翻訳責務完全分離 |
@@ -188,7 +157,7 @@ last_updated: 2026-09-26
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
 | **Sound** | [sound_system_spec.md](./4_sound/sound_system_spec.md) | `src/sound/` | `🟢 implemented` | **Web Audio API サウンドシステム** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (88スイート・1,157テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全90スイート・1,190テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---
@@ -199,13 +168,14 @@ last_updated: 2026-09-26
 
 - **直近引き継ぎ・状況評価レポート**:
   - **[handover_20260921_status_reevaluation.ja.md](./6_project_reports/handover_20260921_status_reevaluation.ja.md)** (レンダラー統合、WebGPU HD-2D、LORE、ペーパードール完成)
-  - [handover_20260914_status_reevaluation.ja.md](./6_project_reports/handover_20260914_status_reevaluation.ja.md) (IRC基盤、コンテナUI完成)
+  - [handover_20260914_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260914_status_reevaluation.ja.md) (IRC基盤、コンテナUI完成)
 - **アーキテクチャ意思決定**: [ArchitectureDecisionRecord.md](./3_gkl/ArchitectureDecisionRecord.md) (`📦 record`)
 - **各カテゴリのアーカイブフォルダ**:
   - `docs/1_driver/archive/`: 旧ロードマップ・C層Shim調査メモ
   - `docs/2_client_ui/archive/`: 旧入力仕様、UI Decoupling設計、キャンバス描画分析等
   - `docs/3_gkl/archive/`: 旧SSOT統合計画、初期コンテナUI設計書等
-  - `docs/6_project_reports/archive/`: 過去の開発マイルストーン報告書（8月以前）
+  - `docs/6_project_reports/archive/`: 過去の引き継ぎ資料・進捗報告書群（9月中旬以前・ドライバ改善記録）
+  - `docs/8_testing/archive/`: 旧テスト基盤刷新ロードマップ等
   - `docs/9_translation/archive/`: 旧翻訳フロー、Inspector統合計画等
 
 ---
