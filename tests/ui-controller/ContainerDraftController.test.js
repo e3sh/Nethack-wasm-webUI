@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ContainerDraftController,
   TRANSFER_DIRECTION
-} from '../../examples/gkl-pure-js-client/modules/controller/ContainerDraftController.js';
+} from '../../src/ui-controller/index.js';
 
 describe('ContainerDraftController (Headless Container UI Controller)', () => {
   it('通常コンテナへのアイテムドラフト追加が正常に行われること', () => {

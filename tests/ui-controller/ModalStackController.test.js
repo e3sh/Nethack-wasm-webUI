@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ModalStackController } from '../../examples/gkl-pure-js-client/modules/controller/ModalStackController.js';
+import { ModalStackController } from '../../src/ui-controller/index.js';
 
 describe('ModalStackController (Headless Modal Stack)', () => {
   it('モーダルの登録と最前面判定が正しく行われること', () => {

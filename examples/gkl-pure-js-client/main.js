@@ -26,7 +26,7 @@ import { KeyHandler } from './modules/handlers/KeyHandler.js';
 import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
 import { FloatingMessageHud } from './modules/components/FloatingMessageHud.js';
 import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.js';
-import { UIConfigStore } from './modules/controller/UIConfigStore.js';
+import { UIConfigStore } from '../../src/ui-controller/index.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー

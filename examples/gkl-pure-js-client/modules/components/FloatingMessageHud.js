@@ -8,7 +8,7 @@
  * - ターン経過または一定時間でのフェードアウト
  * - pointer-events: none によりマップ上のクリックや探索操作を一切妨げない
  */
-import { FloatingMessageHudController, LINE_STATE } from '../controller/FloatingMessageHudController.js';
+import { FloatingMessageHudController, LINE_STATE } from '../../../../src/ui-controller/index.js';
 
 export class FloatingMessageHud {
   /**

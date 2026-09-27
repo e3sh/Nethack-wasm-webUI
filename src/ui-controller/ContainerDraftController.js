@@ -5,7 +5,7 @@
  * 移動数量計算、手品袋（Bag of Holding）防爆ガードを管理する Headless コントローラー。
  * DOM非依存。
  */
-import { ContainerSafetyGuard, DangerLevel } from '../../../../src/core/container/ContainerSafetyGuard.js';
+import { ContainerSafetyGuard, DangerLevel } from '../core/container/ContainerSafetyGuard.js';
 
 export const TRANSFER_DIRECTION = {
   TO_CONTAINER: 'to_container',   // プレイヤー所持品 ➔ コンテナ

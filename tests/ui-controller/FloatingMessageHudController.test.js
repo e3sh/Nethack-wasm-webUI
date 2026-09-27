@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   FloatingMessageHudController,
   LINE_STATE
-} from '../../examples/gkl-pure-js-client/modules/controller/FloatingMessageHudController.js';
+} from '../../src/ui-controller/index.js';
 
 describe('FloatingMessageHudController (Headless Floating HUD State)', () => {
   beforeEach(() => {

@@ -5,8 +5,7 @@
  * ブラウザDOMイベントの受け取りとディスパッチに純化された View-Handler。
  */
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
-import { ModalStackController } from '../controller/ModalStackController.js';
-import { InputCoordinator, ROUTE_ACTIONS } from '../controller/InputCoordinator.js';
+import { ModalStackController, InputCoordinator, ROUTE_ACTIONS } from '../../../../src/ui-controller/index.js';
 
 export class KeyHandler {
   constructor({

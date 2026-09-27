@@ -1,8 +1,8 @@
 ---
 title: UIController (Headless UI) アーキテクチャ設計仕様書
 subtitle: Model/View完全分離とシグナル吸収による長寿命・高保守性UIクライアント基盤
-status: proposed
-last_updated: 2026-09-26
+status: in-progress
+last_updated: 2026-09-27
 ---
 
 # 🏛️ UIController (Headless UI) アーキテクチャ設計仕様書
@@ -220,13 +220,16 @@ flowchart TD
     Step3 --> Step4["Step 4: Nehww への完全逆輸入 & 他フレームワーク展開"]
 ```
 
-- **Step 1: ロジック抽出（Nehww 内部での Headless 化）**:
-  - `examples/gkl-pure-js-client/modules/controller/` 内に純粋計算ロジック（`UIConfigStore.js`, `ModalStackController.js`, `InputCoordinator.js`, `FloatingMessageHudController.js`, `PaperdollPresenter.js`, `ContainerDraftController.js`）を抽出・分離。
-- **Step 2: 独立パッケージ化（`packages/ui-controller/` または `src/ui-controller/`）**:
-  - DOM に依存しない UIController を共通モジュールとして抽出し、Vitest による Headless 単体テスト（DOMモックなし）を構築。
-- **Step 3: Web Components 化（`packages/web-components/`）**:
-  - 切り出された UIController にバインドするカスタム要素群（`<nh-hud>`, `<nh-paperdoll>` 等）を実装。
-- **Step 4: Nehww への逆輸入**:
+- **Step 1: ロジック抽出（Nehww 内部での Headless 化）** `[完了: 2026-09-27]`:
+  - `Nehww` 内部から純粋計算ロジック（`UIConfigStore.js`, `ModalStackController.js`, `InputCoordinator.js`, `FloatingMessageHudController.js`, `PaperdollPresenter.js`, `ContainerDraftController.js`）を抽出・分離。
+- **Step 2: 独立パッケージ化（`src/ui-controller/`、`@nethack-webui/ui-controller`）** `[完了: 2026-09-27]`:
+  - DOM に依存しない UIController を共通モジュール `src/ui-controller/` に昇格・配置。
+  - `index.js` 一元エクスポート、`package.json` 配備。
+  - `Nehww`（`main.js`, `KeyHandler.js`, `FloatingMessageHud.js`, `PaperdollModal.js`, `ContainerModal.js`）および単体テストのインポート先を切り替え。
+  - 全96テストスイート・1,220テスト 100% PASS、および全4サンプルクライアント（Vue, React, Solid, Svelte）のビルド成功確認。
+- **Step 3: Web Components 化（`<nh-*>`）**:
+  - 切り出された UIController にバインドするカスタム要素群（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）を実装。
+- **Step 4: Nehww への逆輸入・共通化**:
   - `Nehww` の画面コードを、この Web Components または UIController を利用する形に差し替え、コード量を半減させつつ保守性を極限まで高める。
 
 ---

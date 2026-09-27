@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PaperdollPresenter, SLOT_DEFINITIONS } from '../../examples/gkl-pure-js-client/modules/controller/PaperdollPresenter.js';
+import { PaperdollPresenter, SLOT_DEFINITIONS } from '../../src/ui-controller/index.js';
 import { EQUIP_SLOTS } from '../../src/core/knowledge/equipment/EquipmentRules.js';
 
 describe('PaperdollPresenter (Headless Paperdoll UI Presenter)', () => {

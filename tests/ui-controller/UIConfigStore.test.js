@@ -4,7 +4,7 @@ import {
   PRESETS,
   DEFAULT_LAYOUT_CONFIG,
   STORAGE_KEY_DEFAULT
-} from '../../examples/gkl-pure-js-client/modules/controller/UIConfigStore.js';
+} from '../../src/ui-controller/index.js';
 
 describe('UIConfigStore (Headless UI Layout Config)', () => {
   let mockStorage;

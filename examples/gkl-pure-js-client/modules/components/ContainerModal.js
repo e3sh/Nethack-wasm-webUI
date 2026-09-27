@@ -6,7 +6,7 @@
  * Bag of Holding 防爆セーフティガードの統合ビュー。
  */
 
-import { ContainerDraftController } from '../controller/ContainerDraftController.js';
+import { ContainerDraftController } from '../../../../src/ui-controller/index.js';
 
 export class ContainerModal {
   /**

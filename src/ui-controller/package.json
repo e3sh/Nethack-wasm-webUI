@@ -1,0 +1,20 @@
+{
+  "name": "@nethack-webui/ui-controller",
+  "version": "0.1.0",
+  "description": "Headless UI Controller & Presenter Layer for NetHack WASM WebUI",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./*": "./*.js"
+  },
+  "keywords": [
+    "nethack",
+    "wasm",
+    "headless",
+    "ui-controller",
+    "presenter"
+  ],
+  "author": "",
+  "license": "ISC"
+}

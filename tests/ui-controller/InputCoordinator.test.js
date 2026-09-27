@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ModalStackController } from '../../examples/gkl-pure-js-client/modules/controller/ModalStackController.js';
-import { InputCoordinator, ROUTE_ACTIONS } from '../../examples/gkl-pure-js-client/modules/controller/InputCoordinator.js';
+import { ModalStackController, InputCoordinator, ROUTE_ACTIONS } from '../../src/ui-controller/index.js';
 
 describe('InputCoordinator (Headless Input Routing)', () => {
   let modalStack;

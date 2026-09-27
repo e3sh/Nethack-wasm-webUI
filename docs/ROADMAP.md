@@ -31,7 +31,7 @@ last_updated: 2026-09-27
 UI層への影響・手戻りを最小化するため、**「先に防腐層（UIController）を確立し、その保護下で基幹メッセージシグナル刷新（Phase 5 Stage 5.4〜5.5）を進める」** 順序で実行します。
 
 ### 1.1 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
-- **ステータス**: `🚧 in-progress` (Step 1 完了, 2026-09-27)
+- **ステータス**: `🚧 in-progress` (Step 2 完了, 2026-09-27)
 - **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
 - **最優先着手理由**:
   - Model（Cコア / WASM / GKL）のシグナル高度化に対する**「防腐層（Anti-Corruption Layer）」** を先行配備することで、後続の Phase 5 (Stage 5.4〜5.5) におけるイベント・シグナル刷新が起きても View 側の修正・手戻りをゼロにする。
@@ -47,7 +47,12 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - `PaperdollPresenter`（部位適合判定・リアルタイム差分計算・二刀流適性）抽出
     - `ContainerDraftController`（コンテナ移動ドラフト・数量計算・BoH防爆ガード）抽出
     - Headless 単体テスト（6スイート・26テスト）配備、全96テスト（1,216テスト）100% PASS
-  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack-webui/ui-controller`）化と共通モジュール整備
+  - [x] **Step 2: DOM非依存の独立パッケージ（`@nethack-webui/ui-controller`）化と共通モジュール整備** (2026-09-27 完了)
+    - `src/ui-controller/` へのコントローラー群昇格配置 (`UIConfigStore`, `ModalStackController`, `InputCoordinator`, `FloatingMessageHudController`, `PaperdollPresenter`, `ContainerDraftController`)
+    - `src/ui-controller/index.js` による一元エクスポートおよび `package.json` (`@nethack-webui/ui-controller`) の配備
+    - `Nehww`（`main.js`, `KeyHandler.js`, `FloatingMessageHud.js`, `PaperdollModal.js`, `ContainerModal.js`）のインポート切り替え
+    - 単体テスト（`tests/ui-controller/` 全6スイート）のインポート追従
+    - 全96テストスイート・1,220テスト 100% PASS、および全4サンプルクライアント（Vue, React, Solid, Svelte）のビルド成功確認
   - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
   - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
 

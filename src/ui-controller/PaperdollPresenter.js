@@ -14,8 +14,8 @@ import {
   isTwoHandedWeapon,
   isCockatriceCorpse,
   isTwoWeaponEligible
-} from '../../../../src/core/knowledge/equipment/EquipmentRules.js';
-import { EquipmentDependencyAnalyzer } from '../../../../src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js';
+} from '../core/knowledge/equipment/EquipmentRules.js';
+import { EquipmentDependencyAnalyzer } from '../core/knowledge/equipment/EquipmentDependencyAnalyzer.js';
 
 export const SLOT_DEFINITIONS = Object.freeze({
   [EQUIP_SLOTS.HELM]:      { id: EQUIP_SLOTS.HELM, labelJa: '頭 (兜)', labelEn: 'Helm', icon: '🪖' },

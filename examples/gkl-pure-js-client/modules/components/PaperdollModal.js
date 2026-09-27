@@ -17,7 +17,7 @@ import { EquipmentDependencyAnalyzer } from "../../../../src/core/knowledge/equi
 import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment/EquipmentActionPlanner.js";
 import { OBJECT_JP_MAP } from "../../../../src/core/knowledge/data/OBJECT_JP_MAP.js";
 import { PROMPT_CATEGORY } from '../../../../src/core/types.js';
-import { PaperdollPresenter } from '../controller/PaperdollPresenter.js';
+import { PaperdollPresenter } from '../../../../src/ui-controller/index.js';
 
 export class PaperdollModal {
   /**
