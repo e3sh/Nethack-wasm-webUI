@@ -17,6 +17,7 @@ import { EquipmentDependencyAnalyzer } from "../../../../src/core/knowledge/equi
 import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment/EquipmentActionPlanner.js";
 import { OBJECT_JP_MAP } from "../../../../src/core/knowledge/data/OBJECT_JP_MAP.js";
 import { PROMPT_CATEGORY } from '../../../../src/core/types.js';
+import { PaperdollPresenter } from '../controller/PaperdollPresenter.js';
 
 export class PaperdollModal {
   /**
@@ -36,6 +37,9 @@ export class PaperdollModal {
     this.currentLanguage = 'ja';
     this.isVisible = false;
     this.isProcessing = false;
+
+    // Headless UI Presenter
+    this.presenter = new PaperdollPresenter();
 
     // 選択状態
     this.selectedSlot = EQUIP_SLOTS.SUIT; // デフォルトで鎧スロットを選択
@@ -671,11 +675,8 @@ export class PaperdollModal {
     const activeSlot = this.selectedSlot;
     const items = inventory?.items || [];
 
-    // 現在選択中のスロットに装備可能なアイテムを抽出
-    const eligibleItems = items.filter(item => {
-      const slots = resolveEligibleSlots(item);
-      return slots.includes(activeSlot);
-    });
+    // 現在選択中のスロットに装備可能なアイテムを抽出 (Headless Presenter)
+    const eligibleItems = this.presenter.getEligibleItemsForSlot(items, activeSlot);
 
     const rowsHtml = eligibleItems.length === 0
       ? `<div class="selector-empty-hint">${isEn ? 'No eligible items in inventory' : 'このスロットに装備可能なアイテムがありません'}</div>`
@@ -1200,42 +1201,7 @@ export class PaperdollModal {
    * @private
    */
   _checkTwoWeaponEligibility(situation, core) {
-    // 1. スキル情報から判定
-    const skills = situation?.skills?.items || situation?.skills || [];
-    if (Array.isArray(skills) && skills.length > 0) {
-      const twoWeaponSkill = skills.find(s => {
-        const name = (s.name || s.nameRaw || '').toLowerCase();
-        return name.includes('two-weapon') || name.includes('二刀流');
-      });
-      if (twoWeaponSkill) {
-        const rankKey = twoWeaponSkill.rank?.key || twoWeaponSkill.rankKey || '';
-        return rankKey !== 'restricted' && !twoWeaponSkill.isRestricted;
-      }
-    }
-
-    // 2. 職業情報から判定 (侍, バーバリアン, ローグ, レンジャー, 騎士 等)
-    const charInfo = situation?.attributes?.characterInfo || core?.characterInfo || {};
-    const charSummary = situation?.attributes?.characterSummary || {};
-    const role = (charInfo.role || charSummary.role || situation?.status?.role || core?.status?.role || '').toLowerCase();
-
-    const eligibleRoles = ['samurai', 'barbarian', 'rogue', 'ranger', 'knight', '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'];
-    if (role && eligibleRoles.some(r => role.includes(r))) {
-      return true;
-    }
-
-    // 3. 既に二刀流中のアイテムが存在する場合
-    if (situation?.equipment?.isTwoWeapon) return true;
-    const invItems = situation?.inventory?.items || core?.inventory?.items || [];
-    if (invItems.some(i => i.isOffhand)) return true;
-
-    // 4. 明示的な非適性職の場合は false
-    const ineligibleRoles = ['valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman', 'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'];
-    if (role && ineligibleRoles.some(r => role.includes(r))) {
-      return false;
-    }
-
-    // 職業・スキルともに情報未確定の場合は操作可能（デフォルト true）
-    return true;
+    return this.presenter.checkTwoWeaponEligibility(situation, core);
   }
 }
 

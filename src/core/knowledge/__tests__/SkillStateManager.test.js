@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SkillStateManager, SKILL_RANKS } from "../state/SkillStateManager.js";
 
 describe('SkillStateManager Tests', () => {
@@ -229,5 +229,34 @@ describe('SkillStateManager Tests', () => {
         skillManager.reset();
         expect(skillManager.getSkills().length).toBe(0);
         expect(skillManager.isSynced).toBe(false);
+    });
+
+    it('canTwoWeapon: 二刀流スキルの有無や職業に応じて正しく判定すること', () => {
+        // 未同期状態でのロール判定
+        expect(skillManager.canTwoWeapon('Samurai')).toBe(true);
+        expect(skillManager.canTwoWeapon('Wizard')).toBe(false);
+        expect(skillManager.canTwoWeapon(null)).toBe(true); // 未確定時は true
+
+        // スキル同期後: two-weapon combat [Basic] がある場合
+        skillManager.updateFromLines([
+            'b - two-weapon combat [Basic]',
+            'c - long sword [Skilled]'
+        ]);
+        expect(skillManager.isSynced).toBe(true);
+        expect(skillManager.canTwoWeapon('Wizard')).toBe(true); // 同期後はスキルが最優先
+        expect(skillManager.getTwoWeaponSkill()?.name).toBe('two-weapon combat');
+
+        // スキル同期後: two-weapon combat が Restricted の場合
+        skillManager.updateFromLines([
+            'b - two-weapon combat [Restricted]',
+            'c - dagger [Basic]'
+        ]);
+        expect(skillManager.canTwoWeapon()).toBe(false);
+
+        // スキル同期後: two-weapon combat が一覧に含まれない場合
+        skillManager.updateFromLines([
+            'c - dagger [Basic]'
+        ]);
+        expect(skillManager.canTwoWeapon()).toBe(false);
     });
 });

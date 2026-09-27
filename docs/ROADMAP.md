@@ -31,7 +31,7 @@ last_updated: 2026-09-27
 UI層への影響・手戻りを最小化するため、**「先に防腐層（UIController）を確立し、その保護下で基幹メッセージシグナル刷新（Phase 5 Stage 5.4〜5.5）を進める」** 順序で実行します。
 
 ### 1.1 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
-- **ステータス**: `💡 proposed` (2026-09-26 策定)
+- **ステータス**: `🚧 in-progress` (Step 1 完了, 2026-09-27)
 - **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
 - **最優先着手理由**:
   - Model（Cコア / WASM / GKL）のシグナル高度化に対する**「防腐層（Anti-Corruption Layer）」** を先行配備することで、後続の Phase 5 (Stage 5.4〜5.5) におけるイベント・シグナル刷新が起きても View 側の修正・手戻りをゼロにする。
@@ -39,8 +39,15 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
   - `Nehww`（Phase A〜D 完了）で先行実証された高度なUIロジック（HUD状態マシン、モーダルスタック/FocusTrap、ペーパードール部位判定、コンテナD&Dドラフト、キーバインド調停）を、DOM非依存の Headless UI 層（**`UIController`**）として抽出・独立パッケージ化。
   - UIController にバインドする共通 **Web Components（`<nh-*>`）** を提供し、任意のフレームワーク（React / Vue / Svelte / Vanilla HTML）からタグ1行で最高峰のUIを利用可能にする。
 - **マイグレーションステップ**:
-  - [ ] **Step 1**: `Nehww` 内部のUI計算・状態管理コードを `controller/` へ分離（Headless化）
-  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack/ui-core`）化と Node.js 単体テストの整備
+  - [x] **Step 1: `Nehww` 内部のUI計算・状態管理コードを `controller/` へ分離（Headless化）** (2026-09-27 完了)
+    - `UIConfigStore`（レイアウト設定・LocalStorage永続化・プリセット管理）抽出
+    - `ModalStackController`（多重モーダル管理・ESC閉塞・最前面判定）新設
+    - `InputCoordinator`（キー入力競合調停・ルーティング判定）新設
+    - `FloatingMessageHudController`（行数キュー・世代判定・フェード状態）抽出
+    - `PaperdollPresenter`（部位適合判定・リアルタイム差分計算・二刀流適性）抽出
+    - `ContainerDraftController`（コンテナ移動ドラフト・数量計算・BoH防爆ガード）抽出
+    - Headless 単体テスト（6スイート・26テスト）配備、全96テスト（1,216テスト）100% PASS
+  - [ ] **Step 2**: DOM非依存の独立パッケージ（`@nethack-webui/ui-controller`）化と共通モジュール整備
   - [ ] **Step 3**: Web Components ライブラリ（`<nh-hud>`, `<nh-paperdoll>`, `<nh-container>` 等）の実装
   - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
 

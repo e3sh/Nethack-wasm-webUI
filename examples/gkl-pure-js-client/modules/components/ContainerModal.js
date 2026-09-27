@@ -6,6 +6,8 @@
  * Bag of Holding 防爆セーフティガードの統合ビュー。
  */
 
+import { ContainerDraftController } from '../controller/ContainerDraftController.js';
+
 export class ContainerModal {
   /**
    * @param {Object} options
@@ -22,6 +24,9 @@ export class ContainerModal {
 
     this.currentLanguage = 'ja';
     this.isVisible = false;
+
+    // Headless Draft Controller
+    this.draftController = new ContainerDraftController();
 
     // 現在開いているコンテナの情報
     this.containerName = '';
@@ -211,6 +216,9 @@ export class ContainerModal {
     this.containerName = data.containerName || 'Container';
     this.containerType = data.containerType || 'UNKNOWN';
     this.isBagOfHolding = !!data.isBagOfHolding;
+    if (this.draftController) {
+      this.draftController.setBagOfHolding(this.isBagOfHolding);
+    }
     if (Array.isArray(data.contents)) {
       this.containerItems = data.contents;
     } else if (data.contents && Array.isArray(data.contents.items)) {

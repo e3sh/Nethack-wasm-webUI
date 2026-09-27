@@ -60,6 +60,51 @@ export class SkillStateManager {
     }
 
     /**
+     * 二刀流 (Two-Weapon Combat) スキルオブジェクトを取得
+     * @returns {Object|null}
+     */
+    getTwoWeaponSkill() {
+        if (!Array.isArray(this.skills)) return null;
+        return this.skills.find(s => {
+            const name = (s.name || s.nameRaw || '').toLowerCase();
+            return name.includes('two-weapon') || name.includes('two weapon') || name.includes('二刀流');
+        }) || null;
+    }
+
+    /**
+     * 二刀流 (Two-Weapon Combat) が可能か判定
+     * @param {string} [role] - 職業名 (スキル同期前のフォールバック用)
+     * @returns {boolean}
+     */
+    canTwoWeapon(role = null) {
+        // 1. スキル一覧が同期されている場合：two-weapon combat の有無とランクを確認
+        if (this.isSynced && Array.isArray(this.skills) && this.skills.length > 0) {
+            const twoWeaponSkill = this.getTwoWeaponSkill();
+            if (twoWeaponSkill) {
+                const rankKey = twoWeaponSkill.rank?.key || twoWeaponSkill.rankKey || '';
+                return rankKey !== 'restricted' && !twoWeaponSkill.isRestricted;
+            }
+            return false;
+        }
+
+        // 2. スキル未同期の場合：職業（ロール）から判定
+        if (role) {
+            const lowerRole = role.toLowerCase();
+            const eligibleRoles = ['samurai', 'barbarian', 'rogue', 'ranger', 'knight', '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'];
+            if (eligibleRoles.some(r => lowerRole.includes(r))) {
+                return true;
+            }
+            const ineligibleRoles = ['valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman', 'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'];
+            if (ineligibleRoles.some(r => lowerRole.includes(r))) {
+                return false;
+            }
+        }
+
+        // 3. 情報未確定時の安全フォールバック（操作可能）
+        return true;
+    }
+
+    /**
      * スキルランクの正規化
      * ⚠️ 重要: 文字列競合を防ぐため必ず 'unskilled' を 'skilled' より先に判定すること
      * @param {string} rankStr 

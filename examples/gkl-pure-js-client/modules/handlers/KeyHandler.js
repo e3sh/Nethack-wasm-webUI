@@ -1,10 +1,24 @@
 /**
  * KeyHandler - グローバルキー入力 & モーダル・テキストウィンドウ・ゲームプレイ中のキーディスパッチャー
+ *
+ * InputCoordinator & ModalStackController (Headless Controller) と連携し、
+ * ブラウザDOMイベントの受け取りとディスパッチに純化された View-Handler。
  */
 import { trapFocus } from '../../../../src/core/input/focusTrap.js';
+import { ModalStackController } from '../controller/ModalStackController.js';
+import { InputCoordinator, ROUTE_ACTIONS } from '../controller/InputCoordinator.js';
 
 export class KeyHandler {
-  constructor({ getCore, getModalManager, getContainerModal, getPaperdollModal, getCodexModal, getMinimapRenderer, getMessageHistoryDrawer, toggleSidePanel }) {
+  constructor({
+    getCore,
+    getModalManager,
+    getContainerModal,
+    getPaperdollModal,
+    getCodexModal,
+    getMinimapRenderer,
+    getMessageHistoryDrawer,
+    toggleSidePanel
+  }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
@@ -13,179 +27,214 @@ export class KeyHandler {
     this.getMinimapRenderer = getMinimapRenderer || (() => null);
     this.getMessageHistoryDrawer = getMessageHistoryDrawer || (() => null);
     this.toggleSidePanel = toggleSidePanel || (() => null);
+
+    this.modalStack = new ModalStackController();
+    this.inputCoordinator = new InputCoordinator({ modalStack: this.modalStack });
+
+    this._registerModals();
+  }
+
+  /**
+   * 各モーダルの開閉状態・閉じる操作を ModalStackController に登録
+   * @private
+   */
+  _registerModals() {
+    // 過去ログドロワー (一時展開中のみモーダル扱い)
+    this.modalStack.registerModal('historyDrawer', {
+      priority: 10,
+      isOpen: () => {
+        const drawer = this.getMessageHistoryDrawer();
+        return Boolean(drawer && drawer.isOpen() && !drawer.isPinned);
+      },
+      close: () => {
+        const drawer = this.getMessageHistoryDrawer();
+        if (drawer) drawer.close();
+      }
+    });
+
+    // 冒険手帳モーダル
+    this.modalStack.registerModal('codex', {
+      priority: 20,
+      isOpen: () => {
+        const codex = this.getCodexModal();
+        return Boolean(codex && codex.isOpen());
+      },
+      close: () => {
+        const codex = this.getCodexModal();
+        if (codex) codex.close();
+      },
+      isInputFocused: () => {
+        return Boolean(document.activeElement && document.activeElement.id === 'codex-search-input');
+      }
+    });
+
+    // ペーパードールモーダル
+    this.modalStack.registerModal('paperdoll', {
+      priority: 30,
+      isOpen: () => {
+        const paperdoll = this.getPaperdollModal();
+        return Boolean(paperdoll && paperdoll.isVisible);
+      },
+      close: () => {
+        const paperdoll = this.getPaperdollModal();
+        if (paperdoll) paperdoll.hide();
+      }
+    });
+
+    // コンテナモーダル
+    this.modalStack.registerModal('container', {
+      priority: 30,
+      isOpen: () => {
+        const container = this.getContainerModal();
+        return Boolean(container && container.isVisible);
+      },
+      close: () => {
+        const container = this.getContainerModal();
+        if (container) container.close();
+      }
+    });
   }
 
   handleGlobalKeyDown(e) {
-    // 🎒 サイドパネル一時退避・再展開ショートカット (Alt+S または F2)
-    if ((e.altKey && (e.code === 'KeyS' || e.key === 's' || e.key === 'S')) || e.code === 'F2') {
-      e.preventDefault();
-      this.toggleSidePanel();
-      return;
-    }
-
-    // 📜 過去ログドロワー (Ctrl+P) の開閉ハンドリング
-    const historyDrawer = this.getMessageHistoryDrawer();
-    if (e.ctrlKey && (e.code === 'KeyP' || e.key === 'p' || e.key === 'P')) {
-      e.preventDefault();
-      if (historyDrawer) {
-        historyDrawer.toggle();
-      }
-      return;
-    }
-
-    if (historyDrawer && historyDrawer.isOpen() && !historyDrawer.isPinned) {
-      if (e.key === 'Escape' || e.code === 'Escape') {
-        e.preventDefault();
-        historyDrawer.close();
-        return;
-      }
-      // 過去ログドロワー一時展開中（モーダル表示）は通常のゲームキー入力をブロック
-      return;
-    }
-    // 冒険手帳モーダルが開いている場合の処理
-    const codexModal = this.getCodexModal();
-    if (codexModal && codexModal.isOpen()) {
-      if (e.key === 'Escape' || e.code === 'Escape') {
-        e.preventDefault();
-        codexModal.close();
-        return;
-      }
-      // 検索入力欄にフォーカスがある場合はキーイベントをそのまま通す
-      if (e.target && e.target.id === 'codex-search-input') {
-        return;
-      }
-      // モーダル表示中は通常のゲームキー入力をブロック
-      return;
-    }
-
-    // ペーパードールモーダルが開いている場合の処理
-    const paperdollModal = this.getPaperdollModal();
-    if (paperdollModal && paperdollModal.isVisible) {
-      if (e.key === 'Escape' || e.key === 'q' || e.code === 'Escape' || e.code === 'KeyQ') {
-        e.preventDefault();
-        paperdollModal.hide();
-        return;
-      }
-      // ペーパードールモーダル表示中は通常のゲームキー入力をブロック
-      return;
-    }
-
-    // コンテナモーダルが開いている場合の処理
-    const containerModal = this.getContainerModal();
-    if (containerModal && containerModal.isVisible) {
-      if (e.key === 'Escape' || e.key === 'q' || e.code === 'Escape' || e.code === 'KeyQ') {
-        e.preventDefault();
-        containerModal.close();
-        return;
-      }
-      // コンテナモーダル表示中は通常のゲームキー入力をブロック
-      return;
-    }
-
     const modal = this.getModalManager();
-    // キャラクター作成モーダル表示中は通常のゲームキー入力をブロック
-    if (modal && modal.characterCreationModal && modal.characterCreationModal.isVisible) {
-      return;
-    }
-    if (modal) {
-      const activeCard = modal.getActiveModalCard ? modal.getActiveModalCard() : null;
-      if (activeCard) {
-        const wishSuggest = document.getElementById('wish-suggest-dropdown');
-        const genocideSuggest = document.getElementById('genocide-suggest-dropdown');
-        const polySuggest = document.getElementById('poly-suggest-dropdown');
-        const isSuggestActive = (wishSuggest && wishSuggest.classList.contains('active')) ||
-                                (genocideSuggest && genocideSuggest.classList.contains('active')) ||
-                                (polySuggest && polySuggest.style.display !== 'none' && polySuggest.children.length > 0);
-        if (!isSuggestActive) {
-          if (trapFocus(activeCard, e)) {
-            return;
+    const core = this.getCore();
+    const minimap = this.getMinimapRenderer ? this.getMinimapRenderer() : null;
+
+    // 実行時コンテキストの収集
+    const activeCard = modal && modal.getActiveModalCard ? modal.getActiveModalCard() : null;
+    const wishSuggest = typeof document !== 'undefined' ? document.getElementById('wish-suggest-dropdown') : null;
+    const genocideSuggest = typeof document !== 'undefined' ? document.getElementById('genocide-suggest-dropdown') : null;
+    const polySuggest = typeof document !== 'undefined' ? document.getElementById('poly-suggest-dropdown') : null;
+    const isSuggestActive = Boolean(
+      (wishSuggest && wishSuggest.classList.contains('active')) ||
+      (genocideSuggest && genocideSuggest.classList.contains('active')) ||
+      (polySuggest && polySuggest.style.display !== 'none' && polySuggest.children.length > 0)
+    );
+
+    const elMenuModal = modal ? modal.elMenuModal : null;
+    const isMenuOpen = Boolean(elMenuModal && !elMenuModal.classList.contains('hidden'));
+    const isDomInputActive = Boolean(document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA'));
+
+    const context = {
+      isMinimapMaximized: Boolean(minimap && minimap.isMaximized),
+      isDomInputActive,
+      isMenuOpen,
+      isTextWindowMode: Boolean(modal && modal.isTextWindowMode),
+      isCharacterCreationOpen: Boolean(modal && modal.characterCreationModal && modal.characterCreationModal.isVisible),
+      isSuggestActive,
+      hasActiveCard: Boolean(activeCard)
+    };
+
+    // InputCoordinator によるアクション評価 (Headless)
+    const evaluated = this.inputCoordinator.evaluateKeyDown(e, context);
+
+    switch (evaluated.action) {
+      case ROUTE_ACTIONS.SHORTCUT_TOGGLE_PANEL:
+        e.preventDefault();
+        this.toggleSidePanel();
+        return;
+
+      case ROUTE_ACTIONS.SHORTCUT_TOGGLE_HISTORY: {
+        e.preventDefault();
+        const historyDrawer = this.getMessageHistoryDrawer();
+        if (historyDrawer) historyDrawer.toggle();
+        return;
+      }
+
+      case ROUTE_ACTIONS.SHORTCUT_TOGGLE_MINIMAP:
+        if (minimap) {
+          e.preventDefault();
+          minimap.toggleMaximize();
+        }
+        return;
+
+      case ROUTE_ACTIONS.SHORTCUT_ESCAPE_MINIMAP:
+        if (minimap) {
+          e.preventDefault();
+          minimap.toggleMaximize(false);
+        }
+        return;
+
+      case ROUTE_ACTIONS.CLOSE_TOP_MODAL:
+        e.preventDefault();
+        this.modalStack.closeTopModal();
+        return;
+
+      case ROUTE_ACTIONS.TRAP_FOCUS:
+        if (activeCard) {
+          trapFocus(activeCard, e);
+        }
+        return;
+
+      case ROUTE_ACTIONS.TEXT_WINDOW_DISMISS:
+        if (core) {
+          e.preventDefault();
+          core.sendKey('Space');
+        }
+        return;
+
+      case ROUTE_ACTIONS.MENU_SCROLL_DOWN:
+        if (modal) {
+          e.preventDefault();
+          if (modal.selectableMenuButtons.length > 0) {
+            modal.activeMenuFocusIndex = (modal.activeMenuFocusIndex + 1) % modal.selectableMenuButtons.length;
+            modal.updateMenuFocus();
           }
         }
-      }
-    }
-
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-
-    const core = this.getCore();
-    if (!core || !modal) return;
-
-    const elMenuModal = modal.elMenuModal;
-    const isMenuOpen = elMenuModal && !elMenuModal.classList.contains('hidden');
-
-    if (isMenuOpen && modal.isTextWindowMode) {
-      if (['Space', 'Enter', 'Escape', 'KeyQ', 'Backspace'].includes(e.code) || e.key === ' ' || e.key === 'Enter' || e.key === 'Escape' || e.key === 'q') {
-        e.preventDefault();
-        core.sendKey('Space');
         return;
-      }
-    }
 
-    if (isMenuOpen && !modal.isTextWindowMode) {
-      if (e.key === 'ArrowDown' || e.code === 'ArrowDown' || e.code === 'Numpad2') {
-        e.preventDefault();
-        if (modal.selectableMenuButtons.length > 0) {
-          modal.activeMenuFocusIndex = (modal.activeMenuFocusIndex + 1) % modal.selectableMenuButtons.length;
-          modal.updateMenuFocus();
+      case ROUTE_ACTIONS.MENU_SCROLL_UP:
+        if (modal) {
+          e.preventDefault();
+          if (modal.selectableMenuButtons.length > 0) {
+            modal.activeMenuFocusIndex = (modal.activeMenuFocusIndex - 1 + modal.selectableMenuButtons.length) % modal.selectableMenuButtons.length;
+            modal.updateMenuFocus();
+          }
         }
         return;
-      }
 
-      if (e.key === 'ArrowUp' || e.code === 'ArrowUp' || e.code === 'Numpad8') {
-        e.preventDefault();
-        if (modal.selectableMenuButtons.length > 0) {
-          modal.activeMenuFocusIndex = (modal.activeMenuFocusIndex - 1 + modal.selectableMenuButtons.length) % modal.selectableMenuButtons.length;
-          modal.updateMenuFocus();
+      case ROUTE_ACTIONS.MENU_SELECT:
+        if (modal) {
+          e.preventDefault();
+          if (modal.selectableMenuButtons[modal.activeMenuFocusIndex]) {
+            modal.selectableMenuButtons[modal.activeMenuFocusIndex].click();
+          }
         }
         return;
-      }
 
-      if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
-        e.preventDefault();
-        if (modal.selectableMenuButtons[modal.activeMenuFocusIndex]) {
-          modal.selectableMenuButtons[modal.activeMenuFocusIndex].click();
+      case ROUTE_ACTIONS.MENU_CANCEL:
+        if (core) {
+          e.preventDefault();
+          core.respond(0);
         }
         return;
-      }
 
-      if (e.key === 'Escape' || e.key === '0' || e.key === 'q' || e.code === 'Escape' || e.code === 'Digit0' || e.code === 'Numpad0' || e.code === 'KeyQ') {
-        e.preventDefault();
-        core.respond(0);
+      case ROUTE_ACTIONS.MENU_RESPOND_CHAR:
+        if (core && evaluated.payload?.char) {
+          e.preventDefault();
+          core.respond(evaluated.payload.char);
+        }
         return;
-      }
 
-      if (e.key && e.key.length === 1) {
-        e.preventDefault();
-        core.respond(e.key);
+      case ROUTE_ACTIONS.BLOCK_INPUT:
+        // payload.passToNative の場合はブラウザ標準の入力（テキストボックスへのタイピング等）を通す
         return;
-      }
-    }
 
-    if (modal.isAnyModalOpen && modal.isAnyModalOpen()) {
-      return;
-    }
+      case ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY:
+        if (modal && modal.isAnyModalOpen && modal.isAnyModalOpen()) {
+          return;
+        }
+        if (core && e.code) {
+          // ブラウザ標準ショートカットの抑止 (Ctrl+P: 印刷, Ctrl+S: 保存, Ctrl+D: ブックマーク等)
+          if (e.ctrlKey && ['KeyP', 'KeyS', 'KeyD', 'KeyO'].includes(e.code)) {
+            e.preventDefault();
+          }
+          core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+        }
+        return;
 
-    // 🗺️ ミニマップ HUD 全体オーバーレイ展開 [Tab]
-    const minimap = this.getMinimapRenderer ? this.getMinimapRenderer() : null;
-    if (minimap && (e.code === 'Tab' || e.key === 'Tab')) {
-      e.preventDefault();
-      minimap.toggleMaximize();
-      return;
-    }
-
-    // ミニマップ最大化中に Escape が押された場合は縮小
-    if (minimap && minimap.isMaximized && (e.code === 'Escape' || e.key === 'Escape')) {
-      e.preventDefault();
-      minimap.toggleMaximize(false);
-      return;
-    }
-
-    if (e.code) {
-      if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) return;
-      // ブラウザ標準ショートカットの抑止 (Ctrl+P: 印刷, Ctrl+S: 保存, Ctrl+D: ブックマーク等)
-      if (e.ctrlKey && ['KeyP', 'KeyS', 'KeyD', 'KeyO'].includes(e.code)) {
-        e.preventDefault();
-      }
-      core.sendKey(e.code, e.shiftKey, e.ctrlKey, e.altKey, e.key);
+      default:
+        break;
     }
   }
 }

@@ -47,7 +47,7 @@ NetHack WASM WebUI プロジェクトにおいて、公式リファレンスク�
 +-------------------------------------------------------------------------------+
                                     ▲▼ (UI State & UI Events)
 +-------------------------------------------------------------------------------+
-| Layer 3: ★ UIController (Headless UI / Presenter / UI-Core)                   |
+| Layer 3: ★ UIController (@nethack-webui/ui-controller)                        |
 |  【防腐層 (Anti-Corruption Layer) & UI状態マシン (DOM非依存)】                |
 |  - HUDLayoutController (座標・ピン・ドック・最小化・自動退避)                |
 |  - ModalStackController (スタック順序・ESCキー優先度・FocusTrap)              |
@@ -215,15 +215,14 @@ UIController が完成した段階で、具象View層として **Web Components*
 
 ```mermaid
 flowchart TD
-    Step1["Step 1: ロジック抽出 (Nehww内部リファクタリング)"] --> Step2["Step 2: UIController 単体パッケージ化 (@nethack/ui-core)"]
+    Step1["Step 1: ロジック抽出 (Nehww内部リファクタリング)"] --> Step2["Step 2: UIController 単体パッケージ化 (@nethack-webui/ui-controller)"]
     Step2 --> Step3["Step 3: Web Components 実装 (<nh-*>)"]
     Step3 --> Step4["Step 4: Nehww への完全逆輸入 & 他フレームワーク展開"]
 ```
 
 - **Step 1: ロジック抽出（Nehww 内部での Headless 化）**:
-  - `examples/gkl-pure-js-client/js/` 内にある DOM 操作とステート計算が混在しているコードを分離。
-  - まずは同ディレクトリ内に `controller/` を新設し、純粋計算ロジック（`HUDLayoutController.js`, `InputCoordinator.js` 等）を切り出す。
-- **Step 2: 独立パッケージ化（`packages/ui-core/` または `src/ui-core/`）**:
+  - `examples/gkl-pure-js-client/modules/controller/` 内に純粋計算ロジック（`UIConfigStore.js`, `ModalStackController.js`, `InputCoordinator.js`, `FloatingMessageHudController.js`, `PaperdollPresenter.js`, `ContainerDraftController.js`）を抽出・分離。
+- **Step 2: 独立パッケージ化（`packages/ui-controller/` または `src/ui-controller/`）**:
   - DOM に依存しない UIController を共通モジュールとして抽出し、Vitest による Headless 単体テスト（DOMモックなし）を構築。
 - **Step 3: Web Components 化（`packages/web-components/`）**:
   - 切り出された UIController にバインドするカスタム要素群（`<nh-hud>`, `<nh-paperdoll>` 等）を実装。

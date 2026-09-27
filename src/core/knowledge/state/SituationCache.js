@@ -182,7 +182,10 @@ export class SituationCache {
             skills: {
                 items: skillItems,
                 activeItems: activeSkills,
-                isSynced: isSkillSynced
+                isSynced: isSkillSynced,
+                canTwoWeapon: skillState && typeof skillState.canTwoWeapon === 'function'
+                    ? skillState.canTwoWeapon((status && status.role) || (attributes?.characterSummary?.role) || '')
+                    : true
             },
             attributes,
             actions,

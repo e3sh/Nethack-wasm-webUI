@@ -2,11 +2,13 @@
  * FloatingMessageHud.js
  *
  * 全画面マップ上に最新メッセージを透過表示するフローティング HUD コンポーネント。
+ * - 状態管理・世代判定・ライフサイクルは FloatingMessageHudController (Headless) に委譲
  * - 画面上部中央に最新 2〜3 行を半透明カードでポップアップ表示
  * - isBold や緊急メッセージのハイライト
  * - ターン経過または一定時間でのフェードアウト
  * - pointer-events: none によりマップ上のクリックや探索操作を一切妨げない
  */
+import { FloatingMessageHudController, LINE_STATE } from '../controller/FloatingMessageHudController.js';
 
 export class FloatingMessageHud {
   /**
@@ -23,8 +25,15 @@ export class FloatingMessageHud {
     this.fadeTimeoutMs = fadeTimeoutMs;
     this.fadeDelayAfterActionMs = fadeDelayAfterActionMs;
     this.document = doc || (typeof document !== 'undefined' ? document : null);
-    this.lines = []; // Array<{ id, element, timer, isBold, state: 'active' | 'stale' | 'fading' }>
     this.currentLanguage = 'ja';
+
+    this.controller = new FloatingMessageHudController({
+      maxLines,
+      fadeTimeoutMs,
+      fadeDelayAfterActionMs
+    });
+
+    this.lines = []; // Array<{ id, element, timer, isBold, state: 'active' | 'stale' | 'fading' }>
   }
 
   /**
@@ -33,6 +42,8 @@ export class FloatingMessageHud {
    */
   setMaxLines(num) {
     this.maxLines = Math.max(1, Math.min(10, num));
+    this.controller.setMaxLines(this.maxLines);
+
     while (this.lines.length > this.maxLines) {
       const oldest = this.lines.shift();
       if (oldest) {
@@ -70,12 +81,14 @@ export class FloatingMessageHud {
   pushMessage({ id, text, rawText, isBold = false, attr = 0 }) {
     if (!this.container || !text || !this.document) return;
 
-    // 同一メッセージがすでにキューの末尾にある場合の連続重複処理（必要に応じて更新のみ）
+    // 同一メッセージがすでにキューの末尾にある場合の連続重複処理（更新のみ）
     const lastLine = this.lines.length > 0 ? this.lines[this.lines.length - 1] : null;
     if (lastLine && lastLine.id === id) {
       this.updateMessage({ id, text, isBold, attr });
       return;
     }
+
+    this.controller.pushMessage({ id, text, rawText, isBold, attr });
 
     const lineEl = this.document.createElement('div');
     lineEl.className = 'floating-message-line' + (isBold ? ' bold' : '');
@@ -92,7 +105,6 @@ export class FloatingMessageHud {
       state: 'active'
     };
 
-    // 明示的に時間起点フェードが設定されている場合のみ受信時タイマーを起動（互換性用）
     if (this.fadeTimeoutMs > 0) {
       lineEntry.timer = setTimeout(() => {
         this._fadeLine(lineEntry);
@@ -122,6 +134,8 @@ export class FloatingMessageHud {
   updateMessage(messageItem) {
     if (!messageItem || !this.container) return;
 
+    this.controller.updateMessage(messageItem);
+
     const entry = this.lines.find(l => l.id === messageItem.id);
     if (!entry) return;
 
@@ -138,7 +152,6 @@ export class FloatingMessageHud {
       }
     }
 
-    // 更新された場合はアクティブ状態に戻し、タイマーをリセット
     if (entry.timer) {
       clearTimeout(entry.timer);
       entry.timer = null;
@@ -156,14 +169,15 @@ export class FloatingMessageHud {
   }
 
   /**
-   * ユーザー操作（次の入力アクション）が行われたことを通知し、既存メッセージの消滅ライフサイクルを進行
+   * ユーザー操作が行われたことを通知し、消滅ライフサイクルを進行
    */
   notifyUserAction() {
+    this.controller.notifyUserAction();
+
     for (const entry of [...this.lines]) {
       if (!entry.element) continue;
 
       if (entry.state === 'active') {
-        // 直前ターンの最新メッセージ：操作起点タイマーを開始
         entry.state = 'stale';
         entry.element.classList.add('fading-fast');
 
@@ -176,33 +190,24 @@ export class FloatingMessageHud {
           this._fadeLine(entry);
         }
       } else if (entry.state === 'stale') {
-        // すでに前回以前の操作でフェード待ちになっている古いメッセージ：
-        // 連続操作（連打・ダッシュ）時は画面を遮らないよう即座にフェードアウトへ移行
         this._fadeLine(entry);
       }
     }
   }
 
-  /**
-   * ターン経過 / ユーザー操作時のハンドラー (notifyUserAction のエイリアス)
-   */
   onTurnPassed() {
     this.notifyUserAction();
   }
 
-  /**
-   * 全メッセージのフェードアウト
-   */
   fadeAll() {
+    this.controller.fadeAll();
     for (const entry of this.lines) {
       this._fadeLine(entry);
     }
   }
 
-  /**
-   * 全メッセージの即時消去
-   */
   clear() {
+    this.controller.clear();
     for (const entry of this.lines) {
       if (entry.timer) clearTimeout(entry.timer);
       if (entry.element && entry.element.parentNode) {
@@ -222,6 +227,8 @@ export class FloatingMessageHud {
   _fadeLine(entry) {
     if (!entry || !entry.element || entry.state === 'fading') return;
     entry.state = 'fading';
+    this.controller.fadeLine(entry.id);
+
     if (entry.timer) {
       clearTimeout(entry.timer);
       entry.timer = null;
@@ -234,6 +241,7 @@ export class FloatingMessageHud {
       const idx = this.lines.indexOf(entry);
       if (idx !== -1) {
         this.lines.splice(idx, 1);
+        this.controller.removeLine(entry.id);
         this._updateLineAges();
       }
     }, 400);

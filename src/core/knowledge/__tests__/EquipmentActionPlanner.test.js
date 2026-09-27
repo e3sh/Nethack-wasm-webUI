@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EquipmentActionPlanner } from "../equipment/EquipmentActionPlanner.js";
 import { EquipmentDependencyAnalyzer } from "../equipment/EquipmentDependencyAnalyzer.js";
-import { EQUIP_SLOTS } from "../equipment/EquipmentRules.js";
+import { EQUIP_SLOTS, isTwoWeaponEligible } from "../equipment/EquipmentRules.js";
 
 describe('EquipmentActionPlanner', () => {
 
@@ -379,6 +379,30 @@ describe('EquipmentActionPlanner', () => {
             sequence: ['w', '-']
         });
         expect(recipe.sequence).toEqual(['w', '-']);
+    });
+
+    // 13. isTwoWeaponEligible: GKL 二刀流適性判定 (SSOT)
+    describe('isTwoWeaponEligible (GKL 二刀流適性判定ルール)', () => {
+        it('侍・バーバリアン・ローグ等の適性職で true を返すこと', () => {
+            expect(isTwoWeaponEligible({ player: { role: 'Samurai' } })).toBe(true);
+            expect(isTwoWeaponEligible({ player: { role: 'Barbarian' } })).toBe(true);
+            expect(isTwoWeaponEligible({ player: { role: 'Rogue' } })).toBe(true);
+        });
+
+        it('魔術師・僧侶・観光客等の非適性職で false を返すこと', () => {
+            expect(isTwoWeaponEligible({ player: { role: 'Wizard' } })).toBe(false);
+            expect(isTwoWeaponEligible({ player: { role: 'Priest' } })).toBe(false);
+            expect(isTwoWeaponEligible({ player: { role: 'Tourist' } })).toBe(false);
+        });
+
+        it('スキル情報で two-weapon combat がアンロックされている場合は適性と判定すること', () => {
+            const situation = {
+                skills: [
+                    { name: 'two weapon combat', rankKey: 'basic', isRestricted: false }
+                ]
+            };
+            expect(isTwoWeaponEligible(situation)).toBe(true);
+        });
     });
 });
 

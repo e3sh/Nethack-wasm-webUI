@@ -169,14 +169,81 @@ export function isCockatriceCorpse(item) {
     return /cockatrice|chickatrice|コカトリス|チカトリス/.test(raw);
 }
 
+/**
+ * 二刀流 (Two-Weapon Combat) に適性がある職業リスト (NetHack 5.0 C-Core 準拠)
+ */
+export const TWO_WEAPON_ELIGIBLE_ROLES = Object.freeze([
+    'samurai', 'barbarian', 'rogue', 'ranger', 'knight',
+    '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'
+]);
+
+/**
+ * 二刀流 (Two-Weapon Combat) が明示的に不可・制限されている職業リスト
+ */
+export const TWO_WEAPON_INELIGIBLE_ROLES = Object.freeze([
+    'valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman',
+    'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'
+]);
+
+/**
+ * プレイヤーが二刀流 (Two-Weapon Combat) を行える適性があるか判定 (GKL SSOT)
+ * @param {Object} situation - GKL Situation オブジェクト
+ * @param {Object} [core] - WebUICore (フォールバック)
+ * @returns {boolean}
+ */
+export function isTwoWeaponEligible(situation, core = null) {
+    // 0. SituationCache / SkillStateManager による事前判定があれば最優先
+    if (situation?.skills?.canTwoWeapon !== undefined) {
+        return Boolean(situation.skills.canTwoWeapon);
+    }
+
+    // 1. スキル情報から判定
+    const skills = situation?.skills?.items || situation?.skills || situation?.attributes?.skills || core?.skills || [];
+    if (Array.isArray(skills) && skills.length > 0) {
+        const twoWeaponSkill = skills.find(s => {
+            const name = (s.name || s.nameRaw || '').toLowerCase();
+            return name.includes('two-weapon') || name.includes('two weapon') || name.includes('二刀流');
+        });
+        if (twoWeaponSkill) {
+            const rankKey = twoWeaponSkill.rank?.key || twoWeaponSkill.rankKey || '';
+            return rankKey !== 'restricted' && !twoWeaponSkill.isRestricted;
+        }
+    }
+
+    // 2. 職業情報から判定
+    const charInfo = situation?.attributes?.characterInfo || core?.characterInfo || {};
+    const charSummary = situation?.attributes?.characterSummary || {};
+    const role = (charInfo.role || charSummary.role || situation?.status?.role || core?.status?.role || situation?.player?.role || '').toLowerCase();
+
+    if (role && TWO_WEAPON_ELIGIBLE_ROLES.some(r => role.includes(r))) {
+        return true;
+    }
+
+    // 3. 既に二刀流中のアイテムが存在する場合
+    if (situation?.equipment?.isTwoWeapon) return true;
+    const invItems = situation?.inventory?.items || core?.inventory?.items || [];
+    if (invItems.some(i => i.isOffhand)) return true;
+
+    // 4. 明示的な非適性職の場合は false
+    if (role && TWO_WEAPON_INELIGIBLE_ROLES.some(r => role.includes(r))) {
+        return false;
+    }
+
+    // 職業・スキルともに情報未確定の場合は操作可能（デフォルト true）
+    return true;
+}
+
 export const EquipmentRules = {
     EQUIP_SLOTS,
     ARMOR_LAYERS,
     ACCESSORY_RULES,
+    TWO_WEAPON_ELIGIBLE_ROLES,
+    TWO_WEAPON_INELIGIBLE_ROLES,
     estimateActionTurns,
     resolveEligibleSlots,
     isTwoHandedWeapon,
-    isCockatriceCorpse
+    isCockatriceCorpse,
+    isTwoWeaponEligible
 };
 
 export default EquipmentRules;

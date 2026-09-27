@@ -26,6 +26,7 @@ import { KeyHandler } from './modules/handlers/KeyHandler.js';
 import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
 import { FloatingMessageHud } from './modules/components/FloatingMessageHud.js';
 import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.js';
+import { UIConfigStore } from './modules/controller/UIConfigStore.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
@@ -33,6 +34,8 @@ import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.
 class GklPureJSClient {
   constructor() {
     //console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
+    this.uiConfigStore = new UIConfigStore();
+    this.layoutConfig = this.uiConfigStore.get();
     this.core = null;
     this.containerController = null;
     this.lookService = null;
@@ -76,9 +79,8 @@ class GklPureJSClient {
       btnModeRaw: document.getElementById('btn-drawer-mode-raw'),
       language: this.currentLanguage,
       onPinStateChanged: (isPinned) => {
-        if (this.layoutConfig) {
-          this.layoutConfig.panelHistoryDock = isPinned;
-          this.saveLayoutConfig(this.layoutConfig);
+        if (this.uiConfigStore) {
+          this.layoutConfig = this.uiConfigStore.setProperty('panelHistoryDock', isPinned);
         }
         const chkDock = document.getElementById('chk-panel-history-dock');
         if (chkDock) chkDock.checked = isPinned;
@@ -996,9 +998,7 @@ class GklPureJSClient {
       const el = document.getElementById(id);
       if (el) {
         el.onchange = (e) => {
-          this.layoutConfig[propName] = Boolean(e.target.checked);
-          this.layoutConfig.preset = 'custom';
-          this.saveLayoutConfig(this.layoutConfig);
+          this.layoutConfig = this.uiConfigStore.setProperty(propName, Boolean(e.target.checked));
           this.applyLayoutConfig(this.layoutConfig);
         };
       }
@@ -1866,45 +1866,23 @@ class GklPureJSClient {
   }
 
   // ==========================================
-  // 🎨 レイアウト & 外観カスタマイズ管理
+  // 🎨 レイアウト & 外観カスタマイズ管理 (UIConfigStore 連携)
   // ==========================================
   initLayoutConfig() {
-    this.layoutConfig = this.loadLayoutConfig();
+    this.layoutConfig = this.uiConfigStore.get();
     this.applyLayoutConfig(this.layoutConfig);
   }
 
   getDefaultLayoutConfig() {
-    return {
-      preset: 'modern',
-      panelInventory: true,
-      panelActions: true,
-      panelKnowledge: true,
-      panelHistoryDock: false,
-      panelCollapsed: false,
-      statusClassic2Line: false,
-      statusGauges: true,
-      statusGklExtra: true
-    };
+    return this.uiConfigStore.getDefaultConfig();
   }
 
   loadLayoutConfig() {
-    try {
-      const saved = localStorage.getItem('gkl_ui_layout_config');
-      if (saved) {
-        return { ...this.getDefaultLayoutConfig(), ...JSON.parse(saved) };
-      }
-    } catch (err) {
-      console.warn('[GKLpureJSclient] Failed to load layout config from localStorage', err);
-    }
-    return this.getDefaultLayoutConfig();
+    return this.uiConfigStore.load();
   }
 
   saveLayoutConfig(config) {
-    try {
-      localStorage.setItem('gkl_ui_layout_config', JSON.stringify(config));
-    } catch (err) {
-      console.warn('[GKLpureJSclient] Failed to save layout config to localStorage', err);
-    }
+    this.layoutConfig = this.uiConfigStore.save(config);
   }
 
   /**
@@ -1912,10 +1890,7 @@ class GklPureJSClient {
    * @param {boolean} [forceState] - 強制設定 (true: 折りたたみ退避, false: 再展開)
    */
   toggleSidePanel(forceState) {
-    if (!this.layoutConfig) return;
-    const nextState = forceState !== undefined ? Boolean(forceState) : !this.layoutConfig.panelCollapsed;
-    this.layoutConfig.panelCollapsed = nextState;
-    this.saveLayoutConfig(this.layoutConfig);
+    this.layoutConfig = this.uiConfigStore.toggleSidePanel(forceState);
     this.applyLayoutConfig(this.layoutConfig);
   }
 
@@ -2011,17 +1986,7 @@ class GklPureJSClient {
   }
 
   setPreset(presetName) {
-    let newConfig = { ...this.layoutConfig };
     if (presetName === 'classic') {
-      newConfig = {
-        preset: 'classic',
-        panelInventory: false,
-        panelActions: false,
-        panelKnowledge: false,
-        statusClassic2Line: true,
-        statusGauges: true, // ユーザー要望：代替ゲージとしてHPゲージは残す
-        statusGklExtra: false
-      };
       // クラシック選択時はビューを ASCII に切り替え
       this.setViewMode('ascii');
       // クラシック選択時はミニマップHUDもOFFに
@@ -2029,15 +1994,6 @@ class GklPureJSClient {
         this.minimapRenderer.toggleVisibility(false);
       }
     } else if (presetName === 'modern') {
-      newConfig = {
-        preset: 'modern',
-        panelInventory: true,
-        panelActions: true,
-        panelKnowledge: true,
-        statusClassic2Line: false,
-        statusGauges: true,
-        statusGklExtra: true
-      };
       // GKLモダン選択時はビューを HD-2D (利用可能なら) または 2Dグラフィック に切り替え
       this.setViewMode('hd2d');
       // モダン選択時はミニマップHUDもONに
@@ -2045,8 +2001,8 @@ class GklPureJSClient {
         this.minimapRenderer.toggleVisibility(true);
       }
     }
-    this.saveLayoutConfig(newConfig);
-    this.applyLayoutConfig(newConfig);
+    this.layoutConfig = this.uiConfigStore.applyPreset(presetName);
+    this.applyLayoutConfig(this.layoutConfig);
   }
 }
 
