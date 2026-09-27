@@ -81,7 +81,13 @@ export class UIConfigStore {
    */
   save(newConfig = null) {
     if (newConfig) {
-      this.config = this._normalize(newConfig);
+      const normalized = this._normalize(newConfig);
+      const isUnchanged = this.config &&
+        Object.keys(normalized).every(k => this.config[k] === normalized[k]);
+      if (isUnchanged) {
+        return this.config;
+      }
+      this.config = normalized;
     }
     if (this.storage) {
       try {
@@ -108,6 +114,9 @@ export class UIConfigStore {
    * @param {*} value
    */
   setProperty(key, value) {
+    if (this.config[key] === value) {
+      return this.config;
+    }
     const updated = {
       ...this.config,
       [key]: value,
@@ -200,9 +209,9 @@ export class UIConfigStore {
   _normalize(raw) {
     return {
       preset: typeof raw.preset === 'string' ? raw.preset : PRESETS.MODERN,
-      panelInventory: Boolean(raw.panelInventory),
-      panelActions: Boolean(raw.panelActions),
-      panelKnowledge: Boolean(raw.panelKnowledge),
+      panelInventory: raw.panelInventory !== undefined ? Boolean(raw.panelInventory) : true,
+      panelActions: raw.panelActions !== undefined ? Boolean(raw.panelActions) : true,
+      panelKnowledge: raw.panelKnowledge !== undefined ? Boolean(raw.panelKnowledge) : true,
       panelHistoryDock: Boolean(raw.panelHistoryDock),
       panelCollapsed: Boolean(raw.panelCollapsed),
       statusClassic2Line: Boolean(raw.statusClassic2Line),

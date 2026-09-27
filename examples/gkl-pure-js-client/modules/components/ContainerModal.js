@@ -59,6 +59,17 @@ export class ContainerModal {
     this.viewMode = savedViewMode === 'grid' ? 'grid' : 'list';
 
     this._ensureDom();
+
+    // <nh-modal> 外枠との連携
+    this.nhModal = (this.elContainerModal && this.elContainerModal.closest)
+      ? this.elContainerModal.closest('nh-modal')
+      : (typeof document !== 'undefined' ? document.getElementById('nh-modal-container') : null);
+
+    if (this.nhModal && typeof this.nhModal.addEventListener === 'function') {
+      this.nhModal.addEventListener('nh-modal-close', () => {
+        if (this.isVisible) this.close();
+      });
+    }
   }
 
   /**
@@ -237,6 +248,9 @@ export class ContainerModal {
     this._pendingWarningAction = null;
     this.isVisible = true;
 
+    if (this.nhModal) {
+      this.nhModal.open = true;
+    }
     if (this.elContainerModal) {
       this.elContainerModal.classList.remove('hidden');
     }
@@ -251,6 +265,9 @@ export class ContainerModal {
     this.isVisible = false;
     this.isProcessing = false;
     this._pendingWarningAction = null;
+    if (this.nhModal) {
+      this.nhModal.open = false;
+    }
     if (this.elContainerModal) {
       this.elContainerModal.classList.add('hidden');
     }

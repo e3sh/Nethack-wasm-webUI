@@ -246,5 +246,45 @@ describe('FloatingMessageHud - フローティング最新行 HUD', () => {
       expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(false);
       expect(actionContainer.children[0].classList.contains('bold')).toBe(true);
     });
+
+    it('14. 複数行表示時: 1回の操作で全行が半透明になり、古い行から順次400ms時間差で1行ずつフェードアウトすること', () => {
+      actionHud.clear();
+      actionHud.pushMessage({ id: 201, text: 'Line 1 (oldest)' });
+      actionHud.pushMessage({ id: 202, text: 'Line 2' });
+      actionHud.pushMessage({ id: 203, text: 'Line 3 (newest)' });
+      expect(actionContainer.children.length).toBe(3);
+
+      // ユーザーが1回操作（移動など）を行う
+      actionHud.notifyUserAction();
+
+      // 直前の全行が即座に半透明 (fading-fast) になる
+      expect(actionContainer.children[0].classList.contains('fading-fast')).toBe(true);
+      expect(actionContainer.children[1].classList.contains('fading-fast')).toBe(true);
+      expect(actionContainer.children[2].classList.contains('fading-fast')).toBe(true);
+
+      // baseDelay (2000ms) 経過: 最古行 (Line 1) のみ fading 開始
+      vi.advanceTimersByTime(2000);
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+      expect(actionContainer.children[1].classList.contains('fading')).toBe(false);
+      expect(actionContainer.children[2].classList.contains('fading')).toBe(false);
+
+      // 400ms 経過: Line 1 が消滅、Line 2 のフェードが開始
+      vi.advanceTimersByTime(400);
+      expect(actionContainer.children.length).toBe(2);
+      expect(actionContainer.children[0].textContent).toBe('Line 2');
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+      expect(actionContainer.children[1].textContent).toBe('Line 3 (newest)');
+      expect(actionContainer.children[1].classList.contains('fading')).toBe(false);
+
+      // さらに 400ms 経過: Line 2 が消滅、Line 3 のフェードが開始
+      vi.advanceTimersByTime(400);
+      expect(actionContainer.children.length).toBe(1);
+      expect(actionContainer.children[0].textContent).toBe('Line 3 (newest)');
+      expect(actionContainer.children[0].classList.contains('fading')).toBe(true);
+
+      // さらに 400ms 経過: Line 3 も消滅し、全行綺麗に消える
+      vi.advanceTimersByTime(400);
+      expect(actionContainer.children.length).toBe(0);
+    });
   });
 });

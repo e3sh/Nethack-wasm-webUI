@@ -37,6 +37,7 @@ export class PaperdollModal {
     this.currentLanguage = 'ja';
     this.isVisible = false;
     this.isProcessing = false;
+    this.isRendered = false;
 
     // Headless UI Presenter
     this.presenter = new PaperdollPresenter();
@@ -46,25 +47,21 @@ export class PaperdollModal {
     this.selectedCandidateItem = null;
     this.hoverCandidateItem = null;
 
-    // スロットのメタ情報定義
-    this.slotDefinitions = {
-      [EQUIP_SLOTS.HELM]:      { id: EQUIP_SLOTS.HELM, labelJa: '頭 (兜)', labelEn: 'Helm', icon: '🪖' },
-      [EQUIP_SLOTS.BLINDFOLD]: { id: EQUIP_SLOTS.BLINDFOLD, labelJa: '目 (目隠し)', labelEn: 'Eyes', icon: '🕶️' },
-      [EQUIP_SLOTS.AMULET]:    { id: EQUIP_SLOTS.AMULET, labelJa: '首 (アミュレット)', labelEn: 'Amulet', icon: '🧿' },
-      [EQUIP_SLOTS.MAIN_HAND]: { id: EQUIP_SLOTS.MAIN_HAND, labelJa: '主手 (武器/道具)', labelEn: 'Main Hand', icon: '⚔️' },
-      [EQUIP_SLOTS.OFF_HAND]:  { id: EQUIP_SLOTS.OFF_HAND, labelJa: '控え (副武器)', labelEn: 'Alt Weapon', icon: '🗡️' },
-      [EQUIP_SLOTS.SHIELD]:    { id: EQUIP_SLOTS.SHIELD, labelJa: '副手 (盾)', labelEn: 'Shield / Off', icon: '🛡️' },
-      [EQUIP_SLOTS.CLOAK]:     { id: EQUIP_SLOTS.CLOAK, labelJa: '外套 (クローク)', labelEn: 'Cloak (Layer 3)', icon: '🧥', layer: 3 },
-      [EQUIP_SLOTS.SUIT]:      { id: EQUIP_SLOTS.SUIT, labelJa: '鎧 (甲冑)', labelEn: 'Suit (Layer 2)', icon: '🥋', layer: 2 },
-      [EQUIP_SLOTS.SHIRT]:     { id: EQUIP_SLOTS.SHIRT, labelJa: '肌着 (シャツ)', labelEn: 'Shirt (Layer 1)', icon: '👕', layer: 1 },
-      [EQUIP_SLOTS.GLOVES]:    { id: EQUIP_SLOTS.GLOVES, labelJa: '手 (手袋/籠手)', labelEn: 'Gloves', icon: '🧤' },
-      [EQUIP_SLOTS.LEFT_RING]: { id: EQUIP_SLOTS.LEFT_RING, labelJa: '左指 (指輪)', labelEn: 'Left Ring', icon: '💍' },
-      [EQUIP_SLOTS.RIGHT_RING]:{ id: EQUIP_SLOTS.RIGHT_RING, labelJa: '右指 (指輪)', labelEn: 'Right Ring', icon: '💍' },
-      [EQUIP_SLOTS.QUIVER]:    { id: EQUIP_SLOTS.QUIVER, labelJa: '矢筒 (弾薬/投擲)', labelEn: 'Quiver', icon: '🏹' },
-      [EQUIP_SLOTS.BOOTS]:     { id: EQUIP_SLOTS.BOOTS, labelJa: '足 (靴/ブーツ)', labelEn: 'Boots', icon: '👢' }
-    };
+    // スロットのメタ情報定義 (Presenter から SSOT 取得)
+    this.slotDefinitions = this.presenter.slotDefinitions;
 
     this._ensureDom();
+
+    // <nh-modal> 外枠との連携
+    this.nhModal = (this.elPaperdollModal && this.elPaperdollModal.closest)
+      ? this.elPaperdollModal.closest('nh-modal')
+      : (typeof document !== 'undefined' ? document.getElementById('nh-modal-paperdoll') : null);
+
+    if (this.nhModal && typeof this.nhModal.addEventListener === 'function') {
+      this.nhModal.addEventListener('nh-modal-close', () => {
+        if (this.isVisible) this.hide();
+      });
+    }
   }
 
   _ensureDom() {
@@ -80,11 +77,13 @@ export class PaperdollModal {
     }
 
     // 外枠クリックでモーダルを閉じる
-    this.elPaperdollModal.addEventListener('click', (e) => {
-      if (e.target === this.elPaperdollModal) {
-        this.hide();
-      }
-    });
+    if (this.elPaperdollModal && typeof this.elPaperdollModal.addEventListener === 'function') {
+      this.elPaperdollModal.addEventListener('click', (e) => {
+        if (e.target === this.elPaperdollModal) {
+          this.hide();
+        }
+      });
+    }
   }
 
   setLanguage(lang) {
@@ -175,8 +174,12 @@ export class PaperdollModal {
 
   show() {
     this.isVisible = true;
+    this.isRendered = false;
     this.selectedCandidateItem = null;
     this.hoverCandidateItem = null;
+    if (this.nhModal) {
+      this.nhModal.open = true;
+    }
     if (this.elPaperdollModal) {
       this.elPaperdollModal.classList.remove('hidden');
     }
@@ -185,10 +188,15 @@ export class PaperdollModal {
 
   hide() {
     this.isVisible = false;
+    this.isRendered = false;
     this.selectedCandidateItem = null;
     this.hoverCandidateItem = null;
+    if (this.nhModal) {
+      this.nhModal.open = false;
+    }
     if (this.elPaperdollModal) {
       this.elPaperdollModal.classList.add('hidden');
+      this.elPaperdollModal.innerHTML = '';
     }
   }
 
@@ -260,99 +268,142 @@ export class PaperdollModal {
       twoWeaponTooltip += isEn ? ' (Restricted for current role or skill)' : ' (二刀流不可)';
     }
 
-    // HTMLテンプレート構築
-    this.elPaperdollModal.innerHTML = `
-      <div class="paperdoll-modal-card" role="dialog" aria-modal="true">
-        <!-- ヘッダー -->
-        <div class="paperdoll-header">
-          <div class="paperdoll-title-group">
-            <h2 class="paperdoll-title">
-              <span>🎽</span>
-              <span>${isEn ? 'Equipment Paperdoll & Loadout' : '装備詳細 ＆ ペーパードール'}</span>
-            </h2>
-            <div class="paperdoll-status-summary">
-              <span class="badge-ac">AC: ${currentAc}</span>
-              <span class="badge-weight">⚖️ ${currentWeight}</span>
+    // 外枠カード (.paperdoll-modal-card) が既に描画済みかチェック
+    // ネイティブ DOM 環境ではカードを維持して内部差分更新（ダイアログが消えない）
+    // テストモック環境では POJO 連動制約のため全体更新
+    const isRealDom = typeof Element !== 'undefined' && this.elPaperdollModal instanceof Element;
+    const existingCard = (isRealDom && this.isRendered) ? this.elPaperdollModal.querySelector('.paperdoll-modal-card') : null;
+    if (!existingCard) {
+      // 初回オープン時のみ外枠カード全体を生成（初回のみ modalFadeIn が発火）
+      this.elPaperdollModal.innerHTML = `
+        <div class="paperdoll-modal-card" role="dialog" aria-modal="true">
+          <!-- ヘッダー -->
+          <div class="paperdoll-header">
+            <div class="paperdoll-title-group">
+              <h2 class="paperdoll-title">
+                <span>🎽</span>
+                <span>${isEn ? 'Equipment Paperdoll & Loadout' : '装備詳細 ＆ ペーパードール'}</span>
+              </h2>
+              <div class="paperdoll-status-summary">
+                <span class="badge-ac">AC: ${currentAc}</span>
+                <span class="badge-weight">⚖️ ${currentWeight}</span>
+              </div>
+            </div>
+            <button class="paperdoll-close-btn" id="btn-paperdoll-close" title="閉じる (Esc)">✖</button>
+          </div>
+
+          <!-- 2ペインメインボディ -->
+          <div class="paperdoll-body">
+            <!-- 左ペイン: ペーパードール人型スロット -->
+            <div class="paperdoll-stage" id="paperdoll-stage-container">
+              ${this._renderStageHtml(equippedState, isEn, isTwoWeaponActive, canToggleTwoWeapon, twoWeaponTooltip)}
+            </div>
+
+            <!-- 右ペイン: アイテムクイックセレクター ＆ 差分プレビュー -->
+            <div class="paperdoll-sidebar">
+              <div id="paperdoll-selector-container" class="paperdoll-selector-box">
+                ${this._renderQuickSelectorHtml(inventory, equippedState)}
+              </div>
+              <div id="paperdoll-diff-container">
+                ${this._renderDiffCardHtml(equippedState, status, encumbrance, inventory)}
+              </div>
             </div>
           </div>
-          <button class="paperdoll-close-btn" id="btn-paperdoll-close" title="閉じる (Esc)">✖</button>
+        </div>
+      `;
+      this.isRendered = true;
+    } else {
+      // 内部選択動作などの再描画時は、カード本体は維持し、内部コンテンツのみを高速差分更新（ダイアログが消えない）
+      const summaryEl = this.elPaperdollModal.querySelector('.paperdoll-status-summary');
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <span class="badge-ac">AC: ${currentAc}</span>
+          <span class="badge-weight">⚖️ ${currentWeight}</span>
+        `;
+      }
+
+      const stageEl = this.elPaperdollModal.querySelector('#paperdoll-stage-container');
+      if (stageEl) {
+        stageEl.innerHTML = this._renderStageHtml(equippedState, isEn, isTwoWeaponActive, canToggleTwoWeapon, twoWeaponTooltip);
+      }
+
+      const selectorEl = this.elPaperdollModal.querySelector('#paperdoll-selector-container');
+      if (selectorEl) {
+        selectorEl.innerHTML = this._renderQuickSelectorHtml(inventory, equippedState);
+      }
+
+      const diffEl = this.elPaperdollModal.querySelector('#paperdoll-diff-container');
+      if (diffEl) {
+        diffEl.innerHTML = this._renderDiffCardHtml(equippedState, status, encumbrance, inventory);
+      }
+    }
+
+    this._bindEvents(equippedState, inventory, status, encumbrance);
+  }
+
+  /**
+   * 左ペイン: ペーパードール人型スロットステージのHTMLレンダリング
+   * @private
+   */
+  _renderStageHtml(equippedState, isEn, isTwoWeaponActive, canToggleTwoWeapon, twoWeaponTooltip) {
+    return `
+      <div class="paperdoll-avatar-bg"></div>
+      <div class="paperdoll-grid">
+        <!-- 1行目: 頭・目・首 -->
+        <div class="paperdoll-row">
+          ${this._renderSlotHtml(EQUIP_SLOTS.HELM, equippedState)}
+          ${this._renderSlotHtml(EQUIP_SLOTS.BLINDFOLD, equippedState)}
+          ${this._renderSlotHtml(EQUIP_SLOTS.AMULET, equippedState)}
         </div>
 
-        <!-- 2ペインメインボディ -->
-        <div class="paperdoll-body">
-          <!-- 左ペイン: ペーパードール人型スロット -->
-          <div class="paperdoll-stage">
-            <div class="paperdoll-avatar-bg"></div>
-            <div class="paperdoll-grid">
-              <!-- 1行目: 頭・目・首 -->
-              <div class="paperdoll-row">
-                ${this._renderSlotHtml(EQUIP_SLOTS.HELM, equippedState)}
-                ${this._renderSlotHtml(EQUIP_SLOTS.BLINDFOLD, equippedState)}
-                ${this._renderSlotHtml(EQUIP_SLOTS.AMULET, equippedState)}
-              </div>
+        <!-- 2行目: 主手 / 胴体3層レイヤード / 副手 -->
+        <div class="paperdoll-row" style="align-items: stretch;">
+          <div class="paperdoll-weapon-col">
+            ${this._renderSlotHtml(EQUIP_SLOTS.MAIN_HAND, equippedState)}
 
-              <!-- 2行目: 主手 / 胴体3層レイヤード / 副手 -->
-              <div class="paperdoll-row" style="align-items: stretch;">
-                <div class="paperdoll-weapon-col">
-                  ${this._renderSlotHtml(EQUIP_SLOTS.MAIN_HAND, equippedState)}
+            <!-- 正副武器切替ボタン (x) -->
+            <button type="button" class="paperdoll-tool-btn btn-swap-weapon" id="btn-paperdoll-swap"
+                    title="${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}">
+              <span class="tool-btn-icon">🔄</span>
+              <span class="tool-btn-label">${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}</span>
+            </button>
 
-                  <!-- 正副武器切替ボタン (x) -->
-                  <button type="button" class="paperdoll-tool-btn btn-swap-weapon" id="btn-paperdoll-swap"
-                          title="${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}">
-                    <span class="tool-btn-icon">🔄</span>
-                    <span class="tool-btn-label">${isEn ? 'Swap Weapons (x)' : '武器切替 (x)'}</span>
-                  </button>
+            ${this._renderSlotHtml(EQUIP_SLOTS.OFF_HAND, equippedState)}
 
-                  ${this._renderSlotHtml(EQUIP_SLOTS.OFF_HAND, equippedState)}
-
-                  <!-- 二刀流トグルボタン (X) -->
-                  <button type="button" class="paperdoll-tool-btn btn-two-weapon ${isTwoWeaponActive ? 'is-active' : ''} ${!canToggleTwoWeapon ? 'is-disabled' : ''}"
-                          id="btn-paperdoll-two-weapon"
-                          ${!canToggleTwoWeapon ? 'disabled' : ''}
-                          title="${twoWeaponTooltip}">
-                    <span class="tool-btn-icon">⚔️⚔️</span>
-                    <span class="tool-btn-label">${isEn ? 'Two-Weapon (#twoweapon / X)' : '二刀流 (#twoweapon / X)'}</span>
-                  </button>
-                </div>
-
-                <!-- 胴体3層レイヤードカード (外套 ➔ 鎧 ➔ シャツ) -->
-                <div class="torso-layer-container">
-                  <div class="torso-layer-title">${isEn ? 'TORSO LAYERS (OUTER ➔ INNER)' : '胴体3層レイヤー（外 ➔ 内）'}</div>
-                  ${this._renderTorsoSlotHtml(EQUIP_SLOTS.CLOAK, equippedState)}
-                  ${this._renderTorsoSlotHtml(EQUIP_SLOTS.SUIT, equippedState)}
-                  ${this._renderTorsoSlotHtml(EQUIP_SLOTS.SHIRT, equippedState)}
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
-                  ${this._renderSlotHtml(EQUIP_SLOTS.SHIELD, equippedState)}
-                </div>
-              </div>
-
-              <!-- 3行目: 手・左指・右指 -->
-              <div class="paperdoll-row">
-                ${this._renderSlotHtml(EQUIP_SLOTS.GLOVES, equippedState)}
-                ${this._renderSlotHtml(EQUIP_SLOTS.LEFT_RING, equippedState)}
-                ${this._renderSlotHtml(EQUIP_SLOTS.RIGHT_RING, equippedState)}
-              </div>
-
-              <!-- 4行目: 矢筒・足 -->
-              <div class="paperdoll-row">
-                ${this._renderSlotHtml(EQUIP_SLOTS.QUIVER, equippedState)}
-                ${this._renderSlotHtml(EQUIP_SLOTS.BOOTS, equippedState)}
-              </div>
-            </div>
+            <!-- 二刀流トグルボタン (X) -->
+            <button type="button" class="paperdoll-tool-btn btn-two-weapon ${isTwoWeaponActive ? 'is-active' : ''} ${!canToggleTwoWeapon ? 'is-disabled' : ''}"
+                    id="btn-paperdoll-two-weapon"
+                    ${!canToggleTwoWeapon ? 'disabled' : ''}
+                    title="${twoWeaponTooltip}">
+              <span class="tool-btn-icon">⚔️⚔️</span>
+              <span class="tool-btn-label">${isEn ? 'Two-Weapon (#twoweapon / X)' : '二刀流 (#twoweapon / X)'}</span>
+            </button>
           </div>
 
-          <!-- 右ペイン: アイテムクイックセレクター ＆ 差分プレビュー -->
-          <div class="paperdoll-sidebar">
-            <div id="paperdoll-selector-container" class="paperdoll-selector-box">
-              ${this._renderQuickSelectorHtml(inventory, equippedState)}
-            </div>
-            <div id="paperdoll-diff-container">
-              ${this._renderDiffCardHtml(equippedState, status, encumbrance, inventory)}
-            </div>
+          <!-- 胴体3層レイヤードカード (外套 ➔ 鎧 ➔ シャツ) -->
+          <div class="torso-layer-container">
+            <div class="torso-layer-title">${isEn ? 'TORSO LAYERS (OUTER ➔ INNER)' : '胴体3層レイヤー（外 ➔ 内）'}</div>
+            ${this._renderTorsoSlotHtml(EQUIP_SLOTS.CLOAK, equippedState)}
+            ${this._renderTorsoSlotHtml(EQUIP_SLOTS.SUIT, equippedState)}
+            ${this._renderTorsoSlotHtml(EQUIP_SLOTS.SHIRT, equippedState)}
           </div>
 
+          <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
+            ${this._renderSlotHtml(EQUIP_SLOTS.SHIELD, equippedState)}
+          </div>
+        </div>
+
+        <!-- 3行目: 手・左指・右指 -->
+        <div class="paperdoll-row">
+          ${this._renderSlotHtml(EQUIP_SLOTS.GLOVES, equippedState)}
+          ${this._renderSlotHtml(EQUIP_SLOTS.LEFT_RING, equippedState)}
+          ${this._renderSlotHtml(EQUIP_SLOTS.RIGHT_RING, equippedState)}
+        </div>
+
+        <!-- 4行目: 矢筒・足 -->
+        <div class="paperdoll-row">
+          ${this._renderSlotHtml(EQUIP_SLOTS.QUIVER, equippedState)}
+          ${this._renderSlotHtml(EQUIP_SLOTS.BOOTS, equippedState)}
         </div>
       </div>
     `;

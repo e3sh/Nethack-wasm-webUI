@@ -92,6 +92,29 @@ export class KeyHandler {
         if (container) container.close();
       }
     });
+
+    // 設定モーダル (<nh-modal id="nh-modal-settings">)
+    this.modalStack.registerModal('settings', {
+      priority: 15,
+      isOpen: () => {
+        const modal = typeof document !== 'undefined' ? document.getElementById('nh-modal-settings') : null;
+        return Boolean(modal && (modal.open || modal.hasAttribute?.('open')));
+      },
+      close: () => {
+        const modal = typeof document !== 'undefined' ? document.getElementById('nh-modal-settings') : null;
+        if (modal) modal.close();
+      }
+    });
+
+    // DOM 上の <nh-modal> インスタンスがあれば modalStack を直接注入
+    if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+      const nhModals = document.querySelectorAll('nh-modal');
+      nhModals.forEach(el => {
+        if (typeof el.setModalStack === 'function') {
+          el.setModalStack(this.modalStack);
+        }
+      });
+    }
   }
 
   handleGlobalKeyDown(e) {

@@ -243,6 +243,10 @@ function matchesSelector(node, selector) {
   if (!node || !selector) return false;
   selector = selector.trim();
 
+  // ID セレクタ (#modal-id)
+  if (selector.startsWith('#')) {
+    return node.id === selector.slice(1);
+  }
   // クラスセレクタ (.btn, .filer-item-card.risk)
   if (selector.startsWith('.')) {
     const classes = selector.split('.').filter(Boolean);
@@ -282,8 +286,18 @@ export function setupMockDom() {
 
   const registry = new Map();
 
+  const bodyNode = createMockNode('body');
+
   globalThis.document = {
+    body: bodyNode,
     createElement: (tag) => createMockNode(tag),
+    getElementById: (id) => findMatchingNode(bodyNode, `#${id}`),
+    querySelector: (sel) => findMatchingNode(bodyNode, sel),
+    querySelectorAll: (sel) => {
+      const acc = [];
+      findAllMatchingNodes(bodyNode, sel, acc);
+      return acc;
+    },
     activeElement: null
   };
 

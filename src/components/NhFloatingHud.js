@@ -168,6 +168,13 @@ export class NhFloatingHud extends NhBaseElement {
   }
 
   /**
+   * ターン経過通知
+   */
+  onTurnPassed() {
+    this.notifyUserAction();
+  }
+
+  /**
    * 全行フェード
    */
   fadeAll() {
@@ -200,17 +207,47 @@ export class NhFloatingHud extends NhBaseElement {
     if (!this._container) return;
 
     const lines = this.controller.getLines();
-    this._container.innerHTML = '';
+    const existingElements = Array.from(this._container.children || []);
+    const existingMap = new Map();
+    for (const el of existingElements) {
+      if (el.dataset && el.dataset.messageId) {
+        existingMap.set(String(el.dataset.messageId), el);
+      }
+    }
+
+    const currentIds = new Set();
 
     for (const line of lines) {
-      const lineEl = document.createElement('div');
+      const idStr = String(line.id);
+      currentIds.add(idStr);
+
+      let lineEl = existingMap.get(idStr);
+      if (!lineEl) {
+        lineEl = document.createElement('div');
+        if (lineEl.dataset) {
+          lineEl.dataset.messageId = idStr;
+        } else {
+          lineEl.setAttribute('data-message-id', idStr);
+        }
+        this._container.appendChild(lineEl);
+      }
+
       lineEl.className = `floating-message-line line-age-${line.age}`;
       if (line.isBold) lineEl.classList.add('bold');
       if (line.state === LINE_STATE.FADING) lineEl.classList.add('fading');
-      lineEl.dataset.messageId = String(line.id);
-      lineEl.textContent = line.text;
+      if (lineEl.textContent !== line.text) {
+        lineEl.textContent = line.text;
+      }
+    }
 
-      this._container.appendChild(lineEl);
+    // 削除された行の DOM を除去
+    for (const el of existingElements) {
+      const idStr = el.dataset?.messageId || el.getAttribute?.('data-message-id');
+      if (idStr && !currentIds.has(idStr)) {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      }
     }
   }
 }

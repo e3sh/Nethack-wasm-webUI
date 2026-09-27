@@ -31,7 +31,7 @@ last_updated: 2026-09-27
 UI層への影響・手戻りを最小化するため、**「先に防腐層（UIController）を確立し、その保護下で基幹メッセージシグナル刷新（Phase 5 Stage 5.4〜5.5）を進める」** 順序で実行します。
 
 ### 1.1 Phase E: UIController (Headless UI) 抽出と Web Components 共通基盤
-- **ステータス**: `🚧 in-progress` (Step 3 完了, 2026-09-27)
+- **ステータス**: `🟢 implemented` (全ステップ完了, 2026-09-27)
 - **設計書**: [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)
 - **最優先着手理由**:
   - Model（Cコア / WASM / GKL）のシグナル高度化に対する**「防腐層（Anti-Corruption Layer）」** を先行配備することで、後続の Phase 5 (Stage 5.4〜5.5) におけるイベント・シグナル刷新が起きても View 側の修正・手戻りをゼロにする。
@@ -64,7 +64,12 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - `src/components/index.js` 一括エクスポート & `customElements.define` 自動/一括登録
     - インタラクティブデモカタログ (`examples/web-components-demo/index.html`) 配備
     - 単体テスト新設、全103テストスイート・1,247テスト 100% PASS、全4サンプルクライアントビルド成功確認
-  - [ ] **Step 4**: `Nehww` および他クライアントへの逆輸入・共通化
+  - [x] **Step 4: `Nehww` への Web Components 逆輸入・共通化と最高峰 UX の完全復元** (2026-09-27 完了)
+    - フローティング HUD の最高峰アニメーション・世代遷移・ゴールド演出を 100% 維持しつつ `FloatingMessageHudController`（Headless）と完全同期
+    - モーダル外枠（`#container-modal`, `#paperdoll-modal`）の 2 ペイン全画面美麗 GUI を維持し、設定モーダル（`<nh-modal id="nh-modal-settings">`）および `KeyHandler` のスタック調停・ESC 閉塞と安全連携
+    - 設定パネル / プリセット管理を `<nh-ui-config>` および `UIConfigStore`（未定義値安全正規化）と双方向バインド連携
+    - `PaperdollModal` の部位メタ定義を `PaperdollPresenter` の SSOT へ集約
+    - 逆輸入連携テスト（`NehwwWebComponentsIntegration.test.js`）配備、全104テストスイート・1,252テスト 100% PASS、全4サンプルクライアントビルド完全成功
 
 ### 1.2 Phase 5: メッセージシグナル化刷新と次世代 WebUICore / GKL 連携
 - **ステータス**: `🚧 in-progress` (Stage 5.1〜5.3 ＆ メッセージライフサイクル完了、Stage 5.4 準備中)
@@ -145,10 +150,11 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全90スイート・1,190テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全104スイート・1,252テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
+| **UI・基盤** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md) | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | `🟢 implemented` | **UIController (Headless UI) ＆ Web Components 共通基盤 (Phase E)**<br>防腐層抽出（HUD・モーダルスタック・入力調停・ペーパードール・コンテナ・設定）、共通 Custom Elements（`<nh-*>`）、Nehww への逆輸入・最適化完了 |
 | **UI・体験** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`base.css` | `🟢 implemented` | **GKL レファレンスクライアント (Nehww) UI/UX 刷新 (Phase A〜D)**<br>全画面マップ（100vw×100vh）、フローティング最新行HUD＋過去ログドロワー、足元枠3Dパース吸着、スマートContextActions、Neo-Retro Dark Glass UI統一 |
 | **UI・デザイン** | [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md) | `base.css`<br>`modals.css`<br>各種モーダル CSS | `🟢 implemented` | **モーダル・ダイアログ群デザインシステム統一 (Dark Glass UI)**<br>デザイントークン一元化（`--glass-bg`, `--glass-blur`, `--glass-border`, `--primary-color: #38bdf8`）、金枠・スレート枠のバラつき解消、全モーダル共通規格化 |
 | **メッセージ** | [immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `WebUICore.js`<br>`NetHackWasmDriver.js` | `🟢 implemented` | **メッセージライフサイクル＆抑止制御**<br>モーダル（アイテム選択等）中のメッセージ抑止（`suppressMessage`）、構造化ログ（`bubbleMessage`, `messageItem`, `messageUpdate`）の一元配信 |

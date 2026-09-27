@@ -161,11 +161,17 @@ export class MessageHistoryDrawer {
   /**
    * ピン留め状態を明示設定
    * @param {boolean} pinned
+   * @param {boolean} [silent=false] - true の場合は onPinStateChanged を発火しない (外部同期用)
    */
-  setPinned(pinned) {
-    this.isPinned = Boolean(pinned);
+  setPinned(pinned, silent = false) {
+    const nextPinned = Boolean(pinned);
+    if (this.isPinned === nextPinned) {
+      this.applyPinState();
+      return;
+    }
+    this.isPinned = nextPinned;
     this.applyPinState();
-    if (this.onPinStateChanged) {
+    if (!silent && this.onPinStateChanged) {
       this.onPinStateChanged(this.isPinned);
     }
   }

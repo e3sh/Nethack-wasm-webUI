@@ -27,6 +27,7 @@ import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
 import { FloatingMessageHud } from './modules/components/FloatingMessageHud.js';
 import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.js';
 import { UIConfigStore } from '../../src/ui-controller/index.js';
+import '../../src/components/index.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
@@ -1011,6 +1012,33 @@ class GklPureJSClient {
     bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
     bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
 
+    // 🎨 Web Components (<nh-ui-config> & <nh-modal>) 連携
+    const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
+    const nhModalSettings = document.getElementById('nh-modal-settings');
+    const btnOpenUiConfig = document.getElementById('btn-open-ui-config');
+
+    if (nhUiConfig && typeof nhUiConfig.setConfigStore === 'function') {
+      nhUiConfig.setConfigStore(this.uiConfigStore);
+      nhUiConfig.addEventListener('config-change', (e) => {
+        this.layoutConfig = e.detail?.config || this.uiConfigStore.get();
+        this.applyLayoutConfig(this.layoutConfig);
+      });
+      nhUiConfig.addEventListener('preset-change', (e) => {
+        if (e.detail?.preset) {
+          this.setPreset(e.detail.preset);
+        }
+      });
+    }
+
+    if (btnOpenUiConfig && nhModalSettings) {
+      btnOpenUiConfig.onclick = () => {
+        nhModalSettings.open = true;
+        if (this.settingsDropdown) {
+          this.settingsDropdown.classList.add('hidden');
+        }
+      };
+    }
+
     const btnRestart = document.getElementById('btn-restart');
     if (btnRestart) btnRestart.onclick = () => this.restartGame();
 
@@ -1870,7 +1898,17 @@ class GklPureJSClient {
   // ==========================================
   initLayoutConfig() {
     this.layoutConfig = this.uiConfigStore.get();
+    if (this.layoutConfig.panelInventory === undefined) this.layoutConfig.panelInventory = true;
+    if (this.layoutConfig.panelActions === undefined) this.layoutConfig.panelActions = true;
+    if (this.layoutConfig.panelKnowledge === undefined) this.layoutConfig.panelKnowledge = true;
+
     this.applyLayoutConfig(this.layoutConfig);
+
+    // 設定変更の自動リアクティブ反映
+    this.uiConfigStore.subscribe((newConfig) => {
+      this.layoutConfig = newConfig;
+      this.applyLayoutConfig(this.layoutConfig);
+    });
   }
 
   getDefaultLayoutConfig() {
@@ -1913,7 +1951,7 @@ class GklPureJSClient {
 
     // 過去ログの左側常時固定 (ピン留め) 反映
     if (this.messageHistoryDrawer && typeof this.messageHistoryDrawer.setPinned === 'function') {
-      this.messageHistoryDrawer.setPinned(Boolean(config.panelHistoryDock));
+      this.messageHistoryDrawer.setPinned(Boolean(config.panelHistoryDock), true);
     }
 
     // 3枠すべて非表示ならサイドパネル全体を隠し、1カラム全画面化

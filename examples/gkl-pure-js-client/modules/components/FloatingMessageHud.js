@@ -33,6 +33,17 @@ export class FloatingMessageHud {
       fadeDelayAfterActionMs
     });
 
+    // Web Component (<nh-floating-hud>) との接続
+    this.isWebComponent = Boolean(
+      this.container && (
+        (this.container.tagName && this.container.tagName.toUpperCase() === 'NH-FLOATING-HUD') ||
+        typeof this.container.setController === 'function'
+      )
+    );
+    if (this.isWebComponent && typeof this.container.setController === 'function') {
+      this.container.setController(this.controller);
+    }
+
     this.lines = []; // Array<{ id, element, timer, isBold, state: 'active' | 'stale' | 'fading' }>
   }
 
@@ -43,6 +54,9 @@ export class FloatingMessageHud {
   setMaxLines(num) {
     this.maxLines = Math.max(1, Math.min(10, num));
     this.controller.setMaxLines(this.maxLines);
+    if (this.isWebComponent && this.container && typeof this.container.setAttribute === 'function') {
+      this.container.setAttribute('max-lines', String(this.maxLines));
+    }
 
     while (this.lines.length > this.maxLines) {
       const oldest = this.lines.shift();
@@ -94,8 +108,9 @@ export class FloatingMessageHud {
     lineEl.className = 'floating-message-line' + (isBold ? ' bold' : '');
     lineEl.dataset.messageId = String(id);
     lineEl.textContent = text;
-
-    this.container.appendChild(lineEl);
+    if (typeof this.container.appendChild === 'function') {
+      this.container.appendChild(lineEl);
+    }
 
     const lineEntry = {
       id,
@@ -169,32 +184,57 @@ export class FloatingMessageHud {
   }
 
   /**
-   * ユーザー操作が行われたことを通知し、消滅ライフサイクルを進行
+   * ユーザー操作が行われたことを通知し、直前行を半透明化＋最古行から順次時間差で1行ずつフェードアウト
    */
   notifyUserAction() {
-    this.controller.notifyUserAction();
+    if (this.controller && typeof this.controller.notifyUserAction === 'function') {
+      this.controller.notifyUserAction();
+    }
 
-    for (const entry of [...this.lines]) {
-      if (!entry.element) continue;
-
-      if (entry.state === 'active') {
-        entry.state = 'stale';
-        entry.element.classList.add('fading-fast');
-
-        if (entry.timer) clearTimeout(entry.timer);
-        if (this.fadeDelayAfterActionMs > 0) {
-          entry.timer = setTimeout(() => {
-            this._fadeLine(entry);
-          }, this.fadeDelayAfterActionMs);
-        } else {
-          this._fadeLine(entry);
+    // 操作起点モード (fadeTimeoutMs === 0)
+    if (this.fadeTimeoutMs === 0) {
+      const activeLines = this.lines.filter(l => l.state !== 'fading');
+      
+      // 1. 直前の未フェード行を直ちに半透明 (fading-fast: opacity 0.4) にする
+      for (const entry of activeLines) {
+        if (entry.element && !entry.element.classList.contains('fading-fast')) {
+          entry.element.classList.add('fading-fast');
         }
-      } else if (entry.state === 'stale') {
-        this._fadeLine(entry);
+      }
+
+      // 連続操作時: 前回の操作ですでに待機中 (stale) の最古行を速やかにフェードアウトへ移行
+      const staleLines = this.lines.filter(l => l.state === 'stale');
+      if (staleLines.length > 0) {
+        this._fadeLine(staleLines[0]);
+      }
+
+      // 2. 最古の行から順次、時間差（スタガード 400ms 刻み）で1行ずつフェードアウト待機タイマーを起動
+      const baseDelay = this.fadeDelayAfterActionMs > 0 ? this.fadeDelayAfterActionMs : 1500;
+      const stepDelay = 400;
+
+      activeLines.forEach((entry, idx) => {
+        entry.state = 'stale';
+        if (entry.timer) clearTimeout(entry.timer);
+
+        const delay = baseDelay + idx * stepDelay;
+        entry.timer = setTimeout(() => {
+          this._fadeLine(entry);
+        }, delay);
+      });
+      return;
+    }
+
+    // fadeTimeoutMs > 0 の場合（互換用）
+    for (const entry of this.lines) {
+      if (entry.element && !entry.element.classList.contains('fading')) {
+        entry.element.classList.add('fading-fast');
       }
     }
   }
 
+  /**
+   * ターン経過時に直前のメッセージを速やかに半透明フェードへ移行
+   */
   onTurnPassed() {
     this.notifyUserAction();
   }

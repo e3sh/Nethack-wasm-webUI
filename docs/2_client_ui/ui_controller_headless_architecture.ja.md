@@ -1,7 +1,7 @@
 ---
 title: UIController (Headless UI) アーキテクチャ設計仕様書
 subtitle: Model/View完全分離とシグナル吸収による長寿命・高保守性UIクライアント基盤
-status: in-progress
+status: implemented
 last_updated: 2026-09-27
 ---
 
@@ -234,8 +234,12 @@ flowchart TD
   - `src/components/index.js` 一括エクスポート & `customElements.define` 自動/一括登録。
   - インタラクティブデモカタログ (`examples/web-components-demo/index.html`) 配備。
   - 単体テスト（`tests/components/` 8スイート・45テスト）新設、全103テストスイート・1,247テスト 100% PASS、全4サンプルクライアントビルド成功確認。
-- **Step 4: Nehww への逆輸入・共通化**:
-  - `Nehww` の画面コードを、この Web Components または UIController を利用する形に差し替え、コード量を半減させつつ保守性を極限まで高める。
+- **Step 4: Nehww への逆輸入・共通化と最高峰 UX の完全復元** `[完了: 2026-09-27]`:
+  - フローティング HUD の最高峰アニメーション・世代遷移・ゴールド演出を 100% 維持しつつ `FloatingMessageHudController`（Headless）と完全同期。
+  - モーダル外枠（`#container-modal`, `#paperdoll-modal`）の 2 ペイン全画面美麗 GUI を維持し、設定モーダル（`<nh-modal id="nh-modal-settings">`）および `KeyHandler` のスタック調停・ESC 閉塞と安全連携。
+  - 設定パネル / プリセット管理を `<nh-ui-config>` および `UIConfigStore`（未定義値安全正規化）と双方向バインド連携。
+  - `PaperdollModal` の部位メタ定義を `PaperdollPresenter` の SSOT へ集約。
+  - 逆輸入連携テスト（`NehwwWebComponentsIntegration.test.js`）配備、全104テストスイート・1,252テスト 100% PASS、全4サンプルクライアントビルド完全成功。
 
 ---
 

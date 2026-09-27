@@ -19,6 +19,11 @@ const BaseClass = typeof HTMLElement !== 'undefined'
         this.attributes = new Map();
         this.children = [];
         this._listeners = new Map();
+
+        // Node.js テスト環境下でクラス名から tagName を自動導出 (ブラウザでは HTMLElement が自動管理)
+        const name = this.constructor.name || '';
+        const kebab = name.replace(/^Nh/, 'nh-').replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+        this.tagName = (kebab.startsWith('nh-') ? kebab : `nh-${kebab}`).toUpperCase();
       }
       attachShadow(options = { mode: 'open' }) {
         if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
