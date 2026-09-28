@@ -359,10 +359,10 @@ export class SignalDetector {
 
         // direction のフォールバック正規化 (Take out / Put in 等)
         if (!params.direction) {
-            const raw = (groups.directionAction || groups.directionActionJa || match[0] || '').toLowerCase();
-            if (raw.includes('take out') || raw.includes('取り出す') || raw.includes('外に出す')) {
+            const raw = (groups.directionAction || match[0] || '').toLowerCase();
+            if (raw.includes('take out')) {
                 params.direction = 'out';
-            } else if (raw.includes('put in') || raw.includes('入れる') || raw.includes('中に入れる')) {
+            } else if (raw.includes('put in')) {
                 params.direction = 'in';
             }
         }
@@ -371,7 +371,6 @@ export class SignalDetector {
         if (params.containerName) {
             let cName = params.containerName.trim();
             cName = cName.replace(/^the\s+/i, 'the ');
-            cName = cName.replace(/(?:の中身)?$/, '').trim();
             cName = cName.replace(/[\.\!\?]+$/, '').trim();
             params.containerName = cName;
         }
@@ -388,17 +387,17 @@ export class SignalDetector {
         // step のフォールバック正規化 (キャラクタ作成)
         if (!params.step && sig.subCategory === 'CHARACTER_CREATION') {
             const raw = (payload.rawPrompt || payload.prompt || '').toLowerCase();
-            if (raw.includes('role') || raw.includes('profession') || raw.includes('職業') || raw.includes('役職')) {
+            if (raw.includes('role') || raw.includes('profession')) {
                 params.step = 'role';
-            } else if (raw.includes('race') || raw.includes('species') || raw.includes('種族')) {
+            } else if (raw.includes('race') || raw.includes('species')) {
                 params.step = 'race';
-            } else if (raw.includes('gender') || raw.includes('sex') || raw.includes('性別')) {
+            } else if (raw.includes('gender') || raw.includes('sex')) {
                 params.step = 'gender';
-            } else if (raw.includes('align') || raw.includes('creed') || raw.includes('属性') || raw.includes('陣営')) {
+            } else if (raw.includes('align') || raw.includes('creed')) {
                 params.step = 'alignment';
-            } else if (raw.includes('all that apply') || raw.includes('すべて選択')) {
+            } else if (raw.includes('all that apply')) {
                 params.step = 'filter';
-            } else if (raw.includes('is this ok') || raw.includes('start game') || raw.includes('よろしいですか') || raw.includes('ゲームを開始')) {
+            } else if (raw.includes('is this ok') || raw.includes('start game')) {
                 params.step = 'confirm';
             }
         }
@@ -416,8 +415,6 @@ export class SignalDetector {
             const text = item.rawStr || item.str || item.text || item.label || '';
             const m = text.match(/Look inside (.+)$/i);
             if (m) return m[1].trim();
-            const mJa = text.match(/(.+?)の中身を見る/i);
-            if (mJa) return mJa[1].trim();
         }
         return null;
     }
@@ -430,9 +427,9 @@ export class SignalDetector {
         for (const item of items) {
             if (!item) continue;
             const text = (item.rawStr || item.str || item.text || item.label || '').toLowerCase().trim();
-            if (/^(?:drop|落とす|置く)(?:\s|$)/i.test(text)) return true;
-            if (/^(?:name|call|名付ける|名前)(?:\s|$)/i.test(text)) return true;
-            if (/^(?:throw|投げる)(?:\s|$)/i.test(text)) return true;
+            if (/^(?:drop)(?:\s|$)/i.test(text)) return true;
+            if (/^(?:name|call)(?:\s|$)/i.test(text)) return true;
+            if (/^(?:throw)(?:\s|$)/i.test(text)) return true;
         }
         return false;
     }
@@ -445,13 +442,11 @@ export class SignalDetector {
         const prompt = String(rawPrompt || '').toLowerCase();
         // 1. 明確なキャラクタ作成プロンプト（職業・種族・性別・属性選択、全選択）は無条件でOK
         if (/pick an? (?:role|race|gender|alignment|profession|species|sex|creed)/i.test(prompt) ||
-            /(?:役職|職業|種族|性別|陣営|属性)を選択/i.test(prompt) ||
-            /pick all that apply/i.test(prompt) ||
-            /適用するものをすべて選択/i.test(prompt)) {
+            /pick all that apply/i.test(prompt)) {
             return true;
         }
 
-        // 2. 確認系（is this ok, よろしいですか等）の場合は、アイテム行に確定画面特有の要素があるか検証
+        // 2. 確認系（is this ok 等）の場合は、アイテム行に確定画面特有の要素があるか検証
         const items = payload.items || payload.menuItems || [];
         return this._isCharacterCreationFromItems(items, rawPrompt);
     }
@@ -472,20 +467,17 @@ export class SignalDetector {
             const lower = text.toLowerCase();
 
             // 1. キャラクタ属性ヘッダー: <role> <race> <gender> <alignment> または Archeologist human <gender> lawful
-            if (/<(?:role|race|gender|alignment)>/i.test(text) ||
-                /＜(?:役職|種族|性別|属性)＞/.test(text)) {
+            if (/<(?:role|race|gender|alignment)>/i.test(text)) {
                 hasHeader = true;
             }
 
             // 2. 確定画面タイトル: Name the <align> <gender> <race> <role>
-            if (/\bthe\s+(?:lawful|neutral|chaotic)\s+(?:male|female)\s+(?:human|elf|dwarf|gnome|orc)/i.test(text) ||
-                /(?:秩序|中立|混沌)\s+(?:男|女)\s+(?:人間|エルフ|ドワーフ|ノーム|オーク)/.test(text)) {
+            if (/\bthe\s+(?:lawful|neutral|chaotic)\s+(?:male|female)\s+(?:human|elf|dwarf|gnome|orc)/i.test(text)) {
                 hasHeader = true;
             }
 
             // 3. 確定画面選択肢: start game, choose role again
-            if (lower.includes('start game') || lower.includes('choose role again') ||
-                text.includes('ゲームを開始') || text.includes('選び直')) {
+            if (lower.includes('start game') || lower.includes('choose role again')) {
                 hasConfirmChoice = true;
             }
         }

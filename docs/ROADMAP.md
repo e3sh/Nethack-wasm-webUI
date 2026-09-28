@@ -109,11 +109,12 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - **5.4B 耐性マネージャ (`AttributeStateManager`)**: `INTRINSIC_MESSAGE_MAP.js` 新設、`processMessageContext` による耐性獲得 O(1) 確定更新 ＆ 未マッピング時フォールバック
     - **5.4C 道具識別 (`DiscoveryStateManager`)**: `DISCOVERY_MESSAGE_MAP.js` 新設、`processDiscoveryMessage` による効果メッセージからの真名・外見自動昇格
     - 単体テスト新設（+12テスト）、全104テストスイート・1,269テスト 100% PASS、全4サンプルクライアントビルド完全成功確認
-  - [ ] **[Stage 5.5: 言語非依存ロジック確立と総合品質保証](./7_futures/phase5/stage5_5_quality_assurance_and_i18n.ja.md)**
-    - 二重キーワード（翻訳後日本語文字列依存）の完全撤廃
-    - 3層テストピラミッド再編（文章渡しテストの整理と `MessageContext` 渡しテスト主軸化）
-    - 翻訳非依存性テスト (`robustness.test.js`) 実証
-    - 全単体テスト（1,190件）および全 4 クライアント（Vue, React, Solid, Svelte）ビルド完全検証
+  - [x] **[Stage 5.5: 言語非依存ロジック確立と総合品質保証 (2026-09-28 完了)](./7_futures/phase5/stage5_5_quality_assurance_and_i18n.ja.md)**
+    - **二重キーワードの完全撤廃**: `AttributeStateManager`, `SoundEngine`, `MonsterTracker`, `SkillStateManager`, `SpellStateManager`, `SignalDetector`, `WebUICore` から翻訳後日本語テキストの覗き見を完全根絶し、`MessageContext` および英語 `rawText` 判定へ一本化
+    - **多言語拡張ファクトリ**: `MessageContextResolver.createForVariant(variant)` 新設により将来の JNetHack Wasm (ja) 等の投入に即応できる拡張性を確立
+    - **3層テストピラミッド再編**: 旧来の日本語文章渡しテストを整理し、`MessageContext` 渡しテストを主軸へ移行
+    - **翻訳非依存性自動テスト (`robustness.test.js`) 実証**: 通常辞書 vs 異言語ダミー辞書 vs 翻訳無効化でシグナル・耐性・音響・識別・FX が 100% 同一に動作することを実証
+    - 全105テストスイート・1,277テスト 100% PASS、全4サンプルクライアント（Vue, React, Solid, Svelte）ビルド完全成功確認
 
 ---
 

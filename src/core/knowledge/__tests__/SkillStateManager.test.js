@@ -198,15 +198,15 @@ describe('SkillStateManager Tests', () => {
         expect(res2).toBe(true);
         expect(skillManager.isSynced).toBe(false);
 
-        // 日本語: 向上メッセージ
+        // MessageContext: 向上メッセージ
         skillManager.isSynced = true;
-        const res3 = skillManager.updateFromMessage('短剣のスキルが入門に上がった.');
+        const res3 = skillManager.processMessageContext({ domain: 'SKILL', messageId: 'weapon.c:L123:skill_up', rawText: 'You feel more confident in your dagger skills.' });
         expect(res3).toBe(true);
         expect(skillManager.isSynced).toBe(false);
 
-        // 日本語: 向上可能メッセージ
+        // 英語: 向上可能メッセージ ("could be enhanced")
         skillManager.isSynced = true;
-        const res4 = skillManager.updateFromMessage('短剣のスキルを上げることができるようになった.');
+        const res4 = skillManager.updateFromMessage('Your skills could be enhanced.');
         expect(res4).toBe(true);
         expect(skillManager.isSynced).toBe(false);
 

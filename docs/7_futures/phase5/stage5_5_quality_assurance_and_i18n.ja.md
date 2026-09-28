@@ -1,15 +1,15 @@
 ---
 title: "Phase 5 - Stage 5.5 詳細仕様書: 言語非依存ロジック（表示と判定の完全分離）と品質保証"
-status: proposal / specification
+status: completed
 created_at: 2026-09-22
-last_updated: 2026-09-22
+last_updated: 2026-09-28
 related_docs:
   - docs/7_futures/phase5_detailed_migration_plan.ja.md
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
   - docs/7_futures/phase5/stage5_4_domain_modules_migration.ja.md
 related_code:
   - src/core/translation/TranslationEngine.js
-  - test/unit/robustness.test.js
+  - tests/unit/robustness.test.js
 ---
 
 # Phase 5 - Stage 5.5 詳細仕様書
@@ -132,11 +132,11 @@ flowchart TD
 
 ## 6. 作業手順 (Implementation Steps)
 
-- [ ] **Step 5.5.1**: コードベース全域の日本語文字列依存（二重キーワード）の走査と除去
-- [ ] **Step 5.5.2**: カテゴリ C（生文章渡しテスト）の整理と `MessageContext` 渡しテストへの主軸化
-- [ ] **Step 5.5.3**: `test/unit/robustness.test.js`（翻訳非依存性テスト）の実装と検証
-- [ ] **Step 5.5.4**: 全単体テストスイート（1037件以上＋新規テスト）の回帰検証
-- [ ] **Step 5.5.5**: 全 4 クライアント（Vue, React, Solid, Svelte）のビルド検証
+- [x] **Step 5.5.1**: コードベース全域の日本語文字列依存（二重キーワード）の走査と除去
+- [x] **Step 5.5.2**: カテゴリ C（生文章渡しテスト）の整理と `MessageContext` 渡しテストへの主軸化
+- [x] **Step 5.5.3**: `tests/unit/robustness.test.js`（翻訳非依存性テスト）の実装と検証
+- [x] **Step 5.5.4**: 全単体テストスイート（1037件以上＋新規テスト）の回帰検証
+- [x] **Step 5.5.5**: 全 4 クライアント（Vue, React, Solid, Svelte）のビルド検証
 
 ---
 

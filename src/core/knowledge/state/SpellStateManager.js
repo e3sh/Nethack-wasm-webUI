@@ -241,7 +241,7 @@ export class SpellStateManager {
         for (const item of sequenceBuffer) {
             if (!item) continue;
             const title = (item.title || item.prompt || '').toLowerCase();
-            if (title.includes('spell') || title.includes('魔法')) return true;
+            if (title.includes('spell')) return true;
 
             const items = item.menuItems || item.items || [];
             if (items.length > 0) {
@@ -278,8 +278,7 @@ export class SpellStateManager {
         for (const item of sequenceBuffer) {
             if (!item) continue;
             const text = (item.text || item.str || item.prompt || '').toLowerCase();
-            if (text.includes("don't know any spells") || text.includes("know no spells") || 
-                text.includes("呪文を覚えて") || text.includes("魔法を覚えて") || text.includes("呪文を知ら")) {
+            if (text.includes("don't know any spells") || text.includes("know no spells")) {
                 this.spells = [];
                 this.isSynced = true;
                 return;
@@ -423,15 +422,35 @@ export class SpellStateManager {
      * @param {string} text 
      * @returns {boolean} 無効化・変化があったかどうか
      */
+    processMessageContext(context, fallbackText = '') {
+        if (!context && !fallbackText) return false;
+
+        if (context) {
+            if (context.domain === 'SPELL' ||
+                (context.messageId && (context.messageId.includes('spell') || context.messageId.includes('repertoire')))) {
+                this.invalidate();
+                return true;
+            }
+        }
+
+        const textToMatch = fallbackText || (context ? context.rawText : '');
+        return this.updateFromMessage(textToMatch);
+    }
+
+    /**
+     * メッセージから習得魔法を即時抽出し、this.spells に即座に反映・登録した上で
+     * キャッシュ無効化 (invalidate) を行い、正式なサイレント同期 (+ キー) で確定更新する。(英語 rawText)
+     * @param {string} text 
+     * @returns {boolean} 無効化・変化があったかどうか
+     */
     updateFromMessage(text) {
         if (!text || typeof text !== 'string') return false;
 
         const lower = text.toLowerCase();
 
         // 0. 魔法を覚えていないメッセージの検知:
-        // 例: You don't know any spells right now. / 呪文を覚えていない
-        if (lower.includes("don't know any spells") || lower.includes("know no spells") ||
-            lower.includes("呪文を覚えて") || lower.includes("魔法を覚えて") || lower.includes("呪文を知ら")) {
+        // 例: You don't know any spells right now.
+        if (lower.includes("don't know any spells") || lower.includes("know no spells")) {
             this.spells = [];
             this.isSynced = true;
             return true;
@@ -439,28 +458,12 @@ export class SpellStateManager {
 
         // 1. 忘却メッセージ
         if (lower.includes('forget the spell') || lower.includes('forgot the spell') ||
-            lower.includes('knowledge of the spell') || lower.includes('呪文を忘れた')) {
+            lower.includes('knowledge of the spell')) {
             this.invalidate();
             return true;
         }
 
-        let detectedSpellName = '';
-        let detectedLetter = '';
-
-        // 2. 日本語版の学習・復習メッセージ:
-        // 例: あなたは「力のボルト」の呪文を習得した。-b-
-        // 例: 「力のボルト」の呪文を呪文一覧に'b'として加えた.
-        // 例: 「力のボルト」の呪文を習得した.
-        // 例: 「力のボルト」の呪文に関する知識はより鋭くなった.
-        const isJpLearn = /[「"]([^「"」]+)[」"](?:の呪文)?を(?:呪文一覧に'([a-zA-Z])'として加えた|習得した|覚えた)/.test(text) ||
-                          /[「"]([^「"」]+)[」"](?:の呪文)?に関する知識は(?:より鋭くなった|元に戻った)/.test(text);
-
-        if (isJpLearn) {
-            this.invalidate();
-            return true;
-        }
-
-        // 3. 英語版の学習・復習メッセージ:
+        // 2. 英語版の学習・復習メッセージ:
         // 例: You add "force bolt" to your repertoire.
         // 例: You learn the spell force bolt!
         // 例: Your knowledge of "force bolt" is sharper.

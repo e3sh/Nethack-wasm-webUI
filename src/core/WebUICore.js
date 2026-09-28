@@ -1029,19 +1029,17 @@ export class WebUICore {
             const p = text.trim();
 
             // モンスター命名 (kitten, dog, creature 等) や 個別命名 ("What do you want to name this...") を確実に除外
-            if (/kitten|little dog|dog|large dog|pony|horse|warhorse|pet|creature|monster|someone|something|shopkeeper|guard|priest|ghost/i.test(p) ||
-                /子猫|小猫|猫|小犬|子犬|犬|大型犬|ポニー|馬|軍馬|ペット|モンスター|生き物|誰か|何か|店主|番兵|司祭|ゴースト/i.test(p)) {
+            if (/kitten|little dog|dog|large dog|pony|horse|warhorse|pet|creature|monster|someone|something|shopkeeper|guard|priest|ghost/i.test(p)) {
                 return false;
             }
 
-            // 個別アイテム命名 (do_oname) は "name" / "名付けますか" なので除外
-            if (/^What do you want to name\b/i.test(p) || /何と名付けますか/i.test(p)) {
+            // 個別アイテム命名 (do_oname) は "name" なので除外
+            if (/^What do you want to name\b/i.test(p)) {
                 return false;
             }
 
             // その他一般プロンプト除外
-            if (/what do you want to (write|wish|drop|eat|drink|read|wear|wield|zap|apply|take off)/i.test(p) ||
-                /何を(書|願|置|食|飲|読|装備|外|振|使|適)/i.test(p)) {
+            if (/what do you want to (write|wish|drop|eat|drink|read|wear|wield|zap|apply|take off)/i.test(p)) {
                 return false;
             }
 
@@ -1052,21 +1050,10 @@ export class WebUICore {
                 return true;
             }
 
-            // 日本語パターン:
-            // "赤い薬を何と呼びますか?" / "暗い薬を何と呼びますか？"
-            // "「ELAM EBOW」と書かれた巻物を何と呼びますか?"
-            // "ガラスの杖を何と呼びますか?"
-            // "ルビーを何と呼びますか?"
-            // "この種類の巻物を何と呼びますか?"
-            // "この液体を何と呼びますか?"
-            if (/を何と呼びますか/i.test(p) || /と呼びますか/i.test(p)) {
-                return true;
-            }
-
             return false;
         };
 
-        return checkText(rawPrompt) || checkText(translatedPrompt);
+        return checkText(rawPrompt);
     }
 
     /**
@@ -1490,10 +1477,10 @@ export class WebUICore {
             // 🌐 4. 画面表示用テキストの翻訳 (TranslationEngine / dictionary.csv が一元管理)
             const translated = this.translator.translate(rawText);
 
-            // 🔊 効果音の判定・発火 (MessageContext 優先 O(1) 判定 ➔ 翻訳後フォールバック)
+            // 🔊 効果音の判定・発火 (MessageContext 優先 O(1) 判定 ➔ 英語生テキストフォールバック)
             const seEffect = typeof this.sound.processMessageContext === 'function'
-                ? this.sound.processMessageContext(context, translated)
-                : this.sound.processLogMessage(translated);
+                ? this.sound.processMessageContext(context, rawText)
+                : this.sound.processLogMessage(rawText);
             if (seEffect) {
                 this.emit('soundEffect', seEffect);
             }
@@ -1724,7 +1711,6 @@ export class WebUICore {
             // カウントプレフィックス待機中（「5」キー入力直後の移動キー待ち等）の検出
             const lastText = (this.lastPutstrText || '').toLowerCase();
             const isPrefixWaiting = Boolean(this.isPendingPrefix) || 
-                                    lastText.includes('プレフィックス') || 
                                     lastText.includes('prefix') || 
                                     (lastText.includes('count') && lastText.includes('command'));
 
@@ -1866,8 +1852,7 @@ export class WebUICore {
                 (guiData && (guiData.inputType === 'DIRECTION' || guiData.category === PROMPT_CATEGORY.DIRECTION)) ||
                 lastText.includes('in what direction') ||
                 lastText.includes('which way') ||
-                lastText.includes('どの方向') ||
-                (rawPrompt && (rawPrompt.toLowerCase().includes('in what direction') || rawPrompt.toLowerCase().includes('which way') || rawPrompt.includes('どの方向')))
+                (rawPrompt && (rawPrompt.toLowerCase().includes('in what direction') || rawPrompt.toLowerCase().includes('which way')))
             );
 
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼

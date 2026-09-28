@@ -67,7 +67,7 @@ export class SkillStateManager {
         if (!Array.isArray(this.skills)) return null;
         return this.skills.find(s => {
             const name = (s.name || s.nameRaw || '').toLowerCase();
-            return name.includes('two-weapon') || name.includes('two weapon') || name.includes('二刀流');
+            return name.includes('two-weapon') || name.includes('two weapon');
         }) || null;
     }
 
@@ -90,11 +90,11 @@ export class SkillStateManager {
         // 2. スキル未同期の場合：職業（ロール）から判定
         if (role) {
             const lowerRole = role.toLowerCase();
-            const eligibleRoles = ['samurai', 'barbarian', 'rogue', 'ranger', 'knight', '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'];
+            const eligibleRoles = ['samurai', 'barbarian', 'rogue', 'ranger', 'knight'];
             if (eligibleRoles.some(r => lowerRole.includes(r))) {
                 return true;
             }
-            const ineligibleRoles = ['valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman', 'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'];
+            const ineligibleRoles = ['valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman'];
             if (ineligibleRoles.some(r => lowerRole.includes(r))) {
                 return false;
             }
@@ -372,26 +372,36 @@ export class SkillStateManager {
     }
 
     /**
-     * メッセージテキストからのスキル向上・熟練度変化検知
+     * MessageContext に基づくスキル向上・熟練度変化検知
+     * @param {Object} [context] - Wasm/Core が同定した MessageContext
+     * @param {string} [fallbackText=''] - 未同定時のフォールバック用英語生テキスト
+     * @returns {boolean} キャッシュが無効化されたか
+     */
+    processMessageContext(context, fallbackText = '') {
+        if (!context && !fallbackText) return false;
+
+        if (context) {
+            // スキル関連のドメインやメッセージID判定
+            if (context.domain === 'SKILL' ||
+                (context.messageId && (context.messageId.includes('skill') || context.messageId.includes('enhance')))) {
+                this.invalidate();
+                return true;
+            }
+        }
+
+        const textToMatch = fallbackText || (context ? context.rawText : '');
+        return this.updateFromMessage(textToMatch);
+    }
+
+    /**
+     * メッセージテキストからのスキル向上・熟練度変化検知 (英語生テキスト)
      * @param {string} text 
      * @returns {boolean} キャッシュが無効化されたか
      */
     updateFromMessage(text) {
         if (!text || typeof text !== 'string') return false;
 
-        const lower = text.toLowerCase();
-
-        // 1. 日本語版のスキル向上・向上可能メッセージ:
-        const isJpSkillMsg = /(?:スキル|熟練度)が(?:入門|熟練|達人|名人|師範|向上|上がった)/.test(text) ||
-                             /(?:スキル|熟練度)を上げることができる/.test(text) ||
-                             /スキルを向上/.test(text);
-
-        if (isJpSkillMsg) {
-            this.invalidate();
-            return true;
-        }
-
-        // 2. 英語版のスキル向上・向上可能メッセージ:
+        // 英語版のスキル向上・向上可能メッセージ:
         const isEnSkillMsg = /You are now (?:basic|skilled|expert|master|grand master) in /i.test(text) ||
                              /You feel more confident in your .* skills/i.test(text) ||
                              /You feel you could be more (?:dangerous|skilled) with /i.test(text) ||

@@ -424,7 +424,6 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             core.isItemUsingActive = false;
             expect(core.isItemCallPrompt('Call a scroll labeled PHOL ENDE WODAN:')).toBe(false);
             expect(core.isItemCallPrompt('What do you want to call this type of potion?')).toBe(false);
-            expect(core.isItemCallPrompt('赤い薬を何と呼びますか?')).toBe(false);
 
             // アイテム使用中 (isItemUsingActive === true)
             core.isItemUsingActive = true;
@@ -450,33 +449,13 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(core.isItemCallPrompt('What do you want to call this ruby?')).toBe(true);
             expect(core.isItemCallPrompt('What do you want to call this triangular amulet?')).toBe(true);
 
-            // 日本語アイテム種別（NetHackJP 形式: 「...を何と呼びますか?」）
-            expect(core.isItemCallPrompt('この種類の巻物を何と呼びますか？')).toBe(true);
-            expect(core.isItemCallPrompt('この種類の薬を何と呼びますか？')).toBe(true);
-            expect(core.isItemCallPrompt('この種類の杖を何と呼びますか？')).toBe(true);
-            expect(core.isItemCallPrompt('赤い薬を何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('暗い薬を何と呼びますか？')).toBe(true);
-            expect(core.isItemCallPrompt('「ELAM EBOW」と書かれた巻物を何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('木製の杖を何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('ガラスの杖を何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('ルビーを何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('青い石を何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('四角い魔除けを何と呼びますか?')).toBe(true);
-            expect(core.isItemCallPrompt('この液体を何と呼びますか?')).toBe(true);
-
             // ペット・モンスター命名（除外）
             expect(core.isItemCallPrompt('What do you want to call this kitten?')).toBe(false);
             expect(core.isItemCallPrompt('What do you want to call this little dog?')).toBe(false);
             expect(core.isItemCallPrompt('What do you want to call this horse?')).toBe(false);
-            expect(core.isItemCallPrompt('この子猫を何と呼びますか？')).toBe(false);
-            expect(core.isItemCallPrompt('この小犬を何と呼びますか？')).toBe(false);
-            expect(core.isItemCallPrompt('この馬を何と呼びますか？')).toBe(false);
-            expect(core.isItemCallPrompt('このモンスターを何と呼びますか？')).toBe(false);
 
             // 個別アイテム命名（除外）
             expect(core.isItemCallPrompt('What do you want to name this broadsword?')).toBe(false);
-            expect(core.isItemCallPrompt('この剣を何と名付けますか？')).toBe(false);
-            expect(core.isItemCallPrompt('このブロードソードを何と名付けますか?')).toBe(false);
 
             // その他プロンプト（除外）
             expect(core.isItemCallPrompt('What do you want to write on the floor with?')).toBe(false);
@@ -1089,7 +1068,38 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(ctx.calleeFunc).toBe('You_cant');
             expect(ctx.file).toBe('apply.c');
         });
+
+        it('putstr 受信時に英語 rawText に基づいて soundEffect が正しく発火すること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver, soundMode: 'auto' });
+            core.sound.setSoundMode('auto');
+
+            const soundEffectListener = vi.fn();
+            core.on('soundEffect', soundEffectListener);
+
+            const putstrCall = mockDriver.on.mock.calls.find(c => c[0] === 'putstr');
+            const putstrHandler = putstrCall[1];
+
+            // 1. ドア開閉メッセージ
+            putstrHandler({ text: 'The door opens.' });
+            expect(soundEffectListener).toHaveBeenCalled();
+            const lastCall = soundEffectListener.mock.calls[soundEffectListener.mock.calls.length - 1][0];
+            expect(lastCall.id).toBe('se_door');
+
+            // 2. 空腹メッセージ (フォールバック)
+            core.sound.cooldownMap.clear();
+            putstrHandler({ text: 'You feel hungry.' });
+            const hungerCall = soundEffectListener.mock.calls[soundEffectListener.mock.calls.length - 1][0];
+            expect(hungerCall.id).toBe('se_hunger');
+
+            // 3. 拾得メッセージ (フォールバック)
+            core.sound.cooldownMap.clear();
+            putstrHandler({ text: 'You pick up a rock.' });
+            const pickupCall = soundEffectListener.mock.calls[soundEffectListener.mock.calls.length - 1][0];
+            expect(pickupCall.id).toBe('se_pickup');
+        });
     });
 });
+
 
 

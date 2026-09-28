@@ -154,9 +154,9 @@ describe('Combat Sound & EffectFX Integration Tests', () => {
         expect(diesEn.id).toBe('se_kill_monster');
 
         engine.cooldownMap.clear();
-        const killJa = engine.processLogMessage('ゴブリンを倒した！');
-        expect(killJa).not.toBeNull();
-        expect(killJa.id).toBe('se_kill_monster');
+        const killContext = engine.processMessageContext({ messageId: 'fight.c:L123:kill:0', rawText: 'You kill the goblin!' });
+        expect(killContext).not.toBeNull();
+        expect(killContext.id).toBe('se_kill_monster');
     });
 
     it('should correctly identify monster destruction messages as se_destroy_monster', () => {
@@ -172,9 +172,9 @@ describe('Combat Sound & EffectFX Integration Tests', () => {
         expect(shatterEn.id).toBe('se_destroy_monster');
 
         engine.cooldownMap.clear();
-        const destroyJa = engine.processLogMessage('スケルトンを破壊した！');
-        expect(destroyJa).not.toBeNull();
-        expect(destroyJa.id).toBe('se_destroy_monster');
+        const destroyContext = engine.processMessageContext({ messageId: 'fight.c:L456:destroy:0', rawText: 'The skeleton is destroyed!' });
+        expect(destroyContext).not.toBeNull();
+        expect(destroyContext.id).toBe('se_destroy_monster');
     });
 
     it('should correctly identify attack hit and miss separately', () => {
@@ -222,5 +222,56 @@ describe('Combat Sound & EffectFX Integration Tests', () => {
         expect(triggeredSE).not.toBeNull();
         expect(triggeredSE.id).toBe('se_kill_monster');
     });
+
+    it('should correctly trigger sounds for actual in-game messages via O(1) or rawText fallback', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+
+        // 1. O(1) マッピングメッセージ
+        const dieSe = engine.processMessageContext({ messageId: 'end.c:L195:You:0', rawText: 'You die...' });
+        expect(dieSe).not.toBeNull();
+        expect(dieSe.id).toBe('se_die');
+
+        engine.cooldownMap.clear();
+        const doorSe = engine.processMessageContext({ messageId: 'lock.c:L890:pline_The:51', rawText: 'The door opens.' });
+        expect(doorSe).not.toBeNull();
+        expect(doorSe.id).toBe('se_door');
+
+        engine.cooldownMap.clear();
+        const feelBetterSe = engine.processMessageContext({ messageId: 'pray.c:L418:You_feel:7', rawText: 'You feel much better.' });
+        expect(feelBetterSe).not.toBeNull();
+        expect(feelBetterSe.id).toBe('se_drink_good');
+
+        // 2. rawText フォールバックメッセージ
+        engine.cooldownMap.clear();
+        const welcomeSe = engine.processMessageContext(null, 'Welcome to NetHack! You are a neutral human Male Caveman.');
+        expect(welcomeSe).not.toBeNull();
+        expect(welcomeSe.id).toBe('se_welcome');
+
+        engine.cooldownMap.clear();
+        const hungerSe = engine.processMessageContext(null, 'You feel hungry.');
+        expect(hungerSe).not.toBeNull();
+        expect(hungerSe.id).toBe('se_hunger');
+
+        engine.cooldownMap.clear();
+        const pickupSe = engine.processMessageContext(null, 'You pick up a rock.');
+        expect(pickupSe).not.toBeNull();
+        expect(pickupSe.id).toBe('se_pickup');
+
+        engine.cooldownMap.clear();
+        const stairSe = engine.processMessageContext(null, 'You go down the stairs.');
+        expect(stairSe).not.toBeNull();
+        expect(stairSe.id).toBe('se_stair');
+
+        engine.cooldownMap.clear();
+        const equipSe = engine.processMessageContext(null, 'You are now wearing a leather armor.');
+        expect(equipSe).not.toBeNull();
+        expect(equipSe.id).toBe('se_equip');
+
+        engine.cooldownMap.clear();
+        const trapSe = engine.processMessageContext(null, 'You fall into a pit!');
+        expect(trapSe).not.toBeNull();
+        expect(trapSe.id).toBe('se_trap');
+    });
 });
+
 

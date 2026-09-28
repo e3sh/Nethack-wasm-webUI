@@ -58,6 +58,7 @@ export const SOUND_EVENT_MAP = {
     // --- 2. 代表的 messageId マッピング ---
     // 死亡・ゲームオーバー
     'end.c:L120:killer': { seId: 'se_die', sound: 'die.mp3', priority: 100 },
+    'end.c:L195:You:0': { seId: 'se_die', sound: 'die.mp3', priority: 100 },
     
     // 空腹・衰弱
     'eat.c:L210:You_feel': { seId: 'se_hunger', sound: 'hungry.mp3', priority: 40 },
@@ -71,7 +72,8 @@ export const SOUND_EVENT_MAP = {
     'explode.c:L773:You_hear:18': { seId: 'se_rumble', sound: 'trap.mp3', priority: 80 },
     'explode.c:L789:You_hear:20': { seId: 'se_rumble', sound: 'trap.mp3', priority: 80 },
 
-    // ポーション
+    // ポーション・回復
+    'pray.c:L418:You_feel:7': { seId: 'se_drink_good', sound: 'drink_good.mp3', priority: 60 },
     'potion.c:feel_better': { seId: 'se_drink_good', sound: 'drink_good.mp3', priority: 60 },
     'potion.c:feel_sick': { seId: 'se_drink_bad', sound: 'drink_bad.mp3', priority: 60 },
     'potion.c:L152:You_feel:4': { seId: 'se_drink_bad', sound: 'drink_bad.mp3', priority: 60 },
@@ -92,6 +94,8 @@ export const SOUND_EVENT_MAP = {
 
     // 扉
     'lock.c:door': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
+    'lock.c:L890:pline_The:51': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
+    'lock.c:L1035:pline_The:67': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
     'monmove.c:L1556:You_hear:27': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
     'monmove.c:L1572:You_hear:30': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 }
 };

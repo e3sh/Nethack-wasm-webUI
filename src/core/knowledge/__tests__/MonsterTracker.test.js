@@ -77,9 +77,25 @@ describe('MonsterTracker (Cognitive Mental Map & Weight Decay)', () => {
         expect(list[0].name).toBe('gas spore');
     });
 
-    it('日本語の撃破メッセージでも削除される', () => {
-        tracker.updateVisibleMonster(5, 5, 10, { name: 'cockatrice', nameJa: 'コカトリス' });
-        tracker.handleMessage('コカトリスを倒した。');
+    it('MessageContext による撃破判定で追跡モンスターが即座に削除されること', () => {
+        tracker.updateVisibleMonster(5, 5, 10, { name: 'cockatrice' });
+        expect(tracker.getTrackedMonsters().length).toBe(1);
+
+        const result = tracker.processMessageContext({
+            domain: 'COMBAT',
+            action: 'KILL',
+            placeholders: ['cockatrice'],
+            rawText: 'You kill the cockatrice!'
+        });
+        expect(result).not.toBeNull();
+        expect(tracker.getTrackedMonsters().length).toBe(0);
+    });
+
+    it('英語生メッセージフォールバックでも撃破モンスターが正しく削除されること', () => {
+        tracker.updateVisibleMonster(5, 5, 10, { name: 'cockatrice' });
+        expect(tracker.getTrackedMonsters().length).toBe(1);
+
+        tracker.handleMessage('You kill the cockatrice!');
         expect(tracker.getTrackedMonsters().length).toBe(0);
     });
 

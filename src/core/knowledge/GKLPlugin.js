@@ -640,7 +640,7 @@ export class GKLPlugin {
                 const py = this.areaStateManager ? this.areaStateManager.playerY : (this.statusAccessor?.y ?? 0);
 
                 // 💀 プレイヤー死亡検知 (PLAYER_DIED)
-                if (/^You die\.\.\.|あなたは死んだ|死亡した/.test(text)) {
+                if (/^You die\.\.\./.test(text)) {
                     this._isPlayerDead = true;
                     this.emitFxTrigger({
                         type: 'PLAYER_DIED',
@@ -652,7 +652,7 @@ export class GKLPlugin {
                 }
 
                 // ✨ プレイヤー蘇生検知 (PLAYER_RESURRECTED: 命の魔除け / 探索・ウィザードモード死亡回避等)
-                if (/Your amulet shines|魔除けが.*輝|生き返った|OK, so you don't|OK、.*はしません|ことにはならない|survived that attempt|命懸けの試みを生き延び|試みから生還した|averted death|死を免れた/.test(text)) {
+                if (/Your amulet shines|OK, so you don't|survived that attempt|averted death/.test(text)) {
                     this._isPlayerDead = false;
                     this.emitFxTrigger({
                         type: 'PLAYER_RESURRECTED',

@@ -740,44 +740,44 @@ export class AttributeStateManager {
         const lower = text.toLowerCase();
         let changed = false;
 
-        // 耐性獲得メッセージ
-        if (lower.includes('feel a hot sensation') || lower.includes('feel very hot') || lower.includes('火に対する耐性')) {
+        // 耐性獲得メッセージ (英語生メッセージフォールバック)
+        if (lower.includes('feel a hot sensation') || lower.includes('feel very hot')) {
             this.acquiredIntrinsics.fire = true;
             changed = true;
         }
-        if (lower.includes('feel a cold chill') || lower.includes('冷気に対する耐性')) {
+        if (lower.includes('feel a cold chill')) {
             this.acquiredIntrinsics.cold = true;
             changed = true;
         }
-        if (lower.includes('feel a mild shock') || lower.includes('電撃に対する耐性')) {
+        if (lower.includes('feel a mild shock')) {
             this.acquiredIntrinsics.shock = true;
             changed = true;
         }
-        if (lower.includes('feel wide awake') || lower.includes('眠気')) {
+        if (lower.includes('feel wide awake')) {
             this.acquiredIntrinsics.sleep = true;
             changed = true;
         }
-        if (lower.includes('feel healthy') || lower.includes('毒に対する耐性')) {
+        if (lower.includes('feel healthy')) {
             this.acquiredIntrinsics.poison = true;
             changed = true;
         }
-        if (lower.includes('feel very sneaky') || lower.includes('忍び')) {
+        if (lower.includes('feel very sneaky')) {
             this.acquiredIntrinsics.stealth = true;
             changed = true;
         }
-        if (lower.includes('feel perceptive') || lower.includes('探知')) {
+        if (lower.includes('feel perceptive')) {
             this.acquiredIntrinsics.searching = true;
             changed = true;
         }
-        if (lower.includes('feel quick') || lower.includes('すばや')) {
+        if (lower.includes('feel quick')) {
             this.acquiredIntrinsics.fast = true;
             changed = true;
         }
-        if (lower.includes('feel in control of yourself') || lower.includes('制御')) {
+        if (lower.includes('feel in control of yourself')) {
             this.acquiredIntrinsics.teleportControl = true;
             changed = true;
         }
-        if (lower.includes('feel sensitive') || lower.includes('敏感')) {
+        if (lower.includes('feel sensitive')) {
             this.acquiredIntrinsics.warning = true;
             changed = true;
         }

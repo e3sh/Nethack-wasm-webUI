@@ -89,21 +89,21 @@ describe('SpellStateManager Tests', () => {
         expect(spellManager.getSpells()[0].name).toBe('magic missile');
     });
 
-    it('日本語および英語の魔法習得・忘却メッセージからキャッシュが無効化 (invalidate) されること', () => {
+    it('MessageContext および英語の魔法習得・忘却メッセージからキャッシュが無効化 (invalidate) されること', () => {
         spellManager.isSynced = true;
         
-        // 日本語: 初回習得メッセージで invalidate
-        const res1 = spellManager.updateFromMessage('「力のボルト」の呪文を習得した.');
+        // MessageContext: 習得メッセージで invalidate
+        const res1 = spellManager.processMessageContext({ domain: 'SPELL', messageId: 'spell.c:L123:learn_spell', rawText: 'You add "force bolt" to your repertoire.' });
         expect(res1).toBe(true);
         expect(spellManager.isSynced).toBe(false);
 
-        // 再同期後、英語メッセージで invalidate
+        // 再同期後、英語生メッセージで invalidate
         spellManager.isSynced = true;
         const res2 = spellManager.updateFromMessage('You add "magic missile" to your repertoire.');
         expect(res2).toBe(true);
         expect(spellManager.isSynced).toBe(false);
 
-        // 忘却メッセージで invalidate
+        // 英語忘却メッセージで invalidate
         spellManager.isSynced = true;
         const res3 = spellManager.updateFromMessage('You forget the spell force bolt!');
         expect(res3).toBe(true);

@@ -10,6 +10,22 @@ import { MESSAGE_CONTEXT_CATALOG } from './data/MessageContextCatalog.js';
 
 export class MessageContextResolver {
     /**
+     * バリアント（言語・フォーク）に応じた MessageContextResolver を生成するファクトリ
+     * 将来 JNetHack Wasm (ja) 等が投入された際に、該当カタログを差し替えて即座にインスタンス化可能。
+     * @param {string} [variant='vanilla'] バリアント識別子 ('vanilla', 'ja', etc.)
+     * @param {Object} [catalogRegistry={}] カスタムカタログレジストリ
+     * @returns {MessageContextResolver}
+     */
+    static createForVariant(variant = 'vanilla', catalogRegistry = {}) {
+        const v = String(variant || 'vanilla').toLowerCase();
+        if (catalogRegistry[v]) {
+            return new MessageContextResolver(catalogRegistry[v]);
+        }
+        // デフォルトは Vanilla (英語) カタログ
+        return new MessageContextResolver(MESSAGE_CONTEXT_CATALOG);
+    }
+
+    /**
      * @param {Object} [catalog=MESSAGE_CONTEXT_CATALOG] メッセージコンテキストカタログ
      */
     constructor(catalog = MESSAGE_CONTEXT_CATALOG) {

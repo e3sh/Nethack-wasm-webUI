@@ -202,7 +202,46 @@ export class MonsterTracker {
     }
 
     /**
-     * ログメッセージ（撃破・消滅・死亡）の処理
+     * MessageContext に基づく撃破・消滅・死亡の処理 (O(1))
+     * @param {Object} [context] - Wasm/Core が同定した MessageContext
+     * @param {string} [fallbackText=''] - 未同定時のフォールバック用英語生テキスト
+     * @returns {Object|null} 撃破されたモンスターエントリーまたは撃破判定結果
+     */
+    processMessageContext(context, fallbackText = '') {
+        if (!context && !fallbackText) return null;
+
+        if (context) {
+            // 1. domain や metadata による撃破判定
+            const isKill = Boolean(
+                context.metadata?.kill ||
+                (context.domain === 'COMBAT' && context.action === 'KILL') ||
+                (context.messageId && (context.messageId.includes('kill') || context.messageId.includes('destroy') || context.messageId.includes('dies')))
+            );
+
+            if (isKill) {
+                // プレースホルダーまたは直前の追跡モンスターから特定
+                const targetName = (context.placeholders?.[0] || '').toLowerCase();
+                if (targetName) {
+                    for (const [key, entry] of this.trackedMonsters.entries()) {
+                        const mName = (entry.name || '').toLowerCase();
+                        if (mName && (targetName.includes(mName) || mName.includes(targetName))) {
+                            const killedEntry = { ...entry };
+                            this._checkDisengage(entry, 'killed');
+                            this.trackedMonsters.delete(key);
+                            return killedEntry;
+                        }
+                    }
+                }
+                return { isKillMessage: true, context };
+            }
+        }
+
+        const textToMatch = fallbackText || (context ? context.rawText : '');
+        return this.handleMessage(textToMatch);
+    }
+
+    /**
+     * ログメッセージ（撃破・消滅・死亡）の処理 (英語 rawText フォールバック)
      * @param {string} text 
      * @returns {Object|null} 撃破されたモンスターエントリーまたは撃破判定結果
      */
@@ -210,7 +249,7 @@ export class MonsterTracker {
         if (!text || typeof text !== 'string') return null;
         const lower = text.toLowerCase();
 
-        // 撃破・消滅パターンの判定
+        // 撃破・消滅パターンの判定 (英語生テキスト)
         const isKillMessage = 
             lower.includes('you kill') || 
             lower.includes('you destroy') || 
@@ -218,11 +257,7 @@ export class MonsterTracker {
             lower.includes('is destroyed') || 
             lower.includes('dies') || 
             lower.includes('you defeated') ||
-            lower.includes('death cry') ||
-            text.includes('倒した') ||
-            text.includes('破壊した') ||
-            text.includes('死んだ') ||
-            text.includes('消滅した');
+            lower.includes('death cry');
 
         if (!isKillMessage) return null;
 
@@ -230,9 +265,8 @@ export class MonsterTracker {
         let killedEntry = null;
         for (const [key, entry] of this.trackedMonsters.entries()) {
             const mName = (entry.name || '').toLowerCase();
-            const mNameJa = entry.nameJa || '';
 
-            if ((mName && lower.includes(mName)) || (mNameJa && text.includes(mNameJa))) {
+            if (mName && lower.includes(mName)) {
                 killedEntry = { ...entry };
                 this._checkDisengage(entry, 'killed');
                 this.trackedMonsters.delete(key);

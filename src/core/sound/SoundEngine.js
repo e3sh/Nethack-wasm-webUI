@@ -57,78 +57,78 @@ export class SoundEngine {
         this.audioCtx = null;
         this.onLogCallback = options.onLogCallback || null;
 
-        // sound_mapping.json と完全同調した全16種類のデフォルトルール集
+        // sound_mapping.json と完全同調したデフォルトルール集 (英語生メッセージフォールバック)
         this.rules = [
             {
                 id: "se_welcome",
-                pattern: "Welcome to NetHack|NetHackへようこそ|ようこそ",
+                pattern: "Welcome to NetHack",
                 sound: "welcome.mp3",
                 beep: { notes: ["C4", "E4", "G4", "C5"], wave: "square", duration: 90, lfo: { freq: 6, wave: "sine", depth: 15 } }
             },
             {
                 id: "se_die",
-                pattern: "^You die\\.\\.\\.|あなたは死んだ|死亡した",
+                pattern: "^You die\\.\\.\\.",
                 sound: "die.mp3",
                 beep: { notes: ["C4", "B3", "A3", "G3", "F3", "E3", "D3", "C3"], wave: "sawtooth", duration: 150 }
             },
             {
                 id: "se_hunger",
-                pattern: "^You feel (hungry|weak)\\.|空腹|お腹が空いた|衰弱",
+                pattern: "^You feel (hungry|weak)\\.",
                 sound: "hungry.mp3",
                 beep: { notes: ["E3", "C3"], wave: "sine", duration: 150 }
             },
             {
                 id: "se_trap",
-                pattern: "shoots out at you|fall into a pit|bear trap|罠にかかった|落とし穴|矢が飛んできた",
+                pattern: "shoots out at you|fall into a pit|bear trap",
                 sound: "trap.mp3",
                 beep: { notes: ["C6", "C3"], wave: "square", duration: 100 }
             },
             {
                 id: "se_cast_fail",
-                pattern: "^You fail to cast|呪文の詠唱に失敗",
+                pattern: "^You fail to cast",
                 sound: "cast_fail.mp3",
                 beep: { notes: ["F4", "C4"], wave: "sawtooth", duration: 100 }
             },
             {
                 id: "se_cast_spell",
-                pattern: "^You cast|呪文を唱えた",
+                pattern: "^You cast",
                 sound: "cast.mp3",
                 beep: { notes: ["C4", "E4", "G4", "B4", "C5"], wave: "sine", duration: 80 }
             },
             {
                 id: "se_wand_zap",
-                pattern: "\\bzaps\\b|ビーム|光線|杖を振った",
+                pattern: "\\bzaps\\b",
                 sound: "zap.mp3",
                 beep: { notes: ["C6", "G5", "E5", "C5"], wave: "sawtooth", duration: 60 }
             },
             {
                 id: "se_shoot_throw",
-                pattern: "^You (shoot|throw)|投げた|射った|放った",
+                pattern: "^You (shoot|throw)",
                 sound: "shoot.mp3",
                 beep: { notes: ["G4", "D5"], wave: "triangle", duration: 50 }
             },
             {
                 id: "se_equip",
-                pattern: "^You (are now wearing|put on|wield|take off|remove)|装備した|外した|身につけた|脱いだ|構えた",
+                pattern: "^You (are now wearing|put on|wield|take off|remove)",
                 sound: "equip.mp3",
                 beep: { notes: ["D4", "A4"], wave: "square", duration: 60 }
             },
             {
                 id: "se_find_secret",
-                pattern: "^You find a secret|隠し扉|隠し通路|を発見",
+                pattern: "^You find a secret",
                 sound: "secret.mp3",
                 beep: { notes: ["C5", "E5", "G5", "C6"], wave: "sine", duration: 90 }
             },
             {
                 id: "se_player_damaged",
-                pattern: "(bites|hits|scratches|kicks) you|^The .* bites!|に噛みつかれた|にひっかかれた|に殴られた|攻撃を受けた|ダメージを受けた",
+                pattern: "(bites|hits|scratches|kicks) you|^The .* bites!",
                 sound: "damaged.mp3",
                 beep: { notes: ["F3", "C#3"], wave: "square", duration: 80 },
                 cooldownMs: 100
             },
             {
                 id: "se_kill_monster",
-                pattern: "\\b(kill|kills|killed|dies|defeated|death cry)\\b|倒した|息の根を止めた|死んだ|消滅した",
+                pattern: "\\b(kill|kills|killed|dies|defeated|death cry)\\b",
                 sound: "kill.mp3",
                 beep: { notes: ["G4", "C5", "E5", "G5"], wave: "triangle", duration: 80 },
                 priority: 65,
@@ -136,7 +136,7 @@ export class SoundEngine {
             },
             {
                 id: "se_destroy_monster",
-                pattern: "\\b(destroy|destroys|destroyed|shatters|shattered)\\b|破壊した|粉砕した|打ち砕いた",
+                pattern: "\\b(destroy|destroys|destroyed|shatters|shattered)\\b",
                 sound: "destroy.mp3",
                 beep: { notes: ["E4", "B3", "G3", "C3"], wave: "sawtooth", duration: 70 },
                 priority: 65,
@@ -144,63 +144,63 @@ export class SoundEngine {
             },
             {
                 id: "se_attack_hit",
-                pattern: "You hit|\\bhits\\b|に攻撃|攻撃した|ヒット|命中|ダメージ",
+                pattern: "You hit|\\bhits\\b",
                 sound: "hit.mp3",
                 beep: { notes: ["E5", "G5"], wave: "square", duration: 50 },
                 cooldownMs: 100
             },
             {
                 id: "se_attack_miss",
-                pattern: "You miss|\\bmisses\\b|外した|当たらない|空を切っ|かわし|かわさ",
+                pattern: "You miss|\\bmisses\\b",
                 sound: "swing.mp3",
                 beep: { notes: ["B4", "F4"], wave: "triangle", duration: 50 },
                 cooldownMs: 100
             },
             {
                 id: "se_drink_good",
-                pattern: "feel better|feel much better|feel full of energy|see much clearer|feel warm|気分が良|体調が良|元気がみなぎる|はっきり見え|温かく",
+                pattern: "feel better|feel much better|feel full of energy|see much clearer|feel warm",
                 sound: "drink_good.mp3",
                 beep: { notes: ["C4", "E4", "G4", "C5"], wave: "sine", duration: 70 }
             },
             {
                 id: "se_drink_bad",
-                pattern: "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed|気分が悪|体調が悪|毒|病気|幻覚|盲目|混乱|麻痺|しびれ",
+                pattern: "feel sick|feel a little dull|feel cold|poisoned|unhealthy|hallucinating|blind|confused|paralyzed",
                 sound: "drink_bad.mp3",
                 beep: { notes: ["G3", "C#3", "C3"], wave: "sawtooth", duration: 120 }
             },
             {
                 id: "se_drink_neutral",
-                pattern: "\\bdrink\\b|\\bquaff\\b|\\bchug\\b|potion|tastes|ポーション|飲み|飲んだ|味わっ|呑み|味がした|味がする",
+                pattern: "\\bdrink\\b|\\bquaff\\b|\\bchug\\b|potion|tastes",
                 sound: "chug.mp3",
                 beep: { notes: ["C4", "G4"], wave: "sine", duration: 80 }
             },
             {
                 id: "se_eat_food",
-                pattern: "\\beat\\b|\\beating\\b|delicious|tasty|blecch|食べた|食した|美味しい|まずい",
+                pattern: "\\beat\\b|\\beating\\b|delicious|tasty|blecch",
                 sound: "eat.mp3",
                 beep: { notes: ["G4", "E4", "C4"], wave: "sine", duration: 70 }
             },
             {
                 id: "se_pickup",
-                pattern: "pick up|拾っ|手に入れた|拾う|取得",
+                pattern: "pick up",
                 sound: "pickup.mp3",
                 beep: { notes: ["C5", "E5"], wave: "sine", duration: 60 }
             },
             {
                 id: "se_door",
-                pattern: "\\bdoor\\b|\\bdoors\\b|\\blocked\\b|ドア|扉|鍵|開け|閉め|壊れた",
+                pattern: "\\bdoor\\b|\\bdoors\\b|\\blocked\\b",
                 sound: "door_lock.mp3",
                 beep: { notes: ["G3", "C3"], wave: "square", duration: 80 }
             },
             {
                 id: "se_read_scroll",
-                pattern: "\\bread\\b|\\bscroll\\b|turns to dust|fades|巻物|読ん|唱え|灰になった|消えた",
+                pattern: "\\bread\\b|\\bscroll\\b|turns to dust|fades",
                 sound: "scroll.mp3",
                 beep: { notes: ["F4", "A4", "C5"], wave: "triangle", duration: 80 }
             },
             {
                 id: "se_stair",
-                pattern: "\\bstair\\b|\\bstairs\\b|\\bladder\\b|階段|降り|登",
+                pattern: "\\bstair\\b|\\bstairs\\b|\\bladder\\b",
                 sound: "stair.mp3",
                 beep: { notes: ["C4", "E4", "G4"], wave: "triangle", duration: 70 }
             }
@@ -361,8 +361,8 @@ export class SoundEngine {
             }
         }
 
-        // 3. 未マッピングまたは context 無し時の安全ネット（既存正規表現フォールバック）
-        const textToMatch = fallbackText || (context ? context.rawText : '');
+        // 3. 未マッピングまたは context 無し時の安全ネット（英語生テキストフォールバック）
+        const textToMatch = (context ? context.rawText : '') || fallbackText;
         this._log('FALLBACK_TEXT', `No O(1) mapping found. Falling back to regex test: "${textToMatch}"`);
         return this.processLogMessage(textToMatch);
     }

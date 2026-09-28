@@ -788,9 +788,9 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
                 text: 'You die...  --More--'
             }));
 
-            // 死亡メッセージ受信 (JA)
+            // 死亡メッセージ受信 (末尾に空白や改行を含む実機パターン)
             fxListener.mockClear();
-            mockCore.emit('messageText', { text: 'あなたは死んだ。' });
+            mockCore.emit('messageText', { text: 'You die...  ' });
             expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
                 type: 'PLAYER_DIED',
                 targetX: 15,
@@ -834,35 +834,7 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
 
             plugin.areaStateManager.updatePlayerPosition(12, 6);
 
-            // 1. 日本語辞書訳パターン: "OK、 die はしません。"
-            mockCore.emit('messageText', { text: 'あなたは死んだ...' });
-            expect(plugin._isPlayerDead).toBe(true);
-            fxListener.mockClear();
-
-            mockCore.emit('messageText', { text: 'OK、 die はしません。' });
-            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
-                type: 'PLAYER_RESURRECTED',
-                targetX: 12,
-                targetY: 6,
-                isPlayer: true
-            }));
-            expect(plugin._isPlayerDead).toBe(false);
-
-            // 2. 日本語辞書訳パターン: "あなたはその命懸けの試みを生き延びました。"
-            mockCore.emit('messageText', { text: 'You die...' });
-            expect(plugin._isPlayerDead).toBe(true);
-            fxListener.mockClear();
-
-            mockCore.emit('messageText', { text: 'あなたはその命懸けの試みを生き延びました。' });
-            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
-                type: 'PLAYER_RESURRECTED',
-                targetX: 12,
-                targetY: 6,
-                isPlayer: true
-            }));
-            expect(plugin._isPlayerDead).toBe(false);
-
-            // 3. 英語パターン: "OK, so you don't die."
+            // 1. 英語パターン: "OK, so you don't die."
             mockCore.emit('messageText', { text: 'You die...' });
             expect(plugin._isPlayerDead).toBe(true);
             fxListener.mockClear();
@@ -876,12 +848,26 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             }));
             expect(plugin._isPlayerDead).toBe(false);
 
-            // 4. NetHackJP訳パターン: "命を狙うその試みから生還した。"
+            // 2. 英語生還パターン: "You survived that attempt!"
             mockCore.emit('messageText', { text: 'You die...' });
             expect(plugin._isPlayerDead).toBe(true);
             fxListener.mockClear();
 
-            mockCore.emit('messageText', { text: '命を狙うその試みから生還した。' });
+            mockCore.emit('messageText', { text: 'You survived that attempt!' });
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'PLAYER_RESURRECTED',
+                targetX: 12,
+                targetY: 6,
+                isPlayer: true
+            }));
+            expect(plugin._isPlayerDead).toBe(false);
+
+            // 3. 英語死回避パターン: "You averted death."
+            mockCore.emit('messageText', { text: 'You die...' });
+            expect(plugin._isPlayerDead).toBe(true);
+            fxListener.mockClear();
+
+            mockCore.emit('messageText', { text: 'You averted death.' });
             expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
                 type: 'PLAYER_RESURRECTED',
                 targetX: 12,
