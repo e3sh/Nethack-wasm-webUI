@@ -1,12 +1,16 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-27
+last_updated: 2026-09-28
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
 
 本ドキュメントは、NetHack WASM WebUI プロジェクトにおける**「現在進行中・直近の移行タスク (WIP)」「実装待ちの構想・アイデア (Backlog)」「すでに実装完了している現行仕様 (Living Specs)」「過去の設計記録 (Archive)」**を一元管理する総合ダッシュボードです。
+
+> [!IMPORTANT]
+> **🧭 設計・開発・リファクタリング時の最重要必読インベントリ**  
+> システムが現在持っている全機能、APIシグネチャ、WASM通信パイプライン、データ資産（全384体モンスター・481アイテム・787件の噂）、アーキテクチャの基本憲法、および機能重複統廃合・ギャップ分析は、**[システム現有能力カタログ (SYSTEM_CAPABILITIES.md)](./SYSTEM_CAPABILITIES.md)** にて一元集約されています。新機能の検討や改修時は必ずこちらをご一読ください。
 
 直近の総合評価・引き継ぎ資料: **[handover_20260921_status_reevaluation.ja.md](./6_project_reports/handover_20260921_status_reevaluation.ja.md)**
 
@@ -146,6 +150,24 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 - **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
 - **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
 
+### 2.6 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ (Native Command Progressive Enhancement & Dynamic Lookup Architecture)
+- **ステータス**: `💡 proposed` (2026-09-28 策定)
+- **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
+- **対象コード**: `src/ui-controller/InputCoordinator.js`, `src/core/knowledge/`, `src/components/`
+- **概要**: 
+  - 独自UIの別系統化から脱却し、NetHackの標準コマンド（`/`, `\`, `;`, `^O` 等）を自然にフックしてモダンなリッチダイアログへと昇華させる「プログレッシブ・エンハンスメント」構想。
+  - **3層統合ナレッジ**: ① NetHack公式 Lookup Information (Cコア内蔵の文学引用・公式設定) ＋ ② GKL実用スペック (耐性・危険度・未識別マスク・スキル適性) ＋ ③ Lore豆知識 (787件の噂・真偽・神託)。
+  - **WASM動的サイレントクエリ**: 静的辞書の二重持ちを排し、既存の `querySequenceSilent`（`suppressPrompts: true`）でCコアから動的抽出することで、ちらつきゼロと完全なバリアント・バージョン追従性を両立。初回取得後はオンデマンド・メモリキャッシュにより0msレスポンスを実現。
+  - **直交レイヤー＆エンハンス・インジケーター**: 「描画表現（ASCII/タイル vs WebGPU HD-2D）」と「操作拡張（Vanilla ⇄ Enhanced）」が直交する2×2マトリクス設計。単一インジケーター（`[✨Enhanced] ⇄ [⚡Classic]`）のワンタッチ切り替えで、古参向け完全原作動作と現代的モダンUI動作を自在に行き来可能。
+  - **即時調査 (Inspector) ⇄ 大図鑑 (Codex) の二本柱と知のメタプログレッション**:
+    - 現場の即時確認（`/` でのカード表示）と、セッション横断の冒険大図鑑（モンスター・アイテム・噂の収集率 %）で `<nh-knowledge-card>` を完全共通化。
+    - NetHackの神聖なパーマデス（死んだら全ロスト）とCコア非侵襲ルールを100%守りつつ、「死んでも図鑑の収集率が引き継がれる」という現代的な知のメタ進行を実現。
+    - **タイルグリッド＆シルエット解禁演出**: 既存の32×32タイルシートを活用し、未遭遇・未識別は黒塗りシルエット（`???`）、遭遇・識別でフルカラー点灯＆NEWバッジを付与する現代的コレクションUI。
+    - **ゲーム内／ゲーム外の疎結合展開**: ゲーム内は「現場のサバイバル調査（`/`）」に専念して超軽量・ESC即閉じとし、リッチな大図鑑（Codex）はタイトル画面や独立HTML（`compendium.html`）などゲーム外で安全に鑑賞可能（Web Components 部品 `<nh-knowledge-card>` は完全共通化）。
+- **次のステップ**:
+  - **Phase 1 (ゲーム内最優先)**: `/` コマンド向け動的ルックアップサービス（`OnDemandLookupService`）および統合カードコンポーネント（`<nh-knowledge-card>`）のプロトタイプ実装。
+  - **Phase 2 (ゲーム外ビューア)**: 独立冒険大図鑑画面（`<nh-codex-grid>` ＆ シルエット解禁ギャラリー）の実装。
+
 ---
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
@@ -154,6 +176,7 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
+| **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、アーキテクチャ5大原則、重複整理、未接続パイプラインの公式総合カタログ |
 | **UI・基盤** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md) | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | `🟢 implemented` | **UIController (Headless UI) ＆ Web Components 共通基盤 (Phase E)**<br>防腐層抽出（HUD・モーダルスタック・入力調停・ペーパードール・コンテナ・設定）、共通 Custom Elements（`<nh-*>`）、Nehww への逆輸入・最適化完了 |
 | **UI・体験** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`base.css` | `🟢 implemented` | **GKL レファレンスクライアント (Nehww) UI/UX 刷新 (Phase A〜D)**<br>全画面マップ（100vw×100vh）、フローティング最新行HUD＋過去ログドロワー、足元枠3Dパース吸着、スマートContextActions、Neo-Retro Dark Glass UI統一 |
 | **UI・デザイン** | [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md) | `base.css`<br>`modals.css`<br>各種モーダル CSS | `🟢 implemented` | **モーダル・ダイアログ群デザインシステム統一 (Dark Glass UI)**<br>デザイントークン一元化（`--glass-bg`, `--glass-blur`, `--glass-border`, `--primary-color: #38bdf8`）、金枠・スレート枠のバラつき解消、全モーダル共通規格化 |
@@ -185,7 +208,7 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
 | **Sound** | [sound_system_spec.md](./4_sound/sound_system_spec.md) | `src/sound/` | `🟢 implemented` | **Web Audio API サウンドシステム** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全90スイート・1,190テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全104スイート・1,252テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---
