@@ -545,6 +545,26 @@ export class GKLPlugin {
                     core.emit('actionSignal', actionSig);
                 }
             }
+
+            // 🛡️ Stage 5.4B: 耐性マネージャのメッセージマスタ駆動 O(1) 確定更新
+            if (signal && signal.type === 'MESSAGE' && signal.context && this.attributeStateManager) {
+                if (typeof this.attributeStateManager.processMessageContext === 'function') {
+                    const updated = this.attributeStateManager.processMessageContext(signal.context);
+                    if (updated) {
+                        core.emit('attributesStateUpdated', this.attributeStateManager);
+                    }
+                }
+            }
+
+            // 🔍 Stage 5.4C: 道具識別マネージャの効果メッセージによる真名自動昇格
+            if (signal && signal.type === 'MESSAGE' && signal.context && this.discoveryStateManager) {
+                if (typeof this.discoveryStateManager.processDiscoveryMessage === 'function') {
+                    const discovered = this.discoveryStateManager.processDiscoveryMessage(signal.context);
+                    if (discovered) {
+                        core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+                    }
+                }
+            }
         });
 
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出

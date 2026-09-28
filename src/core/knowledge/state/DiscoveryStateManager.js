@@ -13,6 +13,7 @@
 
 import { OBJECT_TILEMAP_NAMES } from "../data/tilemappings_data.js";
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
+import { DISCOVERY_MESSAGE_MAP } from "../data/DISCOVERY_MESSAGE_MAP.js";
 
 // 初回から真名が自明な非ランダム外見カテゴリ（食料、基本道具など）
 export const INTRINSICALLY_KNOWN_CATEGORIES = new Set(['FOOD', 'TOOL', 'CONTAINER']);
@@ -305,5 +306,45 @@ export class DiscoveryStateManager {
         if (trueName && calledName) {
             this.calledNamesMap.set(trueName.toLowerCase(), calledName);
         }
+    }
+
+    /**
+     * 効果メッセージ (MessageContext) から真名を特定し、発見済み (Discovered) へ昇格
+     * @param {Object} context - MessageContext
+     * @param {Object} [recentUsedItem] - 直前使用アイテム情報 (onum, appearance 等)
+     * @returns {Object|null} 昇格したアイテム情報 { trueName, onum, appearance } または null
+     */
+    processDiscoveryMessage(context, recentUsedItem = null) {
+        if (!context || !context.messageId) return null;
+
+        const mapping = DISCOVERY_MESSAGE_MAP[context.messageId];
+        if (!mapping || !mapping.itemType) return null;
+
+        const trueName = mapping.itemType;
+        const onum = this.lookupOnum(trueName) ?? (recentUsedItem?.onum ?? null);
+        const appearance = recentUsedItem?.appearance || (recentUsedItem?.name ? this._extractAppearance(recentUsedItem.name) : null);
+
+        this.registerKnownItem(onum, trueName, appearance);
+
+        return {
+            trueName,
+            onum,
+            appearance,
+            context
+        };
+    }
+
+    /**
+     * "a ruby potion", "a silver wand" などの文字列から外見記述を抽出
+     * @private
+     */
+    _extractAppearance(text) {
+        if (!text || typeof text !== 'string') return null;
+        let clean = text.replace(/^(a|an|the|\d+)\s+/i, '').trim();
+        const m = clean.match(/^([a-zA-Z\s]+)\s+(potion|scroll|wand|ring|amulet|spellbook|book)\b/i);
+        if (m) {
+            return m[1].trim().toLowerCase();
+        }
+        return clean.toLowerCase();
     }
 }

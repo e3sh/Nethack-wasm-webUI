@@ -318,5 +318,53 @@ describe('AttributeStateManager Tests', () => {
         expect(infra.isIntrinsic).toBe(true);
         expect(infra.source).toBe('intrinsic');
     });
+
+    describe('Stage 5.4B: MessageContext Driven Intrinsics Acquisition', () => {
+        it('messageId に基づいて O(1) で耐性を決定論的に獲得できること', () => {
+            const mgr = new AttributeStateManager();
+            expect(mgr.getEffectiveResistances().fire).toBe(false);
+
+            const context = {
+                messageId: 'eat.c:L351:You_feel:0',
+                rawText: 'You feel a hot sensation.'
+            };
+            const changed = mgr.processMessageContext(context);
+            expect(changed).toBe(true);
+            expect(mgr.getEffectiveResistances().fire).toBe(true);
+            expect(mgr.acquiredIntrinsics.fire).toBe(true);
+
+            // 重複獲得時は changed: false
+            const changedAgain = mgr.processMessageContext(context);
+            expect(changedAgain).toBe(false);
+        });
+
+        it('context.metadata.intrinsic から耐性を正しく獲得できること', () => {
+            const mgr = new AttributeStateManager();
+            expect(mgr.getEffectiveResistances().poison).toBe(false);
+
+            const context = {
+                messageId: 'custom.c:unknown_poison',
+                metadata: { intrinsic: 'poison_resistance' },
+                rawText: 'You feel healthy.'
+            };
+            const changed = mgr.processMessageContext(context);
+            expect(changed).toBe(true);
+            expect(mgr.getEffectiveResistances().poison).toBe(true);
+        });
+
+        it('未マッピングの messageId の場合は fallbackText (既存テキスト判定) にフォールバックすること', () => {
+            const mgr = new AttributeStateManager();
+            expect(mgr.getEffectiveResistances().cold).toBe(false);
+
+            const context = {
+                messageId: 'unmapped.c:cold_msg',
+                rawText: 'You feel a cold chill.'
+            };
+            const changed = mgr.processMessageContext(context, 'You feel a cold chill.');
+            expect(changed).toBe(true);
+            expect(mgr.getEffectiveResistances().cold).toBe(true);
+        });
+    });
 });
+
 

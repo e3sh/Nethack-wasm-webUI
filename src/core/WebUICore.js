@@ -70,6 +70,7 @@ export class WebUICore {
         this.touch = new TouchCalculator(options.touchOptions);
         this.keyMapper = new KeyMapper(options.keyMapperOptions);
         this.sound = new SoundEngine({ soundMode: options.soundMode || 'mute' });
+        this.sound.attachCore(this);
 
         let isTranslateActive = options.translateEnabled;
         let isInspectorActive = options.enableInspector;
@@ -1489,7 +1490,10 @@ export class WebUICore {
             // 🌐 4. 画面表示用テキストの翻訳 (TranslationEngine / dictionary.csv が一元管理)
             const translated = this.translator.translate(rawText);
 
-            const seEffect = this.sound.processLogMessage(translated);
+            // 🔊 効果音の判定・発火 (MessageContext 優先 O(1) 判定 ➔ 翻訳後フォールバック)
+            const seEffect = typeof this.sound.processMessageContext === 'function'
+                ? this.sound.processMessageContext(context, translated)
+                : this.sound.processLogMessage(translated);
             if (seEffect) {
                 this.emit('soundEffect', seEffect);
             }

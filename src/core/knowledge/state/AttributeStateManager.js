@@ -7,8 +7,8 @@
  */
 
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
-
 import { calculateInnateResistances, parseAttributesLine, RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from "../data/CHARACTER_KNOWLEDGE_BASE.js";
+import { INTRINSIC_MESSAGE_MAP, METADATA_INTRINSIC_NORMALIZE } from "../data/INTRINSIC_MESSAGE_MAP.js";
 
 export const ATTRIBUTE_KEYS = [
     // 1. 基本元素耐性 (5種)
@@ -687,6 +687,46 @@ export class AttributeStateManager {
         });
 
         this.extrinsics = newExtrinsics;
+    }
+
+    /**
+     * MessageContext に基づく決定論的耐性更新 (O(1)) とフォールバック判定
+     * @param {Object} [context] - Wasm/Core が同定した MessageContext
+     * @param {string} [fallbackText=''] - 未マッピング時のフォールバック用テキスト
+     * @returns {boolean} 耐性や能力に変更があったかどうか
+     */
+    processMessageContext(context, fallbackText = '') {
+        if (!context && !fallbackText) return false;
+
+        if (context) {
+            // 1. messageId による O(1) 確定判定
+            const mapping = INTRINSIC_MESSAGE_MAP[context.messageId];
+            if (mapping && mapping.key) {
+                if (!this.acquiredIntrinsics[mapping.key]) {
+                    this.acquiredIntrinsics[mapping.key] = (mapping.value !== undefined ? mapping.value : true);
+                    this._recalculateIntrinsics();
+                    return true;
+                }
+                return false;
+            }
+
+            // 2. context.metadata?.intrinsic による推論判定
+            if (context.metadata?.intrinsic) {
+                const normKey = METADATA_INTRINSIC_NORMALIZE[context.metadata.intrinsic] || context.metadata.intrinsic;
+                if (ATTRIBUTE_KEYS.includes(normKey)) {
+                    if (!this.acquiredIntrinsics[normKey]) {
+                        this.acquiredIntrinsics[normKey] = true;
+                        this._recalculateIntrinsics();
+                        return true;
+                    }
+                    return false;
+                }
+            }
+        }
+
+        // 3. 未マッピングまたは context 無し時の安全ネット（既存文字列フォールバック）
+        const textToMatch = fallbackText || (context ? context.rawText : '');
+        return this.updateFromMessage(textToMatch);
     }
 
     /**

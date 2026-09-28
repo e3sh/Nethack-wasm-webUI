@@ -6,12 +6,15 @@
  * 文脈に応じた効果音を自動再生するトリガー機能を備える。
  */
 
+import { SOUND_EVENT_MAP, DYNAMIC_SYNTH_HANDLERS } from './SoundEventCatalog.js';
+
 export class SoundEngine {
     /**
      * @param {Object} [options]
      * @param {string} [options.soundMode='mute'] - 'mute' | 'se' | 'beep'
      * @param {number} [options.volume=80] - 0 ~ 100
      * @param {string} [options.soundDir='assets/sounds/'] - 音声アセットパス
+     * @param {number} [options.staggerIntervalMs=60] - Audio Queue スタガード再生間隔(ms)
      */
     constructor(options = {}) {
         let activeMode = null;
@@ -46,9 +49,13 @@ export class SoundEngine {
         this.soundMode = activeMode;
         this.volume = activeVolume;
         this.soundDir = options.soundDir || 'assets/sounds/';
+        this.staggerIntervalMs = options.staggerIntervalMs !== undefined ? options.staggerIntervalMs : 60;
+        this.audioQueue = [];
+        this.isProcessingQueue = false;
         this.cooldownMap = new Map();
         this.failedAssetCache = new Set(); // 存在しない音声アセットのブラックリスト
         this.audioCtx = null;
+        this.onLogCallback = options.onLogCallback || null;
 
         // sound_mapping.json と完全同調した全16種類のデフォルトルール集
         this.rules = [
@@ -120,8 +127,24 @@ export class SoundEngine {
                 cooldownMs: 100
             },
             {
+                id: "se_kill_monster",
+                pattern: "\\b(kill|kills|killed|dies|defeated|death cry)\\b|倒した|息の根を止めた|死んだ|消滅した",
+                sound: "kill.mp3",
+                beep: { notes: ["G4", "C5", "E5", "G5"], wave: "triangle", duration: 80 },
+                priority: 65,
+                cooldownMs: 80
+            },
+            {
+                id: "se_destroy_monster",
+                pattern: "\\b(destroy|destroys|destroyed|shatters|shattered)\\b|破壊した|粉砕した|打ち砕いた",
+                sound: "destroy.mp3",
+                beep: { notes: ["E4", "B3", "G3", "C3"], wave: "sawtooth", duration: 70 },
+                priority: 65,
+                cooldownMs: 80
+            },
+            {
                 id: "se_attack_hit",
-                pattern: "You hit|\\bhits\\b|に攻撃|攻撃した|ヒット|命中|ダメージ|^You kill",
+                pattern: "You hit|\\bhits\\b|に攻撃|攻撃した|ヒット|命中|ダメージ",
                 sound: "hit.mp3",
                 beep: { notes: ["E5", "G5"], wave: "square", duration: 50 },
                 cooldownMs: 100
@@ -205,6 +228,287 @@ export class SoundEngine {
 
     setVolume(vol) {
         this.volume = Math.max(0, Math.min(100, vol));
+    }
+
+    /**
+     * ブラウザのユーザー操作による AudioContext のブロック解除
+     */
+    unlockAudio() {
+        if (typeof window === 'undefined') return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass && !this.audioCtx) {
+            this.audioCtx = new AudioContextClass();
+        }
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+        this._log('AUDIO_UNLOCKED', `AudioContext state: ${this.audioCtx ? this.audioCtx.state : 'unavailable'}`);
+    }
+
+    /**
+     * 動作ログの内部ディスパッチ
+     * @private
+     */
+    _log(type, msg, meta = {}) {
+        if (typeof this.onLogCallback === 'function') {
+            this.onLogCallback(type, msg, meta);
+        }
+    }
+
+    /**
+     * WebUICore インスタンスへ接続し、fx_trigger (Visual FX / Combat FX) を購読
+     * @param {Object} core 
+     */
+    attachCore(core) {
+        if (!core || typeof core.on !== 'function') return;
+        this.core = core;
+        if (this._fxTriggerHandler && typeof core.off === 'function') {
+            core.off('fx_trigger', this._fxTriggerHandler);
+        }
+        this._fxTriggerHandler = (fx) => this.handleFxTrigger(fx);
+        core.on('fx_trigger', this._fxTriggerHandler);
+        this._log('CORE_ATTACHED', 'SoundEngine attached to WebUICore fx_trigger');
+    }
+
+    /**
+     * Visual FX (fx_trigger) 連動の効果音発火
+     * メッセージ由来と同一フレームや直近での多重発火は enqueueSound の cooldownMs により防止
+     * @param {Object} fx 
+     * @returns {Object|null}
+     */
+    handleFxTrigger(fx) {
+        if (!fx || !fx.type) return null;
+        const mode = this.getNormalizedSoundMode();
+        if (mode === 'mute') return null;
+
+        let soundEvent = null;
+        switch (fx.type) {
+            case 'KILL_CONFIRMED':
+                soundEvent = {
+                    id: 'se_kill_monster',
+                    sound: 'kill.mp3',
+                    priority: 65,
+                    cooldownMs: 80,
+                    beep: { notes: ["G4", "C5", "E5", "G5"], wave: "triangle", duration: 80 }
+                };
+                break;
+            case 'ATTACK_HIT':
+                soundEvent = {
+                    id: 'se_attack_hit',
+                    sound: 'hit.mp3',
+                    priority: 50,
+                    cooldownMs: 100,
+                    beep: { notes: ["E5", "G5"], wave: "square", duration: 50 }
+                };
+                break;
+            case 'DAMAGE_TAKEN':
+                soundEvent = {
+                    id: 'se_player_damaged',
+                    sound: 'damaged.mp3',
+                    priority: 70,
+                    cooldownMs: 100,
+                    beep: { notes: ["F3", "C#3"], wave: "square", duration: 80 }
+                };
+                break;
+            default:
+                break;
+        }
+
+        if (soundEvent) {
+            this._log('FX_TRIGGER_SE', `FX Trigger: ${fx.type} -> ${soundEvent.id}`, { fx, soundEvent });
+            this.enqueueSound(soundEvent);
+            return soundEvent;
+        }
+        return null;
+    }
+
+    /**
+     * MessageContext に基づく決定論的 SE 発火 (O(1)) と Audio Queue によるスタガード再生
+     * 
+     * @param {Object} [context] - Wasm/Core が同定した MessageContext
+     * @param {string} [fallbackText=''] - 未マッピング時のフォールバック用テキスト (翻訳文または rawText)
+     * @returns {Object|null} 発火した効果音情報オブジェクト、または null
+     */
+    processMessageContext(context, fallbackText = '') {
+        const mode = this.getNormalizedSoundMode();
+        if (mode === 'mute') return null;
+
+        if (context) {
+            // 1. 動的音程シンセシス (DYNAMIC_SYNTH_HANDLERS)
+            const synthHandler = DYNAMIC_SYNTH_HANDLERS[context.messageId];
+            if (typeof synthHandler === 'function') {
+                const synthDef = synthHandler(context.placeholders || [], context);
+                if (synthDef) {
+                    this._log('MATCH_SYNTH', `Dynamic synth matched: ${context.messageId}`, { synthDef, context });
+                    return this.enqueueSound({
+                        id: `synth_${context.messageId}`,
+                        synth: synthDef,
+                        priority: 70
+                    }, context);
+                }
+            }
+
+            // 2. 決定論的 SE マップ (SOUND_EVENT_MAP) O(1) 照合
+            let eventDef = SOUND_EVENT_MAP[context.messageId];
+            if (!eventDef && context.metadata?.soundId) {
+                eventDef = SOUND_EVENT_MAP[context.metadata.soundId];
+            }
+
+            if (eventDef) {
+                const rule = this._resolveRuleFromEventDef(eventDef);
+                this._log('MATCH_CONTEXT', `O(1) Matched: ${context.messageId} -> ${rule.id} (priority: ${rule.priority})`, { rule, context });
+                return this.enqueueSound(rule, context);
+            }
+        }
+
+        // 3. 未マッピングまたは context 無し時の安全ネット（既存正規表現フォールバック）
+        const textToMatch = fallbackText || (context ? context.rawText : '');
+        this._log('FALLBACK_TEXT', `No O(1) mapping found. Falling back to regex test: "${textToMatch}"`);
+        return this.processLogMessage(textToMatch);
+    }
+
+    /**
+     * SOUND_EVENT_MAP のイベント定義から rules 互換の rule オブジェクトを導出
+     * @private
+     */
+    _resolveRuleFromEventDef(eventDef) {
+        const existing = this.rules.find(r => r.id === eventDef.seId);
+        return {
+            id: eventDef.seId,
+            sound: eventDef.sound || existing?.sound,
+            beep: eventDef.beep || existing?.beep,
+            priority: eventDef.priority !== undefined ? eventDef.priority : 50,
+            cooldownMs: eventDef.cooldownMs || existing?.cooldownMs
+        };
+    }
+
+    /**
+     * SE を Audio Queue に投入し、優先度順ソート＆スタガード遅延再生を開始
+     * @param {Object} rule - SE ルール定義
+     * @param {Object} [context=null] - 発火元 MessageContext
+     * @returns {Object|null}
+     */
+    enqueueSound(ruleOrDef, context = null) {
+        if (!ruleOrDef) return null;
+
+        const mode = this.getNormalizedSoundMode();
+        if (mode === 'mute') return null;
+
+        // 文字列 (id) または オブジェクト の両方を受け入れ
+        const ruleObj = typeof ruleOrDef === 'string' ? { id: ruleOrDef } : { ...ruleOrDef };
+        const ruleId = ruleObj.id || ruleObj.seId;
+
+        // 1. 既存 rules および SOUND_EVENT_MAP から定義を補完
+        const existingRule = this.rules.find(r => r.id === ruleId);
+        const catalogDef = SOUND_EVENT_MAP[ruleId] || (context?.messageId ? SOUND_EVENT_MAP[context.messageId] : null);
+
+        const rule = {
+            id: ruleId,
+            sound: ruleObj.sound || catalogDef?.sound || existingRule?.sound,
+            beep: ruleObj.beep || catalogDef?.beep || existingRule?.beep,
+            synth: ruleObj.synth || catalogDef?.synth || existingRule?.synth,
+            priority: ruleObj.priority !== undefined ? ruleObj.priority : (catalogDef?.priority !== undefined ? catalogDef.priority : (existingRule?.priority !== undefined ? existingRule.priority : 50)),
+            cooldownMs: ruleObj.cooldownMs || catalogDef?.cooldownMs || existingRule?.cooldownMs
+        };
+
+        const now = Date.now();
+        if (rule.cooldownMs) {
+            const lastTime = this.cooldownMap.get(rule.id) || 0;
+            if (now - lastTime < rule.cooldownMs) return null;
+            this.cooldownMap.set(rule.id, now);
+        }
+
+        const priority = rule.priority;
+        const queueItem = {
+            rule,
+            context,
+            priority,
+            timestamp: now
+        };
+
+        this.audioQueue.push(queueItem);
+        // 優先度降順ソート（同じ優先度なら先着順）
+        this.audioQueue.sort((a, b) => b.priority - a.priority);
+
+        this._log('ENQUEUE_SE', `Enqueued: ${rule.id} (priority: ${priority}) [Queue size: ${this.audioQueue.length}]`, { queueItem, queueSize: this.audioQueue.length });
+
+        // キュー処理ループの起動
+        if (!this.isProcessingQueue) {
+            this._processAudioQueue();
+        }
+
+        return {
+            id: rule.id,
+            sound: rule.sound,
+            priority,
+            context
+        };
+    }
+
+    /**
+     * Audio Queue をスタガード遅延 (50〜80ms) を挟みながら順次再生
+     * @private
+     */
+    async _processAudioQueue() {
+        if (this.isProcessingQueue) return;
+        this.isProcessingQueue = true;
+
+        while (this.audioQueue.length > 0) {
+            const item = this.audioQueue.shift();
+            if (item && item.rule) {
+                this._log('PLAY_QUEUE_ITEM', `Playing queue item: ${item.rule.id} (priority: ${item.priority}) [Remaining: ${this.audioQueue.length}]`, { item });
+                if (item.rule.synth) {
+                    this.playSynth(item.rule.synth);
+                } else {
+                    await this.playSoundByRule(item.rule);
+                }
+            }
+
+            if (this.audioQueue.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, this.staggerIntervalMs));
+            }
+        }
+
+        this.isProcessingQueue = false;
+    }
+
+    /**
+     * 動的音程シンセシスのオシレーター発音
+     * @param {Object} synthDef
+     */
+    playSynth(synthDef) {
+        if (typeof window === 'undefined' || !synthDef) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        if (!this.audioCtx) {
+            this.audioCtx = new AudioContextClass();
+        }
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = synthDef.wave || 'triangle';
+        osc.frequency.value = synthDef.freq || 440;
+
+        const now = this.audioCtx.currentTime;
+        const dur = (synthDef.duration || 100) / 1000;
+        const userVol = (this.volume / 100);
+        const maxGain = userVol * (synthDef.gain !== undefined ? synthDef.gain : 1.0) * 0.25;
+
+        gain.gain.setValueAtTime(maxGain, now);
+        if (synthDef.decay === 'exponential') {
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        } else {
+            gain.gain.linearRampToValueAtTime(0, now + dur);
+        }
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + dur);
     }
 
     /**

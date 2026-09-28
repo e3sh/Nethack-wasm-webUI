@@ -63,4 +63,49 @@ Rings:
         expect(manager.discoveredOnums.size).toBe(0);
         expect(manager.isSynced).toBe(false);
     });
+
+    describe('Stage 5.4C: MessageContext Driven Item Discovery Tests', () => {
+        it('5. 効果メッセージから巻物の真名を自動昇格できる', () => {
+            const manager = new DiscoveryStateManager();
+            expect(manager.isIdentified('scroll of identify')).toBe(false);
+
+            const context = {
+                messageId: 'read.c:L105:pline:0',
+                rawText: 'This is an identify scroll.'
+            };
+            const result = manager.processDiscoveryMessage(context);
+            expect(result).not.toBeNull();
+            expect(result.trueName).toBe('scroll of identify');
+            expect(manager.isIdentified('scroll of identify')).toBe(true);
+        });
+
+        it('6. 杖放射の効果メッセージから真名と外見を紐づけて自動昇格できる', () => {
+            const manager = new DiscoveryStateManager();
+            expect(manager.isIdentified('wand of digging')).toBe(false);
+
+            const context = {
+                messageId: 'zap.c:L180:pline:0',
+                rawText: 'The floor collapses!'
+            };
+            const recentUsed = {
+                name: 'a silver wand',
+                appearance: 'silver'
+            };
+            const result = manager.processDiscoveryMessage(context, recentUsed);
+            expect(result).not.toBeNull();
+            expect(result.trueName).toBe('wand of digging');
+            expect(manager.isIdentified('wand of digging')).toBe(true);
+            expect(manager.appearanceMap.get('silver')).toBe('wand of digging');
+        });
+
+        it('7. 未登録メッセージの場合は null を返し、状態を変更しない', () => {
+            const manager = new DiscoveryStateManager();
+            const context = {
+                messageId: 'unknown.c:message:0',
+                rawText: 'Nothing happens.'
+            };
+            const result = manager.processDiscoveryMessage(context);
+            expect(result).toBeNull();
+        });
+    });
 });

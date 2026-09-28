@@ -56,3 +56,171 @@ describe('SoundEngine Configuration & LocalStorage Tests', () => {
         expect(engine.soundMode).toBe('mute');
     });
 });
+
+describe('Stage 5.4A: SoundEngine MessageContext & Audio Queue Tests', () => {
+    it('should deterministically trigger SE from messageId (O(1))', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const context = {
+            messageId: 'trap.c:L1184:You_hear:31',
+            rawText: 'You hear a loud click!'
+        };
+
+        const result = engine.processMessageContext(context);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('se_trap');
+        expect(result.priority).toBe(80);
+    });
+
+    it('should trigger SE from metadata.soundId when present in context', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const context = {
+            messageId: 'some.c:unknown_id',
+            metadata: { soundId: 'se_door' },
+            rawText: 'A door opens.'
+        };
+
+        const result = engine.processMessageContext(context);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('se_door');
+        expect(result.priority).toBe(60);
+    });
+
+    it('should fallback to regex log message matching when messageId is not mapped', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const context = {
+            messageId: 'custom.c:unmapped',
+            rawText: 'You feel hungry.'
+        };
+
+        const result = engine.processMessageContext(context, 'You feel hungry.');
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('se_hunger');
+    });
+
+    it('should fallback to regex matching when context is null', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const result = engine.processMessageContext(null, 'Welcome to NetHack');
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('se_welcome');
+    });
+
+    it('should prioritize and sort queued sounds by priority descending', () => {
+        const engine = new SoundEngine({ soundMode: 'auto', staggerIntervalMs: 1000 });
+        // キュー自動処理を止めて並び順のみ検証できるようにする
+        engine.isProcessingQueue = true;
+
+        const hungerRule = { id: 'se_hunger', sound: 'hungry.mp3', priority: 40 };
+        const dieRule = { id: 'se_die', sound: 'die.mp3', priority: 100 };
+        const hitRule = { id: 'se_attack_hit', sound: 'hit.mp3', priority: 50 };
+
+        engine.enqueueSound(hungerRule);
+        engine.enqueueSound(dieRule);
+        engine.enqueueSound(hitRule);
+
+        expect(engine.audioQueue.length).toBe(3);
+        expect(engine.audioQueue[0].rule.id).toBe('se_die');
+        expect(engine.audioQueue[0].priority).toBe(100);
+        expect(engine.audioQueue[1].rule.id).toBe('se_attack_hit');
+        expect(engine.audioQueue[1].priority).toBe(50);
+        expect(engine.audioQueue[2].rule.id).toBe('se_hunger');
+        expect(engine.audioQueue[2].priority).toBe(40);
+    });
+
+    it('should support dynamic synth handlers (e.g. squeaky board)', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const context = {
+            messageId: 'trap.c:squeak_board',
+            placeholders: ['a C sharp', 'loudly'],
+            rawText: 'You hear a C sharp loudly.'
+        };
+
+        const result = engine.processMessageContext(context);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('synth_trap.c:squeak_board');
+    });
+});
+
+describe('Combat Sound & EffectFX Integration Tests', () => {
+    it('should correctly identify monster kill messages as se_kill_monster', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        
+        const killEn = engine.processLogMessage('You kill the goblin!');
+        expect(killEn).not.toBeNull();
+        expect(killEn.id).toBe('se_kill_monster');
+
+        engine.cooldownMap.clear();
+        const diesEn = engine.processLogMessage('The bat dies!');
+        expect(diesEn).not.toBeNull();
+        expect(diesEn.id).toBe('se_kill_monster');
+
+        engine.cooldownMap.clear();
+        const killJa = engine.processLogMessage('ゴブリンを倒した！');
+        expect(killJa).not.toBeNull();
+        expect(killJa.id).toBe('se_kill_monster');
+    });
+
+    it('should correctly identify monster destruction messages as se_destroy_monster', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+
+        const destroyEn = engine.processLogMessage('The skeleton is destroyed!');
+        expect(destroyEn).not.toBeNull();
+        expect(destroyEn.id).toBe('se_destroy_monster');
+
+        engine.cooldownMap.clear();
+        const shatterEn = engine.processLogMessage('The clay golem shatters!');
+        expect(shatterEn).not.toBeNull();
+        expect(shatterEn.id).toBe('se_destroy_monster');
+
+        engine.cooldownMap.clear();
+        const destroyJa = engine.processLogMessage('スケルトンを破壊した！');
+        expect(destroyJa).not.toBeNull();
+        expect(destroyJa.id).toBe('se_destroy_monster');
+    });
+
+    it('should correctly identify attack hit and miss separately', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+
+        const hit = engine.processLogMessage('You hit the goblin.');
+        expect(hit).not.toBeNull();
+        expect(hit.id).toBe('se_attack_hit');
+
+        const miss = engine.processLogMessage('You miss the goblin.');
+        expect(miss).not.toBeNull();
+        expect(miss.id).toBe('se_attack_miss');
+    });
+
+    it('should trigger corresponding SE via handleFxTrigger', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+
+        const killFx = engine.handleFxTrigger({ type: 'KILL_CONFIRMED', targetX: 5, targetY: 5 });
+        expect(killFx).not.toBeNull();
+        expect(killFx.id).toBe('se_kill_monster');
+
+        const hitFx = engine.handleFxTrigger({ type: 'ATTACK_HIT', targetX: 5, targetY: 5 });
+        expect(hitFx).not.toBeNull();
+        expect(hitFx.id).toBe('se_attack_hit');
+
+        const dmgFx = engine.handleFxTrigger({ type: 'DAMAGE_TAKEN', targetX: 5, targetY: 5 });
+        expect(dmgFx).not.toBeNull();
+        expect(dmgFx.id).toBe('se_player_damaged');
+    });
+
+    it('should subscribe to core fx_trigger via attachCore', () => {
+        const engine = new SoundEngine({ soundMode: 'auto' });
+        const listeners = {};
+        const mockCore = {
+            on: (event, handler) => { listeners[event] = handler; },
+            off: (event, handler) => { delete listeners[event]; }
+        };
+
+        engine.attachCore(mockCore);
+        expect(listeners['fx_trigger']).toBeDefined();
+
+        let triggeredSE = null;
+        engine.enqueueSound = (rule) => { triggeredSE = rule; };
+        listeners['fx_trigger']({ type: 'KILL_CONFIRMED' });
+        expect(triggeredSE).not.toBeNull();
+        expect(triggeredSE.id).toBe('se_kill_monster');
+    });
+});
+

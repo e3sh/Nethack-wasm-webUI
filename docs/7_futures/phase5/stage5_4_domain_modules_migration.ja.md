@@ -1,8 +1,8 @@
 ---
 title: "Phase 5 - Stage 5.4 詳細仕様書: ドメイン別既存モジュールのメッセージマスタ移行"
-status: proposal / specification
+status: implemented
 created_at: 2026-09-22
-last_updated: 2026-09-22
+last_updated: 2026-09-28
 related_docs:
   - docs/7_futures/phase5_detailed_migration_plan.ja.md
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
@@ -238,20 +238,20 @@ sequenceDiagram
 ## 5. 作業手順 (Implementation Steps)
 
 ### 5.1 Stage 5.4A (SoundEngine)
-- [ ] `src/core/sound/SoundEventCatalog.js` を作成し、`SOUND_EVENT_MAP` と `DYNAMIC_SYNTH_HANDLERS` を定義。
-- [ ] `SoundEngine.js` に `processMessageContext` および Audio Queue（スタガード遅延 50〜80ms）を実装。
-- [ ] `SoundEngine.test.js` に決定論的 SE 発火および Audio Queue の検証テストを追加。
+- [x] `src/core/sound/SoundEventCatalog.js` を作成し、`SOUND_EVENT_MAP` と `DYNAMIC_SYNTH_HANDLERS` を定義。
+- [x] `SoundEngine.js` に `processMessageContext` および Audio Queue（スタガード遅延 50〜80ms）を実装。
+- [x] `SoundEngine.test.js` に決定論的 SE 発火および Audio Queue の検証テストを追加。
 
 ### 5.2 Stage 5.4B (AttributeStateManager)
-- [ ] `src/core/knowledge/data/INTRINSIC_MESSAGE_MAP.js` を作成し、耐性メッセージ対応表を定義。
-- [ ] `AttributeStateManager.js` に `processMessageContext` を実装。
-- [ ] `GKLPlugin.js` で状況シグナルから `attributeStateManager.processMessageContext` を配線。
-- [ ] `AttributeStateManager.test.js` にコンテキスト経由の耐性獲得テストを追加。
+- [x] `src/core/knowledge/data/INTRINSIC_MESSAGE_MAP.js` を作成し、耐性メッセージ対応表を定義。
+- [x] `AttributeStateManager.js` に `processMessageContext` を実装。
+- [x] `GKLPlugin.js` で状況シグナルから `attributeStateManager.processMessageContext` を配線。
+- [x] `AttributeStateManager.test.js` にコンテキスト経由の耐性獲得テストを追加。
 
 ### 5.3 Stage 5.4C (DiscoveryStateManager)
-- [ ] `src/core/knowledge/data/DISCOVERY_MESSAGE_MAP.js` を作成し、効果メッセージ対応表を定義。
-- [ ] `DiscoveryStateManager.js` に `processDiscoveryMessage` を実装。
-- [ ] `DiscoveryStateManager.test.js` で真名昇格フローを検証。
+- [x] `src/core/knowledge/data/DISCOVERY_MESSAGE_MAP.js` を作成し、効果メッセージ対応表を定義。
+- [x] `DiscoveryStateManager.js` に `processDiscoveryMessage` を実装。
+- [x] `DiscoveryStateManager.test.js` で真名昇格フローを検証。
 
 ---
 

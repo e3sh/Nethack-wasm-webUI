@@ -104,10 +104,11 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - `WebUICore.js` / `NetHackWasmDriver.js`: アイテム選択モーダル中等の内部メッセージ抑止制御（`suppressMessage`）の実装
     - フローティングHUD・吹き出し・過去ログ向けの構造化イベント（`bubbleMessage`, `messageItem`, `messageUpdate`）の安定化
     - 単体テスト `MessageItemLifecycle.test.js`（7テスト）新規配備・PASS
-  - [ ] **[Stage 5.4: ドメイン別既存モジュールのメッセージマスタ移行](./7_futures/phase5/stage5_4_domain_modules_migration.ja.md)**
-    - **5.4A 効果音エンジン (`SoundEngine`)**: `You_hear`（142件）等 O(1) 発火、Audio Queue スタガード遅延（50〜80ms）、動的シンセシス拡張スロット
-    - **5.4B 耐性マネージャ (`AttributeStateManager`)**: `INTRINSIC_MESSAGE_MAP` による耐性獲得 O(1) 確定更新
-    - **5.4C 道具識別 (`DiscoveryStateManager`)**: `DISCOVERY_MESSAGE_MAP` による真名自動昇格
+  - [x] **[Stage 5.4: ドメイン別既存モジュールのメッセージマスタ移行 (2026-09-28 完了)](./7_futures/phase5/stage5_4_domain_modules_migration.ja.md)**
+    - **5.4A 効果音エンジン (`SoundEngine`)**: `SoundEventCatalog.js` 新設、O(1) 決定論的発火、Audio Queue スタガード遅延（60ms）・優先度ソート、動的シンセシス拡張スロット (`trap.c:squeak_board`)
+    - **5.4B 耐性マネージャ (`AttributeStateManager`)**: `INTRINSIC_MESSAGE_MAP.js` 新設、`processMessageContext` による耐性獲得 O(1) 確定更新 ＆ 未マッピング時フォールバック
+    - **5.4C 道具識別 (`DiscoveryStateManager`)**: `DISCOVERY_MESSAGE_MAP.js` 新設、`processDiscoveryMessage` による効果メッセージからの真名・外見自動昇格
+    - 単体テスト新設（+12テスト）、全104テストスイート・1,269テスト 100% PASS、全4サンプルクライアントビルド完全成功確認
   - [ ] **[Stage 5.5: 言語非依存ロジック確立と総合品質保証](./7_futures/phase5/stage5_5_quality_assurance_and_i18n.ja.md)**
     - 二重キーワード（翻訳後日本語文字列依存）の完全撤廃
     - 3層テストピラミッド再編（文章渡しテストの整理と `MessageContext` 渡しテスト主軸化）

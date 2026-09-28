@@ -4,17 +4,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoundManager & Beepcore Tester</title>
+    <title>SoundEngine & Audio Queue Tester (Stage 5.4)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0a0c10;
-            --panel-bg: rgba(22, 27, 34, 0.8);
+            --panel-bg: rgba(22, 27, 34, 0.85);
             --accent-color: #3fb950;
             --accent-hover: #4cd05d;
             --info-color: #58a6ff;
             --warn-color: #d29922;
             --danger-color: #f85149;
+            --purple-color: #bc8cff;
             --text-primary: #f0f6fc;
             --text-secondary: #8b949e;
             --border-color: rgba(48, 54, 61, 0.8);
@@ -40,7 +41,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -73,14 +74,15 @@
 
         .badge-running { background: rgba(63, 185, 80, 0.15); color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.4); }
         .badge-suspended { background: rgba(210, 153, 34, 0.15); color: #d29922; border: 1px solid rgba(210, 153, 34, 0.4); }
+        .badge-stage { background: rgba(188, 140, 255, 0.15); color: #bc8cff; border: 1px solid rgba(188, 140, 255, 0.4); }
 
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.1fr 0.9fr;
             gap: 20px;
         }
 
-        @media (max-width: 850px) {
+        @media (max-width: 950px) {
             .grid { grid-template-columns: 1fr; }
         }
 
@@ -96,9 +98,9 @@
 
         .card-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -108,11 +110,14 @@
             font-family: 'Outfit', sans-serif;
             font-size: 13px;
             font-weight: 600;
-            padding: 8px 16px;
+            padding: 8px 14px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-primary { background-color: var(--accent-color); color: #fff; }
@@ -120,20 +125,22 @@
         .btn-secondary { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); border: 1px solid var(--border-color); }
         .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text-secondary); }
         .btn-info { background-color: var(--info-color); color: #fff; }
+        .btn-warn { background-color: var(--warn-color); color: #000; }
+        .btn-danger { background-color: var(--danger-color); color: #fff; }
 
         .input-group {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 12px;
         }
 
-        input[type="text"], select {
+        input[type="text"], input[type="number"], select {
             background: rgba(0, 0, 0, 0.4);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             padding: 8px 12px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             flex: 1;
         }
 
@@ -141,7 +148,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .preset-btn {
@@ -163,203 +170,260 @@
             padding: 12px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
-            height: 300px;
+            height: 380px;
             overflow-y: auto;
             color: #4af626;
             line-height: 1.5;
         }
 
-        .terminal .log-MATCH { color: #58a6ff; }
+        .terminal .log-MATCH_CONTEXT { color: #58a6ff; }
+        .terminal .log-MATCH_SYNTH { color: #bc8cff; font-weight: bold; }
+        .terminal .log-ENQUEUE_SE { color: #d29922; }
+        .terminal .log-PLAY_QUEUE_ITEM { color: #3fb950; font-weight: bold; }
         .terminal .log-PLAY_BEEP { color: #e3b341; }
-        .terminal .log-PLAY_WAVE { color: #3fb950; }
+        .terminal .log-PLAY_WAVE { color: #38bdf8; }
+        .terminal .log-PLAY_SYNTH { color: #f472b6; }
+        .terminal .log-FALLBACK_TEXT { color: #8b949e; font-style: italic; }
+        .terminal .log-AUDIO_UNLOCKED { color: #34d399; }
         .terminal .log-ERROR { color: #f85149; }
 
         .rule-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px;
+            padding: 8px 10px;
             border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 12px;
         }
 
         .rule-info {
             display: flex;
             flex-direction: column;
+            gap: 2px;
         }
 
-        .rule-id { font-weight: 600; font-size: 13px; color: var(--accent-color); }
-        .rule-pattern { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
-        .rule-actions { display: flex; gap: 6px; }
+        .rule-id { font-weight: 600; color: var(--info-color); font-family: monospace; }
+        .rule-meta { font-size: 11px; color: var(--text-secondary); }
+        .rule-prio { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 10px; background: rgba(255,255,255,0.1); }
 
+        .piano-keyboard {
+            display: flex;
+            gap: 4px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .piano-key {
+            padding: 16px 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+        }
+
+        .piano-white {
+            background: #f0f6fc;
+            color: #0d1117;
+            flex: 1;
+            min-width: 32px;
+        }
+        .piano-white:active { background: #58a6ff; color: #fff; }
+
+        .piano-black {
+            background: #21262d;
+            color: #58a6ff;
+            flex: 0.8;
+            min-width: 26px;
+            border: 1px solid #30363d;
+        }
+        .piano-black:active { background: #8b949e; color: #fff; }
+
+        .context-box {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            margin-bottom: 12px;
+            color: #e6edf3;
+        }
     </style>
-    <script type="text/javascript" src="../sys/coremin.js"></script>
-    <script type="text/javascript" src="../examples/legacy-client/rogue/SoundManager.js"></script>
 </head>
 
 <body>
     <div class="container">
         <header>
             <div>
-                <h1>SoundManager & Beepcore Tester</h1>
-                <p style="font-size: 13px; color: var(--text-secondary);">音声再生システム単体テスト＆メッセージマッチング検証ツール</p>
+                <h1>SoundEngine & Audio Queue Tester</h1>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                    NetHack WASM WebUI 現行仕様 (ROADMAP 1.2 Stage 5.4) 音響検証テストベンチ
+                </p>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="badge badge-stage">Stage 5.4A Active</span>
                 <span id="audio-status-badge" class="badge badge-suspended">AudioContext: Suspended</span>
-                <button class="btn btn-primary" onclick="unlockAudio()">Unlock Audio</button>
+                <button class="btn btn-primary" id="btn-unlock">Unlock Audio</button>
             </div>
         </header>
 
         <div class="grid">
             <!-- Left Column: Controls & Message Test -->
             <div>
+                <!-- 1. 音源モード & 音量 & スタガード間隔 -->
                 <div class="card">
                     <div class="card-title">
-                        <span>音源モード & 音量バランス・コントロール</span>
+                        <span>音源モード & 音量 & スタガード遅延コントロール</span>
                     </div>
-                    <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
-                        <select id="sound_mode" onchange="changeMode(this.value)" style="width: 140px;">
-                            <option value="auto">標準 (Auto / Hybrid)</option>
-                            <option value="wave">オーディオファイル (WAV/MP3)</option>
-                            <option value="beep">Beep合成音 (8bit Synth)</option>
-                            <option value="mute">OFF (消音)</option>
-                        </select>
-                        <span style="font-size: 12px; color: var(--text-secondary);">Master Vol:</span>
-                        <input type="range" id="sound_vol" min="0" max="100" value="80" oninput="changeVol(this.value)" style="flex: 1; accent-color: var(--accent-color);">
-                        <span id="vol-text" style="font-weight: 600; width: 40px; text-align: right;">80%</span>
+                    <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">モード:</span>
+                            <select id="sound_mode" style="width: 140px;">
+                                <option value="auto">Auto (ハイブリッド)</option>
+                                <option value="wave">Wave (音声ファイル)</option>
+                                <option value="beep">Beep (オシレーター合成)</option>
+                                <option value="mute">Mute (消音)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 180px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">音量:</span>
+                            <input type="range" id="sound_vol" min="0" max="100" value="80" style="flex: 1; accent-color: var(--accent-color);">
+                            <span id="vol-text" style="font-weight: 600; width: 36px; text-align: right; font-size: 12px;">80%</span>
+                        </div>
                     </div>
-                    <!-- 音量バランス補正コントロール -->
-                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <span style="font-size: 12px; width: 125px; color: var(--text-secondary);">WAV Balance Gain:</span>
-                            <input type="range" id="wave_gain" min="0" max="200" value="100" oninput="changeWaveGain(this.value)" style="flex: 1; accent-color: #388bfd;">
-                            <span id="wave-gain-text" style="font-weight: 600; width: 45px; text-align: right; font-size: 12px; color: #388bfd;">100%</span>
-                        </div>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <span style="font-size: 12px; width: 125px; color: var(--text-secondary);">Beep Balance Gain:</span>
-                            <input type="range" id="beep_gain" min="0" max="200" value="30" oninput="changeBeepGain(this.value)" style="flex: 1; accent-color: #d29922;">
-                            <span id="beep-gain-text" style="font-weight: 600; width: 45px; text-align: right; font-size: 12px; color: #d29922;">30%</span>
-                        </div>
+                    <!-- スタガード遅延設定 -->
+                    <div style="display: flex; gap: 12px; align-items: center; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                        <span style="font-size: 12px; color: var(--text-secondary); width: 140px;">スタガード間隔 (Audio Queue):</span>
+                        <input type="range" id="stagger_interval" min="20" max="200" step="10" value="60" style="flex: 1; accent-color: #38bdf8;">
+                        <span id="stagger-text" style="font-weight: 600; width: 50px; text-align: right; font-size: 12px; color: #38bdf8;">60ms</span>
                     </div>
                 </div>
 
+                <!-- 2. MessageContext 解決 ＆ メッセージ発火テスト -->
                 <div class="card">
                     <div class="card-title">
-                        <span>メッセージフック動作テスト (processMessage)</span>
+                        <span>MessageContext 照合 ＆ O(1) 発火テスト</span>
                     </div>
                     <div class="input-group">
-                        <input type="text" id="test-msg" placeholder="テスト用メッセージを入力..." value="Welcome to NetHack">
-                        <button class="btn btn-primary" onclick="sendTestMsg()">送信</button>
+                        <input type="text" id="test-msg" placeholder="英語メッセージを入力..." value="You hear a loud click!">
+                        <button class="btn btn-primary" id="btn-send-context">Context経由 (O(1))</button>
+                        <button class="btn btn-secondary" id="btn-send-fallback" title="旧正規表現ルールで直接マッチ">旧文字列判定</button>
+                    </div>
+
+                    <!-- リアルタイム Context 解析インスペクター -->
+                    <div class="context-box" id="context-inspector">
+                        <div style="color: var(--text-secondary); margin-bottom: 4px;">🔍 照合結果インスペクター (MessageContextResolver):</div>
+                        <div id="inspector-content">入力メッセージを待機中...</div>
                     </div>
 
                     <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">プリセットメッセージ:</div>
                     <div class="presets">
-                        <button class="preset-btn" onclick="setMsg('Welcome to NetHack')">Welcome to NetHack</button>
-                        <button class="preset-btn" onclick="setMsg('You hit the goblin')">You hit the goblin</button>
-                        <button class="preset-btn" onclick="setMsg('You miss the kobold')">You miss the kobold</button>
-                        <button class="preset-btn" onclick="setMsg('This door is locked')">This door is locked</button>
-                        <button class="preset-btn" onclick="setMsg('You pick up a long sword')">You pick up a long sword</button>
-                        <button class="preset-btn" onclick="setMsg('鍵がかかっている')">鍵がかかっている</button>
-                        <button class="preset-btn" onclick="setMsg('ゴクゴクという音')">ゴクゴクという音</button>
+                        <button class="preset-btn" data-msg="You kill the goblin!">💥 敵撃破 (kill: se_kill_monster)</button>
+                        <button class="preset-btn" data-msg="The skeleton is destroyed!">🔨 敵破壊 (destroy: se_destroy_monster)</button>
+                        <button class="preset-btn" data-msg="The bat dies!">💥 敵死亡 (dies: se_kill_monster)</button>
+                        <button class="preset-btn" data-msg="You hit the goblin.">⚔️ 攻撃ヒット (hit: se_attack_hit)</button>
+                        <button class="preset-btn" data-msg="You miss the goblin.">💨 攻撃ミス (miss: se_attack_miss)</button>
+                        <button class="preset-btn" data-msg="The goblin hits you!">🛡️ プレイヤー被弾 (damaged: se_player_damaged)</button>
+                        <button class="preset-btn" data-msg="You hear a loud click!">罠クリック音 (trap.c O(1))</button>
+                        <button class="preset-btn" data-msg="You hear a door unlock and open.">扉解錠音 (monmove.c O(1))</button>
+                        <button class="preset-btn" data-msg="You hear someone counting gold coins.">金貨の音 (soundId O(1))</button>
+                        <button class="preset-btn" data-msg="You die...">死亡 (end.c O(1) Prio:100)</button>
+                        <button class="preset-btn" data-msg="You feel hungry.">空腹 (eat.c O(1) Prio:40)</button>
+                        <button class="preset-btn" data-msg="You feel much better!">回復ポーション (potion.c O(1))</button>
                     </div>
                 </div>
 
+                <!-- 3. Stage 5.4A 音潰れ防止・Audio Queue バーストテスト -->
                 <div class="card">
                     <div class="card-title">
-                        <span>Beepcore 生音シンセサイザーテスト (LFO対応)</span>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="playSynth()">再生</button>
+                        <span>Audio Queue 多重発火・音潰れ防止テスト (Burst Test)</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                        <div>
-                            <label style="font-size: 11px; color: var(--text-secondary);">波形 (Wave):</label>
-                            <select id="synth-wave" style="width: 100%;">
-                                <option value="square">square (8bit矩形波)</option>
-                                <option value="sine">sine (サイン波)</option>
-                                <option value="sawtooth">sawtooth (ノコギリ波)</option>
-                                <option value="triangle">triangle (三角波)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 11px; color: var(--text-secondary);">音階 (Notes):</label>
-                            <input type="text" id="synth-notes" value="C5, E5, G5, C6" style="width: 100%;">
-                        </div>
-                    </div>
-                    <div style="padding-top: 8px; border-top: 1px dashed var(--border-color);">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                            <input type="checkbox" id="synth-lfo-enable">
-                            <label for="synth-lfo-enable" style="font-size: 11px; font-weight: 600; color: var(--accent-color);">LFO (ビブラート/モジュレーション) を有効化</label>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <div>
-                                <label style="font-size: 10px; color: var(--text-secondary);">Freq (速度Hz):</label>
-                                <input type="number" id="synth-lfo-freq" value="6" min="1" max="50" style="width: 100%; font-size: 11px; padding: 4px;">
-                            </div>
-                            <div>
-                                <label style="font-size: 10px; color: var(--text-secondary);">Depth (深さ):</label>
-                                <input type="number" id="synth-lfo-depth" value="20" min="1" max="200" style="width: 100%; font-size: 11px; padding: 4px;">
-                            </div>
-                            <div>
-                                <label style="font-size: 10px; color: var(--text-secondary);">LFO Wave:</label>
-                                <select id="synth-lfo-wave" style="width: 100%; font-size: 11px; padding: 4px;">
-                                    <option value="sine">sine</option>
-                                    <option value="square">square</option>
-                                    <option value="sawtooth">sawtooth</option>
-                                    <option value="triangle">triangle</option>
-                                </select>
-                            </div>
-                        </div>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        同一ミリ秒に複数の SE 要求を投入した際、優先度順にソートされ、指定スタガード間隔で整然と発音されることを実証します。
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-danger" id="btn-burst-combat">
+                            ⚡ 4連複合バースト (被弾 ➔ 罠 ➔ 死亡 ➔ コイン)
+                        </button>
+                        <button class="btn btn-info" id="btn-burst-spells">
+                            🔮 3連バースト (呪文 ➔ 杖 ➔ 飲用)
+                        </button>
                     </div>
                 </div>
 
-                <!-- MML (Music Macro Language) 入力再生テストカード -->
+                <!-- 4. EffectFX (fx_trigger) 連動テスト -->
                 <div class="card">
                     <div class="card-title">
-                        <span>MML (Music Macro Language) 入力再生テスト</span>
-                        <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="playMML()">再生 (Play MML)</button>
+                        <span>EffectFX (fx_trigger) 連動テスト</span>
                     </div>
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 11px; color: var(--text-secondary);">MML 文字列 (T=テンポ, O=オクターブ, L=音長, A-G, R=休符):</label>
-                        <input type="text" id="mml-text" value="T180 O4 L8 C E G O5 C." style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3fb950; margin-top: 4px;">
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        GKLPlugin 等の演出トリガー (KILL_CONFIRMED, ATTACK_HIT, DAMAGE_TAKEN) と直接連動した効果音再生を検証します。
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" id="btn-fx-kill">
+                            💥 敵撃破 (KILL_CONFIRMED)
+                        </button>
+                        <button class="btn btn-secondary" id="btn-fx-hit">
+                            ⚔️ 攻撃ヒット (ATTACK_HIT)
+                        </button>
+                        <button class="btn btn-warn" id="btn-fx-damage">
+                            🛡️ 被弾ダメージ (DAMAGE_TAKEN)
+                        </button>
+                        <button class="btn btn-danger" id="btn-fx-combo">
+                            ⚡ ヒット＋即撃破コンボ (ATTACK_HIT ➔ KILL_CONFIRMED)
+                        </button>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                        <div>
-                            <label style="font-size: 11px; color: var(--text-secondary);">波形 (Wave):</label>
-                            <select id="mml-wave" style="width: 100%;">
-                                <option value="square">square (8bit矩形波)</option>
-                                <option value="sine">sine (サイン波)</option>
-                                <option value="sawtooth">sawtooth (ノコギリ波)</option>
-                                <option value="triangle">triangle (三角波)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 11px; color: var(--text-secondary);">デフォルト音長 duration (ms):</label>
-                            <input type="number" id="mml-duration" value="80" min="20" max="1000" style="width: 100%;">
-                        </div>
+                </div>
+
+                <!-- 4. 動的音程シンセシス (きしむ床 12音階) -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>動的音程シンセシス (きしむ床 Squeaky Board 12音階)</span>
+                        <span style="font-size: 11px; color: var(--purple-color); font-family: monospace;">trap.c:squeak_board</span>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">MML プリセットサンプル:</div>
-                    <div class="presets">
-                        <button class="preset-btn" onclick="setMML('T180 O4 L8 C E G O5 C.')">ファンファーレ (T180)</button>
-                        <button class="preset-btn" onclick="setMML('T240 O5 L16 C D E F G A B O6 C')">アルペジオ (T240速)</button>
-                        <button class="preset-btn" onclick="setMML('T120 O4 L4 C E G R L8 G E C')">休符入り (T120)</button>
-                        <button class="preset-btn" onclick="setMML('T120 O4 L8 C E G T240 O5 C E G')">途中で変速 (T120➔T240)</button>
-                        <button class="preset-btn" onclick="setMML('T140 O3 L8 G3 B3 O4 D4 G4.')">重厚コード (T140)</button>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                        メッセージ中の音階名からリアルタイムに周波数を計算し、Web Audio オシレーターで合成発音します：
+                    </p>
+                    <div class="piano-keyboard">
+                        <div class="piano-key piano-white" data-note="C note">C<br><span style="font-size:9px">261Hz</span></div>
+                        <div class="piano-key piano-black" data-note="C sharp">C#<br><span style="font-size:9px">277Hz</span></div>
+                        <div class="piano-key piano-white" data-note="D note">D<br><span style="font-size:9px">293Hz</span></div>
+                        <div class="piano-key piano-black" data-note="D sharp">D#<br><span style="font-size:9px">311Hz</span></div>
+                        <div class="piano-key piano-white" data-note="E note">E<br><span style="font-size:9px">329Hz</span></div>
+                        <div class="piano-key piano-white" data-note="F note">F<br><span style="font-size:9px">349Hz</span></div>
+                        <div class="piano-key piano-black" data-note="F sharp">F#<br><span style="font-size:9px">369Hz</span></div>
+                        <div class="piano-key piano-white" data-note="G note">G<br><span style="font-size:9px">392Hz</span></div>
+                        <div class="piano-key piano-black" data-note="G sharp">G#<br><span style="font-size:9px">415Hz</span></div>
+                        <div class="piano-key piano-white" data-note="A note">A<br><span style="font-size:9px">440Hz</span></div>
+                        <div class="piano-key piano-black" data-note="B flat">Bb<br><span style="font-size:9px">466Hz</span></div>
+                        <div class="piano-key piano-white" data-note="B note">B<br><span style="font-size:9px">493Hz</span></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Column: Rules Preview & Log Terminal -->
+            <!-- Right Column: Catalog Preview & Realtime Logs -->
             <div>
+                <!-- 1. SOUND_EVENT_MAP カタログ一覧 -->
                 <div class="card">
                     <div class="card-title">
-                        <span>登録済みルール一覧 (`param/sound_mapping.json`)</span>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="loadRulesUI()">更新</button>
+                        <span>決定論的イベントマップ (`SOUND_EVENT_MAP` O(1))</span>
+                        <span id="catalog-count" style="font-size: 11px; color: var(--info-color);"></span>
                     </div>
-                    <div id="rules-container" style="max-height: 500px; overflow-y: auto;"></div>
+                    <div id="catalog-container" style="max-height: 280px; overflow-y: auto;"></div>
                 </div>
 
+                <!-- 2. リアルタイム動作ログ -->
                 <div class="card">
                     <div class="card-title">
-                        <span>リアルタイム動作ログ</span>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="clearLog()">クリア</button>
+                        <span>リアルタイム動作ログ (Audio Queue / O(1) 発火状況)</span>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" id="btn-clear-log">クリア</button>
                     </div>
                     <div class="terminal" id="log-terminal"></div>
                 </div>
@@ -367,209 +431,224 @@
         </div>
     </div>
 
-    <script type="text/javascript">
-        function unlockAudio() {
-            if (window.SoundManager) {
-                window.SoundManager.unlockAudio();
-                updateBadge();
-            }
-        }
+    <!-- ES Module Script -->
+    <script type="module">
+        import { SoundEngine } from '../src/core/sound/SoundEngine.js';
+        import { SOUND_EVENT_MAP, DYNAMIC_SYNTH_HANDLERS } from '../src/core/sound/SoundEventCatalog.js';
+        import { MessageContextResolver } from '../src/core/message/MessageContextResolver.js';
 
-        function updateBadge() {
-            const badge = document.getElementById("audio-status-badge");
-            if (window.SoundManager && window.SoundManager.audioCtx) {
-                const state = window.SoundManager.audioCtx.state;
-                badge.textContent = `AudioContext: ${state}`;
-                if (state === "running") {
-                    badge.className = "badge badge-running";
-                } else {
-                    badge.className = "badge badge-suspended";
-                }
-            }
-        }
+        let engine = null;
+        let resolver = null;
 
-        function changeMode(mode) {
-            if (window.SoundManager) window.SoundManager.setMode(mode);
-        }
-
-        function changeVol(vol) {
-            document.getElementById("vol-text").textContent = `${vol}%`;
-            if (window.SoundManager) window.SoundManager.setVolume(parseInt(vol, 10));
-        }
-
-        function changeWaveGain(val) {
-            const gain = parseInt(val, 10) / 100;
-            document.getElementById("wave-gain-text").textContent = `${val}%`;
-            if (window.SoundManager) window.SoundManager.setWaveGain(gain);
-        }
-
-        function changeBeepGain(val) {
-            const gain = parseInt(val, 10) / 100;
-            document.getElementById("beep-gain-text").textContent = `${val}%`;
-            if (window.SoundManager) window.SoundManager.setBeepGain(gain);
-        }
-
-        function setMsg(txt) {
-            document.getElementById("test-msg").value = txt;
-            sendTestMsg();
-        }
-
-        function sendTestMsg() {
-            unlockAudio();
-            const txt = document.getElementById("test-msg").value;
-            if (window.SoundManager) {
-                window.SoundManager.processMessage(txt);
-            }
-        }
-
-        function playSynth() {
-            unlockAudio();
-            const wave = document.getElementById("synth-wave").value;
-            const notesStr = document.getElementById("synth-notes").value;
-            const notes = notesStr.split(",").map(s => s.trim()).filter(Boolean);
-            
-            const lfoEnable = document.getElementById("synth-lfo-enable").checked;
-            let lfoConfig = null;
-            if (lfoEnable) {
-                lfoConfig = {
-                    freq: parseFloat(document.getElementById("synth-lfo-freq").value) || 6,
-                    depth: parseFloat(document.getElementById("synth-lfo-depth").value) || 20,
-                    wave: document.getElementById("synth-lfo-wave").value || "sine"
-                };
-            }
-
-            if (window.SoundManager) {
-                window.SoundManager.playBeep({
-                    notes: notes,
-                    wave: wave,
-                    duration: 80,
-                    lfo: lfoConfig
-                }, window.SoundManager.volume);
-            }
-        }
-
-        function setMML(mmlStr) {
-            document.getElementById("mml-text").value = mmlStr;
-            playMML();
-        }
-
-        function playMML() {
-            unlockAudio();
-            const mmlStr = document.getElementById("mml-text").value;
-            const wave = document.getElementById("mml-wave").value;
-            const duration = parseInt(document.getElementById("mml-duration").value, 10) || 80;
-
-            if (window.SoundManager) {
-                window.SoundManager.playBeep({
-                    mml: mmlStr,
-                    wave: wave,
-                    duration: duration
-                }, window.SoundManager.volume);
-            }
-        }
-
-        function appendLog(type, msg, fullEntry) {
+        function appendLog(type, msg, meta = {}) {
             const term = document.getElementById("log-terminal");
             const div = document.createElement("div");
             div.className = `log-${type}`;
-            div.textContent = fullEntry;
+            const time = new Date().toLocaleTimeString() + '.' + String(new Date().getMilliseconds()).padStart(3, '0');
+            div.textContent = `[${time}] [${type}] ${msg}`;
             term.appendChild(div);
             term.scrollTop = term.scrollHeight;
             updateBadge();
         }
 
-        function clearLog() {
-            document.getElementById("log-terminal").innerHTML = "";
+        function updateBadge() {
+            const badge = document.getElementById("audio-status-badge");
+            if (engine && engine.audioCtx) {
+                const state = engine.audioCtx.state;
+                badge.textContent = `AudioContext: ${state}`;
+                badge.className = (state === "running") ? "badge badge-running" : "badge badge-suspended";
+            }
         }
 
-        function loadRulesUI() {
-            const container = document.getElementById("rules-container");
+        function unlockAudio() {
+            if (engine) {
+                engine.unlockAudio();
+                updateBadge();
+            }
+        }
+
+        function updateInspector(text) {
+            if (!resolver) return null;
+            const context = resolver.resolve(text);
+            const content = document.getElementById("inspector-content");
+            if (context) {
+                let mappedInfo = "未マッピング (フォールバック対象)";
+                if (SOUND_EVENT_MAP[context.messageId]) {
+                    const evt = SOUND_EVENT_MAP[context.messageId];
+                    mappedInfo = `🟢 SOUND_EVENT_MAP[${context.messageId}] ➔ ${evt.seId} (Prio: ${evt.priority})`;
+                } else if (context.metadata?.soundId && SOUND_EVENT_MAP[context.metadata.soundId]) {
+                    const evt = SOUND_EVENT_MAP[context.metadata.soundId];
+                    mappedInfo = `🟡 metadata.soundId[${context.metadata.soundId}] ➔ ${evt.seId} (Prio: ${evt.priority})`;
+                }
+
+                content.innerHTML = `
+                    <div><strong>messageId:</strong> <span style="color:#58a6ff">${context.messageId}</span></div>
+                    <div><strong>domain:</strong> ${context.domain || 'N/A'} | <strong>callee:</strong> ${context.calleeFunc || 'N/A'}</div>
+                    ${context.metadata?.soundId ? `<div><strong>soundId:</strong> <span style="color:#e3b341">${context.metadata.soundId}</span></div>` : ''}
+                    <div><strong>SE マッピング:</strong> ${mappedInfo}</div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div style="color: var(--text-secondary);">一致する MessageContext はありません（旧正規表現判定へフォールバック）</div>
+                `;
+            }
+            return context;
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById("catalog-container");
             container.innerHTML = "";
+            const keys = Object.keys(SOUND_EVENT_MAP);
+            document.getElementById("catalog-count").textContent = `${keys.length} 件`;
 
-            if (!window.SoundManager || !window.SoundManager.rules) return;
+            keys.forEach(key => {
+                const item = SOUND_EVENT_MAP[key];
+                const div = document.createElement("div");
+                div.className = "rule-item";
 
-            window.SoundManager.rules.forEach(rule => {
-                const item = document.createElement("div");
-                item.className = "rule-item";
-                
                 const info = document.createElement("div");
                 info.className = "rule-info";
-                info.innerHTML = `<span class="rule-id">${rule.id}</span><span class="rule-pattern">pattern: ${rule.pattern}</span>`;
+                info.innerHTML = `
+                    <span class="rule-id">${key}</span>
+                    <span class="rule-meta">SE: <strong>${item.seId}</strong> (${item.sound || 'synth'}) <span class="rule-prio">Prio: ${item.priority}</span></span>
+                `;
 
-                const actions = document.createElement("div");
-                actions.className = "rule-actions";
-
-                // Auto再生ボタン
-                const btnAuto = document.createElement("button");
-                btnAuto.className = "btn btn-secondary";
-                btnAuto.style.padding = "4px 8px";
-                btnAuto.style.fontSize = "11px";
-                btnAuto.textContent = "Auto";
-                btnAuto.title = "現在のSoundModeに準拠してテスト再生";
-                btnAuto.onclick = () => {
+                const btnPlay = document.createElement("button");
+                btnPlay.className = "btn btn-secondary";
+                btnPlay.style.padding = "4px 8px";
+                btnPlay.style.fontSize = "11px";
+                btnPlay.textContent = "試聴";
+                btnPlay.onclick = () => {
                     unlockAudio();
-                    window.SoundManager.playSoundRule(rule);
+                    const rule = engine._resolveRuleFromEventDef(item);
+                    engine.enqueueSound(rule);
                 };
-                actions.appendChild(btnAuto);
 
-                // Beep個別再生ボタン
-                if (rule.beep) {
-                    const btnBeep = document.createElement("button");
-                    btnBeep.className = "btn btn-secondary";
-                    btnBeep.style.padding = "4px 8px";
-                    btnBeep.style.fontSize = "11px";
-                    btnBeep.textContent = "Beep";
-                    btnBeep.onclick = () => {
-                        unlockAudio();
-                        const baseVol = rule.volume !== undefined ? rule.volume : 80;
-                        const effectiveVol = (baseVol / 100) * window.SoundManager.volume;
-                        window.SoundManager.playBeep(rule.beep, effectiveVol);
-                    };
-                    actions.appendChild(btnBeep);
-                }
-
-                // Wave個別再生ボタン
-                if (rule.sound) {
-                    const btnWave = document.createElement("button");
-                    btnWave.className = "btn btn-secondary";
-                    btnWave.style.padding = "4px 8px";
-                    btnWave.style.fontSize = "11px";
-                    btnWave.textContent = "Wave";
-                    btnWave.onclick = () => {
-                        unlockAudio();
-                        const baseVol = rule.volume !== undefined ? rule.volume : 80;
-                        const effectiveVol = (baseVol / 100) * window.SoundManager.volume;
-                        window.SoundManager.playWave(rule.sound, effectiveVol);
-                    };
-                    actions.appendChild(btnWave);
-                }
-
-                item.appendChild(info);
-                item.appendChild(actions);
-                container.appendChild(item);
+                div.appendChild(info);
+                div.appendChild(btnPlay);
+                container.appendChild(div);
             });
         }
 
-        window.addEventListener("DOMContentLoaded", async () => {
-            if (window.SoundManager) {
-                window.SoundManager.onLogCallback = appendLog;
-                await window.SoundManager.init();
-                
-                document.getElementById("sound_mode").value = window.SoundManager.soundMode;
-                document.getElementById("sound_vol").value = window.SoundManager.volume;
-                document.getElementById("vol-text").textContent = `${window.SoundManager.volume}%`;
+        // 初期化
+        window.addEventListener("DOMContentLoaded", () => {
+            resolver = new MessageContextResolver();
+            engine = new SoundEngine({
+                soundMode: 'auto',
+                volume: 80,
+                staggerIntervalMs: 60,
+                onLogCallback: appendLog
+            });
 
-                const wGainPct = Math.round(window.SoundManager.waveGain * 100);
-                document.getElementById("wave_gain").value = wGainPct;
-                document.getElementById("wave-gain-text").textContent = `${wGainPct}%`;
+            // コントロール配線
+            document.getElementById("sound_mode").value = engine.soundMode;
+            document.getElementById("sound_mode").onchange = (e) => engine.setSoundMode(e.target.value);
 
-                const bGainPct = Math.round(window.SoundManager.beepGain * 100);
-                document.getElementById("beep_gain").value = bGainPct;
-                document.getElementById("beep-gain-text").textContent = `${bGainPct}%`;
+            document.getElementById("sound_vol").oninput = (e) => {
+                const val = parseInt(e.target.value, 10);
+                document.getElementById("vol-text").textContent = `${val}%`;
+                engine.setVolume(val);
+            };
 
-                loadRulesUI();
-                updateBadge();
-            }
+            document.getElementById("stagger_interval").oninput = (e) => {
+                const val = parseInt(e.target.value, 10);
+                document.getElementById("stagger-text").textContent = `${val}ms`;
+                engine.staggerIntervalMs = val;
+            };
+
+            document.getElementById("btn-unlock").onclick = unlockAudio;
+            document.getElementById("btn-clear-log").onclick = () => {
+                document.getElementById("log-terminal").innerHTML = "";
+            };
+
+            // メッセージ送信
+            const inputMsg = document.getElementById("test-msg");
+            inputMsg.oninput = (e) => updateInspector(e.target.value);
+
+            document.getElementById("btn-send-context").onclick = () => {
+                unlockAudio();
+                const text = inputMsg.value.trim();
+                const context = resolver.resolve(text);
+                engine.processMessageContext(context, text);
+            };
+
+            document.getElementById("btn-send-fallback").onclick = () => {
+                unlockAudio();
+                const text = inputMsg.value.trim();
+                engine.processLogMessage(text);
+            };
+
+            // プリセットボタン
+            document.querySelectorAll(".preset-btn").forEach(btn => {
+                btn.onclick = () => {
+                    inputMsg.value = btn.dataset.msg;
+                    updateInspector(btn.dataset.msg);
+                    document.getElementById("btn-send-context").click();
+                };
+            });
+
+            // バーストテスト 1: 4連戦闘バースト (被弾 ➔ 罠 ➔ 死亡 ➔ コイン)
+            document.getElementById("btn-burst-combat").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== ⚡ 4連複合バースト投入 (実戦シミュレーション: 被弾, 罠, 死亡, コイン) ===');
+                // 実戦シミュレーション: 同一瞬間に4つのメッセージコンテキストを受信
+                engine.processMessageContext({ messageId: 'mhitu.c:damaged', rawText: 'The dragon hits you!' });
+                engine.processMessageContext({ messageId: 'trap.c:L1184:You_hear:31', rawText: 'You hear a loud click!' });
+                engine.processMessageContext({ messageId: 'end.c:L120:killer', rawText: 'You die...' });
+                engine.processMessageContext({ metadata: { soundId: 'se_coins' }, rawText: 'You hear someone counting gold coins.' });
+            };
+
+            // バーストテスト 2: 3連魔法バースト (呪文 ➔ 杖 ➔ 飲用)
+            document.getElementById("btn-burst-spells").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== 🔮 3連バースト投入 (呪文, 杖, 飲用) ===');
+                engine.processMessageContext({ messageId: 'potion.c:feel_better', rawText: 'You feel much better.' });
+                engine.processMessageContext({ messageId: 'spell.c:cast_ok', rawText: 'You cast a spell.' });
+                engine.processMessageContext({ messageId: 'zap.c:beam', rawText: 'The wand zaps a beam.' });
+            };
+
+            // EffectFX 連動テスト
+            document.getElementById("btn-fx-kill").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== 💥 EffectFX KILL_CONFIRMED トリガー ===');
+                engine.handleFxTrigger({ type: 'KILL_CONFIRMED', targetX: 10, targetY: 10 });
+            };
+
+            document.getElementById("btn-fx-hit").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== ⚔️ EffectFX ATTACK_HIT トリガー ===');
+                engine.handleFxTrigger({ type: 'ATTACK_HIT', targetX: 10, targetY: 10 });
+            };
+
+            document.getElementById("btn-fx-damage").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== 🛡️ EffectFX DAMAGE_TAKEN トリガー ===');
+                engine.handleFxTrigger({ type: 'DAMAGE_TAKEN', targetX: 10, targetY: 10, amount: 5 });
+            };
+
+            document.getElementById("btn-fx-combo").onclick = () => {
+                unlockAudio();
+                appendLog('INFO', '=== ⚡ ヒット＋即撃破コンボ (ATTACK_HIT ➔ KILL_CONFIRMED) ===');
+                engine.handleFxTrigger({ type: 'ATTACK_HIT', targetX: 10, targetY: 10 });
+                engine.handleFxTrigger({ type: 'KILL_CONFIRMED', targetX: 10, targetY: 10 });
+            };
+
+            // きしむ床 ピアノキーボード
+            document.querySelectorAll(".piano-key").forEach(key => {
+                key.onclick = () => {
+                    unlockAudio();
+                    const note = key.dataset.note;
+                    const context = {
+                        messageId: 'trap.c:squeak_board',
+                        placeholders: [note, 'loudly'],
+                        rawText: `You hear ${note} loudly.`
+                    };
+                    engine.processMessageContext(context);
+                };
+            });
+
+            renderCatalog();
+            updateInspector(inputMsg.value);
             document.body.addEventListener("click", unlockAudio, { once: true });
         });
     </script>
