@@ -1,8 +1,8 @@
 ---
 title: Phase 5 マスタープランおよび段階的移行計画書
-status: proposal / master plan
+status: implemented
 created_at: 2026-09-19
-last_updated: 2026-09-22
+last_updated: 2026-09-29
 related_docs:
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
   - docs/7_futures/source_message_extraction_methodology_guide.ja.md
@@ -172,13 +172,14 @@ flowchart TD
 
 | ステージ | 主要作業内容 | 成果物 (新規/更新) | 完了判定基準 (DoD) | 状態 |
 | :--- | :--- | :--- | :--- | :---: |
-| **Stage 5.1** | LORE/Codex の GKL 配下への移設と責務純化 | `src/core/knowledge/lore/*`<br/>`WebUICore.js`<br/>`GKLPlugin.js` | ・WebUICore 内の LORE 直書き消滅<br/>・既存 LORE テスト (21件) 全パス<br/>・既存 Codex ツール正常動作 | 準備完了<br/>(仕様書済) |
-| **Stage 5.2** | 状況シグナル基盤と実行時コンテキスト照合の確立 | `tools/build_message_context_catalog.py`<br/>`src/core/message/MessageContextCatalog.js`<br/>`src/core/message/MessageContextResolver.js`<br/>`src/core/message/ContextFrameBuffer.js`<br/>`WebUICore.js` | ・軽量カタログサイズ < 250KB<br/>・解決レイテンシ < 0.1ms/件<br/>・`WebUICore` が `situationSignal` を emit | 準備完了<br/>(仕様書済) |
-| **Stage 5.3** | GKL 状況キャッシュのシグナル駆動化と対話コンテキスト | `src/core/knowledge/context/InteractionContext.js`<br/>`src/core/knowledge/engines/ActionSignalResolver.js`<br/>`src/core/knowledge/state/SituationCache.js`<br/>`GKLPlugin.js`<br/>`InteractiveRequestController.js` | ・SituationCache のシグナル即時更新<br/>・多重状況レイヤー・空間距離維持の動作<br/>・施錠箱＋鍵所持時の `ACT_CONTAINER_INTERACTION` 導出<br/>・モーダル内外シーケンス実行とプロンプト維持<br/>・IRC 連携テスト全パス | 準備完了<br/>(仕様書済) |
-| **Stage 5.4A** | 効果音エンジンの刷新 (Audio Queue & スタガード) | `src/core/sound/SoundEventCatalog.js`<br/>`src/core/sound/SoundEngine.js` | ・決定論的 SE 発火 (O(1))<br/>・同一ターン内 SE の音潰れ防止 (50〜80ms)<br/>・動的シンセシス拡張スロット確立 | 準備完了<br/>(仕様書済) |
-| **Stage 5.4B** | 耐性・状態異常マネージャの移行 | `src/core/knowledge/data/INTRINSIC_MESSAGE_MAP.js`<br/>`AttributeStateManager.js` | ・文字列 include 依存の耐性判定を撤廃<br/>・耐性獲得テスト全パス | 準備完了<br/>(仕様書済) |
-| **Stage 5.4C** | 道具識別エンジンの移行 | `src/core/knowledge/data/DISCOVERY_MESSAGE_MAP.js`<br/>`ItemIdentificationResolver.js`<br/>`DiscoveryStateManager.js` | ・巻物/杖/薬の使用による真名自動昇格の実現<br/>・識別テスト全パス | 準備完了<br/>(仕様書済) |
-| **Stage 5.5** | 言語非依存ロジック確立と総合品質保証 | コードベース全域のリファクタリング<br/>`test/unit/robustness.test.js` | ・英語/日本語の二重キーワード依存完全撤廃<br/>・辞書差し替えでも壊れないロジック実証<br/>・全単体テスト (1037+件) 100% パス<br/>・全 4 クライアントビルド成功 | 準備完了<br/>(仕様書済) |
+| **Stage 5.1** | LORE/Codex の GKL 配下への移設と責務純化 | `src/core/knowledge/lore/*`<br/>`WebUICore.js`<br/>`GKLPlugin.js` | ・WebUICore 内の LORE 直書き消滅<br/>・既存 LORE テスト (21件) 全パス<br/>・既存 Codex ツール正常動作 | 🟢 完了<br/>(2026-09-25) |
+| **Stage 5.2** | 状況シグナル基盤と実行時コンテキスト照合の確立 | `tools/build_message_context_catalog.py`<br/>`src/core/message/MessageContextCatalog.js`<br/>`src/core/message/MessageContextResolver.js`<br/>`src/core/message/ContextFrameBuffer.js`<br/>`WebUICore.js` | ・軽量カタログサイズ < 250KB<br/>・解決レイテンシ < 0.1ms/件<br/>・`WebUICore` が `situationSignal` を emit | 🟢 完了<br/>(2026-09-25) |
+| **Stage 5.3** | GKL 状況キャッシュのシグナル駆動化と対話コンテキスト | `src/core/knowledge/context/InteractionContext.js`<br/>`src/core/knowledge/engines/ActionSignalResolver.js`<br/>`src/core/knowledge/state/SituationCache.js`<br/>`GKLPlugin.js`<br/>`InteractiveRequestController.js` | ・SituationCache のシグナル即時更新<br/>・多重状況レイヤー・空間距離維持の動作<br/>・施錠箱＋鍵所持時の `ACT_CONTAINER_INTERACTION` 導出<br/>・モーダル内外シーケンス実行とプロンプト維持<br/>・IRC 連携テスト全パス | 🟢 完了<br/>(2026-09-25) |
+| **Stage 5.4A** | 効果音エンジンの刷新 (Audio Queue & スタガード) | `src/core/sound/SoundEventCatalog.js`<br/>`src/core/sound/SoundEngine.js` | ・決定論的 SE 発火 (O(1))<br/>・同一ターン内 SE の音潰れ防止 (50〜80ms)<br/>・動的シンセシス拡張スロット確立 | 🟢 完了<br/>(2026-09-28) |
+| **Stage 5.4B** | 耐性・状態異常マネージャの移行 | `src/core/knowledge/data/INTRINSIC_MESSAGE_MAP.js`<br/>`AttributeStateManager.js` | ・文字列 include 依存の耐性判定を撤廃<br/>・耐性獲得テスト全パス | 🟢 完了<br/>(2026-09-28) |
+| **Stage 5.4C** | 道具識別エンジンの移行 | `src/core/knowledge/data/DISCOVERY_MESSAGE_MAP.js`<br/>`ItemIdentificationResolver.js`<br/>`DiscoveryStateManager.js` | ・巻物/杖/薬の使用による真名自動昇格の実現<br/>・識別テスト全パス | 🟢 完了<br/>(2026-09-28) |
+| **Stage 5.5** | 言語非依存ロジック確立と総合品質保証 | コードベース全域のリファクタリング<br/>`test/unit/robustness.test.js` | ・英語/日本語の二重キーワード依存完全撤廃<br/>・辞書差し替えでも壊れないロジック実証<br/>・全単体テスト 100% パス<br/>・全 4 クライアントビルド成功 | 🟢 完了<br/>(2026-09-28) |
+| **Stage 5.6** | 動的音程シンセシス (Dynamic Musical Synthesis) | `src/core/sound/SoundEventCatalog.js`<br/>`src/core/sound/SoundEngine.js`<br/>`dynamic_musical_synthesis_concept.ja.md` | ・外部音源不要(容量ゼロ)Web Audio API合成<br/>・きしむ床12音階、モンスター咆哮5種、楽器演奏4種<br/>・二重フォールバック配線、全テスト・全ビルド成功 | 🟢 完了<br/>(2026-09-29) |
 
 ---
 
