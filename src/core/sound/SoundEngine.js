@@ -203,12 +203,95 @@ export class SoundEngine {
                 pattern: "\\bstair\\b|\\bstairs\\b|\\bladder\\b",
                 sound: "stair.mp3",
                 beep: { notes: ["C4", "E4", "G4"], wave: "triangle", duration: 70 }
+            },
+
+            // --- 動的音程シンセシス (Dynamic Musical Synthesis / ROADMAP 2.3) ルール ---
+            {
+                id: "synth_trap_squeak",
+                pattern: "squeaks?\\s+(?:an?\\s+)?(?:[A-G](?:\\s+(?:sharp|flat))?(?:\\s+note)?)|(?:an?\\s+)?(?:[A-G](?:\\s+(?:sharp|flat))?(?:\\s+note)?)\\s+squeaks?|squeak in the distance|squeak nearby",
+                dynamicSynth: (match, text) => {
+                    // "squeaks " の後、または " squeak" の前から正確に音階を抽出（文頭の "A board" の "A" を拾わない）
+                    const noteMatch = text.match(/squeaks?\s+(?:an?\s+)?([A-G](?:\s+(?:sharp|flat))?)|(?:an?\s+)?([A-G](?:\s+(?:sharp|flat))?)\s+(?:note\s+)?squeak/i);
+                    const note = noteMatch ? (noteMatch[1] || noteMatch[2]) : 'C';
+                    const isDistance = /distance/i.test(text);
+                    return DYNAMIC_SYNTH_HANDLERS['trap.c:squeak_board']([note, isDistance ? 'distance' : ''], { rawText: text });
+                },
+                priority: 70
+            },
+            {
+                id: "synth_shriek",
+                pattern: "\\bshrieks?\\b|\\bshrieked\\b|\\bThey shriek\\b",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['sounds.c:shriek']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_trumpet",
+                pattern: "\\btrumpets?\\b",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['sounds.c:trumpet']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_buzz",
+                pattern: "\\bbuzz(?:es|ing)?\\b|\\bdrones?\\b",
+                dynamicSynth: (match, text) => {
+                    if (/drone/i.test(text)) {
+                        return DYNAMIC_SYNTH_HANDLERS['sounds.c:drone']([], null);
+                    }
+                    return DYNAMIC_SYNTH_HANDLERS['sounds.c:buzz']([], null);
+                },
+                priority: 65
+            },
+            {
+                id: "synth_rattle",
+                pattern: "rattles noisily|bone.*rattle",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['sounds.c:rattle']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_gurgle",
+                pattern: "\\bgurgles?\\b",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['sounds.c:gurgle']([], null),
+                priority: 65
+            },
+            {
+                id: "synth_flute",
+                pattern: "flute (?:trills|toots)|produce.*(?:soft|piped) music",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['music.c:flute']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_bugle",
+                pattern: "loud(?:, familiar)? noise from (?:your )?bugle|blow into the bugle",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['music.c:bugle']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_drum",
+                pattern: "heavy, thunderous rolling|beat a (?:familiar )?deafening row|drum of earthquake|leather drum",
+                dynamicSynth: () => DYNAMIC_SYNTH_HANDLERS['music.c:drum']([], null),
+                priority: 70
+            },
+            {
+                id: "synth_drawbridge_tune",
+                pattern: "What tune are you playing|playing tune (?:[A-Ga-g ]+)|tumbler.*click.*gear.*turn",
+                dynamicSynth: (match, text) => DYNAMIC_SYNTH_HANDLERS['music.c:drawbridge_tune']([], { rawText: text }),
+                priority: 75
             }
         ];
     }
 
     setSoundMode(mode) {
         this.soundMode = mode;
+        if (typeof localStorage !== 'undefined') {
+            try {
+                let config = {};
+                const saved = localStorage.getItem("nh.config");
+                if (saved) config = JSON.parse(saved) || {};
+                config.sound_mode = mode;
+                localStorage.setItem("nh.config", JSON.stringify(config));
+            } catch (e) {}
+        }
+        this._log('SOUND_MODE_CHANGED', `Sound mode changed to: ${mode} (normalized: ${this.getNormalizedSoundMode()})`, { mode });
     }
 
     /**
@@ -228,6 +311,16 @@ export class SoundEngine {
 
     setVolume(vol) {
         this.volume = Math.max(0, Math.min(100, vol));
+        if (typeof localStorage !== 'undefined') {
+            try {
+                let config = {};
+                const saved = localStorage.getItem("nh.config");
+                if (saved) config = JSON.parse(saved) || {};
+                config.sound_volume = this.volume;
+                localStorage.setItem("nh.config", JSON.stringify(config));
+            } catch (e) {}
+        }
+        this._log('VOLUME_CHANGED', `Sound volume changed to: ${this.volume}%`, { volume: this.volume });
     }
 
     /**
@@ -335,13 +428,19 @@ export class SoundEngine {
 
         if (context) {
             // 1. 動的音程シンセシス (DYNAMIC_SYNTH_HANDLERS)
-            const synthHandler = DYNAMIC_SYNTH_HANDLERS[context.messageId];
+            let synthHandler = DYNAMIC_SYNTH_HANDLERS[context.messageId];
+            let activeSynthId = context.messageId;
+            if (!synthHandler && context.metadata?.synthId) {
+                synthHandler = DYNAMIC_SYNTH_HANDLERS[context.metadata.synthId];
+                activeSynthId = context.metadata.synthId;
+            }
+
             if (typeof synthHandler === 'function') {
                 const synthDef = synthHandler(context.placeholders || [], context);
                 if (synthDef) {
-                    this._log('MATCH_SYNTH', `Dynamic synth matched: ${context.messageId}`, { synthDef, context });
+                    this._log('MATCH_SYNTH', `Dynamic synth matched: ${activeSynthId}`, { synthDef, context });
                     return this.enqueueSound({
-                        id: `synth_${context.messageId}`,
+                        id: `synth_${activeSynthId}`,
                         synth: synthDef,
                         priority: 70
                     }, context);
@@ -369,14 +468,39 @@ export class SoundEngine {
 
     /**
      * SOUND_EVENT_MAP のイベント定義から rules 互換の rule オブジェクトを導出
+     * @param {Object} eventDef - カタログのイベント定義
+     * @param {string} [eventKey=null] - カタログキー（messageId 等）
+     * @returns {Object}
      * @private
      */
-    _resolveRuleFromEventDef(eventDef) {
+    _resolveRuleFromEventDef(eventDef, eventKey = null) {
         const existing = this.rules.find(r => r.id === eventDef.seId);
+        let synthDef = eventDef.synth || existing?.synth;
+        if (!synthDef) {
+            // 1. eventKey または messageId からの DYNAMIC_SYNTH_HANDLERS 解決
+            const key = eventKey || eventDef.messageId;
+            let handler = key ? DYNAMIC_SYNTH_HANDLERS[key] : null;
+
+            // 2. seId (例: synth_shriek -> sounds.c:shriek) からの逆引き解決
+            if (!handler && eventDef.seId) {
+                for (const [k, v] of Object.entries(SOUND_EVENT_MAP)) {
+                    if (v.seId === eventDef.seId && DYNAMIC_SYNTH_HANDLERS[k]) {
+                        handler = DYNAMIC_SYNTH_HANDLERS[k];
+                        break;
+                    }
+                }
+            }
+
+            if (typeof handler === 'function') {
+                synthDef = handler([], null);
+            }
+        }
+
         return {
             id: eventDef.seId,
             sound: eventDef.sound || existing?.sound,
             beep: eventDef.beep || existing?.beep,
+            synth: synthDef,
             priority: eventDef.priority !== undefined ? eventDef.priority : 50,
             cooldownMs: eventDef.cooldownMs || existing?.cooldownMs
         };
@@ -384,7 +508,7 @@ export class SoundEngine {
 
     /**
      * SE を Audio Queue に投入し、優先度順ソート＆スタガード遅延再生を開始
-     * @param {Object} rule - SE ルール定義
+     * @param {Object} ruleOrDef - SE ルール定義
      * @param {Object} [context=null] - 発火元 MessageContext
      * @returns {Object|null}
      */
@@ -440,6 +564,7 @@ export class SoundEngine {
         return {
             id: rule.id,
             sound: rule.sound,
+            synth: rule.synth,
             priority,
             context
         };
@@ -455,10 +580,22 @@ export class SoundEngine {
 
         while (this.audioQueue.length > 0) {
             const item = this.audioQueue.shift();
+            const mode = this.getNormalizedSoundMode();
+
+            // Mute モード時はキュー処理を即スキップ
+            if (mode === 'mute') {
+                this._log('SKIP_MUTE', `Sound skipped due to Mute mode: ${item?.rule?.id}`);
+                continue;
+            }
+
             if (item && item.rule) {
-                this._log('PLAY_QUEUE_ITEM', `Playing queue item: ${item.rule.id} (priority: ${item.priority}) [Remaining: ${this.audioQueue.length}]`, { item });
+                this._log('PLAY_QUEUE_ITEM', `Playing queue item: ${item.rule.id} (priority: ${item.priority}, mode: ${mode}) [Remaining: ${this.audioQueue.length}]`, { item, mode });
                 if (item.rule.synth) {
-                    this.playSynth(item.rule.synth);
+                    if (mode === 'wave' && item.rule.sound) {
+                        await this.playSoundByRule(item.rule);
+                    } else {
+                        this.playSynth(item.rule.synth);
+                    }
                 } else {
                     await this.playSoundByRule(item.rule);
                 }
@@ -474,6 +611,9 @@ export class SoundEngine {
 
     /**
      * 動的音程シンセシスのオシレーター発音
+     * 多彩な音響モード（単一波形・ピッチベンド、和音、AM振幅変調、FM周波数変調、時系列シーケンス/アルペジオ、連続短パルス）を
+     * ブラウザ標準の Web Audio API のみでリアルタイム合成発音する。
+     * 
      * @param {Object} synthDef
      */
     playSynth(synthDef) {
@@ -488,17 +628,202 @@ export class SoundEngine {
             this.audioCtx.resume();
         }
 
+        const now = this.audioCtx.currentTime;
+        const userVol = (this.volume / 100);
+        const synthType = synthDef.type || 'oscillator';
+        const dur = (synthDef.duration || 100) / 1000;
+        const baseGain = userVol * (synthDef.gain !== undefined ? synthDef.gain : 1.0) * 0.25;
+
+        this._log('PLAY_SYNTH', `Synthesizing ${synthType} (${dur * 1000}ms, gain: ${synthDef.gain !== undefined ? synthDef.gain : 1.0})`, { synthDef });
+
+        // 1. 和音合成 (Chord Synthesis: 複数オシレーター同時発振)
+        if (synthType === 'chord') {
+            const freqs = synthDef.freqs || [440, 554.37, 659.25];
+            const wave = synthDef.wave || 'sawtooth';
+            const chordGain = baseGain / Math.max(1, freqs.length);
+
+            freqs.forEach(f => {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = wave;
+                osc.frequency.setValueAtTime(typeof f === 'number' ? f : this._noteToFreq(f), now);
+
+                gain.gain.setValueAtTime(chordGain, now);
+                if (synthDef.decay === 'exponential') {
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                } else {
+                    gain.gain.linearRampToValueAtTime(0, now + dur);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + dur);
+            });
+            return;
+        }
+
+        // 2. 振幅変調 (AM: LFO によるトレモロ・羽音合成)
+        if (synthType === 'am') {
+            const osc = this.audioCtx.createOscillator();
+            const carrierGain = this.audioCtx.createGain();
+            const lfo = this.audioCtx.createOscillator();
+            const lfoGain = this.audioCtx.createGain();
+
+            osc.type = synthDef.wave || 'sawtooth';
+            osc.frequency.setValueAtTime(synthDef.freq || 130, now);
+
+            lfo.type = synthDef.lfoWave || 'sine';
+            lfo.frequency.setValueAtTime(synthDef.lfoFreq || 12, now);
+
+            // AM変調: キャリアの gain を LFO で揺らす
+            const lfoDepth = synthDef.lfoDepth !== undefined ? synthDef.lfoDepth : 0.8;
+            carrierGain.gain.setValueAtTime(baseGain * 0.5, now);
+            lfoGain.gain.setValueAtTime(baseGain * 0.5 * lfoDepth, now);
+
+            if (synthDef.decay === 'exponential') {
+                carrierGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+            } else {
+                carrierGain.gain.linearRampToValueAtTime(0, now + dur);
+            }
+
+            lfo.connect(lfoGain);
+            try {
+                lfoGain.connect(carrierGain.gain);
+            } catch (e) {
+                // AudioParam 接続をサポートしていないモック環境用
+                lfoGain.connect(this.audioCtx.destination);
+            }
+
+            osc.connect(carrierGain);
+            carrierGain.connect(this.audioCtx.destination);
+
+            lfo.start(now);
+            lfo.stop(now + dur);
+            osc.start(now);
+            osc.stop(now + dur);
+            return;
+        }
+
+        // 3. 周波数変調 (FM: 高速ピッチモジュレーション・バブリング音)
+        if (synthType === 'fm') {
+            const carrier = this.audioCtx.createOscillator();
+            const modulator = this.audioCtx.createOscillator();
+            const modGain = this.audioCtx.createGain();
+            const masterGain = this.audioCtx.createGain();
+
+            carrier.type = synthDef.wave || 'sine';
+            carrier.frequency.setValueAtTime(synthDef.freq || 350, now);
+
+            modulator.type = synthDef.modWave || 'sine';
+            modulator.frequency.setValueAtTime(synthDef.modFreq || 24, now);
+            modGain.gain.setValueAtTime(synthDef.modDepth || 150, now);
+
+            masterGain.gain.setValueAtTime(baseGain, now);
+            if (synthDef.decay === 'exponential') {
+                masterGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+            } else {
+                masterGain.gain.linearRampToValueAtTime(0, now + dur);
+            }
+
+            modulator.connect(modGain);
+            try {
+                modGain.connect(carrier.frequency);
+            } catch (e) {
+                // AudioParam 接続未対応モック環境用
+                modGain.connect(masterGain);
+            }
+            carrier.connect(masterGain);
+            masterGain.connect(this.audioCtx.destination);
+
+            modulator.start(now);
+            modulator.stop(now + dur);
+            carrier.start(now);
+            carrier.stop(now + dur);
+            return;
+        }
+
+        // 4. 時系列シーケンス / アルペジオ / ファンファーレ (Sequence Synthesis)
+        if (synthType === 'sequence') {
+            const notes = synthDef.notes || ["C4", "E4", "G4", "C5"];
+            const defaultNoteDur = (synthDef.noteDuration || 80) / 1000;
+            const wave = synthDef.wave || 'triangle';
+            let currentOffset = 0;
+
+            notes.forEach((item) => {
+                const noteFreq = typeof item === 'object' ? (item.freq || this._noteToFreq(item.note)) : (typeof item === 'number' ? item : this._noteToFreq(item));
+                const noteDur = (typeof item === 'object' && item.duration ? item.duration : (synthDef.noteDuration || 80)) / 1000;
+                const noteWave = (typeof item === 'object' && item.wave) || wave;
+                const startTime = now + currentOffset;
+
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = noteWave;
+                osc.frequency.setValueAtTime(noteFreq, startTime);
+
+                gain.gain.setValueAtTime(baseGain, startTime);
+                if (synthDef.decay === 'exponential') {
+                    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + noteDur);
+                } else {
+                    gain.gain.linearRampToValueAtTime(0, startTime + noteDur);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + noteDur);
+
+                currentOffset += noteDur;
+            });
+            return;
+        }
+
+        // 5. 連続短パルス (Pulses: 骨のカタカタ音)
+        if (synthType === 'pulses') {
+            const count = synthDef.count || 4;
+            const pulseDur = (synthDef.pulseDuration || 35) / 1000;
+            const pulseInterval = (synthDef.pulseInterval || 45) / 1000;
+            const wave = synthDef.wave || 'square';
+            const freq = synthDef.freq || 220;
+
+            for (let i = 0; i < count; i++) {
+                const startTime = now + (i * pulseInterval);
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+
+                osc.type = wave;
+                osc.frequency.setValueAtTime(freq, startTime);
+
+                gain.gain.setValueAtTime(baseGain, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startTime + pulseDur);
+
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + pulseDur);
+            }
+            return;
+        }
+
+        // 6. 単一波形・ピッチベンド合成 (Standard Oscillator / Pitch Bend)
         const osc = this.audioCtx.createOscillator();
         const gain = this.audioCtx.createGain();
         osc.type = synthDef.wave || 'triangle';
-        osc.frequency.value = synthDef.freq || 440;
 
-        const now = this.audioCtx.currentTime;
-        const dur = (synthDef.duration || 100) / 1000;
-        const userVol = (this.volume / 100);
-        const maxGain = userVol * (synthDef.gain !== undefined ? synthDef.gain : 1.0) * 0.25;
+        const startFreq = synthDef.freq || 440;
+        osc.frequency.setValueAtTime(startFreq, now);
 
-        gain.gain.setValueAtTime(maxGain, now);
+        // 急激なピッチベンド（shriek の 2000Hz -> 800Hz、drum の 160Hz -> 45Hz など）
+        if (synthDef.freqEnd && synthDef.freqEnd !== startFreq) {
+            const endFreq = Math.max(1, synthDef.freqEnd);
+            if (synthDef.bendCurve === 'linear') {
+                osc.frequency.linearRampToValueAtTime(endFreq, now + dur);
+            } else {
+                osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+            }
+        }
+
+        gain.gain.setValueAtTime(baseGain, now);
         if (synthDef.decay === 'exponential') {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
         } else {
@@ -534,6 +859,25 @@ export class SoundEngine {
             const regex = new RegExp(rule.pattern, 'i');
             if (regex.test(text)) {
                 if (rule.cooldownMs) this.cooldownMap.set(rule.id, now);
+
+                if (typeof rule.dynamicSynth === 'function') {
+                    const synthDef = rule.dynamicSynth(text.match(regex), text);
+                    if (synthDef) {
+                        this._log('MATCH_SYNTH', `Dynamic synth matched by rule: ${rule.id}`, { synthDef, text });
+                        this.enqueueSound({
+                            id: rule.id,
+                            synth: synthDef,
+                            priority: rule.priority || 70
+                        });
+                        return {
+                            id: rule.id,
+                            synth: synthDef,
+                            pattern: rule.pattern,
+                            matchedText: text
+                        };
+                    }
+                }
+
                 this.playSoundByRule(rule);
                 return {
                     id: rule.id,
@@ -554,25 +898,43 @@ export class SoundEngine {
         if (mode === 'mute') return;
 
         if (mode === 'beep') {
-            // Beep専用モード: 音声ファイルは完全に無視し、Beep音のみ再生
-            if (rule.beep) this.playBeep(rule.beep);
+            // Beep専用モード: 音声ファイルは完全に無視し、Beep音またはシンセ音のみ再生
+            if (rule.beep) {
+                this.playBeep(rule.beep);
+            } else if (rule.synth) {
+                this.playSynth(rule.synth);
+            }
             return;
         }
 
         if (mode === 'wave') {
             // Wave専用モード: 音声ファイルのみ再生。無ければ再生しない
-            if (rule.sound) this.playAudioFile(rule.sound);
+            if (rule.sound) {
+                const played = await this.playAudioFile(rule.sound);
+                if (!played) {
+                    this._log('WARN_WAVE_NOT_FOUND', `Wave asset not found in wave mode: "${rule.sound}" (SE: ${rule.id}). No sound played.`);
+                }
+            } else if (rule.synth) {
+                // 音声ファイル定義がなく動的シンセシスのみの場合はシンセ再生
+                this.playSynth(rule.synth);
+            }
             return;
         }
 
         if (mode === 'auto') {
             // Auto (ハイブリッド) モード:
-            // 音声ファイルが存在すれば Wave を再生、存在しない(または探査失敗)場合は Beep でフォールバック再生
+            // 音声ファイルが存在すれば Wave を再生、存在しない(または探査失敗)場合は Beep または Synth でフォールバック再生
             if (rule.sound && !this.failedAssetCache.has(rule.sound)) {
                 const played = await this.playAudioFile(rule.sound);
-                if (!played && rule.beep) {
-                    this.playBeep(rule.beep);
+                if (!played) {
+                    if (rule.synth) {
+                        this.playSynth(rule.synth);
+                    } else if (rule.beep) {
+                        this.playBeep(rule.beep);
+                    }
                 }
+            } else if (rule.synth) {
+                this.playSynth(rule.synth);
             } else if (rule.beep) {
                 this.playBeep(rule.beep);
             }

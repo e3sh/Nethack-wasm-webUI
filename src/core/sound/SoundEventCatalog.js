@@ -97,35 +97,213 @@ export const SOUND_EVENT_MAP = {
     'lock.c:L890:pline_The:51': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
     'lock.c:L1035:pline_The:67': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
     'monmove.c:L1556:You_hear:27': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
-    'monmove.c:L1572:You_hear:30': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 }
+    'monmove.c:L1572:You_hear:30': { seId: 'se_door', sound: 'door_lock.mp3', priority: 60 },
+
+    // 動的音程シンセシス (ROADMAP 2.3)
+    'trap.c:squeak_board': { seId: 'synth_trap_squeak', priority: 70 },
+    'sounds.c:shriek': { seId: 'synth_shriek', priority: 70 },
+    'sounds.c:trumpet': { seId: 'synth_trumpet', priority: 70 },
+    'sounds.c:buzz': { seId: 'synth_buzz', priority: 65 },
+    'sounds.c:drone': { seId: 'synth_buzz', priority: 65 },
+    'sounds.c:rattle': { seId: 'synth_rattle', priority: 70 },
+    'sounds.c:gurgle': { seId: 'synth_gurgle', priority: 65 },
+    'music.c:flute': { seId: 'synth_flute', priority: 70 },
+    'music.c:bugle': { seId: 'synth_bugle', priority: 70 },
+    'music.c:drum': { seId: 'synth_drum', priority: 70 },
+    'music.c:drawbridge_tune': { seId: 'synth_drawbridge_tune', priority: 75 }
 };
 
 /**
  * 🎵 動的音程シンセシスハンドラ (DYNAMIC_SYNTH_HANDLERS)
- * 将来の動的音程シンセシス (docs/4_sound/dynamic_musical_synthesis_concept.ja.md) の拡張スロット
+ * ROADMAP 2.3「動的音程シンセシス構想 (Dynamic Musical Synthesis)」Living Spec 実装
+ * 
+ * 外部音源ファイルゼロ・Web Audio API の数式オシレーター計算のみで
+ * きしむ床・モンスター咆哮・楽器演奏・跳ね橋メロディをリアルタイム合成する。
  */
 export const DYNAMIC_SYNTH_HANDLERS = {
-    // きしむ床 (Squeaky Board) の 12 音階シンセシス
+    // --- 1. 罠の音: きしむ床 (Squeaky Board) の 12 音階シンセシス (trap.c) ---
     'trap.c:squeak_board': (placeholders, context) => {
-        const noteStr = placeholders[0] || 'C';
-        const distStr = placeholders[1] || '';
-        const freqMap = {
-            'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23,
-            'G': 392.00, 'A': 440.00, 'B': 493.88
-        };
-        const baseKey = noteStr.charAt(0).toUpperCase();
-        let freq = freqMap[baseKey] || 440.0;
-        if (noteStr.includes('sharp') || noteStr.includes('#')) freq *= 1.059463;
-        else if (noteStr.includes('flat') || noteStr.includes('b')) freq /= 1.059463;
+        const rawNote = (placeholders[0] || '').trim();
+        const distStr = (placeholders[1] || '') + ' ' + (context?.rawText || '');
 
-        const gain = distStr.includes('distance') ? 0.3 : 1.0;
+        // 1. 冠詞 "a " や "an " を除去し、音名 (A-G) と変調 (sharp/flat/#/b) を厳密抽出
+        let noteKey = 'C';
+        const match = rawNote.match(/(?:an?\s+)?([A-G])(?:\s*(sharp|flat|#|b))?/i);
+        if (match) {
+            const letter = match[1].toUpperCase();
+            const mod = (match[2] || '').toLowerCase();
+            if (mod === 'sharp' || mod === '#') {
+                noteKey = `${letter}#`;
+            } else if (mod === 'flat' || mod === 'b') {
+                noteKey = `${letter}B`;
+            } else {
+                noteKey = letter;
+            }
+        }
+
+        // 2. 12平均律 周波数テーブル (Hz)
+        const PITCH_MAP = {
+            'C': 261.63,
+            'C#': 277.18, 'DB': 277.18,
+            'D': 293.66,
+            'D#': 311.13, 'EB': 311.13,
+            'E': 329.63,
+            'F': 349.23,
+            'F#': 369.99, 'GB': 369.99,
+            'G': 392.00,
+            'G#': 415.30, 'AB': 415.30,
+            'A': 440.00,
+            'A#': 466.16, 'BB': 466.16,
+            'B': 493.88
+        };
+
+        const targetFreq = PITCH_MAP[noteKey] || 261.63;
+        const isDistance = /distance/i.test(distStr);
+        const gain = isDistance ? 0.3 : 1.0;
+
+        // 3. 木材摩擦・きしみ（Squeak）の音響設計:
+        // 踏み込んだ瞬間の軋み摩擦（微細なピッチ降下: +35Hz -> targetFreq）を持たせ、
+        // 単なる平坦な電子音と明確に差別化された「きしむ床板」の音色を実現
         return {
             type: 'oscillator',
             wave: 'triangle',
-            freq,
+            freq: Math.round((targetFreq + 35) * 100) / 100, // 踏み込み瞬間の摩擦立ち上がりピッチ
+            freqEnd: targetFreq,                             // 安定音階周波数
+            bendCurve: 'exponential',
             gain,
-            duration: 120,
+            duration: 140,
+            decay: 'exponential',
+            noteName: noteKey
+        };
+    },
+
+    // --- 2. モンスターの声・咆哮 (Monster Vocalizations / sounds.c) ---
+    // 金切り声 (シュリーカー/黄色いカビ): 高周波から下降する急激なノコギリ波ピッチベンド
+    'sounds.c:shriek': (placeholders, context) => ({
+        type: 'oscillator',
+        wave: 'sawtooth',
+        freq: 2000,
+        freqEnd: 800,
+        duration: 220,
+        gain: 1.0,
+        decay: 'exponential'
+    }),
+
+    // 突撃ラッパ (象/マンモス): ノコギリ波による倍音豊かな 3音和音 (C4 + G4 + C5)
+    'sounds.c:trumpet': (placeholders, context) => ({
+        type: 'chord',
+        wave: 'sawtooth',
+        freqs: [261.63, 392.00, 523.25], // C4, G4, C5
+        duration: 320,
+        gain: 1.0,
+        decay: 'exponential'
+    }),
+
+    // 羽音・ブザー (蜂/昆虫): 低周波ノコギリ波 ＋ 12Hz LFO 振幅変調
+    'sounds.c:buzz': (placeholders, context) => ({
+        type: 'am',
+        wave: 'sawtooth',
+        freq: 130,
+        lfoFreq: 12,
+        lfoWave: 'sine',
+        lfoDepth: 0.85,
+        duration: 250,
+        gain: 0.9,
+        decay: 'linear'
+    }),
+
+    // ドローン音 (蜂/昆虫の羽音): 低周波 ＋ 10Hz LFO
+    'sounds.c:drone': (placeholders, context) => ({
+        type: 'am',
+        wave: 'sawtooth',
+        freq: 110,
+        lfoFreq: 10,
+        lfoWave: 'sine',
+        lfoDepth: 0.75,
+        duration: 280,
+        gain: 0.85,
+        decay: 'linear'
+    }),
+
+    // 骨のカタカタ音 (スケルトン): 40ms 短パルスの連続トリガー
+    'sounds.c:rattle': (placeholders, context) => ({
+        type: 'pulses',
+        wave: 'square',
+        freq: 220,
+        count: 4,
+        pulseDuration: 35,
+        pulseInterval: 45,
+        duration: 200,
+        gain: 0.95
+    }),
+
+    // バブリング音 (水の悪魔/水棲生物): サイン波 ＋ 高速周波数変調 (FM)
+    'sounds.c:gurgle': (placeholders, context) => ({
+        type: 'fm',
+        wave: 'sine',
+        freq: 350,
+        modFreq: 24,
+        modDepth: 160,
+        modWave: 'sine',
+        duration: 240,
+        gain: 0.9,
+        decay: 'exponential'
+    }),
+
+    // --- 3. 楽器の演奏と城の跳ね橋 (Instruments & Castle Drawbridge / music.c) ---
+    // 笛 (木の笛/魔法の笛): 柔らかな三角波アルペジオ
+    'music.c:flute': (placeholders, context) => ({
+        type: 'sequence',
+        wave: 'triangle',
+        notes: ["C5", "E5", "G5", "C6"],
+        noteDuration: 85,
+        duration: 340,
+        gain: 0.9,
+        decay: 'exponential'
+    }),
+
+    // 角笛 (bugle): 軍隊突撃ファンファーレ (C4-E4-G4-C5)
+    'music.c:bugle': (placeholders, context) => ({
+        type: 'sequence',
+        wave: 'sawtooth',
+        notes: [
+            { note: "C4", duration: 75 },
+            { note: "E4", duration: 75 },
+            { note: "G4", duration: 75 },
+            { note: "C5", duration: 180 }
+        ],
+        duration: 405,
+        gain: 1.0,
+        decay: 'exponential'
+    }),
+
+    // ドラム (革のドラム / 地震のドラム): 低周波サイン波のピッチ降下による打楽器音 (バスドラム)
+    'music.c:drum': (placeholders, context) => ({
+        type: 'oscillator',
+        wave: 'sine',
+        freq: 160,
+        freqEnd: 45,
+        duration: 160,
+        gain: 1.0,
+        decay: 'exponential'
+    }),
+
+    // 城の跳ね橋 (Castle Drawbridge 5音メロディ合成): プレイヤー入力 (A-G) を順次オシレーター演奏
+    'music.c:drawbridge_tune': (placeholders, context) => {
+        const raw = (placeholders[0] || (context && context.rawText) || '').toUpperCase();
+        // A-G のアルファベットのみを抽出 (最大5音)
+        const matched = raw.match(/[A-G]/g);
+        const noteLetters = (matched && matched.length > 0) ? matched.slice(0, 5) : ['C', 'D', 'E', 'F', 'G'];
+        const notes = noteLetters.map(ch => `${ch}4`);
+        return {
+            type: 'sequence',
+            wave: 'triangle',
+            notes,
+            noteDuration: 90,
+            duration: notes.length * 90,
+            gain: 0.95,
             decay: 'exponential'
         };
     }
 };
+

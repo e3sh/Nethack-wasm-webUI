@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-28
+last_updated: 2026-09-29
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -115,6 +115,11 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
     - **3層テストピラミッド再編**: 旧来の日本語文章渡しテストを整理し、`MessageContext` 渡しテストを主軸へ移行
     - **翻訳非依存性自動テスト (`robustness.test.js`) 実証**: 通常辞書 vs 異言語ダミー辞書 vs 翻訳無効化でシグナル・耐性・音響・識別・FX が 100% 同一に動作することを実証
     - 全105テストスイート・1,277テスト 100% PASS、全4サンプルクライアント（Vue, React, Solid, Svelte）ビルド完全成功確認
+  - [x] **[Stage 5.6: 動的音程シンセシス (Dynamic Musical Synthesis) (2026-09-29 完了)](./4_sound/dynamic_musical_synthesis_concept.ja.md)**
+    - **Web Audio API 合成コア (`playSynth`) 拡張**: 外部音源不要（容量ゼロ）・数式計算のみでピッチベンド（指数降下）、3音和音同時発振（突撃ラッパ）、AM振幅変調（羽音）、FM周波数変調（バブリング音）、時系列シーケンス（アルペジオ・ファンファーレ）、連続短パルス（骨カタカタ音）の6大シンセシスモードを完備
+    - **動的シンセシスハンドラ完全配備 (`SoundEventCatalog.js`)**: きしむ床12音階 (`trap.c:squeak_board`) に加え、モンスター咆哮 5種 (`sounds.c:shriek`, `trumpet`, `buzz/drone`, `rattle`, `gurgle`)、楽器演奏・城の跳ね橋 4種 (`music.c:flute`, `bugle`, `drum`, `drawbridge_tune`) を完全配備
+    - **二重フォールバック配線 (`SoundEngine.js`)**: `context.messageId` / `metadata.synthId` による $O(1)$ 発火に加え、英文正規表現ルールによるフォールバック発火を整備
+    - **総合品質保証**: 単体テスト `SoundEngine.test.js` 拡充（全20テスト）、全106テストスイート・1,298テスト 100% PASS、全4サンプルクライアントビルド完全成功確認
 
 ---
 
@@ -136,16 +141,28 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 - **対象コード**: `src/core/knowledge/state/`, `MinimapHudRenderer.js`
 - **概要**: Cコード非侵襲・セーブデータ非破壊で、メッセージシグナルから「神のご機嫌・お祈りクールダウン」を逆算エミュレートし、食料寿命・燃費消費ペース（指輪・重量負荷）・航続歩数をミニマップ周辺に可視化するタイムライン予測エンジン。Phase 5 シグナル基盤との強力な連携ショーケース。
 
-### 2.3 動的音程シンセシス構想 (Dynamic Musical Synthesis)
-- **ステータス**: `💡 proposed`
-- **設計書**: [dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md)
-- **対象コード**: `src/sound/`
-- **概要**: NetHackのメッセージに含まれる音程・罠の音・モンスターの咆哮・楽器演奏をWeb Audio APIオシレーターでリアルタイム合成発音する。外部音源ファイル不要でリッチな音響体験を提供（Stage 5.4A 効果音エンジンとの連携スロット）。
+### 2.3 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離構想 (Sound Coordinator & Multi-Driver Decoupling Architecture)
+- **ステータス**: `💡 proposed` (2026-09-29 策定)
+- **設計書**: [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md)
+- **対象コード**: `src/core/sound/SoundEngine.js`, `src/core/sound/SoundCoordinator.js`, `src/core/sound/drivers/`
+- **概要**: 
+  - `SoundEngine.js` に集中していた「入力トリガー受付・照合」「仲裁・調停（クールダウン・優先度キュー・スタガード遅延・モード判定）」「物理音響駆動（Howler/WebAudio/Beepcore）」の3責務をクリーンに分離。
+  - **システム単一窓口（Unified Facade）**: 外部（WebUICore, UI, テスト）からは完全互換の単一窓口 `SoundCoordinator` のみが見える構造を維持。
+  - **調停エンジン (`SoundArbiter`)**: クールダウン、優先度ソート（100〜30）、スタガード遅延（60ms）、再生モード（Auto/Wave/Beep/Mute）の判定を一元化（SSOT）し、設定変更時の挙動のブレや音割れを根本根絶。
+  - **物理駆動ドライバ層 (`AudioDrivers`)**: ゲームロジックを一切持たない純粋な `WaveAudioDriver`、`PsgBeepDriver`、`ProceduralSynthDriver`（FM/AM/和音/ピッチベンド）の独立プラグイン構造を確立し、モックテスト容易性と拡張性を飛躍的に高める。
+- **次のステップ**:
+  - Step 1: `src/core/sound/drivers/` へのドライバ群抽出と単体テスト配備
+  - Step 2: `SoundArbiter.js` による調停ロジックの Headless 化
+  - Step 3: `SoundEngine.js` を Facade ラッパーとして委譲接続（全106スイート・1,300テスト互換維持）
 
-### 2.4 翻訳アーキテクチャ次世代刷新
-- **ステータス**: `💡 proposed`
-- **設計書**: [translation_architecture_enhancement_plan.md](./9_translation/translation_architecture_enhancement_plan.md)
-- **概要**: 翻訳カテゴリ付与、かすれ文字（Engraving等）の復元、多段翻訳キャッシュパイプラインの導入。
+### 2.4 シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想 (Signal-Driven Hybrid Translation Architecture)
+- **ステータス**: `💡 proposed` (2026-09-29 刷新)
+- **設計書**: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
+- **概要**: 
+  - 全文・部分検索依存の18,000行ベタ書き辞書から脱却し、**「特定シグナル専用訳（Pinpoint）」「構文テンプレート合成（Synthesized）」「構造化仮訳（Fallback）」** の3層ハイブリッド翻訳モデルを導入。
+  - **特定シグナル専用訳**: 神託、神の怒り、特殊死亡、文学的言い回し・修辞、DevTeamブラックユーモアなど、NetHack特有の味・ニュアンスを `messageId` 単位（$O(1)$、誤爆率0%）で格調高い専用訳として維持。
+  - **構文テンプレート合成**: 戦闘ログ・持ち物操作・飲食など、主語・目的語・道具の組み合わせ爆発を起こしている大量日常メッセージを約150件のテンプレートに集約し、GKL名詞マスタ（モンスター384体・アイテム481品）から自動注入。辞書行数を90%以上削減（18,000行 ➔ 1,000〜1,500行）。
+  - **プレイヤー別名・自動呼び名フォロー**: C本体へのマルチバイト入力を完全撤廃し、UI/GKL層（`CustomNameStore`）で安全に日本語エイリアスを管理。
 
 ### 2.5 将来の完全独立マイクロカーネル化構想
 - **ステータス**: `💡 proposed`
@@ -174,11 +191,12 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全104スイート・1,252テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全106スイート・1,298テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、アーキテクチャ5大原則、重複整理、未接続パイプラインの公式総合カタログ |
+| **音響・シンセシス** | [dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md) | `SoundEngine.js`<br>`SoundEventCatalog.js` | `🟢 implemented` | **動的音程シンセシス (Dynamic Musical Synthesis / Stage 5.6)**<br>外部音源不要(容量ゼロ)のWeb Audio APIオシレーター合成。きしむ床12音階、モンスター咆哮(ピッチベンド/和音/AM/FM/パルス)、楽器演奏・城の跳ね橋5音メロディ |
 | **UI・基盤** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md) | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | `🟢 implemented` | **UIController (Headless UI) ＆ Web Components 共通基盤 (Phase E)**<br>防腐層抽出（HUD・モーダルスタック・入力調停・ペーパードール・コンテナ・設定）、共通 Custom Elements（`<nh-*>`）、Nehww への逆輸入・最適化完了 |
 | **UI・体験** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`base.css` | `🟢 implemented` | **GKL レファレンスクライアント (Nehww) UI/UX 刷新 (Phase A〜D)**<br>全画面マップ（100vw×100vh）、フローティング最新行HUD＋過去ログドロワー、足元枠3Dパース吸着、スマートContextActions、Neo-Retro Dark Glass UI統一 |
 | **UI・デザイン** | [dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md) | `base.css`<br>`modals.css`<br>各種モーダル CSS | `🟢 implemented` | **モーダル・ダイアログ群デザインシステム統一 (Dark Glass UI)**<br>デザイントークン一元化（`--glass-bg`, `--glass-blur`, `--glass-border`, `--primary-color: #38bdf8`）、金枠・スレート枠のバラつき解消、全モーダル共通規格化 |
@@ -229,7 +247,7 @@ UI層への影響・手戻りを最小化するため、**「先に防腐層（U
   - `docs/3_gkl/archive/`: 旧SSOT統合計画、初期コンテナUI設計書等
   - `docs/6_project_reports/archive/`: 過去の引き継ぎ資料・進捗報告書群（9月中旬以前・ドライバ改善記録）
   - `docs/8_testing/archive/`: 旧テスト基盤刷新ロードマップ等
-  - `docs/9_translation/archive/`: 旧翻訳フロー、Inspector統合計画等
+  - `docs/9_translation/archive/`: 旧翻訳フロー、旧次世代翻訳拡張計画（かすれ文字・Unicodeシム）、Inspector統合計画等
 
 ---
 
