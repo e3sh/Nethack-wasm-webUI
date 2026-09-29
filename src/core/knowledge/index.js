@@ -4,6 +4,8 @@ export { InventoryStateManager } from "./state/InventoryStateManager.js";
 export { SpellStateManager } from "./state/SpellStateManager.js";
 export { SkillStateManager, SKILL_RANKS } from "./state/SkillStateManager.js";
 export { AttributeStateManager, ATTRIBUTE_KEYS, ATTRIBUTE_DEFINITIONS } from "./state/AttributeStateManager.js";
+export { ConditionStateManager } from "./state/ConditionStateManager.js";
+export { CONDITION_DEFINITIONS, CONDITION_SEVERITY, CONDITION_ALIASES, SEVERITY_COLORS } from "./data/CONDITION_DEFINITIONS.js";
 export { SituationCache } from "./state/SituationCache.js";
 export { ContextActionEngine } from "./engines/ContextActionEngine.js";
 export { TacticalAdvisor } from "./engines/TacticalAdvisor.js";

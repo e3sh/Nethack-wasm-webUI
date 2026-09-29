@@ -1,6 +1,8 @@
 /**
  * StatusView - ステータスバー & HP/MPゲージ & 属性耐性 & 呪文/スキルパネルマネージャー
  */
+import { ConditionStateManager } from "../../../../src/core/knowledge/state/ConditionStateManager.js";
+
 export class StatusView {
   constructor({
     elStatusBar,
@@ -56,6 +58,9 @@ export class StatusView {
     this.getCore = getCore || (() => null);
     this.getLoadedTileImagePath = getLoadedTileImagePath || (() => '../../pict/nethack_default_32.png');
     this.currentLanguage = 'ja';
+    this.conditionStateManager = new ConditionStateManager();
+    this.conditionDisplayMode = 'badge'; // 'badge' (モダンバッジ) または 'classic' (テキスト)
+    this.lastStatus = null;
   }
 
   setLanguage(lang) {
@@ -63,6 +68,16 @@ export class StatusView {
     if (this.elBtnToggleStatusDetails) {
       const isEn = this.currentLanguage === 'en';
       this.elBtnToggleStatusDetails.title = isEn ? 'Toggle status details (Click to pin)' : '詳細ステータス切替 (クリックで固定)';
+    }
+    if (this.lastStatus) {
+      this.updateStatus(this.lastStatus);
+    }
+  }
+
+  setConditionDisplayMode(mode) {
+    this.conditionDisplayMode = mode === 'classic' || mode === 'text' ? 'classic' : 'badge';
+    if (this.lastStatus) {
+      this.updateStatus(this.lastStatus);
     }
   }
 
@@ -149,6 +164,7 @@ export class StatusView {
       this.elStGold.innerHTML = '💰 0';
     }
 
+    this.lastStatus = status;
     const isJa = this.currentLanguage === 'ja' || this.currentLanguage === 'jp';
     const core = this.getCore();
     const translateText = (t) => {
@@ -159,48 +175,45 @@ export class StatusView {
       return t;
     };
 
-    // 負荷 (Encumbrance) の判定と日本語マッピング
-    const encumbranceJaMap = {
-      'Burdened': '負荷',
-      'Stressed': '重荷',
-      'Strained': '酷使',
-      'Overtaxed': '過負荷',
-      'Overloaded': '限界'
-    };
-    const capNames = ['Unencumbered', 'Burdened', 'Stressed', 'Strained', 'Overtaxed', 'Overloaded'];
+    // GKL 状態異常マネージャーによる構造化解決 (SSOT)
+    const conditionManager = (core && core.gkl && typeof core.gkl.getConditionStateManager === 'function')
+      ? core.gkl.getConditionStateManager()
+      : this.conditionStateManager;
 
-    const rawConds = (status.conditions || []).concat(status.hunger ? [status.hunger] : []);
+    const badges = conditionManager.resolveStatusConditions(status, this.currentLanguage);
 
-    // Encumbrance がある場合に追加
-    let encText = null;
-    let encCap = status.cap !== undefined ? status.cap : 0;
-    if (status.encumbrance && status.encumbrance !== 'Unencumbered') {
-      encText = status.encumbrance;
-    } else if (encCap > 0 && encCap < capNames.length) {
-      encText = capNames[encCap];
-    }
-    if (encText && encText !== 'Unencumbered') {
-      const displayEnc = isJa ? (encumbranceJaMap[encText] || encText) : encText;
-      rawConds.push(displayEnc);
-    }
-
-    const conds = rawConds.map(c => translateText(c));
     if (this.elStCond) {
-      if (conds.length > 0) {
+      if (badges.length > 0) {
         this.elStCond.classList.remove('hidden');
-        this.elStCond.textContent = conds.join(', ');
-        // 負荷がある場合のバッジ色ハイライト
-        if (encCap >= 4) {
-          this.elStCond.style.backgroundColor = '#dc2626'; // Overloaded / Overtaxed: 危険赤
-        } else if (encCap >= 2) {
-          this.elStCond.style.backgroundColor = '#ea580c'; // Stressed / Strained: 警告オレンジ
-        } else if (encCap === 1) {
-          this.elStCond.style.backgroundColor = '#d97706'; // Burdened: 注意アンバー
+
+        // 最も深刻度の高いバッジの色 (FATAL / CRITICAL / WARNING / INFO)
+        const topBadge = badges[0];
+        const topBgColor = topBadge?.colors?.bg || '';
+
+        if (this.conditionDisplayMode === 'classic' || this.conditionDisplayMode === 'text') {
+          // クラシックモード: テキストカンマ区切り (日英連動)
+          this.elStCond.textContent = badges.map(b => b.name).join(', ');
+          if ('innerHTML' in this.elStCond) {
+            this.elStCond.innerHTML = this.elStCond.textContent;
+          }
         } else {
-          this.elStCond.style.backgroundColor = '';
+          // モダン・バッジモード: リッチHTMLバッジ
+          const badgeHtml = badges.map(b => {
+            return `<span class="gkl-condition-badge severity-${b.severity}" style="background-color:${b.colors.bg};" title="${b.description}">${b.label}</span>`;
+          }).join(' ');
+          this.elStCond.innerHTML = badgeHtml;
+          // テスト環境・モック要素用フォールバック (innerHTML 代入時に textContent が非連動なモック対策)
+          if (!this.elStCond.textContent) {
+            this.elStCond.textContent = badges.map(b => b.name).join(', ');
+          }
         }
+
+        // 深刻度に応じた背景色ハイライト (既存テストおよびクラシックスタイル互換)
+        this.elStCond.style.backgroundColor = topBgColor;
       } else {
         this.elStCond.classList.add('hidden');
+        if ('innerHTML' in this.elStCond) this.elStCond.innerHTML = '';
+        this.elStCond.textContent = '';
         this.elStCond.style.backgroundColor = '';
       }
     }

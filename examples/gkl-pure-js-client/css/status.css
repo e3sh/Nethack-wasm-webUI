@@ -365,3 +365,68 @@
   0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
   50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.8); }
 }
+
+/* ============================================================================
+   GKL 状態異常 (Condition) バッジ & 深刻度スタイル
+   ============================================================================ */
+.gkl-condition-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+  font-weight: bold;
+  user-select: none;
+  cursor: help;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.gkl-condition-badge:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+/* 💀 致命的・即死級 (FATAL: 石化、スライム化、窒息、餓死等) */
+.gkl-condition-badge.severity-fatal {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #f87171 !important;
+  animation: pulse-fatal 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-fatal {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(220, 38, 38, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(248, 113, 113, 0.95);
+    transform: scale(1.04);
+  }
+}
+
+/* 🚨 深刻・行動不能 (CRITICAL: 麻痺、睡眠、気絶、食中毒、致死病、過負荷等) */
+.gkl-condition-badge.severity-critical {
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+  border: 1px solid #fb923c !important;
+  box-shadow: 0 0 6px rgba(234, 88, 12, 0.4);
+}
+
+/* ⚠️ 危険・行動制限 (WARNING: 混乱、盲目、朦朧、幻覚、衰弱、重荷等) */
+.gkl-condition-badge.severity-warning {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+  border: 1px solid #fbbf24 !important;
+}
+
+/* ℹ️ 状況・軽微 (INFO: 浮遊、飛行、騎乗、空腹、満腹、初期負荷等) */
+.gkl-condition-badge.severity-info {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #64748b !important;
+}
+

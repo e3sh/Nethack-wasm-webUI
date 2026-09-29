@@ -40,7 +40,7 @@ describe('EncumbrancePresenter (UI 表現・ViewModel ヘルパー)', () => {
         expect(vm.tooltipText).toContain('Uninspected bag');
     });
 
-    it('超過重 (Critical / 150%) の場合に clampedPercentage が 100 に制限されること', () => {
+    it('超過重 (Critical / 150%) の場合に clampedPercentage が 100 に制限され、ラベルが過負荷となること', () => {
         const presenter = new EncumbrancePresenter();
         const state = {
             level: EncumbranceLevel.CRITICAL,
@@ -51,9 +51,24 @@ describe('EncumbrancePresenter (UI 表現・ViewModel ヘルパー)', () => {
 
         const vm = presenter.formatViewModel(state);
         expect(vm.level).toBe(EncumbranceLevel.CRITICAL);
+        expect(vm.statusText).toBe('過負荷');
         expect(vm.percentage).toBe(150);
         expect(vm.clampedPercentage).toBe(100);
         expect(vm.color).toBe('#f85149');
+    });
+
+    it('日本語ロケールで CAUTION が「負荷」と表示されること', () => {
+        const presenter = new EncumbrancePresenter({ language: 'ja' });
+        const state = {
+            level: EncumbranceLevel.CAUTION,
+            totalWeight: 600,
+            capacity: 800,
+            percentage: 75,
+        };
+
+        const vm = presenter.formatViewModel(state);
+        expect(vm.statusText).toBe('負荷');
+        expect(vm.color).toBe('#d29922');
     });
 
     it('ミニゲージの HTML 文字列が生成されること', () => {

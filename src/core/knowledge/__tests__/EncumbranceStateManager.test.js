@@ -309,6 +309,38 @@ describe('EncumbranceStateManager (GKL 重量・負荷管理コア)', () => {
             expect(state.percentage).toBe(134);
             expect(state.ratio).toBe(1.0);
         });
+
+        it('計算上 150% (CRITICAL閾値超) であっても、BL_CAP が 1 (Burdened) なら CRITICAL に引き上げられず CAUTION (負荷) が維持され、パーセンテージも 99% 以下に補正されること', () => {
+            const mockStatusAccessor = {
+                getStatus: () => ({
+                    stats: { str: 10, con: 10 }, // capacity = 550
+                    cap: 1, // BL_CAP: Burdened (負荷)
+                    gold: { amount: 0 }
+                })
+            };
+
+            // 推定計算重量 825 (825 / 550 = 150% -> 計算上は CRITICAL 閾値)
+            const mockInventoryStateManager = {
+                getItems: () => [
+                    { letter: 'a', onum: 27, count: 27 } // 30 * 27 = 810 + その他
+                ]
+            };
+            mockInventoryStateManager.getItems = () => [
+                { onum: 27, count: 28 } // 30 * 28 = 840 (840 / 550 = 152%)
+            ];
+
+            esm.setStatusAccessor(mockStatusAccessor);
+            esm.setInventoryStateManager(mockInventoryStateManager);
+
+            const state = esm.getEncumbranceState();
+            expect(state.blCap).toBe(1);
+            expect(state.calculatedPercentage).toBeGreaterThanOrEqual(134);
+            // 🎯 Cコア公式判定優先 (SSOT) により CRITICAL に跳ね上がらず CAUTION (負荷) を維持
+            expect(state.level).toBe(EncumbranceLevel.CAUTION);
+            // 🎯 ゲージも過負荷(赤)に見えないよう 70%〜99% (黄色) の範囲に補正
+            expect(state.percentage).toBeLessThanOrEqual(99);
+            expect(state.percentage).toBeGreaterThanOrEqual(70);
+        });
     });
 
     describe('6. ContainerContentsManager とのイベント連携', () => {

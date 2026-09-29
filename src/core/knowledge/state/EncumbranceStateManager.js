@@ -567,21 +567,35 @@ export class EncumbranceStateManager {
         // BL_CAP による公式確定レベル
         const blCapLevel = BL_CAP_TO_LEVEL[blCapVal] || EncumbranceLevel.NORMAL;
 
-        // ハイブリッド連動: 危険度の高い方を最終レベルとして採用
-        const calcPriority = ENCUMBRANCE_PRIORITY[calculatedLevel];
-        const blPriority = ENCUMBRANCE_PRIORITY[blCapLevel];
-        const finalLevel = blPriority >= calcPriority ? blCapLevel : calculatedLevel;
+        // 🎯 BL_CAP 公式確定レベルに基づく最終レベル決定 (SSOT原則)
+        // Cコアから公式確定ステータス (BL_CAP > 0) が通知されている場合は、
+        // フロントエンドの推定重量の誤差に関わらず公式レベル (blCapLevel) を絶対優先する
+        let finalLevel = calculatedLevel;
+        if (blCapVal > 0) {
+            finalLevel = blCapLevel;
+        } else {
+            // Cコアが Unencumbered (0) の場合、アイテムを拾った直後のリアルタイム反映として危険度の高い方を採用
+            const calcPriority = ENCUMBRANCE_PRIORITY[calculatedLevel];
+            const blPriority = ENCUMBRANCE_PRIORITY[blCapLevel];
+            finalLevel = calcPriority > blPriority ? calculatedLevel : blCapLevel;
+        }
 
-        // 🎯 BL_CAP 公式確定レベルに基づくパーセンテージ・比率の下限保証 (同期補正)
-        // Cコアが Overloaded 等と判定している場合、アイテム推定漏れがあってもバー表示と比率を整合させる
+        // 🎯 最終レベルとゲージパーセンテージ・比率の整合補正
         let effectivePercentage = calculatedPercentage;
         let effectiveRawRatio = rawRatio;
-        if (blCapVal > 0 && MIN_PERCENTAGE_BY_BL_CAP[blCapVal] !== undefined) {
-            const minPct = MIN_PERCENTAGE_BY_BL_CAP[blCapVal];
-            if (effectivePercentage < minPct) {
-                effectivePercentage = minPct;
-                effectiveRawRatio = Math.max(rawRatio, minPct / 100);
-            }
+
+        if (finalLevel === EncumbranceLevel.CAUTION) {
+            // 負荷 (Burdened): ゲージは 70%〜99% の範囲 (黄色) を保証し、誤って過負荷(赤)に見えるのを防ぐ
+            effectivePercentage = Math.min(99, Math.max(70, calculatedPercentage));
+            effectiveRawRatio = effectivePercentage / 100;
+        } else if (finalLevel === EncumbranceLevel.DANGER) {
+            // 重荷 (Stressed/Strained): ゲージは 100%〜133% の範囲 (橙色) を保証
+            effectivePercentage = Math.min(133, Math.max(100, calculatedPercentage));
+            effectiveRawRatio = effectivePercentage / 100;
+        } else if (finalLevel === EncumbranceLevel.CRITICAL) {
+            // 過負荷 (Overtaxed/Overloaded): ゲージは 134% 以上 (赤色・満タン)
+            effectivePercentage = Math.max(134, calculatedPercentage);
+            effectiveRawRatio = Math.max(1.0, effectivePercentage / 100);
         }
         const effectiveRatio = Math.min(1.0, Math.max(0, effectiveRawRatio));
 

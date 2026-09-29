@@ -11695,6 +11695,7 @@
         { en: "branch staircase up", jp: "分岐階段上り" },
         { en: "branch staircase down", jp: "分岐階段下り" },
         { en: "An urge to take a bath overwhelms you.", jp: "お風呂に入りたいという衝動に強く駆られます。" },
+        { en: "You feel lackluster.", jp: "気分が盛り上がらない。" },
     ];
 }
 

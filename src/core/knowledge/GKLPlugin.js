@@ -4,6 +4,7 @@ import { InventoryStateManager } from "./state/InventoryStateManager.js";
 import { SpellStateManager } from "./state/SpellStateManager.js";
 import { SkillStateManager } from "./state/SkillStateManager.js";
 import { AttributeStateManager } from "./state/AttributeStateManager.js";
+import { ConditionStateManager } from "./state/ConditionStateManager.js";
 import { SituationCache } from "./state/SituationCache.js";
 import { ContextActionEngine } from "./engines/ContextActionEngine.js";
 import { TacticalAdvisor } from "./engines/TacticalAdvisor.js";
@@ -48,6 +49,7 @@ export class GKLPlugin {
         this.spellStateManager = options.spellStateManager || new SpellStateManager();
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
         this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
+        this.conditionStateManager = options.conditionStateManager || new ConditionStateManager();
         this.encumbranceStateManager = options.encumbranceStateManager || new EncumbranceStateManager({
             statusAccessor: this.statusAccessor,
             inventoryStateManager: this.inventoryStateManager,
@@ -1536,6 +1538,10 @@ export class GKLPlugin {
 
     getAttributeStateManager() {
         return this.attributeStateManager;
+    }
+
+    getConditionStateManager() {
+        return this.conditionStateManager;
     }
 
     /**

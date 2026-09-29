@@ -214,3 +214,91 @@ describe('StatusView - 負荷(Encumbrance)・ヘルスカラー・レイアウ�
   });
 });
 
+describe('StatusView - GKL状態異常表示・多言語・表示モード', () => {
+  let statusView;
+  let elStatusBar;
+  let elStCond;
+
+  beforeEach(() => {
+    const classSet = new Set();
+    const mockClassList = {
+      add: (...cls) => cls.forEach(c => classSet.add(c)),
+      remove: (...cls) => cls.forEach(c => classSet.delete(c)),
+      contains: (c) => classSet.has(c),
+      toggle: (c, force) => {
+        if (force !== undefined) {
+          if (force) classSet.add(c); else classSet.delete(c);
+        } else {
+          if (classSet.has(c)) classSet.delete(c); else classSet.add(c);
+        }
+      }
+    };
+
+    elStatusBar = { classList: mockClassList };
+    elStCond = { textContent: '', innerHTML: '', style: {}, classList: mockClassList };
+
+    statusView = new StatusView({
+      elStatusBar,
+      elStCond,
+      getCore: () => null
+    });
+  });
+
+  it('石化(Stoned)発生時に即死級バッジ(severity-fatal, #dc2626)と解説ツールチップが生成されること', () => {
+    statusView.updateStatus({
+      title: 'Hero',
+      conditions: ['Stoned'],
+      hunger: '',
+      encumbrance: 'Unencumbered'
+    });
+
+    expect(elStCond.classList.contains('hidden')).toBe(false);
+    expect(elStCond.innerHTML).toContain('gkl-condition-badge');
+    expect(elStCond.innerHTML).toContain('severity-fatal');
+    expect(elStCond.innerHTML).toContain('🗿石化');
+    expect(elStCond.innerHTML).toContain('体が徐々に石化しています');
+    expect(elStCond.style.backgroundColor).toBe('#dc2626');
+  });
+
+  it('複数異常（盲目 Blind + 混乱 Conf + 衰弱 Weak）が深刻度順にバッジ表示されること', () => {
+    statusView.updateStatus({
+      title: 'Hero',
+      conditions: ['Blind', 'Conf'],
+      hunger: 'Weak'
+    });
+
+    expect(elStCond.innerHTML).toContain('👁️盲目');
+    expect(elStCond.innerHTML).toContain('💫混乱');
+    expect(elStCond.innerHTML).toContain('🦴衰弱');
+    expect(elStCond.innerHTML).toContain('severity-warning');
+  });
+
+  it('クラシックモード(classic)切替時にカンマ区切りテキストとして表示されること', () => {
+    statusView.setConditionDisplayMode('classic');
+    statusView.updateStatus({
+      title: 'Hero',
+      conditions: ['Blind', 'Conf'],
+      hunger: 'Weak'
+    });
+
+    expect(elStCond.textContent).toContain('盲目');
+    expect(elStCond.textContent).toContain('混乱');
+    expect(elStCond.textContent).toContain('衰弱');
+    expect(elStCond.innerHTML).not.toContain('gkl-condition-badge');
+  });
+
+  it('英語モード切替時に英語名(Petrifying, Blind, Weak)で表示されること', () => {
+    statusView.setLanguage('en');
+    statusView.updateStatus({
+      title: 'Hero',
+      conditions: ['Stoned', 'Blind'],
+      hunger: 'Weak'
+    });
+
+    expect(elStCond.innerHTML).toContain('🗿Stone');
+    expect(elStCond.innerHTML).toContain('👁️Blind');
+    expect(elStCond.innerHTML).toContain('🦴Weak');
+  });
+});
+
+
