@@ -11955,4 +11955,7 @@ tile[2299] generated[0784] statue of male warrior (mnum=381): 7607, 9237
 tile[2300] generated[0785] statue of female warrior (mnum=381): 7990, 9620
 tile[2301] generated[0786] statue of male apprentice (mnum=382): 7608, 9238
 tile[2302] generated[0787] statue of female apprentice (mnum=382): 7991, 9621
-tile[2303] monsters.txt[0000] invisible statue         : 9624
+tile[2303] generated[0000] invisible statue         : 9624
+tile[2304] decals.txt[0000] decal_delimiter          : 9624
+tile[2305] decals.txt[0001] decal_petmark            : 9624
+tile[2306] decals.txt[0002] decal_pilemark           : 9624

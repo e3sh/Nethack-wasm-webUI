@@ -85,6 +85,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動するドライバ�
 | **[driver_core_spec.md](./1_driver/driver_core_spec.md)** | `🟢 implemented` | `src/driver/NetHackWasmDriver.js` | NetHack WASM Driver コア仕様書 |
 | **[driver_api_reference.md](./1_driver/driver_api_reference.md)** | `🟢 implemented` | `src/driver/` | Web Worker 通信プロトコル・API リファレンス |
 | **[driver_quickstart_guide.md](./1_driver/driver_quickstart_guide.md)** | `🟢 implemented` | `src/driver/` | ドライバ クイックスタートガイド |
+| **[nethack_version_upgrade_guide.ja.md](./1_driver/nethack_version_upgrade_guide.ja.md)** | `🟢 implemented` | `base/` | NetHack バージョン更新・WASM 再ビルド引継ぎガイド |
 | **[📦 archive/ サブフォルダ](./1_driver/archive/)** | `📦 archived` | - | 旧ロードマップ・C層Shim調査メモ等（3ファイル退避済） |
 
 ---

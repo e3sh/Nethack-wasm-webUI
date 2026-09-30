@@ -516,6 +516,18 @@ export const OBJECT_JP_MAP = {
         "反射": "amulet of reflection",
         "反射のアミュレット": "amulet of reflection",
         "命救助": "amulet of life saving",
-        "生命維持のアミュレット": "amulet of life saving"
+        "生命維持のアミュレット": "amulet of life saving",
+
+        // 5.0.1 新規エイリアス (src/objnam.c 準拠)
+        "identification": "scroll of identify",
+        "鑑定の巻物": "scroll of identify",
+        "spellbook of identification": "spellbook of identify",
+        "鑑定の魔法書": "spellbook of identify",
+        "ring of constitution": "ring of gain constitution",
+        "体質の指輪": "ring of gain constitution",
+        "ring of strength": "ring of gain strength",
+        "力の指輪": "ring of gain strength",
+        "ring of damage": "ring of increase damage",
+        "ダメージの指輪": "ring of increase damage"
     }
 };

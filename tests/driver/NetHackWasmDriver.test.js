@@ -422,4 +422,71 @@ describe('NetHackWasmDriver', () => {
         const buffer = await seqPromise;
         expect(Array.isArray(buffer)).toBe(true);
     });
+
+    it('shim_askname sets plname via official globalThis.nethackGlobal.globals.svp.plname', async () => {
+        const driver = new NetHackWasmDriver();
+        const origNethackGlobal = globalThis.nethackGlobal;
+
+        try {
+            globalThis.nethackGlobal = {
+                globals: {
+                    svp: {
+                        plname: 'DefaultAgent'
+                    }
+                }
+            };
+
+            let promptFired = false;
+            driver.on('inputRequired', (payload) => {
+                if (payload.context === 'askname') {
+                    promptFired = true;
+                    payload.resolver.respond('HeroPlayer');
+                }
+            });
+
+            const res = await driver.eventHook('shim_askname');
+            expect(promptFired).toBe(true);
+            expect(res).toBe(0);
+            expect(globalThis.nethackGlobal.globals.svp.plname).toBe('HeroPlayer');
+        } finally {
+            globalThis.nethackGlobal = origNethackGlobal;
+        }
+    });
+
+    it('shim_askname falls back to _get_plname pointer write when nethackGlobal is absent', async () => {
+        const driver = new NetHackWasmDriver();
+        const origNethackGlobal = globalThis.nethackGlobal;
+
+        try {
+            globalThis.nethackGlobal = undefined;
+
+            let writtenString = null;
+            let writtenPtr = null;
+            let writtenMaxLen = null;
+
+            const fakeModule = {
+                _get_plname: () => 0x12345,
+                stringToUTF8: (str, ptr, max) => {
+                    writtenString = str;
+                    writtenPtr = ptr;
+                    writtenMaxLen = max;
+                }
+            };
+            driver.getModule = () => fakeModule;
+
+            driver.on('inputRequired', (payload) => {
+                if (payload.context === 'askname') {
+                    payload.resolver.respond('FallbackHero');
+                }
+            });
+
+            const res = await driver.eventHook('shim_askname');
+            expect(res).toBe(0);
+            expect(writtenString).toBe('FallbackHero');
+            expect(writtenPtr).toBe(0x12345);
+            expect(writtenMaxLen).toBe(32);
+        } finally {
+            globalThis.nethackGlobal = origNethackGlobal;
+        }
+    });
 });

@@ -74,7 +74,7 @@
         /**
          * C言語側の戻り値用ポインタ ret_ptr に値を書き込みます。
          */
-        setPointerValue(ret_ptr, type, value) {
+        setPointerValue(ret_ptr, type, value, name = "") {
             if (!ret_ptr) return;
             const M = this.Module;
 
@@ -93,6 +93,12 @@
                     this.setValue(ret_ptr, value, 'i16');
                     break;
                 case 's':
+                    if (name === 'svp.plname' || (typeof name === 'string' && name.startsWith('svp.'))) {
+                        // svp.plname は固定長バッファ (char[32]) なので、直接文字列をバッファに書き込む
+                        const safeStr = (typeof value === 'string') ? value.substring(0, 31) : (value ? String(value).substring(0, 31) : "");
+                        this.stringToUTF8(safeStr, ret_ptr, 32);
+                        break;
+                    }
                     if (value === null || value === undefined) {
                         this.setValue(ret_ptr, 0, 'i32');
                     } else if (typeof value === 'string') {

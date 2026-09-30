@@ -631,7 +631,7 @@
             };
 
             makeSticky('getPointerValue', (name, ptr, type) => this.memory ? this.memory.getPointerValue(ptr, type) : null);
-            makeSticky('setPointerValue', (name, ret_ptr, type, value) => this.memory ? this.memory.setPointerValue(ret_ptr, type, value) : null);
+            makeSticky('setPointerValue', (name, ret_ptr, type, value) => this.memory ? this.memory.setPointerValue(ret_ptr, type, value, name) : null);
             makeSticky('parseGlyphInfo', (ptr) => this.memory ? this.memory.parseGlyphInfo(ptr) : null);
             helpers.isPatched = true;
         }
@@ -828,15 +828,21 @@
                         name = defaultName;
                     }
 
-                    const M = this.getModule();
-                    const getPlnameFn = (M && typeof M._get_plname === 'function') ? M._get_plname : (typeof _get_plname === 'function' ? _get_plname : null);
-                    const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
+                    const safeName = name.substring(0, 31);
+                    if (globalThis.nethackGlobal?.globals?.svp) {
+                        // Official NetHack 5.0 WASM provides bound getter/setter on globals.svp.plname
+                        globalThis.nethackGlobal.globals.svp.plname = safeName;
+                    } else {
+                        // Fallback: direct pointer write if _get_plname is available (legacy/mock environments)
+                        const M = this.getModule();
+                        const getPlnameFn = (M && typeof M._get_plname === 'function') ? M._get_plname : (typeof _get_plname === 'function' ? _get_plname : null);
+                        const strToUTF8 = (M && M.stringToUTF8) ? M.stringToUTF8.bind(M) : (typeof stringToUTF8 !== 'undefined' ? stringToUTF8 : null);
 
-                    if (getPlnameFn && strToUTF8) {
-                        const plnamePtr = getPlnameFn();
-                        if (plnamePtr) {
-                            const safeName = name.substring(0, 31);
-                            strToUTF8(safeName, plnamePtr, 32);
+                        if (getPlnameFn && strToUTF8) {
+                            const plnamePtr = getPlnameFn();
+                            if (plnamePtr) {
+                                strToUTF8(safeName, plnamePtr, 32);
+                            }
                         }
                     }
                     return 0;

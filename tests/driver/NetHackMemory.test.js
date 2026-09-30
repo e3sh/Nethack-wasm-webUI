@@ -95,4 +95,57 @@ describe('NetHackMemory', () => {
         // mi.itemflags (156): 1
         expect(view.getInt32(156, true)).toBe(1);
     });
+
+    it('setPointerValue with name svp.plname writes string directly to buffer instead of pointer', () => {
+        let writtenStr = null;
+        let writtenPtr = null;
+        let writtenMax = null;
+        let intWritten = false;
+
+        const fakeModule = {
+            stringToUTF8: (str, ptr, max) => {
+                writtenStr = str;
+                writtenPtr = ptr;
+                writtenMax = max;
+            },
+            setValue: (ptr, val, type) => {
+                intWritten = true;
+            }
+        };
+
+        const memory = new NetHackMemory(fakeModule);
+        memory.setPointerValue(0x2000, 's', 'HeroExplorer', 'svp.plname');
+
+        expect(writtenStr).toBe('HeroExplorer');
+        expect(writtenPtr).toBe(0x2000);
+        expect(writtenMax).toBe(32);
+        // int（ポインタアドレス数値）の書き込みが行われないこと
+        expect(intWritten).toBe(false);
+    });
+
+    it('setPointerValue for standard callback return allocates and writes pointer', () => {
+        let allocatedSize = null;
+        let setValueArgs = null;
+
+        const fakeModule = {
+            _malloc: (size) => {
+                allocatedSize = size;
+                return 0x5000;
+            },
+            stringToUTF8: () => {},
+            setValue: (ptr, val, type) => {
+                setValueArgs = { ptr, val, type };
+            }
+        };
+
+        const memory = new NetHackMemory(fakeModule);
+        memory.setPointerValue(0x1000, 's', 'HistoryText', 'shim_getmsghistory');
+
+        expect(allocatedSize).toBe('HistoryText'.length + 1);
+        expect(setValueArgs).toEqual({
+            ptr: 0x1000,
+            val: 0x5000,
+            type: 'i32'
+        });
+    });
 });

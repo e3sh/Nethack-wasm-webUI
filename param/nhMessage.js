@@ -14173,6 +14173,7 @@ function nhItems() {
         "create familiar": "使い魔の創造",
         "novel": "小説",
         "Book of the Dead": "死者の書",
+        "wand of stasis": "静止の杖",
         "stasis": "静止",
         "magic lamp": "魔法のランプ",
         "jacinth": "ジルコン",
