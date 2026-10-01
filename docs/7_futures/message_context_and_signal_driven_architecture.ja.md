@@ -194,6 +194,12 @@ WASM C コアがプレイヤーに入力を求めて処理を一時停止する�
 - プロンプト入力待ちが発生した際、画面上の文字列を一切見ることなく、`SIGNAL_PROMPT_WISH` や `SIGNAL_PROMPT_GENOCIDE` を即座に同定。
 - UI クライアント側（Vue, React, モバイル DOM）は、言語が英語か日本語かを意識することなく専用のセレクト UI や入力フォームを立ち上げられる。
 
+### ④ 啓蒙ダイアログ検知・テキスト横取り ＆ セーブ復帰耐性復元 ★新構想
+- 啓蒙ポーション・杖・泉・アーティファクト等の事象により突然立ち上がる啓蒙ダイアログを `SIGNAL_DIALOG_ENLIGHTENMENT` としてスマートに検知。
+- 画面表示と並行してメニューテキスト行を横取り（インターセプト）し、`AttributeStateManager` / `SkillStateManager` に注入して全耐性・固有能力・現在武器スキルを確定更新。
+- **メッセージ同期だけでは対応できない「セーブ＆再開（Resume Save）時に失われる過去の獲得耐性」のコールドスタート問題を根本解決**。
+- 詳細は [啓蒙ダイアログシグナル化と状態横取り・セーブ復帰耐性復元アーキテクチャ構想](./enlightenment_dialog_signal_and_state_interception_architecture.ja.md) を参照。
+
 ---
 
 ## 5. 段階的移行ロードマップ (Staged Migration Roadmap)

@@ -63,6 +63,18 @@ NetHackにおける「食料寿命（燃料）」を正確に予測するため�
 `COOLDOWN` 状態の時、プレイヤーがゲーム内で1ターン行動する（`poskey` 等のターン完了イベントを購読する）ごとに、`approximateCooldown` を `-1` します。
 - カウンターが `0` に達した瞬間、自動的にステータスを `🟢 SAFE` へ昇格させます。
 
+### 3.4 啓蒙シグナル連携による確定補正 (Ground Truth Calibration via Enlightenment) ★新連携
+上述の `approximateCooldown`（約300〜1000ターンの概算）による推測追跡に対し、ゲームプレイ中にポーション・杖・泉等で「魔法の啓蒙（`SIGNAL_DIALOG_ENLIGHTENMENT`）」が発生した際、C コアから出力される生テキストから **「神の怒り」と「祈りの安全性」の真値（Ground Truth）を一瞬で横取りして完全キャリブレーション（補正）** します：
+
+1. **神の怒りの確定判定**:
+   - `"<God> is angry with you"`（`u.ugangr > 0`）を検知した場合 ➔ ステータスを即座に `❌ DISPLEASED` に強制確定。
+2. **祈り安全性の確定判定**:
+   - `"You can safely pray"`（`can_pray(FALSE) == TRUE`）を検知した場合 ➔ クールダウン残ターンに関わらず即座に `🟢 SAFE` へ昇格し、タイマーを `0` に補正。
+   - `"You cannot safely pray"` を検知した場合 ➔ まだ安全ではないため、必要に応じて `approximateCooldown` を安全圏側の値に再調整。
+
+これにより、ターン経過のズレや未知の不敬行為による誤差を完全にゼロにリセットし、**燃料計（予備タンク）の信頼性を 100% の絶対精度へ引き上げることが可能**となります。
+（※詳細は [啓蒙ダイアログシグナル化による隠れステータス横取りと状態精度向上アーキテクチャ構想](./enlightenment_dialog_signal_and_state_interception_architecture.ja.md) を参照）
+
 ---
 
 ## 4. UI/UX 統合：ミニマップダッシュボードへの配置

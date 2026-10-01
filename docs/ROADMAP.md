@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-09-29
+last_updated: 2026-10-01
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -104,7 +104,17 @@ last_updated: 2026-09-29
 - **対象コード**: `src/core/knowledge/state/`, `MinimapHudRenderer.js`
 - **概要**: Cコード非侵襲・セーブデータ非破壊で、メッセージシグナルから「神のご機嫌・お祈りクールダウン」を逆算エミュレートし、食料寿命・燃費消費ペース（指輪・重量負荷）・航続歩数をミニマップ周辺に可視化するタイムライン予測エンジン。Phase 5 シグナル基盤との強力な連携ショーケース。
 
-### 2.3 シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想 (Signal-Driven Hybrid Translation Architecture)
+### 2.3 啓蒙ダイアログシグナル化による隠れステータス横取り ＆ 状態精度向上構想 (Enlightenment Dialog Signal & Hidden Status Interception)
+- **ステータス**: `💡 proposed` (2026-10-01 策定)
+- **設計書**: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
+- **関連ドキュメント**: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md), [message_context_and_signal_driven_architecture.ja.md](./7_futures/message_context_and_signal_driven_architecture.ja.md)
+- **対象コード**: `src/core/prompt/ControlSignalCatalog.js`, `src/core/knowledge/state/AttributeStateManager.js`, `src/core/knowledge/state/SkillStateManager.js`, `src/core/knowledge/engines/TacticalAdvisor.js`
+- **概要**:
+  - ポーション・杖・泉等による「魔法の啓蒙 (`MAGICENLIGHTENMENT`: `src/insight.c`)」ダイアログを `SIGNAL_DIALOG_ENLIGHTENMENT` として同定し、通常プレイでは不可視な隠れ情報（祈りの安全性真値、運Luck、神の怒り、獲得耐性、現在武器スキル、幸運の石効果）をGKLが自動横取り・吸収する。
+  - **タイムライン予測（2.2 燃料計）との連動**: 推測カウンター（`approximateCooldown`）の誤差を確定補正（Ground Truth Calibration）し、お祈りタイマーの信頼性を100%に引き上げる。
+  - **コールドスタート問題の解決**: メッセージ検知だけでは対応できない「セーブ＆再開（Resume Save）時に失われる過去の獲得耐性・状態」を、たまたまの啓蒙機会からスマートに完全同期・復元する。
+
+### 2.4 シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想 (Signal-Driven Hybrid Translation Architecture)
 - **ステータス**: `💡 proposed` (2026-09-29 刷新)
 - **設計書**: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
 - **概要**: 
@@ -113,12 +123,12 @@ last_updated: 2026-09-29
   - **構文テンプレート合成**: 戦闘ログ・持ち物操作・飲食など、主語・目的語・道具の組み合わせ爆発を起こしている大量日常メッセージを約150件のテンプレートに集約し、GKL名詞マスタ（モンスター384体・アイテム481品）から自動注入。辞書行数を90%以上削減（18,000行 ➔ 1,000〜1,500行）。
   - **プレイヤー別名・自動呼び名フォロー**: C本体へのマルチバイト入力を完全撤廃し、UI/GKL層（`CustomNameStore`）で安全に日本語エイリアスを管理。
 
-### 2.4 将来の完全独立マイクロカーネル化構想
+### 2.5 将来の完全独立マイクロカーネル化構想
 - **ステータス**: `💡 proposed`
 - **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
 - **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
 
-### 2.5 システム現有能力ギャップ解消 ＆ 未接続パイプライン結線 (➔ 1.2 Phase 7 に統合)
+### 2.6 システム現有能力ギャップ解消 ＆ 未接続パイプライン結線 (➔ 1.2 Phase 7 に統合)
 - **ステータス**: `🚧 in-progress (1.2 Phase 7 にて具体化・進行中)`
 - **カタログ**: [SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md) (第7章 ギャップ分析)
 - **概要**: 内部蓄積されているが UI と未結線な 4 大ギャップ（① ディスカバリー図鑑 UI、② 店頭売買価格識別からの自動仮名命名支援、③ WASM 文学引用の動的オンデマンド閲覧、④ セッション横断図鑑収集率ダッシュボード）。
