@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no" />
+  <title>NetHack Gamepad Input Experimental Client (PoC)</title>
+  <link rel="stylesheet" href="../gkl-pure-js-client/css/base.css" />
+  <link rel="stylesheet" href="../gkl-pure-js-client/css/modals.css" />
+  <link rel="stylesheet" href="../gkl-pure-js-client/css/character-intro-modal.css" />
+  <link rel="stylesheet" href="../gkl-pure-js-client/css/character-creation-modal.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="console-app-container">
+    <!-- 1. 最上部: ミニマルステータスバー -->
+    <header class="console-status-bar">
+      <div class="status-left">
+        <span class="status-item dungeon-level" id="st-dlevel">🗺️ B1F</span>
+        <span class="status-separator">|</span>
+        <span class="status-item hp-group">
+          <span class="hp-label">❤️ HP</span>
+          <span class="hp-val" id="st-hp">16/16</span>
+          <span class="hp-gauge-bg"><span class="hp-gauge-fill" id="st-hp-fill" style="width: 100%;"></span></span>
+        </span>
+      </div>
+      <div class="status-right">
+        <span class="status-item hunger" id="st-hunger">🍖 普通</span>
+        <span class="status-separator">|</span>
+        <span class="status-item gold" id="st-gold">🪙 0</span>
+        <span class="status-separator">|</span>
+        <span class="status-item exp" id="st-exp">Lv: 1</span>
+        <span class="status-separator">|</span>
+        <span class="status-item turn" id="st-turn">T: 1</span>
+      </div>
+    </header>
+
+    <!-- 2. 中央: メインダンジョンビューポート (自キャラ追従カメラ) -->
+    <main class="console-viewport-area">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- メッセージ表示 (最新1行のフローティングトースト) -->
+      <div id="console-message-overlay" class="console-message-overlay"></div>
+
+      <!-- オンデマンドHUD群 -->
+      <nh-context-pill id="context-pill"></nh-context-pill>
+      <nh-radial-hud id="radial-hud"></nh-radial-hud>
+      <nh-shiren-drawer id="shiren-drawer"></nh-shiren-drawer>
+
+      <!-- プロンプト入力バー (ModalManager: PromptModal) -->
+      <div id="prompt-bar" class="prompt-bar hidden">
+        <div id="prompt-text" class="prompt-text"></div>
+        <div id="input-controls" class="input-controls"></div>
+      </div>
+
+      <!-- モード別 モーダル表示部 (ModalManager: MenuModal) -->
+      <div id="menu-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+          <h3 id="menu-title">Select Item</h3>
+          <div id="menu-items-container" class="menu-list"></div>
+          <div class="modal-footer">
+            <button id="btn-cancel-menu" class="btn btn-secondary">Cancel (ESC / 0)</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 3. 最下部: コンテキスト対応ボタンガイドバー -->
+    <nh-gamepad-guide-bar id="guide-bar" context="NORMAL"></nh-gamepad-guide-bar>
+  </div>
+
+  <script src="../../param/tileMapping.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

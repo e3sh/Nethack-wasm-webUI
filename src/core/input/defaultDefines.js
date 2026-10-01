@@ -223,3 +223,79 @@ export const TOUCH_DEFAULT = {
         81: { label: "[-L-]", action: 2 }, 82: { label: "[-N-]", action: 1 }, 83: { label: "[-R-]", action: 3 }
     }
 };
+
+/**
+ * 8方向ラジアルコマンドパレットのデフォルト定義
+ */
+export const RADIAL_PALETTE_DEFAULT = {
+    N:  { id: "QUAFF",    label: "飲む",     key: ["KeyQ"], hint: "q: quaff", icon: "🧪" },
+    NE: { id: "ZAP",      label: "杖振る",   key: ["KeyZ"], hint: "z: zap", icon: "🪄" },
+    E:  { id: "APPLY",    label: "道具",     key: ["KeyA"], hint: "a: apply", icon: "🧰" },
+    SE: { id: "ELBERETH", label: "刻む",     action: "ACTION:ENGRAVE_ELBERETH", hint: "E: engrave", icon: "✍️" },
+    S:  { id: "EAT",      label: "食べる",   key: ["KeyE"], hint: "e: eat", icon: "🍖" },
+    SW: { id: "PRAY",     label: "祈る",     action: "ACTION:EXT_PRAY", hint: "#pray", icon: "🙏" },
+    W:  { id: "READ",     label: "読む",     key: ["KeyR"], hint: "r: read", icon: "📜" },
+    NW: { id: "SPELL",    label: "呪文",     signal: "SIGNAL:OPEN_SPELLS", hint: "Z: cast", icon: "✨" }
+};
+
+/**
+ * シレン風セマンティックゲームパッド定義
+ */
+export const GPAD_SEMANTIC_DEFAULT = {
+    NORMAL: {
+        A:     { label: "行動", action: "ACTION:CONTEXT_PRIMARY" },
+        B:     { label: "待機", action: "ACTION:WAIT_ONE_TURN" },
+        X:     { label: "射撃", action: "ACTION:RANGED_FIRE" },
+        Y:     { label: "道具袋", signal: "SIGNAL:TOGGLE_INVENTORY" },
+        START: { label: "拡張", key: ["Digit3", "ShiftLeft"] },
+        BACK:  { label: "保存", key: ["KeyS", "ShiftLeft"] },
+        L3:    { label: "調べる", key: ["Quote"] },
+        R3:    { label: "探す", key: ["KeyS"] },
+        LB:    { label: "斜め固定", modifier: "DIAGONAL_LOCK" },
+        RB:    { label: "ダッシュ", modifier: "DASH_RUN" }
+    },
+    MODAL_INVENTORY: {
+        A:     { label: "決定", signal: "SIGNAL:INVENTORY_SELECT" },
+        B:     { label: "閉じる", signal: "SIGNAL:INVENTORY_CLOSE" },
+        X:     { label: "操作", signal: "SIGNAL:INVENTORY_MENU" },
+        Y:     { label: "閉じる", signal: "SIGNAL:INVENTORY_CLOSE" },
+        START: { label: "閉じる", signal: "SIGNAL:INVENTORY_CLOSE" },
+        BACK:  { label: "閉じる", signal: "SIGNAL:INVENTORY_CLOSE" },
+        LB:    { label: "前タブ", signal: "SIGNAL:INVENTORY_TAB_PREV" },
+        RB:    { label: "次タブ", signal: "SIGNAL:INVENTORY_TAB_NEXT" },
+        UP:    { label: "前へ", signal: "SIGNAL:INVENTORY_PREV" },
+        DOWN:  { label: "次へ", signal: "SIGNAL:INVENTORY_NEXT" },
+        LEFT:  { label: "前頁", signal: "SIGNAL:INVENTORY_PAGE_PREV" },
+        RIGHT: { label: "次頁", signal: "SIGNAL:INVENTORY_PAGE_NEXT" }
+    },
+    DIRECTION: {
+        A:     { label: "決定", action: "ACTION:DIRECTION_CONFIRM" },
+        B:     { label: "取消", key: ["Escape"] },
+        X:     { label: "取消", key: ["Escape"] },
+        Y:     { label: "取消", key: ["Escape"] },
+        START: { label: "取消", key: ["Escape"] },
+        BACK:  { label: "取消", key: ["Escape"] }
+    },
+    YN: {
+        A:     { label: "はい (Y)", key: ["KeyY"] },
+        B:     { label: "いいえ (N)", key: ["KeyN"] },
+        X:     { label: "決定", key: ["Enter"] },
+        Y:     { label: "取消", key: ["Escape"] },
+        START: { label: "決定", key: ["Enter"] },
+        BACK:  { label: "取消", key: ["Escape"] }
+    },
+    DIALOG: {
+        A:     { label: "決定", signal: "SIGNAL:DIALOG_SUBMIT" },
+        B:     { label: "閉じる", signal: "SIGNAL:DIALOG_CANCEL" },
+        X:     { label: "決定", signal: "SIGNAL:DIALOG_SUBMIT" },
+        Y:     { label: "閉じる", signal: "SIGNAL:DIALOG_CANCEL" },
+        START: { label: "決定", signal: "SIGNAL:DIALOG_SUBMIT" },
+        BACK:  { label: "閉じる", signal: "SIGNAL:DIALOG_CANCEL" },
+        UP:    { label: "上へ", signal: "SIGNAL:DIALOG_PREV" },
+        DOWN:  { label: "下へ", signal: "SIGNAL:DIALOG_NEXT" },
+        LEFT:  { label: "左へ", signal: "SIGNAL:DIALOG_LEFT" },
+        RIGHT: { label: "右へ", signal: "SIGNAL:DIALOG_RIGHT" }
+    }
+};
+
+

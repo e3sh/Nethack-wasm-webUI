@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack Gamepad Radial PoC - 十字キー移動＆ラジアルパレット検証</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(56, 189, 248, 0.25);
+            --accent-color: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* ヘッダー */
+        header {
+            padding: 12px 24px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-status {
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .badge-status.connected {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        /* メインレイアウト */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 16px;
+            padding: 16px;
+            height: calc(100vh - 60px);
+        }
+
+        /* ゲーム画面エリア */
+        .stage-container {
+            background: #020617;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+        }
+
+        /* ダンジョングリッド (モック) */
+        .dungeon-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 36px);
+            grid-template-rows: repeat(11, 36px);
+            gap: 2px;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cell {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-family: monospace;
+            border-radius: 4px;
+            background: rgba(30, 41, 59, 0.3);
+            color: #64748b;
+        }
+
+        .cell.wall {
+            background: #1e293b;
+            color: #475569;
+        }
+
+        .cell.player {
+            background: rgba(56, 189, 248, 0.3);
+            color: #38bdf8;
+            font-weight: bold;
+            box-shadow: 0 0 12px #38bdf8;
+        }
+
+        .cell.stairs {
+            color: #facc15;
+            font-weight: bold;
+        }
+
+        .cell.gold {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .cell.door {
+            color: #ca8a04;
+            font-weight: bold;
+        }
+
+        /* サイドパネル (操作ログ & バーチャル操作盤) */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .panel-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ログウィンドウ */
+        .log-list {
+            height: 140px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-item {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--accent-color);
+            animation: fadeIn 0.2s ease;
+        }
+
+        .log-item.action { border-left-color: #22c55e; }
+        .log-item.radial { border-left-color: #f59e0b; }
+        .log-item.move   { border-left-color: #38bdf8; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* バーチャルコントローラー操作部 */
+        .virtual-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        .virtual-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 32px);
+            grid-template-rows: repeat(3, 32px);
+            gap: 4px;
+        }
+
+        .vbtn {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s ease;
+        }
+
+        .vbtn:active, .vbtn.active {
+            background: var(--accent-color);
+            color: #0f172a;
+            transform: scale(0.95);
+        }
+
+        /* バーチャルスティック */
+        .stick-base {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px dashed rgba(56, 189, 248, 0.4);
+            position: relative;
+            touch-action: none;
+            cursor: grab;
+        }
+
+        .stick-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: transform 0.05s ease;
+        }
+
+        /* ガイド表示 */
+        .guide-box {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .guide-box strong {
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎮 NetHack Gamepad Radial PoC</h1>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--text-muted);">
+                <input type="checkbox" id="chkDebug">
+                <span>🐞 デバッグインジケーター</span>
+            </label>
+            <div id="gpStatus" class="badge-status">コントローラー未接続 (ボタンを押してください)</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="stage-container">
+            <!-- ダンジョンマップ (モック) -->
+            <div id="dungeonGrid" class="dungeon-grid"></div>
+
+            <!-- オンデマンドHUD -->
+            <nh-radial-hud id="radialHud"></nh-radial-hud>
+            <nh-context-pill id="contextPill"></nh-context-pill>
+        </div>
+
+        <div class="sidebar">
+            <div class="panel-box">
+                <div class="panel-title">実行アクションログ</div>
+                <div id="logList" class="log-list">
+                    <div class="log-item">システム起動完了。</div>
+                </div>
+            </div>
+
+            <!-- デバッグモニターパネル (トグル式) -->
+            <div id="debugPanel" class="panel-box" style="display: none; border-color: #f59e0b;">
+                <div class="panel-title" style="color: #fbbf24;">🐞 入力デバッガー (Live Monitor)</div>
+                <div id="debugContent" style="font-family: monospace; font-size: 0.75rem; line-height: 1.6;">
+                    スティック/ボタン待機中...
+                </div>
+            </div>
+
+
+            <div class="panel-box">
+                <div class="panel-title">
+                    <span>バーチャル操作盤 (マウス/タッチ)</span>
+                </div>
+                <div class="virtual-controls">
+                    <!-- 十字キー -->
+                    <div class="virtual-section">
+                        <span style="font-size: 0.7rem; color: #94a3b8;">十字キー (移動)</span>
+                        <div class="dpad-grid">
+                            <div></div>
+                            <div class="vbtn" id="btnUp">▲</div>
+                            <div></div>
+                            <div class="vbtn" id="btnLeft">◀</div>
+                            <div class="vbtn" id="btnA" style="font-weight: bold; background: rgba(56, 189, 248, 0.3);">A</div>
+                            <div class="vbtn" id="btnRight">▶</div>
+                            <div></div>
+                            <div class="vbtn" id="btnDown">▼</div>
+                            <div></div>
+                        </div>
+                        <div style="display: flex; gap: 4px; margin-top: 4px;">
+                            <div class="vbtn" id="btnLB" style="padding: 2px 6px; font-size: 0.65rem;">LB(斜め)</div>
+                            <div class="vbtn" id="btnRB" style="padding: 2px 6px; font-size: 0.65rem;">RB(走る)</div>
+                        </div>
+                    </div>
+
+                    <!-- 右スティック (ラジアル) -->
+                    <div class="virtual-section">
+                        <span style="font-size: 0.7rem; color: #94a3b8;">右スティック (ラジアル)</span>
+                        <div id="virtualStick" class="stick-base">
+                            <div id="stickThumb" class="stick-thumb"></div>
+                        </div>
+                        <span style="font-size: 0.65rem; color: #64748b;">ドラッグ＆離してフリック</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-box guide-box">
+                <div class="panel-title">操作仕様ガイド</div>
+                <ul style="padding-left: 16px; display: flex; flex-direction: column; gap: 4px;">
+                    <li><strong>十字キー</strong>: 1マス移動（誤爆なし）</li>
+                    <li><strong>LBホールド</strong>: 斜め移動固定</li>
+                    <li><strong>RBホールド</strong>: ダッシュ走行 (G)</li>
+                    <li><strong>Aボタン</strong>: 足元/隣接に応じた状況適応アクション</li>
+                    <li><strong>右スティック</strong>: 倒すとリングメニュー展開、離すと即実行（フリック入力）</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { GamepadManager, RADIAL_PALETTE_DEFAULT } from '../src/core/input/index.js';
+        import { NhRadialPaletteHud, NhContextHintPill } from '../src/components/gamepad/index.js';
+
+
+        // 1. ダンジョン状態モック
+        const MAP_W = 15;
+        const MAP_H = 11;
+        let playerPos = { x: 7, y: 5 };
+        const stairsPos = { x: 7, y: 2 };
+        const goldPos   = { x: 4, y: 5 };
+        const doorPos   = { x: 10, y: 5 };
+
+        const gridEl = document.getElementById('dungeonGrid');
+        const radialHud = document.getElementById('radialHud');
+        const contextPill = document.getElementById('contextPill');
+        const logList = document.getElementById('logList');
+        const gpStatus = document.getElementById('gpStatus');
+
+        function addLog(text, type = '') {
+            const item = document.createElement('div');
+            item.className = 'log-item ' + type;
+            item.textContent = text;
+            logList.appendChild(item);
+            logList.scrollTop = logList.scrollHeight;
+        }
+
+        // 2. ダンジョン描画
+        function renderDungeon() {
+            gridEl.innerHTML = '';
+            for (let y = 0; y < MAP_H; y++) {
+                for (let x = 0; x < MAP_W; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    const isWall = x === 0 || x === MAP_W - 1 || y === 0 || y === MAP_H - 1;
+                    if (isWall) {
+                        cell.classList.add('wall');
+                        cell.textContent = '#';
+                    } else if (x === playerPos.x && y === playerPos.y) {
+                        cell.classList.add('player');
+                        cell.textContent = '@';
+                    } else if (x === stairsPos.x && y === stairsPos.y) {
+                        cell.classList.add('stairs');
+                        cell.textContent = '>';
+                    } else if (x === goldPos.x && y === goldPos.y) {
+                        cell.classList.add('gold');
+                        cell.textContent = '$';
+                    } else if (x === doorPos.x && y === doorPos.y) {
+                        cell.classList.add('door');
+                        cell.textContent = '+';
+                    } else {
+                        cell.textContent = '.';
+                    }
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            // GKL 状況適応アクション判定 (モック)
+            updateContextPrimaryAction();
+        }
+
+        let currentPrimaryAction = null;
+        function updateContextPrimaryAction() {
+            if (playerPos.x === stairsPos.x && playerPos.y === stairsPos.y) {
+                currentPrimaryAction = { id: 'ACTION_STAIRS_DOWN', labelJa: '階段を降りる', key: '>' };
+            } else if (playerPos.x === goldPos.x && playerPos.y === goldPos.y) {
+                currentPrimaryAction = { id: 'ACTION_PICKUP', labelJa: '金貨を拾う', key: ',' };
+            } else if (Math.abs(playerPos.x - doorPos.x) + Math.abs(playerPos.y - doorPos.y) === 1) {
+                currentPrimaryAction = { id: 'ACTION_OPEN_DOOR', labelJa: '扉を開ける', key: ['o', 'DIR'] };
+            } else {
+                currentPrimaryAction = null;
+            }
+
+            contextPill.setAction(currentPrimaryAction);
+        }
+
+        // 3. 移動実行
+        let isLB = false;
+        let isRB = false;
+
+        function movePlayer(dx, dy) {
+            // LBホールド時は斜め移動のみ許可
+            if (isLB && (dx === 0 || dy === 0)) {
+                addLog('⚠️ LBホールド中: 斜め移動のみ有効（誤爆防止）', 'move');
+                return;
+            }
+
+            const nx = playerPos.x + dx;
+            const ny = playerPos.y + dy;
+
+            if (nx <= 0 || nx >= MAP_W - 1 || ny <= 0 || ny >= MAP_H - 1) {
+                addLog('壁にぶつかりました。', 'move');
+                return;
+            }
+
+            playerPos = { x: nx, y: ny };
+            renderDungeon();
+
+            const dashPrefix = isRB ? '🏃 [ダッシュG] ' : '';
+            addLog(`${dashPrefix}移動: (${nx}, ${ny})`, 'move');
+        }
+
+        // 4. Aボタン（状況適応アクション）実行
+        function triggerPrimaryAction() {
+            if (currentPrimaryAction) {
+                addLog(`✨ [A] 状況適応アクション発動: ${currentPrimaryAction.labelJa} [ ${currentPrimaryAction.key} ]`, 'action');
+            } else {
+                addLog('⌛ [A] 足元に何もないため1ターン待機 (.) を実行', 'action');
+            }
+        }
+
+        // 5. GamepadManager インスタンス初期化
+        const gpad = new GamepadManager({
+            dpadOnlyMove: true,
+            useRadialPalette: true,
+            radialStickIndex: 'right',
+            useSemantic: true
+        });
+
+        // 6. メインポーリングループ
+        const chkDebug = document.getElementById('chkDebug');
+        const debugPanel = document.getElementById('debugPanel');
+        const debugContent = document.getElementById('debugContent');
+
+        chkDebug.onchange = () => {
+            const isDebug = chkDebug.checked;
+            debugPanel.style.display = isDebug ? 'block' : 'none';
+            if (isDebug) {
+                radialHud.setAttribute('debug', '');
+                addLog('🐞 デバッグインジケーターを有効化しました。');
+            } else {
+                radialHud.removeAttribute('debug');
+                addLog('🐞 デバッグインジケーターを無効化（ゲーム表示モード）しました。');
+            }
+        };
+
+        function renderDebugMonitor(gp, res) {
+            if (!chkDebug.checked) return;
+            if (!gp) {
+                debugContent.textContent = 'コントローラーが接続されていません。';
+                return;
+            }
+
+            const btnNames = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Back', 'Start', 'L3', 'R3', 'Up', 'Down', 'Left', 'Right'];
+            const activeBtns = [];
+            gp.buttons.forEach((b, i) => {
+                if (b && b.pressed) activeBtns.push(btnNames[i] || `B${i}`);
+            });
+
+            const lx = (gp.axes[0] || 0).toFixed(2);
+            const ly = (gp.axes[1] || 0).toFixed(2);
+            const rx = (gp.axes[2] || 0).toFixed(2);
+            const ry = (gp.axes[3] || 0).toFixed(2);
+
+            const radSec = res.radial ? res.radial.currentSector || 'NONE' : 'NONE';
+            const radState = res.radial ? res.radial.state : 'IDLE';
+
+            debugContent.innerHTML = `
+                <div><strong>L-Stick:</strong> (${lx}, ${ly})</div>
+                <div><strong>R-Stick:</strong> (${rx}, ${ry})</div>
+                <div><strong>Radial State:</strong> <span style="color:#38bdf8">${radState}</span> (Sector: <span style="color:#f59e0b">${radSec}</span>)</div>
+                <div style="margin-top:4px;"><strong>押下中ボタン:</strong></div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                    ${activeBtns.length > 0 ? activeBtns.map(b => `<span style="background:#22c55e; color:#0f172a; padding:1px 6px; border-radius:3px; font-weight:bold;">${b}</span>`).join('') : '<span style="color:#64748b;">なし</span>'}
+                </div>
+            `;
+        }
+
+        function gameLoop() {
+            const res = gpad.pollSemanticInput('NORMAL', '', Date.now());
+
+            // ゲームパッド接続ステータス
+            const gp = gpad.getGamepadState();
+            if (gp) {
+                gpStatus.classList.add('connected');
+                gpStatus.textContent = `接続中: ${gp.id.slice(0, 30)}...`;
+            } else {
+                gpStatus.classList.remove('connected');
+                gpStatus.textContent = 'コントローラー未接続 (ボタンを押してください)';
+            }
+
+            // デバッグモニター描画
+            renderDebugMonitor(gp, res);
+
+            // ラジアルパレットHUDのリアルタイム更新
+            if (res.radial) {
+                radialHud.updateState(res.radial);
+                if (res.radial.flickTriggered) {
+                    const sec = res.radial.flickTriggered.sector;
+                    const item = RADIAL_PALETTE_DEFAULT[sec];
+                    if (item) {
+                        addLog(`🎯 [フリック決定] ${item.icon} ${item.label} (${item.hint})`, 'radial');
+                    }
+                }
+            }
+
+
+            // 物理キーの処理（D-Pad 移動）
+            if (res.keys && res.keys.length > 0) {
+                for (const k of res.keys) {
+                    if (k === 'Numpad8') movePlayer(0, -1);
+                    if (k === 'Numpad2') movePlayer(0, 1);
+                    if (k === 'Numpad4') movePlayer(-1, 0);
+                    if (k === 'Numpad6') movePlayer(1, 0);
+                    if (k === 'Numpad7') movePlayer(-1, -1);
+                    if (k === 'Numpad9') movePlayer(1, -1);
+                    if (k === 'Numpad1') movePlayer(-1, 1);
+                    if (k === 'Numpad3') movePlayer(1, 1);
+                }
+            }
+
+            // セマンティックアクションの処理
+            if (res.actions && res.actions.length > 0) {
+                for (const act of res.actions) {
+                    if (act === 'ACTION:CONTEXT_PRIMARY') triggerPrimaryAction();
+                    if (act === 'ACTION:WAIT_ONE_TURN') addLog('⌛ [B] 1ターン待機 (.)', 'action');
+                    if (act === 'ACTION:RANGED_FIRE') addLog('🏹 [X] 矢筒からの射撃 (f)', 'action');
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 7. バーチャル操作盤（マウス・タッチイベント）
+        document.getElementById('btnUp').onclick = () => movePlayer(0, -1);
+        document.getElementById('btnDown').onclick = () => movePlayer(0, 1);
+        document.getElementById('btnLeft').onclick = () => movePlayer(-1, 0);
+        document.getElementById('btnRight').onclick = () => movePlayer(1, 0);
+        document.getElementById('btnA').onclick = () => triggerPrimaryAction();
+
+        const btnLB = document.getElementById('btnLB');
+        btnLB.onclick = () => {
+            isLB = !isLB;
+            btnLB.classList.toggle('active', isLB);
+            addLog(`LB(斜め固定): ${isLB ? 'ON' : 'OFF'}`);
+        };
+
+        const btnRB = document.getElementById('btnRB');
+        btnRB.onclick = () => {
+            isRB = !isRB;
+            btnRB.classList.toggle('active', isRB);
+            addLog(`RB(ダッシュ): ${isRB ? 'ON' : 'OFF'}`);
+        };
+
+        // バーチャルスティックのドラッグ操作
+        const stickEl = document.getElementById('virtualStick');
+        const thumbEl = document.getElementById('stickThumb');
+        let isDragging = false;
+
+        function handleStick(clientX, clientY) {
+            const rect = stickEl.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const maxDist = rect.width / 2;
+
+            let dx = clientX - cx;
+            let dy = clientY - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            let nx = dx / maxDist;
+            let ny = dy / maxDist;
+            if (dist > maxDist) {
+                nx = (dx / dist);
+                ny = (dy / dist);
+                dx = nx * maxDist;
+                dy = ny * maxDist;
+            }
+
+            thumbEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // ラジアル認識器に更新投入
+            const res = gpad.radialRecognizer.update(nx, ny);
+            let selectedItem = null;
+            if (res.currentSector && RADIAL_PALETTE_DEFAULT[res.currentSector]) {
+                selectedItem = RADIAL_PALETTE_DEFAULT[res.currentSector];
+            }
+            radialHud.updateState({
+                state: res.state,
+                currentSector: res.currentSector,
+                radius: res.radius,
+                angleDeg: res.angleDeg,
+                selectedItem
+            });
+
+            if (res.flickTriggered) {
+                const sec = res.flickTriggered.sector;
+                const item = RADIAL_PALETTE_DEFAULT[sec];
+                if (item) {
+                    addLog(`🎯 [バーチャルフリック] ${item.icon} ${item.label} (${item.hint})`, 'radial');
+                }
+            }
+        }
+
+        stickEl.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            stickEl.setPointerCapture(e.pointerId);
+            handleStick(e.clientX, e.clientY);
+        });
+
+        stickEl.addEventListener('pointermove', (e) => {
+            if (isDragging) handleStick(e.clientX, e.clientY);
+        });
+
+        const endDrag = (e) => {
+            if (isDragging) {
+                isDragging = false;
+                thumbEl.style.transform = 'translate(-50%, -50%)';
+                // ニュートラル戻り
+                const res = gpad.radialRecognizer.update(0, 0);
+                radialHud.updateState({
+                    state: 'IDLE',
+                    currentSector: null,
+                    radius: 0,
+                    angleDeg: 0
+                });
+                if (res.flickTriggered) {
+                    const sec = res.flickTriggered.sector;
+                    const item = RADIAL_PALETTE_DEFAULT[sec];
+                    if (item) {
+                        addLog(`🎯 [バーチャルフリック決定] ${item.icon} ${item.label} (${item.hint})`, 'radial');
+                    }
+                }
+            }
+        };
+
+        stickEl.addEventListener('pointerup', endDrag);
+        stickEl.addEventListener('pointercancel', endDrag);
+
+        // 初期化実行
+        renderDungeon();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

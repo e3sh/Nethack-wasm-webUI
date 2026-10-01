@@ -41,6 +41,100 @@ describe('InputManagers 集約テストスイート', () => {
             expect(overlay.A.label).toBe('y');
             expect(overlay.B.label).toBe('n');
         });
+
+        it('十字キー（D-Pad）による移動と斜め入力が正確に判定されること', () => {
+            const manager = new GamepadManager({ dpadOnlyMove: true });
+            
+            // 上(12) + 右(15) 押下 ➔ Numpad9
+            const mockGp = {
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, (_, i) => ({
+                    pressed: (i === 12 || i === 15)
+                }))
+            };
+            manager.getGamepadState = () => mockGp;
+
+            const res = manager.pollSemanticInput('NORMAL', '', 1000);
+            expect(res.keys).toEqual(['Numpad9']);
+        });
+
+        it('LBホールド時に単独方向が遮断され、斜めのみ通過すること', () => {
+            const manager = new GamepadManager({ dpadOnlyMove: true });
+
+            // 1. LB(4) + 上(12) 単独押下 ➔ 遮断されて空配列
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, (_, i) => ({
+                    pressed: (i === 4 || i === 12)
+                }))
+            });
+            let res = manager.pollSemanticInput('NORMAL', '', 1000);
+            expect(res.keys).toEqual([]);
+
+            // 2. LB(4) + 上(12) + 左(14) ➔ 斜め(Numpad7)は通過
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, (_, i) => ({
+                    pressed: (i === 4 || i === 12 || i === 14)
+                }))
+            });
+            res = manager.pollSemanticInput('NORMAL', '', 1100);
+            expect(res.keys).toEqual(['Numpad7']);
+        });
+
+        it('RBホールド時にダッシュ走行キー (KeyG + Shift) が付加されること', () => {
+            const manager = new GamepadManager({ dpadOnlyMove: true });
+
+            // RB(5) + 右(15) 押下
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, (_, i) => ({
+                    pressed: (i === 5 || i === 15)
+                }))
+            });
+            const res = manager.pollSemanticInput('NORMAL', '', 1000);
+            expect(res.keys).toEqual(['KeyG', 'ShiftLeft', 'Numpad6']);
+        });
+
+        it('セマンティックモードで Aボタンを押すと ACTION:CONTEXT_PRIMARY が出力されること', () => {
+            const manager = new GamepadManager({ useSemantic: true });
+
+            // Aボタン (0) 押下
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, (_, i) => ({
+                    pressed: (i === 0)
+                }))
+            });
+            const res = manager.pollSemanticInput('NORMAL', '', 1000);
+            expect(res.actions).toContain('ACTION:CONTEXT_PRIMARY');
+        });
+
+        it('右スティックのフリックによってラジアルパレットコマンドが発火すること', () => {
+            const manager = new GamepadManager({ useRadialPalette: true, radialStickIndex: 'right' });
+
+            // 1. 右スティック (axes 2, 3) を真上（N: 飲む）へ倒す
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, -0.9],
+                buttons: Array.from({ length: 16 }, () => ({ pressed: false }))
+            });
+            let res = manager.pollSemanticInput('NORMAL', '', 1000);
+            expect(res.radial.state).toBe('ENGAGED');
+            expect(res.radial.currentSector).toBe('N');
+            expect(res.radial.selectedItem.id).toBe('QUAFF');
+
+            // 2. 100ms 後にスティックをニュートラルに戻す (フリック決定)
+            manager.getGamepadState = () => ({
+                axes: [0, 0, 0, 0],
+                buttons: Array.from({ length: 16 }, () => ({ pressed: false }))
+            });
+            res = manager.pollSemanticInput('NORMAL', '', 1100);
+            expect(res.radial.flickTriggered).toBeDefined();
+            expect(res.radial.flickTriggered.sector).toBe('N');
+            // QUAFF (KeyQ) が keys に投入されること
+            expect(res.keys).toContain('KeyQ');
+        });
+
     });
 
     describe('TouchCalculator', () => {
