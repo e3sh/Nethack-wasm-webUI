@@ -120,6 +120,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: '遺跡探索の専門家。罠や秘密の扉を見つけやすい。',
             en: 'Specialist in ancient ruins, skilled at detecting traps and secret doors.'
         },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
+        },
         abilities: [
             { level: 1, ability: 'searching' }, // 探索
             { level: 5, ability: 'stealth' },   // 隠密
@@ -141,6 +149,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '強靭な肉体と毒耐性を持つ戦士。',
             en: 'Fierce warrior with innate poison resistance and brute strength.'
+        },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
         },
         abilities: [
             { level: 1, ability: 'poison' },   // 毒耐性
@@ -166,6 +182,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: '原始の生存者。棍棒とスリングの扱いに長ける。',
             en: 'Primitive survivor proficient with clubs and slings.'
         },
+        startingPet: {
+            type: 'little_dog',
+            pm: 'PM_LITTLE_DOG',
+            isFixed: true,
+            icon: '🐕',
+            name: { ja: '小犬 (固定)', en: 'Little Dog (Fixed)' },
+            shortName: { ja: '小犬', en: 'Little Dog' }
+        },
         abilities: [
             { level: 7, ability: 'fast' },     // 倍速
             { level: 15, ability: 'warning' }  // 警戒
@@ -186,6 +210,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '傷を癒やす専門家。初期から毒耐性と回復道具・魔法を所持。中立固定。',
             en: 'Medical specialist starting with poison resistance and healing supplies. Neutral only.'
+        },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
         },
         abilities: [
             { level: 1, ability: 'poison' },   // 毒耐性
@@ -208,6 +240,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: '高潔なる騎士。馬に乗って戦い、生来の跳躍能力を持つ。人間・秩序限定。',
             en: 'Chivalrous knight starting with a steed and innate jumping. Human & Lawful only.'
         },
+        startingPet: {
+            type: 'pony',
+            pm: 'PM_PONY',
+            isFixed: true,
+            icon: '🐴',
+            name: { ja: '仔馬 (固定)', en: 'Pony (Fixed)' },
+            shortName: { ja: '仔馬', en: 'Pony' }
+        },
         abilities: [
             { level: 1, ability: 'jumping' }, // 跳躍 (天性)
             { level: 7, ability: 'fast' }     // 倍速
@@ -228,6 +268,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '素手格闘と精神修行の達人。最初から倍速・睡眠耐性・透明視認を習得。人間限定。',
             en: 'Master of martial arts starting with speed, sleep res, and see invisible. Human only.'
+        },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
         },
         abilities: [
             { level: 1, ability: 'fast' },            // 倍速
@@ -261,6 +309,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: '神に仕える聖職者。アイテムの祝福・呪いを見抜く能力を持つ。',
             en: 'Holy servant with the innate ability to sense blessed and cursed items.'
         },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
+        },
         abilities: [
             { level: 15, ability: 'warning' }, // 警戒
             { level: 20, ability: 'fire' }     // 火炎耐性
@@ -281,6 +337,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '野外活動と遠隔射撃のスペシャリスト。探索能力を持つ。',
             en: 'Wilderness expert and master of bows and projectile weapons.'
+        },
+        startingPet: {
+            type: 'little_dog',
+            pm: 'PM_LITTLE_DOG',
+            isFixed: true,
+            icon: '🐕',
+            name: { ja: '小犬 (固定)', en: 'Little Dog (Fixed)' },
+            shortName: { ja: '小犬', en: 'Little Dog' }
         },
         abilities: [
             { level: 1, ability: 'searching' }, // 探索
@@ -304,6 +368,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: '影に潜む暗殺・窃盗のプロ。最初から隠密能力を持ち、背後奇襲が得意。混沌固定。',
             en: 'Master of shadows with innate stealth and deadly backstab damage. Chaotic only.'
         },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
+        },
         abilities: [
             { level: 1, ability: 'stealth' },   // 隠密
             { level: 10, ability: 'searching' } // 探索
@@ -324,6 +396,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '武士道の誇り高き戦士。刀と弓を扱い、最初から倍速で行動可能。人間・秩序限定。',
             en: 'Disciplined warrior starting with katana, bow, and innate speed. Human & Lawful only.'
+        },
+        startingPet: {
+            type: 'little_dog',
+            pm: 'PM_LITTLE_DOG',
+            isFixed: true,
+            icon: '🐕',
+            name: { ja: '小犬 (固定)', en: 'Little Dog (Fixed)' },
+            shortName: { ja: '小犬', en: 'Little Dog' }
         },
         abilities: [
             { level: 1, ability: 'fast' },    // 倍速
@@ -346,6 +426,14 @@ export const ROLE_KNOWLEDGE_MAP = {
             ja: 'ダンジョン観光に訪れた一般人。初期装備や資金は豊富だが最弱の序盤。人間・中立限定。',
             en: 'Tourist exploring the dungeon. Starts with luxury items and wealth, but fragile early on.'
         },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
+        },
         abilities: [
             { level: 10, ability: 'searching' }, // 探索
             { level: 20, ability: 'poison' }     // 毒耐性
@@ -366,6 +454,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '北欧神話の戦乙女。屈強な戦闘力と生来の冷気耐性を持つ。女性限定。',
             en: 'Fierce warrior-maiden of Norse myth with innate cold resistance. Female only.'
+        },
+        startingPet: {
+            type: 'dog_or_cat',
+            pm: 'NON_PM',
+            isFixed: false,
+            icon: '🐾',
+            name: { ja: '小犬 または 子猫 (ランダム)', en: 'Little Dog or Kitten (Random)' },
+            shortName: { ja: '犬/猫 (ランダム)', en: 'Dog/Cat (Random)' }
         },
         abilities: [
             { level: 1, ability: 'cold' },    // 冷気耐性
@@ -388,6 +484,14 @@ export const ROLE_KNOWLEDGE_MAP = {
         description: {
             ja: '神秘の魔力を操る術士。強力な攻撃・補助魔法を使いこなす。',
             en: 'Practitioner of the arcane arts with superior spellcasting abilities.'
+        },
+        startingPet: {
+            type: 'kitten',
+            pm: 'PM_KITTEN',
+            isFixed: true,
+            icon: '🐱',
+            name: { ja: '子猫 (固定)', en: 'Kitten (Fixed)' },
+            shortName: { ja: '子猫', en: 'Kitten' }
         },
         abilities: [
             { level: 15, ability: 'warning' },        // 警戒
@@ -710,7 +814,7 @@ export function getGenderKnowledge(genderStr) {
  * @param {'role'|'race'|'gender'|'align'|'alignment'} category 
  * @param {string} keyStr 
  * @param {'ja'|'en'} [lang='ja']
- * @returns {Array<{ label: string, type: 'constraint'|'trait' }>}
+ * @returns {Array<{ label: string, type: 'constraint'|'trait'|'pet' }>}
  */
 export function getCharacterBadges(category, keyStr, lang = 'ja') {
     const badges = [];
@@ -745,7 +849,20 @@ export function getCharacterBadges(category, keyStr, lang = 'ja') {
             });
         }
 
-        // 2. 特徴バッジ (traits / tags)
+        // 2. 初期ペットバッジ (starting pet)
+        if (role.startingPet) {
+            const petInfo = role.startingPet;
+            const petLabel = isJa 
+                ? (petInfo.shortName?.ja || petInfo.name?.ja || '') 
+                : (petInfo.shortName?.en || petInfo.name?.en || '');
+            const petIcon = petInfo.icon || '🐾';
+            badges.push({
+                type: 'pet',
+                label: `${petIcon} ${petLabel}`
+            });
+        }
+
+        // 3. 特徴バッジ (traits / tags)
         if (role.tags) {
             const tagList = isJa ? (role.tags.ja || []) : (role.tags.en || []);
             tagList.forEach(t => {

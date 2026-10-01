@@ -1520,8 +1520,9 @@
                 } else if (currentTab === 'CHARACTER') {
                     title = currentLang === 'ja' ? (e.nameJa || e.name) : e.name;
                     const tags = e.tags ? (currentLang === 'ja' ? e.tags.ja : e.tags.en) : [];
+                    const petStr = e.startingPet ? ` • ${e.startingPet.icon} ${(currentLang === 'ja' ? e.startingPet.shortName?.ja : e.startingPet.shortName?.en) || ''}` : '';
                     const tagStr = tags && tags.length > 0 ? ` • ${tags.slice(0, 2).join(', ')}` : '';
-                    subtitle = `${e.subType}${tagStr}`;
+                    subtitle = `${e.subType}${petStr}${tagStr}`;
                     badgeClass = e.subType === 'RACE' ? 'tag-PURPLE' : 'tag-INFO';
                     badgeText = e.subType;
                     const glyphId = getEntityGlyphId(e);
@@ -2609,10 +2610,18 @@
             if (isRace) {
                 const aligns = char.allowedAlignments || [];
                 constraintsHtml = `
-                    <div class="info-block" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px;">
-                        <div class="section-title">⚖️ ${currentLang === 'ja' ? '種族属性制約 (NetHack role.c SSOT)' : 'Allowed Alignments'}</div>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
-                            ${aligns.map(a => `<span class="tag-badge ${a === 'lawful' ? 'tag-INFO' : (a === 'chaotic' ? 'tag-LETHAL' : 'tag-LOW')}" style="font-size:0.8rem; padding:4px 10px;">${currentLang === 'ja' ? ALIGN_LABELS[a]?.ja : ALIGN_LABELS[a]?.en}</span>`).join('')}
+                    <div class="info-block" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; display:flex; flex-direction:column; gap:10px;">
+                        <div>
+                            <div class="section-title">⚖️ ${currentLang === 'ja' ? '種族属性制約 (NetHack role.c SSOT)' : 'Allowed Alignments'}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                                ${aligns.map(a => `<span class="tag-badge ${a === 'lawful' ? 'tag-INFO' : (a === 'chaotic' ? 'tag-LETHAL' : 'tag-LOW')}" style="font-size:0.8rem; padding:4px 10px;">${currentLang === 'ja' ? ALIGN_LABELS[a]?.ja : ALIGN_LABELS[a]?.en}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div style="padding-top:8px; border-top:1px dashed var(--border-color);">
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🐾 ${currentLang === 'ja' ? '初期ペット (Starting Pet):' : 'Starting Pet:'}</div>
+                            <div style="font-size:0.8rem; color:#cbd5e1;">
+                                ${currentLang === 'ja' ? '初期ペットの種類は種族固有ではなく、選択する職業によって決定されます。' : 'Starting pet type is determined by the chosen role, not by race.'}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2621,6 +2630,27 @@
                 const aligns = char.allowedAlignments || [];
                 const genders = char.allowedGenders || [];
                 const femaleName = currentLang === 'ja' ? char.nameFemaleJa : char.nameFemale;
+
+                let petHtml = '';
+                if (char.startingPet) {
+                    const pet = char.startingPet;
+                    const petName = currentLang === 'ja' ? pet.name.ja : pet.name.en;
+                    const petBadgeType = pet.isFixed ? 'tag-LOW' : 'tag-ITEM';
+                    const petStatus = pet.isFixed 
+                        ? (currentLang === 'ja' ? '固定 (Fixed)' : 'Fixed') 
+                        : (currentLang === 'ja' ? '50%ランダム出現' : '50% Random');
+                    petHtml = `
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🐾 ${currentLang === 'ja' ? '初期ペット (Starting Pet):' : 'Starting Pet:'}</div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <span class="tag-badge ${petBadgeType}" style="font-size:0.75rem; padding:3px 8px; font-weight:bold;">
+                                    ${pet.icon} ${petName}
+                                </span>
+                                <span style="font-size:0.75rem; color:var(--text-secondary);">[ ${petStatus} ]</span>
+                            </div>
+                        </div>
+                    `;
+                }
 
                 constraintsHtml = `
                     <div class="info-block" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); padding:10px 14px; border-radius:6px; display:flex; flex-direction:column; gap:10px;">
@@ -2647,6 +2677,8 @@
                                 ${femaleName ? `<span style="font-size:0.75rem; color:#f0b232; margin-left:8px;">♀️ ${currentLang === 'ja' ? `女性形称号: ${femaleName}` : `Female Title: ${femaleName}`}</span>` : ''}
                             </div>
                         </div>
+
+                        ${petHtml}
                     </div>
                 `;
             }

@@ -272,6 +272,11 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
     expect(html).toContain('人間限定');
     expect(html).toContain('秩序固定');
 
+    // 初期ペットバッジ
+    expect(html).toContain('char-badge pet');
+    expect(html).toContain('🐴 仔馬');
+    expect(html).toContain('🐾 犬/猫 (ランダム)');
+
     // 説明文が存在すること
     expect(html).toContain('char-card-desc');
   });
@@ -289,9 +294,14 @@ describe('CharacterCreationModal - シナリオ連動テスト', () => {
     expect(html).toContain('Human only');
     expect(html).toContain('Lawful only');
 
+    // 英語の初期ペットバッジ
+    expect(html).toContain('🐴 Pony');
+    expect(html).toContain('🐾 Dog/Cat (Random)');
+
     // 日本語のラベルは含まれないこと
     expect(html).not.toContain('女性限定');
     expect(html).not.toContain('人間限定');
+    expect(html).not.toContain('仔馬');
   });
 
   it('Step 11 (Race選択) でドワーフやオークの制約バッジと特徴バッジが生成されること', () => {

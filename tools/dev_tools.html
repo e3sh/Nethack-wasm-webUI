@@ -354,6 +354,7 @@
                     <p id="txt-sec2-desc">構造化ナレッジ閲覧、クライアント動作検証、タイルマッピング、ログ調査</p>
                 </div>
             </div>
+            <div class="tools-grid">
                 <a href="scenario-recorder.html" class="tool-card" target="_blank" style="border: 1px solid #38bdf8;">
                     <div>
                         <div class="tool-card-head">
@@ -487,6 +488,8 @@
                 touchDesc: "スマホ・タブレット用バーチャル操作キーの配置・カスタマイズ",
                 saveName: "Save Data Manager",
                 saveDesc: "IndexedDB / localStorage セーブデータのバックアップ・復元・削除",
+                srName: "Scenario Recorder Studio",
+                srDesc: "実機プレイのイベントストリームをキャプチャし、統合テスト用シナリオJSONを一発生成",
                 knName: "Knowledge Inspector",
                 knDesc: "全モンスター・アイテムの構造化ナレッジ（図鑑・効果・アドバイス）閲覧",
                 clName: "全クライアントテスト (cltest)",
@@ -522,6 +525,8 @@
                 touchDesc: "Virtual touch pad layout editor for mobile & tablet devices",
                 saveName: "Save Data Manager",
                 saveDesc: "Backup, restore, and clear IndexedDB / localStorage save files",
+                srName: "Scenario Recorder Studio",
+                srDesc: "Capture live gameplay event streams to generate integration test scenario JSON",
                 knName: "Knowledge Inspector",
                 knDesc: "Interactive card browser for monster & item structured knowledge base",
                 clName: "All Clients Test Suite",
@@ -586,6 +591,8 @@
             document.getElementById("t-save-name").textContent = t.saveName;
             document.getElementById("t-save-desc").textContent = t.saveDesc;
 
+            document.getElementById("t-sr-name").textContent = t.srName;
+            document.getElementById("t-sr-desc").textContent = t.srDesc;
             document.getElementById("t-kn-name").textContent = t.knName;
             document.getElementById("t-kn-desc").textContent = t.knDesc;
             document.getElementById("t-cl-name").textContent = t.clName;

@@ -692,11 +692,19 @@ export class CharacterCreationModal {
             const alignsStr = knowledge.allowedAlignments.map(a => this.translate(a)).join(', ');
             tooltipLines.push(isJa ? `【選択可能属性】${alignsStr}` : `[Allowed Alignments] ${alignsStr}`);
           }
+          if (knowledge.startingPet) {
+            const petName = isJa 
+              ? (knowledge.startingPet.name?.ja || knowledge.startingPet.shortName?.ja) 
+              : (knowledge.startingPet.name?.en || knowledge.startingPet.shortName?.en);
+            const petIcon = knowledge.startingPet.icon || '🐾';
+            tooltipLines.push(isJa ? `【初期ペット】${petIcon} ${petName}` : `[Starting Pet] ${petIcon} ${petName}`);
+          }
         } else if (this.activeTab === 'race' && knowledge) {
           if (knowledge.allowedAlignments) {
             const alignsStr = knowledge.allowedAlignments.map(a => this.translate(a)).join(', ');
             tooltipLines.push(isJa ? `【選択可能属性】${alignsStr}` : `[Allowed Alignments] ${alignsStr}`);
           }
+          tooltipLines.push(isJa ? `【初期ペット】職業によって決定` : `[Starting Pet] Determined by Role`);
         }
 
         if (tooltipLines.length > 0) {

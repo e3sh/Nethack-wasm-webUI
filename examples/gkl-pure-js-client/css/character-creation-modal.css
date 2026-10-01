@@ -292,12 +292,23 @@
   color: #7dd3fc;
 }
 
+/* ペットバッジ（初期ペット）: エメラルド/ミントグリーン系 */
+.char-badge.pet {
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #6ee7b7;
+}
+
 .char-choice-card.selected .char-badge.constraint {
   border-color: #f59e0b;
 }
 
 .char-choice-card.selected .char-badge.trait {
   border-color: #38bdf8;
+}
+
+.char-choice-card.selected .char-badge.pet {
+  border-color: #10b981;
 }
 
 /* カード概要説明文 */

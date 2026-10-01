@@ -208,6 +208,66 @@ describe('GKL SSOT Phase 1 - Knowledge Infrastructure Tests', () => {
             const orcBadgesJa = getCharacterBadges('race', 'orc', 'ja');
             expect(orcBadgesJa.some(b => b.type === 'constraint' && b.label === '混沌固定')).toBe(true);
             expect(orcBadgesJa.some(b => b.type === 'trait' && b.label === '毒耐性')).toBe(true);
+
+            // Starting Pet badges
+            const kniPetBadgeJa = kniBadgesJa.find(b => b.type === 'pet');
+            expect(kniPetBadgeJa).toBeDefined();
+            expect(kniPetBadgeJa.label).toBe('🐴 仔馬');
+
+            const kniBadgesEn = getCharacterBadges('role', 'knight', 'en');
+            const kniPetBadgeEn = kniBadgesEn.find(b => b.type === 'pet');
+            expect(kniPetBadgeEn).toBeDefined();
+            expect(kniPetBadgeEn.label).toBe('🐴 Pony');
+
+            const wizBadgesJa = getCharacterBadges('role', 'wizard', 'ja');
+            expect(wizBadgesJa.some(b => b.type === 'pet' && b.label === '🐱 子猫')).toBe(true);
+
+            const cavBadgesJa = getCharacterBadges('role', 'caveman', 'ja');
+            expect(cavBadgesJa.some(b => b.type === 'pet' && b.label === '🐕 小犬')).toBe(true);
+
+            const valPetBadgeJa = valBadgesJa.find(b => b.type === 'pet');
+            expect(valPetBadgeJa).toBeDefined();
+            expect(valPetBadgeJa.label).toBe('🐾 犬/猫 (ランダム)');
+
+            const valPetBadgeEn = valBadgesEn.find(b => b.type === 'pet');
+            expect(valPetBadgeEn).toBeDefined();
+            expect(valPetBadgeEn.label).toBe('🐾 Dog/Cat (Random)');
+        });
+
+        it('should verify official NetHack role.c starting pet compliance across all 13 roles', () => {
+            // Fixed pets
+            expect(ROLE_KNOWLEDGE_MAP.knight.startingPet.type).toBe('pony');
+            expect(ROLE_KNOWLEDGE_MAP.knight.startingPet.pm).toBe('PM_PONY');
+            expect(ROLE_KNOWLEDGE_MAP.knight.startingPet.isFixed).toBe(true);
+
+            expect(ROLE_KNOWLEDGE_MAP.wizard.startingPet.type).toBe('kitten');
+            expect(ROLE_KNOWLEDGE_MAP.wizard.startingPet.pm).toBe('PM_KITTEN');
+            expect(ROLE_KNOWLEDGE_MAP.wizard.startingPet.isFixed).toBe(true);
+
+            expect(ROLE_KNOWLEDGE_MAP.caveman.startingPet.type).toBe('little_dog');
+            expect(ROLE_KNOWLEDGE_MAP.caveman.startingPet.pm).toBe('PM_LITTLE_DOG');
+            expect(ROLE_KNOWLEDGE_MAP.caveman.startingPet.isFixed).toBe(true);
+
+            expect(ROLE_KNOWLEDGE_MAP.ranger.startingPet.type).toBe('little_dog');
+            expect(ROLE_KNOWLEDGE_MAP.ranger.startingPet.pm).toBe('PM_LITTLE_DOG');
+            expect(ROLE_KNOWLEDGE_MAP.ranger.startingPet.isFixed).toBe(true);
+
+            expect(ROLE_KNOWLEDGE_MAP.samurai.startingPet.type).toBe('little_dog');
+            expect(ROLE_KNOWLEDGE_MAP.samurai.startingPet.pm).toBe('PM_LITTLE_DOG');
+            expect(ROLE_KNOWLEDGE_MAP.samurai.startingPet.isFixed).toBe(true);
+
+            // Random (dog or cat) pets
+            const randomPetRoles = [
+                'archeologist', 'barbarian', 'healer', 'monk', 
+                'priest', 'rogue', 'tourist', 'valkyrie'
+            ];
+            for (const roleKey of randomPetRoles) {
+                const pet = ROLE_KNOWLEDGE_MAP[roleKey].startingPet;
+                expect(pet.type).toBe('dog_or_cat');
+                expect(pet.pm).toBe('NON_PM');
+                expect(pet.isFixed).toBe(false);
+                expect(pet.icon).toBe('🐾');
+            }
         });
     });
 
