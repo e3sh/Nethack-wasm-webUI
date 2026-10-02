@@ -797,6 +797,9 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             };
 
             const core = new WebUICore({ driver: mockDriver });
+            expect(core.loreDetector).toBeUndefined();
+            expect(core.gkl.getLoreDetector()).toBeDefined();
+
             const signalListener = vi.fn();
             const rumorSignalListener = vi.fn();
             core.on('signal', signalListener);

@@ -20,6 +20,7 @@ import { PolymorphService } from "./services/PolymorphService.js";
 import { WriteService } from "./services/WriteService.js";
 import { EncumbranceStateManager } from "./state/EncumbranceStateManager.js";
 import { LoreCodex } from "./lore/LoreCodex.js";
+import { LoreDetector } from "./lore/LoreDetector.js";
 import { InteractionContext } from "./context/InteractionContext.js";
 import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
 import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
@@ -40,6 +41,7 @@ export class GKLPlugin {
      * @param {AttributeStateManager} [options.attributeStateManager]
      * @param {EncumbranceStateManager} [options.encumbranceStateManager]
      * @param {MonsterTracker} [options.monsterTracker]
+     * @param {LoreDetector} [options.loreDetector]
      * @param {'vi'|'numpad'} [options.keyMode]
      * @param {'ja'|'en'} [options.language]
      */
@@ -141,6 +143,8 @@ export class GKLPlugin {
         if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function' && options.translationEngine) {
             this.loreCodex.setTranslationEngine(options.translationEngine);
         }
+
+        this.loreDetector = options.loreDetector || new LoreDetector();
 
         this._setupMonsterTrackerHooks();
 
@@ -273,6 +277,9 @@ export class GKLPlugin {
         if (this.encumbranceStateManager && typeof this.encumbranceStateManager.reset === 'function') {
             this.encumbranceStateManager.reset();
         }
+        if (this.loreDetector && typeof this.loreDetector.reset === 'function') {
+            this.loreDetector.reset();
+        }
     }
 
     /**
@@ -345,6 +352,14 @@ export class GKLPlugin {
      */
     getLoreCodex() {
         return this.loreCodex;
+    }
+
+    /**
+     * 伝承シグナル検知器 (LoreDetector) インスタンスを取得
+     * @returns {LoreDetector}
+     */
+    getLoreDetector() {
+        return this.loreDetector;
     }
 
     /**
@@ -723,6 +738,28 @@ export class GKLPlugin {
                     const updated = this.attributeStateManager.updateFromMessage(text);
                     if (updated) {
                         core.emit('attributesStateUpdated', this.attributeStateManager);
+                    }
+                }
+
+                // 📡 Layer 4: LORE シグナル検知 & 発行 (Pub/Sub)
+                if (this.loreDetector) {
+                    let anchorCandidate = null;
+                    const asm = this.areaStateManager;
+                    const playerX = asm ? asm.playerX : (this.statusAccessor?.x ?? -1);
+                    const playerY = asm ? asm.playerY : (this.statusAccessor?.y ?? -1);
+                    if (asm && playerX >= 0 && playerY >= 0) {
+                        anchorCandidate = asm.getEngravingAt(playerX, playerY);
+                    }
+
+                    const loreSignal = this.loreDetector.processMessage(text, { anchorCandidate });
+                    if (loreSignal && loreSignal.matched) {
+                        if (!loreSignal.rawPrompt) {
+                            loreSignal.rawPrompt = text;
+                        }
+                        core.emit('situationSignal', { type: 'LORE', signal: loreSignal });
+                        core.emit('signal', loreSignal);
+                        core.emit(`signal:${loreSignal.signalId}`, loreSignal);
+                        core.emit('loreSignal', loreSignal);
                     }
                 }
             }

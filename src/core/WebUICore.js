@@ -20,7 +20,7 @@ import { DebugInspector } from './inspector/DebugInspector.js';
 import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
-import { LoreDetector, LoreCodex } from './knowledge/index.js';
+import { LoreCodex } from './knowledge/index.js';
 import { MessageContextResolver, ContextFrameBuffer } from './message/index.js';
 
 
@@ -139,7 +139,6 @@ export class WebUICore {
 
         const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
         this.signalDetector = options.signalDetector || SignalDetector.createForLocale(coreVariant);
-        this.loreDetector = options.loreDetector || new LoreDetector();
         this._fallbackLoreCodex = options.loreCodex || null;
         if (!this.gkl && !this._fallbackLoreCodex) {
             this._fallbackLoreCodex = new LoreCodex({ translationEngine: this.translator });
@@ -1517,28 +1516,6 @@ export class WebUICore {
                 rawText,
                 isBold: !!isBold
             });
-
-            // 📡 Layer 4: LORE シグナル検知 & 発行 (Pub/Sub)
-            if (this.loreDetector) {
-                let anchorCandidate = null;
-                const asm = this.gkl?.areaStateManager;
-                const playerX = asm?.playerX ?? -1;
-                const playerY = asm?.playerY ?? -1;
-                if (asm && playerX >= 0 && playerY >= 0) {
-                    anchorCandidate = asm.getEngravingAt(playerX, playerY);
-                }
-
-                const loreSignal = this.loreDetector.processMessage(rawText, { anchorCandidate });
-                if (loreSignal && loreSignal.matched) {
-                    if (!loreSignal.rawPrompt) {
-                        loreSignal.rawPrompt = rawText;
-                    }
-                    this.emit('situationSignal', { type: 'LORE', signal: loreSignal });
-                    this.emit('signal', loreSignal);
-                    this.emit(`signal:${loreSignal.signalId}`, loreSignal);
-                    this.emit('loreSignal', loreSignal);
-                }
-            }
         };
 
 

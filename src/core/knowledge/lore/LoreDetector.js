@@ -415,6 +415,14 @@ export class LoreDetector {
     }
 
     /**
+     * 履歴バッファおよび検知モードの完全リセット
+     */
+    reset() {
+        this.history = [];
+        this._resetMode();
+    }
+
+    /**
      * モードおよび一時フラグのリセット
      * @private
      */

@@ -181,4 +181,30 @@ describe('Architecture Boundary & Layer Isolation Guard Tests (再発防止テ�
 
         expect(violations, `InteractiveRequestController.js に個別機能ドメインの汚染が検出されました:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
     });
+
+    it('WebUICore が LoreDetector を直接保持・参照・import していないこと (レイヤー違反防止ガード)', () => {
+        const coreFilePath = path.resolve(__dirname, 'WebUICore.js');
+        const content = fs.readFileSync(coreFilePath, 'utf-8');
+
+        // 禁止パターン: LoreDetector の import、プロパティ代入、インスタンス化
+        const forbiddenPatterns = [
+            /import\s+.*LoreDetector.*from/,
+            /new\s+LoreDetector\b/,
+            /this\.loreDetector\b/
+        ];
+
+        const violations = [];
+        for (const pattern of forbiddenPatterns) {
+            if (pattern.test(content)) {
+                violations.push(pattern.toString());
+            }
+        }
+
+        expect(violations, `WebUICore.js に LoreDetector の直接参照・所有が検出されました (GKLPlugin に移管してください):\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
+
+        // インスタンスプロパティとしても loreDetector が存在しないこと
+        const mockDriver = { on: vi.fn(), off: vi.fn(), emit: vi.fn() };
+        const core = new WebUICore({ driver: mockDriver });
+        expect(core.loreDetector).toBeUndefined();
+    });
 });

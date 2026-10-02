@@ -19,6 +19,11 @@ function createMockCore() {
             if (!listeners.has(event)) listeners.set(event, []);
             listeners.get(event).push(fn);
         },
+        off: (event, fn) => {
+            if (listeners.has(event)) {
+                listeners.set(event, listeners.get(event).filter(cb => cb !== fn));
+            }
+        },
         emit: (event, payload) => {
             if (listeners.has(event)) {
                 listeners.get(event).forEach(fn => fn(payload));
@@ -1202,6 +1207,98 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             const dm = plugin.getDiscoveryStateManager();
             expect(dm).toBeDefined();
             expect(dm).toBe(plugin.discoveryStateManager);
+        });
+
+        it('LoreDetector の所有と getLoreDetector() による取得、invalidateAllCaches() での reset() が動作すること', () => {
+            const plugin = new GKLPlugin();
+            const detector = plugin.getLoreDetector();
+            expect(detector).toBeDefined();
+            expect(detector).toBe(plugin.loreDetector);
+
+            const resetSpy = vi.spyOn(detector, 'reset');
+            plugin.invalidateAllCaches();
+            expect(resetSpy).toHaveBeenCalledTimes(1);
+
+            // カスタム LoreDetector の注入
+            const customDetector = { reset: vi.fn(), processMessage: vi.fn() };
+            const pluginWithCustom = new GKLPlugin({ loreDetector: customDetector });
+            expect(pluginWithCustom.getLoreDetector()).toBe(customDetector);
+        });
+
+        it('Core から messageText を受信した際に LoreDetector が駆動し、伝承シグナルが発行されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const situationSignalListener = vi.fn();
+            const signalListener = vi.fn();
+            const rumorSignalListener = vi.fn();
+            const loreSignalListener = vi.fn();
+
+            mockCore.on('situationSignal', situationSignalListener);
+            mockCore.on('signal', signalListener);
+            mockCore.on('signal:SIGNAL_LORE_RUMOR', rumorSignalListener);
+            mockCore.on('loreSignal', loreSignalListener);
+
+            // フォーチュンクッキーメッセージの受信
+            mockCore.emit('messageText', { text: 'This cookie has a scrap of paper inside.' });
+            mockCore.emit('messageText', { text: 'It reads:' });
+            mockCore.emit('messageText', { text: "A blindfold can be very useful if you're telepathic." });
+
+            expect(signalListener).toHaveBeenCalledTimes(1);
+            expect(rumorSignalListener).toHaveBeenCalledTimes(1);
+            expect(loreSignalListener).toHaveBeenCalledTimes(1);
+            expect(situationSignalListener).toHaveBeenCalledTimes(1);
+
+            const emitted = rumorSignalListener.mock.calls[0][0];
+            expect(emitted.signalId).toBe('SIGNAL_LORE_RUMOR');
+            expect(emitted.isTrue).toBe(true);
+
+            // Codex への自動蓄積確認
+            const codex = plugin.getCodex();
+            expect(codex.getRumors().length).toBe(1);
+            expect(codex.getRumors()[0].id).toBe('rumor_tru_1');
+        });
+
+        it('床文字メッセージ受信時に LoreDetector が床文字シグナルを発行し、結界とキャッシュが更新されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const engraveSignalListener = vi.fn();
+            mockCore.on('signal:SIGNAL_LORE_ENGRAVE', engraveSignalListener);
+
+            mockCore.emit('messageText', { text: 'Something is written here in the dust.' });
+            mockCore.emit('messageText', { text: 'You read: "Elbereth".' });
+
+            expect(engraveSignalListener).toHaveBeenCalledTimes(1);
+            const emitted = engraveSignalListener.mock.calls[0][0];
+            expect(emitted.signalId).toBe('SIGNAL_LORE_ENGRAVE');
+            expect(emitted.isElbereth).toBe(true);
+            expect(emitted.isWardActive).toBe(true);
+
+            // 結界状態の更新確認
+            const ward = plugin.getCodex().getCurrentWard();
+            expect(ward).toBeDefined();
+            expect(ward.actualText).toBe('Elbereth');
+        });
+
+        it('detach() 実行後は messageText を受信しても伝承シグナルが発行されないこと', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const signalListener = vi.fn();
+            mockCore.on('signal:SIGNAL_LORE_RUMOR', signalListener);
+
+            // デタッチ
+            plugin.detach();
+
+            mockCore.emit('messageText', { text: 'This cookie has a scrap of paper inside.' });
+            mockCore.emit('messageText', { text: 'It reads:' });
+            mockCore.emit('messageText', { text: "A blindfold can be very useful if you're telepathic." });
+
+            expect(signalListener).not.toHaveBeenCalled();
         });
     });
 });
