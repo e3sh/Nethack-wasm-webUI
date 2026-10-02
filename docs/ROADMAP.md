@@ -63,7 +63,7 @@ last_updated: 2026-10-01
 ---
 
 ### 1.2 Phase 7: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ (Native Command Progressive Enhancement)
-- **ステータス**: `🚧 in-progress` (仕様策定完了, 2026-09-28)
+- **ステータス**: `🚧 in-progress` (Phase 1 完了, 2026-10-02)
 - **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
 - **関連カタログ**: [SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md) (第7章 ギャップ分析)
 - **概要**:
@@ -76,9 +76,10 @@ last_updated: 2026-10-01
   - **WASM動的サイレントクエリ**: 静的辞書の二重持ちを排し、既存の `querySequenceSilent`（`suppressPrompts: true`）でCコアから動的抽出することで、ちらつきゼロと完全なバリアント・バージョン追従性を両立。
   - **直交レイヤー＆エンハンス・インジケーター**: 「描画表現（ASCII/タイル vs WebGPU HD-2D）」と「操作拡張（Vanilla ⇄ Enhanced）」が直交する2×2マトリクス設計。
 - **マイグレーションステップ**:
-  - [ ] **Phase 1 (ゲーム内最優先 / Gap 3 & Gap 1 対応)**:
+  - [x] **Phase 1 (ゲーム内最優先 / Gap 3 & Gap 1 対応)**:
     - `/` コマンド向け動的ルックアップサービス（`OnDemandLookupService`）の実装
-    - 統合カードコンポーネント（`<nh-knowledge-card>`）および `\` ディスカバリー連携の実装
+    - 統合カードコンポーネント（`<nh-knowledge-card>`）および `\` ディスカバリー連携（`<nh-discovery-codex>`）の実装
+    - 全120テストスイート・1,440テスト100% PASS（Discoveries複数ページ走査・カテゴリ誤登録是正・所持品動的統合完了）および4大サンプルクライアントビルド成功
   - [ ] **Phase 2 (ゲーム外ビューア / Gap 4 対応)**:
     - 独立冒険大図鑑画面（`<nh-codex-grid>` ＆ シルエット解禁ギャラリー `compendium.html`）の実装
   - [ ] **Phase 3 (命名アシスト / Gap 2 対応)**:
@@ -138,7 +139,7 @@ last_updated: 2026-10-01
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全117スイート・1,392テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全120スイート・1,440テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |

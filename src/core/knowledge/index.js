@@ -30,6 +30,7 @@ export {
 
 export { StructuredKnowledgeEngine, MONSTER_KNOWLEDGE_BASE, ITEM_KNOWLEDGE_BASE } from "./engines/StructuredKnowledgeEngine.js";
 export { OnDemandLookService } from "./services/OnDemandLookService.js";
+export { OnDemandLookupService } from "./services/OnDemandLookupService.js";
 export { ItemIdentificationResolver, IDENTIFICATION_LEVELS, APPEARANCE_PATTERNS, IDENTIFICATION_TIPS } from "./engines/ItemIdentificationResolver.js";
 export { DiscoveryStateManager } from "./state/DiscoveryStateManager.js";
 export { getAdaptiveItemSpecs, getSkillProficiencyBadge } from "./presenters/ItemSpecPresenter.js";

@@ -1098,6 +1098,50 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             const pickupCall = soundEffectListener.mock.calls[soundEffectListener.mock.calls.length - 1][0];
             expect(pickupCall.id).toBe('se_pickup');
         });
+
+        it('display_nhwindow: IRC対話セッション中またはプロンプト抑制中に textWindowModal, showPrompt, inputRequired が確実にサプレスされること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+            
+            const textWindowListener = vi.fn();
+            const inputRequiredListener = vi.fn();
+            core.on('textWindowModal', textWindowListener);
+            core.on('inputRequired', inputRequiredListener);
+            core.renderer.showPrompt = vi.fn();
+
+            const displayCalls = mockDriver.on.mock.calls.filter(c => c[0] === 'display_nhwindow');
+            expect(displayCalls.length).toBeGreaterThan(0);
+            const emitDisplay = (data) => displayCalls.forEach(c => c[1](data));
+
+            // 1. 通常時（非IRC、非サプレス）: モーダル、showPrompt、inputRequired が呼ばれる
+            core.interactiveController.isBusy = vi.fn().mockReturnValue(false);
+            mockDriver.sequenceOptions = { suppressPrompts: false };
+            emitDisplay({ windowId: 5, blocking: true, resolver: vi.fn() });
+            expect(textWindowListener).toHaveBeenCalledTimes(1);
+            expect(core.renderer.showPrompt).toHaveBeenCalledTimes(1);
+            expect(inputRequiredListener).toHaveBeenCalledTimes(1);
+
+            // 2. IRC 実行中 (isBusy = true): モーダル、showPrompt、inputRequired が完全にサプレス（握りつぶし）されること！
+            textWindowListener.mockClear();
+            inputRequiredListener.mockClear();
+            core.renderer.showPrompt.mockClear();
+            core.interactiveController.isBusy = vi.fn().mockReturnValue(true);
+            emitDisplay({ windowId: 5, blocking: true, resolver: vi.fn() });
+            expect(textWindowListener).not.toHaveBeenCalled();
+            expect(core.renderer.showPrompt).not.toHaveBeenCalled();
+            expect(inputRequiredListener).not.toHaveBeenCalled();
+
+            // 3. ドライバーの suppressPrompts = true 時: モーダル、showPrompt、inputRequired がサプレスされること！
+            textWindowListener.mockClear();
+            inputRequiredListener.mockClear();
+            core.renderer.showPrompt.mockClear();
+            core.interactiveController.isBusy = vi.fn().mockReturnValue(false);
+            mockDriver.sequenceOptions = { suppressPrompts: true };
+            emitDisplay({ windowId: 5, blocking: true, resolver: vi.fn() });
+            expect(textWindowListener).not.toHaveBeenCalled();
+            expect(core.renderer.showPrompt).not.toHaveBeenCalled();
+            expect(inputRequiredListener).not.toHaveBeenCalled();
+        });
     });
 });
 

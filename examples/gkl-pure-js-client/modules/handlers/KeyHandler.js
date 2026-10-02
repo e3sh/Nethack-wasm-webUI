@@ -16,16 +16,22 @@ export class KeyHandler {
     getCodexModal,
     getMinimapRenderer,
     getMessageHistoryDrawer,
-    toggleSidePanel
+    toggleSidePanel,
+    getKnowledgeDetailModal,
+    onOpenKnowledgeInspector,
+    onOpenDiscoveryCodex
   }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
+    this.getKnowledgeDetailModal = getKnowledgeDetailModal || (() => null);
     this.getMinimapRenderer = getMinimapRenderer || (() => null);
     this.getMessageHistoryDrawer = getMessageHistoryDrawer || (() => null);
     this.toggleSidePanel = toggleSidePanel || (() => null);
+    this.onOpenKnowledgeInspector = onOpenKnowledgeInspector || (() => null);
+    this.onOpenDiscoveryCodex = onOpenDiscoveryCodex || (() => null);
 
     this.modalStack = new ModalStackController();
     this.inputCoordinator = new InputCoordinator({ modalStack: this.modalStack });
@@ -106,6 +112,32 @@ export class KeyHandler {
       }
     });
 
+    // ディスカバリー図鑑モーダル (<nh-discovery-codex>)
+    this.modalStack.registerModal('discoveryCodex', {
+      priority: 25,
+      isOpen: () => {
+        const container = typeof document !== 'undefined' ? document.getElementById('discovery-codex-modal-container') : null;
+        return Boolean(container && !container.classList.contains('hidden'));
+      },
+      close: () => {
+        const container = typeof document !== 'undefined' ? document.getElementById('discovery-codex-modal-container') : null;
+        if (container) container.classList.add('hidden');
+      }
+    });
+
+    // 構造化ナレッジ詳細モーダル (KnowledgeDetailModal)
+    this.modalStack.registerModal('knowledgeDetail', {
+      priority: 35,
+      isOpen: () => {
+        const modal = this.getKnowledgeDetailModal ? this.getKnowledgeDetailModal() : null;
+        return Boolean(modal && modal.isVisible);
+      },
+      close: () => {
+        const modal = this.getKnowledgeDetailModal ? this.getKnowledgeDetailModal() : null;
+        if (modal) modal.close();
+      }
+    });
+
     // DOM 上の <nh-modal> インスタンスがあれば modalStack を直接注入
     if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
       const nhModals = document.querySelectorAll('nh-modal');
@@ -180,6 +212,16 @@ export class KeyHandler {
       case ROUTE_ACTIONS.CLOSE_TOP_MODAL:
         e.preventDefault();
         this.modalStack.closeTopModal();
+        return;
+
+      case ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR:
+        e.preventDefault();
+        this.onOpenKnowledgeInspector();
+        return;
+
+      case ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX:
+        e.preventDefault();
+        this.onOpenDiscoveryCodex();
         return;
 
       case ROUTE_ACTIONS.TRAP_FOCUS:

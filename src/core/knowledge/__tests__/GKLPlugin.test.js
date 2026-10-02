@@ -316,13 +316,14 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
         mockCore.emit('messageText', { text: 'You feel very hot.' });
         expect(emittedEvents).toContain('attributesStateUpdated');
 
-        // 4. インベントリ更新で未登録の鑑定済みアイテムが出現 ➔ discoveriesStateUpdated
+        // 4. インベントリ更新でアイテムが出現しても勝手に discoveriesStateUpdated は発火しない（Single Source of Truth 原則）
         mockCore.emit('inventoryStateUpdated', {
             items: [
                 { onum: 297, rawText: 'a wand of digging', identification: { isUnidentified: false } }
             ]
         });
-        expect(emittedEvents).toContain('discoveriesStateUpdated');
+        expect(emittedEvents).not.toContain('discoveriesStateUpdated');
+        expect(plugin.discoveryStateManager.discoveredOnums.has(297)).toBe(false);
     });
 
     it('castSpell: Z と指定文字のキーシーケンスを実行すること', async () => {
@@ -1180,6 +1181,27 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             const result = await plugin.executeActionRecipe(recipe);
             expect(result).toBe(true);
             expect(mockController.executeSequence).toHaveBeenCalledWith(recipe, {});
+        });
+
+        it('lookupOfficialInformation & getDiscoveryStateManager: 公式解説の動的取得とディスカバリー管理が提供されること', async () => {
+            const plugin = new GKLPlugin();
+            const mockLookup = {
+                lookup: vi.fn().mockResolvedValue({
+                    found: true,
+                    text: 'A fierce feline.',
+                    source: 'NetHack data.base'
+                })
+            };
+            plugin.lookupService = mockLookup;
+
+            const res = await plugin.lookupOfficialInformation('cat');
+            expect(res.found).toBe(true);
+            expect(res.text).toBe('A fierce feline.');
+            expect(mockLookup.lookup).toHaveBeenCalledWith('cat', {});
+
+            const dm = plugin.getDiscoveryStateManager();
+            expect(dm).toBeDefined();
+            expect(dm).toBe(plugin.discoveryStateManager);
         });
     });
 });

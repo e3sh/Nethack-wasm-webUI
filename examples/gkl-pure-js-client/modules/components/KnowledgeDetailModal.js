@@ -194,12 +194,34 @@ export class KnowledgeDetailModal {
     this.currentLanguage = options.language || 'ja';
     this.isVisible = false;
     this.currentTarget = null;
+    this.activeTab = 'spec'; // 'spec' | 'official' | 'lore'
+    this.officialData = null;
+    this.isOfficialLoading = false;
+    this.loreEntries = [];
 
     this._boundKeyDown = (e) => {
-      if (this.isVisible && e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.close();
+      if (this.isVisible) {
+        const isInputFocused = e.target && e.target.tagName === 'INPUT';
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          this.close();
+        } else if (!isInputFocused) {
+          if (e.key === 'q' || e.key === 'Q') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.close();
+          } else if (e.key === '1') {
+            this.activeTab = 'spec';
+            this.render();
+          } else if (e.key === '2') {
+            this.activeTab = 'official';
+            this.render();
+          } else if (e.key === '3') {
+            this.activeTab = 'lore';
+            this.render();
+          }
+        }
       }
     };
 
@@ -209,6 +231,7 @@ export class KnowledgeDetailModal {
   setLanguage(lang) {
     this.currentLanguage = lang === 'en' ? 'en' : 'ja';
     if (this.isVisible && this.currentTarget) {
+      this._fetchOfficialInfo();
       this.render();
     }
   }
@@ -254,12 +277,90 @@ export class KnowledgeDetailModal {
     this.currentTarget = targetData;
     this.currentTargetOptions = options;
     this.isVisible = true;
+    this.activeTab = options.activeTab || 'spec';
+    this.officialData = null;
+    this.isOfficialLoading = false;
+    this.loreEntries = [];
 
     if (this.elModal) {
       this.elModal.classList.remove('hidden');
     }
 
+    // Lore抽出 (Layer 3)
+    this._resolveLore();
+
+    // WASM動的取得 (Layer 2)
+    this._fetchOfficialInfo();
+
     this.render();
+  }
+
+  /**
+   * 対象の名前を抽出
+   * @private
+   */
+  _getTargetName() {
+    if (!this.currentTarget) return null;
+    if (typeof this.currentTarget === 'string') return this.currentTarget;
+    const t = this.currentTarget;
+
+    // 1. target.knowledge (インベントリやコンテナのアイテムスロット)
+    if (t.knowledge) {
+      const k = t.knowledge;
+      const kName = k.nameEn || k.oc_name || k.english || k.trueName || k.rawName;
+      if (kName) return kName;
+    }
+
+    // 2. target.identification (真名識別情報)
+    if (t.identification) {
+      const iden = t.identification;
+      const idenName = iden.trueName || iden.rawName;
+      if (idenName) return idenName;
+    }
+
+    // 3. トップレベル
+    return t.nameEn || t.oc_name || t.english || t.trueName || t.rawName || t.name || null;
+  }
+
+  /**
+   * WASM公式解説の動的取得 (Layer 2)
+   * @private
+   */
+  async _fetchOfficialInfo() {
+    const core = this.getCore();
+    if (!core || !core.gkl || typeof core.gkl.lookupOfficialInformation !== 'function') return;
+
+    const target = this.currentTarget;
+    if (!target) return;
+
+    this.isOfficialLoading = true;
+    this.render();
+
+    try {
+      const result = await core.gkl.lookupOfficialInformation(target, { language: this.currentLanguage });
+      this.officialData = result;
+    } catch (e) {
+      console.warn('[KnowledgeDetailModal] Official lookup error:', e);
+    } finally {
+      this.isOfficialLoading = false;
+      if (this.isVisible) {
+        this.render();
+      }
+    }
+  }
+
+  /**
+   * LoreCodex から関連する噂や伝承を抽出 (Layer 3)
+   * @private
+   */
+  _resolveLore() {
+    const core = this.getCore();
+    const name = (this._getTargetName() || '').toLowerCase();
+    if (core?.gkl?.loreCodex && typeof core.gkl.loreCodex.getRelatedLore === 'function') {
+      this.loreEntries = core.gkl.loreCodex.getRelatedLore(name) || [];
+    } else if (this.currentTarget?.relatedLore && Array.isArray(this.currentTarget.relatedLore)) {
+      this.loreEntries = this.currentTarget.relatedLore;
+    }
   }
 
   /**
@@ -346,8 +447,19 @@ export class KnowledgeDetailModal {
 
     let contentHtml = '';
     let headerIcon = '💡';
-    let headerTitle = data.name || (isEn ? 'Knowledge Detail' : 'ナレッジ詳細');
-    let categoryBadge = data.category || (isMonsterType ? 'MONSTER' : (isFeatureType ? 'FEATURE' : 'ITEM'));
+    const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || target.nameJa || target.knowledge?.nameJa;
+    const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name || target.trueName || target.name;
+    let headerTitle = '';
+    if (!isEn) {
+      if (nameJa) {
+        headerTitle = `${nameJa}${nameEn && nameEn !== nameJa ? ` (${nameEn})` : ''}`;
+      } else {
+        headerTitle = data.name || nameEn || 'ナレッジ詳細';
+      }
+    } else {
+      headerTitle = nameEn || data.name || 'Knowledge Detail';
+    }
+    let categoryBadge = String(data.category || (isMonsterType ? 'MONSTER' : (isFeatureType ? 'FEATURE' : 'ITEM'))).toUpperCase();
 
     if (isMonsterType) {
       headerIcon = data.isHostile ? '👾' : (data.isTame || isPet ? '🐾' : '👹');
@@ -381,6 +493,67 @@ export class KnowledgeDetailModal {
       contentHtml = this._buildFeatureDetailHtml(data, isEn);
     }
 
+    // タブごとのボディHTML
+    let bodyHtml = '';
+    if (this.activeTab === 'spec') {
+      bodyHtml = contentHtml;
+    } else if (this.activeTab === 'official') {
+      if (this.isOfficialLoading) {
+        bodyHtml = `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: #94a3b8; gap: 12px;">
+            <div style="width: 28px; height: 28px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <div>${isEn ? 'Querying NetHack C core data.base...' : 'WASM Cコア (data.base) より公式解説を抽出中...'}</div>
+          </div>
+        `;
+      } else if (this.officialData && this.officialData.found) {
+        bodyHtml = `
+          <div class="kn-detail-container">
+            <div class="kn-section-box" style="background: rgba(30, 41, 59, 0.6); padding: 16px; border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.2);">
+              <div class="kn-section-label" style="color: #38bdf8; font-weight: 700; margin-bottom: 8px;">📖 ${isEn ? 'Official Literature & Lore' : 'NetHack 公式文学引用・解説'}</div>
+              <div style="font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; white-space: pre-wrap;">${this.officialData.text}</div>
+              ${(!isEn && this.officialData.rawText && this.officialData.rawText !== this.officialData.text) ? `
+                <details style="margin-top: 12px; font-size: 0.8rem; color: #94a3b8; border-top: 1px dashed rgba(148, 163, 184, 0.2); padding-top: 8px;">
+                  <summary style="cursor: pointer; color: #38bdf8; user-select: none;">🔍 英語原文 (Original English text)</summary>
+                  <div style="font-style: italic; margin-top: 6px; white-space: pre-wrap; color: #cbd5e1;">${this.officialData.rawText}</div>
+                </details>
+              ` : ''}
+              <div style="margin-top: 12px; text-align: right; font-size: 0.75rem; color: #38bdf8; font-weight: 600;">［${this.officialData.source || 'NetHack data.base'}］</div>
+            </div>
+          </div>
+        `;
+      } else {
+        bodyHtml = `
+          <div style="text-align: center; padding: 40px 10px; color: #64748b; font-size: 0.85rem;">
+            ${isEn ? 'No official literature quote found in data.base.' : 'NetHack 公式 data.base に該当する文学解説はありません。'}
+          </div>
+        `;
+      }
+    } else if (this.activeTab === 'lore') {
+      if (this.loreEntries.length === 0) {
+        bodyHtml = `
+          <div style="text-align: center; padding: 40px 10px; color: #64748b; font-size: 0.85rem;">
+            ${isEn ? 'No related rumors recorded in LoreCodex yet.' : 'この対象に関する噂や伝承はまだ冒険手帳に記録されていません。'}
+          </div>
+        `;
+      } else {
+        bodyHtml = `
+          <div class="kn-detail-container" style="display: flex; flex-direction: column; gap: 8px;">
+            ${this.loreEntries.map((lore, idx) => `
+              <div class="kn-section-box" style="background: rgba(30, 41, 59, 0.5); padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.15);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.72rem;">
+                  <span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; ${lore.isTrue ? 'color: #4ade80; background: rgba(34, 197, 94, 0.15);' : (lore.isFalse ? 'color: #f87171; background: rgba(239, 68, 68, 0.15);' : 'color: #facc15; background: rgba(234, 179, 8, 0.15);')}">
+                    ${lore.isTrue ? (isEn ? '✓ TRUE RUMOR' : '✓ 真の噂') : (lore.isFalse ? (isEn ? '✗ FALSE RUMOR' : '✗ 偽りの噂') : (isEn ? '? RUMOR' : '? 噂'))}
+                  </span>
+                  <span style="color: #94a3b8;">No.${lore.id || (idx + 1)}</span>
+                </div>
+                <div style="font-size: 0.85rem; line-height: 1.45; color: #cbd5e1;">「${lore.text || lore.rawText || ''}」</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
     this.elModal.innerHTML = `
       <div class="knowledge-modal-dialog" role="dialog" aria-modal="true">
         <div class="knowledge-modal-header">
@@ -391,10 +564,36 @@ export class KnowledgeDetailModal {
               <span class="knowledge-category-pill">${categoryBadge}</span>
             </div>
           </div>
-          <button class="knowledge-modal-close" id="btn-knowledge-modal-close" title="${isEn ? 'Close [Esc]' : '閉じる [Esc]'}">×</button>
+          <button class="knowledge-modal-close" id="btn-knowledge-modal-close" title="${isEn ? 'Close [Esc / q]' : '閉じる [Esc / q]'}">×</button>
         </div>
-        <div class="knowledge-modal-body">
-          ${contentHtml}
+
+        <!-- What is this? 検索バー (プログレッシブ拡張) -->
+        <div class="knowledge-modal-search" style="padding: 8px 16px; background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid rgba(148, 163, 184, 0.15); display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 0.85rem; color: #38bdf8;">🔍</span>
+          <input type="text" id="kn-search-input" placeholder="${isEn ? 'What is this? (Type monster, item, or symbol...)' : 'What is this? (モンスター名・アイテム名・シンボルを入力...)'}" style="flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 4px; padding: 4px 8px; color: #f8fafc; font-size: 0.82rem; outline: none;" />
+          <button id="kn-search-btn" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; border-radius: 4px; padding: 4px 12px; font-size: 0.8rem; cursor: pointer; font-family: inherit;">${isEn ? 'Lookup' : '照会'}</button>
+        </div>
+
+        <!-- 3層タブナビゲーション -->
+        <div class="knowledge-modal-tabs" style="display: flex; gap: 4px; padding: 6px 16px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid rgba(148, 163, 184, 0.2);">
+          <button class="kn-tab-btn ${this.activeTab === 'spec' ? 'active' : ''}" data-tab="spec" style="flex: 1; padding: 6px 8px; border-radius: 6px; border: ${this.activeTab === 'spec' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent'}; background: ${this.activeTab === 'spec' ? 'rgba(56, 189, 248, 0.2)' : 'transparent'}; color: ${this.activeTab === 'spec' ? '#38bdf8' : '#94a3b8'}; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit;">
+            📊 ${isEn ? '1. Specs' : '1. 実用スペック'}
+          </button>
+          <button class="kn-tab-btn ${this.activeTab === 'official' ? 'active' : ''}" data-tab="official" style="flex: 1; padding: 6px 8px; border-radius: 6px; border: ${this.activeTab === 'official' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent'}; background: ${this.activeTab === 'official' ? 'rgba(56, 189, 248, 0.2)' : 'transparent'}; color: ${this.activeTab === 'official' ? '#38bdf8' : '#94a3b8'}; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit;">
+            📖 ${isEn ? '2. Official Lore' : '2. 公式解説 (WASM)'}
+          </button>
+          <button class="kn-tab-btn ${this.activeTab === 'lore' ? 'active' : ''}" data-tab="lore" style="flex: 1; padding: 6px 8px; border-radius: 6px; border: ${this.activeTab === 'lore' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent'}; background: ${this.activeTab === 'lore' ? 'rgba(56, 189, 248, 0.2)' : 'transparent'}; color: ${this.activeTab === 'lore' ? '#38bdf8' : '#94a3b8'}; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit;">
+            💡 ${isEn ? '3. Rumors' : '3. 冒険の噂'} ${this.loreEntries.length > 0 ? `(${this.loreEntries.length})` : ''}
+          </button>
+        </div>
+
+        <div class="knowledge-modal-body" style="max-height: 400px; overflow-y: auto;">
+          ${bodyHtml}
+        </div>
+
+        <div style="padding: 8px 16px; border-top: 1px solid rgba(148, 163, 184, 0.15); display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b;">
+          <span>[1][2][3] ${isEn ? 'Switch Tab' : 'タブ切替'} | [Esc] / [q] ${isEn ? 'Close' : '閉じる'}</span>
+          <span>NetHack WebUI Knowledge Integration</span>
         </div>
       </div>
     `;
@@ -406,6 +605,48 @@ export class KnowledgeDetailModal {
         this.close();
       };
     }
+
+    // 検索入力イベント結線
+    const searchInput = this.elModal.querySelector('#kn-search-input');
+    const searchBtn = this.elModal.querySelector('#kn-search-btn');
+    const doSearch = () => {
+      const query = (searchInput?.value || '').trim();
+      if (query) {
+        this.open(query);
+      }
+    };
+    if (searchBtn) {
+      searchBtn.onclick = (e) => {
+        e.stopPropagation();
+        doSearch();
+      };
+    }
+    if (searchInput) {
+      searchInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          doSearch();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          searchInput.blur();
+        }
+      };
+    }
+
+    // タブクリックイベント
+    const tabBtns = this.elModal.querySelectorAll('.kn-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const tab = btn.getAttribute('data-tab');
+        if (tab) {
+          this.activeTab = tab;
+          this.render();
+        }
+      };
+    });
   }
 
   /**

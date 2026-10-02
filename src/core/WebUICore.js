@@ -1649,9 +1649,15 @@ export class WebUICore {
                 buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.FILE, ' ')
             };
 
-            this.renderer.showPrompt(payload);
-            this.emit('textWindowModal', { lines: fileLines, resolver, payload });
-            this.emit('inputRequired', payload);
+            const isInteractiveExecuting = Boolean(this.interactiveController && this.interactiveController.isBusy());
+            const isDriverSuppress = Boolean(this.driver && this.driver.sequenceOptions && this.driver.sequenceOptions.suppressPrompts);
+            const shouldSuppress = isInteractiveExecuting || isDriverSuppress;
+
+            if (!shouldSuppress) {
+                this.renderer.showPrompt(payload);
+                this.emit('textWindowModal', { lines: fileLines, resolver, payload });
+                this.emit('inputRequired', payload);
+            }
         });
 
         // display_nhwindow ブロッキング解凍判別 ＆ テキストウィンドウモータル発火
@@ -1693,9 +1699,16 @@ export class WebUICore {
                 buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.KEY, ' ')
             };
 
-            this.renderer.showPrompt(payload);
-            this.emit('textWindowModal', { lines: bufferLines, resolver, payload });
-            this.emit('inputRequired', payload);
+            const isInteractiveExecuting = Boolean(this.interactiveController && this.interactiveController.isBusy());
+            const isDriverSuppress = Boolean(this.driver && this.driver.sequenceOptions && this.driver.sequenceOptions.suppressPrompts);
+            const shouldSuppress = isInteractiveExecuting || isDriverSuppress;
+
+            // 🛡️ IRC対話セッション中やサイレント同期中は画面モーダル描画・UI入力をサプレス
+            if (!shouldSuppress) {
+                this.renderer.showPrompt(payload);
+                this.emit('textWindowModal', { lines: bufferLines, resolver, payload });
+                this.emit('inputRequired', payload);
+            }
         });
 
         // inputRequired

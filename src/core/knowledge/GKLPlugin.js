@@ -11,6 +11,7 @@ import { TacticalAdvisor } from "./engines/TacticalAdvisor.js";
 import { AssistSignalSynthesizer } from "./engines/AssistSignalSynthesizer.js";
 import { StructuredKnowledgeEngine } from "./engines/StructuredKnowledgeEngine.js";
 import { OnDemandLookService } from "./services/OnDemandLookService.js";
+import { OnDemandLookupService } from "./services/OnDemandLookupService.js";
 import { DiscoveryStateManager } from "./state/DiscoveryStateManager.js";
 import { MonsterTracker } from "./state/MonsterTracker.js";
 import { WishService } from "./services/WishService.js";
@@ -21,6 +22,7 @@ import { EncumbranceStateManager } from "./state/EncumbranceStateManager.js";
 import { LoreCodex } from "./lore/LoreCodex.js";
 import { InteractionContext } from "./context/InteractionContext.js";
 import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
+import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
 import { PROMPT_CATEGORY } from '../types.js';
 
 
@@ -86,7 +88,9 @@ export class GKLPlugin {
             this.areaStateManager.setKeyMode(mode);
         }
 
-        this.discoveryStateManager = options.discoveryStateManager || new DiscoveryStateManager();
+        this.discoveryStateManager = options.discoveryStateManager || new DiscoveryStateManager({
+            translationEngine: options.translationEngine || null
+        });
 
         this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
             translationEngine: options.translationEngine || null,
@@ -103,6 +107,12 @@ export class GKLPlugin {
         }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setSkillStateManager === 'function') {
             this.inventoryStateManager.setSkillStateManager(this.skillStateManager);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setDiscoveryStateManager === 'function') {
+            this.inventoryStateManager.setDiscoveryStateManager(this.discoveryStateManager);
+        }
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.setInventoryStateManager === 'function') {
+            this.discoveryStateManager.setInventoryStateManager(this.inventoryStateManager);
         }
 
         this.wishService = options.wishService || new WishService({
@@ -138,6 +148,7 @@ export class GKLPlugin {
         this.core = null;
         this.requestController = null;
         this.lookService = new OnDemandLookService();
+        this.lookupService = options.lookupService || new OnDemandLookupService();
         this._coreListeners = [];
         this._prevHp = null;
         this._prevAc = null;
@@ -315,6 +326,9 @@ export class GKLPlugin {
         if (this.actionSignalResolver && typeof this.actionSignalResolver.setLanguage === 'function') {
             this.actionSignalResolver.setLanguage(resolvedLang);
         }
+        if (this.lookupService && typeof this.lookupService.setLanguage === 'function') {
+            this.lookupService.setLanguage(resolvedLang);
+        }
     }
 
     /**
@@ -489,6 +503,12 @@ export class GKLPlugin {
             if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function') {
                 this.loreCodex.setTranslationEngine(core.translator);
             }
+            if (this.lookupService && typeof this.lookupService.setTranslationEngine === 'function') {
+                this.lookupService.setTranslationEngine(core.translator);
+            }
+            if (this.discoveryStateManager && typeof this.discoveryStateManager.setTranslationEngine === 'function') {
+                this.discoveryStateManager.setTranslationEngine(core.translator);
+            }
         }
 
 
@@ -497,6 +517,9 @@ export class GKLPlugin {
         }
         if (this.lookService) {
             this.lookService.setCore(core);
+        }
+        if (this.lookupService) {
+            this.lookupService.setCore(core);
         }
 
         // WebUICore からのパブリックイベントにバインド
@@ -705,26 +728,11 @@ export class GKLPlugin {
             }
         });
 
-        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算 ＆ 鑑定済みアイテムの DiscoveryCache 学習
+        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算
         addCoreListener('inventoryStateUpdated', (invMgr) => {
             const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
             if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
                 this.attributeStateManager.updateExtrinsicsFromInventory(items);
-            }
-            let newlyDiscovered = false;
-            if (this.discoveryStateManager && Array.isArray(items)) {
-                for (const item of items) {
-                    if (item && item.onum >= 0 && item.identification && !item.identification.isUnidentified) {
-                        const prevDiscovered = this.discoveryStateManager.discoveredOnums.has(item.onum);
-                        this.discoveryStateManager.registerKnownItem(item.onum, item.rawText);
-                        if (!prevDiscovered && this.discoveryStateManager.discoveredOnums.has(item.onum)) {
-                            newlyDiscovered = true;
-                        }
-                    }
-                }
-            }
-            if (newlyDiscovered) {
-                core.emit('discoveriesStateUpdated', this.discoveryStateManager);
             }
         });
 
@@ -1691,23 +1699,30 @@ export class GKLPlugin {
 
         const startTime = Date.now();
         try {
-            if (typeof this.core.silentQuery === 'function') {
-                const buffer = await this.core.silentQuery(['\\', ' ']);
-                if (buffer && this.discoveryStateManager) {
-                    this.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                    this._recordSilentSync('discoveries', true, Date.now() - startTime);
-                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                    return true;
-                }
+            let buffer = null;
+            if (typeof this.core.querySequenceSilent === 'function') {
+                const recipe = ActionRecipeFactory.createDiscoveriesSyncRecipe();
+                const res = await this.core.querySequenceSilent(recipe, {
+                    syncType: 'discoveries',
+                    suppressPrompts: true,
+                    isSilentSync: true
+                });
+                buffer = Array.isArray(res) ? res : (res && res.buffer ? res.buffer : null);
+            } else if (typeof this.core.silentQuery === 'function') {
+                buffer = await this.core.silentQuery(['\\', ' ', ' ', ' ', ' ', ' ', '\x1b']);
             } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
-                this.core.driver.queueSequence(['\\', ' '], { silent: true });
-                const buffer = this.core.driver.getLastSequenceBuffer ? this.core.driver.getLastSequenceBuffer() : null;
-                if (buffer && this.discoveryStateManager) {
-                    this.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                    this._recordSilentSync('discoveries', true, Date.now() - startTime);
-                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                    return true;
-                }
+                buffer = await this.core.driver.queueSequence(['\\', ' ', ' ', ' ', ' ', ' ', '\x1b'], {
+                    silent: true,
+                    suppressPrompts: true,
+                    isSilentSync: true
+                });
+            }
+
+            if (buffer && this.discoveryStateManager) {
+                this.discoveryStateManager.updateFromDiscoveriesText(buffer);
+                this._recordSilentSync('discoveries', true, Date.now() - startTime);
+                this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+                return true;
             }
         } catch (e) {
             console.warn('[GKLPlugin] syncDiscoveriesSilent error:', e);
@@ -1715,6 +1730,27 @@ export class GKLPlugin {
             this._isSyncingDiscoveries = false;
         }
         return false;
+    }
+
+    /**
+     * 対象の公式解説・文学引用を動的オンデマンド取得 (WASM data.base / data_jp.base)
+     * @param {string} target - 検索対象（アイテム名、モンスター名、シンボル等）
+     * @param {Object} [options={}]
+     * @returns {Promise<{ found: boolean, query: string, text: string, lines: string[], source?: string, fromCache: boolean }>}
+     */
+    async lookupOfficialInformation(target, options = {}) {
+        if (!this.lookupService) {
+            return { found: false, query: target, text: '', lines: [], fromCache: false };
+        }
+        return await this.lookupService.lookup(target, options);
+    }
+
+    /**
+     * ディスカバリー状態マネージャー (DiscoveryStateManager) を取得
+     * @returns {DiscoveryStateManager}
+     */
+    getDiscoveryStateManager() {
+        return this.discoveryStateManager;
     }
 
     /**

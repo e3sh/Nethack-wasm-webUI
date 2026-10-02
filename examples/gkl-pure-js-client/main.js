@@ -337,9 +337,12 @@ class GklPureJSClient {
       getContainerModal: () => this.containerModal,
       getPaperdollModal: () => this.paperdollModal,
       getCodexModal: () => this.codexModal,
+      getKnowledgeDetailModal: () => this.knowledgeDetailModal,
       getMinimapRenderer: () => this.minimapRenderer,
       getMessageHistoryDrawer: () => this.messageHistoryDrawer,
-      toggleSidePanel: (forceState) => this.toggleSidePanel(forceState)
+      toggleSidePanel: (forceState) => this.toggleSidePanel(forceState),
+      onOpenKnowledgeInspector: () => this.openKnowledgeInspector(),
+      onOpenDiscoveryCodex: () => this.openDiscoveryCodex()
     });
 
     // 10. Startup Step Progression State
@@ -1705,6 +1708,108 @@ class GklPureJSClient {
         this.core.gkl.setLanguage(this.currentLanguage);
       }
       this.renderGklUi();
+    }
+  }
+
+  /**
+   * 📚 '/' コマンドプログレッシブ拡張: 統合ナレッジインスペクターを開く
+   */
+  openKnowledgeInspector() {
+    let target = this.lastKnowledgeTarget;
+
+    // 直前ターゲットがなければ足元のアイテム/モンスターを探す
+    if (!target) {
+      const area = this.core?.gkl?.areaStateManager;
+      const playerPos = area?.playerPos;
+      if (playerPos && typeof area.getEntityAt === 'function') {
+        const underfoot = area.getEntityAt(playerPos.x, playerPos.y);
+        if (underfoot) {
+          target = underfoot;
+        }
+      }
+    }
+
+    // それでもなければ自キャラ
+    if (!target) {
+      const isEn = this.currentLanguage === 'en';
+      target = {
+        isPlayer: true,
+        category: 'PLAYER',
+        name: isEn ? 'You (Player)' : '自キャラ (Player)',
+        dangerLevel: 'NONE',
+        dispositionStatus: 'PLAYER',
+        stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
+        effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
+      };
+    }
+
+    if (this.knowledgeDetailModal) {
+      this.knowledgeDetailModal.open(target);
+      // '/' 押下時は直ちにキーワード入力できるよう検索バーへフォーカス
+      setTimeout(() => {
+        const input = document.getElementById('kn-search-input');
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 50);
+    }
+  }
+
+  /**
+   * 📜 '\' または '¥' コマンドプログレッシブ拡張: ディスカバリー図鑑を開く (Gap 1)
+   */
+  openDiscoveryCodex() {
+    let container = document.getElementById('discovery-codex-modal-container');
+    if (!container && typeof document !== 'undefined') {
+      container = document.createElement('div');
+      container.id = 'discovery-codex-modal-container';
+      container.className = 'knowledge-modal-backdrop hidden';
+      container.style.cssText = 'position: fixed; inset: 0; z-index: 1050; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);';
+
+      const codexEl = document.createElement('nh-discovery-codex');
+      codexEl.id = 'active-discovery-codex';
+      codexEl.addEventListener('nh-close', () => {
+        container.classList.add('hidden');
+      });
+      codexEl.addEventListener('nh-item-select', (e) => {
+        container.classList.add('hidden');
+        if (this.knowledgeDetailModal && e.detail?.item) {
+          this.knowledgeDetailModal.open(e.detail.item);
+        }
+      });
+      container.appendChild(codexEl);
+
+      container.onclick = (e) => {
+        if (e.target === container) {
+          container.classList.add('hidden');
+        }
+      };
+      container.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      document.body.appendChild(container);
+    }
+
+    if (container) {
+      const codexEl = container.querySelector('nh-discovery-codex');
+      if (codexEl) {
+        codexEl.setLanguage(this.currentLanguage);
+        if (this.core?.gkl?.discoveryStateManager) {
+          codexEl.setDiscoveryManager(this.core.gkl.discoveryStateManager);
+        }
+      }
+      container.classList.remove('hidden');
+
+      // Cコアとの動的バックグラウンド同期
+      if (this.core?.gkl && typeof this.core.gkl.syncDiscoveriesSilent === 'function') {
+        this.core.gkl.syncDiscoveriesSilent().then(() => {
+          if (codexEl && this.core?.gkl?.discoveryStateManager) {
+            codexEl.setDiscoveryManager(this.core.gkl.discoveryStateManager);
+          }
+        });
+      }
     }
   }
 

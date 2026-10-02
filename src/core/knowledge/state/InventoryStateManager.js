@@ -20,6 +20,7 @@ export class InventoryStateManager {
         this._lastInventorySignature = ''; // 前回のインベントリシグネチャ（差分検知用）
         this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
         this.skillStateManager = options.skillStateManager || null;
+        this.discoveryStateManager = options.discoveryStateManager || null;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
     }
 
@@ -41,6 +42,10 @@ export class InventoryStateManager {
 
     setSkillStateManager(sm) {
         this.skillStateManager = sm;
+    }
+
+    setDiscoveryStateManager(dsm) {
+        this.discoveryStateManager = dsm;
     }
 
     /**
@@ -129,6 +134,8 @@ export class InventoryStateManager {
                     rawText,
                     onum,
                     glyphId
+                }, {
+                    discoveryStateManager: this.discoveryStateManager
                 });
 
                 // 🎯 ナレッジ自動物理アタッチ (アイテム専用 getItemKnowledge を直接呼び出し、コンテキストを完全に維持)

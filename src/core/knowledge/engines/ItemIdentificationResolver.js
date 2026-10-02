@@ -11,6 +11,8 @@
  * 4. 未識別アイテムに対する安全な表示名（ネタバレ防止）とカテゴリ別鑑定ヒント（床彫り、流し台、価格等）を生成。
  */
 
+import { OBJECT_KNOWLEDGE_MAP } from '../data/OBJECT_KNOWLEDGE_FULL.js';
+
 // 識別の5段階レベル定数
 export const IDENTIFICATION_LEVELS = {
     UNIDENTIFIED: 'UNIDENTIFIED',           // Lv.0: 完全未識別 (外見名のみ)
@@ -20,7 +22,7 @@ export const IDENTIFICATION_LEVELS = {
     FULLY_IDENTIFIED: 'FULLY_IDENTIFIED'   // Lv.4: 個別完全識別済み (+強化値, チャージ数等)
 };
 
-// 外見エイリアス語彙リスト (appearances.ja.md 準拠)
+// 外見エイリアス語彙リスト (tilemappings_data.js および appearances.ja.md 準拠)
 export const APPEARANCE_PATTERNS = {
     // 1. 薬 (液体の色や状態)
     POTION: [
@@ -59,13 +61,15 @@ export const APPEARANCE_PATTERNS = {
     // 6. 防具 (一般的な外見別名)
     ARMOR: [
         'leather hat', 'iron skull cap', 'hard hat', 'conical hat', 'plumed helmet',
-        'etched helmet', 'crested helmet', 'visored helmet', 'faded pall', 'coarse mantelet',
-        'hooded cloak', 'slippery cloak', 'apron', 'tattered cape', 'opera cloak',
-        'ornamental cope', 'piece of cloth', 'blue and green shield', 'white-handed shield',
-        'red-eyed shield', 'large round shield', 'polished silver shield', 'old gloves',
-        'padded gloves', 'riding gloves', 'fencing gloves', 'walking shoes', 'hard shoes',
-        'jackboots', 'combat boots', 'jungle boots', 'hiking boots', 'mud boots',
-        'buckled boots', 'snow boots'
+        'etched helmet', 'crested helmet', 'visored helmet', 'crystal helmet', 'dented pot',
+        'faded pall', 'coarse mantelet', 'hooded cloak', 'slippery cloak', 'apron',
+        'tattered cape', 'opera cloak', 'ornamental cope', 'piece of cloth',
+        'crude chain mail', 'crude ring mail',
+        'wooden shield', 'blue and green shield', 'white-handed shield',
+        'red-eyed shield', 'large round shield', 'polished silver shield',
+        'old gloves', 'padded gloves', 'riding gloves', 'fencing gloves',
+        'walking shoes', 'hard shoes', 'jackboots', 'combat boots', 'jungle boots',
+        'hiking boots', 'mud boots', 'buckled boots', 'snow boots'
     ],
     // 7. 道具 (未識別時の一般名)
     TOOL: [
@@ -74,11 +78,17 @@ export const APPEARANCE_PATTERNS = {
     ],
     // 8. 武器 (部族・形状別名)
     WEAPON: [
-        'crude dagger', 'runed dagger', 'crude short sword', 'broad short sword',
-        'runed short sword', 'crude broadsword', 'runed broadsword', 'double-headed axe',
-        'curved sword', 'samurai sword', 'long samurai sword', 'crude spear', 'runed spear',
-        'crude bow', 'runed bow', 'crude arrow', 'runed arrow', 'broad pick',
-        'thonged club', 'vulgar polearm', 'hilted polearm', 'forked polearm',
+        'crude arrow', 'runed arrow', 'bamboo arrow',
+        'crude dagger', 'runed dagger',
+        'crude short sword', 'broad short sword', 'runed short sword',
+        'crude broadsword', 'runed broadsword',
+        'curved sword', 'samurai sword', 'long samurai sword',
+        'double-headed axe',
+        'crude spear', 'runed spear', 'stout spear', 'throwing spear',
+        'crude bow', 'runed bow', 'long bow',
+        'broad pick', 'thonged club', 'staff',
+        'throwing star',
+        'vulgar polearm', 'hilted polearm', 'forked polearm',
         'single-edged polearm', 'angled poleaxe', 'long poleaxe', 'pole cleaver',
         'pole sickle', 'pruning hook', 'hooked polearm', 'pronged polearm',
         'beaked polearm'
@@ -125,8 +135,62 @@ export class ItemIdentificationResolver {
 
         // 未識別外見かどうかの判定
         const appearanceMatch = this.detectAppearance(coreName, textWithoutStats);
-        const isUnidentified = Boolean(appearanceMatch.isAppearance);
-        const category = appearanceMatch.category || this.inferCategory(coreName);
+        let isUnidentified = Boolean(appearanceMatch.isAppearance);
+        let category = appearanceMatch.category || this.inferCategory(coreName);
+        let appearanceName = appearanceMatch.appearanceName || null;
+
+        // options.discoveryStateManager または onum と OBJECT_KNOWLEDGE_MAP による二重防御
+        if (options.discoveryStateManager && typeof options.discoveryStateManager.isIdentified === 'function') {
+            if (onum >= 0 && options.discoveryStateManager.isIdentified(onum)) {
+                isUnidentified = false;
+            } else if (appearanceName && options.discoveryStateManager.isIdentified(appearanceName)) {
+                isUnidentified = false;
+            }
+        } else if (!isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+            const master = OBJECT_KNOWLEDGE_MAP.get(onum);
+            if (master && master.canBeUnidentified) {
+                // マスター上未識別になりうるアイテムだが、テキストに真名が含まれていない場合は未識別と判定
+                const trueNameLower = (master.name || '').toLowerCase();
+                const nameJa = (master.nameJa || '').toLowerCase();
+                const baseName = (master.baseName || '').toLowerCase();
+                const cleanLower = cleanText.toLowerCase();
+
+                let isTrueNamePresent = false;
+
+                // 1. 英語完全一致または複数形一致 (例: "potion of extra healing" or "potions of extra healing")
+                if (trueNameLower) {
+                    if (cleanLower.includes(trueNameLower)) {
+                        isTrueNamePresent = true;
+                    } else {
+                        // "potion of ..." -> "potions? of ..." の複数形正規表現照合
+                        const pluralPattern = trueNameLower.replace(/\b(potion|scroll|wand|ring|amulet|spellbook|book|arrow|dagger|spear|sword)\b/i, '$1s?');
+                        const reg = new RegExp(`\\b${pluralPattern}\\b`, 'i');
+                        if (reg.test(cleanLower)) {
+                            isTrueNamePresent = true;
+                        }
+                    }
+                }
+
+                // 2. baseName + "of" の一致 (例: "extra healing" + "potions of")
+                if (!isTrueNamePresent && baseName) {
+                    if (cleanLower.includes(baseName) && /\b(potions?|scrolls?|wands?|rings?|amulets?|spellbooks?|books?)\s+of\b/i.test(cleanLower)) {
+                        isTrueNamePresent = true;
+                    }
+                }
+
+                // 3. 日本語公式真名の一致 (例: "回復のポーション", "超回復のポーション")
+                if (!isTrueNamePresent && nameJa && cleanLower.includes(nameJa)) {
+                    isTrueNamePresent = true;
+                }
+
+                if (!isTrueNamePresent) {
+                    isUnidentified = true;
+                    if (!category && master.category) {
+                        category = master.category;
+                    }
+                }
+            }
+        }
 
         // 識別レベル (Lv.0〜Lv.4) の判定
         const idLevel = this.determineIdentificationLevel({
@@ -147,14 +211,14 @@ export class ItemIdentificationResolver {
             enchantment,
             charges,
             isUnidentified,
-            appearanceName: appearanceMatch.appearanceName
+            appearanceName: appearanceName
         });
 
         return {
             idLevel,
             isUnidentified,
             category,
-            appearanceName: appearanceMatch.appearanceName || null,
+            appearanceName: appearanceName || null,
             calledName: calledName || null,
             namedInstance: namedInstance || null,
             bucStatus,
@@ -180,14 +244,14 @@ export class ItemIdentificationResolver {
     static extractBuc(text) {
         if (!text) return { bucStatus: 'UNKNOWN', textWithoutBuc: '' };
 
-        if (/\bblessed\b/i.test(text)) {
-            return { bucStatus: 'BLESSED', textWithoutBuc: text.replace(/\bblessed\s+/i, '').trim() };
+        if (/\bblessed\b/i.test(text) || /祝福された\s*/.test(text)) {
+            return { bucStatus: 'BLESSED', textWithoutBuc: text.replace(/\bblessed\s+/i, '').replace(/祝福された\s*/, '').trim() };
         }
-        if (/\bcursed\b/i.test(text)) {
-            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').trim() };
+        if (/\bcursed\b/i.test(text) || /呪われた\s*/.test(text)) {
+            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').replace(/呪われた\s*/, '').trim() };
         }
-        if (/\buncursed\b/i.test(text)) {
-            return { bucStatus: 'UNCURSED', textWithoutBuc: text.replace(/\buncursed\s+/i, '').trim() };
+        if (/\buncursed\b/i.test(text) || /呪われていない\s*/.test(text)) {
+            return { bucStatus: 'UNCURSED', textWithoutBuc: text.replace(/\buncursed\s+/i, '').replace(/呪われていない\s*/, '').trim() };
         }
 
         return { bucStatus: 'UNKNOWN', textWithoutBuc: text };
@@ -275,8 +339,19 @@ export class ItemIdentificationResolver {
         s = s.replace(/^\d+\s+/, '');
         // 3. 冠詞除去 ("a ", "an ", "the ")
         s = s.replace(/\b(a|an|the)\s+/i, '');
-        // 4. 装備中修飾子除去 ("(weapon in hand)", "(being worn)", "(on left hand)" 等)
+        // 4. 装備中修飾子除去 ("(weapon in hand)", "(being worn)", "(on left hand)", "(in quiver)" 等)
         s = s.replace(/\([^\)]+\)/g, '');
+        // 5. 特殊ステータス修飾子除去 ("poisoned ", "welded to hand")
+        s = s.replace(/\bpoisoned\s+/i, '');
+        s = s.replace(/\bwelded to hand\b/i, '');
+        // 6. 複数形プレフィックス正規化 ("potions of" -> "potion of" 等)
+        s = s.replace(/\bpotions\s+of\b/i, 'potion of');
+        s = s.replace(/\bscrolls\s+of\b/i, 'scroll of');
+        s = s.replace(/\brings\s+of\b/i, 'ring of');
+        s = s.replace(/\bwands\s+of\b/i, 'wand of');
+        s = s.replace(/\bamulets\s+of\b/i, 'amulet of');
+        s = s.replace(/\bspellbooks\s+of\b/i, 'spellbook of');
+        s = s.replace(/\bbooks\s+of\b/i, 'book of');
 
         return s.trim();
     }
@@ -291,83 +366,100 @@ export class ItemIdentificationResolver {
         const lowerCore = (coreName || '').toLowerCase();
         const lowerFull = (fullText || '').toLowerCase();
 
-        // 🎯 真名ガード: "ring of ...", "potion of ...", "scroll of ...", "wand of ...", "amulet of ..." 等は100%識別済み真名
-        if (/\b(ring|potion|scroll|wand|amulet|spellbook|book)\s+of\b/i.test(lowerFull) || /\b(ring|potion|scroll|wand|amulet|spellbook|book)\s+of\b/i.test(lowerCore)) {
+        // 🎯 真名ガード: "ring of ...", "potion of ...", "scroll of ...", "wand of ...", "amulet of ...", "spellbook of ...", "book of ..."
+        // または固定真名アイテム ("meat ring", "blank paper", "book of the dead", "amulet of yendor", "cheap plastic imitation" 等)
+        const hasOfPattern = /\b(rings?|potions?|scrolls?|wands?|amulets?|spellbooks?|books?)\s+of\b/i.test(lowerFull) || /\b(rings?|potions?|scrolls?|wands?|amulets?|spellbooks?|books?)\s+of\b/i.test(lowerCore);
+        const isFixedName = /\b(meat ring|blank paper|book of the dead|amulet of yendor|cheap plastic imitation)\b/i.test(lowerFull);
+
+        if (hasOfPattern || isFixedName) {
             return { isAppearance: false, category: this.inferCategory(lowerFull), appearanceName: null };
         }
 
         // 1. 薬 (Potion)
-        if (lowerCore.includes('potion') || lowerFull.includes('potion')) {
+        if (/\bpotions?\b/i.test(lowerCore) || /\bpotions?\b/i.test(lowerFull)) {
             for (const app of APPEARANCE_PATTERNS.POTION) {
-                if (lowerCore.includes(app) || lowerFull.includes(app)) {
+                const reg = new RegExp(`\\b${app}\\b`, 'i');
+                if (reg.test(lowerCore) || reg.test(lowerFull)) {
                     return { isAppearance: true, category: 'POTION', appearanceName: `${app} potion` };
                 }
             }
+            return { isAppearance: true, category: 'POTION', appearanceName: lowerCore || 'potion' };
         }
 
         // 2. 巻物 (Scroll)
-        if (lowerCore.includes('scroll') || lowerFull.includes('scroll') || lowerFull.includes('labeled') || lowerFull.includes('labelled')) {
-            if (/\blabel+ed\b/i.test(lowerFull) || /\bscroll label+ed\b/i.test(lowerFull)) {
+        if (/\bscrolls?\b/i.test(lowerCore) || /\bscrolls?\b/i.test(lowerFull) || /\blabel+ed\b/i.test(lowerFull)) {
+            if (/\blabel+ed\b/i.test(lowerFull)) {
                 const labelMatch = (fullText || '').match(/label+ed\s+([a-zA-Z\s]+)/i);
                 return { isAppearance: true, category: 'SCROLL', appearanceName: labelMatch ? `scroll labeled ${labelMatch[1].trim()}` : 'labeled scroll' };
             }
+            return { isAppearance: true, category: 'SCROLL', appearanceName: lowerCore || 'scroll' };
         }
 
         // 3. 杖 (Wand)
-        if (lowerCore.includes('wand') || lowerFull.includes('wand')) {
+        if (/\bwands?\b/i.test(lowerCore) || /\bwands?\b/i.test(lowerFull)) {
             for (const app of APPEARANCE_PATTERNS.WAND) {
-                if (lowerCore.includes(app) || lowerFull.includes(app)) {
+                const reg = new RegExp(`\\b${app}\\b`, 'i');
+                if (reg.test(lowerCore) || reg.test(lowerFull)) {
                     return { isAppearance: true, category: 'WAND', appearanceName: `${app} wand` };
                 }
             }
+            return { isAppearance: true, category: 'WAND', appearanceName: lowerCore || 'wand' };
         }
 
         // 4. 指輪 (Ring)
-        if ((lowerCore.includes('ring') || lowerFull.includes('ring')) && !lowerFull.includes('ring mail') && !lowerFull.includes('ringmail')) {
+        if ((/\brings?\b/i.test(lowerCore) || /\brings?\b/i.test(lowerFull)) && !lowerFull.includes('ring mail') && !lowerFull.includes('ringmail')) {
             for (const app of APPEARANCE_PATTERNS.RING) {
-                if (lowerCore.includes(app) || lowerFull.includes(app)) {
+                const reg = new RegExp(`\\b${app}\\b`, 'i');
+                if (reg.test(lowerCore) || reg.test(lowerFull)) {
                     return { isAppearance: true, category: 'RING', appearanceName: `${app} ring` };
                 }
             }
+            return { isAppearance: true, category: 'RING', appearanceName: lowerCore || 'ring' };
         }
 
         // 5. アミュレット (Amulet)
-        if (lowerCore.includes('amulet') || lowerFull.includes('amulet')) {
+        if (/\bamulets?\b/i.test(lowerCore) || /\bamulets?\b/i.test(lowerFull)) {
             for (const app of APPEARANCE_PATTERNS.AMULET) {
-                if (lowerCore.includes(app) || lowerFull.includes(app)) {
+                const reg = new RegExp(`\\b${app}\\b`, 'i');
+                if (reg.test(lowerCore) || reg.test(lowerFull)) {
                     return { isAppearance: true, category: 'AMULET', appearanceName: `${app} amulet` };
                 }
             }
+            return { isAppearance: true, category: 'AMULET', appearanceName: lowerCore || 'amulet' };
         }
 
         // 6. 魔法書 (Spellbook)
-        if (lowerCore.includes('spellbook') || lowerCore.includes('book') || lowerFull.includes('spellbook')) {
+        if (/\b(spellbooks?|books?)\b/i.test(lowerCore) || /\b(spellbooks?|books?)\b/i.test(lowerFull)) {
             for (const app of APPEARANCE_PATTERNS.SPELLBOOK) {
-                if (lowerCore.includes(app) || lowerFull.includes(app)) {
-                    if (!/\bspellbook of\b/i.test(lowerFull) && !/\bbook of\b/i.test(lowerFull)) {
-                        return { isAppearance: true, category: 'SPELLBOOK', appearanceName: `${app} spellbook` };
-                    }
+                const reg = new RegExp(`\\b${app}\\b`, 'i');
+                if (reg.test(lowerCore) || reg.test(lowerFull)) {
+                    return { isAppearance: true, category: 'SPELLBOOK', appearanceName: `${app} spellbook` };
                 }
             }
+            return { isAppearance: true, category: 'SPELLBOOK', appearanceName: lowerCore || 'spellbook' };
         }
 
         // 7. 防具 (Armor 外見)
         for (const app of APPEARANCE_PATTERNS.ARMOR) {
-            if (lowerCore === app || lowerFull.includes(app)) {
+            const reg = new RegExp(`\\b${app}s?\\b`, 'i');
+            if (reg.test(lowerCore) || reg.test(lowerFull)) {
                 return { isAppearance: true, category: 'ARMOR', appearanceName: app };
             }
         }
 
         // 8. 武器 (Weapon 外見)
         for (const app of APPEARANCE_PATTERNS.WEAPON) {
-            if (lowerCore === app || lowerFull.includes(app)) {
+            const reg = new RegExp(`\\b${app}s?\\b`, 'i');
+            if (reg.test(lowerCore) || reg.test(lowerFull)) {
                 return { isAppearance: true, category: 'WEAPON', appearanceName: app };
             }
         }
 
         // 9. 宝石・石 (Gems/Stones 外見)
         for (const app of APPEARANCE_PATTERNS.GEM_STONE) {
-            if (lowerCore === app || lowerFull.includes(app)) {
+            const escaped = app.replace(/\s+/g, '\\s+');
+            const reg = new RegExp(`\\b${escaped}s?\\b`, 'i');
+            if (reg.test(lowerCore) || reg.test(lowerFull)) {
                 return { isAppearance: true, category: 'GEM_STONE', appearanceName: app };
             }
         }
@@ -382,16 +474,20 @@ export class ItemIdentificationResolver {
      */
     static inferCategory(name) {
         const lower = (name || '').toLowerCase();
-        if (lower.includes('potion')) return 'POTION';
-        if (lower.includes('scroll')) return 'SCROLL';
-        if (lower.includes('wand')) return 'WAND';
-        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves')) return 'ARMOR';
-        if (lower.includes('ring') && !lower.includes('ring mail') && !lower.includes('ringmail')) return 'RING';
-        if (lower.includes('amulet')) return 'AMULET';
-        if (lower.includes('spellbook') || lower.includes('book')) return 'SPELLBOOK';
-        if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow')) return 'WEAPON';
-        if (lower.includes('food') || lower.includes('ration') || lower.includes('apple') || lower.includes('corpse')) return 'FOOD';
-        if (lower.includes('gem') || lower.includes('stone') || lower.includes('glass')) return 'GEM_STONE';
+        if (lower.includes('potion') || lower.includes('ポーション') || lower.includes('薬')) return 'POTION';
+        if (lower.includes('scroll') || lower.includes('blank paper') || lower.includes('巻物')) return 'SCROLL';
+        if (lower.includes('wand') || lower.includes('杖')) return 'WAND';
+        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves') ||
+            lower.includes('鎧') || lower.includes('甲冑') || lower.includes('兜') || lower.includes('盾') || lower.includes('マント') || lower.includes('ブーツ') || lower.includes('靴') || lower.includes('手袋')) return 'ARMOR';
+        if ((lower.includes('ring') || lower.includes('指輪')) && !lower.includes('ring mail') && !lower.includes('ringmail') && !lower.includes('リングメイル')) return 'RING';
+        if (lower.includes('amulet') || lower.includes('魔除け') || lower.includes('アミュレット')) return 'AMULET';
+        if (lower.includes('spellbook') || lower.includes('book') || lower.includes('呪文書') || lower.includes('魔道書')) return 'SPELLBOOK';
+        if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow') ||
+            lower.includes('剣') || lower.includes('刀') || lower.includes('短剣') || lower.includes('斧') || lower.includes('槍') || lower.includes('弓') || lower.includes('矢')) return 'WEAPON';
+        if (lower.includes('food') || lower.includes('ration') || lower.includes('apple') || lower.includes('corpse') ||
+            lower.includes('食料') || lower.includes('食物') || lower.includes('リンゴ') || lower.includes('死体') || lower.includes('死骸')) return 'FOOD';
+        if (lower.includes('gem') || lower.includes('stone') || lower.includes('glass') ||
+            lower.includes('宝石') || lower.includes('石') || lower.includes('ガラス')) return 'GEM_STONE';
         return 'TOOL';
     }
 

@@ -163,6 +163,7 @@ function parseSimpleHtml(html, parentNode) {
         for (const dm of dataMatches) {
           const camelKey = dm[1].replace(/-([a-z])/g, (_, g) => g.toUpperCase());
           el.dataset[camelKey] = dm[2];
+          el.setAttribute(`data-${dm[1]}`, dm[2]);
         }
         // id
         const idMatch = attrsStr.match(/id=["']([^"']+)["']/);

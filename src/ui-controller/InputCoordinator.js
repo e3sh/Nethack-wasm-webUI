@@ -23,6 +23,8 @@ export const ROUTE_ACTIONS = {
   MENU_CANCEL: 'MENU_CANCEL',
   MENU_RESPOND_CHAR: 'MENU_RESPOND_CHAR',
   TEXT_WINDOW_DISMISS: 'TEXT_WINDOW_DISMISS',
+  OPEN_KNOWLEDGE_INSPECTOR: 'OPEN_KNOWLEDGE_INSPECTOR',
+  OPEN_DISCOVERY_CODEX: 'OPEN_DISCOVERY_CODEX',
   PASSTHROUGH_GAME_KEY: 'PASSTHROUGH_GAME_KEY'
 };
 
@@ -144,7 +146,18 @@ export class InputCoordinator {
       return { action: ROUTE_ACTIONS.BLOCK_INPUT };
     }
 
-    // 10. 通常のゲームキー操作 (パススルー)
+    // 10. 📚 標準操作プログレッシブ拡張 (Phase 7: Native Command Progressive Enhancement)
+    // 通常プレイ中（モーダル/メニュー/テキスト入力非表示時）の '/' (What is this?) および '\' (Known objects)
+    if (!context.bypassEnhancedSignals && !ctrlKey && !altKey) {
+      if (key === '/' || code === 'Slash') {
+        return { action: ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR };
+      }
+      if (key === '\\' || key === '¥' || code === 'Backslash' || code === 'IntlYen') {
+        return { action: ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX };
+      }
+    }
+
+    // 11. 通常のゲームキー操作 (パススルー)
     return {
       action: ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY,
       payload: {

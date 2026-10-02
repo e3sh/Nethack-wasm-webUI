@@ -100,4 +100,21 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     const res = coordinator.evaluateKeyDown({ key: 'Tab', code: 'Tab' });
     expect(res.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_MINIMAP);
   });
+
+  it('標準操作プログレッシブ拡張: "/" で OPEN_KNOWLEDGE_INSPECTOR、"\\" で OPEN_DISCOVERY_CODEX が導出されること', () => {
+    // '/' キー
+    const resSlash = coordinator.evaluateKeyDown({ key: '/', code: 'Slash' });
+    expect(resSlash.action).toBe(ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR);
+
+    // '\' キー
+    const resBackslash = coordinator.evaluateKeyDown({ key: '\\', code: 'Backslash' });
+    expect(resBackslash.action).toBe(ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX);
+
+    // bypassEnhancedSignals: true の場合は PASSTHROUGH_GAME_KEY になること (素通し)
+    const resBypass = coordinator.evaluateKeyDown(
+      { key: '/', code: 'Slash' },
+      { bypassEnhancedSignals: true }
+    );
+    expect(resBypass.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+  });
 });

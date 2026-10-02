@@ -13,19 +13,25 @@ export { NhModal } from './NhModal.js';
 export { NhPaperdoll } from './NhPaperdoll.js';
 export { NhContainerFiler } from './NhContainerFiler.js';
 export { NhUiConfig } from './NhUiConfig.js';
+export { NhKnowledgeCard } from './NhKnowledgeCard.js';
+export { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
 
 import { NhFloatingHud } from './NhFloatingHud.js';
 import { NhModal } from './NhModal.js';
 import { NhPaperdoll } from './NhPaperdoll.js';
 import { NhContainerFiler } from './NhContainerFiler.js';
 import { NhUiConfig } from './NhUiConfig.js';
+import { NhKnowledgeCard } from './NhKnowledgeCard.js';
+import { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
 
 export const COMPONENT_MAP = {
   'nh-floating-hud': NhFloatingHud,
   'nh-modal': NhModal,
   'nh-paperdoll': NhPaperdoll,
   'nh-container-filer': NhContainerFiler,
-  'nh-ui-config': NhUiConfig
+  'nh-ui-config': NhUiConfig,
+  'nh-knowledge-card': NhKnowledgeCard,
+  'nh-discovery-codex': NhDiscoveryCodex
 };
 
 /**

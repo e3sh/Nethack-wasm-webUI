@@ -267,6 +267,50 @@ export class ActionRecipeFactory {
             defaultAction: '\x1b'
         };
     }
+
+    /**
+     * 発見物図鑑 (Discoveries `\`) 完全走査同期レシピ
+     * - Cコアの Discoveries が何ページあっても (1〜30ページ)、--More-- やメニューを自動で最後までページ送り
+     * - 通常ターン (turn_ready) に復帰した時点で確実に完了し、余計なキー誤爆を完全防止
+     * 
+     * @param {Object} [options={}]
+     * @returns {Object} レシピオブジェクト
+     */
+    static createDiscoveriesSyncRecipe(options = {}) {
+        let pageCount = 0;
+        const maxPages = options.maxPages || 30;
+
+        return {
+            id: 'RECIPE_DISCOVERIES_SYNC',
+            start: ['\\'],
+            handlers: [
+                {
+                    match: {
+                        filter: (payload) => {
+                            const actualType = (payload.type || payload.category || payload.promptCategory || '').toLowerCase();
+                            const promptText = (payload.rawPrompt || payload.prompt || '').toLowerCase();
+                            const isMore = actualType === 'more' || promptText.includes('more');
+                            const isMenu = actualType === 'menu';
+                            const isText = actualType === 'text';
+                            const isKey = actualType === 'key';
+                            const isWindow = payload.windowId !== undefined;
+                            return isMore || isMenu || isText || isKey || isWindow;
+                        }
+                    },
+                    action: (ctx) => {
+                        pageCount++;
+                        if (pageCount >= maxPages) {
+                            return '\x1b';
+                        }
+                        return ' ';
+                    }
+                }
+            ],
+            until: { type: 'turn_ready' },
+            timeoutMs: options.timeoutMs || 4000,
+            defaultAction: '\x1b'
+        };
+    }
 }
 
 export default ActionRecipeFactory;
