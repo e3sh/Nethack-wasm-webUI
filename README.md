@@ -131,7 +131,7 @@ C コアが出力するテキストストリームから「願い」「虐殺」
 「外套を脱がなければ鎧は脱げない」「両手が塞がっていると指輪の着脱に制限がある」といった NetHack 独自の装備ルールを解析し、着脱に必要な手順や消費ターン数を事前に算出します。
 
 ### 5. 自動テストによる動作検証
-Vitest による自動テストスイート（65 スイート / 899 テスト）を配備しています。
+Vitest による自動テストスイート（全 111 スイート / 1,355 テスト 100% PASS）を配備しています。
 - **グリフ走査試験 (`AllGlyphsVerification`)**: 全 9,623 個のグリフ ID を走査し、知識ベースのマッピング欠落や予期せぬ例外の発生を防止。
 - **静的整合性監査 (`KnowledgeIntegrityAudit`)**: モンスター・アイテム・戦術アドバイス等の知識ベースとスキーマ定義の整合性を検証。
 
@@ -158,14 +158,17 @@ Vitest による自動テストスイート（65 スイート / 899 テスト）
 ```text
 Nethack-wasm-webUI/
 ├── src/                        # 共通コアロジック
-│   ├── core/                   # WebUICore (入力/翻訳/音響/状態管理/GKL)
+│   ├── core/                   # WebUICore (入力/翻訳/音響/状態管理/GKL/リクエスト/プロンプト)
 │   │   ├── inspector/          # DevTools Inspector (デバッグ・翻訳管理コンソール)
-│   │   ├── knowledge/          # GKL (構造化知識ベース・戦術アドバイザー・マップ解析)
+│   │   ├── knowledge/          # GKL (構造化知識ベース・戦術アドバイザー・マップ解析・伝承)
 │   │   ├── translation/        # リアルタイム翻訳エンジン
-│   │   ├── sound/              # Web Audio 音響処理
+│   │   ├── sound/              # Web Audio 音響処理 (動的音程シンセシス)
 │   │   ├── input/              # 入力正規化・キーマッパー
 │   │   └── lifecycle/          # リスタート・ゲームオーバー処理
+│   ├── ui-controller/          # UIController (Headless UI 防腐層・入力調停・モーダル・HUD)
+│   ├── components/             # 共通 Web Components (<nh-*>)
 │   ├── driver/                 # WASM 実行ドライバー (Web Worker)
+│   ├── testing/                # プロトコル検証バリデータ
 │   └── client/                 # クライアント補助コード
 ├── examples/                   # 各種フロントエンド実装例
 │   └── gkl-pure-js-client/     # フル機能搭載の旗艦 Pure JS クライアント

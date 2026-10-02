@@ -50,6 +50,7 @@
 | **[Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md)** | `💡 proposed` | - | GKL空間幾何学認識エンジン設計書 (床パターン・密集シグナル認識) |
 | **[Dungeon_Tracker_and_Checkpoint_Architecture.md](./3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md)** | `💡 proposed` | - | ダンジョン探索トラッカー＆チェックポイント（箱・旗立て🚩）構想書 |
 | **[Control_Signal_and_Dedicated_UI_Architecture.md](./3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md)** | `🟢 implemented` | `src/core/knowledge/` | 制御シグナル同定基盤＆専用UI連携仕様書 |
+| **[Lore_and_Structured_Knowledge_Cross_Reference_Specification.ja.md](./3_gkl/Lore_and_Structured_Knowledge_Cross_Reference_Specification.ja.md)** | `🟢 implemented` | `src/core/knowledge/lore/` | 伝承・構造化知識クロスリファレンス設計仕様書 (Rumor/Oracleとモンスター/アイテム紐付け) |
 | **[📦 archive/ サブフォルダ](./3_gkl/archive/)** | `📦 archived` | - | 完了済み設計書（SSOT統合、ポストコンバット同期等）・旧資料群（11ファイル退避済） |
 
 ---
@@ -59,7 +60,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全90スイート・1,190テスト 100% PASS） |
+| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（全111スイート・1,355テスト 100% PASS） |
 | **[Scenario_Testing_and_Event_Capture_Architecture.md](./8_testing/Scenario_Testing_and_Event_Capture_Architecture.md)** | `🟢 implemented` | `tools/scenario-recorder.html` | 下り方向：実機イベントキャプチャ＆統合シナリオ再生設計 |
 | **[Sequence_Protocol_Validation_Architecture.md](./8_testing/Sequence_Protocol_Validation_Architecture.md)** | `🟢 implemented` | `tests/protocol/` | 上り方向：キーシーケンス・プロトコル3重防壁検証設計 |
 | **[📦 archive/ サブフォルダ](./8_testing/archive/)** | `📦 archived` | `tests/` | 完了したテスト基盤刷新ロードマップ（全5フェーズ）等の過去移行計画を退避 |
@@ -72,7 +73,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
 | **[DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md)** | `🟢 implemented` | `dictionary.csv`, `tools/dict_converter.py` | マスター翻訳辞書運用・CSV相互変換オペレーションガイド |
-| **[translation_architecture_enhancement_plan.md](./9_translation/translation_architecture_enhancement_plan.md)** | `💡 proposed` | `src/core/translation/` | 翻訳システム次世代刷新構想（Category付与・かすれ文字復元・多段化） |
+| **[signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)** | `💡 proposed` | `src/core/translation/` | シグナル駆動ハイブリッド翻訳＆辞書スリム化構想（Pinpoint/Synthesized/Fallback 3層モデル） |
 | **[📦 archive/ サブフォルダ](./9_translation/archive/)** | `📦 archived` | `tools/dev_scripts/` | 翻訳フロー解説、旧支援ツールガイド、Inspector統合設計、Lookup翻訳手順等（7ファイル退避済） |
 
 ---
@@ -93,15 +94,20 @@ WASM Cコアをバックグラウンド Web Worker で駆動するドライバ�
 ### 5. 💻 クライアント UI & コアエンジン (`docs/2_client_ui/`)
 共通コアエンジン `WebUICore` およびフロントエンド連携仕様書です。
 
-| **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `💡 proposed` | - | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・防腐層設計） |
+| ドキュメント | ステータス | 関連ソースコード | 概要 |
+| :--- | :---: | :--- | :--- |
+| **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `🟢 implemented` | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・Web Components共通基盤・Phase E） |
 | **[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)** | `🟢 implemented` | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js` | イマーシブHUD ＆ 過去ログドロワーメッセージウィンドウ仕様書 (Phase D) |
 | **[gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)** | `🟢 implemented` | `examples/gkl-pure-js-client/` | GKL レファレンスクライアント UI/UX 刷新＆レンダラー表現高度化計画 (Phase A〜D) |
+| **[dialog_design_system_unification_concept.ja.md](./2_client_ui/dialog_design_system_unification_concept.ja.md)** | `🟢 implemented` | `base.css`, `modals.css` | モーダル・ダイアログ群デザインシステム統一 (Dark Glass UI / デザイントークン共通化) |
+| **[modal_interaction_and_navigation_guide.ja.md](./2_client_ui/modal_interaction_and_navigation_guide.ja.md)** | `🟢 implemented` | `src/components/`<br>`src/ui-controller/` | モーダル操作性＆ナビゲーション統合設計ガイド (キーボード/パッド完結・3層協調) |
 | **[WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md)** | `🟢 implemented` | `src/core/WebUICore.js` | WebUICore 利用ガイド・機能仕様 |
 | **[Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md)** | `🟢 implemented` | `src/core/request/` | 汎用連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤仕様書 |
 | **[PromptCategory_UI_Implementation_Guide.md](./2_client_ui/PromptCategory_UI_Implementation_Guide.md)** | `🟢 implemented` | `src/core/prompt/` | プロンプトカテゴリ分類 ＆ UI 実装ガイド |
 | **[Modern_Web_Components_Update_Rules.md](./2_client_ui/Modern_Web_Components_Update_Rules.md)** | `🟢 implemented` | `src/` | モダン Web コンポーネント実装・更新規約 |
 | **[gkl_inspect_cell_on_demand_guide.md](./2_client_ui/gkl_inspect_cell_on_demand_guide.md)** | `🟢 implemented` | `src/core/knowledge/OnDemandLookService.js` | セルオンデマンド照会・インスペクト実装ガイド |
 | **[unified_renderer_and_screen_architecture_plan.md](./2_client_ui/unified_renderer_and_screen_architecture_plan.md)** | `🟢 implemented` | `examples/gkl-pure-js-client/modules/renderers/` | 仮想スクリーン統合レンダラー (Phase 1〜3) ＆ UI画面刷新仕様書 |
+| **[webgpu_hd2d_diorama_renderer.ja.md](./2_client_ui/webgpu_hd2d_diorama_renderer.ja.md)** | `🟢 implemented` | `WebGPUHD2DRenderer.js` | WebGPU (WGSL) による HD-2D ジオラマレンダラー仕様＆移植ガイド（実装稼働中） |
 | **[📦 archive/ サブフォルダ](./2_client_ui/archive/)** | `📦 archived` | - | 入力仕様、UI Decoupling設計、描画パフォーマンス分析等（8ファイル退避済） |
 
 ---
@@ -111,8 +117,9 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
+| **[sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md)** | `🚧 in-progress` | `src/core/sound/` | **統合サウンドコーディネーター ＆ 音響駆動ドライバ分離仕様書 (Phase 6)** |
 | **[sound_system_spec.md](./4_sound/sound_system_spec.md)** | `🟢 implemented` | `src/sound/` | 音響・Web Audio システム仕様書 |
-| **[dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md)** | `💡 proposed` | `src/sound/` | 動的音程シンセシス構想（リアルタイム周波数・楽器合成） |
+| **[dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md)** | `🟢 implemented` | `SoundEngine.js`<br>`SoundEventCatalog.js` | 動的音程シンセシス (Web Audio API オシレーター合成・容量ゼロ / Stage 5.6) |
 | **[📦 archive/ サブフォルダ](./4_sound/archive/)** | `📦 archived` | - | C層 soundprocs Shim 調査メモ退避 |
 
 ---
@@ -122,13 +129,13 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
-| **[phase5_detailed_migration_plan.ja.md](./7_futures/phase5_detailed_migration_plan.ja.md)** | `🚧 in-progress` | **Phase 5 詳細設計および段階的移行手順書 (メッセージマスタ移行・WebUICore純化)** |
-| **[webgpu_hd2d_diorama_renderer.ja.md](./7_futures/webgpu_hd2d_diorama_renderer.ja.md)** | `🟢 implemented` | WebGPU (WGSL) による HD-2D ジオラマレンダラー仕様＆移植ガイド（実装稼働中） |
-| **[gkl_intelligent_ui_ideas.ja.md](./7_futures/gkl_intelligent_ui_ideas.ja.md)** | `🟢 implemented` | 次世代インテリジェントUI構想（虐殺・コンテナ・変化制御・魔法書き込み・キャラ作成等実装済） |
+| **[native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `🚧 in-progress` | **標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ仕様書 (Phase 7)** |
+| **[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)** | `💡 proposed` | GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計構想書 (Prayer Tracker & Fuel Gauge) |
+| **[enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)** | `💡 proposed` | 啓蒙ダイアログシグナル化による隠れステータス横取り ＆ 状態精度向上構想 |
+| **[gamepad/ (ゲームパッド構想群)](./7_futures/gamepad/README.md)** | `💡 proposed` | ゲームパッド・コンソールモード仕様＆実験アーカイブ（オンデマンド統合設計書・スタンス切替等 4本集約） |
 | **[gkl_variant_adaptation_architecture.md](./7_futures/gkl_variant_adaptation_architecture.md)** | `💡 proposed` | GKL バリアント適応拡張・互換性構想（メタデータ契約・リジェクト是非・分離設計） |
 | **[webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)** | `💡 proposed` | 将来の WebUICore 完全独立・マイクロカーネル化構想（WebUIDevice/WebUISound分離） |
-| **[message_context_and_signal_driven_architecture.ja.md](./7_futures/message_context_and_signal_driven_architecture.ja.md)** | `💡 proposed` | メッセージ文脈＆シグナル駆動アーキテクチャ構想 |
-| **[source_message_extraction_methodology_guide.ja.md](./7_futures/source_message_extraction_methodology_guide.ja.md)** | `🟢 implemented` | NetHack Cソースコード全メッセージ静的抽出メソドロジーガイド（14,849件抽出済） |
+| **[📦 archive/ サブフォルダ](./7_futures/archive/)** | `📦 archived` | 完遂済み Phase 5 詳細計画群（全6ステージ）、初期構想、インテリジェントUIメモ、抽出手法ガイド退避 |
 
 ---
 
@@ -152,8 +159,8 @@ Web Audio API を活用した音響・効果音再生システム仕様書です
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
-| **[handover_20260921_status_reevaluation.ja.md](./6_project_reports/handover_20260921_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】完了状態・ペンディング状態 再評価総合レポート（2026/09/21版）** |
-| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜過去の引き継ぎ資料・進捗報告書群・初期設計知識ベース・ドライバ改善記録（14ファイル退避済） |
+| **[handover_20260929_status_reevaluation.ja.md](./6_project_reports/handover_20260929_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】Phase E / Phase 5 完遂・現有能力再評価総合レポート（2026/09/29版）** |
+| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 開発初期〜過去の引き継ぎ資料・進捗報告書群・初期設計知識ベース・ドライバ改善記録（15ファイル退避済） |
 
 ---
 
@@ -165,13 +172,13 @@ docs/
 ├── FAQ_and_Configuration_Guide.md # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
 ├── ROADMAP.md            # 総合ロードマップ＆進捗ダッシュボード
 ├── 1_driver/             # WASM Driver 仕様書 (直下3本 + archive/)
-├── 2_client_ui/          # UI / WebUICore 仕様書 (直下10本 + archive/)
+├── 2_client_ui/          # UI / WebUICore 仕様書 (直下12本 + archive/)
 ├── 3_gkl/                # GKL 総合・ADR・戦術・演出・API・コンテナ・ペーパードール仕様書 (直下13本 + archive/)
-├── 4_sound/              # 音響システム仕様書 (直下2本 + archive/)
-├── 5_gamedata/           # ゲームリファレンスデータ群 (直下9本 + archive/)
-├── 6_project_reports/    # 最新再評価レポート & プロジェクト報告書 (直下1本 + archive/)
-├── 7_futures/            # 次世代インテリジェントUI・マイクロカーネル・バリアント構想・Phase 5 (直下8本 + phase5/)
+├── 4_sound/              # 音響システム仕様書 (直下3本 + archive/)
+├── 5_gamedata/           # ゲームリファレンスデータ群 (直下7本 + archive/)
+├── 6_project_reports/    # 最新再評価レポート(0929版) & プロジェクト報告書 (直下1本 + archive/)
+├── 7_futures/            # 次世代構想・Phase 7 (直下5本 + gamepad/ + archive/)
 ├── 8_testing/            # テストガイド & 構想書 (直下3本 + archive/)
-└── 9_translation/        # 辞書運用マニュアル & 次世代刷新構想 (直下2本 + archive/)
+└── 9_translation/        # 辞書運用マニュアル & ハイブリッド翻訳構想 (直下2本 + archive/)
 ```
 
