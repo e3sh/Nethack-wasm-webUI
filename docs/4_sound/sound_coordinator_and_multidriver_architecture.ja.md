@@ -1,14 +1,18 @@
 ---
 title: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離構想 (Sound Coordinator & Multi-Driver Decoupling Architecture)
-status: proposed
+status: implemented
 created: 2026-09-29
-author: NetHack WASM WebUI Development Team
+updated: 2026-10-02
 target_components:
   - src/core/sound/SoundEngine.js
-  - src/core/sound/SoundCoordinator.js (New)
-  - src/core/sound/drivers/WaveAudioDriver.js (New)
-  - src/core/sound/drivers/PsgBeepDriver.js (New)
-  - src/core/sound/drivers/ProceduralSynthDriver.js (New)
+  - src/core/sound/SoundCoordinator.js
+  - src/core/sound/SoundArbiter.js
+  - src/core/sound/SoundModeManager.js
+  - src/core/sound/SoundEventRouter.js
+  - src/core/sound/drivers/BaseAudioDriver.js
+  - src/core/sound/drivers/WaveAudioDriver.js
+  - src/core/sound/drivers/PsgBeepDriver.js
+  - src/core/sound/drivers/ProceduralSynthDriver.js
   - src/core/sound/SoundEventCatalog.js
 ---
 

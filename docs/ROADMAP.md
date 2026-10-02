@@ -40,7 +40,7 @@ last_updated: 2026-10-01
 ---
 
 ### 1.1 Phase 6: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離構想 (Sound Coordinator & Multi-Driver Decoupling)
-- **ステータス**: `🚧 in-progress` (仕様策定完了, Step 1 着手準備中, 2026-09-29)
+- **ステータス**: `🟢 implemented` (実装完了, 2026-10-02)
 - **設計書**: [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md)
 - **最優先着手理由**:
   - Stage 5.4（決定論的SE・スタガード遅延）および Stage 5.6（動的音程シンセシス）の完了に伴い、`SoundEngine.js` に「入力トリガー受付・照合」「調停・仲裁（優先度・キュー・クールダウン）」「物理音響駆動（Howler/WebAudio/Beepcore）」の3大責務が過密集中。
@@ -50,15 +50,15 @@ last_updated: 2026-10-01
   - **調停エンジン (`SoundArbiter`)**: クールダウン、優先度ソート（100〜30）、スタガード遅延（60ms）、再生モード（Auto/Wave/Beep/Mute）判定を一元化（SSOT）。
   - **物理駆動ドライバ層 (`AudioDrivers`)**: ゲームロジックを一切持たない純粋な `WaveAudioDriver`、`PsgBeepDriver`、`ProceduralSynthDriver`（FM/AM/和音/ピッチベンド）の独立プラグイン構造。
 - **マイグレーションステップ**:
-  - [ ] **Step 1: 物理駆動ドライバ群の抽出と単体テスト配備**
-    - `src/core/sound/drivers/` 新設 (`WaveAudioDriver.js`, `PsgBeepDriver.js`, `ProceduralSynthDriver.js`)
+  - [x] **Step 1: 物理駆動ドライバ群の抽出と単体テスト配備**
+    - `src/core/sound/drivers/` 新設 (`WaveAudioDriver.js`, `PsgBeepDriver.js`, `ProceduralSynthDriver.js`, `BaseAudioDriver.js`)
     - 各ドライバの独立単体テスト配備（モック AudioContext / Howler による 100% カバレッジ）
-  - [ ] **Step 2: `SoundArbiter.js` による調停ロジックの Headless 化**
-    - クールダウン、優先度ソート、スタガードキュー、モード判定の完全抽出
+  - [x] **Step 2: `SoundArbiter.js` による調停ロジックの Headless 化**
+    - クールダウン、優先度ソート、スタガードキュー、モード判定の完全抽出 (`SoundArbiter.js`, `SoundModeManager.js`)
     - 単体テスト配備（タイマー仮想化によるキュー挙動・割り込み検証）
-  - [ ] **Step 3: `SoundCoordinator.js` 統合 Facade 配備と `SoundEngine.js` 委譲ラッパー化**
+  - [x] **Step 3: `SoundCoordinator.js` 統合 Facade 配備と `SoundEngine.js` 委譲ラッパー化**
     - 外部 API（`processMessageContext`, `handleFxTrigger`, `setSoundMode`, `enqueueSound` 等）の後方互換 100% 維持
-    - 全111テストスイート・1,355テスト完全パスおよび全4サンプルクライアントビルド確認
+    - 全117テストスイート・1,392テスト完全パスおよび全4サンプルクライアントビルド確認
 
 ---
 
@@ -138,11 +138,12 @@ last_updated: 2026-10-01
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全111スイート・1,355テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全117スイート・1,392テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、アーキテクチャ5大原則、重複整理、未接続パイプラインの公式総合カタログ |
+| **音響・調停** | [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md) | `SoundCoordinator.js`<br>`SoundArbiter.js`<br>`SoundEngine.js`<br>`src/core/sound/drivers/` | `🟢 implemented` | **統合サウンドコーディネーター ＆ 音響駆動ドライバ分離 (Phase 6)**<br>照合・調停・駆動の3層完全分離。プラガブル・マルチドライバ（Wave, PsgBeep, ProceduralSynth）、Headless調停エンジン、100%後方互換ファサード |
 | **音響・シンセシス** | [dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md) | `SoundEngine.js`<br>`SoundEventCatalog.js` | `🟢 implemented` | **動的音程シンセシス (Dynamic Musical Synthesis / Stage 5.6)**<br>外部音源不要(容量ゼロ)のWeb Audio APIオシレーター合成。きしむ床12音階、モンスター咆哮(ピッチベンド/和音/AM/FM/パルス)、楽器演奏・城の跳ね橋5音メロディ |
 | **品質・i18n** | [stage5_5_quality_assurance_and_i18n.ja.md](./7_futures/archive/phase5/stage5_5_quality_assurance_and_i18n.ja.md) | `MessageContextResolver.js`<br>`tests/unit/robustness.test.js` | `🟢 implemented` | **言語非依存ロジック確立と総合品質保証 (Stage 5.5)**<br>二重キーワード完全根絶、多言語拡張ファクトリ（`createForVariant`）、翻訳非依存テスト実証、全1,300テスト・全クライアントビルド100%成功 |
 | **音響・状態** | [stage5_4_domain_modules_migration.ja.md](./7_futures/archive/phase5/stage5_4_domain_modules_migration.ja.md) | `SoundEngine.js`<br>`AttributeStateManager.js`<br>`DiscoveryStateManager.js` | `🟢 implemented` | **ドメイン別既存モジュールのメッセージマスタ移行 (Stage 5.4)**<br>効果音 O(1) 決定論的発火＆スタガード遅延（60ms）、耐性マネージャ O(1) 確定更新、道具識別効果メッセージ真名自動昇格 |

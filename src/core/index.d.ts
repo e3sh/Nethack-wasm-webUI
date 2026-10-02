@@ -305,10 +305,30 @@ export class GKLPlugin {
 }
 
 // --- サウンド ＆ 翻訳 ---
-export class SoundEngine {
-    constructor(options?: { soundMode?: 'mute' | 'se' | 'all' | 'beep'; volume?: number; soundDir?: string });
-    setSoundMode(mode: 'mute' | 'se' | 'all' | 'beep'): void;
+export class SoundCoordinator {
+    constructor(options?: { soundMode?: string; volume?: number; soundDir?: string; staggerIntervalMs?: number; rules?: any[]; onLogCallback?: Function; drivers?: any });
+    soundMode: string;
+    volume: number;
+    soundDir: string;
+    staggerIntervalMs: number;
+    audioQueue: any[];
+    cooldownMap: Map<string, number>;
+    setSoundMode(mode: string): void;
+    getNormalizedSoundMode(): string;
+    setVolume(vol: number): void;
+    unlockAudio(): void;
+    attachCore(core: any): void;
+    handleFxTrigger(fx: any): any;
+    processMessageContext(context: any, fallbackText?: string): any;
     processLogMessage(messageText: string): any;
+    enqueueSound(ruleOrDef: any, context?: any): any;
+    playSynth(synthDef: any): void;
+    playBeep(beepDef: any): void;
+    playAudioFile(filename: string): Promise<boolean>;
+}
+
+export class SoundEngine extends SoundCoordinator {
+    constructor(options?: { soundMode?: string; volume?: number; soundDir?: string; staggerIntervalMs?: number; rules?: any[]; onLogCallback?: Function; drivers?: any });
     playSound(soundKey: string): void;
 }
 
