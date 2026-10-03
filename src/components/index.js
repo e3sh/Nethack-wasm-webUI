@@ -15,6 +15,7 @@ export { NhContainerFiler } from './NhContainerFiler.js';
 export { NhUiConfig } from './NhUiConfig.js';
 export { NhKnowledgeCard } from './NhKnowledgeCard.js';
 export { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
+export { NhCodexGrid } from './NhCodexGrid.js';
 
 import { NhFloatingHud } from './NhFloatingHud.js';
 import { NhModal } from './NhModal.js';
@@ -23,6 +24,7 @@ import { NhContainerFiler } from './NhContainerFiler.js';
 import { NhUiConfig } from './NhUiConfig.js';
 import { NhKnowledgeCard } from './NhKnowledgeCard.js';
 import { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
+import { NhCodexGrid } from './NhCodexGrid.js';
 
 export const COMPONENT_MAP = {
   'nh-floating-hud': NhFloatingHud,
@@ -31,7 +33,8 @@ export const COMPONENT_MAP = {
   'nh-container-filer': NhContainerFiler,
   'nh-ui-config': NhUiConfig,
   'nh-knowledge-card': NhKnowledgeCard,
-  'nh-discovery-codex': NhDiscoveryCodex
+  'nh-discovery-codex': NhDiscoveryCodex,
+  'nh-codex-grid': NhCodexGrid
 };
 
 /**

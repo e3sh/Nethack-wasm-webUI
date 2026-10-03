@@ -21,6 +21,7 @@ import { KnowledgeDetailModal } from './modules/components/KnowledgeDetailModal.
 import { ContainerController } from '../../src/core/container/ContainerController.js';
 import { EngravingHud } from './modules/components/EngravingHud.js';
 import { FloatingContextActions } from './modules/components/FloatingContextActions.js';
+import { AdventureLogToast } from './modules/components/AdventureLogToast.js';
 
 import { KeyHandler } from './modules/handlers/KeyHandler.js';
 import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
@@ -298,8 +299,20 @@ class GklPureJSClient {
     this.codexModal = new CodexModal({
       elCodexModal: document.getElementById('codex-modal'),
       getCore: () => this.core,
+      getLoadedTileImagePath: () => this.mapRenderer?.loadedTileImagePath,
       onUnreadCountChanged: (count) => this.updateCodexBadge(count),
       onClose: () => {}
+    });
+
+    // 8.7 冒険手帳 リアルタイム発見HUDトースト通知 (AdventureLogToast)
+    this.adventureLogToast = new AdventureLogToast({
+      container: document.body,
+      tileImage: '../../pict/nethack_default_32.png',
+      onToastClick: () => {
+        if (this.codexModal) {
+          this.codexModal.open();
+        }
+      }
     });
 
     // 8.75 構造化ナレッジ詳細モーダル (KnowledgeDetailModal)
@@ -570,6 +583,37 @@ class GklPureJSClient {
       //console.log('[GklClient] Received loreSignal for LoreCodex:', data);
       if (this.codexModal) {
         this.codexModal.notifyUnreadCount();
+      }
+    });
+
+    // 4.7 冒険手帳 (Adventure Log) リアルタイム新規発見トースト通知
+    this.core.on('adventureLogUnlocked', (data) => {
+      if (this.isGameExited || !data) return;
+      this.adventureLogToast?.notifyUnlock(data);
+      this.codexModal?.notifyUnreadCount();
+
+      // 💬 ゲーム内メッセージHUD ＆ ログへの出力
+      const isEn = this.currentLanguage === 'en';
+      let sysMsg = '';
+      if (data.category === 'monster') {
+        const name = isEn ? data.name : (data.nameJa || data.name);
+        sysMsg = isEn ? `📖 [Adventure Log] Encountered new monster: ${name}` : `📖 [冒険手帳] 新種モンスター遭遇: ${name} を記録しました`;
+      } else if (data.category === 'object') {
+        const name = isEn ? data.name : (data.nameJa || data.name);
+        sysMsg = isEn ? `📖 [Adventure Log] New item obtained: ${name}` : `📖 [冒険手帳] 新アイテム入手: ${name} を記録しました`;
+      } else if (data.category === 'rumor') {
+        sysMsg = isEn ? `📜 [Adventure Log] Recorded new rumor into Codex!` : `📜 [冒険手帳] 新たな噂を手帳に記録しました`;
+      }
+
+      if (sysMsg) {
+        if (this.floatingMessageHud) {
+          this.floatingMessageHud.pushMessage({
+            id: Date.now(),
+            text: sysMsg,
+            isBold: true
+          });
+        }
+        this.addMessageLog(sysMsg);
       }
     });
 
@@ -1484,6 +1528,7 @@ class GklPureJSClient {
     if (this.floatingMessageHud) this.floatingMessageHud.setLanguage(this.currentLanguage);
     if (this.messageHistoryDrawer) this.messageHistoryDrawer.setLanguage(this.currentLanguage);
     if (this.engravingHud) this.engravingHud.setLanguage(this.currentLanguage);
+    if (this.adventureLogToast) this.adventureLogToast.setLanguage(this.currentLanguage);
 
     const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
     if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {

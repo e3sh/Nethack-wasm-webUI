@@ -15,6 +15,7 @@ import {
   NhUiConfig,
   NhKnowledgeCard,
   NhDiscoveryCodex,
+  NhCodexGrid,
   COMPONENT_MAP,
   registerAllComponents
 } from '../../src/components/index.js';
@@ -39,9 +40,10 @@ describe('Web Components Package Index (src/components/index.js)', () => {
     expect(NhUiConfig).toBeDefined();
     expect(NhKnowledgeCard).toBeDefined();
     expect(NhDiscoveryCodex).toBeDefined();
+    expect(NhCodexGrid).toBeDefined();
   });
 
-  it('COMPONENT_MAP に 7 つのコンポーネントが対応付けられていること', () => {
+  it('COMPONENT_MAP に 8 つのコンポーネントが対応付けられていること', () => {
     expect(Object.keys(COMPONENT_MAP)).toEqual([
       'nh-floating-hud',
       'nh-modal',
@@ -49,7 +51,8 @@ describe('Web Components Package Index (src/components/index.js)', () => {
       'nh-container-filer',
       'nh-ui-config',
       'nh-knowledge-card',
-      'nh-discovery-codex'
+      'nh-discovery-codex',
+      'nh-codex-grid'
     ]);
   });
 
@@ -63,7 +66,7 @@ describe('Web Components Package Index (src/components/index.js)', () => {
 
     registerAllComponents(mockRegistry);
 
-    expect(defineSpy).toHaveBeenCalledTimes(7);
+    expect(defineSpy).toHaveBeenCalledTimes(8);
     expect(defineSpy).toHaveBeenCalledWith('nh-floating-hud', NhFloatingHud);
     expect(defineSpy).toHaveBeenCalledWith('nh-modal', NhModal);
     expect(defineSpy).toHaveBeenCalledWith('nh-paperdoll', NhPaperdoll);
@@ -71,5 +74,6 @@ describe('Web Components Package Index (src/components/index.js)', () => {
     expect(defineSpy).toHaveBeenCalledWith('nh-ui-config', NhUiConfig);
     expect(defineSpy).toHaveBeenCalledWith('nh-knowledge-card', NhKnowledgeCard);
     expect(defineSpy).toHaveBeenCalledWith('nh-discovery-codex', NhDiscoveryCodex);
+    expect(defineSpy).toHaveBeenCalledWith('nh-codex-grid', NhCodexGrid);
   });
 });

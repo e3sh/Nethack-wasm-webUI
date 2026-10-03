@@ -8,6 +8,7 @@
 import { MONSTER_TILEMAP_NAMES } from './tilemappings_data.js';
 import { MONSTER_BASE_STATS } from './MONSTER_BASE_STATS.js';
 import { MONSTER_OFFICIAL_FLAGS } from './MONSTER_OFFICIAL_FLAGS.js';
+import { MONSTER_OFFICIAL_ATTACKS } from './MONSTER_OFFICIAL_ATTACKS.js';
 import { MONSTER_JP_MAP } from './MONSTER_JP_MAP.js';
 
 export const MONSTER_KNOWLEDGE_MAP = new Map();
@@ -942,6 +943,11 @@ function inferDangerLevel(name, hd, traits = {}) {
 function isDefaultPeaceful(name, monOffset) {
     const lower = name.toLowerCase();
 
+    // 0. プレイヤーキャラクター (331~343)
+    if (monOffset >= 331 && monOffset <= 343) {
+        return true;
+    }
+
     // 1. クエストリーダー (344~356) およびガーディアン/NPC (369~382)
     if ((monOffset >= 344 && monOffset <= 356) || (monOffset >= 369 && monOffset <= 382)) {
         return true;
@@ -980,7 +986,7 @@ for (let i = 0; i <= 382; i++) {
         mr: baseStat.mr ?? 0
     };
 
-    const attacks = specific.attacks || [{ type: 'weapon/hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }];
+    const attacks = specific.attacks || MONSTER_OFFICIAL_ATTACKS[offsetKey] || [{ type: 'hit', damage: `${Math.max(1, Math.floor(stats.hd / 2))}d6` }];
     const resistances = specific.resistances ? [...specific.resistances] : [];
     const weaknesses = specific.weaknesses ? [...specific.weaknesses] : [];
     const vulnerabilities = specific.vulnerabilities ? [...specific.vulnerabilities] : [];

@@ -49,6 +49,10 @@ export { LoreDetector } from "./lore/LoreDetector.js";
 export { EngravingArchaeologist, RUBOUTS } from "./lore/EngravingArchaeologist.js";
 export { ElberethAnalyzer, PRISTINE_ELBERETH, WARD_STATUS } from "./lore/ElberethAnalyzer.js";
 export { LoreCodexStorage } from "./lore/LoreCodexStorage.js";
+export { AdventureLogManager } from "./lore/AdventureLogManager.js";
+export { AdventureLogStorage } from "./lore/AdventureLogStorage.js";
+export { findLoreForEntity } from "./lore/LoreEntityCrossReference.js";
 export { LORE_MASTER, RUMORS, ORACLES, ENGRAVINGS } from "./lore/data/LoreMasterData.js";
+
 
 

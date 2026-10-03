@@ -21,6 +21,9 @@ export class InventoryStateManager {
         this.structuredKnowledgeEngine = options.structuredKnowledgeEngine || null;
         this.skillStateManager = options.skillStateManager || null;
         this.discoveryStateManager = options.discoveryStateManager || null;
+        this.adventureLogManager = options.adventureLogManager || null;
+        this.onAdventureLogUnlocked = options.onAdventureLogUnlocked || null;
+        this.hasCompletedInitialSync = false;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
     }
 
@@ -48,12 +51,17 @@ export class InventoryStateManager {
         this.discoveryStateManager = dsm;
     }
 
+    setAdventureLogManager(alm) {
+        this.adventureLogManager = alm;
+    }
+
     /**
      * キャッシュのリセット
      */
     reset() {
         this.items = [];
         this.isSynced = false;
+        this.hasCompletedInitialSync = false;
         this._lastInventorySignature = '';
     }
 
@@ -210,13 +218,62 @@ export class InventoryStateManager {
             this.items = parsedItems;
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
+            this._syncWithAdventureLog(parsedItems);
+            this.hasCompletedInitialSync = true;
             return true;
         } else {
             const hadItems = this.items.length > 0;
             this.items = [];
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
+            this.hasCompletedInitialSync = true;
             return hadItems;
+        }
+    }
+
+    /**
+     * 識別済みインベントリアイテムを冒険手帳にアンロック
+     * @private
+     * @param {Array<Object>} items 
+     */
+    _syncWithAdventureLog(items) {
+        if (!this.adventureLogManager || typeof this.adventureLogManager.unlockObject !== 'function') {
+            return;
+        }
+        if (!Array.isArray(items) || items.length === 0) return;
+
+        const isInitial = !this.hasCompletedInitialSync;
+
+        for (const item of items) {
+            if (!item || !item.identification) continue;
+            // 未識別（isUnidentified === true）のアイテムは手帳アンロック対象外
+            if (item.identification.isUnidentified) continue;
+
+            let onum = typeof item.onum === 'number' && item.onum >= 0 ? item.onum : -1;
+            if (onum < 0 && this.discoveryStateManager && typeof this.discoveryStateManager.lookupOnum === 'function') {
+                onum = this.discoveryStateManager.lookupOnum(item.identification.trueName || item.rawText) ?? -1;
+            }
+            if (onum < 0) continue;
+
+            if (this.discoveryStateManager && this.discoveryStateManager.discoveredOnums && typeof this.discoveryStateManager.discoveredOnums.add === 'function') {
+                this.discoveryStateManager.discoveredOnums.add(onum);
+            }
+
+            const isNew = this.adventureLogManager.unlockObject(onum);
+
+            // 初回同期（ゲーム開始時の初期装備等）はサイレント解禁とし、通知は行わない
+            // 2回目以降の同期（プレイ中に拾った/新しく識別されたアイテム）で新規解禁された場合のみ通知
+            if (isNew && !isInitial && typeof this.onAdventureLogUnlocked === 'function') {
+                const itemData = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                const finalJa = itemData?.nameJa || itemData?.japaneseName || (item.identification && item.identification.trueNameJa) || itemData?.name || `アイテム #${onum}`;
+                const finalEn = itemData?.name || (item.identification && item.identification.trueName) || `Object #${onum}`;
+                this.onAdventureLogUnlocked({
+                    category: 'object',
+                    onum,
+                    name: finalEn,
+                    nameJa: finalJa
+                });
+            }
         }
     }
 

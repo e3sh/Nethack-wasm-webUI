@@ -264,9 +264,10 @@
 
 <body>
     <div class="container">
-        <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
             <a href="../index.html" class="nav-back" style="margin-bottom: 0;">← Back to Title</a>
             <a href="config.html" class="nav-back" style="margin-bottom: 0;">⚙️ Config</a>
+            <a href="adventure_log.html" class="nav-back" style="margin-bottom: 0; color: #38bdf8;">📖 Adventure Log (冒険手帳)</a>
             <a href="lore_codex.html" class="nav-back" style="margin-bottom: 0; color: #e3b341;">📜 Rumor & Lore Codex</a>
         </div>
 
@@ -285,23 +286,24 @@
             </div>
         </section>
 
-        <!-- Rumor & Lore Codex Meta-Persistence Section -->
-        <section class="card" style="border-left: 4px solid #e3b341;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h2 class="section-title" style="margin-bottom: 0; color: #e3b341;">📜 Rumor & Lore Codex (冒険手帳)</h2>
-                <a href="lore_codex.html" class="btn btn-primary" style="background: rgba(227, 179, 65, 0.2); border-color: #e3b341; color: #e3b341;">Open Codex Prototype →</a>
+        <!-- Adventure Log (冒険手帳) Meta-Persistence Section -->
+        <section class="card" style="border-left: 4px solid #38bdf8;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h2 class="section-title" style="margin-bottom: 0; color: #38bdf8;">📖 Adventure Log (冒険手帳)</h2>
+                <a href="adventure_log.html" class="btn btn-primary" style="background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">Open Adventure Log Viewer →</a>
             </div>
             <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
-                Wasmセーブデータとは独立してセッション横断で永続化されるプレイヤーの知識・コレクション資産です。
+                Wasmセーブデータとは独立してセッション横断で永続化されるプレイヤーの知識・コレクション資産です（モンスター遭遇・アイテム識別・噂伝承）。
             </p>
-            <div id="codex-status-summary" style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; margin-bottom: 16px;">
-                <div><strong>Collected Rumors:</strong> <span id="codex-rumor-count" style="color: #3fb950; font-weight: 600;">0 / 787</span></div>
-                <div><strong>Collected Oracles:</strong> <span id="codex-oracle-count" style="color: #58a6ff; font-weight: 600;">0 / 20</span></div>
-                <div><strong>Storage:</strong> <span id="codex-storage-type">localStorage</span></div>
+            <div id="codex-status-summary" style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; margin-bottom: 16px;">
+                <div><strong>👾 Monsters:</strong> <span id="log-monsters-count" style="color: #38bdf8; font-weight: 600;">0 / 383 (0.0%)</span></div>
+                <div><strong>⚔️ Items:</strong> <span id="log-objects-count" style="color: #818cf8; font-weight: 600;">0 / 481 (0.0%)</span></div>
+                <div><strong>📜 Rumors:</strong> <span id="codex-rumor-count" style="color: #3fb950; font-weight: 600;">0 / 787 (0.0%)</span></div>
+                <div><strong>🏆 Overall:</strong> <span id="log-overall-count" style="color: #fbbf24; font-weight: 600;">0 / 1651 (0.0%)</span></div>
             </div>
             <div class="global-actions" style="margin-bottom: 0;">
-                <button class="btn btn-primary" onclick="exportCodexJSON()">Export Codex (JSON)</button>
-                <button class="btn btn-danger" onclick="resetCodexData()">Reset Codex</button>
+                <button class="btn btn-primary" onclick="exportAdventureLogJSON()">Export Adventure Log (JSON)</button>
+                <button class="btn btn-danger" onclick="resetAdventureLogData()">Reset Adventure Log</button>
             </div>
         </section>
 
@@ -597,52 +599,98 @@
             }
         }
 
-        // --- Lore Codex Meta-Persistence ---
+        // --- Adventure Log & Lore Codex Meta-Persistence ---
 
         function refreshCodexStatus() {
             try {
-                const raw = localStorage.getItem('nethack_webui_lore_codex');
-                const rumorEl = document.getElementById('codex-rumor-count');
-                const oracleEl = document.getElementById('codex-oracle-count');
-                if (!rumorEl || !oracleEl) return;
+                const rawLog = localStorage.getItem('nethack_webui_adventure_log');
+                const rawCodex = localStorage.getItem('nethack_webui_lore_codex');
 
-                if (!raw) {
-                    rumorEl.textContent = '0 / 787 (0.0%)';
-                    oracleEl.textContent = '0 / 20';
-                    return;
+                const monEl = document.getElementById('log-monsters-count');
+                const objEl = document.getElementById('log-objects-count');
+                const rumorEl = document.getElementById('codex-rumor-count');
+                const overallEl = document.getElementById('log-overall-count');
+
+                let mCount = 0;
+                let oCount = 0;
+                let rCount = 0;
+
+                if (rawLog) {
+                    try {
+                        const parsed = JSON.parse(rawLog);
+                        const d = parsed.data || parsed;
+                        mCount = Array.isArray(d.unlockedMonsters) ? d.unlockedMonsters.length : 0;
+                        oCount = Array.isArray(d.unlockedObjects) ? d.unlockedObjects.length : 0;
+                        rCount = Array.isArray(d.unlockedRumors) ? d.unlockedRumors.length : 0;
+                    } catch (_) {}
                 }
-                const parsed = JSON.parse(raw);
-                const data = parsed.data || parsed;
-                const rCount = Array.isArray(data.rumors) ? data.rumors.length : 0;
-                const oCount = Array.isArray(data.oracles) ? data.oracles.length : 0;
-                const pct = ((rCount / 787) * 100).toFixed(1);
-                rumorEl.textContent = `${rCount} / 787 (${pct}%)`;
-                oracleEl.textContent = `${oCount} / 20`;
+
+                if (rawCodex && rCount === 0) {
+                    try {
+                        const parsed = JSON.parse(rawCodex);
+                        const d = parsed.data || parsed;
+                        rCount = Array.isArray(d.rumors) ? d.rumors.length : 0;
+                    } catch (_) {}
+                }
+
+                const mPct = ((mCount / 383) * 100).toFixed(1);
+                const oPct = ((oCount / 481) * 100).toFixed(1);
+                const rPct = ((rCount / 787) * 100).toFixed(1);
+                const totalUnlocked = mCount + oCount + rCount;
+                const totalAll = 383 + 481 + 787; // 1651
+                const totalPct = ((totalUnlocked / totalAll) * 100).toFixed(1);
+
+                if (monEl) monEl.textContent = `${mCount} / 383 (${mPct}%)`;
+                if (objEl) objEl.textContent = `${oCount} / 481 (${oPct}%)`;
+                if (rumorEl) rumorEl.textContent = `${rCount} / 787 (${rPct}%)`;
+                if (overallEl) overallEl.textContent = `${totalUnlocked} / ${totalAll} (${totalPct}%)`;
             } catch (e) {
-                console.warn('Error reading codex in save manager:', e);
+                console.warn('Error reading adventure log in save manager:', e);
             }
         }
 
-        function exportCodexJSON() {
-            const raw = localStorage.getItem('nethack_webui_lore_codex');
-            if (!raw) {
-                alert('No Codex data found to export.');
+        function exportAdventureLogJSON() {
+            const rawLog = localStorage.getItem('nethack_webui_adventure_log');
+            const rawCodex = localStorage.getItem('nethack_webui_lore_codex');
+
+            if (!rawLog && !rawCodex) {
+                alert('No Adventure Log or Codex data found to export.');
                 return;
             }
-            const blob = new Blob([raw], { type: 'application/json' });
+
+            const exportObj = {
+                application: 'nethack-wasm-webui',
+                type: 'adventure_log_backup',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                adventureLog: rawLog ? JSON.parse(rawLog) : null,
+                loreCodex: rawCodex ? JSON.parse(rawCodex) : null
+            };
+
+            const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `nethack_lore_codex_${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `nethack_adventure_log_${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
         }
 
-        function resetCodexData() {
-            if (!confirm('Remove ALL Rumor & Lore Codex data? This will clear all collected rumors and oracles. This cannot be undone.')) return;
+        function resetAdventureLogData() {
+            if (!confirm('Remove ALL Adventure Log data (Monsters, Items, Rumors)? This will clear all collected entries. This cannot be undone.')) return;
+            localStorage.removeItem('nethack_webui_adventure_log');
             localStorage.removeItem('nethack_webui_lore_codex');
             refreshCodexStatus();
-            alert('Codex data cleared.');
+            alert('Adventure Log data cleared successfully.');
+        }
+
+        // 後方互換性エイリアス
+        function exportCodexJSON() {
+            exportAdventureLogJSON();
+        }
+
+        function resetCodexData() {
+            resetAdventureLogData();
         }
 
         window.onload = init;

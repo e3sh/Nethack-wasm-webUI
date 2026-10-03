@@ -8,6 +8,8 @@
 import { LoreCodexStorage } from './LoreCodexStorage.js';
 import { LORE_MASTER } from './data/LoreMasterData.js';
 import { WARD_STATUS } from './ElberethAnalyzer.js';
+import { findLoreForEntity } from './LoreEntityCrossReference.js';
+
 
 export class LoreCodex {
     /**
@@ -509,6 +511,32 @@ export class LoreCodex {
                 percentage: Number((((collectedRumors.length + oracleCount) / (totalMasterRumors + totalMasterOracles)) * 100).toFixed(1))
             }
         };
+    }
+
+    /**
+     * 指定エンティティに関連する伝承（噂・神託）を取得
+     * @param {Object|string|number} target - 対象エンティティ
+     * @param {Object} [options={}]
+     * @param {boolean} [options.unlockedOnly=false] - 獲得済みの伝承のみに絞り込むか
+     * @returns {Array<Object>}
+     */
+    getRelatedLore(target, options = {}) {
+        const list = findLoreForEntity(target, options);
+        const { unlockedOnly = false } = options;
+
+        return list.map(lore => {
+            const isUnlocked = (lore.category === 'RUMOR' && this.rumors.has(lore.id)) ||
+                               (lore.category === 'ORACLE' && this.oracles.has(lore.id));
+            const entry = {
+                ...lore,
+                isUnlocked,
+                isCollected: isUnlocked
+            };
+            if (!entry.translatedText) {
+                entry.translatedText = this._resolveTranslation(entry, lore.category);
+            }
+            return entry;
+        }).filter(entry => !unlockedOnly || entry.isUnlocked);
     }
 
     /**

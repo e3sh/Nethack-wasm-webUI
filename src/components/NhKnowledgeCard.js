@@ -10,6 +10,9 @@
  */
 
 import { NhBaseElement } from './NhBaseElement.js';
+import { findLoreForEntity } from '../core/knowledge/lore/LoreEntityCrossReference.js';
+import { GlyphHelper } from '../core/renderers/GlyphHelper.js';
+import { GLYPH_OFFSETS } from '../core/knowledge/engines/glyphClassifier.js';
 
 const CARD_CSS = `
 :host {
@@ -42,12 +45,24 @@ const CARD_CSS = `
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .header-icon {
-  font-size: 24px;
+  font-size: 28px;
 }
+
+.header-glyph-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background-color: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  vertical-align: middle;
+}
+
 
 .header-title-group {
   display: flex;
@@ -81,6 +96,7 @@ const CARD_CSS = `
   text-transform: uppercase;
 }
 
+.badge-danger-safe { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
 .badge-danger-low { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); }
 .badge-danger-mid { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.4); }
 .badge-danger-high { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
@@ -287,6 +303,39 @@ const CARD_CSS = `
   padding: 10px 14px;
 }
 
+.lore-card.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lore-card.clickable:hover {
+  border-color: #38bdf8;
+  background: rgba(30, 41, 59, 0.85);
+  transform: translateY(-1px);
+}
+
+.lore-card.locked {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.lore-badge-locked {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.lore-subtext {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+  padding-top: 4px;
+}
+
 .lore-card-header {
   display: flex;
   justify-content: space-between;
@@ -342,6 +391,9 @@ export class NhKnowledgeCard extends NhBaseElement {
     this.activeTab = 'spec'; // 'spec' | 'official' | 'lore'
     this.lookupService = null;
     this.loreCodex = null;
+    this.adventureLogManager = null;
+    this.unlockedOnly = false;
+    this.tileImage = '../pict/nethack_default_32.png';
 
     // Layer 2 状態
     this.officialData = null;
@@ -385,6 +437,9 @@ export class NhKnowledgeCard extends NhBaseElement {
    * @param {Object} [options={}]
    * @param {Object} [options.lookupService]
    * @param {Object} [options.loreCodex]
+   * @param {Object} [options.adventureLogManager]
+   * @param {boolean} [options.unlockedOnly=false]
+   * @param {string} [options.tileImage]
    * @param {string} [options.currentLanguage='ja']
    * @param {string} [options.activeTab='spec']
    */
@@ -392,6 +447,9 @@ export class NhKnowledgeCard extends NhBaseElement {
     this.targetData = targetData;
     if (options.lookupService) this.lookupService = options.lookupService;
     if (options.loreCodex) this.loreCodex = options.loreCodex;
+    if (options.adventureLogManager) this.adventureLogManager = options.adventureLogManager;
+    if (options.unlockedOnly !== undefined) this.unlockedOnly = options.unlockedOnly;
+    if (options.tileImage) this.tileImage = options.tileImage;
     if (options.currentLanguage) this.currentLanguage = options.currentLanguage;
     if (options.activeTab) this.activeTab = options.activeTab;
 
@@ -409,6 +467,48 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
+   * タイル画像パスのセット
+   * @param {string} url 
+   */
+  setTileImage(url) {
+    this.tileImage = url;
+    this.render();
+  }
+
+  /**
+   * 対象エンティティの Glyph ID を解決 (knowledge-inspector 準拠)
+   * @param {Object} entity 
+   * @returns {number}
+   * @private
+   */
+  _resolveGlyphId(entity) {
+    if (!entity) return -1;
+    if (entity.glyphId !== undefined && entity.glyphId >= 0) return entity.glyphId;
+    if (entity.glyph !== undefined && entity.glyph >= 0) return entity.glyph;
+
+    const category = String(entity.category || '').toUpperCase();
+    const isMonster = category === 'MONSTER' || entity.dangerLevel !== undefined || entity.threat !== undefined || entity.monOffset !== undefined;
+
+    // 1. モンスター
+    if (isMonster) {
+      const monOffset = entity.monOffset ?? entity.knowledge?.monOffset ?? entity.stats?.monOffset ?? (entity.monNum !== undefined ? entity.monNum : null);
+      if (monOffset !== null && monOffset !== undefined && monOffset >= 0) {
+        return (GLYPH_OFFSETS?.GLYPH_MON_OFF ?? 0) + monOffset;
+      }
+    }
+
+    // 2. アイテム
+    const onum = entity.onum ?? entity.knowledge?.onum ?? entity.identification?.onum ??
+      (typeof entity.id === 'string' && entity.id.startsWith('item_onum_') ? parseInt(entity.id.replace('item_onum_', ''), 10) : null);
+    if (onum !== null && onum !== undefined && onum >= 0) {
+      return (GLYPH_OFFSETS?.GLYPH_OBJ_OFF ?? 3448) + onum;
+    }
+
+    return -1;
+  }
+
+
+  /**
    * 公式解説サービスのセット
    * @param {Object} service 
    */
@@ -417,10 +517,22 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
+   * 公式解説タブ（Layer 2）を表示すべきかどうかの判定 (WASM動的取得依存)
+   * @returns {boolean}
+   * @private
+   */
+  _shouldShowOfficialTab() {
+    return Boolean(this.lookupService) && !this.hasAttribute('hide-official-tab') && !this.hasAttribute('offline-mode');
+  }
+
+  /**
    * 表示タブの切り替え
    * @param {'spec'|'official'|'lore'} tab 
    */
   setActiveTab(tab) {
+    if (tab === 'official' && !this._shouldShowOfficialTab()) {
+      return;
+    }
     this.activeTab = tab;
     this.setAttribute('active-tab', tab);
     this.render();
@@ -437,7 +549,7 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
-   * ESC または q で閉じる
+   * ESC または q で閉じる、1/2/3 でタブ切替
    * @private
    */
   _handleKeyDown(e) {
@@ -450,7 +562,11 @@ export class NhKnowledgeCard extends NhBaseElement {
     } else if (e.key === '1') {
       this.setActiveTab('spec');
     } else if (e.key === '2') {
-      this.setActiveTab('official');
+      if (this._shouldShowOfficialTab()) {
+        this.setActiveTab('official');
+      } else {
+        this.setActiveTab('lore');
+      }
     } else if (e.key === '3') {
       this.setActiveTab('lore');
     }
@@ -536,23 +652,39 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
-   * LoreCodex から関連する噂や伝承を抽出 (Layer 3)
+   * 関連する噂や伝承を抽出 (Layer 3)
    * @private
    */
   _resolveLoreEntries() {
     this.loreEntries = [];
     if (!this.targetData) return;
 
-    const targetName = (this._getQueryTargetName() || '').toLowerCase();
-    if (!targetName) return;
-
-    // LoreCodex または渡された loreList がある場合
-    if (this.loreCodex && typeof this.loreCodex.getRelatedLore === 'function') {
-      this.loreEntries = this.loreCodex.getRelatedLore(targetName) || [];
-    } else if (this.targetData.relatedLore && Array.isArray(this.targetData.relatedLore)) {
-      this.loreEntries = this.targetData.relatedLore;
+    // 1. AdventureLogManager がある場合 (解禁状態を自動反映)
+    if (this.adventureLogManager && typeof this.adventureLogManager.getRelatedLore === 'function') {
+      this.loreEntries = this.adventureLogManager.getRelatedLore(this.targetData, {
+        unlockedOnly: this.unlockedOnly
+      }) || [];
+      return;
     }
+
+    // 2. LoreCodex がある場合
+    if (this.loreCodex && typeof this.loreCodex.getRelatedLore === 'function') {
+      this.loreEntries = this.loreCodex.getRelatedLore(this.targetData, {
+        unlockedOnly: this.unlockedOnly
+      }) || [];
+      return;
+    }
+
+    // 3. targetData 自体に relatedLore 配列がある場合
+    if (this.targetData.relatedLore && Array.isArray(this.targetData.relatedLore)) {
+      this.loreEntries = this.targetData.relatedLore;
+      return;
+    }
+
+    // 4. 逆引きエンジン (findLoreForEntity) による直接解決
+    this.loreEntries = findLoreForEntity(this.targetData) || [];
   }
+
 
   render() {
     if (!this.shadowRoot) return;
@@ -593,12 +725,37 @@ export class NhKnowledgeCard extends NhBaseElement {
       headerIcon = '📦';
     }
 
+    // タイル画像の解決 (knowledge-inspector 準拠)
+    const glyphId = this._resolveGlyphId(data);
+    let glyphStyleStr = '';
+    if (glyphId >= 0) {
+      const glyphStyle = GlyphHelper.getGlyphStyle(glyphId, {
+        tileImage: this.tileImage,
+        tileSize: 32,
+        displaySize: 36
+      });
+      if (glyphStyle) {
+        glyphStyleStr = Object.entries(glyphStyle)
+          .map(([k, v]) => `${k.replace(/([A-Z])/g, '-$1').toLowerCase()}:${v}`)
+          .join(';');
+      }
+    }
+
+    const iconHtml = glyphStyleStr
+      ? `<span class="header-glyph-icon" style="${glyphStyleStr}"></span>`
+      : `<span class="header-icon">${headerIcon}</span>`;
+
+    const showOfficial = this._shouldShowOfficialTab();
+    if (!showOfficial && this.activeTab === 'official') {
+      this.activeTab = 'spec';
+    }
+
     this.shadowRoot.innerHTML = `
       <div class="knowledge-card" role="dialog" aria-modal="true" aria-label="${title}">
         <!-- ヘッダー -->
         <div class="card-header">
           <div class="header-left">
-            <span class="header-icon">${headerIcon}</span>
+            ${iconHtml}
             <div class="header-title-group">
               <h2 class="card-title">${title}</h2>
               <div class="card-subtitle">${data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category))}</div>
@@ -612,16 +769,18 @@ export class NhKnowledgeCard extends NhBaseElement {
           </div>
         </div>
 
-        <!-- 3大タブナビゲーション -->
+        <!-- タブナビゲーション -->
         <div class="card-tabs" role="tablist">
           <button class="tab-btn ${this.activeTab === 'spec' ? 'active' : ''}" data-tab="spec" role="tab" aria-selected="${this.activeTab === 'spec'}">
             📊 ${isEn ? '1. Specs & Tactics' : '1. 実用スペック'}
           </button>
-          <button class="tab-btn ${this.activeTab === 'official' ? 'active' : ''}" data-tab="official" role="tab" aria-selected="${this.activeTab === 'official'}">
-            📖 ${isEn ? '2. Official Lore (WASM)' : '2. 公式解説 (WASM)'}
-          </button>
+          ${showOfficial ? `
+            <button class="tab-btn ${this.activeTab === 'official' ? 'active' : ''}" data-tab="official" role="tab" aria-selected="${this.activeTab === 'official'}">
+              📖 ${isEn ? '2. Official Lore (WASM)' : '2. 公式解説 (WASM)'}
+            </button>
+          ` : ''}
           <button class="tab-btn ${this.activeTab === 'lore' ? 'active' : ''}" data-tab="lore" role="tab" aria-selected="${this.activeTab === 'lore'}">
-            💡 ${isEn ? '3. Rumors' : '3. 冒険の噂'} ${this.loreEntries.length > 0 ? `(${this.loreEntries.length})` : ''}
+            💡 ${isEn ? (showOfficial ? '3. Rumors' : '2. Rumors') : (showOfficial ? '3. 冒険の噂' : '2. 冒険の噂')} ${this.loreEntries.length > 0 ? `(${this.loreEntries.length})` : ''}
           </button>
         </div>
 
@@ -633,7 +792,7 @@ export class NhKnowledgeCard extends NhBaseElement {
         <!-- フッターガイド -->
         <div class="card-footer">
           <div class="footer-nav-hint">
-            <span><span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span> ${isEn ? 'Switch Tab' : 'タブ切替'}</span>
+            <span>${showOfficial ? '<span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span>' : '<span class="kbd">1</span><span class="kbd">2</span>'} ${isEn ? 'Switch Tab' : 'タブ切替'}</span>
             <span><span class="kbd">Esc</span> / <span class="kbd">q</span> ${isEn ? 'Close' : '閉じる'}</span>
           </div>
           <div>NetHack WebUI Knowledge Integration</div>
@@ -677,11 +836,11 @@ export class NhKnowledgeCard extends NhBaseElement {
         </div>
         ${data.resistances && data.resistances.length > 0 ? `
           <div class="spec-section-title">🛡️ ${isEn ? 'Resistances' : '耐性属性'}</div>
-          <div>${data.resistances.map(r => `<span class="badge badge-category" style="margin-right: 4px;">${r}</span>`).join('')}</div>
+          <div>${data.resistances.map(r => `<span class="badge badge-category" style="margin-right: 4px;">${this._formatResistance(r, isEn)}</span>`).join('')}</div>
         ` : ''}
         ${data.attacks && data.attacks.length > 0 ? `
           <div class="spec-section-title">⚔️ ${isEn ? 'Attacks' : '攻撃手段'}</div>
-          <div>${data.attacks.map(a => `<span class="badge badge-danger-mid" style="margin-right: 4px;">${a}</span>`).join('')}</div>
+          <div>${data.attacks.map(a => `<span class="badge badge-danger-mid" style="margin-right: 4px;">${this._formatAttack(a, isEn)}</span>`).join('')}</div>
         ` : ''}
         ${data.warning ? `<div class="danger-warning">⚠️ ${data.warning}</div>` : ''}
         ${data.tacticalAdvice || data.effectSummary ? `
@@ -759,17 +918,39 @@ export class NhKnowledgeCard extends NhBaseElement {
 
     return `
       <div class="lore-list">
-        ${this.loreEntries.map((lore, idx) => `
-          <div class="lore-card">
-            <div class="lore-card-header">
-              <span class="${lore.isTrue ? 'lore-badge-true' : (lore.isFalse ? 'lore-badge-false' : 'lore-badge-rumor')}">
-                ${lore.isTrue ? (isEn ? '✓ TRUE RUMOR' : '✓ 真の噂') : (lore.isFalse ? (isEn ? '✗ FALSE RUMOR' : '✗ 偽りの噂') : (isEn ? '? RUMOR' : '? 噂'))}
-              </span>
-              <span>No.${lore.id || (idx + 1)}</span>
+        ${this.loreEntries.map((lore, idx) => {
+          const isUnlocked = lore.isUnlocked !== undefined ? lore.isUnlocked : true;
+          const isTrue = lore.isTrue !== undefined ? Boolean(lore.isTrue) : (lore.type === 'TRUE');
+          const isFalse = lore.isFalse !== undefined ? Boolean(lore.isFalse) : (lore.type === 'FALSE');
+          const mainText = isUnlocked
+            ? (!isEn && (lore.translatedText || lore.textJa) ? (lore.translatedText || lore.textJa) : (lore.text || lore.rawText || ''))
+            : '????????????????????????????????';
+          const subText = (isUnlocked && !isEn && lore.text && (lore.translatedText || lore.textJa)) ? lore.text : '';
+
+          let badgeHtml = '';
+          if (!isUnlocked) {
+            badgeHtml = `<span class="lore-badge-locked">🔒 ${isEn ? 'LOCKED' : '未解禁'}</span>`;
+          } else if (isTrue) {
+            badgeHtml = `<span class="lore-badge-true">${isEn ? '✓ TRUE RUMOR' : '✓ 真の噂'}</span>`;
+          } else if (isFalse) {
+            badgeHtml = `<span class="lore-badge-false">${isEn ? '✗ FALSE RUMOR' : '✗ 偽りの噂'}</span>`;
+          } else {
+            badgeHtml = `<span class="lore-badge-rumor">${isEn ? '? RUMOR' : '? 噂'}</span>`;
+          }
+
+          const rumorNo = lore.index ? `#${String(lore.index).padStart(3, '0')}` : (lore.id || `No.${idx + 1}`);
+
+          return `
+            <div class="lore-card clickable ${!isUnlocked ? 'locked' : ''}" data-rumor-id="${lore.id || ''}" data-rumor-index="${lore.index || ''}" title="${isEn ? 'Click to jump to this rumor' : 'クリックしてこの噂を表示'}">
+              <div class="lore-card-header">
+                ${badgeHtml}
+                <span>${rumorNo}</span>
+              </div>
+              <div class="lore-text">「${mainText}」</div>
+              ${subText ? `<div class="lore-subtext">"${subText}"</div>` : ''}
             </div>
-            <div class="lore-text">「${lore.text || lore.rawText || ''}」</div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     `;
   }
@@ -795,14 +976,166 @@ export class NhKnowledgeCard extends NhBaseElement {
         if (tab) this.setActiveTab(tab);
       });
     });
+
+    // 噂カードのクリックイベント（手帳や一覧へのジャンプ連携）
+    const rumorCards = this.shadowRoot.querySelectorAll('.lore-card.clickable');
+    rumorCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const rumorId = card.getAttribute('data-rumor-id');
+        const rumorIndex = card.getAttribute('data-rumor-index');
+        const lore = this.loreEntries.find(l => l.id === rumorId) || null;
+        this.dispatchEvent(new CustomEvent('nh-rumor-selected', {
+          bubbles: true,
+          composed: true,
+          detail: {
+            rumorId,
+            index: rumorIndex ? parseInt(rumorIndex, 10) : undefined,
+            lore
+          }
+        }));
+      });
+    });
   }
 
   _getDangerClass(danger) {
     if (!danger) return 'badge-danger-low';
     const d = danger.toUpperCase();
-    if (d === 'HIGH' || d === 'CRITICAL' || d === 'EXTREME') return 'badge-danger-high';
+    if (d === 'SAFE') return 'badge-danger-safe';
+    if (d === 'HIGH' || d === 'CRITICAL' || d === 'EXTREME' || d === 'LETHAL') return 'badge-danger-high';
     if (d === 'MID' || d === 'MEDIUM') return 'badge-danger-mid';
     return 'badge-danger-low';
+  }
+
+  /**
+   * 攻撃手段オブジェクトまたは文字列をフォーマット
+   * @param {Object|string} a
+   * @param {boolean} isEn
+   * @returns {string}
+   * @private
+   */
+  _formatAttack(a, isEn) {
+    if (!a) return '';
+    if (typeof a === 'string') return a;
+
+    const ATTACK_TYPE_MAP = {
+      'bite': { ja: '噛みつき', en: 'Bite' },
+      'claw': { ja: 'ひっかき', en: 'Claw' },
+      'butt': { ja: '頭突き', en: 'Headbutt' },
+      'touch': { ja: '接触', en: 'Touch' },
+      'gaze': { ja: '凝視', en: 'Gaze' },
+      'breath': { ja: 'ブレス', en: 'Breath' },
+      'brea': { ja: 'ブレス', en: 'Breath' },
+      'spit': { ja: '毒液吐き', en: 'Spit' },
+      'engulf': { ja: '丸呑み', en: 'Engulf' },
+      'weapon': { ja: '武器攻撃', en: 'Weapon' },
+      'weap': { ja: '武器攻撃', en: 'Weapon' },
+      'hit': { ja: '打撃', en: 'Hit' },
+      'weapon/hit': { ja: '通常打撃', en: 'Hit' },
+      'sting': { ja: '刺突', en: 'Sting' },
+      'hug': { ja: '締め付け', en: 'Hug' },
+      'kick': { ja: '蹴り', en: 'Kick' },
+      'cast': { ja: '呪文詠唱', en: 'Cast' },
+      'magc': { ja: '呪文詠唱', en: 'Cast' },
+      'spell': { ja: '呪文詠唱', en: 'Spell' },
+      'pass': { ja: 'すり抜け', en: 'Pass' },
+      'boom': { ja: '自爆', en: 'Explode' },
+      'explode': { ja: '爆発', en: 'Explode' },
+      'tentacle': { ja: '触手', en: 'Tentacle' }
+    };
+
+    const ATTACK_EFFECT_MAP = {
+      'poison': { ja: '毒', en: 'Poison' },
+      'fire': { ja: '火炎', en: 'Fire' },
+      'cold': { ja: '冷気', en: 'Cold' },
+      'elec': { ja: '電撃', en: 'Elec' },
+      'acid': { ja: '酸', en: 'Acid' },
+      'sleep': { ja: '睡眠', en: 'Sleep' },
+      'paralysis': { ja: '麻痺', en: 'Paralysis' },
+      'drain': { ja: 'ドレイン', en: 'Drain' },
+      'drain_level': { ja: 'レベル低下', en: 'Level Drain' },
+      'drain_energy': { ja: '魔力吸収', en: 'Energy Drain' },
+      'drain_dex': { ja: '器用さ低下', en: 'Dexterity Drain' },
+      'drain_con': { ja: '耐久力低下', en: 'Constitution Drain' },
+      'brain_eat': { ja: '脳喰らい', en: 'Brain Eat' },
+      'stone': { ja: '石化', en: 'Stoning' },
+      'stoning': { ja: '石化', en: 'Stoning' },
+      'blind': { ja: '盲目', en: 'Blind' },
+      'disenchant': { ja: '魔法弱体化', en: 'Disenchant' },
+      'rust': { ja: '錆', en: 'Rust' },
+      'rot': { ja: '腐食', en: 'Rot' },
+      'slow': { ja: '減速', en: 'Slow' },
+      'hallu': { ja: '幻覚', en: 'Hallucination' },
+      'steal': { ja: '盗み', en: 'Steal' },
+      'steal_gold': { ja: '金盗み', en: 'Steal Gold' },
+      'steal_item': { ja: 'アイテム盗み', en: 'Steal Item' },
+      'steal_amulet': { ja: '魔除け強奪', en: 'Steal Amulet' },
+      'seduce': { ja: '誘惑', en: 'Seduce' },
+      'teleport': { ja: 'テレポート', en: 'Teleport' },
+      'digest': { ja: '消化', en: 'Digest' },
+      'drown': { ja: '溺死', en: 'Drown' },
+      'wrap': { ja: '巻きつき', en: 'Wrap' },
+      'lycanthropy': { ja: '獣化感染', en: 'Lycanthropy' },
+      'disease': { ja: '病気感染', en: 'Disease' },
+      'pestilence': { ja: 'ペスト', en: 'Pestilence' },
+      'famine': { ja: '飢餓', en: 'Famine' },
+      'death': { ja: '即死', en: 'Death' },
+      'slime': { ja: 'スライム化', en: 'Slime' },
+      'polymorph': { ja: '変身', en: 'Polymorph' },
+      'clerical_spell': { ja: '僧侶呪文', en: 'Clerical Spell' },
+      'magic_spell': { ja: '攻撃魔法', en: 'Magic Spell' },
+      'random_breath': { ja: 'ランダムブレス', en: 'Random Breath' },
+      'curse': { ja: 'アイテム呪い', en: 'Curse' },
+      'leg_wound': { ja: '足負傷', en: 'Leg Wound' },
+      'confuse': { ja: '混乱', en: 'Confuse' },
+      'stun': { ja: '朦朧', en: 'Stun' },
+      'stick': { ja: '粘着', en: 'Sticky' },
+      'heal': { ja: '回復', en: 'Heal' },
+      'magic_missile': { ja: '魔法の矢', en: 'Magic Missile' },
+      'disintegration': { ja: '分解', en: 'Disintegration' }
+    };
+
+    const typeKey = (a.type || '').toLowerCase();
+    const effectKey = (a.effect || '').toLowerCase();
+
+    const typeLabel = ATTACK_TYPE_MAP[typeKey]?.[isEn ? 'en' : 'ja'] || a.type || (isEn ? 'Attack' : '攻撃');
+    const effectLabel = ATTACK_EFFECT_MAP[effectKey]?.[isEn ? 'en' : 'ja'] || a.effect;
+    const damageStr = a.damage ? ` [${a.damage}]` : '';
+
+    if (effectLabel && effectLabel.toLowerCase() !== typeLabel.toLowerCase()) {
+      return `${typeLabel}: ${effectLabel}${damageStr}`;
+    }
+    return `${typeLabel}${damageStr}`;
+  }
+
+  /**
+   * 耐性文字列をフォーマット
+   * @param {string} r
+   * @param {boolean} isEn
+   * @returns {string}
+   * @private
+   */
+  _formatResistance(r, isEn) {
+    if (!r || typeof r !== 'string') return String(r || '');
+    if (isEn) {
+      return r.charAt(0).toUpperCase() + r.slice(1);
+    }
+    const RESIST_MAP = {
+      'fire': '耐火',
+      'cold': '耐冷',
+      'elec': '耐電',
+      'shock': '耐電撃',
+      'sleep': '耐睡眠',
+      'poison': '耐毒',
+      'acid': '耐酸',
+      'stone': '耐石化',
+      'stoning': '耐石化',
+      'disint': '耐分解',
+      'disintegration': '耐分解',
+      'magic': '魔法防御',
+      'drain': '耐ドレイン',
+      'hallu': '耐幻覚'
+    };
+    return RESIST_MAP[r.toLowerCase()] || r;
   }
 
   _translateCategory(cat) {

@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CodexModal } from '../../examples/gkl-pure-js-client/modules/components/CodexModal.js';
 import { LoreCodex } from '../../src/core/knowledge/lore/LoreCodex.js';
+import { AdventureLogManager } from '../../src/core/knowledge/lore/AdventureLogManager.js';
 
 
 function createMockElement(id = '', tagName = 'div') {
@@ -314,6 +315,172 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
     delete mockCore.getKnowledgeEngine;
     mockCore.gkl = { structuredKnowledge: { name: 'EngineB' } };
     expect(modal.getKnowledgeEngine()).toEqual({ name: 'EngineB' });
+  });
+
+  describe('モンスター図鑑 ＆ アイテム図鑑 拡張連携テスト', () => {
+    let alm;
+    let monsterModal;
+    let fullElements;
+
+    beforeEach(() => {
+      alm = new AdventureLogManager({ autoLoad: false });
+      // 初期状態をクリア
+      alm.unlockedMonsters.clear();
+      alm.unlockedObjects.clear();
+      alm.newMonsters.clear();
+      alm.newObjects.clear();
+
+      fullElements = {
+        ...elementsMap,
+        'codex-tab-monsters': createMockElement('codex-tab-monsters', 'button'),
+        'codex-tab-objects': createMockElement('codex-tab-objects', 'button'),
+        'codex-badge-monsters': createMockElement('codex-badge-monsters'),
+        'codex-badge-objects': createMockElement('codex-badge-objects'),
+        'codex-unread-tab-monsters': createMockElement('codex-unread-tab-monsters'),
+        'codex-unread-tab-objects': createMockElement('codex-unread-tab-objects'),
+        'codex-sum-monster-ratio': createMockElement('codex-sum-monster-ratio'),
+        'codex-sum-monster-pct': createMockElement('codex-sum-monster-pct'),
+        'codex-sum-monster-bar': createMockElement('codex-sum-monster-bar'),
+        'codex-sum-object-ratio': createMockElement('codex-sum-object-ratio'),
+        'codex-sum-object-pct': createMockElement('codex-sum-object-pct'),
+        'codex-sum-object-bar': createMockElement('codex-sum-object-bar'),
+        'codex-filters-monster': createMockElement('codex-filters-monster'),
+        'codex-filters-object': createMockElement('codex-filters-object'),
+        'codex-filter-mon-all': createMockElement('codex-filter-mon-all', 'button'),
+        'codex-filter-mon-unlocked': createMockElement('codex-filter-mon-unlocked', 'button'),
+        'codex-filter-mon-locked': createMockElement('codex-filter-mon-locked', 'button'),
+        'codex-filter-mon-new': createMockElement('codex-filter-mon-new', 'button'),
+        'codex-filter-obj-all': createMockElement('codex-filter-obj-all', 'button'),
+        'codex-filter-obj-weapon': createMockElement('codex-filter-obj-weapon', 'button'),
+        'codex-filter-obj-armor': createMockElement('codex-filter-obj-armor', 'button'),
+        'codex-filter-obj-unlocked': createMockElement('codex-filter-obj-unlocked', 'button'),
+        'codex-filter-obj-locked': createMockElement('codex-filter-obj-locked', 'button'),
+        'codex-filter-obj-new': createMockElement('codex-filter-obj-new', 'button')
+      };
+
+      fullElements['codex-modal'].querySelector = (sel) => {
+        const id = sel.replace('#', '');
+        return fullElements[id] || null;
+      };
+
+      monsterModal = new CodexModal({
+        elCodexModal: fullElements['codex-modal'],
+        getCore: () => ({
+          ...mockCore,
+          getAdventureLogManager: () => alm
+        }),
+        adventureLogManager: alm,
+        defaultTab: 'monsters'
+      });
+    });
+
+    it('モンスタータブが初期選択され、未解禁モンスターはシルエットと???で描画されること', () => {
+      monsterModal.open();
+      expect(monsterModal.activeTab).toBe('monsters');
+      const list = fullElements['codex-master-list'];
+      // 未解禁なので "???" が含まれ、クラスに "locked" が付与される
+      expect(list.innerHTML).toContain('???');
+      expect(list.innerHTML).toContain('locked');
+    });
+
+    it('モンスターを解禁するとフルカラーで名前とNEWバッジが表示され、選択時に詳細ペインが表示されること', () => {
+      // 0番目のモンスター (コボルド等) を解禁
+      alm.unlockMonster(0);
+      monsterModal.open();
+
+      const list = fullElements['codex-master-list'];
+      const allMons = alm.getAllMonstersWithStatus();
+      const unlockedMon = allMons.find(m => m.monOffset === 0);
+      expect(unlockedMon.isUnlocked).toBe(true);
+
+      // 解禁されたモンスターの名前が表示されること
+      expect(list.innerHTML).toContain(unlockedMon.nameJa || unlockedMon.name);
+
+      // 詳細ペインにも表示されること
+      const card = fullElements['codex-detail-card'];
+      expect(card.innerHTML).toContain(unlockedMon.nameJa || unlockedMon.name);
+      expect(card.innerHTML).toContain('codex-specs-grid');
+
+      // [object Object] が含まれず、攻撃手段が適切にフォーマットされていること
+      expect(card.innerHTML).not.toContain('[object Object]');
+    });
+
+    it('formatAttack がオブジェクト形式の攻撃手段を適切な文字列にフォーマットすること', () => {
+      const atk1 = { type: 'bite', damage: '1d4' };
+      const atk2 = { type: 'sting', damage: '1d3', effect: 'poison' };
+      const atk3 = { type: 'breath', effect: 'fire', damage: '6d6' };
+      const atk4 = { type: 'weapon' };
+
+      expect(monsterModal.formatAttack(atk1, false)).toBe('噛みつき [1d4]');
+      expect(monsterModal.formatAttack(atk1, true)).toBe('Bite [1d4]');
+
+      expect(monsterModal.formatAttack(atk2, false)).toBe('刺突: 毒 [1d3]');
+      expect(monsterModal.formatAttack(atk2, true)).toBe('Sting: Poison [1d3]');
+
+      expect(monsterModal.formatAttack(atk3, false)).toBe('ブレス: 火炎 [6d6]');
+      expect(monsterModal.formatAttack(atk4, false)).toBe('武器攻撃');
+    });
+
+    it('アイテムタブに切り替えるとアイテム一覧が描画され、解禁アイテムと未解禁アイテムが区別されること', () => {
+      // 0番目 (矢など) を解禁
+      alm.unlockObject(0);
+      monsterModal.open();
+      monsterModal.switchTab('objects');
+
+      expect(monsterModal.activeTab).toBe('objects');
+      const list = fullElements['codex-master-list'];
+
+      const allObjs = alm.getAllObjectsWithStatus();
+      const unlockedObj = allObjs.find(o => o.onum === 0);
+      expect(unlockedObj.isUnlocked).toBe(true);
+
+      // 解禁アイテムの名前と未解禁の???が混在すること
+      expect(list.innerHTML).toContain(unlockedObj.nameJa || unlockedObj.name);
+      expect(list.innerHTML).toContain('???');
+
+      // 詳細ペインにアイテムのスペックが表示されること
+      const card = fullElements['codex-detail-card'];
+      expect(card.innerHTML).toContain(unlockedObj.nameJa || unlockedObj.name);
+      expect(card.innerHTML).toContain('codex-specs-grid');
+    });
+
+    it('サマリーバーにモンスターとアイテムの進捗が反映されること', () => {
+      alm.unlockMonster(0);
+      alm.unlockMonster(1);
+      alm.unlockObject(10);
+      monsterModal.open();
+
+      expect(fullElements['codex-sum-monster-ratio'].textContent).toContain('2 / 383');
+      expect(fullElements['codex-sum-object-ratio'].textContent).toContain('1 / 481');
+    });
+
+    it('未解禁エントリを選択した場合は未解禁プレースホルダー（雰囲気テキスト）が表示されること', () => {
+      monsterModal.open();
+      // 未解禁モンスターを選択
+      const lockedMon = alm.getAllMonstersWithStatus().find(m => !m.isUnlocked);
+      monsterModal.selectedItem = lockedMon;
+      monsterModal.renderDetail();
+
+      const card = fullElements['codex-detail-card'];
+      expect(card.innerHTML).toContain('codex-locked-placeholder');
+      expect(card.innerHTML).toContain('まだダンジョン内で遭遇していない未知のモンスターです');
+    });
+
+    it('markAllAsRead() ですべてのモンスターとアイテムのNEWバッジが一括クリアされること', () => {
+      alm.unlockMonster(0);
+      alm.unlockObject(0);
+      expect(alm.newMonsters.size).toBe(1);
+      expect(alm.newObjects.size).toBe(1);
+
+      monsterModal.open();
+      monsterModal.markAllAsRead();
+
+      expect(alm.newMonsters.size).toBe(0);
+      expect(alm.newObjects.size).toBe(0);
+      const counts = monsterModal.getUnreadCounts();
+      expect(counts.monsters).toBe(0);
+      expect(counts.objects).toBe(0);
+    });
   });
 });
 

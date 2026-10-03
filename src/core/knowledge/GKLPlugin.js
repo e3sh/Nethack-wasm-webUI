@@ -25,6 +25,9 @@ import { InteractionContext } from "./context/InteractionContext.js";
 import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
 import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
 import { PROMPT_CATEGORY } from '../types.js';
+import { AdventureLogManager } from "./lore/AdventureLogManager.js";
+import { classifyGlyph, ENTITY_TYPES } from "./engines/glyphClassifier.js";
+import { MONSTER_KNOWLEDGE_MAP } from "./data/MONSTER_KNOWLEDGE_FULL.js";
 
 
 /**
@@ -90,9 +93,19 @@ export class GKLPlugin {
             this.areaStateManager.setKeyMode(mode);
         }
 
+        this.adventureLogManager = options.adventureLogManager || new AdventureLogManager();
+
         this.discoveryStateManager = options.discoveryStateManager || new DiscoveryStateManager({
-            translationEngine: options.translationEngine || null
+            translationEngine: options.translationEngine || null,
+            adventureLogManager: this.adventureLogManager
         });
+
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.setAdventureLogManager === 'function') {
+            this.discoveryStateManager.setAdventureLogManager(this.adventureLogManager);
+            this.discoveryStateManager.onAdventureLogUnlocked = (info) => {
+                this._emitAdventureLogUnlocked(info);
+            };
+        }
 
         this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
             translationEngine: options.translationEngine || null,
@@ -112,6 +125,12 @@ export class GKLPlugin {
         }
         if (this.inventoryStateManager && typeof this.inventoryStateManager.setDiscoveryStateManager === 'function') {
             this.inventoryStateManager.setDiscoveryStateManager(this.discoveryStateManager);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setAdventureLogManager === 'function') {
+            this.inventoryStateManager.setAdventureLogManager(this.adventureLogManager);
+            this.inventoryStateManager.onAdventureLogUnlocked = (info) => {
+                this._emitAdventureLogUnlocked(info);
+            };
         }
         if (this.discoveryStateManager && typeof this.discoveryStateManager.setInventoryStateManager === 'function') {
             this.discoveryStateManager.setInventoryStateManager(this.inventoryStateManager);
@@ -214,6 +233,40 @@ export class GKLPlugin {
         }
         if (!this.core || typeof this.core.emit !== 'function') return;
         this.core.emit('fx_trigger', fullPayload);
+    }
+
+    /**
+     * 冒険手帳の新規アンロックイベントを発行
+     * @param {Object} info 
+     */
+    _emitAdventureLogUnlocked(info) {
+        if (!this.core || typeof this.core.emit !== 'function') return;
+        this.core.emit('adventureLogUnlocked', {
+            timestamp: Date.now(),
+            ...info
+        });
+    }
+
+    /**
+     * 冒険手帳マネージャーを取得
+     * @returns {AdventureLogManager}
+     */
+    getAdventureLogManager() {
+        return this.adventureLogManager;
+    }
+
+    /**
+     * 冒険手帳マネージャーを設定・更新
+     * @param {AdventureLogManager} alm 
+     */
+    setAdventureLogManager(alm) {
+        this.adventureLogManager = alm;
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.setAdventureLogManager === 'function') {
+            this.discoveryStateManager.setAdventureLogManager(alm);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setAdventureLogManager === 'function') {
+            this.inventoryStateManager.setAdventureLogManager(alm);
+        }
     }
 
     /**
@@ -760,6 +813,20 @@ export class GKLPlugin {
                         core.emit('signal', loreSignal);
                         core.emit(`signal:${loreSignal.signalId}`, loreSignal);
                         core.emit('loreSignal', loreSignal);
+
+                        // 📖 冒険手帳: 噂のアンロック
+                        if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR' && loreSignal.rumorId && this.adventureLogManager) {
+                            const isNew = this.adventureLogManager.unlockRumor(loreSignal.rumorId);
+                            if (isNew) {
+                                this._emitAdventureLogUnlocked({
+                                    category: 'rumor',
+                                    id: loreSignal.rumorId,
+                                    text: loreSignal.text,
+                                    textJa: loreSignal.translatedText,
+                                    isTrue: loreSignal.isTrue
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -835,6 +902,26 @@ export class GKLPlugin {
                 const gi = data.glyphInfo || data;
                 const glyphId = data.glyph !== undefined ? data.glyph : -1;
                 this.areaStateManager.updateGlyph(data.x, data.y, glyphId, gi);
+
+                // 📖 冒険手帳: モンスターLOS遭遇検知
+                if (glyphId >= 0 && this.adventureLogManager) {
+                    const classified = classifyGlyph(glyphId);
+                    if ((classified.type === ENTITY_TYPES.MONSTER || classified.type === ENTITY_TYPES.PET) &&
+                        classified.subType !== undefined && classified.subType >= 0 && classified.subType < 383 &&
+                        !classified.isInvisible && !classified.isWarning) {
+                        const isNew = this.adventureLogManager.unlockMonster(classified.subType);
+                        if (isNew) {
+                            const monData = MONSTER_KNOWLEDGE_MAP ? MONSTER_KNOWLEDGE_MAP.get(classified.subType) : null;
+                            this._emitAdventureLogUnlocked({
+                                category: 'monster',
+                                monOffset: classified.subType,
+                                id: monData?.id || `mon_${classified.subType}`,
+                                name: monData?.name || `Monster #${classified.subType}`,
+                                nameJa: monData?.nameJa || monData?.japaneseName || `モンスター #${classified.subType}`
+                            });
+                        }
+                    }
+                }
             }
         });
 

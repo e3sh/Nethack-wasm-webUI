@@ -77,10 +77,11 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     const card = new NhKnowledgeCard();
     card.connectedCallback();
 
+    const mockLookup = { lookup: vi.fn(), getCached: vi.fn().mockReturnValue({ found: false }) };
     card.setTarget({
       name: 'blindfold',
       category: 'TOOL'
-    });
+    }, { lookupService: mockLookup });
 
     expect(card.activeTab).toBe('spec');
     expect(card.shadowRoot.innerHTML).toContain('重量');
@@ -220,4 +221,245 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     card.close();
     expect(closeCount).toBe(3);
   });
+
+  it('lookupService 未設定時（オフライン時）は公式解説タブが非表示になり2タブ構成になること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'jackal',
+      japaneseName: 'ジャッカル',
+      category: 'MONSTER'
+    });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('1. 実用スペック');
+    expect(html).not.toContain('2. 公式解説 (WASM)');
+    expect(html).toContain('2. 冒険の噂');
+    expect(html).toContain('<span class="kbd">1</span><span class="kbd">2</span> タブ切替'); // 2タブ用のフッターヒント
+
+    // official タブへの切り替えが無効化されること
+    card.setActiveTab('official');
+    expect(card.activeTab).not.toBe('official');
+  });
+
+  it('lookupService 設定時でも hide-official-tab 属性があれば公式解説タブが非表示になること', () => {
+    const card = new NhKnowledgeCard();
+    card.setAttribute('hide-official-tab', '');
+    card.connectedCallback();
+
+    const mockLookup = { lookup: vi.fn(), getCached: vi.fn() };
+    card.setTarget({
+      name: 'jackal',
+      category: 'MONSTER'
+    }, { lookupService: mockLookup });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).not.toContain('2. 公式解説 (WASM)');
+  });
+
+  it('lookupService 設定時は3大タブすべてが表示されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    const mockLookup = { lookup: vi.fn(), getCached: vi.fn() };
+    card.setTarget({
+      name: 'jackal',
+      category: 'MONSTER'
+    }, { lookupService: mockLookup });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('1. 実用スペック');
+    expect(html).toContain('2. 公式解説 (WASM)');
+    expect(html).toContain('3. 冒険の噂');
+    expect(html).toContain('<span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span> タブ切替');
+  });
+
+  it('Layer 3: targetData から関連する噂が自動解決され、タブに件数が表示されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    // blindfold (onum 233)
+    card.setTarget({
+      onum: 233,
+      name: 'blindfold',
+      category: 'TOOL'
+    });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(card.loreEntries.length).toBeGreaterThan(0);
+    // 件数バッジが表示されていること
+    expect(html).toContain(`2. 冒険の噂 (${card.loreEntries.length})`);
+  });
+
+  it('Layer 3: adventureLogManager 連携時に未解禁の噂はマスク表示され、解禁時は日本語訳が表示されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    const mockManager = {
+      getRelatedLore: vi.fn().mockReturnValue([
+        {
+          id: 'rumor_tru_1',
+          text: 'A blindfold can be very useful...',
+          translatedText: '目隠しはとても役に立つ。',
+          isTrue: true,
+          isUnlocked: false
+        }
+      ])
+    };
+
+    card.setTarget({
+      onum: 233,
+      name: 'blindfold',
+      category: 'TOOL'
+    }, {
+      adventureLogManager: mockManager,
+      activeTab: 'lore',
+      currentLanguage: 'ja'
+    });
+
+    let html = card.shadowRoot.innerHTML;
+    expect(html).toContain('🔒 未解禁');
+    expect(html).toContain('????????????????????????????????');
+
+    // 解禁状態に変更
+    mockManager.getRelatedLore.mockReturnValue([
+      {
+        id: 'rumor_tru_1',
+        text: 'A blindfold can be very useful...',
+        translatedText: '目隠しはとても役に立つ。',
+        isTrue: true,
+        isUnlocked: true
+      }
+    ]);
+
+    card.setTarget({
+      onum: 233,
+      name: 'blindfold',
+      category: 'TOOL'
+    }, {
+      adventureLogManager: mockManager,
+      activeTab: 'lore',
+      currentLanguage: 'ja'
+    });
+
+    html = card.shadowRoot.innerHTML;
+    expect(html).toContain('✓ 真の噂');
+    expect(html).toContain('目隠しはとても役に立つ。');
+  });
+
+  it('Layer 3: 噂カードをクリックした際に nh-rumor-selected イベントを発行すること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      onum: 233,
+      name: 'blindfold',
+      category: 'TOOL'
+    }, {
+      activeTab: 'lore'
+    });
+
+    let selectedEventDetail = null;
+    card.addEventListener('nh-rumor-selected', (e) => {
+      selectedEventDetail = e.detail;
+    });
+
+    const rumorCard = card.shadowRoot.querySelector('.lore-card.clickable');
+    expect(rumorCard).not.toBeNull();
+    rumorCard.click();
+
+    expect(selectedEventDetail).not.toBeNull();
+    expect(selectedEventDetail.rumorId).toBeDefined();
+  });
+
+  it('モンスターおよびアイテム設定時にヘッダーに header-glyph-icon が描画されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    // モンスター (monOffset: 1 = killer bee)
+    card.setTarget({
+      monOffset: 1,
+      name: 'killer bee',
+      category: 'MONSTER'
+    });
+
+    let html = card.shadowRoot.innerHTML;
+    expect(html).toContain('header-glyph-icon');
+
+    // アイテム (onum: 233 = blindfold)
+    card.setTarget({
+      onum: 233,
+      name: 'blindfold',
+      category: 'TOOL'
+    });
+
+    html = card.shadowRoot.innerHTML;
+    expect(html).toContain('header-glyph-icon');
+  });
+
+  it('攻撃手段がオブジェクト配列の場合に [object Object] にならずフォーマットされること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'killer bee',
+      japaneseName: 'キラービー',
+      category: 'MONSTER',
+      dangerLevel: 'LOW',
+      stats: { hd: 1, ac: 4, speed: 18, mr: 0 },
+      attacks: [
+        { type: 'bite', damage: '1d3' },
+        { type: 'sting', damage: '1d3', effect: 'poison' }
+      ],
+      resistances: ['poison', 'fire']
+    }, { currentLanguage: 'ja' });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).not.toContain('[object Object]');
+    expect(html).toContain('噛みつき [1d3]');
+    expect(html).toContain('刺突: 毒 [1d3]');
+    expect(html).toContain('耐毒');
+    expect(html).toContain('耐火');
+  });
+
+  it('英語モードで攻撃手段と耐性が英語表記でフォーマットされること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'killer bee',
+      category: 'MONSTER',
+      dangerLevel: 'LOW',
+      attacks: [
+        { type: 'bite', damage: '1d3' },
+        { type: 'sting', damage: '1d3', effect: 'poison' }
+      ],
+      resistances: ['poison']
+    }, { currentLanguage: 'en' });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).not.toContain('[object Object]');
+    expect(html).toContain('Bite [1d3]');
+    expect(html).toContain('Sting: Poison [1d3]');
+    expect(html).toContain('Poison');
+  });
+
+  it('危険度 SAFE の場合に badge-danger-safe クラスが付与されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'archeologist',
+      japaneseName: '考古学者',
+      category: 'MONSTER',
+      dangerLevel: 'SAFE'
+    });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('badge-danger-safe');
+    expect(html).toContain('SAFE');
+  });
 });
+
+

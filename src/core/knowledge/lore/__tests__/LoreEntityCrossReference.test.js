@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { RUMORS, ORACLES, LORE_MASTER } from '../data/LoreMasterData.js';
+import { findLoreForEntity } from '../LoreEntityCrossReference.js';
 
 describe('Lore & Structured Knowledge Cross-Reference (Phase 1)', () => {
     it('LORE_MASTER メタデータにエンティティ付与フラグと集計が存在すること', () => {
@@ -112,4 +113,47 @@ describe('Lore & Structured Knowledge Cross-Reference (Phase 1)', () => {
             expect(r.relatedEntities.some(e => e.type === 'ITEM' && e.name.toLowerCase().includes('silver dagger'))).toBe(true);
         });
     });
+
+    describe('findLoreForEntity 逆引き機能', () => {
+        it('アイテムの onum から関連する噂を逆引きできること', () => {
+            // onum 233 = blindfold
+            const loreList = findLoreForEntity(233);
+            expect(loreList.length).toBeGreaterThan(0);
+            expect(loreList.some(l => l.id === 'rumor_tru_1')).toBe(true);
+        });
+
+        it('アイテムオブジェクトから関連する噂・神託を逆引きできること', () => {
+            const target = { onum: 233, name: 'blindfold', category: 'TOOL' };
+            const loreList = findLoreForEntity(target);
+            expect(loreList.length).toBeGreaterThan(0);
+            expect(loreList.some(l => l.id === 'rumor_tru_1')).toBe(true);
+        });
+
+        it('モンスターの monOffset から関連する噂を逆引きできること', () => {
+            // monOffset 114 = long worm
+            const loreList = findLoreForEntity(114);
+            expect(loreList.length).toBeGreaterThan(0);
+            expect(loreList.some(l => l.id === 'rumor_tru_6')).toBe(true);
+        });
+
+        it('モンスターオブジェクトから関連する噂を逆引きできること', () => {
+            const target = { monOffset: 114, name: 'long worm', id: 'long_worm' };
+            const loreList = findLoreForEntity(target);
+            expect(loreList.length).toBeGreaterThan(0);
+            expect(loreList.some(l => l.id === 'rumor_tru_6')).toBe(true);
+        });
+
+        it('モンスター・アイテムの和名から逆引きできること', () => {
+            const loreList = findLoreForEntity('目隠し');
+            expect(loreList.length).toBeGreaterThan(0);
+            expect(loreList.some(l => l.id === 'rumor_tru_1')).toBe(true);
+        });
+
+        it('存在しないエンティティの場合は空配列を返すこと', () => {
+            expect(findLoreForEntity(99999)).toEqual([]);
+            expect(findLoreForEntity('nonexistent_super_monster_xyz')).toEqual([]);
+            expect(findLoreForEntity(null)).toEqual([]);
+        });
+    });
 });
+

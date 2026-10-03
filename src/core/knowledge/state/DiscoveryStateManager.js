@@ -48,6 +48,9 @@ export class DiscoveryStateManager {
         this.translator = options.translator || options.translationEngine || null;
         // インベントリマネージャー (InventoryStateManager)
         this.inventoryStateManager = options.inventoryStateManager || null;
+        // 冒険手帳マネージャー (AdventureLogManager)
+        this.adventureLogManager = options.adventureLogManager || null;
+        this.onAdventureLogUnlocked = options.onAdventureLogUnlocked || null;
         // 同期完了フラグ
         this.isSynced = false;
 
@@ -70,6 +73,14 @@ export class DiscoveryStateManager {
      */
     setInventoryStateManager(invMgr) {
         this.inventoryStateManager = invMgr;
+    }
+
+    /**
+     * 冒険手帳マネージャーの設定・更新
+     * @param {Object} alm 
+     */
+    setAdventureLogManager(alm) {
+        this.adventureLogManager = alm;
     }
 
     /**
@@ -247,6 +258,10 @@ export class DiscoveryStateManager {
 
         if (onum !== null && onum !== undefined) {
             this.discoveredOnums.add(onum);
+            // 📖 冒険手帳へのアンロック連携 (Discoveries コマンド同期からのサイレント反映)
+            if (this.adventureLogManager && typeof this.adventureLogManager.unlockObject === 'function') {
+                this.adventureLogManager.unlockObject(onum);
+            }
         }
 
         if (appearance) {
@@ -389,6 +404,21 @@ export class DiscoveryStateManager {
             if (!trueName && OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(onum)) {
                 const k = OBJECT_KNOWLEDGE_MAP.get(onum);
                 trueName = k.name || k.id || '';
+            }
+
+            // 📖 冒険手帳へのアンロック連携
+            if (this.adventureLogManager && typeof this.adventureLogManager.unlockObject === 'function') {
+                const isNew = this.adventureLogManager.unlockObject(onum);
+                if (isNew && typeof this.onAdventureLogUnlocked === 'function') {
+                    const itemData = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                    const finalJa = itemData?.nameJa || itemData?.japaneseName || this._translateText(trueName) || trueName;
+                    this.onAdventureLogUnlocked({
+                        category: 'object',
+                        onum,
+                        name: trueName || itemData?.name || `Object #${onum}`,
+                        nameJa: finalJa
+                    });
+                }
             }
         }
         if (trueName) {

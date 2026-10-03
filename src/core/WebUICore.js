@@ -297,6 +297,14 @@ export class WebUICore {
         return this.gkl?.structuredKnowledge || null;
     }
 
+    /**
+     * 冒険手帳メタプログレッションマネージャを取得
+     * @returns {AdventureLogManager|null}
+     */
+    getAdventureLogManager() {
+        return this.gkl?.getAdventureLogManager?.() || null;
+    }
+
     async detectSavedGameInfo() {
         const fsManager = this.driver ? (this.driver.fsManager || this.driver) : null;
         let saveName = "";

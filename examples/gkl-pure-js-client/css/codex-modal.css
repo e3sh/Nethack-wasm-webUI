@@ -686,3 +686,229 @@
   color: #e2e8f0;
 }
 
+/* ============================================================================
+   5. モンスター図鑑 ＆ アイテム図鑑 拡張スタイル
+   ============================================================================ */
+
+/* リストアイテム内タイル */
+.codex-tile-wrap {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.codex-tile-wrap.locked {
+  background: rgba(15, 23, 42, 0.3);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+.codex-tile-glyph {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+.codex-tile-glyph.locked {
+  filter: brightness(0) opacity(0.28);
+}
+.codex-symbol-fallback {
+  font-size: 18px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.codex-symbol-fallback.locked {
+  filter: brightness(0) opacity(0.3);
+}
+
+.codex-list-item.locked {
+  opacity: 0.72;
+}
+.codex-list-item.locked .codex-item-snippet {
+  color: #64748b;
+  font-style: italic;
+}
+
+/* 詳細カードヘッダー (モンスター / アイテム) */
+.codex-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.codex-entry-avatar {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.codex-entry-avatar.locked {
+  border-color: rgba(100, 116, 139, 0.3);
+  box-shadow: none;
+}
+.codex-entry-avatar-glyph {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  transform: scale(1.4);
+}
+.codex-entry-avatar-glyph.locked {
+  filter: brightness(0) opacity(0.3);
+}
+.codex-entry-avatar-symbol {
+  font-size: 32px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+.codex-entry-avatar-symbol.locked {
+  color: #475569;
+}
+
+.codex-entry-titles {
+  flex: 1;
+}
+.codex-entry-name-main {
+  font-size: 18px;
+  font-weight: 800;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.codex-entry-name-sub {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.codex-entry-id-badge {
+  font-size: 11px;
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* スペックグリッド表 */
+.codex-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.codex-specs-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.codex-specs-key {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.codex-specs-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+/* タグ・バッジリスト */
+.codex-tag-group {
+  margin: 10px 0;
+}
+.codex-tag-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.codex-tag-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.codex-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.codex-tag-resist {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.codex-tag-attack {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.codex-tag-attr {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.codex-tag-category {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* 伝承・解説ボックス */
+.codex-desc-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #38bdf8;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+/* 未解禁プレースホルダーカード */
+.codex-locked-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+  gap: 12px;
+}
+.codex-locked-icon {
+  font-size: 36px;
+  opacity: 0.6;
+}
+.codex-locked-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.codex-locked-hint {
+  font-size: 12px;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
