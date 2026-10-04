@@ -693,6 +693,9 @@
             <button class="btn" onclick="toggleAllMasterMode()">
                 <span id="masterModeIcon">👁️</span> <span id="masterModeText">全マスタ閲覧 (787件)</span>
             </button>
+            <button class="btn" id="btnToggleOracleGuide" onclick="toggleOracleGuideMode()" style="border-color: rgba(192, 132, 252, 0.5); color: #c084fc;">
+                <span id="oracleGuideIcon">🔮</span> <span id="oracleGuideText">神託ガイド: OFF</span>
+            </button>
             <button class="btn btn-gold" onclick="exportBackup()">
                 💾 JSON エクスポート
             </button>
@@ -957,6 +960,29 @@
         let currentRumorFilter = 'ALL';
         let currentEngravingFilter = 'ALL';
         let showAllMasterMode = false;
+        let oracleGuideMode = localStorage.getItem('gkl_oracle_guide_mode') === 'true';
+
+        window.toggleOracleGuideMode = function() {
+            oracleGuideMode = !oracleGuideMode;
+            localStorage.setItem('gkl_oracle_guide_mode', oracleGuideMode ? 'true' : 'false');
+            updateOracleGuideUI();
+            updateStatsUI();
+            renderOracles();
+        };
+
+        function updateOracleGuideUI() {
+            const btn = document.getElementById('btnToggleOracleGuide');
+            const txt = document.getElementById('oracleGuideText');
+            if (btn && txt) {
+                if (oracleGuideMode) {
+                    btn.classList.add('btn-gold');
+                    txt.textContent = '神託ガイド: ON (常時全件)';
+                } else {
+                    btn.classList.remove('btn-gold');
+                    txt.textContent = '神託ガイド: OFF (収集制)';
+                }
+            }
+        }
 
         // タグ編集モード & 差分状態管理
         let tagEditMode = false;
@@ -1231,6 +1257,7 @@
         // UI 初期化
         async function init() {
             await loadOverridesState();
+            updateOracleGuideUI();
             updateStatsUI();
             renderRumors();
             renderOracles();
@@ -1296,16 +1323,25 @@
             document.getElementById('statFalseRatio').textContent = `${stats.rumors.falseCount} / ${stats.rumors.totalFalse}`;
             document.getElementById('statFalseBar').style.width = `${stats.rumors.falsePercentage}%`;
 
-            document.getElementById('statOraclePercent').textContent = '公式ガイド';
-            document.getElementById('statOracleRatio').textContent = '全 20 件';
-            document.getElementById('statOracleBar').style.width = '100%';
+            const oracleCount = codex.oracles.size;
+            if (oracleGuideMode) {
+                document.getElementById('statOraclePercent').textContent = '公式ガイド';
+                document.getElementById('statOracleRatio').textContent = '全 20 件';
+                document.getElementById('statOracleBar').style.width = '100%';
+                document.getElementById('navOracleCount').textContent = '20';
+            } else {
+                const pct = Number(((oracleCount / 20) * 100).toFixed(1));
+                document.getElementById('statOraclePercent').textContent = `${pct}%`;
+                document.getElementById('statOracleRatio').textContent = `${oracleCount} / 20`;
+                document.getElementById('statOracleBar').style.width = `${pct}%`;
+                document.getElementById('navOracleCount').textContent = `${oracleCount}/20`;
+            }
 
             const engrCount = stats.engravings?.collected || 0;
             document.getElementById('statEngravingCount').textContent = engrCount;
             document.getElementById('navEngravingCount').textContent = engrCount;
 
             document.getElementById('navRumorCount').textContent = `${stats.rumors.collected}/${stats.rumors.total}`;
-            document.getElementById('navOracleCount').textContent = '20';
 
             const currentWard = codex.getCurrentWard();
             const status = currentWard?.status || 'NONE';
@@ -1392,8 +1428,10 @@
             const grid = document.getElementById('oracleGrid');
             const emptyEl = document.getElementById('oracleEmpty');
 
-            // 神託は収集要素ではなく公式ガイドとして全20件を常時表示
-            const oracles = LORE_MASTER.oracles || [];
+            // 神託: 公式ガイドモード時または全マスタモード時は全20件、収集制時は収集済みのみ表示
+            const oracles = (showAllMasterMode || oracleGuideMode)
+                ? (LORE_MASTER.oracles || [])
+                : codex.getOracles();
 
             if (oracles.length === 0) {
                 grid.innerHTML = '';

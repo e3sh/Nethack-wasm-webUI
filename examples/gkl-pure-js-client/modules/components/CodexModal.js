@@ -829,14 +829,30 @@ export class CodexModal {
         const isEn = this.currentLanguage === 'en';
         setText('#codex-sum-true-ratio', `${stats.rumors.trueCount} / ${stats.rumors.totalTrue}`);
         setText('#codex-sum-false-ratio', `${stats.rumors.falseCount} / ${stats.rumors.totalFalse}`);
-        setText('#codex-sum-oracle-ratio', isEn ? '20 entries' : '全 20 件');
+
+        // 神託（Oracle）集計: 公式ガイドモード時は全20件、通常時はアンロック数/20
+        const isGuide = Boolean(alm?.oracleGuideAlwaysUnlocked);
+        const oracleUnlocked = alm ? (alm.unlockedOracles?.size || 0) : (codex ? codex.oracles.size : 0);
+        const oracleTotal = 20;
+
+        if (isGuide) {
+            setText('#codex-lbl-sum-oracle', isEn ? 'Oracles (Guide):' : '神託 (公式ガイド):');
+            setText('#codex-txt-tab-oracles', isEn ? '🔮 Oracles (Guide)' : '🔮 神託ガイド (Oracles)');
+            setText('#codex-sum-oracle-ratio', isEn ? '20 entries' : '全 20 件');
+            setText('#codex-badge-oracles', '20');
+        } else {
+            setText('#codex-lbl-sum-oracle', isEn ? 'Oracles:' : '神託:');
+            setText('#codex-txt-tab-oracles', isEn ? '🔮 Oracles' : '🔮 神託 (Oracles)');
+            setText('#codex-sum-oracle-ratio', `${oracleUnlocked} / ${oracleTotal}`);
+            setText('#codex-badge-oracles', `${oracleUnlocked}/${oracleTotal}`);
+        }
+
         setText('#codex-sum-engr-count', `${stats.engravings?.collected || 0} ${t.unitItems}`);
 
         // タブバッジ
         setText('#codex-badge-monsters', `${progress.monsters.unlocked}/${progress.monsters.total}`);
         setText('#codex-badge-objects', `${progress.objects.unlocked}/${progress.objects.total}`);
         setText('#codex-badge-rumors', `${rumorCollected}/${stats.rumors.total}`);
-        setText('#codex-badge-oracles', '20');
         setText('#codex-badge-engravings', stats.engravings?.collected || 0);
     }
 
@@ -1009,18 +1025,18 @@ export class CodexModal {
             }
 
         } else if (this.activeTab === 'oracles') {
-            // 神託は収集要素ではなく公式ガイドとして常時全件閲覧可能
-            const codexOracles = codex ? codex.getOracles() : [];
             const masterOracles = LORE_MASTER.oracles || [];
-            const sourceList = (codexOracles.length > 0 && !masterOracles.some(m => m.id === codexOracles[0].id))
-                ? codexOracles
-                : masterOracles;
+            const isGuide = Boolean(alm?.oracleGuideAlwaysUnlocked);
 
-            items = sourceList.map(i => ({
-                ...i,
-                category: 'ORACLE',
-                collected: true
-            }));
+            items = masterOracles.map(o => {
+                const isUnlocked = isGuide || (alm ? alm.isOracleUnlocked(o.id) : (codex && codex.oracles.has(o.id)));
+                return {
+                    ...o,
+                    category: 'ORACLE',
+                    collected: isUnlocked,
+                    isUnlocked: isUnlocked
+                };
+            });
             if (q) {
                 items = items.filter(i => {
                     const tEn = (i.text || '').toLowerCase();
@@ -1147,6 +1163,10 @@ export class CodexModal {
             } else if (item.category === 'object') {
                 mainTitle = isLocked ? `No.${item.onum} ???` : (isEn ? item.name : (item.nameJa || item.name));
                 subTitle = isLocked ? '???' : (isEn ? (item.nameJa || '') : item.name);
+            } else if (item.category === 'ORACLE') {
+                const oracleNum = (item.id || '').replace(/^oracle_/, '');
+                mainTitle = isLocked ? `No.${oracleNum || idx + 1} 🔒 ???` : (item.title || item.text || '');
+                subTitle = isLocked ? (isEn ? 'Consult the Oracle in Delphi' : 'デルフィの神託所で授かることで解禁') : ((!isEn && item.translatedText) ? item.translatedText : '');
             } else {
                 mainTitle = item.title || item.text || item.actualText || '';
                 subTitle = (!isEn && item.translatedText) ? item.translatedText : '';
@@ -1575,6 +1595,28 @@ export class CodexModal {
      * @private
      */
     _renderLoreDetail(item, cardEl, isEn, t) {
+        if (item.category === 'ORACLE' && item.isUnlocked === false) {
+            cardEl.innerHTML = `
+                <div class="codex-detail-body">
+                    <div class="codex-detail-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+                        <div class="codex-detail-title-group">
+                            <div><span class="codex-item-badge badge-oracle" style="font-size:12px; padding:3px 8px;">${t.truthBadgeOracle}</span></div>
+                            <div style="font-size:15px; font-weight:700; color:#94a3b8; margin-top:4px;">No.${(item.id || '').replace(/^oracle_/, '')} ???</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="codex-detail-id">${this.escapeHtml(item.id || '')}</div>
+                        </div>
+                    </div>
+                    <div class="codex-locked-placeholder" style="margin-top:20px;">
+                        <div class="codex-locked-icon">🔒</div>
+                        <div class="codex-locked-title">${isEn ? 'Undiscovered Oracle' : '未解禁の神託'}</div>
+                        <div class="codex-locked-hint">${isEn ? 'Consult the Oracle in Delphi to receive and unlock this ancient wisdom.' : 'デルフィの神託所で神託（大預言）を授かることで、この古代の知恵が解禁されます。'}</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
         let truthBadge = '';
         if (item.category === 'RUMOR' || item.isTrue !== undefined) {
             truthBadge = item.isTrue

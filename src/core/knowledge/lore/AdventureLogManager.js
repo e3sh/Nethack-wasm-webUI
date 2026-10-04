@@ -32,11 +32,16 @@ export class AdventureLogManager {
         this.unlockedMonsters = new Set(); // monOffset (number)
         this.unlockedObjects = new Set();  // onum (number)
         this.unlockedRumors = new Set();   // rumorId (string)
+        this.unlockedOracles = new Set();  // oracleId (string)
 
         // 新規解禁（NEW! バッジ対象）識別子セット
         this.newMonsters = new Set();
         this.newObjects = new Set();
         this.newRumors = new Set();
+        this.newOracles = new Set();
+
+        // 🔮 公式ガイドモード（常時開示・ネタバレ許可）フラグ
+        this.oracleGuideAlwaysUnlocked = Boolean(options.oracleGuideAlwaysUnlocked);
 
         this.listeners = new Set();
 
@@ -88,6 +93,9 @@ export class AdventureLogManager {
         if (Array.isArray(data.unlockedRumors)) {
             this.unlockedRumors = new Set(data.unlockedRumors);
         }
+        if (Array.isArray(data.unlockedOracles)) {
+            this.unlockedOracles = new Set(data.unlockedOracles);
+        }
 
         if (data.newlyUnlocked) {
             if (Array.isArray(data.newlyUnlocked.monsters)) {
@@ -98,6 +106,9 @@ export class AdventureLogManager {
             }
             if (Array.isArray(data.newlyUnlocked.rumors)) {
                 this.newRumors = new Set(data.newlyUnlocked.rumors);
+            }
+            if (Array.isArray(data.newlyUnlocked.oracles)) {
+                this.newOracles = new Set(data.newlyUnlocked.oracles);
             }
         }
 
@@ -116,8 +127,8 @@ export class AdventureLogManager {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 const data = parsed.data || parsed;
+                let changed = false;
                 if (Array.isArray(data.rumors)) {
-                    let changed = false;
                     for (const r of data.rumors) {
                         const id = typeof r === 'string' ? r : (r.id || r.rumorId);
                         if (id && !this.unlockedRumors.has(id)) {
@@ -125,8 +136,17 @@ export class AdventureLogManager {
                             changed = true;
                         }
                     }
-                    if (changed) this.save();
                 }
+                if (Array.isArray(data.oracles)) {
+                    for (const o of data.oracles) {
+                        const id = typeof o === 'string' ? o : (o.id || o.oracleId);
+                        if (id && !this.unlockedOracles.has(id)) {
+                            this.unlockedOracles.add(id);
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) this.save();
             }
         } catch (e) {
             // 無視
@@ -141,15 +161,18 @@ export class AdventureLogManager {
             unlockedMonsters: Array.from(this.unlockedMonsters),
             unlockedObjects: Array.from(this.unlockedObjects),
             unlockedRumors: Array.from(this.unlockedRumors),
+            unlockedOracles: Array.from(this.unlockedOracles),
             newlyUnlocked: {
                 monsters: Array.from(this.newMonsters),
                 objects: Array.from(this.newObjects),
-                rumors: Array.from(this.newRumors)
+                rumors: Array.from(this.newRumors),
+                oracles: Array.from(this.newOracles)
             },
             stats: {
                 monstersCount: this.unlockedMonsters.size,
                 objectsCount: this.unlockedObjects.size,
-                rumorsCount: this.unlockedRumors.size
+                rumorsCount: this.unlockedRumors.size,
+                oraclesCount: this.unlockedOracles.size
             }
         };
         return this.storage.save(payload);
@@ -297,6 +320,58 @@ export class AdventureLogManager {
     }
 
     /**
+     * 神託のアンロック
+     * @param {string} oracleId
+     * @returns {boolean} 新規にアンロックされたかどうか
+     */
+    unlockOracle(oracleId) {
+        if (!oracleId || this.unlockedOracles.has(oracleId)) {
+            return false;
+        }
+        this.unlockedOracles.add(oracleId);
+        this.newOracles.add(oracleId);
+        this.save();
+        this._notify('ORACLE_UNLOCKED', { oracleId });
+        return true;
+    }
+
+    /**
+     * 神託がアンロック済みか確認（公式ガイドモードがONなら常にtrue）
+     * @param {string} oracleId
+     * @returns {boolean}
+     */
+    isOracleUnlocked(oracleId) {
+        if (this.oracleGuideAlwaysUnlocked) {
+            return true;
+        }
+        return this.unlockedOracles.has(oracleId);
+    }
+
+    /**
+     * 神託が新着（未読）か確認
+     * @param {string} oracleId
+     * @returns {boolean}
+     */
+    isOracleNew(oracleId) {
+        if (this.oracleGuideAlwaysUnlocked) {
+            return false;
+        }
+        return this.newOracles.has(oracleId);
+    }
+
+    /**
+     * 公式ガイドモード（常時開示・ネタバレ許可）の設定
+     * @param {boolean} enabled
+     */
+    setOracleGuideAlwaysUnlocked(enabled) {
+        const val = Boolean(enabled);
+        if (this.oracleGuideAlwaysUnlocked !== val) {
+            this.oracleGuideAlwaysUnlocked = val;
+            this._notify('ORACLE_GUIDE_MODE_CHANGED', { enabled: val });
+        }
+    }
+
+    /**
      * LoreCodex インスタンスとの双方向同期
      * @param {Object} loreCodex
      */
@@ -324,6 +399,26 @@ export class AdventureLogManager {
             }
         }
 
+        // LoreCodex の神託を取り込み
+        if (loreCodex.oracles) {
+            for (const id of loreCodex.oracles.keys()) {
+                if (!this.unlockedOracles.has(id)) {
+                    this.unlockedOracles.add(id);
+                    changed = true;
+                }
+            }
+        }
+
+        // 冒険手帳の神託を LoreCodex に反映
+        for (const id of this.unlockedOracles) {
+            if (loreCodex.oracles && !loreCodex.oracles.has(id)) {
+                const masterOracle = (LORE_MASTER.oracles || []).find(o => o.id === id);
+                if (masterOracle && typeof loreCodex.addOracle === 'function') {
+                    loreCodex.addOracle(masterOracle);
+                }
+            }
+        }
+
         if (changed) {
             this.save();
         }
@@ -335,7 +430,7 @@ export class AdventureLogManager {
 
     /**
      * 指定エントリが NEW! かどうか
-     * @param {'monster'|'object'|'rumor'} category
+     * @param {'monster'|'object'|'rumor'|'oracle'} category
      * @param {number|string} identifier
      * @returns {boolean}
      */
@@ -351,12 +446,15 @@ export class AdventureLogManager {
         if (category === 'rumor') {
             return this.newRumors.has(identifier);
         }
+        if (category === 'oracle') {
+            return this.isOracleNew(identifier);
+        }
         return false;
     }
 
     /**
      * 指定エントリを既読化
-     * @param {'monster'|'object'|'rumor'} category
+     * @param {'monster'|'object'|'rumor'|'oracle'} category
      * @param {number|string} identifier
      */
     markAsRead(category, identifier) {
@@ -369,6 +467,8 @@ export class AdventureLogManager {
             if (onum !== null && this.newObjects.delete(onum)) changed = true;
         } else if (category === 'rumor') {
             if (this.newRumors.delete(identifier)) changed = true;
+        } else if (category === 'oracle') {
+            if (this.newOracles.delete(identifier)) changed = true;
         }
 
         if (changed) {
@@ -379,12 +479,13 @@ export class AdventureLogManager {
 
     /**
      * カテゴリ内（または全エントリ）をすべて既読化
-     * @param {'monster'|'object'|'rumor'|'all'} [category='all']
+     * @param {'monster'|'object'|'rumor'|'oracle'|'all'} [category='all']
      */
     markAllAsRead(category = 'all') {
         if (category === 'monster' || category === 'all') this.newMonsters.clear();
         if (category === 'object' || category === 'all') this.newObjects.clear();
         if (category === 'rumor' || category === 'all') this.newRumors.clear();
+        if (category === 'oracle' || category === 'all') this.newOracles.clear();
         this.save();
         this._notify('ALL_READ', { category });
     }
@@ -401,10 +502,12 @@ export class AdventureLogManager {
         const totalMonsters = ALL_MONSTER_KNOWLEDGE_BASE.length;
         const totalObjects = OBJECT_KNOWLEDGE_MAP.size;
         const totalRumors = (LORE_MASTER.rumors || []).length || 787;
+        const totalOracles = (LORE_MASTER.oracles || []).length || 20;
 
         const mUnlocked = this.unlockedMonsters.size;
         const oUnlocked = this.unlockedObjects.size;
         const rUnlocked = this.unlockedRumors.size;
+        const orcUnlocked = this.oracleGuideAlwaysUnlocked ? totalOracles : this.unlockedOracles.size;
 
         const totalAll = totalMonsters + totalObjects + totalRumors;
         const unlockedAll = mUnlocked + oUnlocked + rUnlocked;
@@ -427,6 +530,13 @@ export class AdventureLogManager {
                 total: totalRumors,
                 percentage: totalRumors > 0 ? Number(((rUnlocked / totalRumors) * 100).toFixed(1)) : 0,
                 newCount: this.newRumors.size
+            },
+            oracles: {
+                unlocked: orcUnlocked,
+                total: totalOracles,
+                percentage: totalOracles > 0 ? Number(((orcUnlocked / totalOracles) * 100).toFixed(1)) : 0,
+                newCount: this.newOracles.size,
+                isGuideMode: this.oracleGuideAlwaysUnlocked
             },
             overall: {
                 unlocked: unlockedAll,
@@ -512,10 +622,33 @@ export class AdventureLogManager {
     }
 
     /**
+     * 全神託の状態付き一覧を取得
+     * @returns {Array<Object>}
+     */
+    getAllOraclesWithStatus() {
+        const oracles = LORE_MASTER.oracles || [];
+        return oracles.map((o, index) => {
+            const isUnlocked = this.isOracleUnlocked(o.id);
+            return {
+                id: o.id,
+                category: 'oracle',
+                index: index + 1,
+                title: isUnlocked ? o.title : '???',
+                text: isUnlocked ? o.text : '???????????????',
+                textJa: isUnlocked ? (o.translatedText || o.textJa || o.text) : '???????????????',
+                isUnlocked,
+                isNew: this.isOracleNew(o.id),
+                isSpecial: o.isSpecial,
+                data: isUnlocked ? o : null
+            };
+        });
+    }
+
+    /**
      * 指定エンティティに関連する伝承（噂・神託）を取得
      * 
      * 【設計仕様】
-     * - 神託（Oracle）: ゲームの重要公式ガイドとして常時開示（isUnlocked: true、収集率の計算対象外）
+     * - 神託（Oracle）: 公式ガイドモード（oracleGuideAlwaysUnlocked）または unlockOracle に応じて解禁
      * - 噂話（Rumor）: 冒険手帳のアンロック対象（unlockedRumors による解禁判定）
      * 
      * @param {Object|string|number} target - 対象エンティティ
@@ -529,8 +662,8 @@ export class AdventureLogManager {
 
         return list.map(lore => {
             const isOracle = lore.category === 'ORACLE';
-            const isUnlocked = isOracle ? true : this.unlockedRumors.has(lore.id);
-            const isNew = isOracle ? false : this.newRumors.has(lore.id);
+            const isUnlocked = isOracle ? this.isOracleUnlocked(lore.id) : this.unlockedRumors.has(lore.id);
+            const isNew = isOracle ? this.isOracleNew(lore.id) : this.newRumors.has(lore.id);
             return {
                 ...lore,
                 isUnlocked,
@@ -551,9 +684,11 @@ export class AdventureLogManager {
         this.unlockedMonsters.clear();
         this.unlockedObjects.clear();
         this.unlockedRumors.clear();
+        this.unlockedOracles.clear();
         this.newMonsters.clear();
         this.newObjects.clear();
         this.newRumors.clear();
+        this.newOracles.clear();
         const success = this.storage.clear();
         this._notify('RESET', {});
         return success;
@@ -568,10 +703,12 @@ export class AdventureLogManager {
             unlockedMonsters: Array.from(this.unlockedMonsters),
             unlockedObjects: Array.from(this.unlockedObjects),
             unlockedRumors: Array.from(this.unlockedRumors),
+            unlockedOracles: Array.from(this.unlockedOracles),
             newlyUnlocked: {
                 monsters: Array.from(this.newMonsters),
                 objects: Array.from(this.newObjects),
-                rumors: Array.from(this.newRumors)
+                rumors: Array.from(this.newRumors),
+                oracles: Array.from(this.newOracles)
             },
             exportedAt: new Date().toISOString()
         };
@@ -595,6 +732,9 @@ export class AdventureLogManager {
             if (Array.isArray(data.unlockedRumors)) {
                 this.unlockedRumors = new Set(data.unlockedRumors);
             }
+            if (Array.isArray(data.unlockedOracles)) {
+                this.unlockedOracles = new Set(data.unlockedOracles);
+            }
             if (data.newlyUnlocked) {
                 if (Array.isArray(data.newlyUnlocked.monsters)) {
                     this.newMonsters = new Set(data.newlyUnlocked.monsters.map(Number));
@@ -604,6 +744,9 @@ export class AdventureLogManager {
                 }
                 if (Array.isArray(data.newlyUnlocked.rumors)) {
                     this.newRumors = new Set(data.newlyUnlocked.rumors);
+                }
+                if (Array.isArray(data.newlyUnlocked.oracles)) {
+                    this.newOracles = new Set(data.newlyUnlocked.oracles);
                 }
             }
             this.save();

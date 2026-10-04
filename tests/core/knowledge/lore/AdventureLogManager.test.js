@@ -256,14 +256,44 @@ describe('AdventureLogManager', () => {
             expect(unlockedList.some(l => l.id === 'rumor_tru_1')).toBe(true);
         });
 
-        it('神託（Oracle）は公式ガイドとして常時 isUnlocked: true となること', () => {
+        it('神託（Oracle）のアンロック機能および公式ガイドモード切替が正しく動作すること', () => {
             // onum 262 = Candelabrum of Invocation (oracle_17 が関連)
-            const lore = manager.getRelatedLore(262, { unlockedOnly: false });
-            const oracle = lore.find(l => l.category === 'ORACLE');
-            if (oracle) {
-                expect(oracle.isUnlocked).toBe(true);
-                expect(oracle.isNew).toBe(false);
-            }
+            // 1. デフォルト (アンロック制): 未解禁時は isUnlocked: false
+            const loreBefore = manager.getRelatedLore(262, { unlockedOnly: false });
+            const oracleBefore = loreBefore.find(l => l.category === 'ORACLE');
+            expect(oracleBefore).toBeDefined();
+            expect(oracleBefore.isUnlocked).toBe(false);
+
+            // 2. 神託をアンロック (unlockOracle)
+            const isNew = manager.unlockOracle(oracleBefore.id);
+            expect(isNew).toBe(true);
+            expect(manager.isOracleUnlocked(oracleBefore.id)).toBe(true);
+            expect(manager.isNew('oracle', oracleBefore.id)).toBe(true);
+
+            const loreAfter = manager.getRelatedLore(262, { unlockedOnly: false });
+            const oracleAfter = loreAfter.find(l => l.id === oracleBefore.id);
+            expect(oracleAfter.isUnlocked).toBe(true);
+            expect(oracleAfter.isNew).toBe(true);
+
+            // 既読化
+            manager.markAsRead('oracle', oracleBefore.id);
+            expect(manager.isNew('oracle', oracleBefore.id)).toBe(false);
+
+            // 3. 公式ガイドモード (oracleGuideAlwaysUnlocked = true) では未解禁でも常時 isUnlocked: true
+            manager.setOracleGuideAlwaysUnlocked(true);
+            const allOracles = manager.getAllOraclesWithStatus();
+            expect(allOracles.every(o => o.isUnlocked)).toBe(true);
+
+            // getRelatedLore でも常時開示
+            const loreGuide = manager.getRelatedLore(262, { unlockedOnly: false });
+            const oracleGuide = loreGuide.find(l => l.id === oracleBefore.id);
+            expect(oracleGuide.isUnlocked).toBe(true);
+            expect(oracleGuide.isNew).toBe(false);
+
+            // getProgress での集計
+            const progress = manager.getProgress();
+            expect(progress.oracles.isGuideMode).toBe(true);
+            expect(progress.oracles.unlocked).toBe(20);
         });
     });
 });

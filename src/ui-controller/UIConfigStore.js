@@ -23,7 +23,8 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   statusClassic2Line: false,
   statusGauges: true,
   statusGklExtra: true,
-  hudFadeDelay: 2500
+  hudFadeDelay: 2500,
+  oracleGuideAlwaysUnlocked: false
 });
 
 export class UIConfigStore {
@@ -220,7 +221,8 @@ export class UIConfigStore {
       statusGklExtra: raw.statusGklExtra !== undefined ? Boolean(raw.statusGklExtra) : true,
       hudFadeDelay: typeof raw.hudFadeDelay === 'number' && !Number.isNaN(raw.hudFadeDelay)
         ? raw.hudFadeDelay
-        : (parseInt(raw.hudFadeDelay, 10) || 2500)
+        : (parseInt(raw.hudFadeDelay, 10) || 2500),
+      oracleGuideAlwaysUnlocked: Boolean(raw.oracleGuideAlwaysUnlocked)
     };
   }
 }

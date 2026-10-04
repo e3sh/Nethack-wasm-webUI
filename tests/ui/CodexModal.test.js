@@ -190,11 +190,19 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
     expect(list.innerHTML).not.toContain('Elbereth does not work on trolls');
   });
 
-  it('タブを切り替えると該当カテゴリの項目が表示されること', () => {
+  it('タブを切り替えると該当カテゴリの項目が表示され、神託タブではアンロック状況および公式ガイドモードに応じた表示となること', () => {
     modal.open();
     modal.switchTab('oracles');
     const list = elementsMap['codex-master-list'];
-    expect(list.innerHTML).toContain('Seek the Amulet of Yendor.');
+
+    // 1. デフォルト (アンロック制): 未解禁時は伏字化
+    expect(list.innerHTML).toContain('🔒 ???');
+
+    // 2. 公式ガイドモードを有効にすると全件閲覧可能
+    const alm = modal.getAdventureLogManager();
+    alm.setOracleGuideAlwaysUnlocked(true);
+    modal.switchTab('oracles');
+    expect(list.innerHTML).toContain('If thy wand hath run out');
   });
 
   it('setLanguage("en") で言語が英語に切り替わること', () => {

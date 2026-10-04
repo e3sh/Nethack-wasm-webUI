@@ -191,6 +191,8 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - 早い',
     hudFadeNormal: '⏱️ 2.5s - 標準',
     hudFadeSlow: '⏳ 4.0s - ゆっくり',
+    sectionGameplay: '🎮 難易度調整・探索アシスト',
+    oracleGuideAlwaysUnlocked: '🔮 神託公式ガイドモード (常時閲覧・ネタバレ許可)',
     btnResetDefaults: '初期設定に戻す'
   },
   en: {
@@ -212,6 +214,8 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - Fast',
     hudFadeNormal: '⏱️ 2.5s - Standard',
     hudFadeSlow: '⏳ 4.0s - Relaxed',
+    sectionGameplay: '🎮 Difficulty & Gameplay Assist',
+    oracleGuideAlwaysUnlocked: '🔮 Oracle Guide Mode (Always Unlocked / Spoilers Allowed)',
     btnResetDefaults: 'Reset to Defaults'
   }
 };
@@ -380,6 +384,20 @@ export class NhUiConfig extends NhBaseElement {
               <option value="2500">${t.hudFadeNormal}</option>
               <option value="4000">${t.hudFadeSlow}</option>
             </select>
+          </div>
+        </div>
+
+        <!-- ゲームプレイ難易度設定 / 探索アシスト -->
+        <div class="config-section">
+          <div class="section-title">${t.sectionGameplay}</div>
+          <div class="toggle-grid">
+            <div class="toggle-row">
+              <span class="toggle-label">${t.oracleGuideAlwaysUnlocked}</span>
+              <label class="toggle-switch">
+                <input type="checkbox" data-config-key="oracleGuideAlwaysUnlocked">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 

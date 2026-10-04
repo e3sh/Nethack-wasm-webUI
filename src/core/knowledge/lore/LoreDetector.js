@@ -51,15 +51,24 @@ export class LoreDetector {
         this.oraclesByText = new Map();
         this.oraclesByNormText = new Map();
         this.oraclesFirstLineMap = new Map();
+        this.oracleScanEntries = [];
         for (const o of (this.master.oracles || [])) {
             if (o.text) {
                 this.oraclesByText.set(o.text, o);
                 const norm = this._normalizeText(o.text);
                 this.oraclesByNormText.set(norm, o);
                 const firstLine = o.text.split('\n')[0].trim();
+                const normFirstLine = this._normalizeText(firstLine);
                 if (firstLine) {
-                    this.oraclesFirstLineMap.set(this._normalizeText(firstLine), o);
+                    this.oraclesFirstLineMap.set(normFirstLine, o);
                 }
+                // 改行や折返しに左右されない先頭35文字のユニークキーフレーズ
+                const normKey = normFirstLine.slice(0, 35);
+                this.oracleScanEntries.push({
+                    oracle: o,
+                    key: normKey,
+                    fullNorm: normFirstLine
+                });
             }
         }
     }
@@ -101,6 +110,29 @@ export class LoreDetector {
     }
 
     /**
+     * テキスト中に含まれるすべての神託を検出（先頭フレーズ走査）
+     * 複数オラクルが1つのメッセージに含まれる場合や、ヘッダーが付いている場合も確実に検出
+     * @param {string} text
+     * @returns {Array<Object>}
+     */
+    findOraclesInText(text) {
+        if (!text) return [];
+        const norm = this._normalizeText(text);
+        const matches = [];
+        const seenIds = new Set();
+
+        for (const entry of this.oracleScanEntries) {
+            if (norm.includes(entry.key) || (entry.fullNorm && norm.includes(entry.fullNorm))) {
+                if (!seenIds.has(entry.oracle.id)) {
+                    seenIds.add(entry.oracle.id);
+                    matches.push(entry.oracle);
+                }
+            }
+        }
+        return matches;
+    }
+
+    /**
      * 神託マスタとの照合
      * @param {string} text
      * @returns {Object|null}
@@ -112,11 +144,14 @@ export class LoreDetector {
         const strippedCursor = trimmed.replace(/_+$/, '').trim();
         const norm = this._normalizeText(strippedCursor);
 
-        return this.oraclesByText.get(trimmed) ||
-               this.oraclesByText.get(strippedCursor) ||
-               this.oraclesByNormText.get(norm) ||
-               this.oraclesFirstLineMap.get(norm) ||
-               null;
+        const direct = this.oraclesByText.get(trimmed) ||
+                       this.oraclesByText.get(strippedCursor) ||
+                       this.oraclesByNormText.get(norm) ||
+                       this.oraclesFirstLineMap.get(norm);
+        if (direct) return direct;
+
+        const scanMatches = this.findOraclesInText(text);
+        return scanMatches.length > 0 ? scanMatches[0] : null;
     }
 
     /**
@@ -190,7 +225,12 @@ export class LoreDetector {
             this.currentMode = 'ORACLE_MAJOR';
             this.modeStepsRemaining = 4;
             this.pendingOracleType = clean.includes('scornfully') ? 'special' : 'normal';
-            return null;
+
+            // ヘッダーと神託本文が同一メッセージに含まれていない場合のみ次行待機
+            const inlineOracles = this.findOraclesInText(clean);
+            if (inlineOracles.length === 0) {
+                return null;
+            }
         }
 
         // 1-4. 床の刻み文字・墓碑銘先行トリガー
@@ -267,23 +307,25 @@ export class LoreDetector {
             };
         }
 
-        // 神託所の大預言 (ORACLE_MAJOR または 直接マッチ)
-        const matchedOracle = this._findOracle(clean);
-        if (matchedOracle && (this.currentMode === 'ORACLE_MAJOR' || clean.length > 30)) {
-            const isSpecial = this.pendingOracleType === 'special' || matchedOracle.isSpecial;
+        // 神託所の大預言 (ORACLE_MAJOR または 直接走査マッチ)
+        const matchedOracles = this.findOraclesInText(clean);
+        const primaryOracle = matchedOracles.length > 0 ? matchedOracles[0] : this._findOracle(clean);
+        if (primaryOracle && (this.currentMode === 'ORACLE_MAJOR' || clean.length > 25 || matchedOracles.length > 0)) {
+            const isSpecial = this.pendingOracleType === 'special' || primaryOracle.isSpecial;
             this._resetMode();
 
             return {
                 signalId: 'SIGNAL_LORE_ORACLE',
                 subCategory: 'ORACLE',
                 matched: true,
-                oracleId: matchedOracle.id,
-                title: matchedOracle.title,
-                text: matchedOracle.text,
-                translatedText: matchedOracle.translatedText,
+                oracleId: primaryOracle.id,
+                title: primaryOracle.title,
+                text: primaryOracle.text,
+                translatedText: primaryOracle.translatedText,
                 isSpecial: isSpecial,
                 confidence: 1.0,
-                rawPrompt: rawMessage
+                rawPrompt: rawMessage,
+                detectedOracles: matchedOracles.length > 0 ? matchedOracles : [primaryOracle]
             };
         }
 
@@ -382,7 +424,8 @@ export class LoreDetector {
         }
 
         // 3-2. 神託フォールバック
-        const directOracle = this._findOracle(clean);
+        const matchedOraclesFallback = this.findOraclesInText(clean);
+        const directOracle = matchedOraclesFallback.length > 0 ? matchedOraclesFallback[0] : this._findOracle(clean);
         if (directOracle) {
             const isSpecial = this.pendingOracleType === 'special' || directOracle.isSpecial;
             this._resetMode();
@@ -397,7 +440,8 @@ export class LoreDetector {
                 translatedText: directOracle.translatedText,
                 isSpecial: isSpecial,
                 confidence: 1.0,
-                rawPrompt: rawMessage
+                rawPrompt: rawMessage,
+                detectedOracles: matchedOraclesFallback.length > 0 ? matchedOraclesFallback : [directOracle]
             };
         }
 

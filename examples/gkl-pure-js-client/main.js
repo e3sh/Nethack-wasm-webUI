@@ -2311,6 +2311,16 @@ class GklPureJSClient {
     if (this.floatingMessageHud && typeof config.hudFadeDelay === 'number') {
       this.floatingMessageHud.setFadeDelay(config.hudFadeDelay);
     }
+
+    // 7. 神託公式ガイドモード (常時閲覧) の反映
+    const oracleGuide = Boolean(config.oracleGuideAlwaysUnlocked);
+    const alm = this.codexModal?.getAdventureLogManager?.() || this.adventureLogManager;
+    if (alm && typeof alm.setOracleGuideAlwaysUnlocked === 'function') {
+      alm.setOracleGuideAlwaysUnlocked(oracleGuide);
+    }
+    if (this.codexModal && typeof this.codexModal.updateSummary === 'function') {
+      this.codexModal.updateSummary();
+    }
   }
 
   setPreset(presetName) {

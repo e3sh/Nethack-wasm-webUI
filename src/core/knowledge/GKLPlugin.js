@@ -827,6 +827,31 @@ export class GKLPlugin {
                                 });
                             }
                         }
+
+                        // 🏛️ 冒険手帳: 神託のアンロック (複数検知対応)
+                        if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE' && this.adventureLogManager) {
+                            const oracles = Array.isArray(loreSignal.detectedOracles) && loreSignal.detectedOracles.length > 0
+                                ? loreSignal.detectedOracles
+                                : (loreSignal.oracleId ? [{
+                                    id: loreSignal.oracleId,
+                                    title: loreSignal.title,
+                                    text: loreSignal.text,
+                                    translatedText: loreSignal.translatedText
+                                }] : []);
+
+                            for (const orc of oracles) {
+                                const isNew = this.adventureLogManager.unlockOracle(orc.id);
+                                if (isNew) {
+                                    this._emitAdventureLogUnlocked({
+                                        category: 'oracle',
+                                        id: orc.id,
+                                        title: orc.title,
+                                        text: orc.text,
+                                        textJa: orc.translatedText
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1067,13 +1092,19 @@ export class GKLPlugin {
 
         addCoreListener('signal:SIGNAL_LORE_ORACLE', (sig) => {
             if (this.loreCodex && typeof this.loreCodex.addOracle === 'function' && sig) {
-                this.loreCodex.addOracle({
-                    id: sig.oracleId || sig.id,
-                    title: sig.title,
-                    text: sig.text,
-                    translatedText: sig.translatedText,
-                    isSpecial: sig.isSpecial
-                });
+                const oracles = Array.isArray(sig.detectedOracles) && sig.detectedOracles.length > 0
+                    ? sig.detectedOracles
+                    : (sig.oracleId ? [sig] : []);
+
+                for (const orc of oracles) {
+                    this.loreCodex.addOracle({
+                        id: orc.id || orc.oracleId,
+                        title: orc.title,
+                        text: orc.text,
+                        translatedText: orc.translatedText,
+                        isSpecial: orc.isSpecial || sig.isSpecial
+                    });
+                }
             }
         });
 

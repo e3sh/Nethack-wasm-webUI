@@ -122,6 +122,29 @@ one last charge may yet be wrested from it!`;
         expect(sig.signalId).toBe('SIGNAL_LORE_ORACLE');
         expect(sig.oracleId).toBe('oracle_1');
         expect(sig.translatedText).toBeTruthy();
+        expect(sig.detectedOracles).toBeDefined();
+        expect(sig.detectedOracles.length).toBe(1);
+    });
+
+    it('神託メッセージにヘッダー文が結合されている場合や複数神託が同時に含まれる場合も確実に検知できること', () => {
+        // ヘッダー + oracle_1 + oracle_2 が1つのテキストボックスで届いたケース
+        const combinedMsg = `The Oracle meditates for a moment and then intones:
+If thy wand hath run out of charges, thou mayst zap it again and again...
+Though the shopkeepers be wary, thieves have nevertheless stolen much by using magic.`;
+
+        const sig = detector.processMessage(combinedMsg);
+        expect(sig).not.toBeNull();
+        expect(sig.signalId).toBe('SIGNAL_LORE_ORACLE');
+        expect(sig.detectedOracles).toBeDefined();
+        expect(sig.detectedOracles.length).toBe(2);
+        expect(sig.detectedOracles.map(o => o.id)).toContain('oracle_1');
+        expect(sig.detectedOracles.map(o => o.id)).toContain('oracle_2');
+
+        // findOraclesInText の直接検証
+        const found = detector.findOraclesInText(combinedMsg);
+        expect(found.length).toBe(2);
+        expect(found[0].id).toBe('oracle_1');
+        expect(found[1].id).toBe('oracle_2');
     });
 
     it('同一行にプレフィックスと読取結果が連結されたメッセージから刻み種別と復元を検知できること (英語)', () => {
