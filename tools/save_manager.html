@@ -7,34 +7,18 @@
     <title>NetHack WASM - Save Manager</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="../css/portal-theme.css">
     <style>
         :root {
-            --bg-color: #0d1117;
             --panel-bg: rgba(22, 27, 34, 0.8);
-            --accent-color: #58a6ff;
-            --accent-hover: #79c0ff;
-            --success-color: #238636;
-            --danger-color: #da3633;
-            --text-primary: #c9d1d9;
-            --text-secondary: #8b949e;
-            --border-color: #30363d;
-            --glass-blur: blur(12px);
-            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+            --accent-color: var(--accent-blue);
+            --accent-hover: var(--accent-blue-hover);
+            --success-color: var(--accent-green);
+            --danger-color: var(--danger-color);
+            --shadow: var(--shadow-md);
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            background-image:
-                radial-gradient(circle at 10% 10%, rgba(88, 166, 255, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 90%, rgba(248, 81, 73, 0.03) 0%, transparent 40%);
-            color: var(--text-primary);
             min-height: 100vh;
             padding: 40px 20px;
             display: flex;
@@ -310,11 +294,11 @@
 
 <body>
     <div class="container">
-        <header class="header-nav">
+        <header class="portal-nav header-nav">
             <a href="../index.html" class="nav-back-btn">← タイトルへ戻る</a>
-            <div class="nav-tabs-group">
-                <a href="config.html" class="nav-tab-item">⚙️ システム設定</a>
-                <a href="save_manager.html" class="nav-tab-item active">💾 セーブデータ管理</a>
+            <div class="nav-pill-group nav-tabs-group">
+                <a href="config.html" class="nav-pill-item nav-tab-item">⚙️ システム設定</a>
+                <a href="save_manager.html" class="nav-pill-item nav-tab-item active accent-blue">💾 セーブデータ管理</a>
             </div>
         </header>
 

@@ -7,13 +7,9 @@
     <!-- 統合実行辞書 nhMessage.js および タイルマッピングのロード -->
     <script src="../param/nhMessage.js"></script>
     <script src="../param/tileMapping.js"></script>
+    <link rel="stylesheet" href="../css/portal-theme.css">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
-            --border-color: #334155;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
             --accent-color: #38bdf8;
             --accent-hover: #0284c7;
 
@@ -25,16 +21,7 @@
             --badge-purple: #a855f7;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -43,6 +30,8 @@
 
         header {
             background-color: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border-bottom: 1px solid var(--border-color);
             padding: 10px 24px;
             display: flex;
@@ -101,7 +90,9 @@
         /* カテゴリ・タブバー */
         .nav-tabs {
             display: flex;
-            background-color: #131d31;
+            background-color: rgba(13, 17, 23, 0.75);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border-bottom: 1px solid var(--border-color);
             padding: 0 16px;
             gap: 4px;
@@ -535,17 +526,18 @@
 <body>
     <header>
         <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-            <a href="../index.html" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.2s;">
+            <a href="../index.html" class="nav-back-btn" style="padding: 6px 14px; font-size: 12px;">
                 ← タイトルへ戻る
             </a>
             <h1>
                 <span>🛠️</span> Structured Knowledge Inspector
                 <span class="badge" id="totalCountBadge">0 Entities</span>
             </h1>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <a href="lore_codex.html" style="font-size:0.75rem; color:#e3b341; text-decoration:none; padding:4px 10px; border:1px solid rgba(227, 179, 65, 0.4); background: rgba(227, 179, 65, 0.1); border-radius:6px; font-weight: 600;">📜 Rumor & Lore Codex</a>
-                <a href="adventure_log.html" style="font-size:0.75rem; color:#38bdf8; text-decoration:none; padding:4px 10px; border:1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); border-radius:6px; font-weight: 600;">👣 冒険の足跡 (Log)</a>
-                <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" style="font-size:0.75rem; color:var(--text-secondary); text-decoration:none; padding:4px 10px; border:1px dashed var(--border-color); border-radius:6px;">📄 CSV Dictionary</a>
+            <div class="nav-pill-group" style="padding: 2px;">
+                <a href="lore_codex.html" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">📜 Rumor & Lore Codex</a>
+                <a href="knowledge-inspector.html" class="nav-pill-item active accent-blue" style="padding: 5px 10px; font-size: 11px;">🔍 図鑑インスペクター</a>
+                <a href="adventure_log.html" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">👣 冒険の足跡 (Log)</a>
+                <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">📄 CSV Dictionary</a>
             </div>
         </div>
         <div class="controls-bar">
