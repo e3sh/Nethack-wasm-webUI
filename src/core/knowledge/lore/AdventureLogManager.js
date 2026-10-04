@@ -513,9 +513,14 @@ export class AdventureLogManager {
 
     /**
      * 指定エンティティに関連する伝承（噂・神託）を取得
+     * 
+     * 【設計仕様】
+     * - 神託（Oracle）: ゲームの重要公式ガイドとして常時開示（isUnlocked: true、収集率の計算対象外）
+     * - 噂話（Rumor）: 冒険手帳のアンロック対象（unlockedRumors による解禁判定）
+     * 
      * @param {Object|string|number} target - 対象エンティティ
      * @param {Object} [options={}]
-     * @param {boolean} [options.unlockedOnly=false] - 解禁済みの噂のみに絞り込むか
+     * @param {boolean} [options.unlockedOnly=false] - 解禁済みの伝承のみに絞り込むか
      * @returns {Array<Object>}
      */
     getRelatedLore(target, options = {}) {
@@ -523,8 +528,9 @@ export class AdventureLogManager {
         const { unlockedOnly = false } = options;
 
         return list.map(lore => {
-            const isUnlocked = lore.category === 'RUMOR' ? this.unlockedRumors.has(lore.id) : true;
-            const isNew = lore.category === 'RUMOR' ? this.newRumors.has(lore.id) : false;
+            const isOracle = lore.category === 'ORACLE';
+            const isUnlocked = isOracle ? true : this.unlockedRumors.has(lore.id);
+            const isNew = isOracle ? false : this.newRumors.has(lore.id);
             return {
                 ...lore,
                 isUnlocked,

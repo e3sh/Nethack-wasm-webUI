@@ -726,7 +726,7 @@
             📜 噂話図鑑 (Rumors) <span class="badge-count" id="navRumorCount">0/787</span>
         </button>
         <button class="nav-tab" onclick="switchTab('oracles')">
-            🔮 神託アーカイブ (Oracles) <span class="badge-count" id="navOracleCount">0/20</span>
+            🔮 神託アーカイブ (Oracles) <span class="badge-count" id="navOracleCount">20</span>
         </button>
         <button class="nav-tab" onclick="switchTab('engravings')">
             🏛️ 床文字・落書き (Engravings) <span class="badge-count" id="navEngravingCount">0</span>
@@ -773,13 +773,13 @@
             </div>
 
             <div class="stat-card oracle">
-                <div class="stat-label">神託 (ORACLE)</div>
+                <div class="stat-label">神託 (公式ガイド)</div>
                 <div class="stat-value-group">
-                    <div class="stat-value" id="statOraclePercent" style="color: var(--accent-blue);">0.0%</div>
-                    <div class="stat-total" id="statOracleRatio">0 / 20</div>
+                    <div class="stat-value" id="statOraclePercent" style="color: var(--accent-blue);">公式ガイド</div>
+                    <div class="stat-total" id="statOracleRatio">全 20 件</div>
                 </div>
                 <div class="progress-bar-bg">
-                    <div class="progress-bar-fill oracle" id="statOracleBar" style="width: 0%;"></div>
+                    <div class="progress-bar-fill oracle" id="statOracleBar" style="width: 100%;"></div>
                 </div>
             </div>
 
@@ -1296,16 +1296,16 @@
             document.getElementById('statFalseRatio').textContent = `${stats.rumors.falseCount} / ${stats.rumors.totalFalse}`;
             document.getElementById('statFalseBar').style.width = `${stats.rumors.falsePercentage}%`;
 
-            document.getElementById('statOraclePercent').textContent = `${stats.oracles.percentage}%`;
-            document.getElementById('statOracleRatio').textContent = `${stats.oracles.collected} / ${stats.oracles.total}`;
-            document.getElementById('statOracleBar').style.width = `${stats.oracles.percentage}%`;
+            document.getElementById('statOraclePercent').textContent = '公式ガイド';
+            document.getElementById('statOracleRatio').textContent = '全 20 件';
+            document.getElementById('statOracleBar').style.width = '100%';
 
             const engrCount = stats.engravings?.collected || 0;
             document.getElementById('statEngravingCount').textContent = engrCount;
             document.getElementById('navEngravingCount').textContent = engrCount;
 
             document.getElementById('navRumorCount').textContent = `${stats.rumors.collected}/${stats.rumors.total}`;
-            document.getElementById('navOracleCount').textContent = `${stats.oracles.collected}/${stats.oracles.total}`;
+            document.getElementById('navOracleCount').textContent = '20';
 
             const currentWard = codex.getCurrentWard();
             const status = currentWard?.status || 'NONE';
@@ -1392,12 +1392,8 @@
             const grid = document.getElementById('oracleGrid');
             const emptyEl = document.getElementById('oracleEmpty');
 
-            let oracles = [];
-            if (showAllMasterMode) {
-                oracles = LORE_MASTER.oracles;
-            } else {
-                oracles = codex.getOracles();
-            }
+            // 神託は収集要素ではなく公式ガイドとして全20件を常時表示
+            const oracles = LORE_MASTER.oracles || [];
 
             if (oracles.length === 0) {
                 grid.innerHTML = '';

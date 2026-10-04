@@ -292,7 +292,7 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     expect(html).toContain(`2. 冒険の噂 (${card.loreEntries.length})`);
   });
 
-  it('Layer 3: adventureLogManager 連携時に未解禁の噂はマスク表示され、解禁時は日本語訳が表示されること', () => {
+  it('Layer 3: adventureLogManager 連携時に未解禁の噂はサマリー表示され、解禁時は日本語訳が表示されること', () => {
     const card = new NhKnowledgeCard();
     card.connectedCallback();
 
@@ -319,10 +319,9 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     });
 
     let html = card.shadowRoot.innerHTML;
-    expect(html).toContain('🔒 未解禁');
-    expect(html).toContain('????????????????????????????????');
+    expect(html).toContain('未解禁: 1件');
 
-    // 解禁状態に変更
+    // 解禁済みと未解禁が混在
     mockManager.getRelatedLore.mockReturnValue([
       {
         id: 'rumor_tru_1',
@@ -330,6 +329,12 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
         translatedText: '目隠しはとても役に立つ。',
         isTrue: true,
         isUnlocked: true
+      },
+      {
+        id: 'rumor_fal_2',
+        text: 'Another rumor',
+        isTrue: false,
+        isUnlocked: false
       }
     ]);
 
@@ -346,6 +351,39 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     html = card.shadowRoot.innerHTML;
     expect(html).toContain('✓ 真の噂');
     expect(html).toContain('目隠しはとても役に立つ。');
+    expect(html).toContain('未解禁の噂: 1件');
+  });
+
+  it('Layer 3: 神託（Oracle）の場合は専用の 🏛️ 神託 バッジが表示されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    const mockManager = {
+      getRelatedLore: vi.fn().mockReturnValue([
+        {
+          id: 'oracle_1',
+          category: 'ORACLE',
+          text: 'If thy wand hath run out of charges...',
+          translatedText: '杖の魔力が尽きたとしても、なお振り続けるがよい。',
+          isUnlocked: true
+        }
+      ])
+    };
+
+    card.setTarget({
+      onum: 233,
+      name: 'wand',
+      category: 'WAND'
+    }, {
+      adventureLogManager: mockManager,
+      activeTab: 'lore',
+      currentLanguage: 'ja'
+    });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('lore-badge-oracle');
+    expect(html).toContain('🏛️ 神託');
+    expect(html).toContain('杖の魔力が尽きたとしても');
   });
 
   it('Layer 3: 噂カードをクリックした際に nh-rumor-selected イベントを発行すること', () => {

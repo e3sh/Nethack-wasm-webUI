@@ -9,6 +9,7 @@
 
 import { GlyphHelper } from '../../../../src/core/renderers/GlyphHelper.js';
 import { AdventureLogManager } from '../../../../src/core/knowledge/lore/AdventureLogManager.js';
+import { LORE_MASTER } from '../../../../src/core/knowledge/lore/data/LoreMasterData.js';
 
 // 多言語リソース辞書 (i18n)
 const CODEX_I18N = {
@@ -20,13 +21,13 @@ const CODEX_I18N = {
         lblSumRumor: '📜 噂話 総収集率:',
         lblSumTrue: '真実 (TRUE):',
         lblSumFalse: '偽り (FALSE):',
-        lblSumOracle: '神託 (ORACLE):',
+        lblSumOracle: '神託 (公式ガイド):',
         lblSumEngr: '床文字:',
         unitItems: '件',
         tabMonsters: '👾 モンスター',
         tabObjects: '⚔️ アイテム',
         tabRumors: '📜 噂話 (Rumors)',
-        tabOracles: '🔮 神託 (Oracles)',
+        tabOracles: '🔮 神託ガイド (Oracles)',
         tabEngravings: '🏛️ 床文字・落書き (Engravings)',
         searchPlaceholder: "英和キーワード検索 (例: 'dragon', 'plate', 'ドラコ', '指輪')...",
         filterAll: 'すべて',
@@ -117,13 +118,13 @@ const CODEX_I18N = {
         lblSumRumor: 'Rumors Collected:',
         lblSumTrue: 'True Rumors:',
         lblSumFalse: 'False Rumors:',
-        lblSumOracle: 'Oracles:',
+        lblSumOracle: 'Oracles (Guide):',
         lblSumEngr: 'Engravings:',
         unitItems: 'entries',
         tabMonsters: '👾 Monsters',
         tabObjects: '⚔️ Objects',
         tabRumors: '📜 Rumors',
-        tabOracles: '🔮 Oracles',
+        tabOracles: '🔮 Oracles (Guide)',
         tabEngravings: '🏛️ Engravings',
         searchPlaceholder: "Search by keyword (e.g. 'dragon', 'plate', 'ring')...",
         filterAll: 'All',
@@ -825,16 +826,17 @@ export class CodexModal {
         const rumorBar = this.elCodexModal.querySelector('#codex-sum-rumor-bar');
         if (rumorBar) rumorBar.style.width = `${rumorPct}%`;
 
+        const isEn = this.currentLanguage === 'en';
         setText('#codex-sum-true-ratio', `${stats.rumors.trueCount} / ${stats.rumors.totalTrue}`);
         setText('#codex-sum-false-ratio', `${stats.rumors.falseCount} / ${stats.rumors.totalFalse}`);
-        setText('#codex-sum-oracle-ratio', `${stats.oracles.collected} / ${stats.oracles.total}`);
+        setText('#codex-sum-oracle-ratio', isEn ? '20 entries' : '全 20 件');
         setText('#codex-sum-engr-count', `${stats.engravings?.collected || 0} ${t.unitItems}`);
 
         // タブバッジ
         setText('#codex-badge-monsters', `${progress.monsters.unlocked}/${progress.monsters.total}`);
         setText('#codex-badge-objects', `${progress.objects.unlocked}/${progress.objects.total}`);
         setText('#codex-badge-rumors', `${rumorCollected}/${stats.rumors.total}`);
-        setText('#codex-badge-oracles', `${stats.oracles.collected}/${stats.oracles.total}`);
+        setText('#codex-badge-oracles', '20');
         setText('#codex-badge-engravings', stats.engravings?.collected || 0);
     }
 
@@ -1007,13 +1009,18 @@ export class CodexModal {
             }
 
         } else if (this.activeTab === 'oracles') {
-            if (codex) {
-                items = codex.getOracles().map(i => ({
-                    ...i,
-                    category: 'ORACLE',
-                    collected: true
-                }));
-            }
+            // 神託は収集要素ではなく公式ガイドとして常時全件閲覧可能
+            const codexOracles = codex ? codex.getOracles() : [];
+            const masterOracles = LORE_MASTER.oracles || [];
+            const sourceList = (codexOracles.length > 0 && !masterOracles.some(m => m.id === codexOracles[0].id))
+                ? codexOracles
+                : masterOracles;
+
+            items = sourceList.map(i => ({
+                ...i,
+                category: 'ORACLE',
+                collected: true
+            }));
             if (q) {
                 items = items.filter(i => {
                     const tEn = (i.text || '').toLowerCase();
@@ -1046,7 +1053,7 @@ export class CodexModal {
             if (this.activeTab === 'monsters') hasAnyInTab = (alm?.getAllMonstersWithStatus()?.length || 0) > 0;
             else if (this.activeTab === 'objects') hasAnyInTab = (alm?.getAllObjectsWithStatus()?.length || 0) > 0;
             else if (this.activeTab === 'rumors') hasAnyInTab = (codex?.getRumors()?.length || 0) > 0;
-            else if (this.activeTab === 'oracles') hasAnyInTab = (codex?.getOracles()?.length || 0) > 0;
+            else if (this.activeTab === 'oracles') hasAnyInTab = true;
             else hasAnyInTab = (codex?.getEngravings()?.length || 0) > 0;
 
             const emptyMsg = hasAnyInTab ? t.emptyFilterMsg : t.emptyTabMsg;
@@ -1305,7 +1312,9 @@ export class CodexModal {
         const desc = isEn ? (mon.flavorTextEn || mon.description || '') : (mon.flavorTextJa || mon.description || mon.flavorTextEn || '');
 
         // 関連する噂や伝承
-        const relatedLore = alm ? alm.getRelatedLore(mon, { unlockedOnly: true }) : [];
+        const allRelatedLore = alm ? alm.getRelatedLore(mon, { unlockedOnly: false }) : [];
+        const relatedLore = allRelatedLore.filter(l => l.isUnlocked !== false);
+        const lockedLoreCount = allRelatedLore.filter(l => l.isUnlocked === false).length;
 
         cardEl.innerHTML = `
             <div class="codex-detail-body">
@@ -1384,16 +1393,26 @@ export class CodexModal {
                     </div>
                 ` : ''}
 
-                ${relatedLore.length > 0 ? `
+                ${(relatedLore.length > 0 || lockedLoreCount > 0) ? `
                     <div class="codex-related-section" style="margin-top:14px;">
                         <div class="codex-related-title">${t.lblRelatedLore} (${relatedLore.length})</div>
                         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-                            ${relatedLore.map(lore => `
+                            ${relatedLore.map(lore => {
+                                const isOracle = lore.category === 'ORACLE';
+                                const badgeTitle = isOracle ? ('🏛️ ' + (isEn ? 'Oracle' : '神託')) : ('📜 #' + (lore.id || ''));
+                                const badgeColor = isOracle ? '#c084fc' : '#38bdf8';
+                                return `
                                 <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 10px; font-size:12px;">
-                                    <div style="color:#38bdf8; font-weight:700; margin-bottom:2px;">📜 #${lore.id || ''}</div>
+                                    <div style="color:${badgeColor}; font-weight:700; margin-bottom:2px;">${badgeTitle}</div>
                                     <div style="color:#cbd5e1;">${this.escapeHtml(isEn ? lore.text : (lore.translatedText || lore.text))}</div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
+                            ${lockedLoreCount > 0 ? `
+                                <div style="color:#94a3b8; font-size:11px; padding:6px 10px; background:rgba(148,163,184,0.06); border-radius:6px; border:1px dashed rgba(148,163,184,0.2);">
+                                    🔒 ${isEn ? `${lockedLoreCount} related rumor${lockedLoreCount > 1 ? 's' : ''} not yet unlocked` : `未解禁の噂: ${lockedLoreCount}件`}
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 ` : ''}
@@ -1465,7 +1484,9 @@ export class CodexModal {
         const effect = isEn ? (obj.effectSummaryEn || obj.effectSummary || '') : (obj.effectSummaryJa || obj.effectSummary || '');
         const desc = isEn ? (obj.flavorTextEn || obj.description || '') : (obj.flavorTextJa || obj.description || obj.flavorTextEn || '');
 
-        const relatedLore = alm ? alm.getRelatedLore(obj, { unlockedOnly: true }) : [];
+        const allRelatedLore = alm ? alm.getRelatedLore(obj, { unlockedOnly: false }) : [];
+        const relatedLore = allRelatedLore.filter(l => l.isUnlocked !== false);
+        const lockedLoreCount = allRelatedLore.filter(l => l.isUnlocked === false).length;
 
         cardEl.innerHTML = `
             <div class="codex-detail-body">
@@ -1522,16 +1543,26 @@ export class CodexModal {
                     </div>
                 ` : ''}
 
-                ${relatedLore.length > 0 ? `
+                ${(relatedLore.length > 0 || lockedLoreCount > 0) ? `
                     <div class="codex-related-section" style="margin-top:14px;">
                         <div class="codex-related-title">${t.lblRelatedLore} (${relatedLore.length})</div>
                         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-                            ${relatedLore.map(lore => `
+                            ${relatedLore.map(lore => {
+                                const isOracle = lore.category === 'ORACLE';
+                                const badgeTitle = isOracle ? ('🏛️ ' + (isEn ? 'Oracle' : '神託')) : ('📜 #' + (lore.id || ''));
+                                const badgeColor = isOracle ? '#c084fc' : '#38bdf8';
+                                return `
                                 <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 10px; font-size:12px;">
-                                    <div style="color:#38bdf8; font-weight:700; margin-bottom:2px;">📜 #${lore.id || ''}</div>
+                                    <div style="color:${badgeColor}; font-weight:700; margin-bottom:2px;">${badgeTitle}</div>
                                     <div style="color:#cbd5e1;">${this.escapeHtml(isEn ? lore.text : (lore.translatedText || lore.text))}</div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
+                            ${lockedLoreCount > 0 ? `
+                                <div style="color:#94a3b8; font-size:11px; padding:6px 10px; background:rgba(148,163,184,0.06); border-radius:6px; border:1px dashed rgba(148,163,184,0.2);">
+                                    🔒 ${isEn ? `${lockedLoreCount} related rumor${lockedLoreCount > 1 ? 's' : ''} not yet unlocked` : `未解禁の噂: ${lockedLoreCount}件`}
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 ` : ''}

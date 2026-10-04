@@ -346,6 +346,19 @@ const CARD_CSS = `
 .lore-badge-true { color: #4ade80; background: rgba(34, 197, 94, 0.15); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
 .lore-badge-false { color: #f87171; background: rgba(239, 68, 68, 0.15); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
 .lore-badge-rumor { color: #facc15; background: rgba(234, 179, 8, 0.15); padding: 2px 6px; border-radius: 4px; }
+.lore-badge-oracle { color: #c084fc; background: rgba(192, 132, 252, 0.15); border: 1px solid rgba(192, 132, 252, 0.3); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+
+.lore-locked-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
 
 .lore-text {
   font-size: 0.83rem;
@@ -916,20 +929,29 @@ export class NhKnowledgeCard extends NhBaseElement {
       `;
     }
 
+    const unlockedEntries = this.loreEntries.filter(l => l.isUnlocked !== false);
+    const lockedCount = this.loreEntries.filter(l => l.isUnlocked === false).length;
+
+    if (unlockedEntries.length === 0 && lockedCount > 0) {
+      return `
+        <div class="official-empty">
+          <div>🔒 ${isEn ? `${lockedCount} related rumor${lockedCount > 1 ? 's' : ''} not yet unlocked.` : `この対象に関する噂はまだ解禁されていません（未解禁: ${lockedCount}件）`}</div>
+        </div>
+      `;
+    }
+
     return `
       <div class="lore-list">
-        ${this.loreEntries.map((lore, idx) => {
-          const isUnlocked = lore.isUnlocked !== undefined ? lore.isUnlocked : true;
+        ${unlockedEntries.map((lore, idx) => {
+          const isOracle = lore.category === 'ORACLE';
           const isTrue = lore.isTrue !== undefined ? Boolean(lore.isTrue) : (lore.type === 'TRUE');
           const isFalse = lore.isFalse !== undefined ? Boolean(lore.isFalse) : (lore.type === 'FALSE');
-          const mainText = isUnlocked
-            ? (!isEn && (lore.translatedText || lore.textJa) ? (lore.translatedText || lore.textJa) : (lore.text || lore.rawText || ''))
-            : '????????????????????????????????';
-          const subText = (isUnlocked && !isEn && lore.text && (lore.translatedText || lore.textJa)) ? lore.text : '';
+          const mainText = !isEn && (lore.translatedText || lore.textJa) ? (lore.translatedText || lore.textJa) : (lore.text || lore.rawText || '');
+          const subText = (!isEn && lore.text && (lore.translatedText || lore.textJa)) ? lore.text : '';
 
           let badgeHtml = '';
-          if (!isUnlocked) {
-            badgeHtml = `<span class="lore-badge-locked">🔒 ${isEn ? 'LOCKED' : '未解禁'}</span>`;
+          if (isOracle) {
+            badgeHtml = `<span class="lore-badge-oracle">🏛️ ${isEn ? 'ORACLE' : '神託'}</span>`;
           } else if (isTrue) {
             badgeHtml = `<span class="lore-badge-true">${isEn ? '✓ TRUE RUMOR' : '✓ 真の噂'}</span>`;
           } else if (isFalse) {
@@ -938,19 +960,27 @@ export class NhKnowledgeCard extends NhBaseElement {
             badgeHtml = `<span class="lore-badge-rumor">${isEn ? '? RUMOR' : '? 噂'}</span>`;
           }
 
-          const rumorNo = lore.index ? `#${String(lore.index).padStart(3, '0')}` : (lore.id || `No.${idx + 1}`);
+          const entryNo = isOracle
+            ? (lore.id ? `#${lore.id}` : (isEn ? 'Oracle' : '神託'))
+            : (lore.index ? `#${String(lore.index).padStart(3, '0')}` : (lore.id || `No.${idx + 1}`));
 
           return `
-            <div class="lore-card clickable ${!isUnlocked ? 'locked' : ''}" data-rumor-id="${lore.id || ''}" data-rumor-index="${lore.index || ''}" title="${isEn ? 'Click to jump to this rumor' : 'クリックしてこの噂を表示'}">
+            <div class="lore-card clickable" data-rumor-id="${lore.id || ''}" data-rumor-index="${lore.index || ''}" title="${isEn ? 'Click to jump to this lore' : 'クリックしてこの伝承を表示'}">
               <div class="lore-card-header">
                 ${badgeHtml}
-                <span>${rumorNo}</span>
+                <span>${entryNo}</span>
               </div>
               <div class="lore-text">「${mainText}」</div>
               ${subText ? `<div class="lore-subtext">"${subText}"</div>` : ''}
             </div>
           `;
         }).join('')}
+        ${lockedCount > 0 ? `
+          <div class="lore-locked-summary">
+            <span>🔒</span>
+            <span>${isEn ? `${lockedCount} related rumor${lockedCount > 1 ? 's' : ''} not yet unlocked` : `未解禁の噂: ${lockedCount}件`}</span>
+          </div>
+        ` : ''}
       </div>
     `;
   }

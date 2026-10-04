@@ -355,6 +355,68 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     expect(elModal.innerHTML).toContain('☮️ Normally Peaceful');
     expect(elModal.innerHTML).toContain('Normally peaceful; becomes hostile if attacked or stolen from');
   });
+
+  it('13. 噂タブ（lore）において、解禁済みの噂と神託のみが表示され、未解禁の噂はサマリー表示されること', () => {
+    const mockCore = {
+      gkl: {
+        adventureLogManager: {
+          getRelatedLore: vi.fn().mockReturnValue([
+            {
+              id: 'rumor_tru_1',
+              category: 'RUMOR',
+              text: 'A blindfold can be very useful...',
+              translatedText: '目隠しはとても役に立つ。',
+              isTrue: true,
+              isUnlocked: true
+            },
+            {
+              id: 'rumor_fal_2',
+              category: 'RUMOR',
+              text: 'Secret secret secret',
+              translatedText: '秘密の噂',
+              isTrue: false,
+              isUnlocked: false
+            },
+            {
+              id: 'oracle_1',
+              category: 'ORACLE',
+              text: 'Ancient wisdom intoned...',
+              translatedText: '古代の神託。',
+              isUnlocked: true
+            }
+          ])
+        }
+      }
+    };
+
+    const modalWithLore = new KnowledgeDetailModal({
+      elModal,
+      getCore: () => mockCore,
+      language: 'ja'
+    });
+
+    modalWithLore.open({
+      name: 'blindfold',
+      category: 'TOOL'
+    }, { activeTab: 'lore' });
+
+    const html = elModal.innerHTML;
+
+    // 解禁済みの噂は表示される
+    expect(html).toContain('目隠しはとても役に立つ。');
+    expect(html).toContain('✓ 真の噂');
+
+    // 神託は神託バッジ付きで表示される
+    expect(html).toContain('古代の神託。');
+    expect(html).toContain('🏛️ 神託');
+
+    // 未解禁の噂の本文は表示されない
+    expect(html).not.toContain('Secret secret secret');
+    expect(html).not.toContain('秘密の噂');
+
+    // 未解禁サマリーが表示される
+    expect(html).toContain('未解禁の噂: 1件');
+  });
 });
 
 

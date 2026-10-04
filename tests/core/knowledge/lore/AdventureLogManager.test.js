@@ -255,6 +255,16 @@ describe('AdventureLogManager', () => {
             expect(unlockedList.every(l => l.isUnlocked)).toBe(true);
             expect(unlockedList.some(l => l.id === 'rumor_tru_1')).toBe(true);
         });
+
+        it('神託（Oracle）は公式ガイドとして常時 isUnlocked: true となること', () => {
+            // onum 262 = Candelabrum of Invocation (oracle_17 が関連)
+            const lore = manager.getRelatedLore(262, { unlockedOnly: false });
+            const oracle = lore.find(l => l.category === 'ORACLE');
+            if (oracle) {
+                expect(oracle.isUnlocked).toBe(true);
+                expect(oracle.isNew).toBe(false);
+            }
+        });
     });
 });
 

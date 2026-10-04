@@ -499,14 +499,15 @@ export class LoreCodex {
                 totalMaster: totalMasterOracles,
                 collected: oracleCount,
                 percentage: Number(((oracleCount / totalMasterOracles) * 100).toFixed(1)),
-                ratio: totalMasterOracles > 0 ? oracleCount / totalMasterOracles : 0
+                ratio: totalMasterOracles > 0 ? oracleCount / totalMasterOracles : 0,
+                isGuide: true
             },
             engravings: {
                 collected: engravingCount
             },
             overall: {
                 totalEntries: totalMasterRumors + totalMasterOracles,
-                totalCollected: collectedRumors.length + oracleCount + engravingCount,
+                totalCollected: collectedRumors.length + oracleCount,
                 totalEngravings: engravingCount,
                 percentage: Number((((collectedRumors.length + oracleCount) / (totalMasterRumors + totalMasterOracles)) * 100).toFixed(1))
             }
@@ -515,6 +516,11 @@ export class LoreCodex {
 
     /**
      * 指定エンティティに関連する伝承（噂・神託）を取得
+     * 
+     * 【設計仕様】
+     * - 神託（Oracle）: 公式ガイドとして常時開示（isUnlocked: true）
+     * - 噂話（Rumor）: LoreCodex の収集状態（this.rumors.has）に基づく
+     * 
      * @param {Object|string|number} target - 対象エンティティ
      * @param {Object} [options={}]
      * @param {boolean} [options.unlockedOnly=false] - 獲得済みの伝承のみに絞り込むか
@@ -525,8 +531,8 @@ export class LoreCodex {
         const { unlockedOnly = false } = options;
 
         return list.map(lore => {
-            const isUnlocked = (lore.category === 'RUMOR' && this.rumors.has(lore.id)) ||
-                               (lore.category === 'ORACLE' && this.oracles.has(lore.id));
+            const isOracle = lore.category === 'ORACLE';
+            const isUnlocked = isOracle ? true : (lore.category === 'RUMOR' && this.rumors.has(lore.id));
             const entry = {
                 ...lore,
                 isUnlocked,

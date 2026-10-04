@@ -350,16 +350,26 @@ export class KnowledgeDetailModal {
   }
 
   /**
-   * LoreCodex から関連する噂や伝承を抽出 (Layer 3)
+   * LoreCodex / AdventureLogManager から関連する噂や伝承を抽出 (Layer 3)
    * @private
    */
   _resolveLore() {
     const core = this.getCore();
-    const name = (this._getTargetName() || '').toLowerCase();
-    if (core?.gkl?.loreCodex && typeof core.gkl.loreCodex.getRelatedLore === 'function') {
-      this.loreEntries = core.gkl.loreCodex.getRelatedLore(name) || [];
+    const alm = core?.gkl?.adventureLogManager || core?.adventureLogManager;
+    const target = this.currentTarget || this._getTargetName();
+    if (!target) {
+      this.loreEntries = [];
+      return;
+    }
+
+    if (alm && typeof alm.getRelatedLore === 'function') {
+      this.loreEntries = alm.getRelatedLore(target, { unlockedOnly: false }) || [];
+    } else if (core?.gkl?.loreCodex && typeof core.gkl.loreCodex.getRelatedLore === 'function') {
+      this.loreEntries = core.gkl.loreCodex.getRelatedLore(target, { unlockedOnly: false }) || [];
     } else if (this.currentTarget?.relatedLore && Array.isArray(this.currentTarget.relatedLore)) {
       this.loreEntries = this.currentTarget.relatedLore;
+    } else {
+      this.loreEntries = [];
     }
   }
 
@@ -529,26 +539,61 @@ export class KnowledgeDetailModal {
         `;
       }
     } else if (this.activeTab === 'lore') {
-      if (this.loreEntries.length === 0) {
+      const unlockedEntries = this.loreEntries.filter(l => l.isUnlocked !== false);
+      const lockedCount = this.loreEntries.filter(l => l.isUnlocked === false).length;
+
+      if (unlockedEntries.length === 0 && lockedCount === 0) {
         bodyHtml = `
           <div style="text-align: center; padding: 40px 10px; color: #64748b; font-size: 0.85rem;">
             ${isEn ? 'No related rumors recorded in LoreCodex yet.' : 'この対象に関する噂や伝承はまだ冒険手帳に記録されていません。'}
           </div>
         `;
+      } else if (unlockedEntries.length === 0 && lockedCount > 0) {
+        bodyHtml = `
+          <div style="text-align: center; padding: 40px 10px; color: #64748b; font-size: 0.85rem;">
+            🔒 ${isEn ? `${lockedCount} related rumor${lockedCount > 1 ? 's' : ''} not yet unlocked.` : `この対象に関する噂はまだ解禁されていません（未解禁: ${lockedCount}件）`}
+          </div>
+        `;
       } else {
         bodyHtml = `
           <div class="kn-detail-container" style="display: flex; flex-direction: column; gap: 8px;">
-            ${this.loreEntries.map((lore, idx) => `
+            ${unlockedEntries.map((lore, idx) => {
+              const isOracle = lore.category === 'ORACLE';
+              const isTrue = lore.isTrue !== undefined ? Boolean(lore.isTrue) : (lore.type === 'TRUE');
+              const isFalse = lore.isFalse !== undefined ? Boolean(lore.isFalse) : (lore.type === 'FALSE');
+              const mainText = !isEn && (lore.translatedText || lore.textJa) ? (lore.translatedText || lore.textJa) : (lore.text || lore.rawText || '');
+
+              let badgeHtml = '';
+              if (isOracle) {
+                badgeHtml = `<span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #c084fc; background: rgba(192, 132, 252, 0.15); border: 1px solid rgba(192, 132, 252, 0.3);">🏛️ ${isEn ? 'ORACLE' : '神託'}</span>`;
+              } else if (isTrue) {
+                badgeHtml = `<span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #4ade80; background: rgba(34, 197, 94, 0.15);">✓ ${isEn ? 'TRUE RUMOR' : '真の噂'}</span>`;
+              } else if (isFalse) {
+                badgeHtml = `<span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #f87171; background: rgba(239, 68, 68, 0.15);">✗ ${isEn ? 'FALSE RUMOR' : '偽りの噂'}</span>`;
+              } else {
+                badgeHtml = `<span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #facc15; background: rgba(234, 179, 8, 0.15);">? ${isEn ? 'RUMOR' : '噂'}</span>`;
+              }
+
+              const entryNo = isOracle
+                ? (lore.id ? `#${lore.id}` : (isEn ? 'Oracle' : '神託'))
+                : (lore.index ? `#${String(lore.index).padStart(3, '0')}` : (lore.id ? `No.${lore.id}` : `No.${idx + 1}`));
+
+              return `
               <div class="kn-section-box" style="background: rgba(30, 41, 59, 0.5); padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.15);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.72rem;">
-                  <span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; ${lore.isTrue ? 'color: #4ade80; background: rgba(34, 197, 94, 0.15);' : (lore.isFalse ? 'color: #f87171; background: rgba(239, 68, 68, 0.15);' : 'color: #facc15; background: rgba(234, 179, 8, 0.15);')}">
-                    ${lore.isTrue ? (isEn ? '✓ TRUE RUMOR' : '✓ 真の噂') : (lore.isFalse ? (isEn ? '✗ FALSE RUMOR' : '✗ 偽りの噂') : (isEn ? '? RUMOR' : '? 噂'))}
-                  </span>
-                  <span style="color: #94a3b8;">No.${lore.id || (idx + 1)}</span>
+                  ${badgeHtml}
+                  <span style="color: #94a3b8;">${entryNo}</span>
                 </div>
-                <div style="font-size: 0.85rem; line-height: 1.45; color: #cbd5e1;">「${lore.text || lore.rawText || ''}」</div>
+                <div style="font-size: 0.85rem; line-height: 1.45; color: #cbd5e1;">「${mainText}」</div>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
+            ${lockedCount > 0 ? `
+              <div style="color: #94a3b8; font-size: 0.8rem; padding: 8px 12px; background: rgba(148, 163, 184, 0.06); border-radius: 6px; border: 1px dashed rgba(148, 163, 184, 0.25); display: flex; align-items: center; gap: 8px;">
+                <span>🔒</span>
+                <span>${isEn ? `${lockedCount} related rumor${lockedCount > 1 ? 's' : ''} not yet unlocked` : `未解禁の噂: ${lockedCount}件`}</span>
+              </div>
+            ` : ''}
           </div>
         `;
       }
@@ -583,7 +628,7 @@ export class KnowledgeDetailModal {
             📖 ${isEn ? '2. Official Lore' : '2. 公式解説 (WASM)'}
           </button>
           <button class="kn-tab-btn ${this.activeTab === 'lore' ? 'active' : ''}" data-tab="lore" style="flex: 1; padding: 6px 8px; border-radius: 6px; border: ${this.activeTab === 'lore' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent'}; background: ${this.activeTab === 'lore' ? 'rgba(56, 189, 248, 0.2)' : 'transparent'}; color: ${this.activeTab === 'lore' ? '#38bdf8' : '#94a3b8'}; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit;">
-            💡 ${isEn ? '3. Rumors' : '3. 冒険の噂'} ${this.loreEntries.length > 0 ? `(${this.loreEntries.length})` : ''}
+            💡 ${isEn ? '3. Rumors' : '3. 冒険の噂'} ${this.loreEntries.filter(l => l.isUnlocked !== false).length > 0 ? `(${this.loreEntries.filter(l => l.isUnlocked !== false).length})` : ''}
           </button>
         </div>
 
