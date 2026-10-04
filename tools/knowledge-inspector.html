@@ -534,12 +534,20 @@
 </head>
 <body>
     <header>
-        <h1>
-            <span>🛠️</span> Structured Knowledge Inspector
-            <span class="badge" id="totalCountBadge">0 Entities</span>
-            <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" style="font-size:0.75rem; color:#38bdf8; text-decoration:none; margin-left:10px; padding:2px 8px; border:1px dashed #38bdf8; border-radius:4px;">📄 CSV Dictionary</a>
-            <a href="lore_codex.html" target="_blank" style="font-size:0.75rem; color:#e3b341; text-decoration:none; margin-left:8px; padding:2px 8px; border:1px dashed #e3b341; border-radius:4px;">📜 Rumor & Lore Codex</a>
-        </h1>
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <a href="../index.html" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; transition: all 0.2s;">
+                ← タイトルへ戻る
+            </a>
+            <h1>
+                <span>🛠️</span> Structured Knowledge Inspector
+                <span class="badge" id="totalCountBadge">0 Entities</span>
+            </h1>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <a href="lore_codex.html" style="font-size:0.75rem; color:#e3b341; text-decoration:none; padding:4px 10px; border:1px solid rgba(227, 179, 65, 0.4); background: rgba(227, 179, 65, 0.1); border-radius:6px; font-weight: 600;">📜 Rumor & Lore Codex</a>
+                <a href="adventure_log.html" style="font-size:0.75rem; color:#38bdf8; text-decoration:none; padding:4px 10px; border:1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); border-radius:6px; font-weight: 600;">👣 冒険の足跡 (Log)</a>
+                <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" style="font-size:0.75rem; color:var(--text-secondary); text-decoration:none; padding:4px 10px; border:1px dashed var(--border-color); border-radius:6px;">📄 CSV Dictionary</a>
+            </div>
+        </div>
         <div class="controls-bar">
             <div class="lang-toggle">
                 <button id="btnJp" class="active">日本語 (JP)</button>

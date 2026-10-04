@@ -280,6 +280,10 @@
 <body>
     <div class="header-bar">
         <a href="../index.html" class="back-link" id="link-back">← タイトルへ戻る</a>
+        <div style="display: flex; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); border-radius: 12px; padding: 3px; gap: 4px;">
+            <a href="cltest.html" style="padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-decoration: none; border-radius: 9px; transition: all 0.2s;">🧪 クライアント検証</a>
+            <a href="dev_tools.html" style="padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--accent-blue); text-decoration: none; border-radius: 9px; background: var(--panel-bg); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🛠️ 開発者ツール一覧</a>
+        </div>
         <button class="lang-toggle" id="btn-toggle-lang" onclick="toggleLanguage()">🌐 JP / EN</button>
     </div>
 
@@ -295,7 +299,7 @@
                 <span class="section-icon">⚙️</span>
                 <div class="section-title-group">
                     <h2 id="txt-sec1-title">設定・環境・操作調整</h2>
-                    <p id="txt-sec1-desc">サウンド設定、ゲームパッド・タッチ操作マッピング、セーブデータ管理</p>
+                    <p id="txt-sec1-desc">サウンド再生テスト、セーブデータのバックアップ・管理</p>
                 </div>
             </div>
             <div class="tools-grid">
@@ -308,28 +312,6 @@
                         <p class="tool-desc" id="t-sound-desc">サウンド再生システム (BEEP / WAVE / Auto) の動作確認と音量テスト</p>
                     </div>
                     <span class="tag-badge tag-settings">AUDIO</span>
-                </a>
-
-                <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">🎮</span>
-                            <span class="tool-name" id="t-gp-name">GP Mapping Tool</span>
-                        </div>
-                        <p class="tool-desc" id="t-gp-desc">USB/Bluetooth ゲームパッドのボタンマッピング割り当てツール</p>
-                    </div>
-                    <span class="tag-badge tag-settings">INPUT</span>
-                </a>
-
-                <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">📱</span>
-                            <span class="tool-name" id="t-touch-name">Touch Mapping Tool</span>
-                        </div>
-                        <p class="tool-desc" id="t-touch-desc">スマホ・タブレット用バーチャル操作キーの配置・カスタマイズ</p>
-                    </div>
-                    <span class="tag-badge tag-settings">TOUCH</span>
                 </a>
 
                 <a href="save_manager.html" class="tool-card" target="_blank">
@@ -388,6 +370,28 @@
                     <span class="tag-badge tag-inspect">TEST</span>
                 </a>
 
+                <a href="lore_codex.html" class="tool-card" target="_blank" style="border: 1px solid #e3b341;">
+                    <div>
+                        <div class="tool-card-head">
+                            <span class="tool-icon">📜</span>
+                            <span class="tool-name" id="t-lore-name" style="color: #e3b341;">Rumor & Lore Codex</span>
+                        </div>
+                        <p class="tool-desc" id="t-lore-desc">噂話、神託アーカイブ、床文字（Elbereth 結界モニター等）の伝承手帳</p>
+                    </div>
+                    <span class="tag-badge tag-inspect" style="background: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3);">LORE</span>
+                </a>
+
+                <a href="adventure_log.html" class="tool-card" target="_blank">
+                    <div>
+                        <div class="tool-card-head">
+                            <span class="tool-icon">📖</span>
+                            <span class="tool-name" id="t-advlog-name">Adventure Log</span>
+                        </div>
+                        <p class="tool-desc" id="t-advlog-desc">過去の冒険・イベントログ・足跡のタイムライン閲覧</p>
+                    </div>
+                    <span class="tag-badge tag-inspect">LOG</span>
+                </a>
+
                 <a href="../tests/tile_test.html" class="tool-card" target="_blank">
                     <div>
                         <div class="tool-card-head">
@@ -401,13 +405,13 @@
             </div>
         </section>
 
-        <!-- 3. 🌐 翻訳・ローカライズ作業系 (Translation & i18n - Legacy) -->
+        <!-- 3. 📦 レガシーツール・旧システム (Legacy Utilities) -->
         <details class="section-group" id="sec-legacy-trans">
             <summary class="section-header">
-                <span class="section-icon">🌐</span>
+                <span class="section-icon">📦</span>
                 <div class="section-title-group">
-                    <h2 id="txt-sec3-title">翻訳・ローカライズ管理（旧システム）</h2>
-                    <p id="txt-sec3-desc">※最新の翻訳機能は Knowledge Inspector に統合されています（クリックして旧ツールを展開）</p>
+                    <h2 id="txt-sec3-title">レガシーツール・旧システム</h2>
+                    <p id="txt-sec3-desc">※現行バージョンでは通常使用しないツール（旧操作マッピング、旧翻訳ツール群）</p>
                 </div>
                 <span class="toggle-badge">
                     <span id="txt-sec3-toggle">旧ツールを開く</span>
@@ -415,6 +419,28 @@
                 </span>
             </summary>
             <div class="tools-grid" style="margin-top: 18px;">
+                <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-card" target="_blank">
+                    <div>
+                        <div class="tool-card-head">
+                            <span class="tool-icon">🎮</span>
+                            <span class="tool-name" id="t-gp-name">GP Mapping Tool</span>
+                        </div>
+                        <p class="tool-desc" id="t-gp-desc">USB/Bluetooth ゲームパッドのボタンマッピング割り当てツール</p>
+                    </div>
+                    <span class="tag-badge tag-settings">INPUT</span>
+                </a>
+
+                <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-card" target="_blank">
+                    <div>
+                        <div class="tool-card-head">
+                            <span class="tool-icon">📱</span>
+                            <span class="tool-name" id="t-touch-name">Touch Mapping Tool</span>
+                        </div>
+                        <p class="tool-desc" id="t-touch-desc">スマホ・タブレット用バーチャル操作キーの配置・カスタマイズ</p>
+                    </div>
+                    <span class="tag-badge tag-settings">TOUCH</span>
+                </a>
+
                 <a href="tr_manager.html" class="tool-card" target="_blank">
                     <div>
                         <div class="tool-card-head">
@@ -473,11 +499,11 @@
                 pageTitle: "Developer & Customization Tools",
                 pageDesc: "NetHack WASM WebUI の各種設定・データベース参照・ローカライズ検証ツール群",
                 sec1Title: "設定・環境・操作調整",
-                sec1Desc: "サウンド設定、ゲームパッド・タッチ操作マッピング、セーブデータ管理",
+                sec1Desc: "サウンド再生テスト、セーブデータのバックアップ・管理",
                 sec2Title: "参照・インスペクター・システム検証",
                 sec2Desc: "構造化ナレッジ閲覧、クライアント動作検証、タイルマッピング、ログ調査",
-                sec3Title: "翻訳・ローカライズ管理（旧システム）",
-                sec3Desc: "※最新の翻訳機能は Knowledge Inspector に統合されています（クリックして旧ツールを展開）",
+                sec3Title: "レガシーツール・旧システム",
+                sec3Desc: "※現行バージョンでは通常使用しないツール（旧操作マッピング、旧翻訳ツール群）",
                 sec3ToggleOpen: "旧ツールを開く",
                 sec3ToggleClose: "閉じる",
                 soundName: "Sound Tester",
@@ -496,6 +522,10 @@
                 clDesc: "全WebUIクライアントの描画・起動を一括検証する統合テスト",
                 tileName: "Tile Mapping Test",
                 tileDesc: "グラフィックタイル画像 (winnet.png) のID対応とマッピング確認",
+                loreName: "Rumor & Lore Codex",
+                loreDesc: "噂話、神託アーカイブ、床文字（Elbereth 結界モニター等）の伝承手帳",
+                advlogName: "Adventure Log",
+                advlogDesc: "過去の冒険・イベントログ・足跡のタイムライン閲覧",
                 trmgrName: "翻訳管理 (TrManager)",
                 trmgrDesc: "日本語翻訳辞書 (nhMessage) の編集・追加・CSV出力管理",
                 trfailName: "未翻訳リスト (TrFail)",
@@ -509,12 +539,12 @@
                 linkBack: "← Back to Title",
                 pageTitle: "Developer & Customization Tools",
                 pageDesc: "Developer utilities, database inspectors, and localization tools for NetHack WASM WebUI.",
-                sec1Title: "Settings & Input Controls",
-                sec1Desc: "Audio configuration, Gamepad & Touch controls mapping, Save data management",
+                sec1Title: "Settings & System Controls",
+                sec1Desc: "Audio playback testing, Save data backup & management",
                 sec2Title: "Inspection & System Reference",
                 sec2Desc: "Structured knowledge base inspector, client test suites, tile mappings, log viewers",
-                sec3Title: "Translation & i18n (Legacy System)",
-                sec3Desc: "Note: Modern translation workflow is integrated into Knowledge Inspector (Click to expand legacy tools)",
+                sec3Title: "Legacy Tools & Archive",
+                sec3Desc: "Deprecated utilities not used in current client (legacy mapping, old translation tools)",
                 sec3ToggleOpen: "Expand Legacy Tools",
                 sec3ToggleClose: "Collapse",
                 soundName: "Sound Tester",
@@ -533,6 +563,10 @@
                 clDesc: "Integration test runner for evaluating all WebUI client modes simultaneously",
                 tileName: "Tile Mapping Test",
                 tileDesc: "Visual inspector for graphic tile atlas (winnet.png) mappings",
+                loreName: "Rumor & Lore Codex",
+                loreDesc: "Interactive codex for rumors, Oracle prophecies, and floor engravings",
+                advlogName: "Adventure Log",
+                advlogDesc: "Chronological log and footprints viewer for past adventure runs",
                 trmgrName: "Translation Manager",
                 trmgrDesc: "Editor and CSV manager for Japanese translation dictionary (nhMessage)",
                 trfailName: "Untranslated List",
@@ -599,6 +633,11 @@
             document.getElementById("t-cl-desc").textContent = t.clDesc;
             document.getElementById("t-tile-name").textContent = t.tileName;
             document.getElementById("t-tile-desc").textContent = t.tileDesc;
+
+            if (document.getElementById("t-lore-name")) document.getElementById("t-lore-name").textContent = t.loreName;
+            if (document.getElementById("t-lore-desc")) document.getElementById("t-lore-desc").textContent = t.loreDesc;
+            if (document.getElementById("t-advlog-name")) document.getElementById("t-advlog-name").textContent = t.advlogName;
+            if (document.getElementById("t-advlog-desc")) document.getElementById("t-advlog-desc").textContent = t.advlogDesc;
 
             document.getElementById("t-trmgr-name").textContent = t.trmgrName;
             document.getElementById("t-trmgr-desc").textContent = t.trmgrDesc;

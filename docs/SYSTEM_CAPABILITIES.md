@@ -321,11 +321,18 @@ flowchart TD
 * **接続パイプライン**:
   - `DiscoveryStateManager` ➔ 共通 Web Component（`<nh-knowledge-card>` または新設 `<nh-discovery-codex>`）へバインドし、プレイヤーがいつでも発見済みアイテム一覧を確認可能にする。
 
-### 7.2 価格識別（Price Identification）からの自動/半自動命名支援
-* **現状**: `OBJECT_KNOWLEDGE_FULL` には全 481 アイテムの基本価格（`basePrice`）が完備されており、店舗での売買メッセージ（買い取り価格・販売価格）も同定可能。
-* **ギャップ**: 店主の提示価格からアイテム候補（例：「基本価格 100G の巻物 ➔ 瞬間移動 / 識別 / 口封じ」等）を逆引きし、プレイヤーがワンクリックで仮名命名（`#name` / `C`）を発行できる支援 UI が存在しない。
+### 7.2 アイテム候補逆引き（効果ログ＆価格識別）からの命名支援 ＆ GamePad候補選択
+* **現状**: 
+  - `OBJECT_KNOWLEDGE_FULL` に全 481 アイテムの基本価格（`basePrice`）が完備。
+  - NetHack 5.0 Cコアの `pricequotes` 機能により、店舗で見た買値・売値が `{buy 100}` などの形式で保持される。
+  - `MessageContextResolver` によりアイテム使用時の効果メッセージ（例: "You feel very comfortable."）を検知可能。
+* **ギャップ**: 
+  - アイテム使用後の `What do you want to call...` や `C` コマンドにおいて、ソフトウェアキーボードでの英単語タイピングが必須となっており、GamePad やモバイル操作の大きな障壁になっている。
+  - 効果ログや店頭買値・売値からアイテム真名候補を逆引きし、GamePadの十字キー＋決定ボタンで選択・命名できるダイアログが存在しない。
 * **接続パイプライン**:
-  - 店売買イベント検知 ➔ 価格逆引き候補リスト提示 ➔ 選択した仮名を `queueSequence(['#', 'name', 'i', letter, name, '\n'])` で自動実行。
+  - 【使用後効果ログ】または【店頭価格】検知 ➔ `ItemCandidateResolver` による候補リスト生成 ➔ `<nh-call-candidate-dialog>`（GamePad十字キー＆Aボタン対応）提示 ➔ 選択結果を `queueSequence(['C', ...])` または `#name` で C コアへ送信。
+  - 確実な効果メッセージ時はワンタップ省略の「Call自動登録モード」も提供。
+
 
 ### 7.3 WASM 動的文学引用（`data.base` / `data_jp.base`）のオンデマンド閲覧 UI
 * **現状**: NetHack の WASM バイナリ内には公式の文学引用（シェイクスピア、クトゥルフ神話等）が完全同梱されており、`/` コマンド等を通じて動的に抽出できる基盤がある。

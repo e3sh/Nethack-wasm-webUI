@@ -198,19 +198,65 @@
             margin-bottom: 20px;
         }
 
-        .nav-back {
+        .header-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .nav-back-btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             color: var(--text-secondary);
             text-decoration: none;
+            font-family: 'Outfit', sans-serif;
             font-size: 14px;
-            margin-bottom: 20px;
-            transition: color 0.2s;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.2s ease;
         }
 
-        .nav-back:hover {
+        .nav-back-btn:hover {
             color: var(--text-primary);
+            border-color: var(--accent-color);
+            transform: translateX(-2px);
+        }
+
+        .nav-tabs-group {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .nav-tab-item {
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 9px;
+            transition: all 0.2s;
+        }
+
+        .nav-tab-item:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-tab-item.active {
+            background: var(--panel-bg);
+            color: var(--accent-color);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         #drop-zone {
@@ -264,16 +310,17 @@
 
 <body>
     <div class="container">
-        <div style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
-            <a href="../index.html" class="nav-back" style="margin-bottom: 0;">← Back to Title</a>
-            <a href="config.html" class="nav-back" style="margin-bottom: 0;">⚙️ Config</a>
-            <a href="adventure_log.html" class="nav-back" style="margin-bottom: 0; color: #38bdf8;">📖 Adventure Log (冒険手帳)</a>
-            <a href="lore_codex.html" class="nav-back" style="margin-bottom: 0; color: #e3b341;">📜 Rumor & Lore Codex</a>
-        </div>
+        <header class="header-nav">
+            <a href="../index.html" class="nav-back-btn">← タイトルへ戻る</a>
+            <div class="nav-tabs-group">
+                <a href="config.html" class="nav-tab-item">⚙️ システム設定</a>
+                <a href="save_manager.html" class="nav-tab-item active">💾 セーブデータ管理</a>
+            </div>
+        </header>
 
         <header class="header">
             <h1>Save Data Manager</h1>
-            <p class="subtitle">Import/Export character saves and manage system data</p>
+            <p class="subtitle">IndexedDB / localStorage セーブデータの管理・バックアップ</p>
         </header>
 
         <!-- Current Active Save Summary Card -->

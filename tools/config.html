@@ -35,16 +35,78 @@
                 radial-gradient(circle at 80% 70%, rgba(31, 111, 235, 0.05) 0%, transparent 40%);
             color: var(--text-primary);
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
+            padding: 32px 20px 60px;
+        }
+
+        .header-nav {
+            width: 100%;
+            max-width: 580px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .nav-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-color);
+            transform: translateX(-2px);
+        }
+
+        .nav-tabs-group {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .nav-tab-item {
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 9px;
+            transition: all 0.2s;
+        }
+
+        .nav-tab-item:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-tab-item.active {
+            background: var(--panel-bg);
+            color: var(--accent-color);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .container {
             width: 100%;
-            max-width: 500px;
-            padding: 20px;
+            max-width: 580px;
             z-index: 1;
         }
 
@@ -54,7 +116,7 @@
             -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--border-color);
             border-radius: 24px;
-            padding: 40px;
+            padding: 36px 32px;
             box-shadow: var(--shadow);
             animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
@@ -353,11 +415,9 @@
         function updateLanguageUI(isJp) {
             const t = isJp ? I18N_TEXTS.ja : I18N_TEXTS.en;
             
-            document.getElementById("subtitle-text").textContent = t.subtitle;
-            document.getElementById("desc-gryph").textContent = t.descGryph;
-            document.getElementById("desc-lang").textContent = t.descLang;
-            document.getElementById("desc-larn").textContent = t.descLarn;
-            document.getElementById("desc-debug").textContent = t.descDebug;
+            if (document.getElementById("subtitle-text")) document.getElementById("subtitle-text").textContent = t.subtitle;
+            if (document.getElementById("desc-lang")) document.getElementById("desc-lang").textContent = t.descLang;
+            if (document.getElementById("desc-debug")) document.getElementById("desc-debug").textContent = t.descDebug;
             if (document.getElementById("label-item-naming-mode")) document.getElementById("label-item-naming-mode").textContent = t.labelItemNamingMode;
             if (document.getElementById("desc-item-naming-mode")) document.getElementById("desc-item-naming-mode").textContent = t.descItemNamingMode;
             if (document.getElementById("opt-auto-memo")) document.getElementById("opt-auto-memo").textContent = t.optAutoMemo;
@@ -370,16 +430,10 @@
             if (document.getElementById("btn-test-sound")) document.getElementById("btn-test-sound").textContent = t.btnTestSound;
             document.getElementById("label-extra-opts").textContent = t.labelExtraOpts;
             document.getElementById("desc-extra-opts").textContent = t.descExtraOpts;
-            if (document.getElementById("btn-start")) document.getElementById("btn-start").textContent = t.btnStart;
-            document.getElementById("btn-back-title").textContent = t.btnBackTitle;
-            document.getElementById("btn-reset").textContent = t.btnReset;
-            document.getElementById("tools-title").textContent = t.toolsTitle;
-            if (document.getElementById("link-sound-test")) document.getElementById("link-sound-test").textContent = t.linkSoundTest;
-            if (document.getElementById("link-gp-mapping")) document.getElementById("link-gp-mapping").textContent = t.linkGpMapping;
-            if (document.getElementById("link-touch-mapping")) document.getElementById("link-touch-mapping").textContent = t.linkTouchMapping;
-            if (document.getElementById("link-save-manager")) document.getElementById("link-save-manager").textContent = t.linkSaveManager;
-            if (document.getElementById("link-knowledge-inspector")) document.getElementById("link-knowledge-inspector").textContent = t.linkKnowledgeInspector;
-            if (document.getElementById("link-dev-tools-hub")) document.getElementById("link-dev-tools-hub").textContent = t.linkDevToolsHub;
+            if (document.getElementById("btn-back-nav")) document.getElementById("btn-back-nav").textContent = t.btnBackTitle;
+            if (document.getElementById("btn-back-title")) document.getElementById("btn-back-title").textContent = t.btnBackTitle;
+            if (document.getElementById("btn-reset")) document.getElementById("btn-reset").textContent = t.btnReset;
+            if (document.getElementById("tools-title")) document.getElementById("tools-title").textContent = t.toolsTitle;
         }
 
         function test_sound() {
@@ -506,22 +560,18 @@
 </head>
 
 <body onload="auto_start()">
+    <header class="header-nav">
+        <a href="../index.html" class="nav-back-btn" id="btn-back-nav">← タイトルへ戻る</a>
+        <div class="nav-tabs-group">
+            <a href="config.html" class="nav-tab-item active">⚙️ システム設定</a>
+            <a href="save_manager.html" class="nav-tab-item">💾 セーブデータ管理</a>
+        </div>
+    </header>
+
     <div class="container">
         <div class="config-card">
             <h1>NetHack WASM</h1>
             <p class="subtitle" id="subtitle-text">System Configuration</p>
-
-            <div class="config-group">
-                <label class="config-item" for="gryph">
-                    <div class="config-info">
-                        <span class="config-label">USE_GLYPH</span>
-                        <span class="config-desc" id="desc-gryph">グラフィックをタイル形式に切り替えます</span>
-                    </div>
-                    <div class="switch">
-                        <input type="checkbox" id="gryph">
-                        <span class="slider"></span>
-                    </div>
-                </label>
 
                 <label class="config-item" for="lang">
                     <div class="config-info">
@@ -534,27 +584,34 @@
                     </div>
                 </label>
 
-                <label class="config-item" for="larn">
+                <!-- サウンドモード設定 -->
+                <div class="config-item" style="cursor: default;">
                     <div class="config-info">
-                        <span class="config-label">LANG_LARNMODE</span>
-                        <span class="config-desc" id="desc-larn">未翻訳メッセージを収集します</span>
+                        <span class="config-label" id="label-sound-mode">SOUND_MODE</span>
+                        <span class="config-desc" id="desc-sound-mode">効果音の再生モードを選択します</span>
                     </div>
-                    <div class="switch">
-                        <input type="checkbox" id="larn">
-                        <span class="slider"></span>
-                    </div>
-                </label>
+                    <select id="sound_mode" style="background: rgba(0,0,0,0.5); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 10px; font-size: 13px;">
+                        <option value="auto">Auto (ハイブリッド推奨)</option>
+                        <option value="wave">Wave (音声ファイル)</option>
+                        <option value="beep">Beep (オシレーター合成)</option>
+                        <option value="mute">Mute (消音)</option>
+                    </select>
+                </div>
 
-                <label class="config-item" for="debug">
-                    <div class="config-info">
-                        <span class="config-label">DEBUG_MSG</span>
-                        <span class="config-desc" id="desc-debug">開発者向けのデバッグ情報を表示します</span>
+                <!-- 音量設定 ＆ テスト再生 -->
+                <div class="config-item" style="cursor: default; flex-direction: column; align-items: stretch; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="config-info">
+                            <span class="config-label" id="label-sound-vol">SOUND_VOLUME</span>
+                            <span class="config-desc" id="desc-sound-vol">効果音の音量を調整します</span>
+                        </div>
+                        <span id="sound_volume_val" style="font-weight: 700; font-family: monospace; color: var(--accent-color); font-size: 14px;">80%</span>
                     </div>
-                    <div class="switch">
-                        <input type="checkbox" id="debug">
-                        <span class="slider"></span>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="range" id="sound_volume" min="0" max="100" value="80" style="flex: 1; accent-color: var(--accent-color);">
+                        <button type="button" class="btn btn-secondary" id="btn-test-sound" onclick="test_sound()" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">🔊 テスト再生</button>
                     </div>
-                </label>
+                </div>
 
                 <div class="config-item" style="cursor: default;">
                     <div class="config-info">
@@ -568,34 +625,36 @@
                     </select>
                 </div>
 
+                <label class="config-item" for="debug">
+                    <div class="config-info">
+                        <span class="config-label">DEBUG_MSG</span>
+                        <span class="config-desc" id="desc-debug">開発者向けのデバッグ情報を表示します</span>
+                    </div>
+                    <div class="switch">
+                        <input type="checkbox" id="debug">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
                 <!-- Additional Options Area -->
-                <div
-                    style="margin-top: 24px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color);">
-                    <div class="config-info" style="margin-bottom: 12px;">
+                <div style="margin-top: 20px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color);">
+                    <div class="config-info" style="margin-bottom: 10px;">
                         <span class="config-label" id="label-extra-opts">Additional NetHack OPTIONS</span>
                         <span class="config-desc" id="desc-extra-opts">NetHack本体のオプションを追加できます (改行区切り)</span>
                     </div>
-                    <textarea id="extra_options" placeholder="autopickup\npickup_types:$\nfruit:orange"
-                        style="width: 100%; height: 120px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
-
+                    <textarea id="extra_options" placeholder="autopickup&#10;pickup_types:$&#10;fruit:orange"
+                        style="width: 100%; height: 90px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
                 </div>
             </div>
 
-            <div class="actions">
-                <a href="../index.html" class="btn btn-secondary" id="btn-back-title" style="text-decoration: none; text-align: center;">← Back to Title</a>
-                <button class="btn btn-danger" id="btn-reset" onclick="reset_config()">Reset to Default</button>
+            <div class="actions" style="margin-top: 24px;">
+                <button class="btn btn-danger" id="btn-reset" onclick="reset_config()">設定を初期化</button>
             </div>
 
-            <div class="tools-section">
-                <p class="tools-title" id="tools-title">Developer & Config Tools</p>
-                <div class="tool-links" style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
-                    <a href="../tests/sound_test.html" class="tool-link" id="link-sound-test" target="_blank" style="color: var(--accent-color); border-color: rgba(63, 185, 80, 0.3);">🔊 Sound Tester</a>
-                    <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-link" id="link-gp-mapping" target="_blank">🎮 GP Mapping</a>
-                    <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-link" id="link-touch-mapping" target="_blank">📱 Touch Mapping</a>
-                    <a href="save_manager.html" class="tool-link" id="link-save-manager" target="_blank">💾 セーブデータ管理</a>
-                    <a href="knowledge-inspector.html" class="tool-link" id="link-knowledge-inspector" target="_blank">🔍 ナレッジインスペクター</a>
-                    <a href="dev_tools.html" class="tool-link" id="link-dev-tools-hub" style="font-weight: 700; color: var(--text-primary); border-color: rgba(255, 255, 255, 0.2);">🛠️ 全開発者ツール一覧</a>
-                </div>
+            <div class="tools-section" style="margin-top: 24px; padding-top: 20px; text-align: center;">
+                <p style="font-size: 12px; color: var(--text-secondary);">
+                    より詳細なサウンド検証や入力キー割り当ては <a href="dev_tools.html" style="color: var(--accent-color); text-decoration: underline;">開発者ツール (dev_tools)</a> から行えます。
+                </p>
             </div>
         </div>
     </div>

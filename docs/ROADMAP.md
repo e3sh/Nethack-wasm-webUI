@@ -83,8 +83,18 @@ last_updated: 2026-10-01
     - 独立冒険手帳画面（`<nh-codex-grid>` ＆ シルエット解禁ギャラリー `adventure_log.html`、および `SaveManager` データメンテナンス連携）の実装
     - セッション横断メタプログレッション管理（`AdventureLogManager` / `AdventureLogStorage`）配備
     - 全122テストスイート・1,469テスト100% PASSおよび4大サンプルクライアントビルド成功
-  - [ ] **Phase 3 (命名アシスト / Gap 2 対応)**:
-    - 店頭価格識別からのワンタップ命名アシスト（`C` / `#name`）の実装
+  - [ ] **Phase 3 (命名アシスト ＆ GamePad候補選択 / Gap 2 対応)**:
+    - **Step 1: ディスカバリー状態管理の堅牢化 (`DiscoveryStateManager.js`)**
+      - Cコア `\` 出力の `{buy ...}` / `{sell ...}` 価格情報の分離・抽出と保持
+      - 未鑑定アイテム（外見名のみの行）が破棄される問題の改修
+    - **Step 2: アイテム効果ログ逆引き＆価格逆引きサジェストコア (`ItemCandidateResolver.js`)**
+      - 使用後メッセージ（`MessageContextResolver`）からのアイテム効果逆引き（例: comfortable ➔ 大回復）
+      - NetHack 5.0 `pricequotes` `{buy}` および店頭買値・売値からの `basePrice` 逆引き
+      - 確実な効果メッセージ時の自動仮名登録ロジック（自動登録モード）
+    - **Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)**
+      - `What do you want to call...` プロンプトおよび `C` コマンド捕捉時のリッチダイアログ昇華
+      - 十字キー（↑↓）＋Aボタン（決定）によるワンタッチ命名確定と `queueSequence` 連動
+
 
 ---
 
