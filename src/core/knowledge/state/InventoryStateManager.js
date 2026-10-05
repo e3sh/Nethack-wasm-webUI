@@ -237,12 +237,13 @@ export class InventoryStateManager {
      * @param {Array<Object>} items 
      */
     _syncWithAdventureLog(items) {
-        if (!this.adventureLogManager || typeof this.adventureLogManager.unlockObject !== 'function') {
+        if (!this.adventureLogManager) {
             return;
         }
         if (!Array.isArray(items) || items.length === 0) return;
 
         const isInitial = !this.hasCompletedInitialSync;
+        const onumsToUnlock = [];
 
         for (const item of items) {
             if (!item || !item.identification) continue;
@@ -258,21 +259,40 @@ export class InventoryStateManager {
             if (this.discoveryStateManager && this.discoveryStateManager.discoveredOnums && typeof this.discoveryStateManager.discoveredOnums.add === 'function') {
                 this.discoveryStateManager.discoveredOnums.add(onum);
             }
+            onumsToUnlock.push(onum);
+        }
 
-            const isNew = this.adventureLogManager.unlockObject(onum);
+        if (onumsToUnlock.length === 0) return;
 
-            // 初回同期（ゲーム開始時の初期装備等）はサイレント解禁とし、通知は行わない
-            // 2回目以降の同期（プレイ中に拾った/新しく識別されたアイテム）で新規解禁された場合のみ通知
-            if (isNew && !isInitial && typeof this.onAdventureLogUnlocked === 'function') {
-                const itemData = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
-                const finalJa = itemData?.nameJa || itemData?.japaneseName || (item.identification && item.identification.trueNameJa) || itemData?.name || `アイテム #${onum}`;
-                const finalEn = itemData?.name || (item.identification && item.identification.trueName) || `Object #${onum}`;
-                this.onAdventureLogUnlocked({
-                    category: 'object',
-                    onum,
-                    name: finalEn,
-                    nameJa: finalJa
-                });
+        if (typeof this.adventureLogManager.unlockObjects === 'function') {
+            const res = this.adventureLogManager.unlockObjects(onumsToUnlock);
+            if (res.isNew && !isInitial && typeof this.onAdventureLogUnlocked === 'function') {
+                for (const onum of (res.newOnums || [])) {
+                    const itemData = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                    const finalJa = itemData?.nameJa || itemData?.japaneseName || itemData?.name || `アイテム #${onum}`;
+                    const finalEn = itemData?.name || `Object #${onum}`;
+                    this.onAdventureLogUnlocked({
+                        category: 'object',
+                        onum,
+                        name: finalEn,
+                        nameJa: finalJa
+                    });
+                }
+            }
+        } else if (typeof this.adventureLogManager.unlockObject === 'function') {
+            for (const onum of onumsToUnlock) {
+                const isNew = this.adventureLogManager.unlockObject(onum);
+                if (isNew && !isInitial && typeof this.onAdventureLogUnlocked === 'function') {
+                    const itemData = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                    const finalJa = itemData?.nameJa || itemData?.japaneseName || itemData?.name || `アイテム #${onum}`;
+                    const finalEn = itemData?.name || `Object #${onum}`;
+                    this.onAdventureLogUnlocked({
+                        category: 'object',
+                        onum,
+                        name: finalEn,
+                        nameJa: finalJa
+                    });
+                }
             }
         }
     }

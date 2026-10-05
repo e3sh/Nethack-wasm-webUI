@@ -291,6 +291,48 @@ export class LoreCodex {
     }
 
     /**
+     * 神託の複数一括追加・記録（大予言受託時用）
+     * 複数件の神託をストレージ保存・通知1回のみで安全に一括登録する。
+     * @param {Array<Object>} oraclesList
+     * @returns {{ count: number, newCount: number }}
+     */
+    addOracles(oraclesList) {
+        if (!Array.isArray(oraclesList) || oraclesList.length === 0) {
+            return { count: 0, newCount: 0 };
+        }
+
+        let newCount = 0;
+        for (const oracle of oraclesList) {
+            if (!oracle || (!oracle.id && !oracle.text)) continue;
+            const id = oracle.id || `custom_oracle_${oracle.text.substring(0, 20)}`;
+            const existing = this.oracles.get(id);
+            if (!existing) newCount++;
+
+            const tr = oracle.translatedText || this._resolveTranslation({ id, text: oracle.text }, 'ORACLE');
+            const related = oracle.relatedEntities || existing?.relatedEntities || this._resolveRelatedEntities({ id, text: oracle.text }, 'ORACLE');
+            const entry = {
+                id: id,
+                title: oracle.title || existing?.title || (oracle.text ? oracle.text.split('\n')[0].substring(0, 40) : ''),
+                text: oracle.text,
+                translatedText: tr || existing?.translatedText || '',
+                category: 'ORACLE',
+                isSpecial: oracle.isSpecial || existing?.isSpecial || false,
+                firstDiscoveredAt: existing ? existing.firstDiscoveredAt : new Date().toISOString(),
+                lastSeenAt: new Date().toISOString(),
+                seenCount: (existing?.seenCount || 0) + 1
+            };
+            if (related && related.length > 0) {
+                entry.relatedEntities = related;
+            }
+            this.oracles.set(id, entry);
+        }
+
+        this._autoSave();
+        this._notify('oraclesBatchAdded', { count: oraclesList.length, newCount });
+        return { count: oraclesList.length, newCount };
+    }
+
+    /**
      * 床の刻み文字 / 落書き / 墓碑銘を冒険手帳に記録・追加
      *
      * @param {Object} engraving

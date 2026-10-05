@@ -9,6 +9,13 @@
         <p>{{ getDeathText() }}</p>
       </div>
 
+      <div v-if="gameOverResult?.isExploreMode" class="non-scoring-notice explore-notice">
+        🔍 探索モード（Discover Mode）のため、スコアボードへの登録は行われません。
+      </div>
+      <div v-if="gameOverResult?.isWizardMode" class="non-scoring-notice wizard-notice">
+        🧙 デバッグモード（Wizard Mode）のため、スコアボードへの登録は行われません。
+      </div>
+
       <div v-if="topScores && topScores.length > 0" class="scoreboard">
         <h3>🏆 Top 10 Hall of Fame</h3>
         <table class="score-table">
@@ -130,6 +137,25 @@ function handleRestart() {
   font-size: 15px;
   font-weight: bold;
   color: #f9d5bb;
+}
+
+.non-scoring-notice {
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.explore-notice {
+  background: rgba(243, 156, 18, 0.15);
+  border-left: 4px solid #f39c12;
+  color: #f39c12;
+}
+
+.wizard-notice {
+  background: rgba(231, 76, 60, 0.15);
+  border-left: 4px solid #e74c3c;
+  color: #e74c3c;
 }
 
 .scoreboard {

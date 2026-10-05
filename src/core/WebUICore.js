@@ -1355,6 +1355,11 @@ export class WebUICore {
     async resolveGameOver() {
         const status = typeof this.getStatus === 'function' ? this.getStatus() : null;
         let detectedName = status && status.title ? status.title : null;
+        if (detectedName) {
+            // "Hero the Evoker" などの肩書を除去して純粋なプレイヤー名にする
+            detectedName = detectedName.replace(/\s+the\s+.*$/i, '').trim();
+            if (!detectedName || detectedName === '--') detectedName = null;
+        }
         if (!detectedName && this.driver && this.driver.fsManager && typeof this.driver.fsManager.autoDetectSavePlayerName === 'function') {
             detectedName = this.driver.fsManager.autoDetectSavePlayerName();
         }
@@ -1362,10 +1367,30 @@ export class WebUICore {
             detectedName = this.driver.options.gameOptions.name;
         }
 
+        // Cコアの終了時出力テキスト (putstr / topten_print / 墓碑銘) からのモード・死因判定
+        const exitText = (this.lastPutstrText || this.lastGameOverText || '').toLowerCase();
+        let isExploreFromOutput = exitText.includes('discover mode') || exitText.includes('in discover mode');
+        let isWizardFromOutput = exitText.includes('wizard mode') || exitText.includes('in wizard mode');
+
+        // 直近メッセージ履歴から死因を抽出
+        let detectedDeath = null;
+        const recentMessages = typeof this.getMessageItems === 'function' ? this.getMessageItems(5) : [];
+        for (let i = recentMessages.length - 1; i >= 0; i--) {
+            const msg = (recentMessages[i].text || recentMessages[i].raw || '').trim();
+            if (/killed by|died of|slain by|starved|petrified|drowned|quit|ascended|choked/i.test(msg)) {
+                detectedDeath = msg;
+                break;
+            }
+        }
+
         const sessionInfo = {
             playerName: detectedName || 'Hero',
             startTime: this.startTime,
-            version: '5.0.0'
+            version: '5.0.0',
+            currentScore: status ? status.score : 0,
+            isExploreMode: isExploreFromOutput,
+            isWizardMode: isWizardFromOutput,
+            deathMessage: detectedDeath || (this.lastPutstrText ? this.lastPutstrText.trim() : null)
         };
         const result = await GameOverResolver.resolveGameOver(this.driver, sessionInfo, { translator: this.translator });
         if (result && result.isGameOver && result.death) {
@@ -1638,9 +1663,20 @@ export class WebUICore {
             const isDriverSuppress = Boolean(this.driver && this.driver.sequenceOptions && this.driver.sequenceOptions.suppressPrompts);
             const shouldSuppress = isInteractiveExecuting || isDriverSuppress;
 
+            // 📖 テキストウィンドウ内容イベント送出 (GKL / LoreDetector 向け)
+            if (fileLines.length > 0) {
+                this.emit('textWindowContent', {
+                    windowId: null,
+                    filename: filename,
+                    lines: fileLines,
+                    rawLines: fileLines,
+                    rawText: targetText
+                });
+            }
+
             if (!shouldSuppress) {
                 this.renderer.showPrompt(payload);
-                this.emit('textWindowModal', { lines: fileLines, resolver, payload });
+                this.emit('textWindowModal', { lines: fileLines, rawLines: fileLines, resolver, payload });
                 this.emit('inputRequired', payload);
             }
         });
@@ -1659,14 +1695,24 @@ export class WebUICore {
             this.lastInputTime = Date.now();
 
             let bufferLines = [];
+            let rawBufferLines = [];
             if (this.textWindowManager && this.textWindowManager.hasBuffer(windowId)) {
                 const flushed = this.textWindowManager.flushBuffer(windowId);
                 if (flushed && flushed.lines) {
-                    const rawBufferLines = flushed.lines;
+                    rawBufferLines = flushed.lines;
                     bufferLines = rawBufferLines.map(l => this.translator.translate(l));
                 }
             }
 
+            // 📖 テキストウィンドウ内容イベント送出 (GKL / LoreDetector / 冒険手帳向け)
+            if (rawBufferLines.length > 0 || bufferLines.length > 0) {
+                this.emit('textWindowContent', {
+                    windowId,
+                    lines: bufferLines,
+                    rawLines: rawBufferLines,
+                    rawText: rawBufferLines.join('\n')
+                });
+            }
 
             const rawPrompt = bufferLines.length > 0 ? bufferLines[0] : 'Press Space or Enter to continue...';
             const translatedPrompt = this.translator.translate(rawPrompt);
@@ -1678,6 +1724,7 @@ export class WebUICore {
                 prompt: translatedPrompt,
                 rawPrompt: rawPrompt,
                 lines: bufferLines,
+                rawLines: rawBufferLines,
                 windowId: windowId,
                 safeResolver: resolver,
                 resolver: resolver,
@@ -1691,7 +1738,7 @@ export class WebUICore {
             // 🛡️ IRC対話セッション中やサイレント同期中は画面モーダル描画・UI入力をサプレス
             if (!shouldSuppress) {
                 this.renderer.showPrompt(payload);
-                this.emit('textWindowModal', { lines: bufferLines, resolver, payload });
+                this.emit('textWindowModal', { lines: bufferLines, rawLines: rawBufferLines, resolver, payload });
                 this.emit('inputRequired', payload);
             }
         });
@@ -1915,8 +1962,7 @@ export class WebUICore {
             this.activeMenuItems = [];
             this.isPendingPrefix = false;
             this.currentPromptCategory = PROMPT_CATEGORY.NONE;
-            this.currentPromptChoices = '';
-            this.lastPutstrText = '';
+            this.lastGameOverText = this.lastPutstrText;
             this.renderer.hidePrompt();
 
             const result = await this.resolveGameOver();

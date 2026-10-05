@@ -55,6 +55,17 @@ export const GameOverModal: Component = () => {
             <p>{deathMessage()}</p>
           </div>
 
+          <Show when={gameOverResult()?.isExploreMode}>
+            <div class="non-scoring-notice" style={{ background: 'rgba(243, 156, 18, 0.15)', "border-left": '4px solid #f39c12', padding: '8px 12px', margin: '8px 0', "font-size": '13px', color: '#f39c12' }}>
+              🔍 探索モード（Discover Mode）のため、スコアボードへの登録は行われません。
+            </div>
+          </Show>
+          <Show when={gameOverResult()?.isWizardMode}>
+            <div class="non-scoring-notice" style={{ background: 'rgba(231, 76, 60, 0.15)', "border-left": '4px solid #e74c3c', padding: '8px 12px', margin: '8px 0', "font-size": '13px', color: '#e74c3c' }}>
+              🧙 デバッグモード（Wizard Mode）のため、スコアボードへの登録は行われません。
+            </div>
+          </Show>
+
           <Show when={topScores().length > 0}>
             <div class="scoreboard">
               <h3>🏆 Top 10 Hall of Fame</h3>

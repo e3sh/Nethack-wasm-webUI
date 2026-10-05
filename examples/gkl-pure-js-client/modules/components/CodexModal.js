@@ -258,6 +258,8 @@ export class CodexModal {
         this._subscribed = false;
         this._subscribedCodex = null;
         this._subscribedAlm = null;
+        this._isUpdating = false;
+        this._isNotifying = false;
 
         this.setupDOM();
     }
@@ -275,11 +277,21 @@ export class CodexModal {
     }
 
     /**
+     * 冒険手帳メタプログレッションマネージャを設定
+     * @param {AdventureLogManager} mgr
+     */
+    setAdventureLogManager(mgr) {
+        if (!mgr) return;
+        this.adventureLogManager = mgr;
+        this._ensureSubscribed();
+        this.notifyUnreadCount();
+    }
+
+    /**
      * 冒険手帳メタプログレッションマネージャの取得
      * @returns {AdventureLogManager|null}
      */
     getAdventureLogManager() {
-        if (this.adventureLogManager) return this.adventureLogManager;
         const core = this.getCore();
         if (core && typeof core.getAdventureLogManager === 'function') {
             const mgr = core.getAdventureLogManager();
@@ -295,12 +307,13 @@ export class CodexModal {
                 return mgr;
             }
         }
+        if (this.adventureLogManager) return this.adventureLogManager;
         if (typeof window !== 'undefined' && window.__nh_adventure_log_mgr) {
             this.adventureLogManager = window.__nh_adventure_log_mgr;
             return this.adventureLogManager;
         }
-        // 自動初期化フォールバック
-        this.adventureLogManager = new AdventureLogManager();
+        // 自動初期化フォールバック（共有シングルトンを取得）
+        this.adventureLogManager = AdventureLogManager.getInstance();
         return this.adventureLogManager;
     }
 
@@ -389,12 +402,18 @@ export class CodexModal {
             if (alm) alm.markAsRead('rumor', id);
             this.readIds.add(id);
             this.saveReadIds();
+        } else if (category === 'oracle' || category === 'ORACLE') {
+            if (alm) alm.markAsRead('oracle', id);
+            this.readIds.add(id);
+            this.saveReadIds();
         } else {
             // 汎用判定
             if (typeof id === 'string' && (id.startsWith('mon_') || id.startsWith('monster_'))) {
                 if (alm) alm.markAsRead('monster', id);
             } else if (typeof id === 'string' && (id.startsWith('obj_') || id.startsWith('object_'))) {
                 if (alm) alm.markAsRead('object', id);
+            } else if (typeof id === 'string' && id.startsWith('oracle_')) {
+                if (alm) alm.markAsRead('oracle', id);
             }
             if (this.readIds.has(id)) return;
             this.readIds.add(id);
@@ -519,8 +538,6 @@ export class CodexModal {
                 this.notifyUnreadCount();
                 if (this.isVisible) {
                     this.updateSummaryBar();
-                    this.renderList();
-                    this.renderDetail();
                     this.updateUnreadBadges();
                 }
             };
@@ -539,8 +556,6 @@ export class CodexModal {
                 this.notifyUnreadCount();
                 if (this.isVisible) {
                     this.updateSummaryBar();
-                    this.renderList();
-                    this.renderDetail();
                     this.updateUnreadBadges();
                 }
             };
@@ -563,10 +578,20 @@ export class CodexModal {
      * 外部リスナーへ未読件数変更を通知
      */
     notifyUnreadCount() {
-        this._ensureSubscribed();
-        const counts = this.getUnreadCounts();
-        if (typeof this.onUnreadCountChanged === 'function') {
-            this.onUnreadCountChanged(counts.total, counts);
+        if (this._isNotifying) return;
+        this._isNotifying = true;
+        try {
+            this._ensureSubscribed();
+            const counts = this.getUnreadCounts();
+            if (typeof this.onUnreadCountChanged === 'function') {
+                this.onUnreadCountChanged(counts.total, counts);
+            }
+            if (this.isVisible) {
+                this.updateSummaryBar();
+                this.updateUnreadBadges();
+            }
+        } finally {
+            this._isNotifying = false;
         }
     }
 
@@ -682,8 +707,6 @@ export class CodexModal {
         this.applyLanguageUI();
         this.updateSummaryBar();
         this.renderList();
-        this.renderDetail();
-        this.updateUnreadBadges();
         this.notifyUnreadCount();
     }
 
@@ -1194,11 +1217,6 @@ export class CodexModal {
         }).join('');
 
         this._currentItems = items;
-
-        // 初期選択アイテムを既読化
-        if (this.selectedItem && this.selectedItem.id) {
-            this.markAsRead(this.selectedItem.id, this.selectedItem.category);
-        }
 
         // リスト行クリックハンドラ
         listEl.querySelectorAll('.codex-list-item').forEach(el => {

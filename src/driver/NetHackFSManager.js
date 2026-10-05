@@ -184,8 +184,13 @@
             if (!f || typeof f !== 'string') return false;
             if (f.startsWith('.')) return false;
             const systemFiles = ['perm', 'record', 'sysconf', 'logfile', 'xlogfile', 'paniclog', 'bonuses', 'bones', 'help', 'hh', 'cmdhelp', 'optmenu', 'license', 'history', 'opthelp', 'wizhelp'];
-            if (systemFiles.includes(f)) return false;
-            return /^\d+[a-zA-Z0-9_\-]+$/.test(f) || /^\d+.+$/.test(f);
+            const lower = f.toLowerCase();
+            if (systemFiles.includes(lower)) return false;
+            if (lower.includes('tmp') || lower.includes('lock') || lower.includes('bon')) return false;
+            // 骨ファイルや階層一時ファイル (.0, .1 等) やロックファイルを除外
+            if (/\.\d+$/.test(lower) || /\.lock$/i.test(lower) || /\.tmp$/i.test(lower)) return false;
+            // UID + プレイヤー名 (例: 0Hero, 0Hero.gz)
+            return /^\d+[a-zA-Z0-9_\-]+(\.gz)?$/.test(f);
         }
 
         /**

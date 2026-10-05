@@ -95,6 +95,34 @@ last_updated: 2026-10-01
       - `What do you want to call...` プロンプトおよび `C` コマンド捕捉時のリッチダイアログ昇華
       - 十字キー（↑↓）＋Aボタン（決定）によるワンタッチ命名確定と `queueSequence` 連動
 
+---
+
+### 1.3 3大不具合是正 ＆ 品質堅牢化計画 (Bugfix: Oracles Lore / Explore Ranking / Attack FX Guard)
+- **ステータス**: `🟡 partially implemented / deferred` (一部未完成・次週繰り越し, 2026-10-05)
+- **詳細設計・調査書**: [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/bugfix_plan_oracles_explore_attackfx.ja.md)
+- **最優先着手理由**:
+  - 実プレイにおいて進行・体験（冒険手帳の収集、正確なスコアボード、戦闘・移動の演出精度）に直結する3つの重要不具合を包括的・堅牢に是正する。
+- **課題と是正サマリー**:
+  1. **信託（Oracle）の冒険手帳未記録と大予言 OOM クラッシュの解消**:
+     - 信託テキストは1行メッセージではなく、テキストウィンドウ（`putstr` / `windowId: 5`）宛てに送出されるため、GKLのLore検知に渡っていなかった。`WebUICore.js` で `textWindowContent` イベントを発行し、テキストウィンドウ確定時にバッファテキストを `LoreDetector` へ流すパイプラインを配備。
+     - **大予言（Major Consultation）OOM クラッシュ解消**: WASM版NetHackで高い方の信託を聞くと全20個（約120行）が一括送出される仕様により、20回連続の個別アンロック・同期save・トースト乱発でメモリが枯渇していた問題を解決。「大予言を聞いたことの一括管理」へ刷新し、`AdventureLogManager.unlockAllOracles()` / `LoreCodex.addOracles()` による1回集約保存＆単一トースト通知（`isBulk: true`）でOOMを根本解決。
+  2. **exploreモード終了時のランキング混入 ＆ 死因判定機能不全（⚠️ 次週繰り越し）**:
+     - NetHack Cコア（`topten.c`）は探索モード終了時 `RECORD` には書き込まないが `XLOGFILE` にはログ（`flags` に `1L << 1` = 0x2）を出力する。
+     - **現状の課題**: `GameOverResolver.js` および `WebUICore.js` の死因抽出ロジックにおいて、quit時や溶岩死等でオープニングテキストが死因に誤表示される現象およびランキング判定不具合が実機検証で確認されたため、**未完成として次週に繰り越し・再設計**とする。
+  3. **攻撃エフェクト（ATTACK_HIT）の死亡時・店主衝突時誤爆**:
+     - `GKLPlugin.js` の方向キー入力部および `executeAction` に `_isPlayerDead` ガードを追加し、さらに店主（`isShopkeeper`）および平和的NPC（`peaceful`）への即時発火を抑止。
+- **マイグレーションステップ**:
+  - [ ] **フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 (`GameOverResolver.js`, `WebUICore.js`) ⚠️ 未完成・次週繰り越し**
+    - `parseXlogList` / `parseRecordText` に `flags & 2`（discover）および `flags & 1`（wizard）の判定・除外を配備
+    - 画面メッセージ抽出フォールバックや xlog 照合の死因不一致バグの根本原因調査・再設計
+  - [x] **フェーズ 2: 攻撃エフェクト（ATTACK_HIT）の条件厳格化 (`GKLPlugin.js`)**
+    - `_isPlayerDead` ガードおよび平和NPC/店主衝突時の事前誤爆抑止
+    - `GKLPlugin.test.js` に抑止検証テストを追加
+  - [x] **フェーズ 3: 信託（Oracle）テキストウィンドウ検知と大予言一括管理・OOM解消 (`GKLPlugin.js`, `LoreDetector.js`, `AdventureLogManager.js`)**
+    - テキストウィンドウバッファと `LoreDetector` の連携パイプライン配備
+    - 大予言（Major Consultation）一括アンロック（`unlockAllOracles`）および単一イベント集約による OOM クラッシュの完全防止
+    - `record_scenario/Oracles_1791173139967.json` 由来の神託テキストおよび大予言ウィンドウによるアンロック検証テスト配備
+  - [ ] **フェーズ 4: 全体リグレッションテスト ＆ 実機死因・ランキング検証 (次週)**
 
 ---
 

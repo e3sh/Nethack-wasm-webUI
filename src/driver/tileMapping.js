@@ -16,13 +16,17 @@ export function getTileMappingFunction() {
     return null;
 }
 
+let cachedTable = null;
+
 export function getTileMapping(glyphId, offsets) {
-    const fn = getTileMappingFunction();
-    if (fn) {
-        const table = fn(offsets);
-        if (table && table[glyphId] !== undefined) {
-            return table[glyphId];
+    if (!cachedTable) {
+        const fn = getTileMappingFunction();
+        if (fn) {
+            cachedTable = fn(offsets);
         }
+    }
+    if (cachedTable && cachedTable[glyphId] !== undefined) {
+        return cachedTable[glyphId];
     }
     return glyphId;
 }

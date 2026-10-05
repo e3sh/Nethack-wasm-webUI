@@ -218,19 +218,41 @@ export class LoreDetector {
             return null;
         }
 
-        if (clean.includes('The Oracle meditates for a moment and then intones:') ||
+        const isOracleMajorHeader = clean.includes('The Oracle meditates for a moment and then intones:') ||
             clean.includes('The Oracle scornfully takes all your gold and says:') ||
             clean.includes('オラクルはしばらく瞑想したのち、厳かに口を開いた') ||
-            clean.includes('オラクルは軽蔑するようにあなたの全財産を取り上げ')) {
+            clean.includes('オラクルは軽蔑するようにあなたの全財産を取り上げ');
+
+        if (isOracleMajorHeader) {
+            const isSpecial = clean.includes('scornfully') || clean.includes('軽蔑');
+            this.pendingOracleType = isSpecial ? 'special' : 'normal';
+
+            // ヘッダー行に神託本文も含まれているか検証
+            const inlineOracles = this.findOraclesInText(clean);
+            if (inlineOracles.length > 0) {
+                this._resetMode();
+                const primaryOracle = inlineOracles[0];
+                return {
+                    signalId: 'SIGNAL_LORE_ORACLE',
+                    subCategory: 'ORACLE',
+                    matched: true,
+                    isMajorConsultation: true,
+                    isBulk: true,
+                    oracleId: primaryOracle.id,
+                    title: primaryOracle.title,
+                    text: primaryOracle.text,
+                    translatedText: primaryOracle.translatedText,
+                    isSpecial: isSpecial || Boolean(primaryOracle.isSpecial),
+                    confidence: 1.0,
+                    rawPrompt: rawMessage,
+                    detectedOracles: inlineOracles
+                };
+            }
+
+            // ヘッダー単体の場合は次行待機
             this.currentMode = 'ORACLE_MAJOR';
             this.modeStepsRemaining = 4;
-            this.pendingOracleType = clean.includes('scornfully') ? 'special' : 'normal';
-
-            // ヘッダーと神託本文が同一メッセージに含まれていない場合のみ次行待機
-            const inlineOracles = this.findOraclesInText(clean);
-            if (inlineOracles.length === 0) {
-                return null;
-            }
+            return null;
         }
 
         // 1-4. 床の刻み文字・墓碑銘先行トリガー
@@ -308,16 +330,42 @@ export class LoreDetector {
         }
 
         // 神託所の大預言 (ORACLE_MAJOR または 直接走査マッチ)
+        if (this.currentMode === 'ORACLE_MAJOR') {
+            const isSpecial = this.pendingOracleType === 'special';
+            const matched = this.findOraclesInText(clean);
+            const primary = matched.length > 0 ? matched[0] : this._findOracle(clean);
+            if (primary || matched.length > 0) {
+                this._resetMode();
+                const oraclesToReturn = matched.length > 0 ? matched : (primary ? [primary] : []);
+                return {
+                    signalId: 'SIGNAL_LORE_ORACLE',
+                    subCategory: 'ORACLE',
+                    matched: true,
+                    isBulk: oraclesToReturn.length > 1,
+                    oracleId: primary ? primary.id : oraclesToReturn[0].id,
+                    title: primary?.title || oraclesToReturn[0]?.title || 'Oracle Prophecy',
+                    text: primary?.text || oraclesToReturn[0]?.text,
+                    translatedText: primary?.translatedText || oraclesToReturn[0]?.translatedText,
+                    isSpecial: isSpecial || Boolean(primary?.isSpecial),
+                    confidence: 1.0,
+                    rawPrompt: rawMessage,
+                    detectedOracles: oraclesToReturn
+                };
+            }
+        }
+
         const matchedOracles = this.findOraclesInText(clean);
         const primaryOracle = matchedOracles.length > 0 ? matchedOracles[0] : this._findOracle(clean);
-        if (primaryOracle && (this.currentMode === 'ORACLE_MAJOR' || clean.length > 25 || matchedOracles.length > 0)) {
+        if (primaryOracle && (clean.length > 25 || matchedOracles.length > 0)) {
             const isSpecial = this.pendingOracleType === 'special' || primaryOracle.isSpecial;
+            const isBulk = matchedOracles.length > 1;
             this._resetMode();
 
             return {
                 signalId: 'SIGNAL_LORE_ORACLE',
                 subCategory: 'ORACLE',
                 matched: true,
+                isBulk: isBulk,
                 oracleId: primaryOracle.id,
                 title: primaryOracle.title,
                 text: primaryOracle.text,

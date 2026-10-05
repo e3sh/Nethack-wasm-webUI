@@ -26,8 +26,9 @@ import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
 import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
 import { PROMPT_CATEGORY } from '../types.js';
 import { AdventureLogManager } from "./lore/AdventureLogManager.js";
-import { classifyGlyph, ENTITY_TYPES } from "./engines/glyphClassifier.js";
+import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster } from "./engines/glyphClassifier.js";
 import { MONSTER_KNOWLEDGE_MAP } from "./data/MONSTER_KNOWLEDGE_FULL.js";
+import { LORE_MASTER } from "./lore/data/LoreMasterData.js";
 
 
 /**
@@ -93,7 +94,7 @@ export class GKLPlugin {
             this.areaStateManager.setKeyMode(mode);
         }
 
-        this.adventureLogManager = options.adventureLogManager || new AdventureLogManager();
+        this.adventureLogManager = options.adventureLogManager || AdventureLogManager.getInstance();
 
         this.discoveryStateManager = options.discoveryStateManager || new DiscoveryStateManager({
             translationEngine: options.translationEngine || null,
@@ -702,8 +703,8 @@ export class GKLPlugin {
                     this.monsterTracker.advanceTurn();
                 }
 
-                // ⚔️ 近接攻撃アクション (ATTACK_HIT) の検知 (※ ペットとの位置入れ替え/displaceは除外)
-                if (sequence.length === 1 && this.areaStateManager) {
+                // ⚔️ 近接攻撃アクション (ATTACK_HIT) の検知 (※ 死亡時、ペット、店主、平和的NPCは除外)
+                if (sequence.length === 1 && this.areaStateManager && !this._isPlayerDead) {
                     const offset = this._getDirOffset(sequence[0]);
                     if (offset) {
                         const px = this.areaStateManager.playerX;
@@ -711,8 +712,38 @@ export class GKLPlugin {
                         const tx = px + offset.dx;
                         const ty = py + offset.dy;
                         const targetCell = this.areaStateManager.grid?.[ty]?.[tx];
-                        const isPet = targetCell?.top && (targetCell.top.type === 'PET' || targetCell.top.isPet);
-                        if (targetCell?.top && targetCell.top.type === 'MONSTER' && !isPet) {
+                        const top = targetCell?.top;
+                        const isPet = top && (top.type === 'PET' || top.isPet || top.glyphInfo?.isPet);
+
+                        const monOffset = top ? (top.monOffset !== undefined ? top.monOffset : (top.subType !== undefined ? top.subType : top.glyphInfo?.monOffset)) : undefined;
+                        const monKnowledge = (monOffset !== undefined && MONSTER_KNOWLEDGE_MAP) ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null;
+                        const isExplicitHostile = top && (
+                            top.isHostile ||
+                            top.attitude === 'HOSTILE' ||
+                            top.glyphInfo?.isHostile ||
+                            top.glyphInfo?.attitude === 'HOSTILE' ||
+                            top.dynamicState?.isHostile
+                        );
+
+                        const isPeaceful = top && (
+                            top.isPeaceful ||
+                            top.peaceful ||
+                            top.attitude === 'PEACEFUL' ||
+                            top.dynamicState?.isPeaceful ||
+                            top.glyphInfo?.isPeaceful ||
+                            top.glyphInfo?.peaceful ||
+                            monKnowledge?.defaultPeaceful ||
+                            /\b(peaceful|平和)\b/i.test(top.name || top.glyphInfo?.name || '')
+                        ) && !isExplicitHostile;
+                        const isShopkeeper = top && (
+                            top.isShopkeeper ||
+                            top.glyphInfo?.isShopkeeper ||
+                            isShopkeeperMonster(top) ||
+                            isShopkeeperMonster(top.glyphInfo) ||
+                            /\b(shopkeeper|店主)\b/i.test(top.name || top.glyphInfo?.name || '')
+                        );
+
+                        if (top && top.type === 'MONSTER' && !isPet && !isPeaceful && !isShopkeeper) {
                             this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
                             this.emitFxTrigger({
                                 type: 'ATTACK_HIT',
@@ -828,34 +859,53 @@ export class GKLPlugin {
                             }
                         }
 
-                        // 🏛️ 冒険手帳: 神託のアンロック (複数検知対応)
+                        // 🏛️ 冒険手帳: 神託のアンロック (一括/安全ハンドリング)
                         if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE' && this.adventureLogManager) {
-                            const oracles = Array.isArray(loreSignal.detectedOracles) && loreSignal.detectedOracles.length > 0
-                                ? loreSignal.detectedOracles
-                                : (loreSignal.oracleId ? [{
-                                    id: loreSignal.oracleId,
-                                    title: loreSignal.title,
-                                    text: loreSignal.text,
-                                    translatedText: loreSignal.translatedText
-                                }] : []);
-
-                            for (const orc of oracles) {
-                                const isNew = this.adventureLogManager.unlockOracle(orc.id);
-                                if (isNew) {
-                                    this._emitAdventureLogUnlocked({
-                                        category: 'oracle',
-                                        id: orc.id,
-                                        title: orc.title,
-                                        text: orc.text,
-                                        textJa: orc.translatedText
-                                    });
-                                }
-                            }
+                            this._handleOracleUnlock(loreSignal);
                         }
                     }
                 }
             }
         });
+
+        // 2.2 テキストウィンドウ受信時の LORE (神託/噂) 検知 ＆ 冒険手帳アンロック
+        const handleTextWindowContent = ({ lines, rawLines, rawText }) => {
+            if (!this.loreDetector) return;
+            const textToProcess = rawText || (rawLines ? rawLines.join('\n') : (lines ? lines.join('\n') : ''));
+            if (!textToProcess || !textToProcess.trim()) return;
+
+            const loreSignal = this.loreDetector.processMessage(textToProcess);
+            if (loreSignal && loreSignal.matched) {
+                if (!loreSignal.rawPrompt) {
+                    loreSignal.rawPrompt = textToProcess;
+                }
+                core.emit('situationSignal', { type: 'LORE', signal: loreSignal });
+                core.emit('signal', loreSignal);
+                core.emit(`signal:${loreSignal.signalId}`, loreSignal);
+                core.emit('loreSignal', loreSignal);
+
+                // 🏛️ 冒険手帳: 神託のアンロック (一括/安全ハンドリング)
+                if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE' && this.adventureLogManager) {
+                    this._handleOracleUnlock(loreSignal);
+                }
+
+                // 📖 冒険手帳: 噂のアンロック
+                if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR' && loreSignal.rumorId && this.adventureLogManager) {
+                    const isNew = this.adventureLogManager.unlockRumor(loreSignal.rumorId);
+                    if (isNew) {
+                        this._emitAdventureLogUnlocked({
+                            category: 'rumor',
+                            id: loreSignal.rumorId,
+                            text: loreSignal.text,
+                            textJa: loreSignal.translatedText,
+                            isTrue: loreSignal.isTrue
+                        });
+                    }
+                }
+            }
+        };
+
+        addCoreListener('textWindowContent', handleTextWindowContent);
 
         // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算
         addCoreListener('inventoryStateUpdated', (invMgr) => {
@@ -1091,19 +1141,23 @@ export class GKLPlugin {
         });
 
         addCoreListener('signal:SIGNAL_LORE_ORACLE', (sig) => {
-            if (this.loreCodex && typeof this.loreCodex.addOracle === 'function' && sig) {
+            if (this.loreCodex && sig) {
                 const oracles = Array.isArray(sig.detectedOracles) && sig.detectedOracles.length > 0
                     ? sig.detectedOracles
                     : (sig.oracleId ? [sig] : []);
 
-                for (const orc of oracles) {
-                    this.loreCodex.addOracle({
-                        id: orc.id || orc.oracleId,
-                        title: orc.title,
-                        text: orc.text,
-                        translatedText: orc.translatedText,
-                        isSpecial: orc.isSpecial || sig.isSpecial
-                    });
+                if (typeof this.loreCodex.addOracles === 'function' && oracles.length > 1) {
+                    this.loreCodex.addOracles(oracles);
+                } else if (typeof this.loreCodex.addOracle === 'function') {
+                    for (const orc of oracles) {
+                        this.loreCodex.addOracle({
+                            id: orc.id || orc.oracleId,
+                            title: orc.title,
+                            text: orc.text,
+                            translatedText: orc.translatedText,
+                            isSpecial: orc.isSpecial || sig.isSpecial
+                        });
+                    }
                 }
             }
         });
@@ -1111,6 +1165,59 @@ export class GKLPlugin {
         addCoreListener('signal:SIGNAL_LORE_ENGRAVE', (sig) => {
             this._handleEngraveSignal(sig);
         });
+    }
+
+    /**
+     * 神託（Oracle）アンロックの一括/安全ハンドリング
+     * 複数件の神託が開示された場合でも、ストレージ保存とUI通知を1回のみに集約してOOMを防ぐ
+     * @param {Object} loreSignal
+     * @private
+     */
+    _handleOracleUnlock(loreSignal) {
+        if (!loreSignal || !this.adventureLogManager) return;
+
+        const isBulk = Boolean(loreSignal.isBulk || loreSignal.isMajorConsultation || (Array.isArray(loreSignal.detectedOracles) && loreSignal.detectedOracles.length > 1));
+
+        if (isBulk) {
+            // 大予言（複数または全神託）の一括アンロック
+            const res = typeof this.adventureLogManager.unlockAllOracles === 'function'
+                ? this.adventureLogManager.unlockAllOracles(null)
+                : { count: 0, isNew: false };
+
+            // LoreCodex にも全神託を一括登録
+            if (this.loreCodex && typeof this.loreCodex.addOracles === 'function' && LORE_MASTER?.oracles) {
+                this.loreCodex.addOracles(LORE_MASTER.oracles);
+            }
+
+            if (res.isNew) {
+                this._emitAdventureLogUnlocked({
+                    category: 'oracle',
+                    isBulk: true,
+                    count: res.count,
+                    id: 'oracle_all',
+                    title: 'The Great Oracle',
+                    titleJa: '神託所の大預言',
+                    text: 'The Oracle has revealed prophecies of the dungeon.',
+                    textJa: 'オラクルはダンジョンの大予言を告げた。'
+                });
+            }
+        } else {
+            // 単一神託のアンロック
+            const oracleId = loreSignal.oracleId || (loreSignal.detectedOracles?.[0]?.id);
+            if (oracleId) {
+                const isNew = this.adventureLogManager.unlockOracle(oracleId);
+                if (isNew) {
+                    const orc = loreSignal.detectedOracles?.[0] || loreSignal;
+                    this._emitAdventureLogUnlocked({
+                        category: 'oracle',
+                        id: oracleId,
+                        title: orc.title || 'Oracle Prophecy',
+                        text: orc.text || '',
+                        textJa: orc.translatedText || orc.textJa || ''
+                    });
+                }
+            }
+        }
     }
 
     /**
@@ -1785,7 +1892,7 @@ export class GKLPlugin {
      * @param {Object} [options={}] - オプション
      */
     executeAction(action, options = {}) {
-        if (!action || !this.core) return false;
+        if (!action || !this.core || this._isPlayerDead) return false;
         //console.log(`[GKLPlugin] 🎯 executeAction: id=${action.id}, hasRecipe=${Boolean(action.actionRecipe || action.recipe)}, hasKeySeq=${Boolean(action.keySequence)}`);
 
         // ⚔️ 攻撃アクション時の演出イベント (ATTACK_HIT) 発火

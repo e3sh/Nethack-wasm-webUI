@@ -12292,6 +12292,8 @@ function nhEntities() {
         "ettin zombies": "エティンのゾンビ",
         "geometric": "幾何学的",
         "temple": "寺院",
+        "birds of paradise": "ゴクラクチョウ（極楽鳥）",
+        "toucans": "オオハシ",
         "jumbo shrimp": "ジャンボエビ",
         "giant pigmy": "巨大なブタ",
         "gnu": "ヌー",

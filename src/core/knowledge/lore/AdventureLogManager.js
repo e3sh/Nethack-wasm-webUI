@@ -19,7 +19,38 @@ import { findLoreForEntity } from './LoreEntityCrossReference.js';
 export const GLYPH_OFFSET_MONSTER = 0;
 export const GLYPH_OFFSET_OBJECT = 3448;
 
+let _defaultInstance = null;
+
 export class AdventureLogManager {
+    /**
+     * 共有シングルトンインスタンスの取得
+     * @param {Object} [options]
+     * @returns {AdventureLogManager}
+     */
+    static getInstance(options = {}) {
+        if (!_defaultInstance) {
+            _defaultInstance = new AdventureLogManager(options);
+            if (typeof window !== 'undefined') {
+                window.__nh_adventure_log_mgr = _defaultInstance;
+            }
+        }
+        return _defaultInstance;
+    }
+
+    /**
+     * シングルトンインスタンスのリセット（テスト・再初期化用）
+     */
+    static resetInstance() {
+        _defaultInstance = null;
+        if (typeof window !== 'undefined') {
+            try {
+                delete window.__nh_adventure_log_mgr;
+            } catch (e) {
+                window.__nh_adventure_log_mgr = null;
+            }
+        }
+    }
+
     /**
      * @param {Object} [options]
      * @param {AdventureLogStorage} [options.storage] - カスタムストレージ
@@ -260,6 +291,39 @@ export class AdventureLogManager {
     }
 
     /**
+     * アイテムの複数一括アンロック (初期所持品同期・一括識別用)
+     * ストレージ保存およびイベント通知を1回に集約して高パフォーマンスに処理する。
+     * @param {Array<number|string>} identifiers - onum またはアイテム真名の配列
+     * @returns {{ count: number, isNew: boolean, newOnums: Array<number> }}
+     */
+    unlockObjects(identifiers) {
+        if (!Array.isArray(identifiers) || identifiers.length === 0) {
+            return { count: 0, isNew: false, newOnums: [] };
+        }
+
+        const newOnums = [];
+        for (const id of identifiers) {
+            const onum = this._resolveObjectOnum(id);
+            if (onum === null || onum < 0 || onum >= OBJECT_KNOWLEDGE_MAP.size) continue;
+            if (this.unlockedObjects.has(onum)) continue;
+            this.unlockedObjects.add(onum);
+            this.newObjects.add(onum);
+            newOnums.push(onum);
+        }
+
+        if (newOnums.length > 0) {
+            this.save();
+            this._notify('OBJECTS_UNLOCKED_BATCH', { onums: newOnums, count: newOnums.length });
+        }
+
+        return {
+            count: newOnums.length,
+            isNew: newOnums.length > 0,
+            newOnums
+        };
+    }
+
+    /**
      * アイテムがアンロック済みか確認
      * @param {number|string} identifier
      * @returns {boolean}
@@ -333,6 +397,37 @@ export class AdventureLogManager {
         this.save();
         this._notify('ORACLE_UNLOCKED', { oracleId });
         return true;
+    }
+
+    /**
+     * 神託の全件一括アンロック（大予言受託時用）
+     * 複数件の神託をストレージ保存・イベント発火1回のみで安全に一括登録する。
+     * @param {Array<string>} [oracleIds] - アンロック対象のIDリスト（省略時は全20件）
+     * @returns {{ count: number, isNew: boolean }}
+     */
+    unlockAllOracles(oracleIds = null) {
+        const ids = Array.isArray(oracleIds) && oracleIds.length > 0
+            ? oracleIds
+            : (LORE_MASTER?.oracles ? LORE_MASTER.oracles.map(o => o.id) : []);
+
+        let newlyUnlockedCount = 0;
+        for (const id of ids) {
+            if (id && !this.unlockedOracles.has(id)) {
+                this.unlockedOracles.add(id);
+                this.newOracles.add(id);
+                newlyUnlockedCount++;
+            }
+        }
+
+        if (newlyUnlockedCount > 0) {
+            this.save();
+            this._notify('ORACLE_UNLOCKED_ALL', { count: newlyUnlockedCount, total: this.unlockedOracles.size });
+        }
+
+        return {
+            count: newlyUnlockedCount,
+            isNew: newlyUnlockedCount > 0
+        };
     }
 
     /**

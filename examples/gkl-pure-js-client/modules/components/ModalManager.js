@@ -2107,11 +2107,28 @@ export class ModalManager {
 
     const deathText = result.translatedDeath || result.deathMessage || result.death || 'Unknown causes';
     const scoreText = result.finalScore !== undefined ? result.finalScore : 0;
+    const isEn = this.currentLanguage === 'en';
+    let modeNoticeHtml = '';
+    if (result.isExploreMode) {
+      modeNoticeHtml = `
+        <div class="non-scoring-notice" style="background: rgba(243, 156, 18, 0.15); border-left: 3px solid #f39c12; padding: 8px 12px; margin: 10px 0; font-size: 0.9em; color: #f39c12; border-radius: 4px;">
+          ${isEn ? '🔍 Since you were in discover mode, the score list was not checked.' : '🔍 探索モード（Explore）のため、公式スコアボードには登録されません。'}
+        </div>
+      `;
+    } else if (result.isWizardMode) {
+      modeNoticeHtml = `
+        <div class="non-scoring-notice" style="background: rgba(231, 76, 60, 0.15); border-left: 3px solid #e74c3c; padding: 8px 12px; margin: 10px 0; font-size: 0.9em; color: #e74c3c; border-radius: 4px;">
+          ${isEn ? '🧙 Since you were in wizard mode, the score list was not checked.' : '🧙 デバッグモード（Wizard）のため、公式スコアボードには登録されません。'}
+        </div>
+      `;
+    }
+
     if (this.elGameOverSummary) {
       this.elGameOverSummary.innerHTML = `
         <p><strong>Player:</strong> ${result.playerName || 'Hero'}</p>
         <p><strong>Result:</strong> ${deathText}</p>
         <p><strong>Final Score:</strong> <span style="color:var(--accent-gold); font-size:1.1em;">${scoreText}</span></p>
+        ${modeNoticeHtml}
       `;
     }
 

@@ -397,7 +397,7 @@ export class NhCodexGrid extends NhBaseElement {
     connectedCallback() {
         super.connectedCallback();
         if (!this.manager) {
-            this.manager = new AdventureLogManager();
+            this.manager = AdventureLogManager.getInstance();
         }
         this.unsubscribe = this.manager.subscribe(() => {
             this.render();

@@ -91,6 +91,15 @@ export class AdventureLogToast {
             title = isEn ? `📜 Rumor Recorded (${isTrue ? 'True' : 'False'})` : `📜 噂を記録 (${isTrue ? '真実' : '偽り'})`;
             detail = isEn ? (eventData.text || '') : (eventData.textJa || eventData.text || '');
             if (detail.length > 45) detail = detail.substring(0, 42) + '...';
+        } else if (eventData.category === 'oracle') {
+            icon = '🏛️';
+            title = isEn ? '🏛️ Oracle Prophecies Recorded' : '🏛️ オラクルの神託を記録';
+            if (eventData.isBulk) {
+                detail = isEn ? `Revealed ${eventData.count || 20} prophecies!` : `ダンジョンの大予言（全${eventData.count || 20}篇）を記録しました！`;
+            } else {
+                detail = isEn ? (eventData.title || eventData.text || '') : (eventData.textJa || eventData.titleJa || eventData.title || eventData.text || '');
+                if (detail.length > 45) detail = detail.substring(0, 42) + '...';
+            }
         }
 
         this._createToast(icon, title, detail, eventData, glyphId);
@@ -151,27 +160,45 @@ export class AdventureLogToast {
             this._dismissToast(toast);
         });
 
-        // 既存トーストが最大数を超えたら古いものを消す
-        while (this.toastWrapper.children.length >= this.maxVisible) {
-            this._dismissToast(this.toastWrapper.children[0]);
+        // 既存トーストが最大数以上ある場合は、古いものを即時除去して表示上限を維持
+        const activeToasts = Array.from(this.toastWrapper.children).filter(el => !el.dataset.dismissing);
+        if (activeToasts.length >= this.maxVisible) {
+            const countToRemove = activeToasts.length - this.maxVisible + 1;
+            for (let i = 0; i < countToRemove; i++) {
+                const oldToast = activeToasts[i];
+                oldToast.dataset.dismissing = 'true';
+                this._dismissToast(oldToast, true);
+            }
         }
 
         this.toastWrapper.appendChild(toast);
 
         // 表示アニメーション（次フレーム）
-        requestAnimationFrame(() => {
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0) scale(1)';
+            });
+        } else {
             toast.style.opacity = '1';
             toast.style.transform = 'translateY(0) scale(1)';
-        });
+        }
 
         // 自動フェードアウト
         setTimeout(() => {
-            this._dismissToast(toast);
+            this._dismissToast(toast, false);
         }, this.displayDurationMs);
     }
 
-    _dismissToast(toast) {
+    _dismissToast(toast, immediate = false) {
         if (!toast || !toast.parentNode) return;
+        toast.dataset.dismissing = 'true';
+        if (immediate) {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+            return;
+        }
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(-10px) scale(0.95)';
         setTimeout(() => {

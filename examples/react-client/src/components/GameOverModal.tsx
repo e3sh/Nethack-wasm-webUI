@@ -47,6 +47,17 @@ export const GameOverModal: React.FC = () => {
           <p>{deathMessage}</p>
         </div>
 
+        {gameOverResult?.isExploreMode && (
+          <div className="non-scoring-notice" style={{ background: 'rgba(243, 156, 18, 0.15)', borderLeft: '4px solid #f39c12', padding: '8px 12px', margin: '8px 0', fontSize: '13px', color: '#f39c12' }}>
+            🔍 探索モード（Discover Mode）のため、スコアボードへの登録は行われません。
+          </div>
+        )}
+        {gameOverResult?.isWizardMode && (
+          <div className="non-scoring-notice" style={{ background: 'rgba(231, 76, 60, 0.15)', borderLeft: '4px solid #e74c3c', padding: '8px 12px', margin: '8px 0', fontSize: '13px', color: '#e74c3c' }}>
+            🧙 デバッグモード（Wizard Mode）のため、スコアボードへの登録は行われません。
+          </div>
+        )}
+
         {topScores.length > 0 && (
           <div className="scoreboard">
             <h3>🏆 Top 10 Hall of Fame</h3>

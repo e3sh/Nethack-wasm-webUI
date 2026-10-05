@@ -398,8 +398,12 @@ class GklPureJSClient {
         }
       });
     }
-    this.initLayoutConfig();
     this.initCore();
+    const alm = this.core?.getAdventureLogManager?.();
+    if (this.codexModal && alm) {
+      this.codexModal.setAdventureLogManager(alm);
+    }
+    this.initLayoutConfig();
     this.codexModal?.init();
     this.bindCoreEvents();
     this.bindDOMEvents();
@@ -603,6 +607,13 @@ class GklPureJSClient {
         sysMsg = isEn ? `📖 [Adventure Log] New item obtained: ${name}` : `📖 [冒険手帳] 新アイテム入手: ${name} を記録しました`;
       } else if (data.category === 'rumor') {
         sysMsg = isEn ? `📜 [Adventure Log] Recorded new rumor into Codex!` : `📜 [冒険手帳] 新たな噂を手帳に記録しました`;
+      } else if (data.category === 'oracle') {
+        if (data.isBulk) {
+          sysMsg = isEn ? `🏛️ [Adventure Log] Recorded Oracle's prophecies!` : `🏛️ [冒険手帳] オラクルの大予言を手帳に記録しました！`;
+        } else {
+          const title = isEn ? (data.title || 'Prophecy') : (data.titleJa || data.title || '神託');
+          sysMsg = isEn ? `🏛️ [Adventure Log] Recorded prophecy: ${title}` : `🏛️ [冒険手帳] 神託を記録しました: ${title}`;
+        }
       }
 
       if (sysMsg) {

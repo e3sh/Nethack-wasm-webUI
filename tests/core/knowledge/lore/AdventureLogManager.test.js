@@ -295,6 +295,31 @@ describe('AdventureLogManager', () => {
             expect(progress.oracles.isGuideMode).toBe(true);
             expect(progress.oracles.unlocked).toBe(20);
         });
+
+        it('unlockObjects で複数アイテムを一括アンロックできること', () => {
+            const res = manager.unlockObjects([1, 2, 3, 'dagger']);
+            expect(res.isNew).toBe(true);
+            expect(res.count).toBeGreaterThan(0);
+            expect(manager.isObjectUnlocked(1)).toBe(true);
+            expect(manager.isObjectUnlocked(2)).toBe(true);
+            expect(manager.isObjectUnlocked(3)).toBe(true);
+
+            // 重複投入時は新規カウント0
+            const res2 = manager.unlockObjects([1, 2]);
+            expect(res2.isNew).toBe(false);
+            expect(res2.count).toBe(0);
+        });
+
+        it('getInstance と resetInstance でシングルトン管理が正常に動作すること', () => {
+            AdventureLogManager.resetInstance();
+            const inst1 = AdventureLogManager.getInstance();
+            const inst2 = AdventureLogManager.getInstance();
+            expect(inst1).toBe(inst2);
+
+            AdventureLogManager.resetInstance();
+            const inst3 = AdventureLogManager.getInstance();
+            expect(inst3).not.toBe(inst1);
+        });
     });
 });
 

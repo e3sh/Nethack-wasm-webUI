@@ -634,6 +634,98 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             expect(fxListener).not.toHaveBeenCalled();
         });
 
+        it('プレイヤー死亡時 (isPlayerDead) はモンスターへの移動操作でも ATTACK_HIT が発火しないこと', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー位置 (10, 5)
+            mockCore.emit('curs', { x: 10, y: 5 });
+            // 東マス (11, 5) にモンスターを配置
+            mockCore.emit('print_glyph', { x: 11, y: 5, glyph: 100 });
+
+            // 死亡メッセージ受信でプレイヤー死亡状態にする
+            mockCore.emit('messageText', { text: "You die... Do you want your possessions identified?" });
+            expect(plugin._isPlayerDead).toBe(true);
+
+            fxListener.mockClear();
+
+            // 墓になった状態で東方向 ('l') への移動操作
+            mockCore.emit('userActionSent', { sequence: ['l'] });
+
+            // 死亡中なので ATTACK_HIT は発火しないこと
+            expect(fxListener).not.toHaveBeenCalled();
+        });
+
+        it('店主 (Shopkeeper) または平和的NPC (Oracle等、defaultPeaceful含む) への移動操作時は ATTACK_HIT が発火しないこと', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const fxListener = vi.fn();
+            mockCore.on('fx_trigger', fxListener);
+            plugin.attach(mockCore);
+
+            // プレイヤー位置 (10, 5)
+            mockCore.emit('curs', { x: 10, y: 5 });
+
+            // 1. 東マス (11, 5) に店主を配置
+            mockCore.emit('print_glyph', {
+                x: 11,
+                y: 5,
+                glyph: 100,
+                glyphInfo: { name: 'shopkeeper', isShopkeeper: true }
+            });
+
+            // 店主方向 ('l') への移動操作
+            mockCore.emit('userActionSent', { sequence: ['l'] });
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 2. 西マス (9, 5) にオラクルの巫女 (Oracle: monOffset 274) を配置
+            // ※ 実機同様、glyphInfo に isPeaceful: true は含まれていない
+            mockCore.emit('print_glyph', {
+                x: 9,
+                y: 5,
+                glyph: 274,
+                glyphInfo: { name: 'Oracle', monOffset: 274 }
+            });
+
+            // オラクル方向 ('h') への移動操作
+            mockCore.emit('userActionSent', { sequence: ['h'] });
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 3. 北マス (10, 4) に Look により dynamicState.isPeaceful が判明したモンスターを配置
+            mockCore.emit('print_glyph', {
+                x: 10,
+                y: 4,
+                glyph: 50,
+                glyphInfo: { name: 'human' }
+            });
+            const northCell = plugin.areaStateManager.grid[4][10];
+            northCell.top.dynamicState = { hasResult: true, isPeaceful: true };
+
+            // 北方向 ('k') への移動操作
+            mockCore.emit('userActionSent', { sequence: ['k'] });
+            expect(fxListener).not.toHaveBeenCalled();
+
+            // 4. 南マス (10, 6) に敵対化したオラクル (isHostile: true) を配置した場合は ATTACK_HIT が発火すること
+            mockCore.emit('print_glyph', {
+                x: 10,
+                y: 6,
+                glyph: 274,
+                glyphInfo: { name: 'Oracle', monOffset: 274, isHostile: true }
+            });
+
+            mockCore.emit('userActionSent', { sequence: ['j'] });
+            expect(fxListener).toHaveBeenCalledTimes(1);
+            expect(fxListener).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'ATTACK_HIT',
+                targetX: 10,
+                targetY: 6
+            }));
+        });
+
+
         it('executeAction による攻撃アクション実行時に ATTACK_HIT が発行されること', () => {
             const plugin = new GKLPlugin();
             const mockCore = createMockCore();
@@ -1083,6 +1175,42 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             const found = oracles.find(o => o.id === 'test_oracle_001');
             expect(found).toBeDefined();
             expect(found.isSpecial).toBe(true);
+        });
+
+        it('テキストウィンドウ (textWindowContent) 受信時に神託が検知され冒険手帳 (AdventureLog) に安全に一括アンロックされること（OOM防止：イベント発行は1回のみ）', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            const unlockSpy = vi.fn();
+            mockCore.on('adventureLogUnlocked', unlockSpy);
+            plugin.attach(mockCore);
+
+            // シナリオ Oracles_1791173139967.json 由来の大予言ウィンドウテキスト
+            const rawOracleWindowText = [
+                "The Oracle scornfully takes all your gold and says:",
+                "",
+                "There are many stories of a mighty amulet, the origins of which are said",
+                "to be ancient Yendor.  This amulet doth have awesome power, and the gods",
+                "desire it greatly.  Mortals mayst tap only portions of its terrible abilities."
+            ].join('\n');
+
+            mockCore.emit('textWindowContent', {
+                windowId: 5,
+                rawText: rawOracleWindowText
+            });
+
+            // OOM 防止のため、20重発火ではなく 1回のみ 集約発行されること
+            expect(unlockSpy).toHaveBeenCalledTimes(1);
+            const eventPayload = unlockSpy.mock.calls[0][0];
+            expect(eventPayload.category).toBe('oracle');
+            expect(eventPayload.isBulk).toBe(true);
+
+            // 冒険手帳で全神託がアンロック済みになっていること
+            const alm = plugin.getAdventureLogManager();
+            expect(alm.unlockedOracles.size).toBeGreaterThanOrEqual(20);
+
+            // LoreCodex にも全神託が追加されていること
+            const codexOracles = plugin.getCodex().getOracles();
+            expect(codexOracles.length).toBeGreaterThanOrEqual(20);
         });
 
         it('signal:SIGNAL_LORE_ENGRAVE を購読して結界状態更新、AreaStateManagerキャッシュ、床文字コレクション登録が行われること', () => {
