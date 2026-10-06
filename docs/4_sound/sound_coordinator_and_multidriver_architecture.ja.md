@@ -36,7 +36,7 @@ NetHack WASM WebUI の音響システムは、ROADMAP 1.2 Stage 5.4（決定論�
    - 再生モード統括（Auto / Wave / Beep / Mute の判定とフォールバック順序の決定）
 3. **物理音響駆動（Driver / Backend）責務**:
    - Waveファイル再生（Howler.js / HTML5 Audio、HEAD探査、404ブラックリスト）
-   - レトロ 8-bit PSG 音源（Beepcore、矩形波発振、周波数変換）
+   - レトロ 8-bit PSG 音源（Web Audio 矩形波発振、周波数変換、LFO ビブラート）
    - Web Audio API 多段オシレーター合成（LFO、Gain、変調接続、急激ピッチベンド、和音発振）
 
 ### 顕在化した問題点
@@ -80,7 +80,7 @@ graph TD
 
     subgraph AudioDrivers["音響駆動ドライバ層 (Audio Drivers)"]
         WaveDriver["WaveAudioDriver<br>・Howler.js / HTML5 Audio<br>・HEAD 探査 & 404 キャッシュ"]
-        BeepDriver["PsgBeepDriver<br>・8-bit レトロ PSG 音源<br>・Beepcore (sys/coremin.js)"]
+        BeepDriver["PsgBeepDriver<br>・8-bit レトロ PSG 音源<br>・Web Audio + LFO ビブラート"]
         SynthDriver["ProceduralSynthDriver<br>・Web Audio API オシレーター合成<br>・FM/AM/和音/ピッチベンド/パルス"]
     end
 
@@ -167,7 +167,7 @@ class BaseAudioDriver {
 #### ② `PsgBeepDriver`
 - **責務**: 8-bit レトロ PSG（プログラマブル・サウンド・ジェネレータ）効果音の再生。
 - **機能**:
-  - `sys/coremin.js` の `Beepcore` があれば PSG 音源モードを使用。
+  - Web Audio API のオシレーターで PSG 風 Beep 音を合成（`lfo` 指定時はビブラートを付与）。
   - なければ Web Audio API の標準矩形波オシレーターにフォールバック。
 
 #### ③ `ProceduralSynthDriver`

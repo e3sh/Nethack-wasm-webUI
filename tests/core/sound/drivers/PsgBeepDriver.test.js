@@ -32,47 +32,7 @@ describe('PsgBeepDriver Tests', () => {
         expect(driver._noteToFreq('C4')).toBeCloseTo(261.63, 1);
     });
 
-    it('should play via window.Beepcore when available', () => {
-        let masterVolCalled = null;
-        let oscSetupCalled = null;
-        let lfoSetupCalled = false;
-        let notePlayCalled = false;
-
-        const mockNote = {
-            on: vi.fn(),
-            play: vi.fn(() => { notePlayCalled = true; })
-        };
-
-        const MockBeepcore = function() {
-            this.masterVolume = (v) => { masterVolCalled = v; };
-            this.oscSetup = (w) => { oscSetupCalled = w; };
-            this.lfoSetup = () => { lfoSetupCalled = true; };
-            this.lfoReset = vi.fn();
-            this.createNote = () => mockNote;
-            this.step = vi.fn();
-        };
-
-        global.window = {
-            Beepcore: MockBeepcore,
-            requestAnimationFrame: vi.fn()
-        };
-        global.performance = { now: () => 1000 };
-
-        const driver = new PsgBeepDriver({ volume: 60 });
-        driver.play({
-            notes: ['C4', 'E4'],
-            wave: 'square',
-            duration: 90,
-            lfo: { freq: 6, wave: 'sine', depth: 15 }
-        });
-
-        expect(masterVolCalled).toBeCloseTo(0.6 * 0.3);
-        expect(oscSetupCalled).toBe(1); // square is index 1
-        expect(lfoSetupCalled).toBe(true);
-        expect(notePlayCalled).toBe(true);
-    });
-
-    it('should fallback to Web Audio API when Beepcore is not available', () => {
+    it('should synthesize notes via Web Audio API', () => {
         const mockParam = () => ({
             value: 0,
             setValueAtTime: vi.fn(),
@@ -121,6 +81,33 @@ describe('PsgBeepDriver Tests', () => {
         expect(createdOscillators[0].start).toHaveBeenCalled();
     });
 
+    it('should add LFO vibrato oscillator when lfo is specified', () => {
+        const mockParam = () => ({ value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() });
+        const oscs = [];
+        const lfoConnect = [];
+        const MockAudioContext = class {
+            constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; }
+            createOscillator() {
+                const osc = { type: 'sine', frequency: mockParam(), connect: vi.fn(), start: vi.fn(), stop: vi.fn() };
+                oscs.push(osc);
+                return osc;
+            }
+            createGain() {
+                const g = { gain: mockParam(), connect: vi.fn((t) => lfoConnect.push(t)) };
+                return g;
+            }
+        };
+        global.window = { AudioContext: MockAudioContext };
+
+        const driver = new PsgBeepDriver({ volume: 80 });
+        driver.play({ notes: ['C4'], duration: 100, lfo: { freq: 7, wave: 'triangle', depth: 15 } });
+
+        // 1音につきキャリア + LFO の 2 オシレーター
+        expect(oscs.length).toBe(2);
+        expect(oscs[1].type).toBe('triangle');
+        expect(oscs[1].frequency.value).toBe(7);
+        expect(lfoConnect).toContain(oscs[0].frequency);
+    });
     it('should resume suspended AudioContext in unlockAudio', () => {
         let resumeCalled = false;
         const MockAudioContext = class {

@@ -360,7 +360,7 @@
                     <span class="tag-badge tag-inspect" style="background: rgba(227, 179, 65, 0.15); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.3);">LORE</span>
                 </a>
 
-                <a href="adventure_log.html" class="tool-card" target="_blank">
+                <a href="adventure_log.html?dev=1" class="tool-card" target="_blank">
                     <div>
                         <div class="tool-card-head">
                             <span class="tool-icon">📖</span>
@@ -398,28 +398,6 @@
                 </span>
             </summary>
             <div class="tools-grid" style="margin-top: 18px;">
-                <a href="../examples/legacy-client/rogue/mapping_tool.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">🎮</span>
-                            <span class="tool-name" id="t-gp-name">GP Mapping Tool</span>
-                        </div>
-                        <p class="tool-desc" id="t-gp-desc">USB/Bluetooth ゲームパッドのボタンマッピング割り当てツール</p>
-                    </div>
-                    <span class="tag-badge tag-settings">INPUT</span>
-                </a>
-
-                <a href="../examples/legacy-client/rogue/touch_mapping_tool.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">📱</span>
-                            <span class="tool-name" id="t-touch-name">Touch Mapping Tool</span>
-                        </div>
-                        <p class="tool-desc" id="t-touch-desc">スマホ・タブレット用バーチャル操作キーの配置・カスタマイズ</p>
-                    </div>
-                    <span class="tag-badge tag-settings">TOUCH</span>
-                </a>
-
                 <a href="tr_manager.html" class="tool-card" target="_blank">
                     <div>
                         <div class="tool-card-head">
@@ -440,17 +418,6 @@
                         <p class="tool-desc" id="t-trfail-desc">プレイ中に検出された未翻訳英語メッセージの自動ログ一覧</p>
                     </div>
                     <span class="tag-badge tag-trans">UNTRANSLATED</span>
-                </a>
-
-                <a href="tr_test.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">🧪</span>
-                            <span class="tool-name" id="t-trtest-name">Trans Tester</span>
-                        </div>
-                        <p class="tool-desc" id="t-trtest-desc">TranslationEngine の翻訳変換・動的パース精度検証テスター</p>
-                    </div>
-                    <span class="tag-badge tag-trans">TEST</span>
                 </a>
 
                 <a href="tr_log.html" class="tool-card" target="_blank">
@@ -597,10 +564,6 @@
 
             document.getElementById("t-sound-name").textContent = t.soundName;
             document.getElementById("t-sound-desc").textContent = t.soundDesc;
-            document.getElementById("t-gp-name").textContent = t.gpName;
-            document.getElementById("t-gp-desc").textContent = t.gpDesc;
-            document.getElementById("t-touch-name").textContent = t.touchName;
-            document.getElementById("t-touch-desc").textContent = t.touchDesc;
             document.getElementById("t-save-name").textContent = t.saveName;
             document.getElementById("t-save-desc").textContent = t.saveDesc;
 
@@ -622,8 +585,6 @@
             document.getElementById("t-trmgr-desc").textContent = t.trmgrDesc;
             document.getElementById("t-trfail-name").textContent = t.trfailName;
             document.getElementById("t-trfail-desc").textContent = t.trfailDesc;
-            document.getElementById("t-trtest-name").textContent = t.trtestName;
-            document.getElementById("t-trtest-desc").textContent = t.trtestDesc;
             document.getElementById("t-trlog-name").textContent = t.trlogName;
             document.getElementById("t-trlog-desc").textContent = t.trlogDesc;
 

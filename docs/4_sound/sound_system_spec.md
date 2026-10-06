@@ -38,7 +38,7 @@ flowchart TD
     B -->|"2. 英語原文 & 翻訳日本語テキストを取得"| C["SoundManager.js"]
     C -->|"3. sound_mapping.json と正規表現マッチ"| D{"Sound Mode Selection"}
     D -->|"Wave Mode / File"| E["Audio Asset Player (WAV/MP3)"]
-    D -->|"Beep Mode / Fallback"| F["Beepcore Synth (sys/coremin.js) / Web Audio API"]
+    D -->|"Beep Mode / Fallback"| F["Web Audio API (PsgBeepDriver)"]
     E --> G["スピーカー / イヤホン"]
     F --> G
     
@@ -59,8 +59,8 @@ flowchart TD
    * クライアント動作環境（Autoplay 規制）に応じた `AudioContext.resume()` の制御。
 
 3. **Hybrid Audio Engine**
-   * **Wave Engine**: `assets/sounds/` 内の WAV/MP3 アセットを低遅延再生。ロード失敗時には自動で Beep 合成音へフォールバックします。
-   * **Beep Engine**: `sys/coremin.js` 内の `Beepcore` クラスを利用した 8bit レトロシンセサイザー音源。Web Audio API オシレーターおよび LFO (ビブラート) 機能により、アセット不要で表現力豊かな合成音を生成します。
+   * **Wave Engine**: `assets/sounds/` 内の WAV/MP3 アセットを低遅延再生。ロード失敗時には自動で Beep 合成音へフォールバックします。なお、同梱の音声ファイルは整理済みで、現在 `assets/sounds/` は同梱していません。通常は Auto モードの合成音（Synth / Beep）で鳴り、ユーザーが `sound` で指定したファイルを置いた場合のみ Wave 再生されます。
+   * **Beep Engine**: `PsgBeepDriver` による 8bit レトロシンセサイザー音源。Web Audio API オシレーターおよび LFO (ビブラート) 機能により、アセット不要で表現力豊かな合成音を生成します。
 
 ---
 
@@ -74,7 +74,7 @@ flowchart TD
 | :--- | :--- | :--- |
 | `auto` | **標準 (Auto / Hybrid)** | ルールに WAV ファイルがある場合は WAV、無い場合は Beep 合成音を再生（自動フォールバック対応）。 |
 | `wave` | **オーディオファイル** | WAV/MP3 オーディオファイルのみを再生（ロード失敗時のみ Beep にフォールバック）。 |
-| `beep` | **Beep合成音** | すべての効果音を `Beepcore` / Web Audio API の 8bit レトロ合成音で発声。 |
+| `beep` | **Beep合成音** | すべての効果音を Web Audio API の 8bit レトロ合成音で発声。 |
 | `mute` | **OFF (消音)** | 効果音の発生をすべてスキップ。（**初回起動時のデフォルト設定**） |
 
 ### 3.2. 独立音量ゲイン制御 (バランス補正)
@@ -201,7 +201,7 @@ $$\text{Beep最終音量} = \left(\frac{\text{rule.volume}}{100}\right) \times \
 * **独立音量バランス調整スライダー**: `WAV Balance Gain` (0%〜200%) および `Beep Balance Gain` (0%〜200%) を耳で聴きながらリアルタイムに微調整・保存可能。
 * **MML (Music Macro Language) 入力再生テスト**: MML 文字列（`T180 O4 L8 C E G O5 C.` 等）を入力してその場でパーサーの再生結果や変速挙動を即座に試聴可能。ファンファーレやアルペジオ等のワンタッチプリセット機能付き。
 * **登録済みルール一覧＆試聴**: 登録されている全ルールの `Auto`, `Beep`, `Wave` 音を個別に試聴可能（マスター音量およびバランスゲインが適用されます）。
-* **Beepcore 生音シンセサイザー & LFO テスト**: 音階ノート（`C4`, `E4`, `G4` 等）や波形に加え、LFO (速度Hz, 深さ, 波形) を有効化して動的にビブラート合成音を試聴・実験可能。
+* **Beep 生音シンセサイザー & LFO テスト**: 音階ノート（`C4`, `E4`, `G4` 等）や波形に加え、LFO (速度Hz, 深さ, 波形) を有効化して動的にビブラート合成音を試聴・実験可能。
 * **AudioContext ステータスモニタリング**: ブラウザの自動再生ロック状態（`running` / `suspended`）を可視化し、ワンクリックでアンロック可能。
 
 ---

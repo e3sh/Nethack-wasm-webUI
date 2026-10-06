@@ -43,7 +43,7 @@ last_updated: 2026-10-01
 - **ステータス**: `🟢 implemented` (実装完了, 2026-10-02)
 - **設計書**: [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md)
 - **最優先着手理由**:
-  - Stage 5.4（決定論的SE・スタガード遅延）および Stage 5.6（動的音程シンセシス）の完了に伴い、`SoundEngine.js` に「入力トリガー受付・照合」「調停・仲裁（優先度・キュー・クールダウン）」「物理音響駆動（Howler/WebAudio/Beepcore）」の3大責務が過密集中。
+  - Stage 5.4（決定論的SE・スタガード遅延）および Stage 5.6（動的音程シンセシス）の完了に伴い、`SoundEngine.js` に「入力トリガー受付・照合」「調停・仲裁（優先度・キュー・クールダウン）」「物理音響駆動（Howler/WebAudio）」の3大責務が過密集中。
   - カタログ試聴時のシンセシス漏れやモード判定の分散を根絶し、疎結合なプラガブル・マルチドライバ構成を確立する。
 - **アーキテクチャ3層モデル**:
   - **システム単一窓口 (`SoundCoordinator` / `SoundEngine`)**: 外部（WebUICore, UI, テスト）からは完全互換の単一ファサードのみが見える構造を維持。

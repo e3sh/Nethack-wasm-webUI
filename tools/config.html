@@ -319,8 +319,10 @@
             border-color: rgba(63, 185, 80, 0.2);
         }
     </style>
-    <script type="text/javascript" src="../sys/coremin.js"></script>
-    <script type="text/javascript" src="../examples/legacy-client/rogue/SoundManager.js"></script>
+    <script type="module">
+        import { SoundCoordinator } from "../src/core/sound/SoundCoordinator.js";
+        window.soundCoordinator = new SoundCoordinator({ soundDir: "../assets/sounds/" });
+    </script>
     <script type="text/javascript">
         // 設定のデフォルト値
         const DEFAULT_CONFIG = {
@@ -420,33 +422,25 @@
         }
 
         function test_sound() {
-            if (window.SoundManager) {
-                window.SoundManager.unlockAudio();
-                const mode = document.getElementById("sound_mode").value;
-                const vol = parseInt(document.getElementById("sound_volume").value, 10);
-                window.SoundManager.setMode(mode);
-                window.SoundManager.setVolume(vol);
+            const sc = window.soundCoordinator;
+            if (!sc) return;
+            sc.unlockAudio();
+            const mode = document.getElementById("sound_mode").value;
+            const vol = parseInt(document.getElementById("sound_volume").value, 10);
+            sc.setSoundMode(mode);
+            sc.setVolume(vol);
 
-                if (mode === "mute") return;
+            if (mode === "mute") return;
 
-                if (mode === "beep") {
-                    window.SoundManager.playBeep({ notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 }, vol);
-                } else if (mode === "wave") {
-                    window.SoundManager.playWave("welcome.mp3", vol, () => {
-                        window.SoundManager.playBeep({ notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 }, vol);
-                    });
-                } else { // auto
-                    window.SoundManager.playSoundRule({
-                        id: "se_test",
-                        pattern: ".*",
-                        sound: "welcome.mp3",
-                        beep: { notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 },
-                        volume: 100
-                    });
-                }
+            const beep = { notes: ["C5", "E5", "G5", "C6"], wave: "square", duration: 80 };
+            if (mode === "beep") {
+                sc.playBeep(beep);
+            } else if (mode === "wave") {
+                sc.playAudioFile("welcome.mp3").then(ok => { if (!ok) sc.playBeep(beep); });
+            } else { // auto: Arbiter が wave -> beep の順で調停
+                sc.playSoundByRule({ id: "se_test", sound: "welcome.mp3", beep: beep, priority: 5, cooldownMs: 0 });
             }
         }
-
         function saveCurrentConfig() {
             const soundModeEl = document.getElementById("sound_mode");
             const soundVolEl = document.getElementById("sound_volume");
@@ -470,8 +464,6 @@
         }
 
         function auto_start() {
-            if (window.SoundManager) window.SoundManager.init();
-
             const savedConfig = JSON.parse(localStorage.getItem("nh.config")) || DEFAULT_CONFIG;
 
             Object.keys(savedConfig).forEach(key => {
@@ -489,15 +481,15 @@
                 volVal.textContent = `${volEl.value}%`;
                 volEl.addEventListener("input", (e) => {
                     volVal.textContent = `${e.target.value}%`;
-                    if (window.SoundManager) window.SoundManager.setVolume(parseInt(e.target.value, 10));
+                    if (window.soundCoordinator) window.soundCoordinator.setVolume(parseInt(e.target.value, 10));
                     saveCurrentConfig();
                 });
             }
 
             const modeEl = document.getElementById("sound_mode");
-            if (modeEl && window.SoundManager) {
+            if (modeEl && window.soundCoordinator) {
                 modeEl.addEventListener("change", (e) => {
-                    window.SoundManager.setMode(e.target.value);
+                    window.soundCoordinator.setSoundMode(e.target.value);
                     saveCurrentConfig();
                 });
             }

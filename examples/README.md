@@ -31,7 +31,6 @@
 | **`examples/solid-client`** | SolidJS + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/solid-client/dist/index.html) | 2カラムUI、SolidJS Signals/Store によるリアクティブ連携、フォーカスカメラ |
 | **`examples/svelte-client`** | Svelte 4/5 + Vite + TypeScript | 【サンプル実装】 | [🎮 開く](https://e3sh.github.io/Nethack-wasm-webUI/examples/svelte-client/dist/index.html) | 2カラムUI、Svelte Writable Store による軽量リアクティブ連携、フォーカスカメラ |
 | **`examples/pure-js-client`** | Pure ES Modules JS + HTML5 Canvas | 【最小構成】 | - | フレームワーク非依存の最小構成 `WebUICore` 直用クライアント |
-| **`examples/legacy-client`** | Canvas 2D / Touch | 【旧仕様参考】 | - | 従来のクラシックタイル描画とモバイル用バーチャルパッド実装 |
 
 ---
 

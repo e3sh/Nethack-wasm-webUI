@@ -210,9 +210,9 @@ const core = new WebUICore({
 #### 🎮 GUI 設定ツールから設定する場合 (推奨)
 ブラウザ上で視覚的にコントローラーや仮想キーの割り当てを設定・保存できます。
 
-- **ゲームパッド設定ツール**: [`examples/legacy-client/rogue/mapping_tool.html`](../examples/legacy-client/rogue/mapping_tool.html)
+- **ゲームパッド設定ツール**: 旧クライアントと共に切り出し済み（`git show archive/legacy-client:examples/legacy-client/rogue/mapping_tool.html` で参照可能）
   - 接続した USB/Bluetooth ゲームパッドの各ボタン・スティックに NetHack のキー（方向キー、各種コマンド）を割り当てて `localStorage("nh.gpadAssign")` に保存します。
-- **タッチ操作マッピングツール**: [`examples/legacy-client/rogue/touch_mapping_tool.html`](../examples/legacy-client/rogue/touch_mapping_tool.html)
+- **タッチ操作マッピングツール**: 旧クライアントと共に切り出し済み（`archive/legacy-client` タグ内の `examples/legacy-client/rogue/touch_mapping_tool.html`）
   - スマホ・タブレット向けのバーチャル十字キーや操作ボタンの配置・カスタマイズを行います。
 
 #### プログラム・コード上で制御する場合
