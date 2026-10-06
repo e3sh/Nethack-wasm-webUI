@@ -17270,3 +17270,4 @@ Pattern,^The zap doesn't shock the (.*)!$,その電撃では$1は驚かない！
 Message,An urge to take a bath overwhelms you.,お風呂に入りたいという衝動に強く駆られます。,,
 Pattern,^You lost some of your gold in (.*)!$,$1に金貨をいくつか落としてしまいました！,,
 Message,You feel lackluster.,気分が盛り上がらない。,,
+Entity,orchids,ラン,,

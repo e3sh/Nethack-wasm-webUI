@@ -307,7 +307,7 @@ class GklPureJSClient {
     // 8.7 冒険手帳 リアルタイム発見HUDトースト通知 (AdventureLogToast)
     this.adventureLogToast = new AdventureLogToast({
       container: document.body,
-      tileImage: '../../pict/nethack_default_32.png',
+      tileImage: '../../pict/nethack_default_32_tr.png',
       onToastClick: () => {
         if (this.codexModal) {
           this.codexModal.open();

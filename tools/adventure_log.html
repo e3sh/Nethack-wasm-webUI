@@ -202,7 +202,7 @@
 
         if (grid) {
             grid.setManager(manager);
-            grid.setTileImage('../pict/nethack_default_32.png');
+            grid.setTileImage('../pict/nethack_default_32_tr.png');
 
             grid.addEventListener('entry-selected', (e) => {
                 const { entry, category, data } = e.detail;
@@ -227,7 +227,7 @@
                     adventureLogManager: manager,
                     currentLanguage: 'ja',
                     activeTab: cardOptions.activeTab || 'spec',
-                    tileImage: '../pict/nethack_default_32.png'
+                    tileImage: '../pict/nethack_default_32_tr.png'
                 });
 
                 // カード内の噂クリック時に手帳の噂タブ・該当項目へジャンプ

@@ -13449,6 +13449,7 @@ function nhEntities() {
         "Shadowhawk": "シャドウホーク",
         "tough": "固い",
         "palm trees": "ヤシの木",
+        "orchids": "ラン",
     };
 }
 
