@@ -934,6 +934,9 @@ export class GKLPlugin {
         const handlePlayerPosUpdate = (data) => {
             if (data && data.x !== undefined && data.y !== undefined) {
                 if (data.x >= 0 && data.x < 80 && data.y >= 0 && data.y < 21) {
+                    if (this.areaStateManager && typeof this.areaStateManager.seedInitialStair === 'function') {
+                        this.areaStateManager.seedInitialStair(data.x, data.y);
+                    }
                     this.areaStateManager.updatePlayerPosition(data.x, data.y);
                     if (this.interactionContext && typeof this.interactionContext.updatePlayerPosition === 'function') {
                         this.interactionContext.updatePlayerPosition(data.x, data.y);
@@ -947,7 +950,7 @@ export class GKLPlugin {
         // 5. ウィンドウ消去・マップリセットの同期
         addCoreListener('clear_nhwindow', (data) => {
             this._lastAttackTarget = null;
-            if (data && (data.windowId === 2 || data.windowId === 0)) {
+            if (data && (data.windowId === 3 || data.windowId === 2 || data.windowId === 0)) {
                 if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
                     this.areaStateManager.prepareFloorTransition();
                 } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
@@ -976,7 +979,7 @@ export class GKLPlugin {
             if (data) {
                 const gi = data.glyphInfo || data;
                 const glyphId = data.glyph !== undefined ? data.glyph : -1;
-                this.areaStateManager.updateGlyph(data.x, data.y, glyphId, gi);
+                this.areaStateManager.updateGlyph(data.x, data.y, glyphId, gi, data.bkglyphInfo || null);
 
                 // 📖 冒険手帳: モンスターLOS遭遇検知
                 if (glyphId >= 0 && this.adventureLogManager) {

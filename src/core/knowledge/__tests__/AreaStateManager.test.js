@@ -162,6 +162,120 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
         });
     });
 
+    describe('Background Glyph (bkglyphInfo) Ground Truth Resolution', () => {
+        it('should resolve cell.bottom with bkglyphInfo terrain when monster glyph arrives with bkglyphInfo', () => {
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 10;
+            const waterGlyph = 4015; // 水路 (cmap)
+            const bkglyphInfo = { glyph: waterGlyph, ch: '}', color: 4 };
+
+            asm.updateGlyph(14, 14, monsterGlyph, null, bkglyphInfo);
+
+            const cell = asm.grid[14][14];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.glyph).toBe(waterGlyph);
+            expect(cell.bottom.rawGlyph).toBe(waterGlyph);
+            expect(cell.bottom.glyphInfo).toEqual(bkglyphInfo);
+            expect(cell.bottom.cmapFlags?.isWater).toBe(true);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+
+        it('should resolve cell.bottom with bkglyphInfo terrain when pet glyph arrives with bkglyphInfo', () => {
+            const petGlyph = GLYPH_OFFSETS.GLYPH_PET_OFF + 5;
+            const floorGlyph = 3992;
+            const bkglyphInfo = { glyph: floorGlyph, ch: '.', color: 7 };
+
+            asm.updateGlyph(15, 15, petGlyph, null, bkglyphInfo);
+
+            const cell = asm.grid[15][15];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.type).toBe(ENTITY_TYPES.PET);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.glyph).toBe(floorGlyph);
+            expect(cell.bottom.glyphInfo).toEqual(bkglyphInfo);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+
+        it('should resolve cell.bottom with bkglyphInfo terrain when item glyph arrives with bkglyphInfo', () => {
+            const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 20;
+            const iceGlyph = 4016; // 氷 (cmap: 4016)
+            const bkglyphInfo = { glyph: iceGlyph, ch: '.', color: 14 };
+
+            asm.updateGlyph(16, 16, itemGlyph, null, bkglyphInfo);
+
+            const cell = asm.grid[16][16];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.glyph).toBe(iceGlyph);
+            expect(cell.bottom.rawGlyph).toBe(iceGlyph);
+            expect(cell.bottom.glyphInfo).toEqual(bkglyphInfo);
+            expect(cell.bottom.cmapFlags?.isIce).toBe(true);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+
+        it('should resolve cell.bottom with bkglyphInfo terrain when body / statue arrives with bkglyphInfo', () => {
+            const bodyGlyph = GLYPH_OFFSETS.GLYPH_BODY_OFF + 3;
+            const lavaGlyph = 4017; // 溶岩
+            const bkglyphInfo = { glyph: lavaGlyph, ch: '}', color: 1 };
+
+            asm.updateGlyph(17, 17, bodyGlyph, null, bkglyphInfo);
+
+            const cell = asm.grid[17][17];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.middle.type).toBe(ENTITY_TYPES.BODY);
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.glyph).toBe(lavaGlyph);
+            expect(cell.bottom.cmapFlags?.isLava).toBe(true);
+            expect(cell.bottom.inferred).toBeUndefined();
+        });
+
+        it('should update cell.bottom from UNEXPLORED to bkglyphInfo terrain when monster or item arrives', () => {
+            const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
+            asm.updateGlyph(18, 18, unexploredGlyph);
+            expect(asm.grid[18][18].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
+
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 1;
+            const floorGlyph = 3992;
+            const bkglyphInfo = { glyph: floorGlyph, ch: '.', color: 7 };
+
+            asm.updateGlyph(18, 18, monsterGlyph, null, bkglyphInfo);
+
+            const cell = asm.grid[18][18];
+            expect(cell.bottom.type).toBe(ENTITY_TYPES.TERRAIN);
+            expect(cell.bottom.glyph).toBe(floorGlyph);
+            expect(cell.bottom.inferred).toBeUndefined();
+            expect(cell.bottom.glyphInfo).toEqual(bkglyphInfo);
+        });
+
+        it('should fallback to createInferredFloor when bkglyphInfo is missing or invalid or GLYPH_UNEXPLORED (9622)', () => {
+            const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 2;
+            asm.updateGlyph(19, 19, monsterGlyph, null, null);
+
+            const monsterCell = asm.grid[19][19];
+            expect(monsterCell.bottom).not.toBeNull();
+            expect(monsterCell.bottom.inferred).toBe(true);
+
+            const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 2;
+            asm.updateGlyph(20, 20, itemGlyph, null, { glyph: -1 });
+
+            const itemCell = asm.grid[20][20];
+            expect(itemCell.bottom).not.toBeNull();
+            expect(itemCell.bottom.inferred).toBe(true);
+
+            // NetHack 5.0 C コアがデフォルトで送信する 9622 (GLYPH_UNEXPLORED) の場合
+            const unexploredBkglyph = { glyph: 9622, ch: ' ', color: 8 };
+            asm.updateGlyph(21, 21, monsterGlyph, null, unexploredBkglyph);
+
+            const unexpCell = asm.grid[21][21];
+            expect(unexpCell.bottom).not.toBeNull();
+            expect(unexpCell.bottom.inferred).toBe(true);
+            expect(unexpCell.bottom.glyph).toBe(DEFAULT_INFERRED_FLOOR_GLYPH);
+            expect(unexpCell.bottom.type).toBe(ENTITY_TYPES.TERRAIN);
+        });
+    });
+
     describe('Self-Healing / Overwrite by Genuine Terrain', () => {
         it('should replace inferred floor with genuine terrain when terrain glyph arrives', () => {
             // 1. モンスターが出現して仮床が推測される
@@ -635,6 +749,60 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(playerTile.topGlyph).toBe(4011);
             expect(playerTile.renderGlyphs).toEqual([3992, 4011]);
             expect(playerTile.nameJa).toBe('墓石');
+        });
+    });
+
+    describe('seedInitialStair - ゲーム開始時初手足元上り階段の先行シード', () => {
+        it('Dlvl:1 で初手に seedInitialStair を呼ぶと上り階段がキャッシュとセルに登録されること', () => {
+            const asm = new AreaStateManager(80, 24);
+            expect(asm.stairCache.size).toBe(0);
+
+            const result = asm.seedInitialStair(12, 14);
+            expect(result).toBe(true);
+
+            // 1. stairCache に登録されたこと
+            expect(asm.stairCache.has('Dlvl:1:12,14')).toBe(true);
+            const stair = asm.stairCache.get('Dlvl:1:12,14');
+            expect(stair.glyph).toBe(4002);
+            expect(stair.cmapFlags?.isStairUp).toBe(true);
+
+            // 2. landmarkCache にも登録されたこと
+            expect(asm.landmarkCache.has('Dlvl:1:12,14:STAIR_UP')).toBe(true);
+
+            // 3. セル底面にもセットされたこと
+            const cell = asm.grid[14][12];
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.glyph).toBe(4002);
+            expect(cell.bottom.cmapFlags?.isStairUp).toBe(true);
+            expect(cell.bottom.inferred).toBe(false);
+        });
+
+        it('2回目の seedInitialStair 呼び出しでは多重実行されないこと', () => {
+            const asm = new AreaStateManager(80, 24);
+            expect(asm.seedInitialStair(12, 14)).toBe(true);
+            expect(asm.seedInitialStair(15, 15)).toBe(false);
+
+            expect(asm.stairCache.size).toBe(1);
+            expect(asm.stairCache.has('Dlvl:1:15,15')).toBe(false);
+        });
+
+        it('Dlvl:1 以外のフロアでは seedInitialStair が実行されないこと', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.setCurrentFloor('Dlvl:2');
+
+            expect(asm.seedInitialStair(10, 10)).toBe(false);
+            expect(asm.stairCache.size).toBe(0);
+        });
+
+        it('clearStairCache 実行後は再度シード可能なこと', () => {
+            const asm = new AreaStateManager(80, 24);
+            expect(asm.seedInitialStair(12, 14)).toBe(true);
+
+            asm.clearStairCache();
+            expect(asm.stairCache.size).toBe(0);
+
+            expect(asm.seedInitialStair(20, 10)).toBe(true);
+            expect(asm.stairCache.has('Dlvl:1:20,10')).toBe(true);
         });
     });
 });

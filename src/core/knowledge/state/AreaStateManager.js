@@ -4,7 +4,7 @@
  * セル状態キャッシュを自走管理し、自キャラ周辺の構造化 State を提供するクラス
  */
 
-import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster, isBoulderGlyph, isBoulderEntity } from "../engines/glyphClassifier.js";
+import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS, isShopkeeperMonster, isBoulderGlyph, isBoulderEntity } from "../engines/glyphClassifier.js";
 
 export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
 export const DEFAULT_TOMBSTONE_GLYPH = 4011;
@@ -65,6 +65,7 @@ export class AreaStateManager {
         this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
         this.stairCache = new Map();     // フロア別階段キャッシュ ("floor:x,y" => terrainEntity) (後方互換性維持)
         this.landmarkCache = new Map();  // フロア別ランドマーク台帳キャッシュ ("floor:x,y:type" => LandmarkEntity)
+        this._hasSeededInitialStair = false; // ゲーム開始時 (Dlvl:1) 初手足元上り階段の先行シード済みフラグ
         this.isFloorPending = false;     // clear_nhwindow 後のフロア確定待ちフラグ
         this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
         this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
@@ -191,6 +192,7 @@ export class AreaStateManager {
     clearStairCache() {
         this.stairCache.clear();
         this.pendingStairs = [];
+        this._hasSeededInitialStair = false;
     }
 
     /**
@@ -200,6 +202,46 @@ export class AreaStateManager {
         this.landmarkCache.clear();
         this.pendingLandmarks = [];
         this.clearStairCache();
+    }
+
+    /**
+     * ゲーム開始時 (Dlvl:1) の初期位置に上り階段を先行キャッシュ登録
+     * NetHack 5.0 では開始時にプレイヤー直下の階段グリフが送信されないため、
+     * 100% 確定している初手上り階段を先行シードして足元を美しく描画・台帳登録する
+     * @param {number} x 
+     * @param {number} y 
+     * @returns {boolean} シード登録されたか否か
+     */
+    seedInitialStair(x, y) {
+        if (this._hasSeededInitialStair) return false;
+        if (normalizeFloorKey(this.currentFloor) !== 'Dlvl:1') return false;
+        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
+
+        this._hasSeededInitialStair = true;
+        const stairGlyph = 4002; // ブランチ上り階段 (地上脱出階段: GLYPH_CMAP_OFF + 73)
+        const stairInfo = classifyGlyph(stairGlyph);
+        const stairEntity = {
+            ...stairInfo,
+            glyph: stairGlyph,
+            rawGlyph: stairGlyph,
+            inferred: false
+        };
+
+        const key = `Dlvl:1:${x},${y}`;
+        this.stairCache.set(key, stairEntity);
+
+        const landmark = this.extractLandmarkEntity(x, y, stairGlyph, stairInfo);
+        if (landmark) {
+            this._saveLandmarkToCache(landmark, x, y, 'Dlvl:1');
+        }
+
+        const cell = this.grid[y] && this.grid[y][x];
+        if (cell && (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred)) {
+            cell.bottom = { ...stairEntity };
+            this.markDirty(x, y);
+        }
+
+        return true;
     }
 
     /**
@@ -576,8 +618,9 @@ export class AreaStateManager {
      * @param {number} y 
      * @param {number} glyphId 
      * @param {Object} [glyphInfo] 
+     * @param {Object} [bkglyphInfo]
      */
-    updateGlyph(x, y, glyphId, glyphInfo = null) {
+    updateGlyph(x, y, glyphId, glyphInfo = null, bkglyphInfo = null) {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
 
         const info = classifyGlyph(glyphId);
@@ -625,7 +668,20 @@ export class AreaStateManager {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
                 if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
-                    cell.bottom = createInferredFloor();
+                    let genuineTerrain = null;
+                    if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+                        const bgClassified = classifyGlyph(bkglyphInfo.glyph);
+                        if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
+                            genuineTerrain = {
+                                ...bgClassified,
+                                glyphInfo: bkglyphInfo,
+                                glyph: bkglyphInfo.glyph,
+                                rawGlyph: bkglyphInfo.glyph
+                            };
+                        }
+                    }
+                    cell.bottom = genuineTerrain || createInferredFloor();
+                    this.markDirty(x, y);
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
@@ -654,7 +710,19 @@ export class AreaStateManager {
                     ? cell.top.dynamicState
                     : null;
                 if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
-                    cell.bottom = createInferredFloor();
+                    let genuineTerrain = null;
+                    if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+                        const bgClassified = classifyGlyph(bkglyphInfo.glyph);
+                        if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
+                            genuineTerrain = {
+                                ...bgClassified,
+                                glyphInfo: bkglyphInfo,
+                                glyph: bkglyphInfo.glyph,
+                                rawGlyph: bkglyphInfo.glyph
+                            };
+                        }
+                    }
+                    cell.bottom = genuineTerrain || createInferredFloor();
                     this.markDirty(x, y);
                 }
                 cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };

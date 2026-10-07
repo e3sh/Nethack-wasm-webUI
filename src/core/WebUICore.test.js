@@ -1231,6 +1231,81 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(inputRequiredListener).not.toHaveBeenCalled();
         });
     });
+
+    describe('WebUICore - print_glyph relay and bkglyphInfo', () => {
+        it('print_glyph: driver からの bkglyphInfo を parsedData に含めて emit すること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+
+            const printGlyphCalls = mockDriver.on.mock.calls.filter(c => c[0] === 'print_glyph');
+            expect(printGlyphCalls.length).toBeGreaterThan(0);
+            const handler = printGlyphCalls[0][1];
+
+            const emittedEvents = [];
+            core.on('print_glyph', (data) => {
+                emittedEvents.push(data);
+            });
+
+            const testBkglyph = { glyph: 4015, ch: '}', color: 4 };
+            handler({
+                windowId: 0,
+                x: 10,
+                y: 12,
+                glyph: 100,
+                glyphInfo: { glyph: 100, ch: 'd', color: 7 },
+                bkglyphInfo: testBkglyph
+            });
+
+            expect(emittedEvents.length).toBe(1);
+            expect(emittedEvents[0].x).toBe(10);
+            expect(emittedEvents[0].y).toBe(12);
+            expect(emittedEvents[0].glyph).toBe(100);
+            expect(emittedEvents[0].bkglyphInfo).toEqual(testBkglyph);
+        });
+
+        it('print_glyph: bkglyphInfo が存在しない場合は null を設定すること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+
+            const printGlyphCalls = mockDriver.on.mock.calls.filter(c => c[0] === 'print_glyph');
+            const handler = printGlyphCalls[0][1];
+
+            let emitted = null;
+            core.on('print_glyph', (data) => {
+                emitted = data;
+            });
+
+            handler({
+                windowId: 0,
+                x: 5,
+                y: 5,
+                glyph: 200,
+                glyphInfo: { glyph: 200, ch: 'a', color: 3 }
+            });
+
+            expect(emitted).not.toBeNull();
+            expect(emitted.bkglyphInfo).toBeNull();
+        });
+    });
+
+    describe('WebUICore - clear_nhwindow mapping', () => {
+        it('clear_nhwindow: windowId = 3 (NHW_MAP) 受信時に renderer.clearMap と map_cleared を発行すること', () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+            core.renderer.clearMap = vi.fn();
+
+            const clearHandler = mockDriver.on.mock.calls.find(c => c[0] === 'clear_nhwindow')?.[1];
+            expect(clearHandler).toBeDefined();
+
+            const mapClearedListener = vi.fn();
+            core.on('map_cleared', mapClearedListener);
+
+            clearHandler({ windowId: 3 });
+
+            expect(core.renderer.clearMap).toHaveBeenCalledTimes(1);
+            expect(mapClearedListener).toHaveBeenCalledTimes(1);
+        });
+    });
 });
 
 

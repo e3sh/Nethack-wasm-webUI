@@ -12,6 +12,11 @@
 
 1. [① コア通信・同期パイプライン (Communication & Sync Capabilities)](#①-コア通信同期パイプライン-communication--sync-capabilities)
 2. [② ゲーム状態追跡・解析エンジン (State & Analysis Engines)](#②-ゲーム状態追跡解析エンジン-state--analysis-engines)
+   - [2.1 識別の5段階管理 (ItemIdentificationResolver)](#21-識別の5段階管理-itemidentificationresolver)
+   - [2.2 適応型スペック生成 (ItemSpecPresenter / MonsterSpecPresenter)](#22-適応型スペック生成-itemspecpresenter--monsterspecpresenter)
+   - [2.3 遠隔・足元オンデマンド調査 (OnDemandLookService)](#23-遠隔足元オンデマンド調査-ondemandlookservice)
+   - [2.4 装備依存解析 (EquipmentActionPlanner / EquipmentRules)](#24-装備依存解析-equipmentactionplanner--equipmentrules)
+   - [2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (AreaStateManager)](#25-空間状態総合オーケストレーション--探索知識台帳-areastatemanager)
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
 4. [④ UI制御・操作調停 (UIController & Web Components)](#④-ui制御操作調停-uicontroller--web-components)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
@@ -168,6 +173,24 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - 呪詛（Cursed）による脱衣ブロッカー検知、手袋なしでのコカトリス死体接触などの致命的事故を事前遮断。
 * **活用ユースケース**:
   - ペーパードールUI上でのワンクリック完全換装。事故死リスクのある誤操作を未然に防止。
+
+### 2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (`AreaStateManager`)
+
+* **主要クラス / 関数**:
+  - `src/core/knowledge/state/AreaStateManager.js`
+  - 詳細仕様書: [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md)
+  - `updateGlyph(x, y, glyphId, glyphInfo, bkglyphInfo)`
+  - `seedInitialStair(x, y)` / `applyStairCacheForFloor(floorKey)`
+  - `extractLandmarkEntity(x, y, glyphId)` / `getFloorLandmarks(floorKey)`
+  - `getAreaState(cx, cy, radius)` / `getFocusCameraTiles(radiusX, radiusY, options)`
+* **できること**:
+  - **4層空間モデル＆差分追跡**: 単一グリフから `bottom`（地形）、`middle`（アイテム/岩）、`top`（生物/墓石）、`effect`（演出）を復元管理し、描画差分（`dirtyCells`）のみをレンダラーへ高速供給。
+  - **背景グリフ判定 ＆ 仮床・自己修復**: `bkglyphInfo` から真の床を即時確定。9622ガードによる安全な仮床フォールバックと、生物移動時の自動上書き修復（Self-Healing）。
+  - **階段永続化 ＆ 初手先行シード**: フロア往復で階段を見失わない `stairCache`。Dlvl:1 開始直後に足元へ地上脱出用ブランチ上り階段（4002番）を自動先行シード。
+  - **ランドマーク台帳**: 階段・祭壇・泉・玉座・シンク・店舗（店主同定）を自動抽出・永続化（`landmarkCache`）。
+  - **物理推論 ＆ カメラ投影**: 大岩（Boulder）押し出し時の非同期ラグ補正、周囲 $3 \times 3$ マスの戦術視野抽出、HD-2D/Canvas 向け 3 層グリフ合成カメラタイル生成。
+* **活用ユースケース**:
+  - HD-2D / 3D ジオラマレンダラーでの多層描画、ミニマップHUDでの階段・施設アイコン表示、開始直後の足元階段の完全描画。
 
 ---
 

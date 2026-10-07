@@ -79,6 +79,12 @@ NetHack を NetHack たらめている**「エモーショナルな言い回し�
 ### 3.2 Tier 2: グループシグナル・構文テンプレート合成訳 (Synthesized Template Translations)
 辞書肥大化の主因である「戦闘ログ」「持ち物操作」「飲食」などの組み合わせ爆発メッセージを、**ドメイン別の構文テンプレート（約100〜200構文）** に集約します。
 
+> [!IMPORTANT]
+> **★ Phase 8 (Native Shim `struct obj` 構造化直結) との決定的な連携**:  
+> アイテム操作やインベントリ表示において、英語の修飾語句（`a blessed thoroughly rusty +2...`）を正規表現で解体する必要は完全に消滅しました。  
+> Phase 8 で確立される `struct obj` 直結により、**`otyp`（アイテムID）、`quan`（数量）、`spe`（強化値）、`blessed/cursed`（B/U/C）、`oeroded`（劣化度）、`owornmask`（装備箇所）がすべて正確な数値・ビットとして供給**されます。  
+> これにより、Tier 2 のテンプレート合成は「英語の文法解析」から「**各言語の文型スロットへ数値を埋め込むだけの超軽量データ代入**」へと完全に昇華されます。
+
 - **動的名詞注入**: テンプレート内のプレースホルダ（`{subject}`, `{object}`, `{tool}`）には、GKL の構造化知識（モンスター384体・アイテム481件）から確定した真名・外見名を自動代入。
 - **文脈別テンプレート**: 同じ `hit` でも、素手・刃物・射撃・光線に応じてドメイン/サブタイプ別に最適な文型を選択。
 
@@ -95,9 +101,10 @@ export const SYNTHESIZED_TEMPLATES = {
   'eat:consume': '{subject} は {item} を平らげた。',
   'eat:full': 'もう一口も入らない……腹がはち切れそうだ！',
 
-  // 所持品ドメイン: invent.c
+  // 所持品ドメイン: invent.c (struct obj から直接スロット注入)
   'invent:wield': '{item} を構えた。',
-  'invent:wear': '{item} を身につけた。'
+  'invent:wear': '{item} を身につけた。',
+  'invent:item_format': '{quantity}{bless}{spe}{name}{erosion}{worn}'
 };
 ```
 

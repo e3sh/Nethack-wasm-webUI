@@ -1434,7 +1434,7 @@ export class WebUICore {
             if (data.windowId >= 4 && this.textWindowManager) {
                 this.textWindowManager.clearWindow(data.windowId);
             }
-            if (data.windowId === 2 || data.windowId === 0) {
+            if (data.windowId === 3 || data.windowId === 2 || data.windowId === 0) {
                 if (this.renderer && typeof this.renderer.clearMap === 'function') {
                     this.renderer.clearMap();
                 }
@@ -1453,7 +1453,7 @@ export class WebUICore {
             const ch = gi.ch || data.ch || ' ';
             const color = gi.color !== undefined ? gi.color : (data.color !== undefined ? data.color : 7);
 
-            const parsedData = { windowId: data.windowId, x, y, glyph: glyphId, ch, color, glyphInfo: gi };
+            const parsedData = { windowId: data.windowId, x, y, glyph: glyphId, ch, color, glyphInfo: gi, bkglyphInfo: data.bkglyphInfo || null };
             this.renderer.drawGlyph(x, y, parsedData);
             this.emit('print_glyph', parsedData);
         });

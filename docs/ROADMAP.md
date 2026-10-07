@@ -149,17 +149,46 @@ last_updated: 2026-10-01
 
 ---
 
+### 1.5 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Structured Bridge)
+- **ステータス**: `🚧 in-progress` (2026-10-07 計画改定・次期フォーカス)
+- **設計書**: [official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)
+- **詳細解析書**: [official_shim_interface_capabilities_analysis.md](./1_driver/official_shim_interface_capabilities_analysis.md)
+- **最優先着手理由**:
+  - `win/shim/winshim.c` 等の公式NetHackコードには一切手を加えず、独立した専用ブリッジファイル **`win/shim/shim_bridge.c`** を 1 つ新規追加・リンクする「公式コード完全非侵襲エクステンション方式」を採用。
+  - C側ヘルパー関数（`shim_get_rm_typ`, `shim_get_rm_flags`, `shim_get_dnum`, `shim_get_ublesscnt`, `shim_get_objects_at` 等）により、JS側での複雑なビットフィールドや構造体アライメント計算を根絶し、GKLが扱いやすい安全なNetHackスキーマ直結を実現。
+  - 従来行っていた「裏でキーを叩いて画面テキストを正規表現パースする」脆弱・低速なマクロ方式を撤廃し、0ターン消費・同期データ直結へ刷新する。
+- **マイグレーションステップ**:
+  - [ ] **Stage 8.1: 独立ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
+    - `win/shim/shim_bridge.c` 新設、`nethack_files.rsp` および `nethack_flags.rsp` に追記してビルド
+    - `NetHackMemory.js` に汎用 RPC (`callWasm`)・メモリ直読 (`readMemory`) インターフェースを配備
+    - `NetHackWasmDriver.js` の `shim_add_menu` で `rawObjPtr` をディスパッチ
+  - [ ] **Stage 8.2: コンテナ・アイテム・所持重量の完全直結**
+    - `NetHackObjectSchema.js` を新設し、`Module._weight()` / `Module._inv_weight()` を `EncumbranceStateManager` へ直結
+    - コンテナ重量計算用の旧マクロシーケンスを廃止
+  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定直結 ＆ 推奨アクション革新**
+    - `NetHackTerrainSchema.js` を新設し、`shim_get_rm_typ()` で足元の真の床を 100% 確定
+    - `shim_get_rm_flags()` を `ActionSignalResolver` へ接続し、扉の施錠（`D_LOCKED`）や罠（`D_TRAPPED`）に応じた最適なワンタップ解錠・罠解除アクションを即時導出
+  - [ ] **Stage 8.4: プレイヤー内在耐性 ＆ ブランチ・祈りクールダウン直結**
+    - `NetHackPlayerSchema.js` を新設し、`shim_get_u()` から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
+    - `shim_get_dnum()` でブランチIDを即時確定し、`branch:dlvl` の階層キャッシュ分離とエリア突入演出（`AREA_ENTERED`）をシームレス発火
+    - `shim_get_ublesscnt()` をタイムライン燃料計（お祈りタイマー）へ直結
+
+---
+
 ## 📋 2. 構想・実装待ちバックログ (Ideas & Planned Backlog)
 
 設計構想・アイデアが策定されており、優先度に応じて着手を待つバックログです。
 
-### 2.1 GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー
-- **ステータス**: `💡 proposed` (2026-09-21 策定)
+### 2.1 GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー (＋ AreaStateManager 機能整理)
+- **ステータス**: `💡 proposed` (2026-09-21 策定 / 2026-10-07 機能整理計画追加)
 - **設計書**:
   - [Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md) (基底エンジン)
   - [Dungeon_Tracker_and_Checkpoint_Architecture.md](./3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md) (トラッカー仕様)
-- **概要**: Cコード改変禁止ルールのもと、マップ上のグリフ配置パターン（刻み文字の並び等）をプレイヤールールによるシグナルとして検知し、全階層の宝箱・重要拠点マーカー（🚩）をセーブデータ非破壊・相乗りで管理する。
-- **次のステップ**: `SpatialPatternEngine` のパターン認識コアのプロトタイプ実装
+  - [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) (空間状態SSOT ＆ 第7章 モジュール機能整理計画)
+- **概要**:
+  - Cコード改変禁止ルールのもと、マップ上のグリフ配置パターン（刻み文字の並び等）をプレイヤールールによるシグナルとして検知し、全階層の宝箱・重要拠点マーカー（🚩）をセーブデータ非破壊・相乗りで管理する。
+  - **前提基盤の機能整理 (AreaStateManager 4分割デカップリング)**: 現在 1,085 行に肥大化した `AreaStateManager` から、純粋空間グリッド、地形・物理推論（`TerrainInferenceEngine`）、ランドマーク台帳（`DungeonLandmarkRegistry`）、描画プロジェクター（`ViewportTileProjector`）を段階的に抽出し、空間幾何学認識エンジンおよびダンジョントラッカーが美しく相乗りできる疎結合アーキテクチャを確立する。
+- **次のステップ**: `AreaStateManager` 内部デリゲーションの抽出と `SpatialPatternEngine` パターン認識コアのプロトタイプ実装
 
 ### 2.2 GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計 (Prayer Tracker & Fuel Gauge)
 - **ステータス**: `💡 proposed` (2026-09-25 策定)
@@ -183,7 +212,7 @@ last_updated: 2026-10-01
 - **概要**: 
   - 全文・部分検索依存の18,000行ベタ書き辞書から脱却し、**「特定シグナル専用訳（Pinpoint）」「構文テンプレート合成（Synthesized）」「構造化仮訳（Fallback）」** の3層ハイブリッド翻訳モデルを導入。
   - **特定シグナル専用訳**: 神託、神の怒り、特殊死亡、文学的言い回し・修辞、DevTeamブラックユーモアなど、NetHack特有の味・ニュアンスを `messageId` 単位（$O(1)$、誤爆率0%）で格調高い専用訳として維持。
-  - **構文テンプレート合成**: 戦闘ログ・持ち物操作・飲食など、主語・目的語・道具の組み合わせ爆発を起こしている大量日常メッセージを約150件のテンプレートに集約し、GKL名詞マスタ（モンスター384体・アイテム481品）から自動注入。辞書行数を90%以上削減（18,000行 ➔ 1,000〜1,500行）。
+  - **構文テンプレート合成 (★ Phase 8 struct obj 構造化直結と連携)**: 戦闘ログ・持ち物操作・飲食など、主語・目的語・道具の組み合わせ爆発を起こしている大量日常メッセージを約150件のテンプレートに集約。特にアイテム名は Phase 8 の `struct obj` から ID（`otyp`）、数量、強化値、祝福/呪いフラグを直接抽出し、英語文法の正規表現パースを一切行わずにテンプレートスロットへ直接埋め込み。辞書をシンプルなKey-Value名詞テーブルに縮退させ、他言語への機械翻訳展開（i18n）を劇的に容易化。辞書行数を90%以上削減（18,000行 ➔ 1,000〜1,500行）。
   - **プレイヤー別名・自動呼び名フォロー**: C本体へのマルチバイト入力を完全撤廃し、UI/GKL層（`CustomNameStore`）で安全に日本語エイリアスを管理。
 
 ### 2.5 将来の完全独立マイクロカーネル化構想
@@ -210,6 +239,14 @@ last_updated: 2026-10-01
 - **概要**:
   - ブラウザ動作クライアントの特性を活かし、GKLのモンスター・アイテム・伝承からNetHackWikiの公式ページ（またはGoogleウェブ翻訳プロキシ）へワンクリックでジャンプ（`🌐 Wiki`ボタン）。
   - 英語名からの$O(1)$スラッグ決定論的自動導出＋言語モード連動（ja時は機械翻訳展開）。容量増大ゼロ・ライセンス完全独立でコミュニティ最新知見へのアクセスを提供。
+
+### 2.9 GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想 (Branch Detection & Area Announcement)
+- **ステータス**: `💡 proposed` (2026-10-07 策定・バックログ)
+- **設計書**: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
+- **対象コード**: `src/core/knowledge/state/AreaStateManager.js`, `src/core/knowledge/GKLPlugin.js`, `src/components/`, `SoundCoordinator.js`
+- **概要**:
+  - **ゴースト階段・地形混線の完全根絶**: Cコアの `Dlvl:X` 出力だけでは防げない同一度数（ダンジョン本流 Dlvl:3 vs 鉱山 Dlvl:3 等）の重複を、ウェルカムメッセージや階段トポロジー（将来的には Phase 8 メモリ直結 `u.uz.dnum`）からブランチ同定し、`branch:dlvl` 形式でキャッシュ名前空間を完全分離。
+  - **シネマティック突入演出 (Visual & Sound FX)**: 近年RPG風に、新エリア・特殊フロア突入時に「**ノームの鉱山 (The Gnomish Mines)**」「**倉庫番 (Sokoban)**」などのエリア名が画面中央上部に優美にフェードイン・フェードアウトする専用バナー（`<nh-area-banner>`）および到達音響ジングルを再生する演出構想。
 
 ---
 
@@ -249,6 +286,7 @@ last_updated: 2026-10-01
 | **GKL / UI** | [Container_Interaction_Specification_IRC.md](./3_gkl/Container_Interaction_Specification_IRC.md) | `src/core/container/`<br>`ContainerModal.js` | `🟢 implemented` | **二画面ファイラー型コンテナUI (IRC & SafetyGuard)**<br>アトミック出し入れ、手品袋爆発防止、金貨対応 |
 | **GKL** | [TacticalAdvisor_Specification_and_Architecture.md](./3_gkl/TacticalAdvisor_Specification_and_Architecture.md) | `src/core/knowledge/engines/`<br>`TacticalAdvisor.js` | `🟢 implemented` | **データ駆動型戦術アドバイザー**<br>危険モンスター警告、狂犬病(Lycanthropy)対策等 |
 | **GKL** | [Assist_Signal_and_Stance_Architecture.md](./3_gkl/Assist_Signal_and_Stance_Architecture.md) | `src/core/knowledge/engines/`<br>`AssistSignalSynthesizer.js` | `🟢 implemented` | **スタンス・アシストシグナル合成** |
+| **GKL / 空間** | [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) | `src/core/knowledge/state/`<br>`AreaStateManager.js` | `🟢 implemented` | **空間状態総合オーケストレーター仕様 ＆ モジュール機能整理計画**<br>4層グリッド(bottom/middle/top/effect)、背景グリフ/仮床/自己修復、階段永続化・初手先行シード(4002)、ランドマーク台帳(階段/祭壇/店舗)、大岩押し推論、戦術視野・カメラ投影 |
 | **GKL** | [gkl_documentation.md](./3_gkl/gkl_documentation.md) | `src/core/knowledge/` | `🟢 implemented` | **GKL 総合アーキテクチャ・プラグイン構造** |
 | **GKL** | [GKL_Visual_FX_Event_Architecture.md](./3_gkl/GKL_Visual_FX_Event_Architecture.md) | `src/core/knowledge/` | `🟢 implemented` | **視覚演出 (Visual FX) イベントアーキテクチャ** |
 | **GKL** | [GKL_Structured_Knowledge_Usage_Guide.md](./3_gkl/GKL_Structured_Knowledge_Usage_Guide.md) | `src/core/knowledge/data/` | `🟢 implemented` | **構造化知識ベース (384体・481アイテム・アーティファクト)** |

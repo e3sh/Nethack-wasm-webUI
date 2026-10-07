@@ -1428,6 +1428,58 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
 
             expect(signalListener).not.toHaveBeenCalled();
         });
+
+        it('print_glyph イベント受信時に bkglyphInfo が areaStateManager.updateGlyph へ渡されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const updateGlyphSpy = vi.spyOn(plugin.areaStateManager, 'updateGlyph');
+
+            const testBkglyph = { glyph: 4015, ch: '}', color: 4 };
+            mockCore.emit('print_glyph', {
+                x: 12,
+                y: 8,
+                glyph: 10,
+                glyphInfo: { glyph: 10, ch: 'd', color: 7 },
+                bkglyphInfo: testBkglyph
+            });
+
+            expect(updateGlyphSpy).toHaveBeenCalledWith(
+                12,
+                8,
+                10,
+                expect.objectContaining({ glyph: 10 }),
+                testBkglyph
+            );
+        });
+
+        it('初手 cursor / curs 受信時に seedInitialStair が呼び出され足元に階段が登録されること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const seedSpy = vi.spyOn(plugin.areaStateManager, 'seedInitialStair');
+
+            // 初手のプレイヤー位置カーソル受信
+            mockCore.emit('curs', { x: 15, y: 12 });
+
+            expect(seedSpy).toHaveBeenCalledWith(15, 12);
+            expect(plugin.areaStateManager.stairCache.has('Dlvl:1:15,12')).toBe(true);
+            expect(plugin.areaStateManager.grid[12][15].bottom.glyph).toBe(4002);
+        });
+
+        it('clear_nhwindow で windowId = 3 (NHW_MAP) 受信時に prepareFloorTransition が呼ばれること', () => {
+            const plugin = new GKLPlugin();
+            const mockCore = createMockCore();
+            plugin.attach(mockCore);
+
+            const prepareSpy = vi.spyOn(plugin.areaStateManager, 'prepareFloorTransition');
+
+            mockCore.emit('clear_nhwindow', { windowId: 3 });
+
+            expect(prepareSpy).toHaveBeenCalledTimes(1);
+        });
     });
 });
 
