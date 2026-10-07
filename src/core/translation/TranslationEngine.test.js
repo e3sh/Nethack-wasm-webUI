@@ -227,6 +227,38 @@ describe('TranslationEngine', () => {
             expect(engine.translate('a dagger (25 aum)')).toBe('ダガー（重さ: 25 aum）');
         });
     });
+
+    describe('resolveFileText', () => {
+        const engine = new TranslationEngine();
+
+        it('rawFileText が渡されている場合はそれをそのまま返却すること', async () => {
+            const result = await engine.resolveFileText('help', 'This is help text.');
+            expect(result).toBe('This is help text.');
+        });
+
+        it('rawFileText が空で FS が存在する場合、VFS から読み込んで返却すること', async () => {
+            const mockFS = {
+                analyzePath: (p) => ({ exists: p === '/dat/help' }),
+                readFile: (p, opt) => p === '/dat/help' ? 'VFS help content' : ''
+            };
+            const result = await engine.resolveFileText('help', '', mockFS);
+            expect(result).toBe('VFS help content');
+        });
+
+        it('VFS にファイルが存在しない場合は空文字/rawFileText を返却すること', async () => {
+            const mockFS = {
+                analyzePath: () => ({ exists: false }),
+                readFile: () => ''
+            };
+            const result = await engine.resolveFileText('unknown', '', mockFS);
+            expect(result).toBe('');
+        });
+
+        it('filename が空の場合は渡された rawFileText を返却すること', async () => {
+            const result = await engine.resolveFileText('', 'fallback');
+            expect(result).toBe('fallback');
+        });
+    });
 });
 
 

@@ -1995,7 +1995,7 @@ export class GKLPlugin {
     }
 
     /**
-     * 対象の公式解説・文学引用を動的オンデマンド取得 (WASM data.base / data_jp.base)
+     * 対象の公式解説・文学引用を動的オンデマンド取得 (WASM data.base / WebUI翻訳)
      * @param {string} target - 検索対象（アイテム名、モンスター名、シンボル等）
      * @param {Object} [options={}]
      * @returns {Promise<{ found: boolean, query: string, text: string, lines: string[], source?: string, fromCache: boolean }>}

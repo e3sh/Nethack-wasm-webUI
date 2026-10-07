@@ -1627,10 +1627,11 @@ export class WebUICore {
             }
         });
 
-        // display_file (VFS 探査 ➔ HTTP fetch オンデマンド取得による完璧なローカライズ表示)
+        // display_file (ヘルプファイル等は翻訳をバイパスし、原文を高速・直接表示)
         this.driver.on('display_file', async ({ filename, complain, fileText, resolver }) => {
             if (!resolver) return;
 
+            const tStart = performance.now();
             this.activeResolver = resolver;
             this.currentPromptCategory = PROMPT_CATEGORY.FILE;
             this.lastInputTime = Date.now();
@@ -1639,11 +1640,15 @@ export class WebUICore {
                        (this.driver && this.driver.fsManager ? this.driver.fsManager.FS :
                        (this.driver && typeof this.driver.getModule === 'function' && this.driver.getModule() ? this.driver.getModule().FS : null));
 
-            // VFS チェックおよび HTTP fetch オンデマンド取得を非同期実行
-            const targetText = await this.translator.resolveFileText(filename, fileText, FS);
+            const tA0 = performance.now();
+            const rawText = await this.translator.resolveFileText(filename, fileText, FS);
+            const tA1 = performance.now();
 
-            const fileLines = targetText ? targetText.split('\n') : [];
-            const promptTitle = `${filename} (${fileLines.length} lines)`;
+            const rawLines = rawText ? rawText.split('\n') : [];
+            // ヘルプファイルは対訳辞書がないため翻訳エンジンを通さず直接表示（UIブロック完全防止）
+            const lines = rawLines;
+
+            const promptTitle = `${filename} (${lines.length} lines)`;
 
             const payload = {
                 category: PROMPT_CATEGORY.FILE,
@@ -1652,8 +1657,9 @@ export class WebUICore {
                 filename: filename,
                 prompt: promptTitle,
                 rawPrompt: filename,
-                lines: fileLines,
-                text: targetText,
+                lines: lines,
+                rawLines: rawLines,
+                text: rawText || '',
                 safeResolver: resolver,
                 resolver: resolver,
                 buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.FILE, ' ')
@@ -1663,22 +1669,39 @@ export class WebUICore {
             const isDriverSuppress = Boolean(this.driver && this.driver.sequenceOptions && this.driver.sequenceOptions.suppressPrompts);
             const shouldSuppress = isInteractiveExecuting || isDriverSuppress;
 
+            const tC0 = performance.now();
             // 📖 テキストウィンドウ内容イベント送出 (GKL / LoreDetector 向け)
-            if (fileLines.length > 0) {
+            if (rawLines.length > 0 || lines.length > 0) {
                 this.emit('textWindowContent', {
                     windowId: null,
                     filename: filename,
-                    lines: fileLines,
-                    rawLines: fileLines,
-                    rawText: targetText
+                    lines: lines,
+                    rawLines: rawLines,
+                    rawText: rawText
                 });
             }
 
+            let tD0 = performance.now();
+            let tD1 = tD0;
             if (!shouldSuppress) {
+                tD0 = performance.now();
                 this.renderer.showPrompt(payload);
-                this.emit('textWindowModal', { lines: fileLines, rawLines: fileLines, resolver, payload });
+                tD1 = performance.now();
+
+                this.emit('textWindowModal', { lines: lines, rawLines: rawLines, resolver, payload });
                 this.emit('inputRequired', payload);
             }
+            const tEnd = performance.now();
+
+            const durationTotal = (tEnd - tStart).toFixed(2);
+            const durationA = (tA1 - tA0).toFixed(2);
+            const durationD = (tD1 - tD0).toFixed(2);
+            const durationC = ((tEnd - tC0) - (tD1 - tD0)).toFixed(2);
+
+            console.log(`[Perf:display_file] ${filename} (${rawLines.length} lines): total ${durationTotal}ms ` +
+                        `| (A) resolveFileText: ${durationA}ms ` +
+                        `| (C) emit: ${durationC}ms ` +
+                        `| (D) renderer.showPrompt: ${durationD}ms (bypass translation)`);
         });
 
         // display_nhwindow ブロッキング解凍判別 ＆ テキストウィンドウモータル発火

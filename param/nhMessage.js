@@ -11713,6 +11713,7 @@
         { en: "branch staircase down", jp: "分岐階段下り" },
         { en: "An urge to take a bath overwhelms you.", jp: "お風呂に入りたいという衝動に強く駆られます。" },
         { en: "You feel lackluster.", jp: "気分が盛り上がらない。" },
+        { en: "The water flow seems fixed.", jp: "水の流れは一定のようだ。" },
     ];
 }
 
@@ -14444,7 +14445,9 @@ function nhPatterns() {
         { pattern: /^Your\s+(.*)\s+isn't\s+one-handed\.$/, replace: "あなたの$1は片手で扱えるものではない。" },
         { pattern: /^(.*)\s+grows\s+up\s+into\s+(.*)\.$/, replace: "$1は$2に成長した。" },
         { pattern: /^\"(.*),\s+(.*)!\s+\s+Welcome\s+to\s+(.*)'s\s+(.*)!\"$/, replace: "$1、$2！$3の$4へようこそ！" },
+        { pattern: /^\"(.*),\s+(.*)!\s+\s+Welcome\s+to\s+(.*)s'\s+(.*)!\"$/, replace: "$1、$2！$3の$4へようこそ！" },
         { pattern: /^\"(.*),\s+(.*)!\s+\s+Welcome\s+again\s+to\s+(.*)'s\s+(.*)!\"$/, replace: "$1、$2！$3の$4へ再びようこそ！" },
+        { pattern: /^\"(.*),\s+(.*)!\s+\s+Welcome\s+again\s+to\s+(.*)s'\s+(.*)!\"$/, replace: "$1、$2！$3の$4へ再びようこそ！" },
         { pattern: /^This\s+(.*)\s+is\s+bland\.$/, replace: "この$1は味がしない。" },
         { pattern: /^That\s+(.*)\s+is\s+(.*)!$/, replace: "その$1は$2！" },
         { pattern: /^(.*)\s+forces\s+(.*)$/, replace: "$1は$2を強制する" },
@@ -14727,6 +14730,7 @@ function nhPatterns() {
         { pattern: /^You\s+write\s+\"(.*)\s+was\s+here!\"\s+and\s+(.*)\s+disappears\.$/, replace: "「$1がここにいた！」と書き込むと、巻物が消えてしまいます。" },
         { pattern: /^More\s+info\s+about\s+\"(.*)\"\?$/, replace: "「$1」についてもっと詳しく？" },
         { pattern: /^What\s+do\s+you\s+want\s+to\s+(.*)\?\s+\[(.*)\]$/, replace: "何を$1しますか？ [$2]" },
+        { pattern: /^(.*)\s+quivers\s+upward\s+for\s+a\s+moment\.$/, replace: "$1がひととき、上向きに震える。" },
         { pattern: /^(.*)\s+\((.*)\)$/, replace: "$1 ( $2 )" },
         { pattern: /^\s+\s+(.*)$/, replace: "$1" },
         { pattern: /^(?!(?:[Aa]n?|[Tt]he|[Yy]our)\s+)(.*)\s+corpse$/, replace: "$1の屍" },

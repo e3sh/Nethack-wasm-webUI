@@ -379,15 +379,15 @@ class TranslationManager:
     def analyze_status(self):
         # (グループ名, 解析関数, 翻訳タイプ)
         targets = [
-            ('Data.base', self.parse_data_base, 'ファイル翻訳 (data_jp.base)'),
-            ('Oracles', self.parse_oracles, 'ファイル翻訳 (oracles_jp.txt)'),
+            ('Data.base', self.parse_data_base, '辞書翻訳 (dictionary.csv)'),
+            ('Oracles', self.parse_oracles, '辞書翻訳 (dictionary.csv)'),
             ('Rumors', self.parse_rumors, '辞書翻訳 (dictionary.csv)'),
             ('Engrave', self.parse_engrave, '辞書翻訳 (dictionary.csv)'),
             ('Epitaph', self.parse_epitaph, '辞書翻訳 (dictionary.csv)'),
             ('Bogusmon', self.parse_bogusmon, '辞書翻訳 (dictionary.csv)'),
             ('Quest', self.parse_quest, '辞書/メニュー翻訳 (dictionary.csv)'),
             ('Tribute', self.parse_tribute, 'ファイル翻訳 (VFS上置換)'),
-            ('Help', self.parse_help_files, 'ファイル翻訳 (help_jp等)'),
+            ('Help', self.parse_help_files, '辞書翻訳 (dictionary.csv)'),
             ('Sokoban/Levels', self.parse_sokoban_and_levels, '辞書/レベル (soko*.lua等)'),
             ('Sounds(聞こえる)', self.parse_c_sounds, '辞書/Cコード (sounds.c)'),
             ('Status(状態異常)', self.parse_c_status, '辞書/Cコード (attrib/botl等)'),

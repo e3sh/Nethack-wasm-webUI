@@ -4,7 +4,7 @@
  * WASM動的サイレントクエリによる NetHack 公式解説・文学引用取得サービス (Gap 3 対応)
  *
  * 【設計思想】
- * 1. 静的辞書の二重持ちを排し、NetHack Cコアの data.base / data_jp.base から動的にテキストを抽出。
+ * 1. 静的辞書の二重持ちを排し、NetHack Cコアの data.base から動的にテキストを抽出し、WebUI側の翻訳エンジンで日本語化。
  * 2. querySequenceSilent (suppressPrompts: true, isSilentSync: true) による画面ちらつきゼロの実行。
  * 3. 取得した公式解説・引用文をメモリキャッシュ (2回目以降 0ms) に格納。
  * 4. GKL / UIController から独立して利用可能な Headless サービス。

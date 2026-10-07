@@ -337,7 +337,7 @@ export class TranslationEngine {
     setEnabled(enabled: boolean): void;
     translate(text: string): string;
     lookupWord(word: string, pos?: string): string;
-    resolveFileText(filename: string, fileText: string, FS?: any): Promise<string>;
+    resolveFileText(filename: string, fileText?: string, FS?: any): Promise<string>;
 }
 
 // --- デバッグ ＆ 監視インスペクター ---

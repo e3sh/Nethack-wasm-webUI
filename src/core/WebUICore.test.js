@@ -1145,6 +1145,91 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(core.renderer.showPrompt).not.toHaveBeenCalled();
             expect(inputRequiredListener).not.toHaveBeenCalled();
         });
+
+        it('display_file: ヘルプファイル等は翻訳をバイパスし、原文を直接 lines/rawLines に格納して高速表示すること', async () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+
+            const textWindowContentListener = vi.fn();
+            const textWindowModalListener = vi.fn();
+            const inputRequiredListener = vi.fn();
+            core.on('textWindowContent', textWindowContentListener);
+            core.on('textWindowModal', textWindowModalListener);
+            core.on('inputRequired', inputRequiredListener);
+            core.renderer.showPrompt = vi.fn();
+
+            const displayFileCalls = mockDriver.on.mock.calls.filter(c => c[0] === 'display_file');
+            expect(displayFileCalls.length).toBeGreaterThan(0);
+            const emitDisplayFile = async (data) => {
+                for (const call of displayFileCalls) {
+                    await call[1](data);
+                }
+            };
+
+            const resolver = { respond: vi.fn() };
+            await emitDisplayFile({
+                filename: 'help',
+                complain: 0,
+                fileText: 'Line 1\nLine 2',
+                resolver
+            });
+
+            // 1. textWindowContent イベントの検証
+            expect(textWindowContentListener).toHaveBeenCalledTimes(1);
+            const contentData = textWindowContentListener.mock.calls[0][0];
+            expect(contentData.filename).toBe('help');
+            expect(contentData.lines).toEqual(['Line 1', 'Line 2']);
+            expect(contentData.rawLines).toEqual(['Line 1', 'Line 2']);
+            expect(contentData.rawText).toBe('Line 1\nLine 2');
+
+            // 2. textWindowModal イベントの検証
+            expect(textWindowModalListener).toHaveBeenCalledTimes(1);
+            const modalData = textWindowModalListener.mock.calls[0][0];
+            expect(modalData.lines).toEqual(['Line 1', 'Line 2']);
+            expect(modalData.rawLines).toEqual(['Line 1', 'Line 2']);
+            expect(modalData.resolver).toBe(resolver);
+            expect(modalData.payload.lines).toEqual(['Line 1', 'Line 2']);
+            expect(modalData.payload.rawLines).toEqual(['Line 1', 'Line 2']);
+            expect(modalData.payload.text).toBe('Line 1\nLine 2');
+
+            // 3. showPrompt および inputRequired の検証
+            expect(core.renderer.showPrompt).toHaveBeenCalledTimes(1);
+            expect(inputRequiredListener).toHaveBeenCalledTimes(1);
+        });
+
+        it('display_file: IRC実行中またはドライバーの suppressPrompts 時はモーダル表示がサプレスされること', async () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+            
+            const textWindowModalListener = vi.fn();
+            const inputRequiredListener = vi.fn();
+            core.on('textWindowModal', textWindowModalListener);
+            core.on('inputRequired', inputRequiredListener);
+            core.renderer.showPrompt = vi.fn();
+
+            const displayFileCalls = mockDriver.on.mock.calls.filter(c => c[0] === 'display_file');
+            const emitDisplayFile = async (data) => {
+                for (const call of displayFileCalls) {
+                    await call[1](data);
+                }
+            };
+
+            // 1. IRC 実行中 (isBusy = true): サプレス
+            core.interactiveController.isBusy = vi.fn().mockReturnValue(true);
+            mockDriver.sequenceOptions = { suppressPrompts: false };
+            await emitDisplayFile({ filename: 'help', fileText: 'Some text', resolver: vi.fn() });
+            expect(textWindowModalListener).not.toHaveBeenCalled();
+            expect(core.renderer.showPrompt).not.toHaveBeenCalled();
+            expect(inputRequiredListener).not.toHaveBeenCalled();
+
+            // 2. suppressPrompts = true: サプレス
+            core.interactiveController.isBusy = vi.fn().mockReturnValue(false);
+            mockDriver.sequenceOptions = { suppressPrompts: true };
+            await emitDisplayFile({ filename: 'help', fileText: 'Some text', resolver: vi.fn() });
+            expect(textWindowModalListener).not.toHaveBeenCalled();
+            expect(core.renderer.showPrompt).not.toHaveBeenCalled();
+            expect(inputRequiredListener).not.toHaveBeenCalled();
+        });
     });
 });
 

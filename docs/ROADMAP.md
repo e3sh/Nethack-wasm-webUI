@@ -174,6 +174,13 @@ last_updated: 2026-10-01
 - **概要**: 内部蓄積されているが UI と未結線な 4 大ギャップ（① ディスカバリー図鑑 UI、② 店頭売買価格識別からの自動仮名命名支援、③ WASM 文学引用の動的オンデマンド閲覧、④ セッション横断手帳収集率ダッシュボード）。
 - **統合関係**: 本課題群は、**[1.2 Phase 7: 標準操作プログレッシブ拡張](#12-phase-7-標準操作プログレッシブ拡張--wasm動的ルックアップ統合ナレッジ-native-command-progressive-enhancement)** において、NetHack標準コマンド（`/`, `\`, `C`, 独立ビューア）のエンハンスメントとして包括的に設計・実装されます。
 
+### 2.7 ヘルプ専用ダイアログ化 ＆ 外部ドキュメント連携構想 (Help Dialog & External Doc Integration)
+- **ステータス**: `💡 proposed` (低優先度バックログ)
+- **設計書**: [help_dialog_and_external_doc_system_architecture.ja.md](./7_futures/help_dialog_and_external_doc_system_architecture.ja.md)
+- **概要**:
+  - `?` キー等のヘルプ表示において、CUI端末向け英文テキストを無理に翻訳・表示するのではなく、WebUI（パッド/タッチ/GKL）に最適化された専用操作ガイドモーダル（`HelpGuideModal`）を自前提供。
+  - ゲームプレイ外の長文（歴史・ライセンス等）は要約カード提示や「Google翻訳で開く」外部ブラウザ連携により、ライセンス独立性（他バリアント借用ゼロ）と軽快なUXを両立する長期バックログ構想。
+
 ---
 
 ## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)

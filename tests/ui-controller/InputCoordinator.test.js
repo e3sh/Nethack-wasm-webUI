@@ -116,5 +116,16 @@ describe('InputCoordinator (Headless Input Routing)', () => {
       { bypassEnhancedSignals: true }
     );
     expect(resBypass.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+
+    // Shift + Slash ('?') は OPEN_KNOWLEDGE_INSPECTOR にならず PASSTHROUGH_GAME_KEY になること
+    const resQuestion = coordinator.evaluateKeyDown({ key: '?', code: 'Slash', shiftKey: true });
+    expect(resQuestion.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+    expect(resQuestion.payload?.key).toBe('?');
+
+    // Shift + Backslash ('|') は PASSTHROUGH_GAME_KEY になること
+    const resPipe = coordinator.evaluateKeyDown({ key: '|', code: 'Backslash', shiftKey: true });
+    expect(resPipe.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+    expect(resPipe.payload?.key).toBe('|');
   });
 });
+

@@ -149,10 +149,10 @@ export class InputCoordinator {
     // 10. 📚 標準操作プログレッシブ拡張 (Phase 7: Native Command Progressive Enhancement)
     // 通常プレイ中（モーダル/メニュー/テキスト入力非表示時）の '/' (What is this?) および '\' (Known objects)
     if (!context.bypassEnhancedSignals && !ctrlKey && !altKey) {
-      if (key === '/' || code === 'Slash') {
+      if (key === '/') {
         return { action: ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR };
       }
-      if (key === '\\' || key === '¥' || code === 'Backslash' || code === 'IntlYen') {
+      if (key === '\\' || key === '¥') {
         return { action: ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX };
       }
     }
