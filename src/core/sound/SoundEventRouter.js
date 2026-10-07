@@ -305,6 +305,7 @@ export class SoundEventRouter {
      * @returns {Object}
      */
     resolveRuleFromEventDef(eventDef, eventKey = null) {
+        const existing = this.rules ? this.rules.find(r => r.id === eventDef.seId) : null;
         let synthDef = null;
 
         if (!synthDef) {
@@ -330,11 +331,11 @@ export class SoundEventRouter {
 
         return {
             id: eventDef.seId || 'preview_sound',
-            sound: eventDef.sound || null,
-            beep: eventDef.beep || null,
+            sound: eventDef.sound || existing?.sound || null,
+            beep: eventDef.beep || existing?.beep || null,
             synth: synthDef,
-            priority: eventDef.priority !== undefined ? eventDef.priority : 50,
-            cooldownMs: eventDef.cooldownMs || 0
+            priority: eventDef.priority !== undefined ? eventDef.priority : (existing?.priority !== undefined ? existing.priority : 50),
+            cooldownMs: eventDef.cooldownMs || existing?.cooldownMs || 0
         };
     }
 

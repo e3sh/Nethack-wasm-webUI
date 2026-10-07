@@ -90,9 +90,12 @@ const MODAL_CSS = `
   transition: all 0.2s ease;
 }
 
-.modal-close-btn:hover {
+.modal-close-btn:hover,
+.modal-close-btn:focus-visible {
   color: var(--nh-danger-color);
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.2);
+  outline: 2px solid var(--nh-danger-color);
+  outline-offset: 1px;
 }
 
 .modal-body {
@@ -215,13 +218,15 @@ export class NhModal extends NhBaseElement {
       isOpen: () => this.open,
       close: () => this.close(),
       priority: this._priority,
-      isInputFocused: () => this._isInputFocused()
+      isInputFocused: () => this._isInputFocused(),
+      navigate: (dir) => this.navigateFocus(dir),
+      submit: () => this.submitFocused()
     });
   }
 
   _isInputFocused() {
-    if (!this.shadowRoot || typeof document === 'undefined') return false;
-    const active = document.activeElement;
+    if (typeof document === 'undefined') return false;
+    const active = (this.shadowRoot && this.shadowRoot.activeElement) || document.activeElement;
     if (!active) return false;
     const tag = active.tagName ? active.tagName.toLowerCase() : '';
     return tag === 'input' || tag === 'textarea' || tag === 'select';
@@ -236,13 +241,87 @@ export class NhModal extends NhBaseElement {
   }
 
   _trapInitialFocus() {
-    if (!this.shadowRoot) return;
     setTimeout(() => {
-      const closeBtn = this.shadowRoot.querySelector('.modal-close-btn');
+      // 1. [autofocus] 要素があれば最優先
+      const autofocusEl = this.querySelector('[autofocus]') || (this.shadowRoot && this.shadowRoot.querySelector('[autofocus]'));
+      if (autofocusEl && typeof autofocusEl.focus === 'function') {
+        autofocusEl.focus();
+        return;
+      }
+
+      // 2. 本文スロット内のフォーカス可能要素（閉じるボタン以外）
+      const focusables = this._getFocusableElements();
+      const contentFocusable = focusables.find(el => !el.classList.contains('modal-close-btn'));
+      if (contentFocusable && typeof contentFocusable.focus === 'function') {
+        contentFocusable.focus();
+        return;
+      }
+
+      // 3. なければ閉じるボタン
+      const closeBtn = this.shadowRoot ? this.shadowRoot.querySelector('.modal-close-btn') : null;
       if (closeBtn && typeof closeBtn.focus === 'function') {
         closeBtn.focus();
       }
     }, 50);
+  }
+
+  /**
+   * モーダル内のフォーカス可能要素群を巡回移動 (上下左右 / GamePad D-Pad)
+   * @param {'prev'|'next'|'left'|'right'} dir 
+   * @returns {boolean}
+   */
+  navigateFocus(dir) {
+    const focusables = this._getFocusableElements();
+    if (focusables.length === 0) return false;
+
+    const activeEl = (this.shadowRoot && this.shadowRoot.activeElement) || (typeof document !== 'undefined' ? document.activeElement : null);
+    let index = focusables.indexOf(activeEl);
+
+    if (index === -1) {
+      const target = (dir === 'prev' || dir === 'left') ? focusables[focusables.length - 1] : focusables[0];
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+        return true;
+      }
+      return false;
+    }
+
+    if (dir === 'prev' || dir === 'left') {
+      index = (index - 1 + focusables.length) % focusables.length;
+    } else {
+      index = (index + 1) % focusables.length;
+    }
+
+    if (focusables[index] && typeof focusables[index].focus === 'function') {
+      focusables[index].focus();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * 現在フォーカス中の要素または主要アクションを実行 (Enter / GamePad A)
+   * @returns {boolean}
+   */
+  submitFocused() {
+    const activeEl = (this.shadowRoot && this.shadowRoot.activeElement) || (typeof document !== 'undefined' ? document.activeElement : null);
+    const focusables = this._getFocusableElements();
+
+    if (activeEl && focusables.includes(activeEl)) {
+      if (typeof activeEl.click === 'function') {
+        activeEl.click();
+        return true;
+      }
+    }
+
+    // デフォルト: 最初の submit ボタンまたは主要ボタンを実行
+    const submitBtn = this.querySelector('button[type="submit"], .btn-primary, button:not(.modal-close-btn)');
+    if (submitBtn && typeof submitBtn.click === 'function') {
+      submitBtn.click();
+      return true;
+    }
+
+    return false;
   }
 
   _handleKeyDown(e) {
@@ -262,6 +341,20 @@ export class NhModal extends NhBaseElement {
           first.focus();
         }
       }
+      return;
+    }
+
+    // 矢印キーでのフォーカス移動 (input/textarea 入力中でない場合)
+    if (!this._isInputFocused()) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        this.navigateFocus('next');
+        return;
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.navigateFocus('prev');
+        return;
+      }
     }
 
     // 単独モーダル時の ESC 閉塞 (ModalStackController 未登録時のフォールバック)
@@ -276,9 +369,8 @@ export class NhModal extends NhBaseElement {
   }
 
   _getFocusableElements() {
-    if (!this.shadowRoot) return [];
-    const selectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    const inner = Array.from(this.shadowRoot.querySelectorAll(selectors));
+    const selectors = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])';
+    const inner = this.shadowRoot ? Array.from(this.shadowRoot.querySelectorAll(selectors)) : [];
     const slotted = Array.from(this.querySelectorAll(selectors));
     return [...inner, ...slotted];
   }

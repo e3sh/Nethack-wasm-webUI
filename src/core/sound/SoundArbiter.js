@@ -120,7 +120,7 @@ export class SoundArbiter {
             return a.enqueuedAt - b.enqueuedAt;
         });
 
-        this._log('SOUND_ENQUEUED', `Sound enqueued: ${rule.id || 'unnamed'} (priority: ${priority})`, {
+        this._log('ENQUEUE_SE', `Sound enqueued: ${rule.id || 'unnamed'} (priority: ${priority}) [Queue: ${this.audioQueue.length}]`, {
             rule,
             context,
             queueLength: this.audioQueue.length
@@ -128,7 +128,10 @@ export class SoundArbiter {
 
         // 3. Audio Queue 処理ループを開始
         if (!this.isProcessingQueue) {
-            this._processAudioQueue();
+            this.isProcessingQueue = true;
+            queueMicrotask(() => {
+                this._processAudioQueue();
+            });
         }
 
         return rule;
@@ -139,36 +142,39 @@ export class SoundArbiter {
      * キューから順次アイテムを取り出し、SSOT調停アルゴリズムに基づいてドライバへ再生指示を行う。
      */
     async _processAudioQueue() {
-        if (this.isProcessingQueue) return;
         this.isProcessingQueue = true;
 
-        while (this.audioQueue.length > 0) {
-            const mode = this.getNormalizedMode();
-            if (mode === 'mute') {
-                this.audioQueue = [];
-                break;
-            }
+        try {
+            while (this.audioQueue.length > 0) {
+                const mode = this.getNormalizedMode();
+                if (mode === 'mute') {
+                    this.audioQueue = [];
+                    break;
+                }
 
-            const item = this.audioQueue.shift();
-            if (item && item.rule) {
-                if (item.rule.synth) {
-                    if (mode === 'wave' && item.rule.sound) {
-                        await this.playSoundByRule(item.rule);
+                const item = this.audioQueue.shift();
+                if (item && item.rule) {
+                    this._log('PLAY_QUEUE_ITEM', `Playing queue item: ${item.rule.id} (priority: ${item.priority}, mode: ${mode}) [Remaining: ${this.audioQueue.length}]`, { item, mode });
+
+                    if (item.rule.synth) {
+                        if (mode === 'wave' && item.rule.sound) {
+                            await this.playSoundByRule(item.rule);
+                        } else {
+                            // シンセシスはスタガード遅延キューを介しつつ即時合成発音
+                            await this.playSoundByRule(item.rule);
+                        }
                     } else {
-                        // シンセシスはスタガード遅延キューを介しつつ即時合成発音
                         await this.playSoundByRule(item.rule);
                     }
-                } else {
-                    await this.playSoundByRule(item.rule);
+                }
+
+                if (this.audioQueue.length > 0) {
+                    await new Promise(r => setTimeout(r, this.staggerIntervalMs));
                 }
             }
-
-            if (this.audioQueue.length > 0) {
-                await new Promise(r => setTimeout(r, this.staggerIntervalMs));
-            }
+        } finally {
+            this.isProcessingQueue = false;
         }
-
-        this.isProcessingQueue = false;
     }
 
     async playSynth(synthDef) {

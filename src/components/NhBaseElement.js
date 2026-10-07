@@ -73,6 +73,19 @@ const BaseClass = typeof HTMLElement !== 'undefined'
         if (!this._listeners.has(evt)) return;
         this._listeners.set(evt, this._listeners.get(evt).filter(fn => fn !== h));
       }
+      querySelector(selector) {
+        if (this.shadowRoot && typeof this.shadowRoot.querySelector === 'function') {
+          const found = this.shadowRoot.querySelector(selector);
+          if (found) return found;
+        }
+        return null;
+      }
+      querySelectorAll(selector) {
+        if (this.shadowRoot && typeof this.shadowRoot.querySelectorAll === 'function') {
+          return this.shadowRoot.querySelectorAll(selector);
+        }
+        return [];
+      }
     };
 
 export class NhBaseElement extends BaseClass {

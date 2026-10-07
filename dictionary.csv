@@ -17275,3 +17275,5 @@ Pattern,^You lost some of your gold in (.*)!$,$1に金貨をいくつか落と�
 Message,You feel lackluster.,気分が盛り上がらない。,,
 Entity,orchids,ラン,,
 Message,The water flow seems fixed.,水の流れは一定のようだ。,,
+Pattern,^(.*) seems to blend into the floor for a moment\.$,$1が、一瞬、床に溶け込んでいるように見える。,,
+Pattern,^(.*) looks like it is being beamed aboard somewhere\.$,$1がどこかへ転送されているように見える。,,

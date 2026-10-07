@@ -17289,6 +17289,8 @@ function nhPatterns() {
         { pattern: /^(.*)\s+yips\.$/, replace: "$1がキャンと鳴く。" },
         { pattern: /^The\s+zap\s+doesn't\s+shock\s+the\s+(.*)!$/, replace: "その電撃では$1は驚かない！" },
         { pattern: /^You\s+lost\s+some\s+of\s+your\s+gold\s+in\s+(.*)!$/, replace: "$1に金貨をいくつか落としてしまいました！" },
+        { pattern: /^(.*)\s+seems\s+to\s+blend\s+into\s+the\s+floor\s+for\s+a\s+moment\.$/, replace: "$1が、一瞬、床に溶け込んでいるように見える。" },
+        { pattern: /^(.*)\s+looks\s+like\s+it\s+is\s+being\s+beamed\s+aboard\s+somewhere\.$/, replace: "$1がどこかへ転送されているように見える。" },
     ];
 }
 

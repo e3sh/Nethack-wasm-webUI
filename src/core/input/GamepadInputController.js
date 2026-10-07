@@ -115,6 +115,10 @@ export class GamepadInputController {
             return 'MODAL_INVENTORY';
         }
         if (this.modalStack && typeof this.modalStack.hasOpenModal === 'function' && this.modalStack.hasOpenModal()) {
+            const top = typeof this.modalStack.getTopModal === 'function' ? this.modalStack.getTopModal() : null;
+            if (top && (top.isDialog || top.context === 'DIALOG' || (top.id && (top.id.startsWith('modal-') || top.id.endsWith('Dialog') || top.id.endsWith('Modal'))))) {
+                return 'DIALOG';
+            }
             return 'MODAL_INVENTORY';
         }
 
@@ -474,6 +478,13 @@ export class GamepadInputController {
      * @param {'prev'|'next'|'left'|'right'} dir 
      */
     _handleDialogNav(dir) {
+        // 0. ModalStackController の最前面モーダル委譲 (DOM非依存)
+        if (this.modalStack && typeof this.modalStack.navigateTopModal === 'function') {
+            if (this.modalStack.navigateTopModal(dir)) {
+                return;
+            }
+        }
+
         if (typeof document === 'undefined') return;
 
         // 1. CharacterIntroModal (名前入力 / モード選択)
@@ -536,13 +547,49 @@ export class GamepadInputController {
             }
             return;
         }
+
+        // 4. 汎用 DOM ダイアログ / <nh-modal> / [role="dialog"] のフォーカス移動
+        const activeDialog = document.querySelector('nh-modal[open], dialog[open], [role="dialog"]:not(.hidden)');
+        if (activeDialog) {
+            if (typeof activeDialog.navigateFocus === 'function') {
+                if (activeDialog.navigateFocus(dir)) return;
+            }
+
+            const focusables = Array.from(activeDialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'));
+            if (focusables.length > 0) {
+                let idx = focusables.indexOf(document.activeElement);
+                if (idx === -1) {
+                    idx = (dir === 'prev' || dir === 'left') ? focusables.length - 1 : 0;
+                } else if (dir === 'prev' || dir === 'left') {
+                    idx = (idx - 1 + focusables.length) % focusables.length;
+                } else {
+                    idx = (idx + 1) % focusables.length;
+                }
+                if (focusables[idx] && typeof focusables[idx].focus === 'function') {
+                    focusables[idx].focus();
+                }
+                return;
+            }
+        }
     }
 
     /**
      * ダイアログ・メニューの決定
      */
     _handleDialogSubmit() {
-        if (typeof document === 'undefined') return;
+        // 0. ModalStackController の最前面モーダル委譲 (DOM非依存)
+        if (this.modalStack && typeof this.modalStack.submitTopModal === 'function') {
+            if (this.modalStack.submitTopModal()) {
+                return;
+            }
+        }
+
+        if (typeof document === 'undefined') {
+            if (this.core && typeof this.core.sendKey === 'function') {
+                this.core.sendKey('Enter');
+            }
+            return;
+        }
 
         // 1. CharacterIntroModal
         const introModal = this.modalManager?.characterIntroModal;
@@ -583,7 +630,24 @@ export class GamepadInputController {
             }
         }
 
-        // 4. フォールバック: Enter キー送信
+        // 4. 汎用 DOM ダイアログ / <nh-modal> / [role="dialog"] の実行
+        const activeDialog = document.querySelector('nh-modal[open], dialog[open], [role="dialog"]:not(.hidden)');
+        if (activeDialog) {
+            if (typeof activeDialog.submitFocused === 'function') {
+                if (activeDialog.submitFocused()) return;
+            }
+            if (document.activeElement && activeDialog.contains(document.activeElement) && typeof document.activeElement.click === 'function') {
+                document.activeElement.click();
+                return;
+            }
+            const primaryBtn = activeDialog.querySelector('button[type="submit"], .btn-primary, button:not(.modal-close-btn)');
+            if (primaryBtn && typeof primaryBtn.click === 'function') {
+                primaryBtn.click();
+                return;
+            }
+        }
+
+        // 5. フォールバック: Enter キー送信
         if (this.core && typeof this.core.sendKey === 'function') {
             this.core.sendKey('Enter');
         }
@@ -593,6 +657,13 @@ export class GamepadInputController {
      * ダイアログ・メニューのキャンセル / 閉じる
      */
     _handleDialogCancel() {
+        // 0. ModalStackController の最前面モーダル閉じる (DOM非依存)
+        if (this.modalStack && typeof this.modalStack.hasOpenModal === 'function' && this.modalStack.hasOpenModal()) {
+            if (this.modalStack.closeTopModal()) {
+                return;
+            }
+        }
+
         // 1. CharacterIntroModal
         const introModal = this.modalManager?.characterIntroModal;
         if (introModal && introModal.isVisible) {
@@ -621,7 +692,21 @@ export class GamepadInputController {
             }
         }
 
-        // 4. フォールバック: Escape キー送信
+        // 4. 汎用 DOM ダイアログ閉じる
+        if (typeof document !== 'undefined') {
+            const activeModal = document.querySelector('nh-modal[open]');
+            if (activeModal && typeof activeModal.close === 'function') {
+                activeModal.close();
+                return;
+            }
+            const activeDialog = document.querySelector('dialog[open]');
+            if (activeDialog && typeof activeDialog.close === 'function') {
+                activeDialog.close();
+                return;
+            }
+        }
+
+        // 5. フォールバック: Escape キー送信
         if (this.core && typeof this.core.sendKey === 'function') {
             this.core.sendKey('Escape');
         }

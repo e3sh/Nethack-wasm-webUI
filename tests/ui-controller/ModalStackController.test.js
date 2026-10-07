@@ -64,4 +64,23 @@ describe('ModalStackController (Headless Modal Stack)', () => {
     isCodexOpen = false;
     expect(stack.isAnyInputFocused()).toBe(false);
   });
+
+  it('最前面モーダルへの navigateTopModal および submitTopModal の委譲が正しく行われること', () => {
+    const stack = new ModalStackController();
+    const navSpy = vi.fn().mockReturnValue(true);
+    const submitSpy = vi.fn().mockReturnValue(true);
+
+    stack.registerModal('customDialog', {
+      isOpen: () => true,
+      close: vi.fn(),
+      navigate: navSpy,
+      submit: submitSpy
+    });
+
+    expect(stack.navigateTopModal('next')).toBe(true);
+    expect(navSpy).toHaveBeenCalledWith('next');
+
+    expect(stack.submitTopModal()).toBe(true);
+    expect(submitSpy).toHaveBeenCalled();
+  });
 });

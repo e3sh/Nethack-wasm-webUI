@@ -385,6 +385,33 @@ describe('GamepadInputController ユニットテストスイート', () => {
             expect(cancelSpy).toHaveBeenCalled();
             expect(controller.isDialogOpen).toBe(false);
         });
+
+        it('modalStack の最前面モーダルに対して GamePad シグナルが正しくフォールバック委譲されること', () => {
+            const mockModalStack = {
+                hasOpenModal: vi.fn().mockReturnValue(true),
+                getTopModal: vi.fn().mockReturnValue({ id: 'customSettingsModal' }),
+                navigateTopModal: vi.fn().mockReturnValue(true),
+                submitTopModal: vi.fn().mockReturnValue(true),
+                closeTopModal: vi.fn().mockReturnValue(true)
+            };
+
+            const controller = new GamepadInputController({
+                modalStack: mockModalStack
+            });
+
+            // 汎用モーダル時は DIALOG コンテキスト
+            expect(controller.resolveCurrentContext()).toBe('DIALOG');
+
+            // シグナル実行
+            controller.executeSignal('SIGNAL:DIALOG_NEXT');
+            expect(mockModalStack.navigateTopModal).toHaveBeenCalledWith('next');
+
+            controller.executeSignal('SIGNAL:DIALOG_SUBMIT');
+            expect(mockModalStack.submitTopModal).toHaveBeenCalled();
+
+            controller.executeSignal('SIGNAL:DIALOG_CANCEL');
+            expect(mockModalStack.closeTopModal).toHaveBeenCalled();
+        });
     });
 });
 

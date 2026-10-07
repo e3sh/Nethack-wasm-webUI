@@ -108,4 +108,68 @@ describe('SoundArbiter Headless Tests', () => {
         expect(mockDrivers.wave.play).toHaveBeenCalledWith('missing.mp3');
         expect(mockDrivers.synth.play).toHaveBeenCalledWith({ freq: 500 });
     });
+
+    it('should guarantee priority order dispatch when multiple sounds are enqueued synchronously (burst test)', async () => {
+        const playedOrder = [];
+        const logs = [];
+        const testArbiter = new SoundArbiter({
+            modeManager,
+            drivers: {
+                wave: {
+                    play: vi.fn().mockImplementation(async (file) => {
+                        playedOrder.push(file);
+                        return true;
+                    })
+                },
+                beep: { play: vi.fn() },
+                synth: { play: vi.fn() }
+            },
+            staggerIntervalMs: 60,
+            onLogCallback: (type, msg, meta) => {
+                logs.push({ type, msg, meta });
+            }
+        });
+
+        // 低優先度 (damage: 70) ➔ 中優先度 (trap: 80) ➔ 高優先度 (die: 100) ➔ 最低優先度 (coins: 40) を同期連続投入
+        testArbiter.enqueue({ id: 'se_damage', sound: 'damage.mp3', priority: 70 });
+        testArbiter.enqueue({ id: 'se_trap', sound: 'trap.mp3', priority: 80 });
+        testArbiter.enqueue({ id: 'se_die', sound: 'die.mp3', priority: 100 });
+        testArbiter.enqueue({ id: 'se_coins', sound: 'coins.mp3', priority: 40 });
+
+        // キュー内は同期投入時点で優先度順にソートされている (die -> trap -> damage -> coins)
+        expect(testArbiter.audioQueue.map(item => item.rule.id)).toEqual([
+            'se_die',
+            'se_trap',
+            'se_damage',
+            'se_coins'
+        ]);
+
+        // ENQUEUE_SE ログが発行されていること
+        const enqueueLogs = logs.filter(l => l.type === 'ENQUEUE_SE');
+        expect(enqueueLogs.length).toBe(4);
+        expect(enqueueLogs[0].msg).toContain('se_damage');
+        expect(enqueueLogs[3].msg).toContain('[Queue: 4]');
+
+        // 1件目 (se_die: 100) の再生確認 (microtask 実行直後)
+        await vi.advanceTimersByTimeAsync(0);
+        expect(playedOrder).toEqual(['die.mp3']);
+
+        // PLAY_QUEUE_ITEM ログが発行されていること
+        const playLogs = logs.filter(l => l.type === 'PLAY_QUEUE_ITEM');
+        expect(playLogs.length).toBe(1);
+        expect(playLogs[0].msg).toContain('Playing queue item: se_die (priority: 100');
+        expect(playLogs[0].msg).toContain('[Remaining: 3]');
+
+        // 2件目 (se_trap: 80)
+        await vi.advanceTimersByTimeAsync(60);
+        expect(playedOrder).toEqual(['die.mp3', 'trap.mp3']);
+
+        // 3件目 (se_damage: 70)
+        await vi.advanceTimersByTimeAsync(60);
+        expect(playedOrder).toEqual(['die.mp3', 'trap.mp3', 'damage.mp3']);
+
+        // 4件目 (se_coins: 40)
+        await vi.advanceTimersByTimeAsync(60);
+        expect(playedOrder).toEqual(['die.mp3', 'trap.mp3', 'damage.mp3', 'coins.mp3']);
+    });
 });

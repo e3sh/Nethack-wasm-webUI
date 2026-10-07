@@ -32,7 +32,7 @@ last_updated: 2026-10-01
 ## 🔥 1. 直近フォーカス・移行計画 (Next Focus / Active Plan)
 
 現在設計が完了し、直近の着手対象である最重要リファクタリング・機能拡充タスクです。  
-直近で策定された音響系・操作系の新アーキテクチャに基づき、**「Phase 6: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離」** および **「Phase 7: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ」** を順次推進します。
+直近で策定された音響系・操作系の新アーキテクチャに基づき、**「Phase 6: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離」** および **「Phase 7: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ」**、さらにクライアントコードの保守性改善として **「1.4 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化」** を順次推進します。
 
 > [!NOTE]
 > 直近に完了した **Phase E (UIController / Web Components: 2026-09-27 完了)** および **Phase 5 (メッセージシグナル化刷新 Stage 5.1〜5.6: 2026-09-29 完了)** の実施実績詳細は、**[最新引き継ぎレポート (handover_20260929)](./6_project_reports/handover_20260929_status_reevaluation.ja.md)** および **[3. 実装完了コア機能 (Living Specs)](#🟢-3-実装完了コア機能現行仕様-living-specs)** をご参照ください。
@@ -126,6 +126,29 @@ last_updated: 2026-10-01
 
 ---
 
+### 1.4 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化 (GKL Client Modularization)
+- **ステータス**: `🚧 in-progress` (2026-10-07 策定・着手)
+- **設計書**: [gkl_client_modularization_plan.ja.md](./2_client_ui/gkl_client_modularization_plan.ja.md)
+- **対象コード**: `examples/gkl-pure-js-client/main.js` (2,364行 ➔ 400〜500行を目標)
+- **最優先着手理由**:
+  - GKLクライアントのメインエントリポイントである `main.js` に「起動ステートマシン」「UI多言語辞書・適用」「盤面クリック/ホバー判定」「Visual FXディスパッチ」「レイアウト管理」が過密集中し、典型的なGod Object化している。
+  - 変更時の影響範囲局所化、テスタビリティ向上、および保守性担保のため、既存 `modules/` 構成を拡張して疎結合なコントローラー群に分離する。
+- **マイグレーションステップ**:
+  - [ ] **Phase 1: 多言語 UI 更新の分離 (`modules/i18n/`)** (約250行削減)
+    - `clientDictionary.js` (対訳辞書テーブル) および `ClientLocalization.js` (DOM適用クラス) を配備
+  - [ ] **Phase 2: レイアウト & プリセット管理の分離 (`modules/layout/`)** (約180行削減)
+    - `LayoutController.js` による `UIConfigStore` 連動・サイドパネル開閉・チェックボックス同期の集約
+  - [ ] **Phase 3: Visual FX ディスパッチャの分離 (`modules/effects/`)** (約120行削減)
+    - `VisualFxDispatcher.js` による 2D/3D(WebGPU) 両対応演出・画面シェイクルーティングの分離
+  - [ ] **Phase 4: スタートアップ・セーブ管理の分離 (`modules/startup/`)** (約260行削減)
+    - `StartupFlowController.js` による段階遷移（INITIALIZING→PLAYING）およびセーブ検出・リスタートのカプセル化
+  - [ ] **Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)** (約150行削減)
+    - `CanvasInteractionController.js` による 2D/3D/ASCII 共通の盤面ホバー・クリック・メニュー判定の独立化
+  - [ ] **Phase 6: 全体リグレッションテスト ＆ クライアント動作検証**
+    - `main.js` を 400〜500 行の純粋なオーケストレーターへ集約、全自動テスト100%パス確認
+
+---
+
 ## 📋 2. 構想・実装待ちバックログ (Ideas & Planned Backlog)
 
 設計構想・アイデアが策定されており、優先度に応じて着手を待つバックログです。
@@ -180,6 +203,13 @@ last_updated: 2026-10-01
 - **概要**:
   - `?` キー等のヘルプ表示において、CUI端末向け英文テキストを無理に翻訳・表示するのではなく、WebUI（パッド/タッチ/GKL）に最適化された専用操作ガイドモーダル（`HelpGuideModal`）を自前提供。
   - ゲームプレイ外の長文（歴史・ライセンス等）は要約カード提示や「Google翻訳で開く」外部ブラウザ連携により、ライセンス独立性（他バリアント借用ゼロ）と軽快なUXを両立する長期バックログ構想。
+
+### 2.8 外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想 (External Wiki Linking)
+- **ステータス**: `💡 proposed` (バックログ)
+- **設計書**: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
+- **概要**:
+  - ブラウザ動作クライアントの特性を活かし、GKLのモンスター・アイテム・伝承からNetHackWikiの公式ページ（またはGoogleウェブ翻訳プロキシ）へワンクリックでジャンプ（`🌐 Wiki`ボタン）。
+  - 英語名からの$O(1)$スラッグ決定論的自動導出＋言語モード連動（ja時は機械翻訳展開）。容量増大ゼロ・ライセンス完全独立でコミュニティ最新知見へのアクセスを提供。
 
 ---
 

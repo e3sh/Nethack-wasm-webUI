@@ -19,6 +19,8 @@ export class ModalStackController {
    * @param {Function} handler.close - モーダルを閉じる関数
    * @param {number} [handler.priority=0] - 優先度 (高いほど最前面として扱われる)
    * @param {Function} [handler.isInputFocused] - 内部の入力欄にフォーカスがあるかを返す関数
+   * @param {Function} [handler.navigate] - ナビゲーション操作委譲関数 (dir: 'prev'|'next'|'left'|'right') => boolean
+   * @param {Function} [handler.submit] - 決定操作委譲関数 () => boolean
    */
   registerModal(id, handler) {
     this.modals.set(id, {
@@ -26,7 +28,9 @@ export class ModalStackController {
       priority: handler.priority || 0,
       isOpen: handler.isOpen || (() => false),
       close: handler.close || (() => {}),
-      isInputFocused: handler.isInputFocused || (() => false)
+      isInputFocused: handler.isInputFocused || (() => false),
+      navigate: handler.navigate || null,
+      submit: handler.submit || null
     });
   }
 
@@ -82,6 +86,31 @@ export class ModalStackController {
     if (top && typeof top.close === 'function') {
       top.close();
       return true;
+    }
+    return false;
+  }
+
+  /**
+   * 最前面のモーダルにナビゲーション操作 (上下左右/前後) を委譲
+   * @param {'prev'|'next'|'left'|'right'} dir 
+   * @returns {boolean} 操作が処理された場合は true
+   */
+  navigateTopModal(dir) {
+    const top = this.getTopModal();
+    if (top && typeof top.navigate === 'function') {
+      return Boolean(top.navigate(dir));
+    }
+    return false;
+  }
+
+  /**
+   * 最前面のモーダルに決定操作 (Submit) を委譲
+   * @returns {boolean} 操作が処理された場合は true
+   */
+  submitTopModal() {
+    const top = this.getTopModal();
+    if (top && typeof top.submit === 'function') {
+      return Boolean(top.submit());
     }
     return false;
   }

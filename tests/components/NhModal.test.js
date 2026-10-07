@@ -82,4 +82,57 @@ describe('NhModal (<nh-modal>)', () => {
     modal.disconnectedCallback();
     expect(stack.hasOpenModal()).toBe(false);
   });
+
+  it('navigateFocus() で要素間を循環フォーカス移動できること', () => {
+    const modal = new NhModal();
+    modal.connectedCallback();
+    modal.showModal();
+
+    const btn1 = { focus: vi.fn() };
+    const btn2 = { focus: vi.fn() };
+    vi.spyOn(modal, '_getFocusableElements').mockReturnValue([btn1, btn2]);
+
+    // 初期未フォーカスから next で先頭 (btn1) へ
+    expect(modal.navigateFocus('next')).toBe(true);
+    expect(btn1.focus).toHaveBeenCalled();
+
+    // 次へ (btn2)
+    modal.shadowRoot.activeElement = btn1;
+    expect(modal.navigateFocus('next')).toBe(true);
+    expect(btn2.focus).toHaveBeenCalled();
+
+    // prev で末尾 (btn2) へ
+    modal.shadowRoot.activeElement = null;
+    expect(modal.navigateFocus('prev')).toBe(true);
+    expect(btn2.focus).toHaveBeenCalled();
+  });
+
+  it('submitFocused() で現在フォーカス中の要素または主要ボタンを実行できること', () => {
+    const modal = new NhModal();
+    modal.connectedCallback();
+    modal.showModal();
+
+    const clickSpy = vi.fn();
+    const btn = { click: clickSpy };
+    vi.spyOn(modal, '_getFocusableElements').mockReturnValue([btn]);
+    modal.shadowRoot.activeElement = btn;
+
+    const executed = modal.submitFocused();
+    expect(executed).toBe(true);
+    expect(clickSpy).toHaveBeenCalled();
+  });
+
+  it('矢印キー (ArrowDown / ArrowUp) で navigateFocus が呼び出されること', () => {
+    const modal = new NhModal();
+    modal.connectedCallback();
+    modal.showModal();
+
+    const navSpy = vi.spyOn(modal, 'navigateFocus');
+
+    modal._handleKeyDown({ key: 'ArrowDown', preventDefault: vi.fn() });
+    expect(navSpy).toHaveBeenCalledWith('next');
+
+    modal._handleKeyDown({ key: 'ArrowUp', preventDefault: vi.fn() });
+    expect(navSpy).toHaveBeenCalledWith('prev');
+  });
 });
