@@ -1390,7 +1390,7 @@ export class WebUICore {
             currentScore: status ? status.score : 0,
             isExploreMode: isExploreFromOutput,
             isWizardMode: isWizardFromOutput,
-            deathMessage: detectedDeath || (this.lastPutstrText ? this.lastPutstrText.trim() : null)
+            deathMessage: detectedDeath || null
         };
         const result = await GameOverResolver.resolveGameOver(this.driver, sessionInfo, { translator: this.translator });
         if (result && result.isGameOver && result.death) {

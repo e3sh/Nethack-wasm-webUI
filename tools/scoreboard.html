@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack - 殿堂・スコアボード (Hall of Fame & Adventure Records)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/portal-theme.css">
+    <style>
+        :root {
+            --panel-bg: rgba(22, 27, 34, 0.85);
+            --accent-color: var(--accent-gold);
+            --accent-hover: var(--accent-gold-hover);
+        }
+
+        body {
+            min-height: 100vh;
+            padding: 24px 20px 60px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1280px;
+            animation: fadeIn 0.4s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* サマリーカードグリッド */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .summary-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .summary-icon {
+            font-size: 32px;
+            line-height: 1;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .summary-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-value {
+            font-family: var(--font-heading);
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* ツールバー (フィルタ・ソート・検索) */
+        .toolbar-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sort-pill-group {
+            display: inline-flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .sort-btn {
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border: none;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sort-btn:hover {
+            color: #fff;
+        }
+
+        .sort-btn.active {
+            background: var(--accent-gold-bg);
+            color: var(--accent-gold);
+            border: 1px solid var(--accent-gold-border);
+        }
+
+        .filter-select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 7px 12px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-select:focus {
+            border-color: var(--accent-gold);
+        }
+
+        .search-input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #fff;
+            font-family: var(--font-body);
+            font-size: 13px;
+            padding: 7px 14px;
+            outline: none;
+            width: 200px;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-gold);
+            width: 240px;
+        }
+
+        /* 2ペインメインレイアウト */
+        .records-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 960px) {
+            .records-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pane-card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            min-height: 580px;
+            max-height: 80vh;
+        }
+
+        .pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .pane-title {
+            font-family: var(--font-heading);
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pane-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+        }
+
+        /* レコードリスト */
+        .records-list {
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 6px;
+        }
+
+        .record-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .record-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .record-item.selected {
+            background: var(--accent-gold-bg);
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 16px rgba(227, 179, 65, 0.25);
+        }
+
+        .rank-badge {
+            font-family: var(--font-heading);
+            font-size: 13px;
+            font-weight: 800;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .rank-badge.rank-1 {
+            background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+            color: #000;
+            border: none;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+        }
+
+        .rank-badge.rank-2 {
+            background: linear-gradient(135deg, #e0e0e0 0%, #9e9e9e 100%);
+            color: #000;
+            border: none;
+        }
+
+        .rank-badge.rank-3 {
+            background: linear-gradient(135deg, #cd7f32 0%, #8b4513 100%);
+            color: #fff;
+            border: none;
+        }
+
+        .record-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .record-top-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .record-name-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .record-name {
+            font-family: var(--font-heading);
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .record-score {
+            font-family: var(--font-heading);
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--accent-gold);
+            white-space: nowrap;
+        }
+
+        .record-tags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge-tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+        }
+
+        .badge-role {
+            background: var(--accent-blue-bg);
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue-border);
+        }
+
+        .badge-ascended {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green-border);
+            font-weight: 700;
+        }
+
+        .record-death-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+
+        .record-meta-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* 詳細インスペクターパネル (右ペイン) */
+        .detail-pane {
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-right: 6px;
+        }
+
+        .detail-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            gap: 12px;
+            padding: 40px 20px;
+        }
+
+        .detail-hero-card {
+            background: linear-gradient(135deg, rgba(227, 179, 65, 0.08) 0%, rgba(22, 27, 34, 0.6) 100%);
+            border: 1px solid var(--accent-gold-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detail-hero-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .detail-hero-title {
+            font-family: var(--font-heading);
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detail-hero-score {
+            font-family: var(--font-heading);
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--accent-gold);
+            text-shadow: 0 0 20px rgba(227, 179, 65, 0.4);
+        }
+
+        .detail-hero-death {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ff7b72;
+            padding: 8px 12px;
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.25);
+            border-radius: 10px;
+            line-height: 1.4;
+        }
+
+        .detail-hero-death.ascended {
+            color: #7ee787;
+            background: rgba(63, 185, 80, 0.1);
+            border-color: rgba(63, 185, 80, 0.3);
+        }
+
+        .detail-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .detail-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-gold);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        @media (max-width: 500px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-cell {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .detail-cell.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .cell-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .cell-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            word-break: break-all;
+        }
+
+        .raw-data-box {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 12px;
+            max-height: 180px;
+            overflow-y: auto;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            word-break: break-all;
+        }
+
+        /* サバイバルナレッジ・敗因分析カード */
+        .knowledge-postmortem-card {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.08) 0%, rgba(22, 27, 34, 0.7) 100%);
+            border: 1px solid var(--accent-blue-border);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .knowledge-hero-entity {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .danger-pill {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .danger-LETHAL { background: rgba(248, 81, 73, 0.2); color: #ff7b72; border: 1px solid rgba(248, 81, 73, 0.4); }
+        .danger-HIGH { background: rgba(227, 179, 65, 0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold-border); }
+        .danger-MEDIUM { background: rgba(88, 166, 255, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue-border); }
+
+        .advice-quote-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 0 8px 8px 0;
+            padding: 10px 14px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #f0f6fc;
+        }
+
+        .lore-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            background: var(--accent-blue-bg);
+            border: 1px solid var(--accent-blue-border);
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .lore-action-btn:hover {
+            background: rgba(88, 166, 255, 0.25);
+            border-color: var(--accent-blue-hover);
+            transform: translateY(-1px);
+        }
+
+        /* 空状態・エラー表示 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 60px 20px;
+            text-align: center;
+            gap: 14px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            opacity: 0.7;
+        }
+
+        .empty-title {
+            font-family: var(--font-heading);
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .empty-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            max-width: 360px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- ナビゲーションバー -->
+        <nav class="portal-nav portal-nav-wide nav-bar">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <a href="../index.html" class="nav-back-btn">← タイトル画面へ戻る</a>
+                <div class="nav-pill-group">
+                    <a href="scoreboard.html" class="nav-pill-item active accent-gold">🏆 殿堂・スコアボード</a>
+                    <a href="adventure_log.html" class="nav-pill-item">👣 冒険手帳 (Log)</a>
+                    <a href="config.html" class="nav-pill-item">⚙️ システム設定</a>
+                    <a href="save_manager.html" class="nav-pill-item">💾 セーブデータ管理</a>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="nav-pill-item" id="btn-lang-toggle" onclick="toggleLang()" style="cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
+                    🌐 日本語
+                </button>
+            </div>
+        </nav>
+
+        <!-- サマリー統計カード -->
+        <section class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-icon">🏆</div>
+                <div class="summary-meta">
+                    <span class="summary-label" id="lbl-stat-high">歴代最高スコア</span>
+                    <span class="summary-value" id="val-stat-high" style="color: var(--accent-gold);">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">⚔️</div>
+                <div class="summary-meta">
+                    <span class="summary-label" id="lbl-stat-runs">総冒険回数</span>
+                    <span class="summary-value" id="val-stat-runs">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">🌟</div>
+                <div class="summary-meta">
+                    <span class="summary-label" id="lbl-stat-ascended">昇天 (クリア)</span>
+                    <span class="summary-value" id="val-stat-ascended" style="color: var(--accent-green);">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">⏱️</div>
+                <div class="summary-meta">
+                    <span class="summary-label" id="lbl-stat-time">総プレイ時間</span>
+                    <span class="summary-value" id="val-stat-time">0m</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ツールバー (フィルタ・ソート・検索) -->
+        <section class="toolbar-card">
+            <div class="toolbar-group">
+                <div class="sort-pill-group">
+                    <button class="sort-btn active" id="btn-sort-score" onclick="setSortMode('score')">🏆 スコア順</button>
+                    <button class="sort-btn" id="btn-sort-date" onclick="setSortMode('date')">⏱️ 日時順</button>
+                </div>
+                <select class="filter-select" id="filter-status" onchange="applyFilters()">
+                    <option value="all" id="opt-status-all">すべての冒険結果 (NetHack 5.0)</option>
+                    <option value="official" id="opt-status-official">🛡️ 通常プレイ (公式記録) のみ</option>
+                    <option value="ascended" id="opt-status-ascended">🌟 昇天 (クリア) のみ</option>
+                    <option value="died" id="opt-status-died">💀 死亡 (敗北) のみ</option>
+                    <option value="non_official" id="opt-status-nonofficial">🧪 Explore / Wizard のみ</option>
+                </select>
+                <select class="filter-select" id="filter-role" onchange="applyFilters()">
+                    <option value="all">すべての職業 (Roles)</option>
+                </select>
+            </div>
+            <div class="toolbar-group">
+                <input type="text" class="search-input" id="search-input" placeholder="名前・死因で検索..." oninput="applyFilters()">
+                <button class="nav-pill-item" onclick="initData()" style="cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);" title="再読み込み">
+                    🔄
+                </button>
+            </div>
+        </section>
+
+        <!-- メイン2ペインレイアウト -->
+        <main class="records-layout">
+            <!-- 左ペイン: 冒険記録リスト -->
+            <section class="pane-card">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span>📜</span>
+                        <span id="txt-list-title">冒険の記録一覧</span>
+                    </div>
+                    <span class="pane-badge" id="txt-records-count">0 件</span>
+                </div>
+                <div class="records-list" id="records-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">⏳</div>
+                        <div class="empty-title">データを読み込み中...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右ペイン: 冒険詳細インスペクター -->
+            <section class="pane-card">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span>🔍</span>
+                        <span id="txt-detail-title">冒険の詳細レポート</span>
+                    </div>
+                    <span class="pane-badge" id="txt-detail-id">選択なし</span>
+                </div>
+                <div class="detail-pane" id="detail-pane">
+                    <div class="detail-placeholder" id="detail-placeholder">
+                        <span style="font-size: 40px; opacity: 0.6;">📖</span>
+                        <p id="txt-placeholder-msg">左側の記録を選択すると、詳細な探索記録やパラメータがここに表示されます。</p>
+                    </div>
+                    <div id="detail-content" style="display: none; flex-direction: column; gap: 16px;">
+                        <!-- 動的レンダリング -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { PostMortemKnowledgeResolver } from '../src/core/knowledge/services/PostMortemKnowledgeResolver.js';
+
+        const DB_NAME = '/save';
+        const STORE_NAME = 'FILE_DATA';
+
+        // 辞書定義
+        const ROLE_MAP_JA = {
+            'Arc': '考古学者 (Archeologist)',
+            'Bar': '野蛮人 (Barbarian)',
+            'Cav': '洞窟人 (Caveman)',
+            'Cav-': '洞窟人 (Caveman)',
+            'Hea': '医者 (Healer)',
+            'Kni': '騎士 (Knight)',
+            'Mon': '武闘家 (Monk)',
+            'Pri': '僧侶 (Priest)',
+            'Ran': 'レンジャー (Ranger)',
+            'Rog': '盗賊 (Rogue)',
+            'Sam': '侍 (Samurai)',
+            'Tou': '観光客 (Tourist)',
+            'Val': 'ワルキューレ (Valkyrie)',
+            'Wiz': '魔法使い (Wizard)',
+            'Explorer': '冒険者 (Explorer)'
+        };
+
+        const ROLE_MAP_EN = {
+            'Arc': 'Archeologist',
+            'Bar': 'Barbarian',
+            'Cav': 'Caveman',
+            'Cav-': 'Caveman',
+            'Hea': 'Healer',
+            'Kni': 'Knight',
+            'Mon': 'Monk',
+            'Pri': 'Priest',
+            'Ran': 'Ranger',
+            'Rog': 'Rogue',
+            'Sam': 'Samurai',
+            'Tou': 'Tourist',
+            'Val': 'Valkyrie',
+            'Wiz': 'Wizard',
+            'Explorer': 'Explorer'
+        };
+
+        const RACE_MAP_JA = {
+            'Dwa': 'ドワーフ (Dwarf)',
+            'Elf': 'エルフ (Elf)',
+            'Gno': 'ノーム (Gnome)',
+            'Hum': '人間 (Human)',
+            'Orc': 'オーク (Orc)'
+        };
+
+        const RACE_MAP_EN = {
+            'Dwa': 'Dwarf',
+            'Elf': 'Elf',
+            'Gno': 'Gnome',
+            'Hum': 'Human',
+            'Orc': 'Orc'
+        };
+
+        const GENDER_MAP_JA = { 'Mal': '男性 (Male)', 'Fem': '女性 (Female)' };
+        const GENDER_MAP_EN = { 'Mal': 'Male', 'Fem': 'Female' };
+
+        const ALIGN_MAP_JA = { 'Law': '秩序 (Lawful)', 'Neu': '中立 (Neutral)', 'Cha': '混沌 (Chaotic)' };
+        const ALIGN_MAP_EN = { 'Law': 'Lawful', 'Neu': 'Neutral', 'Cha': 'Chaotic' };
+
+        const DUNGEON_MAP_JA = {
+            0: '大迷宮 (The Dungeons of Doom)',
+            1: 'ゲヘナ (Gehennom)',
+            2: 'ノームの鉱山 (The Gnomish Mines)',
+            3: 'クエスト (The Quest)',
+            4: '倉庫番 (Sokoban)',
+            5: 'ルーディオス砦 (Fort Ludios)',
+            6: 'ヴラドの塔 (Vlad\'s Tower)',
+            7: '精霊界 (The Planes)'
+        };
+
+        const DUNGEON_MAP_EN = {
+            0: 'The Dungeons of Doom',
+            1: 'Gehennom',
+            2: 'The Gnomish Mines',
+            3: 'The Quest',
+            4: 'Sokoban',
+            5: 'Fort Ludios',
+            6: 'Vlad\'s Tower',
+            7: 'The Planes'
+        };
+
+        // 言語設定 (localStorage nh.config から判定)
+        let isJapanese = true;
+        try {
+            const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
+            if (savedConfig && typeof savedConfig.lang === 'boolean') {
+                isJapanese = savedConfig.lang;
+            }
+        } catch (e) {
+            console.warn("localStorage config read warning:", e);
+        }
+
+        let allRecords = [];
+        let filteredRecords = [];
+        let currentSort = 'score'; // 'score' | 'date'
+        let selectedRecordIndex = null;
+
+        // DB 接続
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function initData() {
+            updateI18nLabels();
+            populateRoleFilter();
+
+            const recordsListEl = document.getElementById('records-list');
+            recordsListEl.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⏳</div>
+                    <div class="empty-title">${isJapanese ? 'データを読み込み中...' : 'Loading adventure records...'}</div>
+                </div>
+            `;
+
+            try {
+                const db = await openDB();
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+
+                const [xlogData, recordData] = await Promise.all([
+                    new Promise(res => { const r = store.get('/save/xlogfile'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }),
+                    new Promise(res => { const r = store.get('/save/record'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); })
+                ]);
+
+                let records = [];
+
+                if (xlogData && xlogData.contents) {
+                    const text = new TextDecoder().decode(xlogData.contents);
+                    records = parseXlogContent(text);
+                }
+
+                // xlogfile がない、または件数が少ない場合は record からも補完
+                if (records.length === 0 && recordData && recordData.contents) {
+                    const text = new TextDecoder().decode(recordData.contents);
+                    records = parseRecordContent(text);
+                }
+
+                allRecords = records;
+                calculateSummaryStats();
+                applyFilters();
+
+                if (allRecords.length > 0) {
+                    selectRecord(filteredRecords[0] || allRecords[0]);
+                } else {
+                    showEmptyDetail();
+                }
+
+            } catch (err) {
+                console.error("Scoreboard init error:", err);
+                recordsListEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">${isJapanese ? '記録が見つかりません' : 'No Records Found'}</div>
+                        <div class="empty-desc">${isJapanese ? 'まだ冒険の完了データがありません。NetHackをプレイしてゲームオーバーまたは昇天すると、ここに記録されます。' : 'No completed game records found in IndexedDB yet. Play NetHack and your adventures will be memorialized here.'}</div>
+                    </div>
+                `;
+                calculateSummaryStats();
+                showEmptyDetail();
+            }
+        }
+
+        // xlogfile パース (NetHack 5.0以降のみ対象、5.0未満は除外)
+        function parseXlogContent(text) {
+            if (!text || !text.trim()) return [];
+            const lines = text.trim().split('\n');
+            const items = [];
+
+            lines.forEach((line, idx) => {
+                if (!line.trim()) return;
+                const parts = line.split('\t');
+                const raw = {};
+                parts.forEach(p => {
+                    const eqIdx = p.indexOf('=');
+                    if (eqIdx !== -1) {
+                        raw[p.substring(0, eqIdx)] = p.substring(eqIdx + 1);
+                    }
+                });
+
+                if (!raw.name && !raw.points) return;
+
+                // バージョン判定: 5.0未満 (3.x等) はノイズとして除外
+                const verStr = raw.version || "5.0.0";
+                if (!verStr.startsWith("5.")) {
+                    return; // 5.0未満はスキップ
+                }
+
+                // flags から explore (discover) / wizard モードを判定
+                // NetHack 5.0 topten.c: bit 0 (0x1) = wizard, bit 1 (0x2) = discover
+                let flagsNum = 0;
+                if (raw.flags !== undefined) {
+                    if (typeof raw.flags === 'string' && raw.flags.startsWith('0x')) {
+                        flagsNum = parseInt(raw.flags, 16) || 0;
+                    } else {
+                        flagsNum = parseInt(raw.flags, 10) || 0;
+                    }
+                }
+                const isWizard = (flagsNum & 0x1) !== 0 || raw.mode === 'wizard';
+                const isDiscover = (flagsNum & 0x2) !== 0 || raw.mode === 'explore';
+
+                const deathStr = raw.death || 'died';
+                const postMortem = PostMortemKnowledgeResolver.resolve(deathStr);
+                const isAscended = postMortem.category === 'ASCENDED';
+
+                items.push({
+                    id: `xlog_${idx}`,
+                    index: idx,
+                    version: verStr,
+                    name: raw.name || 'Hero',
+                    points: parseInt(raw.points, 10) || 0,
+                    deathDnum: parseInt(raw.deathdnum, 10) || 0,
+                    deathLev: parseInt(raw.deathlev, 10) || 1,
+                    maxLvl: parseInt(raw.maxlvl, 10) || 1,
+                    hp: parseInt(raw.hp, 10) || 0,
+                    maxHp: parseInt(raw.maxhp, 10) || 0,
+                    deaths: parseInt(raw.deaths, 10) || 1,
+                    deathDate: raw.deathdate || '',
+                    birthDate: raw.birthdate || '',
+                    role: raw.role || 'Explorer',
+                    race: raw.race || 'Human',
+                    gender: raw.gender || 'Male',
+                    align: raw.align || 'Neutral',
+                    death: deathStr,
+                    translatedDeath: postMortem.translatedDeath,
+                    postMortem: postMortem,
+                    isAscended: isAscended,
+                    isWizard: isWizard,
+                    isDiscover: isDiscover,
+                    turns: parseInt(raw.turns, 10) || 0,
+                    realtime: parseInt(raw.realtime, 10) || 0,
+                    rawFields: raw
+                });
+            });
+
+            return items;
+        }
+
+        // record (公式トップテン) パース (NetHack 5.0以降のみ対象、5.0未満は除外)
+        function parseRecordContent(text) {
+            if (!text || !text.trim()) return [];
+            const lines = text.trim().split('\n');
+            const items = [];
+
+            lines.forEach((line, idx) => {
+                if (!line.trim()) return;
+                const parts = line.split(/\s+/);
+                if (parts.length < 10) return;
+
+                // バージョン判定: NetHack 5.0 形式 (parts[0] が "5.x.x")
+                let verStr = parts[0];
+                let ptsIdx = 1;
+                if (!verStr.includes('.')) {
+                    // 旧フォーマット (バージョンなし) は 5.0 未満のためスキップ
+                    return;
+                }
+                if (!verStr.startsWith("5.")) {
+                    // 3.x 等の 5.0 未満のバージョンはノイズとしてスキップ
+                    return;
+                }
+
+                const points = parseInt(parts[ptsIdx], 10) || 0;
+                const dnum = parseInt(parts[ptsIdx + 1], 10) || 0;
+                const dlev = parseInt(parts[ptsIdx + 2], 10) || 1;
+                const maxlvl = parseInt(parts[ptsIdx + 3], 10) || dlev;
+                const hp = parseInt(parts[ptsIdx + 4], 10) || 0;
+                const maxhp = parseInt(parts[ptsIdx + 5], 10) || 0;
+                const deathDate = parts[ptsIdx + 7] || '';
+                const birthDate = parts[ptsIdx + 8] || '';
+                const role = parts[ptsIdx + 10] || 'Explorer';
+                const race = parts[ptsIdx + 11] || 'Human';
+                const gender = parts[ptsIdx + 12] || 'Male';
+                const align = parts[ptsIdx + 13] || 'Neutral';
+
+                const nameAndDeathStr = parts.slice(ptsIdx + 14).join(' ');
+                let name = "Hero";
+                let death = "died in dungeon";
+                const commaIdx = nameAndDeathStr.indexOf(',');
+                if (commaIdx !== -1) {
+                    name = nameAndDeathStr.substring(0, commaIdx).trim();
+                    death = nameAndDeathStr.substring(commaIdx + 1).trim();
+                } else {
+                    name = nameAndDeathStr.trim();
+                }
+
+                const postMortem = PostMortemKnowledgeResolver.resolve(death);
+                const isAscended = postMortem.category === 'ASCENDED';
+
+                items.push({
+                    id: `rec_${idx}`,
+                    index: idx,
+                    version: verStr,
+                    name: name,
+                    points: points,
+                    deathDnum: dnum,
+                    deathLev: dlev,
+                    maxLvl: maxlvl,
+                    hp: hp,
+                    maxHp: maxhp,
+                    deaths: 1,
+                    deathDate: deathDate,
+                    birthDate: birthDate,
+                    role: role,
+                    race: race,
+                    gender: gender,
+                    align: align,
+                    death: death,
+                    translatedDeath: postMortem.translatedDeath,
+                    postMortem: postMortem,
+                    isAscended: isAscended,
+                    isWizard: false,
+                    isDiscover: false,
+                    turns: 0,
+                    realtime: 0,
+                    rawFields: { version: verStr, points, name, death, role, race, align, deathLev: dlev }
+                });
+            });
+
+            return items;
+        }
+
+        // サマリー統計の計算
+        function calculateSummaryStats() {
+            const totalRuns = allRecords.length;
+            let highestScore = 0;
+            let ascensions = 0;
+            let totalSeconds = 0;
+
+            allRecords.forEach(r => {
+                if (r.points > highestScore) highestScore = r.points;
+                if (r.isAscended) ascensions++;
+                if (r.realtime) totalSeconds += r.realtime;
+            });
+
+            document.getElementById('val-stat-high').textContent = highestScore.toLocaleString();
+            document.getElementById('val-stat-runs').textContent = totalRuns.toLocaleString();
+            document.getElementById('val-stat-ascended').textContent = ascensions.toLocaleString();
+
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            let timeStr = "";
+            if (hours > 0) {
+                timeStr = `${hours}h ${minutes}m`;
+            } else {
+                timeStr = `${minutes}m`;
+            }
+            if (totalSeconds === 0 && totalRuns > 0) timeStr = "--";
+            document.getElementById('val-stat-time').textContent = timeStr;
+        }
+
+        // フィルタ・ソート適用
+        function applyFilters() {
+            const statusFilter = document.getElementById('filter-status').value;
+            const roleFilter = document.getElementById('filter-role').value;
+            const searchText = document.getElementById('search-input').value.toLowerCase().trim();
+
+            filteredRecords = allRecords.filter(r => {
+                if (statusFilter === 'official' && (r.isWizard || r.isDiscover)) return false;
+                if (statusFilter === 'non_official' && !r.isWizard && !r.isDiscover) return false;
+                if (statusFilter === 'ascended' && !r.isAscended) return false;
+                if (statusFilter === 'died' && r.isAscended) return false;
+
+                if (roleFilter !== 'all') {
+                    const shortRole = r.role.substring(0, 3);
+                    if (shortRole !== roleFilter) return false;
+                }
+
+                if (searchText) {
+                    const matchName = r.name.toLowerCase().includes(searchText);
+                    const matchDeath = r.death.toLowerCase().includes(searchText);
+                    const matchRole = r.role.toLowerCase().includes(searchText);
+                    if (!matchName && !matchDeath && !matchRole) return false;
+                }
+
+                return true;
+            });
+
+            // ソート
+            if (currentSort === 'score') {
+                filteredRecords.sort((a, b) => b.points - a.points);
+            } else {
+                filteredRecords.sort((a, b) => {
+                    const dateA = a.deathDate || '';
+                    const dateB = b.deathDate || '';
+                    return dateB.localeCompare(dateA);
+                });
+            }
+
+            renderRecordsList();
+        }
+
+        // レコード一覧のレンダリング
+        function renderRecordsList() {
+            const listEl = document.getElementById('records-list');
+            document.getElementById('txt-records-count').textContent = `${filteredRecords.length} ${isJapanese ? '件' : 'runs'}`;
+            listEl.innerHTML = '';
+
+            if (filteredRecords.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title">${isJapanese ? '該当する記録がありません' : 'No Matching Records'}</div>
+                        <div class="empty-desc">${isJapanese ? 'フィルタや検索キーワードを変更してみてください。' : 'Try clearing filters or search query.'}</div>
+                    </div>
+                `;
+                showEmptyDetail();
+                return;
+            }
+
+            const roleMap = isJapanese ? ROLE_MAP_JA : ROLE_MAP_EN;
+            const raceMap = isJapanese ? RACE_MAP_JA : RACE_MAP_EN;
+
+            filteredRecords.forEach((rec, idx) => {
+                const item = document.createElement('div');
+                item.className = 'record-item';
+                if (selectedRecordIndex === rec.id) item.classList.add('selected');
+
+                const rank = idx + 1;
+                let rankClass = '';
+                if (currentSort === 'score') {
+                    if (rank === 1) rankClass = 'rank-1';
+                    else if (rank === 2) rankClass = 'rank-2';
+                    else if (rank === 3) rankClass = 'rank-3';
+                }
+
+                const shortRole = rec.role.substring(0, 3);
+                const roleName = roleMap[shortRole] || rec.role;
+                const shortRace = rec.race.substring(0, 3);
+                const raceName = raceMap[shortRace] || rec.race;
+                const formattedDate = formatLogDate(rec.deathDate);
+
+                let statusTag = '';
+                if (rec.isAscended) {
+                    statusTag = `<span class="badge-tag badge-ascended">🌟 ${isJapanese ? '昇天 (クリア)' : 'Ascended'}</span>`;
+                } else if (rec.isWizard) {
+                    statusTag = `<span class="badge-tag" style="background:var(--accent-purple-bg); color:var(--accent-purple); border:1px solid var(--accent-purple-border);">🧙 Wizard</span>`;
+                } else if (rec.isDiscover) {
+                    statusTag = `<span class="badge-tag" style="background:var(--accent-blue-bg); color:var(--accent-blue); border:1px solid var(--accent-blue-border);">🧭 Explore</span>`;
+                } else {
+                    statusTag = `<span class="badge-tag">💀 Dlvl ${rec.deathLev}</span>`;
+                }
+
+                const displayDeath = isJapanese ? (rec.translatedDeath || rec.death) : rec.death;
+
+                item.innerHTML = `
+                    <div class="rank-badge ${rankClass}">#${rank}</div>
+                    <div class="record-main">
+                        <div class="record-top-line">
+                            <div class="record-name-group">
+                                <span class="record-name">${escapeHtml(rec.name)}</span>
+                                <span class="badge-tag badge-role">${escapeHtml(roleName.split(' ')[0])}</span>
+                                ${statusTag}
+                            </div>
+                            <span class="record-score">${rec.points.toLocaleString()} pts</span>
+                        </div>
+                        <div class="record-death-desc" title="${escapeHtml(rec.death)}">
+                            ${rec.isAscended ? (isJapanese ? '世界の主として昇天した！' : 'Ascended to Demigodhood!') : escapeHtml(displayDeath)}
+                        </div>
+                        <div class="record-meta-line">
+                            <span>${raceName.split(' ')[0]} / ${rec.gender}</span>
+                            <span>${formattedDate}</span>
+                        </div>
+                    </div>
+                `;
+
+                item.onclick = () => selectRecord(rec);
+                listEl.appendChild(item);
+            });
+        }
+
+        // レコード選択＆右ペイン詳細レンダリング
+        function selectRecord(rec) {
+            if (!rec) return;
+            selectedRecordIndex = rec.id;
+
+            // クラス更新
+            document.querySelectorAll('.record-item').forEach(el => el.classList.remove('selected'));
+            const selectedEl = Array.from(document.querySelectorAll('.record-item')).find(el => {
+                const rankText = el.querySelector('.rank-badge')?.textContent;
+                return el.dataset?.id === rec.id;
+            });
+            if (selectedEl) selectedEl.classList.add('selected');
+
+            document.getElementById('detail-placeholder').style.display = 'none';
+            const detailContent = document.getElementById('detail-content');
+            detailContent.style.display = 'flex';
+            document.getElementById('txt-detail-id').textContent = rec.name;
+
+            const roleMap = isJapanese ? ROLE_MAP_JA : ROLE_MAP_EN;
+            const raceMap = isJapanese ? RACE_MAP_JA : RACE_MAP_EN;
+            const alignMap = isJapanese ? ALIGN_MAP_JA : ALIGN_MAP_EN;
+            const genderMap = isJapanese ? GENDER_MAP_JA : GENDER_MAP_EN;
+            const dungeonMap = isJapanese ? DUNGEON_MAP_JA : DUNGEON_MAP_EN;
+
+            const roleStr = roleMap[rec.role.substring(0, 3)] || rec.role;
+            const raceStr = raceMap[rec.race.substring(0, 3)] || rec.race;
+            const alignStr = alignMap[rec.align.substring(0, 3)] || rec.align;
+            const genderStr = genderMap[rec.gender.substring(0, 3)] || rec.gender;
+            const dungeonStr = dungeonMap[rec.deathDnum] || `Dungeon ${rec.deathDnum}`;
+
+            const playTimeFormatted = rec.realtime ? formatRealtime(rec.realtime) : (rec.turns ? `${rec.turns.toLocaleString()} ${isJapanese ? 'ターン' : 'turns'}` : 'N/A');
+
+            let rawHtml = '';
+            if (rec.rawFields) {
+                rawHtml = Object.entries(rec.rawFields).map(([k, v]) => `<div><span style="color:var(--accent-gold);">${k}</span>: ${escapeHtml(String(v))}</div>`).join('');
+            }
+
+            // 敗因分析・サバイバルナレッジ (AAR) セクションの生成
+            let postMortemSectionHTML = '';
+            const pm = rec.postMortem;
+            if (pm && !rec.isAscended) {
+                const entityName = isJapanese ? (pm.entity?.nameJa || pm.entity?.nameEn) : pm.entity?.nameEn;
+                const countermeasure = isJapanese ? pm.countermeasureJa : pm.countermeasureEn;
+                const adviceMsg = pm.advice ? (isJapanese ? pm.advice.templateJa : pm.advice.templateEn) : null;
+                const dangerBadge = pm.entity?.dangerLevel && pm.entity.dangerLevel !== 'UNKNOWN' ? `<span class="danger-pill danger-${pm.entity.dangerLevel}">Threat: ${pm.entity.dangerLevel}</span>` : '';
+
+                postMortemSectionHTML = `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: var(--accent-blue);">
+                        <span>💡</span>
+                        <span>${isJapanese ? '敗因分析・サバイバルナレッジ (AAR)' : 'Survival Knowledge & AAR'}</span>
+                    </div>
+                    <div class="knowledge-postmortem-card">
+                        ${pm.entity && entityName ? `
+                        <div class="knowledge-hero-entity">
+                            <div>
+                                <span style="font-size:11px; color:var(--text-secondary);">${isJapanese ? '主な敗因エンティティ' : 'Primary Cause'}:</span>
+                                <strong style="font-size:14px; color:#fff; margin-left:4px;">${escapeHtml(entityName)}</strong>
+                            </div>
+                            ${dangerBadge}
+                        </div>
+                        ` : ''}
+
+                        ${adviceMsg ? `
+                        <div class="advice-quote-box">
+                            <div style="font-size:10px; font-weight:700; color:var(--accent-blue); margin-bottom:2px;">
+                                ${isJapanese ? '🛡️ 戦術アドバイザーの教訓 (Tactical Rule)' : '🛡️ Tactical Rule'}:
+                            </div>
+                            <div>${escapeHtml(adviceMsg)}</div>
+                        </div>
+                        ` : ''}
+
+                        <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+                            <strong style="color:var(--text-primary);">${isJapanese ? 'サバイバル対策ヒント' : 'Countermeasure'}:</strong>
+                            ${escapeHtml(countermeasure || '')}
+                        </div>
+
+                        ${pm.loreLink && pm.loreLink.query ? `
+                        <div style="margin-top: 4px;">
+                            <a href="${pm.loreLink.target || 'adventure_log.html'}?search=${encodeURIComponent(pm.loreLink.query)}" target="_blank" class="lore-action-btn">
+                                <span>📖</span>
+                                <span>${isJapanese ? `冒険手帳で【${entityName || pm.loreLink.query}】の図鑑・伝承を見る →` : `View Codex Entry in Adventure Log →`}</span>
+                            </a>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }
+
+            const heroDeathMain = isJapanese ? (rec.translatedDeath || rec.death) : rec.death;
+
+            detailContent.innerHTML = `
+                <!-- ヒーローサマリー -->
+                <div class="detail-hero-card">
+                    <div class="detail-hero-top">
+                        <div class="detail-hero-title">
+                            <span>${rec.isAscended ? '🌟' : '⚔️'}</span>
+                            <span>${escapeHtml(rec.name)}</span>
+                        </div>
+                        <div class="detail-hero-score">${rec.points.toLocaleString()} <span style="font-size:14px; font-weight:600;">pts</span></div>
+                    </div>
+                    <div class="detail-hero-death ${rec.isAscended ? 'ascended' : ''}">
+                        ${rec.isAscended ? 
+                            (isJapanese ? '🏆 昇天達成: 神の領域へと昇りつめ、不死の神格を得た！' : '🏆 Ascended: Ascended to demigod-hood in glory!') : 
+                            `<div>💀 <strong>${isJapanese ? '死因: ' : 'Cause: '}${escapeHtml(heroDeathMain)}</strong></div>
+                             ${isJapanese && rec.translatedDeath && rec.translatedDeath !== rec.death ? `<div style="font-size:11px; opacity:0.75; margin-top:2px; font-family:monospace;">(Original: ${escapeHtml(rec.death)})</div>` : ''}`}
+                    </div>
+                </div>
+
+                <!-- 敗因分析・サバイバルナレッジ連携 (Post-Mortem Analysis) -->
+                ${postMortemSectionHTML}
+
+                <!-- キャラクタープロファイル -->
+                <div class="detail-section">
+                    <div class="detail-section-title">
+                        <span>👤</span>
+                        <span>${isJapanese ? 'キャラクター基本情報' : 'Character Identity'}</span>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '職業 (Role)' : 'Role'}</span>
+                            <span class="cell-value" style="color:var(--accent-blue);">${escapeHtml(roleStr)}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '種族 (Race)' : 'Race'}</span>
+                            <span class="cell-value">${escapeHtml(raceStr)}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '性別 (Gender)' : 'Gender'}</span>
+                            <span class="cell-value">${escapeHtml(genderStr)}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '属性 (Alignment)' : 'Alignment'}</span>
+                            <span class="cell-value">${escapeHtml(alignStr)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 迷宮探索ステータス -->
+                <div class="detail-section">
+                    <div class="detail-section-title">
+                        <span>🏰</span>
+                        <span>${isJapanese ? '迷宮探索ステータス' : 'Dungeon & Exploration'}</span>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? 'ダンジョンエリア' : 'Dungeon Area'}</span>
+                            <span class="cell-value">${escapeHtml(dungeonStr)}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '死亡階層 / 最大到達' : 'Death Floor / Max Floor'}</span>
+                            <span class="cell-value">${rec.deathLev} 階 (最大: ${rec.maxLvl} 階)</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '終了時 HP / 最大 HP' : 'Ending HP / Max HP'}</span>
+                            <span class="cell-value" style="color:${rec.hp > 0 ? '#7ee787' : '#ff7b72'};">${rec.hp} / ${rec.maxHp}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '経過ターン数' : 'Total Turns'}</span>
+                            <span class="cell-value">${rec.turns ? rec.turns.toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? '実プレイ時間' : 'Real Play Time'}</span>
+                            <span class="cell-value">${playTimeFormatted}</span>
+                        </div>
+                        <div class="detail-cell">
+                            <span class="cell-label">${isJapanese ? 'バージョン' : 'Version'}</span>
+                            <span class="cell-value">NetHack ${escapeHtml(rec.version || '5.0.0')}</span>
+                        </div>
+                        <div class="detail-cell full-width">
+                            <span class="cell-label">${isJapanese ? '冒険完了日時' : 'Completion Date'}</span>
+                            <span class="cell-value">${formatLogDate(rec.deathDate)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生データ (Raw Fields) -->
+                ${rawHtml ? `
+                <div class="detail-section">
+                    <div class="detail-section-title">
+                        <span>💾</span>
+                        <span>${isJapanese ? '記録フィールド生データ (Raw Log)' : 'Raw Field Data'}</span>
+                    </div>
+                    <div class="raw-data-box">${rawHtml}</div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function showEmptyDetail() {
+            document.getElementById('detail-placeholder').style.display = 'flex';
+            document.getElementById('detail-content').style.display = 'none';
+            document.getElementById('txt-detail-id').textContent = isJapanese ? '選択なし' : 'None';
+        }
+
+        // ソートモード切り替え
+        function setSortMode(mode) {
+            currentSort = mode;
+            document.getElementById('btn-sort-score').classList.toggle('active', mode === 'score');
+            document.getElementById('btn-sort-date').classList.toggle('active', mode === 'date');
+            applyFilters();
+        }
+
+        // 職業フィルターの生成
+        function populateRoleFilter() {
+            const select = document.getElementById('filter-role');
+            select.innerHTML = `<option value="all">${isJapanese ? 'すべての職業 (Roles)' : 'All Roles'}</option>`;
+            const roles = [
+                ['Arc', isJapanese ? '考古学者 (Archeologist)' : 'Archeologist'],
+                ['Bar', isJapanese ? '野蛮人 (Barbarian)' : 'Barbarian'],
+                ['Cav', isJapanese ? '洞窟人 (Caveman)' : 'Caveman'],
+                ['Hea', isJapanese ? '医者 (Healer)' : 'Healer'],
+                ['Kni', isJapanese ? '騎士 (Knight)' : 'Knight'],
+                ['Mon', isJapanese ? '武闘家 (Monk)' : 'Monk'],
+                ['Pri', isJapanese ? '僧侶 (Priest)' : 'Priest'],
+                ['Ran', isJapanese ? 'レンジャー (Ranger)' : 'Ranger'],
+                ['Rog', isJapanese ? '盗賊 (Rogue)' : 'Rogue'],
+                ['Sam', isJapanese ? '侍 (Samurai)' : 'Samurai'],
+                ['Tou', isJapanese ? '観光客 (Tourist)' : 'Tourist'],
+                ['Val', isJapanese ? 'ワルキューレ (Valkyrie)' : 'Valkyrie'],
+                ['Wiz', isJapanese ? '魔法使い (Wizard)' : 'Wizard']
+            ];
+
+            roles.forEach(([code, name]) => {
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        }
+
+        // 言語切り替え
+        function toggleLang() {
+            isJapanese = !isJapanese;
+            updateI18nLabels();
+            populateRoleFilter();
+            renderRecordsList();
+            if (selectedRecordIndex) {
+                const rec = allRecords.find(r => r.id === selectedRecordIndex);
+                if (rec) selectRecord(rec);
+            }
+        }
+
+        function updateI18nLabels() {
+            document.getElementById('btn-lang-toggle').textContent = isJapanese ? '🌐 日本語' : '🌐 English';
+            document.getElementById('lbl-stat-high').textContent = isJapanese ? '歴代最高スコア' : 'All-time High Score';
+            document.getElementById('lbl-stat-runs').textContent = isJapanese ? '総冒険回数' : 'Total Adventures';
+            document.getElementById('lbl-stat-ascended').textContent = isJapanese ? '昇天 (クリア)' : 'Ascensions';
+            document.getElementById('lbl-stat-time').textContent = isJapanese ? '総プレイ時間' : 'Total Play Time';
+            document.getElementById('btn-sort-score').textContent = isJapanese ? '🏆 スコア順' : '🏆 By Score';
+            document.getElementById('btn-sort-date').textContent = isJapanese ? '⏱️ 日時順' : '⏱️ By Date';
+            document.getElementById('search-input').placeholder = isJapanese ? '名前・死因で検索...' : 'Search name or death...';
+            document.getElementById('txt-list-title').textContent = isJapanese ? '冒険の記録一覧' : 'Adventure Records';
+            document.getElementById('txt-detail-title').textContent = isJapanese ? '冒険の詳細レポート' : 'Adventure Report';
+            document.getElementById('txt-placeholder-msg').textContent = isJapanese ? 
+                '左側の記録を選択すると、詳細な探索記録やパラメータがここに表示されます。' : 
+                'Select a record on the left to inspect full exploration details and stats.';
+
+            const optAll = document.getElementById('opt-status-all');
+            const optOfficial = document.getElementById('opt-status-official');
+            const optAscended = document.getElementById('opt-status-ascended');
+            const optDied = document.getElementById('opt-status-died');
+            const optNonofficial = document.getElementById('opt-status-nonofficial');
+            if (optAll) optAll.textContent = isJapanese ? 'すべての冒険結果 (NetHack 5.0)' : 'All Records (NetHack 5.0)';
+            if (optOfficial) optOfficial.textContent = isJapanese ? '🛡️ 通常プレイ (公式記録) のみ' : '🛡️ Standard Games (Official Only)';
+            if (optAscended) optAscended.textContent = isJapanese ? '🌟 昇天 (クリア) のみ' : '🌟 Ascensions Only';
+            if (optDied) optDied.textContent = isJapanese ? '💀 死亡 (敗北) のみ' : '💀 Deaths Only';
+            if (optNonofficial) optNonofficial.textContent = isJapanese ? '🧪 Explore / Wizard のみ' : '🧪 Explore / Wizard Only';
+        }
+
+        // ユーティリティ
+        function formatLogDate(str) {
+            if (!str) return 'N/A';
+            const clean = str.replace(/[^0-9]/g, '');
+            if (clean.length >= 8) {
+                const y = clean.substring(0, 4);
+                const m = clean.substring(4, 6);
+                const d = clean.substring(6, 8);
+                let time = '';
+                if (clean.length >= 14) {
+                    time = ` ${clean.substring(8, 10)}:${clean.substring(10, 12)}`;
+                }
+                return `${y}-${m}-${d}${time}`;
+            }
+            return str;
+        }
+
+        function formatRealtime(totalSec) {
+            if (!totalSec || isNaN(totalSec)) return 'N/A';
+            const hrs = Math.floor(totalSec / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const secs = totalSec % 60;
+            if (isJapanese) {
+                if (hrs > 0) return `${hrs}時間 ${mins}分 ${secs}秒`;
+                if (mins > 0) return `${mins}分 ${secs}秒`;
+                return `${secs}秒`;
+            } else {
+                if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+                if (mins > 0) return `${mins}m ${secs}s`;
+                return `${secs}s`;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return String(str || '');
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#x27;'
+            })[m]);
+        }
+
+        // グローバルイベントバインド (type="module" 対応)
+        window.toggleLang = toggleLang;
+        window.setSortMode = setSortMode;
+        window.applyFilters = applyFilters;
+        window.initData = initData;
+
+        window.addEventListener('DOMContentLoaded', initData);
+    </script>
+</body>
+
+</html>

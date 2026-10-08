@@ -253,7 +253,13 @@
 
         @media (min-width: 520px) {
             .sub-actions {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .sub-actions {
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
@@ -391,8 +397,12 @@
                 </a>
             </div>
 
-            <!-- Sub Actions (冒険手帳・設定/データ・開発ポータル) -->
+            <!-- Sub Actions (スコアボード・冒険手帳・設定/データ・開発ポータル) -->
             <div class="sub-actions">
+                <a href="tools/scoreboard.html" class="btn-sub" id="link-scoreboard">
+                    <span class="btn-sub-icon">🏆</span>
+                    <span id="txt-scoreboard-btn">殿堂・スコアボード</span>
+                </a>
                 <a href="tools/adventure_log.html" class="btn-sub" id="link-lore-codex">
                     <span class="btn-sub-icon">📖</span>
                     <span id="txt-lore-btn">冒険手帳・図鑑</span>
@@ -433,6 +443,7 @@
                 gklpurejsTag: "🧠 状況推論＆行動アシスト",
                 gklpurejsDesc: "【最新・推奨フラグシップ】周囲の状況から今最適な行動を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズーム（3層透過＆浮遊アニメーション）搭載。",
                 gklpurejsBtn: "▶ 今すぐプレイ (PLAY NEHWW)",
+                scoreboardBtn: "殿堂・スコアボード",
                 loreBtn: "冒険手帳・図鑑",
                 configBtn: "設定・セーブ管理",
                 cltestBtn: "開発・検証ポータル",
@@ -444,6 +455,7 @@
                 gklpurejsTag: "🧠 Context & Action Assist",
                 gklpurejsDesc: "[Flagship] Auto-suggests optimal actions based on context, features item tooltips & dynamic 3-layer zoom animation.",
                 gklpurejsBtn: "▶ PLAY NEHWW NOW",
+                scoreboardBtn: "Hall of Fame & Scores",
                 loreBtn: "Adventure Codex",
                 configBtn: "Config & Saves",
                 cltestBtn: "Client & Dev Portal",
@@ -477,6 +489,7 @@
             if (document.getElementById("txt-gklpurejs-tag")) document.getElementById("txt-gklpurejs-tag").textContent = t.gklpurejsTag;
             if (document.getElementById("txt-gklpurejs-desc")) document.getElementById("txt-gklpurejs-desc").textContent = t.gklpurejsDesc;
             if (document.getElementById("txt-gklpurejs-btn")) document.getElementById("txt-gklpurejs-btn").textContent = t.gklpurejsBtn;
+            if (document.getElementById("txt-scoreboard-btn")) document.getElementById("txt-scoreboard-btn").textContent = t.scoreboardBtn;
             if (document.getElementById("txt-lore-btn")) document.getElementById("txt-lore-btn").textContent = t.loreBtn;
             if (document.getElementById("txt-config-btn")) document.getElementById("txt-config-btn").textContent = t.configBtn;
             if (document.getElementById("txt-cltest-btn")) document.getElementById("txt-cltest-btn").textContent = t.cltestBtn;

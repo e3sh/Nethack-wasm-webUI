@@ -297,6 +297,8 @@
         <header class="portal-nav header-nav">
             <a href="../index.html" class="nav-back-btn">← タイトルへ戻る</a>
             <div class="nav-pill-group nav-tabs-group">
+                <a href="scoreboard.html" class="nav-pill-item nav-tab-item accent-gold">🏆 殿堂・スコアボード</a>
+                <a href="adventure_log.html" class="nav-pill-item nav-tab-item">👣 冒険手帳</a>
                 <a href="config.html" class="nav-pill-item nav-tab-item">⚙️ システム設定</a>
                 <a href="save_manager.html" class="nav-pill-item nav-tab-item active accent-blue">💾 セーブデータ管理</a>
             </div>
@@ -336,6 +338,17 @@
                 <button class="btn btn-primary" onclick="exportAdventureLogJSON()">Export Adventure Log (JSON)</button>
                 <button class="btn btn-danger" onclick="resetAdventureLogData()">Reset Adventure Log</button>
             </div>
+        </section>
+
+        <!-- Scoreboard & Hall of Fame (殿堂・スコアボード) Section -->
+        <section class="card" style="border-left: 4px solid var(--accent-gold);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h2 class="section-title" style="margin-bottom: 0; color: var(--accent-gold);">🏆 Scoreboard & Hall of Fame (殿堂・冒険記録)</h2>
+                <a href="scoreboard.html" class="btn btn-primary" style="background: rgba(227, 179, 65, 0.2); border-color: var(--accent-gold); color: var(--accent-gold);">Open Scoreboard Viewer →</a>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 0;">
+                歴代の冒険者たちの最終スコア、到達階層、死因、実プレイ時間などの記録（xlogfile / record）をランキングと詳細レポート形式で閲覧できます。
+            </p>
         </section>
 
         <!-- IndexedDB Section -->

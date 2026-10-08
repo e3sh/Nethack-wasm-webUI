@@ -5,6 +5,7 @@ import { WishService, WISH_PRESETS, CATEGORY_LABELS } from "../../../../src/core
 import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from "../../../../src/core/knowledge/services/GenocideService.js";
 import { PolymorphService } from "../../../../src/core/knowledge/services/PolymorphService.js";
 import { WriteService } from "../../../../src/core/knowledge/services/WriteService.js";
+import { PostMortemKnowledgeResolver } from "../../../../src/core/knowledge/services/PostMortemKnowledgeResolver.js";
 import { CharacterIntroModal } from "./CharacterIntroModal.js";
 
 export class ModalManager {
@@ -2105,9 +2106,14 @@ export class ModalManager {
         result.reason === 'ascended' ? '🎉 ASCENDED!' : (result.reason === 'save_and_exit' ? '💾 Game Saved' : '💀 GAME OVER');
     }
 
-    const deathText = result.translatedDeath || result.deathMessage || result.death || 'Unknown causes';
-    const scoreText = result.finalScore !== undefined ? result.finalScore : 0;
+    const rawDeath = result.deathMessage || result.death || '';
+    const postMortem = result.postMortem || PostMortemKnowledgeResolver.resolve(rawDeath);
     const isEn = this.currentLanguage === 'en';
+    const deathText = isEn
+      ? (rawDeath || 'Unknown causes')
+      : (postMortem?.translatedDeathJa || result.translatedDeath || rawDeath || '原因不明');
+    const scoreText = result.finalScore !== undefined ? result.finalScore : 0;
+    
     let modeNoticeHtml = '';
     if (result.isExploreMode) {
       modeNoticeHtml = `
@@ -2123,12 +2129,29 @@ export class ModalManager {
       `;
     }
 
+    let adviceHtml = '';
+    if (!isEn && postMortem && (postMortem.countermeasureJa || postMortem.lessonJa) && !postMortem.isAscension && !postMortem.isQuit) {
+      adviceHtml = `
+        <div class="postmortem-card" style="margin-top: 14px; padding: 12px 14px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; text-align: left; font-size: 0.9em;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+            <span style="font-weight:bold; color: #fbbf24; display:flex; align-items:center; gap:6px;">
+              <span>💡</span> <span>敗因分析・サバイバルアドバイス</span>
+            </span>
+            ${postMortem.threatLevel ? `<span style="font-size:0.75em; padding:2px 6px; border-radius:4px; font-weight:bold; background: ${postMortem.threatLevel === 'CRITICAL' ? '#ef4444' : (postMortem.threatLevel === 'WARNING' ? '#f59e0b' : '#3b82f6')}; color:#fff;">${postMortem.threatLevel}</span>` : ''}
+          </div>
+          ${postMortem.lessonJa ? `<p style="margin: 4px 0 6px 0; color: #e2e8f0; font-size: 0.95em;">${postMortem.lessonJa}</p>` : ''}
+          ${postMortem.countermeasureJa ? `<p style="margin: 0; color: #94a3b8; font-size: 0.85em; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 4px;"><strong>対策:</strong> ${postMortem.countermeasureJa}</p>` : ''}
+        </div>
+      `;
+    }
+
     if (this.elGameOverSummary) {
       this.elGameOverSummary.innerHTML = `
         <p><strong>Player:</strong> ${result.playerName || 'Hero'}</p>
         <p><strong>Result:</strong> ${deathText}</p>
         <p><strong>Final Score:</strong> <span style="color:var(--accent-gold); font-size:1.1em;">${scoreText}</span></p>
         ${modeNoticeHtml}
+        ${adviceHtml}
       `;
     }
 
@@ -2143,6 +2166,7 @@ export class ModalManager {
       return;
     }
 
+    const isEn = this.currentLanguage === 'en';
     const table = document.createElement('table');
     table.style.width = '100%';
     table.style.borderCollapse = 'collapse';
@@ -2157,14 +2181,16 @@ export class ModalManager {
         </tr>
       </thead>
       <tbody>
-        ${scores.map((sc, idx) => `
+        ${scores.map((sc, idx) => {
+          const deathDisplay = isEn ? (sc.death || '') : PostMortemKnowledgeResolver.translateDeathReason(sc.death || '');
+          return `
           <tr style="border-bottom: 1px solid #222;">
             <td style="padding:6px; color:#888;">${idx + 1}</td>
             <td style="padding:6px; color:var(--accent-gold); font-weight:bold;">${sc.points || sc.score || 0}</td>
             <td style="padding:6px;">${sc.name || 'Hero'} (${sc.role || ''})</td>
-            <td style="padding:6px; color:#aaa;">${sc.death || ''}</td>
+            <td style="padding:6px; color:#aaa;">${deathDisplay}</td>
           </tr>
-        `).join('')}
+        `;}).join('')}
       </tbody>
     `;
     this.elScoreboardContainer.appendChild(table);

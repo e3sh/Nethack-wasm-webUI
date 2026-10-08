@@ -313,7 +313,8 @@
             const FS = this.FS;
             if (!FS) return "";
             try {
-                const paths = ['/save/record', '/record', '/save/logfile', '/logfile'];
+                // ハイスコア専用ファイル (/save/record, /record) のみ対象。logfile は探索モード等の混入防止のため参照しない
+                const paths = ['/save/record', '/record'];
                 for (let p of paths) {
                     if (FS.analyzePath(p).exists) {
                         const data = FS.readFile(p, { encoding: 'utf8' });
@@ -327,9 +328,7 @@
         async readRecordTextAsync() {
             const text = this.readRecordText();
             if (text && text.trim()) return text;
-            let recordText = await NetHackFSManager.readTextFromIndexedDB('record');
-            if (!recordText) recordText = await NetHackFSManager.readTextFromIndexedDB('logfile');
-            return recordText;
+            return await NetHackFSManager.readTextFromIndexedDB('record');
         }
 
         static async readTextFromIndexedDB(targetFileName) {
@@ -622,13 +621,13 @@
         }
 
         /**
-         * record / logfile スコアリストのパース (Top 10)
+         * record スコアリストのパース (Top 10)
          */
         parseRecordList() {
             const FS = this.FS;
             if (!FS) return [];
 
-            const candidatePaths = ['/save/record', '/record', '/save/logfile', '/logfile', '/save/xlogfile', '/xlogfile'];
+            const candidatePaths = ['/save/record', '/record'];
             let recordData = '';
 
             for (const path of candidatePaths) {
@@ -658,18 +657,49 @@
                 let name = "Hero";
                 let death = "Died in dungeon";
 
-                // 数値パーツを探す
-                const nums = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n) && n >= 0);
-                if (nums.length > 0) points = nums[0];
-                if (nums.length > 1) deathLev = nums[1];
+                let ptsIdx = 1;
+                if (!parts[0].includes('.')) {
+                    ptsIdx = 0;
+                }
 
-                if (line.includes(',')) {
-                    const idx = line.indexOf(',');
-                    death = line.substring(idx + 1).trim();
-                    const pre = line.substring(0, idx).trim().split(/\s+/);
-                    if (pre.length > 0) name = pre[pre.length - 1];
-                } else if (parts.length > 4) {
-                    death = parts.slice(3).join(' ');
+                if (parts.length >= ptsIdx + 15) {
+                    // NetHack 3.3+ / 5.0 形式
+                    // version points deathdnum deathlev maxlvl hp maxhp deaths deathdate birthdate uid role race gndr algn name,death
+                    points = parseInt(parts[ptsIdx + 0], 10) || 0;
+                    deathLev = parseInt(parts[ptsIdx + 2], 10) || 1;
+                    const rawRole = parts[ptsIdx + 10];
+                    if (rawRole && !/^\d+$/.test(rawRole) && rawRole.length >= 2) {
+                        role = rawRole;
+                    }
+                    const nameAndDeathStr = parts.slice(ptsIdx + 14).join(' ');
+                    const commaIdx = nameAndDeathStr.indexOf(',');
+                    if (commaIdx !== -1) {
+                        name = nameAndDeathStr.substring(0, commaIdx).trim() || 'Hero';
+                        death = nameAndDeathStr.substring(commaIdx + 1).trim() || 'Died in dungeon';
+                    } else {
+                        name = nameAndDeathStr.trim() || 'Hero';
+                    }
+                } else {
+                    // 旧フォーマットフォールバック
+                    const nums = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n) && n >= 0);
+                    if (nums.length > 0) points = nums[0];
+                    if (nums.length > 1) deathLev = nums[1];
+
+                    if (parts.length >= ptsIdx + 14) {
+                        const rawRole = parts[ptsIdx + 9];
+                        if (rawRole && !/^\d+$/.test(rawRole) && rawRole.length >= 2) {
+                            role = rawRole;
+                        }
+                    }
+
+                    if (line.includes(',')) {
+                        const idx = line.indexOf(',');
+                        death = line.substring(idx + 1).trim();
+                        const pre = line.substring(0, idx).trim().split(/\s+/);
+                        if (pre.length > 0) name = pre[pre.length - 1];
+                    } else if (parts.length > 4) {
+                        death = parts.slice(3).join(' ');
+                    }
                 }
 
                 list.push({ points, deathLev, maxLvl: deathLev, role, name, death, score: points });

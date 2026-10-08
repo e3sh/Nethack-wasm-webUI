@@ -458,9 +458,7 @@
 
         async readRecordTextAsync() {
             if (typeof NetHackFSManager !== 'undefined' && typeof NetHackFSManager.readTextFromIndexedDB === 'function') {
-                let rec = await NetHackFSManager.readTextFromIndexedDB('record');
-                if (!rec) rec = await NetHackFSManager.readTextFromIndexedDB('logfile');
-                return rec;
+                return await NetHackFSManager.readTextFromIndexedDB('record');
             }
             return "";
         }

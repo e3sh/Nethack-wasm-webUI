@@ -98,7 +98,7 @@ last_updated: 2026-10-01
 ---
 
 ### 1.3 3大不具合是正 ＆ 品質堅牢化計画 (Bugfix: Oracles Lore / Explore Ranking / Attack FX Guard)
-- **ステータス**: `🟡 partially implemented / deferred` (一部未完成・次週繰り越し, 2026-10-05)
+- **ステータス**: `🟢 implemented` (実装完了, 2026-10-08)
 - **詳細設計・調査書**: [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/bugfix_plan_oracles_explore_attackfx.ja.md)
 - **最優先着手理由**:
   - 実プレイにおいて進行・体験（冒険手帳の収集、正確なスコアボード、戦闘・移動の演出精度）に直結する3つの重要不具合を包括的・堅牢に是正する。
@@ -106,15 +106,16 @@ last_updated: 2026-10-01
   1. **信託（Oracle）の冒険手帳未記録と大予言 OOM クラッシュの解消**:
      - 信託テキストは1行メッセージではなく、テキストウィンドウ（`putstr` / `windowId: 5`）宛てに送出されるため、GKLのLore検知に渡っていなかった。`WebUICore.js` で `textWindowContent` イベントを発行し、テキストウィンドウ確定時にバッファテキストを `LoreDetector` へ流すパイプラインを配備。
      - **大予言（Major Consultation）OOM クラッシュ解消**: WASM版NetHackで高い方の信託を聞くと全20個（約120行）が一括送出される仕様により、20回連続の個別アンロック・同期save・トースト乱発でメモリが枯渇していた問題を解決。「大予言を聞いたことの一括管理」へ刷新し、`AdventureLogManager.unlockAllOracles()` / `LoreCodex.addOracles()` による1回集約保存＆単一トースト通知（`isBulk: true`）でOOMを根本解決。
-  2. **exploreモード終了時のランキング混入 ＆ 死因判定機能不全（⚠️ 次週繰り越し）**:
-     - NetHack Cコア（`topten.c`）は探索モード終了時 `RECORD` には書き込まないが `XLOGFILE` にはログ（`flags` に `1L << 1` = 0x2）を出力する。
-     - **現状の課題**: `GameOverResolver.js` および `WebUICore.js` の死因抽出ロジックにおいて、quit時や溶岩死等でオープニングテキストが死因に誤表示される現象およびランキング判定不具合が実機検証で確認されたため、**未完成として次週に繰り越し・再設計**とする。
+  2. **exploreモード終了時のランキング混入 ＆ 死因判定機能不全**:
+     - NetHack Cコア（`topten.c`）規格に準拠し、`parseXlogList` で `flags`（ビット 0x2: discover, 0x1: wizard）を解析して公式スコアボードから除外。
+     - 死因の単一情報源 (SSOT) を Cコア出力（`xlogfile`）に統一し、`WebUICore.js` の `lastPutstrText` フォールバックおよび配列反転バグを根絶。
   3. **攻撃エフェクト（ATTACK_HIT）の死亡時・店主衝突時誤爆**:
      - `GKLPlugin.js` の方向キー入力部および `executeAction` に `_isPlayerDead` ガードを追加し、さらに店主（`isShopkeeper`）および平和的NPC（`peaceful`）への即時発火を抑止。
 - **マイグレーションステップ**:
-  - [ ] **フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 (`GameOverResolver.js`, `WebUICore.js`) ⚠️ 未完成・次週繰り越し**
+  - [x] **フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 (`GameOverResolver.js`, `WebUICore.js`)**
     - `parseXlogList` / `parseRecordText` に `flags & 2`（discover）および `flags & 1`（wizard）の判定・除外を配備
-    - 画面メッセージ抽出フォールバックや xlog 照合の死因不一致バグの根本原因調査・再設計
+    - Cコア `effectiveRecord.death` を死因の単一情報源 (SSOT) とし、`lastPutstrText` フォールバックを完全撤廃
+    - 破壊的 `reverse()` を撤廃し、末尾からの安全走査 ＆ セッション開始時刻照合を実装
   - [x] **フェーズ 2: 攻撃エフェクト（ATTACK_HIT）の条件厳格化 (`GKLPlugin.js`)**
     - `_isPlayerDead` ガードおよび平和NPC/店主衝突時の事前誤爆抑止
     - `GKLPlugin.test.js` に抑止検証テストを追加
@@ -122,7 +123,8 @@ last_updated: 2026-10-01
     - テキストウィンドウバッファと `LoreDetector` の連携パイプライン配備
     - 大予言（Major Consultation）一括アンロック（`unlockAllOracles`）および単一イベント集約による OOM クラッシュの完全防止
     - `record_scenario/Oracles_1791173139967.json` 由来の神託テキストおよび大予言ウィンドウによるアンロック検証テスト配備
-  - [ ] **フェーズ 4: 全体リグレッションテスト ＆ 実機死因・ランキング検証 (次週)**
+  - [x] **フェーズ 4: 全体リグレッションテスト ＆ 実機死因・ランキング検証**
+    - 全124テストスイート（1,555テスト）100% PASS確認完了
 
 ---
 
@@ -149,29 +151,31 @@ last_updated: 2026-10-01
 
 ---
 
-### 1.5 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Structured Bridge)
-- **ステータス**: `🚧 in-progress` (2026-10-07 計画改定・次期フォーカス)
+### 1.5 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Unified Dispatcher Bridge)
+- **ステータス**: `🚧 in-progress` (2026-10-08 計画改定・次期フォーカス)
 - **設計書**: [official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)
 - **詳細解析書**: [official_shim_interface_capabilities_analysis.md](./1_driver/official_shim_interface_capabilities_analysis.md)
 - **最優先着手理由**:
   - `win/shim/winshim.c` 等の公式NetHackコードには一切手を加えず、独立した専用ブリッジファイル **`win/shim/shim_bridge.c`** を 1 つ新規追加・リンクする「公式コード完全非侵襲エクステンション方式」を採用。
-  - C側ヘルパー関数（`shim_get_rm_typ`, `shim_get_rm_flags`, `shim_get_dnum`, `shim_get_ublesscnt`, `shim_get_objects_at` 等）により、JS側での複雑なビットフィールドや構造体アライメント計算を根絶し、GKLが扱いやすい安全なNetHackスキーマ直結を実現。
-  - 従来行っていた「裏でキーを叩いて画面テキストを正規表現パースする」脆弱・低速なマクロ方式を撤廃し、0ターン消費・同期データ直結へ刷新する。
+  - **単一汎用ディスパッチャー窓口 (`shim_bridge_call`)**: 個別関数を乱立させず、Unix `ioctl` のように 1 つの窓口関数のみをエクスポート。将来どんな問い合わせ（所持金・祭壇属性等）が増えても、ビルド設定（`.rsp`）やDriver層の変更は二度と不要（C側の switch 分岐追加のみで完結）。
+  - **Driverの純粋トランスポート化 ＆ GKL主導権**: Driverはコマンドの意味を知らず透過中継に徹し、GKL（`WasmDirectBindingService`）が欲しい情報（`SHIM_CMD_*`）の定義とアンパック処理を司る。
+  - 1マスずつWASM境界を往復するオーバーヘッドを排除し、単一呼び出しで「真の床 + 施錠フラグ + 明暗」をビットパック一括返却。
 - **マイグレーションステップ**:
-  - [ ] **Stage 8.1: 独立ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
-    - `win/shim/shim_bridge.c` 新設、`nethack_files.rsp` および `nethack_flags.rsp` に追記してビルド
-    - `NetHackMemory.js` に汎用 RPC (`callWasm`)・メモリ直読 (`readMemory`) インターフェースを配備
+  - [ ] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
+    - `win/shim/shim_bridge.c`（単一エクスポート `shim_bridge_call`）を新設、`nethack_files.rsp` および `nethack_flags.rsp` に追記してビルド
+    - `NetHackMemory.js` に `bridgeCall(cmd, a1, a2, buf, len)` を 1 つだけ実装
     - `NetHackWasmDriver.js` の `shim_add_menu` で `rawObjPtr` をディスパッチ
   - [ ] **Stage 8.2: コンテナ・アイテム・所持重量の完全直結**
     - `NetHackObjectSchema.js` を新設し、`Module._weight()` / `Module._inv_weight()` を `EncumbranceStateManager` へ直結
-    - コンテナ重量計算用の旧マクロシーケンスを廃止
-  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定直結 ＆ 推奨アクション革新**
-    - `NetHackTerrainSchema.js` を新設し、`shim_get_rm_typ()` で足元の真の床を 100% 確定
-    - `shim_get_rm_flags()` を `ActionSignalResolver` へ接続し、扉の施錠（`D_LOCKED`）や罠（`D_TRAPPED`）に応じた最適なワンタップ解錠・罠解除アクションを即時導出
-  - [ ] **Stage 8.4: プレイヤー内在耐性 ＆ ブランチ・祈りクールダウン直結**
-    - `NetHackPlayerSchema.js` を新設し、`shim_get_u()` から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
-    - `shim_get_dnum()` でブランチIDを即時確定し、`branch:dlvl` の階層キャッシュ分離とエリア突入演出（`AREA_ENTERED`）をシームレス発火
-    - `shim_get_ublesscnt()` をタイムライン燃料計（お祈りタイマー）へ直結
+    - 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT` ➔ `obj->blessed/cursed/bknown`）をナレッジカードへ連携
+  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定 ＆ モンスターPeaceful直結**
+    - `WasmDirectBindingService.js` を新設（`SHIM_CMD_*` 定数とアンパック群）
+    - `AreaStateManager.js`: `getCellInfo(x, y)` により足元の真の床を即時確定（仮床推測をバイパス）
+    - `ActionSignalResolver.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出。`mpeaceful` / `mtame` により攻撃エフェクト誤爆を完全防止
+  - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**
+    - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
+    - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
+    - `SHIM_CMD_GET_PLAYER_PTR` から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
 
 ---
 
@@ -247,6 +251,15 @@ last_updated: 2026-10-01
 - **概要**:
   - **ゴースト階段・地形混線の完全根絶**: Cコアの `Dlvl:X` 出力だけでは防げない同一度数（ダンジョン本流 Dlvl:3 vs 鉱山 Dlvl:3 等）の重複を、ウェルカムメッセージや階段トポロジー（将来的には Phase 8 メモリ直結 `u.uz.dnum`）からブランチ同定し、`branch:dlvl` 形式でキャッシュ名前空間を完全分離。
   - **シネマティック突入演出 (Visual & Sound FX)**: 近年RPG風に、新エリア・特殊フロア突入時に「**ノームの鉱山 (The Gnomish Mines)**」「**倉庫番 (Sokoban)**」などのエリア名が画面中央上部に優美にフェードイン・フェードアウトする専用バナー（`<nh-area-banner>`）および到達音響ジングルを再生する演出構想。
+
+### 2.10 事後ナレッジ連携 ＆ 戦術アドバイザー刷新構想 (Post-Mortem Knowledge & Tactical Advisor Redesign)
+- **ステータス**: `💡 proposed` (2026-10-08 策定・バックログ)
+- **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
+- **対象コード**: `src/core/knowledge/services/PostMortemKnowledgeResolver.js`, `src/core/knowledge/data/ADVICE_DEFINITIONS.js`, `tools/scoreboard.html`
+- **概要**:
+  - **根本原因調停 (RCA: Root Cause Analysis)**: 単なるトドメ（直接死因: イモリ）ではなく、致命的な無力化状態（付帯状況: 飢餓気絶、麻痺、睡眠）やプレイヤー事故（手袋なしコカトリス接触、手品袋爆発）を真の敗因・教訓としてスコアリング選出する2重構造調停パイプライン。
+  - **NetHack 5.0 Cコア完全準拠の構文分解**: `formatkiller()` 仕様に基づき、Prefix（動詞句）、Core Incident、Suffix（`, while ...`）、修飾子（`invisible`, `his own pet` 等）を多段トークナイズしてモンスター・アイテム逆引きマッチ精度を劇的に向上。
+  - **戦術アドバイザー網羅連動 ＆ TDDコーパス**: 既存の未接続アドバイス（マインドフレア、グリーンスライム、溶岩、店主、毒等）の包括バインドおよび50+件の死因検証ベンチマークテストの整備。
 
 ---
 

@@ -7,6 +7,8 @@
  * などのドメイン層構造化データを決定して WebUI クライアント側へ渡す責任を担う。
  */
 
+import { PostMortemKnowledgeResolver } from '../knowledge/services/PostMortemKnowledgeResolver.js';
+
 export class GameOverResolver {
     /**
      * Wasm終了イベント (exited) 発生時に、ゲームオーバーか正常セーブかを非同期判定
@@ -56,7 +58,6 @@ export class GameOverResolver {
             }
             if ((!rawRecord || !rawRecord.trim()) && FSM && FSM.readTextFromIndexedDB) {
                 rawRecord = await FSM.readTextFromIndexedDB('record');
-                if (!rawRecord) rawRecord = await FSM.readTextFromIndexedDB('logfile');
             }
 
             const filterCurrentVer = (options && options.currentVerOnly !== undefined) ? options.currentVerOnly : true;
@@ -122,11 +123,17 @@ export class GameOverResolver {
             const deathReasonStr = effectiveRecord.death || effectiveRecord.deathReason || 'Died in dungeon';
             const reason = this._parseReason(deathReasonStr);
 
+            // PostMortemKnowledgeResolver (SSOT) による高精度死因解析 & アドバイス自動バインド
+            const postMortem = PostMortemKnowledgeResolver.resolve(deathReasonStr);
+
             const translator = (options && options.translator) || (driver && driver.translator);
-            let translatedDeath = deathReasonStr;
-            if (translator && typeof translator.translate === 'function') {
+            let translatedDeath = (postMortem && postMortem.translatedDeath) ? postMortem.translatedDeath : deathReasonStr;
+            if (translator && typeof translator.translate === 'function' && translatedDeath === deathReasonStr) {
                 translatedDeath = translator.translate(deathReasonStr);
             }
+
+            const isExploreMode = !!(effectiveRecord.isDiscover || (sessionInfo && sessionInfo.isExploreMode));
+            const isWizardMode = !!(effectiveRecord.isWizard || (sessionInfo && sessionInfo.isWizardMode));
 
             return {
                 isGameOver: true,
@@ -138,7 +145,10 @@ export class GameOverResolver {
                 playerName: effectiveRecord.name || 'Hero',
                 role: effectiveRecord.role || 'Explorer',
                 finalScore: effectiveRecord.points || effectiveRecord.score || 0,
+                isExploreMode: isExploreMode,
+                isWizardMode: isWizardMode,
                 lastRecord: effectiveRecord,
+                postMortem: postMortem,
                 scoreboard: scoreboard
             };
         } catch (e) {
@@ -199,31 +209,70 @@ export class GameOverResolver {
                     }
 
                     const pts = parseInt(parts[ptsIdx + 0], 10) || 0;
-                    const dlev = parseInt(parts[ptsIdx + 1], 10) || 1;
-                    const mlev = parseInt(parts[ptsIdx + 2], 10) || dlev;
-                    const hp = parseInt(parts[ptsIdx + 3], 10) || 0;
-                    const maxhp = parseInt(parts[ptsIdx + 4], 10) || 0;
-                    const deaths = parseInt(parts[ptsIdx + 5], 10) || 0;
-                    const deathdate = parts[ptsIdx + 6] || "";
-                    const birthdate = parts[ptsIdx + 7] || "";
-                    const uid = parts[ptsIdx + 8] || "0";
+                    let dnum = 0;
+                    let dlev = 1;
+                    let mlev = 1;
+                    let hp = 0;
+                    let maxhp = 0;
+                    let deaths = 0;
+                    let deathdate = "";
+                    let birthdate = "";
+                    let uid = "0";
 
                     let role = "Explorer", race = "Human", gender = "Male", align = "Neutral";
                     let name = "Hero", death = "Died in dungeon";
 
-                    if (parts.length >= ptsIdx + 14) {
-                        role = this._sanitizeRole(parts[ptsIdx + 9]);
-                        race = parts[ptsIdx + 10] || race;
-                        gender = parts[ptsIdx + 11] || gender;
-                        align = parts[ptsIdx + 12] || align;
+                    if (parts.length >= ptsIdx + 15) {
+                        // NetHack 3.3+ / 5.0 形式:
+                        // version points deathdnum deathlev maxlvl hp maxhp deaths deathdate birthdate uid role race gndr algn name,death
+                        dnum = parseInt(parts[ptsIdx + 1], 10) || 0;
+                        dlev = parseInt(parts[ptsIdx + 2], 10) || 1;
+                        mlev = parseInt(parts[ptsIdx + 3], 10) || dlev;
+                        hp = parseInt(parts[ptsIdx + 4], 10) || 0;
+                        maxhp = parseInt(parts[ptsIdx + 5], 10) || 0;
+                        deaths = parseInt(parts[ptsIdx + 6], 10) || 0;
+                        deathdate = parts[ptsIdx + 7] || "";
+                        birthdate = parts[ptsIdx + 8] || "";
+                        uid = parts[ptsIdx + 9] || "0";
 
-                        const nameAndDeathStr = parts.slice(ptsIdx + 13).join(' ');
+                        role = this._sanitizeRole(parts[ptsIdx + 10]);
+                        race = parts[ptsIdx + 11] || race;
+                        gender = parts[ptsIdx + 12] || gender;
+                        align = parts[ptsIdx + 13] || align;
+
+                        const nameAndDeathStr = parts.slice(ptsIdx + 14).join(' ');
                         const commaIdx = nameAndDeathStr.indexOf(',');
                         if (commaIdx !== -1) {
                             name = this._sanitizeName(nameAndDeathStr.substring(0, commaIdx));
                             death = nameAndDeathStr.substring(commaIdx + 1).trim();
                         } else {
                             name = this._sanitizeName(nameAndDeathStr);
+                        }
+                    } else {
+                        // 旧フォーマットフォールバック (NetHack 3.2 以前など deathdnum なし形式)
+                        dlev = parseInt(parts[ptsIdx + 1], 10) || 1;
+                        mlev = parseInt(parts[ptsIdx + 2], 10) || dlev;
+                        hp = parseInt(parts[ptsIdx + 3], 10) || 0;
+                        maxhp = parseInt(parts[ptsIdx + 4], 10) || 0;
+                        deaths = parseInt(parts[ptsIdx + 5], 10) || 0;
+                        deathdate = parts[ptsIdx + 6] || "";
+                        birthdate = parts[ptsIdx + 7] || "";
+                        uid = parts[ptsIdx + 8] || "0";
+
+                        if (parts.length >= ptsIdx + 14) {
+                            role = this._sanitizeRole(parts[ptsIdx + 9]);
+                            race = parts[ptsIdx + 10] || race;
+                            gender = parts[ptsIdx + 11] || gender;
+                            align = parts[ptsIdx + 12] || align;
+
+                            const nameAndDeathStr = parts.slice(ptsIdx + 13).join(' ');
+                            const commaIdx = nameAndDeathStr.indexOf(',');
+                            if (commaIdx !== -1) {
+                                name = this._sanitizeName(nameAndDeathStr.substring(0, commaIdx));
+                                death = nameAndDeathStr.substring(commaIdx + 1).trim();
+                            } else {
+                                name = this._sanitizeName(nameAndDeathStr);
+                            }
                         }
                     }
 
@@ -261,7 +310,37 @@ export class GameOverResolver {
         // B. xlogfile (拡張キーバリュー形式) のパース & 既存 record エントリとのスマートマージ
         if (xlogText && xlogText.trim()) {
             const xlogList = this.parseXlogList(xlogText, sessionInfo, filterCurrentVer ? currentVersion : null);
+
+            // 1. 公式スコアボード (Top 10) から explore (discover) / wizard モードのエントリを除外
+            //    もし recordText 側に過去の explore/wizard モードのスコアが混入していても、
+            //    xlogList のモードフラグ (isDiscover / isWizard) と照合して確実に除外する
+            const nonOfficialXlogs = xlogList.filter(x => x.isDiscover || x.isWizard);
+            if (nonOfficialXlogs.length > 0) {
+                for (let i = list.length - 1; i >= 0; i--) {
+                    const rec = list[i];
+                    const isNonOfficial = nonOfficialXlogs.some(xlog => {
+                        const xPts = parseInt(xlog.points, 10) || 0;
+                        const xName = this._sanitizeName(xlog.name);
+                        const xDlev = parseInt(xlog.maxlvl || xlog.deathlev, 10) || 0;
+                        const matchPts = rec.points === xPts;
+                        const matchName = rec.name === xName || rec.name === 'Hero' || xName === 'Hero';
+                        const matchDlev = rec.deathLev === xDlev || Math.abs(rec.deathLev - xDlev) <= 1;
+                        const matchDate = !rec.deathDate || !xlog.deathdate || rec.deathDate === xlog.deathdate;
+                        return matchPts && matchName && matchDlev && matchDate;
+                    });
+                    if (isNonOfficial) {
+                        list.splice(i, 1);
+                    }
+                }
+            }
+
+            // 2. 通常モードの xlog エントリを既存 record リストとマージ
             for (let xlog of xlogList) {
+                // 公式スコアボード (Top 10) からは explore (discover) / wizard モードのエントリを除外
+                if (xlog.isDiscover || xlog.isWizard) {
+                    continue;
+                }
+
                 const xPts = parseInt(xlog.points, 10) || 0;
                 const xName = this._sanitizeName(xlog.name);
                 const xDlev = parseInt(xlog.maxlvl || xlog.deathlev, 10) || 0;
@@ -345,6 +424,19 @@ export class GameOverResolver {
             }
 
             if (entry.name || entry.points || entry.death) {
+                // flags から explore (discover) / wizard モードを判定
+                // NetHack 5.0 topten.c: bit 0 (0x1) = wizard, bit 1 (0x2) = discover
+                let flagsNum = 0;
+                if (entry.flags !== undefined) {
+                    if (typeof entry.flags === 'string' && entry.flags.startsWith('0x')) {
+                        flagsNum = parseInt(entry.flags, 16) || 0;
+                    } else {
+                        flagsNum = parseInt(entry.flags, 10) || 0;
+                    }
+                }
+                entry.isWizard = (flagsNum & 0x1) !== 0 || entry.mode === 'wizard';
+                entry.isDiscover = (flagsNum & 0x2) !== 0 || entry.mode === 'explore';
+
                 if (targetVer) {
                     const ver = entry.version || "5.0.0";
                     const mainVerPrefix = targetVer ? targetVer.split('.')[0] + '.' : '';
@@ -367,11 +459,27 @@ export class GameOverResolver {
         const list = this.parseXlogList(xlogText, sessionInfo, null);
         if (list.length === 0) return null;
 
-        if (sessionInfo && sessionInfo.playerName && sessionInfo.startTime) {
-            const match = list.reverse().find(e => e.name === sessionInfo.playerName);
-            if (match) return match;
+        if (sessionInfo && sessionInfo.playerName) {
+            const reqStart = sessionInfo.startTime ? (sessionInfo.startTime > 1e11 ? Math.floor(sessionInfo.startTime / 1000) : Math.floor(sessionInfo.startTime)) : null;
+
+            // 末尾（最新）から安全に走査 (破壊的 reverse は不使用)
+            for (let i = list.length - 1; i >= 0; i--) {
+                const e = list[i];
+                if (e.name === sessionInfo.playerName) {
+                    if (reqStart && e.starttime) {
+                        const entryStart = parseInt(e.starttime, 10) || 0;
+                        // 60秒以内の誤差を許容してセッション合致判定
+                        if (Math.abs(entryStart - reqStart) <= 60) {
+                            return e;
+                        }
+                    } else if (!reqStart) {
+                        return e;
+                    }
+                }
+            }
         }
 
+        // マッチしなかった場合、または sessionInfo がない場合は最新（末尾）エントリを返却
         return list[list.length - 1];
     }
 
@@ -401,7 +509,6 @@ export class GameOverResolver {
             const FSM = this._getFSManager();
             if ((!rawRecord || !rawRecord.trim()) && FSM && FSM.readTextFromIndexedDB) {
                 rawRecord = await FSM.readTextFromIndexedDB('record');
-                if (!rawRecord) rawRecord = await FSM.readTextFromIndexedDB('logfile');
             }
             if ((!rawXlog || !rawXlog.trim()) && FSM && FSM.readTextFromIndexedDB) {
                 rawXlog = await FSM.readTextFromIndexedDB('xlogfile');
