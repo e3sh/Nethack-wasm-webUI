@@ -1,164 +1,47 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-01
+last_updated: 2026-10-08
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
 
-本ドキュメントは、NetHack WASM WebUI プロジェクトにおける**「現在進行中・直近の移行タスク (WIP)」「実装待ちの構想・アイデア (Backlog)」「すでに実装完了している現行仕様 (Living Specs)」「過去の設計記録 (Archive)」**を一元管理する総合ダッシュボードです。
+本ドキュメントは、NetHack WASM WebUI プロジェクトにおける**「現在実施中・最優先フォーカス (Active Focus)」「設計完了・着手待ち (Wait / Pending)」「実装待ちの構想・アイデア (Backlog)」「すでに実装完了している現行仕様 (Living Specs)」「過去の設計記録 (Archive)」**を一元管理する総合ダッシュボードです。
 
 > [!IMPORTANT]
 > **🧭 設計・開発・リファクタリング時の最重要必読インベントリ**  
 > システムが現在持っている全機能、APIシグネチャ、WASM通信パイプライン、データ資産（全384体モンスター・481アイテム・787件の噂）、アーキテクチャの基本憲法、および機能重複統廃合・ギャップ分析は、**[システム現有能力カタログ (SYSTEM_CAPABILITIES.md)](./SYSTEM_CAPABILITIES.md)** にて一元集約されています。新機能の検討や改修時は必ずこちらをご一読ください。
 
-直近の総合評価・引き継ぎ資料: **[handover_20260929_status_reevaluation.ja.md](./6_project_reports/handover_20260929_status_reevaluation.ja.md)**
+直近の総合評価・引き継ぎ資料: **[handover_20261008_status_reevaluation.ja.md](./6_project_reports/handover_20261008_status_reevaluation.ja.md)**
 
 ---
 
-## 📌 ドキュメント・ライフサイクル規約
+## 📌 ドキュメント・タスク・ライフサイクル規約
 
-ドキュメントの鮮度と信頼性を担保するため、すべての設計・仕様ドキュメントは以下の4段階のライフサイクルで分類・運用されます。
+「あれもこれも着手中」というつまみ食い状態を防ぎ、手戻りのない堅牢なアーキテクチャ進化を維持するため、すべてのタスクおよび仕様書は以下のライフサイクルで厳格に分類・運用されます。
 
 | ステータス | バッジ | 定義 | 取扱方針 |
 | :--- | :---: | :--- | :--- |
-| **`proposed`** | 💡 構想 (Idea / RFC) | 思いつき・将来構想。コードには未反映。 | アイデア出し用。いつでも変更・破棄可能。 |
-| **`in-progress`** | 🚧 進行中 (WIP / Plan) | 仕様合意済みで実装中、または直近着手予定。 | 作業計画とタスクチェックリストを含む。 |
+| **`proposed`** | 💡 構想 (Backlog / RFC) | アイデア・将来構想。コードには未反映。 | アイデア出し用。いつでも変更・破棄可能。 |
+| **`pending`** | ⏸️ 着手待ち (Pending / Wait) | **設計完了済みだが、前提基盤や順番を待っている状態**。 | 前提条件が整うまで着手せず待機（つまみ食い防止）。 |
+| **`in-progress`** | 🚧 実施中 (Active Focus) | **現在まさに手を動かしている最優先の単一焦点**。 | リソースを集中し、完了まで最速で走り切る。 |
 | **`implemented`** | 🟢 現行仕様 (Living Spec) | 実装完了。**現在のコードの挙動を示す正解（SSOT）**。 | コード変更時に合わせて最新状態へ更新する。 |
 | **`archived`** | 📦 記録 (Archive / ADR) | 完了した作業記録、過去ログ、意思決定記録。 | 歴史的経緯として保存。原則更新しない。 |
 
 ---
 
-## 🔥 1. 直近フォーカス・移行計画 (Next Focus / Active Plan)
+## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: Phase 8)
 
-現在設計が完了し、直近の着手対象である最重要リファクタリング・機能拡充タスクです。  
-直近で策定された音響系・操作系の新アーキテクチャに基づき、**「Phase 6: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離」** および **「Phase 7: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ」**、さらにクライアントコードの保守性改善として **「1.4 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化」** を順次推進します。
+現在リソースを集中して進行中の**唯一の最優先基盤タスク**です。  
+後続の多くの構想・ペンディング機能が本フェーズの「確定情報・メモリ直結」に依存しています。
 
-> [!NOTE]
-> 直近に完了した **Phase E (UIController / Web Components: 2026-09-27 完了)** および **Phase 5 (メッセージシグナル化刷新 Stage 5.1〜5.6: 2026-09-29 完了)** の実施実績詳細は、**[最新引き継ぎレポート (handover_20260929)](./6_project_reports/handover_20260929_status_reevaluation.ja.md)** および **[3. 実装完了コア機能 (Living Specs)](#🟢-3-実装完了コア機能現行仕様-living-specs)** をご参照ください。
-
----
-
-### 1.1 Phase 6: 統合サウンドコーディネーター ＆ 音響駆動ドライバ分離構想 (Sound Coordinator & Multi-Driver Decoupling)
-- **ステータス**: `🟢 implemented` (実装完了, 2026-10-02)
-- **設計書**: [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md)
-- **最優先着手理由**:
-  - Stage 5.4（決定論的SE・スタガード遅延）および Stage 5.6（動的音程シンセシス）の完了に伴い、`SoundEngine.js` に「入力トリガー受付・照合」「調停・仲裁（優先度・キュー・クールダウン）」「物理音響駆動（Howler/WebAudio）」の3大責務が過密集中。
-  - カタログ試聴時のシンセシス漏れやモード判定の分散を根絶し、疎結合なプラガブル・マルチドライバ構成を確立する。
-- **アーキテクチャ3層モデル**:
-  - **システム単一窓口 (`SoundCoordinator` / `SoundEngine`)**: 外部（WebUICore, UI, テスト）からは完全互換の単一ファサードのみが見える構造を維持。
-  - **調停エンジン (`SoundArbiter`)**: クールダウン、優先度ソート（100〜30）、スタガード遅延（60ms）、再生モード（Auto/Wave/Beep/Mute）判定を一元化（SSOT）。
-  - **物理駆動ドライバ層 (`AudioDrivers`)**: ゲームロジックを一切持たない純粋な `WaveAudioDriver`、`PsgBeepDriver`、`ProceduralSynthDriver`（FM/AM/和音/ピッチベンド）の独立プラグイン構造。
-- **マイグレーションステップ**:
-  - [x] **Step 1: 物理駆動ドライバ群の抽出と単体テスト配備**
-    - `src/core/sound/drivers/` 新設 (`WaveAudioDriver.js`, `PsgBeepDriver.js`, `ProceduralSynthDriver.js`, `BaseAudioDriver.js`)
-    - 各ドライバの独立単体テスト配備（モック AudioContext / Howler による 100% カバレッジ）
-  - [x] **Step 2: `SoundArbiter.js` による調停ロジックの Headless 化**
-    - クールダウン、優先度ソート、スタガードキュー、モード判定の完全抽出 (`SoundArbiter.js`, `SoundModeManager.js`)
-    - 単体テスト配備（タイマー仮想化によるキュー挙動・割り込み検証）
-  - [x] **Step 3: `SoundCoordinator.js` 統合 Facade 配備と `SoundEngine.js` 委譲ラッパー化**
-    - 外部 API（`processMessageContext`, `handleFxTrigger`, `setSoundMode`, `enqueueSound` 等）の後方互換 100% 維持
-    - 全117テストスイート・1,392テスト完全パスおよび全4サンプルクライアントビルド確認
-
----
-
-### 1.2 Phase 7: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ (Native Command Progressive Enhancement)
-- **ステータス**: `🚧 in-progress` (Phase 1 完了, 2026-10-02)
-- **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
-- **関連カタログ**: [SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md) (第7章 ギャップ分析)
-- **概要**:
-  - [SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md) で特定された **「内部蓄積されているがUIと未結線な4大ギャップ」** を、NetHackの標準コマンド（`/`, `\`, `;`, `C` 等）を自然にフックして昇華させる「プログレッシブ・エンハンスメント」の思想のもとで包括的に結線・解決する中核計画。
-  - **4大ギャップとの対応結線**:
-    - **Gap 3 (文学引用閲覧)** ➔ `/` コマンド動的サイレントクエリ ＋ 3層統合ナレッジカード（`<nh-knowledge-card>`）
-    - **Gap 1 (ディスカバリー図鑑)** ➔ `\` コマンド拡張（発見済みアイテム真名・外見対照カタログ）
-    - **Gap 2 (価格識別命名支援)** ➔ `C` コマンド拡張（店売買価格逆引きワンタップ命名アシスト）
-    - **Gap 4 (手帳収集率ダッシュボード)** ➔ セッション横断の冒険手帳画面（`<nh-codex-grid>` ＆ `adventure_log.html` / `tools/save_manager.html`）
-  - **WASM動的サイレントクエリ**: 静的辞書の二重持ちを排し、既存の `querySequenceSilent`（`suppressPrompts: true`）でCコアから動的抽出することで、ちらつきゼロと完全なバリアント・バージョン追従性を両立。
-  - **直交レイヤー＆エンハンス・インジケーター**: 「描画表現（ASCII/タイル vs WebGPU HD-2D）」と「操作拡張（Vanilla ⇄ Enhanced）」が直交する2×2マトリクス設計。
-- **マイグレーションステップ**:
-  - [x] **Phase 1 (ゲーム内最優先 / Gap 3 & Gap 1 対応)**:
-    - `/` コマンド向け動的ルックアップサービス（`OnDemandLookupService`）の実装
-    - 統合カードコンポーネント（`<nh-knowledge-card>`）および `\` ディスカバリー連携（`<nh-discovery-codex>`）の実装
-  - [x] **Phase 2 (ゲーム外ビューア / Gap 4 対応)**:
-    - 独立冒険手帳画面（`<nh-codex-grid>` ＆ シルエット解禁ギャラリー `adventure_log.html`、および `SaveManager` データメンテナンス連携）の実装
-    - セッション横断メタプログレッション管理（`AdventureLogManager` / `AdventureLogStorage`）配備
-    - 全122テストスイート・1,469テスト100% PASSおよび4大サンプルクライアントビルド成功
-  - [ ] **Phase 3 (命名アシスト ＆ GamePad候補選択 / Gap 2 対応)**:
-    - **Step 1: ディスカバリー状態管理の堅牢化 (`DiscoveryStateManager.js`)**
-      - Cコア `\` 出力の `{buy ...}` / `{sell ...}` 価格情報の分離・抽出と保持
-      - 未鑑定アイテム（外見名のみの行）が破棄される問題の改修
-    - **Step 2: アイテム効果ログ逆引き＆価格逆引きサジェストコア (`ItemCandidateResolver.js`)**
-      - 使用後メッセージ（`MessageContextResolver`）からのアイテム効果逆引き（例: comfortable ➔ 大回復）
-      - NetHack 5.0 `pricequotes` `{buy}` および店頭買値・売値からの `basePrice` 逆引き
-      - 確実な効果メッセージ時の自動仮名登録ロジック（自動登録モード）
-    - **Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)**
-      - `What do you want to call...` プロンプトおよび `C` コマンド捕捉時のリッチダイアログ昇華
-      - 十字キー（↑↓）＋Aボタン（決定）によるワンタッチ命名確定と `queueSequence` 連動
-
----
-
-### 1.3 3大不具合是正 ＆ 品質堅牢化計画 (Bugfix: Oracles Lore / Explore Ranking / Attack FX Guard)
-- **ステータス**: `🟢 implemented` (実装完了, 2026-10-08)
-- **詳細設計・調査書**: [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/bugfix_plan_oracles_explore_attackfx.ja.md)
-- **最優先着手理由**:
-  - 実プレイにおいて進行・体験（冒険手帳の収集、正確なスコアボード、戦闘・移動の演出精度）に直結する3つの重要不具合を包括的・堅牢に是正する。
-- **課題と是正サマリー**:
-  1. **信託（Oracle）の冒険手帳未記録と大予言 OOM クラッシュの解消**:
-     - 信託テキストは1行メッセージではなく、テキストウィンドウ（`putstr` / `windowId: 5`）宛てに送出されるため、GKLのLore検知に渡っていなかった。`WebUICore.js` で `textWindowContent` イベントを発行し、テキストウィンドウ確定時にバッファテキストを `LoreDetector` へ流すパイプラインを配備。
-     - **大予言（Major Consultation）OOM クラッシュ解消**: WASM版NetHackで高い方の信託を聞くと全20個（約120行）が一括送出される仕様により、20回連続の個別アンロック・同期save・トースト乱発でメモリが枯渇していた問題を解決。「大予言を聞いたことの一括管理」へ刷新し、`AdventureLogManager.unlockAllOracles()` / `LoreCodex.addOracles()` による1回集約保存＆単一トースト通知（`isBulk: true`）でOOMを根本解決。
-  2. **exploreモード終了時のランキング混入 ＆ 死因判定機能不全**:
-     - NetHack Cコア（`topten.c`）規格に準拠し、`parseXlogList` で `flags`（ビット 0x2: discover, 0x1: wizard）を解析して公式スコアボードから除外。
-     - 死因の単一情報源 (SSOT) を Cコア出力（`xlogfile`）に統一し、`WebUICore.js` の `lastPutstrText` フォールバックおよび配列反転バグを根絶。
-  3. **攻撃エフェクト（ATTACK_HIT）の死亡時・店主衝突時誤爆**:
-     - `GKLPlugin.js` の方向キー入力部および `executeAction` に `_isPlayerDead` ガードを追加し、さらに店主（`isShopkeeper`）および平和的NPC（`peaceful`）への即時発火を抑止。
-- **マイグレーションステップ**:
-  - [x] **フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 (`GameOverResolver.js`, `WebUICore.js`)**
-    - `parseXlogList` / `parseRecordText` に `flags & 2`（discover）および `flags & 1`（wizard）の判定・除外を配備
-    - Cコア `effectiveRecord.death` を死因の単一情報源 (SSOT) とし、`lastPutstrText` フォールバックを完全撤廃
-    - 破壊的 `reverse()` を撤廃し、末尾からの安全走査 ＆ セッション開始時刻照合を実装
-  - [x] **フェーズ 2: 攻撃エフェクト（ATTACK_HIT）の条件厳格化 (`GKLPlugin.js`)**
-    - `_isPlayerDead` ガードおよび平和NPC/店主衝突時の事前誤爆抑止
-    - `GKLPlugin.test.js` に抑止検証テストを追加
-  - [x] **フェーズ 3: 信託（Oracle）テキストウィンドウ検知と大予言一括管理・OOM解消 (`GKLPlugin.js`, `LoreDetector.js`, `AdventureLogManager.js`)**
-    - テキストウィンドウバッファと `LoreDetector` の連携パイプライン配備
-    - 大予言（Major Consultation）一括アンロック（`unlockAllOracles`）および単一イベント集約による OOM クラッシュの完全防止
-    - `record_scenario/Oracles_1791173139967.json` 由来の神託テキストおよび大予言ウィンドウによるアンロック検証テスト配備
-  - [x] **フェーズ 4: 全体リグレッションテスト ＆ 実機死因・ランキング検証**
-    - 全124テストスイート（1,555テスト）100% PASS確認完了
-
----
-
-### 1.4 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化 (GKL Client Modularization)
-- **ステータス**: `🚧 in-progress` (2026-10-07 策定・着手)
-- **設計書**: [gkl_client_modularization_plan.ja.md](./2_client_ui/gkl_client_modularization_plan.ja.md)
-- **対象コード**: `examples/gkl-pure-js-client/main.js` (2,364行 ➔ 400〜500行を目標)
-- **最優先着手理由**:
-  - GKLクライアントのメインエントリポイントである `main.js` に「起動ステートマシン」「UI多言語辞書・適用」「盤面クリック/ホバー判定」「Visual FXディスパッチ」「レイアウト管理」が過密集中し、典型的なGod Object化している。
-  - 変更時の影響範囲局所化、テスタビリティ向上、および保守性担保のため、既存 `modules/` 構成を拡張して疎結合なコントローラー群に分離する。
-- **マイグレーションステップ**:
-  - [ ] **Phase 1: 多言語 UI 更新の分離 (`modules/i18n/`)** (約250行削減)
-    - `clientDictionary.js` (対訳辞書テーブル) および `ClientLocalization.js` (DOM適用クラス) を配備
-  - [ ] **Phase 2: レイアウト & プリセット管理の分離 (`modules/layout/`)** (約180行削減)
-    - `LayoutController.js` による `UIConfigStore` 連動・サイドパネル開閉・チェックボックス同期の集約
-  - [ ] **Phase 3: Visual FX ディスパッチャの分離 (`modules/effects/`)** (約120行削減)
-    - `VisualFxDispatcher.js` による 2D/3D(WebGPU) 両対応演出・画面シェイクルーティングの分離
-  - [ ] **Phase 4: スタートアップ・セーブ管理の分離 (`modules/startup/`)** (約260行削減)
-    - `StartupFlowController.js` による段階遷移（INITIALIZING→PLAYING）およびセーブ検出・リスタートのカプセル化
-  - [ ] **Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)** (約150行削減)
-    - `CanvasInteractionController.js` による 2D/3D/ASCII 共通の盤面ホバー・クリック・メニュー判定の独立化
-  - [ ] **Phase 6: 全体リグレッションテスト ＆ クライアント動作検証**
-    - `main.js` を 400〜500 行の純粋なオーケストレーターへ集約、全自動テスト100%パス確認
-
----
-
-### 1.5 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Unified Dispatcher Bridge)
-- **ステータス**: `🚧 in-progress` (2026-10-08 計画改定・次期フォーカス)
+### 1.1 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Unified Dispatcher Bridge)
+- **ステータス**: `🚧 in-progress` (最優先フォーカス, 2026-10-08 計画策定)
 - **設計書**: [official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)
 - **詳細解析書**: [official_shim_interface_capabilities_analysis.md](./1_driver/official_shim_interface_capabilities_analysis.md)
-- **最優先着手理由**:
+- **基本原則**:
   - `win/shim/winshim.c` 等の公式NetHackコードには一切手を加えず、独立した専用ブリッジファイル **`win/shim/shim_bridge.c`** を 1 つ新規追加・リンクする「公式コード完全非侵襲エクステンション方式」を採用。
-  - **単一汎用ディスパッチャー窓口 (`shim_bridge_call`)**: 個別関数を乱立させず、Unix `ioctl` のように 1 つの窓口関数のみをエクスポート。将来どんな問い合わせ（所持金・祭壇属性等）が増えても、ビルド設定（`.rsp`）やDriver層の変更は二度と不要（C側の switch 分岐追加のみで完結）。
-  - **Driverの純粋トランスポート化 ＆ GKL主導権**: Driverはコマンドの意味を知らず透過中継に徹し、GKL（`WasmDirectBindingService`）が欲しい情報（`SHIM_CMD_*`）の定義とアンパック処理を司る。
+  - **単一汎用ディスパッチャー窓口 (`shim_bridge_call`)**: 個別関数を乱立させず、Unix `ioctl` のように 1 つの窓口関数のみをエクスポート。Driverは透過中継に徹し、GKLが `SHIM_CMD_*` の定義とアンパックを司る。
   - 1マスずつWASM境界を往復するオーバーヘッドを排除し、単一呼び出しで「真の床 + 施錠フラグ + 明暗」をビットパック一括返却。
 - **マイグレーションステップ**:
   - [ ] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
@@ -177,102 +60,102 @@ last_updated: 2026-10-01
     - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
     - `SHIM_CMD_GET_PLAYER_PTR` から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
 
+#### 🗺️ Phase 8 がもたらす「後続機能・構想への影響・恩恵マップ」
+Phase 8 による C構造体メモリ直結によって、これまで「テキスト画面解析」や「複雑な推定・推論」に頼っていた多くの機能が、**確定情報（Ground Truth）の直接取得**へと劇的に単純化・堅牢化されます。
+
+| 後続タスク / 構想 | これまでのアプローチ (推測・画面パース) | Phase 8 後のアプローチ (メモリ直結) | もたらされる劇的恩恵 |
+| :--- | :--- | :--- | :--- |
+| **Phase 7 Phase 3: 命名アシスト** | `\` 画面出力の文字列パース、店頭価格からの basePrice 逆算推定 | `SHIM_CMD_GET_OBJECT_AT` / `inv_item` から `otyp`・買値・売値を直接取得 | 画面パース不要、誤判定ゼロ、未鑑定アイテムの仮名付与が $O(1)$ 確定 |
+| **GKL ブランチ同定 & エリア演出** | メッセージや階段トポロジーからの推測（ゴースト階段リスク） | `dnum`（ダンジョン番号）直結 | 100% 確定同定。エリア突入バナー演出が完全な信頼性で発火 |
+| **GKL タイムライン予測 (燃料計)** | メッセージ検知からの経過歩数逆算（セーブ再開でリセット） | `ublesscnt`（祈りクールダウン）および内部耐性配列直結 | コールドスタート問題ゼロ、推測誤差ゼロの真値燃料計 |
+| **AreaStateManager 4分割** | 背景グリフ・仮床・大岩押しからの泥臭い空間推論 | `getCellInfo(x,y)` による真の床・罠・扉フラグの一括直結 | 空間推論コードの半分が不要化。シンプルな台帳・描画分離へ移行可能 |
+| **ハイブリッド翻訳** | 英語メッセージ全文の正規表現マッチング・名詞抽出 | `struct obj` から ID・数量・祝福フラグを抽出しテンプレート埋め込み | 英語パースの組み合わせ爆発を根絶、辞書を18,000行➔1,500行へ90%削減 |
+
 ---
 
-## 📋 2. 構想・実装待ちバックログ (Ideas & Planned Backlog)
+## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-設計構想・アイデアが策定されており、優先度に応じて着手を待つバックログです。
+仕様・設計が完了していますが、**「Phase 8 の完了待ち」** または **「次期着手スロット待ち」** として意図的にペンディングしているタスク群です。つまみ食いを防ぐため、Phase 8 完了後に順次着手します。
 
-### 2.1 GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー (＋ AreaStateManager 機能整理)
-- **ステータス**: `💡 proposed` (2026-09-21 策定 / 2026-10-07 機能整理計画追加)
-- **設計書**:
-  - [Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md) (基底エンジン)
-  - [Dungeon_Tracker_and_Checkpoint_Architecture.md](./3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md) (トラッカー仕様)
-  - [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) (空間状態SSOT ＆ 第7章 モジュール機能整理計画)
-- **概要**:
-  - Cコード改変禁止ルールのもと、マップ上のグリフ配置パターン（刻み文字の並び等）をプレイヤールールによるシグナルとして検知し、全階層の宝箱・重要拠点マーカー（🚩）をセーブデータ非破壊・相乗りで管理する。
-  - **前提基盤の機能整理 (AreaStateManager 4分割デカップリング)**: 現在 1,085 行に肥大化した `AreaStateManager` から、純粋空間グリッド、地形・物理推論（`TerrainInferenceEngine`）、ランドマーク台帳（`DungeonLandmarkRegistry`）、描画プロジェクター（`ViewportTileProjector`）を段階的に抽出し、空間幾何学認識エンジンおよびダンジョントラッカーが美しく相乗りできる疎結合アーキテクチャを確立する。
-- **次のステップ**: `AreaStateManager` 内部デリゲーションの抽出と `SpatialPatternEngine` パターン認識コアのプロトタイプ実装
+### 2.1 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化
+- **ステータス**: `⏸️ pending` (設計完了 / 次期スロット待ち)
+- **設計書**: [gkl_client_modularization_plan.ja.md](./2_client_ui/gkl_client_modularization_plan.ja.md)
+- **対象コード**: `examples/gkl-pure-js-client/main.js` (現在 2,364行 ➔ 400〜500行へ削減目標)
+- **理由**: GKLクライアントのメインエントリポイントの肥大化を解消し、新UI機能の安全な受け入れ態勢を整える。Phase 8 の直結基盤の進捗を見極めつつ、クライアント保守性のために着手。
+- **ステップ**:
+  - [ ] Phase 1: 多言語 UI 更新の分離 (`modules/i18n/`)
+  - [ ] Phase 2: レイアウト & プリセット管理の分離 (`modules/layout/`)
+  - [ ] Phase 3: Visual FX ディスパッチャの分離 (`modules/effects/`)
+  - [ ] Phase 4: スタートアップ・セーブ管理の分離 (`modules/startup/`)
+  - [ ] Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)
+  - [ ] Phase 6: 全体リグレッションテスト ＆ クライアント動作検証
 
-### 2.2 GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計 (Prayer Tracker & Fuel Gauge)
-- **ステータス**: `💡 proposed` (2026-09-25 策定)
-- **設計書**: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)
-- **対象コード**: `src/core/knowledge/state/`, `MinimapHudRenderer.js`
-- **概要**: Cコード非侵襲・セーブデータ非破壊で、メッセージシグナルから「神のご機嫌・お祈りクールダウン」を逆算エミュレートし、食料寿命・燃費消費ペース（指輪・重量負荷）・航続歩数をミニマップ周辺に可視化するタイムライン予測エンジン。Phase 5 シグナル基盤との強力な連携ショーケース。
+### 2.2 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
+- **ステータス**: `⏸️ pending` (Phase 8 完了待ち)
+- **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
+- **保留理由**: 画面テキストパースによる複雑な価格逆引きロジックを組むより、**Phase 8 で Cコアから直接アイテム情報（買値・売値・真名）を取得する方が圧倒的に安全でシンプル**になるため、Phase 8 完了まで意図的に着手を待機。
+- **ステップ**:
+  - [ ] Step 1: `DiscoveryStateManager.js` への Phase 8 価格・未鑑定直結
+  - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア
+  - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)
 
-### 2.3 啓蒙ダイアログシグナル化による隠れステータス横取り ＆ 状態精度向上構想 (Enlightenment Dialog Signal & Hidden Status Interception)
-- **ステータス**: `💡 proposed` (2026-10-01 策定)
-- **設計書**: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
-- **関連ドキュメント**: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md), [message_context_and_signal_driven_architecture.ja.md](./7_futures/archive/phase5/message_context_and_signal_driven_architecture.ja.md)
-- **対象コード**: `src/core/prompt/ControlSignalCatalog.js`, `src/core/knowledge/state/AttributeStateManager.js`, `src/core/knowledge/state/SkillStateManager.js`, `src/core/knowledge/engines/TacticalAdvisor.js`
-- **概要**:
-  - ポーション・杖・泉等による「魔法の啓蒙 (`MAGICENLIGHTENMENT`: `src/insight.c`)」ダイアログを `SIGNAL_DIALOG_ENLIGHTENMENT` として同定し、通常プレイでは不可視な隠れ情報（祈りの安全性真値、運Luck、神の怒り、獲得耐性、現在武器スキル、幸運の石効果）をGKLが自動横取り・吸収する。
-  - **タイムライン予測（2.2 燃料計）との連動**: 推測カウンター（`approximateCooldown`）の誤差を確定補正（Ground Truth Calibration）し、お祈りタイマーの信頼性を100%に引き上げる。
-  - **コールドスタート問題の解決**: メッセージ検知だけでは対応できない「セーブ＆再開（Resume Save）時に失われる過去の獲得耐性・状態」を、たまたまの啓蒙機会からスマートに完全同期・復元する。
-
-### 2.4 シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想 (Signal-Driven Hybrid Translation Architecture)
-- **ステータス**: `💡 proposed` (2026-09-29 刷新)
-- **設計書**: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
-- **概要**: 
-  - 全文・部分検索依存の18,000行ベタ書き辞書から脱却し、**「特定シグナル専用訳（Pinpoint）」「構文テンプレート合成（Synthesized）」「構造化仮訳（Fallback）」** の3層ハイブリッド翻訳モデルを導入。
-  - **特定シグナル専用訳**: 神託、神の怒り、特殊死亡、文学的言い回し・修辞、DevTeamブラックユーモアなど、NetHack特有の味・ニュアンスを `messageId` 単位（$O(1)$、誤爆率0%）で格調高い専用訳として維持。
-  - **構文テンプレート合成 (★ Phase 8 struct obj 構造化直結と連携)**: 戦闘ログ・持ち物操作・飲食など、主語・目的語・道具の組み合わせ爆発を起こしている大量日常メッセージを約150件のテンプレートに集約。特にアイテム名は Phase 8 の `struct obj` から ID（`otyp`）、数量、強化値、祝福/呪いフラグを直接抽出し、英語文法の正規表現パースを一切行わずにテンプレートスロットへ直接埋め込み。辞書をシンプルなKey-Value名詞テーブルに縮退させ、他言語への機械翻訳展開（i18n）を劇的に容易化。辞書行数を90%以上削減（18,000行 ➔ 1,000〜1,500行）。
-  - **プレイヤー別名・自動呼び名フォロー**: C本体へのマルチバイト入力を完全撤廃し、UI/GKL層（`CustomNameStore`）で安全に日本語エイリアスを管理。
-
-### 2.5 将来の完全独立マイクロカーネル化構想
-- **ステータス**: `💡 proposed`
-- **設計書**: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
-- **概要**: `WebUICore` をさらに疎結合化し、`WebUIDevice`（仮想端末）と `WebUISound`（音響）を完全分離する長期ビジョン。
-
-### 2.6 システム現有能力ギャップ解消 ＆ 未接続パイプライン結線 (➔ 1.2 Phase 7 に統合)
-- **ステータス**: `🚧 in-progress (1.2 Phase 7 にて具体化・進行中)`
-- **カタログ**: [SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md) (第7章 ギャップ分析)
-- **概要**: 内部蓄積されているが UI と未結線な 4 大ギャップ（① ディスカバリー図鑑 UI、② 店頭売買価格識別からの自動仮名命名支援、③ WASM 文学引用の動的オンデマンド閲覧、④ セッション横断手帳収集率ダッシュボード）。
-- **統合関係**: 本課題群は、**[1.2 Phase 7: 標準操作プログレッシブ拡張](#12-phase-7-標準操作プログレッシブ拡張--wasm動的ルックアップ統合ナレッジ-native-command-progressive-enhancement)** において、NetHack標準コマンド（`/`, `\`, `C`, 独立ビューア）のエンハンスメントとして包括的に設計・実装されます。
-
-### 2.7 ヘルプ専用ダイアログ化 ＆ 外部ドキュメント連携構想 (Help Dialog & External Doc Integration)
-- **ステータス**: `💡 proposed` (低優先度バックログ)
-- **設計書**: [help_dialog_and_external_doc_system_architecture.ja.md](./7_futures/help_dialog_and_external_doc_system_architecture.ja.md)
-- **概要**:
-  - `?` キー等のヘルプ表示において、CUI端末向け英文テキストを無理に翻訳・表示するのではなく、WebUI（パッド/タッチ/GKL）に最適化された専用操作ガイドモーダル（`HelpGuideModal`）を自前提供。
-  - ゲームプレイ外の長文（歴史・ライセンス等）は要約カード提示や「Google翻訳で開く」外部ブラウザ連携により、ライセンス独立性（他バリアント借用ゼロ）と軽快なUXを両立する長期バックログ構想。
-
-### 2.8 外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想 (External Wiki Linking)
-- **ステータス**: `💡 proposed` (バックログ)
-- **設計書**: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
-- **概要**:
-  - ブラウザ動作クライアントの特性を活かし、GKLのモンスター・アイテム・伝承からNetHackWikiの公式ページ（またはGoogleウェブ翻訳プロキシ）へワンクリックでジャンプ（`🌐 Wiki`ボタン）。
-  - 英語名からの$O(1)$スラッグ決定論的自動導出＋言語モード連動（ja時は機械翻訳展開）。容量増大ゼロ・ライセンス完全独立でコミュニティ最新知見へのアクセスを提供。
-
-### 2.9 GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想 (Branch Detection & Area Announcement)
-- **ステータス**: `💡 proposed` (2026-10-07 策定・バックログ)
-- **設計書**: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
-- **対象コード**: `src/core/knowledge/state/AreaStateManager.js`, `src/core/knowledge/GKLPlugin.js`, `src/components/`, `SoundCoordinator.js`
-- **概要**:
-  - **ゴースト階段・地形混線の完全根絶**: Cコアの `Dlvl:X` 出力だけでは防げない同一度数（ダンジョン本流 Dlvl:3 vs 鉱山 Dlvl:3 等）の重複を、ウェルカムメッセージや階段トポロジー（将来的には Phase 8 メモリ直結 `u.uz.dnum`）からブランチ同定し、`branch:dlvl` 形式でキャッシュ名前空間を完全分離。
-  - **シネマティック突入演出 (Visual & Sound FX)**: 近年RPG風に、新エリア・特殊フロア突入時に「**ノームの鉱山 (The Gnomish Mines)**」「**倉庫番 (Sokoban)**」などのエリア名が画面中央上部に優美にフェードイン・フェードアウトする専用バナー（`<nh-area-banner>`）および到達音響ジングルを再生する演出構想。
-
-### 2.10 事後ナレッジ連携 ＆ 戦術アドバイザー刷新構想 (Post-Mortem Knowledge & Tactical Advisor Redesign)
-- **ステータス**: `💡 proposed` (2026-10-08 策定・バックログ)
+### 2.3 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
+- **ステータス**: `⏸️ pending` (設計完了 / 連動待ち)
 - **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
-- **対象コード**: `src/core/knowledge/services/PostMortemKnowledgeResolver.js`, `src/core/knowledge/data/ADVICE_DEFINITIONS.js`, `tools/scoreboard.html`
-- **概要**:
-  - **根本原因調停 (RCA: Root Cause Analysis)**: 単なるトドメ（直接死因: イモリ）ではなく、致命的な無力化状態（付帯状況: 飢餓気絶、麻痺、睡眠）やプレイヤー事故（手袋なしコカトリス接触、手品袋爆発）を真の敗因・教訓としてスコアリング選出する2重構造調停パイプライン。
-  - **NetHack 5.0 Cコア完全準拠の構文分解**: `formatkiller()` 仕様に基づき、Prefix（動詞句）、Core Incident、Suffix（`, while ...`）、修飾子（`invisible`, `his own pet` 等）を多段トークナイズしてモンスター・アイテム逆引きマッチ精度を劇的に向上。
-  - **戦術アドバイザー網羅連動 ＆ TDDコーパス**: 既存の未接続アドバイス（マインドフレア、グリーンスライム、溶岩、店主、毒等）の包括バインドおよび50+件の死因検証ベンチマークテストの整備。
+- **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
 
 ---
 
-## 🟢 3. 実装完了コア機能・現行仕様 (Living Specs)
+## 💡 3. 構想・将来バックログ (Backlog / Ideas)
 
-すでに実装が完了し、テストが通過（**全120スイート・1,440テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+設計構想・アイデアが策定されている将来検討項目です。
+
+### 3.1 Phase 8 直結の恩恵を強く受ける構想群
+- **シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想**:
+  - 設計書: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
+  - 概要: 18,000行辞書を1,000〜1,500行へ90%削減。Phase 8 の `struct obj` から名詞スロットを直接埋め込む。
+- **GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想**:
+  - 設計書: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
+  - 概要: Phase 8 の `dnum` 直結により同一度数（Dlvl:3等）のキャッシュ混線を完全解消。新エリア突入バナー（`<nh-area-banner>`）と演出音響。
+- **GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計 (Prayer Tracker & Fuel Gauge)**:
+  - 設計書: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)
+  - 概要: Phase 8 の `ublesscnt` / 耐性直結により、お祈りクールダウンと航続歩数を誤差ゼロで可視化。
+- **GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー (＋ AreaStateManager 4分割整理)**:
+  - 設計書: [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md), [Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md)
+  - 概要: Phase 8 の `getCellInfo` 直結により、真の床推論をバイパス。空間グリッド、ランドマーク台帳、描画プロジェクターを疎結合化。
+- **啓蒙ダイアログシグナル化による隠れステータス横取り**:
+  - 設計書: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
+  - 概要: 魔法の啓蒙（`MAGICENLIGHTENMENT`）ダイアログから不可視な運（Luck）や神の怒りを自動横取り。
+
+### 3.2 独立した長期構想群
+- **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
+  - 設計書: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
+  - 概要: モンスター・アイテム・伝承からNetHackWikiへワンクリックジャンプ。
+- **ヘルプ専用ダイアログ化 ＆ 外部ドキュメント連携構想**:
+  - 設計書: [help_dialog_and_external_doc_system_architecture.ja.md](./7_futures/help_dialog_and_external_doc_system_architecture.ja.md)
+  - 概要: CUI英文ヘルプに代わる、WebUI最適化ガイドモーダル（`HelpGuideModal`）と外部翻訳連携。
+- **将来の完全独立マイクロカーネル化構想**:
+  - 設計書: [webuicore_final_architecture_vision.md](./7_futures/webuicore_final_architecture_vision.md)
+  - 概要: `WebUICore` を `WebUIDevice` と `WebUISound` に完全分離する長期ビジョン。
+
+---
+
+## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs)
+
+すでに実装が完了し、テストが通過（**全125スイート・1,566テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
-| **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、アーキテクチャ5大原則、重複整理、未接続パイプラインの公式総合カタログ |
-| **音響・調停** | [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md) | `SoundCoordinator.js`<br>`SoundArbiter.js`<br>`SoundEngine.js`<br>`src/core/sound/drivers/` | `🟢 implemented` | **統合サウンドコーディネーター ＆ 音響駆動ドライバ分離 (Phase 6)**<br>照合・調停・駆動の3層完全分離。プラガブル・マルチドライバ（Wave, PsgBeep, ProceduralSynth）、Headless調停エンジン、100%後方互換ファサード |
+| **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
+| **戦歴・スコア** | [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md) | `tools/scoreboard.html`<br>`PostMortemKnowledgeResolver.js`<br>`GameOverResolver.js` | `🟢 implemented` | **公式 xlogfile 準拠スコアボード ＆ 事後ナレッジ構文解析 (2026-10-08)**<br>公式戦歴ビュワー、NetHack 5.0 `formatkiller()` 構文解析（Prefix/Core/Suffix分解）、根本原因調停 (RCA) コア |
+| **品質・堅牢化** | [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/archive/bugfix_plan_oracles_explore_attackfx.ja.md) | `WebUICore.js`<br>`GKLPlugin.js`<br>`AdventureLogManager.js` | `🟢 implemented` | **3大不具合是正 ＆ 品質堅牢化 (2026-10-08)**<br>信託テキストウィンドウ検知＆大予言一括管理（OOM解消）、exploreランキング除外＆死因SSOT化、攻撃FX誤爆完全抑止 |
+| **操作・動的知識** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `OnDemandLookupService.js`<br>`NhKnowledgeCard.js`<br>`NhDiscoveryCodex.js` | `🟢 implemented` | **標準操作プログレッシブ拡張 Phase 1 (2026-10-02)**<br>`/` 動的サイレントクエリ、3層統合ナレッジカード（基本・攻撃・文学引用）、`\` 発見済みアイテム真名・外見対照図鑑 |
+| **伝承・冒険手帳** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `tools/adventure_log.html`<br>`AdventureLogManager.js`<br>`NhCodexGrid.js` | `🟢 implemented` | **標準操作プログレッシブ拡張 Phase 2 (2026-10-03)**<br>独立冒険手帳画面、セッション横断メタ進行管理、シルエット解禁グリッド、モンスター公式攻撃データ3,767行 |
+| **音響・調停** | [sound_coordinator_and_multidriver_architecture.ja.md](./4_sound/sound_coordinator_and_multidriver_architecture.ja.md) | `SoundCoordinator.js`<br>`SoundArbiter.js`<br>`SoundEngine.js`<br>`src/core/sound/drivers/` | `🟢 implemented` | **統合サウンドコーディネーター ＆ 音響駆動ドライバ分離 (Phase 6: 2026-10-02)**<br>照合・調停・駆動の3層完全分離。プラガブル・マルチドライバ（Wave, PsgBeep, ProceduralSynth）、Headless調停エンジン、100%後方互換ファサード |
+| **入力・パッド** | [gamepad_console_mode_architecture.ja.md](./7_futures/gamepad/gamepad_console_mode_architecture.ja.md) | `GamepadInputController.js`<br>`RadialInputRecognizer.js`<br>`examples/console-client/` | `🟢 implemented` | **ゲームパッド操作体系 ＆ Console Client PoC (2026-10-01)**<br>ラジアルメニュー認識、シレン風インベントリドロワー、独立コンソールクライアントレファレンス配備 |
+| **Driver・WASM** | [nethack_version_upgrade_guide.ja.md](./1_driver/nethack_version_upgrade_guide.ja.md) | `NetHackWasmDriver.js`<br>`NetHackMemory.js` | `🟢 implemented` | **NetHack 5.0.1 移行 ＆ 公式コード非侵襲 Driver (2026-09-30)**<br>5.0.1 (Commit c1b1b08) 追従。`winshim.c` 完全無改造で動作する非侵襲アーキテクチャ確立 |
 | **音響・シンセシス** | [dynamic_musical_synthesis_concept.ja.md](./4_sound/dynamic_musical_synthesis_concept.ja.md) | `SoundEngine.js`<br>`SoundEventCatalog.js` | `🟢 implemented` | **動的音程シンセシス (Dynamic Musical Synthesis / Stage 5.6)**<br>外部音源不要(容量ゼロ)のWeb Audio APIオシレーター合成。きしむ床12音階、モンスター咆哮(ピッチベンド/和音/AM/FM/パルス)、楽器演奏・城の跳ね橋5音メロディ |
-| **品質・i18n** | [stage5_5_quality_assurance_and_i18n.ja.md](./7_futures/archive/phase5/stage5_5_quality_assurance_and_i18n.ja.md) | `MessageContextResolver.js`<br>`tests/unit/robustness.test.js` | `🟢 implemented` | **言語非依存ロジック確立と総合品質保証 (Stage 5.5)**<br>二重キーワード完全根絶、多言語拡張ファクトリ（`createForVariant`）、翻訳非依存テスト実証、全1,300テスト・全クライアントビルド100%成功 |
+| **品質・i18n** | [stage5_5_quality_assurance_and_i18n.ja.md](./7_futures/archive/phase5/stage5_5_quality_assurance_and_i18n.ja.md) | `MessageContextResolver.js`<br>`tests/unit/robustness.test.js` | `🟢 implemented` | **言語非依存ロジック確立と総合品質保証 (Stage 5.5)**<br>二重キーワード完全根絶、多言語拡張ファクトリ（`createForVariant`）、翻訳非依存テスト実証、全クライアントビルド100%成功 |
 | **音響・状態** | [stage5_4_domain_modules_migration.ja.md](./7_futures/archive/phase5/stage5_4_domain_modules_migration.ja.md) | `SoundEngine.js`<br>`AttributeStateManager.js`<br>`DiscoveryStateManager.js` | `🟢 implemented` | **ドメイン別既存モジュールのメッセージマスタ移行 (Stage 5.4)**<br>効果音 O(1) 決定論的発火＆スタガード遅延（60ms）、耐性マネージャ O(1) 確定更新、道具識別効果メッセージ真名自動昇格 |
 | **UI・基盤** | [ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md) | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | `🟢 implemented` | **UIController (Headless UI) ＆ Web Components 共通基盤 (Phase E)**<br>防腐層抽出（HUD・モーダルスタック・入力調停・ペーパードール・コンテナ・設定）、共通 Custom Elements（`<nh-*>`）、Nehww への逆輸入・最適化完了 |
 | **UI・体験** | [gkl_client_ui_ux_modernization_plan.ja.md](./2_client_ui/gkl_client_ui_ux_modernization_plan.ja.md)<br>[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md) | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`base.css` | `🟢 implemented` | **GKL レファレンスクライアント (Nehww) UI/UX 刷新 (Phase A〜D)**<br>全画面マップ（100vw×100vh）、フローティング最新行HUD＋過去ログドロワー、足元枠3Dパース吸着、スマートContextActions、Neo-Retro Dark Glass UI統一 |
@@ -307,17 +190,18 @@ last_updated: 2026-10-01
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
 | **Sound** | [sound_system_spec.md](./4_sound/sound_system_spec.md) | `src/sound/` | `🟢 implemented` | **Web Audio API サウンドシステム** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全111スイート・1,355テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全125スイート・1,566テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---
 
-## 📦 4. 完了済みマイルストーン・アーカイブ記録 (Completed Milestones & Archives)
+## 📦 5. 完了済みマイルストーン・アーカイブ記録 (Completed Milestones & Archives)
 
 過去の検討経緯や完了済みプロジェクトレポート、旧アーキテクチャ資料です。
 
 - **直近引き継ぎ・状況評価レポート**:
-  - **[handover_20260929_status_reevaluation.ja.md](./6_project_reports/handover_20260929_status_reevaluation.ja.md)** (Phase E / Phase 5 完遂、Web Audio API 動的音程シンセシス、現有能力カタログ、1,300テスト通過)
+  - **[handover_20261008_status_reevaluation.ja.md](./6_project_reports/handover_20261008_status_reevaluation.ja.md)** (NetHack 5.0.1 追従、Phase 6 マルチドライバ分離完遂、Phase 7 冒険手帳/ナレッジカード完遂、3大不具合是正、1,566テスト通過)
+  - [handover_20260929_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260929_status_reevaluation.ja.md) (Phase E / Phase 5 完遂、Web Audio API 動的音程シンセシス、現有能力カタログ、1,300テスト通過)
   - [handover_20260921_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260921_status_reevaluation.ja.md) (レンダラー統合、WebGPU HD-2D、LORE、ペーパードール完成)
   - [handover_20260914_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260914_status_reevaluation.ja.md) (IRC基盤、コンテナUI完成)
 - **アーキテクチャ意思決定**: [ArchitectureDecisionRecord.md](./3_gkl/ArchitectureDecisionRecord.md) (`📦 record`)
@@ -335,10 +219,12 @@ last_updated: 2026-10-01
 
 1. **💡 アイデアが浮かんだら**:
    - `docs/7_futures/` または該当カテゴリに `status: proposed` で構想メモを作成。
-   - 本ロードマップの「構想・実装待ちバックログ」にリンクと1行要約を追記。
-2. **🚧 実装を開始したら**:
-   - 本ロードマップで `🔥 直近フォーカス・移行計画 (Active Plan)` に移動し、タスクチェックリストを管理。
-3. **🟢 実装が完了したら**:
+   - 本ロードマップの「3. 構想・将来バックログ」にリンクと1行要約を追記。
+2. **⏸️ 仕様・設計が合意できたら**:
+   - 直ちに着手せず、前提条件や優先順位を判断して「2. 設計完了・着手待ち (Wait / Pending)」へ配置。
+3. **🚧 実装を開始したら**:
+   - 本ロードマップで「1. 現在実施中・最優先フォーカス (Active Focus)」へ単一集中移動し、タスクチェックリストを管理。
+4. **🟢 実装が完了したら**:
    - 仕様部分を現行仕様書として整理し、`status: implemented` に更新。
-   - 本ロードマップの「実装完了コア機能 (Living Specs)」テーブルへ移動。
+   - 本ロードマップの「4. 実装完了コア機能 (Living Specs)」テーブルへ移動。
    - 一時的な移行メモや作業ログは各カテゴリの `archive/` へ退避。

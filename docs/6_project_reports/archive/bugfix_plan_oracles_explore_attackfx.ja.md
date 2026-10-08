@@ -1,13 +1,13 @@
 ---
 title: 3大不具合是正計画（神託記録・exploreランキング混入・攻撃エフェクト誤爆）設計・調査資料
-status: in_progress
-last_updated: 2026-10-05
+status: archived
+last_updated: 2026-10-08
 ---
 
 # 🛠️ 3大不具合是正計画（神託記録・exploreランキング混入・攻撃エフェクト誤爆）
 
 本資料は、NetHack WASM WebUI において報告された以下の3件の不具合について、詳細な原因究明結果・コードレベルの解析・修正設計方針・テスト検証手順をまとめた引き継ぎ・実装計画ドキュメントです。
-作業が途中で中断された場合でも、本ドキュメントを参照することで続きから確実に実装・検証を再開できるように設計されています。
+全フェーズの実装およびテスト検証が完了したため、アーカイブ記録として保存されています。
 
 ---
 
@@ -16,7 +16,7 @@ last_updated: 2026-10-05
 | # | 課題名 | 影響レイヤー | 根本原因 | 解決アプローチ / 進捗状況 |
 |---|---|---|---|---|
 | **1** | **信託（Oracle）を聞いても冒険手帳に記録されない** | Core / GKL (`GKLPlugin.js`, `LoreDetector.js`) | 信託の複数行テキストは 1行メッセージ（`messageText`）ではなく、テキストウィンドウ（`putstr` / `TextWindowManager`）に出力されるが、GKLのLore検知は `messageText` しか購読していなかったため。 | `🟢 対応完了`: テキストウィンドウ確定・閉じるタイミング（または `putstr` バッファ）でテキストを抽出し、`LoreDetector.processMessage()` へ流すパイプラインを配備。大予言一括管理で OOM 解消。 |
-| **2** | **exploreモード（探索モード）終了時にランキングに表示される ＆ 死因判定機能不全** | Core (`GameOverResolver.js`, `WebUICore.js`) | 探索モード除外処理に加えて、quit時や溶岩死等でオープニングテキストが死因に表示される問題・ランキング機能不全が発生。 | `🟡 未完成・次週繰り越し`: 実機検証で死因不一致・オープニングテキスト誤爆が発覚。死因決定フローとランキング連携の抜本的再設計が必要。 |
+| **2** | **exploreモード（探索モード）終了時にランキングに表示される ＆ 死因判定機能不全** | Core (`GameOverResolver.js`, `WebUICore.js`) | 探索モード除外処理に加えて、quit時や溶岩死等でオープニングテキストが死因に表示される問題・ランキング機能不全が発生。 | `🟢 対応完了 (2026-10-08)`: `topten.c` 準拠 `flags`（discover/wizard）解析除外、Cコア出力 `xlogfile` 死因SSOT化、破壊的 `reverse()` 撤廃、`scoreboard.html` 配備により完全解決。 |
 | **3** | **攻撃エフェクト（SLASH / SE）が死亡時（墓）や店主衝突時にも誤発生する** | GKL (`GKLPlugin.js`) | 方向キー入力ハンドラ（`sequence.length === 1`）で `_isPlayerDead` のチェックがなく、さらに隣接セルが `MONSTER` であればペット以外無条件に `ATTACK_HIT` を発火させていたため。 | `🟢 対応完了`: 死亡状態（`this._isPlayerDead`）ガードを追加し、かつ店主（Shopkeeper）や平和的モンスター（`peaceful`）に対して方向キーを押した段階での即時エフェクト発火を抑止。 |
 
 ---
@@ -190,26 +190,28 @@ last_updated: 2026-10-05
 
 本作業を順次進めるための具体的タスクリストです。
 
-### フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 ⚠️ 未完成・次週繰り越し
-- [ ] `src/core/lifecycle/GameOverResolver.js` の `parseXlogList` / `parseRecordText` に `flags` ビット判定ロジックを実装
+### フェーズ 1: exploreモード ランキング除外 ＆ 死因判定堅牢化 【完了】
+- [x] `src/core/lifecycle/GameOverResolver.js` の `parseXlogList` / `parseRecordText` に `flags` ビット判定ロジックを実装
   - `flags` から `isDiscover = (flagsNum & 2) !== 0`、`isWizard = (flagsNum & 1) !== 0` を判定
   - 通常ランキング構築時にこれらを除外
-- [ ] 死因抽出ロジック（`WebUICore.js` の `lastPutstrText` 誤爆および `GameOverResolver.js` の優先順位・ライフサイクル）の抜本的再設計
-- [ ] `GameOverResolver.test.js` に各種死因・探索モード判定の網羅的回帰テストを追加
+- [x] 死因抽出ロジック（`WebUICore.js` の `lastPutstrText` 誤爆および `GameOverResolver.js` の優先順位・ライフサイクル）の抜本的再設計
+  - Cコア出力 `effectiveRecord.death` を単一情報源 (SSOT) とし、フォールバックを撤廃
+  - 末尾走査とセッション開始時刻照合による配列破壊バグの解消
+- [x] `GameOverResolver.test.js` に各種死因・探索モード判定の網羅的回帰テストを追加
 
-### フェーズ 2: 攻撃エフェクト（ATTACK_HIT）の条件厳格化
+### フェーズ 2: 攻撃エフェクト（ATTACK_HIT）の条件厳格化 【完了】
 - [x] `src/core/knowledge/GKLPlugin.js` の方向キー入力部（705行付近）および `executeAction`（1790行付近）に `_isPlayerDead` ガードを追加
 - [x] 店主・平和的NPC（`isPeaceful` / `peaceful`）に対する事前エフェクト発火の抑止条件を追加
 - [x] `src/core/knowledge/__tests__/GKLPlugin.test.js` に誤爆抑止のテストケースを追加
 - [x] `npx vitest run src/core/knowledge/__tests__/GKLPlugin.test.js` で通過を確認
 
-### フェーズ 3: 信託（Oracle）テキストウィンドウ検知と冒険手帳アンロック
+### フェーズ 3: 信託（Oracle）テキストウィンドウ検知と冒険手帳アンロック 【完了】
 - [x] テキストウィンドウ（`putstr` / `TextWindowManager`）の出力テキストを `GKLPlugin` 経由で `LoreDetector` へ流すパイプラインを実装
 - [x] 複数行・改行コード（`\r`）を含む信託テキストの正規化処理を実装
 - [x] `src/core/knowledge/lore/LoreDetector.test.js` および `GKLPlugin.test.js` にテキストウィンドウ経由の信託アンロックテストを追加
 - [x] `record_scenario/Oracles_1791173139967.json` のシナリオデータを用いたリプレイ検証を行い、神託が確実に冒険手帳にアンロックされることを実証
 
-### フェーズ 4: 全体リグレッションテストとダッシュボード更新 (次週予定)
-- [ ] `npm test`（または `npx vitest run`）で全テストスイートの 100% PASS を確認
-- [ ] 各クライアント（gkl-pure-js-client 等）の実機死因・ランキング動作確認
-- [ ] `docs/ROADMAP.md` のステータスを更新
+### フェーズ 4: 全体リグレッションテストとダッシュボード更新 【完了】
+- [x] `npm test`（または `npx vitest run`）で全テストスイートの 100% PASS を確認（全125スイート・1,566テスト通過）
+- [x] 各クライアント（gkl-pure-js-client 等）の実機死因・ランキング動作確認および `tools/scoreboard.html` 新設
+- [x] `docs/ROADMAP.md` のステータスを更新（Living Specs 昇格完了）
