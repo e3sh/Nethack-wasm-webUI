@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --panel-bg: rgba(22, 27, 34, 0.8);
@@ -294,69 +295,61 @@
 
 <body>
     <div class="container">
-        <header class="portal-nav header-nav">
-            <a href="../index.html" class="nav-back-btn">← タイトルへ戻る</a>
-            <div class="nav-pill-group nav-tabs-group">
-                <a href="scoreboard.html" class="nav-pill-item nav-tab-item accent-gold">🏆 殿堂・スコアボード</a>
-                <a href="adventure_log.html" class="nav-pill-item nav-tab-item">👣 冒険手帳</a>
-                <a href="config.html" class="nav-pill-item nav-tab-item">⚙️ システム設定</a>
-                <a href="save_manager.html" class="nav-pill-item nav-tab-item active accent-blue">💾 セーブデータ管理</a>
-            </div>
-        </header>
+        <nh-portal-nav group="user" active="save_manager"></nh-portal-nav>
 
         <header class="header">
-            <h1>Save Data Manager</h1>
-            <p class="subtitle">IndexedDB / localStorage セーブデータの管理・バックアップ</p>
+            <h1 id="txt-main-title">Save Data Manager</h1>
+            <p class="subtitle" id="txt-subtitle">IndexedDB / localStorage セーブデータの管理・バックアップ</p>
         </header>
 
         <!-- Current Active Save Summary Card -->
         <section class="card" style="border-left: 4px solid var(--accent-color);">
-            <h2 class="section-title">Current Save Status</h2>
+            <h2 class="section-title" id="txt-sec-status-title">Current Save Status</h2>
             <div id="save-status-summary" style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px;">
-                <div><strong>State:</strong> <span id="status-state-text">Checking...</span></div>
-                <div><strong>Active Player:</strong> <span id="status-player-text" style="color:var(--accent-hover); font-weight:600;">None</span></div>
-                <div><strong>Total Saved Files:</strong> <span id="status-count-text">0</span></div>
+                <div><strong id="lbl-status-state">State:</strong> <span id="status-state-text">Checking...</span></div>
+                <div><strong id="lbl-status-player">Active Player:</strong> <span id="status-player-text" style="color:var(--accent-hover); font-weight:600;">None</span></div>
+                <div><strong id="lbl-status-count">Total Saved Files:</strong> <span id="status-count-text">0</span></div>
             </div>
         </section>
 
         <!-- Adventure Log (冒険手帳) Meta-Persistence Section -->
         <section class="card" style="border-left: 4px solid #38bdf8;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <h2 class="section-title" style="margin-bottom: 0; color: #38bdf8;">📖 Adventure Log (冒険手帳)</h2>
-                <a href="adventure_log.html" class="btn btn-primary" style="background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">Open Adventure Log Viewer →</a>
+                <h2 class="section-title" id="txt-sec-log-title" style="margin-bottom: 0; color: #38bdf8;">📖 Adventure Log (冒険手帳)</h2>
+                <a href="adventure_log.html" class="btn btn-primary" id="btn-open-log" style="background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;">Open Adventure Log Viewer →</a>
             </div>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+            <p id="desc-adventure-log" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
                 Wasmセーブデータとは独立してセッション横断で永続化されるプレイヤーの知識・コレクション資産です（モンスター遭遇・アイテム識別・噂伝承）。
             </p>
             <div id="codex-status-summary" style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; margin-bottom: 16px;">
-                <div><strong>👾 Monsters:</strong> <span id="log-monsters-count" style="color: #38bdf8; font-weight: 600;">0 / 383 (0.0%)</span></div>
-                <div><strong>⚔️ Items:</strong> <span id="log-objects-count" style="color: #818cf8; font-weight: 600;">0 / 481 (0.0%)</span></div>
-                <div><strong>📜 Rumors:</strong> <span id="codex-rumor-count" style="color: #3fb950; font-weight: 600;">0 / 787 (0.0%)</span></div>
-                <div><strong>🏆 Overall:</strong> <span id="log-overall-count" style="color: #fbbf24; font-weight: 600;">0 / 1651 (0.0%)</span></div>
+                <div><strong id="lbl-log-monsters">👾 Monsters:</strong> <span id="log-monsters-count" style="color: #38bdf8; font-weight: 600;">0 / 383 (0.0%)</span></div>
+                <div><strong id="lbl-log-items">⚔️ Items:</strong> <span id="log-objects-count" style="color: #818cf8; font-weight: 600;">0 / 481 (0.0%)</span></div>
+                <div><strong id="lbl-log-rumors">📜 Rumors:</strong> <span id="codex-rumor-count" style="color: #3fb950; font-weight: 600;">0 / 787 (0.0%)</span></div>
+                <div><strong id="lbl-log-overall">🏆 Overall:</strong> <span id="log-overall-count" style="color: #fbbf24; font-weight: 600;">0 / 1651 (0.0%)</span></div>
             </div>
             <div class="global-actions" style="margin-bottom: 0;">
-                <button class="btn btn-primary" onclick="exportAdventureLogJSON()">Export Adventure Log (JSON)</button>
-                <button class="btn btn-danger" onclick="resetAdventureLogData()">Reset Adventure Log</button>
+                <button class="btn btn-primary" id="btn-export-log" onclick="exportAdventureLogJSON()">Export Adventure Log (JSON)</button>
+                <button class="btn btn-danger" id="btn-reset-log" onclick="resetAdventureLogData()">Reset Adventure Log</button>
             </div>
         </section>
 
         <!-- Scoreboard & Hall of Fame (殿堂・スコアボード) Section -->
         <section class="card" style="border-left: 4px solid var(--accent-gold);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <h2 class="section-title" style="margin-bottom: 0; color: var(--accent-gold);">🏆 Scoreboard & Hall of Fame (殿堂・冒険記録)</h2>
-                <a href="scoreboard.html" class="btn btn-primary" style="background: rgba(227, 179, 65, 0.2); border-color: var(--accent-gold); color: var(--accent-gold);">Open Scoreboard Viewer →</a>
+                <h2 class="section-title" id="txt-sec-score-title" style="margin-bottom: 0; color: var(--accent-gold);">🏆 Scoreboard & Hall of Fame (殿堂・冒険記録)</h2>
+                <a href="scoreboard.html" class="btn btn-primary" id="btn-open-score" style="background: rgba(227, 179, 65, 0.2); border-color: var(--accent-gold); color: var(--accent-gold);">Open Scoreboard Viewer →</a>
             </div>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 0;">
+            <p id="desc-scoreboard" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 0;">
                 歴代の冒険者たちの最終スコア、到達階層、死因、実プレイ時間などの記録（xlogfile / record）をランキングと詳細レポート形式で閲覧できます。
             </p>
         </section>
 
         <!-- IndexedDB Section -->
         <section class="card">
-            <h2 class="section-title">IndexedDB (FS/IDBFS)</h2>
+            <h2 class="section-title" id="txt-sec-idb-title">IndexedDB (FS/IDBFS)</h2>
             <div class="global-actions">
-                <button class="btn btn-primary" onclick="refreshIDB()">Refresh</button>
-                <button class="btn btn-danger" onclick="resetAllSaves()">Reset All Files</button>
+                <button class="btn btn-primary" id="btn-idb-refresh" onclick="refreshIDB()">Refresh</button>
+                <button class="btn btn-danger" id="btn-idb-reset" onclick="resetAllSaves()">Reset All Files</button>
             </div>
 
             <div id="drop-zone">
@@ -366,11 +359,11 @@
             <table id="idb-table">
                 <thead>
                     <tr>
-                        <th>Path</th>
-                        <th>Type</th>
-                        <th>Size</th>
-                        <th>Created/Modified</th>
-                        <th style="text-align: right;">Actions</th>
+                        <th id="th-idb-path">Path</th>
+                        <th id="th-idb-type">Type</th>
+                        <th id="th-idb-size">Size</th>
+                        <th id="th-idb-date">Created/Modified</th>
+                        <th id="th-idb-actions" style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="idb-list">
@@ -383,16 +376,16 @@
 
         <!-- localStorage Section -->
         <section class="card">
-            <h2 class="section-title">Web Storage (localStorage)</h2>
+            <h2 class="section-title" id="txt-sec-ls-title">Web Storage (localStorage)</h2>
             <div class="global-actions">
-                <button class="btn btn-danger" onclick="resetAllConfig()">Reset All Config</button>
+                <button class="btn btn-danger" id="btn-ls-reset" onclick="resetAllConfig()">Reset All Config</button>
             </div>
             <table id="ls-table">
                 <thead>
                     <tr>
-                        <th>Key</th>
-                        <th>Type</th>
-                        <th style="text-align: right;">Actions</th>
+                        <th id="th-ls-key">Key</th>
+                        <th id="th-ls-type">Type</th>
+                        <th id="th-ls-actions" style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="ls-list">
@@ -403,11 +396,187 @@
 
     </div>
 
-    <script>
+    <script type="module">
+        import { PortalState } from '../src/core/portal/PortalState.js';
+
         const DB_NAME = '/save';
         const STORE_NAME = 'FILE_DATA';
 
+        const I18N = {
+            ja: {
+                pageTitle: 'NetHack WASM - セーブデータ管理',
+                mainTitle: 'Save Data Manager',
+                subtitle: 'IndexedDB / localStorage セーブデータの管理・バックアップ',
+                secStatusTitle: 'Current Save Status (セーブ状況)',
+                lblStatusState: '状態:',
+                lblStatusPlayer: '現在のアクティブ冒険者:',
+                lblStatusCount: 'セーブファイル総数:',
+                statusChecking: '確認中...',
+                statusNoData: 'セーブデータなし',
+                statusActivePresent: 'アクティブなセーブが存在します',
+                statusSystemOnly: 'システムデータのみ (アクティブセーブなし)',
+                statusError: 'エラー',
+                playerNone: 'なし',
+                playerUnknown: '不明',
+                playerSaved: '保存された冒険者',
+                countActiveFormat: (c, total) => `${c} 件のセーブファイル (全 ${total} エントリ)`,
+                countSystemFormat: (total) => `0 件のセーブ (全 ${total} システムエントリ)`,
+                secLogTitle: '📖 Adventure Log (冒険手帳)',
+                btnOpenLog: '冒険手帳を開く →',
+                descLog: 'Wasmセーブデータとは独立してセッション横断で永続化されるプレイヤーの知識・コレクション資産です（モンスター遭遇・アイテム識別・噂伝承）。',
+                lblLogMonsters: '👾 モンスター:',
+                lblLogItems: '⚔️ アイテム:',
+                lblLogRumors: '📜 噂話:',
+                lblLogOverall: '🏆 総合収集率:',
+                btnExportLog: '冒険手帳をエクスポート (JSON)',
+                btnResetLog: '冒険手帳を初期化',
+                secScoreTitle: '🏆 Scoreboard & Hall of Fame (殿堂・冒険記録)',
+                btnOpenScore: 'スコアボードを開く →',
+                descScore: '歴代の冒険者たちの最終スコア、到達階層、死因、実プレイ時間などの記録（xlogfile / record）をランキングと詳細レポート形式で閲覧できます。',
+                secIdbTitle: 'IndexedDB (FS/IDBFS)',
+                btnIdbRefresh: '再読込',
+                btnIdbReset: '全ファイル初期化',
+                dropZoneText: 'ここにセーブファイルをドラッグ＆ドロップしてインポート',
+                thPath: 'パス',
+                thType: '種別',
+                thSize: 'サイズ',
+                thDate: '作成/更新日時',
+                thActions: '操作',
+                badgeSave: 'セーブ',
+                badgeSystem: 'システム',
+                btnView: '閲覧',
+                btnExport: 'エクスポート',
+                btnDel: '削除',
+                idbLoading: '読み込み中...',
+                idbNoFiles: 'ファイルが見つかりません。',
+                secLsTitle: 'Web Storage (localStorage)',
+                btnLsReset: '全設定を初期化',
+                thKey: 'キー',
+                lsNoKeys: '設定キーが見つかりません。',
+                btnRemove: '削除',
+                confirmDeleteFile: (path) => `${path} を削除しますか？この操作は取り消せません。`,
+                confirmResetSaves: 'すべてのセッションファイルを初期化しますか？すべてのキャラクターデータと殿堂記録がリセットされます。',
+                confirmDeleteLS: (key) => `${key} を削除しますか？`,
+                confirmResetConfig: 'NetHack WebUIの全設定（キー割り当て、システム設定）を消去しますか？',
+                alertNoLogToExport: 'エクスポート可能な冒険手帳またはCodexデータが見つかりません。',
+                confirmResetLog: '冒険手帳の全データ（モンスター、アイテム、噂話）を消去しますか？収集した全図鑑がリセットされます。（取り消し不可）',
+                alertResetLogSuccess: '冒険手帳のデータを正常に初期化しました。'
+            },
+            en: {
+                pageTitle: 'NetHack WASM - Save Manager',
+                mainTitle: 'Save Data Manager',
+                subtitle: 'IndexedDB / localStorage Save Data Management & Backup',
+                secStatusTitle: 'Current Save Status',
+                lblStatusState: 'State:',
+                lblStatusPlayer: 'Active Player:',
+                lblStatusCount: 'Total Saved Files:',
+                statusChecking: 'Checking...',
+                statusNoData: 'No Save Data',
+                statusActivePresent: 'Active Save Present',
+                statusSystemOnly: 'System Data Only (No Active Save)',
+                statusError: 'Error',
+                playerNone: 'None',
+                playerUnknown: 'Unknown',
+                playerSaved: 'Saved Character',
+                countActiveFormat: (c, total) => `${c} save file(s) (${total} total entries)`,
+                countSystemFormat: (total) => `0 saves (${total} system entries)`,
+                secLogTitle: '📖 Adventure Log (Codex)',
+                btnOpenLog: 'Open Adventure Log Viewer →',
+                descLog: 'Player knowledge and collection assets (monsters, items, rumors) persisted across sessions independently of Wasm saves.',
+                lblLogMonsters: '👾 Monsters:',
+                lblLogItems: '⚔️ Items:',
+                lblLogRumors: '📜 Rumors:',
+                lblLogOverall: '🏆 Overall:',
+                btnExportLog: 'Export Adventure Log (JSON)',
+                btnResetLog: 'Reset Adventure Log',
+                secScoreTitle: '🏆 Scoreboard & Hall of Fame',
+                btnOpenScore: 'Open Scoreboard Viewer →',
+                descScore: 'View hall-of-fame rankings and detailed adventure reports (xlogfile / record) including scores, dungeon depth, causes of death, and playtime.',
+                secIdbTitle: 'IndexedDB (FS/IDBFS)',
+                btnIdbRefresh: 'Refresh',
+                btnIdbReset: 'Reset All Files',
+                dropZoneText: 'Drag & Drop character save files here to import',
+                thPath: 'Path',
+                thType: 'Type',
+                thSize: 'Size',
+                thDate: 'Created/Modified',
+                thActions: 'Actions',
+                badgeSave: 'Save',
+                badgeSystem: 'System',
+                btnView: 'View',
+                btnExport: 'Export',
+                btnDel: 'Del',
+                idbLoading: 'Loading...',
+                idbNoFiles: 'No files found.',
+                secLsTitle: 'Web Storage (localStorage)',
+                btnLsReset: 'Reset All Config',
+                thKey: 'Key',
+                lsNoKeys: 'No config keys found.',
+                btnRemove: 'Remove',
+                confirmDeleteFile: (path) => `Delete ${path}? This cannot be undone.`,
+                confirmResetSaves: 'Wipe ALL session files? This will reset all character data and rankings.',
+                confirmDeleteLS: (key) => `Remove ${key}?`,
+                confirmResetConfig: 'Remove ALL NetHack UI settings (keys, configs)?',
+                alertNoLogToExport: 'No Adventure Log or Codex data found to export.',
+                confirmResetLog: 'Remove ALL Adventure Log data (Monsters, Items, Rumors)? This will clear all collected entries. This cannot be undone.',
+                alertResetLogSuccess: 'Adventure Log data cleared successfully.'
+            }
+        };
+
+        function getI18n() {
+            return PortalState.isJapanese() ? I18N.ja : I18N.en;
+        }
+
+        function updateStaticUI() {
+            const t = getI18n();
+            document.title = t.pageTitle;
+
+            const setTxt = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            setTxt('txt-main-title', t.mainTitle);
+            setTxt('txt-subtitle', t.subtitle);
+            setTxt('txt-sec-status-title', t.secStatusTitle);
+            setTxt('lbl-status-state', t.lblStatusState);
+            setTxt('lbl-status-player', t.lblStatusPlayer);
+            setTxt('lbl-status-count', t.lblStatusCount);
+
+            setTxt('txt-sec-log-title', t.secLogTitle);
+            setTxt('btn-open-log', t.btnOpenLog);
+            setTxt('desc-adventure-log', t.descLog);
+            setTxt('lbl-log-monsters', t.lblLogMonsters);
+            setTxt('lbl-log-items', t.lblLogItems);
+            setTxt('lbl-log-rumors', t.lblLogRumors);
+            setTxt('lbl-log-overall', t.lblLogOverall);
+            setTxt('btn-export-log', t.btnExportLog);
+            setTxt('btn-reset-log', t.btnResetLog);
+
+            setTxt('txt-sec-score-title', t.secScoreTitle);
+            setTxt('btn-open-score', t.btnOpenScore);
+            setTxt('desc-scoreboard', t.descScore);
+
+            setTxt('txt-sec-idb-title', t.secIdbTitle);
+            setTxt('btn-idb-refresh', t.btnIdbRefresh);
+            setTxt('btn-idb-reset', t.btnIdbReset);
+            setTxt('drop-zone', t.dropZoneText);
+
+            setTxt('th-idb-path', t.thPath);
+            setTxt('th-idb-type', t.thType);
+            setTxt('th-idb-size', t.thSize);
+            setTxt('th-idb-date', t.thDate);
+            setTxt('th-idb-actions', t.thActions);
+
+            setTxt('txt-sec-ls-title', t.secLsTitle);
+            setTxt('btn-ls-reset', t.btnLsReset);
+            setTxt('th-ls-key', t.thKey);
+            setTxt('th-ls-type', t.thType);
+            setTxt('th-ls-actions', t.thActions);
+        }
+
         async function init() {
+            updateStaticUI();
             await refreshIDB();
             refreshLS();
             refreshCodexStatus();
@@ -425,8 +594,9 @@
         }
 
         async function refreshIDB() {
+            const t = getI18n();
             const listEl = document.getElementById('idb-list');
-            listEl.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+            if (listEl) listEl.innerHTML = `<tr><td colspan="5">${t.idbLoading}</td></tr>`;
 
             const stateText = document.getElementById('status-state-text');
             const playerText = document.getElementById('status-player-text');
@@ -440,12 +610,12 @@
 
                 request.onsuccess = () => {
                     const files = request.result;
-                    listEl.innerHTML = '';
+                    if (listEl) listEl.innerHTML = '';
                     if (!files || files.length === 0) {
-                        listEl.innerHTML = '<tr><td colspan="5">No files found.</td></tr>';
-                        stateText.textContent = "No Save Data";
-                        playerText.textContent = "None";
-                        countText.textContent = "0";
+                        if (listEl) listEl.innerHTML = `<tr><td colspan="5">${t.idbNoFiles}</td></tr>`;
+                        if (stateText) stateText.textContent = t.statusNoData;
+                        if (playerText) playerText.textContent = t.playerNone;
+                        if (countText) countText.textContent = "0";
                         return;
                     }
 
@@ -460,7 +630,7 @@
                         keys.forEach((path, idx) => {
                             const file = files[idx];
                             const row = createIDBRow(path, file);
-                            listEl.appendChild(row);
+                            if (listEl) listEl.appendChild(row);
 
                             const keyStr = String(path);
                             const isSystem = systemFiles.some(sys => keyStr.endsWith(sys));
@@ -476,33 +646,38 @@
                         });
 
                         if (charSaveCount > 0) {
-                            stateText.textContent = "Active Save Present";
-                            stateText.style.color = "#7ee787";
-                            playerText.textContent = detectedPlayer || "Saved Character";
-                            countText.textContent = `${charSaveCount} save file(s) (${keys.length} total entries)`;
+                            if (stateText) {
+                                stateText.textContent = t.statusActivePresent;
+                                stateText.style.color = "#7ee787";
+                            }
+                            if (playerText) playerText.textContent = detectedPlayer || t.playerSaved;
+                            if (countText) countText.textContent = t.countActiveFormat(charSaveCount, keys.length);
                         } else {
-                            stateText.textContent = "System Data Only (No Active Save)";
-                            stateText.style.color = "var(--text-secondary)";
-                            playerText.textContent = "None";
-                            countText.textContent = `0 saves (${keys.length} system entries)`;
+                            if (stateText) {
+                                stateText.textContent = t.statusSystemOnly;
+                                stateText.style.color = "var(--text-secondary)";
+                            }
+                            if (playerText) playerText.textContent = t.playerNone;
+                            if (countText) countText.textContent = t.countSystemFormat(keys.length);
                         }
                     };
                 };
             } catch (e) {
                 console.error(e);
-                listEl.innerHTML = `<tr><td colspan="5" style="color:var(--danger-color)">Error: ${e.message}</td></tr>`;
-                stateText.textContent = "Error";
-                playerText.textContent = "Unknown";
-                countText.textContent = "0";
+                if (listEl) listEl.innerHTML = `<tr><td colspan="5" style="color:var(--danger-color)">Error: ${e.message}</td></tr>`;
+                if (stateText) stateText.textContent = t.statusError;
+                if (playerText) playerText.textContent = t.playerUnknown;
+                if (countText) countText.textContent = "0";
             }
         }
 
         function createIDBRow(path, data) {
+            const t = getI18n();
             const row = document.createElement('tr');
 
             const isCharacter = path.includes('/save/') && !['record', 'logfile', 'xlogfile', 'paniclog', 'perm', 'sysconf'].some(sys => path.endsWith(sys));
             const canView = ['record', 'logfile', 'xlogfile', 'paniclog'].some(sys => path.endsWith(sys));
-            const typeLabel = isCharacter ? '<span class="badge badge-character">Save</span>' : '<span class="badge">System</span>';
+            const typeLabel = isCharacter ? `<span class="badge badge-character">${t.badgeSave}</span>` : `<span class="badge">${t.badgeSystem}</span>`;
 
             const size = data.contents ? data.contents.byteLength : 0;
             const date = new Date(data.timestamp).toLocaleString();
@@ -513,9 +688,9 @@
                 <td>${(size / 1024).toFixed(1)} KB</td>
                 <td>${date}</td>
                 <td class="actions-cell">
-                    ${canView ? `<button class="btn btn-sm btn-success" onclick="viewTextFile('${path}')">View</button>` : ''}
-                    <button class="btn btn-sm" onclick="exportFile('${path}')">Export</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteFile('${path}')">Del</button>
+                    ${canView ? `<button class="btn btn-sm btn-success" onclick="viewTextFile('${path}')">${t.btnView}</button>` : ''}
+                    <button class="btn btn-sm" onclick="exportFile('${path}')">${t.btnExport}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteFile('${path}')">${t.btnDel}</button>
                 </td>
             `;
             return row;
@@ -542,7 +717,8 @@
         }
 
         async function deleteFile(path) {
-            if (!confirm(`Delete ${path}? This cannot be undone.`)) return;
+            const t = getI18n();
+            if (!confirm(t.confirmDeleteFile(path))) return;
             const db = await openDB();
             const transaction = db.transaction(STORE_NAME, 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
@@ -551,7 +727,8 @@
         }
 
         async function resetAllSaves() {
-            if (!confirm("Wipe ALL session files? This will reset all character data and rankings.")) return;
+            const t = getI18n();
+            if (!confirm(t.confirmResetSaves)) return;
             const db = await openDB();
             const transaction = db.transaction(STORE_NAME, 'readwrite');
             transaction.objectStore(STORE_NAME).clear();
@@ -565,13 +742,15 @@
         // --- localStorage Management ---
 
         function refreshLS() {
+            const t = getI18n();
             const listEl = document.getElementById('ls-list');
+            if (!listEl) return;
             listEl.innerHTML = '';
 
             const keys = Object.keys(localStorage).filter(k => k.startsWith('nh.')).sort();
 
             if (keys.length === 0) {
-                listEl.innerHTML = '<tr><td colspan="3">No config keys found.</td></tr>';
+                listEl.innerHTML = `<tr><td colspan="3">${t.lsNoKeys}</td></tr>`;
                 return;
             }
 
@@ -581,7 +760,7 @@
                     <td><span class="file-name">${key}</span></td>
                     <td>Config</td>
                     <td class="actions-cell">
-                        <button class="btn btn-sm btn-danger" onclick="deleteLS('${key}')">Remove</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteLS('${key}')">${t.btnRemove}</button>
                     </td>
                 `;
                 listEl.appendChild(row);
@@ -589,13 +768,15 @@
         }
 
         function deleteLS(key) {
-            if (!confirm(`Remove ${key}?`)) return;
+            const t = getI18n();
+            if (!confirm(t.confirmDeleteLS(key))) return;
             localStorage.removeItem(key);
             refreshLS();
         }
 
         function resetAllConfig() {
-            if (!confirm("Remove ALL NetHack UI settings (keys, configs)?")) return;
+            const t = getI18n();
+            if (!confirm(t.confirmResetConfig)) return;
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('nh.')) localStorage.removeItem(key);
             });
@@ -606,6 +787,7 @@
 
         function setupDragAndDrop() {
             const zone = document.getElementById('drop-zone');
+            if (!zone) return;
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
             zone.ondragleave = () => zone.classList.remove('dragover');
             zone.ondrop = (e) => {
@@ -622,15 +804,12 @@
                 const buffer = await file.arrayBuffer();
                 const contents = new Uint8Array(buffer);
 
-                // Emscripten IDBFS stores objects as { timestamp: Date, mode: number, contents: Uint8Array }
                 const dbData = {
                     timestamp: new Date(),
-                    mode: 33206, // Default file mode (-rw-r--r--)
+                    mode: 33206,
                     contents: contents
                 };
 
-                // Determine path. If it's a numeric name or looks like a save file, put in /save/
-                // Most nethack saves are like 1000Username
                 let path = name.startsWith('/') ? name : `/save/${name}`;
 
                 const db = await openDB();
@@ -694,11 +873,12 @@
         }
 
         function exportAdventureLogJSON() {
+            const t = getI18n();
             const rawLog = localStorage.getItem('nethack_webui_adventure_log');
             const rawCodex = localStorage.getItem('nethack_webui_lore_codex');
 
             if (!rawLog && !rawCodex) {
-                alert('No Adventure Log or Codex data found to export.');
+                alert(t.alertNoLogToExport);
                 return;
             }
 
@@ -721,23 +901,36 @@
         }
 
         function resetAdventureLogData() {
-            if (!confirm('Remove ALL Adventure Log data (Monsters, Items, Rumors)? This will clear all collected entries. This cannot be undone.')) return;
+            const t = getI18n();
+            if (!confirm(t.confirmResetLog)) return;
             localStorage.removeItem('nethack_webui_adventure_log');
             localStorage.removeItem('nethack_webui_lore_codex');
             refreshCodexStatus();
-            alert('Adventure Log data cleared successfully.');
+            alert(t.alertResetLogSuccess);
         }
 
-        // 後方互換性エイリアス
-        function exportCodexJSON() {
-            exportAdventureLogJSON();
-        }
+        // グローバル公開 (HTML onclick 属性用)
+        window.refreshIDB = refreshIDB;
+        window.resetAllSaves = resetAllSaves;
+        window.exportFile = exportFile;
+        window.deleteFile = deleteFile;
+        window.viewTextFile = viewTextFile;
+        window.refreshLS = refreshLS;
+        window.deleteLS = deleteLS;
+        window.resetAllConfig = resetAllConfig;
+        window.exportAdventureLogJSON = exportAdventureLogJSON;
+        window.resetAdventureLogData = resetAdventureLogData;
+        window.exportCodexJSON = exportAdventureLogJSON;
+        window.resetCodexData = resetAdventureLogData;
 
-        function resetCodexData() {
-            resetAdventureLogData();
-        }
+        window.addEventListener('nh-lang-changed', () => {
+            updateStaticUI();
+            refreshIDB();
+            refreshLS();
+        });
 
-        window.onload = init;
+        window.addEventListener('DOMContentLoaded', init);
+        init();
     </script>
 </body>
 

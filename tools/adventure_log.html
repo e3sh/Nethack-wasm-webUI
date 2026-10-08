@@ -9,6 +9,7 @@
     <script src="../param/tileMapping.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
 
     <style>
         :root {
@@ -154,20 +155,7 @@
         }
     </script>
     <div class="container">
-        <nav class="portal-nav portal-nav-wide nav-bar">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <a href="../index.html" class="nav-back-btn">← タイトル画面へ戻る</a>
-                <div class="nav-pill-group">
-                    <a href="scoreboard.html" class="nav-pill-item accent-gold">🏆 殿堂・スコアボード</a>
-                    <a href="adventure_log.html" class="nav-pill-item active accent-blue">👣 冒険手帳 (Log)</a>
-                    <a href="lore_codex.html" class="nav-pill-item dev-only">📜 伝承アーカイブ (Codex)</a>
-                    <a href="knowledge-inspector.html" class="nav-pill-item dev-only">🔍 構造化ナレッジ図鑑</a>
-                </div>
-            </div>
-            <div style="font-size: 13px; color: var(--text-secondary);">
-                <span>👣 冒険の足跡 (セッション横断メタプログレッション)</span>
-            </div>
-        </nav>
+        <nh-portal-nav group="user" active="adventure_log"></nh-portal-nav>
 
         <div class="main-layout">
             <!-- 左ペイン: 冒険手帳グリッド -->
@@ -178,10 +166,10 @@
             <!-- 右ペイン: 選択中エントリの3層ナレッジカード -->
             <div class="card-panel">
                 <div id="detail-container">
-                    <div class="detail-placeholder">
+                    <div class="detail-placeholder" id="txt-detail-placeholder">
                         <span class="icon">📖</span>
-                        <h3 style="color: #f8fafc; font-size: 1.1rem;">3層統合ナレッジ</h3>
-                        <p>左のタイルをクリックすると、スペック・公式解説・噂の豆知識がここに表示されます。</p>
+                        <h3 id="txt-placeholder-title" style="color: #f8fafc; font-size: 1.1rem;">3層統合ナレッジ</h3>
+                        <p id="txt-placeholder-desc">左のタイルをクリックすると、スペック・公式解説・噂の豆知識がここに表示されます。</p>
                     </div>
                 </div>
             </div>
@@ -195,11 +183,29 @@
         import { AdventureLogManager } from '../src/core/knowledge/lore/AdventureLogManager.js';
         import { MONSTER_KNOWLEDGE_MAP } from '../src/core/knowledge/data/MONSTER_KNOWLEDGE_FULL.js';
         import { OBJECT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js';
+        import { PortalState } from '../src/core/portal/PortalState.js';
 
         // 初期化
         const manager = new AdventureLogManager();
         const grid = document.getElementById('codex-grid');
         const detailContainer = document.getElementById('detail-container');
+        let currentSelected = null;
+
+        function renderPlaceholder() {
+            if (!detailContainer) return;
+            const isJp = PortalState.isJapanese();
+            const title = isJp ? "3層統合ナレッジ" : "3-Tier Integrated Knowledge";
+            const desc = isJp
+                ? "左のタイルをクリックすると、スペック・公式解説・噂の豆知識がここに表示されます。"
+                : "Click any tile on the left to inspect specifications, official lore, and rumor trivia.";
+            detailContainer.innerHTML = `
+                <div class="detail-placeholder">
+                    <span class="icon">📖</span>
+                    <h3 style="color: #f8fafc; font-size: 1.1rem;">${title}</h3>
+                    <p>${desc}</p>
+                </div>
+            `;
+        }
 
         if (grid) {
             grid.setManager(manager);
@@ -207,6 +213,7 @@
 
             grid.addEventListener('entry-selected', (e) => {
                 const { entry, category, data } = e.detail;
+                currentSelected = { entry, category, data, options: {} };
                 renderDetail(entry, category, data);
             });
         }
@@ -215,6 +222,7 @@
 
         function renderDetail(entry, category, data, cardOptions = {}) {
             if (!detailContainer) return;
+            currentSelected = { entry, category, data, options: cardOptions };
             detailContainer.innerHTML = '';
 
             // 詳細パネルの内部スクロールを先頭にリセット
@@ -226,7 +234,7 @@
                 const card = document.createElement('nh-knowledge-card');
                 card.setTarget(data, {
                     adventureLogManager: manager,
-                    currentLanguage: 'ja',
+                    currentLanguage: PortalState.getLanguage(),
                     activeTab: cardOptions.activeTab || 'spec',
                     tileImage: '../pict/nethack_default_32_tr.png'
                 });
@@ -241,8 +249,20 @@
 
                 detailContainer.appendChild(card);
             } else if (category === 'rumor') {
+                const isJp = PortalState.isJapanese();
                 const isTrue = entry.isTrue !== undefined ? entry.isTrue : (entry.type === 'TRUE');
                 const related = (data && Array.isArray(data.relatedEntities)) ? data.relatedEntities : [];
+
+                const rumorTitle = isJp ? `📜 噂話 #${String(entry.index).padStart(3, '0')}` : `📜 Rumor #${String(entry.index).padStart(3, '0')}`;
+                const trueLabel = isJp ? '✅ 真実の噂 (TRUE)' : '✅ True Rumor (TRUE)';
+                const falseLabel = isJp ? '❌ 偽りの噂 (FALSE)' : '❌ False Rumor (FALSE)';
+                const badgeText = isTrue ? trueLabel : falseLabel;
+                const transLabel = isJp ? '日本語訳 (TRANSLATION)' : 'Japanese Translation (TRANSLATION)';
+                const origLabel = isJp ? '英語原文 (ORIGINAL TEXT)' : 'Original English Text (ORIGINAL TEXT)';
+                const relatedLabel = isJp ? '🔗 関連する知識・対象 (クリックでカードを表示)' : '🔗 Related Knowledge & Entities (Click to inspect)';
+                const codexText = isJp
+                    ? '📜 伝承アーカイブ (Rumor & Lore Codex) で神託・床文字・元ネタ出典を見る ➔'
+                    : '📜 View Oracles, Engravings & Lore in Codex Archive ➔';
 
                 const wrapper = document.createElement('div');
                 wrapper.style.display = 'flex';
@@ -252,21 +272,21 @@
 
                 wrapper.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(148,163,184,0.2); padding-bottom: 10px;">
-                        <span style="font-weight: 700; font-size: 1.1rem; color: #f8fafc;">📜 噂話 #${String(entry.index).padStart(3, '0')}</span>
+                        <span style="font-weight: 700; font-size: 1.1rem; color: #f8fafc;">${rumorTitle}</span>
                         <span style="font-size: 0.8rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; ${isTrue ? 'background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.4);' : 'background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);'}">
-                            ${isTrue ? '✅ 真実の噂 (TRUE)' : '❌ 偽りの噂 (FALSE)'}
+                            ${badgeText}
                         </span>
                     </div>
 
                     <div>
-                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">日本語訳 (TRANSLATION)</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">${transLabel}</div>
                         <div style="font-size: 0.95rem; color: #e2e8f0; line-height: 1.6; background: rgba(30,41,59,0.5); padding: 12px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.15);">
                             ${entry.textJa || entry.text}
                         </div>
                     </div>
 
                     <div>
-                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">英語原文 (ORIGINAL TEXT)</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">${origLabel}</div>
                         <div style="font-size: 0.85rem; color: #cbd5e1; font-family: monospace; background: rgba(15,23,42,0.6); padding: 10px; border-radius: 6px; border: 1px solid rgba(148,163,184,0.1);">
                             "${entry.text}"
                         </div>
@@ -274,7 +294,7 @@
 
                     ${related.length > 0 ? `
                         <div>
-                            <div style="font-size: 0.75rem; color: #38bdf8; margin-bottom: 8px; font-weight: 700;">🔗 関連する知識・対象 (クリックでカードを表示)</div>
+                            <div style="font-size: 0.75rem; color: #38bdf8; margin-bottom: 8px; font-weight: 700;">${relatedLabel}</div>
                             <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="related-buttons-container">
                             </div>
                         </div>
@@ -282,7 +302,7 @@
 
                     <div class="dev-only" style="margin-top: 10px; padding: 12px; background: rgba(227, 179, 65, 0.1); border: 1px solid rgba(227, 179, 65, 0.3); border-radius: 8px; text-align: center;">
                         <a href="lore_codex.html" style="color: #e3b341; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                            📜 伝承アーカイブ (Rumor & Lore Codex) で神託・床文字・元ネタ出典を見る ➔
+                            ${codexText}
                         </a>
                     </div>
                 `;
@@ -302,7 +322,8 @@
                         btn.style.cursor = 'pointer';
                         btn.style.fontSize = '0.85rem';
                         btn.style.fontWeight = '600';
-                        btn.textContent = `🔍 ${rel.nameJa || rel.name}`;
+                        const relName = isJp ? (rel.nameJa || rel.name) : (rel.name || rel.nameJa);
+                        btn.textContent = `🔍 ${relName}`;
                         
                         btn.addEventListener('click', () => {
                             let targetEntity = null;
@@ -325,6 +346,22 @@
                 cardPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
+
+        function updateUI() {
+            const isJp = PortalState.isJapanese();
+            document.title = isJp ? 'NetHack - 冒険手帳 (Adventure Log)' : 'NetHack - Adventure Log';
+            if (grid) {
+                grid.setLanguage(isJp ? 'ja' : 'en');
+            }
+            if (currentSelected) {
+                renderDetail(currentSelected.entry, currentSelected.category, currentSelected.data, currentSelected.options);
+            } else {
+                renderPlaceholder();
+            }
+        }
+
+        window.addEventListener('nh-lang-changed', updateUI);
+        updateUI();
     </script>
 </body>
 

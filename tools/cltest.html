@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --bg-primary: var(--bg-color);
@@ -288,20 +289,8 @@
         <header>
             <div class="logo-badge">🚀 NetHack Wasm Driver Portal</div>
             <h1>NetHack 5.0 / 3.7 Client Portal (cltest)</h1>
-            <p class="subtitle">コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Pure JS, Vue 3, React, Svelte, SolidJS) サンプルへのアクセスダッシュボードです。</p>
-            <div class="portal-nav portal-nav-wide top-nav" style="margin-top: 1.5rem; max-width: 100%;">
-                <a href="../index.html" class="nav-back-btn">← タイトルへ戻る</a>
-                <div class="nav-pill-group">
-                    <a href="cltest.html" class="nav-pill-item active accent-purple">🧪 クライアント検証</a>
-                    <a href="dev_tools.html" class="nav-pill-item">🛠️ 開発者ツール一覧</a>
-                </div>
-                <button class="btn btn-blue" id="btnOpenInspector" style="font-size: 13px;">🔍 Debug Inspector Console</button>
-            </div>
-            <script>
-                document.getElementById('btnOpenInspector').addEventListener('click', function() {
-                    window.open('../src/core/inspector/inspector_console.html', 'WebUICoreInspectorConsole', 'width=920,height=720,resizable=yes,scrollbars=yes');
-                });
-            </script>
+            <p class="subtitle" id="txt-cltest-sub">コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Pure JS, Vue 3, React, Svelte, SolidJS) サンプルへのアクセスダッシュボードです。</p>
+            <nh-portal-nav group="dev" active="cltest"></nh-portal-nav>
         </header>
 
         <main class="grid">
@@ -310,13 +299,13 @@
                 <div>
                     <div class="card-header">
                         <div class="card-icon">🐉</div>
-                        <span class="card-badge" style="background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676;">🧠 状況推論＆アシスト搭載</span>
+                        <span class="card-badge" id="badge-gkl" style="background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676;">🧠 状況推論＆アシスト搭載</span>
                     </div>
                     <h2 class="card-title">GKL Pure JS Client</h2>
-                    <p class="card-desc">【最新・最高機能】ゲーム状況自動推論 (GKL) 搭載。周囲の状況から「今最適な行動」を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズームカメラ（3層透過＆浮遊アニメーション）をフル搭載した最新クライアント。</p>
+                    <p class="card-desc" id="desc-gkl">【最新・最高機能】ゲーム状況自動推論 (GKL) 搭載。周囲の状況から「今最適な行動」を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズームカメラ（3層透過＆浮遊アニメーション）をフル搭載した最新クライアント。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="../examples/gkl-pure-js-client/index.html" class="btn btn-primary" style="background: linear-gradient(135deg, #00e676, #00b0ff); color: #090d16; font-weight: bold;" target="_blank">直接開く (gkl-pure-js-client)</a>
+                    <a href="../examples/gkl-pure-js-client/index.html" class="btn btn-primary" id="btn-gkl" style="background: linear-gradient(135deg, #00e676, #00b0ff); color: #090d16; font-weight: bold;" target="_blank">直接開く (gkl-pure-js-client)</a>
                 </div>
             </div>
 
@@ -328,11 +317,11 @@
                         <span class="card-badge badge-framework">Vue 3</span>
                     </div>
                     <h2 class="card-title">Vue 3 Client</h2>
-                    <p class="card-desc">Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
+                    <p class="card-desc" id="desc-vue">Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="../examples/vue-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="../examples/vue-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
+                    <a href="../examples/vue-client/dist/index.html" class="btn btn-primary" id="btn-vue-dist" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/vue-client/index.html" class="btn btn-secondary" id="btn-vue-src" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -344,11 +333,11 @@
                         <span class="card-badge badge-framework">React 18</span>
                     </div>
                     <h2 class="card-title">React 18 Client</h2>
-                    <p class="card-desc">React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
+                    <p class="card-desc" id="desc-react">React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="../examples/react-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="../examples/react-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
+                    <a href="../examples/react-client/dist/index.html" class="btn btn-primary" id="btn-react-dist" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/react-client/index.html" class="btn btn-secondary" id="btn-react-src" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -360,11 +349,11 @@
                         <span class="card-badge badge-framework">Svelte</span>
                     </div>
                     <h2 class="card-title">Svelte Client</h2>
-                    <p class="card-desc">Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
+                    <p class="card-desc" id="desc-svelte">Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="../examples/svelte-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="../examples/svelte-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
+                    <a href="../examples/svelte-client/dist/index.html" class="btn btn-primary" id="btn-svelte-dist" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/svelte-client/index.html" class="btn btn-secondary" id="btn-svelte-src" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
 
@@ -376,11 +365,11 @@
                         <span class="card-badge badge-framework">SolidJS</span>
                     </div>
                     <h2 class="card-title">SolidJS Client</h2>
-                    <p class="card-desc">SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
+                    <p class="card-desc" id="desc-solid">SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。</p>
                 </div>
                 <div class="card-actions">
-                    <a href="../examples/solid-client/dist/index.html" class="btn btn-primary" target="_blank">ビルド版 (dist)</a>
-                    <a href="../examples/solid-client/index.html" class="btn btn-secondary" target="_blank">ソース版 (index)</a>
+                    <a href="../examples/solid-client/dist/index.html" class="btn btn-primary" id="btn-solid-dist" target="_blank">ビルド版 (dist)</a>
+                    <a href="../examples/solid-client/index.html" class="btn btn-secondary" id="btn-solid-src" target="_blank">ソース版 (index)</a>
                 </div>
             </div>
         </main>
@@ -388,8 +377,8 @@
         <!-- 開発初期・低レイヤー検証クライアント (普段は折りたたみ非表示) -->
         <details class="legacy-details">
             <summary class="legacy-summary">
-                <span>📦 開発初期クライアント &amp; ドライバ検証環境 (Legacy &amp; Driver Tests)</span>
-                <span style="font-size: 0.85rem; font-weight: normal; opacity: 0.8;">クリックして展開 / 折りたたむ ▼</span>
+                <span id="txt-legacy-summary-title">📦 開発初期クライアント &amp; ドライバ検証環境 (Legacy &amp; Driver Tests)</span>
+                <span id="txt-legacy-summary-hint" style="font-size: 0.85rem; font-weight: normal; opacity: 0.8;">クリックして展開 / 折りたたむ ▼</span>
             </summary>
             <div class="legacy-content">
                 <div class="grid" style="margin-bottom: 0;">
@@ -398,13 +387,13 @@
                         <div>
                             <div class="card-header">
                                 <div class="card-icon">🚀</div>
-                                <span class="card-badge badge-core">WebUICore 最小構成</span>
+                                <span class="card-badge badge-core" id="badge-purejs">WebUICore 最小構成</span>
                             </div>
                             <h2 class="card-title">Pure JS Minimal Client</h2>
-                            <p class="card-desc">WebUICore 直呼び出しによるフレームワークフリーの最小構成リファレンスクライアント。</p>
+                            <p class="card-desc" id="desc-purejs">WebUICore 直呼び出しによるフレームワークフリーの最小構成リファレンスクライアント。</p>
                         </div>
                         <div class="card-actions">
-                            <a href="../examples/pure-js-client/index.html" class="btn btn-primary" target="_blank">直接開く (pure-js-client)</a>
+                            <a href="../examples/pure-js-client/index.html" class="btn btn-primary" id="btn-purejs" target="_blank">直接開く (pure-js-client)</a>
                         </div>
                     </div>
 
@@ -415,11 +404,11 @@
                                 <div class="card-icon">⚙️</div>
                                 <span class="card-badge badge-test">PoC</span>
                             </div>
-                            <h2 class="card-title">WebUICore 独立統合実証 (PoC)</h2>
-                            <p class="card-desc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の初期検証ポータル。</p>
+                            <h2 class="card-title" id="title-poc">WebUICore 独立統合実証 (PoC)</h2>
+                            <p class="card-desc" id="desc-poc">Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の初期検証ポータル。</p>
                         </div>
                         <div class="card-actions">
-                            <a href="../tests/webuicore_poc.html" class="btn btn-primary" target="_blank">直接開く (webuicore_poc.html)</a>
+                            <a href="../tests/webuicore_poc.html" class="btn btn-primary" id="btn-poc" target="_blank">直接開く (webuicore_poc.html)</a>
                         </div>
                     </div>
 
@@ -431,10 +420,10 @@
                                 <span class="card-badge badge-test">Gamepad PoC</span>
                             </div>
                             <h2 class="card-title">Gamepad Input Experimental Client</h2>
-                            <p class="card-desc">【実験用PoC】ゲームパッド操作・動的ラジアルメニュー（右ホイール）・ContextAction連動（Aボタン切替）の検証用クライアント。</p>
+                            <p class="card-desc" id="desc-gamepad">【実験用PoC】ゲームパッド操作・動的ラジアルメニュー（右ホイール）・ContextAction連動（Aボタン切替）の検証用クライアント。</p>
                         </div>
                         <div class="card-actions">
-                            <a href="../examples/console-client/index.html" class="btn btn-primary" target="_blank">直接開く (console-client)</a>
+                            <a href="../examples/console-client/index.html" class="btn btn-primary" id="btn-gamepad" target="_blank">直接開く (console-client)</a>
                         </div>
                     </div>
 
@@ -446,10 +435,10 @@
                                 <span class="card-badge badge-test">Driver Test</span>
                             </div>
                             <h2 class="card-title">Driver Test Client</h2>
-                            <p class="card-desc">NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。</p>
+                            <p class="card-desc" id="desc-driver-test">NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。</p>
                         </div>
                         <div class="card-actions">
-                            <a href="../tests/driver_test.html" class="btn btn-primary" target="_blank">直接開く (driver_test.html)</a>
+                            <a href="../tests/driver_test.html" class="btn btn-primary" id="btn-driver-test" target="_blank">直接開く (driver_test.html)</a>
                         </div>
                     </div>
 
@@ -461,10 +450,10 @@
                                 <span class="card-badge badge-test">Driver Test</span>
                             </div>
                             <h2 class="card-title">Driver DOM Test Client</h2>
-                            <p class="card-desc">NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。</p>
+                            <p class="card-desc" id="desc-driver-dom">NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。</p>
                         </div>
                         <div class="card-actions">
-                            <a href="../tests/driver_dom_test.html" class="btn btn-primary" target="_blank">直接開く (driver_dom_test.html)</a>
+                            <a href="../tests/driver_dom_test.html" class="btn btn-primary" id="btn-driver-dom" target="_blank">直接開く (driver_dom_test.html)</a>
                         </div>
                     </div>
                 </div>
@@ -472,8 +461,8 @@
         </details>
 
         <section class="dev-notes">
-            <h3>💡 開発・運用ヒント</h3>
-            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+            <h3 id="txt-dev-notes-title">💡 開発・運用ヒント</h3>
+            <p id="txt-dev-notes-desc" style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
                 静的ローカルサーバー（例: <code>python -m http.server 8000</code> や Live Server）を起動した状態で <code>http://localhost:8000/tools/cltest.html</code> へアクセスすることで全クライアントを一元テスト・管理できます。<br>
                 各フレームワークの開発サーバーを起動する場合は <code>npm run dev:vue</code> などをプロジェクトルートで実行してください。
             </p>
@@ -483,5 +472,127 @@
             <p>NetHack 5.0 Wasm WebUI Project &copy; 2026</p>
         </footer>
     </div>
+
+    <script type="module">
+        import { PortalState } from '../src/core/portal/PortalState.js';
+
+        const I18N = {
+            ja: {
+                subtitle: 'コア WebUI, テスト用クライアント, 各種モダンフレームワーク (Pure JS, Vue 3, React, Svelte, SolidJS) サンプルへのアクセスダッシュボードです。',
+                badgeGkl: '🧠 状況推論＆アシスト搭載',
+                descGkl: '【最新・最高機能】ゲーム状況自動推論 (GKL) 搭載。周囲の状況から「今最適な行動」を全自動提示する推奨アクションパネル、所持品アイコン＆ツールチップ、🎯周辺拡大ズームカメラ（3層透過＆浮遊アニメーション）をフル搭載した最新クライアント。',
+                btnGkl: '直接開く (gkl-pure-js-client)',
+                descVue: 'Vue 3 + Vite + TypeScript + Pinia で構築された最新モダンフレームワーククライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。',
+                descReact: 'React 18 + Vite + TypeScript + Zustand によるコンポーネント指向クライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。',
+                descSvelte: 'Svelte + Vite + TypeScript による軽量コンパイル型クライアント実装。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。',
+                descSolid: 'SolidJS + Vite + TypeScript による Signals 採用の超高性能リアクティブクライアント。GKL 統合 HUD・フォーカスカメラ・アシストシグナル完全対応。',
+                btnDist: 'ビルド版 (dist)',
+                btnSrc: 'ソース版 (index)',
+                legacySummaryTitle: '📦 開発初期クライアント & ドライバ検証環境 (Legacy & Driver Tests)',
+                legacySummaryHint: 'クリックして展開 / 折りたたむ ▼',
+                badgePurejs: 'WebUICore 最小構成',
+                descPurejs: 'WebUICore 直呼び出しによるフレームワークフリーの最小構成リファレンスクライアント。',
+                btnPurejs: '直接開く (pure-js-client)',
+                titlePoc: 'WebUICore 独立統合実証 (PoC)',
+                descPoc: 'Headless Core, 動的日本語翻訳, オンデマンドドキュメント取得, 32x32 スプライト Canvas 描画の初期検証ポータル。',
+                btnPoc: '直接開く (webuicore_poc.html)',
+                descGamepad: '【実験用PoC】ゲームパッド操作・動的ラジアルメニュー（右ホイール）・ContextAction連動（Aボタン切替）の検証用クライアント。',
+                btnGamepad: '直接開く (console-client)',
+                descDriverTest: 'NetHackWasmDriver コアの低レイヤーイベント、メモリパース、直接コマンドデバッグ用検証クライアント。',
+                btnDriverTest: '直接開く (driver_test.html)',
+                descDriverDom: 'NetHackWasmDriver と DOM UI レイヤーを結合した Headless / DOM インタラクティブテスト環境。',
+                btnDriverDom: '直接開く (driver_dom_test.html)',
+                devNotesTitle: '💡 開発・運用ヒント',
+                devNotesHtml: '静的ローカルサーバー（例: <code>python -m http.server 8000</code> や Live Server）を起動した状態で <code>http://localhost:8000/tools/cltest.html</code> へアクセスすることで全クライアントを一元テスト・管理できます。<br>各フレームワークの開発サーバーを起動する場合は <code>npm run dev:vue</code> などをプロジェクトルートで実行してください。'
+            },
+            en: {
+                subtitle: 'Access dashboard for Core WebUI, test clients, and modern framework (Pure JS, Vue 3, React, Svelte, SolidJS) samples.',
+                badgeGkl: '🧠 Situation Inference & Assist',
+                descGkl: '[Latest & Most Capable] Equipped with Game Knowledge Layer (GKL). Features automated optimal action recommendations, inventory icons & tooltips, and focal zoom camera (3-layer transparency & floating animations).',
+                btnGkl: 'Open Directly (gkl-pure-js-client)',
+                descVue: 'Modern client built with Vue 3 + Vite + TypeScript + Pinia. Full GKL HUD, focal camera, and assist signal support.',
+                descReact: 'Component-driven client built with React 18 + Vite + TypeScript + Zustand. Full GKL HUD, focal camera, and assist signal support.',
+                descSvelte: 'Lightweight compiled client implementation with Svelte + Vite + TypeScript. Full GKL HUD, focal camera, and assist signal support.',
+                descSolid: 'Ultra-performant reactive client using SolidJS + Vite + TypeScript with Signals. Full GKL HUD, focal camera, and assist signal support.',
+                btnDist: 'Production Build (dist)',
+                btnSrc: 'Source Version (index)',
+                legacySummaryTitle: '📦 Early Development Clients & Driver Test Environments (Legacy & Driver Tests)',
+                legacySummaryHint: 'Click to expand / collapse ▼',
+                badgePurejs: 'WebUICore Minimal',
+                descPurejs: 'Framework-free minimal reference client directly invoking WebUICore.',
+                btnPurejs: 'Open Directly (pure-js-client)',
+                titlePoc: 'WebUICore Standalone Integration PoC',
+                descPoc: 'Early verification portal for Headless Core, dynamic Japanese translation, on-demand doc fetching, and 32x32 sprite Canvas rendering.',
+                btnPoc: 'Open Directly (webuicore_poc.html)',
+                descGamepad: '[Experimental PoC] Verification client for gamepad controls, dynamic radial menus (right stick), and ContextAction switching.',
+                btnGamepad: 'Open Directly (console-client)',
+                descDriverTest: 'Verification client for NetHackWasmDriver core low-level events, memory parsing, and direct command debugging.',
+                btnDriverTest: 'Open Directly (driver_test.html)',
+                descDriverDom: 'Interactive test environment integrating NetHackWasmDriver with the DOM UI layer for headless & DOM validation.',
+                btnDriverDom: 'Open Directly (driver_dom_test.html)',
+                devNotesTitle: '💡 Development & Operation Tips',
+                devNotesHtml: 'Start a static local server (e.g. <code>python -m http.server 8000</code> or Live Server) and visit <code>http://localhost:8000/tools/cltest.html</code> to test and manage all clients from a single portal.<br>To launch framework dev servers individually, run commands such as <code>npm run dev:vue</code> from the project root.'
+            }
+        };
+
+        function updateUI() {
+            const isJp = PortalState.isJapanese();
+            const t = isJp ? I18N.ja : I18N.en;
+
+            const setTxt = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            setTxt('txt-cltest-sub', t.subtitle);
+            setTxt('badge-gkl', t.badgeGkl);
+            setTxt('desc-gkl', t.descGkl);
+            setTxt('btn-gkl', t.btnGkl);
+
+            setTxt('desc-vue', t.descVue);
+            setTxt('btn-vue-dist', t.btnDist);
+            setTxt('btn-vue-src', t.btnSrc);
+
+            setTxt('desc-react', t.descReact);
+            setTxt('btn-react-dist', t.btnDist);
+            setTxt('btn-react-src', t.btnSrc);
+
+            setTxt('desc-svelte', t.descSvelte);
+            setTxt('btn-svelte-dist', t.btnDist);
+            setTxt('btn-svelte-src', t.btnSrc);
+
+            setTxt('desc-solid', t.descSolid);
+            setTxt('btn-solid-dist', t.btnDist);
+            setTxt('btn-solid-src', t.btnSrc);
+
+            setTxt('txt-legacy-summary-title', t.legacySummaryTitle);
+            setTxt('txt-legacy-summary-hint', t.legacySummaryHint);
+
+            setTxt('badge-purejs', t.badgePurejs);
+            setTxt('desc-purejs', t.descPurejs);
+            setTxt('btn-purejs', t.btnPurejs);
+
+            setTxt('title-poc', t.titlePoc);
+            setTxt('desc-poc', t.descPoc);
+            setTxt('btn-poc', t.btnPoc);
+
+            setTxt('desc-gamepad', t.descGamepad);
+            setTxt('btn-gamepad', t.btnGamepad);
+
+            setTxt('desc-driver-test', t.descDriverTest);
+            setTxt('btn-driver-test', t.btnDriverTest);
+
+            setTxt('desc-driver-dom', t.descDriverDom);
+            setTxt('btn-driver-dom', t.btnDriverDom);
+
+            setTxt('txt-dev-notes-title', t.devNotesTitle);
+            const notesEl = document.getElementById('txt-dev-notes-desc');
+            if (notesEl) notesEl.innerHTML = t.devNotesHtml;
+        }
+
+        window.addEventListener('nh-lang-changed', updateUI);
+        window.addEventListener('DOMContentLoaded', updateUI);
+        updateUI();
+    </script>
 </body>
 </html>

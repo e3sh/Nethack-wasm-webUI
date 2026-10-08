@@ -6,6 +6,7 @@
     <title>NetHack 冒険手帳 (Rumor & Lore Codex) プロトタイプ</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --card-bg: var(--panel-bg);
@@ -675,49 +676,45 @@
 </head>
 <body>
 
-    <header>
-        <div class="brand">
-            <div class="brand-icon">📜</div>
-            <div>
-                <div class="brand-title">RUMOR & LORE CODEX</div>
-                <div class="brand-subtitle">NetHack 5.0 Adventure Codex & Ward Monitor</div>
+    <header style="flex-direction: column; align-items: stretch; gap: 12px;">
+        <nh-portal-nav group="knowledge" active="codex" style="width: 100%;"></nh-portal-nav>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div class="brand">
+                <div class="brand-icon">📜</div>
+                <div>
+                    <div class="brand-title">RUMOR & LORE CODEX</div>
+                    <div class="brand-subtitle" id="brandSubtitle">NetHack 5.0 Adventure Codex & Ward Monitor</div>
+                </div>
             </div>
-        </div>
-        <div class="header-actions">
-            <a href="../index.html" class="nav-back-btn" style="padding: 6px 14px; font-size: 12px;">← タイトルへ戻る</a>
-            <div class="nav-pill-group" style="padding: 2px;">
-                <a href="lore_codex.html" class="nav-pill-item active accent-gold" style="padding: 5px 12px; font-size: 12px;">📜 伝承アーカイブ</a>
-                <a href="knowledge-inspector.html" target="_blank" class="nav-pill-item" style="padding: 5px 12px; font-size: 12px;">🔍 構造化ナレッジ</a>
-                <a href="adventure_log.html?dev=1" target="_blank" class="nav-pill-item" style="padding: 5px 12px; font-size: 12px;">👣 冒険ログ</a>
-            </div>
-            <button class="btn" onclick="toggleAllMasterMode()">
+            <div class="header-actions">
+            <button class="btn" id="btnToggleMasterMode" onclick="toggleAllMasterMode()">
                 <span id="masterModeIcon">👁️</span> <span id="masterModeText">全マスタ閲覧 (787件)</span>
             </button>
             <button class="btn" id="btnToggleOracleGuide" onclick="toggleOracleGuideMode()" style="border-color: rgba(192, 132, 252, 0.5); color: #c084fc;">
                 <span id="oracleGuideIcon">🔮</span> <span id="oracleGuideText">神託ガイド: OFF</span>
             </button>
-            <button class="btn btn-gold" onclick="exportBackup()">
-                💾 JSON エクスポート
+            <button class="btn btn-gold" id="btnExportBackup" onclick="exportBackup()">
+                <span id="btnExportBackupText">💾 JSON エクスポート</span>
             </button>
-            <button class="btn" onclick="triggerImport()">
-                📂 インポート
+            <button class="btn" id="btnImportBackup" onclick="triggerImport()">
+                <span id="btnImportBackupText">📂 インポート</span>
             </button>
             <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleFileImport(event)">
-            <button class="btn btn-danger" onclick="confirmReset()">
-                🗑️ 手帳初期化
+            <button class="btn btn-danger" id="btnResetCodex" onclick="confirmReset()">
+                <span id="btnResetCodexText">🗑️ 手帳初期化</span>
             </button>
             <button class="btn" id="btnToggleTagEdit" onclick="toggleTagEditMode()" style="border-color: rgba(168, 85, 247, 0.5); color: #c084fc;">
                 <span id="tagEditIcon">🏷️</span> <span id="tagEditText">タグ編集: OFF</span>
             </button>
             <span id="tagEditActions" class="hidden" style="display:inline-flex; align-items:center; gap:6px;">
-                <button class="btn btn-gold" onclick="exportOverridesJSON()" title="tools/lore_entity_overrides.json としてダウンロード">
-                    💾 差分保存
+                <button class="btn btn-gold" id="btnDiffSave" onclick="exportOverridesJSON()" title="tools/lore_entity_overrides.json としてダウンロード">
+                    <span id="btnDiffSaveText">💾 差分保存</span>
                 </button>
-                <button class="btn" onclick="copyOverridesJSON()" title="差分JSONをクリップボードにコピー">
-                    📋 コピー
+                <button class="btn" id="btnDiffCopy" onclick="copyOverridesJSON()" title="差分JSONをクリップボードにコピー">
+                    <span id="btnDiffCopyText">📋 コピー</span>
                 </button>
-                <button class="btn" onclick="resetOverrides()" title="編集差分を破棄" style="color:var(--false-color);">
-                    🔄 リセット
+                <button class="btn" id="btnDiffReset" onclick="resetOverrides()" title="編集差分を破棄" style="color:var(--false-color);">
+                    <span id="btnDiffResetText">🔄 リセット</span>
                 </button>
                 <span id="tagEditDiffCount" style="font-size:11px; background:rgba(168, 85, 247, 0.2); color:#c084fc; border:1px solid #a855f7; padding:2px 6px; border-radius:4px;">0件変更</span>
             </span>
@@ -725,17 +722,17 @@
     </header>
 
     <div class="nav-bar">
-        <button class="nav-tab active" onclick="switchTab('rumors')">
-            📜 噂話図鑑 (Rumors) <span class="badge-count" id="navRumorCount">0/787</span>
+        <button class="nav-tab active" id="tabRumors" onclick="switchTab('rumors')">
+            <span id="tabRumorText">📜 噂話図鑑 (Rumors)</span> <span class="badge-count" id="navRumorCount">0/787</span>
         </button>
-        <button class="nav-tab" onclick="switchTab('oracles')">
-            🔮 神託アーカイブ (Oracles) <span class="badge-count" id="navOracleCount">20</span>
+        <button class="nav-tab" id="tabOracles" onclick="switchTab('oracles')">
+            <span id="tabOracleText">🔮 神託アーカイブ (Oracles)</span> <span class="badge-count" id="navOracleCount">20</span>
         </button>
-        <button class="nav-tab" onclick="switchTab('engravings')">
-            🏛️ 床文字・落書き (Engravings) <span class="badge-count" id="navEngravingCount">0</span>
+        <button class="nav-tab" id="tabEngravings" onclick="switchTab('engravings')">
+            <span id="tabEngravingText">🏛️ 床文字・銘 (Engravings)</span> <span class="badge-count" id="navEngravingCount">0</span>
         </button>
-        <button class="nav-tab" onclick="switchTab('ward')">
-            🛡️ Elbereth 結界モニター <span class="badge-count" id="navWardStatus">NONE</span>
+        <button class="nav-tab" id="tabWard" onclick="switchTab('ward')">
+            <span id="tabWardText">🛡️ Elbereth 結界モニター</span> <span class="badge-count" id="navWardStatus">NONE</span>
         </button>
     </div>
 
@@ -743,7 +740,7 @@
         <!-- 統計パネル -->
         <section class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">噂話 総収集率</div>
+                <div class="stat-label" id="lblStatRumorRate">噂話 総収集率</div>
                 <div class="stat-value-group">
                     <div class="stat-value" id="statRumorPercent">0.0%</div>
                     <div class="stat-total" id="statRumorRatio">0 / 787</div>
@@ -754,7 +751,7 @@
             </div>
 
             <div class="stat-card true">
-                <div class="stat-label">真実の噂 (TRUE)</div>
+                <div class="stat-label" id="lblStatTrueRate">真実の噂 (TRUE)</div>
                 <div class="stat-value-group">
                     <div class="stat-value" id="statTruePercent" style="color: var(--true-color);">0.0%</div>
                     <div class="stat-total" id="statTrueRatio">0 / 390</div>
@@ -765,7 +762,7 @@
             </div>
 
             <div class="stat-card false">
-                <div class="stat-label">偽りの噂 (FALSE)</div>
+                <div class="stat-label" id="lblStatFalseRate">偽りの噂 (FALSE)</div>
                 <div class="stat-value-group">
                     <div class="stat-value" id="statFalsePercent" style="color: var(--false-color);">0.0%</div>
                     <div class="stat-total" id="statFalseRatio">0 / 397</div>
@@ -776,7 +773,7 @@
             </div>
 
             <div class="stat-card oracle">
-                <div class="stat-label">神託 (公式ガイド)</div>
+                <div class="stat-label" id="lblStatOracleRate">神託 (公式ガイド)</div>
                 <div class="stat-value-group">
                     <div class="stat-value" id="statOraclePercent" style="color: var(--accent-blue);">公式ガイド</div>
                     <div class="stat-total" id="statOracleRatio">全 20 件</div>
@@ -787,10 +784,10 @@
             </div>
 
             <div class="stat-card" style="border-top: 2px solid var(--accent-gold);">
-                <div class="stat-label">床文字・落書き (ENGRAVING)</div>
+                <div class="stat-label" id="lblStatEngravingRate">床文字・落書き (ENGRAVING)</div>
                 <div class="stat-value-group">
                     <div class="stat-value" id="statEngravingCount" style="color: var(--accent-gold);">0</div>
-                    <div class="stat-total">件記録</div>
+                    <div class="stat-total" id="lblStatEngravingUnit">件記録</div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" id="statEngravingBar" style="width: 100%; background: var(--accent-gold);"></div>
@@ -914,24 +911,24 @@
 
     <!-- シミュレーション＆テストバー -->
     <div class="sim-bar">
-        <div class="sim-label">⚡ PROTOTYPE SIMULATOR</div>
+        <div class="sim-label" id="txtSimLabel">⚡ PROTOTYPE SIMULATOR</div>
         <div class="sim-buttons">
-            <button class="btn btn-gold" onclick="simulateEatCookie()">
+            <button class="btn btn-gold" id="btnSimCookie" onclick="simulateEatCookie()">
                 🍪 フォーチュンクッキーを食べる
             </button>
-            <button class="btn" onclick="simulateReadPaper()">
+            <button class="btn" id="btnSimPaper" onclick="simulateReadPaper()">
                 📜 紙片を読む
             </button>
-            <button class="btn" onclick="simulateOracleConsult()">
+            <button class="btn" id="btnSimOracle" onclick="simulateOracleConsult()">
                 🔮 神託所へ相談する
             </button>
-            <button class="btn" onclick="simulateEngrave('Elbereth', 'DUST')">
+            <button class="btn" id="btnSimEngrave" onclick="simulateEngrave('Elbereth', 'DUST')">
                 🛡️ 床に "Elbereth" 刻み (埃)
             </button>
-            <button class="btn" onclick="simulateDegradeWard()">
+            <button class="btn" id="btnSimDegrade" onclick="simulateDegradeWard()">
                 💨 結界を風化させる (Elber?th)
             </button>
-            <button class="btn btn-gold" onclick="simulateScuffedRestoration()">
+            <button class="btn btn-gold" id="btnSimScuffed" onclick="simulateScuffedRestoration()">
                 🏛️ かすれ落書き復元 (Portal/格言/噂話)
             </button>
         </div>
@@ -944,8 +941,126 @@
         import { ElberethAnalyzer } from '../src/core/knowledge/lore/ElberethAnalyzer.js';
         import { LORE_MASTER } from '../src/core/knowledge/lore/data/LoreMasterData.js';
         import { StructuredKnowledgeEngine } from '../src/core/knowledge/engines/StructuredKnowledgeEngine.js';
+        import { PortalState } from '../src/core/portal/PortalState.js';
 
+        const I18N = {
+            ja: {
+                pageTitle: 'NetHack 冒険手帳 (Rumor & Lore Codex) プロトタイプ',
+                brandSubtitle: 'NetHack 5.0 Adventure Codex & Ward Monitor',
+                masterModeOn: '獲得済みのみ表示',
+                masterModeOff: '全マスタ閲覧 (787件)',
+                oracleGuideOn: '神託ガイド: ON (常時全件)',
+                oracleGuideOff: '神託ガイド: OFF (収集制)',
+                btnExportBackup: '💾 JSON エクスポート',
+                btnImportBackup: '📂 インポート',
+                btnResetCodex: '🗑️ 手帳初期化',
+                tagEditOn: 'タグ編集: ON',
+                tagEditOff: 'タグ編集: OFF',
+                btnDiffSave: '💾 差分保存',
+                btnDiffCopy: '📋 コピー',
+                btnDiffReset: '🔄 リセット',
+                tagEditDiffCount: (c) => `${c}件変更`,
+                tabRumors: '📜 噂話図鑑 (Rumors)',
+                tabOracles: '🔮 神託アーカイブ (Oracles)',
+                tabEngravings: '🏛️ 床文字・銘 (Engravings)',
+                tabWard: '🛡️ Elbereth 結界モニター',
+                lblStatRumorRate: '噂話 総収集率',
+                lblStatTrueRate: '真実の噂 (TRUE)',
+                lblStatFalseRate: '偽りの噂 (FALSE)',
+                lblStatOracleRate: '神託 (公式ガイド)',
+                statOracleGuideVal: '公式ガイド',
+                statOracleRatioVal: '全 20 件',
+                lblStatEngravingRate: '床文字・落書き (ENGRAVING)',
+                lblStatEngravingUnit: '件記録',
+                rumorSearchPlaceholder: "噂話を検索 (英和キーワード, 'blindfold', '薬' など)...",
+                filterAll: 'すべて',
+                filterTrue: '✅ 真実のみ',
+                filterFalse: '❌ 偽りのみ',
+                rumorEmpty: '噂話がまだ獲得されていません。フォーチュンクッキーや紙片を読むと手帳に記録されます。',
+                oracleEmpty: '神託がまだ記録されていません。神託所（Oracle）で相談すると記録されます。',
+                engrSearchPlaceholder: "床文字・落書きを検索 (英和キーワード, 'Elbereth', '国庫' など)...",
+                filterEngrAll: 'すべて',
+                filterEngrGraffiti: '🏛️ 落書き・引用',
+                filterEngrHeadstone: '🪦 墓碑銘',
+                filterEngrElbereth: '🛡️ Elbereth',
+                engrEmpty: '床文字や墓碑銘がまだ記録されていません。ダンジョンの床文字を読むと手帳に記録されます。',
+                simLabel: '⚡ PROTOTYPE SIMULATOR',
+                btnSimCookie: '🍪 フォーチュンクッキーを食べる',
+                btnSimPaper: '📜 紙片を読む',
+                btnSimOracle: '🔮 神託所へ相談する',
+                btnSimEngrave: '🛡️ 床に "Elbereth" 刻み (埃)',
+                btnSimDegrade: '💨 結界を風化させる (Elber?th)',
+                btnSimScuffed: '🏛️ かすれ落書き復元 (Portal/格言/噂話)',
+                confirmReset: '冒険手帳の全コレクションデータを初期化してもよろしいですか？（この操作は取り消せません）',
+                alertResetSuccess: '手帳を初期化しました。',
+                confirmDelete: (cat, id) => `この${cat}の記録を削除しますか？\nID: ${id}`,
+                catRumor: '噂話',
+                catOracle: '神託',
+                catEngraving: '床文字',
+                confirmResetOverrides: 'ローカルで行った編集差分をすべて初期化しますか？',
+                alertCopyDiffSuccess: '差分JSONをクリップボードにコピーしました！\ntools/lore_entity_overrides.json に保存できます。'
+            },
+            en: {
+                pageTitle: 'NetHack Rumor & Lore Codex',
+                brandSubtitle: 'NetHack 5.0 Adventure Codex & Ward Monitor',
+                masterModeOn: 'Show Collected Only',
+                masterModeOff: 'Browse All Master (787)',
+                oracleGuideOn: 'Oracle Guide: ON (All)',
+                oracleGuideOff: 'Oracle Guide: OFF (Collected Only)',
+                btnExportBackup: '💾 Export JSON',
+                btnImportBackup: '📂 Import',
+                btnResetCodex: '🗑️ Reset Codex',
+                tagEditOn: 'Edit Tags: ON',
+                tagEditOff: 'Edit Tags: OFF',
+                btnDiffSave: '💾 Save Diff',
+                btnDiffCopy: '📋 Copy',
+                btnDiffReset: '🔄 Reset',
+                tagEditDiffCount: (c) => `${c} changed`,
+                tabRumors: '📜 Rumors Codex',
+                tabOracles: '🔮 Oracle Archive',
+                tabEngravings: '🏛️ Engravings & Epigraphs',
+                tabWard: '🛡️ Elbereth Ward Monitor',
+                lblStatRumorRate: 'Rumors Collection Rate',
+                lblStatTrueRate: 'True Rumors (TRUE)',
+                lblStatFalseRate: 'False Rumors (FALSE)',
+                lblStatOracleRate: 'Oracles (Official Guide)',
+                statOracleGuideVal: 'Official Guide',
+                statOracleRatioVal: '20 Entries',
+                lblStatEngravingRate: 'Engravings & Epigraphs',
+                lblStatEngravingUnit: 'Recorded',
+                rumorSearchPlaceholder: "Search rumors (keywords, 'blindfold', 'potion', etc)...",
+                filterAll: 'All',
+                filterTrue: '✅ True Only',
+                filterFalse: '❌ False Only',
+                rumorEmpty: 'No rumors collected yet. Read fortune cookies or papers in dungeon to record them here.',
+                oracleEmpty: 'No oracles recorded yet. Consult the Oracle of Delphi to record them here.',
+                engrSearchPlaceholder: "Search engravings (keywords, 'Elbereth', 'treasury', etc)...",
+                filterEngrAll: 'All',
+                filterEngrGraffiti: '🏛️ Quotes & Graffiti',
+                filterEngrHeadstone: '🪦 Headstones',
+                filterEngrElbereth: '🛡️ Elbereth',
+                engrEmpty: 'No engravings or headstones recorded yet. Read floor writings in dungeon to record them here.',
+                simLabel: '⚡ PROTOTYPE SIMULATOR',
+                btnSimCookie: '🍪 Eat Fortune Cookie',
+                btnSimPaper: '📜 Read Paper',
+                btnSimOracle: '🔮 Consult Oracle',
+                btnSimEngrave: '🛡️ Engrave "Elbereth" (Dust)',
+                btnSimDegrade: '💨 Degrade Ward (Elber?th)',
+                btnSimScuffed: '🏛️ Restore Scuffed Engraving',
+                confirmReset: 'Reset all adventure log & codex collection data? (Cannot be undone)',
+                alertResetSuccess: 'Adventure log codex reset successfully.',
+                confirmDelete: (cat, id) => `Delete this ${cat} entry?\nID: ${id}`,
+                catRumor: 'Rumor',
+                catOracle: 'Oracle',
+                catEngraving: 'Engraving',
+                confirmResetOverrides: 'Reset all local entity tag edits?',
+                alertCopyDiffSuccess: 'Diff JSON copied to clipboard!\nYou can save it to tools/lore_entity_overrides.json.'
+            }
+        };
 
+        function getI18n() {
+            return PortalState.isJapanese() ? I18N.ja : I18N.en;
+        }
 
         // グローバル Codex & Detector & KnowledgeEngine インスタンス
         const codex = new LoreCodex();
@@ -973,13 +1088,14 @@
         function updateOracleGuideUI() {
             const btn = document.getElementById('btnToggleOracleGuide');
             const txt = document.getElementById('oracleGuideText');
+            const t = getI18n();
             if (btn && txt) {
                 if (oracleGuideMode) {
                     btn.classList.add('btn-gold');
-                    txt.textContent = '神託ガイド: ON (常時全件)';
+                    txt.textContent = t.oracleGuideOn;
                 } else {
                     btn.classList.remove('btn-gold');
-                    txt.textContent = '神託ガイド: OFF (収集制)';
+                    txt.textContent = t.oracleGuideOff;
                 }
             }
         }
@@ -1023,8 +1139,9 @@
         function updateDiffCountUI() {
             const count = Object.keys(overridesState.rumors || {}).length + Object.keys(overridesState.oracles || {}).length;
             const badge = document.getElementById('tagEditDiffCount');
+            const t = getI18n();
             if (badge) {
-                badge.textContent = `${count}件変更`;
+                badge.textContent = t.tagEditDiffCount(count);
                 badge.style.background = count > 0 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(168, 85, 247, 0.2)';
                 badge.style.borderColor = count > 0 ? 'var(--accent-gold)' : '#a855f7';
                 badge.style.color = count > 0 ? 'var(--accent-gold)' : '#c084fc';
@@ -1073,18 +1190,86 @@
             return filtered;
         }
 
+        function updateStaticUI() {
+            const t = getI18n();
+            document.title = t.pageTitle;
+
+            const setTxt = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            setTxt('brandSubtitle', t.brandSubtitle);
+            setTxt('btnExportBackupText', t.btnExportBackup);
+            setTxt('btnImportBackupText', t.btnImportBackup);
+            setTxt('btnResetCodexText', t.btnResetCodex);
+            setTxt('btnDiffSaveText', t.btnDiffSave);
+            setTxt('btnDiffCopyText', t.btnDiffCopy);
+            setTxt('btnDiffResetText', t.btnDiffReset);
+
+            setTxt('tabRumorText', t.tabRumors);
+            setTxt('tabOracleText', t.tabOracles);
+            setTxt('tabEngravingText', t.tabEngravings);
+            setTxt('tabWardText', t.tabWard);
+
+            setTxt('lblStatRumorRate', t.lblStatRumorRate);
+            setTxt('lblStatTrueRate', t.lblStatTrueRate);
+            setTxt('lblStatFalseRate', t.lblStatFalseRate);
+            setTxt('lblStatOracleRate', t.lblStatOracleRate);
+            setTxt('lblStatEngravingRate', t.lblStatEngravingRate);
+            setTxt('lblStatEngravingUnit', t.lblStatEngravingUnit);
+
+            const searchRumor = document.getElementById('searchInput');
+            if (searchRumor) searchRumor.placeholder = t.rumorSearchPlaceholder;
+            setTxt('filterAll', t.filterAll);
+            setTxt('filterTrue', t.filterTrue);
+            setTxt('filterFalse', t.filterFalse);
+            setTxt('rumorEmpty', t.rumorEmpty);
+            setTxt('oracleEmpty', t.oracleEmpty);
+
+            const searchEngr = document.getElementById('searchEngravingInput');
+            if (searchEngr) searchEngr.placeholder = t.engrSearchPlaceholder;
+            setTxt('filterEngrAll', t.filterEngrAll);
+            setTxt('filterEngrGraffiti', t.filterEngrGraffiti);
+            setTxt('filterEngrHeadstone', t.filterEngrHeadstone);
+            setTxt('filterEngrElbereth', t.filterEngrElbereth);
+            setTxt('engravingEmpty', t.engrEmpty);
+
+            setTxt('txtSimLabel', t.simLabel);
+            setTxt('btnSimCookie', t.btnSimCookie);
+            setTxt('btnSimPaper', t.btnSimPaper);
+            setTxt('btnSimOracle', t.btnSimOracle);
+            setTxt('btnSimEngrave', t.btnSimEngrave);
+            setTxt('btnSimDegrade', t.btnSimDegrade);
+            setTxt('btnSimScuffed', t.btnSimScuffed);
+
+            const masterText = document.getElementById('masterModeText');
+            if (masterText) {
+                masterText.textContent = showAllMasterMode ? t.masterModeOn : t.masterModeOff;
+            }
+
+            const tagEditText = document.getElementById('tagEditText');
+            if (tagEditText) {
+                tagEditText.textContent = tagEditMode ? t.tagEditOn : t.tagEditOff;
+            }
+
+            updateOracleGuideUI();
+            updateDiffCountUI();
+        }
+
         window.toggleTagEditMode = function() {
             tagEditMode = !tagEditMode;
             const textEl = document.getElementById('tagEditText');
             const actionsEl = document.getElementById('tagEditActions');
             const btn = document.getElementById('btnToggleTagEdit');
+            const t = getI18n();
             if (tagEditMode) {
-                textEl.textContent = 'タグ編集: ON';
+                textEl.textContent = t.tagEditOn;
                 btn.style.background = 'rgba(168, 85, 247, 0.25)';
                 btn.style.borderColor = '#c084fc';
                 actionsEl.classList.remove('hidden');
             } else {
-                textEl.textContent = 'タグ編集: OFF';
+                textEl.textContent = t.tagEditOff;
                 btn.style.background = '';
                 btn.style.borderColor = 'rgba(168, 85, 247, 0.5)';
                 actionsEl.classList.add('hidden');
@@ -1239,13 +1424,15 @@
         };
 
         window.copyOverridesJSON = function() {
+            const t = getI18n();
             navigator.clipboard.writeText(JSON.stringify(overridesState, null, 2))
-                .then(() => alert('差分JSONをクリップボードにコピーしました！\ntools/lore_entity_overrides.json に保存できます。'))
+                .then(() => alert(t.alertCopyDiffSuccess))
                 .catch(err => alert('コピーに失敗しました: ' + err));
         };
 
         window.resetOverrides = function() {
-            if (confirm('ローカルで行った編集差分をすべて初期化しますか？')) {
+            const t = getI18n();
+            if (confirm(t.confirmResetOverrides)) {
                 localStorage.removeItem('nethack_lore_overrides');
                 overridesState = { rumors: {}, oracles: {} };
                 updateDiffCountUI();
@@ -1256,6 +1443,7 @@
 
         // UI 初期化
         async function init() {
+            updateStaticUI();
             await loadOverridesState();
             updateOracleGuideUI();
             updateStatsUI();
@@ -1324,9 +1512,10 @@
             document.getElementById('statFalseBar').style.width = `${stats.rumors.falsePercentage}%`;
 
             const oracleCount = codex.oracles.size;
+            const t = getI18n();
             if (oracleGuideMode) {
-                document.getElementById('statOraclePercent').textContent = '公式ガイド';
-                document.getElementById('statOracleRatio').textContent = '全 20 件';
+                document.getElementById('statOraclePercent').textContent = t.statOracleGuideVal;
+                document.getElementById('statOracleRatio').textContent = t.statOracleRatioVal;
                 document.getElementById('statOracleBar').style.width = '100%';
                 document.getElementById('navOracleCount').textContent = '20';
             } else {
@@ -1628,8 +1817,9 @@
         // 全マスタ閲覧トグル
         window.toggleAllMasterMode = function() {
             showAllMasterMode = !showAllMasterMode;
+            const t = getI18n();
             document.getElementById('masterModeIcon').textContent = showAllMasterMode ? '🔒' : '👁️';
-            document.getElementById('masterModeText').textContent = showAllMasterMode ? '獲得済みのみ表示' : '全マスタ閲覧 (787件)';
+            document.getElementById('masterModeText').textContent = showAllMasterMode ? t.masterModeOn : t.masterModeOff;
             renderRumors();
             renderOracles();
         };
@@ -1782,8 +1972,9 @@
         window.deleteEntry = function(id, category, event) {
             if (event) event.stopPropagation();
             if (!id) return;
-            const categoryLabel = category === 'ENGRAVING' ? '床文字' : (category === 'RUMOR' ? '噂話' : '神託');
-            if (!confirm(`この${categoryLabel}の記録を削除しますか？\nID: ${id}`)) {
+            const t = getI18n();
+            const categoryLabel = category === 'ENGRAVING' ? t.catEngraving : (category === 'RUMOR' ? t.catRumor : t.catOracle);
+            if (!confirm(t.confirmDelete(categoryLabel, id))) {
                 return;
             }
             const success = codex.removeEntry(id, category);
@@ -1799,9 +1990,10 @@
 
         // 手帳リセット
         window.confirmReset = async function() {
-            if (confirm('冒険手帳の全コレクションデータを初期化してもよろしいですか？（この操作は取り消せません）')) {
+            const t = getI18n();
+            if (confirm(t.confirmReset)) {
                 await codex.reset();
-                alert('手帳を初期化しました。');
+                alert(t.alertResetSuccess);
             }
         };
 
@@ -1880,6 +2072,15 @@
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
+
+        window.addEventListener('nh-lang-changed', () => {
+            updateStaticUI();
+            updateStatsUI();
+            renderRumors();
+            renderOracles();
+            renderEngravings();
+            renderWard();
+        });
 
         init();
     </script>

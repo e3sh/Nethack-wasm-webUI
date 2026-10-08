@@ -8,6 +8,7 @@
     <script src="../param/nhMessage.js"></script>
     <script src="../param/tileMapping.js"></script>
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --accent-color: #38bdf8;
@@ -524,26 +525,19 @@
     </style>
 </head>
 <body>
-    <header>
-        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-            <a href="../index.html" class="nav-back-btn" style="padding: 6px 14px; font-size: 12px;">
-                ← タイトルへ戻る
-            </a>
+    <header style="flex-direction: column; align-items: stretch; gap: 8px;">
+        <nh-portal-nav group="knowledge" active="inspector" style="width: 100%;"></nh-portal-nav>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 14px;">
             <h1>
                 <span>🛠️</span> Structured Knowledge Inspector
                 <span class="badge" id="totalCountBadge">0 Entities</span>
             </h1>
-            <div class="nav-pill-group" style="padding: 2px;">
-                <a href="lore_codex.html" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">📜 Rumor & Lore Codex</a>
-                <a href="knowledge-inspector.html" class="nav-pill-item active accent-blue" style="padding: 5px 10px; font-size: 11px;">🔍 図鑑インスペクター</a>
-                <a href="adventure_log.html?dev=1" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">👣 冒険の足跡 (Log)</a>
+            <div class="controls-bar" style="display: flex; align-items: center; gap: 10px;">
                 <a href="../docs/5_gamedata/item_knowledge_dictionary.csv" target="_blank" class="nav-pill-item" style="padding: 5px 10px; font-size: 11px;">📄 CSV Dictionary</a>
-            </div>
-        </div>
-        <div class="controls-bar">
-            <div class="lang-toggle">
-                <button id="btnJp" class="active">日本語 (JP)</button>
-                <button id="btnEn">English (EN)</button>
+                <div class="lang-toggle">
+                    <button id="btnJp" class="active">日本語 (JP)</button>
+                    <button id="btnEn">English (EN)</button>
+                </div>
             </div>
         </div>
     </header>
@@ -617,12 +611,13 @@
         import { MonsterArmorRiskResolver } from '../src/core/knowledge/engines/MonsterArmorRiskResolver.js';
         import { ARTIFACT_KNOWLEDGE_BASE, ARTIFACT_KNOWLEDGE_MAP } from '../src/core/knowledge/data/ARTIFACT_KNOWLEDGE_BASE.js';
         import { LORE_MASTER } from '../src/core/knowledge/lore/data/LoreMasterData.js';
+        import { PortalState } from '../src/core/portal/PortalState.js';
 
-
-        const translator = new TranslationEngine({ enabled: true });
+        const initIsJp = PortalState.isJapanese();
+        const translator = new TranslationEngine({ enabled: initIsJp });
         const knowledgeEngine = new StructuredKnowledgeEngine({ translationEngine: translator });
 
-        let currentLang = 'ja'; // 'ja' | 'en'
+        let currentLang = initIsJp ? 'ja' : 'en'; // 'ja' | 'en'
         let currentTab = 'MONSTER';
         let selectedEntityId = 'cockatrice';
 
@@ -1317,34 +1312,45 @@
             return Object.entries(styleObj).map(([k, v]) => `${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${v};`).join(' ');
         }
 
-        // 言語切り替え
-        btnJp.addEventListener('click', () => {
-            currentLang = 'ja';
-            translator.setEnabled(true);
-            knowledgeEngine.setLanguage('ja');
+        // 言語切り替えロジック
+        function applyLanguage(lang, syncPortalState = true) {
+            currentLang = (lang === 'en' ? 'en' : 'ja');
+            const isJp = currentLang === 'ja';
+            translator.setEnabled(isJp);
+            knowledgeEngine.setLanguage(currentLang);
             knowledgeEngine.clearCache();
-            btnJp.classList.add('active');
-            btnEn.classList.remove('active');
-            searchInput.placeholder = '名前、ID、効果などを検索...';
+            if (isJp) {
+                btnJp.classList.add('active');
+                btnEn.classList.remove('active');
+                searchInput.placeholder = '名前、ID、効果などを検索...';
+            } else {
+                btnEn.classList.add('active');
+                btnJp.classList.remove('active');
+                searchInput.placeholder = 'Search name, ID, or effects...';
+            }
             setupSubFilterOptions();
             updateTabLabels();
             renderList();
             renderCard();
+
+            if (syncPortalState && PortalState.isJapanese() !== isJp) {
+                PortalState.setLanguage(isJp);
+            }
+        }
+
+        btnJp.addEventListener('click', () => applyLanguage('ja', true));
+        btnEn.addEventListener('click', () => applyLanguage('en', true));
+        window.addEventListener('nh-lang-changed', (e) => {
+            const nextLang = e.detail ? e.detail.lang : (PortalState.isJapanese() ? 'ja' : 'en');
+            if (nextLang !== currentLang) {
+                applyLanguage(nextLang, false);
+            }
         });
 
-        btnEn.addEventListener('click', () => {
-            currentLang = 'en';
-            translator.setEnabled(false);
-            knowledgeEngine.setLanguage('en');
-            knowledgeEngine.clearCache();
-            btnEn.classList.add('active');
-            btnJp.classList.remove('active');
-            searchInput.placeholder = 'Search name, ID, or effects...';
-            setupSubFilterOptions();
-            updateTabLabels();
-            renderList();
-            renderCard();
-        });
+        // 初期言語の適用
+        if (currentLang === 'en') {
+            applyLanguage('en', false);
+        }
 
         searchInput.addEventListener('input', renderList);
         subFilter.addEventListener('change', renderList);

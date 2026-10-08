@@ -424,17 +424,8 @@
         </footer>
     </div>
 
-    <script>
-        const DEFAULT_CONFIG = {
-            gryph: true,
-            lang: true,
-            larn: true,
-            debug: false,
-            item_naming_mode: "auto_memo",
-            sound_mode: "mute",
-            sound_volume: 80,
-            extra_options: ""
-        };
+    <script type="module">
+        import { PortalState } from './src/core/portal/PortalState.js';
 
         const I18N = {
             ja: {
@@ -463,25 +454,8 @@
             }
         };
 
-        let currentConfig = DEFAULT_CONFIG;
-
-        function loadConfig() {
-            const saved = localStorage.getItem("nh.config");
-            if (saved) {
-                try {
-                    currentConfig = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
-                } catch (e) {
-                    currentConfig = DEFAULT_CONFIG;
-                }
-            }
-        }
-
-        function saveConfig() {
-            localStorage.setItem("nh.config", JSON.stringify(currentConfig));
-        }
-
         function updateUI() {
-            const isJp = currentConfig.lang;
+            const isJp = PortalState.isJapanese();
             const t = isJp ? I18N.ja : I18N.en;
 
             document.getElementById("txt-sub-title").textContent = t.subTitle;
@@ -497,16 +471,13 @@
         }
 
         function toggleLanguage() {
-            currentConfig.lang = !currentConfig.lang;
-            saveConfig();
-            updateUI();
+            PortalState.toggleLanguage();
         }
+        window.toggleLanguage = toggleLanguage;
 
-        // Initialize on load
-        window.addEventListener("DOMContentLoaded", () => {
-            loadConfig();
-            updateUI();
-        });
+        window.addEventListener("nh-lang-changed", updateUI);
+        window.addEventListener("DOMContentLoaded", updateUI);
+        updateUI();
     </script>
 </body>
 

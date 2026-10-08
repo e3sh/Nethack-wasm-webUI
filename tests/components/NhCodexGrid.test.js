@@ -164,5 +164,34 @@ describe('NhCodexGrid (<nh-codex-grid>) (Gap 4)', () => {
         expect(selectedDetail.entry.id).toBe('giant_ant');
         expect(grid.selectedEntryId).toBe('giant_ant');
     });
+
+    it('言語設定（lang属性 / setLanguage）に応じてタブやフィルタメニューが多言語化されること', () => {
+        const grid = new NhCodexGrid();
+        grid.setManager(manager);
+        grid.connectedCallback();
+
+        // 初期（日本語）
+        let html = grid.shadowRoot.innerHTML;
+        expect(html).toContain('すべて');
+        expect(html).toContain('👾 モンスター');
+        expect(html).toContain('未遭遇・未識別');
+        expect(html).toContain('検索...');
+
+        // 英語に切替
+        grid.setLanguage('en');
+        html = grid.shadowRoot.innerHTML;
+        expect(html).toContain('All');
+        expect(html).toContain('👾 Monsters');
+        expect(html).toContain('⚔️ Items');
+        expect(html).toContain('📜 Rumors & Lore');
+        expect(html).toContain('Locked / Undiscovered');
+        expect(html).toContain('Search...');
+
+        // 再び日本語へ
+        grid.setLanguage('ja');
+        html = grid.shadowRoot.innerHTML;
+        expect(html).toContain('すべて');
+        expect(html).toContain('👾 モンスター');
+    });
 });
 

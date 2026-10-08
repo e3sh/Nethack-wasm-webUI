@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --panel-bg: rgba(22, 27, 34, 0.85);
@@ -642,22 +643,7 @@
 <body>
     <div class="container">
         <!-- ナビゲーションバー -->
-        <nav class="portal-nav portal-nav-wide nav-bar">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <a href="../index.html" class="nav-back-btn">← タイトル画面へ戻る</a>
-                <div class="nav-pill-group">
-                    <a href="scoreboard.html" class="nav-pill-item active accent-gold">🏆 殿堂・スコアボード</a>
-                    <a href="adventure_log.html" class="nav-pill-item">👣 冒険手帳 (Log)</a>
-                    <a href="config.html" class="nav-pill-item">⚙️ システム設定</a>
-                    <a href="save_manager.html" class="nav-pill-item">💾 セーブデータ管理</a>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <button class="nav-pill-item" id="btn-lang-toggle" onclick="toggleLang()" style="cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
-                    🌐 日本語
-                </button>
-            </div>
-        </nav>
+        <nh-portal-nav group="user" active="scoreboard"></nh-portal-nav>
 
         <!-- サマリー統計カード -->
         <section class="summary-grid">
@@ -760,6 +746,7 @@
 
     <script type="module">
         import { PostMortemKnowledgeResolver } from '../src/core/knowledge/services/PostMortemKnowledgeResolver.js';
+        import { PortalState } from '../src/core/portal/PortalState.js';
 
         const DB_NAME = '/save';
         const STORE_NAME = 'FILE_DATA';
@@ -845,16 +832,8 @@
             7: 'The Planes'
         };
 
-        // 言語設定 (localStorage nh.config から判定)
-        let isJapanese = true;
-        try {
-            const savedConfig = JSON.parse(localStorage.getItem("nh.config"));
-            if (savedConfig && typeof savedConfig.lang === 'boolean') {
-                isJapanese = savedConfig.lang;
-            }
-        } catch (e) {
-            console.warn("localStorage config read warning:", e);
-        }
+        // 言語設定 (PortalState 連携)
+        let isJapanese = PortalState.isJapanese();
 
         let allRecords = [];
         let filteredRecords = [];
@@ -1470,7 +1449,11 @@
 
         // 言語切り替え
         function toggleLang() {
-            isJapanese = !isJapanese;
+            PortalState.toggleLanguage();
+        }
+
+        function onLangChanged() {
+            isJapanese = PortalState.isJapanese();
             updateI18nLabels();
             populateRoleFilter();
             renderRecordsList();
@@ -1479,9 +1462,11 @@
                 if (rec) selectRecord(rec);
             }
         }
+        window.addEventListener('nh-lang-changed', onLangChanged);
 
         function updateI18nLabels() {
-            document.getElementById('btn-lang-toggle').textContent = isJapanese ? '🌐 日本語' : '🌐 English';
+            const langBtn = document.getElementById('btn-lang-toggle');
+            if (langBtn) langBtn.textContent = isJapanese ? '🌐 日本語' : '🌐 English';
             document.getElementById('lbl-stat-high').textContent = isJapanese ? '歴代最高スコア' : 'All-time High Score';
             document.getElementById('lbl-stat-runs').textContent = isJapanese ? '総冒険回数' : 'Total Adventures';
             document.getElementById('lbl-stat-ascended').textContent = isJapanese ? '昇天 (クリア)' : 'Ascensions';

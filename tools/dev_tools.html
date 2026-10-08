@@ -7,6 +7,7 @@
     <title>NetHack WASM - Developer Tools</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/portal-theme.css">
+    <script type="module" src="../src/components/portal/NhPortalNav.js"></script>
     <style>
         :root {
             --card-bg: var(--panel-bg);
@@ -257,14 +258,7 @@
 </head>
 
 <body>
-    <div class="portal-nav header-bar">
-        <a href="../index.html" class="nav-back-btn back-link" id="link-back">← タイトルへ戻る</a>
-        <div class="nav-pill-group">
-            <a href="cltest.html" class="nav-pill-item">🧪 クライアント検証</a>
-            <a href="dev_tools.html" class="nav-pill-item active accent-purple">🛠️ 開発者ツール一覧</a>
-        </div>
-        <button class="nav-lang-btn lang-toggle" id="btn-toggle-lang" onclick="toggleLanguage()">🌐 JP / EN</button>
-    </div>
+    <nh-portal-nav group="dev" active="dev_tools"></nh-portal-nav>
 
     <div class="main-container">
         <div class="page-title">
@@ -384,61 +378,15 @@
             </div>
         </section>
 
-        <!-- 3. 📦 レガシーツール・旧システム (Legacy Utilities) -->
-        <details class="section-group" id="sec-legacy-trans">
-            <summary class="section-header">
-                <span class="section-icon">📦</span>
-                <div class="section-title-group">
-                    <h2 id="txt-sec3-title">レガシーツール・旧システム</h2>
-                    <p id="txt-sec3-desc">※現行バージョンでは通常使用しないツール（旧操作マッピング、旧翻訳ツール群）</p>
-                </div>
-                <span class="toggle-badge">
-                    <span id="txt-sec3-toggle">旧ツールを開く</span>
-                    <span class="toggle-arrow">▼</span>
-                </span>
-            </summary>
-            <div class="tools-grid" style="margin-top: 18px;">
-                <a href="tr_manager.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">📝</span>
-                            <span class="tool-name" id="t-trmgr-name">翻訳管理 (TrManager)</span>
-                        </div>
-                        <p class="tool-desc" id="t-trmgr-desc">日本語翻訳辞書 (nhMessage) の編集・追加・CSV出力管理</p>
-                    </div>
-                    <span class="tag-badge tag-trans">I18N</span>
-                </a>
-
-                <a href="tr_fail.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">⚠️</span>
-                            <span class="tool-name" id="t-trfail-name">未翻訳リスト (TrFail)</span>
-                        </div>
-                        <p class="tool-desc" id="t-trfail-desc">プレイ中に検出された未翻訳英語メッセージの自動ログ一覧</p>
-                    </div>
-                    <span class="tag-badge tag-trans">UNTRANSLATED</span>
-                </a>
-
-                <a href="tr_log.html" class="tool-card" target="_blank">
-                    <div>
-                        <div class="tool-card-head">
-                            <span class="tool-icon">📋</span>
-                            <span class="tool-name" id="t-trlog-name">翻訳ログ (TrLog)</span>
-                        </div>
-                        <p class="tool-desc" id="t-trlog-desc">メッセージ変換履歴と辞書マッチング成功/失敗ログの閲覧</p>
-                    </div>
-                    <span class="tag-badge tag-trans">LOG</span>
-                </a>
-            </div>
-        </details>
     </div>
 
     <footer>
         <p>NetHack WASM WebUI Developer Portal | Single Source of Truth Tools</p>
     </footer>
 
-    <script>
+    <script type="module">
+        import { PortalState } from '../src/core/portal/PortalState.js';
+
         const I18N = {
             ja: {
                 linkBack: "← タイトルへ戻る",
@@ -448,10 +396,6 @@
                 sec1Desc: "サウンド再生テスト、セーブデータのバックアップ・管理",
                 sec2Title: "参照・インスペクター・システム検証",
                 sec2Desc: "構造化ナレッジ閲覧、クライアント動作検証、タイルマッピング、ログ調査",
-                sec3Title: "レガシーツール・旧システム",
-                sec3Desc: "※現行バージョンでは通常使用しないツール（旧操作マッピング、旧翻訳ツール群）",
-                sec3ToggleOpen: "旧ツールを開く",
-                sec3ToggleClose: "閉じる",
                 soundName: "Sound Tester",
                 soundDesc: "サウンド再生システム (BEEP / WAVE / Auto) の動作確認と音量テスト",
                 gpName: "GP Mapping Tool",
@@ -471,15 +415,7 @@
                 loreName: "Rumor & Lore Codex",
                 loreDesc: "噂話、神託アーカイブ、床文字（Elbereth 結界モニター等）の伝承手帳",
                 advlogName: "Adventure Log",
-                advlogDesc: "過去の冒険・イベントログ・足跡のタイムライン閲覧",
-                trmgrName: "翻訳管理 (TrManager)",
-                trmgrDesc: "日本語翻訳辞書 (nhMessage) の編集・追加・CSV出力管理",
-                trfailName: "未翻訳リスト (TrFail)",
-                trfailDesc: "プレイ中に検出された未翻訳英語メッセージの自動ログ一覧",
-                trtestName: "Trans Tester",
-                trtestDesc: "TranslationEngine の翻訳変換・動的パース精度検証テスター",
-                trlogName: "翻訳ログ (TrLog)",
-                trlogDesc: "メッセージ変換履歴と辞書マッチング成功/失敗ログの閲覧"
+                advlogDesc: "過去の冒険・イベントログ・足跡のタイムライン閲覧"
             },
             en: {
                 linkBack: "← Back to Title",
@@ -489,10 +425,6 @@
                 sec1Desc: "Audio playback testing, Save data backup & management",
                 sec2Title: "Inspection & System Reference",
                 sec2Desc: "Structured knowledge base inspector, client test suites, tile mappings, log viewers",
-                sec3Title: "Legacy Tools & Archive",
-                sec3Desc: "Deprecated utilities not used in current client (legacy mapping, old translation tools)",
-                sec3ToggleOpen: "Expand Legacy Tools",
-                sec3ToggleClose: "Collapse",
                 soundName: "Sound Tester",
                 soundDesc: "Audio engine test harness for BEEP, WAVE, and Auto sound rules",
                 gpName: "GP Mapping Tool",
@@ -512,45 +444,15 @@
                 loreName: "Rumor & Lore Codex",
                 loreDesc: "Interactive codex for rumors, Oracle prophecies, and floor engravings",
                 advlogName: "Adventure Log",
-                advlogDesc: "Chronological log and footprints viewer for past adventure runs",
-                trmgrName: "Translation Manager",
-                trmgrDesc: "Editor and CSV manager for Japanese translation dictionary (nhMessage)",
-                trfailName: "Untranslated List",
-                trfailDesc: "Log viewer for capturing untranslated English in-game text",
-                trtestName: "Trans Tester",
-                trtestDesc: "Validation suite for TranslationEngine dynamic parser accuracy",
-                trlogName: "Translation Log",
-                trlogDesc: "Detailed execution log for message translation hits and misses"
+                advlogDesc: "Chronological log and footprints viewer for past adventure runs"
             }
         };
 
-        let isJp = true;
-
-        function loadLangSetting() {
-            const saved = localStorage.getItem("nh.config");
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    if (parsed && parsed.lang !== undefined) {
-                        isJp = !!parsed.lang;
-                    }
-                } catch (e) {}
-            }
-        }
-
-        function updateToggleText() {
-            const details = document.getElementById("sec-legacy-trans");
-            const toggleEl = document.getElementById("txt-sec3-toggle");
-            if (details && toggleEl) {
-                const t = isJp ? I18N.ja : I18N.en;
-                toggleEl.textContent = details.open ? t.sec3ToggleClose : t.sec3ToggleOpen;
-            }
-        }
-
         function updateUI() {
+            const isJp = PortalState.isJapanese();
             const t = isJp ? I18N.ja : I18N.en;
 
-            document.getElementById("link-back").textContent = t.linkBack;
+            if (document.getElementById("link-back")) document.getElementById("link-back").textContent = t.linkBack;
             document.getElementById("txt-page-title").textContent = t.pageTitle;
             document.getElementById("txt-page-desc").textContent = t.pageDesc;
 
@@ -558,9 +460,6 @@
             document.getElementById("txt-sec1-desc").textContent = t.sec1Desc;
             document.getElementById("txt-sec2-title").textContent = t.sec2Title;
             document.getElementById("txt-sec2-desc").textContent = t.sec2Desc;
-            document.getElementById("txt-sec3-title").textContent = t.sec3Title;
-            document.getElementById("txt-sec3-desc").textContent = t.sec3Desc;
-            updateToggleText();
 
             document.getElementById("t-sound-name").textContent = t.soundName;
             document.getElementById("t-sound-desc").textContent = t.soundDesc;
@@ -580,40 +479,13 @@
             if (document.getElementById("t-lore-desc")) document.getElementById("t-lore-desc").textContent = t.loreDesc;
             if (document.getElementById("t-advlog-name")) document.getElementById("t-advlog-name").textContent = t.advlogName;
             if (document.getElementById("t-advlog-desc")) document.getElementById("t-advlog-desc").textContent = t.advlogDesc;
-
-            document.getElementById("t-trmgr-name").textContent = t.trmgrName;
-            document.getElementById("t-trmgr-desc").textContent = t.trmgrDesc;
-            document.getElementById("t-trfail-name").textContent = t.trfailName;
-            document.getElementById("t-trfail-desc").textContent = t.trfailDesc;
-            document.getElementById("t-trlog-name").textContent = t.trlogName;
-            document.getElementById("t-trlog-desc").textContent = t.trlogDesc;
-
-            document.getElementById("btn-toggle-lang").textContent = isJp ? "🌐 English" : "🌐 日本語";
         }
 
-        function toggleLanguage() {
-            isJp = !isJp;
-            try {
-                let config = {};
-                const saved = localStorage.getItem("nh.config");
-                if (saved) config = JSON.parse(saved) || {};
-                config.lang = isJp;
-                localStorage.setItem("nh.config", JSON.stringify(config));
-            } catch (e) {}
-            updateUI();
-        }
-
+        window.addEventListener("nh-lang-changed", updateUI);
         window.addEventListener("DOMContentLoaded", () => {
-            loadLangSetting();
             updateUI();
-
-            const legacySec = document.getElementById("sec-legacy-trans");
-            if (legacySec) {
-                legacySec.addEventListener("toggle", () => {
-                    updateToggleText();
-                });
-            }
         });
+        updateUI();
     </script>
 </body>
 

@@ -15,6 +15,42 @@
 import { NhBaseElement } from './NhBaseElement.js';
 import { GlyphHelper } from '../core/renderers/GlyphHelper.js';
 import { AdventureLogManager } from '../core/knowledge/lore/AdventureLogManager.js';
+import { PortalState } from '../core/portal/PortalState.js';
+
+const I18N = {
+  ja: {
+    title: '冒険手帳',
+    titleSub: '(Adventure Log)',
+    tabAll: 'すべて',
+    tabMonster: '👾 モンスター',
+    tabObject: '⚔️ アイテム',
+    tabRumor: '📜 噂・伝承',
+    searchPlaceholder: '検索...',
+    filterAll: 'すべて',
+    filterUnlocked: '解禁済み',
+    filterLocked: '未遭遇・未識別',
+    filterNew: 'NEW! のみ',
+    emptyMessage: '🔍 該当するエントリが見つかりませんでした',
+    rumorTrue: '真の噂 (True)',
+    rumorFalse: '偽の噂 (False)',
+  },
+  en: {
+    title: 'Adventure Log',
+    titleSub: '',
+    tabAll: 'All',
+    tabMonster: '👾 Monsters',
+    tabObject: '⚔️ Items',
+    tabRumor: '📜 Rumors & Lore',
+    searchPlaceholder: 'Search...',
+    filterAll: 'All',
+    filterUnlocked: 'Unlocked',
+    filterLocked: 'Locked / Undiscovered',
+    filterNew: 'NEW! Only',
+    emptyMessage: '🔍 No matching entries found',
+    rumorTrue: 'True Rumor',
+    rumorFalse: 'False Rumor',
+  }
+};
 
 const CODEX_GRID_CSS = `
 :host {
@@ -383,6 +419,10 @@ export class NhCodexGrid extends NhBaseElement {
         return [CODEX_GRID_CSS];
     }
 
+    static get observedAttributes() {
+        return ['lang'];
+    }
+
     constructor() {
         super({ customCss: CODEX_GRID_CSS });
         this.manager = null;
@@ -392,6 +432,14 @@ export class NhCodexGrid extends NhBaseElement {
         this.selectedEntryId = null;
         this.tileImage = '../pict/nethack_default_32.png';
         this.unsubscribe = null;
+        this._langListener = null;
+    }
+
+    attributeChangedCallback(name, oldVal, newVal) {
+        if (oldVal === newVal) return;
+        if (name === 'lang') {
+            this.render();
+        }
     }
 
     connectedCallback() {
@@ -402,6 +450,14 @@ export class NhCodexGrid extends NhBaseElement {
         this.unsubscribe = this.manager.subscribe(() => {
             this.render();
         });
+
+        this._langListener = () => {
+            this.render();
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('nh-lang-changed', this._langListener);
+        }
+
         this.render();
     }
 
@@ -411,6 +467,28 @@ export class NhCodexGrid extends NhBaseElement {
             this.unsubscribe();
             this.unsubscribe = null;
         }
+        if (typeof window !== 'undefined' && this._langListener) {
+            window.removeEventListener('nh-lang-changed', this._langListener);
+            this._langListener = null;
+        }
+    }
+
+    /**
+     * 現在の言語が日本語かどうかを判定
+     * @returns {boolean}
+     */
+    isJapanese() {
+        const langAttr = this.getAttribute('lang');
+        if (langAttr) return langAttr !== 'en';
+        return PortalState.isJapanese();
+    }
+
+    /**
+     * 言語設定の更新
+     * @param {'ja'|'en'} lang
+     */
+    setLanguage(lang) {
+        this.setAttribute('lang', lang);
     }
 
     /**
@@ -542,6 +620,9 @@ export class NhCodexGrid extends NhBaseElement {
     render() {
         if (!this.shadowRoot) return;
 
+        const isJp = this.isJapanese();
+        const t = isJp ? I18N.ja : I18N.en;
+
         const viewport = this.shadowRoot.querySelector('.grid-viewport');
         const prevScrollTop = viewport ? viewport.scrollTop : 0;
 
@@ -565,7 +646,7 @@ export class NhCodexGrid extends NhBaseElement {
                     <div class="header-top">
                         <div class="title-group">
                             <span class="header-icon">📖</span>
-                            <h2 class="codex-title">冒険手帳 <span style="font-size:0.8rem; font-weight:normal; color:#94a3b8;">(Adventure Log)</span></h2>
+                            <h2 class="codex-title">${t.title} ${t.titleSub ? `<span style="font-size:0.8rem; font-weight:normal; color:#94a3b8;">${t.titleSub}</span>` : ''}</h2>
                         </div>
                         <div class="progress-group">
                             <span class="progress-text">${currentProg.unlocked} / ${currentProg.total} (${currentProg.percentage}%)</span>
@@ -578,33 +659,33 @@ export class NhCodexGrid extends NhBaseElement {
                     <div class="codex-toolbar">
                         <div class="tab-group">
                             <button class="tab-btn ${this.currentCategory === 'all' ? 'active' : ''}" data-cat="all">
-                                すべて <span class="tab-badge">${progress.overall.unlocked}</span>
+                                ${t.tabAll} <span class="tab-badge">${progress.overall.unlocked}</span>
                             </button>
                             <button class="tab-btn ${this.currentCategory === 'monster' ? 'active' : ''}" data-cat="monster">
-                                👾 モンスター <span class="tab-badge">${progress.monsters.unlocked}</span>
+                                ${t.tabMonster} <span class="tab-badge">${progress.monsters.unlocked}</span>
                             </button>
                             <button class="tab-btn ${this.currentCategory === 'object' ? 'active' : ''}" data-cat="object">
-                                ⚔️ アイテム <span class="tab-badge">${progress.objects.unlocked}</span>
+                                ${t.tabObject} <span class="tab-badge">${progress.objects.unlocked}</span>
                             </button>
                             <button class="tab-btn ${this.currentCategory === 'rumor' ? 'active' : ''}" data-cat="rumor">
-                                📜 噂・伝承 <span class="tab-badge">${progress.rumors.unlocked}</span>
+                                ${t.tabRumor} <span class="tab-badge">${progress.rumors.unlocked}</span>
                             </button>
                         </div>
 
                         <div class="filter-group">
-                            <input type="text" class="search-input" placeholder="検索..." value="${this._escapeHtml(this.searchQuery)}">
+                            <input type="text" class="search-input" placeholder="${t.searchPlaceholder}" value="${this._escapeHtml(this.searchQuery)}">
                             <select class="select-filter">
-                                <option value="all" ${this.statusFilter === 'all' ? 'selected' : ''}>すべて</option>
-                                <option value="unlocked" ${this.statusFilter === 'unlocked' ? 'selected' : ''}>解禁済み</option>
-                                <option value="locked" ${this.statusFilter === 'locked' ? 'selected' : ''}>未遭遇・未識別</option>
-                                <option value="new" ${this.statusFilter === 'new' ? 'selected' : ''}>NEW! のみ</option>
+                                <option value="all" ${this.statusFilter === 'all' ? 'selected' : ''}>${t.filterAll}</option>
+                                <option value="unlocked" ${this.statusFilter === 'unlocked' ? 'selected' : ''}>${t.filterUnlocked}</option>
+                                <option value="locked" ${this.statusFilter === 'locked' ? 'selected' : ''}>${t.filterLocked}</option>
+                                <option value="new" ${this.statusFilter === 'new' ? 'selected' : ''}>${t.filterNew}</option>
                             </select>
                         </div>
                     </div>
                 </header>
 
                 <main class="grid-viewport">
-                    ${this._renderContent(entries)}
+                    ${this._renderContent(entries, isJp, t)}
                 </main>
             </div>
         `;
@@ -623,11 +704,11 @@ export class NhCodexGrid extends NhBaseElement {
      * メインコンテンツのレンダリング
      * @private
      */
-    _renderContent(entries) {
+    _renderContent(entries, isJp, t) {
         if (entries.length === 0) {
             return `
                 <div class="empty-state">
-                    <span>🔍 該当するエントリが見つかりませんでした</span>
+                    <span>${t.emptyMessage}</span>
                 </div>
             `;
         }
@@ -635,14 +716,14 @@ export class NhCodexGrid extends NhBaseElement {
         if (this.currentCategory === 'rumor') {
             return `
                 <div class="rumor-grid">
-                    ${entries.map(e => this._renderRumorItem(e)).join('')}
+                    ${entries.map(e => this._renderRumorItem(e, isJp, t)).join('')}
                 </div>
             `;
         }
 
         return `
             <div class="tile-grid">
-                ${entries.map(e => this._renderTileItem(e)).join('')}
+                ${entries.map(e => this._renderTileItem(e, isJp)).join('')}
             </div>
         `;
     }
@@ -651,10 +732,12 @@ export class NhCodexGrid extends NhBaseElement {
      * タイルアイテムのレンダリング
      * @private
      */
-    _renderTileItem(entry) {
+    _renderTileItem(entry, isJp) {
         const isLocked = !entry.isUnlocked;
         const isSelected = this.selectedEntryId === entry.id;
-        const title = isLocked ? `No.${entry.monOffset !== undefined ? entry.monOffset : entry.onum} ???` : (entry.nameJa || entry.name);
+        const title = isLocked
+            ? `No.${entry.monOffset !== undefined ? entry.monOffset : entry.onum} ???`
+            : (isJp ? (entry.nameJa || entry.name) : (entry.name || entry.nameJa));
 
         let iconHtml = '';
         if (entry.glyphId !== undefined) {
@@ -681,17 +764,18 @@ export class NhCodexGrid extends NhBaseElement {
             <div class="tile-item ${isLocked ? 'locked' : ''} ${isSelected ? 'selected' : ''}"
                  data-entry-id="${entry.id}"
                  title="${this._escapeHtml(title)}">
-                ${iconHtml}
+                 ${iconHtml}
                 ${entry.isNew ? '<span class="new-badge">NEW</span>' : ''}
             </div>
         `;
     }
 
-    _renderRumorItem(entry) {
+    _renderRumorItem(entry, isJp, t) {
         const isLocked = !entry.isUnlocked;
         const isSelected = this.selectedEntryId === entry.id;
         const isTrue = entry.isTrue !== undefined ? Boolean(entry.isTrue) : (entry.type === 'TRUE' || (entry.id && entry.id.includes('_tru_')));
         const related = (entry.data && Array.isArray(entry.data.relatedEntities)) ? entry.data.relatedEntities : [];
+        const rumorText = isJp ? (entry.textJa || entry.text) : (entry.text || entry.textJa);
 
         return `
             <div class="rumor-item ${isLocked ? 'locked' : ''} ${isSelected ? 'selected' : ''}"
@@ -699,21 +783,24 @@ export class NhCodexGrid extends NhBaseElement {
                 <div class="rumor-left" style="flex: 1; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                         <span class="rumor-no">#${String(entry.index).padStart(3, '0')}</span>
-                        <span class="rumor-text">${this._escapeHtml(entry.textJa || entry.text)}</span>
+                        <span class="rumor-text">${this._escapeHtml(rumorText)}</span>
                     </div>
                     ${!isLocked && related.length > 0 ? `
                         <div style="display: flex; gap: 6px; margin-left: 60px; flex-wrap: wrap;">
-                            ${related.map(rel => `
-                                <span style="font-size: 0.72rem; background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                                    🔗 ${this._escapeHtml(rel.nameJa || rel.name)}
-                                </span>
-                            `).join('')}
+                            ${related.map(rel => {
+                                const relName = isJp ? (rel.nameJa || rel.name) : (rel.name || rel.nameJa);
+                                return `
+                                    <span style="font-size: 0.72rem; background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                                        🔗 ${this._escapeHtml(relName)}
+                                    </span>
+                                `;
+                            }).join('')}
                         </div>
                     ` : ''}
                 </div>
                 ${!isLocked ? `
                     <span class="rumor-type-badge ${isTrue ? 'badge-true' : 'badge-false'}">
-                        ${isTrue ? '真の噂 (True)' : '偽の噂 (False)'}
+                        ${isTrue ? t.rumorTrue : t.rumorFalse}
                     </span>
                 ` : ''}
                 ${entry.isNew ? '<span class="new-badge" style="position:static; margin-left:8px;">NEW</span>' : ''}
