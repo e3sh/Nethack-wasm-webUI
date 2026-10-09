@@ -11,7 +11,13 @@
 
 NetHack 5.0対応の単体スコアボード画面 (`tools/scoreboard.html`) およびゲームオーバー画面において、NetHackが出力する生の死因テキスト（英文）を解析し、日本語化および戦術アドバイザー (`ADVICE_DEFINITIONS.js`) / GKL (Game Knowledge Layer) と連動する基盤 `PostMortemKnowledgeResolver.js` を導入した。
 
-現状は主要な基本死因構文（`killed by`, `died of starvation`, `petrified`, `choked on`, `drowned`, `ascended`, `quit`）の翻訳と初期的なアドバイス接続が動作しているが、NetHack特有の多様で残酷な死因パターンに対しては、**「直接原因（トドメ）と根本原因（無力化）の二重構造」**や**「修飾句による辞書マッチ阻害」**といった課題が存在する。
+現状は主要な基本死因構文（`killed by`, `died of starvation`, `petrified`, `choked on`, `drowned`, `ascended`, `quit`）の翻訳と初期的なアドバイス接続が動作しているが、NetHack特有の多様で残酷な死因パターンに対しては、以下のような課題が顕在化している：
+1. **「直接原因（トドメ）と根本原因（無力化）の二重構造」**（気絶中のイモリ撃破など）
+2. **「モンスター戦闘死への過剰フォールバックと誤分類」**（実運用で確認された課題）：
+   - `poisoned by a rotted rothe corpse` がモンスター名 `rothe` に誤一致し **「ロゼに倒された」** と戦闘死扱いになる（本来は腐敗死骸の食中毒・毒殺）
+   - `killed by an explosion` がモンスター扱いになり **「explosionに倒された」** と英名混じりになる（本来は環境・物理爆発ハザード）
+   - `killed by an exploding large box` がモンスター扱いになり **「exploding large boxに倒された」** となる（本来は箱・チェストの爆弾トラップ）
+3. **「アイテム・死骸複合語の分解欠如」**（`OBJECT_JP_MAP` と連携したコンテナ識別や `corpse` プレフィックスの未分離）
 
 本構想は、将来的な「アドバイスシステム全体の包括的刷新」のマイルストーンとして、死因解析の精度向上、プレイヤーにとって実用的で納得感のある「敗因分析・サバイバル教訓」の提供方式、およびアーキテクチャ設計を体系的にまとめたものである。
 
@@ -56,8 +62,21 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
    - 固有名詞/別名: `called "..."`, `, the shopkeeper`, `, priest of <God>`
 
 ### 3.2 Stage 2: 要因抽出 (Factor Extraction)
-- クレンジング後のコア名詞を `MONSTER_JP_MAP` / `OBJECT_JP_MAP` / `MONSTER_KNOWLEDGE_MAP` で逆引き。
-- 罠（Pit, Dart, Spikes, Drawbridge）、環境（Lava, Pool, Moat）、神罰（Wrath of...）等のキーワード辞書とマッチング。
+クレンジング後のコア句から、単なるモンスター名だけでなく**複合エンティティ（死骸・アイテム・環境ハザード・トラップ）**を識別・分解する：
+
+1. **死骸・食中毒・毒物パターンの先行分解**:
+   - `poisoned by a rotted <monster> corpse` $\rightarrow$ モンスター `<monster>` を抽出しつつ、死骸（Corpse）および腐敗（Rotted）状態を識別。
+   - `poisoned by eating a <monster> corpse` $\rightarrow$ 食事（Eating）による毒死を識別。
+   - 単なるモンスター戦闘死（`THREAT_MONSTER`）と明確に分離し、`FOOD_POISONING` カテゴリとして調停。
+2. **コンテナ・罠爆発パターンの先行分解**:
+   - `killed by an exploding <item>` $\rightarrow$ `<item>`（例: `large box`, `chest`）を `OBJECT_JP_MAP` で逆引き（`大きな箱`, `箱`）。
+   - 「コンテナ爆弾トラップ（`TRAP_CONTAINER`）」として識別。
+3. **環境・物理爆発ハザードの識別**:
+   - `killed by an explosion` / `blasted by an explosion` $\rightarrow$ モンスターではなく環境ハザード（`HAZARD_EXPLOSION`）として識別。
+4. **コア名詞の辞書照会**:
+   - モンスター名: `MONSTER_JP_MAP` / `MONSTER_KNOWLEDGE_MAP`
+   - アイテム・コンテナ: `OBJECT_JP_MAP` / `OBJECT_KNOWLEDGE_MAP`
+   - 罠（Pit, Dart, Spikes, Drawbridge）、環境（Lava, Pool, Moat）、神罰（Wrath of...）等のキーワード辞書とマッチング。
 
 ### 3.3 Stage 3: 根本原因調停 (Root Cause Arbiter)
 - 付帯状況と直接死因の危険度・学習価値をスコアリングし、最優先で提示すべきアドバイスを選出する。
@@ -66,13 +85,15 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 
 ## 4. 死因パターンの体系的分類（NetHack 5.0準拠マトリクス）
 
-| カテゴリ | 英文パターン例 | 特徴・抽出ターゲット | 紐付けるべきアドバイス |
-| :--- | :--- | :--- | :--- |
-| **① 生理的・自滅死<br>(Physiological)** | `died of starvation`<br>`choked on a meatball`<br>`strangled by an amulet of strangulation`<br>`system shock` | 飢餓、窒息、首絞め、過度なポリモーフショック | `ADVICE_SURVIVAL_STARVATION`<br>窒息・首絞め対策 |
-| **② モンスター直接脅威<br>(Direct Monster)** | `killed by an orc`<br>`killed by a master mind flayer`<br>`killed by a floating eye`<br>`crushed to death by a minotaur` | モンスター名、特殊攻撃（知性吸い・石化・麻痺視線・毒） | `ADVICE_THREAT_MIND_FLAYER`<br>`ADVICE_THREAT_FLOATING_EYE`<br>`ADVICE_THREAT_POISON` など |
-| **③ 自爆・跳ね返り・操作事故<br>(Player Mishap)** | `blasted by a bolt of lightning bounced off a wall`<br>`killed by exploding a wand of striking`<br>`petrified by touching a chickatrice corpse without gloves`<br>`killed by a wand of striking exploding in a bag of holding` | プレイヤー自身の行為が引き金。<br>・杖過充電爆発<br>・手品袋爆発<br>・反射光線<br>・手袋なし死体接触 | `ADVICE_HAZARD_BAG_OF_HOLDING_EXPLOSION`<br>`ADVICE_HAZARD_PETRIFY_CORPSE`<br>跳ね返り注意ヒント |
-| **④ 環境・罠・地形死<br>(Environmental & Trap)** | `fell into a pit of iron spikes`<br>`crushed to death by a collapsing drawbridge`<br>`burned by molten lava`<br>`drowned in a moat`<br>`caught in a fire trap` | 罠種別（落とし穴、鉄の杭、跳ね橋）、水場、溶岩 | `ADVICE_HAZARD_LAVA`<br>`ADVICE_HAZARD_WATER`<br>`ADVICE_HAZARD_TRAP` |
-| **⑤ 神罰・禁忌行動<br>(Divine Wrath & Taboo)** | `killed by the wrath of Anhur`<br>`killed by the anger of Tyr`<br>`killed by kicking a wall`<br>`killed by trying to pray too soon` | 神の怒り、祈りインターバル不足、壁キック事故 | 寺院寄付・祈りディレイ管理アドバイス |
+| カテゴリ | 英文パターン例 | 特徴・抽出ターゲット | 期待される日本語訳 | 紐付けるべきアドバイス |
+| :--- | :--- | :--- | :--- | :--- |
+| **① 生理的・食中毒・自滅死<br>(Physiological & Ingestion)** | `died of starvation`<br>`choked on a meatball`<br>`poisoned by a rotted rothe corpse`<br>`poisoned by eating a kobold corpse`<br>`strangled by an amulet of strangulation` | 飢餓、窒息、首絞め、腐敗死骸食中毒、毒肉摂取。<br>・モンスター名（死骸の元）<br>・腐敗/毒フラグ | 飢えにより力尽きた<br>ミートボールを喉に詰まらせて窒息死した<br>**腐ったロゼの死骸の毒で命を落とした**<br>首絞めの魔除けにより絞殺された | `ADVICE_SURVIVAL_STARVATION`<br>`ADVICE_HAZARD_ROTTEN_CORPSE`<br>窒息・首絞め対策 |
+| **② 環境・物理爆発<br>(Explosion Hazard)** | `killed by an explosion`<br>`blasted by an explosion` | ガス胞子誘爆、杖過充填、魔法・爆風等の環境爆発 | **爆発に巻き込まれて爆死した** | `ADVICE_HAZARD_EXPLOSION`<br>（耐火・退避教訓） |
+| **③ トラップ・コンテナ爆発<br>(Trap & Exploding Box)** | `killed by an exploding large box`<br>`killed by an exploding chest`<br>`poisoned by a poisoned dart trap`<br>`fell into a pit of iron spikes`<br>`crushed to death by a collapsing drawbridge` | 宝箱の爆弾トラップ、毒矢罠、落とし穴、跳ね橋巻き込み。<br>・対象アイテム（`OBJECT_JP_MAP`）<br>・罠種別 | **大きな箱の爆発（罠）に巻き込まれて死亡した**<br>箱の爆発罠により命を落とした<br>毒矢の罠に当たって毒死した<br>跳ね橋に押し潰されて死亡した | `ADVICE_HAZARD_EXPLODING_CONTAINER`<br>`ADVICE_HAZARD_TRAP`<br>`ADVICE_HAZARD_DRAWBRIDGE` |
+| **④ モンスター直接脅威<br>(Direct Monster)** | `killed by an orc`<br>`killed by a master mind flayer`<br>`killed by a floating eye`<br>`crushed to death by a minotaur` | モンスター名、特殊攻撃（知性吸い・石化・麻痺視線・直接毒針） | オークに倒された<br>マスター・マインドフレアに倒された | `ADVICE_THREAT_MIND_FLAYER`<br>`ADVICE_THREAT_FLOATING_EYE`<br>`ADVICE_THREAT_POISON` など |
+| **⑤ 自爆・跳ね返り・操作事故<br>(Player Mishap)** | `blasted by a bolt of lightning bounced off a wall`<br>`killed by exploding a wand of striking`<br>`petrified by touching a chickatrice corpse without gloves`<br>`killed by a wand of striking exploding in a bag of holding` | プレイヤー自身の行為が引き金。<br>・杖過充電爆発<br>・手品袋爆発<br>・反射光線<br>・手袋なし死体接触 | 壁で跳ね返った稲妻に打たれて自滅した<br>打撃の杖の過充填暴発で死亡した<br>素手でヒナコカトリスの死骸に触れて石化した | `ADVICE_HAZARD_BAG_OF_HOLDING_EXPLOSION`<br>`ADVICE_HAZARD_PETRIFY_CORPSE`<br>`ADVICE_SURVIVAL_BOUNCED_RAY` |
+| **⑥ 環境・地形死<br>(Environmental Hazard)** | `burned by molten lava`<br>`drowned in a moat`<br>`dissolved in molten lava` | 溶岩、水場、堀（浮遊・耐火不足） | 溶岩に落ちて焼け死んだ<br>堀に沈んで溺死した | `ADVICE_HAZARD_LAVA`<br>`ADVICE_HAZARD_WATER` |
+| **⑦ 神罰・禁忌行動<br>(Divine Wrath & Taboo)** | `killed by the wrath of Anhur`<br>`killed by the anger of Tyr`<br>`killed by kicking a wall`<br>`killed by trying to pray too soon` | 神の怒り、祈りインターバル不足、壁キック事故 | アンフールの神罰により死亡した<br>祈りの間隔が早すぎて神の怒りに触れた | `ADVICE_SURVIVAL_DIVINE_WRATH` |
 
 ---
 
@@ -105,6 +126,10 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 - 店主の逆鱗 $\rightarrow$ `ADVICE_THREAT_PEACEFUL_SHOPKEEPER`
 
 ### 6.2 新規追加検討アドバイス
+- `ADVICE_HAZARD_ROTTEN_CORPSE`: 腐敗死体の食中毒・毒殺対策（死後ターン経過死骸の危険、毒耐性、新鮮な死骸・保存食/缶詰作成）
+- `ADVICE_HAZARD_EXPLOSION`: 環境・物理爆発ハザード対策（ガス胞子等の誘爆、火炎耐性・反射の盾、安全距離確保）
+- `ADVICE_HAZARD_EXPLODING_CONTAINER`: 箱・チェスト爆弾トラップ対策（開錠スキル/鍵/ノックの呪文、遠隔飛び道具破壊、耐火）
+- `ADVICE_HAZARD_TRAP`: 毒矢・毒針・落石トラップ対策（探索スキル、毒耐性、HP管理）
 - `ADVICE_SURVIVAL_BOUNCED_RAY`: 壁反射による自爆光線対策（角度・反射の盾・耐性）
 - `ADVICE_HAZARD_DRAWBRIDGE`: 跳ね橋開閉巻き込み即死対策
 - `ADVICE_SURVIVAL_DIVINE_WRATH`: 神の怒り・祈りインターバル超過対策
@@ -113,32 +138,37 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 
 ## 7. TDD検証用コーパス仕様 (Corpus Benchmark)
 
-| No | 入力死因英文 | 期待される分類 | 期待される最優先教訓 | 備考 |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | `killed by a newt, while fainted from lack of food` | `STARVATION` | `ADVICE_SURVIVAL_STARVATION` | 付帯状況優先 |
-| 2 | `killed by a goblin while frozen by a floating eye` | `THREAT_MONSTER` | `ADVICE_THREAT_FLOATING_EYE` | 麻痺原因優先 |
-| 3 | `killed by an elf while sleeping` | `THREAT_MONSTER` | 睡眠注意 / エルベレス | 行動不能フラグ |
-| 4 | `blasted by a bolt of lightning bounced off a wall` | `BOUNCED_RAY` | 反射・耐電教訓 | 自爆光線 |
-| 5 | `killed by exploding a wand of striking` | `ITEM_MISHAP` | 杖過充電教訓 | 杖爆発 |
-| 6 | `petrified by touching a chickatrice corpse without gloves` | `PETRIFICATION` | `ADVICE_HAZARD_PETRIFY_CORPSE` | 手袋未着用 |
-| 7 | `crushed to death by a collapsing drawbridge` | `HAZARD_ENVIRONMENT` | 跳ね橋注意教訓 | トラップ即死 |
-| 8 | `dissolved in molten lava` | `HAZARD_ENVIRONMENT` | `ADVICE_HAZARD_LAVA` | 溶岩即死 |
-| 9 | `killed by an invisible master mind flayer called Bob` | `THREAT_MONSTER` | `ADVICE_THREAT_MIND_FLAYER` | 修飾子・別名クレンジング |
-| 10 | `killed by Mr. Morgan, the shopkeeper` | `THREAT_MONSTER` | `ADVICE_THREAT_PEACEFUL_SHOPKEEPER` | 店主識別 |
-| 11 | `turned to slime by a green slime` | `TURNED_SLIME` | `ADVICE_THREAT_GREEN_SLIME` | スライム化 |
-| 12 | `killed by the wrath of Anhur` | `DIVINE_WRATH` | 神の怒り教訓 | 天罰 |
+| No | 入力死因英文 | 期待される分類 | 期待される日本語死因文 | 期待される最優先教訓 | 備考 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `killed by a newt, while fainted from lack of food` | `STARVATION` | 飢餓で気絶中にイモリに倒された | `ADVICE_SURVIVAL_STARVATION` | 付帯状況優先 |
+| 2 | `killed by a goblin while frozen by a floating eye` | `THREAT_MONSTER` | 浮遊する目玉に麻痺させられている間にゴブリンに倒された | `ADVICE_THREAT_FLOATING_EYE` | 麻痺原因優先 |
+| 3 | `killed by an elf while sleeping` | `THREAT_MONSTER` | 眠っている間にエルフに倒された | 睡眠注意 / エルベレス | 行動不能フラグ |
+| 4 | **`poisoned by a rotted rothe corpse`** | **`FOOD_POISONING`** | **腐ったロゼの死骸の毒で命を落とした** | **`ADVICE_HAZARD_ROTTEN_CORPSE`** | **死骸食中毒（モンスター戦闘死除外）** |
+| 5 | **`killed by an explosion`** | **`EXPLOSION`** | **爆発に巻き込まれて爆死した** | **`ADVICE_HAZARD_EXPLOSION`** | **環境爆発（英名露出防止）** |
+| 6 | **`killed by an exploding large box`** | **`TRAP_CONTAINER`** | **大きな箱の爆発（罠）に巻き込まれて死亡した** | **`ADVICE_HAZARD_EXPLODING_CONTAINER`** | **箱トラップ（アイテム辞書連動）** |
+| 7 | `poisoned by a poisoned dart` | `TRAP` | 毒矢の罠に当たって毒死した | `ADVICE_HAZARD_TRAP` | 罠毒針 |
+| 8 | `blasted by a bolt of lightning bounced off a wall` | `BOUNCED_RAY` | 壁で跳ね返った稲妻に打たれて自滅した | `ADVICE_SURVIVAL_BOUNCED_RAY` | 自爆光線 |
+| 9 | `killed by exploding a wand of striking` | `ITEM_MISHAP` | 打撃の杖の過充填暴発で死亡した | 杖過充電教訓 | 杖爆発 |
+| 10 | `petrified by touching a chickatrice corpse without gloves` | `PETRIFICATION` | 素手でヒナコカトリスの死骸に触れて石化した | `ADVICE_HAZARD_PETRIFY_CORPSE` | 手袋未着用 |
+| 11 | `crushed to death by a collapsing drawbridge` | `HAZARD_ENVIRONMENT` | 跳ね橋に押し潰されて死亡した | `ADVICE_HAZARD_DRAWBRIDGE` | トラップ即死 |
+| 12 | `dissolved in molten lava` | `HAZARD_ENVIRONMENT` | 溶岩に落ちて焼け死んだ | `ADVICE_HAZARD_LAVA` | 溶岩即死 |
+| 13 | `killed by an invisible master mind flayer called Bob` | `THREAT_MONSTER` | 姿の見えないマスター・マインドフレアに倒された | `ADVICE_THREAT_MIND_FLAYER` | 修飾子・別名クレンジング |
+| 14 | `killed by Mr. Morgan, the shopkeeper` | `THREAT_MONSTER` | 店主モーガンに倒された | `ADVICE_THREAT_PEACEFUL_SHOPKEEPER` | 店主識別 |
+| 15 | `turned to slime by a green slime` | `TURNED_SLIME` | グリーンスライムによりスライム化して死亡した | `ADVICE_THREAT_GREEN_SLIME` | スライム化 |
+| 16 | `killed by the wrath of Anhur` | `DIVINE_WRATH` | アンフールの神罰により死亡した | `ADVICE_SURVIVAL_DIVINE_WRATH` | 天罰 |
 
 ---
 
 ## 8. 将来の実装ロードマップ (Implementation Phases)
 
-- [ ] **Phase 1: 構文分解とクレンジング基盤の刷新**
-  - `PostMortemKnowledgeResolver.js` を Stage 1〜3 に分離。
+- [ ] **Phase 1: 構文分解と複合エンティティ抽出基盤の刷新**
+  - `PostMortemKnowledgeResolver.js` を Stage 1〜3 パイプラインに分離。
   - 接尾辞 `while ...` および修飾子のトークナイザーを実装。
+  - **死骸（`corpse`）・爆発（`explosion`）・コンテナ（`exploding <item>`）の先行抽出・辞書照会ロジックを実装。**
 - [ ] **Phase 2: TDDコーパスの実装と検証**
-  - コーパスベンチマークテストの作成と回帰防止。
+  - 第7章のベンチマーク死因ケース（食中毒死、爆死、箱トラップ死を含む全16パターン）に対するユニットテストを作成。
 - [ ] **Phase 3: 根本原因調停器 (Root Cause Arbiter) の実装**
-  - スコアリングによる主教訓・副因の二重構造化。
+  - スコアリングによる主教訓（Primary）と副因の二重構造化。
 - [ ] **Phase 4: ADVICE_DEFINITIONS 拡張とUI反映**
-  - 跳ね返り・跳ね橋等の新規アドバイス追加。
+  - `ADVICE_HAZARD_ROTTEN_CORPSE`、`ADVICE_HAZARD_EXPLOSION`、`ADVICE_HAZARD_EXPLODING_CONTAINER` 等を定義。
   - スコアボード画面およびGameOverモーダルでの多層ナレッジ表示の洗練。

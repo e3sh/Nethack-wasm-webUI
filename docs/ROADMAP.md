@@ -70,6 +70,8 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 | **GKL タイムライン予測 (燃料計)** | メッセージ検知からの経過歩数逆算（セーブ再開でリセット） | `ublesscnt`（祈りクールダウン）および内部耐性配列直結 | コールドスタート問題ゼロ、推測誤差ゼロの真値燃料計 |
 | **AreaStateManager 4分割** | 背景グリフ・仮床・大岩押しからの泥臭い空間推論 | `getCellInfo(x,y)` による真の床・罠・扉フラグの一括直結 | 空間推論コードの半分が不要化。シンプルな台帳・描画分離へ移行可能 |
 | **ハイブリッド翻訳** | 英語メッセージ全文の正規表現マッチング・名詞抽出 | `struct obj` から ID・数量・祝福フラグを抽出しテンプレート埋め込み | 英語パースの組み合わせ爆発を根絶、辞書を18,000行➔1,500行へ90%削減 |
+| **モダン総合インベントリ & 重量分析** | 画面パース・外部推定不可、文字一覧のみ | `struct obj` から重量・スタック数・BUC・可搬限界直結 | クラス別重量比率・積載限界警告・モダンRPG所持品コックピット実現 |
+
 
 ---
 
@@ -126,6 +128,10 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 - **啓蒙ダイアログシグナル化による隠れステータス横取り**:
   - 設計書: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
   - 概要: 魔法の啓蒙（`MAGICENLIGHTENMENT`）ダイアログから不可視な運（Luck）や神の怒りを自動横取り。
+- **モダン総合インベントリダイアログ ＆ 重量アナリティクス構想 (`i`キー専用UI)**:
+  - 設計書: [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
+  - 概要: Phase 8 の真の重量・BUC直結により、クラス別重量構成比バー、積載境界警告、モダンRPG風の2ペイン所持品コックピット（詳細カード＆クイックアクション）を実現。
+
 
 ### 3.2 独立した長期構想群
 - **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
