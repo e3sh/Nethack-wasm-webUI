@@ -148,4 +148,104 @@ describe('NetHackMemory', () => {
             type: 'i32'
         });
     });
+
+    describe('bridgeCall & Direct Binding Gateway', () => {
+        it('has SHIM_CMD and SHIM_SYM constants defined', () => {
+            expect(NetHackMemory.SHIM_CMD.GET_CELL_INFO).toBe(0x10);
+            expect(NetHackMemory.SHIM_CMD.GET_PLAYER_SUMMARY).toBe(0x30);
+            expect(NetHackMemory.SHIM_CMD.GET_SYMBOL_PTR).toBe(0x70);
+            expect(NetHackMemory.SHIM_SYM.U).toBe(1);
+            expect(NetHackMemory.SHIM_SYM.INVENT).toBe(2);
+        });
+
+        it('bridgeCall dispatches correctly to Module._shim_bridge_call', () => {
+            let capturedArgs = null;
+            const fakeModule = {
+                _shim_bridge_call: (cmd, a1, a2, buf, len) => {
+                    capturedArgs = { cmd, a1, a2, buf, len };
+                    return 42;
+                }
+            };
+
+            const memory = new NetHackMemory(fakeModule);
+            const res = memory.bridgeCall(NetHackMemory.SHIM_CMD.GET_CELL_INFO, 10, 20, 0, 0);
+
+            expect(res).toBe(42);
+            expect(capturedArgs).toEqual({
+                cmd: 0x10,
+                a1: 10,
+                a2: 20,
+                buf: 0,
+                len: 0
+            });
+        });
+
+        it('bridgeCall returns -1 when _shim_bridge_call is missing', () => {
+            const memory = new NetHackMemory({});
+            const res = memory.bridgeCall(0x10);
+            expect(res).toBe(-1);
+        });
+
+        it('getSymbolPtr calls bridgeCall with 0x70 and symId', () => {
+            let capturedCmd = null;
+            let capturedArg1 = null;
+            const fakeModule = {
+                _shim_bridge_call: (cmd, a1, a2, buf, len) => {
+                    capturedCmd = cmd;
+                    capturedArg1 = a1;
+                    return 0x12345678;
+                }
+            };
+
+            const memory = new NetHackMemory(fakeModule);
+            const ptr = memory.getSymbolPtr(NetHackMemory.SHIM_SYM.U);
+
+            expect(capturedCmd).toBe(0x70);
+            expect(capturedArg1).toBe(1);
+            expect(ptr).toBe(0x12345678);
+        });
+
+        it('allocateBuffer and freeBuffer work with Module._malloc / _free', () => {
+            let freedPtr = null;
+            const fakeModule = {
+                _malloc: (size) => 0x8000,
+                _free: (ptr) => { freedPtr = ptr; }
+            };
+
+            const memory = new NetHackMemory(fakeModule);
+            const buf = memory.allocateBuffer(64);
+            expect(buf).toBe(0x8000);
+
+            memory.freeBuffer(buf);
+            expect(freedPtr).toBe(0x8000);
+        });
+
+        it('readInt32Array and readUint8Array correctly decode memory', () => {
+            const mem = new Map();
+            const fakeModule = {
+                getValue: (ptr, type) => {
+                    if (type === 'i32') return mem.get(ptr) || 0;
+                    if (type === 'i8') return mem.get(ptr) || 0;
+                    return 0;
+                }
+            };
+
+            mem.set(0x1000, 100);
+            mem.set(0x1004, 200);
+            mem.set(0x1008, 300);
+
+            mem.set(0x2000, 65);
+            mem.set(0x2001, 66);
+            mem.set(0x2002, 67);
+
+            const memory = new NetHackMemory(fakeModule);
+
+            const i32Arr = memory.readInt32Array(0x1000, 3);
+            expect(i32Arr).toEqual([100, 200, 300]);
+
+            const u8Arr = memory.readUint8Array(0x2000, 3);
+            expect(Array.from(u8Arr)).toEqual([65, 66, 67]);
+        });
+    });
 });
+

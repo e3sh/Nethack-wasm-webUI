@@ -1020,11 +1020,26 @@
 
                     const glyphInfo = (args[1] && this.memory) ? this.memory.parseGlyphInfo(args[1]) : null;
                     const numericGlyph = glyphInfo ? glyphInfo.glyph : (typeof args[1] === 'number' ? args[1] : -1);
+
+                    // args[2] は const ANY_P *identifier (union any*) のポインタアドレス
+                    // 先頭4バイト(Wasm32)が a_obj (struct obj*) のポインタ値
+                    let rawObjPtr = 0;
+                    if (args[2] && this.memory) {
+                        try {
+                            rawObjPtr = this.memory.getValue(args[2], 'i32') || 0;
+                        } catch (e) {
+                            rawObjPtr = 0;
+                        }
+                    } else if (typeof args[2] === 'number') {
+                        rawObjPtr = args[2];
+                    }
+
                     const item = {
                         windowId,
                         glyphInfo,
                         glyph: numericGlyph,
                         identifier: args[2],
+                        rawObjPtr,
                         accelerator: args[3],
                         ch: args[3],
                         gch: args[4],

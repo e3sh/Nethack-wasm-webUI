@@ -398,7 +398,129 @@
 
             return ptr;
         }
+
+        /**
+         * 単一汎用窓口ディスパッチャー (_shim_bridge_call) 呼び出し
+         * @param {number} cmd コマンドID (SHIM_CMD_*)
+         * @param {number} arg1 第1引数 (ポインタまたは整数値)
+         * @param {number} arg2 第2引数 (ポインタまたは整数値)
+         * @param {number} buf バッファポインタ
+         * @param {number} len バッファサイズ(バイト長)
+         * @returns {number} 実行結果
+         */
+        bridgeCall(cmd, arg1 = 0, arg2 = 0, buf = 0, len = 0) {
+            const M = this.Module;
+            const bridgeFn = (M && M._shim_bridge_call) ? M._shim_bridge_call.bind(M) : (typeof _shim_bridge_call !== 'undefined' ? _shim_bridge_call : null);
+            if (!bridgeFn) {
+                console.warn('[NetHackMemory] _shim_bridge_call is not available');
+                return -1;
+            }
+            return bridgeFn(cmd, arg1, arg2, buf, len);
+        }
+
+        /**
+         * シンボル基底ポインタ取得 (0x70)
+         * @param {number} symId シンボルID (SHIM_SYM_*)
+         * @returns {number} 構造体/変数の基底ポインタ (ポインタ数値)
+         */
+        getSymbolPtr(symId) {
+            return this.bridgeCall(NetHackMemory.SHIM_CMD.GET_SYMBOL_PTR, symId, 0, 0, 0);
+        }
+
+        /**
+         * Wasmヒープメモリ領域の確保
+         * @param {number} size バイト数
+         * @returns {number} 確保されたポインタ
+         */
+        allocateBuffer(size) {
+            const M = this.Module;
+            const mallocFn = (M && M._malloc) ? M._malloc.bind(M) : (typeof _malloc !== 'undefined' ? _malloc : null);
+            if (!mallocFn || size <= 0) return 0;
+            return mallocFn(size);
+        }
+
+        /**
+         * Wasmヒープメモリ領域の解放
+         * @param {number} ptr 解放するポインタ
+         */
+        freeBuffer(ptr) {
+            if (!ptr) return;
+            const M = this.Module;
+            const freeFn = (M && M._free) ? M._free.bind(M) : (typeof _free !== 'undefined' ? _free : null);
+            if (freeFn) {
+                freeFn(ptr);
+            }
+        }
+
+        /**
+         * Wasmメモリから指定長(要素数)の Int32 配列を読み出す
+         * @param {number} ptr 先頭ポインタ
+         * @param {number} count 要素数
+         * @returns {number[]} 数値配列
+         */
+        readInt32Array(ptr, count) {
+            if (!ptr || count <= 0) return [];
+            const result = new Array(count);
+            for (let i = 0; i < count; i++) {
+                result[i] = this.getValue(ptr + (i * 4), 'i32');
+            }
+            return result;
+        }
+
+        /**
+         * Wasmメモリから指定長(バイト数)の Uint8 配列を読み出す
+         * @param {number} ptr 先頭ポインタ
+         * @param {number} length バイト数
+         * @returns {Uint8Array}
+         */
+        readUint8Array(ptr, length) {
+            if (!ptr || length <= 0) return new Uint8Array(0);
+            const result = new Uint8Array(length);
+            for (let i = 0; i < length; i++) {
+                result[i] = this.getValue(ptr + i, 'i8') & 0xFF;
+            }
+            return result;
+        }
     }
+
+    NetHackMemory.SHIM_CMD = {
+        GET_CELL_INFO: 0x10,
+        DUMP_LEVEL_TERRAIN: 0x11,
+        GET_TRAP_AT: 0x12,
+        GET_ENGRAVING_AT: 0x13,
+        GET_ROOM_TYPE: 0x14,
+
+        GET_OBJECT_AT: 0x20,
+        GET_MONSTER_AT: 0x21,
+        GET_MONSTER_INFO: 0x22,
+        GET_MONSTER_STATE: 0x23,
+
+        GET_PLAYER_SUMMARY: 0x30,
+        GET_PLAYER_PTR: 0x31,
+        GET_PLAYER_PROPS: 0x32,
+
+        GET_INVENT_PTR: 0x40,
+        GET_EQUIPMENT_PTRS: 0x41,
+        DUMP_OBJECT_INFO: 0x42,
+
+        DUMP_SPELL_BOOK: 0x50,
+        DUMP_SKILLS: 0x51,
+
+        DUMP_DISCOVERIES: 0x60,
+        GET_OBJECT_UNAME: 0x61,
+
+        GET_SYMBOL_PTR: 0x70,
+    };
+
+    NetHackMemory.SHIM_SYM = {
+        U: 1,
+        INVENT: 2,
+        LEVEL: 3,
+        ROOMS: 4,
+        OBJECTS: 5,
+        SPL_BOOK: 6,
+        MOVES: 7,
+    };
 
     global.NetHackMemory = NetHackMemory;
     if (typeof window !== 'undefined') {
@@ -410,6 +532,8 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = NetHackMemory;
         module.exports.NetHackMemory = NetHackMemory;
+        module.exports.SHIM_CMD = NetHackMemory.SHIM_CMD;
+        module.exports.SHIM_SYM = NetHackMemory.SHIM_SYM;
         module.exports.default = NetHackMemory;
     }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));

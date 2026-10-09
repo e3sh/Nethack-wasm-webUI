@@ -188,4 +188,28 @@ describe('Headless Driver Simulation Suite (第3防壁: 実機等価エミュレ
         await promise2;
         expect(order).toEqual(['seq1', 'seq2']);
     });
+
+    it('8. shim_add_menu における rawObjPtr (struct obj*) の抽出とディスパッチ', async () => {
+        // メモリ空間モック: ポインタ 0x5000 に struct obj* アドレス 0x8899AABB が格納されている
+        driver.memory = {
+            parseGlyphInfo: () => ({ glyph: 2000 }),
+            getValue: (ptr, type) => {
+                if (ptr === 0x5000 && type === 'i32') return 0x8899AABB;
+                return 0;
+            }
+        };
+
+        const winId = 2;
+        await driver.eventHook('shim_start_menu', winId, 1);
+
+        // shim_add_menu(winid, glyphinfo, identifier, ch, gch, attr, clr, str, itemflags)
+        // identifier には union any* のポインタ 0x5000 を渡す
+        await driver.eventHook('shim_add_menu', winId, null, 0x5000, 'a', 'a', 0, 7, 'a - an apple', 1);
+
+        const items = driver.menuBuffer[winId].items;
+        expect(items.length).toBe(1);
+        expect(items[0].identifier).toBe(0x5000);
+        expect(items[0].rawObjPtr).toBe(0x8899AABB);
+        expect(items[0].str).toBe('a - an apple');
+    });
 });
