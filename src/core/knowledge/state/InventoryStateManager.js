@@ -23,8 +23,17 @@ export class InventoryStateManager {
         this.discoveryStateManager = options.discoveryStateManager || null;
         this.adventureLogManager = options.adventureLogManager || null;
         this.onAdventureLogUnlocked = options.onAdventureLogUnlocked || null;
+        this.wasmDirectBindingService = options.wasmDirectBindingService || null;
         this.hasCompletedInitialSync = false;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+    }
+
+    setWasmDirectBindingService(service) {
+        this.wasmDirectBindingService = service;
+    }
+
+    get isDirectBindingAvailable() {
+        return Boolean(this.wasmDirectBindingService && this.wasmDirectBindingService.isAvailable());
     }
 
     setLanguage(lang = 'ja') {
@@ -295,6 +304,203 @@ export class InventoryStateManager {
                 }
             }
         }
+    }
+
+    /**
+     * WasmDirectBindingService を通じて C言語メモリから直接インベントリ配列を即時同期 (Stage 8.2)
+     * メニューマクロ展開や文字列正規表現パースを完全にバイパスし、0ms・100%同期を実現。
+     * @returns {boolean} インベントリ内容に実質的な変更があったかどうか
+     */
+    syncFromDirectBinding() {
+        if (!this.wasmDirectBindingService || !this.wasmDirectBindingService.isAvailable()) {
+            return false;
+        }
+
+        const rawItems = this.wasmDirectBindingService.getInventory();
+        const equipData = this.wasmDirectBindingService.getEquipmentPtrs();
+        const slotByPtr = equipData.slotByPtr || new Map();
+
+        const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+
+        const parsedItems = [];
+
+        for (const rawItem of rawItems) {
+            const letter = rawItem.invlet;
+            if (!letter || !/^[a-zA-Z]$/.test(letter)) continue;
+
+            const onum = rawItem.onum;
+            const glyphId = (typeof onum === 'number' && onum >= 0) ? (GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum) : -1;
+            const objInfo = (onum >= 0 && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : getItemInfoFromOnum(onum);
+
+            // 装備スロット同定 (C側の uwep 等ポインタと照合)
+            const equipSlotName = slotByPtr.get(rawItem.ptr) || null;
+            const isWielded = equipSlotName === 'weapon';
+            const isOffhand = equipSlotName === 'offhand';
+            const isQuivered = equipSlotName === 'quiver';
+            const isWorn = Boolean(equipSlotName && !isWielded && !isOffhand && !isQuivered);
+            let equipSlot = equipSlotName;
+
+            // 互換性のため表示用 rawText を構築
+            const baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
+            let rawText = '';
+
+            // 数量
+            if (rawItem.quan > 1) {
+                rawText += `${rawItem.quan} `;
+            }
+
+            // BUC
+            if (rawItem.flags && rawItem.flags.bknown) {
+                if (rawItem.flags.blessed) rawText += 'blessed ';
+                else if (rawItem.flags.cursed) rawText += 'cursed ';
+                else rawText += 'uncursed ';
+            }
+
+            // 強化値
+            if (rawItem.spe !== 0) {
+                rawText += rawItem.spe > 0 ? `+${rawItem.spe} ` : `${rawItem.spe} `;
+            }
+
+            rawText += baseName;
+
+            // 装備サフィックス
+            if (isWielded) {
+                rawText += ' (weapon in hand)';
+            } else if (isOffhand) {
+                rawText += ' (in off hand)';
+            } else if (isQuivered) {
+                rawText += ' (in quiver)';
+            } else if (equipSlot === 'ring_left') {
+                rawText += ' (on left hand)';
+            } else if (equipSlot === 'ring_right') {
+                rawText += ' (on right hand)';
+            } else if (equipSlot === 'amulet') {
+                rawText += ' (around neck)';
+            } else if (isWorn) {
+                rawText += ' (being worn)';
+            }
+
+            const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
+            const identification = ItemIdentificationResolver.resolve({
+                rawText,
+                onum,
+                glyphId
+            }, {
+                discoveryStateManager: this.discoveryStateManager
+            });
+
+            // ナレッジの付与
+            let knowledge = null;
+            if (this.structuredKnowledgeEngine) {
+                const itemTarget = {
+                    type: 'ITEM',
+                    rawText,
+                    onum,
+                    glyph: glyphId,
+                    identification
+                };
+                if (typeof this.structuredKnowledgeEngine.getItemKnowledge === 'function') {
+                    knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification }) ||
+                                this.structuredKnowledgeEngine.getItemKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                } else if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
+                    knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification }) ||
+                                this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                }
+            }
+            if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+                knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
+            }
+
+            let skillBadge = null;
+            if (knowledge && this.skillStateManager && !identification.isUnidentified) {
+                skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
+            }
+
+            parsedItems.push({
+                letter,
+                rawText,
+                glyphId,
+                onum,
+                identifier: rawItem.ptr,
+                rawObjPtr: rawItem.ptr,
+                weight: rawItem.weight,
+                owt: rawItem.owt,
+                quan: rawItem.quan,
+                spe: rawItem.spe,
+                oclass: rawItem.oclass,
+                cobjPtr: rawItem.cobjPtr,
+                o_id: rawItem.o_id,
+                flags: rawItem.flags,
+                identification,
+                knowledge,
+                skillBadge,
+                isRecommendedWeapon: Boolean(skillBadge && skillBadge.isProficient && !identification.isUnidentified),
+                ...categoryFlags,
+                isWielded,
+                isOffhand,
+                isQuivered,
+                isWorn,
+                equipSlot
+            });
+        }
+
+        // 第2パス: アクション判定
+        if (parsedItems.length > 0) {
+            parsedItems.forEach(item => {
+                const defaultAction = this.determineDefaultAction(
+                    item.rawText,
+                    item,
+                    item,
+                    item.letter,
+                    parsedItems,
+                    item
+                );
+                Object.assign(item, defaultAction);
+                if (defaultAction.defaultActionRecipe) {
+                    item.actionRecipe = defaultAction.defaultActionRecipe;
+                }
+            });
+
+            const newSignature = this._buildSignature(parsedItems.map(p => ({
+                charStr: p.letter,
+                rawStr: p.rawText,
+                glyph: p.glyphId,
+                onum: p.onum
+            })));
+
+            if (this.isSynced && this._lastInventorySignature === newSignature) {
+                return false;
+            }
+
+            this.items = parsedItems;
+            this.isSynced = true;
+            this._lastInventorySignature = newSignature;
+            this._syncWithAdventureLog(parsedItems);
+            this.hasCompletedInitialSync = true;
+            return true;
+        } else {
+            const hadItems = this.items.length > 0;
+            const newSignature = this._buildSignature([]);
+            if (this.isSynced && this._lastInventorySignature === newSignature) {
+                return false;
+            }
+            this.items = [];
+            this.isSynced = true;
+            this._lastInventorySignature = newSignature;
+            this.hasCompletedInitialSync = true;
+            return hadItems;
+        }
+    }
+
+    /**
+     * インベントリの同期を実行 (Wasmメモリ直結が利用可能な場合は直接取得、なければ false)
+     * @returns {boolean}
+     */
+    sync() {
+        if (this.isDirectBindingAvailable) {
+            return this.syncFromDirectBinding();
+        }
+        return false;
     }
 
     /**

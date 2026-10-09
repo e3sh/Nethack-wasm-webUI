@@ -19,6 +19,7 @@ import { GenocideService } from "./services/GenocideService.js";
 import { PolymorphService } from "./services/PolymorphService.js";
 import { WriteService } from "./services/WriteService.js";
 import { EncumbranceStateManager } from "./state/EncumbranceStateManager.js";
+import { WasmDirectBindingService } from "./services/WasmDirectBindingService.js";
 import { LoreCodex } from "./lore/LoreCodex.js";
 import { LoreDetector } from "./lore/LoreDetector.js";
 import { InteractionContext } from "./context/InteractionContext.js";
@@ -58,10 +59,24 @@ export class GKLPlugin {
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
         this.attributeStateManager = options.attributeStateManager || new AttributeStateManager();
         this.conditionStateManager = options.conditionStateManager || new ConditionStateManager();
+        this.wasmDirectBindingService = options.wasmDirectBindingService || null;
         this.encumbranceStateManager = options.encumbranceStateManager || new EncumbranceStateManager({
             statusAccessor: this.statusAccessor,
             inventoryStateManager: this.inventoryStateManager,
+            wasmDirectBindingService: this.wasmDirectBindingService,
         });
+
+        if (this.wasmDirectBindingService) {
+            if (this.inventoryStateManager && typeof this.inventoryStateManager.setWasmDirectBindingService === 'function') {
+                this.inventoryStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
+            }
+            if (this.encumbranceStateManager && typeof this.encumbranceStateManager.setWasmDirectBindingService === 'function') {
+                this.encumbranceStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
+            }
+            if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingService === 'function') {
+                this.areaStateManager.setDirectBindingService(this.wasmDirectBindingService);
+            }
+        }
 
         this.language = options.language || 'ja';
 
@@ -581,6 +596,29 @@ export class GKLPlugin {
         }
 
 
+        const driverOrBridge = core.driver;
+        if (driverOrBridge && (driverOrBridge.callShim || driverOrBridge.memory)) {
+            if (!this.wasmDirectBindingService) {
+                this.wasmDirectBindingService = new WasmDirectBindingService({
+                    bridge: driverOrBridge.callShim ? driverOrBridge : null,
+                    memory: driverOrBridge.memory || null,
+                    module: (typeof driverOrBridge.getModule === 'function') ? driverOrBridge.getModule() : null
+                });
+            } else {
+                if (driverOrBridge.callShim) this.wasmDirectBindingService.setBridge(driverOrBridge);
+                if (driverOrBridge.memory) this.wasmDirectBindingService.setMemory(driverOrBridge.memory);
+            }
+            if (this.inventoryStateManager && typeof this.inventoryStateManager.setWasmDirectBindingService === 'function') {
+                this.inventoryStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
+            }
+            if (this.encumbranceStateManager && typeof this.encumbranceStateManager.setWasmDirectBindingService === 'function') {
+                this.encumbranceStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
+            }
+            if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingService === 'function') {
+                this.areaStateManager.setDirectBindingService(this.wasmDirectBindingService);
+            }
+        }
+
         if (core.interactiveController || core.requestController) {
             this.requestController = core.interactiveController || core.requestController;
         }
@@ -662,7 +700,24 @@ export class GKLPlugin {
         });
 
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
-        addCoreListener('inputRequired', (payload) => {
+        addCoreListener('inputRequired', async (payload) => {
+            // 🎯 Web Worker 隔離環境用：トップレベルターン確定時に足元情報・所持品を 1 往復同期 (Stage 8.2-A, 8.2)
+            if (payload && payload.isTopLevelTurn && this.wasmDirectBindingService && this.wasmDirectBindingService.bridge) {
+                const px = this.areaStateManager ? this.areaStateManager.playerX : -1;
+                const py = this.areaStateManager ? this.areaStateManager.playerY : -1;
+                await this.wasmDirectBindingService.syncFromWorkerBridge({
+                    playerX: px >= 0 ? px : undefined,
+                    playerY: py >= 0 ? py : undefined,
+                    syncInventory: true
+                });
+                if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
+                    const changed = this.inventoryStateManager.syncFromDirectBinding();
+                    if (changed) {
+                        core.emit('inventoryStateUpdated', this.inventoryStateManager);
+                    }
+                }
+            }
+
             if (this.interactionContext && typeof this.interactionContext.setImmediatePrompt === 'function') {
                 this.interactionContext.setImmediatePrompt({
                     type: payload.type || payload.promptCategory || 'PROMPT',
@@ -930,12 +985,14 @@ export class GKLPlugin {
         };
         addCoreListener('restarted', handleGameReset);
 
-        // 4. カーソル位置・プレイヤー移動の同期
         const handlePlayerPosUpdate = (data) => {
             if (data && data.x !== undefined && data.y !== undefined) {
                 if (data.x >= 0 && data.x < 80 && data.y >= 0 && data.y < 21) {
                     if (this.areaStateManager && typeof this.areaStateManager.seedInitialStair === 'function') {
                         this.areaStateManager.seedInitialStair(data.x, data.y);
+                    }
+                    if (this.areaStateManager && typeof this.areaStateManager.seedArrivalStair === 'function') {
+                        this.areaStateManager.seedArrivalStair(data.x, data.y);
                     }
                     this.areaStateManager.updatePlayerPosition(data.x, data.y);
                     if (this.interactionContext && typeof this.interactionContext.updatePlayerPosition === 'function') {
@@ -1503,6 +1560,21 @@ export class GKLPlugin {
         }
 
         const startTime = Date.now();
+
+        // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
+        if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
+            if (this.wasmDirectBindingService && this.wasmDirectBindingService.bridge && !this.wasmDirectBindingService.hasLiveMemory) {
+                await this.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true });
+            }
+            const changed = this.inventoryStateManager.syncFromDirectBinding();
+            const durationMs = Date.now() - startTime;
+            this._recordSilentSync('inventory', changed, durationMs);
+            if (changed || force) {
+                this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
+            }
+            return true;
+        }
+
         const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             const changed = this.inventoryStateManager.updateFromSequenceBuffer(buffer);

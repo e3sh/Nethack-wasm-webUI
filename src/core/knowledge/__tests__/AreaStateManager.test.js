@@ -805,6 +805,280 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(asm.stairCache.has('Dlvl:1:20,10')).toBe(true);
         });
     });
+
+    describe('Stage 8.3 - Wasm Direct Binding Integration', () => {
+        let mockBindingService;
+        let asm;
+
+        beforeEach(() => {
+            mockBindingService = {
+                isAvailable: vi.fn(() => true),
+                getCellInfo: vi.fn((x, y) => {
+                    if (x === 15 && y === 10) {
+                        // 武器屋の部屋床 (typ: ROOM=25, roomno: 2)
+                        return { x, y, typ: 25, flags: 0, lit: true, roomno: 2, door: null };
+                    }
+                    if (x === 12 && y === 10) {
+                        // 氷の床 (typ: ICE=33)
+                        return { x, y, typ: 33, flags: 0, lit: true, roomno: 0, door: null };
+                    }
+                    if (x === 14 && y === 10) {
+                        // 施錠扉 (typ: DOOR=23, D_LOCKED)
+                        return {
+                            x, y, typ: 23, flags: 0x08, lit: true, roomno: 2,
+                            door: { isClosed: false, isLocked: true, isOpen: false, isTrapped: false }
+                        };
+                    }
+                    return { x, y, typ: 25, flags: 0, lit: false, roomno: 0, door: null };
+                }),
+                getRoomType: vi.fn((roomno) => {
+                    if (roomno === 2) return { roomno: 2, rtype: 18, isShop: true, name: 'Weapon Shop', nameJa: '武器屋' };
+                    return { roomno: 0, rtype: 0, isShop: false, name: 'Room', nameJa: '普通の部屋' };
+                }),
+                getTrapAt: vi.fn((x, y) => {
+                    if (x === 15 && y === 10) {
+                        return { x, y, ttyp: 11, tseen: true, once: false, name: 'pit', nameJa: '落とし穴 (ピット)' };
+                    }
+                    return null;
+                }),
+                getEngravingAt: vi.fn((x, y) => {
+                    if (x === 15 && y === 10) {
+                        return { x, y, text: 'Elbereth', engrType: 3, typeNameJa: '焼き', isElbereth: true };
+                    }
+                    return null;
+                }),
+                getFullMonsterAt: vi.fn((x, y) => {
+                    if (x === 16 && y === 10) {
+                        return {
+                            x, y, ptr: 0x4000, peaceful: true, tame: false, hp: 60, hpmax: 60,
+                            sleeping: true, fleeing: false, paralyzed: false,
+                            isShopkeeper: true, isPriest: false
+                        };
+                    }
+                    return null;
+                })
+            };
+
+            asm = new AreaStateManager(80, 24, null, mockBindingService);
+        });
+
+        it('resolves genuine terrain, room type, trap and engraving for feet', () => {
+            asm.updatePlayerPosition(15, 10);
+            const state = asm.getAreaState(15, 10, 1);
+
+            expect(state.feet).not.toBeNull();
+            expect(state.feet.bottom.inferred).toBe(false);
+            expect(state.feet.bottom.isGenuine).toBe(true);
+            expect(state.feet.bottom.room).toEqual({
+                roomno: 2, rtype: 18, isShop: true, name: 'Weapon Shop', nameJa: '武器屋'
+            });
+            expect(state.feet.bottom.trap).toEqual({
+                x: 15, y: 10, ttyp: 11, tseen: true, once: false, name: 'pit', nameJa: '落とし穴 (ピット)'
+            });
+            expect(state.feet.bottom.engraving).toEqual({
+                x: 15, y: 10, text: 'Elbereth', engrType: 3, typeNameJa: '焼き', isElbereth: true
+            });
+
+            // engravingCache にも登録されていること
+            expect(asm.getEngravingAt(15, 10).isElbereth).toBe(true);
+        });
+
+        it('resolves genuine ice terrain under items instead of default floor (3992)', () => {
+            // (12, 10) にアイテムグリフが届いた場合
+            const itemGlyph = 3450;
+            asm.updateGlyph(12, 10, itemGlyph);
+
+            const cell = asm.grid[10][12];
+            expect(cell.middle).not.toBeNull();
+            expect(cell.bottom).not.toBeNull();
+            expect(cell.bottom.inferred).toBe(false);
+            expect(cell.bottom.isGenuine).toBe(true);
+            expect(cell.bottom.glyph).toBe(4016); // ICE グリフ
+            expect(cell.bottom.cmapFlags.isIce).toBe(true);
+        });
+
+        it('syncs monster direct binding stats (peaceful, shopkeeper, sleeping, hp) when monster arrives', () => {
+            // (16, 10) にモンスターグリフが届いた場合
+            const monGlyph = 100;
+            asm.updateGlyph(16, 10, monGlyph);
+
+            const cell = asm.grid[10][16];
+            expect(cell.top).not.toBeNull();
+            expect(cell.top.isPeaceful).toBe(true);
+            expect(cell.top.isShopkeeper).toBe(true);
+            expect(cell.top.hp).toBe(60);
+            expect(cell.top.hpmax).toBe(60);
+            expect(cell.top.dynamicState.sleeping).toBe(true);
+        });
+
+        it('syncFromDirectBinding synchronizes surrounding genuine terrain and monsters', () => {
+            asm.updatePlayerPosition(15, 10);
+            // 視界周囲を一括同期
+            asm.syncFromDirectBinding(2);
+
+            const feetCell = asm.grid[10][15];
+            expect(feetCell.bottom).not.toBeNull();
+            expect(feetCell.bottom.isGenuine).toBe(true);
+            expect(feetCell.bottom.room.nameJa).toBe('武器屋');
+        });
+
+        describe('Floor Transition Feet Staircase Auto-Seeding', () => {
+            it('seeds STAIR_UP (4000) when player descends to a deeper floor (Dlvl:1 -> Dlvl:2)', () => {
+                const stairMockService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        if (x === 18 && y === 12) {
+                            return { x, y, typ: 26, flags: 0, lit: true, roomno: 0, door: null }; // STAIRS
+                        }
+                        return { x, y, typ: 25, flags: 0, lit: false, roomno: 0, door: null };
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, stairMockService);
+                testAsm.setCurrentFloor('Dlvl:1');
+                // Dlvl:2 へ階層移動
+                testAsm.setCurrentFloor('Dlvl:2');
+                testAsm.updatePlayerPosition(18, 12);
+
+                const key = 'Dlvl:2:18,12';
+                expect(testAsm.stairCache.has(key)).toBe(true);
+                const stair = testAsm.stairCache.get(key);
+                expect(stair.glyph).toBe(4000); // 上り階段 (STAIR_UP)
+                expect(stair.cmapFlags.isStairUp).toBe(true);
+
+                // ランドマーク台帳にも登録されていること
+                const lmKey = 'Dlvl:2:18,12:STAIR_UP';
+                expect(testAsm.landmarkCache.has(lmKey)).toBe(true);
+
+                // 足元セルにも即時反映されていること
+                const cell = testAsm.grid[12][18];
+                expect(cell.bottom).not.toBeNull();
+                expect(cell.bottom.glyph).toBe(4000);
+            });
+
+            it('seeds STAIR_DOWN (4001) when player ascends to a shallower floor (Dlvl:2 -> Dlvl:1)', () => {
+                const stairMockService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        if (x === 10 && y === 8) {
+                            return { x, y, typ: 26, flags: 0, lit: true, roomno: 0, door: null }; // STAIRS
+                        }
+                        return { x, y, typ: 25, flags: 0, lit: false, roomno: 0, door: null };
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, stairMockService);
+                testAsm.setCurrentFloor('Dlvl:2');
+                // Dlvl:1 へ階層移動 (浅い階へ上る)
+                testAsm.setCurrentFloor('Dlvl:1');
+                testAsm.updatePlayerPosition(10, 8);
+
+                const key = 'Dlvl:1:10,8';
+                expect(testAsm.stairCache.has(key)).toBe(true);
+                const stair = testAsm.stairCache.get(key);
+                expect(stair.glyph).toBe(4001); // 下り階段 (STAIR_DOWN)
+                expect(stair.cmapFlags.isStairDown).toBe(true);
+
+                const lmKey = 'Dlvl:1:10,8:STAIR_DOWN';
+                expect(testAsm.landmarkCache.has(lmKey)).toBe(true);
+            });
+
+            it('seeds LADDER (4004/4005) properly according to ascend/descend progression', () => {
+                const ladderMockService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        return { x, y, typ: 27, flags: 0, lit: true, roomno: 0, door: null }; // LADDER
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, ladderMockService);
+                testAsm.setCurrentFloor('Dlvl:2');
+                testAsm.setCurrentFloor('Dlvl:3'); // 深層へ移動
+                testAsm.updatePlayerPosition(5, 5);
+
+                expect(testAsm.stairCache.get('Dlvl:3:5,5').glyph).toBe(4004); // 上りハシゴ
+
+                // 上層へ移動
+                testAsm.setCurrentFloor('Dlvl:2');
+                testAsm.updatePlayerPosition(6, 6);
+                expect(testAsm.stairCache.get('Dlvl:2:6,6').glyph).toBe(4005); // 下りハシゴ
+            });
+
+            it('seeds STAIR_UP (4000) on floor descent (Dlvl:1 -> Dlvl:2) via directBindingService getCellInfo (typ === 26)', () => {
+                const stairMockService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        if (x === 14 && y === 11) {
+                            return { x, y, typ: 26, flags: 0, lit: true, roomno: 0, door: null }; // STAIRS
+                        }
+                        return { x, y, typ: 25, flags: 0, lit: false, roomno: 0, door: null };
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, stairMockService);
+                testAsm.setCurrentFloor('Dlvl:1');
+                testAsm.setCurrentFloor('Dlvl:2'); // フロア遷移
+                testAsm.updatePlayerPosition(14, 11);
+
+                const key = 'Dlvl:2:14,11';
+                expect(testAsm.stairCache.has(key)).toBe(true);
+                const stair = testAsm.stairCache.get(key);
+                expect(stair.glyph).toBe(4000); // 上り階段 (STAIR_UP)
+                expect(stair.cmapFlags.isStairUp).toBe(true);
+
+                // セル底面にも階段が反映されていること
+                expect(testAsm.grid[11][14].bottom.glyph).toBe(4000);
+
+                // その後、ペットがそのマスに乗った場合 (updateGlyph) でも階段が維持されること
+                testAsm.updateGlyph(14, 11, 766); // ペット (イヌ)
+                expect(testAsm.grid[11][14].bottom.glyph).toBe(4000); // 階段維持！
+                expect(testAsm.grid[11][14].top.rawGlyph).toBe(766);   // ペットが Top
+            });
+
+            it('NEVER seeds stairs when falling through trapdoor/pit or level teleports to a room floor (typ === 25)', () => {
+                const roomMockService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        return { x, y, typ: 25, flags: 0, lit: true, roomno: 1, door: null }; // ROOM
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, roomMockService);
+                testAsm.setCurrentFloor('Dlvl:1');
+                testAsm.setCurrentFloor('Dlvl:2'); // 落とし穴で Dlvl:2 へ落下
+
+                // 落下先は部屋床 (typ: 25)
+                testAsm.updatePlayerPosition(20, 10);
+
+                const key = 'Dlvl:2:20,10';
+                // 🎯 階段キャッシュには絶対にシードされない！
+                expect(testAsm.stairCache.has(key)).toBe(false);
+                // 階段が生成されていないこと (bottom は階段ではない)
+                expect(testAsm.grid[10][20].bottom?.cmapFlags?.isStairUp).toBeFalsy();
+                expect(testAsm.grid[10][20].bottom?.glyph).not.toBe(4000);
+            });
+        });
+    });
 });
 
 

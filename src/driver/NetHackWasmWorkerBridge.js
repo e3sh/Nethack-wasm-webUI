@@ -31,6 +31,8 @@
             this._canAcceptSequenceInterruption = false;
             this._driverDebugStatus = null;
             this._pendingSequences = new Map();
+            this._pendingShimCalls = new Map();
+            this._pendingInventoryCalls = new Map();
             this.isRecording = false;
             this.recordedEvents = [];
 
@@ -278,6 +280,47 @@
                         this.lastSequenceBuffer = e.data.buffer || [];
                         this.emit('getLastSequenceBufferResult', { buffer: this.lastSequenceBuffer, requestId: e.data.requestId });
                         break;
+
+                    case 'SHIM_RESULT': {
+                        const { callId, result, buffer, error } = e.data;
+                        if (callId && this._pendingShimCalls.has(callId)) {
+                            const pending = this._pendingShimCalls.get(callId);
+                            this._pendingShimCalls.delete(callId);
+                            if (error) {
+                                pending.reject(new Error(error));
+                            } else {
+                                pending.resolve({ result, buffer });
+                            }
+                        }
+                        this.emit('shimResult', { callId, result, buffer });
+                        break;
+                    }
+
+                    case 'SHIM_ERROR': {
+                        const { callId, error } = e.data;
+                        if (callId && this._pendingShimCalls.has(callId)) {
+                            const pending = this._pendingShimCalls.get(callId);
+                            this._pendingShimCalls.delete(callId);
+                            pending.reject(new Error(error || 'Shim call error'));
+                        }
+                        this.emit('shimError', { callId, error });
+                        break;
+                    }
+
+                    case 'GET_INVENTORY_RESULT': {
+                        const { callId, items, equipment, error } = e.data;
+                        if (callId && this._pendingInventoryCalls.has(callId)) {
+                            const pending = this._pendingInventoryCalls.get(callId);
+                            this._pendingInventoryCalls.delete(callId);
+                            if (error) {
+                                pending.reject(new Error(error));
+                            } else {
+                                pending.resolve({ items: items || [], equipment: equipment || { ptrArray: [] } });
+                            }
+                        }
+                        this.emit('getInventoryResult', { callId, items, equipment, error });
+                        break;
+                    }
                 }
             };
 
@@ -474,6 +517,12 @@
 
         terminate() {
             this.stopRecording();
+            this._pendingShimCalls.forEach((pending) => {
+                if (typeof pending.reject === 'function') {
+                    pending.reject(new Error('Worker terminated'));
+                }
+            });
+            this._pendingShimCalls.clear();
             if (this.worker) {
                 this.worker.terminate();
                 this.state = NetHackWasmWorkerBridge.DriverState.STOPPED;
@@ -491,6 +540,9 @@
             this._driverDebugStatus = null;
             if (this._pendingSequences && typeof this._pendingSequences.clear === 'function') {
                 this._pendingSequences.clear();
+            }
+            if (this._pendingShimCalls && typeof this._pendingShimCalls.clear === 'function') {
+                this._pendingShimCalls.clear();
             }
 
             this.createWorkerInstance();
@@ -611,6 +663,60 @@
                 }, 1000);
                 this.on('getLastSequenceBufferResult', onResult);
                 this.worker.postMessage({ type: 'GET_LAST_SEQUENCE_BUFFER', payload: { requestId } });
+            });
+        }
+
+        /**
+         * Web Worker 内の Wasm に対して shim_bridge_call を非同期呼び出しする (Stage 8.2-A)
+         * @param {number} cmd - コマンドID (SHIM_CMD_*)
+         * @param {number} [arg1=0]
+         * @param {number} [arg2=0]
+         * @param {number} [bufferSize=0] - 必要なバッファサイズ(バイト数)。0の場合はバッファなし
+         * @param {string} [bufferType='int32'] - 'int32' | 'uint8' | 'string'
+         * @returns {Promise<{result: number, buffer: Array|string|null}>}
+         */
+        callShim(cmd, arg1 = 0, arg2 = 0, bufferSize = 0, bufferType = 'int32') {
+            if (!this.worker) {
+                return Promise.reject(new Error('[NetHackWasmWorkerBridge] Worker instance not available'));
+            }
+
+            const callId = `shim_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            return new Promise((resolve, reject) => {
+                this._pendingShimCalls.set(callId, { resolve, reject });
+
+                this.worker.postMessage({
+                    type: 'CALL_SHIM',
+                    callId,
+                    payload: {
+                        cmd,
+                        arg1,
+                        arg2,
+                        bufferSize,
+                        bufferType
+                    }
+                });
+            });
+        }
+
+        /**
+         * Web Worker 内の C コア所持品リンクリスト (gi.invent) と装備スロットを 1 往復走査して一括取得 (Stage 8.2)
+         * @returns {Promise<{items: Array<Object>, equipment: {ptrArray: Array<number>}}>}
+         */
+        getInventorySnapshot() {
+            if (!this.worker) {
+                return Promise.reject(new Error('[NetHackWasmWorkerBridge] Worker instance not available'));
+            }
+
+            const callId = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            return new Promise((resolve, reject) => {
+                this._pendingInventoryCalls.set(callId, { resolve, reject });
+
+                this.worker.postMessage({
+                    type: 'GET_INVENTORY',
+                    callId
+                });
             });
         }
 

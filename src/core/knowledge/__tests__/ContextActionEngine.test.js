@@ -303,6 +303,124 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(dashE).toBeNull();
         });
     });
+
+    describe('Stage 8.3 - 罠付き扉 ＆ モンスター直結（誤攻撃完全防止・HP・状態異常）', () => {
+        it('罠付き扉（isTrappedDoor）に直面時、罠解除 (#untrap) が最優先 (priority: 98) で提示され、開くアクションに危険リスクが付くこと', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [],
+                adjacentEntities: [
+                    {
+                        dir: { code: 'N' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: { isClosedDoor: true, isTrappedDoor: true }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const untrapAction = actions.find(a => a.id === 'ACTION_UNTRAP_DOOR_N');
+            expect(untrapAction).toBeDefined();
+            expect(untrapAction.priority).toBe(98);
+            expect(untrapAction.label).toContain('罠感知!');
+
+            const openAction = actions.find(a => a.id === 'ACTION_OPEN_DOOR_N');
+            expect(openAction).toBeDefined();
+            expect(openAction.risk).toBe('danger');
+            expect(openAction.priority).toBe(65);
+        });
+
+        it('平和的NPC（isPeaceful）および店主・僧侶に対して近接攻撃アクションを一切生成せず、話しかけ (#chat) を優先提示すること', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [
+                    {
+                        dir: { code: 'E' },
+                        entity: {
+                            type: 'MONSTER',
+                            name: 'shopkeeper',
+                            isShopkeeper: true,
+                            isPeaceful: true,
+                            hp: 40,
+                            hpmax: 40,
+                            directState: { peaceful: true, isShopkeeper: true, hp: 40, hpmax: 40, sleeping: true }
+                        }
+                    },
+                    {
+                        dir: { code: 'W' },
+                        entity: {
+                            type: 'MONSTER',
+                            name: 'aligned priest',
+                            isPriest: true,
+                            isPeaceful: true,
+                            hp: 55,
+                            hpmax: 55,
+                            directState: { peaceful: true, isPriest: true, hp: 55, hpmax: 55 }
+                        }
+                    }
+                ],
+                adjacentEntities: []
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+
+            // 攻撃アクションが一切生成されていないこと（誤攻撃完全抑止）
+            expect(actions.some(a => a.id === 'ACTION_ATTACK_E')).toBe(false);
+            expect(actions.some(a => a.id === 'ACTION_ATTACK_W')).toBe(false);
+
+            // 店主への話しかけと支払い
+            const chatShop = actions.find(a => a.id === 'ACTION_CHAT_NPC_E');
+            expect(chatShop).toBeDefined();
+            expect(chatShop.label).toContain('店主');
+            expect(chatShop.label).toContain('HP:40/40');
+            expect(chatShop.label).toContain('睡眠中');
+
+            const payShop = actions.find(a => a.id === 'ACTION_PAY_E');
+            expect(payShop).toBeDefined();
+
+            // 僧侶への話しかけ
+            const chatPriest = actions.find(a => a.id === 'ACTION_CHAT_NPC_W');
+            expect(chatPriest).toBeDefined();
+            expect(chatPriest.label).toContain('僧侶');
+            expect(chatPriest.label).toContain('HP:55/55');
+        });
+
+        it('敵対モンスターに対しては攻撃アクションを生成し、HPゲージと状態異常を表示すること', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [
+                    {
+                        dir: { code: 'S' },
+                        entity: {
+                            type: 'MONSTER',
+                            name: 'orc',
+                            isPeaceful: false,
+                            isHostile: true,
+                            hp: 8,
+                            hpmax: 12,
+                            directState: { peaceful: false, fleeing: true, hp: 8, hpmax: 12 }
+                        }
+                    }
+                ],
+                adjacentEntities: []
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const attackOrc = actions.find(a => a.id === 'ACTION_ATTACK_S');
+            expect(attackOrc).toBeDefined();
+            expect(attackOrc.label).toContain('HP:8/12');
+            expect(attackOrc.label).toContain('逃走中');
+        });
+    });
 });
 
 

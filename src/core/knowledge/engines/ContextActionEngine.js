@@ -697,10 +697,20 @@ export class ContextActionEngine {
         if (!adjacentMonsters || adjacentMonsters.length === 0) return;
 
         adjacentMonsters.forEach(m => {
-            const isPet = (m.entity && m.entity.type === 'PET');
+            const isPet = (m.entity && (m.entity.type === 'PET' || m.entity.isPet || m.entity.isTame || m.entity.directState?.tame));
             const dirKey = this.getAbstractDirKey(m.dir);
             const dirMeta = this.getDirectionMeta(m.dir);
             const { dirNameJa, dirSymbol } = dirMeta;
+
+            // HP / 状態異常テキスト
+            const hp = m.entity?.hp ?? m.entity?.directState?.hp;
+            const hpmax = m.entity?.hpmax ?? m.entity?.directState?.hpmax;
+            const hpText = (typeof hp === 'number' && hpmax) ? ` [HP:${hp}/${hpmax}]` : '';
+
+            const isSleeping = Boolean(m.entity?.directState?.sleeping || m.entity?.dynamicState?.sleeping);
+            const isParalyzed = Boolean(m.entity?.directState?.paralyzed || m.entity?.dynamicState?.paralyzed);
+            const isFleeing = Boolean(m.entity?.directState?.fleeing || m.entity?.dynamicState?.fleeing);
+            const stateNote = isSleeping ? ' (睡眠中)' : (isParalyzed ? ' (麻痺中)' : (isFleeing ? ' (逃走中)' : ''));
 
             if (isPet) {
                 // ペット誤爆防止 (攻撃は絶対に生成しない)
@@ -708,8 +718,8 @@ export class ContextActionEngine {
                     actions.push({
                         id: `ACTION_CHAT_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Chat with pet [${m.dir.code}]`,
-                        labelJa: `ペットに話しかける [${dirNameJa}] (#chat)`,
+                        label: `Chat with pet [${m.dir.code}]${hpText}${stateNote}`,
+                        labelJa: `ペットに話しかける [${dirNameJa}] (#chat)${hpText}${stateNote}`,
                         key: `#chat${dirKey}`,
                         keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
@@ -723,22 +733,23 @@ export class ContextActionEngine {
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Talk to pet in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}のペットに話しかけます`
+                        description: `Talk to pet in ${dirNameJa}${hpText}${stateNote}`,
+                        descriptionJa: `${dirNameJa}のペットに話しかけます${hpText}${stateNote}`
                     });
                 }
             } else {
-                const isShopkeeper = isShopkeeperMonster(m.entity);
-                const isPeaceful = Boolean(m.entity?.isPeaceful || m.entity?.attitude === 'PEACEFUL' || isShopkeeper || m.entity?.knowledge?.defaultPeaceful);
-                const isHostile = Boolean(m.entity?.isHostile || m.entity?.attitude === 'HOSTILE');
+                const isShopkeeper = Boolean(isShopkeeperMonster(m.entity) || m.entity?.isShopkeeper || m.entity?.directState?.isShopkeeper);
+                const isPriest = Boolean(m.entity?.isPriest || m.entity?.directState?.isPriest);
+                const isPeaceful = Boolean(m.entity?.isPeaceful || m.entity?.directState?.peaceful || m.entity?.attitude === 'PEACEFUL' || isShopkeeper || isPriest || m.entity?.knowledge?.defaultPeaceful);
+                const isHostile = Boolean(m.entity?.isHostile || m.entity?.attitude === 'HOSTILE' || (m.entity?.directState && !m.entity.directState.peaceful));
 
-                // モンスター (近接攻撃) - 敵対中または非平和的モンスターのみ攻撃アクションを生成
+                // モンスター (近接攻撃) - 敵対中または非平和的モンスターのみ攻撃アクションを生成 (NPC誤攻撃の完全防止)
                 if ((!isPeaceful || isHostile) && !actions.some(a => a.id === `ACTION_ATTACK_${m.dir.code}`)) {
                     actions.push({
                         id: `ACTION_ATTACK_${m.dir.code}`,
                         category: 'COMBAT',
-                        label: `Attack target [${m.dir.code}]`,
-                        labelJa: `対象に攻撃 [${dirNameJa}]`,
+                        label: `Attack target [${m.dir.code}]${hpText}${stateNote}`,
+                        labelJa: `対象に攻撃 [${dirNameJa}]${hpText}${stateNote}`,
                         key: dirKey,
                         keySequence: [dirKey],
                         charStr: dirKey,
@@ -751,17 +762,19 @@ export class ContextActionEngine {
                         target: 'adjacent',
                         risk: 'warning',
                         priority: 80,
-                        description: `Attack creature in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}の対象に攻撃を試みます`
+                        description: `Attack creature in ${dirNameJa}${hpText}${stateNote}`,
+                        descriptionJa: `${dirNameJa}の対象に攻撃を試みます${hpText}${stateNote}`
                     });
                 }
                 // 話しかける (#chat)
                 if (!actions.some(a => a.id === `ACTION_CHAT_NPC_${m.dir.code}`)) {
+                    const chatTargetJa = isShopkeeper ? '店主' : (isPriest ? '僧侶' : '対象');
+                    const chatLabelJa = `${chatTargetJa}に話しかける [${dirNameJa}] (#chat)${hpText}${stateNote}`;
                     actions.push({
                         id: `ACTION_CHAT_NPC_${m.dir.code}`,
                         category: 'INTERACT',
-                        label: `Talk / Chat [${m.dir.code}]`,
-                        labelJa: `対象に話しかける [${dirNameJa}] (#chat)`,
+                        label: `Talk / Chat [${m.dir.code}]${hpText}${stateNote}`,
+                        labelJa: chatLabelJa,
                         key: `#chat${dirKey}`,
                         keySequence: ['#', 'chat', dirKey],
                         charStr: '#chat',
@@ -774,9 +787,9 @@ export class ContextActionEngine {
                         entity: m.entity,
                         target: 'adjacent',
                         risk: null,
-                        priority: isShopkeeper ? 90 : 30,
-                        description: `Talk to NPC or shopkeeper in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}のNPCや店主に話しかけます`
+                        priority: (isShopkeeper || isPriest || isPeaceful) ? 90 : 30,
+                        description: `Talk to ${chatTargetJa} in ${dirNameJa}${hpText}${stateNote}`,
+                        descriptionJa: `${dirNameJa}の${chatTargetJa}に話しかけます${hpText}${stateNote}`
                     });
                 }
                 // 店主に代金を支払う (#pay)
@@ -799,12 +812,11 @@ export class ContextActionEngine {
                         target: 'adjacent',
                         risk: null,
                         priority: 95,
-                        description: `Pay shopkeeper in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}の店主に商品の購入代金を支払います`
+                        description: `Pay shopkeeper for unpaid items in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の店主に所持している未払い品の代金を支払います`
                     });
                 }
             }
-
         });
     }
 
@@ -970,28 +982,29 @@ export class ContextActionEngine {
             if (!b || !b.cmapFlags) return;
             const flags = b.cmapFlags;
 
+            const isTrappedDoor = Boolean(flags.isTrappedDoor || b.door?.isTrapped || b.cellInfo?.door?.isTrapped);
+            const isLockedDoor = Boolean(flags.isLockedDoor || b.door?.isLocked || b.cellInfo?.door?.isLocked);
+            const isClosedOrLocked = flags.isClosedDoor || flags.isLockedDoor || isLockedDoor || (b.door && (b.door.isClosed || b.door.isLocked));
 
             // 閉じた扉 / 施錠された扉 (Closed Door / Locked Door)
-            if (flags.isClosedDoor || flags.isLockedDoor) {
-                if (!actions.some(a => a.id === `ACTION_OPEN_DOOR_${dirCode}`)) {
+            if (isClosedOrLocked) {
+                // 罠付き扉の場合、罠解除 (#untrap) を最優先提示
+                if (!actions.some(a => a.id.startsWith(`ACTION_UNTRAP_DOOR_${dirCode}`))) {
                     actions.push({
-                        id: `ACTION_OPEN_DOOR_${dirCode}`,
+                        id: `ACTION_UNTRAP_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Open door [${dirCode}]`,
-                        labelJa: `扉を開ける [${dirNameJa}]`,
-                        key: `o${dirKey}`,
-                        keySequence: ['o', dirKey],
-                        charStr: 'o',
+                        label: isTrappedDoor ? `Untrap door [TRAP DETECTED!]` : `Untrap door`,
+                        labelJa: isTrappedDoor ? `扉の罠解除 [罠感知!] (#untrap)` : `扉の罠解除 (#untrap)`,
+                        key: `#untrap${dirKey}`,
+                        charStr: '#untrap',
+                        extCmd: 'untrap',
                         directionKey: dirKey,
                         direction: item.dir,
-                        isDirectional: true,
-                        dirNameJa,
-                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
-                        priority: 90,
-                        description: `Open closed door in ${dirNameJa}`,
-                        descriptionJa: `${dirNameJa}の閉じたドアを開けます`
+                        priority: isTrappedDoor ? 98 : 75,
+                        description: isTrappedDoor ? `Disarm detected trap on door before opening` : `Disarm trap on door`,
+                        descriptionJa: isTrappedDoor ? `${dirNameJa}の扉にかかった罠を解除します (罠感知中)` : `扉にかかった罠を解除します`
                     });
                 }
 
@@ -1010,16 +1023,36 @@ export class ContextActionEngine {
                         dirNameJa,
                         dirSymbol,
                         target: 'adjacent',
-                        risk: null,
-                        priority: 95,
+                        risk: isTrappedDoor ? 'warning' : null,
+                        priority: isTrappedDoor ? 85 : 95,
                         description: `Apply ${keyItem.rawText || 'key'} to lock or unlock door in ${dirNameJa}`,
                         descriptionJa: `${dirNameJa}の扉を ${keyItem.rawText || '鍵/ロックピック'} で解錠/施錠します`
                     });
                 }
 
+                if (!actions.some(a => a.id === `ACTION_OPEN_DOOR_${dirCode}`)) {
+                    actions.push({
+                        id: `ACTION_OPEN_DOOR_${dirCode}`,
+                        category: 'INTERACT',
+                        label: `Open door [${dirCode}]`,
+                        labelJa: `扉を開ける [${dirNameJa}]`,
+                        key: `o${dirKey}`,
+                        keySequence: ['o', dirKey],
+                        charStr: 'o',
+                        directionKey: dirKey,
+                        direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
+                        target: 'adjacent',
+                        risk: isTrappedDoor ? 'danger' : null,
+                        priority: isTrappedDoor ? 65 : 90,
+                        description: `Open closed door in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の閉じたドアを開けます`
+                    });
+                }
 
-
-                if (!actions.some(a => a.id.startsWith('ACTION_KICK_DOOR'))) {
+                if (!actions.some(a => a.id.startsWith(`ACTION_KICK_DOOR_${dirCode}`))) {
                     actions.push({
                         id: `ACTION_KICK_DOOR_${dirCode}`,
                         category: 'INTERACT',
@@ -1032,28 +1065,10 @@ export class ContextActionEngine {
                         directionKey: dirKey,
                         direction: item.dir,
                         target: 'adjacent',
-                        risk: 'warning',
+                        risk: isTrappedDoor ? 'danger' : 'warning',
                         priority: 60,
                         description: `Kick door to break it down`,
                         descriptionJa: `扉を蹴破ります`
-                    });
-                }
-                if (!actions.some(a => a.id.startsWith('ACTION_UNTRAP_DOOR'))) {
-                    actions.push({
-                        id: `ACTION_UNTRAP_DOOR_${dirCode}`,
-                        category: 'INTERACT',
-                        label: `Untrap door`,
-                        labelJa: `扉の罠解除 (#untrap)`,
-                        key: `#untrap${dirKey}`,
-                        charStr: '#untrap',
-                        extCmd: 'untrap',
-                        directionKey: dirKey,
-                        direction: item.dir,
-                        target: 'adjacent',
-                        risk: null,
-                        priority: 75,
-                        description: `Disarm trap on door`,
-                        descriptionJa: `扉にかかった罠を解除します`
                     });
                 }
             }

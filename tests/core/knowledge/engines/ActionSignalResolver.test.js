@@ -206,4 +206,103 @@ describe('ActionSignalResolver', () => {
             expect(actionSig.recommendedActions[0].label).toBe('Unlock with key');
         });
     });
+
+    describe('Stage 8.3 - 罠付き扉 ＆ モンスター対峙 (平和・店主・僧侶)', () => {
+        it('罠付き扉に対峙した際、罠解除 (#untrap) を最優先推奨し警告を生成すること', () => {
+            ctx.setFocus({
+                type: 'DOOR',
+                name: 'wooden door',
+                isLocked: true,
+                isTrapped: true,
+                direction: 'DIR_N'
+            }, 'adjacent');
+
+            const actionSig = resolver.resolve(ctx);
+            expect(actionSig).not.toBeNull();
+            expect(actionSig.signalId).toBe('ACT_DOOR_INTERACTION');
+            expect(actionSig.target.isTrapped).toBe(true);
+
+            // 罠解除が最優先
+            const firstAction = actionSig.recommendedActions[0];
+            expect(firstAction.method).toBe('UNTRAP');
+            expect(firstAction.actionKey).toBe('#untrap');
+            expect(actionSig.warnings.some(w => w.includes('罠'))).toBe(true);
+            expect(actionSig.actionRecipe.recipeId).toBe('UNTRAP_DOOR');
+        });
+
+        it('店主に対峙した際、代金支払い (#pay) と話しかけ (#chat) を推奨し警告を出すこと', () => {
+            ctx.setFocus({
+                type: 'MONSTER',
+                name: 'Izchak',
+                isShopkeeper: true,
+                direction: 'DIR_E'
+            }, 'adjacent');
+
+            const actionSig = resolver.resolve(ctx);
+            expect(actionSig).not.toBeNull();
+            expect(actionSig.signalId).toBe('ACT_MONSTER_INTERACTION');
+            expect(actionSig.target.isShopkeeper).toBe(true);
+
+            const methods = actionSig.recommendedActions.map(a => a.method);
+            expect(methods).toContain('PAY');
+            expect(methods).toContain('CHAT');
+            expect(methods).not.toContain('ATTACK'); // 誤攻撃完全抑止
+            expect(actionSig.warnings.some(w => w.includes('店主'))).toBe(true);
+        });
+
+        it('寺院の僧侶に対峙した際、寄進・話しかけ (#chat) を推奨すること', () => {
+            ctx.setFocus({
+                type: 'MONSTER',
+                name: 'aligned priest',
+                isPriest: true,
+                direction: 'DIR_S'
+            }, 'adjacent');
+
+            const actionSig = resolver.resolve(ctx);
+            expect(actionSig).not.toBeNull();
+            expect(actionSig.signalId).toBe('ACT_MONSTER_INTERACTION');
+            expect(actionSig.target.isPriest).toBe(true);
+
+            const methods = actionSig.recommendedActions.map(a => a.method);
+            expect(methods).toContain('CHAT');
+            expect(methods).not.toContain('ATTACK');
+            expect(actionSig.warnings.some(w => w.includes('僧侶'))).toBe(true);
+        });
+
+        it('平和的NPCに対峙した際、話しかけ (#chat) を推奨し通常攻撃を生成しないこと', () => {
+            ctx.setFocus({
+                type: 'MONSTER',
+                name: 'watchman',
+                isPeaceful: true,
+                direction: 'DIR_W'
+            }, 'adjacent');
+
+            const actionSig = resolver.resolve(ctx);
+            expect(actionSig).not.toBeNull();
+            expect(actionSig.signalId).toBe('ACT_MONSTER_INTERACTION');
+            expect(actionSig.target.isPeaceful).toBe(true);
+
+            const methods = actionSig.recommendedActions.map(a => a.method);
+            expect(methods).toContain('CHAT');
+            expect(methods).not.toContain('ATTACK');
+        });
+
+        it('敵対モンスターに対峙した際、攻撃アクションを推奨すること', () => {
+            ctx.setFocus({
+                type: 'MONSTER',
+                name: 'goblin',
+                isPeaceful: false,
+                isHostile: true,
+                direction: 'DIR_N'
+            }, 'adjacent');
+
+            const actionSig = resolver.resolve(ctx);
+            expect(actionSig).not.toBeNull();
+            expect(actionSig.signalId).toBe('ACT_MONSTER_INTERACTION');
+
+            const methods = actionSig.recommendedActions.map(a => a.method);
+            expect(methods).toContain('ATTACK');
+            expect(actionSig.actionRecipe.recipeId).toBe('ATTACK_MONSTER');
+        });
+    });
 });

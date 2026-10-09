@@ -276,5 +276,171 @@ self.onmessage = async function(e) {
             self.postMessage({ type: 'GET_LAST_SEQUENCE_BUFFER_RESULT', buffer, requestId: payload ? payload.requestId : null });
             break;
         }
+
+        case 'CALL_SHIM': {
+            const { callId, payload } = e.data;
+            const { cmd, arg1 = 0, arg2 = 0, bufferSize = 0, bufferType = 'int32' } = payload || {};
+
+            const mem = (driver && driver.memory) ? driver.memory : 
+                        (typeof NetHackMemory !== 'undefined' && self.Module ? new NetHackMemory(self.Module) : null);
+
+            if (!mem || !mem.isBridgeAvailable()) {
+                self.postMessage({
+                    type: 'SHIM_ERROR',
+                    callId,
+                    error: 'NetHackMemory or _shim_bridge_call is not available in worker'
+                });
+                break;
+            }
+
+            try {
+                let bufPtr = 0;
+                if (bufferSize > 0) {
+                    bufPtr = mem.allocateBuffer(bufferSize);
+                }
+
+                const result = mem.bridgeCall(cmd, arg1, arg2, bufPtr, bufferSize);
+
+                let bufferData = null;
+                if (bufPtr > 0 && bufferSize > 0) {
+                    if (bufferType === 'uint8') {
+                        bufferData = Array.from(mem.readUint8Array(bufPtr, bufferSize));
+                    } else if (bufferType === 'string') {
+                        bufferData = mem.readString(bufPtr, bufferSize);
+                    } else {
+                        const count = Math.floor(bufferSize / 4);
+                        bufferData = Array.from(mem.readInt32Array(bufPtr, count));
+                    }
+                    mem.freeBuffer(bufPtr);
+                }
+
+                self.postMessage({
+                    type: 'SHIM_RESULT',
+                    callId,
+                    result,
+                    buffer: bufferData
+                });
+            } catch (err) {
+                console.error('[nethack.worker] Error in CALL_SHIM:', err);
+                self.postMessage({
+                    type: 'SHIM_ERROR',
+                    callId,
+                    error: err ? err.message : 'Unknown error during CALL_SHIM'
+                });
+            }
+            break;
+        }
+
+        case 'GET_INVENTORY': {
+            const { callId } = e.data;
+            const mem = (driver && driver.memory) ? driver.memory : 
+                        (typeof NetHackMemory !== 'undefined' && self.Module ? new NetHackMemory(self.Module) : null);
+
+            if (!mem || !mem.isBridgeAvailable()) {
+                self.postMessage({
+                    type: 'GET_INVENTORY_RESULT',
+                    callId,
+                    items: [],
+                    equipment: { ptrArray: [] }
+                });
+                break;
+            }
+
+            try {
+                // 1. 所持品リンクリスト走査 (gi.invent)
+                const headPtr = mem.bridgeCall(0x40, 0, 0, 0, 0); // SHIM_CMD_GET_INVENT_PTR
+                const items = [];
+                const visited = new Set();
+                const MAX_ITEMS = 100;
+                const bufSize = 32;
+                const bufPtr = mem.allocateBuffer(bufSize);
+
+                if (bufPtr) {
+                    try {
+                        let currPtr = headPtr;
+                        while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_ITEMS) {
+                            visited.add(currPtr);
+                            const res = mem.bridgeCall(0x42, currPtr, 0, bufPtr, bufSize); // SHIM_CMD_DUMP_OBJECT_INFO
+                            if (res === 0) {
+                                const rawValues = mem.readInt32Array(bufPtr, 8);
+                                const otyp = rawValues[0];
+                                const owt = rawValues[1];
+                                const quan = rawValues[2];
+                                const spe = (rawValues[3] << 24) >> 24;
+                                const oclass = rawValues[4];
+                                const invletCode = rawValues[5];
+                                const invlet = (invletCode > 0 && invletCode < 128) ? String.fromCharCode(invletCode) : '';
+                                const flagsRaw = rawValues[6];
+                                const weight = rawValues[7];
+
+                                const flags = {
+                                    blessed: Boolean(flagsRaw & 0x01),
+                                    cursed: Boolean(flagsRaw & 0x02),
+                                    bknown: Boolean(flagsRaw & 0x04),
+                                    dknown: Boolean(flagsRaw & 0x08),
+                                    rknown: Boolean(flagsRaw & 0x10),
+                                    oeroded: (flagsRaw >> 5) & 0x03,
+                                    oeroded2: (flagsRaw >> 7) & 0x03,
+                                };
+
+                                const cobjPtr = mem.getValue(currPtr + 8, 'i32');
+                                const o_id = mem.getValue(currPtr + 12, 'i32');
+
+                                items.push({
+                                    ptr: currPtr,
+                                    rawObjPtr: currPtr,
+                                    otyp,
+                                    onum: otyp,
+                                    owt,
+                                    quan,
+                                    spe,
+                                    oclass,
+                                    invlet,
+                                    flags,
+                                    weight,
+                                    cobjPtr,
+                                    o_id
+                                });
+                            }
+                            currPtr = mem.getValue(currPtr, 'i32');
+                        }
+                    } finally {
+                        mem.freeBuffer(bufPtr);
+                    }
+                }
+
+                // 2. 装備スロットポインタ取得 (14 slots)
+                const equipBufSize = 56;
+                const equipBufPtr = mem.allocateBuffer(equipBufSize);
+                let ptrArray = [];
+                if (equipBufPtr) {
+                    try {
+                        const eqRes = mem.bridgeCall(0x41, 0, 0, equipBufPtr, equipBufSize); // SHIM_CMD_GET_EQUIPMENT_PTRS
+                        if (eqRes === 0) {
+                            ptrArray = Array.from(mem.readInt32Array(equipBufPtr, 14));
+                        }
+                    } finally {
+                        mem.freeBuffer(equipBufPtr);
+                    }
+                }
+
+                self.postMessage({
+                    type: 'GET_INVENTORY_RESULT',
+                    callId,
+                    items,
+                    equipment: { ptrArray }
+                });
+            } catch (err) {
+                console.error('[nethack.worker] Error in GET_INVENTORY:', err);
+                self.postMessage({
+                    type: 'GET_INVENTORY_RESULT',
+                    callId,
+                    items: [],
+                    equipment: { ptrArray: [] },
+                    error: err ? err.message : 'Unknown error'
+                });
+            }
+            break;
+        }
     }
 };

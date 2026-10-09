@@ -216,11 +216,13 @@ export class EncumbranceStateManager {
      * @param {Object} [options.statusAccessor]
      * @param {Object} [options.inventoryStateManager]
      * @param {Object} [options.containerContentsManager]
+     * @param {Object} [options.wasmDirectBindingService]
      */
     constructor(options = {}) {
         this.statusAccessor = options.statusAccessor || null;
         this.inventoryStateManager = options.inventoryStateManager || null;
         this.containerContentsManager = options.containerContentsManager || null;
+        this.wasmDirectBindingService = options.wasmDirectBindingService || null;
 
         /** @type {Map<string, Object>} letter -> ContainerWeightRecord */
         this.containerCache = new Map();
@@ -231,6 +233,10 @@ export class EncumbranceStateManager {
         if (this.containerContentsManager) {
             this.setContainerContentsManager(this.containerContentsManager);
         }
+    }
+
+    setWasmDirectBindingService(service) {
+        this.wasmDirectBindingService = service;
     }
 
     setStatusAccessor(sa) {
@@ -306,6 +312,19 @@ export class EncumbranceStateManager {
      */
     getItemWeight(item) {
         if (!item) return 0;
+
+        // Wasm 直接バインディングによる真の重量 (weight(o)) が事前設定されている場合は最優先
+        if (typeof item.weight === 'number' && item.weight >= 0) {
+            return item.weight;
+        }
+
+        // サービスから直接単体アイテム重量を取得可能な場合
+        if (this.wasmDirectBindingService && (item.rawObjPtr || item.ptr)) {
+            const directObjWeight = this.wasmDirectBindingService.getObjectWeight(item.rawObjPtr || item.ptr);
+            if (directObjWeight >= 0) {
+                return directObjWeight;
+            }
+        }
 
         // 金貨判定 (100枚ごとに重量 1)
         const isGold = item.isGold || item.letter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|枚の金貨|^金貨$)/i.test(item.rawText || item.name || '');
@@ -511,28 +530,40 @@ export class EncumbranceStateManager {
         let totalWeight = 0;
         let hasGoldInInventory = false;
 
-        invItems.forEach(item => {
-            if (!item) return;
-            if (item.isGold || item.letter === '$') {
-                hasGoldInInventory = true;
-            }
-
-            // コンテナの場合はキャッシュの実効重量を採用
-            if (item.letter && this.containerCache.has(item.letter)) {
-                const rec = this.containerCache.get(item.letter);
-                totalWeight += rec.effectiveWeight;
-            } else {
-                totalWeight += this.getItemWeight(item);
-            }
-        });
-
-        // 手持ちインベントリ一覧に金貨アイテムがなく、StatusAccessor に所持金がある場合の合算
         let statusObj = null;
         if (this.statusAccessor && typeof this.statusAccessor.getStatus === 'function') {
             statusObj = this.statusAccessor.getStatus();
         }
-        if (!hasGoldInInventory && statusObj && statusObj.gold && typeof statusObj.gold.amount === 'number' && statusObj.gold.amount > 0) {
-            totalWeight += Math.floor(statusObj.gold.amount / 100);
+
+        // 🎯 Wasm 直接バインディングによる公式真の重量 (_inv_weight()) の取得 (Stage 8.2)
+        // Bag of Holding や金貨を含むコア完全同期値を最優先採用
+        let directWeight = -1;
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getInventoryWeight === 'function') {
+            directWeight = this.wasmDirectBindingService.getInventoryWeight();
+        }
+
+        if (directWeight >= 0) {
+            totalWeight = directWeight;
+        } else {
+            invItems.forEach(item => {
+                if (!item) return;
+                if (item.isGold || item.letter === '$') {
+                    hasGoldInInventory = true;
+                }
+
+                // コンテナの場合はキャッシュの実効重量を採用
+                if (item.letter && this.containerCache.has(item.letter)) {
+                    const rec = this.containerCache.get(item.letter);
+                    totalWeight += rec.effectiveWeight;
+                } else {
+                    totalWeight += this.getItemWeight(item);
+                }
+            });
+
+            // 手持ちインベントリ一覧に金貨アイテムがなく、StatusAccessor に所持金がある場合の合算
+            if (!hasGoldInInventory && statusObj && statusObj.gold && typeof statusObj.gold.amount === 'number' && statusObj.gold.amount > 0) {
+                totalWeight += Math.floor(statusObj.gold.amount / 100);
+            }
         }
 
         // 許容量の算出

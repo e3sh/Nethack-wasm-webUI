@@ -37,6 +37,17 @@ export function normalizeFloorKey(floorKey) {
 }
 
 /**
+ * ダンジョンフロア識別子から階層番号を取得 (例: "Dlvl:3" -> 3, "Minetown:2" -> 2)
+ * @param {string|number} floorKey
+ * @returns {number}
+ */
+export function parseFloorLevel(floorKey) {
+    const normalized = normalizeFloorKey(floorKey);
+    const match = normalized.match(/:(\d+)$/);
+    return match ? parseInt(match[1], 10) : 1;
+}
+
+/**
  * 足元またはエンティティ出現マス用の仮床オブジェクトを生成
  * @returns {Object}
  */
@@ -51,7 +62,7 @@ export function createInferredFloor() {
 }
 
 export class AreaStateManager {
-    constructor(width = 80, height = 24, monsterTracker = null) {
+    constructor(width = 80, height = 24, monsterTracker = null, directBindingService = null) {
         this.width = width;
         this.height = height;
         this.playerX = 0;
@@ -62,7 +73,10 @@ export class AreaStateManager {
         this.lastMoveDy = 0;
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
+        this.directBindingService = directBindingService;
         this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
+        this.prevFloor = null;           // 直前のフロア識別子 (フロア遷移時の階層方向判定用)
+        this.justTransitionedFloor = false; // 直前にフロア遷移が発生したフラグ
         this.stairCache = new Map();     // フロア別階段キャッシュ ("floor:x,y" => terrainEntity) (後方互換性維持)
         this.landmarkCache = new Map();  // フロア別ランドマーク台帳キャッシュ ("floor:x,y:type" => LandmarkEntity)
         this._hasSeededInitialStair = false; // ゲーム開始時 (Dlvl:1) 初手足元上り階段の先行シード済みフラグ
@@ -73,6 +87,146 @@ export class AreaStateManager {
         this.dirtyCells = new Set();     // 変更があったセルの座標キャッシュ ("x,y")
         this.grid = [];
         this.resetGrid();
+    }
+
+    /**
+     * WasmDirectBindingService インスタンスを設定
+     * @param {Object} service 
+     */
+    setDirectBindingService(service) {
+        this.directBindingService = service;
+    }
+
+    /**
+     * Wasm メモリ直結による真の床（地形・部屋・罠・刻み文字）エンティティを生成
+     * @param {number} x 
+     * @param {number} y 
+     * @returns {Object}
+     */
+    getGenuineFloor(x, y) {
+        if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
+            const cellInfo = this.directBindingService.getCellInfo(x, y);
+            if (cellInfo) {
+                let glyphId = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
+                switch (cellInfo.typ) {
+                    case 16: // POOL
+                    case 17: // MOAT
+                    case 18: // WATER
+                        glyphId = 4015;
+                        break;
+                    case 20: // LAVAPOOL
+                    case 21: // LAVAWALL
+                        glyphId = 4017;
+                        break;
+                    case 22: // IRONBARS
+                        glyphId = 3990;
+                        break;
+                    case 23: // DOOR
+                        glyphId = (cellInfo.door && cellInfo.door.isOpen) ? 3986 : 3988;
+                        break;
+                    case 14: // SDOOR
+                        glyphId = 3988;
+                        break;
+                    case 24: // CORR
+                    case 15: // SCORR
+                        glyphId = 3995;
+                        break;
+                    case 25: // ROOM
+                        glyphId = 3992;
+                        break;
+                    case 26: { // STAIRS
+                        const stairKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                        if (this.stairCache && this.stairCache.has(stairKey)) {
+                            glyphId = this.stairCache.get(stairKey).glyph;
+                        } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
+                            glyphId = 4001; // 浅い階に上がってきた場合: 下り階段
+                        } else {
+                            glyphId = 4000; // 深い階に降りてきた場合: 上り階段
+                        }
+                        break;
+                    }
+                    case 27: { // LADDER
+                        const ladderKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                        if (this.stairCache && this.stairCache.has(ladderKey)) {
+                            glyphId = this.stairCache.get(ladderKey).glyph;
+                        } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
+                            glyphId = 4005; // 下りハシゴ
+                        } else {
+                            glyphId = 4004; // 上りハシゴ
+                        }
+                        break;
+                    }
+                    case 28: // FOUNTAIN
+                        glyphId = 4014;
+                        break;
+                    case 29: // THRONE
+                        glyphId = 4012;
+                        break;
+                    case 30: // SINK
+                        glyphId = 4013;
+                        break;
+                    case 31: // GRAVE
+                        glyphId = 4011;
+                        break;
+                    case 32: // ALTAR
+                        glyphId = 4008;
+                        break;
+                    case 33: // ICE
+                        glyphId = 4016;
+                        break;
+                    case 35: // AIR
+                        glyphId = 4023;
+                        break;
+                    case 36: // CLOUD
+                        glyphId = 4024;
+                        break;
+                    default:
+                        glyphId = (cellInfo.typ >= 1 && cellInfo.typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
+                        break;
+                }
+
+                const classified = classifyGlyph(glyphId);
+                const genuineEntity = {
+                    ...classified,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    inferred: false,
+                    isGenuine: true,
+                    cellInfo
+                };
+
+                // 部屋番号・店舗情報付与
+                if (cellInfo.roomno > 0) {
+                    const roomData = this.directBindingService.getRoomType(cellInfo.roomno);
+                    if (roomData) {
+                        genuineEntity.room = roomData;
+                    }
+                }
+
+                // 床の罠情報
+                const trapData = this.directBindingService.getTrapAt(x, y);
+                if (trapData) {
+                    genuineEntity.trap = trapData;
+                }
+
+                // 刻み文字情報
+                const engrData = this.directBindingService.getEngravingAt(x, y);
+                if (engrData) {
+                    genuineEntity.engraving = engrData;
+                    this.setEngravingAt(x, y, engrData);
+                }
+
+                return genuineEntity;
+            }
+        }
+
+        const currentNormalized = normalizeFloorKey(this.currentFloor);
+        const stairKey = `${currentNormalized}:${x},${y}`;
+        if (this.stairCache && this.stairCache.has(stairKey)) {
+            return { ...this.stairCache.get(stairKey) };
+        }
+
+        return createInferredFloor();
     }
 
     /**
@@ -157,6 +311,11 @@ export class AreaStateManager {
             const floorChanged = this.currentFloor !== normalized;
             const wasPending = this.isFloorPending;
 
+            if (floorChanged) {
+                this.prevFloor = this.currentFloor;
+                this.justTransitionedFloor = true;
+            }
+
             this.currentFloor = normalized;
             this.isFloorPending = false;
 
@@ -193,6 +352,8 @@ export class AreaStateManager {
         this.stairCache.clear();
         this.pendingStairs = [];
         this._hasSeededInitialStair = false;
+        this.prevFloor = null;
+        this.justTransitionedFloor = false;
     }
 
     /**
@@ -205,34 +366,29 @@ export class AreaStateManager {
     }
 
     /**
-     * ゲーム開始時 (Dlvl:1) の初期位置に上り階段を先行キャッシュ登録
-     * NetHack 5.0 では開始時にプレイヤー直下の階段グリフが送信されないため、
-     * 100% 確定している初手上り階段を先行シードして足元を美しく描画・台帳登録する
-     * @param {number} x 
-     * @param {number} y 
-     * @returns {boolean} シード登録されたか否か
+     * 指定座標に階段エンティティを生成し、キャッシュ・台帳・グリッドへ登録
+     * @param {number} x
+     * @param {number} y
+     * @param {number} stairGlyph
+     * @param {string} floorKey
+     * @returns {boolean}
      */
-    seedInitialStair(x, y) {
-        if (this._hasSeededInitialStair) return false;
-        if (normalizeFloorKey(this.currentFloor) !== 'Dlvl:1') return false;
-        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
-
-        this._hasSeededInitialStair = true;
-        const stairGlyph = 4002; // ブランチ上り階段 (地上脱出階段: GLYPH_CMAP_OFF + 73)
+    _registerStairAt(x, y, stairGlyph, floorKey) {
         const stairInfo = classifyGlyph(stairGlyph);
         const stairEntity = {
             ...stairInfo,
             glyph: stairGlyph,
             rawGlyph: stairGlyph,
-            inferred: false
+            inferred: false,
+            isGenuine: true
         };
 
-        const key = `Dlvl:1:${x},${y}`;
+        const key = `${floorKey}:${x},${y}`;
         this.stairCache.set(key, stairEntity);
 
         const landmark = this.extractLandmarkEntity(x, y, stairGlyph, stairInfo);
         if (landmark) {
-            this._saveLandmarkToCache(landmark, x, y, 'Dlvl:1');
+            this._saveLandmarkToCache(landmark, x, y, floorKey);
         }
 
         const cell = this.grid[y] && this.grid[y][x];
@@ -242,6 +398,76 @@ export class AreaStateManager {
         }
 
         return true;
+    }
+
+    /**
+     * フロア移動時や初期開始時に、足元にある階段を判定・先行キャッシュ登録
+     * NetHack 5.0 では新フロア到着時にプレイヤー直下の階段グリフが送信されないため、
+     * メモリ直結情報および階層遷移の方向性（Dlvl 増減）から 100% 確実に上り/下り階段を同定して即時登録する
+     * ※ 落下やテレポートによるフロア移動時は typ !== 26/27 となるため階段は絶対にシードされない
+     * @param {number} x 
+     * @param {number} y 
+     * @returns {boolean} シード登録されたか否か
+     */
+    seedArrivalStair(x, y) {
+        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
+
+        const currentNormalized = normalizeFloorKey(this.currentFloor);
+        const key = `${currentNormalized}:${x},${y}`;
+
+        // すでにキャッシュ済みであれば再登録不要
+        if (this.stairCache && this.stairCache.has(key)) return false;
+
+        // セル情報の取得 (WasmDirectBindingService による直接取得)
+        let cellInfo = null;
+        if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
+            cellInfo = this.directBindingService.getCellInfo(x, y);
+        }
+
+        // 🎯 階段 (26) または ハシゴ (27) であることが真に確定している場合のみシード！
+        // （落下・テレポートで部屋床や通路等に落ちた場合は typ !== 26 && typ !== 27 のため絶対に階段は沸かない）
+        if (cellInfo && (cellInfo.typ === 26 || cellInfo.typ === 27)) {
+            const isLadder = cellInfo.typ === 27;
+            const prevLvl = this.prevFloor ? parseFloorLevel(this.prevFloor) : 1;
+            const currLvl = parseFloorLevel(currentNormalized);
+
+            // Dlvl:1 かつ prevFloor なしの初期開始位置階段であれば脱出階段 (4002)
+            if (currentNormalized === 'Dlvl:1' && !this.prevFloor && !isLadder) {
+                this._hasSeededInitialStair = true;
+                return this._registerStairAt(x, y, 4002, currentNormalized);
+            }
+
+            // 浅い階に上がってきた場合 -> 足元は前の階に戻る下り階段
+            // 深い階に降りてきた場合 (または同等) -> 足元は前の階に戻る上り階段
+            const isUp = !(this.prevFloor && prevLvl > currLvl);
+
+            let stairGlyph;
+            if (isLadder) {
+                stairGlyph = isUp ? 4004 : 4005;
+            } else {
+                stairGlyph = isUp ? 4000 : 4001;
+            }
+
+            return this._registerStairAt(x, y, stairGlyph, currentNormalized);
+        }
+
+        return false;
+    }
+
+    /**
+     * ゲーム開始時 (Dlvl:1) の初期位置に上り階段を先行キャッシュ登録 (後方互換性)
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean}
+     */
+    seedInitialStair(x, y) {
+        if (this._hasSeededInitialStair) return false;
+        if (normalizeFloorKey(this.currentFloor) !== 'Dlvl:1') return false;
+        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
+
+        this._hasSeededInitialStair = true;
+        const stairGlyph = 4002;
+        return this._registerStairAt(x, y, stairGlyph, 'Dlvl:1');
     }
 
     /**
@@ -667,7 +893,7 @@ export class AreaStateManager {
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
+                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
                     let genuineTerrain = null;
                     if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
                         const bgClassified = classifyGlyph(bkglyphInfo.glyph);
@@ -680,7 +906,7 @@ export class AreaStateManager {
                             };
                         }
                     }
-                    cell.bottom = genuineTerrain || createInferredFloor();
+                    cell.bottom = genuineTerrain || this.getGenuineFloor(x, y);
                     this.markDirty(x, y);
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
@@ -709,7 +935,7 @@ export class AreaStateManager {
                 const existingDynamic = (cell.top && (cell.top.monOffset === info.monOffset || cell.top.glyph === glyphId))
                     ? cell.top.dynamicState
                     : null;
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) {
+                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
                     let genuineTerrain = null;
                     if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
                         const bgClassified = classifyGlyph(bkglyphInfo.glyph);
@@ -722,10 +948,41 @@ export class AreaStateManager {
                             };
                         }
                     }
-                    cell.bottom = genuineTerrain || createInferredFloor();
+                    cell.bottom = genuineTerrain || this.getGenuineFloor(x, y);
                     this.markDirty(x, y);
                 }
-                cell.top = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId, dynamicState: existingDynamic };
+
+                // モンスターメモリ直結情報の取得
+                let directMon = null;
+                if (this.directBindingService && typeof this.directBindingService.getFullMonsterAt === 'function') {
+                    directMon = this.directBindingService.getFullMonsterAt(x, y);
+                }
+
+                cell.top = {
+                    ...info,
+                    glyphInfo,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    dynamicState: existingDynamic,
+                    ...(directMon ? {
+                        isPeaceful: directMon.peaceful,
+                        isTame: directMon.tame,
+                        isShopkeeper: directMon.isShopkeeper || info.isShopkeeper,
+                        isPriest: directMon.isPriest,
+                        hp: directMon.hp,
+                        hpmax: directMon.hpmax,
+                        directState: directMon,
+                        dynamicState: {
+                            ...(existingDynamic || {}),
+                            hp: directMon.hp,
+                            hpmax: directMon.hpmax,
+                            isPeaceful: directMon.peaceful,
+                            sleeping: directMon.sleeping,
+                            fleeing: directMon.fleeing,
+                            paralyzed: directMon.paralyzed
+                        }
+                    } : {})
+                };
                 cell.effect = null;
                 if (this.monsterTracker && typeof this.monsterTracker.updateVisibleMonster === 'function') {
                     this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo, { x: this.playerX, y: this.playerY });
@@ -759,6 +1016,10 @@ export class AreaStateManager {
      */
     updatePlayerPosition(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            // フロア移動時や移動先に未キャッシュの階段があれば先行判定・即時登録
+            this.seedArrivalStair(x, y);
+            this.justTransitionedFloor = false;
+
             if (this.monsterTracker && typeof this.monsterTracker.handlePlayerPosition === 'function') {
                 this.monsterTracker.handlePlayerPosition(x, y);
             }
@@ -772,6 +1033,14 @@ export class AreaStateManager {
                 } else if (cell.bottom && cell.bottom.isCachedPreload) {
                     delete cell.bottom.isCachedPreload;
                     this.markDirty(x, y);
+                }
+
+                // 足元の刻み文字をメモリ直結から最新化
+                if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
+                    const engr = this.directBindingService.getEngravingAt(x, y);
+                    if (engr) {
+                        this.setEngravingAt(x, y, engr);
+                    }
                 }
             }
             if (this.playerX === x && this.playerY === y) return false;
@@ -808,6 +1077,58 @@ export class AreaStateManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Wasm メモリから直接、プレイヤー周辺またはフロア全体の真の床・罠・部屋・モンスター情報を一括同期
+     * @param {number} [radius=0] 同期半径 (0 の場合は全フロア 80x21)
+     */
+    syncFromDirectBinding(radius = 0) {
+        if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
+            return;
+        }
+
+        const minX = radius > 0 ? Math.max(0, this.playerX - radius) : 0;
+        const maxX = radius > 0 ? Math.min(this.width - 1, this.playerX + radius) : this.width - 1;
+        const minY = radius > 0 ? Math.max(0, this.playerY - radius) : 0;
+        const maxY = radius > 0 ? Math.min(this.height - 1, this.playerY + radius) : this.height - 1;
+
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const cell = this.grid[y] && this.grid[y][x];
+                if (!cell) continue;
+
+                // 未探索または推測床の場合、真の床を同期
+                if (cell.bottom === null || cell.bottom.inferred) {
+                    cell.bottom = this.getGenuineFloor(x, y);
+                    this.markDirty(x, y);
+                }
+
+                // モンスターが存在する場合、詳細（HP・平和・店主等）を同期
+                if (cell.top && typeof this.directBindingService.getFullMonsterAt === 'function') {
+                    const mon = this.directBindingService.getFullMonsterAt(x, y);
+                    if (mon) {
+                        cell.top.isPeaceful = mon.peaceful;
+                        cell.top.isTame = mon.tame;
+                        cell.top.isShopkeeper = mon.isShopkeeper || cell.top.isShopkeeper;
+                        cell.top.isPriest = mon.isPriest;
+                        cell.top.hp = mon.hp;
+                        cell.top.hpmax = mon.hpmax;
+                        cell.top.directState = mon;
+                        cell.top.dynamicState = {
+                            ...(cell.top.dynamicState || {}),
+                            hp: mon.hp,
+                            hpmax: mon.hpmax,
+                            isPeaceful: mon.peaceful,
+                            sleeping: mon.sleeping,
+                            fleeing: mon.fleeing,
+                            paralyzed: mon.paralyzed
+                        };
+                        this.markDirty(x, y);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -862,11 +1183,10 @@ export class AreaStateManager {
                 row.push(enrichedCell);
 
                 if (dx === 0 && dy === 0) {
-                    if (enrichedCell.bottom === null) {
-                        feetState = { ...enrichedCell, bottom: createInferredFloor() };
-                    } else {
-                        feetState = enrichedCell;
+                    if (enrichedCell.bottom === null || enrichedCell.bottom.inferred) {
+                        enrichedCell.bottom = this.getGenuineFloor(targetX, targetY);
                     }
+                    feetState = enrichedCell;
                 } else {
                     // 隣接するモンスター検出
                     if (enrichedCell.top && (enrichedCell.top.type === ENTITY_TYPES.MONSTER || enrichedCell.top.type === ENTITY_TYPES.PET)) {

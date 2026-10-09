@@ -44,15 +44,22 @@ last_updated: 2026-10-08
   - **単一汎用ディスパッチャー窓口 (`shim_bridge_call`)**: 個別関数を乱立させず、Unix `ioctl` のように 1 つの窓口関数のみをエクスポート。Driverは透過中継に徹し、GKLが `SHIM_CMD_*` の定義とアンパックを司る。
   - 1マスずつWASM境界を往復するオーバーヘッドを排除し、単一呼び出しで「真の床 + 施錠フラグ + 明暗」をビットパック一括返却。
 - **マイグレーションステップ**:
-  - [ ] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
+  - [x] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
     - `win/shim/shim_bridge.c`（単一エクスポート `shim_bridge_call`）を新設、`nethack_files.rsp` および `nethack_flags.rsp` に追記してビルド
-    - `NetHackMemory.js` に `bridgeCall(cmd, a1, a2, buf, len)` を 1 つだけ実装
-    - `NetHackWasmDriver.js` の `shim_add_menu` で `rawObjPtr` をディスパッチ
-  - [ ] **Stage 8.2: コンテナ・アイテム・所持重量の完全直結**
-    - `NetHackObjectSchema.js` を新設し、`Module._weight()` / `Module._inv_weight()` を `EncumbranceStateManager` へ直結
-    - 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT` ➔ `obj->blessed/cursed/bknown`）をナレッジカードへ連携
-  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定 ＆ モンスターPeaceful直結**
-    - `WasmDirectBindingService.js` を新設（`SHIM_CMD_*` 定数とアンパック群）
+    - `NetHackMemory.js` に `bridgeCall(cmd, a1, a2, buf, len)` を実装
+    - `WasmDirectBindingService.js` による基本的なドメイン抽出
+  - [x] **Stage 8.2-A: Web Worker 隔離調停プロトコルの配備**
+    - `NetHackWasmWorkerBridge.js` ↔ `nethack.worker.js` 間の非同期調停（`CALL_SHIM`, `GET_INVENTORY`）
+    - ターン確定時（`WAITING_INPUT && isTopLevelTurn`）での 1 往復静止同期モデルの確立
+  - [ ] **Stage 8.2-B: inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築（新規・最優先着手）**
+    - [direct_binding_verification_environment_plan.md](./1_driver/direct_binding_verification_environment_plan.md)
+    - `inspector_console.html` に「所持品同期方式（🟢SHIM vs 🔵MACRO）」および「足元床状態（🟢SHIM vs 🟡INFERRED 3992）」のランプ・インジケーターを新設
+    - `DIRECT_BINDING_MODE`（`auto` / `strict` / `fallback`）の切替スイッチ（config / BroadcastChannel 送出）を配備
+    - フォールバック完全遮断（`strict` モード）下で、直接調停が 100% 確実に稼働していることを実機・シナリオ・結合テストで検証可能にする
+  - [ ] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結（残りタスク）**
+    - `EncumbranceStateManager.js` への重量直結（`inv_weight`, `container_weight`）
+    - 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT`）
+  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
     - `AreaStateManager.js`: `getCellInfo(x, y)` により足元の真の床を即時確定（仮床推測をバイパス）
     - `ActionSignalResolver.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出。`mpeaceful` / `mtame` により攻撃エフェクト誤爆を完全防止
   - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**

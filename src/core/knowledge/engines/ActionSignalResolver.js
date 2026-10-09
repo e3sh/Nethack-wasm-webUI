@@ -66,6 +66,11 @@ export class ActionSignalResolver {
             if (primaryFocus.type === 'DOOR') {
                 return this._resolveDoorAction(primaryFocus, ctx, isJa);
             }
+
+            // C. モンスター/NPC との対峙
+            if (primaryFocus.type === 'MONSTER' || primaryFocus.type === 'PET') {
+                return this._resolveMonsterAction(primaryFocus, ctx, isJa);
+            }
         }
 
         // 2. フォーカス対象がない状態での直接実行プロンプト逆引き推測 (仕様 3.4)
@@ -174,11 +179,33 @@ export class ActionSignalResolver {
             this.gkl.interactionContext.assessCapabilities() : { hasKey: false, hasForceTool: false });
 
         const isLocked = Boolean(target.isLocked);
+        const isTrapped = Boolean(target.isTrapped);
         const targetDirKey = target.direction || '.';
 
         const recommendedActions = [];
         let actionRecipe = null;
         const warnings = [];
+
+        // 扉に罠がある場合の最優先対応
+        if (isTrapped) {
+            recommendedActions.push({
+                label: isJa ? '扉の罠を解除する (#untrap)' : 'Disarm trap on door (#untrap)',
+                actionKey: '#untrap',
+                method: 'UNTRAP',
+                confidence: 1.0
+            });
+            warnings.push(isJa ?
+                '扉に罠が仕掛けられています！開けたり蹴る前に解除してください。' :
+                'Door is trapped! Disarm the trap before opening or kicking.'
+            );
+            actionRecipe = {
+                recipeId: 'UNTRAP_DOOR',
+                initialSequence: ['#', 'untrap', targetDirKey],
+                handlers: [
+                    { match: { prompt: /direction/i }, respond: targetDirKey }
+                ]
+            };
+        }
 
         if (isLocked) {
             if (caps.hasKey && caps.keyItem) {
@@ -188,22 +215,24 @@ export class ActionSignalResolver {
                     actionKey: 'a',
                     toolSlot: keySlot,
                     method: 'USE_KEY',
-                    confidence: 1.0
+                    confidence: isTrapped ? 0.7 : 1.0
                 });
 
-                actionRecipe = {
-                    recipeId: 'UNLOCK_DOOR_WITH_KEY',
-                    initialSequence: ['a', keySlot, targetDirKey],
-                    handlers: [
-                        { match: { prompt: /direction/i }, respond: targetDirKey }
-                    ]
-                };
+                if (!actionRecipe) {
+                    actionRecipe = {
+                        recipeId: 'UNLOCK_DOOR_WITH_KEY',
+                        initialSequence: ['a', keySlot, targetDirKey],
+                        handlers: [
+                            { match: { prompt: /direction/i }, respond: targetDirKey }
+                        ]
+                    };
+                }
             } else {
                 recommendedActions.push({
                     label: isJa ? '蹴破る' : 'Kick door down',
                     actionKey: '\x04', // Ctrl-D または kick
                     method: 'KICK',
-                    confidence: 0.7
+                    confidence: isTrapped ? 0.3 : 0.7
                 });
                 warnings.push(isJa ?
                     '扉に鍵がかかっています。蹴破ると警報が鳴ったり脚を痛める恐れがあります。' :
@@ -215,7 +244,7 @@ export class ActionSignalResolver {
                 label: isJa ? '扉を開ける' : 'Open door',
                 actionKey: 'o',
                 method: 'OPEN',
-                confidence: 1.0
+                confidence: isTrapped ? 0.5 : 1.0
             });
         }
 
@@ -224,7 +253,108 @@ export class ActionSignalResolver {
             target: {
                 type: 'DOOR',
                 name: target.name || 'door',
-                isLocked: isLocked
+                isLocked: isLocked,
+                isTrapped: isTrapped
+            },
+            recommendedActions,
+            actionRecipe,
+            warnings
+        };
+    }
+
+    /**
+     * モンスター/NPC に対するアクションシグナルの導出 (誤攻撃防止 ＆ スマートアクション)
+     * @private
+     */
+    _resolveMonsterAction(target, ctx, isJa) {
+        const isPet = (target.type === 'PET' || Boolean(target.isPet || target.isTame));
+        const isShopkeeper = Boolean(target.isShopkeeper || target.directState?.isShopkeeper);
+        const isPriest = Boolean(target.isPriest || target.directState?.isPriest);
+        const isPeaceful = Boolean(target.isPeaceful || target.directState?.peaceful || target.attitude === 'PEACEFUL' || isShopkeeper || isPriest || isPet);
+        const isHostile = Boolean(target.isHostile || target.attitude === 'HOSTILE' || (target.directState && !target.directState.peaceful));
+
+        const targetDirKey = target.direction || '.';
+        const recommendedActions = [];
+        let actionRecipe = null;
+        const warnings = [];
+
+        if (isPet) {
+            recommendedActions.push({
+                label: isJa ? 'ペットに話しかける (#chat)' : 'Chat with pet (#chat)',
+                actionKey: '#chat',
+                method: 'CHAT',
+                confidence: 1.0
+            });
+            actionRecipe = {
+                recipeId: 'CHAT_WITH_PET',
+                initialSequence: ['#', 'chat', targetDirKey],
+                handlers: [
+                    { match: { prompt: /direction/i }, respond: targetDirKey }
+                ]
+            };
+        } else if (isShopkeeper) {
+            recommendedActions.push({
+                label: isJa ? '店主に代金を支払う (#pay)' : 'Pay shopkeeper (#pay)',
+                actionKey: '#pay',
+                method: 'PAY',
+                confidence: 1.0
+            });
+            recommendedActions.push({
+                label: isJa ? '店主に話しかける (#chat)' : 'Talk to shopkeeper (#chat)',
+                actionKey: '#chat',
+                method: 'CHAT',
+                confidence: 0.9
+            });
+            warnings.push(isJa ?
+                '店主です。攻撃すると敵対し警備兵を呼ばれます！' :
+                'Shopkeeper! Attacking will make them hostile and call the Kops!'
+            );
+        } else if (isPriest) {
+            recommendedActions.push({
+                label: isJa ? '僧侶に話しかける/寄進する (#chat)' : 'Talk to priest / Donate (#chat)',
+                actionKey: '#chat',
+                method: 'CHAT',
+                confidence: 1.0
+            });
+            warnings.push(isJa ?
+                '寺院の僧侶です。攻撃すると神の怒りを買います！' :
+                'Temple Priest! Attacking will incur divine anger!'
+            );
+        } else if (isPeaceful && !isHostile) {
+            recommendedActions.push({
+                label: isJa ? '平和的NPCに話しかける (#chat)' : 'Talk to peaceful NPC (#chat)',
+                actionKey: '#chat',
+                method: 'CHAT',
+                confidence: 1.0
+            });
+            warnings.push(isJa ?
+                '平和的な相手です。不用意な攻撃は属性ペナルティを受けます。' :
+                'Peaceful creature. Attacking may cause alignment penalties.'
+            );
+        } else {
+            // 敵対モンスター (近接攻撃)
+            recommendedActions.push({
+                label: isJa ? '攻撃する' : 'Attack',
+                actionKey: targetDirKey,
+                method: 'ATTACK',
+                confidence: 1.0
+            });
+            actionRecipe = {
+                recipeId: 'ATTACK_MONSTER',
+                initialSequence: [targetDirKey]
+            };
+        }
+
+        return {
+            signalId: 'ACT_MONSTER_INTERACTION',
+            target: {
+                type: isPet ? 'PET' : 'MONSTER',
+                name: target.name || 'creature',
+                isPeaceful,
+                isShopkeeper,
+                isPriest,
+                hp: target.hp,
+                hpmax: target.hpmax
             },
             recommendedActions,
             actionRecipe,

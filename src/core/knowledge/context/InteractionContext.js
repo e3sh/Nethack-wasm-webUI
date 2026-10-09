@@ -170,9 +170,11 @@ export class InteractionContext {
         const ttl = candidate.ttl !== undefined ? candidate.ttl : this.defaultTtl;
 
         const enrichedCandidate = {
+            ...candidate,
             type: candidate.type,
             name: candidate.name || candidate.type.toLowerCase(),
             isLocked: candidate.isLocked !== undefined ? Boolean(candidate.isLocked) : false,
+            isTrapped: candidate.isTrapped !== undefined ? Boolean(candidate.isTrapped) : false,
             pos: { x: targetPos.x, y: targetPos.y },
             direction: candidate.direction || null,
             ttl

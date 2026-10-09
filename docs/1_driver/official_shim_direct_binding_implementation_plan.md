@@ -41,6 +41,17 @@ related_code:
    - Far Look（`;`）、Discoveries（`\`）、Enhance（`#enhance`）、Spells（`Z`/`+`）、Attributes（`#attributes`）などの裏マクロ・テキストパースを完全撤廃。
    - ラグ・画面チラつき・誤爆が一切ない、100%同期の次世代WebUIを実現。
 
+### 1.3 新たに判明したアーキテクチャ課題：Web Worker 隔離環境の壁と真の調停
+1. **ブラウザ実稼働環境の実態（スレッド隔離）**:
+   - 単体テスト（Node.js/Vitest）では単一スレッド上で仮想モックを注入していたため直接メモリ直結（`driver.memory`）が成立していたが、**実際のブラウザ環境（PureJS, Vue, React 等）では NetHack Wasm と `NetHackMemory` は Web Worker (`nethack.worker.js`) 内で完全に隔離実行**されている。
+   - メインスレッド側の `core.driver` は `NetHackWasmWorkerBridge` であり、ヒープメモリ（TypedArray）への直接ポインタ参照は存在しない（`driver.memory` は undefined）。
+2. **責務境界の崩壊と反省（過去の歪みの是正）**:
+   - 過去に「Worker 側からデータを手っ取り早く送りたい」という理由で、原本の `curs` イベントに `cellInfo` を同梱させたり、Driver/Worker に個別ドメイン処理を持たせようとする設計の迷走が発生した。
+   - **Driver / Worker はゲームルールやドメイン知識を一切持たない純粋な通信インフラ（手足）に徹するべき**であり、ゲーム知識の解釈・判断は 100% メインスレッドの GKL（頭脳）が担う大原則を再確立する。
+3. **解決方針：ターン確定時の正規調停システム (`queueSequence` 型の非同期同期)**:
+   - Wasm コアが 1 ターンの演算を終えて静止確定する唯一のタイミングは **`state === 'WAITING_INPUT' && isTopLevelTurn === true`** である。
+   - `queueSequence` が Promise でトークンを消費してバッファを回収するように、メインスレッド（GKL）主導で Worker 内の `shim_bridge_call` を呼び出し、構造化された確定データを 1 往復の非同期通信で安全に受け取る調停プロトコルを構築する。
+
 ---
 
 ## 2. 責任境界マトリクス (グリフ処理 vs メモリ直結)
@@ -346,80 +357,120 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
 
 ---
 
-## 4. システムレイヤー別 設計・接続仕様
+## 4. システムレイヤー別 設計・接続仕様 (Web Worker 隔離調停対応)
 
 ```mermaid
 flowchart TD
-    subgraph BuildLayer ["1. ビルド層 (Build Layer: 0% Intrusion)"]
-        Bridge["win/shim/shim_bridge.c (新規独立追加・完全版)"]
-        FilesRSP["nethack_files.rsp\n('win/shim/shim_bridge.c' 追記)"]
-        FlagsRSP["nethack_flags.rsp\n('_shim_bridge_call', '_weight', '_inv_weight' 追記)"]
-        WASM["nethack.wasm / nethack.js"]
-        
-        Bridge --> FilesRSP
-        FilesRSP & FlagsRSP --> WASM
+    subgraph WorkerThread ["【Web Worker 隔離スレッド (nethack.worker.js)】"]
+        subgraph BuildLayer ["1. Cコア・ビルド層 (Build Layer: 0% Intrusion)"]
+            Bridge["win/shim/shim_bridge.c\n(単一公式窓口: _shim_bridge_call)"]
+            WASM["nethack.wasm / nethack.js\n(NetHack 5.0 Cコア生データ)"]
+            Bridge --> WASM
+        end
+
+        subgraph WorkerDriver ["2. Worker Driver層 (Pure Transport / 手足)"]
+            NHM["NetHackMemory.js\n・bridgeCall(cmd, a1, a2, buf, len)\n(メモリ/ポインタ読み出し透過ゲートウェイ)"]
+            WorkerHost["nethack.worker.js\n・CALL_SHIM メッセージ受信\n・bridgeCall 実行 ＆ バッファ返却\n(※ドメイン知識は一切持たない)"]
+            
+            WASM <-->|"_shim_bridge_call"| NHM
+            NHM <--> WorkerHost
+        end
     end
 
-    subgraph DriverLayer ["2. ドライバー層 (Driver Layer: Pure Transport)"]
-        NHM["NetHackMemory.js\n・bridgeCall(cmd, a1, a2, buf, len)\n・getSymbolPtr(symId)\n(完全透過ゲートウェイ)"]
-        NHW["NetHackWasmDriver.js\n(rawObjPtr ディスパッチ)"]
-        
-        NHM -->|"bridgeCall -> _shim_bridge_call()"| WASM
-        NHW --> GKL_Service
-    end
+    WorkerHost <==|"postMessage 非同期調停 (queueSequence と同等の 1往復 Promise)"| BridgeClient
 
-    subgraph GKLLayer ["3. ナレッジ層 (GKL Layer: Unified Query & Domain)"]
-        GKL_Service["WasmDirectBindingService.js\n・SHIM_CMD 定数管理\n・getCellInfo / getTrapAt\n・getMonsterInfo / getMonsterState\n・getPlayerSummary / getPlayerProps\n・getInventory / getEquipment\n・getSpellBook / getSkills / getDiscoveries"]
-        
-        NHM <--> GKL_Service
-        
-        StateArea["AreaStateManager\n(真の床・施錠・罠・部屋直結)"]
-        ContextAct["ActionSignalResolver\n(平和/攻撃・解錠・罠解除)"]
-        StateAttr["AttributeStateManager\n(耐性・お祈り・怒り直結)"]
-        StateInv["InventoryStateManager\n(所持品・装備スロット同期)"]
-        StateSpell["SpellStateManager\n(習得呪文・残ターン直結)"]
-        StateSkill["SkillStateManager\n(スキル熟練度・スロット直結)"]
-        StateDisc["DiscoveryStateManager\n(鑑定図鑑・仮名直結)"]
-        BranchTrk["BranchTracker\n(dnum による100%同定)"]
-        
-        GKL_Service --> StateArea & ContextAct & StateAttr & StateInv & StateSpell & StateSkill & StateDisc & BranchTrk
-    end
+    subgraph MainThread ["【メインスレッド (ブラウザ実行環境)】"]
+        subgraph DriverBridgeLayer ["3. メイン側 Bridge層 (Pure Transport / 手足)"]
+            BridgeClient["NetHackWasmWorkerBridge.js\n・callShim(cmd, a1, a2, bufLen)\n・_pendingCalls (Map による Promise 管理)"]
+        end
 
-    subgraph FacadeLayer ["4. 統合・UI層 (SituationCache & Client UI)"]
-        SC["SituationCache\n(完全互換 SSOT)"]
-        StateArea & ContextAct & StateAttr & StateInv & StateSpell & StateSkill & StateDisc & BranchTrk --> SC
-        UI["Client UI (HUD, パレット, ナレッジカード, 演出)\n【誤爆ゼロ・裏マクロゼロ・100%即時反映】"]
-        SC --> UI
+        subgraph GKLLayer ["4. ナレッジ層 (GKL: Unified Domain & 頭脳)"]
+            GKL_Service["WasmDirectBindingService.js\n・SHIM_CMD 定数管理\n・Bridge 経由の非同期 bridgeCall 呼び出し\n・C 構造体バイナリのオブジェクト化 (POJO)\n・getCellInfo / getInventory 等のドメインAPI提供"]
+            
+            BridgeClient <--> GKL_Service
+            
+            StateArea["AreaStateManager\n(真の床・施錠・罠・部屋判定)"]
+            ContextAct["ActionSignalResolver\n(平和/攻撃・解錠・罠解除)"]
+            StateAttr["AttributeStateManager\n(耐性・お祈り・怒り同期)"]
+            StateInv["InventoryStateManager\n(所持品・装備スロット同期)"]
+            StateSpell["SpellStateManager\n(習得呪文・残ターン同期)"]
+            StateSkill["SkillStateManager\n(スキル熟練度同期)"]
+            StateDisc["DiscoveryStateManager\n(鑑定図鑑・仮名同期)"]
+            BranchTrk["BranchTracker\n(dnum によるブランチ同定)"]
+            
+            GKL_Service --> StateArea & ContextAct & StateAttr & StateInv & StateSpell & StateSkill & StateDisc & BranchTrk
+        end
+
+        subgraph FacadeLayer ["5. 統合・UI層 (SituationCache & Client UI)"]
+            SC["SituationCache\n(完全互換 SSOT)"]
+            StateArea & ContextAct & StateAttr & StateInv & StateSpell & StateSkill & StateDisc & BranchTrk --> SC
+            UI["Client UI (HUD, パレット, ナレッジカード, 演出)\n【誤爆ゼロ・裏マクロゼロ・100%即時反映】"]
+            SC --> UI
+        end
     end
 ```
+
+### 4.1 通信・調停プロトコル仕様 (`NetHackWasmWorkerBridge` ↔ `nethack.worker.js`)
+- **呼出側（メインスレッド）**:
+  - `bridge.callShim(cmd, arg1 = 0, arg2 = 0, bufferSize = 0)`
+  - ユニークな `callId` を発番し、`this._pendingCalls.set(callId, { resolve, reject })` で登録。
+  - Worker へ `{ type: 'CALL_SHIM', callId, payload: { cmd, arg1, arg2, bufferSize } }` を送信。
+- **実行側（Workerスレッド）**:
+  - Driver/Worker はゲームルールの意味を一切解釈しない。
+  - `NetHackMemory.bridgeCall(cmd, arg1, arg2, buf, len)` を実行。
+  - 戻り値（数値）および確保バッファ（TypedArray）を `{ type: 'SHIM_RESULT', callId, result, buffer }` として `postMessage` で即時返却。
+- **解決側（メインスレッド）**:
+  - `callId` をキーに Promise を解決。
+  - メインスレッド側の `WasmDirectBindingService` がバッファバイナリを解読し、UI/GKL向けドメインオブジェクト（アイテム、セル情報等）を構築。
+- **ターン静止確定時の調停フロー**:
+  - `stateChange (WAITING_INPUT)` かつ `isTopLevelTurn === true` になったタイミングで GKL が最新状態を要求し、UI へ確定状態を展開。
 
 ---
 
 ## 5. 段階的マイグレーション・タスクリスト (Task List)
 
 ### 【Stage 8.1】完全版ブリッジ配備 ＆ ビルド固定化・Driverゲートウェイ整備
-- [ ] 最新原本 `NetHack-NetHack-5.0.1_Oct7_2026/win/shim/shim_bridge.c` を作成（全カテゴリ網羅＋シンボルポインタ開示完全版）
-- [ ] `scripts/build_wasm_50.ps1` を更新：
+- [x] 最新原本 `NetHack-NetHack-5.0.1_Oct7_2026/win/shim/shim_bridge.c` を作成（全カテゴリ網羅＋シンボルポインタ開示完全版）
+- [x] `scripts/build_wasm_50.ps1` を更新：
   - `$NH_ROOT` の対象を `NetHack-NetHack-5.0.1_Oct7_2026` に設定
   - `$wasm_sys_src` に `"win/shim/shim_bridge.c"` を追記
   - `-sEXPORTED_FUNCTIONS` に `'_shim_bridge_call'`, `'_weight'`, `'_inv_weight'`, `'_container_weight'` を追記
-- [ ] `scripts/build_wasm_50.ps1` を実行し、成果物（`nethack.js`, `nethack.wasm`, `tilemappings.lst`）を WebUI へデプロイ
-- [ ] `src/driver/NetHackMemory.js` に `bridgeCall(cmd, arg1, arg2, buf, len)` を実装
-- [ ] 単純なコマンド呼び出しによる疎通確認テストの完了
+- [x] `scripts/build_wasm_50.ps1` を実行し、成果物（`nethack.js`, `nethack.wasm`, `tilemappings.lst`）を WebUI へデプロイ
+- [x] `src/driver/NetHackMemory.js` に `bridgeCall(cmd, arg1, arg2, buf, len)` を実装
 
-### 【Stage 8.2】インベントリ・装備スロット・コンテナ重量直結
-- [ ] `src/core/knowledge/services/WasmDirectBindingService.js` を新設
-- [ ] `SHIM_CMD_GET_INVENT_PTR` と `SHIM_CMD_DUMP_OBJECT_INFO` により、`InventoryStateManager` の全所持品走査を直結
-- [ ] `SHIM_CMD_GET_EQUIPMENT_PTRS` により、全装備スロット（武器・防具・指輪等）の装着状態を即時同期
-- [ ] `EncumbranceStateManager.js` に `Module._inv_weight()` を接続し、常時正確な所持重量を反映
+### 【Stage 8.2-A】Web Worker 隔離調停プロトコルの設計・配備（完了）
+- [x] **ライフサイクル観察の完了**（ターン待ち `WAITING_INPUT && isTopLevelTurn` での静止確定を確認）
+- [x] **Driver 側調停システムの設計**:
+  - `NetHackWasmWorkerBridge` ↔ `nethack.worker.js` 間に、`queueSequence` と等価な非同期通信プロトコル（`CALL_SHIM` / `GET_INVENTORY` 等）を整備。
+  - Driver/Worker はドメイン知識を持たない「純粋な透過的プロキシ（手足）」に徹し、GKL が主導してデータを要求・解釈する責務境界を徹底。
+- [x] **最小単位 PoC の検証**:
+  - Worker 隔離環境下で `bridgeCall` を非同期 1 往復で実行し、構造化データがメインスレッドに安全に届くことを実証（単体テスト・結合テスト完備）。
 
-### 【Stage 8.3】真の地形・床の罠・店舗種別・刻み文字 ＆ モンスター詳細直結
-- [ ] `AreaStateManager.js`:
-  - `SHIM_CMD_GET_CELL_INFO` により足元の真の床を即時確定（仮床推測バイパス）
+### 【Stage 8.2-B】inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築（新規・最優先着手）
+- [ ] 設計書策定: [direct_binding_verification_environment_plan.md](./direct_binding_verification_environment_plan.md)
+- [ ] GKL / StateManager への動作モード (`directBindingMode: 'auto' | 'strict' | 'fallback'`) 実装
+- [ ] `InventoryStateManager`: 直近同期方式 (`lastSyncMethod: 'SHIM' | 'MACRO'`) 記録 ＆ `strict` 時のマクロ完全ブロック
+- [ ] `AreaStateManager`: 直近足元同期方式 (`lastFloorMethod: 'SHIM' | 'INFERRED'`) 記録 ＆ `strict` 時の推測床（3992番）完全ブロック
+- [ ] `DebugInspector.js`: `broadcastState()` スナップショットへの同期方式・ランプ状態同梱 ＆ `BroadcastChannel` 切替コマンド受信対応
+- [ ] `inspector_console.html`:
+  - ヘッダーへの「所持品同期方式ランプ (🟢SHIM vs 🔵MACRO)」および「足元床ランプ (🟢SHIM vs 🟡INFERRED)」新設
+  - Direct Injector / ヘッダーからのリアルタイムモード切替ボタングループ配備
+- [ ] 自動テストによる `strict` モード（フォールバック遮断）下の完全動作検証
+
+### 【Stage 8.2-C】インベントリ・装備スロット・コンテナ重量の隔離環境直結（残りタスク）
+- [x] `WasmDirectBindingService.js` を Worker 隔離環境に対応（WorkerBridge 経由の調停サポート、`hasLiveMemory` とキャッシュ透過アクセサ完備）
+- [x] `SHIM_CMD_GET_INVENT_PTR` と `SHIM_CMD_DUMP_OBJECT_INFO` により、`InventoryStateManager` の全所持品走査をブラウザ実機で直結（キー送信マクロバイパス確認）
+- [x] `SHIM_CMD_GET_EQUIPMENT_PTRS` により、全装備スロット（武器・防具・指輪等）の装着状態を即時同期
+- [ ] `EncumbranceStateManager.js` に重量直結を配備し、常時正確な所持重量を反映
+- [ ] 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT`）
+
+### 【Stage 8.3】真の地形・床の罠・店舗種別・刻み文字 ＆ モンスター詳細直結（進行中）
+- [x] `AreaStateManager.js`:
+  - `SHIM_CMD_GET_CELL_INFO` により足元の真の床を即時確定（仮床推測 3992 番バイパス確認）
   - `SHIM_CMD_GET_TRAP_AT` により床の罠（ピット・落とし穴等）を100%同定
   - `SHIM_CMD_GET_ROOM_TYPE` により武器屋・寺院・動物園等の部屋種別を判定
   - `SHIM_CMD_GET_ENGRAVING_AT` により Elbereth の有効性を即座に判定
-- [ ] `ActionSignalResolver.js`:
+- [ ] `ActionSignalResolver.js` / `ContextActionEngine.js`:
   - 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出
   - `SHIM_CMD_GET_MONSTER_INFO` / `GET_MONSTER_STATE` により、友好/敵、HPゲージ、睡眠/逃走/麻痺/店主を判別し誤攻撃を完全防止
 

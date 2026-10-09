@@ -419,6 +419,15 @@
         }
 
         /**
+         * 公式Shim統合ディスパッチャー (_shim_bridge_call) が利用可能か判定
+         * @returns {boolean}
+         */
+        isBridgeAvailable() {
+            const M = this.Module;
+            return Boolean((M && M._shim_bridge_call) || (typeof _shim_bridge_call !== 'undefined'));
+        }
+
+        /**
          * シンボル基底ポインタ取得 (0x70)
          * @param {number} symId シンボルID (SHIM_SYM_*)
          * @returns {number} 構造体/変数の基底ポインタ (ポインタ数値)
@@ -480,6 +489,17 @@
                 result[i] = this.getValue(ptr + i, 'i8') & 0xFF;
             }
             return result;
+        }
+
+        /**
+         * Wasmメモリから null 終端文字列を読み出す
+         * @param {number} ptr 先頭ポインタ
+         * @param {number} [maxBytes] 最大バイト数
+         * @returns {string}
+         */
+        readString(ptr, maxBytes) {
+            if (!ptr) return "";
+            return this.UTF8ToString(ptr);
         }
     }
 
