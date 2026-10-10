@@ -129,6 +129,125 @@ export class AreaStateManager {
     }
 
     /**
+     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A)
+     * @param {number} typ 
+     * @param {number} [x=0] 
+     * @param {number} [y=0] 
+     * @param {Object} [doorState=null] 
+     * @returns {number} glyphId
+     */
+    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
+        switch (typ) {
+            case 16: // POOL
+            case 17: // MOAT
+            case 18: // WATER
+                return 4015;
+            case 20: // LAVAPOOL
+            case 21: // LAVAWALL
+                return 4017;
+            case 22: // IRONBARS
+                return 3990;
+            case 23: // DOOR
+                return (doorState && doorState.isOpen) ? 3986 : 3988;
+            case 14: // SDOOR
+                return 3988;
+            case 24: // CORR
+            case 15: // SCORR
+                return 3995;
+            case 25: // ROOM
+                return 3992;
+            case 26: { // STAIRS
+                const stairKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                if (this.stairCache && this.stairCache.has(stairKey)) {
+                    return this.stairCache.get(stairKey).glyph;
+                } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
+                    return 4001; // 浅い階に上がってきた場合: 下り階段
+                } else {
+                    return 4000; // 深い階に降りてきた場合: 上り階段
+                }
+            }
+            case 27: { // LADDER
+                const ladderKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                if (this.stairCache && this.stairCache.has(ladderKey)) {
+                    return this.stairCache.get(ladderKey).glyph;
+                } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
+                    return 4005; // 下りハシゴ
+                } else {
+                    return 4004; // 上りハシゴ
+                }
+            }
+            case 28: // FOUNTAIN
+                return 4014;
+            case 29: // THRONE
+                return 4012;
+            case 30: // SINK
+                return 4013;
+            case 31: // GRAVE
+                return 4011;
+            case 32: // ALTAR
+                return 4008;
+            case 33: // ICE
+                return 4016;
+            case 35: // AIR
+                return 4023;
+            case 36: // CLOUD
+                return 4024;
+            default:
+                return (typ >= 1 && typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
+        }
+    }
+
+    /**
+     * Wasm メモリ直結からフロア全域 (80x21) の真の地形 (typ) を一括ダンプしグリッドへ反映 (Stage 8.3-A)
+     * @returns {boolean} 成功したか否か
+     */
+    dumpLevelTerrain() {
+        if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
+            return false;
+        }
+
+        const terrain = this.directBindingService.dumpLevelTerrain();
+        if (!terrain || terrain.length < 80 * 21) {
+            return false;
+        }
+
+        const COLNO = 80;
+        const ROWNO = 21;
+        const currentNormalized = normalizeFloorKey(this.currentFloor);
+
+        for (let y = 0; y < ROWNO && y < this.height; y++) {
+            for (let x = 0; x < COLNO && x < this.width; x++) {
+                const typ = terrain[y * COLNO + x];
+                if (typ === undefined || typ === null) continue;
+
+                const cell = this.grid[y] && this.grid[y][x];
+                if (!cell) continue;
+
+                const glyphId = this.getGlyphForTerrainType(typ, x, y);
+                const classified = classifyGlyph(glyphId);
+
+                // 階段 (26) または ハシゴ (27) の場合はランドマーク台帳に登録
+                if (typ === 26 || typ === 27) {
+                    this._registerStairAt(x, y, glyphId, currentNormalized);
+                }
+
+                cell.bottom = {
+                    ...classified,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    inferred: false,
+                    isGenuine: true,
+                    typ
+                };
+
+                this.markDirty(x, y);
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Wasm メモリ直結による真の床（地形・部屋・罠・刻み文字）エンティティを生成
      * @param {number} x 
      * @param {number} y 
@@ -141,84 +260,7 @@ export class AreaStateManager {
             this.directBindingService.isAvailable()) {
             const cellInfo = this.directBindingService.getCellInfo(x, y);
             if (cellInfo) {
-                let glyphId = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
-                switch (cellInfo.typ) {
-                    case 16: // POOL
-                    case 17: // MOAT
-                    case 18: // WATER
-                        glyphId = 4015;
-                        break;
-                    case 20: // LAVAPOOL
-                    case 21: // LAVAWALL
-                        glyphId = 4017;
-                        break;
-                    case 22: // IRONBARS
-                        glyphId = 3990;
-                        break;
-                    case 23: // DOOR
-                        glyphId = (cellInfo.door && cellInfo.door.isOpen) ? 3986 : 3988;
-                        break;
-                    case 14: // SDOOR
-                        glyphId = 3988;
-                        break;
-                    case 24: // CORR
-                    case 15: // SCORR
-                        glyphId = 3995;
-                        break;
-                    case 25: // ROOM
-                        glyphId = 3992;
-                        break;
-                    case 26: { // STAIRS
-                        const stairKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                        if (this.stairCache && this.stairCache.has(stairKey)) {
-                            glyphId = this.stairCache.get(stairKey).glyph;
-                        } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
-                            glyphId = 4001; // 浅い階に上がってきた場合: 下り階段
-                        } else {
-                            glyphId = 4000; // 深い階に降りてきた場合: 上り階段
-                        }
-                        break;
-                    }
-                    case 27: { // LADDER
-                        const ladderKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                        if (this.stairCache && this.stairCache.has(ladderKey)) {
-                            glyphId = this.stairCache.get(ladderKey).glyph;
-                        } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
-                            glyphId = 4005; // 下りハシゴ
-                        } else {
-                            glyphId = 4004; // 上りハシゴ
-                        }
-                        break;
-                    }
-                    case 28: // FOUNTAIN
-                        glyphId = 4014;
-                        break;
-                    case 29: // THRONE
-                        glyphId = 4012;
-                        break;
-                    case 30: // SINK
-                        glyphId = 4013;
-                        break;
-                    case 31: // GRAVE
-                        glyphId = 4011;
-                        break;
-                    case 32: // ALTAR
-                        glyphId = 4008;
-                        break;
-                    case 33: // ICE
-                        glyphId = 4016;
-                        break;
-                    case 35: // AIR
-                        glyphId = 4023;
-                        break;
-                    case 36: // CLOUD
-                        glyphId = 4024;
-                        break;
-                    default:
-                        glyphId = (cellInfo.typ >= 1 && cellInfo.typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
-                        break;
-                }
-
+                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, cellInfo.door);
                 const classified = classifyGlyph(glyphId);
                 const genuineEntity = {
                     ...classified,
@@ -226,6 +268,8 @@ export class AreaStateManager {
                     rawGlyph: glyphId,
                     inferred: false,
                     isGenuine: true,
+                    typ: cellInfo.typ,
+                    door: cellInfo.door,
                     cellInfo
                 };
 
@@ -1084,15 +1128,15 @@ export class AreaStateManager {
             }
             const cell = this.grid[y][x];
             if (cell) {
-                const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                const cachedStair = this.stairCache ? this.stairCache.get(key) : null;
-                if (cachedStair) {
-                    cell.bottom = { ...cachedStair };
+                const genuine = this.getGenuineFloor(x, y);
+                if (genuine && genuine.isGenuine) {
+                    cell.bottom = genuine;
                     this.markDirty(x, y);
-                } else if (!cell.bottom || cell.bottom.inferred || cell.bottom.isCachedPreload) {
-                    const genuine = this.getGenuineFloor(x, y);
-                    if (genuine && genuine.isGenuine) {
-                        cell.bottom = genuine;
+                } else {
+                    const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
+                    const cachedStair = this.stairCache ? this.stairCache.get(key) : null;
+                    if (cachedStair) {
+                        cell.bottom = { ...cachedStair };
                         this.markDirty(x, y);
                     } else if (cell.bottom && cell.bottom.isCachedPreload) {
                         delete cell.bottom.isCachedPreload;

@@ -285,6 +285,8 @@ export class WasmDirectBindingService {
         this._cachedPlayerFloorObjects = [];
         this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
         this._cachedPlayerSummary = null;
+        this._cachedLevelTerrain = null;
+        this._cachedMonsters = new Map();
     }
 
     /**
@@ -371,8 +373,11 @@ export class WasmDirectBindingService {
     isAvailable() {
         if (this._mode === 'fallback') return false;
         if (this.bridge && typeof this.bridge.callShim === 'function') return true;
-        if (!this.memory) return false;
-        return this.hasLiveMemory;
+        if (this.hasLiveMemory) return true;
+        if (this._cachedCellInfo || this._cachedLevelTerrain || (this._cachedInventory && this._cachedInventory.length > 0) || (this._cachedMonsters && this._cachedMonsters.size > 0)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -778,11 +783,46 @@ export class WasmDirectBindingService {
                 }
             }
 
+            // 7. フロア全域の地形一括同期 (Stage 8.3-A)
+            if (options.syncLevelTerrain === true) {
+                try {
+                    await this.fetchLevelTerrain();
+                } catch (e) {
+                    // silent fallback
+                }
+            }
+
+            // 8. 周辺モンスターの真値同期 (Stage 8.3-A)
+            if (Array.isArray(options.surroundingMonsters) && options.surroundingMonsters.length > 0) {
+                try {
+                    await this.syncSurroundingMonsters(options.surroundingMonsters);
+                } catch (e) {
+                    // silent fallback
+                }
+            }
+
             return true;
         } catch (err) {
             console.warn('[WasmDirectBindingService] syncFromWorkerBridge error:', err);
             return false;
         }
+    }
+
+    /**
+     * 指定座標群のモンスター情報を一括非同期取得 (Worker 調停対応)
+     * @param {Array<{x: number, y: number}>} coords
+     * @returns {Promise<Array<Object>>}
+     */
+    async syncSurroundingMonsters(coords = []) {
+        if (!Array.isArray(coords) || coords.length === 0) return [];
+        const results = [];
+        for (const c of coords) {
+            if (typeof c.x === 'number' && typeof c.y === 'number') {
+                const mon = await this.fetchFullMonsterAt(c.x, c.y);
+                if (mon) results.push(mon);
+            }
+        }
+        return results;
     }
 
     /**
@@ -838,22 +878,72 @@ export class WasmDirectBindingService {
      * @returns {Uint8Array|null}
      */
     dumpLevelTerrain() {
-        if (!this.hasLiveMemory) return null;
+        if (!this.isAvailable()) return null;
 
-        const COLNO = 80;
-        const ROWNO = 21;
-        const size = COLNO * ROWNO;
+        if (this.hasLiveMemory) {
+            const COLNO = 80;
+            const ROWNO = 21;
+            const size = COLNO * ROWNO;
 
-        const bufPtr = this.memory.allocateBuffer(size);
-        if (!bufPtr) return null;
+            const bufPtr = this.memory.allocateBuffer(size);
+            if (!bufPtr) return null;
 
-        try {
-            const res = this.memory.bridgeCall(SHIM_CMD.DUMP_LEVEL_TERRAIN, 0, 0, bufPtr, size);
-            if (res !== 0) return null;
+            try {
+                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_LEVEL_TERRAIN, 0, 0, bufPtr, size);
+                if (res !== 0) return null;
 
-            return this.memory.readUint8Array(bufPtr, size);
-        } finally {
-            this.memory.freeBuffer(bufPtr);
+                const terrain = this.memory.readUint8Array(bufPtr, size);
+                this._cachedLevelTerrain = terrain;
+                return terrain;
+            } finally {
+                this.memory.freeBuffer(bufPtr);
+            }
+        }
+
+        return this._cachedLevelTerrain || null;
+    }
+
+    /**
+     * 現在のフロア全体 (80x21) の真の地形を一括非同期取得 (Worker 調停対応)
+     * @returns {Promise<Uint8Array|null>}
+     */
+    async fetchLevelTerrain() {
+        if (!this.isAvailable()) return null;
+
+        if (this.hasLiveMemory) {
+            return this.dumpLevelTerrain();
+        }
+
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const COLNO = 80;
+                const ROWNO = 21;
+                const size = COLNO * ROWNO;
+                const res = await this.bridge.callShim(SHIM_CMD.DUMP_LEVEL_TERRAIN, 0, 0, size, 'uint8');
+                if (res && res.result === 0 && Array.isArray(res.buffer)) {
+                    this._cachedLevelTerrain = new Uint8Array(res.buffer);
+                    return this._cachedLevelTerrain;
+                }
+            } catch (err) {
+                console.warn('[WasmDirectBindingService] fetchLevelTerrain error:', err);
+                return null;
+            }
+        }
+
+        return this._cachedLevelTerrain || null;
+    }
+
+    /**
+     * テスト用 / Worker 受信用 地形キャッシュ設定
+     * @param {Uint8Array|Array<number>} terrain
+     */
+    setCachedLevelTerrain(terrain) {
+        if (!terrain) {
+            this._cachedLevelTerrain = null;
+        } else if (terrain instanceof Uint8Array) {
+            this._cachedLevelTerrain = terrain;
+        } else if (Array.isArray(terrain)) {
+            this._cachedLevelTerrain = new Uint8Array(terrain);
         }
     }
 
@@ -997,23 +1087,37 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getMonsterInfo(x, y) {
-        if (!this.hasLiveMemory) return null;
+        if (!this.isAvailable()) return null;
         if (typeof x !== 'number' || typeof y !== 'number') return null;
 
-        const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_INFO, x, y, 0, 0);
-        if (res <= 0) return null;
+        if (this.hasLiveMemory) {
+            const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_INFO, x, y, 0, 0);
+            if (res <= 0) return null;
 
-        const peaceful = Boolean(res & 0x01);
-        const tame = Boolean((res >> 1) & 0x01);
-        const hp = (res >> 8) & 0xFFF;
-        const hpmax = (res >> 20) & 0xFFF;
+            const peaceful = Boolean(res & 0x01);
+            const tame = Boolean((res >> 1) & 0x01);
+            const hp = (res >> 8) & 0xFFF;
+            const hpmax = (res >> 20) & 0xFFF;
 
-        return {
-            peaceful,
-            tame,
-            hp,
-            hpmax
-        };
+            return {
+                peaceful,
+                tame,
+                hp,
+                hpmax
+            };
+        }
+
+        const cached = this._cachedMonsters ? this._cachedMonsters.get(`${x},${y}`) : null;
+        if (cached) {
+            return {
+                peaceful: Boolean(cached.peaceful),
+                tame: Boolean(cached.tame),
+                hp: cached.hp || 0,
+                hpmax: cached.hpmax || 0
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -1023,26 +1127,45 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getMonsterState(x, y) {
-        if (!this.hasLiveMemory) return null;
+        if (!this.isAvailable()) return null;
         if (typeof x !== 'number' || typeof y !== 'number') return null;
 
-        const monPtr = this.getMonsterAt(x, y);
-        if (!monPtr) return null;
+        if (this.hasLiveMemory) {
+            const monPtr = this.getMonsterAt(x, y);
+            if (!monPtr) return null;
 
-        const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_STATE, x, y, 0, 0);
-        if (res < 0) return null;
+            const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_STATE, x, y, 0, 0);
+            if (res < 0) return null;
 
-        return {
-            ptr: monPtr,
-            sleeping: Boolean(res & 0x01),
-            fleeing: Boolean((res >> 1) & 0x01),
-            paralyzed: Boolean((res >> 2) & 0x01),
-            confused: Boolean((res >> 3) & 0x01),
-            stunned: Boolean((res >> 4) & 0x01),
-            isShopkeeper: Boolean((res >> 5) & 0x01),
-            isPriest: Boolean((res >> 6) & 0x01),
-            isChameleon: Boolean((res >> 7) & 0x01)
-        };
+            return {
+                ptr: monPtr,
+                sleeping: Boolean(res & 0x01),
+                fleeing: Boolean((res >> 1) & 0x01),
+                paralyzed: Boolean((res >> 2) & 0x01),
+                confused: Boolean((res >> 3) & 0x01),
+                stunned: Boolean((res >> 4) & 0x01),
+                isShopkeeper: Boolean((res >> 5) & 0x01),
+                isPriest: Boolean((res >> 6) & 0x01),
+                isChameleon: Boolean((res >> 7) & 0x01)
+            };
+        }
+
+        const cached = this._cachedMonsters ? this._cachedMonsters.get(`${x},${y}`) : null;
+        if (cached) {
+            return {
+                ptr: cached.ptr || 0,
+                sleeping: Boolean(cached.sleeping),
+                fleeing: Boolean(cached.fleeing),
+                paralyzed: Boolean(cached.paralyzed),
+                confused: Boolean(cached.confused),
+                stunned: Boolean(cached.stunned),
+                isShopkeeper: Boolean(cached.isShopkeeper),
+                isPriest: Boolean(cached.isPriest),
+                isChameleon: Boolean(cached.isChameleon)
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -1052,30 +1175,112 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getFullMonsterAt(x, y) {
-        if (!this.hasLiveMemory) return null;
-        const monPtr = this.getMonsterAt(x, y);
-        if (!monPtr) return null;
+        if (!this.isAvailable()) return null;
 
-        const info = this.getMonsterInfo(x, y);
-        const state = this.getMonsterState(x, y) || {};
+        if (this.hasLiveMemory) {
+            const monPtr = this.getMonsterAt(x, y);
+            if (!monPtr) return null;
 
-        return {
-            x,
-            y,
-            ptr: monPtr,
-            peaceful: info ? info.peaceful : false,
-            tame: info ? info.tame : false,
-            hp: info ? info.hp : 0,
-            hpmax: info ? info.hpmax : 0,
-            sleeping: Boolean(state.sleeping),
-            fleeing: Boolean(state.fleeing),
-            paralyzed: Boolean(state.paralyzed),
-            confused: Boolean(state.confused),
-            stunned: Boolean(state.stunned),
-            isShopkeeper: Boolean(state.isShopkeeper),
-            isPriest: Boolean(state.isPriest),
-            isChameleon: Boolean(state.isChameleon)
-        };
+            const info = this.getMonsterInfo(x, y);
+            const state = this.getMonsterState(x, y) || {};
+
+            return {
+                x,
+                y,
+                ptr: monPtr,
+                peaceful: info ? info.peaceful : false,
+                tame: info ? info.tame : false,
+                hp: info ? info.hp : 0,
+                hpmax: info ? info.hpmax : 0,
+                sleeping: Boolean(state.sleeping),
+                fleeing: Boolean(state.fleeing),
+                paralyzed: Boolean(state.paralyzed),
+                confused: Boolean(state.confused),
+                stunned: Boolean(state.stunned),
+                isShopkeeper: Boolean(state.isShopkeeper),
+                isPriest: Boolean(state.isPriest),
+                isChameleon: Boolean(state.isChameleon)
+            };
+        }
+
+        return (this._cachedMonsters && this._cachedMonsters.get(`${x},${y}`)) || null;
+    }
+
+    /**
+     * 指定座標のモンスター完全詳細を非同期で取得 (Worker 調停対応)
+     * @param {number} x
+     * @param {number} y
+     * @returns {Promise<Object|null>}
+     */
+    async fetchFullMonsterAt(x, y) {
+        if (!this.isAvailable()) return null;
+
+        if (this.hasLiveMemory) {
+            return this.getFullMonsterAt(x, y);
+        }
+
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const ptrRes = await this.bridge.callShim(SHIM_CMD.GET_MONSTER_AT, x, y);
+                const monPtr = (ptrRes && typeof ptrRes.result === 'number') ? ptrRes.result : 0;
+                if (!monPtr || monPtr <= 0) return null;
+
+                const [infoRes, stateRes] = await Promise.all([
+                    this.bridge.callShim(SHIM_CMD.GET_MONSTER_INFO, x, y),
+                    this.bridge.callShim(SHIM_CMD.GET_MONSTER_STATE, x, y)
+                ]);
+
+                const iVal = (infoRes && typeof infoRes.result === 'number') ? infoRes.result : 0;
+                const sVal = (stateRes && typeof stateRes.result === 'number') ? stateRes.result : 0;
+
+                const peaceful = Boolean(iVal & 0x01);
+                const tame = Boolean((iVal >> 1) & 0x01);
+                const hp = (iVal >> 8) & 0xFFF;
+                const hpmax = (iVal >> 20) & 0xFFF;
+
+                const mon = {
+                    x,
+                    y,
+                    ptr: monPtr,
+                    peaceful,
+                    tame,
+                    hp,
+                    hpmax,
+                    sleeping: Boolean(sVal & 0x01),
+                    fleeing: Boolean((sVal >> 1) & 0x01),
+                    paralyzed: Boolean((sVal >> 2) & 0x01),
+                    confused: Boolean((sVal >> 3) & 0x01),
+                    stunned: Boolean((sVal >> 4) & 0x01),
+                    isShopkeeper: Boolean((sVal >> 5) & 0x01),
+                    isPriest: Boolean((sVal >> 6) & 0x01),
+                    isChameleon: Boolean((sVal >> 7) & 0x01)
+                };
+
+                if (!this._cachedMonsters) this._cachedMonsters = new Map();
+                this._cachedMonsters.set(`${x},${y}`, mon);
+                return mon;
+            } catch (err) {
+                console.warn(`[WasmDirectBindingService] fetchFullMonsterAt(${x},${y}) error:`, err);
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * テスト用 / Worker 受信用 モンスターキャッシュ設定
+     * @param {number} x
+     * @param {number} y
+     * @param {Object} monster
+     */
+    setCachedMonster(x, y, monster) {
+        if (!this._cachedMonsters) this._cachedMonsters = new Map();
+        if (monster) {
+            this._cachedMonsters.set(`${x},${y}`, { x, y, ...monster });
+        } else {
+            this._cachedMonsters.delete(`${x},${y}`);
+        }
     }
 
     /**

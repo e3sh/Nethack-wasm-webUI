@@ -59,9 +59,9 @@ last_updated: 2026-10-10
   - [x] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結 ＆ 床アイテムBUC判定**
     - `shim_bridge_call` への一本化により個別C関数直接呼出を完全排除、キー入力待ち静止時 (Sync Barrier) に `EncumbranceStateManager.js` へ真の重量直結（推測誤差ゼロ）
     - `SHIM_CMD_GET_OBJECT_AT` (0x20) からの `nexthere` 走査により、地面・祭壇に置かれたアイテムの BUC 判定（`blessed` / `cursed` / `bknown`）をテキストパース不要で 100% 同定 (全135スイート・1,660テスト 100% PASS)
-  - [ ] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
-    - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプ
-    - `ActionSignalResolver.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出。`mpeaceful` / `mtame` により攻撃エフェクト誤爆を完全防止
+  - [x] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
+    - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプおよび `stairCache` 描画依存の適正化・スリム化
+    - `ActionSignalResolver.js` / `ContextActionEngine.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出（罠なし扉への `#untrap` 誤表示を完全根絶）。`mpeaceful` / `mtame` により平和NPC・ペットへの攻撃メニュー抑制および攻撃エフェクト誤爆を完全防止 (全136スイート・1,670テスト 100% PASS)
   - [ ] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新**
     - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
     - ターン同期ライフサイクル (Sync Barrier) の導入による投機的仮床推測副作用の根絶

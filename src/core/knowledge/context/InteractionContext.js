@@ -429,6 +429,75 @@ export class InteractionContext {
     }
 
     /**
+     * AreaState から隣接する扉・モンスター・足元エンティティを走査しフォーカス候補を更新 (Stage 8.3-A)
+     * @param {Object} areaState
+     */
+    updateFromAreaState(areaState) {
+        if (!areaState) return;
+
+        if (areaState.playerLocation) {
+            this.updatePlayerPosition(areaState.playerLocation.x, areaState.playerLocation.y);
+        }
+
+        // 隣接セル (cells 3x3) を走査
+        if (Array.isArray(areaState.cells)) {
+            for (const row of areaState.cells) {
+                if (!Array.isArray(row)) continue;
+                for (const cell of row) {
+                    if (!cell || (cell.relX === 0 && cell.relY === 0)) continue;
+
+                    const dirKey = cell.dir?.key || '.';
+                    const targetPos = { x: cell.x, y: cell.y };
+
+                    // A. 隣接モンスター
+                    if (cell.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
+                        const top = cell.top;
+                        const isPet = (top.type === 'PET' || Boolean(top.isPet || top.isTame));
+                        const isShopkeeper = Boolean(top.isShopkeeper || top.directState?.isShopkeeper);
+                        const isPriest = Boolean(top.isPriest || top.directState?.isPriest);
+                        const isPeaceful = Boolean(top.isPeaceful || top.directState?.peaceful || top.attitude === 'PEACEFUL' || isShopkeeper || isPriest || isPet);
+
+                        this.setFocus({
+                            type: isPet ? 'PET' : 'MONSTER',
+                            name: top.name || 'creature',
+                            isPeaceful,
+                            isPet,
+                            isTame: Boolean(top.isTame || top.directState?.tame),
+                            isShopkeeper,
+                            isPriest,
+                            hp: top.hp || top.directState?.hp,
+                            hpmax: top.hpmax || top.directState?.hpmax,
+                            directState: top.directState || null,
+                            pos: targetPos,
+                            direction: dirKey,
+                            ttl: this.defaultTtl
+                        }, 'adjacent');
+                    }
+
+                    // B. 隣接する扉 (DOOR / SDOOR)
+                    const b = cell.bottom;
+                    const isDoor = b && (b.typ === 23 || b.typ === 14 || b.type === 'DOOR' || b.type === 'SDOOR' || Boolean(b.door));
+                    if (isDoor) {
+                        const doorInfo = b.door || b.cellInfo?.door || null;
+                        const isLocked = Boolean(doorInfo?.isLocked);
+                        const isTrapped = Boolean(doorInfo?.isTrapped);
+
+                        this.setFocus({
+                            type: 'DOOR',
+                            name: 'door',
+                            isLocked,
+                            isTrapped,
+                            pos: targetPos,
+                            direction: dirKey,
+                            ttl: this.defaultTtl
+                        }, 'adjacent');
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * 外部公開用のプレーンな状態オブジェクトを取得
      * @returns {Object}
      */

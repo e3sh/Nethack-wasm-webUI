@@ -978,23 +978,42 @@ export class ContextActionEngine {
                 }
             }
 
-            const b = item.cell.bottom;
-            if (!b || !b.cmapFlags) return;
-            const flags = b.cmapFlags;
+            const b = item.cell?.bottom;
+            const entity = item.entity;
+            const flags = b?.cmapFlags || {};
 
-            const isTrappedDoor = Boolean(flags.isTrappedDoor || b.door?.isTrapped || b.cellInfo?.door?.isTrapped);
-            const isLockedDoor = Boolean(flags.isLockedDoor || b.door?.isLocked || b.cellInfo?.door?.isLocked);
-            const isClosedOrLocked = flags.isClosedDoor || flags.isLockedDoor || isLockedDoor || (b.door && (b.door.isClosed || b.door.isLocked));
+            const isTrappedDoor = Boolean(
+                flags.isTrappedDoor ||
+                b?.door?.isTrapped ||
+                b?.cellInfo?.door?.isTrapped ||
+                entity?.isTrapped ||
+                entity?.directState?.isTrapped
+            );
+            const isLockedDoor = Boolean(
+                flags.isLockedDoor ||
+                b?.door?.isLocked ||
+                b?.cellInfo?.door?.isLocked ||
+                entity?.isLocked ||
+                entity?.directState?.isLocked
+            );
+            const isClosedOrLocked = Boolean(
+                flags.isClosedDoor ||
+                flags.isLockedDoor ||
+                isLockedDoor ||
+                (b?.door && (b.door.isClosed || b.door.isLocked)) ||
+                entity?.isClosed ||
+                entity?.directState?.isClosed
+            );
 
             // 閉じた扉 / 施錠された扉 (Closed Door / Locked Door)
             if (isClosedOrLocked) {
-                // 罠付き扉の場合、罠解除 (#untrap) を最優先提示
-                if (!actions.some(a => a.id.startsWith(`ACTION_UNTRAP_DOOR_${dirCode}`))) {
+                // 罠付き扉の場合のみ、罠解除 (#untrap) を最優先提示 (罠のない扉には表示しない)
+                if (isTrappedDoor && !actions.some(a => a.id.startsWith(`ACTION_UNTRAP_DOOR_${dirCode}`))) {
                     actions.push({
                         id: `ACTION_UNTRAP_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: isTrappedDoor ? `Untrap door [TRAP DETECTED!]` : `Untrap door`,
-                        labelJa: isTrappedDoor ? `扉の罠解除 [罠感知!] (#untrap)` : `扉の罠解除 (#untrap)`,
+                        label: `Untrap door [TRAP DETECTED!]`,
+                        labelJa: `扉の罠解除 [罠感知!] (#untrap)`,
                         key: `#untrap${dirKey}`,
                         charStr: '#untrap',
                         extCmd: 'untrap',
@@ -1002,9 +1021,9 @@ export class ContextActionEngine {
                         direction: item.dir,
                         target: 'adjacent',
                         risk: null,
-                        priority: isTrappedDoor ? 98 : 75,
-                        description: isTrappedDoor ? `Disarm detected trap on door before opening` : `Disarm trap on door`,
-                        descriptionJa: isTrappedDoor ? `${dirNameJa}の扉にかかった罠を解除します (罠感知中)` : `扉にかかった罠を解除します`
+                        priority: 98,
+                        description: `Disarm detected trap on door before opening`,
+                        descriptionJa: `${dirNameJa}の扉にかかった罠を解除します (罠感知中)`
                     });
                 }
 
@@ -1074,7 +1093,7 @@ export class ContextActionEngine {
             }
 
             // 開いた扉 (Open Door)
-            else if (flags.isOpenDoor) {
+            else if (flags.isOpenDoor || (b?.door && !b.door.isClosed && !isClosedOrLocked) || entity?.isOpen) {
                 if (!actions.some(a => a.id.startsWith('ACTION_CLOSE_DOOR'))) {
                     actions.push({
                         id: `ACTION_CLOSE_DOOR_${dirCode}`,

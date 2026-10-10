@@ -735,24 +735,54 @@ export class GKLPlugin {
 
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
         addCoreListener('inputRequired', async (payload) => {
-            // 🎯 Web Worker 隔離環境用：トップレベルターン確定時に足元情報・所持品を 1 往復同期 (Stage 8.2-A, 8.2)
+            // 🎯 Web Worker 隔離環境用：トップレベルターン確定時に足元情報・所持品・周辺モンスターを 1 往復同期 (Stage 8.2-A, 8.3-A)
             if (payload && payload.isTopLevelTurn && this.wasmDirectBindingService && this.wasmDirectBindingService.bridge) {
                 const px = this.areaStateManager ? this.areaStateManager.playerX : -1;
                 const py = this.areaStateManager ? this.areaStateManager.playerY : -1;
+
+                // 周辺モンスター座標の収集 (Stage 8.3-A)
+                const surroundingMonsters = [];
+                if (this.areaStateManager && this.areaStateManager.grid && px >= 0 && py >= 0) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const tx = px + dx;
+                            const ty = py + dy;
+                            const cell = this.areaStateManager.grid[ty]?.[tx];
+                            if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
+                                surroundingMonsters.push({ x: tx, y: ty });
+                            }
+                        }
+                    }
+                }
+
                 await this.wasmDirectBindingService.syncFromWorkerBridge({
                     playerX: px >= 0 ? px : undefined,
                     playerY: py >= 0 ? py : undefined,
-                    syncInventory: true
+                    syncInventory: true,
+                    surroundingMonsters
                 });
+
+                // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
+                if (this.areaStateManager && typeof this.areaStateManager.syncFromDirectBinding === 'function') {
+                    this.areaStateManager.syncFromDirectBinding(1);
+                }
+
                 // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
                 if (this.areaStateManager && typeof this.areaStateManager.syncPlayerFeetFloor === 'function') {
                     this.areaStateManager.syncPlayerFeetFloor();
                 }
+
                 if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
                     const changed = this.inventoryStateManager.syncFromDirectBinding();
                     if (changed) {
                         core.emit('inventoryStateUpdated', this.inventoryStateManager);
                     }
+                }
+
+                // 🎯 InteractionContext への周辺エリア状態の即時反映 (Stage 8.3-A)
+                if (this.interactionContext && typeof this.interactionContext.updateFromAreaState === 'function' && this.areaStateManager) {
+                    this.interactionContext.updateFromAreaState(this.areaStateManager.getAreaState());
                 }
             }
 
@@ -806,7 +836,15 @@ export class GKLPlugin {
                         const ty = py + offset.dy;
                         const targetCell = this.areaStateManager.grid?.[ty]?.[tx];
                         const top = targetCell?.top;
-                        const isPet = top && (top.type === 'PET' || top.isPet || top.glyphInfo?.isPet);
+
+                        // WasmDirectBindingService による真値の照会
+                        let directMon = top?.directState || null;
+                        if (!directMon && this.wasmDirectBindingService && typeof this.wasmDirectBindingService.isAvailable === 'function' && this.wasmDirectBindingService.isAvailable()) {
+                            directMon = this.wasmDirectBindingService.getFullMonsterAt(tx, ty);
+                        }
+
+                        const isPet = (top && (top.type === 'PET' || top.isPet || top.isTame || top.glyphInfo?.isPet)) ||
+                                      Boolean(directMon?.tame);
 
                         const monOffset = top ? (top.monOffset !== undefined ? top.monOffset : (top.subType !== undefined ? top.subType : top.glyphInfo?.monOffset)) : undefined;
                         const monKnowledge = (monOffset !== undefined && MONSTER_KNOWLEDGE_MAP) ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null;
@@ -818,7 +856,7 @@ export class GKLPlugin {
                             top.dynamicState?.isHostile
                         );
 
-                        const isPeaceful = top && (
+                        const isPeaceful = ((top && (
                             top.isPeaceful ||
                             top.peaceful ||
                             top.attitude === 'PEACEFUL' ||
@@ -827,16 +865,22 @@ export class GKLPlugin {
                             top.glyphInfo?.peaceful ||
                             monKnowledge?.defaultPeaceful ||
                             /\b(peaceful|平和)\b/i.test(top.name || top.glyphInfo?.name || '')
-                        ) && !isExplicitHostile;
-                        const isShopkeeper = top && (
+                        )) || Boolean(directMon?.peaceful)) && !isExplicitHostile;
+
+                        const isShopkeeper = (top && (
                             top.isShopkeeper ||
                             top.glyphInfo?.isShopkeeper ||
                             isShopkeeperMonster(top) ||
                             isShopkeeperMonster(top.glyphInfo) ||
                             /\b(shopkeeper|店主)\b/i.test(top.name || top.glyphInfo?.name || '')
-                        );
+                        )) || Boolean(directMon?.isShopkeeper);
 
-                        if (top && top.type === 'MONSTER' && !isPet && !isPeaceful && !isShopkeeper) {
+                        const isPriest = (top && (
+                            top.isPriest ||
+                            top.glyphInfo?.isPriest
+                        )) || Boolean(directMon?.isPriest);
+
+                        if (top && top.type === 'MONSTER' && !isPet && !isPeaceful && !isShopkeeper && !isPriest) {
                             this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
                             this.emitFxTrigger({
                                 type: 'ATTACK_HIT',
@@ -2027,12 +2071,26 @@ export class GKLPlugin {
             const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
             const tx = action.targetPos?.x ?? (offset ? px + offset.dx : px);
             const ty = action.targetPos?.y ?? (offset ? py + offset.dy : py);
-            this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
-            this.emitFxTrigger({
-                type: 'ATTACK_HIT',
-                targetX: tx,
-                targetY: ty
-            });
+
+            const targetCell = this.areaStateManager?.grid?.[ty]?.[tx];
+            const top = targetCell?.top;
+            let directMon = top?.directState || null;
+            if (!directMon && this.wasmDirectBindingService && typeof this.wasmDirectBindingService.isAvailable === 'function' && this.wasmDirectBindingService.isAvailable()) {
+                directMon = this.wasmDirectBindingService.getFullMonsterAt(tx, ty);
+            }
+            const isPet = (top && (top.type === 'PET' || top.isPet || top.isTame)) || Boolean(directMon?.tame);
+            const isPeaceful = (top && (top.isPeaceful || top.attitude === 'PEACEFUL')) || Boolean(directMon?.peaceful);
+            const isShopkeeper = (top && top.isShopkeeper) || Boolean(directMon?.isShopkeeper);
+            const isPriest = (top && top.isPriest) || Boolean(directMon?.isPriest);
+
+            if (!isPet && !isPeaceful && !isShopkeeper && !isPriest) {
+                this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
+                this.emitFxTrigger({
+                    type: 'ATTACK_HIT',
+                    targetX: tx,
+                    targetY: ty
+                });
+            }
         }
 
         // 【0】対話レシピ (actionRecipe / recipe) が指定されている場合は最優先でレシピ実行 (モードB)
