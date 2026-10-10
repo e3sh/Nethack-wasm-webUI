@@ -220,6 +220,12 @@ export class CodexModal {
      * @param {string} [options.defaultTab] - 初期選択タブ
      * @param {string} [options.tileImage] - タイル画像パス
      * @param {Function} [options.getLoadedTileImagePath] - タイル画像パス取得関数
+     *
+     * 【将来の拡張・UIアセット設計についての注意】
+     * 現在はゲームの主画面タイルセット(nethack_default_32.png等)を直接参照していますが、
+     * 将来的に図鑑専用の解説動画・高解像度イラスト・UI専用スプライト等を導入する場合は、
+     * Core層に物理アセットパスを持たせず、UI専用のAssetProviderまたはCSSカスタムプロパティで
+     * 解決する設計に移行することを推奨します。
      */
     constructor(options = {}) {
         this.options = options;

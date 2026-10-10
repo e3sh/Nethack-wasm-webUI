@@ -14,6 +14,14 @@ export class AdventureLogToast {
      * @param {Object} options
      * @param {HTMLElement} [options.container] - トースト描画親コンテナ
      * @param {Function} [options.onToastClick] - トーストクリック時のコールバック（手帳を開く等）
+     * @param {string} [options.tileImage] - タイル画像パス（静的指定）
+     * @param {Function} [options.getLoadedTileImagePath] - タイル画像パス動的取得関数
+     *
+     * 【将来の拡張・UIアセット設計についての注意】
+     * 現在はゲームの主画面タイルセット(nethack_default_32_tr.png等)を直接参照していますが、
+     * 将来的にUI専用アイコンスプライト、リッチアニメーション、動画プレビュー等のUI固有メディアを
+     * 導入する場合は、Core層やコンストラクタのバケツリレーに依存させず、
+     * UI専用のAssetProviderまたはCSSカスタムプロパティ(--nh-ui-*)で管理を分離することを推奨します。
      */
     constructor(options = {}) {
         this.container = options.container || document.body;
@@ -24,6 +32,7 @@ export class AdventureLogToast {
         this.displayDurationMs = 4000;
         this.currentLang = 'ja';
         this.tileImage = options.tileImage || 'pict/nethack_default_32.png';
+        this.getLoadedTileImagePath = options.getLoadedTileImagePath || null;
 
         this._initWrapper();
     }
@@ -34,6 +43,18 @@ export class AdventureLogToast {
 
     setTileImage(url) {
         this.tileImage = url;
+    }
+
+    /**
+     * タイル画像パスの取得（動的関数 > 静的プロパティ）
+     * @returns {string}
+     */
+    getTileImage() {
+        if (typeof this.getLoadedTileImagePath === 'function') {
+            const p = this.getLoadedTileImagePath();
+            if (p) return p;
+        }
+        return this.tileImage || 'pict/nethack_default_32.png';
     }
 
     _initWrapper() {
@@ -131,7 +152,7 @@ export class AdventureLogToast {
         let iconHtml = `<div style="font-size: 1.5rem; line-height: 1; flex-shrink: 0;">${icon}</div>`;
         if (glyphId >= 0) {
             const styleObj = GlyphHelper.getGlyphStyle(glyphId, {
-                tileImage: this.tileImage,
+                tileImage: this.getTileImage(),
                 tileSize: 32,
                 displaySize: 32
             });

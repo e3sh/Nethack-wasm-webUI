@@ -280,9 +280,12 @@ export class UiComponentFactory {
 
     // 8.7 Codex Modal
     client.codexModal = new CodexModal({
+      elCodexModal: document.getElementById('codex-modal'),
       getCore: () => client.core,
+      getLoadedTileImagePath: () => client.mapRenderer?.loadedTileImagePath,
       language: client.currentLanguage,
-      onUnreadCountChanged: (count) => client.updateCodexBadge(count)
+      onUnreadCountChanged: (count) => client.updateCodexBadge(count),
+      onClose: () => {}
     });
 
     // 8.8 Detailed Knowledge Modal
@@ -321,6 +324,9 @@ export class UiComponentFactory {
 
     // 8.95 Adventure Log Toast
     client.adventureLogToast = new AdventureLogToast({
+      container: document.body,
+      tileImage: '../../pict/nethack_default_32_tr.png',
+      getLoadedTileImagePath: () => client.mapRenderer?.loadedTileImagePath,
       language: client.currentLanguage,
       onToastClick: () => {
         if (client.codexModal) {
