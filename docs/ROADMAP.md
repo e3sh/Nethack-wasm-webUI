@@ -56,9 +56,9 @@ last_updated: 2026-10-10
     - `inspector_console.html` に「所持品同期方式（🟢SHIM vs 🔵MACRO）」および「足元床状態（🟢SHIM vs 🟡INFERRED 3992）」のランプ・インジケーターを新設
     - `DIRECT_BINDING_MODE`（`auto` / `strict` / `fallback`）の切替スイッチ（config / BroadcastChannel 送出）を配備
     - フォールバック完全遮断（`strict` モード）下で、直接調停が 100% 確実に稼働していることを実機・シナリオ・結合テストで検証可能にする (全135スイート・1,655テスト 100% PASS)
-  - [ ] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結（残りタスク）**
-    - `EncumbranceStateManager.js` への重量直結（`inv_weight`, `container_weight`）
-    - 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT`）
+  - [x] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結 ＆ 床アイテムBUC判定**
+    - `shim_bridge_call` への一本化により個別C関数直接呼出を完全排除、キー入力待ち静止時 (Sync Barrier) に `EncumbranceStateManager.js` へ真の重量直結（推測誤差ゼロ）
+    - `SHIM_CMD_GET_OBJECT_AT` (0x20) からの `nexthere` 走査により、地面・祭壇に置かれたアイテムの BUC 判定（`blessed` / `cursed` / `bknown`）をテキストパース不要で 100% 同定 (全135スイート・1,660テスト 100% PASS)
   - [ ] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
     - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプ
     - `ActionSignalResolver.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出。`mpeaceful` / `mtame` により攻撃エフェクト誤爆を完全防止
@@ -127,6 +127,17 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 - **ステータス**: `⏸️ pending` (設計完了 / 連動待ち)
 - **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
 - **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
+
+### 2.5 Wasm Direct Binding (CALL_SHIM) アイドリング調停 ＆ --More-- 待機・メッセージライフサイクル是正
+- **ステータス**: `⏸️ pending` (設計完了 / ROADMAP 2.1 完了後着手)
+- **設計書**: [direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md)
+- **対象コード**: `examples/gkl-pure-js-client/main.js`, `src/core/WebUICore.js`, `src/driver/NetHackWasmDriver.js`, `src/driver/NetHackWasmWorkerBridge.js`, `src/core/knowledge/services/WasmDirectBindingService.js`
+- **現状**: UI層の `statusUpdate` によるメッセージ早期フェードアウト誤発火は暫定ホットフィックス適用済み。残る Core/Driver/Direct Binding 層のアイドリング調停・--More-- 待機ガード・複数回 CALL_SHIM の排他制御は、ROADMAP 2.1 (main.js モジュール分割) 完了後にクリーンに統合着手。
+- **ステップ**:
+  - [ ] Step 1: Driver層 & Core層の `--More--` 待機状態明示化 (`isMorePromptActive` 配備 ＆ `isTopLevelTurn` ガード強化)
+  - [ ] Step 2: Direct Binding 同期の排他・世代管理 (`WasmDirectBindingService.js` の Sync Barrier ＆ 遅延描画破棄)
+  - [ ] Step 3: UI層ライフサイクルの統合 (ROADMAP 2.1 新アーキテクチャ上でのイベントオーケストレーション結合)
+  - [ ] Step 4: 単体・結合・実機シナリオテスト (全135スイート PASS 維持)
 
 ---
 

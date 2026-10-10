@@ -32,6 +32,7 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_INVENT_PTR     = 0x40, /* -> gi.invent (所持品リンクリスト先頭) */
     SHIM_CMD_GET_EQUIPMENT_PTRS = 0x41, /* buf=long[14] -> [uwep, uswapwep, uquiver, uarm, uarmc, uarmh, uarms, uarmg, uarmf, uarmu, uamul, uleft, uright, ublindf] */
     SHIM_CMD_DUMP_OBJECT_INFO   = 0x42, /* a1=obj*, buf=long[8] -> [otyp, owt, quan, spe, oclass, invlet, flags, weight] */
+    SHIM_CMD_DUMP_ALL_INVENT    = 0x43, /* buf=long[max*12], len=max_bytes -> 全所持品の一括ダンプ (返値: 件数) */
 
     /* 5. 呪文・スキル系 (0x50〜0x5F) */
     SHIM_CMD_DUMP_SPELL_BOOK    = 0x50, /* buf=int[(MAXSPELL+1)*3] -> [sp_id, sp_lev, sp_know] の3つ組配列 */
@@ -221,6 +222,39 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
             );
             out[7] = (long) weight(o); /* 鞄の軽減・4倍補正込み真の重量 */
             return 0;
+        }
+        case SHIM_CMD_DUMP_ALL_INVENT: {
+            if (!buf || len < (sizeof(long) * 12)) return 0;
+            int max_items = len / (sizeof(long) * 12);
+            int count = 0;
+            long *out = (long*) buf;
+            struct obj *o = gi.invent;
+            while (o && count < max_items) {
+                int base = count * 12;
+                out[base + 0] = (long) o->otyp;
+                out[base + 1] = (long) o->owt;
+                out[base + 2] = (long) o->quan;
+                out[base + 3] = (long) o->spe;
+                out[base + 4] = (long) o->oclass;
+                out[base + 5] = (long) o->invlet;
+                out[base + 6] = (long) (
+                    (o->blessed ? 1 : 0) |
+                    ((o->cursed ? 1 : 0) << 1) |
+                    ((o->bknown ? 1 : 0) << 2) |
+                    ((o->dknown ? 1 : 0) << 3) |
+                    ((o->rknown ? 1 : 0) << 4) |
+                    ((o->oeroded & 3) << 5) |
+                    ((o->oeroded2 & 3) << 7)
+                );
+                out[base + 7] = (long) weight(o); /* 鞄の軽減・4倍補正込み真の重量 */
+                out[base + 8] = (long) o;         /* 構造体ポインタ (装備スロット照合用) */
+                out[base + 9] = (long) o->o_id;   /* NetHack 固有ID */
+                out[base + 10] = (long) o->cobj;  /* コンテナ内包ポインタ */
+                out[base + 11] = 0;               /* 予約 */
+                count++;
+                o = o->nobj;
+            }
+            return (long) count;
         }
 
         /* 5. 呪文・スキル */

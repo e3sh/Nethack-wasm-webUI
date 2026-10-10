@@ -8,7 +8,7 @@
  * 1. NetHackMemory の bridgeCall (SHIM_CMD_*) を抽象化し、安全かつ型付けされたドメインオブジェクトを提供。
  * 2. 所持品リンクリスト (gi.invent -> nobj) の直接走査とアイテム構造体 (struct obj) の一括デコード。
  * 3. 14 種類の装備スロットポインタ (uwep, uarm, uleft 等) の取得とスロット同定マップの提供。
- * 4. 公式 C 関数 (_inv_weight, _weight, _container_weight) による真の重量の同期取得。
+ * 4. 公式 C コア計算 (DUMP_ALL_INVENT / DUMP_OBJECT_INFO) による補正後真の重量の同期取得。
  */
 
 // NetHackMemory.js は UMD / Worker (importScripts) との互換性維持のため副作用インポート
@@ -40,6 +40,7 @@ export const SHIM_CMD = {
     GET_INVENT_PTR: 0x40,
     GET_EQUIPMENT_PTRS: 0x41,
     DUMP_OBJECT_INFO: 0x42,
+    DUMP_ALL_INVENT: 0x43,
 
     DUMP_SPELL_BOOK: 0x50,
     DUMP_SKILLS: 0x51,
@@ -280,6 +281,8 @@ export class WasmDirectBindingService {
         this._cachedTrap = null;
         this._cachedEngraving = null;
         this._cachedInventory = [];
+        this._cachedInventoryWeight = -1;
+        this._cachedPlayerFloorObjects = [];
         this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
         this._cachedPlayerSummary = null;
     }
@@ -373,6 +376,53 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * DUMP_OBJECT_INFO (32バイト, 8個のint32) バッファからアイテム構造化データをデコード (ドメイン集約)
+     * @param {Array<number>|Int32Array} rawValues 
+     * @param {number} [ptr=0] 
+     * @param {number} [cobjPtr=0] 
+     * @param {number} [o_id=0] 
+     * @returns {Object|null}
+     */
+    unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0) {
+        if (!rawValues || rawValues.length < 8) return null;
+        const otyp = rawValues[0];
+        const owt = rawValues[1];
+        const quan = rawValues[2];
+        const spe = (rawValues[3] << 24) >> 24;
+        const oclass = rawValues[4];
+        const invletCode = rawValues[5];
+        const invlet = (invletCode > 0 && invletCode < 128) ? String.fromCharCode(invletCode) : '';
+        const flagsRaw = rawValues[6];
+        const weight = rawValues[7];
+
+        const flags = {
+            blessed: Boolean(flagsRaw & 0x01),
+            cursed: Boolean(flagsRaw & 0x02),
+            bknown: Boolean(flagsRaw & 0x04),
+            dknown: Boolean(flagsRaw & 0x08),
+            rknown: Boolean(flagsRaw & 0x10),
+            oeroded: (flagsRaw >> 5) & 0x03,
+            oeroded2: (flagsRaw >> 7) & 0x03,
+        };
+
+        return {
+            ptr,
+            rawObjPtr: ptr,
+            otyp,
+            onum: otyp, // onum は otyp と 1:1 に一致
+            owt,
+            quan,
+            spe,
+            oclass,
+            invlet,
+            flags,
+            weight,
+            cobjPtr,
+            o_id
+        };
+    }
+
+    /**
      * 所持品リンクリスト (gi.invent) を直接走査し、全アイテムの構造化データを取得
      * @returns {Array<Object>} アイテム構造化情報配列
      */
@@ -380,76 +430,68 @@ export class WasmDirectBindingService {
         if (!this.isAvailable()) return [];
 
         if (this.hasLiveMemory) {
+            // SHIM_CMD_DUMP_ALL_INVENT による一括取得を最優先 (Stage 8.2)
+            const bufSize = 4800; // 100 items * 48 bytes
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const count = this.memory.bridgeCall(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, bufPtr, bufSize);
+                    if (count >= 0) {
+                        const raw = this.memory.readInt32Array(bufPtr, count * 12);
+                        const items = [];
+                        const ITEM_FIELDS = 12;
+                        for (let i = 0; i < count; i++) {
+                            const base = i * ITEM_FIELDS;
+                            const raw8 = raw.slice(base, base + 8);
+                            const ptr = raw[base + 8] || 0;
+                            const o_id = raw[base + 9] || 0;
+                            const cobjPtr = raw[base + 10] || 0;
+                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id);
+                            if (item) items.push(item);
+                        }
+                        this._cachedInventory = items;
+                        return items;
+                    }
+                } finally {
+                    this.memory.freeBuffer(bufPtr);
+                }
+            }
+
+            // 万一のフォールバック (個別走査)
             const headPtr = this.memory.bridgeCall(SHIM_CMD.GET_INVENT_PTR, 0, 0, 0, 0);
             if (!headPtr || headPtr <= 0) return [];
 
             const items = [];
             const visited = new Set();
             const MAX_ITEMS = 100; // 安全上限（52文字+予備）
-
-            // struct obj デコード用バッファ確保: long[8] = 32 bytes
-            const bufSize = 32;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return [];
+            const singleBufSize = 32;
+            const singleBufPtr = this.memory.allocateBuffer(singleBufSize);
+            if (!singleBufPtr) return [];
 
             try {
                 let currPtr = headPtr;
                 while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_ITEMS) {
                     visited.add(currPtr);
 
-                    const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
+                    const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, singleBufPtr, singleBufSize);
                     if (res === 0) {
-                        const rawValues = this.memory.readInt32Array(bufPtr, 8);
-                        const otyp = rawValues[0];
-                        const owt = rawValues[1];
-                        const quan = rawValues[2];
-                        // spe は schar (符号付き8bit整数)
-                        const spe = (rawValues[3] << 24) >> 24;
-                        const oclass = rawValues[4];
-                        const invletCode = rawValues[5];
-                        const invlet = (invletCode > 0 && invletCode < 128) ? String.fromCharCode(invletCode) : '';
-                        const flagsRaw = rawValues[6];
-                        const weight = rawValues[7];
-
-                        // flags のビットフィールド展開
-                        const flags = {
-                            blessed: Boolean(flagsRaw & 0x01),
-                            cursed: Boolean(flagsRaw & 0x02),
-                            bknown: Boolean(flagsRaw & 0x04),
-                            dknown: Boolean(flagsRaw & 0x08),
-                            rknown: Boolean(flagsRaw & 0x10),
-                            oeroded: (flagsRaw >> 5) & 0x03,
-                            oeroded2: (flagsRaw >> 7) & 0x03,
-                        };
-
-                        // struct obj 内の追加情報 (+0x08: cobj, +0x0C: o_id)
+                        const rawValues = this.memory.readInt32Array(singleBufPtr, 8);
                         const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
                         const o_id = this.memory.getValue(currPtr + 12, 'i32');
-
-                        items.push({
-                            ptr: currPtr,
-                            rawObjPtr: currPtr,
-                            otyp,
-                            onum: otyp, // onum は otyp と 1:1 に一致
-                            owt,
-                            quan,
-                            spe,
-                            oclass,
-                            invlet,
-                            flags,
-                            weight,
-                            cobjPtr,
-                            o_id
-                        });
+                        const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
+                        if (item) {
+                            items.push(item);
+                        }
                     }
 
                     // 次のアイテムへのポインタ (offset +0x00: struct obj *nobj)
                     currPtr = this.memory.getValue(currPtr, 'i32');
                 }
             } finally {
-                this.memory.freeBuffer(bufPtr);
+                this.memory.freeBuffer(singleBufPtr);
             }
 
+            this._cachedInventory = items;
             return items;
         }
 
@@ -510,44 +552,69 @@ export class WasmDirectBindingService {
     }
 
     /**
-     * NetHack コアの inv_weight() による真の総所持重量を取得
+     * 所持品リンクリストから真の総所持重量を取得 (Stage 8.2-C)
      * (手持ち品・金貨・Bag of Holding の補正を含む完全な公式計算値)
      * @returns {number} 総所持重量 (利用不可時: -1)
      */
     getInventoryWeight() {
-        const M = this.Module;
-        if (M && typeof M._inv_weight === 'function') {
-            return M._inv_weight();
+        if (!this.isAvailable()) return -1;
+
+        if (this.hasLiveMemory) {
+            const items = this.getInventory();
+            let totalWeight = 0;
+            items.forEach(it => {
+                if (it.oclass === 1) { // 金貨
+                    totalWeight += Math.floor((it.quan || 0) / 100);
+                } else {
+                    totalWeight += (it.weight || 0);
+                }
+            });
+            return totalWeight;
         }
-        return -1;
+
+        return this._cachedInventoryWeight >= 0 ? this._cachedInventoryWeight : -1;
     }
 
     /**
-     * 単一アイテムの真の重量を取得 (Bag of Holding 等の補正含む)
+     * 単一アイテムの真の重量を取得 (Bag of Holding 等の補正含む) (Stage 8.2-C)
      * @param {number} objPtr 
      * @returns {number} アイテム重量 (利用不可時: -1)
      */
     getObjectWeight(objPtr) {
         if (!objPtr || objPtr <= 0) return 0;
-        const M = this.Module;
-        if (M && typeof M._weight === 'function') {
-            return M._weight(objPtr);
+        if (!this.isAvailable()) return -1;
+
+        if (this.hasLiveMemory) {
+            const bufSize = 32;
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (!bufPtr) return -1;
+            try {
+                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, objPtr, 0, bufPtr, bufSize);
+                if (res === 0) {
+                    const rawValues = this.memory.readInt32Array(bufPtr, 8);
+                    return rawValues[7]; // weight(o)
+                }
+            } finally {
+                this.memory.freeBuffer(bufPtr);
+            }
+            return -1;
+        }
+
+        // Worker 隔離環境: キャッシュから探索
+        const found = this._cachedInventory.find(it => it.ptr === objPtr || it.rawObjPtr === objPtr);
+        if (found && typeof found.weight === 'number') {
+            return found.weight;
         }
         return -1;
     }
 
     /**
-     * コンテナの内包物総重量を取得
+     * コンテナの内包物含む真の重量を取得 (Stage 8.2-C)
      * @param {number} objPtr 
-     * @returns {number} コンテナ内重量 (利用不可時: -1)
+     * @returns {number} コンテナ重量 (利用不可時: -1)
      */
     getContainerWeight(objPtr) {
-        if (!objPtr || objPtr <= 0) return 0;
-        const M = this.Module;
-        if (M && typeof M._container_weight === 'function') {
-            return M._container_weight(objPtr);
-        }
-        return -1;
+        return this.getObjectWeight(objPtr);
     }
 
     /**
@@ -648,34 +715,66 @@ export class WasmDirectBindingService {
                 }
             }
 
-            // 5. 所持品リンクリスト ＆ 装備スロットの一括同期 (Stage 8.2)
+            // 5. 装備スロットポインタおよび所持品一括ダンプ同期 (Stage 8.2 / DUMP_ALL_INVENT)
             if (options.syncInventory || options.syncInventory !== false) {
-                if (typeof this.bridge.getInventorySnapshot === 'function') {
-                    const invSnapshot = await this.bridge.getInventorySnapshot();
-                    if (invSnapshot) {
-                        this._cachedInventory = invSnapshot.items || [];
-                        const ptrArray = (invSnapshot.equipment && invSnapshot.equipment.ptrArray) || [];
-                        const rawPtrs = {};
-                        const slotByPtr = new Map();
-                        const ptrBySlot = new Map();
+                const eqRes = await this.bridge.callShim(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, 56, 'int32');
+                if (eqRes && Array.isArray(eqRes.buffer)) {
+                    const ptrArray = eqRes.buffer;
+                    const rawPtrs = {};
+                    const slotByPtr = new Map();
+                    const ptrBySlot = new Map();
 
-                        for (let i = 0; i < 14; i++) {
-                            const ptr = ptrArray[i] || 0;
-                            const fieldKey = EQUIPMENT_FIELD_KEYS[i];
-                            const slotName = EQUIPMENT_SLOT_NAMES[i];
-                            rawPtrs[fieldKey] = ptr;
-                            if (ptr > 0) {
-                                slotByPtr.set(ptr, slotName);
-                                ptrBySlot.set(slotName, ptr);
+                    for (let i = 0; i < 14; i++) {
+                        const ptr = ptrArray[i] || 0;
+                        const fieldKey = EQUIPMENT_FIELD_KEYS[i];
+                        const slotName = EQUIPMENT_SLOT_NAMES[i];
+                        rawPtrs[fieldKey] = ptr;
+                        if (ptr > 0) {
+                            slotByPtr.set(ptr, slotName);
+                            ptrBySlot.set(slotName, ptr);
+                        }
+                    }
+
+                    this._cachedEquipmentPtrs = {
+                        rawPtrs,
+                        slotByPtr,
+                        ptrBySlot
+                    };
+                }
+
+                // 5-b. 全所持品の一括同期 (SHIM_CMD_DUMP_ALL_INVENT: 最大100個 = 4800 bytes)
+                const invRes = await this.bridge.callShim(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, 4800, 'int32');
+                if (invRes && Array.isArray(invRes.buffer)) {
+                    const count = typeof invRes.result === 'number' ? Math.max(0, invRes.result) : 0;
+                    const raw = invRes.buffer;
+                    const items = [];
+                    const ITEM_FIELDS = 12;
+
+                    for (let i = 0; i < count; i++) {
+                        const base = i * ITEM_FIELDS;
+                        if (base + ITEM_FIELDS <= raw.length) {
+                            const raw8 = raw.slice(base, base + 8);
+                            const ptr = raw[base + 8] || 0;
+                            const o_id = raw[base + 9] || 0;
+                            const cobjPtr = raw[base + 10] || 0;
+                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id);
+                            if (item) {
+                                items.push(item);
                             }
                         }
-
-                        this._cachedEquipmentPtrs = {
-                            rawPtrs,
-                            slotByPtr,
-                            ptrBySlot
-                        };
                     }
+                    this._cachedInventory = items;
+                    this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+                }
+            }
+
+            // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C, 明示的オプトイン)
+            if (options.syncFloorObjects === true && x >= 0 && y >= 0) {
+                try {
+                    const floorItems = await this.fetchObjectsAt(x, y);
+                    this._cachedPlayerFloorObjects = floorItems || [];
+                } catch (e) {
+                    this._cachedPlayerFloorObjects = [];
                 }
             }
 
@@ -977,6 +1076,93 @@ export class WasmDirectBindingService {
             isPriest: Boolean(state.isPriest),
             isChameleon: Boolean(state.isChameleon)
         };
+    }
+
+    /**
+     * 指定座標 (x, y) の床に落ちているアイテム一覧を取得 (Stage 8.2-C)
+     * @param {number} x
+     * @param {number} y
+     * @returns {Array<Object>}
+     */
+    getObjectsAt(x, y) {
+        if (!this.isAvailable()) return [];
+        if (typeof x !== 'number' || typeof y !== 'number') return [];
+
+        if (this.hasLiveMemory) {
+            const headPtr = this.memory.bridgeCall(SHIM_CMD.GET_OBJECT_AT, x, y, 0, 0);
+            if (!headPtr || headPtr <= 0) return [];
+
+            const items = [];
+            const visited = new Set();
+            const MAX_FLOOR_ITEMS = 50;
+            const bufSize = 32;
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+
+            if (bufPtr) {
+                try {
+                    let currPtr = headPtr;
+                    while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
+                        visited.add(currPtr);
+                        const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
+                        if (res === 0) {
+                            const rawValues = this.memory.readInt32Array(bufPtr, 8);
+                            const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
+                            const o_id = this.memory.getValue(currPtr + 12, 'i32');
+                            const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
+                            if (item) {
+                                items.push(item);
+                            }
+                        }
+                        currPtr = this.memory.getValue(currPtr + 4, 'i32');
+                    }
+                } finally {
+                    this.memory.freeBuffer(bufPtr);
+                }
+            }
+            return items;
+        }
+
+        // Worker 隔離環境: 足元座標と一致する場合はキャッシュを返却
+        if (this._cachedCellX === x && this._cachedCellY === y && this._cachedPlayerFloorObjects) {
+            return this._cachedPlayerFloorObjects;
+        }
+
+        return [];
+    }
+
+    /**
+     * 指定座標 (x, y) の床アイテム一覧を非同期で問い合わせ取得 (Worker調停対応・汎用callShim利用) (Stage 8.2-C)
+     * @param {number} x
+     * @param {number} y
+     * @returns {Promise<Array<Object>>}
+     */
+    async fetchObjectsAt(x, y) {
+        if (!this.isAvailable()) return [];
+        if (this.hasLiveMemory) {
+            return this.getObjectsAt(x, y);
+        }
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const headRes = await this.bridge.callShim(SHIM_CMD.GET_OBJECT_AT, x, y);
+                const headPtr = (headRes && typeof headRes.result === 'number') ? headRes.result : 0;
+                const items = [];
+                if (headPtr > 0) {
+                    const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, headPtr, 0, 32, 'int32');
+                    if (objRes && Array.isArray(objRes.buffer)) {
+                        const item = this.unpackObjectBuffer(objRes.buffer, headPtr);
+                        if (item) items.push(item);
+                    }
+                }
+                if (this._cachedCellX === x && this._cachedCellY === y) {
+                    this._cachedPlayerFloorObjects = items;
+                }
+                return items;
+            } catch (err) {
+                console.warn(`[WasmDirectBindingService] fetchObjectsAt(${x},${y}) error:`, err);
+                return [];
+            }
+        }
+        return [];
     }
 }
 

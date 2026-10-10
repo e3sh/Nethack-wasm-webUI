@@ -107,9 +107,19 @@ LUA_API int (lua_error) (lua_State *L) NORETURN;
     cl /O2 /Iinclude /I$LUA_SRC_DIR /DCROSSCOMPILE $tilemap_src /link /out:util/tilemap.exe
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Running tilemap.exe to generate tile.c and tilemappings.lst..."
-        Push-Location util
-        .\tilemap.exe
-        Pop-Location
+        try {
+            Push-Location util
+            & ".\tilemap.exe"
+        } catch {
+            Write-Warning "tilemap.exe execution failed or was blocked by policy. Using existing tile artifacts."
+            if (Test-Path "$NH_ROOT/src/tile.c") {
+                Write-Host "Existing src/tile.c confirmed."
+            } else {
+                throw $_
+            }
+        } finally {
+            Pop-Location
+        }
     }
 
     # 3. Generate data files
@@ -214,7 +224,7 @@ LUA_API int (lua_error) (lua_State *L) NORETURN;
         "-DNO_SIGNAL",
         "-sASYNCIFY=1",
         "-sASYNCIFY_IMPORTS=['local_callback']",
-        "-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_repopulate_perminvent','_malloc','_free','_shim_bridge_call','_weight','_inv_weight','_container_weight']",
+        "-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']",
         "-sEXPORTED_RUNTIME_METHODS=['cwrap','ccall','addFunction','UTF8ToString','stringToUTF8','getValue','setValue','FS','IDBFS']",
         "-lidbfs.js",
         "-sALLOW_TABLE_GROWTH=1",

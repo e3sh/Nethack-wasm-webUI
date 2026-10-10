@@ -167,14 +167,25 @@ describe('WasmDirectBindingService', () => {
         expect(items).toEqual([]);
     });
 
-    it('getInventoryWeight, getObjectWeight, getContainerWeight call native functions directly', () => {
+    it('getInventoryWeight, getObjectWeight, getContainerWeight compute true weights via Direct Binding / SHIM', () => {
+        // getInventory() が返すアイテム群から総重量を計算
+        vi.spyOn(service, 'getInventory').mockReturnValue([
+            { oclass: 1, quan: 300, weight: 0 }, // 金貨 300枚 = 3
+            { oclass: 2, quan: 1, weight: 447 }  // 武器 = 447
+        ]);
         expect(service.getInventoryWeight()).toBe(450);
-        expect(service.getObjectWeight(0x1000)).toBe(50);
-        expect(service.getContainerWeight(0x2000)).toBe(120);
 
-        expect(mockModule._inv_weight).toHaveBeenCalled();
-        expect(mockModule._weight).toHaveBeenCalledWith(0x1000);
-        expect(mockModule._container_weight).toHaveBeenCalledWith(0x2000);
+        // getObjectWeight: DUMP_OBJECT_INFO を通じて取得
+        let bufPtr = 0x9000;
+        vi.spyOn(memory, 'allocateBuffer').mockReturnValue(bufPtr);
+        vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1) => {
+            if (cmd === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO && a1 === 0x1000) return 0;
+            return -1;
+        });
+        vi.spyOn(memory, 'readInt32Array').mockReturnValue([25, 40, 1, 0, 1, 97, 0, 50]); // weight = 50
+
+        expect(service.getObjectWeight(0x1000)).toBe(50);
+        expect(service.getContainerWeight(0x1000)).toBe(50);
     });
 
     describe('Stage 8.3 - Terrain, Trap, Engraving, Room, and Monster bindings', () => {
@@ -409,33 +420,185 @@ describe('WasmDirectBindingService', () => {
             expect(engr.isElbereth).toBe(true);
         });
 
-        it('syncFromWorkerBridge fetches inventory snapshot and makes getInventory and getEquipmentPtrs synchronously available', async () => {
-            const dummyItems = [
-                { ptr: 0x2000, invlet: 'a', otyp: 24, quan: 1, flags: { blessed: true, bknown: true } },
-                { ptr: 0x3000, invlet: 'b', otyp: 10, quan: 5, flags: { uncursed: true, bknown: true } }
-            ];
-            const dummyEquipment = {
-                ptrArray: [0x2000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 0: weapon (uwep)
-            };
+        it('syncFromWorkerBridge fetches equipment pointers via generic callShim and makes getEquipmentPtrs synchronously available', async () => {
+            const dummyEquipment = [0x2000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 0: weapon (uwep)
 
-            mockBridge.getInventorySnapshot = vi.fn().mockResolvedValue({
-                items: dummyItems,
-                equipment: dummyEquipment
+            mockBridge.callShim.mockImplementation(async (cmd) => {
+                if (cmd === 0x41) { // SHIM_CMD.GET_EQUIPMENT_PTRS
+                    return { result: 0, buffer: dummyEquipment };
+                }
+                return { result: 0, buffer: null };
             });
 
             const success = await bridgeService.syncFromWorkerBridge({ syncInventory: true });
             expect(success).toBe(true);
-            expect(mockBridge.getInventorySnapshot).toHaveBeenCalledTimes(1);
-
-            // getInventory がキャッシュから同期的に返ること
-            const items = bridgeService.getInventory();
-            expect(items).toEqual(dummyItems);
+            expect(mockBridge.callShim).toHaveBeenCalledWith(0x41, 0, 0, 56, 'int32');
 
             // getEquipmentPtrs がキャッシュから同期的に返ること
             const eq = bridgeService.getEquipmentPtrs();
             expect(eq.rawPtrs.uwep).toBe(0x2000);
             expect(eq.slotByPtr.get(0x2000)).toBe('weapon');
             expect(eq.ptrBySlot.get('weapon')).toBe(0x2000);
+        });
+
+        describe('Stage 8.2-C - Floor Objects BUC Identification & Weight Synchronization', () => {
+            it('getObjectsAt traverses floor item linked list (nexthere) and decodes BUC flags correctly in live memory mode', () => {
+                const item1Ptr = 0x5000;
+                const item2Ptr = 0x6000;
+                const bufPtr = 0x9000;
+
+                memory.allocateBuffer = vi.fn(() => bufPtr);
+                memory.freeBuffer = vi.fn();
+
+                // (1) GET_OBJECT_AT (x=10, y=5) -> item1Ptr
+                // (2) DUMP_OBJECT_INFO (item1Ptr) -> [otyp: 24, owt: 50, quan: 1, spe: +1, oclass: 2, invlet: 0, flags: blessed(1)|bknown(4)=5, weight: 50]
+                // (3) getValue(item1Ptr + 4, 'i32') -> nexthere = item2Ptr
+                // (4) DUMP_OBJECT_INFO (item2Ptr) -> [otyp: 30, owt: 10, quan: 1, spe: 0, oclass: 2, invlet: 0, flags: cursed(2)|bknown(4)=6, weight: 10]
+                // (5) getValue(item2Ptr + 4, 'i32') -> nexthere = 0
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1, a2) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.GET_OBJECT_AT && a1 === 10 && a2 === 5) {
+                        return item1Ptr;
+                    }
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO && a1 === item1Ptr) {
+                        return 0;
+                    }
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO && a1 === item2Ptr) {
+                        return 0;
+                    }
+                    return -1;
+                });
+
+                vi.spyOn(memory, 'readInt32Array').mockImplementation((ptr) => {
+                    if (ptr === bufPtr) {
+                        // 呼び出し毎に切り替え
+                        if (memory.bridgeCall.mock.calls.filter(c => c[0] === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO).length === 1) {
+                            return new Int32Array([24, 50, 1, 1, 2, 0, 5, 50]); // blessed, bknown
+                        } else {
+                            return new Int32Array([30, 10, 1, 0, 2, 0, 6, 10]); // cursed, bknown
+                        }
+                    }
+                    return new Int32Array(8);
+                });
+
+                vi.spyOn(memory, 'getValue').mockImplementation((ptr) => {
+                    if (ptr === item1Ptr + 4) return item2Ptr; // nexthere
+                    if (ptr === item1Ptr + 8) return 0;       // cobjPtr
+                    if (ptr === item1Ptr + 12) return 501;    // o_id
+                    if (ptr === item2Ptr + 4) return 0;       // end of list
+                    if (ptr === item2Ptr + 8) return 0;
+                    if (ptr === item2Ptr + 12) return 502;
+                    return 0;
+                });
+
+                const floorItems = service.getObjectsAt(10, 5);
+
+                expect(floorItems.length).toBe(2);
+                expect(floorItems[0].otyp).toBe(24);
+                expect(floorItems[0].flags.blessed).toBe(true);
+                expect(floorItems[0].flags.cursed).toBe(false);
+                expect(floorItems[0].flags.bknown).toBe(true);
+
+                expect(floorItems[1].otyp).toBe(30);
+                expect(floorItems[1].flags.blessed).toBe(false);
+                expect(floorItems[1].flags.cursed).toBe(true);
+                expect(floorItems[1].flags.bknown).toBe(true);
+
+                expect(memory.freeBuffer).toHaveBeenCalledWith(bufPtr);
+            });
+
+            it('returns empty array when no objects are on the floor', () => {
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.GET_OBJECT_AT) return 0;
+                    return -1;
+                });
+
+                const floorItems = service.getObjectsAt(10, 5);
+                expect(floorItems).toEqual([]);
+            });
+
+            it('syncFromWorkerBridge synchronizes player feet floor objects with BUC info via generic callShim', async () => {
+                mockBridge.callShim.mockImplementation(async (cmd, a1, a2) => {
+                    if (cmd === 0x41) { // GET_EQUIPMENT_PTRS
+                        return { result: 0, buffer: new Array(14).fill(0) };
+                    }
+                    if (cmd === 0x20 && a1 === 12 && a2 === 8) { // GET_OBJECT_AT
+                        return { result: 0x5000, buffer: null };
+                    }
+                    if (cmd === 0x42 && a1 === 0x5000) { // DUMP_OBJECT_INFO
+                        // otyp: 24, owt: 50, quan: 1, spe: 0, oclass: 2, invlet: 0, flags: blessed(1)|bknown(4)=5, weight: 50
+                        return { result: 0, buffer: [24, 50, 1, 0, 2, 0, 5, 50] };
+                    }
+                    return { result: 0, buffer: null };
+                });
+
+                const success = await bridgeService.syncFromWorkerBridge({
+                    playerX: 12,
+                    playerY: 8,
+                    syncInventory: true,
+                    syncFloorObjects: true
+                });
+
+                expect(success).toBe(true);
+
+                // 足元 (12, 8) の床アイテムがキャッシュから同期的に返ること
+                const feetItems = bridgeService.getObjectsAt(12, 8);
+                expect(feetItems.length).toBe(1);
+                expect(feetItems[0].otyp).toBe(24);
+                expect(feetItems[0].weight).toBe(50);
+                expect(feetItems[0].flags.bknown).toBe(true);
+                expect(feetItems[0].flags.blessed).toBe(true);
+                expect(feetItems[0].flags.cursed).toBe(false);
+
+                // 異なる座標の場合は空
+                expect(bridgeService.getObjectsAt(10, 10)).toEqual([]);
+            });
+
+            it('syncFromWorkerBridge synchronizes all inventory items in one roundtrip via SHIM_CMD.DUMP_ALL_INVENT (0x43)', async () => {
+                mockBridge.callShim.mockImplementation(async (cmd, a1, a2, bufSize, bufType) => {
+                    if (cmd === 0x41) { // GET_EQUIPMENT_PTRS
+                        const eq = new Array(14).fill(0);
+                        eq[0] = 0x1000; // uwep = 0x1000
+                        return { result: 0, buffer: eq };
+                    }
+                    if (cmd === 0x43) { // DUMP_ALL_INVENT
+                        // 2 items: 12 ints each
+                        // Item 1: long sword (+1, quan 1, invlet 'a' (97), blessed|bknown (5), weight 40, ptr 0x1000, o_id 101, cobj 0)
+                        const item1 = [25, 40, 1, 1, 1, 97, 5, 40, 0x1000, 101, 0, 0];
+                        // Item 2: apple (quan 3, invlet 'b' (98), uncursed|bknown (4), weight 30, ptr 0x2000, o_id 102, cobj 0)
+                        const item2 = [280, 10, 3, 0, 7, 98, 4, 30, 0x2000, 102, 0, 0];
+                        return {
+                            result: 2,
+                            buffer: [...item1, ...item2]
+                        };
+                    }
+                    return { result: 0, buffer: null };
+                });
+
+                const success = await bridgeService.syncFromWorkerBridge({ syncInventory: true });
+                expect(success).toBe(true);
+
+                const items = bridgeService.getInventory();
+                expect(items).toHaveLength(2);
+
+                expect(items[0].ptr).toBe(0x1000);
+                expect(items[0].onum).toBe(25);
+                expect(items[0].quan).toBe(1);
+                expect(items[0].spe).toBe(1);
+                expect(items[0].invlet).toBe('a');
+                expect(items[0].flags.blessed).toBe(true);
+                expect(items[0].weight).toBe(40);
+                expect(items[0].o_id).toBe(101);
+
+                expect(items[1].ptr).toBe(0x2000);
+                expect(items[1].onum).toBe(280);
+                expect(items[1].quan).toBe(3);
+                expect(items[1].invlet).toBe('b');
+                expect(items[1].flags.cursed).toBe(false);
+                expect(items[1].weight).toBe(30);
+                expect(items[1].o_id).toBe(102);
+
+                expect(bridgeService.getInventoryWeight()).toBe(70);
+            });
         });
     });
 });

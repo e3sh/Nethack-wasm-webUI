@@ -137,14 +137,21 @@ export class InventoryStateManager {
     updateFromMenuItems(menuItems) {
         if (!Array.isArray(menuItems)) return false;
 
-        // strict モード時はマクロフォールバックを完全遮断 (Stage 8.2-B)
-        if (this.directBindingMode === 'strict') {
+        // strict モード時はマクロフォールバック（rawObjPtr を持たない純粋テキスト行）を完全遮断 (Stage 8.2-B)
+        // ただし、公式 C コアの shim_add_menu から送出された rawObjPtr を持つ正当なメニュー項目は許可する
+        const hasDirectRawObjPtr = menuItems.some(mi => mi && ((mi.rawObjPtr && mi.rawObjPtr > 0) || (typeof mi.identifier === 'number' && mi.identifier > 0)));
+        if (this.directBindingMode === 'strict' && !hasDirectRawObjPtr) {
             console.warn('[InventoryStateManager] updateFromMenuItems blocked under strict directBindingMode.');
             return false;
         }
 
-        this.lastSyncMethod = 'MACRO';
-        this.macroSyncCount++;
+        if (hasDirectRawObjPtr) {
+            this.lastSyncMethod = 'SHIM';
+            this.shimSyncCount++;
+        } else {
+            this.lastSyncMethod = 'MACRO';
+            this.macroSyncCount++;
+        }
 
         const newSignature = this._buildSignature(menuItems);
         if (this.isSynced && this._lastInventorySignature === newSignature) {
@@ -219,18 +226,50 @@ export class InventoryStateManager {
                     skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
                 }
 
+                const rawObjPtr = mi.rawObjPtr || (typeof mi.identifier === 'number' ? mi.identifier : 0);
+
+                // 🎯 装備スロット同定 (rawObjPtr があれば C側の uwep 等ポインタと最優先照合)
+                let finalEquipState = equipState;
+                if (rawObjPtr > 0 && this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getEquipmentPtrs === 'function') {
+                    const equipData = this.wasmDirectBindingService.getEquipmentPtrs();
+                    if (equipData && equipData.slotByPtr) {
+                        const equipSlotName = equipData.slotByPtr.get(rawObjPtr) || null;
+                        if (equipSlotName) {
+                            const isWielded = equipSlotName === 'weapon';
+                            const isOffhand = equipSlotName === 'offhand';
+                            const isQuivered = equipSlotName === 'quiver';
+                            const isWorn = Boolean(!isWielded && !isOffhand && !isQuivered);
+                            finalEquipState = {
+                                ...equipState,
+                                isWielded,
+                                isOffhand,
+                                isQuivered,
+                                isWorn,
+                                equipSlot: equipSlotName
+                            };
+                        }
+                    }
+                }
+
                 parsedItems.push({
                     letter,
                     rawText,
                     glyphId,
                     onum,
                     identifier: (mi.identifier !== undefined ? mi.identifier : 0),
+                    rawObjPtr,
+                    weight: mi.weight !== undefined ? mi.weight : undefined,
+                    owt: mi.owt !== undefined ? mi.owt : undefined,
+                    quan: mi.quan !== undefined ? mi.quan : undefined,
+                    spe: mi.spe !== undefined ? mi.spe : undefined,
+                    oclass: mi.oclass !== undefined ? mi.oclass : undefined,
+                    flags: mi.flags !== undefined ? mi.flags : undefined,
                     identification,
                     knowledge,
                     skillBadge,
                     isRecommendedWeapon: Boolean(skillBadge && skillBadge.isProficient && !identification.isUnidentified),
                     ...categoryFlags,
-                    ...equipState
+                    ...finalEquipState
                 });
             }
         });
@@ -355,6 +394,36 @@ export class InventoryStateManager {
         const rawItems = this.wasmDirectBindingService.getInventory();
         const equipData = this.wasmDirectBindingService.getEquipmentPtrs();
         const slotByPtr = equipData.slotByPtr || new Map();
+
+        // 🎯 Worker 隔離環境用ハイブリッド連動 (Stage 8.2):
+        // 生メモリ (gi.invent) 走査結果が存在しない場合でも、メニュー連動 (nh_menu) で保持された
+        // 既存アイテム群の rawObjPtr と CALL_SHIM 経由で取得した装備スロットポインタを直接照合して更新
+        if ((!rawItems || rawItems.length === 0) && this.items.length > 0) {
+            let changed = false;
+            for (const item of this.items) {
+                const ptr = item.rawObjPtr || (typeof item.identifier === 'number' ? item.identifier : 0);
+                if (ptr > 0) {
+                    const equipSlotName = slotByPtr.get(ptr) || null;
+                    const isWielded = equipSlotName === 'weapon';
+                    const isOffhand = equipSlotName === 'offhand';
+                    const isQuivered = equipSlotName === 'quiver';
+                    const isWorn = Boolean(equipSlotName && !isWielded && !isOffhand && !isQuivered);
+                    if (item.isWielded !== isWielded || item.isOffhand !== isOffhand || item.equipSlot !== equipSlotName || item.isWorn !== isWorn) {
+                        item.isWielded = isWielded;
+                        item.isOffhand = isOffhand;
+                        item.isQuivered = isQuivered;
+                        item.isWorn = isWorn;
+                        item.equipSlot = equipSlotName;
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) {
+                this.lastSyncMethod = 'SHIM';
+                this.shimSyncCount++;
+            }
+            return changed;
+        }
 
         const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
 

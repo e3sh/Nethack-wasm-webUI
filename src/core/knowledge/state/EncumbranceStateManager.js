@@ -599,8 +599,7 @@ export class EncumbranceStateManager {
         const blCapLevel = BL_CAP_TO_LEVEL[blCapVal] || EncumbranceLevel.NORMAL;
 
         // 🎯 BL_CAP 公式確定レベルに基づく最終レベル決定 (SSOT原則)
-        // Cコアから公式確定ステータス (BL_CAP > 0) が通知されている場合は、
-        // フロントエンドの推定重量の誤差に関わらず公式レベル (blCapLevel) を絶対優先する
+        // Cコアから公式確定ステータス (BL_CAP > 0) が通知されている場合は公式レベル (blCapLevel) を絶対優先
         let finalLevel = calculatedLevel;
         if (blCapVal > 0) {
             finalLevel = blCapLevel;

@@ -92,7 +92,7 @@ export class EncumbrancePresenter {
                 capacity: 0,
                 ratio: 0,
                 hasUninspectedContainer: false,
-                tooltipText: isJa ? '推定積載率: 約0%' : 'Est. Load: ~0%',
+                tooltipText: isJa ? '積載率: 0%' : 'Load: 0%',
             };
         }
 
@@ -110,8 +110,8 @@ export class EncumbrancePresenter {
 
         const uninspectedSuffix = hasUninspectedContainer ? (isJa ? ' [未確認袋あり]' : ' [Uninspected bag]') : '';
         const tooltipText = isJa
-            ? `推定積載率: 約${percentage}% (推定重量: 約${totalWeight} / 推定許容量: 約${capacity}) - ${statusText}${uninspectedSuffix}`
-            : `Est. Load: ~${percentage}% (Est. Weight: ~${totalWeight} / Capacity: ~${capacity}) - ${statusText}${uninspectedSuffix}`;
+            ? `積載率: ${percentage}% (重量: ${totalWeight} / 許容量: ${capacity}) - ${statusText}${uninspectedSuffix}`
+            : `Load: ${percentage}% (Weight: ${totalWeight} / Capacity: ${capacity}) - ${statusText}${uninspectedSuffix}`;
 
         return {
             level,

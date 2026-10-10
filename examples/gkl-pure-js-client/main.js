@@ -538,9 +538,11 @@ class GklPureJSClient {
     this.core.on('statusUpdate', ({ status }) => {
       if (!status) return;
       if (status.turns !== undefined && status.turns > this.lastTurns) {
-        if (this.lastTurns !== -1) {
-          this.floatingMessageHud?.notifyUserAction();
-        }
+        // [HOTFIX] メッセージ出力直後の受動的なターン更新でメッセージが早期STALE/フェードアウト消滅するのを防止。
+        // notifyUserAction はプレイヤー自身の能動的な操作 (キー入力、D-Padタップ、アクション実行等) に限定。
+        // if (this.lastTurns !== -1) {
+        //   this.floatingMessageHud?.notifyUserAction();
+        // }
         this.lastTurns = status.turns;
       }
       this.statusView.updateStatus(status);

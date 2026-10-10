@@ -32,7 +32,6 @@
             this._driverDebugStatus = null;
             this._pendingSequences = new Map();
             this._pendingShimCalls = new Map();
-            this._pendingInventoryCalls = new Map();
             this.isRecording = false;
             this.recordedEvents = [];
 
@@ -304,21 +303,6 @@
                             pending.reject(new Error(error || 'Shim call error'));
                         }
                         this.emit('shimError', { callId, error });
-                        break;
-                    }
-
-                    case 'GET_INVENTORY_RESULT': {
-                        const { callId, items, equipment, error } = e.data;
-                        if (callId && this._pendingInventoryCalls.has(callId)) {
-                            const pending = this._pendingInventoryCalls.get(callId);
-                            this._pendingInventoryCalls.delete(callId);
-                            if (error) {
-                                pending.reject(new Error(error));
-                            } else {
-                                pending.resolve({ items: items || [], equipment: equipment || { ptrArray: [] } });
-                            }
-                        }
-                        this.emit('getInventoryResult', { callId, items, equipment, error });
                         break;
                     }
                 }
@@ -695,27 +679,6 @@
                         bufferSize,
                         bufferType
                     }
-                });
-            });
-        }
-
-        /**
-         * Web Worker 内の C コア所持品リンクリスト (gi.invent) と装備スロットを 1 往復走査して一括取得 (Stage 8.2)
-         * @returns {Promise<{items: Array<Object>, equipment: {ptrArray: Array<number>}}>}
-         */
-        getInventorySnapshot() {
-            if (!this.worker) {
-                return Promise.reject(new Error('[NetHackWasmWorkerBridge] Worker instance not available'));
-            }
-
-            const callId = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-
-            return new Promise((resolve, reject) => {
-                this._pendingInventoryCalls.set(callId, { resolve, reject });
-
-                this.worker.postMessage({
-                    type: 'GET_INVENTORY',
-                    callId
                 });
             });
         }

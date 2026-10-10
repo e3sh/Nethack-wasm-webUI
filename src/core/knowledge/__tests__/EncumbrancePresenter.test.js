@@ -86,12 +86,12 @@ describe('EncumbrancePresenter (UI 表現・ViewModel ヘルパー)', () => {
         expect(html).toContain('width:38%');
         expect(html).toContain('encumbrance-uninspected-badge');
         expect(html).toContain('余裕');
-        expect(html).toContain('title="推定積載率: 約38%');
+        expect(html).toContain('title="積載率: 38%');
         expect(html).not.toContain('300/800</span>');
 
         const compactHtml = presenter.renderMiniGaugeHtml(state, { compact: true });
         expect(compactHtml).toContain('encumbrance-gauge-compact');
         expect(compactHtml).toContain('余裕');
-        expect(compactHtml).toContain('title="推定積載率: 約38%');
+        expect(compactHtml).toContain('title="積載率: 38%');
     });
 });

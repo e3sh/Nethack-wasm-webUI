@@ -169,35 +169,69 @@ describe('NetHackWasmWorkerBridge - callShim 最小調停 PoC テスト (Stage 8
         expect(res.result & 0xFF).toBe(25);
     });
 
-    it('6. getInventorySnapshot が Worker へ GET_INVENTORY を送信し、GET_INVENTORY_RESULT を解決すること', async () => {
-        const promise = bridge.getInventorySnapshot();
+    it('6. 汎用 callShim 経由で装備スロットポインタ (GET_EQUIPMENT_PTRS, 56バイト) が透過中継されること', async () => {
+        const cmd = 0x41; // SHIM_CMD_GET_EQUIPMENT_PTRS
+        const bufferSize = 56;
 
-        // 1. Worker への postMessage 送信を検証
+        const promise = bridge.callShim(cmd, 0, 0, bufferSize, 'int32');
+
         expect(mockWorker.postMessage).toHaveBeenCalledTimes(1);
         const sentMsg = mockWorker.postMessage.mock.calls[0][0];
-        expect(sentMsg.type).toBe('GET_INVENTORY');
-        expect(sentMsg.callId).toBeDefined();
+        expect(sentMsg.type).toBe('CALL_SHIM');
+        expect(sentMsg.payload.cmd).toBe(0x41);
+        expect(sentMsg.payload.bufferSize).toBe(56);
 
-        // 2. Worker 側から GET_INVENTORY_RESULT が返ってきたことを模擬
-        const dummyItems = [
-            { ptr: 0x1000, invlet: 'a', otyp: 24, quan: 1, flags: { blessed: true, bknown: true } }
-        ];
-        const dummyEquipment = {
-            ptrArray: [0x1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        };
-
+        const dummyEquipment = [0x1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         mockWorker.onmessage({
             data: {
-                type: 'GET_INVENTORY_RESULT',
+                type: 'SHIM_RESULT',
                 callId: sentMsg.callId,
-                items: dummyItems,
-                equipment: dummyEquipment
+                result: 0,
+                buffer: dummyEquipment
             }
         });
 
-        // 3. Promise が解決されること
         const response = await promise;
-        expect(response.items).toEqual(dummyItems);
-        expect(response.equipment).toEqual(dummyEquipment);
+        expect(response.result).toBe(0);
+        expect(response.buffer).toEqual(dummyEquipment);
+    });
+
+    it('7. 汎用 callShim 経由で床アイテム (GET_OBJECT_AT / DUMP_OBJECT_INFO) が透過中継されること', async () => {
+        // 1. GET_OBJECT_AT でオブジェクトポインタ取得
+        const promise1 = bridge.callShim(0x20, 15, 8); // GET_OBJECT_AT
+        const sentMsg1 = mockWorker.postMessage.mock.calls[0][0];
+        expect(sentMsg1.payload.cmd).toBe(0x20);
+
+        mockWorker.onmessage({
+            data: {
+                type: 'SHIM_RESULT',
+                callId: sentMsg1.callId,
+                result: 0x5000,
+                buffer: null
+            }
+        });
+
+        const res1 = await promise1;
+        expect(res1.result).toBe(0x5000);
+
+        // 2. DUMP_OBJECT_INFO でアイテム詳細バッファ取得
+        const promise2 = bridge.callShim(0x42, 0x5000, 0, 32, 'int32');
+        const sentMsg2 = mockWorker.postMessage.mock.calls[1][0];
+        expect(sentMsg2.payload.cmd).toBe(0x42);
+        expect(sentMsg2.payload.arg1).toBe(0x5000);
+
+        const dummyDump = [24, 50, 1, 1, 2, 0, 5, 50]; // otyp:24, owt:50, quan:1, ...
+        mockWorker.onmessage({
+            data: {
+                type: 'SHIM_RESULT',
+                callId: sentMsg2.callId,
+                result: 0,
+                buffer: dummyDump
+            }
+        });
+
+        const res2 = await promise2;
+        expect(res2.result).toBe(0);
+        expect(res2.buffer).toEqual(dummyDump);
     });
 });
