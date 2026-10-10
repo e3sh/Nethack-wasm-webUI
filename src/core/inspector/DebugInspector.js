@@ -215,9 +215,42 @@ export class DebugInspector {
 
         const silentSyncTracker = (this.core.gkl && this.core.gkl.silentSyncTracker) ? {
             totalCount: this.core.gkl.silentSyncTracker.totalCount,
+            shimCount: this.core.gkl.silentSyncTracker.shimCount || 0,
+            macroCount: this.core.gkl.silentSyncTracker.macroCount || 0,
             syncCounts: { ...this.core.gkl.silentSyncTracker.syncCounts },
             recentHistory: [...this.core.gkl.silentSyncTracker.recentHistory]
         } : null;
+
+        const gkl = this.core.gkl;
+        const ism = gkl && gkl.inventoryStateManager;
+        const asm = gkl && gkl.areaStateManager;
+        const directBindingMode = (gkl && gkl.directBindingMode) || 'auto';
+
+        // Stage 8.2-B: Direct Binding 状態・テレメトリ
+        const directBindingStatus = {
+            mode: directBindingMode,
+            inventoryLastSync: ism ? {
+                method: ism.lastSyncMethod,
+                itemCount: ism.items ? ism.items.length : 0,
+                shimCount: ism.shimSyncCount || 0,
+                macroCount: ism.macroSyncCount || 0
+            } : null,
+            floorStatus: asm ? {
+                method: asm.lastFloorMethod,
+                lastSync: asm.lastFloorSync,
+                genuineFloorCount: asm.genuineFloorCount || 0,
+                inferredFloorCount: asm.inferredFloorCount || 0,
+                isGenuine: asm.lastFloorSync ? asm.lastFloorSync.isGenuine : false
+            } : null,
+            stats: {
+                shimInvCount: (ism && ism.shimSyncCount) || 0,
+                macroInvCount: (ism && ism.macroSyncCount) || 0,
+                genuineFloorCount: (asm && asm.genuineFloorCount) || 0,
+                inferredFloorCount: (asm && asm.inferredFloorCount) || 0,
+                shimSyncTotal: (gkl && gkl.silentSyncTracker && gkl.silentSyncTracker.shimCount) || 0,
+                macroSyncTotal: (gkl && gkl.silentSyncTracker && gkl.silentSyncTracker.macroCount) || 0
+            }
+        };
 
         const stateSnapshot = {
             state: this.core.state,
@@ -226,6 +259,7 @@ export class DebugInspector {
             hasActiveResolver: !!this.core.activeResolver,
             driverStatus: driverSummary,
             silentSyncStatus: silentSyncTracker,
+            directBindingStatus: directBindingStatus,
             discoveries: discoveriesData,
             situation: situation || {}
         };
@@ -265,6 +299,16 @@ export class DebugInspector {
                 this.core.sendAction(msg.actionName);
             }
             this.broadcastLog('INJECT', `Action sent: ${msg.actionName}`);
+        } else if (msg.type === 'SET_DIRECT_BINDING_MODE') {
+            const mode = msg.mode;
+            if (this.core && this.core.gkl && typeof this.core.gkl.setDirectBindingMode === 'function') {
+                this.core.gkl.setDirectBindingMode(mode);
+            }
+            if (this.core && this.core.config) {
+                this.core.config.directBindingMode = mode;
+            }
+            this.broadcastLog('CONFIG', `Direct binding mode changed to: ${mode}`);
+            this.broadcastState();
         } else if (msg.type === 'REQUEST_SNAPSHOT') {
             this.broadcastState();
         } else if (msg.type === 'QUERY_KNOWLEDGE') {

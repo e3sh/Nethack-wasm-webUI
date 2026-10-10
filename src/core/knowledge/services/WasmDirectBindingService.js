@@ -269,6 +269,9 @@ export class WasmDirectBindingService {
             this.memory = null;
         }
 
+        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
+        this._mode = options.mode || options.directBindingMode || 'auto';
+
         // Web Worker 隔離調停用キャッシュ
         this._cachedCellInfo = null;
         this._cachedCellX = -1;
@@ -279,6 +282,45 @@ export class WasmDirectBindingService {
         this._cachedInventory = [];
         this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
         this._cachedPlayerSummary = null;
+    }
+
+    /**
+     * 動作モード ('auto' | 'strict' | 'fallback') の取得
+     * @returns {'auto'|'strict'|'fallback'}
+     */
+    get mode() {
+        return this._mode;
+    }
+
+    /**
+     * 動作モードの設定
+     * @param {'auto'|'strict'|'fallback'} val
+     */
+    set mode(val) {
+        if (val === 'strict' || val === 'fallback' || val === 'auto') {
+            this._mode = val;
+        } else {
+            this._mode = 'auto';
+        }
+    }
+
+    /**
+     * 動作モード ('auto' | 'strict' | 'fallback') のエイリアス
+     */
+    get directBindingMode() {
+        return this._mode;
+    }
+
+    set directBindingMode(val) {
+        this.mode = val;
+    }
+
+    /**
+     * 動作モードの設定 (APIメソッド)
+     * @param {'auto'|'strict'|'fallback'} val
+     */
+    setMode(val) {
+        this.mode = val;
     }
 
     /**
@@ -320,9 +362,11 @@ export class WasmDirectBindingService {
 
     /**
      * 直接メモリバインディング（_shim_bridge_call または WorkerBridge.callShim）が利用可能かどうかを判定
+     * - 'fallback' モード時はバイパス検証のため常に false を返却
      * @returns {boolean}
      */
     isAvailable() {
+        if (this._mode === 'fallback') return false;
         if (this.bridge && typeof this.bridge.callShim === 'function') return true;
         if (!this.memory) return false;
         return this.hasLiveMemory;

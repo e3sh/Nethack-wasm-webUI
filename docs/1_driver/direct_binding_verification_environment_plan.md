@@ -87,24 +87,24 @@ flowchart LR
 ## 4. 実装タスクリスト (Task List)
 
 ### 【Task 1】GKL / StateManager への動作モード ＆ 同期実績テレメトリの実装
-- [ ] `WasmDirectBindingService.js` / `GKLPlugin.js` に `directBindingMode` (`'auto'` | `'strict'` | `'fallback'`) 設定・保持APIを実装
-- [ ] `InventoryStateManager.js`:
+- [x] `WasmDirectBindingService.js` / `GKLPlugin.js` に `directBindingMode` (`'auto'` | `'strict'` | `'fallback'`) 設定・保持APIを実装
+- [x] `InventoryStateManager.js`:
   - 直近同期方式 (`lastSyncMethod: 'SHIM' | 'MACRO'`) を記録
   - `strict` モード時に `querySequenceSilent(['i'])` を完全ブロック
-- [ ] `AreaStateManager.js`:
+- [x] `AreaStateManager.js`:
   - 直近足元同期方式 (`lastFloorMethod: 'SHIM' | 'INFERRED'`) および仮床/真床カウンタを記録
   - `strict` モード時に推測仮床（3992番）の生成を完全ブロック
 
 ### 【Task 2】DebugInspector への状態スナップショット拡張 ＆ モード切替コマンド対応
-- [ ] `DebugInspector.js`:
+- [x] `DebugInspector.js`:
   - `broadcastState()` に `directBindingStatus`（モード、所持品同期方式、床同期ランプ情報、統計カウンタ）を同梱
   - BroadcastChannel メッセージハンドラに `SET_DIRECT_BINDING_MODE` を追加
 
 ### 【Task 3】`inspector_console.html` へのランプ・インジケーター ＆ 切替スイッチUI追加
-- [ ] ヘッダーに `Floor Lamp`（🟢 SHIM / 🟡 INFERRED）および `SilentSync` 方式表示を追加
-- [ ] Direct Injector タブ（またはヘッダー）に `Direct Binding Mode` 切替ボタングループを配置
-- [ ] BroadcastChannel での切替コマンド送信・リアルタイム反映処理を実装
+- [x] ヘッダーに `Floor Lamp`（🟢 SHIM / 🟡 INFERRED）および `SilentSync` 方式表示を追加
+- [x] Direct Injector タブ（またはヘッダー）に `Direct Binding Mode` 切替ボタングループを配置
+- [x] BroadcastChannel での切替コマンド送信・リアルタイム反映処理を実装
 
 ### 【Task 4】自動テストによる切替 ＆ フォールバック遮断検証
-- [ ] `strict` モード時にマクロが 0 回・推測床が 0 件で動作することを実証するテストを作成
-- [ ] 全体テストスイート (`npm test`) の通過確認
+- [x] `strict` モード時にマクロが 0 回・推測床が 0 件で動作することを実証するテストを作成
+- [x] 全体テストスイート (`npm test`) の通過確認 (全135スイート・1,655テスト 100% PASS)

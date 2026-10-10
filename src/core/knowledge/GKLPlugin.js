@@ -196,9 +196,14 @@ export class GKLPlugin {
         this._lastReceivedMessage = '';
         this._emittedFxList = [];
 
+        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
+        this.directBindingMode = 'auto';
+
         // サイレント同期の統計・直近履歴トラッカー（コマンド衝突管理＆インスペクター可視化用）
         this.silentSyncTracker = {
             totalCount: 0,
+            shimCount: 0,
+            macroCount: 0,
             syncCounts: {
                 inventory: 0,
                 spells: 0,
@@ -211,20 +216,49 @@ export class GKLPlugin {
     }
 
     /**
+     * 動作モード ('auto' | 'strict' | 'fallback') の設定
+     * @param {'auto'|'strict'|'fallback'} mode
+     */
+    setDirectBindingMode(mode) {
+        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
+            this.directBindingMode = mode;
+        } else {
+            this.directBindingMode = 'auto';
+        }
+
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
+            this.wasmDirectBindingService.setMode(this.directBindingMode);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setDirectBindingMode === 'function') {
+            this.inventoryStateManager.setDirectBindingMode(this.directBindingMode);
+        }
+        if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingMode === 'function') {
+            this.areaStateManager.setDirectBindingMode(this.directBindingMode);
+        }
+    }
+
+    /**
      * サイレント同期の実行結果を統計・直近履歴に記録
      * @param {string} type - 同期種別 ('inventory' | 'spells' | 'skills' | 'attributes' | 'discoveries')
      * @param {boolean} changed - 状態変更があったかどうか
      * @param {number} durationMs - 処理時間 (ms)
+     * @param {string} [method='MACRO'] - 同期方式 ('SHIM_DIRECT' | 'MACRO')
      */
-    _recordSilentSync(type, changed = false, durationMs = 0) {
+    _recordSilentSync(type, changed = false, durationMs = 0, method = 'MACRO') {
         if (!this.silentSyncTracker) return;
         this.silentSyncTracker.totalCount++;
+        if (method === 'SHIM_DIRECT') {
+            this.silentSyncTracker.shimCount = (this.silentSyncTracker.shimCount || 0) + 1;
+        } else {
+            this.silentSyncTracker.macroCount = (this.silentSyncTracker.macroCount || 0) + 1;
+        }
         if (this.silentSyncTracker.syncCounts[type] !== undefined) {
             this.silentSyncTracker.syncCounts[type]++;
         }
         const entry = {
             timestamp: Date.now(),
             type,
+            method,
             changed: Boolean(changed),
             durationMs
         };
@@ -710,6 +744,10 @@ export class GKLPlugin {
                     playerY: py >= 0 ? py : undefined,
                     syncInventory: true
                 });
+                // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
+                if (this.areaStateManager && typeof this.areaStateManager.syncPlayerFeetFloor === 'function') {
+                    this.areaStateManager.syncPlayerFeetFloor();
+                }
                 if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
                     const changed = this.inventoryStateManager.syncFromDirectBinding();
                     if (changed) {
@@ -1560,26 +1598,33 @@ export class GKLPlugin {
         }
 
         const startTime = Date.now();
+        const mode = this.directBindingMode || 'auto';
 
         // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
-        if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
+        if (mode !== 'fallback' && this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
             if (this.wasmDirectBindingService && this.wasmDirectBindingService.bridge && !this.wasmDirectBindingService.hasLiveMemory) {
                 await this.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true });
             }
             const changed = this.inventoryStateManager.syncFromDirectBinding();
             const durationMs = Date.now() - startTime;
-            this._recordSilentSync('inventory', changed, durationMs);
+            this._recordSilentSync('inventory', changed, durationMs, 'SHIM_DIRECT');
             if (changed || force) {
                 this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
             }
             return true;
         }
 
+        // strict モード時はフォールバック（キー送信マクロ）を完全遮断！ (Stage 8.2-B)
+        if (mode === 'strict') {
+            console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable under strict mode. Fallback macro blocked.');
+            return false;
+        }
+
         const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
         if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
             const changed = this.inventoryStateManager.updateFromSequenceBuffer(buffer);
             const durationMs = Date.now() - startTime;
-            this._recordSilentSync('inventory', changed, durationMs);
+            this._recordSilentSync('inventory', changed, durationMs, 'MACRO');
             if (changed || force) {
                 this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
             }

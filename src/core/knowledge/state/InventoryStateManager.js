@@ -26,13 +26,40 @@ export class InventoryStateManager {
         this.wasmDirectBindingService = options.wasmDirectBindingService || null;
         this.hasCompletedInitialSync = false;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+
+        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
+        this.directBindingMode = options.directBindingMode || 'auto';
+
+        // 同期テレメトリ (Stage 8.2-B)
+        this.lastSyncMethod = 'NONE'; // 'NONE' | 'SHIM' | 'MACRO'
+        this.shimSyncCount = 0;
+        this.macroSyncCount = 0;
+    }
+
+    /**
+     * 動作モード ('auto' | 'strict' | 'fallback') の設定
+     * @param {'auto'|'strict'|'fallback'} mode
+     */
+    setDirectBindingMode(mode) {
+        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
+            this.directBindingMode = mode;
+        } else {
+            this.directBindingMode = 'auto';
+        }
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
+            this.wasmDirectBindingService.setMode(this.directBindingMode);
+        }
     }
 
     setWasmDirectBindingService(service) {
         this.wasmDirectBindingService = service;
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
+            this.wasmDirectBindingService.setMode(this.directBindingMode);
+        }
     }
 
     get isDirectBindingAvailable() {
+        if (this.directBindingMode === 'fallback') return false;
         return Boolean(this.wasmDirectBindingService && this.wasmDirectBindingService.isAvailable());
     }
 
@@ -109,6 +136,15 @@ export class InventoryStateManager {
      */
     updateFromMenuItems(menuItems) {
         if (!Array.isArray(menuItems)) return false;
+
+        // strict モード時はマクロフォールバックを完全遮断 (Stage 8.2-B)
+        if (this.directBindingMode === 'strict') {
+            console.warn('[InventoryStateManager] updateFromMenuItems blocked under strict directBindingMode.');
+            return false;
+        }
+
+        this.lastSyncMethod = 'MACRO';
+        this.macroSyncCount++;
 
         const newSignature = this._buildSignature(menuItems);
         if (this.isSynced && this._lastInventorySignature === newSignature) {
@@ -472,6 +508,9 @@ export class InventoryStateManager {
                 return false;
             }
 
+            this.lastSyncMethod = 'SHIM';
+            this.shimSyncCount++;
+
             this.items = parsedItems;
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
@@ -484,6 +523,9 @@ export class InventoryStateManager {
             if (this.isSynced && this._lastInventorySignature === newSignature) {
                 return false;
             }
+            this.lastSyncMethod = 'SHIM';
+            this.shimSyncCount++;
+
             this.items = [];
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
@@ -511,6 +553,12 @@ export class InventoryStateManager {
     updateFromSequenceBuffer(sequenceBuffer) {
         if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
             // バッファが空の場合は同期失敗またはキャンセルとみなし、既存のアイテム状態を安全に保持
+            return false;
+        }
+
+        // strict モード時はマクロフォールバックを完全遮断 (Stage 8.2-B)
+        if (this.directBindingMode === 'strict') {
+            console.warn('[InventoryStateManager] updateFromSequenceBuffer blocked under strict directBindingMode.');
             return false;
         }
 

@@ -87,6 +87,34 @@ export class AreaStateManager {
         this.dirtyCells = new Set();     // 変更があったセルの座標キャッシュ ("x,y")
         this.grid = [];
         this.resetGrid();
+
+        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
+        this.directBindingMode = 'auto';
+        this._warnedStrictCoords = new Set();
+
+        // 同期テレメトリ (Stage 8.2-B)
+        this.lastFloorMethod = 'NONE'; // 'NONE' | 'SHIM_DIRECT' | 'INFERRED_FALLBACK'
+        this.inferredFloorCount = 0;
+        this.genuineFloorCount = 0;
+        this.lastFloorSync = { source: 'NONE', glyph: -1, typ: -1, isGenuine: false };
+    }
+
+    /**
+     * 動作モード ('auto' | 'strict' | 'fallback') の設定
+     * @param {'auto'|'strict'|'fallback'} mode
+     */
+    setDirectBindingMode(mode) {
+        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
+            this.directBindingMode = mode;
+        } else {
+            this.directBindingMode = 'auto';
+        }
+        if (this._warnedStrictCoords) {
+            this._warnedStrictCoords.clear();
+        }
+        if (this.directBindingService && typeof this.directBindingService.setMode === 'function') {
+            this.directBindingService.setMode(this.directBindingMode);
+        }
     }
 
     /**
@@ -95,6 +123,9 @@ export class AreaStateManager {
      */
     setDirectBindingService(service) {
         this.directBindingService = service;
+        if (this.directBindingService && typeof this.directBindingService.setMode === 'function') {
+            this.directBindingService.setMode(this.directBindingMode);
+        }
     }
 
     /**
@@ -104,7 +135,10 @@ export class AreaStateManager {
      * @returns {Object}
      */
     getGenuineFloor(x, y) {
-        if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
+        if (this.directBindingMode !== 'fallback' &&
+            this.directBindingService &&
+            typeof this.directBindingService.isAvailable === 'function' &&
+            this.directBindingService.isAvailable()) {
             const cellInfo = this.directBindingService.getCellInfo(x, y);
             if (cellInfo) {
                 let glyphId = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
@@ -216,6 +250,10 @@ export class AreaStateManager {
                     this.setEngravingAt(x, y, engrData);
                 }
 
+                this.genuineFloorCount++;
+                this.lastFloorMethod = 'SHIM_DIRECT';
+                this.lastFloorSync = { source: 'SHIM_DIRECT', glyph: glyphId, typ: cellInfo.typ, isGenuine: true };
+
                 return genuineEntity;
             }
         }
@@ -225,6 +263,21 @@ export class AreaStateManager {
         if (this.stairCache && this.stairCache.has(stairKey)) {
             return { ...this.stairCache.get(stairKey) };
         }
+
+        // strict モード時は推測仮床の生成を完全遮断 (Stage 8.2-B)
+        if (this.directBindingMode === 'strict') {
+            const coordKey = `${this.currentFloor}:${x},${y}`;
+            if (!this._warnedStrictCoords || !this._warnedStrictCoords.has(coordKey)) {
+                if (!this._warnedStrictCoords) this._warnedStrictCoords = new Set();
+                this._warnedStrictCoords.add(coordKey);
+                console.warn(`[AreaStateManager] getGenuineFloor: Inferred floor generation blocked under strict mode at (${x},${y}).`);
+            }
+            return null;
+        }
+
+        this.inferredFloorCount++;
+        this.lastFloorMethod = 'INFERRED_FALLBACK';
+        this.lastFloorSync = { source: 'INFERRED_FALLBACK', glyph: DEFAULT_INFERRED_FLOOR_GLYPH, typ: -1, isGenuine: false };
 
         return createInferredFloor();
     }
@@ -906,8 +959,11 @@ export class AreaStateManager {
                             };
                         }
                     }
-                    cell.bottom = genuineTerrain || this.getGenuineFloor(x, y);
-                    this.markDirty(x, y);
+                    const resolvedFloor = genuineTerrain || this.getGenuineFloor(x, y);
+                    if (resolvedFloor) {
+                        cell.bottom = resolvedFloor;
+                        this.markDirty(x, y);
+                    }
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
@@ -948,8 +1004,11 @@ export class AreaStateManager {
                             };
                         }
                     }
-                    cell.bottom = genuineTerrain || this.getGenuineFloor(x, y);
-                    this.markDirty(x, y);
+                    const resolvedFloor = genuineTerrain || this.getGenuineFloor(x, y);
+                    if (resolvedFloor) {
+                        cell.bottom = resolvedFloor;
+                        this.markDirty(x, y);
+                    }
                 }
 
                 // モンスターメモリ直結情報の取得
@@ -1030,9 +1089,15 @@ export class AreaStateManager {
                 if (cachedStair) {
                     cell.bottom = { ...cachedStair };
                     this.markDirty(x, y);
-                } else if (cell.bottom && cell.bottom.isCachedPreload) {
-                    delete cell.bottom.isCachedPreload;
-                    this.markDirty(x, y);
+                } else if (!cell.bottom || cell.bottom.inferred || cell.bottom.isCachedPreload) {
+                    const genuine = this.getGenuineFloor(x, y);
+                    if (genuine && genuine.isGenuine) {
+                        cell.bottom = genuine;
+                        this.markDirty(x, y);
+                    } else if (cell.bottom && cell.bottom.isCachedPreload) {
+                        delete cell.bottom.isCachedPreload;
+                        this.markDirty(x, y);
+                    }
                 }
 
                 // 足元の刻み文字をメモリ直結から最新化
@@ -1074,6 +1139,28 @@ export class AreaStateManager {
                 }
             }
 
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * WasmDirectBindingService から同期された最新の足元セル情報を
+     * プレイヤー現在地の cell.bottom に即時反映 (Stage 8.2-B)
+     * @returns {boolean}
+     */
+    syncPlayerFeetFloor() {
+        const x = this.playerX;
+        const y = this.playerY;
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
+
+        const cell = this.grid[y] && this.grid[y][x];
+        if (!cell) return false;
+
+        const genuineFloor = this.getGenuineFloor(x, y);
+        if (genuineFloor) {
+            cell.bottom = genuineFloor;
+            this.markDirty(x, y);
             return true;
         }
         return false;
@@ -1294,8 +1381,24 @@ export class AreaStateManager {
                         // Bottom (地形)
                         if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || isPlayer)) {
                             bottomGlyph = cell.bottom.rawGlyph;
+                        } else if (isPlayer) {
+                            // プレイヤー足元は最優先で真の床を取得・反映
+                            const genuine = this.getGenuineFloor(tx, ty);
+                            if (genuine && genuine.rawGlyph >= 0) {
+                                bottomGlyph = genuine.rawGlyph;
+                            } else if (this.directBindingMode === 'strict') {
+                                bottomGlyph = -1;
+                            } else {
+                                this.inferredFloorCount++;
+                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH;
+                            }
                         } else if (cell.middle || cell.top) {
-                            bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
+                            if (this.directBindingMode === 'strict') {
+                                bottomGlyph = -1;
+                            } else {
+                                this.inferredFloorCount++;
+                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
+                            }
                         } else if (gData && gData.glyph >= 0) {
                             bottomGlyph = gData.glyph;
                         }

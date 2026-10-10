@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-08
+last_updated: 2026-10-10
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -51,17 +51,21 @@ last_updated: 2026-10-08
   - [x] **Stage 8.2-A: Web Worker 隔離調停プロトコルの配備**
     - `NetHackWasmWorkerBridge.js` ↔ `nethack.worker.js` 間の非同期調停（`CALL_SHIM`, `GET_INVENTORY`）
     - ターン確定時（`WAITING_INPUT && isTopLevelTurn`）での 1 往復静止同期モデルの確立
-  - [ ] **Stage 8.2-B: inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築（新規・最優先着手）**
+  - [x] **Stage 8.2-B: inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築**
     - [direct_binding_verification_environment_plan.md](./1_driver/direct_binding_verification_environment_plan.md)
     - `inspector_console.html` に「所持品同期方式（🟢SHIM vs 🔵MACRO）」および「足元床状態（🟢SHIM vs 🟡INFERRED 3992）」のランプ・インジケーターを新設
     - `DIRECT_BINDING_MODE`（`auto` / `strict` / `fallback`）の切替スイッチ（config / BroadcastChannel 送出）を配備
-    - フォールバック完全遮断（`strict` モード）下で、直接調停が 100% 確実に稼働していることを実機・シナリオ・結合テストで検証可能にする
+    - フォールバック完全遮断（`strict` モード）下で、直接調停が 100% 確実に稼働していることを実機・シナリオ・結合テストで検証可能にする (全135スイート・1,655テスト 100% PASS)
   - [ ] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結（残りタスク）**
     - `EncumbranceStateManager.js` への重量直結（`inv_weight`, `container_weight`）
     - 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT`）
-  - [ ] **Stage 8.3: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
-    - `AreaStateManager.js`: `getCellInfo(x, y)` により足元の真の床を即時確定（仮床推測をバイパス）
+  - [ ] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
+    - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプ
     - `ActionSignalResolver.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出。`mpeaceful` / `mtame` により攻撃エフェクト誤爆を完全防止
+  - [ ] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新**
+    - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
+    - ターン同期ライフサイクル (Sync Barrier) の導入による投機的仮床推測副作用の根絶
+    - `VirtualDungeonScreen` / `MainViewportRenderer` の Commit 駆動型確定描画制御
   - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**
     - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
     - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
@@ -99,7 +103,18 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
   - [ ] Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)
   - [ ] Phase 6: 全体リグレッションテスト ＆ クライアント動作検証
 
-### 2.2 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
+### 2.2 GKLPlugin モジュール分割・アーキテクチャ適正化 (GKLPlugin Modularization & Refactoring)
+- **ステータス**: `⏸️ pending` (設計完了 / 予定作業)
+- **設計書**: [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)
+- **対象コード**: `src/core/knowledge/GKLPlugin.js` (現在 2,493行 ➔ 400〜500行へ削減目標)
+- **理由**: GKLプラグインへの過剰な責務集中（Coreイベント購読580行、サイレント同期制御380行、トラベル・調査220行、FX演出120行）を解消し、純粋な Facade / DI オーケストレーターに純化する。外部公開APIは全互換（Zero Breaking Change）を維持。
+- **ステップ**:
+  - [ ] Phase 1: サイレント同期調停の分離 (`coordinators/SilentSyncCoordinator.js`)
+  - [ ] Phase 2: 自動移動 ＆ マップセル調査の分離 (`services/AutoTravelService.js`, `services/InspectionService.js`)
+  - [ ] Phase 3: Coreイベントルーター ＆ 視覚演出トリガーの分離 (`coordinators/GKLEventRouter.js`, `coordinators/GKLFxCoordinator.js`)
+  - [ ] Phase 4: 全体リグレッション検証（全135スイート・1,656テスト PASS 維持）＆ クリーンアップ
+
+### 2.3 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending` (Phase 8 完了待ち)
 - **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
 - **保留理由**: 画面テキストパースによる複雑な価格逆引きロジックを組むより、**Phase 8 で Cコアから直接アイテム情報（買値・売値・真名）を取得する方が圧倒的に安全でシンプル**になるため、Phase 8 完了まで意図的に着手を待機。
@@ -108,7 +123,7 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
   - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア
   - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)
 
-### 2.3 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
+### 2.4 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
 - **ステータス**: `⏸️ pending` (設計完了 / 連動待ち)
 - **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
 - **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
