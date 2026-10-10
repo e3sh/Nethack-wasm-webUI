@@ -251,7 +251,7 @@ export class NhModal extends NhBaseElement {
 
       // 2. 本文スロット内のフォーカス可能要素（閉じるボタン以外）
       const focusables = this._getFocusableElements();
-      const contentFocusable = focusables.find(el => !el.classList.contains('modal-close-btn'));
+      const contentFocusable = focusables.find(el => !el.classList?.contains('modal-close-btn'));
       if (contentFocusable && typeof contentFocusable.focus === 'function') {
         contentFocusable.focus();
         return;

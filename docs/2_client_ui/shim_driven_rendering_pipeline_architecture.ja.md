@@ -100,17 +100,43 @@ NetHack の 1 ターンを以下の 4 つのフェーズに厳格にモデル化
 
 ---
 
-## 4. 実施ロードマップ（独立ステージとしての位置づけ）
+## 4. 実施ロードマップ（先行リファクタリング連携と実施手順）
 
-本改修は、Stage 8.2（直接調停基盤の構築）の完了後、以下の独立ステージとして実施する：
+本改修は、クライアントエントリポイント（`main.js`: 2,364行）およびGKLコア（`GKLPlugin.js`: 2,551行）の神クラス状態に直接手を入れるため、コードの複雑化・退行リスクを根絶すべく、**ROADMAP 2.1 および 2.2（モジュール分割）を先行着手**した上で、整理された新モジュール基盤に統合する。
 
-- **Stage 8.3-B**: **Shim-Driven 確定同期型レンダリング・パイプラインの刷新**
-  1. `WebUICore` / `GKLPlugin` への Turn Lifecycle 状態管理（Sync Barrier）の配備
-  2. `AreaStateManager` の投機的仮床副作用の完全排除
-  3. `VirtualDungeonScreen` および `MainViewportRenderer` の Commit 駆動型描画制御
-  4. Auto / Strict / Fallback 各モードにおける描画確定性の結合テスト
+### 4.1 全体進行順序
+```mermaid
+flowchart TD
+    subgraph 先行リファクタリング基盤
+        R21["【先行 1】ROADMAP 2.1: main.js モジュール分割<br>(2,364行➔450行: レンダラー・DOM・操作を疎結合化)"]
+        R22["【先行 2】ROADMAP 2.2: GKLPlugin.js モジュール分割<br>(2,551行➔450行: GKLEventRouter, SilentSync 抽出)"]
+    end
+
+    subgraph Stage 8.3-B 実装
+        S1["Step 1: GKLEventRouter への Turn Lifecycle (Sync Barrier) 配備"]
+        S2["Step 2: AreaStateManager の投機的仮床副作用の完全排除"]
+        S3["Step 3: dumpLevelTerrain 自動ロード ＆ VirtualDungeonScreen Commit駆動化"]
+        S4["Step 4: Auto / Strict / Fallback 各モード結合テスト ＆ 全面検証"]
+    end
+
+    R21 --> R22 --> S1 --> S2 --> S3 --> S4
+```
+
+### 4.2 段階別作業手順
+- **先行 Step 1: ROADMAP 2.1 (main.js モジュール分割)**
+  - `modules/i18n/`, `modules/layout/`, `modules/effects/`, `modules/startup/`, `modules/interaction/` の分離。
+  - レンダリングループ・オフスクリーンフラッシュをオーケストレーターから明瞭に分離し、Commit駆動描画を受け入れ可能にする。
+- **先行 Step 2: ROADMAP 2.2 (GKLPlugin.js モジュール分割)**
+  - `coordinators/GKLEventRouter.js`、`coordinators/SilentSyncCoordinator.js`、`coordinators/GKLFxCoordinator.js` の分離。
+  - Coreイベントルーティングと非同期同期調停を独立させ、ターン確定ライフサイクル（Phase 1〜4）をクリーンに導入可能にする。
+- **Stage 8.3-B 本番実装**:
+  - `GKLEventRouter` への Sync Barrier 組み込み（`areaStateCommitted` シグナル）
+  - `AreaStateManager` の `createInferredFloor` 投機的副作用排除
+  - `MainViewportRenderer` / `VirtualDungeonScreen` の Commit 駆動型描画制御
+  - `dumpLevelTerrain()` のフロア移動時自動ロード
+  - 各モード結合テスト（Zero Regression 維持）
 
 ---
 
 ## 5. まとめ
-本設計により、「Shim で真の情報が取れるようになった現代の WebUI」にふさわしい、チラつきや誤爆の一切ない極めてクリーンで堅牢なレンダリング基盤が確立される。
+本設計により、「Shim で真の情報が取れるようになった現代の WebUI」にふさわしい、チラつきや誤爆の一切ない極めてクリーンで堅牢なレンダリング基盤が、整理されたモジュール構造の上で確立される。

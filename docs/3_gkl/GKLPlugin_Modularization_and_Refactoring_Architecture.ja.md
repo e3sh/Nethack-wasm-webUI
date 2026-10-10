@@ -1,9 +1,9 @@
 # 🧩 GKLPlugin モジュール分割・アーキテクチャ適正化設計書 (GKLPlugin Modularization & Refactoring Architecture)
 
-- **ステータス**: `⏸️ pending` (設計完了 / 予定作業)
+- **ステータス**: `🚧 in-progress` (Stage 8.3-B 先行基盤として Active 昇格)
 - **作成日**: 2026-10-10
 - **対象コード**: `src/core/knowledge/GKLPlugin.js` (および新設 `coordinators/`, `services/` 配下)
-- **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md), [gkl_documentation.md](./gkl_documentation.md)
+- **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md), [gkl_documentation.md](./gkl_documentation.md), [shim_driven_rendering_pipeline_architecture.ja.md](../2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
 
 ---
 
@@ -11,7 +11,9 @@
 
 `src/core/knowledge/GKLPlugin.js` は、NetHack WASM WebUI においてゲーム知識層（Game Knowledge Layer: GKL）の統括エントリポイントとして機能し、WebUICore のイベント基盤と多数の状態マネージャー（Area/Inventory/Spell/Skill/Attribute/Condition/Discovery/Monster/Encumbrance）および各専門サービスを結ぶコアプラグインです。
 
-しかし、機能の拡張（Direct Memory Binding、LORE伝承検知、冒険手帳連携、Visual FX演出、オンデマンドLook、Auto-Travelなど）に伴い、単一ファイル内に多数のロジックが集積した結果、**2,493 行 / 約 117 KB** に達し、典型的な「神クラス (God Class)」となっています。
+しかし、機能の拡張（Direct Memory Binding、LORE伝承検知、冒険手帳連携、Visual FX演出、オンデマンドLook、Auto-Travelなど）に伴い、単一ファイル内に多数のロジックが集積した結果、**2,551 行 / 約 120 KB** に達し、典型的な「神クラス (God Class)」となっています。
+
+さらに、**Stage 8.3-B (確定同期レンダリング・パイプライン刷新)** において、ターン同期ライフサイクル (Sync Barrier / 4 フェーズモデル) や全フロア地形一括ロード（`dumpLevelTerrain`）を安全に組み込むため、本モジュール分割を**先行必須リファクタリング**として実施します。
 
 ### 現状の主要課題
 
@@ -24,7 +26,7 @@
      - **戦闘・被ダメ・蘇生演出イベント制御 (`emitFxTrigger` / 状態フラグ群: 約 120 行)**
      が同一クラス・同一ファイルに混在しています。
 2. **可読性と保守性の低下**:
-   - イベント処理の追加や同期戦略の改修を行うたびに、2,500 行に及ぶ巨大ファイルを編集する必要があり、変更の影響範囲特定が困難かつマージコンフリクトを誘発しやすい構造になっています。
+   - イベント処理の追加や同期戦略の改修を行うたびに、2,500 行超に及ぶ巨大ファイルを編集する必要があり、変更の影響範囲特定が困難かつマージコンフリクトを誘発しやすい構造になっています。
 3. **単体テスト容易性 (Testability) の低下**:
    - サイレント同期の直列制御ロジックや自動移動の判定ロジックが GKLPlugin のプライベート実装に埋め込まれており、個別のユニットテストを独立して書くことが困難です。
 
@@ -34,10 +36,10 @@
 
 | 指標 | 現状 | 目標値 |
 | :--- | :---: | :---: |
-| **`GKLPlugin.js` 行数** | **2,493 行** | **400 〜 500 行** (約80%削減) |
+| **`GKLPlugin.js` 行数** | **2,551 行** | **400 〜 500 行** (約80%削減) |
 | **`GKLPlugin.js` の責務** | 5役以上混在 (Facade + Router + Sync + Nav + FX) | **純粋な Facade / Orchestrator（DI配線・委譲窓口）のみ** |
 | **外部 API 互換性** | 現行シグネチャ | **100% 後方互換性維持 (Zero Breaking Change)** |
-| **既存テスト通過率** | 135スイート / 1,656テスト PASS | **100% PASS 維持 (Zero Regression)** |
+| **既存テスト通過率** | 136スイート / 1,670テスト PASS | **100% PASS 維持 (Zero Regression)** |
 
 ---
 

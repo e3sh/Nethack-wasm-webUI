@@ -2,42 +2,32 @@ import { WebUICore } from '../../src/core/WebUICore.js';
 import { NetHackWasmWorkerBridge } from '../../src/driver/index.js';
 import { GKLPlugin } from '../../src/core/knowledge/GKLPlugin.js';
 import { OnDemandLookService } from "../../src/core/knowledge/services/OnDemandLookService.js";
-
-import { MainViewportRenderer } from './modules/renderers/MainViewportRenderer.js';
-import { MinimapHudRenderer } from './modules/renderers/MinimapHudRenderer.js';
-import { VirtualDungeonScreen } from './modules/renderers/VirtualDungeonScreen.js';
-import { KnowledgeView } from './modules/components/KnowledgeView.js';
-import { InventoryView } from './modules/components/InventoryView.js';
-import { AssistHud } from './modules/components/AssistHud.js';
-import { DirectionPad } from './modules/components/DirectionPad.js';
-import { StatusView } from './modules/components/StatusView.js';
-import { ModalManager } from './modules/components/ModalManager.js';
-import { CharacterCreationModal } from './modules/components/CharacterCreationModal.js';
-import { CharacterIntroModal } from './modules/components/CharacterIntroModal.js';
-import { ContainerModal } from './modules/components/ContainerModal.js';
-import { PaperdollModal } from './modules/components/PaperdollModal.js';
-import { CodexModal } from './modules/components/CodexModal.js';
-import { KnowledgeDetailModal } from './modules/components/KnowledgeDetailModal.js';
 import { ContainerController } from '../../src/core/container/ContainerController.js';
-import { EngravingHud } from './modules/components/EngravingHud.js';
-import { FloatingContextActions } from './modules/components/FloatingContextActions.js';
-import { AdventureLogToast } from './modules/components/AdventureLogToast.js';
-
-import { KeyHandler } from './modules/handlers/KeyHandler.js';
-import { WebGPUHD2DRenderer } from './modules/renderers/WebGPUHD2DRenderer.js';
-import { FloatingMessageHud } from './modules/components/FloatingMessageHud.js';
-import { MessageHistoryDrawer } from './modules/components/MessageHistoryDrawer.js';
 import { UIConfigStore } from '../../src/ui-controller/index.js';
 import '../../src/components/index.js';
+
+import { ClientLocalization } from './modules/i18n/ClientLocalization.js';
+import { LayoutController } from './modules/layout/LayoutController.js';
+import { VisualFxDispatcher } from './modules/effects/VisualFxDispatcher.js';
+import { StartupFlowController } from './modules/startup/StartupFlowController.js';
+import { CanvasInteractionController } from './modules/interaction/CanvasInteractionController.js';
+import { ViewModeController } from './modules/renderers/ViewModeController.js';
+import { UiComponentFactory } from './modules/components/UiComponentFactory.js';
+import { DomEventBinder } from './modules/handlers/DomEventBinder.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
  */
 class GklPureJSClient {
   constructor() {
-    //console.log('[GKLpureJSclient] 🚀 Loaded main.js (build: 2026-09-11-v3)');
     this.uiConfigStore = new UIConfigStore();
     this.layoutConfig = this.uiConfigStore.get();
+    this.clientLocalization = new ClientLocalization(this);
+    this.layoutController = new LayoutController(this);
+    this.visualFxDispatcher = new VisualFxDispatcher(this);
+    this.startupFlow = new StartupFlowController(this);
+    this.interactionController = new CanvasInteractionController(this);
+    this.viewModeController = new ViewModeController(this);
     this.core = null;
     this.containerController = null;
     this.lookService = null;
@@ -48,322 +38,19 @@ class GklPureJSClient {
     this.currentGameOverResult = null;
     this.lastTurns = -1;
 
-    // DOM Elements
-    this.canvas = document.getElementById('game-canvas');
-    this.webgpuCanvas = document.getElementById('webgpu-canvas');
-    this.asciiGrid = document.getElementById('ascii-grid');
-    this.btnToggleView = document.getElementById('btn-toggle-view');
-    this.btnToggleCameraMode = document.getElementById('btn-toggle-camera-mode');
-    this.btnToggleMinimap = document.getElementById('btn-toggle-minimap') || document.getElementById('btn-toggle-zoom');
-    this.btnToggleZoom = this.btnToggleMinimap; // 後方互換
-    this.btnSettingsToggle = document.getElementById('btn-settings-toggle');
-    this.settingsDropdown = document.getElementById('settings-menu-dropdown');
-    this.elMessageLog = document.getElementById('message-log');
-    this.elGklTooltip = document.getElementById('gkl-item-tooltip');
-
-    // 💬 フローティング最新行 HUD (画面上部透過オーバーレイ: 最大5行 / 次操作起点フェード)
-    this.floatingMessageHud = new FloatingMessageHud({
-      container: document.getElementById('floating-message-hud'),
-      maxLines: 5,
-      fadeTimeoutMs: 0,
-      fadeDelayAfterActionMs: 2500
-    });
-
-    // 📜 展開型過去ログドロワー (Ctrl+P / 履歴閲覧 / 左側ピン留め)
-    this.messageHistoryDrawer = new MessageHistoryDrawer({
-      drawerElement: document.getElementById('message-history-drawer'),
-      listElement: document.getElementById('message-drawer-list'),
-      backdropElement: document.getElementById('drawer-backdrop'),
-      btnClose: document.getElementById('btn-drawer-close'),
-      btnPin: document.getElementById('btn-drawer-pin'),
-      btnModeBilingual: document.getElementById('btn-drawer-mode-bilingual'),
-      btnModeJa: document.getElementById('btn-drawer-mode-ja'),
-      btnModeRaw: document.getElementById('btn-drawer-mode-raw'),
-      language: this.currentLanguage,
-      onPinStateChanged: (isPinned) => {
-        if (this.uiConfigStore) {
-          this.layoutConfig = this.uiConfigStore.setProperty('panelHistoryDock', isPinned);
-        }
-        const chkDock = document.getElementById('chk-panel-history-dock');
-        if (chkDock) chkDock.checked = isPinned;
-        const minimapBox = document.getElementById('minimap-hud-box');
-        if (minimapBox) minimapBox.classList.toggle('with-pinned-drawer', isPinned);
-      },
-      getCore: () => this.core
-    });
-
-    const btnOpenHistory = document.getElementById('btn-open-history');
-    if (btnOpenHistory) {
-      btnOpenHistory.onclick = () => {
-        this.messageHistoryDrawer.toggle();
-      };
-    }
-
-    this.currentViewMode = 'graphic'; // 'graphic' | 'ascii' | 'hd2d'
-
-    // 0. 仮想スクリーン統合背景マネージャー (80x24 x 32px: 2560x768px オフスクリーン)
-    this.virtualScreen = new VirtualDungeonScreen();
-
-    // 1. メインビューポートレンダラー (自キャラ追従 32px 原寸スプライトビュー)
-    this.mainViewportRenderer = new MainViewportRenderer({
-      canvas: this.canvas,
-      asciiGrid: this.asciiGrid,
-      btnToggleView: this.btnToggleView,
-      virtualScreen: this.virtualScreen,
-      getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
-      getSituation: () => this.core?.gkl?.getSituation(),
-      getCore: () => this.core
-    });
-    // 後方互換エイリアス
-    this.mapRenderer = this.mainViewportRenderer;
-
-    // 1.5. WebGPU HD2D Renderer (✨ 3D ジオラマビュー)
-    this.webgpuRenderer = new WebGPUHD2DRenderer({
-      canvas: this.webgpuCanvas,
-      getSituation: () => this.core?.gkl?.getSituation(),
-      getAreaGrid: () => this.core?.gkl?.getSituation()?.area?.grid,
-      getGlyphBuffer: () => this.mainViewportRenderer.glyphGridBuffer,
-      getCore: () => this.core,
-      getTileImg: () => this.mainViewportRenderer.tileImg,
-      isTileLoaded: () => this.mainViewportRenderer.tileLoaded,
-    });
-
-    // 2. ミニマップ HUD レンダラー (フロア全体 80x24 縮小転送 ＆ ピン留めオーバーレイ ＆ [Tab] 最大化)
-    this.minimapRenderer = new MinimapHudRenderer({
-      minimapCanvas: document.getElementById('minimap-canvas'),
-      minimapHudBox: document.getElementById('minimap-hud-box') || document.getElementById('zoom-viewport-box'),
-      minimapPosBadge: document.getElementById('minimap-pos-badge') || document.getElementById('zoom-pos-badge'),
-      btnToggleMinimap: document.getElementById('btn-minimap-toggle'),
-      virtualScreen: this.virtualScreen,
-      getSituation: () => this.core?.gkl?.getSituation(),
-      getCore: () => this.core
-    });
-    // 後方互換ラッパー: 既存の zoomRenderer プロパティ経由のアクセスを安全に維持
-    this.zoomRenderer = this.mainViewportRenderer;
-
-    // 3. Knowledge & Advices View
-    this.knowledgeView = new KnowledgeView({
-      elGklKnowledgeContent: document.getElementById('gkl-knowledge-content'),
-      getCore: () => this.core,
-      onTabChanged: (tabName) => {
-        // Tab changed hook
-      }
-    });
-
-    // 4. Inventory View
-    this.inventoryView = new InventoryView({
-      elGklInventoryGrid: document.getElementById('gkl-inventory-grid'),
-      elGklInvCount: document.getElementById('gkl-inv-count'),
-      elGklTooltip: this.elGklTooltip,
-      elGklTtName: document.getElementById('gkl-tt-name'),
-      elGklTtTags: document.getElementById('gkl-tt-tags'),
-      getCore: () => this.core,
-      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-      onInspectItem: (item) => {
-        if (this.knowledgeDetailModal) {
-          this.knowledgeDetailModal.open(item);
-        } else if (this.knowledgeView) {
-          this.knowledgeView.renderKnowledgeCard(item);
-        }
-      }
-    });
-
-    // 5. Assist HUD & Landmarks
-    this.assistHud = new AssistHud({
-      elAssistSignalBar: document.getElementById('assist-signal-bar'),
-      elAssistSignalIcon: document.getElementById('assist-signal-icon'),
-      elAssistSignalText: document.getElementById('assist-signal-text'),
-      elBtnAssistAction: document.getElementById('btn-assist-action'),
-      elAssistActionLabel: document.getElementById('assist-action-label'),
-      elBtnAssistWhy: document.getElementById('btn-assist-why'),
-      elAssistWhyTooltip: document.getElementById('assist-why-tooltip'),
-      elFloorLandmarksHud: document.getElementById('floor-landmarks-hud'),
-      elLandmarksFloorTag: document.getElementById('landmarks-floor-tag'),
-      elLandmarksBadgesContainer: document.getElementById('landmarks-badges-container'),
-      getCore: () => this.core,
-      //appendLog: (msg) => this.addMessageLog(msg)
-    });
-
-    // 6. Direction Pad & Recommended Actions
-    this.directionPad = new DirectionPad({
-      elGklDirectionPad: document.getElementById('gkl-direction-pad'),
-      elGklFilterLabel: document.getElementById('gkl-filter-label'),
-      elBtnDirReset: document.getElementById('btn-dir-reset'),
-      elGklActionList: document.getElementById('gkl-action-list'),
-      elGklActionCount: document.getElementById('gkl-action-count'),
-      getCore: () => this.core,
-      onDirectionFiltered: () => this.renderGklUi(),
-      onUserAction: () => this.floatingMessageHud?.notifyUserAction()
-    });
-
-    // 7. Status Bar & Attributes & Spells & Skills
-    this.statusView = new StatusView({
-      elStatusBar: document.getElementById('status-bar'),
-      elBtnToggleStatusDetails: document.getElementById('btn-toggle-status-details'),
-      elStName: document.getElementById('st-name'),
-      elStDlvl: document.getElementById('st-dlvl'),
-      elStHp: document.getElementById('st-hp'),
-      elStPw: document.getElementById('st-pw'),
-      elStAc: document.getElementById('st-ac'),
-      elStGold: document.getElementById('st-gold'),
-      elStCond: document.getElementById('st-cond'),
-      elHpBarFill: document.getElementById('hp-bar-fill'),
-      elMpBarFill: document.getElementById('mp-bar-fill'),
-      elStStr: document.getElementById('st-str'),
-      elStDex: document.getElementById('st-dex'),
-      elStCon: document.getElementById('st-con'),
-      elStInt: document.getElementById('st-int'),
-      elStWis: document.getElementById('st-wis'),
-      elStCha: document.getElementById('st-cha'),
-      elStAlign: document.getElementById('st-align'),
-      elStExp: document.getElementById('st-exp'),
-      elStTurns: document.getElementById('st-turns'),
-      elStScore: document.getElementById('st-score'),
-      elStItemTurns: document.getElementById('st-item-turns'),
-      elStItemScore: document.getElementById('st-item-score'),
-      getCore: () => this.core,
-      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath
-    });
-
-    // 7.5 Engraving HUD (案A: ステータスバー直下の床文字考古学復元バナー)
-    this.engravingHud = new EngravingHud({
-      elEngravingHud: document.getElementById('engraving-hud'),
-      elEngravingHudIcon: document.getElementById('engraving-hud-icon'),
-      elEngravingActual: document.getElementById('engraving-actual'),
-      elEngravingArrow: document.getElementById('engraving-arrow'),
-      elEngravingPristine: document.getElementById('engraving-pristine'),
-      elEngravingConfidenceBadge: document.getElementById('engraving-confidence-badge'),
-      elEngravingTranslation: document.getElementById('engraving-translation'),
-      elEngravingSourceBadge: document.getElementById('engraving-source-badge'),
-      elBtnEngraveReapply: document.getElementById('btn-engrave-reapply'),
-      elBtnEngravingClose: document.getElementById('btn-engraving-close'),
-      getCore: () => this.core,
-      language: this.currentLanguage
-    });
-
-    // 8. Character Creation Modal (Tabbed Wizard)
-    this.characterCreationModal = new CharacterCreationModal({
-      getCore: () => this.core
-    });
-
-    // 8.05 Character Intro Modal (Phase C: ASKNAME & ynaq)
-    this.characterIntroModal = new CharacterIntroModal({
-      getCore: () => this.core,
-      characterCreationModal: this.characterCreationModal,
-      currentLanguage: this.currentLanguage
-    });
-
-    // 8.1 Modal Manager
-    this.modalManager = new ModalManager({
-      elPromptBar: document.getElementById('prompt-bar'),
-      elPromptText: document.getElementById('prompt-text'),
-      elInputControls: document.getElementById('input-controls'),
-      elMenuModal: document.getElementById('menu-modal'),
-      elMenuTitle: document.getElementById('menu-title'),
-      elMenuItemsContainer: document.getElementById('menu-items-container'),
-      elBtnCancelMenu: document.getElementById('btn-cancel-menu'),
-      elGameOverModal: document.getElementById('gameover-modal'),
-      elGameOverSummary: document.getElementById('gameover-summary'),
-      elScoreboardContainer: document.getElementById('gameover-scoreboard'),
-      elLoading: document.getElementById('loading-overlay'),
-      elSpinnerBox: document.getElementById('loading-spinner-box'),
-      elSelectorCard: document.getElementById('start-selector-card'),
-      elSaveName: document.getElementById('start-save-name'),
-      elWishModal: document.getElementById('wish-modal'),
-      characterCreationModal: this.characterCreationModal,
-      characterIntroModal: this.characterIntroModal,
-      getCore: () => this.core,
-      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-      onRestartGame: () => this.restartGame()
-    });
-
-    // 8.5 Container Modal (Two-Pane GUI)
-    this.containerModal = new ContainerModal({
-      elContainerModal: document.getElementById('container-modal'),
-      getCore: () => this.core,
-      getContainerController: () => this.containerController,
-      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-    });
-
-    // 8.6 Equipment Paperdoll Modal
-    this.paperdollModal = new PaperdollModal({
-      elPaperdollModal: document.getElementById('paperdoll-modal'),
-      getCore: () => this.core,
-      getLoadedTileImagePath: () => this.mapRenderer.loadedTileImagePath,
-      onEquipmentChanged: () => {
-        this.renderGklUi();
-      }
-    });
-
-    // 8.7 Lore Codex Modal (冒険手帳・伝承図鑑)
-    this.codexModal = new CodexModal({
-      elCodexModal: document.getElementById('codex-modal'),
-      getCore: () => this.core,
-      getLoadedTileImagePath: () => this.mapRenderer?.loadedTileImagePath,
-      onUnreadCountChanged: (count) => this.updateCodexBadge(count),
-      onClose: () => {}
-    });
-
-    // 8.7 冒険手帳 リアルタイム発見HUDトースト通知 (AdventureLogToast)
-    this.adventureLogToast = new AdventureLogToast({
-      container: document.body,
-      tileImage: '../../pict/nethack_default_32_tr.png',
-      onToastClick: () => {
-        if (this.codexModal) {
-          this.codexModal.open();
-        }
-      }
-    });
-
-    // 8.75 構造化ナレッジ詳細モーダル (KnowledgeDetailModal)
-    this.knowledgeDetailModal = new KnowledgeDetailModal({
-      elModal: document.getElementById('knowledge-detail-modal'),
-      getCore: () => this.core,
-      language: this.currentLanguage
-    });
-
-    // 8.8 Floating Context Actions (マスのスマートコンテキスト連携ポップアップ)
-    const viewportContainer = document.querySelector('.game-viewport');
-    this.floatingActions = new FloatingContextActions({
-      container: viewportContainer,
-      getCore: () => this.core,
-      onInspectDetail: (cardData) => {
-        if (this.knowledgeDetailModal) {
-          this.knowledgeDetailModal.open(cardData);
-        }
-      },
-      onNavigateKnowledge: (cardData) => {
-        if (this.knowledgeDetailModal) {
-          this.knowledgeDetailModal.open(cardData);
-        } else if (this.codexModal) {
-          this.codexModal.show();
-        }
-      },
-      onUserAction: () => this.floatingMessageHud?.notifyUserAction(),
-      language: this.currentLanguage
-    });
-
-    // 9. Key Handler
-    this.keyHandler = new KeyHandler({
-      getCore: () => this.core,
-      getModalManager: () => this.modalManager,
-      getContainerModal: () => this.containerModal,
-      getPaperdollModal: () => this.paperdollModal,
-      getCodexModal: () => this.codexModal,
-      getKnowledgeDetailModal: () => this.knowledgeDetailModal,
-      getMinimapRenderer: () => this.minimapRenderer,
-      getMessageHistoryDrawer: () => this.messageHistoryDrawer,
-      toggleSidePanel: (forceState) => this.toggleSidePanel(forceState),
-      onOpenKnowledgeInspector: () => this.openKnowledgeInspector(),
-      onOpenDiscoveryCodex: () => this.openDiscoveryCodex()
-    });
-
-    // 10. Startup Step Progression State
-    this.isStartingUp = true;
-    this.isSaveResuming = false;
-    this.startupStep = 'INITIALIZING';
-
+    UiComponentFactory.createAndBindComponents(this);
     this.init();
+  }
+
+  get currentViewMode() {
+    return this.viewModeController ? this.viewModeController.currentViewMode : (this._currentViewMode || 'graphic');
+  }
+
+  set currentViewMode(val) {
+    this._currentViewMode = val;
+    if (this.viewModeController) {
+      this.viewModeController.currentViewMode = val;
+    }
   }
 
   init() {
@@ -378,35 +65,40 @@ class GklPureJSClient {
       this.virtualScreen.markAllDirty();
     });
     this.mainViewportRenderer.init();
+
+    // 🖥️ 初期ビューモードの同期確定 (WebGPU判定前のフォールバック/クラシック初期化)
+    const initialMode = this.layoutConfig?.preset === 'classic' ? 'ascii' : 'graphic';
+    this.setViewMode(initialMode);
+
     if (this.webgpuRenderer) {
       this.webgpuRenderer.init().then((ok) => {
         if (this.layoutConfig?.preset === 'classic') {
           // クラシックプリセットの場合は ASCII を優先
-          this.currentViewMode = 'ascii';
-          this.updateViewModeUI();
+          this.setViewMode('ascii');
           return;
         }
         if (ok) {
           // WebGPU 対応環境ではデフォルトで HD2D ジオラマを本番メインに昇格
-          this.currentViewMode = 'hd2d';
-          this.updateViewModeUI();
+          this.setViewMode('hd2d');
           //console.log("[WebGPU HD2D] ✨ HD2D Diorama promoted to primary renderer!");
         } else {
           // 非対応環境では Canvas 2D フォールバック
-          this.currentViewMode = 'graphic';
-          this.updateViewModeUI();
+          this.setViewMode('graphic');
         }
       });
     }
+
     this.initCore();
     const alm = this.core?.getAdventureLogManager?.();
     if (this.codexModal && alm) {
       this.codexModal.setAdventureLogManager(alm);
     }
-    this.initLayoutConfig();
+    this.layoutController.init();
     this.codexModal?.init();
     this.bindCoreEvents();
     this.bindDOMEvents();
+    this.layoutController.bindLayoutEvents();
+    this.interactionController.bindInteractionEvents();
     this.onLanguageChanged();
     this.bootstrapGame();
     this.startMainRenderLoop();
@@ -753,111 +445,9 @@ class GklPureJSClient {
       await this.handleExited(data);
     });
 
-    // 10. Visual FX 演出トリガーイベント (fx_trigger) 購読 (2D Canvas ＆ WebGPU HD-2D 両対応)
+    // 10. Visual FX 演出トリガーイベント (fx_trigger) 購読 (VisualFxDispatcher 委譲)
     this.core.on('fx_trigger', (fx) => {
-      if (!fx || !fx.type) return;
-      const now = performance.now();
-
-      const dispatchFx = (fxObj) => {
-        this.mainViewportRenderer.addVisualFx(fxObj);
-        if (this.webgpuRenderer) {
-          this.webgpuRenderer.addVisualFx(fxObj);
-        }
-      };
-
-      const dispatchShake = (intensity, duration) => {
-        this.mainViewportRenderer.triggerScreenShake(intensity, duration);
-        if (this.webgpuRenderer) {
-          this.webgpuRenderer.triggerScreenShake(intensity, duration);
-        }
-      };
-
-      if (fx.type === 'ATTACK_HIT') {
-        dispatchFx({
-          type: 'SLASH',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          startTime: now,
-          durationMs: 130,
-          color: '#ffffff'
-        });
-      } else if (fx.type === 'DAMAGE_TAKEN') {
-        dispatchFx({
-          type: 'DAMAGE_FLASH',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          followPlayer: true,
-          amount: fx.amount,
-          startTime: now,
-          durationMs: 500,
-          color: '#ff1744'
-        });
-        dispatchShake(3, 100);
-      } else if (fx.type === 'KILL_CONFIRMED') {
-        dispatchFx({
-          type: 'KILL_BURST',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          startTime: now,
-          durationMs: 200,
-          color: '#ffd700'
-        });
-      } else if (fx.type === 'RECOVER_HEAL') {
-        dispatchFx({
-          type: 'HEAL_RING',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          followPlayer: true,
-          amount: fx.amount,
-          startTime: now,
-          durationMs: 500,
-          color: '#00e676'
-        });
-      } else if (fx.type === 'PLAYER_DIED') {
-        this.mainViewportRenderer.isPlayerDead = true;
-        this.mainViewportRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
-        if (this.webgpuRenderer) {
-          this.webgpuRenderer.isPlayerDead = true;
-          this.webgpuRenderer.deathPosition = { x: fx.targetX, y: fx.targetY };
-        }
-        dispatchShake(5, 300);
-        dispatchFx({
-          type: 'DEATH_BURST',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          followPlayer: true,
-          startTime: now,
-          durationMs: 1200,
-          color: '#ef4444'
-        });
-        if (fx.targetX !== undefined && fx.targetY !== undefined) {
-          this.mainViewportRenderer.redrawSingleCell(fx.targetX, fx.targetY);
-        }
-        this.webgpuRenderer?.markDirty();
-        this.webgpuRenderer?.wakeUp();
-      } else if (fx.type === 'PLAYER_RESURRECTED') {
-        const prevDeathPos = this.mainViewportRenderer.deathPosition;
-        this.mainViewportRenderer.isPlayerDead = false;
-        this.mainViewportRenderer.deathPosition = null;
-        if (this.webgpuRenderer) {
-          this.webgpuRenderer.isPlayerDead = false;
-          this.webgpuRenderer.deathPosition = null;
-        }
-        dispatchFx({
-          type: 'HEAL_RING',
-          gx: fx.targetX,
-          gy: fx.targetY,
-          followPlayer: true,
-          startTime: now,
-          durationMs: 400,
-          color: '#ffd700'
-        });
-        if (prevDeathPos) {
-          this.mainViewportRenderer.redrawSingleCell(prevDeathPos.x, prevDeathPos.y);
-        }
-        this.webgpuRenderer?.markDirty();
-        this.webgpuRenderer?.wakeUp();
-      }
+      this.visualFxDispatcher.handleFxTrigger(fx);
     });
 
     // 10. Visual Container UI Transaction
@@ -882,609 +472,24 @@ class GklPureJSClient {
   }
 
   setViewMode(mode) {
-    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
-    let targetMode = mode;
-    if (targetMode === 'hd2d' && !isWebGpuAvailable) {
-      targetMode = 'graphic';
-    }
-    if (['hd2d', 'graphic', 'ascii'].includes(targetMode)) {
-      this.currentViewMode = targetMode;
-      this.updateViewModeUI();
-    }
+    this.viewModeController.setViewMode(mode);
   }
 
   cycleViewMode() {
-    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
-
-    if (this.currentViewMode === 'hd2d') {
-      this.currentViewMode = 'graphic';
-    } else if (this.currentViewMode === 'graphic') {
-      this.currentViewMode = 'ascii';
-    } else { // 'ascii'
-      if (isWebGpuAvailable) {
-        this.currentViewMode = 'hd2d';
-      } else {
-        this.currentViewMode = 'graphic';
-      }
-    }
-    this.updateViewModeUI();
+    this.viewModeController.cycleViewMode();
   }
 
   updateViewModeUI() {
-    const isEn = this.currentLanguage === 'en';
-    const isWebGpuAvailable = this.webgpuRenderer && this.webgpuRenderer.isSupported;
-
-    // 次のビューモードの判定
-    let nextViewMode = 'graphic';
-    if (this.currentViewMode === 'hd2d') {
-      nextViewMode = 'graphic';
-    } else if (this.currentViewMode === 'graphic') {
-      nextViewMode = 'ascii';
-    } else { // 'ascii'
-      nextViewMode = isWebGpuAvailable ? 'hd2d' : 'graphic';
-    }
-
-    const viewModeLabels = {
-      graphic: isEn ? '🎨 2D Graphic' : '🎨 2Dグラフィック',
-      ascii: isEn ? '🔤 ASCII' : '🔤 ASCII',
-      hd2d: isEn ? '✨ HD-2D' : '✨ HD-2D'
-    };
-
-    const toggleViewPrefix = isEn ? 'Toggle View: ' : 'ビュー切替: ';
-    const toggleViewText = `${toggleViewPrefix}${viewModeLabels[this.currentViewMode]} ➜ ${viewModeLabels[nextViewMode]}`;
-
-    if (this.currentViewMode === 'hd2d') {
-      this.canvas.classList.add('hidden');
-      this.asciiGrid.classList.add('hidden');
-      this.webgpuCanvas.classList.remove('hidden');
-      this.webgpuRenderer?.setActive(true);
-      if (this.btnToggleCameraMode) {
-        this.btnToggleCameraMode.style.display = 'block';
-        const camMode = this.webgpuRenderer?.cameraMode || 'diorama';
-        const nextCamMode = camMode === 'topdown' ? 'diorama' : 'topdown';
-        const camModeLabels = {
-          diorama: isEn ? 'Diorama' : 'ジオラマ',
-          topdown: isEn ? 'Top-Down' : 'トップビュー'
-        };
-        const camPrefix = isEn ? '📷 Camera: ' : '📷 カメラ: ';
-        this.btnToggleCameraMode.textContent = `${camPrefix}${camModeLabels[camMode]} ➜ ${camModeLabels[nextCamMode]}`;
-      }
-    } else if (this.currentViewMode === 'graphic') {
-      this.webgpuRenderer?.setActive(false);
-      this.asciiGrid.classList.add('hidden');
-      this.webgpuCanvas.classList.add('hidden');
-      this.canvas.classList.remove('hidden');
-      this.mainViewportRenderer.switchViewMode(true, false);
-      if (this.btnToggleCameraMode) {
-        this.btnToggleCameraMode.style.display = 'none';
-      }
-    } else { // 'ascii'
-      this.webgpuRenderer?.setActive(false);
-      this.canvas.classList.add('hidden');
-      this.webgpuCanvas.classList.add('hidden');
-      this.asciiGrid.classList.remove('hidden');
-      this.mainViewportRenderer.switchViewMode(false, false);
-      if (this.btnToggleCameraMode) {
-        this.btnToggleCameraMode.style.display = 'none';
-      }
-    }
-
-    // ビュー切替ボタンのテキスト設定（switchViewMode等の後で確実に適用）
-    if (this.btnToggleView) {
-      this.btnToggleView.textContent = toggleViewText;
-    }
+    this.viewModeController.updateViewModeUI();
   }
 
   toggleCameraMode() {
-    if (this.webgpuRenderer && this.currentViewMode === 'hd2d') {
-      this.webgpuRenderer.toggleCameraMode();
-      this.updateViewModeUI();
-    }
+    this.viewModeController.toggleCameraMode();
   }
 
+
   bindDOMEvents() {
-    this.btnToggleView.onclick = () => {
-      this.cycleViewMode();
-    };
-
-    if (this.btnToggleCameraMode) {
-      this.btnToggleCameraMode.onclick = () => {
-        this.toggleCameraMode();
-      };
-    }
-
-    if (this.btnToggleMinimap) {
-      this.btnToggleMinimap.onclick = () => {
-        this.minimapRenderer.toggleVisibility();
-        const isEn = this.currentLanguage === 'en';
-        const prefix = isEn ? '🗺️ Minimap HUD: ' : '🗺️ ミニマップ HUD: ';
-        this.btnToggleMinimap.textContent = prefix + (this.minimapRenderer.isVisible ? 'ON' : 'OFF');
-      };
-    }
-
-    const btnToggleDebugHud = document.getElementById('btn-toggle-debug-hud');
-    if (btnToggleDebugHud) {
-      btnToggleDebugHud.onclick = () => {
-        if (!this.webgpuRenderer) return;
-        const hud = this.webgpuRenderer.debugHudElement || document.getElementById('webgpu-debug-hud');
-        if (!hud) return;
-        const isCurrentlyVisible = hud.style.display !== 'none';
-        hud.style.display = isCurrentlyVisible ? 'none' : 'block';
-        const isEn = this.currentLanguage === 'en';
-        const prefix = isEn ? '📊 HD-2D Debug HUD: ' : '📊 HD-2D デバッグHUD: ';
-        btnToggleDebugHud.textContent = prefix + (!isCurrentlyVisible ? 'ON' : 'OFF');
-      };
-    }
-
-    if (this.btnSettingsToggle && this.settingsDropdown) {
-      this.btnSettingsToggle.onclick = (e) => {
-        e.stopPropagation();
-        this.settingsDropdown.classList.toggle('hidden');
-      };
-
-      // メニュー項目クリック時に自動で閉じる
-      this.settingsDropdown.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-menu-item') || e.target.closest('.btn-preset-item')) {
-          this.settingsDropdown.classList.add('hidden');
-        }
-      });
-
-      // 外側クリックで閉じる
-      document.addEventListener('click', (e) => {
-        if (!this.settingsDropdown.classList.contains('hidden') &&
-            !this.settingsDropdown.contains(e.target) &&
-            e.target !== this.btnSettingsToggle) {
-          this.settingsDropdown.classList.add('hidden');
-        }
-      });
-
-      // Escキーで閉じる
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !this.settingsDropdown.classList.contains('hidden')) {
-          this.settingsDropdown.classList.add('hidden');
-        }
-      });
-    }
-
-    // 🎨 外観・レイアウト設定イベント
-    const btnPresetClassic = document.getElementById('btn-preset-classic');
-    if (btnPresetClassic) {
-      btnPresetClassic.onclick = () => this.setPreset('classic');
-    }
-    const btnPresetModern = document.getElementById('btn-preset-modern');
-    if (btnPresetModern) {
-      btnPresetModern.onclick = () => this.setPreset('modern');
-    }
-
-    const bindLayoutCheckbox = (id, propName) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.onchange = (e) => {
-          this.layoutConfig = this.uiConfigStore.setProperty(propName, Boolean(e.target.checked));
-          this.applyLayoutConfig(this.layoutConfig);
-        };
-      }
-    };
-    bindLayoutCheckbox('chk-panel-inventory', 'panelInventory');
-    bindLayoutCheckbox('chk-panel-actions', 'panelActions');
-    bindLayoutCheckbox('chk-panel-knowledge', 'panelKnowledge');
-    bindLayoutCheckbox('chk-panel-history-dock', 'panelHistoryDock');
-    bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
-    bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
-    bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
-
-    // 🎨 Web Components (<nh-ui-config> & <nh-modal>) 連携
-    const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
-    const nhModalSettings = document.getElementById('nh-modal-settings');
-    const btnOpenUiConfig = document.getElementById('btn-open-ui-config');
-
-    if (nhUiConfig && typeof nhUiConfig.setConfigStore === 'function') {
-      nhUiConfig.setConfigStore(this.uiConfigStore);
-      if (typeof nhUiConfig.setLanguage === 'function') {
-        nhUiConfig.setLanguage(this.currentLanguage);
-      }
-      nhUiConfig.addEventListener('config-change', (e) => {
-        this.layoutConfig = e.detail?.config || this.uiConfigStore.get();
-        this.applyLayoutConfig(this.layoutConfig);
-      });
-      nhUiConfig.addEventListener('preset-change', (e) => {
-        if (e.detail?.preset) {
-          this.setPreset(e.detail.preset);
-        }
-      });
-    }
-
-    if (btnOpenUiConfig && nhModalSettings) {
-      btnOpenUiConfig.onclick = () => {
-        const isEn = this.currentLanguage === 'en';
-        nhModalSettings.setAttribute('title', isEn ? '⚙️ Settings & UI Customization' : '⚙️ 環境設定・UIカスタマイズ');
-        if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {
-          nhUiConfig.setLanguage(this.currentLanguage);
-        }
-        nhModalSettings.open = true;
-        if (this.settingsDropdown) {
-          this.settingsDropdown.classList.add('hidden');
-        }
-      };
-    }
-
-    const btnRestart = document.getElementById('btn-restart');
-    if (btnRestart) btnRestart.onclick = () => this.restartGame();
-
-    const btnDeleteSave = document.getElementById('btn-delete-save');
-    if (btnDeleteSave) btnDeleteSave.onclick = () => this.deleteSaveFile();
-
-    const btnGameoverRestart = document.getElementById('btn-gameover-restart');
-    if (btnGameoverRestart) btnGameoverRestart.onclick = () => this.restartGame();
-
-    // 🎒 サブウィンドウ (右サイドパネル) のワンタップ一時退避 ＆ 再展開リスナー
-    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
-    if (btnToggleSidePanel) btnToggleSidePanel.onclick = () => this.toggleSidePanel();
-
-    const sidePanelPeekTab = document.getElementById('side-panel-peek-tab');
-    if (sidePanelPeekTab) sidePanelPeekTab.onclick = () => this.toggleSidePanel(false);
-
-    const btnCollapseSidePanel = document.getElementById('btn-collapse-side-panel');
-    if (btnCollapseSidePanel) btnCollapseSidePanel.onclick = () => this.toggleSidePanel(true);
-
-    if (typeof window !== 'undefined') {
-      window.toggleSidePanel = (forceState) => this.toggleSidePanel(forceState);
-    }
-
-    const elStatusBar = document.getElementById('status-bar');
-    if (elStatusBar) {
-      elStatusBar.addEventListener('click', (e) => {
-        const spellBtn = e.target.closest('.gkl-spell-badge');
-        if (spellBtn) {
-          e.stopPropagation();
-          const letter = spellBtn.dataset.letter;
-          if (letter) this.statusView.castSpell(letter);
-          return;
-        }
-
-        const skillBtn = e.target.closest('.gkl-skill-badge');
-        if (skillBtn) {
-          e.stopPropagation();
-          const skillKey = skillBtn.dataset.skill;
-          this.statusView.enhanceSkill(skillKey);
-          return;
-        }
-
-        elStatusBar.classList.toggle('is-expanded');
-      });
-    }
-
-    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
-    if (btnOpenPaperdoll) {
-      btnOpenPaperdoll.onclick = () => {
-        this.paperdollModal.toggle();
-      };
-    }
-
-    const btnOpenCodex = document.getElementById('btn-open-codex');
-    if (btnOpenCodex) {
-      btnOpenCodex.onclick = () => {
-        if (this.codexModal) {
-          this.codexModal.open();
-        }
-      };
-    }
-
-    const btnRefreshInv = document.getElementById('btn-refresh-inv');
-
-    if (btnRefreshInv) {
-      btnRefreshInv.onclick = async () => {
-        if (this.core && this.core.gkl && typeof this.core.gkl.syncInventorySilent === 'function') {
-          btnRefreshInv.disabled = true;
-          btnRefreshInv.textContent = '...';
-          await this.core.gkl.syncInventorySilent();
-          btnRefreshInv.disabled = false;
-          btnRefreshInv.textContent = this.currentLanguage === 'en' ? '🔄 Sync' : '🔄 同期';
-        }
-      };
-    }
-
-    const btnCastSpellMenu = document.getElementById('btn-cast-spell-menu');
-    if (btnCastSpellMenu) {
-      btnCastSpellMenu.onclick = () => {
-        this.statusView.castSpell();
-      };
-    }
-
-    const tabBtnAdvices = document.getElementById('tab-btn-advices');
-    if (tabBtnAdvices) {
-      tabBtnAdvices.onclick = () => {
-        this.userPreferredTab = 'advices';
-        this.knowledgeView.userPreferredTab = 'advices';
-        this.knowledgeView.switchBottomTab('advices');
-      };
-    }
-
-    const tabBtnKnowledge = document.getElementById('tab-btn-knowledge');
-    if (tabBtnKnowledge) {
-      tabBtnKnowledge.onclick = () => {
-        this.userPreferredTab = 'knowledge';
-        this.knowledgeView.userPreferredTab = 'knowledge';
-        this.knowledgeView.switchBottomTab('knowledge', this.lastKnowledgeTarget);
-      };
-    }
-
-    // ツールチップ追従
-    document.addEventListener('mousemove', (e) => {
-      if (this.elGklTooltip && !this.elGklTooltip.classList.contains('hidden')) {
-        this.elGklTooltip.style.left = (e.clientX + 14) + 'px';
-        this.elGklTooltip.style.top = (e.clientY + 14) + 'px';
-      }
-    });
-
-    // 🎯 キャンバス操作共有関数 (メインキャンバス・ズームカメラ共通のホバー/クリック制御 + GKLスマート ContextActions / 自動移動)
-    let lastHoverTileX = -1;
-    let lastHoverTileY = -1;
-
-    const handleCanvasInspect = async (gx, gy, isHover, clientPos = null, isForceContextMenu = false) => {
-      if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
-      if (isHover && gx === lastHoverTileX && gy === lastHoverTileY) {
-        return;
-      }
-      if (isHover) {
-        lastHoverTileX = gx;
-        lastHoverTileY = gy;
-      } else {
-        lastHoverTileX = -1;
-        lastHoverTileY = -1;
-      }
-
-      let cardData = null;
-      if (this.core?.gkl?.inspectCellOnDemand) {
-        cardData = await this.core.gkl.inspectCellOnDemand({ x: gx, y: gy }, { isHover });
-        if (cardData) {
-          this.lastKnowledgeTarget = cardData;
-          this.knowledgeView.lastKnowledgeTarget = cardData;
-        }
-      }
-
-      if (!isHover) {
-        // 自キャラ座標の取得
-        const situation = this.core?.gkl?.getSituation ? this.core.gkl.getSituation() : null;
-        const px = situation?.area?.playerX ?? this.mainViewportRenderer.targetCursorX ?? 0;
-        const py = situation?.area?.playerY ?? this.mainViewportRenderer.targetCursorY ?? 0;
-        const data = cardData || this.lastKnowledgeTarget;
-        const isPlayerTile = (gx === px && gy === py) || Boolean(data?.category === 'PLAYER' || data?.isPlayer);
-
-        const isMonster = Boolean(data?.category === 'MONSTER' || data?.hasMonster);
-        const isGimmick = Boolean(
-          data?.category === 'DOOR' || data?.isDoor ||
-          data?.category === 'ALTAR' || data?.isAltar ||
-          data?.category === 'FOUNTAIN' || data?.isFountain ||
-          data?.category === 'SINK' || data?.isSink ||
-          data?.category === 'THRONE' || data?.isThrone ||
-          data?.category === 'GRAVE' || data?.isGrave ||
-          data?.category === 'STAIRS' || data?.isStairs ||
-          data?.category === 'TRAP' || data?.isTrap ||
-          data?.category === 'CONTAINER' || data?.category === 'CHEST' || data?.isChest ||
-          data?.id?.includes('door') || data?.id?.includes('stairs')
-        );
-        const dx = Math.abs(gx - px);
-        const dy = Math.abs(gy - py);
-        const isAdjacent = (dx <= 1 && dy <= 1 && !isPlayerTile);
-
-        // GKL 推奨アクション一覧の取得
-        const allActions = this.core?.gkl?.getRecommendedActions ? this.core.gkl.getRecommendedActions() : [];
-        const applicableActions = this.floatingActions ? this.floatingActions.resolveApplicableActions({
-          targetGx: gx,
-          targetGy: gy,
-          playerX: px,
-          playerY: py,
-          cardData: data,
-          allActions
-        }) : [];
-
-        // 該当マスに固有のコンテキストアクション（デフォルト移動・待機以外）があるか判定
-        const hasSpecificAction = applicableActions.some(a => !a.isDefault && a.category !== 'DEFAULT');
-
-        // 🎯 スマートコンテキスト判定:
-        // 1. 右クリック時 (isForceContextMenu): どのマスでも強制的にメニュー展開（その場からアイテム・モンスター等の詳細ナレッジを確認可能）
-        // 2. 左クリック時:
-        //    - 自キャラ足元 (isPlayerTile): 自分・足元メニューを展開
-        //    - 隣接マス (isAdjacent): GKL推奨アクションが存在するマス（隣接モンスター、隣接の箱/ドア/ギミック等）のみメニュー展開
-        //    - 遠隔モンスター (!isAdjacent && isMonster): 不用意な突進事故防止・射撃メニュー展開
-        //    - 通常アイテムマス（武器・防具・食料・金貨等）や安全な床: メニューを出さず直接 travelTo で歩いて乗る
-        const shouldShowContextMenu = isForceContextMenu || isPlayerTile || (isAdjacent && (hasSpecificAction || isMonster || isGimmick)) || (!isAdjacent && isMonster);
-
-        if (shouldShowContextMenu && this.floatingActions) {
-
-          // スクリーン表示座標（クリックイベントの clientX/Y、または3D/2D投影）
-          let clientX = clientPos?.clientX;
-          let clientY = clientPos?.clientY;
-
-          if ((clientX === undefined || clientY === undefined) && this.currentViewMode === 'hd2d' && this.webgpuRenderer) {
-            const proj = this.webgpuRenderer.worldToScreen(gx, 0.45, gy);
-            if (proj && this.webgpuCanvas) {
-              const rect = this.webgpuCanvas.getBoundingClientRect();
-              clientX = rect.left + proj.screenX * (rect.width / this.webgpuCanvas.width);
-              clientY = rect.top + proj.screenY * (rect.height / this.webgpuCanvas.height);
-            }
-          } else if ((clientX === undefined || clientY === undefined) && this.currentViewMode === 'graphic' && this.mainViewportRenderer) {
-            const screen = this.mainViewportRenderer.gridToScreen(gx, gy);
-            if (screen) {
-              clientX = screen.clientX;
-              clientY = screen.clientY;
-            }
-          }
-
-          this.floatingActions.show({
-            gx,
-            gy,
-            playerX: px,
-            playerY: py,
-            clientX,
-            clientY,
-            cardData: data,
-            actions: allActions,
-            canTravel: !isMonster && !isPlayerTile
-          });
-        } else if (this.core?.gkl?.travelTo) {
-          // 6. 安全な床・通路等の地形 ➔ 従来通り素直に自動移動 (travelTo: 1歩移動または長距離移動)
-          this.floatingActions?.hide();
-          this.floatingMessageHud?.notifyUserAction();
-          await this.core.gkl.travelTo({ x: gx, y: gy });
-        }
-      }
-    };
-
-    // WebGPU HD2D レンダラーのクリック＆ホバーイベント接続
-    if (this.webgpuRenderer) {
-      this.webgpuRenderer.onCellClick = (gx, gy, clickInfo, isRightClick = false) => {
-        handleCanvasInspect(gx, gy, false, clickInfo, isRightClick);
-      };
-      this.webgpuRenderer.onCellContextMenu = (gx, gy, clickInfo) => {
-        handleCanvasInspect(gx, gy, false, clickInfo, true);
-      };
-      this.webgpuRenderer.onCellHover = (gx, gy) => handleCanvasInspect(gx, gy, true);
-    }
-
-    // メインキャンバス (2D Viewport) のクリック＆ホバーイベント
-    if (this.canvas) {
-      this.canvas.addEventListener('mousemove', async (e) => {
-        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
-        if (grid) {
-          await handleCanvasInspect(grid.gx, grid.gy, true);
-        }
-      });
-
-      this.canvas.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
-        if (grid) {
-          await handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, false);
-        }
-      });
-
-      // 右クリック（詳細コンテキストメニュー展開）
-      this.canvas.addEventListener('contextmenu', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const grid = this.mainViewportRenderer.screenToGrid(e.clientX, e.clientY);
-        if (grid) {
-          await handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
-        }
-      });
-    }
-
-    // ASCII Grid のクリック＆ホバーイベント (Event Delegation)
-    if (this.asciiGrid) {
-      const getAsciiCellCoords = (e) => {
-        const target = e.target;
-        if (target && target.id && target.id.startsWith('ascii-cell-')) {
-          const parts = target.id.split('-');
-          return { gx: parseInt(parts[2], 10), gy: parseInt(parts[3], 10) };
-        }
-        return null;
-      };
-
-      this.asciiGrid.addEventListener('mousemove', async (e) => {
-        const coords = getAsciiCellCoords(e);
-        if (coords) {
-          await handleCanvasInspect(coords.gx, coords.gy, true);
-        }
-      });
-
-      this.asciiGrid.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const coords = getAsciiCellCoords(e);
-        if (coords) {
-          await handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY });
-        }
-      });
-
-      this.asciiGrid.addEventListener('contextmenu', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const coords = getAsciiCellCoords(e);
-        if (coords) {
-          await handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
-        }
-      });
-    }
-
-    // ズームカメラ (zoom-canvas) のクリック＆ホバーイベント
-    const zoomCanvas = document.getElementById('zoom-canvas');
-    if (zoomCanvas) {
-      zoomCanvas.addEventListener('mousemove', async (e) => {
-        const rect = zoomCanvas.getBoundingClientRect();
-        const tileX = Math.floor(((e.clientX - rect.left) * (zoomCanvas.width / rect.width)) / 32);
-        const tileY = Math.floor(((e.clientY - rect.top) * (zoomCanvas.height / rect.height)) / 32);
-
-        const px = this.mapRenderer.targetCursorX >= 0 ? this.mapRenderer.targetCursorX : 0;
-        const py = this.mapRenderer.targetCursorY >= 0 ? this.mapRenderer.targetCursorY : 0;
-
-        const gx = px + (tileX - 10);
-        const gy = py + (tileY - 4);
-
-        await handleCanvasInspect(gx, gy, true);
-      });
-
-      zoomCanvas.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const rect = zoomCanvas.getBoundingClientRect();
-        const tileX = Math.floor(((e.clientX - rect.left) * (zoomCanvas.width / rect.width)) / 32);
-        const tileY = Math.floor(((e.clientY - rect.top) * (zoomCanvas.height / rect.height)) / 32);
-
-        const px = this.mapRenderer.targetCursorX >= 0 ? this.mapRenderer.targetCursorX : 0;
-        const py = this.mapRenderer.targetCursorY >= 0 ? this.mapRenderer.targetCursorY : 0;
-
-        const gx = px + (tileX - 10);
-        const gy = py + (tileY - 4);
-
-        await handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY });
-      });
-
-      zoomCanvas.addEventListener('contextmenu', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const rect = zoomCanvas.getBoundingClientRect();
-        const tileX = Math.floor(((e.clientX - rect.left) * (zoomCanvas.width / rect.width)) / 32);
-        const tileY = Math.floor(((e.clientY - rect.top) * (zoomCanvas.height / rect.height)) / 32);
-
-        const px = this.mapRenderer.targetCursorX >= 0 ? this.mapRenderer.targetCursorX : 0;
-        const py = this.mapRenderer.targetCursorY >= 0 ? this.mapRenderer.targetCursorY : 0;
-
-        const gx = px + (tileX - 10);
-        const gy = py + (tileY - 4);
-
-        await handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
-      });
-    }
-
-    // 🖥️ 全画面ウィンドウリサイズ追従 (Canvas 2D / WebGPU 解像度同期)
-    const handleResize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      if (this.mainViewportRenderer && typeof this.mainViewportRenderer.resize === 'function') {
-        this.mainViewportRenderer.resize(w, h);
-      }
-      if (this.webgpuRenderer && typeof this.webgpuRenderer.resize === 'function') {
-        this.webgpuRenderer.resize(w, h);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    setTimeout(handleResize, 100);
-
-    window.addEventListener('keydown', (e) => {
-      if (this.isStartingUp && this.startupStep === 'READY') {
-        if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        this.completeStartup(e.code || e.key);
-        return;
-      }
-
-      if (!e.ctrlKey && !e.altKey && !['Escape', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(e.code)) {
-        this.floatingMessageHud?.notifyUserAction();
-      }
-
-      this.keyHandler.handleGlobalKeyDown(e);
-    });
+    DomEventBinder.bind(this);
   }
 
   renderAll() {
@@ -1520,355 +525,21 @@ class GklPureJSClient {
   }
 
   onLanguageChanged() {
-    const isEn = this.currentLanguage === 'en';
-
-    this.mainViewportRenderer.setLanguage(this.currentLanguage);
-    this.minimapRenderer.setLanguage(this.currentLanguage);
-    this.updateViewModeUI();
-    this.knowledgeView.setLanguage(this.currentLanguage);
-    this.inventoryView.setLanguage(this.currentLanguage);
-    this.assistHud.setLanguage(this.currentLanguage);
-    this.directionPad.setLanguage(this.currentLanguage);
-    this.statusView.setLanguage(this.currentLanguage);
-    this.modalManager.setLanguage(this.currentLanguage);
-    this.containerModal.setLanguage(this.currentLanguage);
-    if (this.paperdollModal) this.paperdollModal.setLanguage(this.currentLanguage);
-    if (this.codexModal) this.codexModal.setLanguage(this.currentLanguage);
-    if (this.characterCreationModal) this.characterCreationModal.setLanguage(this.currentLanguage);
-    if (this.characterIntroModal) this.characterIntroModal.setLanguage(this.currentLanguage);
-    if (this.floatingActions) this.floatingActions.setLanguage(this.currentLanguage);
-    if (this.knowledgeDetailModal) this.knowledgeDetailModal.setLanguage(this.currentLanguage);
-    if (this.floatingMessageHud) this.floatingMessageHud.setLanguage(this.currentLanguage);
-    if (this.messageHistoryDrawer) this.messageHistoryDrawer.setLanguage(this.currentLanguage);
-    if (this.engravingHud) this.engravingHud.setLanguage(this.currentLanguage);
-    if (this.adventureLogToast) this.adventureLogToast.setLanguage(this.currentLanguage);
-
-    const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');
-    if (nhUiConfig && typeof nhUiConfig.setLanguage === 'function') {
-      nhUiConfig.setLanguage(this.currentLanguage);
-    }
-    const nhModalSettings = document.getElementById('nh-modal-settings');
-    if (nhModalSettings) {
-      nhModalSettings.setAttribute('title', isEn ? '⚙️ Settings & UI Customization' : '⚙️ 環境設定・UIカスタマイズ');
-    }
-
-    // === 1. ヘッダー：サイドパネル開閉ボタンおよび履歴・設定 ===
-    const isCollapsed = Boolean(this.layoutConfig?.panelCollapsed);
-    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
-    const btnSidePanelLabel = document.getElementById('btn-side-panel-label');
-    if (btnSidePanelLabel) {
-      btnSidePanelLabel.textContent = isCollapsed
-        ? (isEn ? '🎒 Panel ⏴' : '🎒 パネル ⏴')
-        : (isEn ? '🎒 Panel ⏵' : '🎒 パネル ⏵');
-    }
-    if (btnToggleSidePanel) {
-      btnToggleSidePanel.title = isEn
-        ? 'Toggle side panel [ F2/Alt+S ]'
-        : 'サイドパネル一時退避 / 再展開 [ F2/Alt+S ]';
-    }
-
-    const btnCollapseSidePanel = document.getElementById('btn-collapse-side-panel');
-    if (btnCollapseSidePanel) {
-      btnCollapseSidePanel.title = isEn ? 'Collapse side panel [ F2/Alt+S  ]' : 'サイドパネルを一時退避 [ F2/Alt+S ]';
-    }
-
-    const peekTab = document.getElementById('side-panel-peek-tab');
-    if (peekTab) {
-      peekTab.title = isEn ? 'Expand side panel [ F2/Alt+S ]' : 'サイドパネルを再展開 [ F2/Alt+S ]';
-      const peekLabel = peekTab.querySelector('.peek-tab-label');
-      if (peekLabel) {
-        peekLabel.textContent = isEn ? '🎒 Panel' : '🎒 パネル';
-      }
-    }
-
-    const btnOpenHistory = document.getElementById('btn-open-history');
-    const lblHistory = document.getElementById('btn-history-label');
-    if (lblHistory) {
-      lblHistory.textContent = isEn ? '📜 History' : '📜 過去ログ';
-    } else if (btnOpenHistory) {
-      btnOpenHistory.textContent = isEn ? '📜 History' : '📜 過去ログ';
-    }
-    if (btnOpenHistory) {
-      btnOpenHistory.title = isEn ? 'Open message history [Ctrl+P]' : '過去ログ全履歴を開く [Ctrl+P]';
-    }
-
-    const btnOpenCodex = document.getElementById('btn-open-codex');
-    const lblCodex = document.getElementById('btn-codex-label');
-    if (lblCodex) {
-      lblCodex.textContent = isEn ? '📖 Codex' : '📖 冒険手帳';
-    } else if (btnOpenCodex) {
-      btnOpenCodex.textContent = isEn ? '📖 Codex' : '📖 冒険手帳';
-    }
-    if (btnOpenCodex) {
-      btnOpenCodex.title = isEn ? 'Open adventure rumor & lore codex' : '冒険手帳・伝承図鑑を開く';
-    }
-
-    // === 2. 設定ドロップダウンメニュー (settings-menu-dropdown) ===
-    const btnSettingsToggle = document.getElementById('btn-settings-toggle');
-    if (btnSettingsToggle) {
-      btnSettingsToggle.textContent = isEn ? '⚙️ Settings' : '⚙️ 設定';
-      btnSettingsToggle.title = isEn ? 'Settings & system menu' : '設定・システムメニュー';
-    }
-
-    // 2.1 外観・レイアウト
-    const lblLayoutSec = document.getElementById('lbl-settings-layout-section');
-    if (lblLayoutSec) lblLayoutSec.textContent = isEn ? 'Appearance & Layout' : '外観・レイアウト';
-
-    const btnPresetClassic = document.getElementById('btn-preset-classic');
-    if (btnPresetClassic) {
-      btnPresetClassic.textContent = isEn ? '⚔️ Classic (Original)' : '⚔️ クラシック (原作風)';
-      btnPresetClassic.title = isEn
-        ? '1-Column Fullscreen, 2-line status, Classic style'
-        : '1カラム全画面・常時2行ステータス・NetHack原作風';
-    }
-    const btnPresetModern = document.getElementById('btn-preset-modern');
-    if (btnPresetModern) {
-      btnPresetModern.textContent = isEn ? '🛡️ GKL Modern (Standard)' : '🛡️ GKLモダン (標準)';
-      btnPresetModern.title = isEn
-        ? '2-Column Rich UI with full panels'
-        : '2カラム全枠表示・リッチGKLモード';
-    }
-    const btnOpenUiConfig = document.getElementById('btn-open-ui-config');
-    if (btnOpenUiConfig) {
-      btnOpenUiConfig.textContent = isEn ? '🎨 Advanced UI Settings (<nh-ui-config>)' : '🎨 UI 詳細設定 (<nh-ui-config>)';
-      btnOpenUiConfig.title = isEn ? 'Open advanced UI configuration modal' : 'UI 詳細設定ダイアログを開く';
-    }
-
-    // 2.2 サイドパネル枠
-    const lblPanelsSec = document.getElementById('lbl-settings-panels-section');
-    if (lblPanelsSec) lblPanelsSec.textContent = isEn ? 'Side Panels' : 'サイドパネル枠';
-
-    const chkInvSpan = document.querySelector('#chk-panel-inventory ~ span');
-    if (chkInvSpan) chkInvSpan.textContent = isEn ? '🎒 Inventory (Icon Inventory)' : '🎒 所持品 (Icon Inventory)';
-
-    const chkActSpan = document.querySelector('#chk-panel-actions ~ span');
-    if (chkActSpan) chkActSpan.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
-
-    const chkKnoSpan = document.querySelector('#chk-panel-knowledge ~ span');
-    if (chkKnoSpan) chkKnoSpan.textContent = isEn ? '🛡️ Tactical Advices (Tactical Advices)' : '🛡️ 戦術アドバイス (Tactical Advices)';
-
-    const lblPanelHistoryDock = document.getElementById('lbl-panel-history-dock');
-    if (lblPanelHistoryDock) {
-      lblPanelHistoryDock.textContent = isEn ? '📜 History (Docked Left)' : '📜 過去ログ (左側常時固定)';
-    }
-
-    // 2.3 ステータス ＆ HUD
-    const lblStatusSec = document.getElementById('lbl-settings-status-section');
-    if (lblStatusSec) lblStatusSec.textContent = isEn ? 'Status & HUD' : 'ステータス ＆ HUD';
-
-    const chk2LineSpan = document.querySelector('#chk-status-classic-2line ~ span');
-    if (chk2LineSpan) chk2LineSpan.textContent = isEn ? '📜 Classic 2-Line Status' : '📜 ステータス常時2行表示';
-
-    const chkGaugesSpan = document.querySelector('#chk-status-gauges ~ span');
-    if (chkGaugesSpan) chkGaugesSpan.textContent = isEn ? '📊 HP/MP Gauge Bars' : '📊 HP/MP ゲージバー';
-
-    const chkGklSpan = document.querySelector('#chk-status-gkl-extra ~ span');
-    if (chkGklSpan) chkGklSpan.textContent = isEn ? '🧬 Resistances, Spells & Skills' : '🧬 耐性・修得魔法・スキル行';
-
-    // 2.4 表示・カメラ
-    const lblViewSec = document.getElementById('lbl-settings-view-section');
-    if (lblViewSec) lblViewSec.textContent = isEn ? 'Display & Camera' : '表示・カメラ';
-
-    if (this.btnToggleMinimap) {
-      const prefix = isEn ? '🗺️ Minimap HUD: ' : '🗺️ ミニマップ HUD: ';
-      this.btnToggleMinimap.textContent = prefix + (this.minimapRenderer?.isVisible ? 'ON' : 'OFF');
-      this.btnToggleMinimap.title = isEn ? 'Toggle Minimap HUD' : 'ミニマップHUDの表示/非表示';
-    }
-
-    const btnToggleDebugHud = document.getElementById('btn-toggle-debug-hud');
-    if (btnToggleDebugHud) {
-      const hud = this.webgpuRenderer?.debugHudElement || document.getElementById('webgpu-debug-hud');
-      const isVisible = hud && hud.style.display !== 'none';
-      const prefix = isEn ? '📊 HD-2D Debug HUD: ' : '📊 HD-2D デバッグHUD: ';
-      btnToggleDebugHud.textContent = prefix + (isVisible ? 'ON' : 'OFF');
-    }
-
-    // 2.5 システム操作
-    const lblSysSec = document.getElementById('lbl-settings-sys-section');
-    if (lblSysSec) lblSysSec.textContent = isEn ? 'System Operations' : 'システム操作';
-
-    const btnRestart = document.getElementById('btn-restart');
-    if (btnRestart) {
-      btnRestart.textContent = isEn ? '🔄 Restart Game' : '🔄 Restart (再起動)';
-      btnRestart.title = isEn ? 'Restart game immediately' : 'ゲームを即時再起動';
-    }
-
-    const btnDeleteSave = document.getElementById('btn-delete-save');
-    if (btnDeleteSave) {
-      btnDeleteSave.textContent = isEn ? '🗑️ Delete Save' : '🗑️ Delete Save (セーブ削除)';
-      btnDeleteSave.title = isEn ? 'Delete save file completely' : 'セーブデータを完全削除';
-    }
-
-    // === 3. サイドにあるパネル (gkl-side-panel) の各カード・ボタン ===
-    const elInvHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(1) .gkl-card-header span');
-    if (elInvHeader) elInvHeader.textContent = isEn ? '🎒 Inventory Items (Icon Inventory)' : '🎒 所持品アイテム (Icon Inventory)';
-
-    const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
-    if (btnOpenPaperdoll) {
-      btnOpenPaperdoll.textContent = isEn ? '🎽 Paperdoll' : '🎽 装備詳細';
-      btnOpenPaperdoll.title = isEn ? 'Open equipment paperdoll & loadout' : '装備詳細 ＆ ペーパードールを開く';
-    }
-
-    const btnRefreshInv = document.getElementById('btn-refresh-inv');
-    if (btnRefreshInv) {
-      btnRefreshInv.textContent = isEn ? '🔄 Sync' : '🔄 同期';
-      btnRefreshInv.title = isEn ? 'Sync inventory immediately' : '所持品情報を即座に最新同期';
-    }
-
-    const invEmptyHint = document.querySelector('#gkl-inventory-grid .gkl-empty-hint');
-    if (invEmptyHint) {
-      invEmptyHint.textContent = isEn ? 'Inventory is empty' : 'インベントリ空';
-    }
-
-    const elActHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(2) .gkl-card-header span');
-    if (elActHeader) elActHeader.textContent = isEn ? '🧠 Recommended Actions (ContextActions)' : '🧠 推奨アクション (ContextActions)';
-
-    const elKnHeader = document.querySelector('.gkl-side-panel .gkl-card:nth-child(3) .gkl-card-header span');
-    if (elKnHeader) elKnHeader.textContent = isEn ? '🛡️ Tactical Advices (Tactical Advices)' : '🛡️ 戦術アドバイス (Tactical Advices)';
-
-    const knEmptyHint = document.querySelector('#gkl-knowledge-content .gkl-empty-hint');
-    if (knEmptyHint) {
-      knEmptyHint.textContent = isEn ? 'Tactical situation: Normal (Safe)' : '戦術状況: 平常 (安全)';
-    }
-
-    const btnStartResume = document.getElementById('btn-start-resume');
-    if (btnStartResume) btnStartResume.textContent = isEn ? '▶️ Continue Game' : '▶️ セーブデータから再開';
-
-    const btnStartNew = document.getElementById('btn-start-new');
-    if (btnStartNew) btnStartNew.textContent = isEn ? '⚠️ New Game (Delete Save)' : '⚠️ 新規ゲーム開始 (セーブ破棄)';
-
-    const btnStartFresh = document.getElementById('btn-start-fresh');
-    if (btnStartFresh) btnStartFresh.textContent = isEn ? '⚔️ Start Adventure' : '⚔️ 新しい冒険を始める';
-
-    const btnEnter = document.getElementById('btn-enter-dungeon');
-    if (btnEnter) btnEnter.textContent = isEn ? '▶️ Enter Dungeon [Space / Move]' : '▶️ ダンジョンへ入る [Space / 移動キー]';
-
-    const readyMsg = document.getElementById('start-ready-msg');
-    if (readyMsg) readyMsg.textContent = isEn ? 'Dungeon Ready! Enter dungeon' : '✨ 準備完了！ ダンジョンへ入る';
-
-    const progressText = document.getElementById('start-card-progress-text');
-    if (progressText) {
-      if (this.isSaveResuming) {
-        progressText.textContent = isEn ? '🔄 Restoring dungeon state...' : '🔄 ダンジョンを復元中...';
-      } else {
-        progressText.textContent = isEn ? '🔄 Generating new dungeon...' : '🔄 新しいダンジョンを生成中...';
-      }
-    }
-
-    if (this.knowledgeView.currentBottomTab === 'knowledge' && this.lastKnowledgeTarget) {
-      this.knowledgeView.renderKnowledgeCard(this.lastKnowledgeTarget);
-    } else {
-      this.knowledgeView.renderSideAdvices();
-    }
-
-    if (this.core && this.core.gkl) {
-      if (typeof this.core.gkl.setLanguage === 'function') {
-        this.core.gkl.setLanguage(this.currentLanguage);
-      }
-      this.renderGklUi();
-    }
+    this.clientLocalization.applyLanguage(this.currentLanguage);
   }
 
   /**
-   * 📚 '/' コマンドプログレッシブ拡張: 統合ナレッジインスペクターを開く
+   * 📚 '/' コマンドプログレッシブ拡張: 統合ナレッジインスペクターを開く (CanvasInteractionController 委譲)
    */
   openKnowledgeInspector() {
-    let target = this.lastKnowledgeTarget;
-
-    // 直前ターゲットがなければ足元のアイテム/モンスターを探す
-    if (!target) {
-      const area = this.core?.gkl?.areaStateManager;
-      const playerPos = area?.playerPos;
-      if (playerPos && typeof area.getEntityAt === 'function') {
-        const underfoot = area.getEntityAt(playerPos.x, playerPos.y);
-        if (underfoot) {
-          target = underfoot;
-        }
-      }
-    }
-
-    // それでもなければ自キャラ
-    if (!target) {
-      const isEn = this.currentLanguage === 'en';
-      target = {
-        isPlayer: true,
-        category: 'PLAYER',
-        name: isEn ? 'You (Player)' : '自キャラ (Player)',
-        dangerLevel: 'NONE',
-        dispositionStatus: 'PLAYER',
-        stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
-        effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
-      };
-    }
-
-    if (this.knowledgeDetailModal) {
-      this.knowledgeDetailModal.open(target);
-      // '/' 押下時は直ちにキーワード入力できるよう検索バーへフォーカス
-      setTimeout(() => {
-        const input = document.getElementById('kn-search-input');
-        if (input) {
-          input.focus();
-          input.select();
-        }
-      }, 50);
-    }
+    this.interactionController.openKnowledgeInspector();
   }
 
   /**
-   * 📜 '\' または '¥' コマンドプログレッシブ拡張: ディスカバリー図鑑を開く (Gap 1)
+   * 📜 '\' または '¥' コマンドプログレッシブ拡張: ディスカバリー図鑑を開く (CanvasInteractionController 委譲)
    */
   openDiscoveryCodex() {
-    let container = document.getElementById('discovery-codex-modal-container');
-    if (!container && typeof document !== 'undefined') {
-      container = document.createElement('div');
-      container.id = 'discovery-codex-modal-container';
-      container.className = 'knowledge-modal-backdrop hidden';
-      container.style.cssText = 'position: fixed; inset: 0; z-index: 1050; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);';
-
-      const codexEl = document.createElement('nh-discovery-codex');
-      codexEl.id = 'active-discovery-codex';
-      codexEl.addEventListener('nh-close', () => {
-        container.classList.add('hidden');
-      });
-      codexEl.addEventListener('nh-item-select', (e) => {
-        container.classList.add('hidden');
-        if (this.knowledgeDetailModal && e.detail?.item) {
-          this.knowledgeDetailModal.open(e.detail.item);
-        }
-      });
-      container.appendChild(codexEl);
-
-      container.onclick = (e) => {
-        if (e.target === container) {
-          container.classList.add('hidden');
-        }
-      };
-      container.oncontextmenu = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
-      document.body.appendChild(container);
-    }
-
-    if (container) {
-      const codexEl = container.querySelector('nh-discovery-codex');
-      if (codexEl) {
-        codexEl.setLanguage(this.currentLanguage);
-        if (this.core?.gkl?.discoveryStateManager) {
-          codexEl.setDiscoveryManager(this.core.gkl.discoveryStateManager);
-        }
-      }
-      container.classList.remove('hidden');
-
-      // Cコアとの動的バックグラウンド同期
-      if (this.core?.gkl && typeof this.core.gkl.syncDiscoveriesSilent === 'function') {
-        this.core.gkl.syncDiscoveriesSilent().then(() => {
-          if (codexEl && this.core?.gkl?.discoveryStateManager) {
-            codexEl.setDiscoveryManager(this.core.gkl.discoveryStateManager);
-          }
-        });
-      }
-    }
+    this.interactionController.openDiscoveryCodex();
   }
 
   addMessageLog(msg) {
@@ -1880,480 +551,74 @@ class GklPureJSClient {
     this.elMessageLog.scrollTop = this.elMessageLog.scrollHeight;
   }
 
+  // ==========================================
+  // 🚀 スタートアップ ＆ セーブ管理 (StartupFlowController 委譲)
+  // ==========================================
   resetUiForNewGame() {
-    this.isGameExited = false;
-    this.currentGameOverResult = null;
-    this.mapRenderer.isPlayerDead = false;
-    this.mapRenderer.deathPosition = null;
-    this.zoomRenderer.isPlayerDead = false;
-    this.zoomRenderer.deathPosition = null;
-    this.zoomRenderer.activeFxList = [];
-    this.mainViewportRenderer.isPlayerDead = false;
-    this.mainViewportRenderer.deathPosition = null;
-    this.mainViewportRenderer.activeFxList = [];
-    if (this.webgpuRenderer) {
-      this.webgpuRenderer.isPlayerDead = false;
-      this.webgpuRenderer.deathPosition = null;
-      this.webgpuRenderer.activeFxList = [];
-      this.webgpuRenderer.markDirty();
-      this.webgpuRenderer.wakeUp();
-    }
-    this.lastKnowledgeTarget = null;
-    this.userPreferredTab = 'advices';
-
-    this.modalManager.reset();
-    this.virtualScreen?.clearScreen();
-    this.mapRenderer.clearMapGrid();
-    if (this.elMessageLog) this.elMessageLog.innerHTML = '';
-    this.floatingMessageHud?.clear();
-
-    const elCritBadge = document.getElementById('st-advice-critical-badge');
-    if (elCritBadge) elCritBadge.classList.add('hidden');
-
-    this.assistHud.renderAssistSignalBar(null);
-    this.assistHud.renderFloorLandmarks(null);
-    this.directionPad.renderGklActions([]);
-    this.inventoryView.renderGklInventory({ items: [] }, {});
-    this.knowledgeView.lastAdvices = [];
-    this.knowledgeView.lastKnowledgeTarget = null;
-    this.knowledgeView.renderSideAdvices();
-
-    if (this.core && this.core.gkl && typeof this.core.gkl.reset === 'function') {
-      this.core.gkl.reset();
-    }
-
-    this.codexModal?.notifyUnreadCount();
+    this.startupFlow.resetUiForNewGame();
   }
 
   setStartupView(step) {
-    this.startupStep = step;
-
-    const card = this.modalManager.elSelectorCard;
-    const cardButtons = document.getElementById('start-card-buttons');
-    const cardInfo = document.getElementById('start-card-info');
-    const cardSpinner = document.getElementById('start-card-spinner');
-    const cardReady = document.getElementById('start-card-ready');
-    const readyAction = document.getElementById('start-card-ready-action');
-    const spinnerBox = this.modalManager.elSpinnerBox;
-    const loadingOverlay = this.modalManager.elLoading;
-
-    if (step === 'INITIALIZING') {
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-      if (spinnerBox) spinnerBox.classList.remove('hidden');
-      if (card) card.classList.add('hidden');
-      return;
-    }
-
-    if (step === 'SELECTION') {
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-      if (spinnerBox) spinnerBox.classList.add('hidden');
-      if (card) card.classList.remove('hidden', 'is-fade-out');
-      if (cardButtons) cardButtons.classList.remove('hidden');
-      if (cardInfo) cardInfo.classList.remove('hidden');
-      if (cardSpinner) cardSpinner.classList.add('hidden');
-      if (cardReady) cardReady.classList.add('hidden');
-      if (readyAction) readyAction.classList.add('hidden');
-      return;
-    }
-
-    if (step === 'PROGRESS') {
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-      if (spinnerBox) spinnerBox.classList.add('hidden');
-      if (card) card.classList.remove('hidden', 'is-fade-out');
-      if (cardButtons) cardButtons.classList.add('hidden');
-      if (cardInfo) cardInfo.classList.add('hidden');
-      if (cardSpinner) cardSpinner.classList.remove('hidden');
-      if (cardReady) cardReady.classList.add('hidden');
-      if (readyAction) readyAction.classList.add('hidden');
-      return;
-    }
-
-    if (step === 'READY') {
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-      if (spinnerBox) spinnerBox.classList.add('hidden');
-      if (card) card.classList.remove('hidden', 'is-fade-out');
-      if (cardButtons) cardButtons.classList.add('hidden');
-      if (cardInfo) cardInfo.classList.add('hidden');
-      if (cardSpinner) cardSpinner.classList.add('hidden');
-      if (cardReady) cardReady.classList.remove('hidden');
-      if (readyAction) readyAction.classList.remove('hidden');
-      return;
-    }
-
-    if (step === 'PLAYING') {
-      if (card) card.classList.add('is-fade-out');
-      setTimeout(() => {
-        if (loadingOverlay) loadingOverlay.classList.add('hidden');
-        if (card) {
-          card.classList.add('hidden');
-          card.classList.remove('is-fade-out');
-        }
-      }, 200);
-      return;
-    }
+    this.startupFlow.setStartupView(step);
   }
 
   async restartGame() {
-    this.isStartingUp = true;
-    this.setStartupView('INITIALIZING');
-    this.resetUiForNewGame();
-    this.modalManager.elGameOverModal.classList.add('hidden');
-
-    try {
-      await this.core.restart({ clearStorage: false, autoStart: false });
-    } catch (err) {
-      console.warn("[GklPureJSClient] core.restart:", err);
-    }
-    await this.bootstrapGame();
+    await this.startupFlow.restartGame();
   }
 
   async deleteSaveFile() {
-    const isEn = this.currentLanguage === 'en';
-    const confirmMsg = isEn ? 'Are you sure you want to completely delete the save file?' : 'セーブファイルを完全に削除しますか？';
-    if (confirm(confirmMsg)) {
-      this.isStartingUp = true;
-      this.setStartupView('INITIALIZING');
-      this.resetUiForNewGame();
-      this.modalManager.elGameOverModal.classList.add('hidden');
-
-      try {
-        await this.core.restart({ clearStorage: true, autoStart: false });
-      } catch (err) {
-        console.warn("[GklPureJSClient] core.restart:", err);
-      }
-      await this.bootstrapGame();
-    }
+    await this.startupFlow.deleteSaveFile();
   }
 
   async handleExited(data) {
-    this.isGameExited = true;
-
-    // 死亡/終了時に背後のアドバイス・HUD・アクションをクリーンアップ
-    this.assistHud.renderAssistSignalBar(null);
-    this.assistHud.renderFloorLandmarks(null);
-    this.directionPad.renderGklActions([]);
-    this.knowledgeView.renderGklAdvices([]);
-
-    const result = this.currentGameOverResult || await this.core.resolveGameOver();
-    await this.modalManager.handleExited(result);
+    await this.startupFlow.handleExited(data);
   }
 
   async bootstrapGame() {
-    try {
-      this.isStartingUp = true;
-      if (this.characterCreationModal) {
-        this.characterCreationModal.reset();
-      }
-      if (this.characterIntroModal) {
-        this.characterIntroModal.reset();
-      }
-      this.setStartupView('SELECTION');
-
-      const btnStartResume = document.getElementById('btn-start-resume');
-      const btnStartNew = document.getElementById('btn-start-new');
-      const btnStartFresh = document.getElementById('btn-start-fresh');
-      const cardTitle = document.getElementById('start-card-title');
-      const cardMsg = document.getElementById('start-card-msg');
-      const isEn = this.currentLanguage === 'en';
-
-      const saveInfo = await this.core.detectSavedGameInfo();
-      if (saveInfo && saveInfo.hasSave) {
-        this.isSaveResuming = true;
-        if (cardTitle) cardTitle.textContent = isEn ? '💾 Save Data Found' : '💾 セーブデータが見つかりました';
-        if (cardMsg) cardMsg.innerHTML = `${isEn ? 'Player' : '冒険者'}: <strong id="start-save-name">${saveInfo.savePlayerName || 'Hero'}</strong>`;
-        if (btnStartResume) btnStartResume.classList.remove('hidden');
-        if (btnStartNew) btnStartNew.classList.remove('hidden');
-        if (btnStartFresh) btnStartFresh.classList.add('hidden');
-      } else {
-        this.isSaveResuming = false;
-        if (cardTitle) cardTitle.textContent = '⚔️ NetHack Wasm WebUI';
-        if (cardMsg) cardMsg.innerHTML = isEn ? 'Begin a new adventure in the Mazes of Menace.' : '危険に満ちた死の迷宮へ、新たな冒険に出発します。';
-        if (btnStartResume) btnStartResume.classList.add('hidden');
-        if (btnStartNew) btnStartNew.classList.add('hidden');
-        if (btnStartFresh) btnStartFresh.classList.remove('hidden');
-      }
-
-      if (btnStartResume) {
-        btnStartResume.onclick = async () => {
-          await this.startWithProgress(true, false);
-        };
-      }
-
-      if (btnStartNew) {
-        btnStartNew.onclick = async () => {
-          const confirmMsg = isEn
-            ? 'Delete saved game and start a new game?'
-            : '保存されているセーブデータを破棄して最初から開始しますか？';
-          if (!window.confirm(confirmMsg)) return;
-          await this.startWithProgress(false, true);
-        };
-      }
-
-      if (btnStartFresh) {
-        btnStartFresh.onclick = async () => {
-          await this.startWithProgress(false, false);
-        };
-      }
-    } catch (e) {
-      console.error("Core start error:", e);
-    }
+    await this.startupFlow.bootstrapGame();
   }
 
   async startWithProgress(isResume, forceNewGame) {
-    this.isSaveResuming = isResume;
-    this.setStartupView('PROGRESS');
-
-    const isEn = this.currentLanguage === 'en';
-    const progressText = document.getElementById('start-card-progress-text');
-    if (progressText) {
-      progressText.textContent = isResume
-        ? (isEn ? '🔄 Restoring dungeon state...' : '🔄 ダンジョンを復元中...')
-        : (isEn ? '🔄 Generating new dungeon...' : '🔄 新しいダンジョンを生成中...');
-    }
-
-    try {
-      await this.core.start('nethack.js', { forceNewGame });
-    } catch (e) {
-      console.error("Core start failed:", e);
-    }
+    await this.startupFlow.startWithProgress(isResume, forceNewGame);
   }
 
   transitionToStartupReady() {
-    if (this.startupStep !== 'PROGRESS') return;
-    if (this.characterCreationModal) {
-      this.characterCreationModal.isCompleted = true;
-    }
-    this.setStartupView('READY');
-
-    const isEn = this.currentLanguage === 'en';
-    const cardTitle = document.getElementById('start-card-title');
-    const cardReady = document.getElementById('start-card-ready');
-    const readyMsg = document.getElementById('start-ready-msg');
-    const btnEnter = document.getElementById('btn-enter-dungeon');
-
-    if (cardTitle) {
-      cardTitle.textContent = isEn ? '✨ Ready to Enter' : '✨ ダンジョン突入準備完了';
-    }
-    if (cardReady) {
-      cardReady.onclick = () => this.completeStartup(' ');
-    }
-    if (readyMsg) {
-      readyMsg.textContent = isEn
-        ? 'Dungeon is ready! Press Space or Move key'
-        : 'ダンジョンの準備が整いました！ [Space] または [移動キー] で開始';
-    }
-    if (btnEnter) {
-      btnEnter.textContent = isEn
-        ? '▶️ Enter Dungeon [Space / Move]'
-        : '▶️ ダンジョンへ入る [Space / 移動キー]';
-      btnEnter.onclick = () => this.completeStartup(' ');
-    }
+    this.startupFlow.transitionToStartupReady();
   }
 
   completeStartup(triggerCodeOrKey = null) {
-    if (!this.isStartingUp && this.startupStep === 'PLAYING') return;
-    this.isStartingUp = false;
-    this.setStartupView('PLAYING');
-
-    setTimeout(() => {
-      window.focus();
-
-      if (this.isSaveResuming) {
-        const isEn = this.currentLanguage === 'en';
-        //const restoreMsg = isEn
-        //  ? '💾 Saved game restored. Move to begin your adventure.'
-        //  : '💾 セーブデータを復元しました。移動キーで行動を開始してください。';
-        //this.addMessageLog(restoreMsg);
-
-        // curses 初回画面フラッシュを促すため、Space/Enterによる突入時は Ctrl-R (Redraw) を送信してマップを描画
-        if (!triggerCodeOrKey || triggerCodeOrKey === ' ' || triggerCodeOrKey === 'Space' || triggerCodeOrKey === 'Enter') {
-          if (this.core) {
-            this.core.sendKey('r', false, true, false, 'r', true);
-          }
-          return;
-        }
-      }
-
-      if (triggerCodeOrKey && this.core) {
-        if (triggerCodeOrKey !== ' ' && triggerCodeOrKey !== 'Space' && triggerCodeOrKey !== 'Enter') {
-          this.core.sendKey(triggerCodeOrKey);
-        }
-      }
-    }, 200);
+    this.startupFlow.completeStartup(triggerCodeOrKey);
   }
 
   // ==========================================
-  // 🎨 レイアウト & 外観カスタマイズ管理 (UIConfigStore 連携)
+  // 🎨 レイアウト & 外観カスタマイズ管理 (LayoutController 委譲)
   // ==========================================
   initLayoutConfig() {
-    this.layoutConfig = this.uiConfigStore.get();
-    if (this.layoutConfig.panelInventory === undefined) this.layoutConfig.panelInventory = true;
-    if (this.layoutConfig.panelActions === undefined) this.layoutConfig.panelActions = true;
-    if (this.layoutConfig.panelKnowledge === undefined) this.layoutConfig.panelKnowledge = true;
-
-    this.applyLayoutConfig(this.layoutConfig);
-
-    // 設定変更の自動リアクティブ反映
-    this.uiConfigStore.subscribe((newConfig) => {
-      this.layoutConfig = newConfig;
-      this.applyLayoutConfig(this.layoutConfig);
-    });
+    this.layoutController.init();
   }
 
   getDefaultLayoutConfig() {
-    return this.uiConfigStore.getDefaultConfig();
+    return this.layoutController.getDefaultLayoutConfig();
   }
 
   loadLayoutConfig() {
-    return this.uiConfigStore.load();
+    return this.layoutController.loadLayoutConfig();
   }
 
   saveLayoutConfig(config) {
-    this.layoutConfig = this.uiConfigStore.save(config);
+    return this.layoutController.saveLayoutConfig(config);
   }
 
-  /**
-   * サイドパネルのクイック折りたたみ (一時退避) / 再展開をトグル
-   * @param {boolean} [forceState] - 強制設定 (true: 折りたたみ退避, false: 再展開)
-   */
   toggleSidePanel(forceState) {
-    this.layoutConfig = this.uiConfigStore.toggleSidePanel(forceState);
-    this.applyLayoutConfig(this.layoutConfig);
+    this.layoutController.toggleSidePanel(forceState);
   }
 
   applyLayoutConfig(config) {
-    this.layoutConfig = config;
-
-    // 1. 各サイドパネルカードの表示/非表示
-    const cardInv = document.getElementById('card-inventory');
-    const cardAct = document.getElementById('card-actions');
-    const cardKno = document.getElementById('card-knowledge');
-    const sidePanel = document.getElementById('gkl-side-panel');
-    const workspace = document.querySelector('.gkl-workspace');
-    const peekTab = document.getElementById('side-panel-peek-tab');
-    const btnToggleSidePanel = document.getElementById('btn-toggle-side-panel');
-    const btnSidePanelLabel = document.getElementById('btn-side-panel-label');
-
-    if (cardInv) cardInv.classList.toggle('hidden', !config.panelInventory);
-    if (cardAct) cardAct.classList.toggle('hidden', !config.panelActions);
-    if (cardKno) cardKno.classList.toggle('hidden', !config.panelKnowledge);
-
-    // 過去ログの左側常時固定 (ピン留め) 反映
-    if (this.messageHistoryDrawer && typeof this.messageHistoryDrawer.setPinned === 'function') {
-      this.messageHistoryDrawer.setPinned(Boolean(config.panelHistoryDock), true);
-    }
-
-    // 3枠すべて非表示ならサイドパネル全体を隠し、1カラム全画面化
-    const isAllHidden = !config.panelInventory && !config.panelActions && !config.panelKnowledge;
-    const isCollapsed = Boolean(config.panelCollapsed);
-
-    if (sidePanel) {
-      sidePanel.classList.toggle('hidden', isAllHidden);
-      sidePanel.classList.toggle('collapsed', isCollapsed && !isAllHidden);
-    }
-    if (workspace) workspace.classList.toggle('no-sidebar', isAllHidden || isCollapsed);
-
-    // 復帰用peek-tab (パネル退避時かつ全非表示でない時に画面右端に出現)
-    if (peekTab) {
-      peekTab.classList.toggle('hidden', !isCollapsed || isAllHidden);
-      const isEn = this.currentLanguage === 'en';
-      peekTab.title = isEn ? 'Expand side panel [ F2/Alt+S ]' : 'サイドパネルを再展開 [ F2/Alt+S ]';
-      const peekLabel = peekTab.querySelector('.peek-tab-label');
-      if (peekLabel) {
-        peekLabel.textContent = isEn ? '🎒 Panel' : '🎒 パネル';
-      }
-    }
-
-    // ヘッダー内サイドパネルトグルボタンの見た目同期
-    if (btnToggleSidePanel) {
-      btnToggleSidePanel.classList.toggle('is-collapsed', isCollapsed);
-      const isEn = this.currentLanguage === 'en';
-      btnToggleSidePanel.title = isEn
-        ? 'Toggle side panel [ F2/Alt+S ]'
-        : 'サイドパネル一時退避 / 再展開 [ F2/Alt+S ]';
-      if (btnSidePanelLabel) {
-        btnSidePanelLabel.textContent = isCollapsed
-          ? (isEn ? '🎒 Panel ⏴' : '🎒 パネル ⏴')
-          : (isEn ? '🎒 Panel ⏵' : '🎒 パネル ⏵');
-      }
-    }
-
-    // ミニマップの位置をサイドパネル＆ピン留めドロワーの状態と自動同期 (退避時は画面右端へスムーズ追従)
-    const minimapBox = document.getElementById('minimap-hud-box');
-    if (minimapBox) {
-      minimapBox.classList.toggle('with-side-panel', !isAllHidden && !isCollapsed);
-      minimapBox.classList.toggle('with-pinned-drawer', Boolean(config.panelHistoryDock));
-    }
-
-    // 2. ステータスバー設定
-    if (this.statusView) {
-      this.statusView.setLayoutMode(config.statusClassic2Line ? 'classic' : 'modern');
-      this.statusView.setGaugeVisibility(config.statusGauges);
-      this.statusView.setGklExtraVisibility(config.statusGklExtra);
-    }
-
-    // 3. 設定メニュー内チェックボックスの同期
-    const chkInv = document.getElementById('chk-panel-inventory');
-    const chkAct = document.getElementById('chk-panel-actions');
-    const chkKno = document.getElementById('chk-panel-knowledge');
-    const chkDock = document.getElementById('chk-panel-history-dock');
-    const chk2Line = document.getElementById('chk-status-classic-2line');
-    const chkGauges = document.getElementById('chk-status-gauges');
-    const chkGkl = document.getElementById('chk-status-gkl-extra');
-
-    if (chkInv) chkInv.checked = Boolean(config.panelInventory);
-    if (chkAct) chkAct.checked = Boolean(config.panelActions);
-    if (chkKno) chkKno.checked = Boolean(config.panelKnowledge);
-    if (chkDock) chkDock.checked = Boolean(config.panelHistoryDock);
-    if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
-    if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
-    if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);
-
-    // 4. プリセットボタンのアクティブ表示同期
-    const btnClassic = document.getElementById('btn-preset-classic');
-    const btnModern = document.getElementById('btn-preset-modern');
-    if (btnClassic) btnClassic.classList.toggle('active', config.preset === 'classic');
-    if (btnModern) btnModern.classList.toggle('active', config.preset === 'modern');
-
-    // 5. プリセットに応じたビューの初期復元
-    if (config.preset === 'classic' && this.currentViewMode !== 'ascii') {
-      this.setViewMode('ascii');
-    }
-
-    // 6. フローティングメッセージ待機時間設定の反映
-    if (this.floatingMessageHud && typeof config.hudFadeDelay === 'number') {
-      this.floatingMessageHud.setFadeDelay(config.hudFadeDelay);
-    }
-
-    // 7. 神託公式ガイドモード (常時閲覧) の反映
-    const oracleGuide = Boolean(config.oracleGuideAlwaysUnlocked);
-    const alm = this.codexModal?.getAdventureLogManager?.() || this.adventureLogManager;
-    if (alm && typeof alm.setOracleGuideAlwaysUnlocked === 'function') {
-      alm.setOracleGuideAlwaysUnlocked(oracleGuide);
-    }
-    if (this.codexModal && typeof this.codexModal.updateSummary === 'function') {
-      this.codexModal.updateSummary();
-    }
+    this.layoutController.applyLayoutConfig(config);
   }
 
   setPreset(presetName) {
-    if (presetName === 'classic') {
-      // クラシック選択時はビューを ASCII に切り替え
-      this.setViewMode('ascii');
-      // クラシック選択時はミニマップHUDもOFFに
-      if (this.minimapRenderer && this.minimapRenderer.isVisible) {
-        this.minimapRenderer.toggleVisibility(false);
-      }
-    } else if (presetName === 'modern') {
-      // GKLモダン選択時はビューを HD-2D (利用可能なら) または 2Dグラフィック に切り替え
-      this.setViewMode('hd2d');
-      // モダン選択時はミニマップHUDもONに
-      if (this.minimapRenderer && !this.minimapRenderer.isVisible) {
-        this.minimapRenderer.toggleVisibility(true);
-      }
-    }
-    this.layoutConfig = this.uiConfigStore.applyPreset(presetName);
-    this.applyLayoutConfig(this.layoutConfig);
+    this.layoutController.setPreset(presetName);
   }
 }
 

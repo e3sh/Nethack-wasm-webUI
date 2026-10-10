@@ -37,20 +37,23 @@ export class FloatingContextActions {
    * @param {Function} [options.onNavigateKnowledge] - ナレッジ詳細遷移コールバック
    * @param {string} [options.language='ja'] - 言語 ('ja' | 'en')
    */
-  constructor({
-    container,
-    elPopup,
-    getCore,
-    onNavigateKnowledge,
-    onInspectDetail,
-    onUserAction,
-    language = 'ja'
-  }) {
+  constructor(options = {}) {
+    const {
+      container,
+      elPopup,
+      getCore,
+      onNavigateKnowledge,
+      onInspectDetail,
+      onInspectTarget,
+      onUserAction,
+      onActionExecuted,
+      language = 'ja'
+    } = options;
     this.container = container;
     this.getCore = getCore || (() => null);
     this.onNavigateKnowledge = onNavigateKnowledge || (() => {});
-    this.onInspectDetail = onInspectDetail || null;
-    this.onUserAction = onUserAction || (() => {});
+    this.onInspectDetail = onInspectDetail || onInspectTarget || null;
+    this.onUserAction = onUserAction || onActionExecuted || (() => {});
     this.currentLanguage = language;
 
     this.currentTarget = null;

@@ -1,9 +1,9 @@
 # 🧩 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化計画書
 
-- **ステータス**: `🚧 in-progress`
-- **作成日**: 2026-10-07
+- **ステータス**: `🟢 completed` (2026-10-10 完了)
+- **作成日**: 2026-10-07 (更新: 2026-10-10)
 - **対象コード**: `examples/gkl-pure-js-client/main.js` (および新規 `modules/` 配下)
-- **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md)
+- **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md), [shim_driven_rendering_pipeline_architecture.ja.md](./shim_driven_rendering_pipeline_architecture.ja.md)
 
 ---
 
@@ -11,7 +11,9 @@
 
 `examples/gkl-pure-js-client/` は、NetHack WASM WebUI のフラグシップ参照実装として、GKL (Game Knowledge Layer)、WebGPU HD-2D レンダラー、多言語切り替え (i18n)、動的コンテキストアクション、アドベンチャーログなど最新機能の統合ショーケースを担っています。
 
-一方で、各コンポーネント（StatusView, InventoryView, MinimapHudRenderer 等）のモジュール化が進められたものの、エントリポイントである `main.js`（クラス `GklPureJSClient`）が **2,364 行 / 約 102 KB** にまで肥大化し、以下のような「神クラス (God Object)」状態となっています。
+一方で、各コンポーネント（StatusView, InventoryView, MinimapHudRenderer 等）のモジュール化が進められたものの、エントリポイントである `main.js`（クラス `GklPureJSClient`）が **2,364 行 / 約 102 KB** にまで肥大化し、以下のような「神クラス (God Object)」状態となっていました。
+
+さらに、**Stage 8.3-B (確定同期レンダリング・パイプライン刷新)** において、ターン確定シグナル（Commit Barrier）に連動した描画フラッシュ制御を安全に組み込むため、本モジュール分割を**先行必須リファクタリング**として完了しました。
 
 ### 現状の主要課題
 1. **単一責任の原則 (SRP) の著しい違反**:
@@ -25,11 +27,11 @@
 
 ## 2. ゴールと指標
 
-| 指標 | 現状 | 目標値 |
-| :--- | :---: | :---: |
-| **`main.js` 行数** | **2,364 行** | **400 〜 500 行** (約75〜80%削減) |
-| **`main.js` の責務** | 5役以上 (起動・翻訳・操作判定・演出・レイアウト) | **純粋な初期化配線・イベント調停（オーケストレーター）のみ** |
-| **既存テスト通過率** | 124スイート / 1,533テスト PASS | **100% PASS 維持 (Zero Regression)** |
+| 指標 | 開始前 | 目標値 | **実績値 (達成)** |
+| :--- | :---: | :---: | :---: |
+| **`main.js` 行数** | **2,364 行** | **400 〜 500 行** (約75〜80%削減) | **618 行** (約74%削減 / 1,746行削減) |
+| **`main.js` の責務** | 5役以上 (起動・翻訳・操作判定・演出・レイアウト) | **純粋な初期化配線・イベント調停（オーケストレーター）のみ** | **オーケストレーター化完了** |
+| **既存テスト通過率** | 136スイート / 1,670テスト PASS | **100% PASS 維持 (Zero Regression)** | **136/136 PASS (1,670/1,670 PASS)** |
 
 ---
 

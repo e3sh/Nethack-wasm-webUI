@@ -62,10 +62,17 @@ last_updated: 2026-10-10
   - [x] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
     - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプおよび `stairCache` 描画依存の適正化・スリム化
     - `ActionSignalResolver.js` / `ContextActionEngine.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出（罠なし扉への `#untrap` 誤表示を完全根絶）。`mpeaceful` / `mtame` により平和NPC・ペットへの攻撃メニュー抑制および攻撃エフェクト誤爆を完全防止 (全136スイート・1,670テスト 100% PASS)
+  - [x] **【先行着手 1】ROADMAP 2.1: GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化**
+    - [gkl_client_modularization_plan.ja.md](./2_client_ui/gkl_client_modularization_plan.ja.md)
+    - `main.js` (2,364行 ➔ 618行、約74%削減) の神クラス解消。描画・レイアウト・多言語・盤面操作・UIファクトリ・DOMイベントを分離し、Stage 8.3-B 確定描画の受け入れ態勢を完了 (全136スイート・1,670テスト 100% PASS)。
+  - [ ] **【先行着手 2】ROADMAP 2.2: GKLPlugin モジュール分割・アーキテクチャ適正化**
+    - [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)
+    - `GKLPlugin.js` (2,551行 ➔ 400〜500行) の神クラス解消。`GKLEventRouter`・`SilentSyncCoordinator`・`GKLFxCoordinator` を分離し、Stage 8.3-B の Sync Barrier / ターンライフサイクル調停をクリーンに導入可能にする。
   - [ ] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新**
     - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
-    - ターン同期ライフサイクル (Sync Barrier) の導入による投機的仮床推測副作用の根絶
+    - ターン同期ライフサイクル (Sync Barrier) の導入による投機的仮床推測副作用の根絶（`GKLEventRouter` 連携）
     - `VirtualDungeonScreen` / `MainViewportRenderer` の Commit 駆動型確定描画制御
+    - フロア全域 `dumpLevelTerrain()` の自動ロード連動
   - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**
     - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
     - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
@@ -88,31 +95,32 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-仕様・設計が完了していますが、**「Phase 8 の完了待ち」** または **「次期着手スロット待ち」** として意図的にペンディングしているタスク群です。つまみ食いを防ぐため、Phase 8 完了後に順次着手します。
+仕様・設計が完了していますが、**「Phase 8 の完了待ち」** または **「次期着手スロット待ち」** として意図的にペンディングしているタスク群です。  
+※なお、**2.1 および 2.2** は Stage 8.3-B（確定同期レンダリング）の安全な実装基盤とするため、**先行着手スロット**として Phase 8 のフローに前倒し統合されています。
 
 ### 2.1 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化
-- **ステータス**: `⏸️ pending` (設計完了 / 次期スロット待ち)
+- **ステータス**: `🟢 implemented` (Stage 8.3-B 先行基盤として完了)
 - **設計書**: [gkl_client_modularization_plan.ja.md](./2_client_ui/gkl_client_modularization_plan.ja.md)
-- **対象コード**: `examples/gkl-pure-js-client/main.js` (現在 2,364行 ➔ 400〜500行へ削減目標)
-- **理由**: GKLクライアントのメインエントリポイントの肥大化を解消し、新UI機能の安全な受け入れ態勢を整える。Phase 8 の直結基盤の進捗を見極めつつ、クライアント保守性のために着手。
+- **対象コード**: `examples/gkl-pure-js-client/main.js` (2,364行 ➔ 618行、約74%削減達成)
+- **理由**: GKLクライアントのメインエントリポイントの肥大化を解消し、Stage 8.3-B の確定同期型レンダリングループを疎結合かつ安全に受け入れる。
 - **ステップ**:
-  - [ ] Phase 1: 多言語 UI 更新の分離 (`modules/i18n/`)
-  - [ ] Phase 2: レイアウト & プリセット管理の分離 (`modules/layout/`)
-  - [ ] Phase 3: Visual FX ディスパッチャの分離 (`modules/effects/`)
-  - [ ] Phase 4: スタートアップ・セーブ管理の分離 (`modules/startup/`)
-  - [ ] Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)
-  - [ ] Phase 6: 全体リグレッションテスト ＆ クライアント動作検証
+  - [x] Phase 1: 多言語 UI 更新の分離 (`modules/i18n/`)
+  - [x] Phase 2: レイアウト & プリセット管理の分離 (`modules/layout/`)
+  - [x] Phase 3: Visual FX ディスパッチャの分離 (`modules/effects/`)
+  - [x] Phase 4: スタートアップ・セーブ管理の分離 (`modules/startup/`)
+  - [x] Phase 5: 盤面インタラクションの分離 (`modules/interaction/`)
+  - [x] Phase 6: 全体リグレッションテスト ＆ クライアント動作検証 (全136スイート・1,670テスト 100% PASS)
 
 ### 2.2 GKLPlugin モジュール分割・アーキテクチャ適正化 (GKLPlugin Modularization & Refactoring)
-- **ステータス**: `⏸️ pending` (設計完了 / 予定作業)
+- **ステータス**: `🚧 in-progress` (Stage 8.3-B 先行基盤として Active 昇格)
 - **設計書**: [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)
-- **対象コード**: `src/core/knowledge/GKLPlugin.js` (現在 2,493行 ➔ 400〜500行へ削減目標)
-- **理由**: GKLプラグインへの過剰な責務集中（Coreイベント購読580行、サイレント同期制御380行、トラベル・調査220行、FX演出120行）を解消し、純粋な Facade / DI オーケストレーターに純化する。外部公開APIは全互換（Zero Breaking Change）を維持。
+- **対象コード**: `src/core/knowledge/GKLPlugin.js` (現在 2,551行 ➔ 400〜500行へ削減目標)
+- **理由**: GKLプラグインへの過剰な責務集中（Coreイベント購読580行、サイレント同期制御380行、トラベル・調査220行、FX演出120行）を解消し、Stage 8.3-B の Sync Barrier（ターンライフサイクル調停）を独立した `GKLEventRouter` へクリーンに導入する。
 - **ステップ**:
   - [ ] Phase 1: サイレント同期調停の分離 (`coordinators/SilentSyncCoordinator.js`)
   - [ ] Phase 2: 自動移動 ＆ マップセル調査の分離 (`services/AutoTravelService.js`, `services/InspectionService.js`)
   - [ ] Phase 3: Coreイベントルーター ＆ 視覚演出トリガーの分離 (`coordinators/GKLEventRouter.js`, `coordinators/GKLFxCoordinator.js`)
-  - [ ] Phase 4: 全体リグレッション検証（全135スイート・1,656テスト PASS 維持）＆ クリーンアップ
+  - [ ] Phase 4: 全体リグレッション検証（全136スイート・1,670テスト PASS 維持）＆ クリーンアップ
 
 ### 2.3 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending` (Phase 8 完了待ち)
