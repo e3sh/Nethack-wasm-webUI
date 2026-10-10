@@ -241,6 +241,32 @@ describe('InventoryView - アイテム操作・サブメニュー・ナレッジ
     expect(tooltipTags.innerHTML).toContain('🔍 右長押し: ナレッジ詳細');
     expect(inspectedItems.length).toBe(0);
   });
+
+  it('未鑑定アイテムは未識別バッジ（?）が表示され、賢者の知恵モード時は賢者の知恵バッジまたは透視バッジが表示されること', () => {
+    // 1. 通常モード: 未鑑定アイテム
+    const itemNormal = {
+      letter: 'a',
+      name: 'ruby potion',
+      rawText: 'a ruby potion',
+      identification: { isUnidentified: true }
+    };
+    inventoryView.renderGklInventory({ items: [itemNormal] });
+    expect(gridElement.innerHTML).toContain('badge-buc-unid');
+    expect(gridElement.innerHTML).toContain('>?</span>');
+
+    // 2. 賢者の知恵モード: 未鑑定アイテムだが透視状態
+    const itemWisdom = {
+      letter: 'b',
+      name: 'ruby potion [potion of healing]',
+      rawText: 'a ruby potion [potion of healing]',
+      identification: { isUnidentified: true, isWisdomRevealed: true },
+      isWisdomRevealed: true
+    };
+    inventoryView.renderGklInventory({ items: [itemWisdom] });
+    expect(gridElement.innerHTML).toContain('badge-buc-wisdom');
+    expect(gridElement.innerHTML).toContain('>🧙</span>');
+    expect(gridElement.innerHTML).not.toContain('badge-buc-unid');
+  });
 });
 
 

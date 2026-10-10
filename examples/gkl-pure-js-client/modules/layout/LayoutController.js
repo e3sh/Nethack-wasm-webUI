@@ -175,6 +175,7 @@ export class LayoutController {
     if (client.codexModal && typeof client.codexModal.updateSummary === 'function') {
       client.codexModal.updateSummary();
     }
+
   }
 
   /**

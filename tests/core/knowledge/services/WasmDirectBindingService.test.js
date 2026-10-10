@@ -441,6 +441,28 @@ describe('WasmDirectBindingService', () => {
             expect(eq.ptrBySlot.get('weapon')).toBe(0x2000);
         });
 
+        it('syncFromWorkerBridge fetches discoveries via generic callShim (DUMP_DISCOVERIES) and makes getDiscoveries synchronously available', async () => {
+            const dummyDiscoveries = new Array(600).fill(0);
+            dummyDiscoveries[307] = 1; // potion of healing
+
+            mockBridge.callShim.mockImplementation(async (cmd) => {
+                if (cmd === 0x60) { // SHIM_CMD.DUMP_DISCOVERIES
+                    return { result: 0, buffer: dummyDiscoveries };
+                }
+                return { result: 0, buffer: null };
+            });
+
+            const success = await bridgeService.syncFromWorkerBridge({ syncDiscoveries: true });
+            expect(success).toBe(true);
+            expect(mockBridge.callShim).toHaveBeenCalledWith(0x60, 0, 0, 600, 'uint8');
+
+            // getDiscoveries がキャッシュから同期的に返ること
+            const disc = bridgeService.getDiscoveries();
+            expect(disc).not.toBeNull();
+            expect(disc[307]).toBe(1);
+            expect(disc[300]).toBe(0);
+        });
+
         describe('Stage 8.2-C - Floor Objects BUC Identification & Weight Synchronization', () => {
             it('getObjectsAt traverses floor item linked list (nexthere) and decodes BUC flags correctly in live memory mode', () => {
                 const item1Ptr = 0x5000;

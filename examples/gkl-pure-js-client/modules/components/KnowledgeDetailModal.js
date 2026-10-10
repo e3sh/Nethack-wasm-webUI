@@ -1,4 +1,6 @@
 import { getAdaptiveItemSpecs } from "../../../../src/core/knowledge/presenters/ItemSpecPresenter.js";
+import { OBJECT_KNOWLEDGE_MAP } from "../../../../src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js";
+import { getOnumFromGlyph } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 
 const ATTACK_TYPE_LABELS = {
   ja: {
@@ -192,6 +194,7 @@ export class KnowledgeDetailModal {
     this.elModal = options.elModal || (typeof document !== 'undefined' ? document.getElementById('knowledge-detail-modal') : null);
     this.getCore = options.getCore || (() => null);
     this.currentLanguage = options.language || 'ja';
+    this.isPeekRevealed = false;
     this.isVisible = false;
     this.currentTarget = null;
     this.activeTab = 'spec'; // 'spec' | 'official' | 'lore'
@@ -226,6 +229,13 @@ export class KnowledgeDetailModal {
     };
 
     this._ensureDom();
+  }
+
+  togglePeekWisdom() {
+    this.isPeekRevealed = !this.isPeekRevealed;
+    if (this.isVisible) {
+      this.render();
+    }
   }
 
   setLanguage(lang) {
@@ -277,6 +287,7 @@ export class KnowledgeDetailModal {
     this.currentTarget = targetData;
     this.currentTargetOptions = options;
     this.isVisible = true;
+    this.isPeekRevealed = false;
     this.activeTab = options.activeTab || 'spec';
     this.officialData = null;
     this.isOfficialLoading = false;
@@ -379,9 +390,173 @@ export class KnowledgeDetailModal {
   close() {
     this.isVisible = false;
     this.currentTarget = null;
+    this.isPeekRevealed = false;
     if (this.elModal) {
       this.elModal.classList.add('hidden');
     }
+  }
+
+  /**
+   * 対象データを解決・正規化
+   * @private
+   */
+  _resolveData() {
+    if (!this.currentTarget) return null;
+    const target = this.currentTarget;
+    const core = this.getCore();
+    const isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
+    const isPlayer = target.isPlayer || target.category === 'PLAYER' || target.type === 'PLAYER';
+
+    if (isPlayer) {
+      const isEn = this.currentLanguage === 'en';
+      return (target && target.stats && target.stats.hp) ? target : {
+        name: isEn ? 'You (Player)' : '自キャラ (Player)',
+        category: 'PLAYER',
+        dangerLevel: 'NONE',
+        dispositionStatus: 'PLAYER',
+        stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
+        effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
+      };
+    }
+
+    let baseData = null;
+    if (target.knowledge) {
+      baseData = {
+        ...target.knowledge,
+        rawText: target.rawText || target.knowledge.rawText,
+        identification: target.identification || target.knowledge.identification,
+        bucStatus: target.bucStatus || target.knowledge.bucStatus,
+        isWielded: target.isWielded,
+        isOffhand: target.isOffhand,
+        isQuivered: target.isQuivered,
+        isWorn: target.isWorn,
+        letter: target.letter,
+        onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : target.knowledge.onum
+      };
+    } else if (typeof target === 'object' && target !== null) {
+      baseData = { ...target };
+    } else if (core?.gkl?.structuredKnowledge) {
+      baseData = core.gkl.structuredKnowledge.getKnowledge(target, {
+        isPet,
+        isPlayer,
+        translate: true,
+        language: this.currentLanguage,
+        sagesWisdomMode: Boolean(this.isPeekRevealed)
+      });
+      if (baseData) return baseData;
+      return target;
+    } else {
+      return target;
+    }
+
+    // onum の特定
+    let targetOnum = (typeof baseData.onum === 'number' && baseData.onum >= 0) ? baseData.onum :
+      (baseData.identification && typeof baseData.identification.onum === 'number' && baseData.identification.onum >= 0) ? baseData.identification.onum :
+      (target && typeof target.onum === 'number' && target.onum >= 0) ? target.onum :
+      (target.identification && typeof target.identification.onum === 'number' && target.identification.onum >= 0) ? target.identification.onum : -1;
+
+    if (targetOnum < 0) {
+      const glyph = (typeof baseData.glyphId === 'number' && baseData.glyphId >= 0) ? baseData.glyphId :
+                    (typeof baseData.glyph === 'number' && baseData.glyph >= 0) ? baseData.glyph :
+                    (typeof target.glyphId === 'number' && target.glyphId >= 0) ? target.glyphId :
+                    (typeof target.glyph === 'number' && target.glyph >= 0) ? target.glyph : -1;
+      if (glyph >= 0) {
+        targetOnum = getOnumFromGlyph(glyph);
+      } else if (typeof baseData.id === 'string' && baseData.id.startsWith('item_onum_')) {
+        const parsed = parseInt(baseData.id.replace('item_onum_', ''), 10);
+        if (!isNaN(parsed) && parsed >= 0) targetOnum = parsed;
+      }
+    }
+
+    const id = baseData.identification || target.identification || {};
+    const isUnid = Boolean(baseData.isUnidentified || id.isUnidentified || target.isUnidentified);
+    const isWisdom = Boolean(baseData.isWisdomRevealed || baseData.wisdomBadge || (isUnid && this.isPeekRevealed));
+
+    // 🧙 Peek有効または賢者の知恵モード時、未鑑定アイテムの真名・スペック・効果を再解決＆マージ
+    if (isUnid && isWisdom) {
+      let wisdomObj = null;
+
+      // 1. StructuredKnowledgeEngine による解決を試行
+      if (core?.gkl?.structuredKnowledge) {
+        const queryTarget = targetOnum >= 0 ? targetOnum : target;
+        wisdomObj = core.gkl.structuredKnowledge.getItemKnowledge(queryTarget, {
+          translate: true,
+          language: this.currentLanguage,
+          sagesWisdomMode: true,
+          isUnidentified: true
+        }) || core.gkl.structuredKnowledge.getKnowledge(queryTarget, {
+          translate: true,
+          language: this.currentLanguage,
+          sagesWisdomMode: true,
+          isUnidentified: true
+        });
+      }
+
+      // 2. core が未設定（またはフォールバック）かつ targetOnum がある場合、OBJECT_KNOWLEDGE_MAP から解決
+      let master = null;
+      if (targetOnum >= 0 && OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(targetOnum)) {
+        master = OBJECT_KNOWLEDGE_MAP.get(targetOnum);
+      }
+
+      const trueNameEn = wisdomObj?.wisdomTrueName || wisdomObj?.nameEn || master?.name || id.wisdomTrueName || id.trueName || baseData.wisdomTrueName || baseData.trueName;
+      const trueNameJa = wisdomObj?.wisdomTrueNameJa || wisdomObj?.nameJa || master?.nameJa || id.wisdomTrueNameJa || id.trueNameJa || baseData.wisdomTrueNameJa || baseData.trueNameJa;
+      const effectJa = wisdomObj?.wisdomEffectSummaryJa || wisdomObj?.effectSummaryJa || master?.effectSummaryJa || master?.effectSummary || baseData.wisdomEffectSummaryJa;
+      const effectEn = wisdomObj?.wisdomEffectSummary || wisdomObj?.effectSummary || master?.effectSummary || baseData.wisdomEffectSummary;
+      const bucEffects = wisdomObj?.bucEffects || master?.bucEffects || baseData.bucEffects;
+      const weight = wisdomObj?.weight ?? master?.weight ?? baseData.weight;
+      const material = wisdomObj?.material ?? master?.material ?? baseData.material;
+
+      // 外見名の保持
+      const appName = baseData.appearanceName || id.appearanceName || target.appearanceName || baseData.appearance || (this.currentLanguage === 'en' ? (baseData.nameEn || baseData.name) : (baseData.nameJa || baseData.name));
+
+      baseData = {
+        ...(master || {}),
+        ...(wisdomObj || {}),
+        ...baseData,
+        onum: targetOnum >= 0 ? targetOnum : baseData.onum,
+        isUnidentified: true,
+        isWisdomRevealed: true,
+        wisdomBadge: true,
+        appearanceName: appName,
+        wisdomTrueName: trueNameEn,
+        wisdomTrueNameJa: trueNameJa,
+        trueName: trueNameEn,
+        trueNameJa: trueNameJa,
+        wisdomEffectSummary: effectEn,
+        wisdomEffectSummaryJa: effectJa,
+        bucEffects: bucEffects || baseData.bucEffects,
+        weight: weight ?? baseData.weight,
+        material: material ?? baseData.material,
+        wisdomWeight: weight,
+        wisdomMaterial: material,
+        identification: {
+          ...id,
+          isUnidentified: true,
+          isWisdomRevealed: true,
+          wisdomTrueName: trueNameEn,
+          wisdomTrueNameJa: trueNameJa,
+          appearanceName: appName
+        }
+      };
+
+      return baseData;
+    }
+
+    if (baseData.dangerLevel || baseData.category || baseData.isUnidentified || baseData.effectSummary || baseData.name) {
+      return baseData;
+    }
+
+    if (core?.gkl?.structuredKnowledge) {
+      return core.gkl.structuredKnowledge.getKnowledge(target, {
+        isPet,
+        isPlayer,
+        translate: true,
+        language: this.currentLanguage,
+        sagesWisdomMode: false
+      }) || baseData;
+    }
+
+    return baseData;
   }
 
   /**
@@ -392,44 +567,9 @@ export class KnowledgeDetailModal {
 
     const isEn = this.currentLanguage === 'en';
     const target = this.currentTarget;
-    const core = this.getCore();
+    const data = this._resolveData() || target;
 
-    // データの解決
-    let data = null;
-    let isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
-    let isPlayer = target.isPlayer || target.category === 'PLAYER' || target.type === 'PLAYER';
-
-    if (isPlayer) {
-      data = (target && target.stats && target.stats.hp) ? target : {
-        name: isEn ? 'You (Player)' : '自キャラ (Player)',
-        category: 'PLAYER',
-        dangerLevel: 'NONE',
-        dispositionStatus: 'PLAYER',
-        stats: { hd: 'Player', ac: 'Self', speed: 'Self', mr: 0 },
-        effectSummary: isEn ? 'The adventurer exploring the Mazes of Menace.' : 'ダンジョンを探索中のプレイヤー自身です。'
-      };
-    } else if (target.knowledge) {
-      data = {
-        ...target.knowledge,
-        rawText: target.rawText || target.knowledge.rawText,
-        identification: target.identification || target.knowledge.identification,
-        bucStatus: target.bucStatus || target.knowledge.bucStatus,
-        isWielded: target.isWielded,
-        isOffhand: target.isOffhand,
-        isQuivered: target.isQuivered,
-        isWorn: target.isWorn,
-        letter: target.letter
-      };
-    } else if (target.dangerLevel || target.category || target.isUnidentified || target.effectSummary || target.name) {
-      data = target;
-    } else if (core?.gkl?.structuredKnowledge) {
-      data = core.gkl.structuredKnowledge.getKnowledge(target, { isPet, isPlayer, translate: true, language: this.currentLanguage });
-    }
-
-    if (!data) {
-      data = target;
-    }
-
+    const isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
     const isMonsterType = Boolean(
       data.dangerLevel || data.category === 'MONSTER' || data.hasMonster || data.dispositionStatus || isPet
     );
@@ -455,20 +595,56 @@ export class KnowledgeDetailModal {
       data.category === 'STATUE' || data.hasItems || data.rawText || data.bucStatus || data.corpseInfo
     );
 
+    // 未識別および賢者の知恵判定
+    const id = data.identification || {};
+    const isUnid = Boolean(data.isUnidentified || id.isUnidentified);
+    const isWisdom = Boolean(
+      data.isWisdomRevealed ||
+      data.wisdomBadge ||
+      (isUnid && this.isPeekRevealed)
+    );
+
     let contentHtml = '';
     let headerIcon = '💡';
     const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || target.nameJa || target.knowledge?.nameJa;
     const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name || target.trueName || target.name;
+    const appNameEn = id.appearanceName || data.appearanceName || target.appearanceName || data.appearance || null;
+    const appNameJa = data.appearanceNameJa || id.appearanceNameJa || appNameEn;
+    const appearanceName = isEn ? (appNameEn || nameEn || data.name) : (appNameJa || appNameEn || nameJa || data.name);
+
+    const trueNameRevealed = data.wisdomTrueName || data.trueName || (isEn ? (nameEn || data.name) : (nameJa || nameEn || data.name));
+    const trueNameRevealedJa = data.wisdomTrueNameJa || data.trueNameJa || nameJa || trueNameRevealed;
+
     let headerTitle = '';
-    if (!isEn) {
-      if (nameJa) {
-        headerTitle = `${nameJa}${nameEn && nameEn !== nameJa ? ` (${nameEn})` : ''}`;
+    if (isUnid && !isWisdom) {
+      // 🕵️ 未識別（ネタバレ防止ガード）: 外見名のみ表示
+      if (!isEn) {
+        headerTitle = appearanceName || nameJa || data.name || '未鑑定のアイテム';
       } else {
-        headerTitle = data.name || nameEn || 'ナレッジ詳細';
+        headerTitle = appearanceName || nameEn || data.name || 'Unidentified Item';
+      }
+    } else if (isUnid && isWisdom) {
+      // 🧙 賢者の知恵モード / オンデマンド透視: 外見名 [真名] 併記
+      const dispTrue = (!isEn && trueNameRevealedJa) ? trueNameRevealedJa : trueNameRevealed;
+      const baseApp = appearanceName || (!isEn ? (nameJa || data.name) : (nameEn || data.name));
+      if (baseApp && dispTrue && baseApp.toLowerCase() !== dispTrue.toLowerCase()) {
+        headerTitle = `${baseApp} [${dispTrue}]`;
+      } else {
+        headerTitle = dispTrue || baseApp || (isEn ? 'Revealed Item' : '透視されたアイテム');
       }
     } else {
-      headerTitle = nameEn || data.name || 'Knowledge Detail';
+      // 識別済みアイテムまたはモンスター/地形
+      if (!isEn) {
+        if (nameJa) {
+          headerTitle = `${nameJa}${nameEn && nameEn !== nameJa ? ` (${nameEn})` : ''}`;
+        } else {
+          headerTitle = data.name || nameEn || 'ナレッジ詳細';
+        }
+      } else {
+        headerTitle = nameEn || data.name || 'Knowledge Detail';
+      }
     }
+
     let categoryBadge = String(data.category || (isMonsterType ? 'MONSTER' : (isFeatureType ? 'FEATURE' : 'ITEM'))).toUpperCase();
 
     if (isMonsterType) {
@@ -607,9 +783,12 @@ export class KnowledgeDetailModal {
             <div class="knowledge-header-title-box">
               <span class="knowledge-header-title">${headerTitle}</span>
               <span class="knowledge-category-pill">${categoryBadge}</span>
+              ${isWisdom ? `<span class="kn-wisdom-pill" style="margin-left: 6px; font-size: 0.72rem; padding: 2px 7px; border-radius: 9999px; background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.6); color: #e9d5ff; font-weight: 600;">🧙 ${isEn ? "Sage's Wisdom" : "賢者の知恵"}</span>` : ''}
             </div>
           </div>
-          <button class="knowledge-modal-close" id="btn-knowledge-modal-close" title="${isEn ? 'Close [Esc / q]' : '閉じる [Esc / q]'}">×</button>
+          <div class="knowledge-header-right" style="display: flex; align-items: center; gap: 8px;">
+            <button class="knowledge-modal-close" id="btn-knowledge-modal-close" title="${isEn ? 'Close [Esc / q]' : '閉じる [Esc / q]'}">×</button>
+          </div>
         </div>
 
         <!-- What is this? 検索バー (プログレッシブ拡張) -->
@@ -826,9 +1005,17 @@ export class KnowledgeDetailModal {
    * アイテム詳細HTMLの構築
    */
   _buildItemDetailHtml(data, isEn) {
+    const id = data.identification || {};
+    const isUnid = Boolean(id.isUnidentified || data.isUnidentified);
+    const isWisdom = Boolean(
+      data.isWisdomRevealed ||
+      data.wisdomBadge ||
+      (isUnid && this.isPeekRevealed)
+    );
+
     const core = this.getCore();
     const sm = core?.gkl?.skillStateManager || null;
-    const adaptiveSpecs = getAdaptiveItemSpecs(data, { skillStateManager: sm, language: this.currentLanguage });
+    const adaptiveSpecs = (!isUnid || isWisdom) ? getAdaptiveItemSpecs(data, { skillStateManager: sm, language: this.currentLanguage }) : [];
 
     let specsHtml = '';
     if (adaptiveSpecs.length > 0) {
@@ -851,8 +1038,6 @@ export class KnowledgeDetailModal {
     }
 
     // 識別・BUCステータス
-    const id = data.identification || {};
-    const isUnid = Boolean(id.isUnidentified || data.isUnidentified);
     const rawLower = (data.rawText || data.name || '').toLowerCase();
     const bucStatus = id.bucStatus || data.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
 
@@ -860,7 +1045,11 @@ export class KnowledgeDetailModal {
     const canUnid = data.canBeUnidentified !== false && data.category !== 'CORPSE' && data.category !== 'GOLD';
     if (canUnid) {
       if (isUnid) {
-        idBadges.push(`<span class="kn-status-badge kn-status-unid">${isEn ? '🔍 UNIDENTIFIED' : '🔍 未識別 (UNIDENTIFIED)'}</span>`);
+        if (isWisdom) {
+          idBadges.push(`<span class="kn-status-badge kn-status-wisdom" style="background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.5); color: #e9d5ff;">🧙 ${isEn ? "Sage's Wisdom (Revealed)" : "賢者の知恵 (透視中)"}</span>`);
+        } else {
+          idBadges.push(`<span class="kn-status-badge kn-status-unid">${isEn ? '🔍 UNIDENTIFIED' : '🔍 未識別 (UNIDENTIFIED)'}</span>`);
+        }
       } else {
         idBadges.push(`<span class="kn-status-badge kn-status-known">${isEn ? '✅ IDENTIFIED' : '✅ 識別済み (IDENTIFIED)'}</span>`);
       }
@@ -874,11 +1063,42 @@ export class KnowledgeDetailModal {
       idBadges.push(`<span class="kn-status-badge kn-status-uncursed">${isEn ? '⚪ UNCURSED' : '⚪ 通常 (UNCURSED)'}</span>`);
     }
 
-    if (id.appearanceName) {
-      idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🎨 Appearance: ${id.appearanceName}` : `🎨 外見: ${id.appearanceName}`}</span>`);
+    if (id.appearanceName || data.appearanceName) {
+      const app = id.appearanceName || data.appearanceName;
+      idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🎨 Appearance: ${app}` : `🎨 外見: ${app}`}</span>`);
     }
-    if (id.calledName) {
-      idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🏷️ Called: ${id.calledName}` : `🏷️ 仮名: ${id.calledName}`}</span>`);
+    if (id.calledName || data.calledName) {
+      const called = id.calledName || data.calledName;
+      idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🏷️ Called: ${called}` : `🏷️ 仮名: ${called}`}</span>`);
+    }
+
+    // 未鑑定警告ボックス (通常モード時) または 賢者の知恵透視バナー
+    let wisdomNoticeHtml = '';
+    if (isUnid && !isWisdom) {
+      const cat = String(data.category || '').toUpperCase();
+      let hintText = isEn
+        ? 'Identity unknown. Quaff, read, zap, test or identify to reveal its true effects and properties.'
+        : '未鑑定のアイテムです。使用（飲む/読む/振る/装備）するか、巻物等で鑑定するまで真の正体・効果は不明です。';
+      if (cat === 'POTION') hintText = isEn ? 'Unidentified potion. Identity unknown until quaffed, thrown, or identified.' : '未鑑定の薬です。飲む、投げる、または識別するまで正体・効果は不明です。';
+      else if (cat === 'SCROLL') hintText = isEn ? 'Unidentified scroll. Identity unknown until read or identified.' : '未鑑定の巻物です。読む、または識別するまで正体・効果は不明です。';
+      else if (cat === 'WAND') hintText = isEn ? 'Unidentified wand. Identity unknown until zapped, engraved, or identified.' : '未鑑定の杖です。振る、床に彫る、または識別するまで正体・効果は不明です。';
+      else if (cat === 'RING') hintText = isEn ? 'Unidentified ring. Identity unknown until worn, dropped in sink, or identified.' : '未鑑定の指輪です。指にはめる、流し台に落とす、または識別するまで正体・効果は不明です。';
+      else if (cat === 'AMULET') hintText = isEn ? 'Unidentified amulet. Identity unknown until worn or identified.' : '未鑑定の魔除けです。首にかける、または識別するまで正体・効果は不明です。';
+      else if (cat === 'SPELLBOOK') hintText = isEn ? 'Unidentified spellbook. Identity unknown until read or identified.' : '未鑑定の魔法書です。読む、または識別するまで正体・効果は不明です。';
+
+      wisdomNoticeHtml = `
+        <div class="kn-section-box kn-unid-notice-box" style="background: rgba(30, 41, 59, 0.5); border: 1px dashed rgba(245, 158, 11, 0.4); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+          <div style="color: #f59e0b; font-weight: 700; font-size: 0.85rem; margin-bottom: 4px;">🔍 ${isEn ? 'Unidentified Item' : '未鑑定アイテム'}</div>
+          <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.5;">${hintText}</div>
+        </div>
+      `;
+    } else if (isUnid && isWisdom) {
+      wisdomNoticeHtml = `
+        <div class="kn-section-box kn-wisdom-banner" style="background: rgba(147, 51, 234, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;">
+          <div style="color: #e9d5ff; font-weight: 700; font-size: 0.85rem;">🧙 ${isEn ? "Sage's Wisdom Active" : "賢者の知恵・透視中"}</div>
+          <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 2px;">${isEn ? 'Revealing hidden true name and properties of this unidentified item.' : '未鑑定アイテムの真の名称および効果スペックを透視・開示しています。'}</div>
+        </div>
+      `;
     }
 
     // 死体・食用情報 (CORPSE / FOOD)
@@ -908,9 +1128,9 @@ export class KnowledgeDetailModal {
       }
     }
 
-    // BUC効果
+    // BUC効果 (透視時または識別済み時のみ)
     let bucHtml = '';
-    const b = data.bucEffects;
+    const b = (!isUnid || isWisdom) ? data.bucEffects : null;
     if (b) {
       const bParts = [];
       if (b.blessed) bParts.push(`<li class="buc-blessed"><strong>${isEn ? 'Blessed:' : '祝福:'}</strong> ${b.blessed}</li>`);
@@ -948,6 +1168,20 @@ export class KnowledgeDetailModal {
       `;
     }
 
+    // 効果要約
+    let effectSummaryHtml = '';
+    const effectText = (!isUnid || isWisdom)
+      ? (data.wisdomEffectSummaryJa || data.wisdomEffectSummary || data.effectSummary)
+      : null;
+    if (effectText) {
+      effectSummaryHtml = `
+        <div class="kn-section-box">
+          <div class="kn-section-label">📖 ${isEn ? 'Effect Summary' : '効果要約'}</div>
+          <div class="kn-desc-text">${effectText}</div>
+        </div>
+      `;
+    }
+
     return `
       <div class="kn-detail-container">
         ${idBadges.length > 0 ? `
@@ -956,15 +1190,10 @@ export class KnowledgeDetailModal {
           </div>
         ` : ''}
 
+        ${wisdomNoticeHtml}
         ${specsHtml}
         ${corpseHtml}
-
-        ${data.effectSummary ? `
-          <div class="kn-section-box">
-            <div class="kn-section-label">📖 ${isEn ? 'Effect Summary' : '効果要約'}</div>
-            <div class="kn-desc-text">${data.effectSummary}</div>
-          </div>
-        ` : ''}
+        ${effectSummaryHtml}
 
         ${data.flavorNote ? `
           <div class="kn-flavor-box">"${data.flavorNote}"</div>

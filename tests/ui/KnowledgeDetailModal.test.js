@@ -417,6 +417,22 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     // 未解禁サマリーが表示される
     expect(html).toContain('未解禁の噂: 1件');
   });
+
+  it('14. 未鑑定アイテム表示時、「正体を見る」ボタンが一時的にオミット（非表示）されていること', () => {
+    modal.open({
+      name: '赤紫色の薬',
+      appearanceName: '赤紫色の薬',
+      category: 'POTION',
+      isUnidentified: true,
+      effectSummary: '未鑑定の薬（飲む、投げる、または識別するまで正体不明）'
+    });
+
+    const peekBtn = elModal.querySelector('#btn-modal-peek-wisdom');
+    expect(peekBtn).toBeNull();
+    // ヘッダーに外見名が表示され、勝手に真名がネタバレされないこと
+    expect(elModal.innerHTML).toContain('赤紫色の薬');
+    expect(elModal.innerHTML).not.toContain('btn-modal-peek-wisdom');
+  });
 });
 
 

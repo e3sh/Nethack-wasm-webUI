@@ -55,12 +55,20 @@ export const InventoryGrid: React.FC = () => {
 
   const getBucBadge = useCallback((item: any) => {
     const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
-    const isUnidentified = !!id.isUnidentified;
+    const isWisdom = Boolean(id.isWisdomRevealed || item.isWisdomRevealed);
+    const isUnidentified = !!id.isUnidentified && !isWisdom;
     const rawLower = (item.rawText || '').toLowerCase();
     const bucStatus = id.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
 
     if (isUnidentified) {
       return { symbol: '?', className: 'badge-buc-unid', title: isEn ? 'Unidentified' : '未識別' };
+    } else if (isWisdom) {
+      if (bucStatus === 'CURSED') {
+        return { symbol: '-', className: 'badge-buc-cursed', title: isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)' };
+      } else if (bucStatus === 'BLESSED') {
+        return { symbol: '+', className: 'badge-buc-blessed', title: isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)' };
+      }
+      return { symbol: '🧙', className: 'badge-buc-wisdom', title: isEn ? "Sage's Wisdom" : '賢者の知恵' };
     } else if (bucStatus === 'CURSED') {
       return { symbol: '-', className: 'badge-buc-cursed', title: isEn ? 'Cursed' : '呪い' };
     } else if (bucStatus === 'BLESSED') {

@@ -58,6 +58,7 @@ export class StructuredKnowledgeEngine {
         this.monOffsetMap = new Map();
         this.onumMap = new Map();
         this.discoveryStateManager = options.discoveryStateManager || null;
+        this.sagesWisdomMode = Boolean(options.sagesWisdomMode);
         this.staticCache = new Map();
 
         // マスターデータの初期化インデックス構築
@@ -84,6 +85,15 @@ export class StructuredKnowledgeEngine {
             this.language = newLang;
             this.clearCache();
         }
+    }
+
+    /**
+     * 🧙 賢者の知恵モードの設定
+     * @param {boolean} val 
+     */
+    setSagesWisdomMode(val) {
+        this.sagesWisdomMode = Boolean(val);
+        this.clearCache();
     }
 
     /**
@@ -620,16 +630,61 @@ export class StructuredKnowledgeEngine {
             }
         }
 
+        const catUpper = (category || '').toUpperCase();
+        let hintJa = '未鑑定のアイテム（使用、鑑定、または識別するまで正体不明）';
+        let hintEn = 'Unidentified item (Identity unknown until tested or identified)';
+
+        if (catUpper === 'POTION') {
+            hintJa = '未鑑定の薬（飲む、投げる、または識別するまで正体不明）';
+            hintEn = 'Unidentified potion (Identity unknown until quaffed, thrown, or identified)';
+        } else if (catUpper === 'SCROLL') {
+            hintJa = '未鑑定の巻物（読む、または識別するまで正体不明）';
+            hintEn = 'Unidentified scroll (Identity unknown until read or identified)';
+        } else if (catUpper === 'WAND') {
+            hintJa = '未鑑定の杖（振る、床に彫る、または識別するまで正体不明）';
+            hintEn = 'Unidentified wand (Identity unknown until zapped, engraved, or identified)';
+        } else if (catUpper === 'RING') {
+            hintJa = '未鑑定の指輪（指にはめる、流し台に落とす、または識別するまで正体不明）';
+            hintEn = 'Unidentified ring (Identity unknown until worn, dropped in sink, or identified)';
+        } else if (catUpper === 'AMULET') {
+            hintJa = '未鑑定の魔除け（首にかける、または識別するまで正体不明）';
+            hintEn = 'Unidentified amulet (Identity unknown until worn or identified)';
+        } else if (catUpper === 'SPELLBOOK') {
+            hintJa = '未鑑定の魔法書（読む、または識別するまで正体不明）';
+            hintEn = 'Unidentified spellbook (Identity unknown until read or identified)';
+        } else if (catUpper === 'ARMOR') {
+            hintJa = '未鑑定の防具（装備、または識別するまで詳細性能は正体不明）';
+            hintEn = 'Unidentified armor (Exact specs unknown until tested or identified)';
+        } else if (catUpper === 'WEAPON') {
+            hintJa = '未鑑定の武器（装備、または識別するまで詳細性能は正体不明）';
+            hintEn = 'Unidentified weapon (Exact specs unknown until tested or identified)';
+        }
+
+        const rawNameStr = typeof rawInput === 'string' ? rawInput : (rawInput.appearanceName || rawInput.name || rawInput.str || '');
+        const baseApp = (typeof rawInput === 'object' && rawInput.appearanceName) ? rawInput.appearanceName : (idRes.appearanceName || rawNameStr || `Unidentified ${category}`);
+        const formattedEn = (typeof rawInput === 'object' && rawInput.nameEn) ? rawInput.nameEn : ItemIdentificationResolver.formatAppearanceName(baseApp, category, 'en');
+        const formattedJa = (typeof rawInput === 'object' && rawInput.nameJa) ? rawInput.nameJa : ItemIdentificationResolver.formatAppearanceName(baseApp, category, 'ja');
+        const displayName = lang === 'ja' ? formattedJa : formattedEn;
+
         const rawObj = {
             id: `unidentified_${category.toLowerCase()}`,
-            name: idRes.displayName || idRes.appearanceName || (typeof rawInput === 'string' ? rawInput : (rawInput.name || rawInput.str || 'Unidentified item')),
+            name: (typeof rawInput === 'object' && rawInput.name) ? rawInput.name : displayName,
+            nameJa: formattedJa,
+            nameEn: formattedEn,
             category,
             isUnidentified: true,
-            appearanceName: idRes.appearanceName,
+            appearanceName: formattedEn,
             calledName: idRes.calledName,
             bucStatus: idRes.bucStatus,
-            effectSummary: 'Unidentified item.',
-            effectSummaryEn: 'Unidentified item.',
+            wisdomTrueName: (typeof rawInput === 'object' && rawInput.wisdomTrueName) ? rawInput.wisdomTrueName : null,
+            wisdomTrueNameJa: (typeof rawInput === 'object' && rawInput.wisdomTrueNameJa) ? rawInput.wisdomTrueNameJa : null,
+            wisdomEffectSummary: (typeof rawInput === 'object' && rawInput.wisdomEffectSummary) ? rawInput.wisdomEffectSummary : null,
+            wisdomEffectSummaryJa: (typeof rawInput === 'object' && rawInput.wisdomEffectSummaryJa) ? rawInput.wisdomEffectSummaryJa : null,
+            wisdomMaterial: (typeof rawInput === 'object' && rawInput.wisdomMaterial) ? rawInput.wisdomMaterial : null,
+            wisdomWeight: (typeof rawInput === 'object' && rawInput.wisdomWeight) ? rawInput.wisdomWeight : null,
+            effectSummary: (lang === 'ja' ? hintJa : hintEn),
+            effectSummaryJa: hintJa,
+            effectSummaryEn: hintEn,
             unidentifiedTips: [],
             unidentifiedTipsEn: [],
             usageAdvice: [],
@@ -703,18 +758,19 @@ export class StructuredKnowledgeEngine {
 
         const shouldTranslate = options.translate !== false;
         const lang = options.language || this.language || 'ja';
+        const isWisdomMode = Boolean(options.sagesWisdomMode !== undefined ? options.sagesWisdomMode : this.sagesWisdomMode);
         let cacheKey = null;
         if (shouldTranslate && !options.dynamicState) {
             if (typeof identifier === 'number' && !options.identification && !options.isUnidentified) {
-                cacheKey = `${lang}_item_num_${identifier}`;
+                cacheKey = `${lang}_item_num_${identifier}_${isWisdomMode ? 'w' : 'n'}`;
             } else if (typeof identifier === 'string') {
-                cacheKey = `${lang}_item_str_${identifier}`;
+                cacheKey = `${lang}_item_str_${identifier}_${isWisdomMode ? 'w' : 'n'}`;
             } else if (typeof identifier === 'object' && identifier !== null && !identifier.dynamicState) {
                 const rawName = identifier.rawText || identifier.str || identifier.label || identifier.name || '';
                 const onum = typeof identifier.onum === 'number' ? identifier.onum : -1;
                 const isUnid = Boolean(identifier.isUnidentified || identifier.identification?.isUnidentified || options.isUnidentified || options.identification?.isUnidentified);
                 if (rawName || onum >= 0) {
-                    cacheKey = `${lang}_item_obj_${onum}_${rawName}_${isUnid ? '1' : '0'}`;
+                    cacheKey = `${lang}_item_obj_${onum}_${rawName}_${isUnid ? '1' : '0'}_${isWisdomMode ? 'w' : 'n'}`;
                 }
             }
         }
@@ -735,8 +791,15 @@ export class StructuredKnowledgeEngine {
         // 1. オブジェクト指定 ({ onum, subType, glyph, rawGlyph, str, rawText, name, label })
         if (typeof identifier === 'object' && identifier !== null) {
             const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
-            if (rawName && this.isUnidentifiedAppearance(rawName)) {
-                return this.getUnidentifiedItemKnowledge(rawName, options);
+            const isUnidentifiedInput = Boolean(
+                identifier.isUnidentified ||
+                identifier.identification?.isUnidentified ||
+                options.isUnidentified ||
+                options.identification?.isUnidentified
+            );
+
+            if (rawName && this.isUnidentifiedAppearance(rawName) && !isWisdomMode) {
+                return this.getUnidentifiedItemKnowledge(rawName, { ...options, sagesWisdomMode: isWisdomMode });
             }
             if (identifier.onum === 476 || identifier.subType === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
                 return this.getStatueKnowledge(identifier, options);
@@ -745,6 +808,13 @@ export class StructuredKnowledgeEngine {
                 targetOnum = identifier.onum;
             } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 500) {
                 targetOnum = identifier.subType;
+            } else if (identifier.identification && typeof identifier.identification.onum === 'number' && identifier.identification.onum >= 0) {
+                targetOnum = identifier.identification.onum;
+            } else if (identifier.knowledge && typeof identifier.knowledge.onum === 'number' && identifier.knowledge.onum >= 0) {
+                targetOnum = identifier.knowledge.onum;
+            } else if (typeof identifier.id === 'string' && identifier.id.startsWith('item_onum_')) {
+                const parsed = parseInt(identifier.id.replace('item_onum_', ''), 10);
+                if (!isNaN(parsed) && parsed >= 0) targetOnum = parsed;
             } else if (typeof identifier.glyph === 'number' && identifier.glyph >= 0) {
                 targetOnum = getOnumFromGlyph(identifier.glyph);
                 if (targetOnum < 0 && identifier.glyph < 500) targetOnum = identifier.glyph;
@@ -752,8 +822,14 @@ export class StructuredKnowledgeEngine {
                 targetOnum = getOnumFromGlyph(identifier.rawGlyph);
                 if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
             }
-            if (targetOnum >= 0 && !identifier.isUnidentified && !options.identification && !options.isUnidentified) {
-                return this.getItemKnowledge(targetOnum, { ...options, forceFullKnowledge: true });
+
+            // 未識別アイテムかつ通常モードの場合、未識別ナレッジを即座に返す
+            if (targetOnum >= 0 && isUnidentifiedInput && !isWisdomMode && options.forceFullKnowledge !== true) {
+                return this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode });
+            }
+
+            if (targetOnum >= 0 && !isUnidentifiedInput && !options.identification && !options.isUnidentified) {
+                return this.getItemKnowledge(targetOnum, options);
             }
             if (targetOnum < 0) {
                 const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
@@ -774,8 +850,8 @@ export class StructuredKnowledgeEngine {
         }
         // 3. 文字列指定 ("wand_of_digging" または インベントリ文章 "a - 2 uncursed rations of cram")
         else if (typeof identifier === 'string') {
-            if (this.isUnidentifiedAppearance(identifier)) {
-                return this.getUnidentifiedItemKnowledge(identifier, options);
+            if (this.isUnidentifiedAppearance(identifier) && !isWisdomMode) {
+                return this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode });
             }
 
             const cleaned = this.cleanItemName(identifier);
@@ -814,14 +890,41 @@ export class StructuredKnowledgeEngine {
 
         // onum が定まっている場合は onumMap からナレッジを取得
         if (!found && targetOnum >= 0) {
-            // 🕵️ DiscoveryStateManager による未識別床アイテムのネタバレ防止ガード
-            // (床アイテムまたは明示的にネタバレ防止が要求されている場合のみ適用)
-            if (this.discoveryStateManager && options.forceFullKnowledge !== true && (options.isFloorItem === true || typeof identifier === 'number')) {
-                if (!this.discoveryStateManager.isIdentified(targetOnum)) {
+            // 🕵️ ネタバレ防止ガード
+            const isIdentifiedInDiscovery = this.discoveryStateManager ? this.discoveryStateManager.isIdentified(targetOnum) : true;
+            const isExplicitlyUnidentified = Boolean(
+                options.isUnidentified ||
+                options.identification?.isUnidentified ||
+                (typeof identifier === 'object' && identifier && (identifier.isUnidentified || identifier.identification?.isUnidentified))
+            );
+
+            if (!isWisdomMode && options.forceFullKnowledge !== true) {
+                if (!isIdentifiedInDiscovery || isExplicitlyUnidentified) {
                     const catStr = getCategoryFromOnum(targetOnum);
-                    const randomizableCats = ['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK'];
-                    if (randomizableCats.includes(catStr)) {
-                        return this.getUnidentifiedItemKnowledge({ category: catStr, onum: targetOnum, name: originalDisplayName || `Unidentified ${catStr}` }, options);
+                    const masterObj = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(targetOnum) : null;
+                    const canBeUnidentified = masterObj ? masterObj.canBeUnidentified : true;
+                    if (canBeUnidentified) {
+                        const dynApp = (this.discoveryStateManager && typeof this.discoveryStateManager.getAppearance === 'function')
+                            ? this.discoveryStateManager.getAppearance(targetOnum)
+                            : null;
+                        const descr = dynApp || masterObj?.descr || '';
+                        const formattedEn = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'en');
+                        const formattedJa = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'ja');
+                        const targetName = lang === 'ja' ? formattedJa : formattedEn;
+                        return this.getUnidentifiedItemKnowledge({
+                            category: catStr,
+                            onum: targetOnum,
+                            appearanceName: formattedEn,
+                            name: targetName,
+                            nameJa: formattedJa,
+                            nameEn: formattedEn,
+                            wisdomTrueName: masterObj?.name || null,
+                            wisdomTrueNameJa: masterObj?.nameJa || null,
+                            wisdomEffectSummary: masterObj?.effectSummary || null,
+                            wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || null,
+                            wisdomMaterial: masterObj?.material || null,
+                            wisdomWeight: masterObj?.weight || null
+                        }, { ...options, sagesWisdomMode: isWisdomMode });
                     }
                 }
             }
@@ -848,6 +951,38 @@ export class StructuredKnowledgeEngine {
         }
 
         if (!found) return null;
+
+        // 🧙 賢者の知恵モード時のバッジ・プロパティ付与
+        if (isWisdomMode) {
+            const isUnid = Boolean(
+                options.isUnidentified ||
+                options.identification?.isUnidentified ||
+                (typeof identifier === 'object' && identifier && (identifier.isUnidentified || identifier.identification?.isUnidentified)) ||
+                (this.discoveryStateManager && targetOnum >= 0 && !this.discoveryStateManager.isIdentified(targetOnum))
+            );
+            if (isUnid) {
+                const catStr = getCategoryFromOnum(targetOnum);
+                const masterObj = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(targetOnum) : null;
+                const dynApp = (this.discoveryStateManager && typeof this.discoveryStateManager.getAppearance === 'function')
+                    ? this.discoveryStateManager.getAppearance(targetOnum)
+                    : null;
+                const descr = dynApp || masterObj?.descr || '';
+                const formattedEn = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'en');
+                const formattedJa = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'ja');
+
+                found = {
+                    ...found,
+                    isUnidentified: true,
+                    isWisdomRevealed: true,
+                    wisdomBadge: true,
+                    appearanceName: formattedEn,
+                    wisdomTrueName: masterObj?.name || found.name,
+                    wisdomTrueNameJa: masterObj?.nameJa || found.nameJa || found.name,
+                    wisdomEffectSummary: masterObj?.effectSummary || found.effectSummary,
+                    wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || found.effectSummaryJa || found.effectSummary
+                };
+            }
+        }
 
         if (originalDisplayName && originalDisplayName.trim().length > 0) {
             found = {
@@ -1134,8 +1269,13 @@ export class StructuredKnowledgeEngine {
         if (identifier === null || identifier === undefined) return null;
 
         // 🎯 -1. すでに完成した構造化ナレッジオブジェクト (category 及び effectSummary を保持) の場合、二重検索で破壊せずにそのまま返却！
+        // ただし、賢者の知恵モード(sagesWisdomMode)で未識別アイテムが渡された場合は真名開示のために再解決を許可！
         if (typeof identifier === 'object' && identifier !== null && identifier.category && identifier.effectSummary) {
-            return identifier;
+            const isUnid = Boolean(identifier.isUnidentified || identifier.identification?.isUnidentified || options.isUnidentified);
+            const isWisdom = Boolean(options.sagesWisdomMode);
+            if (!isWisdom || !isUnid) {
+                return identifier;
+            }
         }
 
         // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, STATUE, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
@@ -1242,14 +1382,14 @@ export class StructuredKnowledgeEngine {
                     return options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
                 } else if (info.type === ENTITY_TYPES.ITEM) {
                     const onum = getOnumFromGlyph(identifier);
-                    const itemName = (typeof onum === 'number' && onum >= 0 && OBJECT_TILEMAP_NAMES[onum]) ? OBJECT_TILEMAP_NAMES[onum] : 'Dungeon Item';
-                    const categoryData = inferObjectCategory(itemName);
-
+                    if (typeof onum === 'number' && onum >= 0) {
+                        return this.getItemKnowledge(onum, options);
+                    }
                     const rawObj = {
-                        id: `item_${onum}`,
-                        name: itemName,
-                        category: categoryData.category,
-                        effectSummary: categoryData.effectSummary
+                        id: `item_glyph_${identifier}`,
+                        name: 'Dungeon Item',
+                        category: 'ITEM',
+                        effectSummary: 'Standard dungeon item.'
                     };
                     return options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
                 }

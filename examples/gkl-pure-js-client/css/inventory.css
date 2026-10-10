@@ -146,6 +146,12 @@
   color: #ffffff;
 }
 
+.gkl-slot-buc-badge.badge-buc-wisdom {
+  background: #8b5cf6;
+  color: #ffffff;
+  font-size: 8px;
+}
+
 /* ナレッジカードのBUC & 識別状態バッジ */
 .kn-status-badge.kn-status-unid {
   background: rgba(234, 179, 8, 0.2);

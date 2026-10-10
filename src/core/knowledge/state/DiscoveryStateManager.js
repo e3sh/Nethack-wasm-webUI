@@ -148,6 +148,48 @@ export class DiscoveryStateManager {
     }
 
     /**
+     * WasmDirectBindingService (またはライブメモリ) から発見状態を一括同期
+     * @param {Object} wasmDirectBindingService 
+     * @returns {boolean} 同期が実行されたか
+     */
+    syncWithLiveMemory(wasmDirectBindingService) {
+        if (!wasmDirectBindingService || typeof wasmDirectBindingService.getDiscoveries !== 'function') {
+            return false;
+        }
+
+        const discoveries = wasmDirectBindingService.getDiscoveries();
+        if (!discoveries) return false;
+
+        const newDiscoveredOnums = [];
+
+        for (let onum = 0; onum < discoveries.length; onum++) {
+            if (discoveries[onum] === 1) {
+                if (!this.discoveredOnums.has(onum)) {
+                    this.discoveredOnums.add(onum);
+                    newDiscoveredOnums.push(onum);
+                }
+            }
+            // プレイヤー命名 (oc_uname) があれば同期
+            if (typeof wasmDirectBindingService.getObjectUname === 'function') {
+                const uname = wasmDirectBindingService.getObjectUname(onum);
+                if (uname) {
+                    const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                    if (item && item.name) {
+                        this.calledNamesMap.set(item.name.toLowerCase(), uname);
+                    }
+                }
+            }
+        }
+
+        if (newDiscoveredOnums.length > 0 && this.adventureLogManager && typeof this.adventureLogManager.unlockObjects === 'function') {
+            this.adventureLogManager.unlockObjects(newDiscoveredOnums);
+        }
+
+        this.isSynced = true;
+        return newDiscoveredOnums.length > 0;
+    }
+
+    /**
      * `\`（Discoveries コマンド）の出力テキストまたはメニューバッファから全件同期・再生
      * @param {string|Array<string|Object>} textOrLines 
      */
@@ -333,10 +375,10 @@ export class DiscoveryStateManager {
         if (typeof identifier === 'number') {
             if (this.discoveredOnums.has(identifier)) return true;
 
-            // ランダム外見を持たない本質的に既知のカテゴリ（食料・基本ツール・一部防具等）は常に既知
+            // ランダム外見を持たない本質的に既知のアイテム（食料・基本ツール・固定武器/防具等）は常に既知
             if (OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(identifier)) {
                 const item = OBJECT_KNOWLEDGE_MAP.get(identifier);
-                if (item && INTRINSICALLY_KNOWN_CATEGORIES.has(item.category)) {
+                if (item && (item.canBeUnidentified === false || INTRINSICALLY_KNOWN_CATEGORIES.has(item.category))) {
                     return true;
                 }
             }
@@ -388,6 +430,51 @@ export class DiscoveryStateManager {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * onum または真名からプレイヤー命名（仮名）を取得
+     * @param {number|string} onumOrName 
+     * @returns {string|null}
+     */
+    getCalledName(onumOrName) {
+        if (typeof onumOrName === 'number') {
+            const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onumOrName) : null;
+            if (item && item.name && this.calledNamesMap.has(item.name.toLowerCase())) {
+                return this.calledNamesMap.get(item.name.toLowerCase());
+            }
+            return null;
+        }
+        if (typeof onumOrName === 'string') {
+            const lower = onumOrName.trim().toLowerCase();
+            return this.calledNamesMap.get(lower) || null;
+        }
+        return null;
+    }
+
+    /**
+     * onum または真名に対応する外見名を取得（appearanceMap 逆引き）
+     * @param {number|string} onumOrName 
+     * @returns {string|null}
+     */
+    getAppearance(onumOrName) {
+        let trueName = '';
+        if (typeof onumOrName === 'number') {
+            const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onumOrName) : null;
+            if (item && item.name) {
+                trueName = item.name.toLowerCase();
+            }
+        } else if (typeof onumOrName === 'string') {
+            trueName = onumOrName.trim().toLowerCase();
+        }
+        if (!trueName) return null;
+
+        for (const [app, tn] of this.appearanceMap.entries()) {
+            if (tn.toLowerCase() === trueName) {
+                return app;
+            }
+        }
         return null;
     }
 
@@ -552,7 +639,11 @@ export class DiscoveryStateManager {
                 const lowerName = cleanTrue.toLowerCase();
 
                 // A. 識別済みインベントリアイテム (真名が判明しているアイテム)
-                if (iden && !iden.isUnidentified && lowerName && !seenNames.has(lowerName)) {
+                const isActuallyIdentified = (onum !== null && onum !== undefined)
+                    ? this.isIdentified(onum)
+                    : (iden && !iden.isUnidentified && this.isIdentified(cleanTrue));
+
+                if (isActuallyIdentified && iden && !iden.isUnidentified && lowerName && !seenNames.has(lowerName)) {
                     seenNames.add(lowerName);
                     const app = iden.appearanceName || iden.appearance || '';
                     const appJa = app ? this._translateText(app) : null;

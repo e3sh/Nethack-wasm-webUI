@@ -384,5 +384,49 @@ Weapons:
             expect(potion.calledName).toBe('myjump');
             expect(potion.isDiscovered).toBe(false);
         });
+
+        it('14. 未鑑定の所持品 (仮名なし) が誤って識別済み図鑑に混入しないこと', () => {
+            const manager = new DiscoveryStateManager();
+            const mockInvMgr = {
+                getItems: () => [
+                    {
+                        key: 'c',
+                        count: 1,
+                        name: 'a ruby potion',
+                        onum: 300, // potion of healing
+                        identification: {
+                            isUnidentified: true,
+                            trueName: null,
+                            appearance: 'ruby potion',
+                            calledName: null
+                        }
+                    }
+                ]
+            };
+
+            manager.setInventoryStateManager(mockInvMgr);
+
+            const items = manager.getDiscoveredItems();
+            const healingPotion = items.find(it => it.trueName === 'potion of healing' || it.appearance === 'ruby potion');
+            expect(healingPotion).toBeUndefined();
+        });
+
+        it('15. syncWithLiveMemory でメモリ上の識別状態とプレイヤー命名が同期されること', () => {
+            const manager = new DiscoveryStateManager();
+            const mockDiscoveries = new Uint8Array(600);
+            mockDiscoveries[300] = 1; // onum 300 (potion of healing) を識別済みに設定
+
+            const mockWasm = {
+                getDiscoveries: vi.fn(() => mockDiscoveries),
+                getObjectUname: vi.fn((onum) => (onum === 310 ? 'speed?' : null))
+            };
+
+            const success = manager.syncWithLiveMemory(mockWasm);
+            expect(success).toBe(true);
+            expect(manager.isIdentified(300)).toBe(true);
+            expect(manager.isIdentified(310)).toBe(false);
+            expect(manager.calledNamesMap.size).toBeGreaterThanOrEqual(1);
+        });
     });
 });
+

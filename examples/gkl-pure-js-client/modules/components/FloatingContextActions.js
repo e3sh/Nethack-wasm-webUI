@@ -55,6 +55,7 @@ export class FloatingContextActions {
     this.onInspectDetail = onInspectDetail || onInspectTarget || null;
     this.onUserAction = onUserAction || onActionExecuted || (() => {});
     this.currentLanguage = language;
+    this.sagesWisdomMode = false;
 
     this.currentTarget = null;
     this.isVisible = false;
@@ -70,6 +71,13 @@ export class FloatingContextActions {
 
   setLanguage(lang) {
     this.currentLanguage = lang;
+    if (this.isVisible && this.currentTarget) {
+      this.render();
+    }
+  }
+
+  setSagesWisdomMode(val) {
+    this.sagesWisdomMode = Boolean(val);
     if (this.isVisible && this.currentTarget) {
       this.render();
     }
@@ -326,14 +334,29 @@ export class FloatingContextActions {
       `;
     }
 
-    // アイテム
-    if (cardData.category === 'OBJECT' || cardData.hasItems) {
+    // アイテム全般
+    const isItem = Boolean(
+      cardData.category === 'OBJECT' || cardData.category === 'ITEM' || cardData.hasItems ||
+      cardData.category === 'POTION' || cardData.category === 'SCROLL' || cardData.category === 'WAND' ||
+      cardData.category === 'RING' || cardData.category === 'AMULET' || cardData.category === 'WEAPON' ||
+      cardData.category === 'ARMOR' || cardData.category === 'FOOD' || cardData.category === 'TOOL' ||
+      cardData.category === 'GEM' || cardData.category === 'SPELLBOOK' || cardData.category === 'CORPSE'
+    );
+    if (isItem) {
+      const isUnid = Boolean(cardData.isUnidentified || cardData.identification?.isUnidentified);
+      const isWisdom = Boolean(cardData.isWisdomRevealed || cardData.wisdomBadge || (isUnid && this.sagesWisdomMode));
       const buc = cardData.bucStatus ? `<span class="kn-pill kn-buc-${cardData.bucStatus.toLowerCase()}">${cardData.bucStatus}</span>` : '';
-      const desc = cardData.effectSummary || cardData.description || '';
+      const wisdomPill = isWisdom ? `<span class="kn-pill kn-status-wisdom" style="background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.5); color: #e9d5ff;">🧙 ${isEn ? "Sage's Wisdom" : "賢者の知恵"}</span>` : '';
+      const unidPill = (isUnid && !isWisdom) ? `<span class="kn-pill kn-status-unid" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.5); color: #fcd34d;">🔍 ${isEn ? "Unidentified" : "未鑑定"}</span>` : '';
+      const desc = (!isUnid || isWisdom)
+        ? (cardData.wisdomEffectSummaryJa || cardData.wisdomEffectSummary || cardData.effectSummary || cardData.description || '')
+        : (cardData.effectSummary || (isEn ? 'Unidentified item (Identity unknown).' : '未鑑定のアイテム（正体不明）'));
       return `
         <div class="gkl-floating-knowledge">
           <div class="kn-row">
             <span class="kn-pill kn-item">📦 ${cardData.category || 'ITEM'}</span>
+            ${unidPill}
+            ${wisdomPill}
             ${buc}
           </div>
           ${desc ? `<div class="kn-desc" title="${desc}">${desc}</div>` : ''}
@@ -441,9 +464,34 @@ export class FloatingContextActions {
       } else if (isTrap) {
         headerIcon = '⚠️';
         headerTitle = cardData.name || (isEn ? 'Trap' : '罠');
-      } else if (cardData.name) {
-        headerTitle = cardData.name;
-        if (cardData.category === 'OBJECT' || cardData.category === 'ITEM') headerIcon = '📦';
+      } else if (cardData.name || cardData.category) {
+        const isItem = Boolean(
+          cardData.category === 'OBJECT' || cardData.category === 'ITEM' ||
+          cardData.category === 'POTION' || cardData.category === 'SCROLL' || cardData.category === 'WAND' ||
+          cardData.category === 'RING' || cardData.category === 'AMULET' || cardData.category === 'WEAPON' ||
+          cardData.category === 'ARMOR' || cardData.category === 'FOOD' || cardData.category === 'TOOL' ||
+          cardData.category === 'GEM' || cardData.category === 'SPELLBOOK' || cardData.category === 'CORPSE'
+        );
+        const isUnid = Boolean(cardData.isUnidentified || cardData.identification?.isUnidentified);
+        const isWisdom = Boolean(cardData.isWisdomRevealed || cardData.wisdomBadge || (isUnid && this.sagesWisdomMode));
+        const trueName = cardData.wisdomTrueNameJa || cardData.wisdomTrueName || cardData.trueNameJa || cardData.trueName;
+
+        if (isUnid && isWisdom && trueName) {
+          headerTitle = `${cardData.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム')} [${trueName}]`;
+        } else {
+          headerTitle = cardData.name || (isEn ? 'Item' : 'アイテム');
+        }
+
+        const cat = String(cardData.category || '').toUpperCase();
+        if (cat === 'POTION') headerIcon = '🧪';
+        else if (cat === 'SCROLL') headerIcon = '📜';
+        else if (cat === 'WAND') headerIcon = '🪄';
+        else if (cat === 'RING') headerIcon = '💍';
+        else if (cat === 'AMULET') headerIcon = '📿';
+        else if (cat === 'WEAPON') headerIcon = '⚔️';
+        else if (cat === 'ARMOR') headerIcon = '🛡️';
+        else if (cat === 'FOOD' || cat === 'CORPSE') headerIcon = '🍖';
+        else headerIcon = '📦';
       }
     }
 

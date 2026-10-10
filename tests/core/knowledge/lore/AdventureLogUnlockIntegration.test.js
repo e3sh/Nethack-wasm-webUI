@@ -126,21 +126,21 @@ describe('AdventureLog - ゲーム内リアルタイムアンロック統合テ�
     });
 
     it('5. 初期インベントリ連携: 初回同期時は識別済みアイテムを手帳にサイレント解禁し、通知イベントを発行しないこと', () => {
-        // onum 28: long sword (武器), onum 386: food ration (食料)
-        expect(logManager.isObjectUnlocked(28)).toBe(false);
-        expect(logManager.isObjectUnlocked(386)).toBe(false);
+        // onum 54: long sword (武器), onum 293: food ration (食料)
+        expect(logManager.isObjectUnlocked(54)).toBe(false);
+        expect(logManager.isObjectUnlocked(293)).toBe(false);
 
         const initialInventory = [
-            { letter: 'a', rawStr: 'a +0 long sword', onum: 28 },
-            { letter: 'b', rawStr: 'an uncursed food ration', onum: 386 }
+            { letter: 'a', rawStr: 'a +0 long sword', onum: 54 },
+            { letter: 'b', rawStr: 'an uncursed food ration', onum: 293 }
         ];
 
         // 初回インベントリ同期
         gkl.getInventoryStateManager().updateFromMenuItems(initialInventory);
 
         // 冒険手帳には確実にアンロックされていること
-        expect(logManager.isObjectUnlocked(28)).toBe(true);
-        expect(logManager.isObjectUnlocked(386)).toBe(true);
+        expect(logManager.isObjectUnlocked(54)).toBe(true);
+        expect(logManager.isObjectUnlocked(293)).toBe(true);
 
         // ゲーム開始時の初期装備なので、トースト通知イベントは発行されないこと (サイレント解禁)
         expect(unlockedEvents.length).toBe(0);
@@ -149,14 +149,14 @@ describe('AdventureLog - ゲーム内リアルタイムアンロック統合テ�
     it('6. プレイ中のインベントリ更新: 新規入手した識別済みアイテムが手帳にアンロックされ、通知イベントが発行されること', () => {
         // 初期同期完了
         gkl.getInventoryStateManager().updateFromMenuItems([
-            { letter: 'a', rawStr: 'a +0 long sword', onum: 28 }
+            { letter: 'a', rawStr: 'a +0 long sword', onum: 54 }
         ]);
         expect(unlockedEvents.length).toBe(0);
 
         // ダンジョンで新しいアイテム (onum 259: pick-axe) を拾ってインベントリが更新される
         expect(logManager.isObjectUnlocked(259)).toBe(false);
         gkl.getInventoryStateManager().updateFromMenuItems([
-            { letter: 'a', rawStr: 'a +0 long sword', onum: 28 },
+            { letter: 'a', rawStr: 'a +0 long sword', onum: 54 },
             { letter: 'f', rawStr: 'an uncursed pick-axe', onum: 259 }
         ]);
 
@@ -169,7 +169,7 @@ describe('AdventureLog - ゲーム内リアルタイムアンロック統合テ�
 
         // 同じアイテムを再度同期しても二重通知されないこと
         gkl.getInventoryStateManager().updateFromMenuItems([
-            { letter: 'a', rawStr: 'a +0 long sword', onum: 28 },
+            { letter: 'a', rawStr: 'a +0 long sword', onum: 54 },
             { letter: 'f', rawStr: 'an uncursed pick-axe', onum: 259 }
         ]);
         expect(unlockedEvents.length).toBe(1);

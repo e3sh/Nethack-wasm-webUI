@@ -102,6 +102,34 @@ const CARD_CSS = `
 .badge-danger-high { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
 .badge-category { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 .badge-unidentified { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.4); }
+.badge-wisdom { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.6); font-weight: 700; }
+
+.btn-peek-wisdom {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #fbbf24;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-peek-wisdom:hover {
+  background: rgba(245, 158, 11, 0.3);
+  border-color: #fbbf24;
+  color: #fff;
+}
+
+.btn-peek-wisdom.active {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #94a3b8;
+}
 
 .card-close-btn {
   background: transparent;
@@ -407,6 +435,7 @@ export class NhKnowledgeCard extends NhBaseElement {
     this.adventureLogManager = null;
     this.unlockedOnly = false;
     this.tileImage = '../pict/nethack_default_32.png';
+    this.isPeekRevealed = false; // オンデマンド透視フラグ
 
     // Layer 2 状態
     this.officialData = null;
@@ -445,6 +474,14 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
+   * 賢者の知恵によるオンデマンド一時透視をトグル
+   */
+  togglePeekWisdom() {
+    this.isPeekRevealed = !this.isPeekRevealed;
+    this.render();
+  }
+
+  /**
    * 対象データを設定し、3層データをロード
    * @param {Object|string} targetData 
    * @param {Object} [options={}]
@@ -469,6 +506,7 @@ export class NhKnowledgeCard extends NhBaseElement {
     // 公式解説（Layer 2）の初期化と非同期フェッチ
     this.officialData = null;
     this.officialError = null;
+    this.isPeekRevealed = false;
 
     // Lore（Layer 3）の抽出
     this._resolveLoreEntries();
@@ -535,6 +573,12 @@ export class NhKnowledgeCard extends NhBaseElement {
    * @private
    */
   _shouldShowOfficialTab() {
+    const data = this.targetData;
+    const isWisdom = Boolean(data && (data.isWisdomRevealed || (data.isUnidentified && this.isPeekRevealed)));
+    const isUnidentified = Boolean(data && data.isUnidentified && !isWisdom);
+    if (isUnidentified) {
+      return false; // 未鑑定アイテムのネタバレ防止
+    }
     return Boolean(this.lookupService) && !this.hasAttribute('hide-official-tab') && !this.hasAttribute('offline-mode');
   }
 
@@ -562,7 +606,7 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
-   * ESC または q で閉じる、1/2/3 でタブ切替
+   * ESC または q で閉じる、1/2/3 でタブ切替、w で賢者の知恵透視
    * @private
    */
   _handleKeyDown(e) {
@@ -707,13 +751,41 @@ export class NhKnowledgeCard extends NhBaseElement {
       return;
     }
 
-    const isEn = this.currentLanguage === 'en';
     const data = typeof this.targetData === 'string' ? { name: this.targetData } : this.targetData;
-
-    const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || data.japaneseName;
-    const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name;
-    const title = (!isEn && nameJa) ? `${nameJa}${nameEn ? ` (${nameEn})` : ''}` : (nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象'));
+    const isEn = this.currentLanguage === 'en';
     const category = String(data.category || (data.dangerLevel ? 'MONSTER' : 'ITEM')).toUpperCase();
+    const isWisdom = Boolean(data.isWisdomRevealed || (data.isUnidentified && this.isPeekRevealed));
+    const isUnidentified = Boolean(data.isUnidentified && !isWisdom);
+
+    let title = '';
+    let subtitle = '';
+
+    if (isUnidentified) {
+      // 通常モードの未識別アイテム: 外見名（または仮名）のみ表示
+      const appName = data.appearanceName || data.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム');
+      const called = data.calledName ? ` (called ${data.calledName})` : '';
+      title = `${appName}${called}`;
+      subtitle = isEn ? `Unidentified ${category}` : `未鑑定の${this._translateCategory(category)}`;
+    } else if (isWisdom) {
+      // 🧙 賢者の知恵モード: 外見名と真名の両方を併記
+      const appName = data.appearanceName || data.appearance || '';
+      const trueNameEn = data.wisdomTrueName || data.trueName || data.name || '';
+      const trueNameJa = data.wisdomTrueNameJa || data.nameJa || data.japaneseName || '';
+      const trueNameDisplay = (!isEn && trueNameJa) ? trueNameJa : trueNameEn;
+
+      if (appName && trueNameDisplay && appName.toLowerCase() !== trueNameDisplay.toLowerCase()) {
+        title = `${appName} [${trueNameDisplay}]`;
+      } else {
+        title = trueNameDisplay || appName || (isEn ? 'Revealed Item' : '透視されたアイテム');
+      }
+      subtitle = isEn ? `Sage's Wisdom: ${category}` : `🧙 賢者の知恵: ${this._translateCategory(category)}`;
+    } else {
+      // 通常の識別済みアイテムまたはモンスター
+      const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || data.japaneseName;
+      const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name;
+      title = (!isEn && nameJa) ? `${nameJa}${nameEn ? ` (${nameEn})` : ''}` : (nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象'));
+      subtitle = data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category));
+    }
     const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
     let headerIcon = data.icon || '🏷️';
     if (isMonster) {
@@ -771,13 +843,14 @@ export class NhKnowledgeCard extends NhBaseElement {
             ${iconHtml}
             <div class="header-title-group">
               <h2 class="card-title">${title}</h2>
-              <div class="card-subtitle">${data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category))}</div>
+              <div class="card-subtitle">${subtitle}</div>
             </div>
           </div>
           <div class="card-badges">
             <span class="badge badge-category">${category}</span>
             ${data.dangerLevel ? `<span class="badge ${this._getDangerClass(data.dangerLevel)}">${data.dangerLevel}</span>` : ''}
-            ${data.isUnidentified ? `<span class="badge badge-unidentified">${isEn ? 'Unidentified' : '未識別'}</span>` : ''}
+            ${isWisdom ? `<span class="badge badge-wisdom">${isEn ? "🧙 Sage's Wisdom" : '🧙 賢者の知恵'}</span>` : ''}
+            ${isUnidentified ? `<span class="badge badge-unidentified">${isEn ? 'Unidentified' : '未識別'}</span>` : ''}
             <button class="card-close-btn" id="closeBtn" title="${isEn ? 'Close (Esc / q)' : '閉じる (Esc / q)'}">✕</button>
           </div>
         </div>
@@ -863,19 +936,48 @@ export class NhKnowledgeCard extends NhBaseElement {
     }
 
     // アイテム・地形
+    const isWisdom = Boolean(data.isWisdomRevealed || (data.isUnidentified && this.isPeekRevealed));
+    const isUnidentified = Boolean(data.isUnidentified && !isWisdom);
+
+    if (isUnidentified) {
+      const effectText = data.effectSummary || data.summary || data.hintSummary || (isEn
+        ? 'Unidentified (Identity unknown until consumed, tested, or identified)'
+        : '未鑑定（飲む、投げる、または識別するまで正体不明）');
+
+      return `
+        <div class="spec-grid">
+          <div class="spec-item"><div class="spec-label">${isEn ? 'Category' : '種別'}</div><div class="spec-val">${data.category || '-'}</div></div>
+          <div class="spec-item"><div class="spec-label">${isEn ? 'Weight' : '重量'}</div><div class="spec-val">${data.weight ?? '?'}</div></div>
+          <div class="spec-item"><div class="spec-label">${isEn ? 'Material' : '材質'}</div><div class="spec-val">?</div></div>
+          <div class="spec-item"><div class="spec-label">${isEn ? 'BUC Status' : '祝福状態'}</div><div class="spec-val">${data.bucStatus || (isEn ? 'Unknown' : '不明')}</div></div>
+        </div>
+        ${data.appearance ? `
+          <div class="spec-section-title">🎭 ${isEn ? 'Appearance' : 'ゲーム内での外見'}</div>
+          <div style="font-size: 0.85rem; color: #f8fafc;">${data.appearance}</div>
+        ` : ''}
+        <div class="tactical-advice">💡 ${effectText}</div>
+      `;
+    }
+
+    const wisdomWeight = isWisdom ? (data.wisdomWeight ?? data.weight) : data.weight;
+    const wisdomMaterial = isWisdom ? (data.wisdomMaterial ?? data.material) : data.material;
+    const wisdomEffect = (isWisdom && (data.wisdomEffectSummary || data.wisdomEffectSummaryJa))
+      ? (isEn ? (data.wisdomEffectSummary || data.effectSummary) : (data.wisdomEffectSummaryJa || data.wisdomEffectSummary || data.effectSummary))
+      : (data.effectSummary || data.summary || data.description);
+
     return `
       <div class="spec-grid">
         <div class="spec-item"><div class="spec-label">${isEn ? 'Category' : '種別'}</div><div class="spec-val">${data.category || '-'}</div></div>
-        <div class="spec-item"><div class="spec-label">${isEn ? 'Weight' : '重量'}</div><div class="spec-val">${data.weight ?? '-'}</div></div>
-        <div class="spec-item"><div class="spec-label">${isEn ? 'Material' : '材質'}</div><div class="spec-val">${data.material ?? '-'}</div></div>
+        <div class="spec-item"><div class="spec-label">${isEn ? 'Weight' : '重量'}</div><div class="spec-val">${wisdomWeight ?? '-'}</div></div>
+        <div class="spec-item"><div class="spec-label">${isEn ? 'Material' : '材質'}</div><div class="spec-val">${wisdomMaterial ?? '-'}</div></div>
         <div class="spec-item"><div class="spec-label">${isEn ? 'BUC Status' : '祝福状態'}</div><div class="spec-val">${data.bucStatus || (isEn ? 'Uncursed' : '通常')}</div></div>
       </div>
       ${data.appearance ? `
         <div class="spec-section-title">🎭 ${isEn ? 'Appearance' : 'ゲーム内での外見'}</div>
         <div style="font-size: 0.85rem; color: #f8fafc;">${data.appearance}</div>
       ` : ''}
-      ${data.effectSummary || data.description ? `
-        <div class="tactical-advice">💡 ${data.effectSummary || data.description}</div>
+      ${wisdomEffect ? `
+        <div class="tactical-advice">💡 ${wisdomEffect}</div>
       ` : ''}
     `;
   }

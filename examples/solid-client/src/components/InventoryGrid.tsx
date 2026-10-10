@@ -45,11 +45,19 @@ export const InventoryGrid: Component = () => {
 
   const getBucBadge = (item: any) => {
     const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
-    const isUnidentified = !!id.isUnidentified;
+    const isWisdom = Boolean(id.isWisdomRevealed || item.isWisdomRevealed);
+    const isUnidentified = !!id.isUnidentified && !isWisdom;
     const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
 
     if (isUnidentified) {
       return { symbol: '?', className: 'badge-buc-unid', title: isEn() ? 'Unidentified' : '未識別' };
+    } else if (isWisdom) {
+      if (bucStatus === 'CURSED') {
+        return { symbol: '-', className: 'badge-buc-cursed', title: isEn() ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)' };
+      } else if (bucStatus === 'BLESSED') {
+        return { symbol: '+', className: 'badge-buc-blessed', title: isEn() ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)' };
+      }
+      return { symbol: '🧙', className: 'badge-buc-wisdom', title: isEn() ? "Sage's Wisdom" : '賢者の知恵' };
     } else if (bucStatus === 'CURSED') {
       return { symbol: '-', className: 'badge-buc-cursed', title: isEn() ? 'Cursed' : '呪い' };
     } else if (bucStatus === 'BLESSED') {

@@ -145,12 +145,21 @@ export class InventoryView {
           }
 
           const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
-          const isUnidentified = !!id.isUnidentified;
+          const isWisdom = Boolean(id.isWisdomRevealed || item.isWisdomRevealed);
+          const isUnidentified = !!id.isUnidentified && !isWisdom;
           const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
 
           let bucBadgeHtml = '';
           if (isUnidentified) {
             bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
+          } else if (isWisdom) {
+            if (bucStatus === 'CURSED') {
+              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-cursed" title="${isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)'}">-</span>`;
+            } else if (bucStatus === 'BLESSED') {
+              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-blessed" title="${isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)'}">+</span>`;
+            } else {
+              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`;
+            }
           } else if (bucStatus === 'CURSED') {
             bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
           } else if (bucStatus === 'BLESSED') {

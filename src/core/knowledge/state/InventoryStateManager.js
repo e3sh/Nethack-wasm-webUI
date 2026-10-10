@@ -26,6 +26,7 @@ export class InventoryStateManager {
         this.wasmDirectBindingService = options.wasmDirectBindingService || null;
         this.hasCompletedInitialSync = false;
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
+        this.sagesWisdomMode = Boolean(options.sagesWisdomMode);
 
         // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
         this.directBindingMode = options.directBindingMode || 'auto';
@@ -34,6 +35,18 @@ export class InventoryStateManager {
         this.lastSyncMethod = 'NONE'; // 'NONE' | 'SHIM' | 'MACRO'
         this.shimSyncCount = 0;
         this.macroSyncCount = 0;
+    }
+
+    /**
+     * 🧙 賢者の知恵モード (Sage's Wisdom Mode) の設定
+     * @param {boolean} enabled 
+     */
+    setSagesWisdomMode(enabled) {
+        const prev = this.sagesWisdomMode;
+        this.sagesWisdomMode = Boolean(enabled);
+        if (prev !== this.sagesWisdomMode) {
+            this._lastInventorySignature = '';
+        }
     }
 
     /**
@@ -126,7 +139,8 @@ export class InventoryStateManager {
             const onum = typeof mi.onum === 'number' ? mi.onum : (mi.glyphInfo && typeof mi.glyphInfo.onum === 'number' ? mi.glyphInfo.onum : -1);
             return `${rawCh}:${rawText}:${glyphId}:${onum}`;
         });
-        return `lang:${lang};;` + parts.join('|');
+        const discCount = (this.discoveryStateManager && this.discoveryStateManager.discoveredOnums) ? this.discoveryStateManager.discoveredOnums.size : 0;
+        return `lang:${lang};;disc:${discCount};;` + parts.join('|');
     }
 
     /**
@@ -136,6 +150,11 @@ export class InventoryStateManager {
      */
     updateFromMenuItems(menuItems) {
         if (!Array.isArray(menuItems)) return false;
+
+        // C言語コアの最新識別メモリと即時同期
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
+            this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+        }
 
         // strict モード時はマクロフォールバック（rawObjPtr を持たない純粋テキスト行）を完全遮断 (Stage 8.2-B)
         // ただし、公式 C コアの shim_add_menu から送出された rawObjPtr を持つ正当なメニュー項目は許可する
@@ -190,17 +209,19 @@ export class InventoryStateManager {
 
                 const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
                 const equipState = this.parseEquipState(rawText, categoryFlags);
+                const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
                 const identification = ItemIdentificationResolver.resolve({
                     rawText,
                     onum,
                     glyphId
                 }, {
-                    discoveryStateManager: this.discoveryStateManager
+                    discoveryStateManager: this.discoveryStateManager,
+                    sagesWisdomMode: this.sagesWisdomMode,
+                    language: lang
                 });
 
                 // 🎯 ナレッジ自動物理アタッチ (アイテム専用 getItemKnowledge を直接呼び出し、コンテキストを完全に維持)
                 let knowledge = mi.knowledge || null;
-                const lang = this.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
                 if (!knowledge && this.structuredKnowledgeEngine) {
                     const itemTarget = {
                         type: 'ITEM',
@@ -210,19 +231,19 @@ export class InventoryStateManager {
                         identification
                     };
                     if (typeof this.structuredKnowledgeEngine.getItemKnowledge === 'function') {
-                        knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification }) ||
-                                    this.structuredKnowledgeEngine.getItemKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                        knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
+                                    this.structuredKnowledgeEngine.getItemKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
                     } else if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
-                        knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification }) ||
-                                    this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                        knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
+                                    this.structuredKnowledgeEngine.getKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
                     }
                 }
-                if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+                if (!knowledge && (!identification.isUnidentified || this.sagesWisdomMode) && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
                     knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
                 }
 
                 let skillBadge = null;
-                if (knowledge && this.skillStateManager && !identification.isUnidentified) {
+                if (knowledge && this.skillStateManager && (!identification.isUnidentified || this.sagesWisdomMode)) {
                     skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
                 }
 
@@ -391,6 +412,11 @@ export class InventoryStateManager {
             return false;
         }
 
+        // C言語コアの最新識別メモリと即時同期
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
+            this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+        }
+
         const rawItems = this.wasmDirectBindingService.getInventory();
         const equipData = this.wasmDirectBindingService.getEquipmentPtrs();
         const slotByPtr = equipData.slotByPtr || new Map();
@@ -445,8 +471,56 @@ export class InventoryStateManager {
             const isWorn = Boolean(equipSlotName && !isWielded && !isOffhand && !isQuivered);
             let equipSlot = equipSlotName;
 
-            // 互換性のため表示用 rawText を構築
-            const baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
+            // 🎯 未鑑定アイテムの真名露出防止 (要件A & 要件B)
+            const memoryDiscoveries = (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getDiscoveries === 'function')
+                ? this.wasmDirectBindingService.getDiscoveries()
+                : null;
+            const isKnownInMemory = (memoryDiscoveries && typeof onum === 'number' && onum >= 0)
+                ? (memoryDiscoveries[onum] === 1)
+                : false;
+
+            const isIdentified = isKnownInMemory || (this.discoveryStateManager
+                ? this.discoveryStateManager.isIdentified(onum)
+                : (objInfo ? (objInfo.canBeUnidentified === false) : true));
+
+            if (isIdentified && this.discoveryStateManager && typeof onum === 'number' && onum >= 0 && typeof this.discoveryStateManager.discoveredOnums?.add === 'function') {
+                this.discoveryStateManager.discoveredOnums.add(onum);
+            }
+
+            // 既存アイテム情報の引き継ぎ (メニューや前回同期からの外見・テキスト)
+            const prevItem = this.items.find(it => it.letter === letter || (rawItem.ptr && it.rawObjPtr === rawItem.ptr));
+            let baseName = '';
+
+            if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
+                baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
+            } else {
+                // 未鑑定アイテム: 外見名または仮名で構成
+                const descr = objInfo?.descr || objInfo?.appearance || '';
+                const cat = objInfo?.category || '';
+                const formattedDescr = (descr && cat)
+                    ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'en')
+                    : (descr || (cat ? cat.toLowerCase() : `item #${onum}`));
+
+                const appName = (this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null)
+                    || prevItem?.appearance
+                    || formattedDescr;
+
+                const called = (this.discoveryStateManager ? this.discoveryStateManager.getCalledName(onum) : null)
+                    || prevItem?.identification?.calledName;
+
+                baseName = appName;
+                if (called) {
+                    baseName += ` called ${called}`;
+                }
+
+                // 🧙 賢者の知恵モード時のみ真名を併記
+                if (this.sagesWisdomMode && objInfo?.name) {
+                    const revealedName = (lang === 'ja' && (objInfo.nameJa || objInfo.japaneseName))
+                        ? (objInfo.nameJa || objInfo.japaneseName)
+                        : objInfo.name;
+                    baseName += ` [${revealedName}]`;
+                }
+            }
             let rawText = '';
 
             // 数量
@@ -491,7 +565,9 @@ export class InventoryStateManager {
                 onum,
                 glyphId
             }, {
-                discoveryStateManager: this.discoveryStateManager
+                discoveryStateManager: this.discoveryStateManager,
+                sagesWisdomMode: this.sagesWisdomMode,
+                language: lang
             });
 
             // ナレッジの付与
@@ -505,19 +581,19 @@ export class InventoryStateManager {
                     identification
                 };
                 if (typeof this.structuredKnowledgeEngine.getItemKnowledge === 'function') {
-                    knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification }) ||
-                                this.structuredKnowledgeEngine.getItemKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                    knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
+                                this.structuredKnowledgeEngine.getItemKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
                 } else if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
-                    knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification }) ||
-                                this.structuredKnowledgeEngine.getKnowledge(identification.isUnidentified ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification });
+                    knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
+                                this.structuredKnowledgeEngine.getKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
                 }
             }
-            if (!knowledge && !identification.isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+            if (!knowledge && (!identification.isUnidentified || this.sagesWisdomMode) && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
                 knowledge = OBJECT_KNOWLEDGE_MAP.get(onum);
             }
 
             let skillBadge = null;
-            if (knowledge && this.skillStateManager && !identification.isUnidentified) {
+            if (knowledge && this.skillStateManager && (!identification.isUnidentified || this.sagesWisdomMode)) {
                 skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
             }
 

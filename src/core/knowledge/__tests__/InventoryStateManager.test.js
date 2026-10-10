@@ -650,6 +650,124 @@ describe('InventoryStateManager', () => {
         expect(helmetJa.isWorn).toBe(true);
         expect(helmetJa.isWielded).toBe(false);
     });
+
+    it('syncFromDirectBinding: 未識別アイテムの真名露出が防がれ、外見名でrawTextが構築されること', () => {
+        const mockDiscoveryMgr = {
+            isIdentified: (target) => false,
+            getAppearance: (onum) => 'ruby potion',
+            getCalledName: (onum) => null
+        };
+        const rawItems = [
+            {
+                invlet: 'a',
+                onum: 307, // potion of healing
+                quan: 1,
+                spe: 0,
+                ptr: 1000,
+                flags: { blessed: false, cursed: false, bknown: false }
+            }
+        ];
+        const mockWasm = {
+            isAvailable: () => true,
+            getInventory: () => rawItems,
+            getEquipmentPtrs: () => ({ slotByPtr: new Map() })
+        };
+        const manager = new InventoryStateManager({
+            discoveryStateManager: mockDiscoveryMgr,
+            wasmDirectBindingService: mockWasm
+        });
+
+        manager.syncFromDirectBinding();
+
+        const item = manager.getItemByLetter('a');
+        expect(item).toBeDefined();
+        expect(item.rawText).not.toContain('potion of healing');
+        expect(item.rawText).toContain('ruby potion');
+        expect(item.identification.isUnidentified).toBe(true);
+        expect(item.identification.isMasked).toBe(true);
+    });
+
+    it('syncFromDirectBinding: sagesWisdomMode: true の場合、外見名に真名が併記されること', () => {
+        const mockDiscoveryMgr = {
+            isIdentified: (target) => false,
+            getAppearance: (onum) => 'ruby potion',
+            getCalledName: (onum) => null
+        };
+        const rawItems = [
+            {
+                invlet: 'a',
+                onum: 307, // potion of healing
+                quan: 1,
+                spe: 0,
+                ptr: 1000,
+                flags: { blessed: false, cursed: false, bknown: false }
+            }
+        ];
+        const mockWasm = {
+            isAvailable: () => true,
+            getInventory: () => rawItems,
+            getEquipmentPtrs: () => ({ slotByPtr: new Map() })
+        };
+        const manager = new InventoryStateManager({
+            discoveryStateManager: mockDiscoveryMgr,
+            wasmDirectBindingService: mockWasm,
+            sagesWisdomMode: true,
+            language: 'ja'
+        });
+
+        manager.syncFromDirectBinding();
+
+        const item = manager.getItemByLetter('a');
+        expect(item).toBeDefined();
+        expect(item.rawText).toContain('ruby potion');
+        expect(item.rawText).toContain('[回復のポーション]');
+        expect(item.identification.isWisdomRevealed).toBe(true);
+    });
+
+    it('syncFromDirectBinding: C言語メモリの discoveries[onum] === 1 により即時識別され、discoveryStateManager に自動登録されること', () => {
+        const mockDiscoveredSet = new Set();
+        const mockDiscoveryMgr = {
+            discoveredOnums: mockDiscoveredSet,
+            isIdentified: (target) => mockDiscoveredSet.has(target),
+            syncWithLiveMemory: vi.fn()
+        };
+        // onum 307: potion of healing (メモリ上で oc_name_known = 1)
+        const mockDiscoveries = new Uint8Array(600);
+        mockDiscoveries[307] = 1;
+
+        const rawItems = [
+            {
+                invlet: 'b',
+                onum: 307,
+                quan: 1,
+                spe: 0,
+                ptr: 2000,
+                flags: { blessed: false, cursed: false, bknown: true }
+            }
+        ];
+        const mockWasm = {
+            isAvailable: () => true,
+            getInventory: () => rawItems,
+            getEquipmentPtrs: () => ({ slotByPtr: new Map() }),
+            getDiscoveries: () => mockDiscoveries
+        };
+        const manager = new InventoryStateManager({
+            discoveryStateManager: mockDiscoveryMgr,
+            wasmDirectBindingService: mockWasm,
+            language: 'ja'
+        });
+
+        manager.syncFromDirectBinding();
+
+        const item = manager.getItemByLetter('b');
+        expect(item).toBeDefined();
+        // メモリ上で識別済みなので真名 "potion of healing" が使われること
+        expect(item.rawText).toContain('potion of healing');
+        expect(item.rawText).not.toContain('ruby potion');
+        expect(item.identification.isUnidentified).toBe(false);
+        // discoveryStateManager に自動登録されていること
+        expect(mockDiscoveredSet.has(307)).toBe(true);
+    });
 });
 
 

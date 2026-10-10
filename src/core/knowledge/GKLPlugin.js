@@ -123,9 +123,12 @@ export class GKLPlugin {
             };
         }
 
+        this.sagesWisdomMode = Boolean(options.sagesWisdomMode);
+
         this.structuredKnowledge = options.structuredKnowledgeEngine || new StructuredKnowledgeEngine({
             translationEngine: options.translationEngine || null,
             discoveryStateManager: this.discoveryStateManager,
+            sagesWisdomMode: this.sagesWisdomMode,
             language: this.language
         });
 
@@ -442,6 +445,20 @@ export class GKLPlugin {
     }
 
     /**
+     * 🧙 賢者の知恵モード (常時鑑定・透視) の切り替え
+     * @param {boolean} enabled 
+     */
+    setSagesWisdomMode(enabled = false) {
+        this.sagesWisdomMode = Boolean(enabled);
+        if (this.structuredKnowledge && typeof this.structuredKnowledge.setSagesWisdomMode === 'function') {
+            this.structuredKnowledge.setSagesWisdomMode(this.sagesWisdomMode);
+        }
+        if (this.inventoryStateManager && typeof this.inventoryStateManager.setSagesWisdomMode === 'function') {
+            this.inventoryStateManager.setSagesWisdomMode(this.sagesWisdomMode);
+        }
+    }
+
+    /**
      * 冒険手帳・伝承コレクションマネージャを取得
      * @returns {LoreCodex}
      */
@@ -728,6 +745,12 @@ export class GKLPlugin {
                     const discovered = this.discoveryStateManager.processDiscoveryMessage(signal.context);
                     if (discovered) {
                         core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+                        if (this.inventoryStateManager) {
+                            if (typeof this.inventoryStateManager.invalidate === 'function') {
+                                this.inventoryStateManager.invalidate();
+                            }
+                            core.emit('inventoryStateUpdated', this.inventoryStateManager);
+                        }
                     }
                 }
             }
@@ -735,33 +758,44 @@ export class GKLPlugin {
 
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
         addCoreListener('inputRequired', async (payload) => {
-            // 🎯 Web Worker 隔離環境用：トップレベルターン確定時に足元情報・所持品・周辺モンスターを 1 往復同期 (Stage 8.2-A, 8.3-A)
-            if (payload && payload.isTopLevelTurn && this.wasmDirectBindingService && this.wasmDirectBindingService.bridge) {
+            // 🎯 トップレベルターン確定時に足元情報・所持品・発見状態・周辺モンスターを同期 (Stage 8.2-A, 8.3-A)
+            if (payload && payload.isTopLevelTurn && this.wasmDirectBindingService) {
                 const px = this.areaStateManager ? this.areaStateManager.playerX : -1;
                 const py = this.areaStateManager ? this.areaStateManager.playerY : -1;
 
-                // 周辺モンスター座標の収集 (Stage 8.3-A)
-                const surroundingMonsters = [];
-                if (this.areaStateManager && this.areaStateManager.grid && px >= 0 && py >= 0) {
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const tx = px + dx;
-                            const ty = py + dy;
-                            const cell = this.areaStateManager.grid[ty]?.[tx];
-                            if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
-                                surroundingMonsters.push({ x: tx, y: ty });
+                if (this.wasmDirectBindingService.bridge) {
+                    // 周辺モンスター座標の収集 (Stage 8.3-A)
+                    const surroundingMonsters = [];
+                    if (this.areaStateManager && this.areaStateManager.grid && px >= 0 && py >= 0) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (dx === 0 && dy === 0) continue;
+                                const tx = px + dx;
+                                const ty = py + dy;
+                                const cell = this.areaStateManager.grid[ty]?.[tx];
+                                if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
+                                    surroundingMonsters.push({ x: tx, y: ty });
+                                }
                             }
                         }
                     }
+
+                    await this.wasmDirectBindingService.syncFromWorkerBridge({
+                        playerX: px >= 0 ? px : undefined,
+                        playerY: py >= 0 ? py : undefined,
+                        syncInventory: true,
+                        syncDiscoveries: true,
+                        surroundingMonsters
+                    });
                 }
 
-                await this.wasmDirectBindingService.syncFromWorkerBridge({
-                    playerX: px >= 0 ? px : undefined,
-                    playerY: py >= 0 ? py : undefined,
-                    syncInventory: true,
-                    surroundingMonsters
-                });
+                // 🎯 発見・識別状態 (objects[i].oc_name_known) の即時同期
+                if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function') {
+                    const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+                    if (discChanged) {
+                        core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+                    }
+                }
 
                 // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
                 if (this.areaStateManager && typeof this.areaStateManager.syncFromDirectBinding === 'function') {
@@ -1647,7 +1681,13 @@ export class GKLPlugin {
         // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
         if (mode !== 'fallback' && this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
             if (this.wasmDirectBindingService && this.wasmDirectBindingService.bridge && !this.wasmDirectBindingService.hasLiveMemory) {
-                await this.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true });
+                await this.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
+            }
+            if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
+                const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+                if (discChanged) {
+                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+                }
             }
             const changed = this.inventoryStateManager.syncFromDirectBinding();
             const durationMs = Date.now() - startTime;
@@ -1662,6 +1702,14 @@ export class GKLPlugin {
         if (mode === 'strict') {
             console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable under strict mode. Fallback macro blocked.');
             return false;
+        }
+
+        // マクロ同期前にも可能な限りメモリの最新識別状態を同期
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
+            const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+            if (discChanged) {
+                this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+            }
         }
 
         const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
@@ -2344,7 +2392,10 @@ export class GKLPlugin {
         if (!hasMonster) {
             const targetEntity = cell?.middle || cell?.bottom;
             if (!targetEntity) return null;
-            const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, { language: this.language });
+            const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, {
+                language: this.language,
+                sagesWisdomMode: this.sagesWisdomMode
+            });
             return knowledge ? { ...knowledge, isClickConfirmed: !options.isHover } : null;
         }
 

@@ -247,4 +247,141 @@ describe('ItemIdentificationResolver', () => {
         expect(potJaBlessed.isUnidentified).toBe(false);
         expect(potJaBlessed.bucStatus).toBe('BLESSED');
     });
+
+    it('14. discoveryStateManager で未識別 (isIdentified === false) の場合、rawText に真名が含まれていても未識別と判定されること', () => {
+        const mockDiscoveryMgr = {
+            isIdentified: (target) => false // 未識別
+        };
+
+        // メモリ同期バグ等で rawText に真名 "potion of healing" が入ってしまっている場合
+        const res = ItemIdentificationResolver.resolve({
+            onum: 300, // potion of healing
+            rawText: 'potion of healing'
+        }, { discoveryStateManager: mockDiscoveryMgr });
+
+        expect(res.isUnidentified).toBe(true);
+        expect(res.isMasked).toBe(true);
+    });
+
+    it('15. 賢者の知恵モード (sagesWisdomMode: true) の場合、未識別でも真名が安全に開示されること', () => {
+        const mockDiscoveryMgr = {
+            isIdentified: (target) => false // 未識別
+        };
+
+        const res = ItemIdentificationResolver.resolve({
+            onum: 307, // potion of healing
+            rawText: 'a ruby potion'
+        }, {
+            discoveryStateManager: mockDiscoveryMgr,
+            sagesWisdomMode: true,
+            language: 'ja'
+        });
+
+        expect(res.isUnidentified).toBe(true);
+        expect(res.isWisdomRevealed).toBe(true);
+        expect(res.wisdomTrueName).toBe('potion of healing');
+        expect(res.isMasked).toBe(false);
+        expect(res.displayName).toContain('[回復のポーション]');
+    });
+
+    it('16. formatAppearanceName: 外見の形容詞とカテゴリから完全なアイテム名（日英）を合成すること', () => {
+        // 薬
+        expect(ItemIdentificationResolver.formatAppearanceName('ruby', 'POTION', 'en')).toBe('ruby potion');
+        expect(ItemIdentificationResolver.formatAppearanceName('ruby', 'POTION', 'ja')).toBe('ルビー色の薬');
+
+        // 杖
+        expect(ItemIdentificationResolver.formatAppearanceName('iron', 'WAND', 'en')).toBe('iron wand');
+        expect(ItemIdentificationResolver.formatAppearanceName('iron', 'WAND', 'ja')).toBe('鉄の杖');
+
+        // 指輪
+        expect(ItemIdentificationResolver.formatAppearanceName('wooden', 'RING', 'en')).toBe('wooden ring');
+        expect(ItemIdentificationResolver.formatAppearanceName('wooden', 'RING', 'ja')).toBe('木製の指輪');
+
+        // 巻物
+        expect(ItemIdentificationResolver.formatAppearanceName('ZELGO MER', 'SCROLL', 'en')).toBe('scroll labeled ZELGO MER');
+        expect(ItemIdentificationResolver.formatAppearanceName('ZELGO MER', 'SCROLL', 'ja')).toBe('「ZELGO MER」と書かれた巻物');
+
+        // 魔法書
+        expect(ItemIdentificationResolver.formatAppearanceName('indigo', 'SPELLBOOK', 'en')).toBe('indigo spellbook');
+        expect(ItemIdentificationResolver.formatAppearanceName('indigo', 'SPELLBOOK', 'ja')).toBe('藍色の魔法書');
+    });
+
+    it('17. 単独形容詞 ("ruby", "iron", "wooden" 等) が渡された場合でも、正しくカテゴリと完全外見名を判定すること', () => {
+        const resRuby = ItemIdentificationResolver.resolve('ruby');
+        expect(resRuby.isUnidentified).toBe(true);
+        expect(resRuby.category).toBe('POTION');
+        expect(resRuby.appearanceName).toBe('ruby potion');
+
+        const resIron = ItemIdentificationResolver.resolve('iron');
+        expect(resIron.isUnidentified).toBe(true);
+        expect(resIron.category).toBe('WAND');
+        expect(resIron.appearanceName).toBe('iron wand');
+
+        const resWood = ItemIdentificationResolver.resolve('wooden');
+        expect(resWood.isUnidentified).toBe(true);
+        expect(resWood.category).toBe('RING');
+        expect(resWood.appearanceName).toBe('wooden ring');
+    });
+
+    it('18. 民族別名を持つ武器（katana, elven arrow等）で、ディスカバリー未閲覧でも rawText に真名が含まれる場合は識別済みとなり外見名に書き換えられないこと', () => {
+        const mockDiscoveredSet = new Set();
+        const mockDiscoveryMgr = {
+            discoveredOnums: mockDiscoveredSet,
+            isIdentified: (target) => mockDiscoveredSet.has(target)
+        };
+
+        // 刀 (onum 56: katana / samurai sword): 初期状態でディスカバリーに未登録
+        expect(mockDiscoveryMgr.isIdentified(56)).toBe(false);
+
+        const resKatana = ItemIdentificationResolver.resolve({
+            onum: 56,
+            rawText: 'a +1 katana (weapon in hand)'
+        }, { discoveryStateManager: mockDiscoveryMgr });
+
+        // 真名が含まれているため識別済みと判定され、外見名 (samurai sword) に書き換えられないこと
+        expect(resKatana.isUnidentified).toBe(false);
+        expect(resKatana.displayName).toContain('katana');
+        expect(resKatana.displayName).not.toContain('samurai sword');
+        // discoveryStateManager に自動登録されていること
+        expect(mockDiscoveredSet.has(56)).toBe(true);
+
+        // エルフの矢 (onum 19: elven arrow / runed arrow)
+        const resElvenArrow = ItemIdentificationResolver.resolve({
+            onum: 19,
+            rawText: '32 elven arrows (in quiver)'
+        }, { discoveryStateManager: mockDiscoveryMgr });
+
+        expect(resElvenArrow.isUnidentified).toBe(false);
+        expect(resElvenArrow.displayName).toContain('elven arrows');
+        expect(resElvenArrow.displayName).not.toContain('runed arrow');
+        expect(mockDiscoveredSet.has(19)).toBe(true);
+    });
+
+    it('19. 武器であっても rawText が外見名（samurai sword, crude arrow 等）の場合は正しく未識別と判定されること', () => {
+        const mockDiscoveredSet = new Set();
+        const mockDiscoveryMgr = {
+            discoveredOnums: mockDiscoveredSet,
+            isIdentified: (target) => mockDiscoveredSet.has(target)
+        };
+
+        // 外見名 "a samurai sword"
+        const resSword = ItemIdentificationResolver.resolve({
+            onum: 56,
+            rawText: 'a samurai sword'
+        }, { discoveryStateManager: mockDiscoveryMgr });
+
+        expect(resSword.isUnidentified).toBe(true);
+        expect(resSword.category).toBe('WEAPON');
+        expect(resSword.appearanceName).toBe('samurai sword');
+
+        // 外見名 "15 crude arrows"
+        const resCrude = ItemIdentificationResolver.resolve({
+            onum: 20, // orcish arrow
+            rawText: '15 crude arrows'
+        }, { discoveryStateManager: mockDiscoveryMgr });
+
+        expect(resCrude.isUnidentified).toBe(true);
+        expect(resCrude.category).toBe('WEAPON');
+        expect(resCrude.appearanceName).toBe('crude arrow');
+    });
 });

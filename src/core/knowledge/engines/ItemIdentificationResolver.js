@@ -102,11 +102,225 @@ export const APPEARANCE_PATTERNS = {
     ]
 };
 
+// 外見の形容詞（色・素材・状態）に対する日本語辞書 (docs/5_gamedata/appearances.ja.md 準拠)
+export const APPEARANCE_DESCR_JA = {
+    // 薬 (Potions)
+    'ruby': 'ルビー色の',
+    'pink': 'ピンク色の',
+    'orange': 'オレンジ色の',
+    'yellow': '黄色の',
+    'emerald': 'エメラルド色の',
+    'dark green': '濃い緑色の',
+    'cyan': 'シアン色の',
+    'sky blue': '空色の',
+    'brilliant blue': '鮮やかな青色の',
+    'magenta': 'マゼンタ色の',
+    'purple-red': '赤紫色の',
+    'puce': '暗褐色の',
+    'milky': '乳白色の',
+    'swirly': '渦巻いた',
+    'bubbly': '泡立つ',
+    'smoky': '煙った',
+    'cloudy': '濁った',
+    'effervescent': '弾ける',
+    'black': '黒色の',
+    'golden': '金色の',
+    'brown': '茶色の',
+    'fizzy': 'シュワシュワする',
+    'dark': '暗い色の',
+    'white': '白色の',
+    'murky': '濁った',
+    'clear': '透明な',
+    // 杖 (Wands)
+    'glass': 'ガラスの',
+    'balsa': 'バルサ材の',
+    'crystal': '水晶の',
+    'maple': 'カエデの',
+    'pine': '松の',
+    'oak': '樫の',
+    'ebony': '黒檀の',
+    'marble': '大理石の',
+    'tin': '錫の',
+    'brass': '真鍮の',
+    'copper': '銅の',
+    'silver': '銀の',
+    'platinum': '白金の',
+    'iridium': 'イリジウムの',
+    'zinc': '亜鉛の',
+    'aluminum': 'アルミニウムの',
+    'uranium': 'ウランの',
+    'iron': '鉄の',
+    'steel': '鋼鉄の',
+    'hexagonal': '六角形の',
+    'short': '短い',
+    'runed': 'ルーンの刻まれた',
+    'long': '長い',
+    'curved': '曲がった',
+    'forked': '二股の',
+    'spiked': 'スパイク付きの',
+    'jeweled': '宝石付きの',
+    // 指輪 (Rings)
+    'wooden': '木製の',
+    'granite': '花崗岩の',
+    'opal': 'オパールの',
+    'clay': '粘土の',
+    'coral': '珊瑚の',
+    'black onyx': 'ブラックオニキスの',
+    'moonstone': 'ムーンストーンの',
+    'tiger eye': 'タイガーアイの',
+    'jade': '翡翠の',
+    'bronze': '青銅の',
+    'agate': '瑪瑙の',
+    'topaz': 'トパーズの',
+    'sapphire': 'サファイアの',
+    'diamond': 'ダイヤモンドの',
+    'pearl': '真珠の',
+    'twisted': 'ねじれた',
+    'gold': '金の',
+    'ivory': '象牙の',
+    'wire': '針金の',
+    'engagement': '婚約の',
+    'shiny': '輝く',
+    // アミュレット (Amulets)
+    'circular': '円形の',
+    'spherical': '球体の',
+    'oval': '楕円形の',
+    'triangular': '三角形の',
+    'pyramidal': 'ピラミッド型の',
+    'square': '四角形の',
+    'concave': '凹型の',
+    'octagonal': '八角形の',
+    'perforated': '穴の空いた',
+    'cubical': '立方体の',
+    // 魔法書 (Spellbooks)
+    'parchment': '羊皮紙の',
+    'vellum': '上質皮紙の',
+    'ragged': 'ボロボロの',
+    'dog eared': '耳折れの',
+    'mottled': 'まだらな',
+    'stained': '汚れた',
+    'cloth': '布の',
+    'leathery': '革の',
+    'red': '赤の',
+    'velvet': 'ベルベットの',
+    'light green': '明るい緑の',
+    'turquoise': 'ターコイズの',
+    'light blue': '明るい青の',
+    'dark blue': '濃い青の',
+    'indigo': '藍色の',
+    'purple': '紫の',
+    'violet': 'スミレ色の',
+    'tan': '黄褐色の',
+    'plaid': '格子縞の',
+    'light brown': '明るい茶色の',
+    'dark brown': '濃い茶色の',
+    'gray': '灰色の',
+    'wrinkled': 'しわくちゃの',
+    'dusty': '埃っぽい',
+    'glittering': 'きらめく',
+    'shining': '光り輝く',
+    'dull': '鈍い色の',
+    'thin': '薄い',
+    'thick': '厚い',
+    'checkered': '市松模様の',
+    'paperback': 'ペーパーバックの',
+    'papyrus': 'パピルスの'
+};
+
 // カテゴリ別鑑定ヒント (非推奨・廃止: ItemSpecPresenter および ITEM_INTERACTION_RULES へ移行完了)
 export const IDENTIFICATION_TIPS = {};
 export const IDENTIFICATION_TIPS_EN = {};
 
 export class ItemIdentificationResolver {
+    /**
+     * 外見形容詞（色・素材・ラベル）とカテゴリから完全なアイテム名を合成
+     * 例: ("ruby", "POTION", "ja") -> "ルビー色の薬"
+     * 例: ("ruby", "POTION", "en") -> "ruby potion"
+     * 例: ("iron", "WAND", "ja") -> "鉄の杖"
+     * 例: ("ZELGO MER", "SCROLL", "ja") -> "「ZELGO MER」と書かれた巻物"
+     * @param {string} descr - 外見（色・素材・ラベルなど）
+     * @param {string} category - アイテムカテゴリ (POTION, WAND, RING, SCROLL, etc.)
+     * @param {string} [lang='ja'] - 言語 ('ja' | 'en')
+     * @returns {string} 完全なアイテム外見名
+     */
+    static formatAppearanceName(descr, category, lang = 'ja') {
+        const cat = (category || '').toUpperCase();
+        const isEn = lang === 'en';
+
+        if (!descr || descr.trim().length === 0 || descr.trim().toLowerCase() === 'unidentified') {
+            if (cat === 'POTION') return isEn ? 'unidentified potion' : '未鑑定の薬';
+            if (cat === 'WAND') return isEn ? 'unidentified wand' : '未鑑定の杖';
+            if (cat === 'RING') return isEn ? 'unidentified ring' : '未鑑定の指輪';
+            if (cat === 'SCROLL') return isEn ? 'unidentified scroll' : '未鑑定の巻物';
+            if (cat === 'AMULET') return isEn ? 'unidentified amulet' : '未鑑定の魔除け';
+            if (cat === 'SPELLBOOK') return isEn ? 'unidentified spellbook' : '未鑑定の魔法書';
+            if (cat === 'ARMOR') return isEn ? 'unidentified armor' : '未鑑定の防具';
+            if (cat === 'WEAPON') return isEn ? 'unidentified weapon' : '未鑑定の武器';
+            if (cat === 'TOOL') return isEn ? 'unidentified tool' : '未鑑定の道具';
+            if (cat === 'GEM' || cat === 'GEM_STONE') return isEn ? 'unidentified gem' : '未鑑定の宝石';
+            return isEn ? `unidentified ${cat ? cat.toLowerCase() : 'item'}` : '未鑑定のアイテム';
+        }
+
+        const clean = descr.trim();
+
+        // すでにカテゴリ名が含まれている場合はそのまま（日本語変換は試みる）
+        const lower = clean.toLowerCase();
+        if (lower.includes('potion') || lower.includes('薬') ||
+            lower.includes('wand') || lower.includes('杖') ||
+            lower.includes('ring') || lower.includes('指輪') ||
+            lower.includes('scroll') || lower.includes('巻物') ||
+            lower.includes('amulet') || lower.includes('魔除け') ||
+            lower.includes('spellbook') || lower.includes('魔法書')) {
+            return clean;
+        }
+
+        if (!isEn) {
+            let jaAdj = APPEARANCE_DESCR_JA[lower];
+            if (!jaAdj) {
+                if (clean.endsWith('の') || clean.endsWith('色の')) {
+                    jaAdj = clean;
+                } else {
+                    jaAdj = `${clean}の`;
+                }
+            }
+            if (cat === 'POTION') return `${jaAdj}薬`;
+            if (cat === 'WAND') return `${jaAdj}杖`;
+            if (cat === 'RING') return `${jaAdj}指輪`;
+            if (cat === 'SCROLL') return `「${clean}」と書かれた巻物`;
+            if (cat === 'AMULET') return `${jaAdj}魔除け`;
+            if (cat === 'SPELLBOOK') return `${jaAdj}魔法書`;
+            if (cat === 'GEM' || cat === 'GEM_STONE') return `${jaAdj}宝石`;
+            return `${jaAdj}${cat.toLowerCase()}`;
+        }
+
+        if (cat === 'POTION') {
+            return `${clean} potion`;
+        }
+        if (cat === 'WAND') {
+            return `${clean} wand`;
+        }
+        if (cat === 'RING') {
+            return `${clean} ring`;
+        }
+        if (cat === 'SCROLL') {
+            return `scroll labeled ${clean}`;
+        }
+        if (cat === 'AMULET') {
+            return `${clean} amulet`;
+        }
+        if (cat === 'SPELLBOOK') {
+            return `${clean} spellbook`;
+        }
+        if (cat === 'ARMOR' || cat === 'WEAPON' || cat === 'TOOL') {
+            return clean;
+        }
+        if (cat === 'GEM' || cat === 'GEM_STONE') {
+            return `${clean} gem`;
+        }
+
+        return clean;
+    }
+
     /**
      * アイテム文字列またはオブジェクトから識別状態を包括的に解析・解決
      * @param {string|Object} itemInput - インベントリテキスト、またはアイテムオブジェクト
@@ -139,58 +353,77 @@ export class ItemIdentificationResolver {
         let category = appearanceMatch.category || this.inferCategory(coreName);
         let appearanceName = appearanceMatch.appearanceName || null;
 
+        const master = (onum >= 0 && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+        const canBeUnidentified = master ? (master.canBeUnidentified !== false) : true;
+        const isRandomCategory = master ? ['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK'].includes(master.category) : false;
+
+        // 真名がテキストに含まれているかの包括的検査
+        let isTrueNamePresent = false;
+        if (master) {
+            const trueNameLower = (master.name || '').toLowerCase();
+            const nameJa = (master.nameJa || '').toLowerCase();
+            const baseName = (master.baseName || '').toLowerCase();
+            const cleanLower = cleanText.toLowerCase();
+
+            // 1. 英語完全一致または複数形一致 (例: "potion of extra healing" or "potions of extra healing")
+            if (trueNameLower) {
+                if (cleanLower.includes(trueNameLower)) {
+                    isTrueNamePresent = true;
+                } else {
+                    const pluralPattern = trueNameLower.replace(/\b(potion|scroll|wand|ring|amulet|spellbook|book|arrow|dagger|spear|sword|axe|bow|helm|shield|boots|gloves)\b/i, '$1s?');
+                    const reg = new RegExp(`\\b${pluralPattern}\\b`, 'i');
+                    if (reg.test(cleanLower)) {
+                        isTrueNamePresent = true;
+                    }
+                }
+            }
+
+            // 2. baseName + "of" の一致 (例: "extra healing" + "potions of")
+            if (!isTrueNamePresent && baseName) {
+                if (cleanLower.includes(baseName) && /\b(potions?|scrolls?|wands?|rings?|amulets?|spellbooks?|books?)\s+of\b/i.test(cleanLower)) {
+                    isTrueNamePresent = true;
+                }
+            }
+
+            // 3. 日本語公式真名の一致 (例: "回復のポーション", "刀", "エルフの矢")
+            if (!isTrueNamePresent && nameJa && cleanLower.includes(nameJa)) {
+                isTrueNamePresent = true;
+            }
+        }
+
         // options.discoveryStateManager または onum と OBJECT_KNOWLEDGE_MAP による二重防御
         if (options.discoveryStateManager && typeof options.discoveryStateManager.isIdentified === 'function') {
-            if (onum >= 0 && options.discoveryStateManager.isIdentified(onum)) {
-                isUnidentified = false;
+            if (onum >= 0) {
+                if (options.discoveryStateManager.isIdentified(onum)) {
+                    isUnidentified = false;
+                } else if (isTrueNamePresent && !appearanceMatch.isAppearance && !isRandomCategory) {
+                    // ⚔️ 武器・防具等の固定アイテムで、NetHack が公式に真名（katana, elven arrow 等）を出力している場合：
+                    // ディスカバリー画面の未閲覧に関わらず確実に識別済みと判定し、自動登録！
+                    isUnidentified = false;
+                    if (options.discoveryStateManager.discoveredOnums && typeof options.discoveryStateManager.discoveredOnums.add === 'function') {
+                        options.discoveryStateManager.discoveredOnums.add(onum);
+                    }
+                } else if (canBeUnidentified) {
+                    // ランダム外見カテゴリ等で、ディスカバリー上で未判明の場合は未識別と判定（ネタバレ保護）
+                    isUnidentified = true;
+                }
             } else if (appearanceName && options.discoveryStateManager.isIdentified(appearanceName)) {
                 isUnidentified = false;
             }
-        } else if (!isUnidentified && onum >= 0 && OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(onum)) {
-            const master = OBJECT_KNOWLEDGE_MAP.get(onum);
-            if (master && master.canBeUnidentified) {
-                // マスター上未識別になりうるアイテムだが、テキストに真名が含まれていない場合は未識別と判定
-                const trueNameLower = (master.name || '').toLowerCase();
-                const nameJa = (master.nameJa || '').toLowerCase();
-                const baseName = (master.baseName || '').toLowerCase();
-                const cleanLower = cleanText.toLowerCase();
-
-                let isTrueNamePresent = false;
-
-                // 1. 英語完全一致または複数形一致 (例: "potion of extra healing" or "potions of extra healing")
-                if (trueNameLower) {
-                    if (cleanLower.includes(trueNameLower)) {
-                        isTrueNamePresent = true;
-                    } else {
-                        // "potion of ..." -> "potions? of ..." の複数形正規表現照合
-                        const pluralPattern = trueNameLower.replace(/\b(potion|scroll|wand|ring|amulet|spellbook|book|arrow|dagger|spear|sword)\b/i, '$1s?');
-                        const reg = new RegExp(`\\b${pluralPattern}\\b`, 'i');
-                        if (reg.test(cleanLower)) {
-                            isTrueNamePresent = true;
-                        }
-                    }
-                }
-
-                // 2. baseName + "of" の一致 (例: "extra healing" + "potions of")
-                if (!isTrueNamePresent && baseName) {
-                    if (cleanLower.includes(baseName) && /\b(potions?|scrolls?|wands?|rings?|amulets?|spellbooks?|books?)\s+of\b/i.test(cleanLower)) {
-                        isTrueNamePresent = true;
-                    }
-                }
-
-                // 3. 日本語公式真名の一致 (例: "回復のポーション", "超回復のポーション")
-                if (!isTrueNamePresent && nameJa && cleanLower.includes(nameJa)) {
-                    isTrueNamePresent = true;
-                }
-
-                if (!isTrueNamePresent) {
-                    isUnidentified = true;
-                    if (!category && master.category) {
-                        category = master.category;
-                    }
+        } else if (!isUnidentified && onum >= 0 && master && master.canBeUnidentified) {
+            if (!isTrueNamePresent) {
+                isUnidentified = true;
+                if (!category && master.category) {
+                    category = master.category;
                 }
             }
         }
+
+        // 🧙 賢者の知恵モード (Sage's Wisdom Mode)
+        const isWisdomRevealed = Boolean(options.sagesWisdomMode && isUnidentified);
+        const trueName = master?.name || null;
+        const trueNameJa = master?.nameJa || master?.japaneseName || null;
+        const lang = options.language || 'ja';
 
         // 識別レベル (Lv.0〜Lv.4) の判定
         const idLevel = this.determineIdentificationLevel({
@@ -205,18 +438,26 @@ export class ItemIdentificationResolver {
         // 安全な表示名（ネタバレ防止）とマスク処理
         const displayName = this.buildSafeDisplayName({
             coreName,
+            category,
             bucStatus,
             calledName,
             namedInstance,
             enchantment,
             charges,
             isUnidentified,
-            appearanceName: appearanceName
+            appearanceName: appearanceName,
+            isWisdomRevealed,
+            wisdomTrueName: trueName,
+            wisdomTrueNameJa: trueNameJa,
+            language: lang
         });
 
         return {
             idLevel,
             isUnidentified,
+            isWisdomRevealed,
+            wisdomTrueName: isWisdomRevealed ? trueName : null,
+            wisdomTrueNameJa: isWisdomRevealed ? trueNameJa : null,
             category,
             appearanceName: appearanceName || null,
             calledName: calledName || null,
@@ -232,7 +473,7 @@ export class ItemIdentificationResolver {
             identificationTipsJa: [],
             hasKnownEnchantment: enchantment !== null,
             hasKnownCharges: charges !== null,
-            isMasked: isUnidentified
+            isMasked: isUnidentified && !isWisdomRevealed
         };
     }
 
@@ -464,6 +705,36 @@ export class ItemIdentificationResolver {
             }
         }
 
+        // 10. 単独形容詞（素材・色・ラベル単体）のマッチング
+        // 例: "ruby" のみ -> POTION ("ruby potion")
+        // 例: "iron" のみ -> WAND ("iron wand")
+        // 例: "wooden" のみ -> RING ("wooden ring")
+        for (const app of APPEARANCE_PATTERNS.POTION) {
+            if (lowerCore === app || lowerFull === app) {
+                return { isAppearance: true, category: 'POTION', appearanceName: `${app} potion` };
+            }
+        }
+        for (const app of APPEARANCE_PATTERNS.WAND) {
+            if (lowerCore === app || lowerFull === app) {
+                return { isAppearance: true, category: 'WAND', appearanceName: `${app} wand` };
+            }
+        }
+        for (const app of APPEARANCE_PATTERNS.RING) {
+            if (lowerCore === app || lowerFull === app) {
+                return { isAppearance: true, category: 'RING', appearanceName: `${app} ring` };
+            }
+        }
+        for (const app of APPEARANCE_PATTERNS.AMULET) {
+            if (lowerCore === app || lowerFull === app) {
+                return { isAppearance: true, category: 'AMULET', appearanceName: `${app} amulet` };
+            }
+        }
+        for (const app of APPEARANCE_PATTERNS.SPELLBOOK) {
+            if (lowerCore === app || lowerFull === app) {
+                return { isAppearance: true, category: 'SPELLBOOK', appearanceName: `${app} spellbook` };
+            }
+        }
+
         return { isAppearance: false, category: null, appearanceName: null };
     }
 
@@ -516,13 +787,13 @@ export class ItemIdentificationResolver {
     /**
      * 安全な表示名（ネタバレ防止・フォーマット統一）の構築
      */
-    static buildSafeDisplayName({ coreName, bucStatus, calledName, namedInstance, enchantment, charges, isUnidentified, appearanceName }) {
+    static buildSafeDisplayName({ coreName, category, bucStatus, calledName, namedInstance, enchantment, charges, isUnidentified, appearanceName, isWisdomRevealed, wisdomTrueName, wisdomTrueNameJa, language }) {
         const parts = [];
 
         // 1. BUC
-        if (bucStatus === 'BLESSED') parts.push('blessed');
-        else if (bucStatus === 'CURSED') parts.push('cursed');
-        else if (bucStatus === 'UNCURSED') parts.push('uncursed');
+        if (bucStatus === 'BLESSED') parts.push(language === 'ja' ? '祝福された' : 'blessed');
+        else if (bucStatus === 'CURSED') parts.push(language === 'ja' ? '呪われた' : 'cursed');
+        else if (bucStatus === 'UNCURSED' && !isUnidentified) parts.push(language === 'ja' ? '呪われていない' : 'uncursed');
 
         // 2. 強化値
         if (enchantment !== null) {
@@ -530,7 +801,18 @@ export class ItemIdentificationResolver {
         }
 
         // 3. コア名または外見名
-        parts.push(appearanceName || coreName);
+        let basePart = appearanceName || coreName;
+        if (isUnidentified && language === 'ja' && (appearanceName || coreName)) {
+            basePart = this.formatAppearanceName(appearanceName || coreName, category, 'ja');
+        } else if (isUnidentified && language === 'en' && (appearanceName || coreName)) {
+            basePart = this.formatAppearanceName(appearanceName || coreName, category, 'en');
+        }
+
+        if (isWisdomRevealed && wisdomTrueName) {
+            const revealed = (language === 'ja' && wisdomTrueNameJa) ? wisdomTrueNameJa : wisdomTrueName;
+            basePart = `${basePart} [${revealed}]`;
+        }
+        parts.push(basePart);
 
         // 4. チャージ数
         if (charges !== null) {

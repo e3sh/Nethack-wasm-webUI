@@ -32,6 +32,7 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(config.statusClassic2Line).toBe(false);
     expect(config.statusGauges).toBe(true);
     expect(config.statusGklExtra).toBe(true);
+    expect(config.sagesWisdomMode).toBeUndefined();
   });
 
   it('ストレージに保存済みの設定をマージしてロードすること', () => {

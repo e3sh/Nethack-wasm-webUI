@@ -287,6 +287,7 @@ export class WasmDirectBindingService {
         this._cachedPlayerSummary = null;
         this._cachedLevelTerrain = null;
         this._cachedMonsters = new Map();
+        this._cachedDiscoveries = null;
     }
 
     /**
@@ -557,6 +558,58 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * 全アイテムの識別状態 (objects[i].oc_name_known) 配列を取得
+     * @returns {Uint8Array|null} 各 onum の識別フラグ (1: 既知, 0: 未知)
+     */
+    getDiscoveries() {
+        if (!this.isAvailable()) return null;
+
+        if (this.hasLiveMemory) {
+            const bufSize = 1024;
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (!bufPtr) return null;
+
+            try {
+                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, bufPtr, bufSize);
+                if (res === 0) {
+                    // 有効なオブジェクト数 (約 500) 分を Uint8Array で読み取り
+                    const raw = this.memory.readUint8Array(bufPtr, 600);
+                    return new Uint8Array(raw);
+                }
+            } finally {
+                this.memory.freeBuffer(bufPtr);
+            }
+            return null;
+        }
+
+        return this._cachedDiscoveries || null;
+    }
+
+    /**
+     * 特定 onum のプレイヤー仮名 (objects[otyp].oc_uname) を取得
+     * @param {number} onum 
+     * @returns {string|null}
+     */
+    getObjectUname(onum) {
+        if (!this.isAvailable() || !this.hasLiveMemory || typeof onum !== 'number' || onum < 0) return null;
+
+        const bufSize = 128;
+        const bufPtr = this.memory.allocateBuffer(bufSize);
+        if (!bufPtr) return null;
+
+        try {
+            const res = this.memory.bridgeCall(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, bufPtr, bufSize);
+            if (res === 1) {
+                const str = this.memory.readString(bufPtr, bufSize);
+                return str ? str.trim() : null;
+            }
+        } finally {
+            this.memory.freeBuffer(bufPtr);
+        }
+        return null;
+    }
+
+    /**
      * 所持品リンクリストから真の総所持重量を取得 (Stage 8.2-C)
      * (手持ち品・金貨・Bag of Holding の補正を含む完全な公式計算値)
      * @returns {number} 総所持重量 (利用不可時: -1)
@@ -770,6 +823,18 @@ export class WasmDirectBindingService {
                     }
                     this._cachedInventory = items;
                     this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+                }
+
+                // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) の一括同期 (DUMP_DISCOVERIES: 0x60, 600 bytes)
+                if (options.syncDiscoveries !== false) {
+                    try {
+                        const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
+                        if (discRes && Array.isArray(discRes.buffer)) {
+                            this._cachedDiscoveries = new Uint8Array(discRes.buffer);
+                        }
+                    } catch (e) {
+                        // ignore shim call errors in fallback/unsupported scenarios
+                    }
                 }
             }
 

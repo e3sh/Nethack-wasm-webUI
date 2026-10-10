@@ -501,5 +501,116 @@ describe('StructuredKnowledgeEngine', () => {
             expect(dragonRisk.willBreakArmor).toBe(true);
             expect(dragonRisk.severity).toBe('DANGER');
         });
+
+        it('未識別インベントリアイテムに対するネタバレ防止ガードと安全ヒント文が機能すること', () => {
+            const mockDiscoveryMgr = {
+                isIdentified: (target) => false
+            };
+            const engine = new StructuredKnowledgeEngine({
+                discoveryStateManager: mockDiscoveryMgr
+            });
+
+            // 未識別のインベントリアイテムオブジェクト (potion of healing)
+            const itemTarget = {
+                type: 'ITEM',
+                rawText: 'a ruby potion',
+                onum: 307,
+                glyph: 3755,
+                identification: {
+                    isUnidentified: true,
+                    appearanceName: 'ruby potion'
+                }
+            };
+
+            const k = engine.getItemKnowledge(itemTarget, { language: 'ja' });
+            expect(k).not.toBeNull();
+            expect(k.isUnidentified).toBe(true);
+            expect(k.effectSummary).toContain('未鑑定の薬');
+            expect(k.effectSummary).toContain('正体不明');
+            expect(k.name).not.toContain('potion of healing');
+        });
+
+        it('賢者の知恵モード (sagesWisdomMode: true) 有効時は未識別アイテムでも詳細ナレッジを開放すること', () => {
+            const mockDiscoveryMgr = {
+                isIdentified: (target) => false
+            };
+            const engine = new StructuredKnowledgeEngine({
+                discoveryStateManager: mockDiscoveryMgr
+            });
+
+            const itemTarget = {
+                type: 'ITEM',
+                rawText: 'a ruby potion',
+                onum: 307,
+                glyph: 3755,
+                identification: {
+                    isUnidentified: true,
+                    appearanceName: 'ruby potion'
+                }
+            };
+
+            const k = engine.getItemKnowledge(itemTarget, { language: 'ja', sagesWisdomMode: true });
+            expect(k).not.toBeNull();
+            expect(k.isUnidentified).toBe(true);
+            expect(k.isWisdomRevealed).toBe(true);
+            // 詳細ナレッジが開放されていること（HP回復などの効果解説が存在）
+            expect(k.effectSummary).toBeDefined();
+            expect(k.effectSummary).not.toContain('正体不明');
+        });
+
+        it('床アイテム（onum指定）の未鑑定時に色や材料だけでなく完全な外見アイテム名（ルビー色の薬、鉄の杖等）が合成されること', () => {
+            const mockDiscoveryMgr = {
+                isIdentified: () => false
+            };
+            const engine = new StructuredKnowledgeEngine({
+                discoveryStateManager: mockDiscoveryMgr
+            });
+
+            // 1. onum 307: potion of healing (descr: "purple-red")
+            const potJa = engine.getItemKnowledge(307, { language: 'ja' });
+            expect(potJa.isUnidentified).toBe(true);
+            expect(potJa.name).toBe('赤紫色の薬');
+            expect(potJa.nameEn).toBe('purple-red potion');
+
+            const potEn = engine.getItemKnowledge(307, { language: 'en' });
+            expect(potEn.name).toBe('purple-red potion');
+
+            // 2. onum 428: wand of digging (descr: "iron")
+            const wandJa = engine.getItemKnowledge(428, { language: 'ja' });
+            expect(wandJa.isUnidentified).toBe(true);
+            expect(wandJa.name).toBe('鉄の杖');
+            expect(wandJa.nameEn).toBe('iron wand');
+
+            const wandEn = engine.getItemKnowledge(428, { language: 'en' });
+            expect(wandEn.name).toBe('iron wand');
+        });
+
+        it('床セルオブジェクト（cell.middle）が getKnowledge に渡された時、未鑑定なら外見名で保護され真名が漏洩しないこと', () => {
+            const mockDiscoveryMgr = {
+                isIdentified: (target) => false
+            };
+            const engine = new StructuredKnowledgeEngine({
+                discoveryStateManager: mockDiscoveryMgr
+            });
+
+            // マップセル上の床アイテム（cell.middle: { type: 'ITEM', subType: 307, glyph: 3755 }）
+            const floorEntity = {
+                type: 'ITEM',
+                subType: 307, // potion of healing
+                glyph: 3755,
+                rawGlyph: 3755,
+                isContainer: false,
+                isPile: false
+            };
+
+            const k = engine.getKnowledge(floorEntity, { language: 'ja' });
+            expect(k).not.toBeNull();
+            expect(k.isUnidentified).toBe(true);
+            expect(k.name).toBe('赤紫色の薬');
+            expect(k.name).not.toContain('potion of healing');
+            expect(k.effectSummary).toContain('未鑑定の薬');
+            expect(k.effectSummary).toContain('正体不明');
+        });
     });
 });
+

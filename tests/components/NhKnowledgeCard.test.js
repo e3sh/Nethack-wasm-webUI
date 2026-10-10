@@ -498,6 +498,118 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     expect(html).toContain('badge-danger-safe');
     expect(html).toContain('SAFE');
   });
+
+  it('通常モード時、未鑑定アイテム（isUnidentified: true）では外見名が表示され、スペックがマスクされること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'ruby potion',
+      appearanceName: 'ルビー色の薬',
+      category: 'POTION',
+      isUnidentified: true,
+      hintSummary: '正体不明の薬。飲むか投げるまで効果はわからない。',
+      summary: '正体不明の薬。飲むか投げるまで効果はわからない。'
+    }, { currentLanguage: 'ja' });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('ルビー色の薬');
+    expect(html).toContain('未鑑定の薬');
+    expect(html).toContain('未識別');
+    expect(html).toContain('正体不明の薬');
+    expect(html).not.toContain('badge-wisdom');
+    expect(html).not.toContain('公式解説 (WASM)');
+  });
+
+  it('透視状態時（isWisdomRevealed）、賢者の知恵バッジが表示され真名と詳細スペックが開放されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'ruby potion',
+      appearanceName: 'ルビー色の薬',
+      wisdomTrueName: 'potion of healing',
+      wisdomTrueNameJa: '回復の薬',
+      category: 'POTION',
+      isUnidentified: true,
+      isWisdomRevealed: true,
+      summary: '飲むとHPを回復する薬。',
+      weight: 20,
+      cost: 100
+    }, { currentLanguage: 'ja' });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('ルビー色の薬 [回復の薬]');
+    expect(html).toContain('badge-wisdom');
+    expect(html).toContain('🧙 賢者の知恵');
+    expect(html).toContain('飲むとHPを回復する薬。');
+    expect(html).toContain('重量');
+    expect(html).toContain('20');
+  });
+
+  it('未鑑定アイテム表示時、「正体を見る」ボタンが一時的にオミット（非表示）されていること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'ruby potion',
+      appearanceName: 'ルビー色の薬',
+      category: 'POTION',
+      isUnidentified: true,
+      hintSummary: '正体不明の薬。飲むか投げるまで効果はわからない。',
+      summary: '正体不明の薬。飲むか投げるまで効果はわからない。'
+    }, { currentLanguage: 'ja' });
+
+    const peekBtn = card.shadowRoot.querySelector('#peekWisdomBtn');
+    expect(peekBtn).toBeNull();
+  });
+
+  it.skip('【一時的オミット中】未鑑定アイテム表示中にオンデマンド透視ボタン（peekWisdomBtn / wキー）で一時的に正体を透視・再マスクできること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'ruby potion',
+      appearanceName: 'ルビー色の薬',
+      wisdomTrueName: 'potion of healing',
+      wisdomTrueNameJa: '回復の薬',
+      category: 'POTION',
+      isUnidentified: true,
+      wisdomEffectSummaryJa: '飲むとHPを回復する。',
+      wisdomWeight: 20,
+      effectSummary: '正体不明の薬。飲むか投げるまで効果はわからない。'
+    }, { currentLanguage: 'ja' });
+
+    // 1. 初期状態: 未透視
+    let peekBtn = card.shadowRoot.querySelector('#peekWisdomBtn');
+    expect(peekBtn).not.toBeNull();
+    expect(peekBtn.textContent).toContain('正体を見る');
+    expect(card.shadowRoot.innerHTML).toContain('未鑑定の薬');
+    expect(card.shadowRoot.innerHTML).not.toContain('badge-wisdom');
+    expect(card.shadowRoot.innerHTML).toContain('正体不明の薬');
+
+    // 2. ボタンクリックで透視
+    peekBtn.click();
+    expect(card.isPeekRevealed).toBe(true);
+
+    peekBtn = card.shadowRoot.querySelector('#peekWisdomBtn');
+    expect(peekBtn.textContent).toContain('隠す');
+    expect(card.shadowRoot.innerHTML).toContain('ルビー色の薬 [回復の薬]');
+    expect(card.shadowRoot.innerHTML).toContain('badge-wisdom');
+    expect(card.shadowRoot.innerHTML).toContain('飲むとHPを回復する。');
+    expect(card.shadowRoot.innerHTML).toContain('20');
+
+    // 3. 再度クリックで未鑑定表示に戻る
+    peekBtn.click();
+    expect(card.isPeekRevealed).toBe(false);
+    expect(card.shadowRoot.innerHTML).not.toContain('badge-wisdom');
+    expect(card.shadowRoot.innerHTML).toContain('正体不明の薬');
+
+    // 4. wキー押下でも透視トグルできること
+    card._handleKeyDown({ key: 'w', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+    expect(card.isPeekRevealed).toBe(true);
+    expect(card.shadowRoot.innerHTML).toContain('ルビー色の薬 [回復の薬]');
+  });
 });
 
 
