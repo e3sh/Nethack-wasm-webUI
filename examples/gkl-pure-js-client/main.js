@@ -370,6 +370,26 @@ class GklPureJSClient {
       this.resetUiForNewGame();
     });
 
+    // 6.5 Phase 4 (COMMIT): Turn Lifecycle / Sync Barrier 確定後の即時描画フラッシュ (Stage 8.3-B)
+    this.core.on('areaStateCommitted', (payload) => {
+      if (this.isGameExited) return;
+      const areaState = payload?.area || this.core?.gkl?.getSituation()?.area;
+      if (this.mainViewportRenderer && typeof this.mainViewportRenderer.flushCommittedArea === 'function') {
+        this.mainViewportRenderer.flushCommittedArea(areaState);
+      } else if (this.virtualScreen && areaState) {
+        this.virtualScreen.flushCommittedState(areaState, this.mainViewportRenderer?.glyphGridBuffer);
+      }
+      if (this.currentViewMode === 'hd2d' && this.webgpuRenderer) {
+        this.webgpuRenderer.markDirty();
+        this.webgpuRenderer.wakeUp();
+      }
+      const situation = this.core?.gkl?.getSituation();
+      if (situation && (this.currentViewMode === 'graphic' || this.currentViewMode === 'hd2d')) {
+        this.minimapRenderer?.renderMinimap(situation);
+      }
+      this.renderGklUi();
+    });
+
     // 7. Input Required Prompts & Modals
     this.core.on('inputRequired', (data) => {
       // 起動シーケンス進行中の場合

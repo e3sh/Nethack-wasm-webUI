@@ -75,64 +75,106 @@ export class GKLEventRouter {
 
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
         addCoreListener('inputRequired', async (payload) => {
-            // 🎯 トップレベルターン確定時に足元情報・所持品・発見状態・周辺モンスターを同期 (Stage 8.2-A, 8.3-A)
-            if (payload && payload.isTopLevelTurn && p.wasmDirectBindingService) {
-                const px = p.areaStateManager ? p.areaStateManager.playerX : -1;
-                const py = p.areaStateManager ? p.areaStateManager.playerY : -1;
+            // 🎯 Phase 3 (SETTLED & SHIM SYNC) & Phase 4 (COMMIT):
+            // トップレベルターン確定時（--More-- やモーダル待機中を除外）に足元情報・全フロア地形・所持品・発見状態・周辺モンスターを同期 (Stage 8.2-A, 8.3-A, 8.3-B)
+            const isTopLevelSettled = Boolean(payload && payload.isTopLevelTurn && !payload.isMorePrompt && !(core && core.isMorePromptActive));
+            if (isTopLevelSettled) {
+                const mode = p.directBindingMode || p.wasmDirectBindingService?.mode || 'auto';
+                const isDirectAvailable = Boolean(
+                    mode !== 'fallback' &&
+                    p.wasmDirectBindingService &&
+                    typeof p.wasmDirectBindingService.isAvailable === 'function' &&
+                    p.wasmDirectBindingService.isAvailable()
+                );
 
-                if (p.wasmDirectBindingService.bridge) {
-                    const surroundingMonsters = [];
-                    if (p.areaStateManager && p.areaStateManager.grid && px >= 0 && py >= 0) {
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const tx = px + dx;
-                                const ty = py + dy;
-                                const cell = p.areaStateManager.grid[ty]?.[tx];
-                                if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
-                                    surroundingMonsters.push({ x: tx, y: ty });
+                if (isDirectAvailable) {
+                    const px = p.areaStateManager ? p.areaStateManager.playerX : -1;
+                    const py = p.areaStateManager ? p.areaStateManager.playerY : -1;
+                    const needTerrainDump = Boolean(
+                        p.areaStateManager && (
+                            p.areaStateManager._needsFullTerrainDump ||
+                            p.areaStateManager.justTransitionedFloor ||
+                            p.areaStateManager.isFloorTransitioning
+                        )
+                    );
+
+                    if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
+                        const surroundingMonsters = [];
+                        if (p.areaStateManager && p.areaStateManager.grid && px >= 0 && py >= 0) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const tx = px + dx;
+                                    const ty = py + dy;
+                                    const cell = p.areaStateManager.grid[ty]?.[tx];
+                                    if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
+                                        surroundingMonsters.push({ x: tx, y: ty });
+                                    }
                                 }
                             }
                         }
+
+                        const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({
+                            playerX: px >= 0 ? px : undefined,
+                            playerY: py >= 0 ? py : undefined,
+                            syncInventory: true,
+                            syncDiscoveries: true,
+                            syncFloorObjects: true,
+                            syncLevelTerrain: needTerrainDump,
+                            surroundingMonsters
+                        });
+
+                        // 待機中に次ターンの入力が送出され世代が無効化された場合はコミットを中断 (Sync Barrier)
+                        if (!syncOk) {
+                            return;
+                        }
                     }
 
-                    await p.wasmDirectBindingService.syncFromWorkerBridge({
-                        playerX: px >= 0 ? px : undefined,
-                        playerY: py >= 0 ? py : undefined,
-                        syncInventory: true,
-                        syncDiscoveries: true,
-                        surroundingMonsters
+                    // 🎯 フロア遷移・初回ターン確定時の全フロア地形 (80x21) 自動ロード (Stage 8.3-B)
+                    if (needTerrainDump && p.areaStateManager && typeof p.areaStateManager.dumpLevelTerrain === 'function') {
+                        p.areaStateManager.dumpLevelTerrain();
+                    }
+
+                    // 🎯 発見・識別状態 (objects[i].oc_name_known) の即時同期
+                    if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function') {
+                        const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
+                        if (discChanged) {
+                            core.emit('discoveriesStateUpdated', p.discoveryStateManager);
+                        }
+                    }
+
+                    // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
+                    if (p.areaStateManager && typeof p.areaStateManager.syncFromDirectBinding === 'function') {
+                        p.areaStateManager.syncFromDirectBinding(1);
+                    }
+
+                    // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
+                    if (p.areaStateManager && typeof p.areaStateManager.syncPlayerFeetFloor === 'function') {
+                        p.areaStateManager.syncPlayerFeetFloor();
+                    }
+
+                    if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
+                        const changed = p.inventoryStateManager.syncFromDirectBinding();
+                        if (changed) {
+                            core.emit('inventoryStateUpdated', p.inventoryStateManager);
+                        }
+                    }
+                }
+
+                // 🎯 Phase 4 (COMMIT): 状態確定コミットと areaStateCommitted シグナルの発火 (Stage 8.3-B)
+                if (p.areaStateManager) {
+                    if (typeof p.areaStateManager.commitTurnState === 'function') {
+                        p.areaStateManager.commitTurnState();
+                    }
+                    const committedArea = p.areaStateManager.getAreaState();
+                    if (p.interactionContext && typeof p.interactionContext.updateFromAreaState === 'function') {
+                        p.interactionContext.updateFromAreaState(committedArea);
+                    }
+                    core.emit('areaStateCommitted', {
+                        area: committedArea,
+                        turn: p.statusAccessor?.turns ?? 0,
+                        currentFloor: p.areaStateManager.currentFloor
                     });
-                }
-
-                // 🎯 発見・識別状態 (objects[i].oc_name_known) の即時同期
-                if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function') {
-                    const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
-                    if (discChanged) {
-                        core.emit('discoveriesStateUpdated', p.discoveryStateManager);
-                    }
-                }
-
-                // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
-                if (p.areaStateManager && typeof p.areaStateManager.syncFromDirectBinding === 'function') {
-                    p.areaStateManager.syncFromDirectBinding(1);
-                }
-
-                // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
-                if (p.areaStateManager && typeof p.areaStateManager.syncPlayerFeetFloor === 'function') {
-                    p.areaStateManager.syncPlayerFeetFloor();
-                }
-
-                if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
-                    const changed = p.inventoryStateManager.syncFromDirectBinding();
-                    if (changed) {
-                        core.emit('inventoryStateUpdated', p.inventoryStateManager);
-                    }
-                }
-
-                // 🎯 InteractionContext への周辺エリア状態の即時反映 (Stage 8.3-A)
-                if (p.interactionContext && typeof p.interactionContext.updateFromAreaState === 'function' && p.areaStateManager) {
-                    p.interactionContext.updateFromAreaState(p.areaStateManager.getAreaState());
                 }
             }
 
@@ -150,8 +192,15 @@ export class GKLEventRouter {
             }
         });
 
-        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行 ＆ 攻撃検知
-        addCoreListener('userActionSent', ({ sequence }) => {
+        // 1. Phase 1 (ACTION): ユーザーアクション送出時の Sync Barrier 世代更新・インベントリ/魔法 dirty 化・内部ターン進行
+        addCoreListener('userActionSent', ({ sequence } = {}) => {
+            if (p.wasmDirectBindingService && typeof p.wasmDirectBindingService.notifyActionSent === 'function') {
+                p.wasmDirectBindingService.notifyActionSent();
+            }
+            if (p.areaStateManager && typeof p.areaStateManager.beginTurnTransition === 'function') {
+                p.areaStateManager.beginTurnTransition();
+            }
+
             if (sequence) {
                 if (p.interactionContext && typeof p.interactionContext.recordAction === 'function') {
                     p.interactionContext.recordAction(sequence[0]);

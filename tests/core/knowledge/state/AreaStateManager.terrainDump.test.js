@@ -19,14 +19,14 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
         actionSignalResolver = new ActionSignalResolver();
     });
 
-    describe('1. dumpLevelTerrain (80x21 Floor Terrain Dump & Landmark Seeding)', () => {
-        it('should dump entire 80x21 floor terrain and populate grid with genuine typ and glyphs', () => {
+    describe('1. dumpLevelTerrain (80x21 Lookup Table Retention, Unexplored Suppression & True Floor Supplement)', () => {
+        it('should retain 80x21 floor terrain in lookup table without writing to unexplored grid cells or registering undiscovered stairs', () => {
             const COLNO = 80;
             const ROWNO = 21;
             const mockTerrain = new Uint8Array(COLNO * ROWNO);
 
-            // 初期化: 全部通常部屋床 (typ 25)
-            mockTerrain.fill(25);
+            // 初期化: 全部 STONE (typ 0: 無地の岩盤)
+            mockTerrain.fill(0);
 
             // 特定マスに地形配置
             // (10, 5): 垂直壁 (typ 1)
@@ -43,37 +43,139 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
             mockTerrain[5 * COLNO + 35] = 28;
 
             directBindingService.setCachedLevelTerrain(mockTerrain);
+            areaStateManager.clearDirtyCells();
 
             const success = areaStateManager.dumpLevelTerrain();
             expect(success).toBe(true);
 
-            // グリッド検証
-            const wallCell = areaStateManager.grid[5][10];
-            expect(wallCell.bottom.typ).toBe(1);
-            expect(wallCell.bottom.isGenuine).toBe(true);
-            expect(wallCell.bottom.inferred).toBe(false);
+            // 1. print_glyph 未受信の未踏セルには cell.bottom を書き込まず、Dirty 登録もしないこと
+            expect(areaStateManager.grid[5][10].bottom).toBeNull();
+            expect(areaStateManager.grid[5][15].bottom).toBeNull();
+            expect(areaStateManager.grid[5][20].bottom).toBeNull();
+            expect(areaStateManager.grid[5][25].bottom).toBeNull();
+            expect(areaStateManager.grid[5][30].bottom).toBeNull();
+            expect(areaStateManager.getDirtyCells().size).toBe(0);
 
-            const waterCell = areaStateManager.grid[5][15];
-            expect(waterCell.bottom.typ).toBe(18);
-            expect(waterCell.bottom.glyph).toBe(4015); // WATER
+            // 2. 未発見の階段・ハシゴが landmarkCache に早期登録されないこと
+            const landmarksBefore = areaStateManager.getFloorLandmarks('Dlvl:1');
+            expect(landmarksBefore.stairsUp.length).toBe(0);
 
-            const lavaCell = areaStateManager.grid[5][20];
-            expect(lavaCell.bottom.typ).toBe(20);
-            expect(lavaCell.bottom.glyph).toBe(4017); // LAVAPOOL
+            // 3. 観測済みマスでアイテムやモンスターにより下層が隠れている場合、ルックアップテーブルから真の床を補完できること
+            areaStateManager.updateGlyph(15, 5, 3448 + 10); // 水の上にアイテム出現 (bkglyph なし)
+            expect(areaStateManager.grid[5][15].bottom).not.toBeNull();
+            expect(areaStateManager.grid[5][15].bottom.isGenuine).toBe(true);
+            expect(areaStateManager.grid[5][15].bottom.typ).toBe(18);
+            expect(areaStateManager.grid[5][15].bottom.glyph).toBe(4015); // WATER
 
-            const stairCell = areaStateManager.grid[5][25];
-            expect(stairCell.bottom.typ).toBe(26);
-            expect(stairCell.bottom.glyph).toBe(4000); // 上り階段
+            areaStateManager.updateGlyph(20, 5, 10); // 溶岩の上にモンスター出現 (bkglyph なし)
+            expect(areaStateManager.grid[5][20].bottom).not.toBeNull();
+            expect(areaStateManager.grid[5][20].bottom.typ).toBe(20);
+            expect(areaStateManager.grid[5][20].bottom.glyph).toBe(4017); // LAVAPOOL
 
-            const ladderCell = areaStateManager.grid[5][30];
-            expect(ladderCell.bottom.typ).toBe(27);
-            expect(ladderCell.bottom.glyph).toBe(4004); // 上りハシゴ
+            // 4. print_glyph で階段 (4000) を観測した時点で初めて cell.bottom と landmarkCache に登録されること
+            areaStateManager.updateGlyph(25, 5, 4000);
+            expect(areaStateManager.grid[5][25].bottom.glyph).toBe(4000);
+            const landmarksAfter = areaStateManager.getFloorLandmarks('Dlvl:1');
+            expect(landmarksAfter.stairsUp.some(s => s.x === 25 && s.y === 5)).toBe(true);
+            expect(landmarksAfter.stairsUp.some(s => s.x === 30 && s.y === 5)).toBe(false);
+        });
 
-            // 階段・ハシゴが landmarkCache に一括自動登録されていること
-            const landmarks = areaStateManager.getFloorLandmarks('Dlvl:1');
-            expect(landmarks.stairsUp.length).toBeGreaterThanOrEqual(1);
-            expect(landmarks.stairsUp.some(s => s.x === 25 && s.y === 5)).toBe(true);
-            expect(landmarks.stairsUp.some(s => s.x === 30 && s.y === 5)).toBe(true);
+        it('should guard typ === 0 (STONE), typ === 14 (SDOOR), and typ === 15 (SCORR) against floor/spoiler conversion', () => {
+            const COLNO = 80;
+            const ROWNO = 21;
+            const mockTerrain = new Uint8Array(COLNO * ROWNO);
+            mockTerrain[5 * COLNO + 5] = 0;  // STONE
+            mockTerrain[5 * COLNO + 6] = 14; // SDOOR (隠し扉)
+            mockTerrain[5 * COLNO + 7] = 15; // SCORR (隠し通路)
+            directBindingService.setCachedLevelTerrain(mockTerrain);
+
+            // STONE (0) は null を返し、床タイル (3992) を生成しない
+            expect(areaStateManager.getGlyphForTerrainType(0, 5, 5)).toBeNull();
+            expect(areaStateManager.getGenuineFloor(5, 5)).toBeNull();
+
+            // SDOOR (14) は扉グリフ (3988) ではなく壁グリフ (3930) を返し、door 属性を漏洩しない
+            expect(areaStateManager.getGlyphForTerrainType(14, 6, 5)).toBe(3930);
+            const sdoorFloor = areaStateManager.getGenuineFloor(6, 5);
+            expect(sdoorFloor).not.toBeNull();
+            expect(sdoorFloor.glyph).toBe(3930);
+            expect(sdoorFloor.door).toBeNull();
+
+            // SCORR (15) は通路グリフ (3995) ではなく null を返し、床エンティティを生成しない
+            expect(areaStateManager.getGlyphForTerrainType(15, 7, 5)).toBeNull();
+            expect(areaStateManager.getGenuineFloor(7, 5)).toBeNull();
+        });
+
+        it('should NOT overwrite unobserved cells during syncFromDirectBinding', () => {
+            const COLNO = 80;
+            const ROWNO = 21;
+            const mockTerrain = new Uint8Array(COLNO * ROWNO).fill(25); // 全域 ROOM
+            directBindingService.setCachedLevelTerrain(mockTerrain);
+
+            areaStateManager.playerX = 10;
+            areaStateManager.playerY = 10;
+            // (11, 10) は観測済みモンスターが存在、(12, 10) は未観測
+            areaStateManager.grid[10][11].top = { type: 'MONSTER', glyph: 10, rawGlyph: 10 };
+            areaStateManager.clearDirtyCells();
+
+            areaStateManager.syncFromDirectBinding(5);
+
+            // プレイヤー座標 (10, 10) と観測済みモンスター座標 (11, 10) のみ下層が補完され、未観測の (12, 10) は null のまま
+            expect(areaStateManager.grid[10][10].bottom).not.toBeNull();
+            expect(areaStateManager.grid[10][11].bottom).not.toBeNull();
+            expect(areaStateManager.grid[10][12].bottom).toBeNull();
+            expect(areaStateManager.getDirtyCells().has('12,10')).toBe(false);
+        });
+
+        it('should synchronize cell.middle (pickup, drop, piletop isPile) at player feet even when player does not move', () => {
+            const px = 12;
+            const py = 8;
+            directBindingService._cachedCellX = px;
+            directBindingService._cachedCellY = py;
+            directBindingService._cachedCellInfo = {
+                x: px,
+                y: py,
+                typ: 25,
+                flags: 0,
+                lit: true,
+                roomno: 1,
+                door: null
+            };
+
+            areaStateManager.updatePlayerPosition(px, py);
+            areaStateManager.clearDirtyCells();
+
+            // 1. その場でアイテム 1 個 (otyp=25: long sword) を落とした場合 ('d')
+            directBindingService.setCachedFloorObjects(px, py, [
+                { otyp: 25, quan: 1, oclass: 2 }
+            ]);
+            const droppedSingle = areaStateManager.syncPlayerFeetFloor();
+            expect(droppedSingle).toBe(true);
+            expect(areaStateManager.grid[py][px].middle).not.toBeNull();
+            expect(areaStateManager.grid[py][px].middle.subType).toBe(25);
+            expect(areaStateManager.grid[py][px].middle.isPile).toBe(false);
+            expect(areaStateManager.grid[py][px].middle.rawGlyph).toBe(3448 + 25);
+            expect(areaStateManager.getDirtyCells().has(`${px},${py}`)).toBe(true);
+
+            // 2. さらにその場で 2 個目のアイテム (otyp=16: dagger) を落として山積み (isPile: true) になった場合
+            areaStateManager.clearDirtyCells();
+            directBindingService.setCachedFloorObjects(px, py, [
+                { otyp: 16, quan: 1, oclass: 2 },
+                { otyp: 25, quan: 1, oclass: 2 }
+            ]);
+            const droppedPile = areaStateManager.syncPlayerFeetFloor();
+            expect(droppedPile).toBe(true);
+            expect(areaStateManager.grid[py][px].middle.subType).toBe(16);
+            expect(areaStateManager.grid[py][px].middle.isPile).toBe(true);
+            expect(areaStateManager.grid[py][px].middle.rawGlyph).toBe(7992 + 16); // GLYPH_OBJ_PILETOP_OFF + 16
+            expect(areaStateManager.getDirtyCells().has(`${px},${py}`)).toBe(true);
+
+            // 3. その場で全アイテムを拾って (',') 0個になった場合
+            areaStateManager.clearDirtyCells();
+            directBindingService.setCachedFloorObjects(px, py, []);
+            const pickedUpAll = areaStateManager.syncPlayerFeetFloor();
+            expect(pickedUpAll).toBe(true);
+            expect(areaStateManager.grid[py][px].middle).toBeNull();
+            expect(areaStateManager.getDirtyCells().has(`${px},${py}`)).toBe(true);
         });
 
         it('should prioritize genuine floor directly and eliminate stairCache rendering hacks', () => {

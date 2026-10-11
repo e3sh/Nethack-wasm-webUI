@@ -28,6 +28,7 @@
             this.lastSequenceBuffer = [];
             this.isExecutingSequence = false;
             this.isTopLevelTurn = false;
+            this.isMorePromptActive = false;
             this._canAcceptSequenceInterruption = false;
             this._driverDebugStatus = null;
             this._pendingSequences = new Map();
@@ -160,6 +161,9 @@
                         }
                         if (data && typeof data.isTopLevelTurn === 'boolean') {
                             this.isTopLevelTurn = data.isTopLevelTurn;
+                        }
+                        if (data && typeof data.isMorePromptActive === 'boolean') {
+                            this.isMorePromptActive = data.isMorePromptActive;
                         }
                         if (data && typeof data.canAcceptSequenceInterruption === 'boolean') {
                             this._canAcceptSequenceInterruption = data.canAcceptSequenceInterruption;
@@ -520,6 +524,7 @@
             this.lastSequenceBuffer = [];
             this.isExecutingSequence = false;
             this.isTopLevelTurn = false;
+            this.isMorePromptActive = false;
             this._canAcceptSequenceInterruption = false;
             this._driverDebugStatus = null;
             if (this._pendingSequences && typeof this._pendingSequences.clear === 'function') {
@@ -543,6 +548,7 @@
          */
         canAcceptSequenceInterruption() {
             if (this.state !== NetHackWasmWorkerBridge.DriverState.WAITING_INPUT) return false;
+            if (this.isMorePromptActive) return false;
             if (typeof this._canAcceptSequenceInterruption === 'boolean') {
                 return this._canAcceptSequenceInterruption;
             }
@@ -558,12 +564,14 @@
                     ...this._driverDebugStatus,
                     bridgeState: this.state,
                     bridgeExecutingSequence: this.isExecutingSequence,
+                    isMorePromptActive: this.isMorePromptActive,
                     canAcceptSequenceInterruption: this.canAcceptSequenceInterruption()
                 };
             }
             return {
                 state: this.state,
                 isTopLevelTurn: this.isTopLevelTurn,
+                isMorePromptActive: this.isMorePromptActive,
                 canAcceptSequenceInterruption: this.canAcceptSequenceInterruption(),
                 isExecutingSequence: this.isExecutingSequence,
                 sequenceQueueLength: 0

@@ -205,10 +205,21 @@ export class SilentSyncCoordinator {
     async syncPendingStateSilent(options = {}) {
         const p = this.plugin;
         if (this._isSyncing || !p.core) return false;
-        if (p.core.isPendingPrefix) return false;
+        if (p.core.isPendingPrefix || p.core.isMorePromptActive || p.core.isTextWindowOpen) return false;
         this._isSyncing = true;
         try {
-            if (p.inventoryStateManager && !p.inventoryStateManager.isSynced) {
+            const mode = p.directBindingMode || this.directBindingMode || 'auto';
+            const isWorkerDirect = Boolean(
+                mode !== 'fallback' &&
+                p.wasmDirectBindingService &&
+                p.wasmDirectBindingService.bridge &&
+                !p.wasmDirectBindingService.hasLiveMemory &&
+                p.wasmDirectBindingService.isAvailable()
+            );
+
+            // Worker Bridge 利用時は GKLEventRouter の inputRequired (Sync Barrier) で
+            // 所持品・識別状態も一括同期されるため、ここでの重複 CALL_SHIM 送出を回避する
+            if (p.inventoryStateManager && !p.inventoryStateManager.isSynced && !isWorkerDirect) {
                 await p.syncInventorySilent(options);
             }
             if (p.attributeStateManager && !p.attributeStateManager.isSynced) {
@@ -236,6 +247,10 @@ export class SilentSyncCoordinator {
     isPromptOrTargetingActive(force = false) {
         const core = this.plugin?.core;
         if (force || !core) return false;
+
+        if (core.isMorePromptActive || core.isTextWindowOpen) {
+            return true;
+        }
 
         if (core.currentPromptCategory) {
             const cat = core.currentPromptCategory;
@@ -299,7 +314,10 @@ export class SilentSyncCoordinator {
         // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
         if (mode !== 'fallback' && p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
             if (p.wasmDirectBindingService && p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
-                await p.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
+                if (!p.wasmDirectBindingService._isSyncing) {
+                    const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
+                    if (!syncOk) return false;
+                }
             }
             if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function' && p.wasmDirectBindingService) {
                 const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);

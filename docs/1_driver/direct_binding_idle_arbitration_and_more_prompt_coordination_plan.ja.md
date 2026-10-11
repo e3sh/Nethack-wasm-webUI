@@ -1,13 +1,15 @@
 ---
 title: Wasm Direct Binding (CALL_SHIM) アイドリング調停・--More-- 待機・メッセージライフサイクル是正設計書
-status: pending
-last_updated: 2026-10-10
+status: implemented
+last_updated: 2026-10-11
 related_tasks:
   - ROADMAP 2.1 (GKL Pure JS Client モジュール分割)
-  - ROADMAP 1.1 (Phase 8: Wasm Direct Binding)
+  - ROADMAP 1.1 (Phase 8: Wasm Direct Binding / Stage 8.3-B)
 ---
 
 # 🧭 Wasm Direct Binding アイドリング調停 ＆ --More-- 待機・メッセージライフサイクル是正設計書
+
+- **ステータス**: `🟢 implemented` (2026-10-11 実装完了)
 
 ## 1. 背景と課題の構造
 
@@ -23,9 +25,8 @@ Wasm Direct Binding（`CALL_SHIM` / Native Shim Dispatcher Bridge）の導入に
 | **4. Direct Binding層** | `WasmDirectBindingService.js` | `syncFromWorkerBridge` による 6 回の連続 Worker 往復中にブラウザ側でユーザー入力（`RESPOND_INPUT`）が混ざる。 | 前ターンの Direct Binding 応答が遅延到着し、前ターンの `inventoryStateUpdated` が UI 再描画を発火させて画面が揺れる。 |
 
 > [!NOTE]
-> **ROADMAP 2.1（完了済み）および ROADMAP 2.2 との連携順序について**  
-> 前提条件であった **ROADMAP 2.1（GKL Pure JS Client `main.js` のモジュール分割：2,364行 ➔ 618行、8コントローラー分離）は 2026-10-10 に完了**しました。  
-> 残る Core/Driver/Direct Binding 層のアイドリング調停および Sync Barrier は、**ROADMAP 2.2（`GKLPlugin.js` モジュール分割：`GKLEventRouter` / `SilentSyncCoordinator` 抽出）および Stage 8.3-B（確定同期レンダリング・パイプライン）** と統合してクリーンに実装を進めます。
+> **ROADMAP 2.1 / 2.2 および Stage 8.3-B との統合完遂について**  
+> 前提条件であった **ROADMAP 2.1 (`main.js` モジュール分割)** および **ROADMAP 2.2 (`GKLPlugin.js` モジュール分割)** に続き、**Stage 8.3-B（確定同期レンダリング・パイプライン）** にて Core/Driver/Direct Binding 層のアイドリング調停および Sync Barrier を統合完了しました（2026-10-11）。
 
 ---
 
@@ -35,7 +36,7 @@ Wasm Direct Binding（`CALL_SHIM` / Native Shim Dispatcher Bridge）の導入に
 1. **公式Cコア完全非侵襲の維持**: `winshim.c` 等の公式コードには手を加えない。
 2. **ゼロマクロ Direct Binding の維持**: キー送信マクロへの後退は禁止。直接メモリ・Shim バインディングを維持する。
 3. **メッセージ未入力待機状態の完全保証**: プレイヤーが能動的にキーを入力するまで、メッセージが勝手に消えたり流れたりしない状態を保証する。
-4. **全テストスイートの PASS 維持**: 既存の 135 テストファイル / 1,662 テストの 100% PASS を維持する。
+4. **全テストスイートの PASS 維持**: 全 138 テストファイル / 1,712 テストの 100% PASS を維持する。
 
 ---
 
@@ -83,20 +84,21 @@ Wasm Direct Binding（`CALL_SHIM` / Native Shim Dispatcher Bridge）の導入に
 - **設計内容**:
   1. **同期バリア (Sync Barrier / Mutex)**:
      - `syncFromWorkerBridge` の実行中は同期フラグ `_isSyncing = true` を保持。
-     - 同期完了前にユーザー入力（`RESPOND_INPUT`）が発行された場合、直近のターン番号（`turnId`）をインクリメントし、遅延到着した古いレスポンスによる `inventoryStateUpdated` の発火をキャンセル（破棄）する。
+     - 同期完了前にユーザー入力（`userActionSent` / `notifyActionSent()`）が発行された場合、直近の世代番号（`_syncGeneration`）をインクリメントし、遅延到着した古いレスポンスによるキャッシュ上書き・`inventoryStateUpdated` / `areaStateCommitted` の発火をキャンセル（破棄）する。
 
 ---
 
-## 4. 実施ステップとスケジュール（ROADMAP 2.1 完了後）
+## 4. 実施ステップとスケジュール（Stage 8.3-B 統合完遂）
 
-- [ ] **Step 1: Driver層 & Core層の `--More--` 待機状態明示化**
-  - `NetHackWasmDriver.js` に `isMorePromptActive` を配備
+- [x] **Step 1: Driver層 & Core層の `--More--` 待機状態明示化** `[完了: 2026-10-11]`
+  - `NetHackWasmDriver.js` / `NetHackWasmWorkerBridge.js` に `isMorePromptActive` を配備
   - `WebUICore.js` の `isTopLevelTurn` ガードを強化
-- [ ] **Step 2: Direct Binding 同期の排他・世代管理**
-  - `WasmDirectBindingService.js` に世代ID照合と遅延描画破棄ガードを追加
-- [ ] **Step 3: UI層ライフサイクルの統合 (ROADMAP 2.1 新アーキテクチャ上)**
-  - ROADMAP 2.1 で新設されるイベントオーケストレーターに健全化されたメッセージ通知を配備
-- [ ] **Step 4: 単体・結合・実機シナリオテスト**
+- [x] **Step 2: Direct Binding 同期の排他・世代管理** `[完了: 2026-10-11]`
+  - `WasmDirectBindingService.js` に世代ID照合（`_syncGeneration` / `notifyActionSent()`）と遅延描画破棄ガードを追加
+- [x] **Step 3: UI層ライフサイクルの統合 (ROADMAP 2.1 / 2.2 新アーキテクチャ上)** `[完了: 2026-10-11]`
+  - `GKLEventRouter.js` による 4 フェーズ Turn Lifecycle（Sync Barrier ➔ `areaStateCommitted`）と統合
+- [x] **Step 4: 単体・結合・実機シナリオテスト** `[完了: 2026-10-11]`
   - ターン経過時のメッセージ不変テスト
   - `--More--` 待機時のアイドリング・Direct Binding 抑止テスト
-  - 全135スイートの PASS 確認
+  - 世代不一致時の Stale 同期キャンセルテスト
+  - 全138スイート・1,712テストの PASS 確認

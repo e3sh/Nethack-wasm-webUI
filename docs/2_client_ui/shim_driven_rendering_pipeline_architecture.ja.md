@@ -1,12 +1,12 @@
 ---
 title: Shim-Driven 確定同期型レンダリング・パイプライン アーキテクチャ設計書
-status: in_progress (Step 1 & Stage 8.3-A 完了)
+status: implemented
 last_updated: 2026-10-11
 ---
 
 # 🏛️ Shim-Driven 確定同期型レンダリング・パイプライン アーキテクチャ設計書
 
-- **ステータス**: `🟡 in_progress` (先行 Step 1 および Stage 8.3-A 完了 / Stage 8.3-B 進行準備完了)
+- **ステータス**: `🟢 implemented` (先行 Step 1〜3 および Stage 8.3-A / 8.3-B 完遂)
 - **関連ドキュメント**:
   - [ROADMAP.md](../ROADMAP.md)
   - [official_shim_direct_binding_implementation_plan.md](../1_driver/official_shim_direct_binding_implementation_plan.md)
@@ -122,10 +122,10 @@ flowchart TD
 
     subgraph Stage 8.3-A & 8.3-B 実装
         S0["✅ 【Stage 8.3-A 完了】dumpLevelTerrain C/Wasm/GKL 実装<br>(WasmDirectBindingService & AreaStateManager)"]
-        S1["Step 1: GKLEventRouter への Turn Lifecycle (Sync Barrier) 配備"]
-        S2["Step 2: TerrainInferenceEngine / ViewportTileProjector の投機的仮床副作用排除"]
-        S3["Step 3: dumpLevelTerrain 自動ロード ＆ VirtualDungeonScreen Commit駆動化"]
-        S4["Step 4: Auto / Strict / Fallback 各モード結合テスト ＆ 全面検証"]
+        S1["✅ Step 1: GKLEventRouter への Turn Lifecycle (Sync Barrier) 配備"]
+        S2["✅ Step 2: TerrainInferenceEngine / ViewportTileProjector の投機的仮床副作用排除"]
+        S3["✅ Step 3: dumpLevelTerrain 自動ロード ＆ VirtualDungeonScreen Commit駆動化"]
+        S4["✅ Step 4: Auto / Strict / Fallback 各モード結合テスト ＆ 全面検証"]
     end
 
     R21 --> R22 --> R23 --> S1
@@ -143,12 +143,12 @@ flowchart TD
   - Coreイベントルーティングと非同期同期調停を独立させ、ターン確定ライフサイクル（Phase 1〜4）をクリーンに導入可能にした。
 - [x] **先行 Step 3: `AreaStateManager.js` 4モジュール分割** `[完了: 2026-10-11]`
   - `area/TerrainInferenceEngine.js`、`area/DungeonLandmarkRegistry.js`、`area/ViewportTileProjector.js` を分離（`AreaStateManager.js` を 1,552行 ➔ 437行へ削減）。
-- [ ] **Stage 8.3-B 本番実装**:
-  - `GKLEventRouter` への Sync Barrier 組み込み（`areaStateCommitted` シグナル）
-  - `TerrainInferenceEngine` / `ViewportTileProjector` の `createInferredFloor` 投機的副作用排除
-  - `MainViewportRenderer` / `VirtualDungeonScreen` の Commit 駆動型描画制御
-  - `dumpLevelTerrain()` のフロア移動時自動ロード連携
-  - 各モード結合テスト（Zero Regression 維持）
+- [x] **Stage 8.3-B 本番実装** `[完了: 2026-10-11]`:
+  - `GKLEventRouter` への Sync Barrier 組み込み（`areaStateCommitted` シグナル）および `WasmDirectBindingService` の世代管理（`_syncGeneration` / `notifyActionSent`）
+  - `TerrainInferenceEngine` / `ViewportTileProjector` の `createInferredFloor` 投機的副作用排除（Direct Binding アクティブ時の真値最優先保証）
+  - `MainViewportRenderer` / `VirtualDungeonScreen` の Commit 駆動型描画制御（`flushCommittedState` / `flushCommittedArea`）
+  - `dumpLevelTerrain()` のフロア移動時・初回ターン確定時自動ロード連携
+  - 各モード結合テスト（全138スイート・1,712テスト 100% PASS 維持）
 
 ---
 

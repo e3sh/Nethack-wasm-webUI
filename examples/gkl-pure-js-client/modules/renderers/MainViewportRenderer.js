@@ -240,6 +240,29 @@ export class MainViewportRenderer {
   }
 
   /**
+   * Phase 4 (COMMIT): areaStateCommitted シグナル受信時の確定状態フラッシュ＆即時描画 (Stage 8.3-B)
+   * @param {Object} [committedArea=null]
+   */
+  flushCommittedArea(committedArea = null) {
+    const core = this.getCore();
+    const asm = core?.gkl?.areaStateManager;
+    const areaState = committedArea || this.getSituation()?.area;
+    if (this.virtualScreen && areaState) {
+      this.virtualScreen.flushCommittedState(
+        areaState,
+        this.glyphGridBuffer,
+        null,
+        asm && typeof asm.getDirtyCells === 'function' ? asm.getDirtyCells() : null
+      );
+    }
+    if (this.isGraphicCanvasMode) {
+      this.renderMainViewport(areaState);
+    } else {
+      this.renderColorAsciiMap();
+    }
+  }
+
+  /**
    * 毎フレームの描画メインエントリ
    */
   render() {
@@ -255,6 +278,16 @@ export class MainViewportRenderer {
    */
   renderMainViewport(areaState) {
     if (!this.ctx || !this.canvas) return;
+
+    const core = this.getCore();
+    const asm = core?.gkl?.areaStateManager;
+    const isDirectActive = Boolean(
+      asm?.terrainInference && typeof asm.terrainInference.isDirectBindingActive === 'function' && asm.terrainInference.isDirectBindingActive()
+    );
+
+    // フロア移動の過渡期（clear_nhwindow 〜 areaStateCommitted による dumpLevelTerrain 完了まで）は、
+    // 未確定状態のオフスクリーンフラッシュを抑止してちらつきを防ぐ (Stage 8.3-B)
+    const isAwaitingFloorCommit = Boolean(isDirectActive && asm?.isFloorTransitioning);
 
     const px = (this.targetCursorX >= 0)
       ? this.targetCursorX
@@ -284,9 +317,7 @@ export class MainViewportRenderer {
     }
 
     // 1. 仮想スクリーンに残っている差分セルをオフスクリーン背景に反映
-    if (this.virtualScreen) {
-      const core = this.getCore();
-      const asm = core?.gkl?.areaStateManager;
+    if (this.virtualScreen && !isAwaitingFloorCommit) {
       if (asm && typeof asm.getDirtyCells === 'function' && asm.getDirtyCells().size > 0) {
         this.virtualScreen.markCellsDirty(asm.getDirtyCells());
         asm.clearDirtyCells();
@@ -369,10 +400,10 @@ export class MainViewportRenderer {
 
         // 仮想スクリーン未ロード時のフォールバック (テスト等)
         if (!this.virtualScreen) {
-          if (cell?.bottom && cell.bottom.rawGlyph >= 0) {
+          if (cell?.bottom && cell.bottom.type !== 'UNEXPLORED' && cell.bottom.rawGlyph >= 0 && cell.bottom.rawGlyph < 9622 && cell.bottom.glyphInfo?.ch !== ' ') {
             this.drawTile(cell.bottom.rawGlyph, cols, tileMap, screenX, screenY, 0);
           }
-          if (cell?.middle && cell.middle.rawGlyph >= 0) {
+          if (cell?.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622) {
             this.drawTile(cell.middle.rawGlyph, cols, tileMap, screenX, screenY, 0);
           }
         }

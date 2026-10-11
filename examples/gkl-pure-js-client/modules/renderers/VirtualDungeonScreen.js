@@ -148,22 +148,29 @@ export class VirtualDungeonScreen {
 
       const cell = areaGrid?.[y]?.[x];
       const gData = glyphGridBuffer?.[y]?.[x];
+      const hasNetHackGlyph = Boolean(gData && gData.glyph >= 0 && gData.glyph < 9622 && gData.ch !== ' ');
 
       if (cell) {
-        const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
+        const isExploredBottom = Boolean(
+          cell.bottom &&
+          cell.bottom.type !== 'UNEXPLORED' &&
+          cell.bottom.rawGlyph >= 0 &&
+          cell.bottom.rawGlyph < 9622 &&
+          cell.bottom.glyphInfo?.ch !== ' '
+        );
         // Layer 1: 地形 (Bottom)
-        if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || hasNetHackGlyph)) {
+        if (isExploredBottom && (!cell.bottom.isCachedPreload || hasNetHackGlyph)) {
           this.drawTile(this.bgCtx, cell.bottom.rawGlyph, dx, dy, ts, ts, 0, () => tileMap);
-        } else if (!cell.bottom && !cell.middle && gData && gData.glyph >= 0) {
+        } else if (!isExploredBottom && !cell.middle && hasNetHackGlyph) {
           // フォールバック
           this.drawTile(this.bgCtx, gData.glyph, dx, dy, ts, ts, 0, () => tileMap);
         }
 
         // Layer 2: アイテム (Middle - 透過重ね描き)
-        if (cell.middle && cell.middle.rawGlyph >= 0) {
+        if (cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622) {
           this.drawTile(this.bgCtx, cell.middle.rawGlyph, dx, dy, ts, ts, 0, () => tileMap);
         }
-      } else if (gData && gData.glyph >= 0) {
+      } else if (hasNetHackGlyph) {
         this.drawTile(this.bgCtx, gData.glyph, dx, dy, ts, ts, 0, () => tileMap);
       }
 
@@ -172,5 +179,24 @@ export class VirtualDungeonScreen {
 
     this.dirtyCells.clear();
     return renderedCount;
+  }
+
+  /**
+   * Phase 4 (COMMIT): areaStateCommitted シグナル受信時に確定状態の差分セルを即時フラッシュ (Stage 8.3-B)
+   * @param {Object} areaState - AreaStateManager.getAreaState() の戻り値
+   * @param {Array<Array<Object>>} [glyphGridBuffer=null]
+   * @param {Function} [tileMappingFn=null]
+   * @param {Set<string>} [asmDirtyCells=null]
+   * @returns {number} 再描画されたセル数
+   */
+  flushCommittedState(areaState, glyphGridBuffer = null, tileMappingFn = null, asmDirtyCells = null) {
+    if (asmDirtyCells && asmDirtyCells.size > 0) {
+      this.markCellsDirty(asmDirtyCells);
+      if (typeof asmDirtyCells.clear === 'function') {
+        asmDirtyCells.clear();
+      }
+    }
+    const grid = areaState?.grid || areaState;
+    return this.flushDirtyCells(grid, glyphGridBuffer, tileMappingFn);
   }
 }

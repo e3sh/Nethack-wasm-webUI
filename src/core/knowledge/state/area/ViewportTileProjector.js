@@ -4,7 +4,7 @@
  * カメラ投影 (getFocusCameraTiles: レイヤー別グリフ解決・墓石置換・構造化知識結合) を担うプロジェクタークラス
  */
 
-import { ENTITY_TYPES } from "../../engines/glyphClassifier.js";
+import { ENTITY_TYPES, GLYPH_OFFSETS } from "../../engines/glyphClassifier.js";
 import { DEFAULT_INFERRED_FLOOR_GLYPH, DEFAULT_TOMBSTONE_GLYPH } from "./TerrainInferenceEngine.js";
 
 export class ViewportTileProjector {
@@ -78,7 +78,10 @@ export class ViewportTileProjector {
 
                 if (dx === 0 && dy === 0) {
                     if (enrichedCell.bottom === null || enrichedCell.bottom.inferred) {
-                        enrichedCell.bottom = asm.getGenuineFloor(targetX, targetY);
+                        const resolvedFeet = asm.getGenuineFloor(targetX, targetY);
+                        if (resolvedFeet) {
+                            enrichedCell.bottom = resolvedFeet;
+                        }
                     }
                     feetState = enrichedCell;
                 } else {
@@ -152,6 +155,9 @@ export class ViewportTileProjector {
         const isEn = (language === 'en');
 
         const isDead = Boolean(options.isDead);
+        const isDirectActive = asm.terrainInference && typeof asm.terrainInference.isDirectBindingActive === 'function'
+            ? asm.terrainInference.isDirectBindingActive()
+            : (asm.directBindingMode === 'strict');
         const tiles = [];
 
         for (let dy = -radiusY; dy <= radiusY; dy++) {
@@ -164,9 +170,17 @@ export class ViewportTileProjector {
                 let cell = inBounds && asm.grid[ty] ? asm.grid[ty][tx] : null;
                 let gData = inBounds && glyphGridBuffer && glyphGridBuffer[ty] ? glyphGridBuffer[ty][tx] : null;
 
-                const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
-                const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
-                const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
+                const isExploredBottom = Boolean(
+                    cell &&
+                    cell.bottom &&
+                    cell.bottom.type !== ENTITY_TYPES.UNEXPLORED &&
+                    cell.bottom.rawGlyph >= 0 &&
+                    cell.bottom.rawGlyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF &&
+                    cell.bottom.glyphInfo?.ch !== ' '
+                );
+                const isPreloadOnly = Boolean(isExploredBottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top);
+                const hasNetHackGlyph = Boolean(gData && gData.glyph >= 0 && gData.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF && gData.ch !== ' ');
+                const hasExploredMemory = Boolean(cell && ((isExploredBottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top));
                 const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isPlayer);
                 const isUnexplored = !inBounds || (!hasMemory && !hasNetHackGlyph);
 
@@ -185,49 +199,50 @@ export class ViewportTileProjector {
                 const renderGlyphs = [];
 
                 if (!isUnexplored) {
-                    if (cell && (cell.bottom || cell.middle || cell.top || cell.effect)) {
+                    if (cell && (isExploredBottom || cell.middle || cell.top || cell.effect)) {
                         // Bottom (地形)
-                        if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || isPlayer)) {
+                        if (isExploredBottom && (!cell.bottom.isCachedPreload || isPlayer)) {
                             bottomGlyph = cell.bottom.rawGlyph;
                         } else if (isPlayer) {
                             // プレイヤー足元は最優先で真の床を取得・反映
                             const genuine = asm.getGenuineFloor(tx, ty);
                             if (genuine && genuine.rawGlyph >= 0) {
                                 bottomGlyph = genuine.rawGlyph;
-                            } else if (asm.directBindingMode === 'strict') {
+                            } else if (isDirectActive) {
                                 bottomGlyph = -1;
                             } else {
-                                asm.inferredFloorCount++;
                                 bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH;
                             }
                         } else if (cell.middle || cell.top) {
-                            if (asm.directBindingMode === 'strict') {
+                            const genuine = asm.getGenuineFloor(tx, ty);
+                            if (genuine && genuine.rawGlyph >= 0) {
+                                bottomGlyph = genuine.rawGlyph;
+                            } else if (isDirectActive) {
                                 bottomGlyph = -1;
                             } else {
-                                asm.inferredFloorCount++;
                                 bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
                             }
-                        } else if (gData && gData.glyph >= 0) {
+                        } else if (hasNetHackGlyph) {
                             bottomGlyph = gData.glyph;
                         }
 
                         // Middle (アイテム)
-                        if (cell.middle && cell.middle.rawGlyph >= 0) {
+                        if (cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
                             middleGlyph = cell.middle.rawGlyph;
                         }
 
                         // Top (モンスター/プレイヤー または 死亡時の墓石)
                         if (isDead && isPlayer) {
                             topGlyph = DEFAULT_TOMBSTONE_GLYPH; // 4011
-                        } else if (cell.top && cell.top.rawGlyph >= 0) {
+                        } else if (cell.top && cell.top.rawGlyph >= 0 && cell.top.rawGlyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
                             topGlyph = cell.top.rawGlyph;
                         }
 
                         // Effect (エフェクト)
-                        if (cell.effect && cell.effect.rawGlyph >= 0) {
+                        if (cell.effect && cell.effect.rawGlyph >= 0 && cell.effect.rawGlyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
                             effectGlyph = cell.effect.rawGlyph;
                         }
-                    } else if (gData && gData.glyph >= 0) {
+                    } else if (hasNetHackGlyph) {
                         if (isDead && isPlayer) {
                             topGlyph = DEFAULT_TOMBSTONE_GLYPH;
                         } else {

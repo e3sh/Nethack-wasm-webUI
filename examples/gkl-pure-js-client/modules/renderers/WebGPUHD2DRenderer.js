@@ -1682,7 +1682,11 @@ export class WebGPUHD2DRenderer {
       this.wakeUp();
     }
 
-    const gridSignature = `${turn}_${Math.round(targetPx)}_${Math.round(targetPy)}_${activeMonstersCount}_${dirtyCount}_${currentEffectCount}_${this.cameraMode}_${this.isPlayerDead ? 1 : 0}`;
+    const pBottom = playerCell?.bottom?.rawGlyph ?? -1;
+    const pMiddle = playerCell?.middle?.rawGlyph ?? -1;
+    const pPile = playerCell?.middle?.isPile ? 1 : 0;
+    const committedTurnCount = this.getCore?.()?.gkl?.areaStateManager?.committedTurnCount ?? 0;
+    const gridSignature = `${turn}_${committedTurnCount}_${Math.round(targetPx)}_${Math.round(targetPy)}_${pBottom}_${pMiddle}_${pPile}_${activeMonstersCount}_${dirtyCount}_${currentEffectCount}_${this.cameraMode}_${this.isPlayerDead ? 1 : 0}`;
 
     if (gridSignature !== this.lastGridSignature) {
       this.isInstanceDirty = true;
@@ -1725,9 +1729,18 @@ export class WebGPUHD2DRenderer {
           const cell = areaGrid ? areaGrid[y]?.[x] : null;
           let drawnAny = false;
 
+          const isExploredBottom = Boolean(
+            cell &&
+            cell.bottom &&
+            cell.bottom.type !== 'UNEXPLORED' &&
+            cell.bottom.rawGlyph >= 0 &&
+            cell.bottom.rawGlyph < 9622 &&
+            cell.bottom.glyphInfo?.ch !== ' '
+          );
+
           // タイルの基礎環境明度の判定 (明室: 1.0, 暗室: 0.35, 通路: 0.45, 壁: 0.75, その他: 0.85)
           let cellLight = 0.85;
-          if (cell && cell.bottom) {
+          if (isExploredBottom) {
             const g = cell.bottom.rawGlyph;
             if (g === 3993) {
               cellLight = 0.35; // 暗い部屋 (S_darkroom)
@@ -1741,8 +1754,8 @@ export class WebGPUHD2DRenderer {
           }
 
           if (cell) {
-            // Layer 0 & 1/2: Bottom (床 / 壁)
-            if (cell.bottom && cell.bottom.rawGlyph >= 0) {
+            // Layer 0 & 1/2: Bottom (床 / 壁) - 未踏領域 (UNEXPLORED / >= 9622) は描画しない
+            if (isExploredBottom) {
               const isWall = cell.bottom.category === 'WALL' || cell.bottom.cmapFlags?.isWall;
               const tileIdx = getTileIdx(cell.bottom.rawGlyph);
               if (isWall) {
@@ -1758,7 +1771,7 @@ export class WebGPUHD2DRenderer {
             }
 
             // Layer 3: Middle (アイテム)
-            if (cell.middle && cell.middle.rawGlyph >= 0) {
+            if (cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622) {
               const tileIdx = getTileIdx(cell.middle.rawGlyph);
               pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx, cellLight);
               drawnAny = true;
@@ -1787,7 +1800,7 @@ export class WebGPUHD2DRenderer {
               const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
               pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx, cellLight);
               drawnAny = true;
-            } else if (cell.top && cell.top.rawGlyph >= 0) {
+            } else if (cell.top && cell.top.rawGlyph >= 0 && cell.top.rawGlyph < 9622) {
               const isPlayer = cell.top.isPlayer ? 1.0 : 0.0;
               const tileIdx = getTileIdx(cell.top.rawGlyph);
               const charLight = isPlayer > 0.5 ? 1.0 : cellLight;
@@ -1796,22 +1809,23 @@ export class WebGPUHD2DRenderer {
             }
 
             // Layer 5: Effect (過渡的エフェクト: 投擲物・杖ビーム・爆発等)
-            if (cell.effect && cell.effect.rawGlyph >= 0) {
+            if (cell.effect && cell.effect.rawGlyph >= 0 && cell.effect.rawGlyph < 9622) {
               const tileIdx = getTileIdx(cell.effect.rawGlyph);
               pushInstance(x, 0.0, y, 5.0, 0.0, 0.0, tileIdx, 1.0); // 自発光
               drawnAny = true;
             }
           }
 
-          // フォールバック: areaGrid が未初期化、または過渡的グリフの場合
-          if (!drawnAny && glyphBuffer && glyphBuffer[y]?.[x]?.glyph >= 0) {
+          // フォールバック: areaGrid が未初期化、または過渡的グリフの場合 (未踏 ' ' や >= 9622 は除外)
+          const gBufCell = glyphBuffer && glyphBuffer[y]?.[x];
+          if (!drawnAny && gBufCell && gBufCell.glyph >= 0 && gBufCell.glyph < 9622 && gBufCell.ch !== ' ') {
             const isDeathPos = this.isPlayerDead && this.deathPosition && x === this.deathPosition.x && y === this.deathPosition.y;
             if (isDeathPos) {
               const tombGlyph = (typeof DEFAULT_TOMBSTONE_GLYPH !== 'undefined') ? DEFAULT_TOMBSTONE_GLYPH : 2321;
               const tileIdx = (tileMap && tileMap[tombGlyph] !== undefined) ? tileMap[tombGlyph] : 1310;
               pushInstance(x, 0.0, y, 4.0, 0.0, -1.0, tileIdx, cellLight);
             } else {
-              const gId = glyphBuffer[y][x].glyph;
+              const gId = gBufCell.glyph;
               const tileIdx = getTileIdx(gId);
               if (x === Math.round(targetPx) && y === Math.round(targetPy)) {
                 pushInstance(x, 0.0, y, 3.2, this.isPlayerDead ? 2.0 : 1.0, 0.0, 0.0, 1.0);

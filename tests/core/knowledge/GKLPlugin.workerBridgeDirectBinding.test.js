@@ -375,4 +375,223 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
         expect(food.isWielded).toBe(false);
         expect(food.isWorn).toBe(false);
     });
+
+    describe('Stage 8.3-B & §2.5: Turn Lifecycle (Sync Barrier), --More-- Guard & Commit-Driven Pipeline', () => {
+        it('7. フロア移動 (clear_nhwindow) からターン確定 (inputRequired && isTopLevelTurn) で DUMP_LEVEL_TERRAIN が自動ロードされ、areaStateCommitted が発火すること', async () => {
+            const committedEvents = [];
+            core.on('areaStateCommitted', (payload) => {
+                committedEvents.push(payload);
+            });
+
+            // Phase 1: ACTION
+            core.emit('userActionSent', { sequence: ['>'] });
+            expect(gkl.areaStateManager.isTurnTransitioning).toBe(true);
+
+            // Phase 2: STREAMING (フロア移動によるマップクリア ➔ 座標・グリフ受信)
+            core.emit('clear_nhwindow', { windowId: 2 });
+            expect(gkl.areaStateManager.isFloorTransitioning).toBe(true);
+            expect(gkl.areaStateManager._needsFullTerrainDump).toBe(true);
+
+            core.emit('curs', { windowId: 2, x: 10, y: 5 });
+            // ストリーミング中はまだ Worker 同期前のため推測仮床 (3992) を生成しない
+            expect(gkl.areaStateManager.inferredFloorCount).toBe(0);
+
+            // 全フロア地形モック (80x21 = 1680 bytes): (10, 5) を上り階段 (typ=26), (11, 5) を通路 (typ=24) に設定
+            const mockTerrain = new Array(1680).fill(0);
+            mockTerrain[5 * 80 + 10] = 26; // STAIRS
+            mockTerrain[5 * 80 + 11] = 24; // CORR
+
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    const { callId, payload } = msg;
+                    let result = 0;
+                    let buffer = null;
+                    if (payload.cmd === SHIM_CMD.GET_CELL_INFO && payload.arg1 === 10 && payload.arg2 === 5) {
+                        result = 26 | (0 << 8) | (1 << 16) | (1 << 17);
+                    } else if (payload.cmd === SHIM_CMD.DUMP_LEVEL_TERRAIN) {
+                        result = 0;
+                        buffer = mockTerrain;
+                    } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
+                        buffer = new Array(14).fill(0);
+                    } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
+                        result = 0;
+                        buffer = [];
+                    }
+                    Promise.resolve().then(() => {
+                        mockWorker.onmessage({
+                            data: { type: 'SHIM_RESULT', callId, result, buffer }
+                        });
+                    });
+                }
+            });
+
+            // Phase 3 & 4: SETTLED & SHIM SYNC -> COMMIT
+            core.emit('inputRequired', {
+                context: 'poskey',
+                type: 'poskey',
+                isTopLevelTurn: true
+            });
+
+            await new Promise(r => setTimeout(r, 30));
+
+            expect(committedEvents.length).toBe(1);
+            expect(gkl.areaStateManager.isTurnTransitioning).toBe(false);
+            expect(gkl.areaStateManager.isFloorTransitioning).toBe(false);
+            expect(gkl.areaStateManager._needsFullTerrainDump).toBe(false);
+            expect(gkl.areaStateManager.inferredFloorCount).toBe(0);
+
+            // 自キャラ足元 (10, 5) は確定同期されるが、print_glyph 未受信の未踏セル (11, 5) には cell.bottom を書き込まないこと
+            expect(gkl.areaStateManager.grid[5][10].bottom).not.toBeNull();
+            expect(gkl.areaStateManager.grid[5][10].bottom.isGenuine).toBe(true);
+            expect(gkl.areaStateManager.grid[5][11].bottom).toBeNull();
+
+            // その後 (11, 5) にモンスターが観測された時点で、保持された _cachedLevelTerrain から通路 (3995) が真の床として補完されること
+            core.emit('print_glyph', {
+                x: 11,
+                y: 5,
+                glyph: 10,
+                glyphInfo: { glyph: 10, sym: 'd', color: 3, oclass: 1 }
+            });
+            expect(gkl.areaStateManager.grid[5][11].bottom).not.toBeNull();
+            expect(gkl.areaStateManager.grid[5][11].bottom.isGenuine).toBe(true);
+            expect(gkl.areaStateManager.grid[5][11].bottom.glyph).toBe(3995);
+        });
+
+        it('8. --More-- 待機中 (display_nhwindow WIN_MESSAGE blocking / isMorePrompt: true) は Sync Barrier を通過せず CALL_SHIM や areaStateCommitted が発火しないこと', async () => {
+            let committedCount = 0;
+            core.on('areaStateCommitted', () => {
+                committedCount++;
+            });
+
+            mockWorker.postMessage.mockClear();
+
+            // Driver から --More-- (windowId=1, blocking=true) が発火されたケース
+            const resolver = { respond: vi.fn() };
+            bridge.emit('display_nhwindow', {
+                windowId: 1,
+                blocking: true,
+                resolver
+            });
+
+            await new Promise(r => setTimeout(r, 20));
+
+            expect(core.isMorePromptActive).toBe(true);
+            const callShimCalls = mockWorker.postMessage.mock.calls.filter(c => c[0]?.type === 'CALL_SHIM');
+            expect(callShimCalls.length).toBe(0);
+            expect(committedCount).toBe(0);
+        });
+
+        it('9. 連続キー入力時に、古いターンの CALL_SHIM 応答が遅延到着しても世代管理 (notifyActionSent) により破棄され areaStateCommitted が誤発火しないこと', async () => {
+            let committedCount = 0;
+            core.on('areaStateCommitted', () => {
+                committedCount++;
+            });
+
+            gkl.areaStateManager.updatePlayerPosition(10, 5);
+
+            let pendingShimReplies = [];
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    // すぐには返さず保留する
+                    pendingShimReplies.push(msg);
+                }
+            });
+
+            // ターン N の inputRequired が発火し、非同期 CALL_SHIM が開始される
+            core.emit('inputRequired', {
+                context: 'poskey',
+                type: 'poskey',
+                isTopLevelTurn: true
+            });
+
+            expect(pendingShimReplies.length).toBeGreaterThan(0);
+            const turnNCall = pendingShimReplies[0];
+
+            // ターン N の CALL_SHIM が返る前に、ユーザーが次のアクション (ターン N+1) を送出！
+            core.emit('userActionSent', { sequence: ['l'] });
+
+            // 遅れてターン N の CALL_SHIM 応答が Worker から返却される
+            mockWorker.onmessage({
+                data: {
+                    type: 'SHIM_RESULT',
+                    callId: turnNCall.callId,
+                    result: 25 | (1 << 16),
+                    buffer: null
+                }
+            });
+
+            await new Promise(r => setTimeout(r, 20));
+
+            // 世代不一致のため古いターン N の同期は破棄され、areaStateCommitted は発火しない！
+            expect(committedCount).toBe(0);
+        });
+
+        it('10. プレイヤーがその場から動かずにアイテムを落とす (d) / 拾う (,) を行った場合、curs ➔ inputRequired で足元 cell.middle と山積み isPile が即座に更新されること', async () => {
+            const px = 10;
+            const py = 5;
+            gkl.areaStateManager.updatePlayerPosition(px, py);
+
+            let floorObjHeadPtr = 0x7000;
+            // 0x7000 (dagger: otyp=16, nextPtr=0x7100) -> 0x7100 (long sword: otyp=25, nextPtr=0)
+            let objMap = {
+                0x7000: [16, 10, 1, 0, 2, 97, 4, 10, 0x7100, 0, 201],
+                0x7100: [25, 40, 1, 1, 2, 98, 5, 40, 0, 0, 202]
+            };
+
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    const { callId, payload } = msg;
+                    let result = 0;
+                    let buffer = null;
+                    if (payload.cmd === SHIM_CMD.GET_CELL_INFO && payload.arg1 === px && payload.arg2 === py) {
+                        result = 25 | (0 << 8) | (1 << 16) | (1 << 17); // ROOM
+                    } else if (payload.cmd === SHIM_CMD.GET_OBJECT_AT && payload.arg1 === px && payload.arg2 === py) {
+                        result = floorObjHeadPtr;
+                    } else if (payload.cmd === SHIM_CMD.DUMP_OBJECT_INFO) {
+                        result = 0;
+                        buffer = objMap[payload.arg1] || null;
+                    } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
+                        buffer = new Array(14).fill(0);
+                    } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
+                        result = 0;
+                        buffer = [];
+                    }
+                    Promise.resolve().then(() => {
+                        mockWorker.onmessage({
+                            data: { type: 'SHIM_RESULT', callId, result, buffer }
+                        });
+                    });
+                }
+            });
+
+            // 1. 2個山積み状態の足元で curs(10, 5) ➔ inputRequired が届いた場合
+            core.emit('curs', { windowId: 2, x: px, y: py });
+            core.emit('inputRequired', {
+                context: 'poskey',
+                type: 'poskey',
+                isTopLevelTurn: true
+            });
+            await new Promise(r => setTimeout(r, 30));
+
+            const cellAfterDrop = gkl.areaStateManager.grid[py][px];
+            expect(cellAfterDrop.middle).not.toBeNull();
+            expect(cellAfterDrop.middle.subType).toBe(16);
+            expect(cellAfterDrop.middle.isPile).toBe(true);
+            expect(cellAfterDrop.middle.rawGlyph).toBe(7992 + 16); // GLYPH_OBJ_PILETOP_OFF + 16
+
+            // 2. その場で全部拾って 0個になり curs(10, 5) ➔ inputRequired が届いた場合
+            floorObjHeadPtr = 0;
+            core.emit('userActionSent', { sequence: [','] });
+            core.emit('curs', { windowId: 2, x: px, y: py });
+            core.emit('inputRequired', {
+                context: 'poskey',
+                type: 'poskey',
+                isTopLevelTurn: true
+            });
+            await new Promise(r => setTimeout(r, 30));
+
+            const cellAfterPickup = gkl.areaStateManager.grid[py][px];
+            expect(cellAfterPickup.middle).toBeNull();
+        });
+    });
 });

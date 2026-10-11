@@ -33,16 +33,24 @@ export class TerrainInferenceEngine {
     }
 
     /**
-     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A)
+     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A / 8.3-B)
+     * - typ === 0 (STONE: 無地の岩盤) や typ === 15 (SCORR: 未発見の隠し通路) は描画対象外として null を返却
+     * - typ === 14 (SDOOR: 未発見の隠し扉) はネタバレ防止のため壁グリフ (3930) を返却
      * @param {number} typ 
      * @param {number} [x=0] 
      * @param {number} [y=0] 
      * @param {Object} [doorState=null] 
-     * @returns {number} glyphId
+     * @returns {number|null} glyphId
      */
     getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
         const asm = this.areaStateManager;
         switch (typ) {
+            case 0: // STONE (無地の岩盤)
+            case 15: // SCORR (未発見の隠し通路: ネタバレ防止)
+                return null;
+            case 14: // SDOOR (未発見の隠し扉: 壁として扱いネタバレ防止)
+            case 19: // DRAWBRIDGE_UP
+                return 3930;
             case 16: // POOL
             case 17: // MOAT
             case 18: // WATER
@@ -54,10 +62,7 @@ export class TerrainInferenceEngine {
                 return 3990;
             case 23: // DOOR
                 return (doorState && doorState.isOpen) ? 3986 : 3988;
-            case 14: // SDOOR
-                return 3988;
             case 24: // CORR
-            case 15: // SCORR
                 return 3995;
             case 25: // ROOM
                 return 3992;
@@ -98,8 +103,27 @@ export class TerrainInferenceEngine {
             case 36: // CLOUD
                 return 4024;
             default:
+                if (typ === undefined || typ === null || typ < 0) return null;
                 return (typ >= 1 && typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
         }
+    }
+
+    /**
+     * Direct Binding (Shim) が現在有効な環境・モードであるかを判定 (Stage 8.3-B)
+     * - 'strict' モード時、または 'auto' モードで directBindingService が利用可能な場合は true
+     * - 'fallback' モード時、または directBindingService が未接続・非対応の場合は false
+     * @returns {boolean}
+     */
+    isDirectBindingActive() {
+        const asm = this.areaStateManager;
+        if (!asm) return false;
+        if (asm.directBindingMode === 'strict') return true;
+        if (asm.directBindingMode === 'fallback') return false;
+        return Boolean(
+            asm.directBindingService &&
+            typeof asm.directBindingService.isAvailable === 'function' &&
+            asm.directBindingService.isAvailable()
+        );
     }
 
     /**
@@ -116,7 +140,16 @@ export class TerrainInferenceEngine {
             asm.directBindingService.isAvailable()) {
             const cellInfo = asm.directBindingService.getCellInfo(x, y);
             if (cellInfo) {
-                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, cellInfo.door);
+                // STONE (0) や未発見の隠し通路 SCORR (15) の場合は床エンティティを生成しない (Stage 8.3-B)
+                if (cellInfo.typ === 0 || cellInfo.typ === 15) {
+                    return null;
+                }
+                const isSecretDoor = (cellInfo.typ === 14);
+                const effectiveDoor = isSecretDoor ? null : cellInfo.door;
+                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, effectiveDoor);
+                if (glyphId === null || glyphId < 0) {
+                    return null;
+                }
                 const classified = classifyGlyph(glyphId);
                 const genuineEntity = {
                     ...classified,
@@ -125,8 +158,8 @@ export class TerrainInferenceEngine {
                     inferred: false,
                     isGenuine: true,
                     typ: cellInfo.typ,
-                    door: cellInfo.door,
-                    cellInfo
+                    door: effectiveDoor,
+                    cellInfo: isSecretDoor ? { ...cellInfo, door: null } : cellInfo
                 };
 
                 // 部屋番号・店舗情報付与
@@ -162,19 +195,28 @@ export class TerrainInferenceEngine {
             }
         }
 
+        // 既に真の床がセルに設定されている場合はそれを維持
+        const existingCell = asm.grid?.[y]?.[x];
+        if (existingCell?.bottom?.isGenuine) {
+            return existingCell.bottom;
+        }
+
         const currentNormalized = normalizeFloorKey(asm.currentFloor);
         const stairKey = `${currentNormalized}:${x},${y}`;
         if (asm.stairCache && asm.stairCache.has(stairKey)) {
             return { ...asm.stairCache.get(stairKey) };
         }
 
-        // strict モード時は推測仮床の生成を完全遮断 (Stage 8.2-B)
-        if (asm.directBindingMode === 'strict') {
-            const coordKey = `${asm.currentFloor}:${x},${y}`;
-            if (!asm._warnedStrictCoords || !asm._warnedStrictCoords.has(coordKey)) {
-                if (!asm._warnedStrictCoords) asm._warnedStrictCoords = new Set();
-                asm._warnedStrictCoords.add(coordKey);
-                console.warn(`[AreaStateManager] getGenuineFloor: Inferred floor generation blocked under strict mode at (${x},${y}).`);
+        // Direct Binding 有効時 ('strict' または 'auto' で Shim 利用可能時) は、
+        // Worker 同期完了前の未確定セルに対して投機的な仮床 (3992) を生成しない (Stage 8.3-B)
+        if (this.isDirectBindingActive()) {
+            if (asm.directBindingMode === 'strict') {
+                const coordKey = `${asm.currentFloor}:${x},${y}`;
+                if (!asm._warnedStrictCoords || !asm._warnedStrictCoords.has(coordKey)) {
+                    if (!asm._warnedStrictCoords) asm._warnedStrictCoords = new Set();
+                    asm._warnedStrictCoords.add(coordKey);
+                    console.warn(`[AreaStateManager] getGenuineFloor: Inferred floor generation blocked under strict mode at (${x},${y}).`);
+                }
             }
             return null;
         }
@@ -194,7 +236,7 @@ export class TerrainInferenceEngine {
      * @returns {Object|null}
      */
     resolveBackgroundTerrain(x, y, bkglyphInfo = null) {
-        if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+        if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF && bkglyphInfo.ch !== ' ') {
             const bgClassified = classifyGlyph(bkglyphInfo.glyph);
             if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
                 return {
@@ -209,7 +251,8 @@ export class TerrainInferenceEngine {
     }
 
     /**
-     * アイテムやモンスターが出現したセルに下層地形が未設定・未探索・推測床の場合、背景地形を補完
+     * アイテムやモンスターが出現したセルの下層地形を補完 (Stage 8.3-B)
+     * 優先順位: ① bkglyph (TERRAIN) ➔ ② 既存の確定済み cell.bottom ➔ ③ Shim 地形テーブル (getGenuineFloor)
      * @param {Object} cell
      * @param {number} x
      * @param {number} y
@@ -217,12 +260,38 @@ export class TerrainInferenceEngine {
      */
     ensureBottomTerrain(cell, x, y, bkglyphInfo = null) {
         if (!cell) return;
-        if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
-            const resolvedFloor = this.resolveBackgroundTerrain(x, y, bkglyphInfo);
-            if (resolvedFloor) {
-                cell.bottom = resolvedFloor;
+
+        // ① bkglyphInfo が有効な TERRAIN の場合は最優先で採用
+        if (bkglyphInfo && typeof bkglyphInfo.glyph === 'number' &&
+            bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF &&
+            bkglyphInfo.ch !== ' ') {
+            const bgClassified = classifyGlyph(bkglyphInfo.glyph);
+            if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
+                cell.bottom = {
+                    ...(cell.bottom && cell.bottom.isGenuine ? cell.bottom : {}),
+                    ...bgClassified,
+                    glyphInfo: bkglyphInfo,
+                    glyph: bkglyphInfo.glyph,
+                    rawGlyph: bkglyphInfo.glyph
+                };
+                if (cell.bottom.inferred !== undefined && !cell.bottom.isGenuine) {
+                    delete cell.bottom.inferred;
+                }
                 this.areaStateManager.markDirty(x, y);
+                return;
             }
+        }
+
+        // ② 既存の有効な cell.bottom (確定済み TERRAIN) が存在する場合はそのまま維持
+        if (cell.bottom !== null && cell.bottom.type !== ENTITY_TYPES.UNEXPLORED && !cell.bottom.inferred) {
+            return;
+        }
+
+        // ③ Shim 地形テーブル (getGenuineFloor) で補完
+        const resolvedFloor = this.getGenuineFloor(x, y);
+        if (resolvedFloor) {
+            cell.bottom = resolvedFloor;
+            this.areaStateManager.markDirty(x, y);
         }
     }
 

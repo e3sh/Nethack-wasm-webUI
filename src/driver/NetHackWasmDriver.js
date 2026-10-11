@@ -81,6 +81,7 @@
             this.isMenuOpen = false;                    // menu 表示・選択中
             this.isTextWindowOpen = false;              // display_file / モーダルテキスト表示中
             this.isPromptOpen = false;                  // yn_function, getlin, get_ext_cmd 開閉中
+            this.isMorePromptActive = false;            // --More-- (display_nhwindow WIN_MESSAGE blocking) 待機中
             this.isTopLevelTurn = false;                // 真のメインターン自由行動待機中か
 
             // シナリオテスト用イベント記録エンジン (Downlink Recording)
@@ -127,7 +128,7 @@
          */
         canAcceptSequenceInterruption() {
             if (this.state !== NetHackWasmDriver.DriverState.WAITING_INPUT) return false;
-            if (this.isTargetingMode || this.isMenuOpen || this.isTextWindowOpen || this.isPromptOpen) {
+            if (this.isTargetingMode || this.isMenuOpen || this.isTextWindowOpen || this.isPromptOpen || this.isMorePromptActive) {
                 return false;
             }
             return Boolean(this.isTopLevelTurn);
@@ -147,6 +148,7 @@
                 isMenuOpen: this.isMenuOpen,
                 isTextWindowOpen: this.isTextWindowOpen,
                 isPromptOpen: this.isPromptOpen,
+                isMorePromptActive: this.isMorePromptActive,
                 lastRawPrintText: this.lastRawPrintText
             };
         }
@@ -873,6 +875,17 @@
                     }
 
                     const isSuppressPrompts = Boolean(this.sequenceOptions && this.sequenceOptions.suppressPrompts);
+                    const isMoreWindow = (windowId === 1 || windowId === this.messageWindowId) && blocking;
+                    const isTextModalWindow = windowId > 3;
+
+                    if (isMoreWindow) {
+                        this.isMorePromptActive = true;
+                        this.isTopLevelTurn = false;
+                    }
+                    if (isTextModalWindow) {
+                        this.isTextWindowOpen = true;
+                        this.isTopLevelTurn = false;
+                    }
 
                     this.setState(NetHackWasmDriver.DriverState.WAITING_INPUT);
                     const { promise, safeResolver } = this.inputResolver ?
@@ -880,7 +893,13 @@
                         { promise: Promise.resolve(0), safeResolver: null };
 
                     if (!isSuppressPrompts) {
-                        this.emit("display_nhwindow", { windowId, blocking, resolver: safeResolver });
+                        this.emit("display_nhwindow", {
+                            windowId,
+                            blocking,
+                            isMorePrompt: isMoreWindow,
+                            isTopLevelTurn: false,
+                            resolver: safeResolver
+                        });
                     }
 
                     if (this.inputResolver && (blocking || windowId > 3)) {
@@ -890,7 +909,16 @@
                             }
                         }
                         await promise;
+                        if (isMoreWindow) {
+                            this.isMorePromptActive = false;
+                        }
+                        if (isTextModalWindow) {
+                            this.isTextWindowOpen = false;
+                        }
                         this.setState(NetHackWasmDriver.DriverState.RUNNING);
+                    } else {
+                        if (isMoreWindow) this.isMorePromptActive = false;
+                        if (isTextModalWindow) this.isTextWindowOpen = false;
                     }
                     return 0;
                 }

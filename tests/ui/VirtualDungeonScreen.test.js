@@ -152,4 +152,81 @@ describe('VirtualDungeonScreen - 仮想スクリーン統合レンダラー Phas
       0, 0, 21 * 32, 9 * 32
     );
   });
+
+  it('7. Stage 8.3-B: flushCommittedState が AreaStateManager の dirtyCells を引き継いで確定グリッドを即時フラッシュすること', () => {
+    const vScreen = new VirtualDungeonScreen();
+    vScreen.tileLoaded = true;
+    vScreen.tileImg = { width: 1280, naturalWidth: 1280 };
+
+    const asm = new AreaStateManager(80, 24);
+    asm.clearDirtyCells();
+    asm.updateGlyph(10, 10, 3995); // CORR
+
+    const areaState = asm.getAreaState();
+    const count = vScreen.flushCommittedState(areaState, null, null, asm.getDirtyCells());
+
+    expect(count).toBe(1);
+    expect(asm.getDirtyCells().size).toBe(0);
+    expect(vScreen.dirtyCells.size).toBe(0);
+    expect(mockCtx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('8. Stage 8.3-B: UNEXPLORED (9622 / ch: " ") セルはタイル描画せず黒背景クリアのみ行うこと', () => {
+    const vScreen = new VirtualDungeonScreen();
+    vScreen.tileLoaded = true;
+    vScreen.tileImg = { width: 1280, naturalWidth: 1280 };
+
+    const asm = new AreaStateManager(80, 24);
+    asm.clearDirtyCells();
+    asm.updateGlyph(4, 4, 9622, 0, { ch: ' ', color: 0 }); // UNEXPLORED
+
+    const areaState = asm.getAreaState();
+    mockCtx.drawImage.mockClear();
+    const count = vScreen.flushCommittedState(areaState, null, null, asm.getDirtyCells());
+
+    expect(count).toBe(1);
+    expect(mockCtx.fillRect).toHaveBeenCalledWith(4 * 32, 4 * 32, 32, 32);
+    expect(mockCtx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('9. Stage 8.3-B: 足元のアイテム拾得・ドロップによる cell.middle 変化が flushCommittedState で即時再描画されること', () => {
+    const vScreen = new VirtualDungeonScreen();
+    vScreen.tileLoaded = true;
+    vScreen.tileImg = { width: 1280, naturalWidth: 1280 };
+
+    const asm = new AreaStateManager(80, 24);
+    asm.setDirectBindingService({
+      isAvailable: () => true,
+      getTerrainAt: () => ({ typ: 25, flags: 0, lit: 1, roomno: 3, horizontal: 0 }),
+      getCellInfo: () => ({ typ: 25, flags: 0, lit: 1, roomno: 3, horizontal: 0, isRoom: true, isFloor: true }),
+      getTrapAt: () => null,
+      getEngravingAt: () => null,
+      hasFloorObjectsCacheAt: () => true,
+      getObjectsAt: vi.fn()
+        .mockReturnValueOnce([{ otyp: 10, quan: 1, glyph: 1938 }, { otyp: 11, quan: 1, glyph: 1939 }])
+        .mockReturnValueOnce([])
+    });
+
+    asm.clearDirtyCells();
+    asm.updatePlayerPosition(12, 8); // 2個のアイテム山積みの上に立つ
+
+    mockCtx.drawImage.mockClear();
+    const state1 = asm.getAreaState();
+    expect(state1.grid[8][12].middle.isPile).toBe(true);
+    vScreen.flushCommittedState(state1, null, null, asm.getDirtyCells());
+    // bottom (3992) + middle (山積みグリフ) の 2 回 drawImage が呼ばれる
+    expect(mockCtx.drawImage).toHaveBeenCalledTimes(2);
+
+    // その場で全て拾った場合 (0個)
+    mockCtx.drawImage.mockClear();
+    asm.updatePlayerPosition(12, 8);
+    expect(asm.getDirtyCells().has('12,8')).toBe(true);
+
+    const state2 = asm.getAreaState();
+    expect(state2.grid[8][12].middle).toBeNull();
+    vScreen.flushCommittedState(state2, null, null, asm.getDirtyCells());
+    // bottom (3992) の 1 回のみ drawImage が呼ばれ、middle は消える
+    expect(mockCtx.drawImage).toHaveBeenCalledTimes(1);
+  });
 });
+

@@ -178,6 +178,8 @@ export class WebUICore {
         this.messageItems = [];
         this.nextMessageId = 1;
         this._currentActionLastItem = null;
+        this.isMorePromptActive = false;
+        this.isTextWindowOpen = false;
 
         this._initRenderer();
         this._bindDriverEvents();
@@ -1713,6 +1715,9 @@ export class WebUICore {
                 return;
             }
 
+            const isMorePrompt = Boolean(blocking && windowId === 1);
+            this.isMorePromptActive = isMorePrompt;
+            this.isTextWindowOpen = Boolean(windowId > 3);
             this.activeResolver = resolver;
             this.currentPromptCategory = PROMPT_CATEGORY.KEY;
             this.lastInputTime = Date.now();
@@ -1749,6 +1754,8 @@ export class WebUICore {
                 lines: bufferLines,
                 rawLines: rawBufferLines,
                 windowId: windowId,
+                isMorePrompt: isMorePrompt,
+                isTopLevelTurn: false,
                 safeResolver: resolver,
                 resolver: resolver,
                 buttonOverlay: this.gamepad.getButtonOverlay(PROMPT_CATEGORY.KEY, ' ')
@@ -1769,6 +1776,8 @@ export class WebUICore {
         // inputRequired
         this.driver.on('inputRequired', (payload) => {
             this._currentActionLastItem = null;
+            this.isMorePromptActive = false;
+            this.isTextWindowOpen = false;
             const resolver = payload.safeResolver || payload.resolver;
             this.activeResolver = resolver;
 
@@ -1924,10 +1933,11 @@ export class WebUICore {
             );
 
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼
-            // ※方向指定中やサブプロンプト中・プレフィックス待機中を除外した「純粋なトップレベル通常ターン待機」時のみ安全に実行
+            // ※方向指定中やサブプロンプト中・プレフィックス待機中・--More--待機中を除外した「純粋なトップレベル通常ターン待機」時のみ安全に実行
             const isPoskeyContext = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
             const isInteractiveExecuting = Boolean(this.interactiveController && this.interactiveController.isBusy());
-            const isTopLevelTurn = isPoskeyContext && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices && !isInteractiveExecuting;
+            const driverAllowsTopLevel = payload.isTopLevelTurn !== false && !payload.isMorePrompt && !this.isMorePromptActive && !this.isTextWindowOpen;
+            const isTopLevelTurn = Boolean(isPoskeyContext && driverAllowsTopLevel && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices && !isInteractiveExecuting);
             if (isTopLevelTurn) {
                 this.isManualNamingActive = false;
                 this.isItemUsingActive = false;
@@ -1945,6 +1955,8 @@ export class WebUICore {
             const passThroughPayload = {
                 ...basePayload,
                 ...guiData,
+                isTopLevelTurn: isTopLevelTurn,
+                isMorePrompt: Boolean(payload.isMorePrompt || this.isMorePromptActive),
                 signalId: signalId,
                 signal: detectedSignal,
                 validKeys: detectedSignal?.validKeys || guiData?.validKeys || null,
@@ -1973,6 +1985,8 @@ export class WebUICore {
         this.driver.on('inputResolved', () => {
             this.activeResolver = null;
             this.activeMenuItems = [];
+            this.isMorePromptActive = false;
+            this.isTextWindowOpen = false;
             this.currentPromptCategory = PROMPT_CATEGORY.NONE;
             this.currentPromptChoices = '';
             this.renderer.hidePrompt();

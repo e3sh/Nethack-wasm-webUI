@@ -284,12 +284,60 @@ export class WasmDirectBindingService {
         this._cachedInventory = [];
         this._cachedInventoryWeight = -1;
         this._cachedPlayerFloorObjects = [];
+        this._cachedFloorObjectsX = -1;
+        this._cachedFloorObjectsY = -1;
+        this._hasFloorObjectsCache = false;
         this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
         this._cachedPlayerSummary = null;
         this._cachedLevelTerrain = null;
         this._cachedMonsters = new Map();
         this._cachedDiscoveries = null;
         this._cachedDescrIndexes = null;
+
+        // Sync Barrier / 世代管理 (Stage 8.3-B / §2.5)
+        this._syncGeneration = 0;
+        this._isSyncing = false;
+        this._lastCompletedSyncGeneration = -1;
+    }
+
+    /**
+     * Phase 1 (ACTION): ユーザー操作送出時に呼び出し、Sync Barrier 世代を進めて
+     * 実行中の古い非同期 Shim 同期レスポンスを破棄（Stale Cancel）させる
+     * @returns {number} 更新後の世代ID
+     */
+    notifyActionSent() {
+        this._syncGeneration += 1;
+        this._isSyncing = false;
+        this._hasFloorObjectsCache = false;
+        return this._syncGeneration;
+    }
+
+    /**
+     * フロア移動時 (clear_nhwindow / prepareFloorTransition) に前フロアのキャッシュを無効化
+     */
+    clearFloorCaches() {
+        this._cachedLevelTerrain = null;
+        this._cachedCellInfo = null;
+        this._cachedCellX = -1;
+        this._cachedCellY = -1;
+        this._cachedRoom = null;
+        this._cachedTrap = null;
+        this._cachedEngraving = null;
+        this._cachedPlayerFloorObjects = [];
+        this._cachedFloorObjectsX = -1;
+        this._cachedFloorObjectsY = -1;
+        this._hasFloorObjectsCache = false;
+        if (this._cachedMonsters) {
+            this._cachedMonsters.clear();
+        }
+    }
+
+    /**
+     * 現在の Sync Barrier 世代IDを取得
+     * @returns {number}
+     */
+    get syncGeneration() {
+        return this._syncGeneration;
     }
 
     /**
@@ -720,14 +768,19 @@ export class WasmDirectBindingService {
     }
 
     /**
-     * Web Worker 隔離環境用：ターン確定時に足元セル情報やインベントリを非同期で一括同期 (Stage 8.2-A)
+     * Web Worker 隔離環境用：ターン確定時に足元セル情報やインベントリを非同期で一括同期 (Stage 8.2-A / Stage 8.3-B Sync Barrier)
      * @param {Object} [options={}]
      * @param {number} [options.playerX]
      * @param {number} [options.playerY]
      * @returns {Promise<boolean>}
      */
     async syncFromWorkerBridge(options = {}) {
+        if (this._mode === 'fallback') return false;
         if (!this.bridge || typeof this.bridge.callShim !== 'function') return false;
+
+        const syncGen = ++this._syncGeneration;
+        this._isSyncing = true;
+        const isStale = () => syncGen !== this._syncGeneration;
 
         const x = options.playerX ?? this._cachedCellX;
         const y = options.playerY ?? this._cachedCellY;
@@ -736,6 +789,8 @@ export class WasmDirectBindingService {
             if (x >= 0 && y >= 0) {
                 // 1. 足元セル情報
                 const cellRes = await this.bridge.callShim(SHIM_CMD.GET_CELL_INFO, x, y);
+                if (isStale()) return false;
+
                 if (cellRes && typeof cellRes.result === 'number' && cellRes.result >= 0) {
                     const res = cellRes.result;
                     const typ = res & 0xFF;
@@ -753,17 +808,15 @@ export class WasmDirectBindingService {
                         isSecret: (typ === LEVL_TYP.SDOOR)
                     } : null;
 
-                    this._cachedCellX = x;
-                    this._cachedCellY = y;
-                    this._cachedCellInfo = { x, y, typ, flags, lit, roomno, door };
-
+                    let nextRoom = null;
                     // 2. 部屋種別
                     if (roomno > 0) {
                         const roomRes = await this.bridge.callShim(SHIM_CMD.GET_ROOM_TYPE, roomno);
+                        if (isStale()) return false;
                         if (roomRes && typeof roomRes.result === 'number') {
                             const rtype = roomRes.result;
                             const info = ROOM_NAMES[rtype] || { name: 'Room', nameJa: '部屋' };
-                            this._cachedRoom = {
+                            nextRoom = {
                                 roomno,
                                 rtype,
                                 isShop: (rtype >= ROOM_TYPE.SHOPBASE),
@@ -771,19 +824,19 @@ export class WasmDirectBindingService {
                                 nameJa: info.nameJa
                             };
                         }
-                    } else {
-                        this._cachedRoom = null;
                     }
 
                     // 3. 罠
+                    let nextTrap = null;
                     const trapRes = await this.bridge.callShim(SHIM_CMD.GET_TRAP_AT, x, y);
+                    if (isStale()) return false;
                     if (trapRes && typeof trapRes.result === 'number' && trapRes.result > 0) {
                         const tRes = trapRes.result;
                         const ttyp = tRes & 0xFF;
                         const tseen = Boolean((tRes >> 8) & 0x01);
                         const once = Boolean((tRes >> 9) & 0x01);
                         const info = TRAP_NAMES[ttyp] || { name: 'trap', nameJa: '罠' };
-                        this._cachedTrap = {
+                        nextTrap = {
                             x,
                             y,
                             ttyp,
@@ -792,17 +845,17 @@ export class WasmDirectBindingService {
                             name: info.name,
                             nameJa: info.nameJa
                         };
-                    } else {
-                        this._cachedTrap = null;
                     }
 
                     // 4. 刻み文字
+                    let nextEngraving = null;
                     const engrRes = await this.bridge.callShim(SHIM_CMD.GET_ENGRAVING_AT, x, y, 256, 'string');
+                    if (isStale()) return false;
                     if (engrRes && typeof engrRes.result === 'number' && engrRes.result > 0) {
                         const engrType = engrRes.result;
                         const text = engrRes.buffer || '';
                         const info = ENGRAVING_NAMES[engrType] || { name: 'engraving', nameJa: '刻み文字' };
-                        this._cachedEngraving = {
+                        nextEngraving = {
                             x,
                             y,
                             text,
@@ -811,15 +864,21 @@ export class WasmDirectBindingService {
                             typeNameJa: info.nameJa,
                             isElbereth: text.includes('Elbereth')
                         };
-                    } else {
-                        this._cachedEngraving = null;
                     }
+
+                    this._cachedCellX = x;
+                    this._cachedCellY = y;
+                    this._cachedCellInfo = { x, y, typ, flags, lit, roomno, door };
+                    this._cachedRoom = nextRoom;
+                    this._cachedTrap = nextTrap;
+                    this._cachedEngraving = nextEngraving;
                 }
             }
 
             // 5. 装備スロットポインタおよび所持品一括ダンプ同期 (Stage 8.2 / DUMP_ALL_INVENT)
             if (options.syncInventory || options.syncInventory !== false) {
                 const eqRes = await this.bridge.callShim(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, 56, 'int32');
+                if (isStale()) return false;
                 if (eqRes && Array.isArray(eqRes.buffer)) {
                     const ptrArray = eqRes.buffer;
                     const rawPtrs = {};
@@ -846,6 +905,7 @@ export class WasmDirectBindingService {
 
                 // 5-b. 全所持品の一括同期 (SHIM_CMD_DUMP_ALL_INVENT: 最大100個 = 4800 bytes)
                 const invRes = await this.bridge.callShim(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, 4800, 'int32');
+                if (isStale()) return false;
                 if (invRes && Array.isArray(invRes.buffer)) {
                     const count = typeof invRes.result === 'number' ? Math.max(0, invRes.result) : 0;
                     const raw = invRes.buffer;
@@ -873,6 +933,7 @@ export class WasmDirectBindingService {
                 if (options.syncDiscoveries !== false) {
                     try {
                         const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
+                        if (isStale()) return false;
                         if (discRes && Array.isArray(discRes.buffer)) {
                             this._cachedDiscoveries = new Uint8Array(discRes.buffer);
                         }
@@ -881,6 +942,7 @@ export class WasmDirectBindingService {
                     }
                     try {
                         const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
+                        if (isStale()) return false;
                         if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
                             const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
                             this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
@@ -891,20 +953,28 @@ export class WasmDirectBindingService {
                 }
             }
 
-            // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C, 明示的オプトイン)
+            // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C / Stage 8.3-B)
             if (options.syncFloorObjects === true && x >= 0 && y >= 0) {
                 try {
                     const floorItems = await this.fetchObjectsAt(x, y);
+                    if (isStale()) return false;
                     this._cachedPlayerFloorObjects = floorItems || [];
+                    this._cachedFloorObjectsX = x;
+                    this._cachedFloorObjectsY = y;
+                    this._hasFloorObjectsCache = true;
                 } catch (e) {
                     this._cachedPlayerFloorObjects = [];
+                    this._cachedFloorObjectsX = x;
+                    this._cachedFloorObjectsY = y;
+                    this._hasFloorObjectsCache = true;
                 }
             }
 
-            // 7. フロア全域の地形一括同期 (Stage 8.3-A)
+            // 7. フロア全域の地形一括同期 (Stage 8.3-A / 8.3-B)
             if (options.syncLevelTerrain === true) {
                 try {
                     await this.fetchLevelTerrain();
+                    if (isStale()) return false;
                 } catch (e) {
                     // silent fallback
                 }
@@ -914,15 +984,21 @@ export class WasmDirectBindingService {
             if (Array.isArray(options.surroundingMonsters) && options.surroundingMonsters.length > 0) {
                 try {
                     await this.syncSurroundingMonsters(options.surroundingMonsters);
+                    if (isStale()) return false;
                 } catch (e) {
                     // silent fallback
                 }
             }
 
+            this._lastCompletedSyncGeneration = syncGen;
             return true;
         } catch (err) {
             console.warn('[WasmDirectBindingService] syncFromWorkerBridge error:', err);
             return false;
+        } finally {
+            if (syncGen === this._syncGeneration) {
+                this._isSyncing = false;
+            }
         }
     }
 
@@ -983,9 +1059,34 @@ export class WasmDirectBindingService {
             };
         }
 
-        // Worker 隔離環境の場合：キャッシュされた足元情報を返却
+        // Worker 隔離環境の場合：キャッシュされた足元情報を最優先返却
         if (this._cachedCellInfo && this._cachedCellX === x && this._cachedCellY === y) {
             return this._cachedCellInfo;
+        }
+
+        // 全フロア地形キャッシュ (_cachedLevelTerrain: 80x21) が存在する場合は該当セルの typ を返却
+        if (this._cachedLevelTerrain && x >= 0 && x < 80 && y >= 0 && y < 21) {
+            const idx = y * 80 + x;
+            if (idx >= 0 && idx < this._cachedLevelTerrain.length) {
+                const typ = this._cachedLevelTerrain[idx];
+                const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
+                return {
+                    x,
+                    y,
+                    typ,
+                    flags: 0,
+                    lit: false,
+                    roomno: 0,
+                    door: isDoor ? {
+                        isClosed: false,
+                        isLocked: false,
+                        isOpen: true,
+                        isBroken: false,
+                        isTrapped: false,
+                        isSecret: (typ === LEVL_TYP.SDOOR)
+                    } : null
+                };
+            }
         }
 
         return null;
@@ -1402,6 +1503,46 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * 指定座標 (x, y) の床アイテム情報が同期・参照可能かどうかを判定 (Stage 8.3-B)
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean}
+     */
+    hasFloorObjectsCacheAt(x, y) {
+        if (!this.isAvailable()) return false;
+        if (typeof x !== 'number' || typeof y !== 'number') return false;
+        if (this.hasLiveMemory) return true;
+        return Boolean(
+            this._hasFloorObjectsCache &&
+            this._cachedFloorObjectsX === x &&
+            this._cachedFloorObjectsY === y &&
+            Array.isArray(this._cachedPlayerFloorObjects)
+        );
+    }
+
+    /**
+     * テスト用 / Worker 受信用 床落ちアイテムキャッシュ設定
+     * @param {number} x
+     * @param {number} y
+     * @param {Array<Object>|null} items
+     */
+    setCachedFloorObjects(x, y, items) {
+        if (items === null || items === undefined) {
+            this._cachedPlayerFloorObjects = [];
+            this._cachedFloorObjectsX = -1;
+            this._cachedFloorObjectsY = -1;
+            this._hasFloorObjectsCache = false;
+        } else {
+            this._cachedPlayerFloorObjects = Array.isArray(items) ? items : [];
+            this._cachedFloorObjectsX = x;
+            this._cachedFloorObjectsY = y;
+            this._cachedCellX = x;
+            this._cachedCellY = y;
+            this._hasFloorObjectsCache = true;
+        }
+    }
+
+    /**
      * 指定座標 (x, y) の床に落ちているアイテム一覧を取得 (Stage 8.2-C)
      * @param {number} x
      * @param {number} y
@@ -1446,7 +1587,9 @@ export class WasmDirectBindingService {
         }
 
         // Worker 隔離環境: 足元座標と一致する場合はキャッシュを返却
-        if (this._cachedCellX === x && this._cachedCellY === y && this._cachedPlayerFloorObjects) {
+        if (((this._cachedFloorObjectsX === x && this._cachedFloorObjectsY === y) ||
+             (this._cachedCellX === x && this._cachedCellY === y)) &&
+            this._cachedPlayerFloorObjects) {
             return this._cachedPlayerFloorObjects;
         }
 
@@ -1454,7 +1597,7 @@ export class WasmDirectBindingService {
     }
 
     /**
-     * 指定座標 (x, y) の床アイテム一覧を非同期で問い合わせ取得 (Worker調停対応・汎用callShim利用) (Stage 8.2-C)
+     * 指定座標 (x, y) の床アイテム一覧を非同期で問い合わせ取得 (Worker調停対応・汎用callShim利用) (Stage 8.2-C / 8.3-B)
      * @param {number} x
      * @param {number} y
      * @returns {Promise<Array<Object>>}
@@ -1470,15 +1613,28 @@ export class WasmDirectBindingService {
                 const headPtr = (headRes && typeof headRes.result === 'number') ? headRes.result : 0;
                 const items = [];
                 if (headPtr > 0) {
-                    const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, headPtr, 0, 32, 'int32');
-                    if (objRes && Array.isArray(objRes.buffer)) {
-                        const item = this.unpackObjectBuffer(objRes.buffer, headPtr);
-                        if (item) items.push(item);
+                    const visited = new Set();
+                    const MAX_FLOOR_ITEMS = 50;
+                    let currPtr = headPtr;
+                    while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
+                        visited.add(currPtr);
+                        const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 32, 'int32');
+                        if (objRes && Array.isArray(objRes.buffer)) {
+                            const cobjPtr = objRes.buffer[9] || 0;
+                            const o_id = objRes.buffer[10] || 0;
+                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id);
+                            if (item) items.push(item);
+                            const nextPtr = objRes.buffer[8] || 0;
+                            currPtr = nextPtr > 0 ? nextPtr : 0;
+                        } else {
+                            break;
+                        }
                     }
                 }
-                if (this._cachedCellX === x && this._cachedCellY === y) {
-                    this._cachedPlayerFloorObjects = items;
-                }
+                this._cachedPlayerFloorObjects = items;
+                this._cachedFloorObjectsX = x;
+                this._cachedFloorObjectsY = y;
+                this._hasFloorObjectsCache = true;
                 return items;
             } catch (err) {
                 console.warn(`[WasmDirectBindingService] fetchObjectsAt(${x},${y}) error:`, err);

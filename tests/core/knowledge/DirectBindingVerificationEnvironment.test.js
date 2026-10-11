@@ -229,6 +229,53 @@ describe('Stage 8.2-B: Direct Binding Verification Environment & Fallback Guard'
         });
     });
 
+    describe('Stage 8.3-B: Auto Mode Speculative Inferred Floor (3992) Elimination', () => {
+        beforeEach(() => {
+            gkl.setDirectBindingMode('auto');
+        });
+
+        it('does NOT generate speculative inferred floor (3992) during streaming when Direct Binding is available but cell is not yet synced', () => {
+            // Worker 同期完了前 (getCellInfo が null を返す状態) をシミュレート
+            mockService.getCellInfo.mockReturnValue(null);
+            expect(mockService.isAvailable()).toBe(true);
+
+            // 1. プレイヤー位置更新やアイテム描画のストリーミング中
+            areaManager.updatePlayerPosition(15, 8);
+            areaManager.updateGlyph(16, 8, 2289); // アイテム出現
+
+            // Direct Binding 有効時は、未確定セルに勝手に 3992 (createInferredFloor) を書き込まない
+            expect(areaManager.inferredFloorCount).toBe(0);
+            expect(areaManager.grid[8][15].bottom).toBeNull();
+            expect(areaManager.grid[8][16].bottom).toBeNull();
+
+            // 2. getFocusCameraTiles でも勝手に inferredFloorCount を増やさず bottomGlyph=-1 とする
+            const tilesBeforeSync = areaManager.getFocusCameraTiles(1, 0);
+            expect(areaManager.inferredFloorCount).toBe(0);
+            const playerTileBefore = tilesBeforeSync.find(t => t.isPlayer);
+            expect(playerTileBefore.bottomGlyph).toBe(-1);
+
+            // 3. Sync Barrier (Phase 3) 完了後、getCellInfo が真値 (typ: 24 = CORR / 3995) を返すようになると確定反映される
+            mockService.getCellInfo.mockImplementation((x, y) => ({
+                x,
+                y,
+                typ: 24, // CORR (通路: 3995)
+                flags: 0,
+                lit: true,
+                roomno: 0,
+                door: null
+            }));
+
+            areaManager.syncFromDirectBinding(1);
+            areaManager.syncPlayerFeetFloor();
+
+            expect(areaManager.inferredFloorCount).toBe(0);
+            expect(areaManager.grid[8][15].bottom.isGenuine).toBe(true);
+            expect(areaManager.grid[8][15].bottom.glyph).toBe(3995); // CORR
+            expect(areaManager.grid[8][16].bottom.isGenuine).toBe(true);
+            expect(areaManager.grid[8][16].bottom.glyph).toBe(3995);
+        });
+    });
+
     describe('DebugInspector Broadcast & Mode Command Handling', () => {
         let inspector;
         let postedMessages;
