@@ -1,8 +1,8 @@
 # 🧩 GKLPlugin モジュール分割・アーキテクチャ適正化設計書 (GKLPlugin Modularization & Refactoring Architecture)
 
-- **ステータス**: `🚧 in-progress` (Stage 8.3-B 先行基盤として Active 昇格)
+- **ステータス**: `🟢 implemented` (2026-10-11 完遂: `GKLPlugin.js` 2,613行 ➔ 482行、約81.5%削減)
 - **作成日**: 2026-10-10
-- **対象コード**: `src/core/knowledge/GKLPlugin.js` (および新設 `coordinators/`, `services/` 配下)
+- **対象コード**: `src/core/knowledge/GKLPlugin.js` (および `coordinators/`, `services/` 配下)
 - **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md), [gkl_documentation.md](./gkl_documentation.md), [shim_driven_rendering_pipeline_architecture.ja.md](../2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
 
 ---

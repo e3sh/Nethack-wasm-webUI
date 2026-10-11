@@ -66,9 +66,9 @@ last_updated: 2026-10-11
   - [x] **【先行着手 1】ROADMAP 2.1: GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化**
     - [gkl_client_modularization_plan.ja.md](./2_client_ui/archive/gkl_client_modularization_plan.ja.md) (`📦 archived`)
     - `main.js` (2,364行 ➔ 618行、約74%削減) の神クラス解消。描画・レイアウト・多言語・盤面操作・UIファクトリ・DOMイベントを分離し、Stage 8.3-B 確定描画の受け入れ態勢を完了 (全136スイート・1,670テスト 100% PASS)。
-  - [ ] **【先行着手 2】ROADMAP 2.2: GKLPlugin モジュール分割・アーキテクチャ適正化**
-    - [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)
-    - `GKLPlugin.js` (2,551行 ➔ 400〜500行) の神クラス解消。`GKLEventRouter`・`SilentSyncCoordinator`・`GKLFxCoordinator` を分離し、Stage 8.3-B の Sync Barrier / ターンライフサイクル調停をクリーンに導入可能にする。
+  - [x] **【先行着手 2】ROADMAP 2.2: GKLPlugin モジュール分割・アーキテクチャ適正化**
+    - [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) (`🟢 implemented`)
+    - `GKLPlugin.js` (2,613行 ➔ 482行、約81.5%削減) の神クラス解消。`GKLEventRouter`・`SilentSyncCoordinator`・`GKLFxCoordinator`・`InspectionService`・`AutoTravelService` を分離し、Stage 8.3-B の Sync Barrier / ターンライフサイクル調停をクリーンに導入可能な基盤を確立 (全137スイート・1,698テスト PASS)。
   - [ ] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新**
     - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)
     - ターン同期ライフサイクル (Sync Barrier) の導入による投機的仮床推測副作用の根絶（`GKLEventRouter` 連携）
@@ -97,18 +97,7 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
 仕様・設計が完了していますが、**「Phase 8 の完了待ち」** または **「次期着手スロット待ち」** として意図的にペンディングしているタスク群です。  
-※なお、**2.1（完了済み・§4へ移行）および 2.2** は Stage 8.3-B（確定同期レンダリング）の安全な実装基盤とするため、**先行着手スロット**として Phase 8 のフローに前倒し統合されています。
-
-### 2.2 GKLPlugin モジュール分割・アーキテクチャ適正化 (GKLPlugin Modularization & Refactoring)
-- **ステータス**: `🚧 in-progress` (Stage 8.3-B 先行基盤として Active 昇格)
-- **設計書**: [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)
-- **対象コード**: `src/core/knowledge/GKLPlugin.js` (現在 2,551行 ➔ 400〜500行へ削減目標)
-- **理由**: GKLプラグインへの過剰な責務集中（Coreイベント購読580行、サイレント同期制御380行、トラベル・調査220行、FX演出120行）を解消し、Stage 8.3-B の Sync Barrier（ターンライフサイクル調停）を独立した `GKLEventRouter` へクリーンに導入する。
-- **ステップ**:
-  - [ ] Phase 1: サイレント同期調停の分離 (`coordinators/SilentSyncCoordinator.js`)
-  - [ ] Phase 2: 自動移動 ＆ マップセル調査の分離 (`services/AutoTravelService.js`, `services/InspectionService.js`)
-  - [ ] Phase 3: Coreイベントルーター ＆ 視覚演出トリガーの分離 (`coordinators/GKLEventRouter.js`, `coordinators/GKLFxCoordinator.js`)
-  - [ ] Phase 4: 全体リグレッション検証（全136スイート・1,670テスト PASS 維持）＆ クリーンアップ
+※なお、**2.1 および 2.2** は Stage 8.3-B（確定同期レンダリング）の安全な実装基盤として先行完遂し、§4 へ移行済みです。
 
 ### 2.3 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending` (Phase 8 完了待ち)
@@ -183,11 +172,12 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全136スイート・1,670テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全137スイート・1,698テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
+| **GKL・設計** | [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) | `src/core/knowledge/GKLPlugin.js`<br>`src/core/knowledge/coordinators/`<br>`src/core/knowledge/services/` | `🟢 implemented` | **GKLPlugin モジュール分割 ＆ アーキテクチャ適正化 (ROADMAP 2.2: 2026-10-11)**<br>`GKLPlugin.js` を 2,613行 ➔ 482行（約81.5%削減）へスリム化。`SilentSyncCoordinator`, `GKLEventRouter`, `GKLFxCoordinator`, `InspectionService`, `AutoTravelService` を分離し 100% 後方互換ファサード化 |
 | **UI・設計** | [gkl_client_modularization_plan.ja.md](./2_client_ui/archive/gkl_client_modularization_plan.ja.md) | `examples/gkl-pure-js-client/main.js`<br>`examples/gkl-pure-js-client/modules/` | `🟢 implemented` | **GKL Pure JS Client (main.js) モジュール分割 ＆ オーケストレーター適正化 (ROADMAP 2.1: 2026-10-11)**<br>`main.js` を 2,364行 ➔ 618行（約74%削減）へスリム化。多言語・レイアウト・FX・起動・盤面操作を独立モジュールへ分離 |
 | **戦歴・スコア** | [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md) | `tools/scoreboard.html`<br>`PostMortemKnowledgeResolver.js`<br>`GameOverResolver.js` | `🟢 implemented` | **公式 xlogfile 準拠スコアボード ＆ 事後ナレッジ構文解析 (2026-10-08)**<br>公式戦歴ビュワー、NetHack 5.0 `formatkiller()` 構文解析（Prefix/Core/Suffix分解）、根本原因調停 (RCA) コア |
 | **品質・堅牢化** | [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/archive/bugfix_plan_oracles_explore_attackfx.ja.md) | `WebUICore.js`<br>`GKLPlugin.js`<br>`AdventureLogManager.js` | `🟢 implemented` | **3大不具合是正 ＆ 品質堅牢化 (2026-10-08)**<br>信託テキストウィンドウ検知＆大予言一括管理（OOM解消）、exploreランキング除外＆死因SSOT化、攻撃FX誤爆完全抑止 |

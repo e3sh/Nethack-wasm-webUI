@@ -24,31 +24,21 @@ import { LoreCodex } from "./lore/LoreCodex.js";
 import { LoreDetector } from "./lore/LoreDetector.js";
 import { InteractionContext } from "./context/InteractionContext.js";
 import { ActionSignalResolver } from "./engines/ActionSignalResolver.js";
-import { ActionRecipeFactory } from '../request/ActionRecipeFactory.js';
-import { PROMPT_CATEGORY } from '../types.js';
 import { AdventureLogManager } from "./lore/AdventureLogManager.js";
-import { classifyGlyph, ENTITY_TYPES, isShopkeeperMonster } from "./engines/glyphClassifier.js";
-import { MONSTER_KNOWLEDGE_MAP } from "./data/MONSTER_KNOWLEDGE_FULL.js";
-import { LORE_MASTER } from "./lore/data/LoreMasterData.js";
-
+import { SilentSyncCoordinator } from "./coordinators/SilentSyncCoordinator.js";
+import { GKLFxCoordinator } from "./coordinators/GKLFxCoordinator.js";
+import { GKLEventRouter } from "./coordinators/GKLEventRouter.js";
+import { InspectionService } from "./services/InspectionService.js";
+import { AutoTravelService } from "./services/AutoTravelService.js";
 
 /**
- * Game Knowledge Layer (GKL) 独立拡張プラグイン
+ * Game Knowledge Layer (GKL) 独立拡張プラグイン (Facade / Orchestrator)
  * WebUICore のパブリックイベント・サイレントクエリ基盤と連携し、
  * ゲーム状態追跡 (Inventory/Area/Status/Spells/Skills/Attributes) およびコンテキストアクション推薦を一元管理する。
  */
 export class GKLPlugin {
     /**
      * @param {Object} [options={}]
-     * @param {InventoryStateManager} [options.inventoryStateManager]
-     * @param {SpellStateManager} [options.spellStateManager]
-     * @param {SkillStateManager} [options.skillStateManager]
-     * @param {AttributeStateManager} [options.attributeStateManager]
-     * @param {EncumbranceStateManager} [options.encumbranceStateManager]
-     * @param {MonsterTracker} [options.monsterTracker]
-     * @param {LoreDetector} [options.loreDetector]
-     * @param {'vi'|'numpad'} [options.keyMode]
-     * @param {'ja'|'en'} [options.language]
      */
     constructor(options = {}) {
         this.statusAccessor = new StatusAccessor();
@@ -67,15 +57,9 @@ export class GKLPlugin {
         });
 
         if (this.wasmDirectBindingService) {
-            if (this.inventoryStateManager && typeof this.inventoryStateManager.setWasmDirectBindingService === 'function') {
-                this.inventoryStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
-            }
-            if (this.encumbranceStateManager && typeof this.encumbranceStateManager.setWasmDirectBindingService === 'function') {
-                this.encumbranceStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
-            }
-            if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingService === 'function') {
-                this.areaStateManager.setDirectBindingService(this.wasmDirectBindingService);
-            }
+            this.inventoryStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
+            this.encumbranceStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
+            this.areaStateManager?.setDirectBindingService?.(this.wasmDirectBindingService);
         }
 
         this.language = options.language || 'ja';
@@ -116,11 +100,9 @@ export class GKLPlugin {
             adventureLogManager: this.adventureLogManager
         });
 
-        if (this.discoveryStateManager && typeof this.discoveryStateManager.setAdventureLogManager === 'function') {
+        if (this.discoveryStateManager?.setAdventureLogManager) {
             this.discoveryStateManager.setAdventureLogManager(this.adventureLogManager);
-            this.discoveryStateManager.onAdventureLogUnlocked = (info) => {
-                this._emitAdventureLogUnlocked(info);
-            };
+            this.discoveryStateManager.onAdventureLogUnlocked = (info) => this._emitAdventureLogUnlocked(info);
         }
 
         this.sagesWisdomMode = Boolean(options.sagesWisdomMode);
@@ -132,42 +114,23 @@ export class GKLPlugin {
             language: this.language
         });
 
-        if (this.structuredKnowledge && typeof this.structuredKnowledge.setDiscoveryStateManager === 'function') {
-            this.structuredKnowledge.setDiscoveryStateManager(this.discoveryStateManager);
-        }
+        this.structuredKnowledge?.setDiscoveryStateManager?.(this.discoveryStateManager);
+        this.inventoryStateManager?.setStructuredKnowledgeEngine?.(this.structuredKnowledge);
+        this.inventoryStateManager?.setSkillStateManager?.(this.skillStateManager);
+        this.inventoryStateManager?.setDiscoveryStateManager?.(this.discoveryStateManager);
 
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
-            this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setSkillStateManager === 'function') {
-            this.inventoryStateManager.setSkillStateManager(this.skillStateManager);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setDiscoveryStateManager === 'function') {
-            this.inventoryStateManager.setDiscoveryStateManager(this.discoveryStateManager);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setAdventureLogManager === 'function') {
+        if (this.inventoryStateManager?.setAdventureLogManager) {
             this.inventoryStateManager.setAdventureLogManager(this.adventureLogManager);
-            this.inventoryStateManager.onAdventureLogUnlocked = (info) => {
-                this._emitAdventureLogUnlocked(info);
-            };
+            this.inventoryStateManager.onAdventureLogUnlocked = (info) => this._emitAdventureLogUnlocked(info);
         }
-        if (this.discoveryStateManager && typeof this.discoveryStateManager.setInventoryStateManager === 'function') {
-            this.discoveryStateManager.setInventoryStateManager(this.inventoryStateManager);
-        }
+        this.discoveryStateManager?.setInventoryStateManager?.(this.inventoryStateManager);
 
-        this.wishService = options.wishService || new WishService({
-            translator: options.translationEngine || null
-        });
-
-        this.genocideService = options.genocideService || new GenocideService({
-            translator: options.translationEngine || null
-        });
-
+        this.wishService = options.wishService || new WishService({ translator: options.translationEngine || null });
+        this.genocideService = options.genocideService || new GenocideService({ translator: options.translationEngine || null });
         this.polymorphService = options.polymorphService || new PolymorphService({
             translationEngine: options.translationEngine || null,
             language: this.language
         });
-
         this.writeService = options.writeService || new WriteService({
             translator: options.translationEngine || null,
             language: this.language,
@@ -175,400 +138,167 @@ export class GKLPlugin {
             spellStateManager: this.spellStateManager
         });
 
-        this.loreCodex = options.loreCodex || new LoreCodex({
-            translationEngine: options.translationEngine || null
-        });
-        if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function' && options.translationEngine) {
-            this.loreCodex.setTranslationEngine(options.translationEngine);
+        this.loreCodex = options.loreCodex || new LoreCodex({ translationEngine: options.translationEngine || null });
+        if (options.translationEngine) {
+            this.loreCodex?.setTranslationEngine?.(options.translationEngine);
         }
-
         this.loreDetector = options.loreDetector || new LoreDetector();
 
         this._setupMonsterTrackerHooks();
-
 
         this.core = null;
         this.requestController = null;
         this.lookService = new OnDemandLookService();
         this.lookupService = options.lookupService || new OnDemandLookupService();
-        this._coreListeners = [];
-        this._prevHp = null;
-        this._prevAc = null;
-        this._lastAttackTarget = null;
-        this._isPlayerDead = false;
-        this._lastReceivedMessage = '';
-        this._emittedFxList = [];
 
         // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
         this.directBindingMode = 'auto';
 
-        // サイレント同期の統計・直近履歴トラッカー（コマンド衝突管理＆インスペクター可視化用）
-        this.silentSyncTracker = {
-            totalCount: 0,
-            shimCount: 0,
-            macroCount: 0,
-            syncCounts: {
-                inventory: 0,
-                spells: 0,
-                skills: 0,
-                attributes: 0,
-                discoveries: 0
-            },
-            recentHistory: []
-        };
+        // コーディネーター & 新設サービスの初期化 (ROADMAP 2.2)
+        this.silentSyncCoordinator = new SilentSyncCoordinator(this, { directBindingMode: this.directBindingMode });
+        this.fxCoordinator = new GKLFxCoordinator(this);
+        this.eventRouter = new GKLEventRouter(this);
+        this.inspectionService = new InspectionService(this);
+        this.autoTravelService = new AutoTravelService(this);
+
+        // 後方互換参照
+        this.silentSyncTracker = this.silentSyncCoordinator.tracker;
     }
+
+    // --- 後方互換性のための内部状態プロキシ (テストおよびインスペクタ向け) ---
+    get _coreListeners() { return this.eventRouter._listeners; }
+    set _coreListeners(val) { this.eventRouter._listeners = val; }
+    get _prevHp() { return this.fxCoordinator.prevHp; }
+    set _prevHp(val) { this.fxCoordinator.prevHp = val; }
+    get _prevAc() { return this.fxCoordinator.prevAc; }
+    set _prevAc(val) { this.fxCoordinator.prevAc = val; }
+    get _lastAttackTarget() { return this.fxCoordinator.lastAttackTarget; }
+    set _lastAttackTarget(val) { this.fxCoordinator.lastAttackTarget = val; }
+    get _isPlayerDead() { return this.fxCoordinator.isPlayerDead; }
+    set _isPlayerDead(val) { this.fxCoordinator.isPlayerDead = val; }
+    get _emittedFxList() { return this.fxCoordinator.emittedFxList; }
+    set _emittedFxList(val) { this.fxCoordinator.emittedFxList = val; }
+    get _lastReceivedMessage() { return this.eventRouter.lastReceivedMessage; }
+    set _lastReceivedMessage(val) { this.eventRouter.lastReceivedMessage = val; }
 
     /**
      * 動作モード ('auto' | 'strict' | 'fallback') の設定
      * @param {'auto'|'strict'|'fallback'} mode
      */
     setDirectBindingMode(mode) {
-        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
-            this.directBindingMode = mode;
-        } else {
-            this.directBindingMode = 'auto';
-        }
-
-        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
-            this.wasmDirectBindingService.setMode(this.directBindingMode);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setDirectBindingMode === 'function') {
-            this.inventoryStateManager.setDirectBindingMode(this.directBindingMode);
-        }
-        if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingMode === 'function') {
-            this.areaStateManager.setDirectBindingMode(this.directBindingMode);
-        }
+        this.directBindingMode = (mode === 'strict' || mode === 'fallback' || mode === 'auto') ? mode : 'auto';
+        this.silentSyncCoordinator.setDirectBindingMode(this.directBindingMode);
+        this.wasmDirectBindingService?.setMode?.(this.directBindingMode);
+        this.inventoryStateManager?.setDirectBindingMode?.(this.directBindingMode);
+        this.areaStateManager?.setDirectBindingMode?.(this.directBindingMode);
     }
 
-    /**
-     * サイレント同期の実行結果を統計・直近履歴に記録
-     * @param {string} type - 同期種別 ('inventory' | 'spells' | 'skills' | 'attributes' | 'discoveries')
-     * @param {boolean} changed - 状態変更があったかどうか
-     * @param {number} durationMs - 処理時間 (ms)
-     * @param {string} [method='MACRO'] - 同期方式 ('SHIM_DIRECT' | 'MACRO')
-     */
     _recordSilentSync(type, changed = false, durationMs = 0, method = 'MACRO') {
-        if (!this.silentSyncTracker) return;
-        this.silentSyncTracker.totalCount++;
-        if (method === 'SHIM_DIRECT') {
-            this.silentSyncTracker.shimCount = (this.silentSyncTracker.shimCount || 0) + 1;
-        } else {
-            this.silentSyncTracker.macroCount = (this.silentSyncTracker.macroCount || 0) + 1;
-        }
-        if (this.silentSyncTracker.syncCounts[type] !== undefined) {
-            this.silentSyncTracker.syncCounts[type]++;
-        }
-        const entry = {
-            timestamp: Date.now(),
-            type,
-            method,
-            changed: Boolean(changed),
-            durationMs
-        };
-        this.silentSyncTracker.recentHistory.unshift(entry);
-        if (this.silentSyncTracker.recentHistory.length > 10) {
-            this.silentSyncTracker.recentHistory.pop();
-        }
+        this.silentSyncCoordinator.recordSilentSync(type, changed, durationMs, method);
     }
 
-    /**
-     * 演出トリガーイベント (fx_trigger) を安全に発行
-     * @param {Object} payload 
-     */
     emitFxTrigger(payload) {
-        const fullPayload = {
-            timestamp: Date.now(),
-            ...payload
-        };
-        if (this._emittedFxList) {
-            this._emittedFxList.push(fullPayload);
-            if (this._emittedFxList.length > 20) this._emittedFxList.shift();
-        }
-        if (!this.core || typeof this.core.emit !== 'function') return;
-        this.core.emit('fx_trigger', fullPayload);
+        this.fxCoordinator.emitFxTrigger(payload);
     }
 
-    /**
-     * 冒険手帳の新規アンロックイベントを発行
-     * @param {Object} info 
-     */
     _emitAdventureLogUnlocked(info) {
         if (!this.core || typeof this.core.emit !== 'function') return;
-        this.core.emit('adventureLogUnlocked', {
-            timestamp: Date.now(),
-            ...info
-        });
+        this.core.emit('adventureLogUnlocked', { timestamp: Date.now(), ...info });
     }
 
-    /**
-     * 冒険手帳マネージャーを取得
-     * @returns {AdventureLogManager}
-     */
-    getAdventureLogManager() {
-        return this.adventureLogManager;
-    }
+    getAdventureLogManager() { return this.adventureLogManager; }
 
-    /**
-     * 冒険手帳マネージャーを設定・更新
-     * @param {AdventureLogManager} alm 
-     */
     setAdventureLogManager(alm) {
         this.adventureLogManager = alm;
-        if (this.discoveryStateManager && typeof this.discoveryStateManager.setAdventureLogManager === 'function') {
-            this.discoveryStateManager.setAdventureLogManager(alm);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setAdventureLogManager === 'function') {
-            this.inventoryStateManager.setAdventureLogManager(alm);
-        }
+        this.discoveryStateManager?.setAdventureLogManager?.(alm);
+        this.inventoryStateManager?.setAdventureLogManager?.(alm);
     }
 
-    /**
-     * MonsterTracker と各コンポーネント（所持品同期等）の連動フックを設定
-     * @private
-     */
     _setupMonsterTrackerHooks() {
         if (!this.monsterTracker) return;
-        this.monsterTracker.onInventoryInvalidateRequired = (reason, entry) => {
-            if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-                this.inventoryStateManager.invalidate();
-            }
+        this.monsterTracker.onInventoryInvalidateRequired = () => {
+            this.inventoryStateManager?.invalidate?.();
         };
     }
 
-    /**
-     * MonsterTracker インスタンスを設定・更新
-     * @param {MonsterTracker} tracker 
-     */
     setMonsterTracker(tracker) {
         this.monsterTracker = tracker;
-        if (this.areaStateManager && typeof this.areaStateManager.setMonsterTracker === 'function') {
-            this.areaStateManager.setMonsterTracker(tracker);
-        }
+        this.areaStateManager?.setMonsterTracker?.(tracker);
         this._setupMonsterTrackerHooks();
     }
 
-    /**
-     * 方向キー・トークンから相対オフセット {dx, dy} を取得
-     * @private
-     */
     _getDirOffset(dirKey) {
-        if (!dirKey) return null;
-        const str = String(dirKey).trim();
-        const map = {
-            'k': { dx: 0, dy: -1 }, 'DIR_N': { dx: 0, dy: -1 }, '8': { dx: 0, dy: -1 }, 'N': { dx: 0, dy: -1 },
-            'l': { dx: 1, dy: 0 }, 'DIR_E': { dx: 1, dy: 0 }, '6': { dx: 1, dy: 0 }, 'E': { dx: 1, dy: 0 },
-            'j': { dx: 0, dy: 1 }, 'DIR_S': { dx: 0, dy: 1 }, '2': { dx: 0, dy: 1 }, 'S': { dx: 0, dy: 1 },
-            'h': { dx: -1, dy: 0 }, 'DIR_W': { dx: -1, dy: 0 }, '4': { dx: -1, dy: 0 }, 'W': { dx: -1, dy: 0 },
-            'u': { dx: 1, dy: -1 }, 'DIR_NE': { dx: 1, dy: -1 }, '9': { dx: 1, dy: -1 }, 'NE': { dx: 1, dy: -1 },
-            'y': { dx: -1, dy: -1 }, 'DIR_NW': { dx: -1, dy: -1 }, '7': { dx: -1, dy: -1 }, 'NW': { dx: -1, dy: -1 },
-            'n': { dx: 1, dy: 1 }, 'DIR_SE': { dx: 1, dy: 1 }, '3': { dx: 1, dy: 1 }, 'SE': { dx: 1, dy: 1 },
-            'b': { dx: -1, dy: 1 }, 'DIR_SW': { dx: -1, dy: 1 }, '1': { dx: -1, dy: 1 }, 'SW': { dx: -1, dy: 1 },
-        };
-        return map[str] || null;
+        return this.fxCoordinator.getDirOffset(dirKey);
     }
 
-    /**
-     * 所持品・魔法・スキル・耐性など全マネージャーのキャッシュを一括無効化
-     */
     invalidateAllCaches() {
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-            this.inventoryStateManager.invalidate();
-        }
-        if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
-            this.spellStateManager.invalidate();
-        }
-        if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
-            this.skillStateManager.invalidate();
-        }
-        if (this.encumbranceStateManager && typeof this.encumbranceStateManager.reset === 'function') {
-            this.encumbranceStateManager.reset();
-        }
-        if (this.loreDetector && typeof this.loreDetector.reset === 'function') {
-            this.loreDetector.reset();
-        }
+        this.inventoryStateManager?.invalidate?.();
+        this.spellStateManager?.invalidate?.();
+        this.skillStateManager?.invalidate?.();
+        this.encumbranceStateManager?.reset?.();
+        this.loreDetector?.reset?.();
     }
 
-    /**
-     * 重量・負荷状態マネージャー (EncumbranceStateManager) を取得
-     * @returns {EncumbranceStateManager}
-     */
-    getEncumbranceStateManager() {
-        return this.encumbranceStateManager;
-    }
+    getEncumbranceStateManager() { return this.encumbranceStateManager; }
+    getEncumbranceState() { return this.encumbranceStateManager ? this.encumbranceStateManager.getEncumbranceState() : null; }
 
-    /**
-     * 現在の重量・負荷統合状態を取得
-     * @returns {Object}
-     */
-    getEncumbranceState() {
-        return this.encumbranceStateManager ? this.encumbranceStateManager.getEncumbranceState() : null;
-    }
-
-    /**
-     * 表示言語の動的切り替え ('ja' | 'en')
-     * @param {'ja'|'en'} lang 
-     */
     setLanguage(lang = 'ja') {
-        const isJa = (lang === 'ja' || lang === 'jp' || lang === true);
-        const resolvedLang = isJa ? 'ja' : 'en';
+        const resolvedLang = (lang === 'ja' || lang === 'jp' || lang === true) ? 'ja' : 'en';
         this.language = resolvedLang;
-        if (this.situationCache && typeof this.situationCache.setLanguage === 'function') {
-            this.situationCache.setLanguage(resolvedLang);
-        }
-        if (this.structuredKnowledge && typeof this.structuredKnowledge.setLanguage === 'function') {
-            this.structuredKnowledge.setLanguage(resolvedLang);
-        }
-        if (this.wishService && typeof this.wishService.setLanguage === 'function') {
-            this.wishService.setLanguage(resolvedLang);
-        }
-        if (this.genocideService && typeof this.genocideService.setLanguage === 'function') {
-            this.genocideService.setLanguage(resolvedLang);
-        }
-        if (this.polymorphService && typeof this.polymorphService.setLanguage === 'function') {
-            this.polymorphService.setLanguage(resolvedLang);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setLanguage === 'function') {
-            this.inventoryStateManager.setLanguage(resolvedLang);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-            this.inventoryStateManager.invalidate();
-        }
-        if (this.loreCodex && typeof this.loreCodex.refreshTranslations === 'function') {
-            this.loreCodex.refreshTranslations();
-        }
-        if (this.actionSignalResolver && typeof this.actionSignalResolver.setLanguage === 'function') {
-            this.actionSignalResolver.setLanguage(resolvedLang);
-        }
-        if (this.lookupService && typeof this.lookupService.setLanguage === 'function') {
-            this.lookupService.setLanguage(resolvedLang);
-        }
+        this.situationCache?.setLanguage?.(resolvedLang);
+        this.structuredKnowledge?.setLanguage?.(resolvedLang);
+        this.wishService?.setLanguage?.(resolvedLang);
+        this.genocideService?.setLanguage?.(resolvedLang);
+        this.polymorphService?.setLanguage?.(resolvedLang);
+        this.inventoryStateManager?.setLanguage?.(resolvedLang);
+        this.inventoryStateManager?.invalidate?.();
+        this.loreCodex?.refreshTranslations?.();
+        this.actionSignalResolver?.setLanguage?.(resolvedLang);
+        this.lookupService?.setLanguage?.(resolvedLang);
     }
 
-    /**
-     * 🧙 賢者の知恵モード (常時鑑定・透視) の切り替え
-     * @param {boolean} enabled 
-     */
     setSagesWisdomMode(enabled = false) {
         this.sagesWisdomMode = Boolean(enabled);
-        if (this.structuredKnowledge && typeof this.structuredKnowledge.setSagesWisdomMode === 'function') {
-            this.structuredKnowledge.setSagesWisdomMode(this.sagesWisdomMode);
-        }
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setSagesWisdomMode === 'function') {
-            this.inventoryStateManager.setSagesWisdomMode(this.sagesWisdomMode);
-        }
+        this.structuredKnowledge?.setSagesWisdomMode?.(this.sagesWisdomMode);
+        this.inventoryStateManager?.setSagesWisdomMode?.(this.sagesWisdomMode);
     }
 
-    /**
-     * 冒険手帳・伝承コレクションマネージャを取得
-     * @returns {LoreCodex}
-     */
-    getCodex() {
-        return this.loreCodex;
-    }
+    getCodex() { return this.loreCodex; }
+    getLoreCodex() { return this.loreCodex; }
+    getLoreDetector() { return this.loreDetector; }
+    getWishService() { return this.wishService; }
+    getGenocideService() { return this.genocideService; }
+    getPolymorphService() { return this.polymorphService; }
+    getWriteService() { return this.writeService; }
 
-    /**
-     * 冒険手帳・伝承コレクションマネージャを取得 (エイリアス)
-     * @returns {LoreCodex}
-     */
-    getLoreCodex() {
-        return this.loreCodex;
-    }
-
-    /**
-     * 伝承シグナル検知器 (LoreDetector) インスタンスを取得
-     * @returns {LoreDetector}
-     */
-    getLoreDetector() {
-        return this.loreDetector;
-    }
-
-    /**
-     * 願い支援サービス (WishService) インスタンスを取得
-     * @returns {WishService}
-     */
-    getWishService() {
-        return this.wishService;
-    }
-
-
-    /**
-     * 虐殺支援サービス (GenocideService) インスタンスを取得
-     * @returns {GenocideService}
-     */
-    getGenocideService() {
-        return this.genocideService;
-    }
-
-    /**
-     * 変化制御支援サービス (PolymorphService) インスタンスを取得
-     * @returns {PolymorphService}
-     */
-    getPolymorphService() {
-        return this.polymorphService;
-    }
-
-    /**
-     * 魔法のマーカー書き込み支援サービス (WriteService) インスタンスを取得
-     * @returns {WriteService}
-     */
-    getWriteService() {
-        return this.writeService;
-    }
-
-    /**
-     * キャラクター情報（種族・ロール等）を取得
-     */
     getCharacterInfo() {
-        if (this.attributeStateManager && this.attributeStateManager.characterInfo) {
-            return this.attributeStateManager.characterInfo;
-        }
-        return { race: 'human', role: 'valkyrie', level: 1 };
+        return this.attributeStateManager?.characterInfo || { race: 'human', role: 'valkyrie', level: 1 };
     }
 
-    /**
-     * ゲームリスタート時などに全マネージャーのキャッシュ・状態を初期化
-     */
     reset() {
-        this._prevHp = null;
-        this._prevAc = null;
-        this._lastAttackTarget = null;
-        this._isPlayerDead = false;
-        if (this.monsterTracker && typeof this.monsterTracker.reset === 'function') {
-            this.monsterTracker.reset();
-        }
+        this.fxCoordinator.reset();
+        this.monsterTracker?.reset?.();
         if (this.areaStateManager) {
             if (typeof this.areaStateManager.resetAll === 'function') {
                 this.areaStateManager.resetAll();
             } else {
-                if (typeof this.areaStateManager.resetGrid === 'function') {
-                    this.areaStateManager.resetGrid();
-                }
-                if (typeof this.areaStateManager.clearLandmarks === 'function') {
-                    this.areaStateManager.clearLandmarks();
-                }
+                this.areaStateManager.resetGrid?.();
+                this.areaStateManager.clearLandmarks?.();
             }
         }
         if (this.inventoryStateManager) {
             this.inventoryStateManager.items = [];
-            if (typeof this.inventoryStateManager.invalidate === 'function') {
-                this.inventoryStateManager.invalidate();
-            }
+            this.inventoryStateManager.invalidate?.();
         }
         if (this.spellStateManager) {
             this.spellStateManager.spells = [];
-            if (typeof this.spellStateManager.invalidate === 'function') {
-                this.spellStateManager.invalidate();
-            }
+            this.spellStateManager.invalidate?.();
         }
         if (this.skillStateManager) {
             this.skillStateManager.skills = [];
-            if (typeof this.skillStateManager.invalidate === 'function') {
-                this.skillStateManager.invalidate();
-            }
+            this.skillStateManager.invalidate?.();
         }
-        if (this.statusAccessor && typeof this.statusAccessor.reset === 'function') {
-            this.statusAccessor.reset();
-        }
+        this.statusAccessor?.reset?.();
         if (this.attributeStateManager) {
             if (typeof this.attributeStateManager.reset === 'function') {
                 this.attributeStateManager.reset();
@@ -577,75 +307,34 @@ export class GKLPlugin {
                 this.attributeStateManager.extrinsics = {};
             }
         }
-        if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
-            this.situationCache.invalidate();
-        }
-        if (this.interactionContext && typeof this.interactionContext.reset === 'function') {
-            this.interactionContext.reset();
-        }
-        if (this.silentSyncTracker) {
-            this.silentSyncTracker.totalCount = 0;
-            this.silentSyncTracker.syncCounts = {
-                inventory: 0,
-                spells: 0,
-                skills: 0,
-                attributes: 0,
-                discoveries: 0
-            };
-            this.silentSyncTracker.recentHistory = [];
-        }
+        this.situationCache?.invalidate?.();
+        this.interactionContext?.reset?.();
+        this.silentSyncCoordinator.reset();
     }
 
-
-    /**
-     * WebUICore インスタンスへプラグインをアタッチし、イベントリスナーを接続
-     * @param {Object} core - WebUICore インスタンス
-     */
     attach(core) {
         if (!core) return;
         if (this.core && this.core !== core) {
             this.detach();
         }
         this.core = core;
-        if (!core.gkl) {
-            core.gkl = this;
-        }
+        if (!core.gkl) core.gkl = this;
         if (Array.isArray(core.plugins) && !core.plugins.includes(this)) {
             core.plugins.push(this);
         }
 
-        if (core.language) {
-            this.setLanguage(core.language);
-        }
-
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.setStructuredKnowledgeEngine === 'function') {
-            this.inventoryStateManager.setStructuredKnowledgeEngine(this.structuredKnowledge);
-        }
+        if (core.language) this.setLanguage(core.language);
+        this.inventoryStateManager?.setStructuredKnowledgeEngine?.(this.structuredKnowledge);
 
         if (core.translator) {
-            if (this.structuredKnowledge && typeof this.structuredKnowledge.setTranslationEngine === 'function') {
-                this.structuredKnowledge.setTranslationEngine(core.translator);
-            }
-            if (this.wishService && typeof this.wishService.setTranslator === 'function') {
-                this.wishService.setTranslator(core.translator);
-            }
-            if (this.genocideService && typeof this.genocideService.setTranslator === 'function') {
-                this.genocideService.setTranslator(core.translator);
-            }
-            if (this.polymorphService && typeof this.polymorphService.setTranslationEngine === 'function') {
-                this.polymorphService.setTranslationEngine(core.translator);
-            }
-            if (this.loreCodex && typeof this.loreCodex.setTranslationEngine === 'function') {
-                this.loreCodex.setTranslationEngine(core.translator);
-            }
-            if (this.lookupService && typeof this.lookupService.setTranslationEngine === 'function') {
-                this.lookupService.setTranslationEngine(core.translator);
-            }
-            if (this.discoveryStateManager && typeof this.discoveryStateManager.setTranslationEngine === 'function') {
-                this.discoveryStateManager.setTranslationEngine(core.translator);
-            }
+            this.structuredKnowledge?.setTranslationEngine?.(core.translator);
+            this.wishService?.setTranslator?.(core.translator);
+            this.genocideService?.setTranslator?.(core.translator);
+            this.polymorphService?.setTranslationEngine?.(core.translator);
+            this.loreCodex?.setTranslationEngine?.(core.translator);
+            this.lookupService?.setTranslationEngine?.(core.translator);
+            this.discoveryStateManager?.setTranslationEngine?.(core.translator);
         }
-
 
         const driverOrBridge = core.driver;
         if (driverOrBridge && (driverOrBridge.callShim || driverOrBridge.memory)) {
@@ -659,1203 +348,67 @@ export class GKLPlugin {
                 if (driverOrBridge.callShim) this.wasmDirectBindingService.setBridge(driverOrBridge);
                 if (driverOrBridge.memory) this.wasmDirectBindingService.setMemory(driverOrBridge.memory);
             }
-            if (this.inventoryStateManager && typeof this.inventoryStateManager.setWasmDirectBindingService === 'function') {
-                this.inventoryStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
-            }
-            if (this.encumbranceStateManager && typeof this.encumbranceStateManager.setWasmDirectBindingService === 'function') {
-                this.encumbranceStateManager.setWasmDirectBindingService(this.wasmDirectBindingService);
-            }
-            if (this.areaStateManager && typeof this.areaStateManager.setDirectBindingService === 'function') {
-                this.areaStateManager.setDirectBindingService(this.wasmDirectBindingService);
-            }
+            this.inventoryStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
+            this.encumbranceStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
+            this.areaStateManager?.setDirectBindingService?.(this.wasmDirectBindingService);
         }
 
         if (core.interactiveController || core.requestController) {
             this.requestController = core.interactiveController || core.requestController;
         }
-        if (this.lookService) {
-            this.lookService.setCore(core);
-        }
-        if (this.lookupService) {
-            this.lookupService.setCore(core);
-        }
+        this.lookService?.setCore?.(core);
+        this.lookupService?.setCore?.(core);
 
-        // WebUICore からのパブリックイベントにバインド
         this._bindCoreEvents(core);
     }
 
-    /**
-     * WebUICore からプラグインをデタッチし、リスナーを安全に解除
-     */
     detach() {
         if (!this.core) return;
-        if (Array.isArray(this._coreListeners) && typeof this.core.off === 'function') {
-            for (const { event, handler } of this._coreListeners) {
-                this.core.off(event, handler);
-            }
-        }
-        this._coreListeners = [];
+        this.eventRouter.detach(this.core);
         if (this.core.gkl === this) {
             this.core.gkl = null;
         }
         this.core = null;
     }
 
-    /**
-     * WebUICore のイベントバインディング
-     * @private
-     */
     _bindCoreEvents(core) {
-        this._coreListeners = [];
-        const addCoreListener = (event, handler) => {
-            core.on(event, handler);
-            this._coreListeners.push({ event, handler });
-        };
-
-        // 言語変更イベントのリスン
-        addCoreListener('languageChanged', ({ language }) => {
-            this.setLanguage(language);
-        });
-
-        // 状況シグナル (situationSignal) 受信時のコンテキスト更新と実施シグナル (actionSignal) の導出
-        addCoreListener('situationSignal', (signal) => {
-            if (this.interactionContext && typeof this.interactionContext.handleSituationSignal === 'function') {
-                this.interactionContext.handleSituationSignal(signal);
-            }
-            if (this.actionSignalResolver && typeof this.actionSignalResolver.resolve === 'function') {
-                const actionSig = this.actionSignalResolver.resolve(this.interactionContext);
-                if (actionSig) {
-                    core.emit('actionSignal', actionSig);
-                }
-            }
-
-            // 🛡️ Stage 5.4B: 耐性マネージャのメッセージマスタ駆動 O(1) 確定更新
-            if (signal && signal.type === 'MESSAGE' && signal.context && this.attributeStateManager) {
-                if (typeof this.attributeStateManager.processMessageContext === 'function') {
-                    const updated = this.attributeStateManager.processMessageContext(signal.context);
-                    if (updated) {
-                        core.emit('attributesStateUpdated', this.attributeStateManager);
-                    }
-                }
-            }
-
-            // 🔍 Stage 5.4C: 道具識別マネージャの効果メッセージによる真名自動昇格
-            if (signal && signal.type === 'MESSAGE' && signal.context && this.discoveryStateManager) {
-                if (typeof this.discoveryStateManager.processDiscoveryMessage === 'function') {
-                    const discovered = this.discoveryStateManager.processDiscoveryMessage(signal.context);
-                    if (discovered) {
-                        core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                        if (this.inventoryStateManager) {
-                            if (typeof this.inventoryStateManager.invalidate === 'function') {
-                                this.inventoryStateManager.invalidate();
-                            }
-                            core.emit('inventoryStateUpdated', this.inventoryStateManager);
-                        }
-                    }
-                }
-            }
-        });
-
-        // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
-        addCoreListener('inputRequired', async (payload) => {
-            // 🎯 トップレベルターン確定時に足元情報・所持品・発見状態・周辺モンスターを同期 (Stage 8.2-A, 8.3-A)
-            if (payload && payload.isTopLevelTurn && this.wasmDirectBindingService) {
-                const px = this.areaStateManager ? this.areaStateManager.playerX : -1;
-                const py = this.areaStateManager ? this.areaStateManager.playerY : -1;
-
-                if (this.wasmDirectBindingService.bridge) {
-                    // 周辺モンスター座標の収集 (Stage 8.3-A)
-                    const surroundingMonsters = [];
-                    if (this.areaStateManager && this.areaStateManager.grid && px >= 0 && py >= 0) {
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const tx = px + dx;
-                                const ty = py + dy;
-                                const cell = this.areaStateManager.grid[ty]?.[tx];
-                                if (cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET')) {
-                                    surroundingMonsters.push({ x: tx, y: ty });
-                                }
-                            }
-                        }
-                    }
-
-                    await this.wasmDirectBindingService.syncFromWorkerBridge({
-                        playerX: px >= 0 ? px : undefined,
-                        playerY: py >= 0 ? py : undefined,
-                        syncInventory: true,
-                        syncDiscoveries: true,
-                        surroundingMonsters
-                    });
-                }
-
-                // 🎯 発見・識別状態 (objects[i].oc_name_known) の即時同期
-                if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function') {
-                    const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
-                    if (discChanged) {
-                        core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                    }
-                }
-
-                // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
-                if (this.areaStateManager && typeof this.areaStateManager.syncFromDirectBinding === 'function') {
-                    this.areaStateManager.syncFromDirectBinding(1);
-                }
-
-                // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
-                if (this.areaStateManager && typeof this.areaStateManager.syncPlayerFeetFloor === 'function') {
-                    this.areaStateManager.syncPlayerFeetFloor();
-                }
-
-                if (this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
-                    const changed = this.inventoryStateManager.syncFromDirectBinding();
-                    if (changed) {
-                        core.emit('inventoryStateUpdated', this.inventoryStateManager);
-                    }
-                }
-
-                // 🎯 InteractionContext への周辺エリア状態の即時反映 (Stage 8.3-A)
-                if (this.interactionContext && typeof this.interactionContext.updateFromAreaState === 'function' && this.areaStateManager) {
-                    this.interactionContext.updateFromAreaState(this.areaStateManager.getAreaState());
-                }
-            }
-
-            if (this.interactionContext && typeof this.interactionContext.setImmediatePrompt === 'function') {
-                this.interactionContext.setImmediatePrompt({
-                    type: payload.type || payload.promptCategory || 'PROMPT',
-                    prompt: payload.rawPrompt || payload.prompt || payload.question || ''
-                });
-            }
-            if (this.actionSignalResolver && typeof this.actionSignalResolver.resolve === 'function') {
-                const actionSig = this.actionSignalResolver.resolve(this.interactionContext);
-                if (actionSig) {
-                    core.emit('actionSignal', actionSig);
-                }
-            }
-        });
-
-        // 1. ユーザーアクション送出時のインベントリ・魔法 dirty 化判定 ＆ ハイブリッド内部ターン進行 ＆ 攻撃検知
-        addCoreListener('userActionSent', ({ sequence }) => {
-            if (sequence) {
-                if (this.interactionContext && typeof this.interactionContext.recordAction === 'function') {
-                    this.interactionContext.recordAction(sequence[0]);
-                }
-                if (!this.isNonItemSequence(sequence)) {
-                    if (typeof this.inventoryStateManager.invalidate === 'function') {
-                        this.inventoryStateManager.invalidate();
-                    } else {
-                        this.inventoryStateManager.isSynced = false;
-                    }
-                }
-
-                // 魔法ステートのダーティ化は魔法に影響するアクション（Z:詠唱, r:魔法書読書, +等）の時のみ限定実行
-                if (this.isSpellAffectingSequence(sequence)) {
-                    if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
-                        this.spellStateManager.invalidate();
-                    }
-                }
-
-                // BL_TIME 非送信時用の自律ターン進行
-                if (this.monsterTracker && this.isTurnConsumingSequence(sequence)) {
-                    this.monsterTracker.advanceTurn();
-                }
-
-                // ⚔️ 近接攻撃アクション (ATTACK_HIT) の検知 (※ 死亡時、ペット、店主、平和的NPCは除外)
-                if (sequence.length === 1 && this.areaStateManager && !this._isPlayerDead) {
-                    const offset = this._getDirOffset(sequence[0]);
-                    if (offset) {
-                        const px = this.areaStateManager.playerX;
-                        const py = this.areaStateManager.playerY;
-                        const tx = px + offset.dx;
-                        const ty = py + offset.dy;
-                        const targetCell = this.areaStateManager.grid?.[ty]?.[tx];
-                        const top = targetCell?.top;
-
-                        // WasmDirectBindingService による真値の照会
-                        let directMon = top?.directState || null;
-                        if (!directMon && this.wasmDirectBindingService && typeof this.wasmDirectBindingService.isAvailable === 'function' && this.wasmDirectBindingService.isAvailable()) {
-                            directMon = this.wasmDirectBindingService.getFullMonsterAt(tx, ty);
-                        }
-
-                        const isPet = (top && (top.type === 'PET' || top.isPet || top.isTame || top.glyphInfo?.isPet)) ||
-                                      Boolean(directMon?.tame);
-
-                        const monOffset = top ? (top.monOffset !== undefined ? top.monOffset : (top.subType !== undefined ? top.subType : top.glyphInfo?.monOffset)) : undefined;
-                        const monKnowledge = (monOffset !== undefined && MONSTER_KNOWLEDGE_MAP) ? MONSTER_KNOWLEDGE_MAP.get(monOffset) : null;
-                        const isExplicitHostile = top && (
-                            top.isHostile ||
-                            top.attitude === 'HOSTILE' ||
-                            top.glyphInfo?.isHostile ||
-                            top.glyphInfo?.attitude === 'HOSTILE' ||
-                            top.dynamicState?.isHostile
-                        );
-
-                        const isPeaceful = ((top && (
-                            top.isPeaceful ||
-                            top.peaceful ||
-                            top.attitude === 'PEACEFUL' ||
-                            top.dynamicState?.isPeaceful ||
-                            top.glyphInfo?.isPeaceful ||
-                            top.glyphInfo?.peaceful ||
-                            monKnowledge?.defaultPeaceful ||
-                            /\b(peaceful|平和)\b/i.test(top.name || top.glyphInfo?.name || '')
-                        )) || Boolean(directMon?.peaceful)) && !isExplicitHostile;
-
-                        const isShopkeeper = (top && (
-                            top.isShopkeeper ||
-                            top.glyphInfo?.isShopkeeper ||
-                            isShopkeeperMonster(top) ||
-                            isShopkeeperMonster(top.glyphInfo) ||
-                            /\b(shopkeeper|店主)\b/i.test(top.name || top.glyphInfo?.name || '')
-                        )) || Boolean(directMon?.isShopkeeper);
-
-                        const isPriest = (top && (
-                            top.isPriest ||
-                            top.glyphInfo?.isPriest
-                        )) || Boolean(directMon?.isPriest);
-
-                        if (top && top.type === 'MONSTER' && !isPet && !isPeaceful && !isShopkeeper && !isPriest) {
-                            this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
-                            this.emitFxTrigger({
-                                type: 'ATTACK_HIT',
-                                targetX: tx,
-                                targetY: ty
-                            });
-                        }
-                    }
-                }
-            }
-        });
-
-        // 2. テキストメッセージ受信時の更新 (撃破メッセージ・死亡/蘇生メッセージ・KILL_CONFIRMED含む)
-        addCoreListener('messageText', ({ text }) => {
-            if (text) {
-                this._lastReceivedMessage = text;
-                const px = this.areaStateManager ? this.areaStateManager.playerX : (this.statusAccessor?.x ?? 0);
-                const py = this.areaStateManager ? this.areaStateManager.playerY : (this.statusAccessor?.y ?? 0);
-
-                // 💀 プレイヤー死亡検知 (PLAYER_DIED)
-                if (/^You die\.\.\./.test(text)) {
-                    this._isPlayerDead = true;
-                    this.emitFxTrigger({
-                        type: 'PLAYER_DIED',
-                        targetX: px,
-                        targetY: py,
-                        isPlayer: true,
-                        text: text
-                    });
-                }
-
-                // ✨ プレイヤー蘇生検知 (PLAYER_RESURRECTED: 命の魔除け / 探索・ウィザードモード死亡回避等)
-                if (/Your amulet shines|OK, so you don't|survived that attempt|averted death/.test(text)) {
-                    this._isPlayerDead = false;
-                    this.emitFxTrigger({
-                        type: 'PLAYER_RESURRECTED',
-                        targetX: px,
-                        targetY: py,
-                        isPlayer: true,
-                        text: text
-                    });
-                }
-
-                let killedInfo = null;
-                if (this.monsterTracker && typeof this.monsterTracker.handleMessage === 'function') {
-                    killedInfo = this.monsterTracker.handleMessage(text);
-                }
-                if (killedInfo) {
-                    const tx = killedInfo.lastKnownPos?.x ?? this._lastAttackTarget?.x;
-                    const ty = killedInfo.lastKnownPos?.y ?? this._lastAttackTarget?.y;
-                    this.emitFxTrigger({
-                        type: 'KILL_CONFIRMED',
-                        targetX: tx,
-                        targetY: ty
-                    });
-                }
-                if (typeof this.inventoryStateManager.updateFromMessage === 'function') {
-                    const updated = this.inventoryStateManager.updateFromMessage(text);
-                    if (updated) {
-                        core.emit('inventoryStateUpdated', this.inventoryStateManager);
-                    }
-                }
-                if (this.spellStateManager && typeof this.spellStateManager.updateFromMessage === 'function') {
-                    const updated = this.spellStateManager.updateFromMessage(text);
-                    if (updated) {
-                        core.emit('spellsStateUpdated', this.spellStateManager);
-                    }
-                }
-                if (this.skillStateManager && typeof this.skillStateManager.updateFromMessage === 'function') {
-                    const updated = this.skillStateManager.updateFromMessage(text);
-                    if (updated) {
-                        core.emit('skillsStateUpdated', this.skillStateManager);
-                    }
-                }
-                if (this.attributeStateManager && typeof this.attributeStateManager.updateFromMessage === 'function') {
-                    const updated = this.attributeStateManager.updateFromMessage(text);
-                    if (updated) {
-                        core.emit('attributesStateUpdated', this.attributeStateManager);
-                    }
-                }
-
-                // 📡 Layer 4: LORE シグナル検知 & 発行 (Pub/Sub)
-                if (this.loreDetector) {
-                    let anchorCandidate = null;
-                    const asm = this.areaStateManager;
-                    const playerX = asm ? asm.playerX : (this.statusAccessor?.x ?? -1);
-                    const playerY = asm ? asm.playerY : (this.statusAccessor?.y ?? -1);
-                    if (asm && playerX >= 0 && playerY >= 0) {
-                        anchorCandidate = asm.getEngravingAt(playerX, playerY);
-                    }
-
-                    const loreSignal = this.loreDetector.processMessage(text, { anchorCandidate });
-                    if (loreSignal && loreSignal.matched) {
-                        if (!loreSignal.rawPrompt) {
-                            loreSignal.rawPrompt = text;
-                        }
-                        core.emit('situationSignal', { type: 'LORE', signal: loreSignal });
-                        core.emit('signal', loreSignal);
-                        core.emit(`signal:${loreSignal.signalId}`, loreSignal);
-                        core.emit('loreSignal', loreSignal);
-
-                        // 📖 冒険手帳: 噂のアンロック
-                        if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR' && loreSignal.rumorId && this.adventureLogManager) {
-                            const isNew = this.adventureLogManager.unlockRumor(loreSignal.rumorId);
-                            if (isNew) {
-                                this._emitAdventureLogUnlocked({
-                                    category: 'rumor',
-                                    id: loreSignal.rumorId,
-                                    text: loreSignal.text,
-                                    textJa: loreSignal.translatedText,
-                                    isTrue: loreSignal.isTrue
-                                });
-                            }
-                        }
-
-                        // 🏛️ 冒険手帳: 神託のアンロック (一括/安全ハンドリング)
-                        if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE' && this.adventureLogManager) {
-                            this._handleOracleUnlock(loreSignal);
-                        }
-                    }
-                }
-            }
-        });
-
-        // 2.2 テキストウィンドウ受信時の LORE (神託/噂) 検知 ＆ 冒険手帳アンロック
-        const handleTextWindowContent = ({ lines, rawLines, rawText }) => {
-            if (!this.loreDetector) return;
-            const textToProcess = rawText || (rawLines ? rawLines.join('\n') : (lines ? lines.join('\n') : ''));
-            if (!textToProcess || !textToProcess.trim()) return;
-
-            const loreSignal = this.loreDetector.processMessage(textToProcess);
-            if (loreSignal && loreSignal.matched) {
-                if (!loreSignal.rawPrompt) {
-                    loreSignal.rawPrompt = textToProcess;
-                }
-                core.emit('situationSignal', { type: 'LORE', signal: loreSignal });
-                core.emit('signal', loreSignal);
-                core.emit(`signal:${loreSignal.signalId}`, loreSignal);
-                core.emit('loreSignal', loreSignal);
-
-                // 🏛️ 冒険手帳: 神託のアンロック (一括/安全ハンドリング)
-                if (loreSignal.signalId === 'SIGNAL_LORE_ORACLE' && this.adventureLogManager) {
-                    this._handleOracleUnlock(loreSignal);
-                }
-
-                // 📖 冒険手帳: 噂のアンロック
-                if (loreSignal.signalId === 'SIGNAL_LORE_RUMOR' && loreSignal.rumorId && this.adventureLogManager) {
-                    const isNew = this.adventureLogManager.unlockRumor(loreSignal.rumorId);
-                    if (isNew) {
-                        this._emitAdventureLogUnlocked({
-                            category: 'rumor',
-                            id: loreSignal.rumorId,
-                            text: loreSignal.text,
-                            textJa: loreSignal.translatedText,
-                            isTrue: loreSignal.isTrue
-                        });
-                    }
-                }
-            }
-        };
-
-        addCoreListener('textWindowContent', handleTextWindowContent);
-
-        // 3.1. インベントリ更新時の外因性耐性 (Extrinsics) 自動再計算
-        addCoreListener('inventoryStateUpdated', (invMgr) => {
-            const items = invMgr ? (invMgr.items || []) : (this.inventoryStateManager ? this.inventoryStateManager.items : []);
-            if (this.attributeStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
-                this.attributeStateManager.updateExtrinsicsFromInventory(items);
-            }
-        });
-
-        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期 ＆ キャッシュ管理
-        const triggerDiscoverySync = () => {
-            this.syncDiscoveriesSilent();
-        };
-        addCoreListener('game_ready', triggerDiscoverySync);
-        addCoreListener('game_started', triggerDiscoverySync);
-        addCoreListener('restore', triggerDiscoverySync);
-        addCoreListener('game_restored', triggerDiscoverySync);
-
-        // 新規ゲーム開始・リスタート時のキャッシュ初期化
-        const handleGameReset = () => {
-            this.reset();
-        };
-        addCoreListener('restarted', handleGameReset);
-
-        const handlePlayerPosUpdate = (data) => {
-            if (data && data.x !== undefined && data.y !== undefined) {
-                if (data.x >= 0 && data.x < 80 && data.y >= 0 && data.y < 21) {
-                    if (this.areaStateManager && typeof this.areaStateManager.seedInitialStair === 'function') {
-                        this.areaStateManager.seedInitialStair(data.x, data.y);
-                    }
-                    if (this.areaStateManager && typeof this.areaStateManager.seedArrivalStair === 'function') {
-                        this.areaStateManager.seedArrivalStair(data.x, data.y);
-                    }
-                    this.areaStateManager.updatePlayerPosition(data.x, data.y);
-                    if (this.interactionContext && typeof this.interactionContext.updatePlayerPosition === 'function') {
-                        this.interactionContext.updatePlayerPosition(data.x, data.y);
-                    }
-                }
-            }
-        };
-        addCoreListener('curs', handlePlayerPosUpdate);
-        addCoreListener('cursor', handlePlayerPosUpdate);
-
-        // 5. ウィンドウ消去・マップリセットの同期
-        addCoreListener('clear_nhwindow', (data) => {
-            this._lastAttackTarget = null;
-            if (data && (data.windowId === 3 || data.windowId === 2 || data.windowId === 0)) {
-                if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
-                    this.areaStateManager.prepareFloorTransition();
-                } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
-                    this.areaStateManager.resetGrid();
-                }
-                if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
-                    this.situationCache.invalidate();
-                }
-            }
-        });
-
-        addCoreListener('map_cleared', () => {
-            this._lastAttackTarget = null;
-            if (this.areaStateManager && typeof this.areaStateManager.prepareFloorTransition === 'function') {
-                this.areaStateManager.prepareFloorTransition();
-            } else if (this.areaStateManager && typeof this.areaStateManager.resetGrid === 'function') {
-                this.areaStateManager.resetGrid();
-            }
-            if (this.situationCache && typeof this.situationCache.invalidate === 'function') {
-                this.situationCache.invalidate();
-            }
-        });
-
-        // 6. マップグリフ更新の同期
-        addCoreListener('print_glyph', (data) => {
-            if (data) {
-                const gi = data.glyphInfo || data;
-                const glyphId = data.glyph !== undefined ? data.glyph : -1;
-                this.areaStateManager.updateGlyph(data.x, data.y, glyphId, gi, data.bkglyphInfo || null);
-
-                // 📖 冒険手帳: モンスターLOS遭遇検知
-                if (glyphId >= 0 && this.adventureLogManager) {
-                    const classified = classifyGlyph(glyphId);
-                    if ((classified.type === ENTITY_TYPES.MONSTER || classified.type === ENTITY_TYPES.PET) &&
-                        classified.subType !== undefined && classified.subType >= 0 && classified.subType < 383 &&
-                        !classified.isInvisible && !classified.isWarning) {
-                        const isNew = this.adventureLogManager.unlockMonster(classified.subType);
-                        if (isNew) {
-                            const monData = MONSTER_KNOWLEDGE_MAP ? MONSTER_KNOWLEDGE_MAP.get(classified.subType) : null;
-                            this._emitAdventureLogUnlocked({
-                                category: 'monster',
-                                monOffset: classified.subType,
-                                id: monData?.id || `mon_${classified.subType}`,
-                                name: monData?.name || `Monster #${classified.subType}`,
-                                nameJa: monData?.nameJa || monData?.japaneseName || `モンスター #${classified.subType}`
-                            });
-                        }
-                    }
-                }
-            }
-        });
-
-        // 7. ステータスフィールド更新の同期 (HP変動・DAMAGE_TAKEN / RECOVER_HEAL検知含む)
-        addCoreListener('status_update', (data) => {
-            if (data && data.field !== undefined && this.statusAccessor) {
-                this.statusAccessor.updateField(data.field, data.value);
-
-                // HP 変動検知 (BL_HP = 18, 'hp')
-                if (data.field === 18 || data.field === 'hp') {
-                    const newHp = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
-                    if (!isNaN(newHp)) {
-                        if (this._prevHp !== null && this._prevHp !== undefined) {
-                            const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
-                            const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
-                            const st = this.statusAccessor.getStatus();
-                            const maxHp = st?.hp?.max || newHp;
-
-                            // 💀 死亡状態からHPが正の値に回復した際のフェイルセーフ蘇生復帰
-                            if (this._isPlayerDead && newHp > 0) {
-                                this._isPlayerDead = false;
-                                const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
-                                const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
-                                this.emitFxTrigger({
-                                    type: 'PLAYER_RESURRECTED',
-                                    targetX: px,
-                                    targetY: py,
-                                    isPlayer: true,
-                                    text: 'Resurrected (HP restored)'
-                                });
-                            }
-
-                        if (newHp < this._prevHp) {
-                                this.emitFxTrigger({
-                                    type: 'DAMAGE_TAKEN',
-                                    targetX: px,
-                                    targetY: py,
-                                    isPlayer: true,
-                                    amount: this._prevHp - newHp,
-                                    currentHp: newHp,
-                                    maxHp
-                                });
-                            } else if (newHp > this._prevHp) {
-                                this.emitFxTrigger({
-                                    type: 'RECOVER_HEAL',
-                                    targetX: px,
-                                    targetY: py,
-                                    isPlayer: true,
-                                    amount: newHp - this._prevHp,
-                                    currentHp: newHp,
-                                    maxHp
-                                });
-                            }
-                        }
-                        this._prevHp = newHp;
-                    }
-                }
-
-                // ターン数 (BL_TIME = 16) の同期
-                if (data.field === 16 || data.field === 'time' || data.field === 'turns') {
-                    const parsedTurn = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
-                    if (!isNaN(parsedTurn)) {
-                        if (this.monsterTracker) {
-                            this.monsterTracker.advanceTurn(parsedTurn);
-                        }
-                        if (this.interactionContext && typeof this.interactionContext.advanceTurn === 'function') {
-                            this.interactionContext.advanceTurn(parsedTurn);
-                        }
-                    }
-                }
-
-                // 階層 (BL_DLEVEL = 20) の同期
-                if (data.field === 20 || data.field === 'dlevel') {
-                    let floorKey = data.value;
-                    if (data.dlevelData && data.dlevelData.branch && data.dlevelData.dlevelNum) {
-                        floorKey = `${data.dlevelData.branch}:${data.dlevelData.dlevelNum}`;
-                    } else if (this.statusAccessor && typeof this.statusAccessor.getStatus === 'function') {
-                        const st = this.statusAccessor.getStatus();
-                        if (st && st.dlevel && st.dlevel.branch && st.dlevel.level) {
-                            floorKey = `${st.dlevel.branch}:${st.dlevel.level}`;
-                        }
-                    }
-
-                    if (this.areaStateManager && typeof this.areaStateManager.setCurrentFloor === 'function') {
-                        this.areaStateManager.setCurrentFloor(floorKey);
-                    }
-                    if (this.monsterTracker) {
-                        this.monsterTracker.handleDlevelChange(floorKey);
-                    }
-                }
-
-                // 経験レベル (level / exp: BL_XP = 13) の変動時にも魔法失敗率やスキル向上可能状態、確定内在耐性が変化するため再同期
-                if (data.field === 13 || data.field === 'level' || data.field === 'exp_level') {
-                    const parsedLvl = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
-                    if (!isNaN(parsedLvl) && this.attributeStateManager && typeof this.attributeStateManager.updateCharacter === 'function') {
-                        this.attributeStateManager.updateCharacter({ level: parsedLvl });
-                        if (this.core && typeof this.core.emit === 'function') {
-                            this.core.emit('attributesStateUpdated', this.attributeStateManager);
-                        }
-                    }
-                    if (this.spellStateManager && typeof this.spellStateManager.invalidate === 'function') {
-                        this.spellStateManager.invalidate();
-                    }
-                    if (this.skillStateManager && typeof this.skillStateManager.invalidate === 'function') {
-                        this.skillStateManager.invalidate();
-                    }
-                }
-
-                // AC (アーマークラス: BL_AC = 14) の変動検知
-                // モンスターによる防具盗難・破壊・腐食・脱衣等の発生時にインベントリを再同期
-                if (data.field === 14 || data.field === 'ac') {
-                    let parsedAc = null;
-                    if (typeof data.value === 'number') {
-                        parsedAc = isNaN(data.value) ? null : data.value;
-                    } else if (typeof data.value === 'string') {
-                        const match = data.value.match(/-?\d+/);
-                        if (match) parsedAc = parseInt(match[0], 10);
-                    }
-                    if (parsedAc !== null) {
-                        if (this._prevAc !== null && this._prevAc !== undefined && this._prevAc !== parsedAc) {
-                            if (this.inventoryStateManager && typeof this.inventoryStateManager.invalidate === 'function') {
-                                this.inventoryStateManager.invalidate();
-                            }
-                        }
-                        this._prevAc = parsedAc;
-                    }
-                }
-            }
-        });
-
-        // 📡 LORE シグナル購読 & Codex 自動同期
-        addCoreListener('signal:SIGNAL_LORE_RUMOR', (sig) => {
-            if (this.loreCodex && typeof this.loreCodex.addRumor === 'function' && sig) {
-                this.loreCodex.addRumor({
-                    id: sig.rumorId || sig.id,
-                    text: sig.text,
-                    translatedText: sig.translatedText,
-                    isTrue: sig.isTrue,
-                    source: sig.source
-                });
-            }
-        });
-
-        addCoreListener('signal:SIGNAL_LORE_ORACLE', (sig) => {
-            if (this.loreCodex && sig) {
-                const oracles = Array.isArray(sig.detectedOracles) && sig.detectedOracles.length > 0
-                    ? sig.detectedOracles
-                    : (sig.oracleId ? [sig] : []);
-
-                if (typeof this.loreCodex.addOracles === 'function' && oracles.length > 1) {
-                    this.loreCodex.addOracles(oracles);
-                } else if (typeof this.loreCodex.addOracle === 'function') {
-                    for (const orc of oracles) {
-                        this.loreCodex.addOracle({
-                            id: orc.id || orc.oracleId,
-                            title: orc.title,
-                            text: orc.text,
-                            translatedText: orc.translatedText,
-                            isSpecial: orc.isSpecial || sig.isSpecial
-                        });
-                    }
-                }
-            }
-        });
-
-        addCoreListener('signal:SIGNAL_LORE_ENGRAVE', (sig) => {
-            this._handleEngraveSignal(sig);
-        });
+        this.eventRouter.attach(core);
     }
 
-    /**
-     * 神託（Oracle）アンロックの一括/安全ハンドリング
-     * 複数件の神託が開示された場合でも、ストレージ保存とUI通知を1回のみに集約してOOMを防ぐ
-     * @param {Object} loreSignal
-     * @private
-     */
     _handleOracleUnlock(loreSignal) {
-        if (!loreSignal || !this.adventureLogManager) return;
-
-        const isBulk = Boolean(loreSignal.isBulk || loreSignal.isMajorConsultation || (Array.isArray(loreSignal.detectedOracles) && loreSignal.detectedOracles.length > 1));
-
-        if (isBulk) {
-            // 大予言（複数または全神託）の一括アンロック
-            const res = typeof this.adventureLogManager.unlockAllOracles === 'function'
-                ? this.adventureLogManager.unlockAllOracles(null)
-                : { count: 0, isNew: false };
-
-            // LoreCodex にも全神託を一括登録
-            if (this.loreCodex && typeof this.loreCodex.addOracles === 'function' && LORE_MASTER?.oracles) {
-                this.loreCodex.addOracles(LORE_MASTER.oracles);
-            }
-
-            if (res.isNew) {
-                this._emitAdventureLogUnlocked({
-                    category: 'oracle',
-                    isBulk: true,
-                    count: res.count,
-                    id: 'oracle_all',
-                    title: 'The Great Oracle',
-                    titleJa: '神託所の大預言',
-                    text: 'The Oracle has revealed prophecies of the dungeon.',
-                    textJa: 'オラクルはダンジョンの大予言を告げた。'
-                });
-            }
-        } else {
-            // 単一神託のアンロック
-            const oracleId = loreSignal.oracleId || (loreSignal.detectedOracles?.[0]?.id);
-            if (oracleId) {
-                const isNew = this.adventureLogManager.unlockOracle(oracleId);
-                if (isNew) {
-                    const orc = loreSignal.detectedOracles?.[0] || loreSignal;
-                    this._emitAdventureLogUnlocked({
-                        category: 'oracle',
-                        id: oracleId,
-                        title: orc.title || 'Oracle Prophecy',
-                        text: orc.text || '',
-                        textJa: orc.translatedText || orc.textJa || ''
-                    });
-                }
-            }
-        }
+        this.eventRouter.handleOracleUnlock(loreSignal);
     }
 
-    /**
-     * 床文字 (SIGNAL_LORE_ENGRAVE) シグナル処理
-     * 結界状態更新、AreaStateManager の床文字キャッシュ保存、噂話図鑑登録、コレクション登録を一元実行
-     * @param {Object} loreSignal 
-     * @private
-     */
     _handleEngraveSignal(loreSignal) {
-        if (!loreSignal) return;
-
-        if (this.loreCodex && typeof this.loreCodex.updateWard === 'function') {
-            this.loreCodex.updateWard(loreSignal);
-        }
-
-        const asm = this.areaStateManager;
-        const playerX = asm?.playerX ?? -1;
-        const playerY = asm?.playerY ?? -1;
-
-        // 同一マスでの風化追跡のため、同定結果を AreaStateManager の床文字キャッシュに保存
-        if (asm && playerX >= 0 && playerY >= 0 && !loreSignal.isHeadstone) {
-            asm.setEngravingAt(playerX, playerY, loreSignal.restored || {
-                pristineText: loreSignal.pristineText,
-                actualText: loreSignal.actualText,
-                translation: loreSignal.restored?.translation || '',
-                source: loreSignal.restored?.source || '',
-                category: loreSignal.restored?.category || (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
-                subCategory: loreSignal.restored?.subCategory || '',
-                isTrue: loreSignal.restored?.isTrue ?? null
-            });
-        }
-
-        // 考古学的に復元された内容が噂話 (RUMOR) の場合、噂話図鑑にも自動収集
-        if (loreSignal.restored?.category === 'RUMOR' && loreSignal.restored?.pristineText) {
-            const rumorData = {
-                id: loreSignal.restored.id || undefined,
-                text: loreSignal.restored.pristineText,
-                translatedText: loreSignal.restored.translation,
-                isTrue: loreSignal.restored.isTrue,
-                source: 'engraving'
-            };
-            if (this.loreCodex && typeof this.loreCodex.addRumor === 'function') {
-                this.loreCodex.addRumor(rumorData);
-            }
-            if (this.core && typeof this.core.emit === 'function') {
-                const rumorSignal = {
-                    signalId: 'SIGNAL_LORE_RUMOR',
-                    subCategory: 'RUMOR',
-                    matched: true,
-                    rumorId: rumorData.id,
-                    text: rumorData.text,
-                    translatedText: rumorData.translatedText,
-                    isTrue: rumorData.isTrue,
-                    source: 'engraving',
-                    confidence: loreSignal.confidence || 1.0,
-                    rawPrompt: loreSignal.rawPrompt || ''
-                };
-                this.core.emit('signal:SIGNAL_LORE_RUMOR', rumorSignal);
-                this.core.emit('loreSignal', rumorSignal);
-            }
-        }
-
-        // 冒険手帳 (LoreCodex) に床文字・落書き・墓碑銘コレクションとして自動登録
-        if (this.loreCodex && typeof this.loreCodex.addEngraving === 'function') {
-            const translator = this.core?.translator;
-            const translated = loreSignal.restored?.translation
-                || (loreSignal.isElbereth ? 'エルベレス' : '')
-                || (translator ? translator.translate(loreSignal.pristineText || loreSignal.actualText) : '');
-
-            this.loreCodex.addEngraving({
-                text: loreSignal.pristineText || loreSignal.actualText,
-                actualText: loreSignal.actualText,
-                translatedText: (translated !== (loreSignal.pristineText || loreSignal.actualText)) ? translated : '',
-                source: loreSignal.restored?.source || (loreSignal.isHeadstone ? '墓碑銘 (Headstone)' : (loreSignal.isElbereth ? 'Elbereth (魔除けの結界文字)' : '床の落書き')),
-                category: loreSignal.isHeadstone ? 'HEADSTONE' : (loreSignal.isElbereth ? 'ELBERETH' : 'ENGRAVING'),
-                subCategory: loreSignal.restored?.category || '',
-                isHeadstone: loreSignal.isHeadstone || false
-            });
-        }
+        this.eventRouter.handleEngraveSignal(loreSignal);
     }
 
+    // --- SilentSyncCoordinator への委譲メソッド群 ---
+    isTurnConsumingSequence(sequence) { return this.silentSyncCoordinator.isTurnConsumingSequence(sequence); }
+    isNonItemSequence(sequence) { return this.silentSyncCoordinator.isNonItemSequence(sequence); }
+    isSpellAffectingSequence(sequence) { return this.silentSyncCoordinator.isSpellAffectingSequence(sequence); }
+    hasPendingSync() { return this.silentSyncCoordinator.hasPendingSync(); }
+    async syncPendingStateSilent(options = {}) { return await this.silentSyncCoordinator.syncPendingStateSilent(options); }
+    _isPromptOrTargetingActive(force = false) { return this.silentSyncCoordinator.isPromptOrTargetingActive(force); }
+    async syncInventorySilent(options = {}) { return await this.silentSyncCoordinator.syncInventorySilent(options); }
+    async syncSpellsSilent(options = {}) { return await this.silentSyncCoordinator.syncSpellsSilent(options); }
+    async syncAttributesSilent(options = {}) { return await this.silentSyncCoordinator.syncAttributesSilent(options); }
+    async syncSkillsSilent(options = {}) { return await this.silentSyncCoordinator.syncSkillsSilent(options); }
+    async syncAllSilent(options = {}) { return await this.silentSyncCoordinator.syncAllSilent(options); }
+    async syncDiscoveriesSilent() { return await this.silentSyncCoordinator.syncDiscoveriesSilent(); }
 
-    /**
-     * 指定されたキーシーケンスが NetHack 上でゲームターンを消費するアクションか判定
-     * @param {Array<string|number>} sequence 
-     * @returns {boolean}
-     */
-    isTurnConsumingSequence(sequence) {
-        if (!Array.isArray(sequence) || sequence.length === 0) return false;
-
-        // メニュー確定選択
-        if (sequence.includes('MENU_SELECT')) return true;
-
-        // プレフィックスキー単体（走る/回数指定など）はターンを消費しない
-        const prefixKeys = new Set(['5', 'g', 'G', 'm', 'M', 'F', '_', 'n']);
-        if (sequence.length === 1 && prefixKeys.has(String(sequence[0]))) {
-            return false;
-        }
-
-        // 非ターン消費キー（ESC, 調査, ヘルプ, インベントリ一覧表示等）
-        const nonTurnKeys = new Set([
-            '27', '\x1b', 'ESC', 'Escape',
-            ';', ':', '?', '/', '\\', '+', '^x', '^X', 'i', 'I', ')'
-        ]);
-
-        const first = String(sequence[0]).trim();
-        if (nonTurnKeys.has(first)) return false;
-
-        // 移動・待機・アイテム使用・攻撃等
-        const turnKeys = new Set([
-            'h', 'j', 'k', 'l', 'y', 'u', 'b', 'n',
-            'H', 'J', 'K', 'L', 'Y', 'U', 'B', 'N',
-            '1', '2', '3', '4', '6', '7', '8', '9',
-            '.', 's', '<', '>',
-            'a', 'e', 'q', 'r', 'w', 'W', 'T', 'z', 'Z', 'P', 'R', 'd', 'D', ',', 't', 'f', 'C'
-        ]);
-
-        if (turnKeys.has(first) || first.startsWith('DIR_')) {
-            return true;
-        }
-
-        return true;
-    }
-
-    /**
-     * 指定されたキーシーケンスが純粋な移動・方向指定・カウント入力等の「所持品に影響しない操作」か判定
-     * @param {Array<string|number>} sequence 
-     * @returns {boolean}
-     */
-    isNonItemSequence(sequence) {
-        if (!Array.isArray(sequence) || sequence.length === 0) return false;
-
-        const nonItemKeys = new Set([
-            'k', 'j', 'h', 'l', 'y', 'u', 'b', 'n',
-            'K', 'J', 'H', 'L', 'Y', 'U', 'B', 'N',
-            '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '_', '<', '>',
-            '/', ';', ':', '^', '\\', '?', 'm', 'M',
-            's', '\x10', '\x12', 'v', 'V', 'O', '\x0f',
-            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-            'Up', 'Down', 'Left', 'Right'
-        ]);
-
-        return sequence.every(token => {
-            if (typeof token !== 'string' && typeof token !== 'number') return false;
-            const strToken = String(token).trim();
-            if (!strToken) return false;
-
-            if (nonItemKeys.has(strToken)) return true;
-            if (strToken.startsWith('DIR_')) return true;
-            if (/^\d+$/.test(strToken)) return true;
-
-            return false;
-        });
-    }
-
-    /**
-     * 指定されたキーシーケンスが習得魔法状態（詠唱失敗率、忘却ターン、新規習得等）に影響を及ぼしうるか判定
-     * @param {Array<string|number>} sequence 
-     * @returns {boolean}
-     */
-    isSpellAffectingSequence(sequence) {
-        if (!Array.isArray(sequence) || sequence.length === 0) return false;
-        const spellKeys = new Set(['Z', 'r', '+', '#cast', 'cast']);
-        return sequence.some(token => {
-            if (typeof token === 'string') {
-                return spellKeys.has(token) || token.startsWith('Z') || token.startsWith('#cast') || token.startsWith('cast');
-            }
-            return false;
-        });
-    }
-
-    /**
-     * 未同期ステート（所持品・ステータス属性・魔法・スキル等）が存在するか判定する
-     * @returns {boolean}
-     */
-    hasPendingSync() {
-        return Boolean(
-            (this.inventoryStateManager && !this.inventoryStateManager.isSynced) ||
-            (this.attributeStateManager && !this.attributeStateManager.isSynced) ||
-            (this.spellStateManager && !this.spellStateManager.isSynced) ||
-            (this.skillStateManager && !this.skillStateManager.isSynced)
-        );
-    }
-
-    /**
-     * 未同期状態のステート（所持品・魔法・スキル等）を検知し、直列かつ安全にサイレント同期を実行する。
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>}
-     */
-    async syncPendingStateSilent(options = {}) {
-        if (this._isSyncing || !this.core) return false;
-        if (this.core.isPendingPrefix) return false;
-        this._isSyncing = true;
-        try {
-            if (this.inventoryStateManager && !this.inventoryStateManager.isSynced) {
-                await this.syncInventorySilent(options);
-            }
-            if (this.attributeStateManager && !this.attributeStateManager.isSynced) {
-                await this.syncAttributesSilent({ force: true, ...options });
-            }
-            if (this.spellStateManager && !this.spellStateManager.isSynced) {
-                await this.syncSpellsSilent(options);
-            }
-            if (this.skillStateManager && !this.skillStateManager.isSynced) {
-                await this.syncSkillsSilent(options);
-            }
-            return true;
-        } catch (e) {
-            return false;
-        } finally {
-            this._isSyncing = false;
-        }
-    }
-
-    /**
-     * 対話プロンプト・テレポート先指定・ターゲティング待機中かどうかを判定
-     * @param {boolean} [force=false]
-     * @returns {boolean}
-     * @private
-     */
-    _isPromptOrTargetingActive(force = false) {
-        if (force || !this.core) return false;
-
-        if (this.core.currentPromptCategory) {
-            const cat = this.core.currentPromptCategory;
-            if (cat === PROMPT_CATEGORY.MENU ||
-                cat === PROMPT_CATEGORY.DIRECTION || 
-                cat === PROMPT_CATEGORY.YN || 
-                cat === PROMPT_CATEGORY.TEXT || 
-                cat === PROMPT_CATEGORY.ASKNAME || 
-                cat === PROMPT_CATEGORY.FILE || 
-                cat === PROMPT_CATEGORY.EXTCMD) {
-                return true;
-            }
-        }
-
-        // 直近メッセージ（putstr, raw_print, driver.lastEmittedMessage等）から
-        // テレポート先選択や座標・方向問い合わせ中を包括的に判定
-        const recentMessages = [
-            this.core.lastPutstrText || '',
-            this.core.lastRawMessageText || '',
-            (this.core.driver && this.core.driver.lastEmittedMessage) || ''
-        ].join(' ').toLowerCase();
-
-        if (recentMessages.includes('プレフィックス') || 
-            recentMessages.includes('prefix') || 
-            (recentMessages.includes('count') && recentMessages.includes('command'))) {
-            return true;
-        }
-
-        if (recentMessages.includes('where do you want to') ||
-            recentMessages.includes('desired position') ||
-            recentMessages.includes('in what direction') ||
-            recentMessages.includes('which way') ||
-            recentMessages.includes('どこにテレポート') ||
-            recentMessages.includes('どこにジャンプ') ||
-            recentMessages.includes('テレポート') ||
-            recentMessages.includes('どの方向')) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * バックグラウンドで画面を一切汚さずに `i ` (インベントリ一覧) キーシーケンスをサイレント実行し、
-     * 最新の所持品データを非同期で同期獲得する。
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>} 同期成功の有無
-     */
-    async syncInventorySilent(options = {}) {
-        if (!this.core) return false;
-        if (this.core.isPendingPrefix) return false;
-
-        const { force = false } = options;
-
-        // モーダルプロンプト表示中・テレポート指定中などのガード
-        if (this._isPromptOrTargetingActive(force)) {
-            return false;
-        }
-
-        const startTime = Date.now();
-        const mode = this.directBindingMode || 'auto';
-
-        // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
-        if (mode !== 'fallback' && this.inventoryStateManager && this.inventoryStateManager.isDirectBindingAvailable) {
-            if (this.wasmDirectBindingService && this.wasmDirectBindingService.bridge && !this.wasmDirectBindingService.hasLiveMemory) {
-                await this.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
-            }
-            if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
-                const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
-                if (discChanged) {
-                    this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                }
-            }
-            const changed = this.inventoryStateManager.syncFromDirectBinding();
-            const durationMs = Date.now() - startTime;
-            this._recordSilentSync('inventory', changed, durationMs, 'SHIM_DIRECT');
-            if (changed || force) {
-                this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
-            }
-            return true;
-        }
-
-        // strict モード時はフォールバック（キー送信マクロ）を完全遮断！ (Stage 8.2-B)
-        if (mode === 'strict') {
-            console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable under strict mode. Fallback macro blocked.');
-            return false;
-        }
-
-        // マクロ同期前にも可能な限りメモリの最新識別状態を同期
-        if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function' && this.wasmDirectBindingService) {
-            const discChanged = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
-            if (discChanged) {
-                this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-            }
-        }
-
-        const buffer = await this.core.querySequenceSilent(['i', ' ', '\x1b'], { syncType: 'inventory', ...options });
-        if (this.inventoryStateManager && typeof this.inventoryStateManager.updateFromSequenceBuffer === 'function') {
-            const changed = this.inventoryStateManager.updateFromSequenceBuffer(buffer);
-            const durationMs = Date.now() - startTime;
-            this._recordSilentSync('inventory', changed, durationMs, 'MACRO');
-            if (changed || force) {
-                this.core.emit('inventoryStateUpdated', this.inventoryStateManager);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * バックグラウンドで画面を一切汚さずに `+` (習得魔法一覧) キーシーケンスをサイレント実行し、
-     * 最新の魔法データを非同期で同期獲得する。
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>} 同期成功の有無
-     */
-    async syncSpellsSilent(options = {}) {
-        if (!this.core) return false;
-        if (this.core.isPendingPrefix) return false;
-
-        const { force = false } = options;
-
-        if (this._isPromptOrTargetingActive(force)) {
-            return false;
-        }
-
-        const startTime = Date.now();
-        const buffer = await this.core.querySequenceSilent(['+', ' ', '\x1b'], { syncType: 'spells', ...options });
-        if (this.spellStateManager && typeof this.spellStateManager.updateFromSequenceBuffer === 'function') {
-            const changed = this.spellStateManager.updateFromSequenceBuffer(buffer, true);
-            const durationMs = Date.now() - startTime;
-            this._recordSilentSync('spells', changed !== false, durationMs);
-            this.core.emit('spellsStateUpdated', this.spellStateManager);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * バックグラウンドで画面を一切汚さずに `^X` (#attributes 属性・耐性一覧) キーシーケンスをサイレント実行し、
-     * 最新の内因性耐性および装備品耐性を非同期で同期獲得する。
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>} 同期成功の有無
-     */
-    async syncAttributesSilent(options = {}) {
-        if (!this.core) return false;
-        if (this.core.isPendingPrefix) return false;
-
-        const { force = false } = options;
-
-        if (this._isPromptOrTargetingActive(force)) {
-            return false;
-        }
-
-        // '\x18' is Ctrl+X (^X)
-        const startTime = Date.now();
-        const buffer = await this.core.querySequenceSilent(['\x18', ' ', '\x1b'], { syncType: 'attributes', ...options });
-        if (this.attributeStateManager) {
-            if (typeof this.attributeStateManager.updateFromSequenceBuffer === 'function') {
-                this.attributeStateManager.updateFromSequenceBuffer(buffer, true);
-            }
-            if (this.inventoryStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
-                this.attributeStateManager.updateExtrinsicsFromInventory(this.inventoryStateManager.items);
-            }
-            const durationMs = Date.now() - startTime;
-            this._recordSilentSync('attributes', true, durationMs);
-            this.core.emit('attributesStateUpdated', this.attributeStateManager);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * バックグラウンドで安全に `#enhance` シーケンスを実行し、スキル熟練度データを同期獲得
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>} 同期成功の有無
-     */
-    async syncSkillsSilent(options = {}) {
-        if (!this.core) return false;
-        if (this.core.isPendingPrefix) return false;
-
-        const { force = false } = options;
-
-        if (this._isPromptOrTargetingActive(force)) {
-            return false;
-        }
-
-        const startTime = Date.now();
-        const buffer = await this.core.querySequenceSilent(['#', 'enhance', ' ', '\x1b'], { syncType: 'skills', ...options });
-        if (this.skillStateManager && typeof this.skillStateManager.updateFromSequenceBuffer === 'function') {
-            const changed = this.skillStateManager.updateFromSequenceBuffer(buffer, true);
-            const durationMs = Date.now() - startTime;
-            this._recordSilentSync('skills', changed !== false, durationMs);
-            this.core.emit('skillsStateUpdated', this.skillStateManager);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * ゲーム初期化時や同期ボタン押下時の一括直列同期
-     * 先行タスクキャンセルを防止するため直列に await 実行
-     * @param {Object} [options={}]
-     */
-    async syncAllSilent(options = {}) {
-        // 1. インベントリ取得 (完了するまで await)
-        await this.syncInventorySilent(options);
-        
-        // 2. 属性・耐性・キャラクター情報取得 (直列実行)
-        if (this.attributeStateManager && !this.attributeStateManager.isSynced) {
-            await this.syncAttributesSilent({ force: true, ...options });
-        }
-
-        // 3. 続けて魔法一覧取得 (直列実行)
-        if (this.spellStateManager && !this.spellStateManager.isSynced) {
-            await this.syncSpellsSilent(options);
-        }
-
-        // 4. 続けてスキル一覧取得 (直列実行)
-        if (this.skillStateManager && !this.skillStateManager.isSynced) {
-            await this.syncSkillsSilent(options);
-        }
-    }
-
-    /**
-     * GKL の統合状況 (Situation: ステータス, 所持品, マップ, アクション等) を一括取得
-     * @returns {Object}
-     */
+    // --- 状況要約・ゲッター・アドバイザー ---
     getSituation() {
-        if (this.situationCache) {
-            return this.situationCache.getSituation();
-        }
+        if (this.situationCache) return this.situationCache.getSituation();
         return {
             status: this.getStatus(),
-            inventory: { items: this.inventoryStateManager ? this.inventoryStateManager.items : [], isSynced: Boolean(this.inventoryStateManager && this.inventoryStateManager.isSynced) },
+            inventory: { items: this.inventoryStateManager?.items || [], isSynced: Boolean(this.inventoryStateManager?.isSynced) },
             area: this.areaStateManager ? this.areaStateManager.getAreaState() : {},
-            spells: { items: this.spellStateManager ? this.spellStateManager.spells : [], isSynced: Boolean(this.spellStateManager && this.spellStateManager.isSynced) },
+            spells: { items: this.spellStateManager?.spells || [], isSynced: Boolean(this.spellStateManager?.isSynced) },
             skills: {
                 items: this.skillStateManager ? this.skillStateManager.getSkills() : [],
                 activeItems: this.skillStateManager ? this.skillStateManager.getActiveSkills() : [],
-                isSynced: Boolean(this.skillStateManager && this.skillStateManager.isSynced)
+                isSynced: Boolean(this.skillStateManager?.isSynced)
             },
             attributes: this.attributeStateManager ? this.attributeStateManager.getAttributes() : {},
             tools: {},
@@ -1865,90 +418,56 @@ export class GKLPlugin {
         };
     }
 
-    /**
-     * 指定方向のデフォルト推奨アクション（待機 または 移動/押す）を取得
-     * @param {string} dirCode 
-     * @param {Object} [options={}]
-     * @returns {Object|null}
-     */
     getDefaultAction(dirCode, options = {}) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : null;
-        const lang = options.language || this.language || 'ja';
-        return ContextActionEngine.getDefaultActionForDirection(dirCode, areaState, { language: lang, ...options });
+        return ContextActionEngine.getDefaultActionForDirection(dirCode, areaState, { language: options.language || this.language || 'ja', ...options });
     }
 
-    /**
-     * 指定方向のダッシュ（走り）推奨アクションを取得
-     * @param {string} dirCode 
-     * @param {Object} [options={}]
-     * @returns {Object|null}
-     */
     getDashAction(dirCode, options = {}) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : null;
-        const lang = options.language || this.language || 'ja';
-        return ContextActionEngine.getDashActionForDirection(dirCode, areaState, { language: lang, ...options });
+        return ContextActionEngine.getDashActionForDirection(dirCode, areaState, { language: options.language || this.language || 'ja', ...options });
     }
 
-
-    /**
-     * テストおよびインスペクター用の統合診断サマリーを取得
-     * Vitest のスナップショットテスト (toMatchInlineSnapshot) を強力に支援する
-     * @returns {Object}
-     */
     getDiagnosticSummary() {
         const situation = this.getSituation();
         const turn = this.monsterTracker ? this.monsterTracker.getCurrentTurn() : (this.statusAccessor?.turns || 1);
-
         const playerX = this.areaStateManager ? this.areaStateManager.playerX : 0;
         const playerY = this.areaStateManager ? this.areaStateManager.playerY : 0;
 
         const trackedMonsters = (this.monsterTracker?.getTrackedMonsters?.() || []).map(m => {
             const mx = m.lastKnownPos?.x ?? m.x ?? 0;
             const my = m.lastKnownPos?.y ?? m.y ?? 0;
-            const isAdjacent = Math.abs(mx - playerX) <= 1 && Math.abs(my - playerY) <= 1;
             return {
                 name: m.name || m.nameJa || 'unknown',
                 confidence: m.weight !== undefined ? Math.round(m.weight * 100) / 100 : 1.0,
-                isAdjacent
+                isAdjacent: Math.abs(mx - playerX) <= 1 && Math.abs(my - playerY) <= 1
             };
         });
 
-        // 警告リスト (警告IDの配列)
         const warnings = [];
-        if (situation?.tacticalAdvice?.warnings && Array.isArray(situation.tacticalAdvice.warnings)) {
+        if (Array.isArray(situation?.tacticalAdvice?.warnings)) {
             situation.tacticalAdvice.warnings.forEach(w => {
                 if (w.id) warnings.push(w.id);
                 else if (w.topic) warnings.push(w.topic);
             });
         }
 
-        // 推奨アクション (ID またはキー文字列)
         let assistAction = null;
         if (situation?.assistSignal) {
             const sig = situation.assistSignal;
-            if (sig.recommendedAction?.id) {
-                assistAction = sig.recommendedAction.id;
-            } else if (sig.primaryAction?.id) {
-                assistAction = sig.primaryAction.id;
-            } else if (Array.isArray(sig.primaryAction?.keySequence)) {
-                assistAction = sig.primaryAction.keySequence.join('');
-            } else if (sig.stance) {
-                assistAction = sig.stance;
-            }
+            assistAction = sig.recommendedAction?.id || sig.primaryAction?.id ||
+                (Array.isArray(sig.primaryAction?.keySequence) ? sig.primaryAction.keySequence.join('') : sig.stance) || null;
         }
 
         return {
             turn,
-            playerPosition: {
-                x: this.areaStateManager ? this.areaStateManager.playerX : 0,
-                y: this.areaStateManager ? this.areaStateManager.playerY : 0
-            },
+            playerPosition: { x: playerX, y: playerY },
             lastMessage: this._lastReceivedMessage || '',
-            syncCounts: this.silentSyncTracker ? {
-                inventory: this.silentSyncTracker.syncCounts?.inventory || 0,
-                skills: this.silentSyncTracker.syncCounts?.skills || 0,
-                spells: this.silentSyncTracker.syncCounts?.spells || 0
-            } : { inventory: 0, skills: 0, spells: 0 },
+            syncCounts: {
+                inventory: this.silentSyncTracker?.syncCounts?.inventory || 0,
+                skills: this.silentSyncTracker?.syncCounts?.skills || 0,
+                spells: this.silentSyncTracker?.syncCounts?.spells || 0
+            },
             trackedMonsters,
             warnings,
             assistAction,
@@ -1956,14 +475,8 @@ export class GKLPlugin {
         };
     }
 
-    /**
-     * 現在のアシストシグナル・行動指針状態 (AssistState) を取得
-     * @returns {Object|null}
-     */
     getAssistState() {
-        if (this.situationCache && typeof this.situationCache.getAssistState === 'function') {
-            return this.situationCache.getAssistState();
-        }
+        if (this.situationCache?.getAssistState) return this.situationCache.getAssistState();
         return AssistSignalSynthesizer.synthesize({
             statusAccessor: this.statusAccessor,
             inventoryStateManager: this.inventoryStateManager,
@@ -1972,120 +485,44 @@ export class GKLPlugin {
         }, { language: this.language });
     }
 
-    /**
-     * 指定フロアのランドマーク集計概要を取得
-     * @param {string|number} [floorKey]
-     * @returns {Object|null}
-     */
-    getFloorLandmarks(floorKey) {
-        if (this.areaStateManager && typeof this.areaStateManager.getFloorLandmarks === 'function') {
-            return this.areaStateManager.getFloorLandmarks(floorKey);
-        }
-        return null;
-    }
+    getFloorLandmarks(floorKey) { return this.areaStateManager?.getFloorLandmarks?.(floorKey) || null; }
+    getAllLandmarks() { return this.areaStateManager?.getAllLandmarks?.() || []; }
+    getStatus() { return this.core ? this.core.getStatus() : this.statusAccessor.getStatus(); }
+    getSituationCache() { return this.situationCache; }
+    getInventoryStateManager() { return this.inventoryStateManager; }
+    getSpellStateManager() { return this.spellStateManager; }
+    getSkillStateManager() { return this.skillStateManager; }
+    getAttributeStateManager() { return this.attributeStateManager; }
+    getConditionStateManager() { return this.conditionStateManager; }
+    getAreaStateManager() { return this.areaStateManager; }
+    getMonsterTracker() { return this.monsterTracker; }
+    getStatusAccessor() { return this.statusAccessor; }
+    getDiscoveryStateManager() { return this.discoveryStateManager; }
+    getInteractionContext() { return this.interactionContext; }
+    getActionSignalResolver() { return this.actionSignalResolver; }
 
-    /**
-     * 全フロアの発見済みランドマーク一覧を取得
-     * @returns {Array<Object>}
-     */
-    getAllLandmarks() {
-        if (this.areaStateManager && typeof this.areaStateManager.getAllLandmarks === 'function') {
-            return this.areaStateManager.getAllLandmarks();
-        }
-        return [];
-    }
-
-    /**
-     * 統一ステータスモデルの取得
-     */
-    getStatus() {
-        return this.core ? this.core.getStatus() : this.statusAccessor.getStatus();
-    }
-
-    getSituationCache() {
-        return this.situationCache;
-    }
-
-    getInventoryStateManager() {
-        return this.inventoryStateManager;
-    }
-
-    getSpellStateManager() {
-        return this.spellStateManager;
-    }
-
-    getSkillStateManager() {
-        return this.skillStateManager;
-    }
-
-    getAttributeStateManager() {
-        return this.attributeStateManager;
-    }
-
-    getConditionStateManager() {
-        return this.conditionStateManager;
-    }
-
-    /**
-     * キャラクター情報（種族・職業・レベル）の確定SSOT設定
-     * @param {Object} charInfo 
-     * @param {string} [charInfo.race] 
-     * @param {string} [charInfo.role] 
-     * @param {number} [charInfo.level] 
-     */
     updateCharacterInfo(charInfo = {}) {
-        if (this.attributeStateManager && typeof this.attributeStateManager.updateCharacter === 'function') {
+        if (this.attributeStateManager?.updateCharacter) {
             this.attributeStateManager.updateCharacter(charInfo);
-            if (this.core && typeof this.core.emit === 'function') {
-                this.core.emit('attributesStateUpdated', this.attributeStateManager);
-            }
+            this.core?.emit?.('attributesStateUpdated', this.attributeStateManager);
         }
     }
 
-    getAreaStateManager() {
-        return this.areaStateManager;
-    }
-
-    getMonsterTracker() {
-        return this.monsterTracker;
-    }
-
-    /**
-     * プレイヤー視点での認知モンスター要約リスト（気配レーダー）を取得
-     * @param {Object} [options={}]
-     * @returns {Array<Object>}
-     */
     getPerceivedMonstersSummary(options = {}) {
         if (!this.monsterTracker) return [];
-        const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
-        const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
         return this.monsterTracker.getPerceivedMonstersSummary({
-            playerX: px,
-            playerY: py,
+            playerX: this.areaStateManager ? this.areaStateManager.playerX : 0,
+            playerY: this.areaStateManager ? this.areaStateManager.playerY : 0,
             language: this.language,
             ...options
         });
     }
 
-    getStatusAccessor() {
-        return this.statusAccessor;
-    }
-
-    /**
-     * 現在のコンテキストにおける推奨アクション一覧を取得
-     * @param {number} [radius=1]
-     * @returns {Array<Object>}
-     */
     getRecommendedActions(radius = 1) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState(undefined, undefined, radius) : {};
         return ContextActionEngine.generateActions(areaState, this.inventoryStateManager, this.skillStateManager, { language: this.language, statusAccessor: this.statusAccessor }, this.statusAccessor);
     }
 
-    /**
-     * 現在のゲーム状態における戦術・危険・装備アドバイス一覧を取得
-     * @param {Object} [options={}]
-     * @returns {Array<Object>}
-     */
     getTacticalAdvices(options = {}) {
         const areaState = this.areaStateManager ? this.areaStateManager.getAreaState() : {};
         return TacticalAdvisor.generateAdvices({
@@ -2098,78 +535,29 @@ export class GKLPlugin {
         }, { language: this.language, ...options });
     }
 
-    /**
-     * ContextActionEngine が生成した推奨アクション (ContextAction) を安全に実行する。
-     * @param {Object} action - recommended action オブジェクト
-     * @param {Object} [options={}] - オプション
-     */
     executeAction(action, options = {}) {
         if (!action || !this.core || this._isPlayerDead) return false;
-        //console.log(`[GKLPlugin] 🎯 executeAction: id=${action.id}, hasRecipe=${Boolean(action.actionRecipe || action.recipe)}, hasKeySeq=${Boolean(action.keySequence)}`);
 
-        // ⚔️ 攻撃アクション時の演出イベント (ATTACK_HIT) 発火
-        // ※ 遠隔射撃 (ACTION_FIRE_ / target === 'ranged') は近接スラッシュ演出を除外
-        const isMeleeAttack = action.id?.startsWith('ACTION_ATTACK_') ||
-            (action.category === 'COMBAT' && action.target !== 'ranged' && !action.id?.startsWith('ACTION_FIRE_')) ||
-            (action.isAttack && !action.isRanged && action.target !== 'ranged');
-        if (isMeleeAttack) {
-            const dirKey = action.dirCode || action.directionKey || action.direction;
-            const offset = this._getDirOffset(dirKey);
-            const px = this.areaStateManager ? this.areaStateManager.playerX : 0;
-            const py = this.areaStateManager ? this.areaStateManager.playerY : 0;
-            const tx = action.targetPos?.x ?? (offset ? px + offset.dx : px);
-            const ty = action.targetPos?.y ?? (offset ? py + offset.dy : py);
+        this.fxCoordinator.checkMeleeAttackFromAction(action);
 
-            const targetCell = this.areaStateManager?.grid?.[ty]?.[tx];
-            const top = targetCell?.top;
-            let directMon = top?.directState || null;
-            if (!directMon && this.wasmDirectBindingService && typeof this.wasmDirectBindingService.isAvailable === 'function' && this.wasmDirectBindingService.isAvailable()) {
-                directMon = this.wasmDirectBindingService.getFullMonsterAt(tx, ty);
-            }
-            const isPet = (top && (top.type === 'PET' || top.isPet || top.isTame)) || Boolean(directMon?.tame);
-            const isPeaceful = (top && (top.isPeaceful || top.attitude === 'PEACEFUL')) || Boolean(directMon?.peaceful);
-            const isShopkeeper = (top && top.isShopkeeper) || Boolean(directMon?.isShopkeeper);
-            const isPriest = (top && top.isPriest) || Boolean(directMon?.isPriest);
-
-            if (!isPet && !isPeaceful && !isShopkeeper && !isPriest) {
-                this._lastAttackTarget = { x: tx, y: ty, timestamp: Date.now() };
-                this.emitFxTrigger({
-                    type: 'ATTACK_HIT',
-                    targetX: tx,
-                    targetY: ty
-                });
-            }
-        }
-
-        // 【0】対話レシピ (actionRecipe / recipe) が指定されている場合は最優先でレシピ実行 (モードB)
         if (action.actionRecipe || action.recipe) {
             return this.executeSequence(action.actionRecipe || action.recipe, options);
         }
-
-        // 【1】明示的なキーシーケンス (keySequence) が指定されている場合は最優先でシーケンス実行
         if (Array.isArray(action.keySequence) && action.keySequence.length > 0) {
             return this.executeSequence([...action.keySequence], options);
         }
-
-        // 【2】拡張コマンド (#chat, #loot, #untrap 等)
         if (action.extCmd) {
-            if (this.inventoryStateManager) {
-                this.inventoryStateManager.invalidate();
-            }
+            this.inventoryStateManager?.invalidate?.();
             this.core.sendExtCommand(action.extCmd, action.directionKey, options);
             return true;
         }
 
-        // 【3】方向キー付きコマンド
         const mainKey = action.charStr || action.key;
-        const hasDirection = !!action.directionKey;
-        const seq = (hasDirection && action.directionKey !== mainKey) ? [mainKey, action.directionKey] : null;
-
+        const seq = (action.directionKey && action.directionKey !== mainKey) ? [mainKey, action.directionKey] : null;
         if (seq && seq.length > 0) {
             return this.executeSequence(seq, options);
         }
 
-        // 【4】単一コマンド (拾う ',', アイテム使用等を含む)
         if (this.inventoryStateManager && !this.isNonItemSequence([mainKey])) {
             this.inventoryStateManager.invalidate();
         }
@@ -2177,90 +565,24 @@ export class GKLPlugin {
         return true;
     }
 
-    /**
-     * 発見済みアイテムリスト (Discoveries `\`) のバックグラウンド自動同期・リハイドレーション
-     * @returns {Promise<boolean>}
-     */
-    async syncDiscoveriesSilent() {
-        if (!this.core || this._isSyncingDiscoveries) return false;
-        this._isSyncingDiscoveries = true;
-
-        const startTime = Date.now();
-        try {
-            let buffer = null;
-            if (typeof this.core.querySequenceSilent === 'function') {
-                const recipe = ActionRecipeFactory.createDiscoveriesSyncRecipe();
-                const res = await this.core.querySequenceSilent(recipe, {
-                    syncType: 'discoveries',
-                    suppressPrompts: true,
-                    isSilentSync: true
-                });
-                buffer = Array.isArray(res) ? res : (res && res.buffer ? res.buffer : null);
-            } else if (typeof this.core.silentQuery === 'function') {
-                buffer = await this.core.silentQuery(['\\', ' ', ' ', ' ', ' ', ' ', '\x1b']);
-            } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
-                buffer = await this.core.driver.queueSequence(['\\', ' ', ' ', ' ', ' ', ' ', '\x1b'], {
-                    silent: true,
-                    suppressPrompts: true,
-                    isSilentSync: true
-                });
-            }
-
-            if (buffer && this.discoveryStateManager) {
-                this.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                this._recordSilentSync('discoveries', true, Date.now() - startTime);
-                this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
-                return true;
-            }
-        } catch (e) {
-            console.warn('[GKLPlugin] syncDiscoveriesSilent error:', e);
-        } finally {
-            this._isSyncingDiscoveries = false;
-        }
-        return false;
-    }
-
-    /**
-     * 対象の公式解説・文学引用を動的オンデマンド取得 (WASM data.base / WebUI翻訳)
-     * @param {string} target - 検索対象（アイテム名、モンスター名、シンボル等）
-     * @param {Object} [options={}]
-     * @returns {Promise<{ found: boolean, query: string, text: string, lines: string[], source?: string, fromCache: boolean }>}
-     */
     async lookupOfficialInformation(target, options = {}) {
-        if (!this.lookupService) {
-            return { found: false, query: target, text: '', lines: [], fromCache: false };
-        }
+        if (!this.lookupService) return { found: false, query: target, text: '', lines: [], fromCache: false };
         return await this.lookupService.lookup(target, options);
     }
 
-    /**
-     * ディスカバリー状態マネージャー (DiscoveryStateManager) を取得
-     * @returns {DiscoveryStateManager}
-     */
-    getDiscoveryStateManager() {
-        return this.discoveryStateManager;
-    }
-
-    /**
-     * キーシーケンスの実行
-     * @param {Array<string>|Object} sequence 
-     * @param {Object} [options={}] 
-     * @returns {Promise<boolean>}
-     */
     async executeSequence(sequence, options = {}) {
         if (!sequence || !this.core) return false;
-        //console.log(`[GKLPlugin] 🔄 executeSequence called: isArray=${Array.isArray(sequence)}, type=${typeof sequence}, id=${sequence?.id}`);
         const isArray = Array.isArray(sequence);
         if (isArray && sequence.length === 0) return false;
 
         let success = false;
-        if (this.core.interactiveController && typeof this.core.interactiveController.executeSequence === 'function') {
+        if (this.core.interactiveController?.executeSequence) {
             success = await this.core.interactiveController.executeSequence(sequence, options);
         } else if (typeof this.core.executeSequence === 'function') {
             success = await this.core.executeSequence(sequence, options);
-        } else if (this.requestController && typeof this.requestController.executeSequence === 'function') {
+        } else if (this.requestController?.executeSequence) {
             success = await this.requestController.executeSequence(sequence, options);
-        } else if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+        } else if (this.core.driver?.queueSequence) {
             this.core.driver.queueSequence(sequence, options);
             success = true;
         } else if (isArray) {
@@ -2268,341 +590,55 @@ export class GKLPlugin {
             success = true;
         }
 
-        if (this.core && typeof this.core.emit === 'function') {
-            this.core.emit('userActionSent', { sequence });
+        this.core?.emit?.('userActionSent', { sequence });
+
+        if (!options.isSilentSync && this.hasPendingSync()) {
+            this.syncPendingStateSilent();
         }
-
-        if (!options.isSilentSync) {
-            const hasPending = typeof this.hasPendingSync === 'function'
-                ? this.hasPendingSync()
-                : Boolean(
-                    (this.inventoryStateManager && !this.inventoryStateManager.isSynced) ||
-                    (this.attributeStateManager && !this.attributeStateManager.isSynced) ||
-                    (this.spellStateManager && !this.spellStateManager.isSynced) ||
-                    (this.skillStateManager && !this.skillStateManager.isSynced)
-                );
-
-            if (hasPending) {
-                if (typeof this.syncPendingStateSilent === 'function') {
-                    this.syncPendingStateSilent();
-                } else if (this.inventoryStateManager && !this.inventoryStateManager.isSynced && typeof this.syncInventorySilent === 'function') {
-                    this.syncInventorySilent();
-                }
-            }
-        }
-
         return success;
     }
 
-    /**
-     * 指定された習得魔法スロット文字 (letter) で呪文詠唱 (#cast / Z) を開始する
-     * @param {string} letter - 呪文スロット文字 (例: 'a', 'b')
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>}
-     */
     async castSpell(letter, options = {}) {
         if (!letter || !this.core) return false;
         const spellKey = typeof letter === 'string' ? letter.charAt(0) : String.fromCharCode(letter);
-        if (this.core.driver && typeof this.core.driver.queueSequence === 'function') {
+        if (this.core.driver?.queueSequence) {
             this.core.driver.queueSequence(['Z', spellKey], options);
-            if (this.core && typeof this.core.emit === 'function') {
-                this.core.emit('userActionSent', { sequence: ['Z', spellKey] });
-            }
+            this.core?.emit?.('userActionSent', { sequence: ['Z', spellKey] });
             return true;
         }
         return this.executeSequence(['Z', spellKey], options);
     }
 
-    /**
-     * スキル向上 (#enhance) を開始する
-     * @param {Object|string} [skill] - スキルオブジェクトまたはスロット文字
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>}
-     */
     async enhanceSkill(skill, options = {}) {
         if (!this.core) return false;
         if (skill) {
             const letter = typeof skill === 'string' ? skill : (skill.letter || skill.ch || skill.accelerator);
-            if (letter) {
-                return this.executeSequence(['#', 'enhance', '\r', String(letter)], options);
-            }
+            if (letter) return this.executeSequence(['#', 'enhance', '\r', String(letter)], options);
         }
         return this.executeSequence(['#', 'enhance', '\r'], options);
     }
 
-    /**
-     * 指定されたマップセル (x, y) に対し、自キャラ判別、Look不要判定、オンデマンドLook実行、および動的状態キャッシュ適用を
-     * 全自動でカプセル処理した統一構造化ナレッジデータを返す
-     * @param {{x: number, y: number}} targetPos 
-     * @param {Object} [options={}]
-     * @returns {Promise<Object|null>} 構造化ナレッジカードデータ
-     */
+    // --- InspectionService / AutoTravelService への委譲メソッド群 ---
     async inspectCellOnDemand(targetPos, options = {}) {
-        if (!targetPos || typeof targetPos.x !== 'number' || typeof targetPos.y !== 'number') {
-            return null;
-        }
-
-        const asm = this.areaStateManager;
-        const playerX = (asm && typeof asm.playerX === 'number') ? asm.playerX : 0;
-        const playerY = (asm && typeof asm.playerY === 'number') ? asm.playerY : 0;
-
-        // 👤 1. プレイヤー自身 (px === tx && py === ty) の場合: リアルタイム最新ステータスを含む構造化カードを即座に生成
-        if (targetPos.x === playerX && targetPos.y === playerY) {
-            const st = this.statusAccessor ? this.statusAccessor.getStatus() : {};
-            const invManager = this.inventoryStateManager;
-            const invItems = invManager ? (typeof invManager.getItems === 'function' ? invManager.getItems() : (invManager.items || [])) : [];
-            const hpCur = (typeof st.hp === 'object' && st.hp !== null) ? (st.hp.current ?? st.hp.val ?? 0) : (st.hp ?? 0);
-            const hpMax = (typeof st.hp === 'object' && st.hp !== null) ? (st.hp.max ?? st.hpmax ?? 0) : (st.hpmax ?? st.maxhp ?? 0);
-            const hpStr = `${hpCur}/${hpMax}`;
-
-            const pwCur = (typeof st.pw === 'object' && st.pw !== null) ? (st.pw.current ?? st.pw.val ?? 0) : (st.pw ?? 0);
-            const pwMax = (typeof st.pw === 'object' && st.pw !== null) ? (st.pw.max ?? st.pwmax ?? 0) : (st.pwmax ?? st.maxpw ?? 0);
-            const pwStr = `${pwCur}/${pwMax}`;
-
-            const goldVal = (typeof st.gold === 'object' && st.gold !== null) ? (st.gold.amount ?? st.gold.current ?? st.gold.val ?? st.gold.gold ?? 0) : (st.gold ?? 0);
-
-            const selfCell = asm?.grid?.[playerY]?.[playerX];
-            const selfIsPile = Boolean(selfCell?.middle?.isPile || selfCell?.middle?.glyphInfo?.isPile);
-
-            const playerKnowledge = {
-                name: st.name ? `${st.name} (${st.role || 'Hero'})` : '自分 (Player)',
-                category: 'PLAYER',
-                isPlayer: true,
-                ...(selfIsPile ? { isPile: true } : {}),
-                dangerLevel: 'NONE',
-                dispositionStatus: 'PLAYER',
-                stats: {
-                    hd: `Lv.${st.level || 1}`,
-                    ac: st.ac !== undefined ? `AC ${st.ac}` : 'AC 10',
-                    speed: 'Self',
-                    mr: 0,
-                    hp: hpStr,
-                    pw: pwStr,
-                    gold: `${goldVal}zm`,
-                    dlvl: `Dlvl:${st.dlvl || 1}`
-                },
-                statusConditions: st.conditions || [],
-                inventoryCount: invItems.length,
-                effectSummary: `操作中のプレイヤー自身です。HP: ${hpStr}, AC: ${st.ac ?? 10}, 所持金: ${goldVal}zm.`
-            };
-            return playerKnowledge;
-        }
-
-        // 🎯 2. プレイヤー以外のマス: AreaStateManager の 3レイヤーセルを参照
-        const cell = asm?.grid?.[targetPos.y]?.[targetPos.x];
-        const hasMonster = cell?.top && (cell.top.type === 'MONSTER' || cell.top.type === 'PET');
-
-        // モンスターが存在せず、地形やアイテムのみの場合: ホバー・クリック問わず即座にナレッジを返却
-        if (!hasMonster) {
-            const targetEntity = cell?.middle || cell?.bottom;
-            if (!targetEntity) return null;
-            const isPile = Boolean(targetEntity.isPile || targetEntity.glyphInfo?.isPile);
-            const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, {
-                language: this.language,
-                sagesWisdomMode: this.sagesWisdomMode,
-                isPile
-            });
-            if (!knowledge) return null;
-            return {
-                ...knowledge,
-                ...(isPile || knowledge.isPile ? { isPile: true } : {}),
-                isClickConfirmed: !options.isHover
-            };
-        }
-
-        // 🐉 モンスターが存在する場合: オンデマンド Look (;) を非同期実行して動的状態を確定獲得！
-        let dynamicState = cell.top.dynamicState || null;
-        // クリック時 (!options.isHover) は常に最新の動的ステータスを実機照会し、未確定時も再照会
-        if ((!dynamicState || !dynamicState.hasResult || !options.isHover) && this.lookService) {
-            const freshState = await this.lookService.executeLook({ x: playerX, y: playerY }, targetPos);
-            if (freshState && freshState.hasResult) {
-                dynamicState = freshState;
-                cell.top.dynamicState = dynamicState;
-            } else if (!dynamicState) {
-                dynamicState = freshState;
-            }
-        }
-
-        const identifier = (typeof cell.top.glyph === 'number') ? cell.top.glyph : (cell.top.monOffset ?? cell.top);
-        const data = this.structuredKnowledge.getMonsterKnowledge(identifier, {
-            dynamicState,
-            isPet: cell.top.type === 'PET',
-            language: this.language
-        });
-
-        return {
-            ...data,
-            isClickConfirmed: !!dynamicState
-        };
+        return await this.inspectionService.inspectCellOnDemand(targetPos, options);
     }
 
-    /**
-     * 指定されたマップセル (x, y) への安全な自動移動 (Click-to-Move / Auto-Travel) を実行する
-     * @param {{x: number, y: number}} targetPos - 目的地座標
-     * @param {Object} [options={}] - { avoidMonsters: true }
-     * @returns {Promise<boolean>} 移動シーケンス実行の成功の有無
-     */
     async travelTo(targetPos, options = {}) {
-        if (!targetPos || typeof targetPos.x !== 'number' || typeof targetPos.y !== 'number' || !this.core) {
-            return false;
-        }
-
-        const gx = targetPos.x;
-        const gy = targetPos.y;
-        if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return false;
-
-        const asm = this.areaStateManager;
-        const px = (asm && typeof asm.playerX === 'number') ? asm.playerX : 0;
-        const py = (asm && typeof asm.playerY === 'number') ? asm.playerY : 0;
-
-        const dx = gx - px;
-        const dy = gy - py;
-        const dist = Math.max(Math.abs(dx), Math.abs(dy));
-
-        const travelOptions = {
-            isSilentSync: true,
-            suppressPrompts: true,
-            ...options
-        };
-
-        // 👤 自キャラマスをクリックした場合は 待機（'.'）を実行
-        if (dist === 0) {
-            return this.executeSequence(['.'], travelOptions);
-        }
-
-        // 1. セル情報・ナレッジ情報の確認
-        const cardData = await this.inspectCellOnDemand({ x: gx, y: gy }, { isHover: true });
-
-        // 2. モンスター安全保護 (avoidMonsters が true の場合はモンスターマスへの移動を防止)
-        const avoidMonsters = options.avoidMonsters !== undefined ? options.avoidMonsters : true;
-        const isMonster = cardData && (cardData.dangerLevel || cardData.category === 'MONSTER' || cardData.dispositionStatus);
-        if (avoidMonsters && isMonster) {
-            return false;
-        }
-
-        // 3. 通行可能性・アイテム判定
-        const areaState = asm ? asm.getAreaState() : null;
-        const grid = areaState ? areaState.grid : null;
-        const cell = (grid && grid[gy]) ? grid[gy][gx] : null;
-
-        const isItemOrCorpse = cardData && (
-            cardData.category === 'WEAPON' || cardData.category === 'ARMOR' ||
-            cardData.category === 'RING' || cardData.category === 'AMULET' ||
-            cardData.category === 'CONTAINER' || cardData.category === 'TOOL' ||
-            cardData.category === 'FOOD' || cardData.category === 'POTION' ||
-            cardData.category === 'SCROLL' || cardData.category === 'SPELLBOOK' ||
-            cardData.category === 'WAND' || cardData.category === 'COIN' ||
-            cardData.category === 'GEM' || cardData.category === 'GOLD' ||
-            cardData.category === 'FOOD' || cardData.category === 'CORPSE' ||
-            cardData.category === 'BODY' || cardData.category === 'ITEM' ||
-            cardData.category === 'OTHER' || (cell && cell.middle)
-        );
-
-        const isWallOrVoid = cell && cell.bottom && (
-            cell.bottom.isWall || cell.bottom.rawGlyph >= 9622
-        );
-
-        if (isWallOrVoid && !isItemOrCorpse) return false;
-
-        // 方向トークンマップ
-        const dirTokenMap = {
-            '-1,-1': 'DIR_NW', '0,-1': 'DIR_N', '1,-1': 'DIR_NE',
-            '-1,0':  'DIR_W',                   '1,0':  'DIR_E',
-            '-1,1':  'DIR_SW', '0,1':  'DIR_S', '1,1':  'DIR_SE'
-        };
-
-        // 4. 移動実行
-        if (dist === 1) {
-            // 隣接8マス移動
-            const token = dirTokenMap[`${dx},${dy}`];
-            if (token) {
-                return this.executeSequence([token], travelOptions);
-            }
-        } else if (dist > 1) {
-            // 遠隔 Auto-Travel シーケンス一括投入
-            // '_': トラベル開始 ➔ '@': 自キャラ位置へリセット ➔ DIR_*: 相対移動 ➔ '.': 確定
-            const seqTokens = ['_', '@'];
-            let curX = px;
-            let curY = py;
-            while (curX !== gx || curY !== gy) {
-                const stepX = Math.sign(gx - curX);
-                const stepY = Math.sign(gy - curY);
-
-                const token = dirTokenMap[`${stepX},${stepY}`];
-                if (token) {
-                    seqTokens.push(token);
-                    curX += stepX;
-                    curY += stepY;
-                } else {
-                    break;
-                }
-            }
-            seqTokens.push('.');
-
-            return this.executeSequence(seqTokens, travelOptions);
-        }
-
-        return false;
+        return await this.autoTravelService.travelTo(targetPos, options);
     }
 
-    /**
-     * フォーカスカメラ・ズームビュー用の整形済みタイル一覧を取得
-     * @param {number} [radiusX=10] - 横方向半径 (例: 10 => 21マス)
-     * @param {number} [radiusY=4] - 縦方向半径 (例: 4 => 9マス)
-     * @param {Object} [options={}] - オプション
-     * @returns {Array<Object>} 整形済みタイル配列
-     */
     getFocusCameraTiles(radiusX = 10, radiusY = 4, options = {}) {
-        if (!this.areaStateManager || typeof this.areaStateManager.getFocusCameraTiles !== 'function') {
-            return [];
-        }
-        const glyphGridBuffer = (this.core && this.core.driver && typeof this.core.driver.getGlyphBuffer === 'function')
-            ? this.core.driver.getGlyphBuffer()
-            : null;
-
-        return this.areaStateManager.getFocusCameraTiles(radiusX, radiusY, {
-            glyphGridBuffer,
-            structuredKnowledge: this.structuredKnowledge,
-            language: this.language,
-            isDead: this._isPlayerDead,
-            ...options
-        });
+        return this.inspectionService.getFocusCameraTiles(radiusX, radiusY, options);
     }
 
-    /**
-     * 対話コンテキスト (InteractionContext) を取得
-     * @returns {InteractionContext}
-     */
-    getInteractionContext() {
-        return this.interactionContext;
-    }
-
-    /**
-     * 実施シグナル導出エンジン (ActionSignalResolver) を取得
-     * @returns {ActionSignalResolver}
-     */
-    getActionSignalResolver() {
-        return this.actionSignalResolver;
-    }
-
-    /**
-     * 現在のコンテキストから最新の実施シグナル (ActionSignal) を取得
-     * @returns {Object|null}
-     */
     getActionSignal() {
         if (!this.actionSignalResolver || !this.interactionContext) return null;
         return this.actionSignalResolver.resolve(this.interactionContext);
     }
 
-    /**
-     * ActionRecipe を InteractiveRequestController を通じて安全に実行
-     * @param {Object} recipe
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean|Object>}
-     */
     async executeActionRecipe(recipe, options = {}) {
         if (!recipe) return false;
-        const controller = this.requestController || (this.core && (this.core.interactiveController || this.core.requestController));
+        const controller = this.requestController || this.core?.interactiveController || this.core?.requestController;
         if (!controller || typeof controller.executeSequence !== 'function') {
             console.warn('[GKLPlugin] executeActionRecipe failed: requestController is not available.');
             return false;
